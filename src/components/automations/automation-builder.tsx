@@ -21,6 +21,7 @@ import {
   Tag,
   TagIcon,
   UserCheck,
+  UsersRound,
   PencilLine,
   Briefcase,
   Hourglass,
@@ -54,6 +55,7 @@ import type {
   KeywordMatchTriggerConfig,
   MessageTemplate,
   Tag as TagRecord,
+  Team,
 } from "@/types"
 import {
   InteractiveBuilder,
@@ -114,6 +116,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
   assign_conversation: { label: "assign_conversation", icon: UserCheck, border: "border-l-primary" },
+  assign_to_team: { label: "assign_to_team", icon: UsersRound, border: "border-l-primary" },
   update_contact_field: { label: "update_contact_field", icon: PencilLine, border: "border-l-primary" },
   create_deal: { label: "create_deal", icon: Briefcase, border: "border-l-primary" },
   wait: { label: "wait", icon: Hourglass, border: "border-l-border" },
@@ -130,6 +133,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "add_tag",
   "remove_tag",
   "assign_conversation",
+  "assign_to_team",
   "update_contact_field",
   "create_deal",
   "wait",
@@ -185,6 +189,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { tag_id: "" }
     case "assign_conversation":
       return { mode: "round_robin" }
+    case "assign_to_team":
+      return { team_id: "", mode: "round_robin" }
     case "update_contact_field":
       return { field: "name", value: "" }
     case "create_deal":
@@ -219,6 +225,7 @@ interface AutomationResources {
   customFields: CustomField[]
   pipelines: PipelineOption[]
   stages: PipelineStageOption[]
+  teams: Team[]
 }
 
 interface PipelineOption {
@@ -240,6 +247,7 @@ const ResourcesContext = createContext<AutomationResources>({
   customFields: [],
   pipelines: [],
   stages: [],
+  teams: [],
 })
 
 function useResources(): AutomationResources {
@@ -253,6 +261,7 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [pipelines, setPipelines] = useState<PipelineOption[]>([])
   const [stages, setStages] = useState<PipelineStageOption[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -300,6 +309,19 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
       }
     })()
 
+    // Teams, same reasoning as members — go through the API so the
+    // response carries each team's member roster already joined.
+    void (async () => {
+      try {
+        const res = await fetch("/api/account/teams", { cache: "no-store" })
+        if (!res.ok) return
+        const json = (await res.json()) as { teams?: Team[] }
+        if (!cancelled) setTeams(json.teams ?? [])
+      } catch {
+        // Teams endpoint absent — caller falls back to raw input.
+      }
+    })()
+
     return () => {
       cancelled = true
     }
@@ -307,7 +329,7 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
 
   return (
     <ResourcesContext.Provider
-      value={{ tags, members, templates, customFields, pipelines, stages }}
+      value={{ tags, members, templates, customFields, pipelines, stages, teams }}
     >
       {children}
     </ResourcesContext.Provider>
@@ -441,6 +463,113 @@ function AgentSelect({
     >
       <option value="">{t("agents.select")}</option>
       {members.map((m) => (
+        <option key={m.user_id} value={m.user_id}>
+          {m.full_name || m.email || m.user_id}
+        </option>
+      ))}
+      {value && !selected && (
+        <option value={value}>{t("agents.unknown", { id: value })}</option>
+      )}
+    </select>
+  )
+}
+
+/** Team dropdown by name + color swatch, storing the team's id. Falls
+ *  back to a raw id input when no teams exist yet. */
+function TeamSelect({
+  value,
+  onChange,
+  t,
+}: {
+  value: string
+  onChange: (v: string) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const { teams } = useResources()
+  if (teams.length === 0) {
+    return (
+      <Input
+        placeholder={t("teams.placeholder")}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-muted text-foreground"
+      />
+    )
+  }
+  const selected = teams.find((tm) => tm.id === value)
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="h-3 w-3 shrink-0 rounded-full border border-border"
+        style={{ backgroundColor: selected?.color ?? "transparent" }}
+        aria-hidden
+      />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+      >
+        <option value="">{t("teams.select")}</option>
+        {teams.map((tm) => (
+          <option key={tm.id} value={tm.id}>
+            {tm.name}
+          </option>
+        ))}
+        {value && !selected && (
+          <option value={value}>{t("teams.unknown", { id: value })}</option>
+        )}
+      </select>
+    </div>
+  )
+}
+
+/** Agent dropdown scoped to a single team's roster — the "specific" mode
+ *  of assign_to_team must only offer agents who are actually on that
+ *  team. Falls back to the raw id input once a team is chosen but its
+ *  roster hasn't loaded (older deployments / teams endpoint absent). */
+function TeamAgentSelect({
+  teamId,
+  value,
+  onChange,
+  t,
+}: {
+  teamId: string
+  value: string
+  onChange: (v: string) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const { teams } = useResources()
+  const team = teams.find((tm) => tm.id === teamId)
+  const roster = team?.members ?? []
+
+  if (!teamId) {
+    return (
+      <select disabled value="" className={SELECT_CLASS}>
+        <option value="">{t("teams.selectAgentFirst")}</option>
+      </select>
+    )
+  }
+
+  if (roster.length === 0) {
+    return (
+      <Input
+        placeholder={t("agents.placeholder")}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-muted text-foreground"
+      />
+    )
+  }
+
+  const selected = roster.find((m) => m.user_id === value)
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={SELECT_CLASS}
+    >
+      <option value="">{t("agents.select")}</option>
+      {roster.map((m) => (
         <option key={m.user_id} value={m.user_id}>
           {m.full_name || m.email || m.user_id}
         </option>
@@ -1362,6 +1491,38 @@ function StepEditor({
           {cfg.mode === "specific" && (
             <FieldBlock label={t("config.agentLabel")}>
               <AgentSelect
+                value={(cfg.agent_id as string) ?? ""}
+                onChange={(v) => set({ agent_id: v })}
+                t={t}
+              />
+            </FieldBlock>
+          )}
+        </>
+      )
+    case "assign_to_team":
+      return (
+        <>
+          <FieldBlock label={t("config.teamLabel")}>
+            <TeamSelect
+              value={(cfg.team_id as string) ?? ""}
+              onChange={(v) => set({ team_id: v, agent_id: "" })}
+              t={t}
+            />
+          </FieldBlock>
+          <FieldBlock label={t("config.modeLabel")}>
+            <select
+              value={(cfg.mode as string) ?? "round_robin"}
+              onChange={(e) => set({ mode: e.target.value })}
+              className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+            >
+              <option value="round_robin">{t("config.modes.round_robin")}</option>
+              <option value="specific">{t("config.modes.specific")}</option>
+            </select>
+          </FieldBlock>
+          {cfg.mode === "specific" && (
+            <FieldBlock label={t("config.agentLabel")}>
+              <TeamAgentSelect
+                teamId={(cfg.team_id as string) ?? ""}
                 value={(cfg.agent_id as string) ?? ""}
                 onChange={(v) => set({ agent_id: v })}
                 t={t}

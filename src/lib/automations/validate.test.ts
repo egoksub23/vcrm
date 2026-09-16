@@ -109,6 +109,43 @@ describe("validateStepsForActivation", () => {
     ]);
   });
 
+  it("validates assign_to_team requires a team, and an agent only when mode is 'specific'", () => {
+    const missingTeam = validateStepsForActivation([
+      { step_type: "assign_to_team", step_config: { mode: "round_robin" } },
+    ]);
+    expect(missingTeam.map((i) => i.path)).toEqual(["steps[0].team_id"]);
+
+    const roundRobinWithTeam = validateStepsForActivation([
+      {
+        step_type: "assign_to_team",
+        step_config: { team_id: "team-uuid", mode: "round_robin" },
+      },
+    ]);
+    expect(roundRobinWithTeam).toEqual([]);
+
+    const specificMissingAgent = validateStepsForActivation([
+      {
+        step_type: "assign_to_team",
+        step_config: { team_id: "team-uuid", mode: "specific" },
+      },
+    ]);
+    expect(specificMissingAgent.map((i) => i.path)).toEqual([
+      "steps[0].agent_id",
+    ]);
+
+    const specificComplete = validateStepsForActivation([
+      {
+        step_type: "assign_to_team",
+        step_config: {
+          team_id: "team-uuid",
+          mode: "specific",
+          agent_id: "agent-uuid",
+        },
+      },
+    ]);
+    expect(specificComplete).toEqual([]);
+  });
+
   it("flags create_deal when required fields are missing", () => {
     const issues = validateStepsForActivation([
       { step_type: "create_deal", step_config: {} },

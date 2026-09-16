@@ -17,6 +17,7 @@ import type {
   WaitStepConfig,
   CreateDealStepConfig,
   AssignConversationStepConfig,
+  AssignToTeamStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
@@ -485,15 +486,17 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       if (!args.contactId) throw new Error('assign_conversation needs a contact')
       let agentId = cfg.agent_id
       if (cfg.mode === 'round_robin') {
-        // Pick any member of the account. The existing implementation
-        // only ever returned the automation's author; preserving that
-        // shape until a real round-robin algorithm replaces it.
-        const { data: profiles } = await db
-          .from('profiles')
-          .select('user_id')
-          .eq('account_id', args.automation.account_id)
-          .limit(1)
-        agentId = profiles?.[0]?.user_id
+        // Atomically claims the account's agent+ profile with the
+        // oldest `last_assigned_at` and stamps it to NOW() — see
+        // `pick_round_robin_agent` in migration 043. `FOR UPDATE SKIP
+        // LOCKED` inside the RPC means two conversations landing at
+        // once fan out to different agents instead of racing to read
+        // the same "oldest" row.
+        const { data, error } = await db.rpc('pick_round_robin_agent', {
+          p_account_id: args.automation.account_id,
+        })
+        if (error) throw new Error(`round-robin pick failed: ${error.message}`)
+        agentId = data ?? undefined
       }
       if (!agentId) return 'no agent resolved'
       await db
@@ -502,6 +505,55 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .eq('account_id', args.automation.account_id)
         .eq('contact_id', args.contactId)
       return `assigned to ${agentId}`
+    }
+
+    case 'assign_to_team': {
+      const cfg = step.step_config as AssignToTeamStepConfig
+      if (!args.contactId) throw new Error('assign_to_team needs a contact')
+      if (!cfg.team_id) throw new Error('assign_to_team needs a team_id')
+
+      // Defense in depth: the service-role client bypasses RLS, so
+      // confirm the team belongs to this account before routing to it.
+      const { data: team } = await db
+        .from('teams')
+        .select('id')
+        .eq('id', cfg.team_id)
+        .eq('account_id', args.automation.account_id)
+        .maybeSingle()
+      if (!team) return `team ${cfg.team_id} not found`
+
+      let agentId: string | undefined
+      if (cfg.mode === 'round_robin') {
+        // Rotates within this team only — see `pick_team_round_robin_member`
+        // in migration 043. A member's cursor is independent of the
+        // account-wide round-robin used by plain `assign_conversation`.
+        const { data, error } = await db.rpc('pick_team_round_robin_member', {
+          p_team_id: cfg.team_id,
+        })
+        if (error) throw new Error(`team round-robin pick failed: ${error.message}`)
+        agentId = data ?? undefined
+        if (!agentId) return `team ${cfg.team_id} has no members`
+      } else {
+        // 'specific' — the chosen agent must actually be on the team,
+        // otherwise a stale config (member removed since the step was
+        // built) would silently assign outside the team.
+        if (!cfg.agent_id) return 'no agent specified'
+        const { data: membership } = await db
+          .from('team_members')
+          .select('user_id')
+          .eq('team_id', cfg.team_id)
+          .eq('user_id', cfg.agent_id)
+          .maybeSingle()
+        if (!membership) return `agent ${cfg.agent_id} is not on team ${cfg.team_id}`
+        agentId = cfg.agent_id
+      }
+
+      await db
+        .from('conversations')
+        .update({ assigned_team_id: cfg.team_id, assigned_agent_id: agentId })
+        .eq('account_id', args.automation.account_id)
+        .eq('contact_id', args.contactId)
+      return `assigned to team ${cfg.team_id} (agent ${agentId})`
     }
 
     case 'update_contact_field': {

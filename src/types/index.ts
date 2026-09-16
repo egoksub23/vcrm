@@ -174,6 +174,11 @@ export interface Conversation {
   contact_id: string;
   status: ConversationStatus;
   assigned_agent_id?: string;
+  /** Team a conversation is routed to (migration 043); orthogonal to
+   *  `assigned_agent_id` — a team assignment always resolves to a
+   *  specific agent, but the team pointer is kept so the inbox can
+   *  bucket/filter by team. */
+  assigned_team_id?: string | null;
   last_message_text?: string;
   last_message_at?: string;
   unread_count: number;
@@ -471,6 +476,34 @@ export interface BroadcastRecipient {
 }
 
 // ============================================================
+// Teams (migration 043)
+// ============================================================
+
+export interface Team {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  /** Populated by the list endpoint; absent on bare inserts/updates. */
+  members?: TeamMember[];
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  added_at: string;
+  last_assigned_at?: string | null;
+  /** Populated by the list endpoint via a profiles join. */
+  full_name?: string;
+  email?: string | null;
+  avatar_url?: string | null;
+}
+
+// ============================================================
 // Automations (migration 006)
 // ============================================================
 
@@ -494,6 +527,7 @@ export type AutomationStepType =
   | 'add_tag'
   | 'remove_tag'
   | 'assign_conversation'
+  | 'assign_to_team'
   | 'update_contact_field'
   | 'create_deal'
   | 'wait'
@@ -567,6 +601,15 @@ export interface AssignConversationStepConfig {
   agent_id?: string;
 }
 
+export interface AssignToTeamStepConfig {
+  team_id: string;
+  /** 'specific' pins to `agent_id` (validated to be a team member at
+   *  run time); 'round_robin' claims the team's next-up member via
+   *  `pick_team_round_robin_member`. */
+  mode: 'specific' | 'round_robin';
+  agent_id?: string;
+}
+
 export interface UpdateContactFieldStepConfig {
   /**
    * Either a built-in contact column (`name` | `email` | `company`) or a
@@ -619,6 +662,7 @@ export type AutomationStepConfig =
   | SendTemplateStepConfig
   | TagStepConfig
   | AssignConversationStepConfig
+  | AssignToTeamStepConfig
   | UpdateContactFieldStepConfig
   | CreateDealStepConfig
   | WaitStepConfig
