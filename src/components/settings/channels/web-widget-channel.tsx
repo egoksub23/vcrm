@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Loader2, Plus, X } from 'lucide-react';
+import { Copy, ExternalLink, Loader2, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -145,6 +145,12 @@ export function WebWidgetChannel() {
     }
   }
 
+  function openTestChat() {
+    if (!config) return;
+    const url = `${widgetOrigin()}/widget-preview?token=${encodeURIComponent(config.widget_token)}`;
+    window.open(url, 'vircle-widget-test', 'width=420,height=720,noopener,noreferrer');
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -193,6 +199,11 @@ export function WebWidgetChannel() {
                 {t('copy')}
               </Button>
             </div>
+            <Button variant="outline" size="sm" onClick={openTestChat} className="mt-3">
+              <ExternalLink className="size-3.5" />
+              {t('testChat')}
+            </Button>
+            <p className="mt-1.5 text-xs text-muted-foreground">{t('testChatHint')}</p>
           </CardContent>
         </Card>
       ) : (

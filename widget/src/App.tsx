@@ -31,8 +31,8 @@ const SEND_ICON = (
   </svg>
 )
 
-export function App({ widgetToken }: { widgetToken: string }) {
-  const [open, setOpen] = useState(false)
+export function App({ widgetToken, autoOpen = false }: { widgetToken: string; autoOpen?: boolean }) {
+  const [open, setOpen] = useState(autoOpen)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [branding, setBranding] = useState<Branding | null>(null)

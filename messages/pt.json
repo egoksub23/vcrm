@@ -1803,7 +1803,9 @@
         "saved": "Configurações do widget salvas",
         "saveFailed": "Falha ao salvar as configurações do widget",
         "snippetCopied": "Código de incorporação copiado para a área de transferência",
-        "copyFailed": "Falha ao copiar"
+        "copyFailed": "Falha ao copiar",
+        "testChat": "Testar chat",
+        "testChatHint": "Abre um pop-up com o widget real, já conectado — converse você mesmo. As mensagens que você enviar chegam à sua Caixa de entrada como qualquer outra conversa."
       }
     },
     "sections": {

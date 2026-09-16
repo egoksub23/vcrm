@@ -1803,7 +1803,9 @@
         "saved": "Configuración del widget guardada",
         "saveFailed": "Error al guardar la configuración del widget",
         "snippetCopied": "Código de inserción copiado al portapapeles",
-        "copyFailed": "Error al copiar"
+        "copyFailed": "Error al copiar",
+        "testChat": "Probar chat",
+        "testChatHint": "Abre una ventana emergente con el widget real, ya conectado — chatea tú mismo. Los mensajes que envíes llegan a tu bandeja de entrada como cualquier otra conversación."
       }
     },
     "sections": {

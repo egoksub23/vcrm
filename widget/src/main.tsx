@@ -6,6 +6,13 @@
 //   <script src="https://<host>/widget/loader.js"
 //           data-widget-token="wt_..." async></script>
 //
+// An optional `data-open="true"` attribute starts the panel already
+// open instead of collapsed to the launcher bubble — used by the
+// Settings → Channels → Web Widget "Test chat" link
+// (src/app/widget-preview/page.tsx) so clicking it drops the tester
+// straight into a live conversation rather than requiring an extra
+// click on a page that has nothing else on it.
+//
 // Reads its own <script> tag's data attribute (must happen here, at
 // synchronous top-level module-evaluation time — see the comment in
 // api.ts on why `document.currentScript` can't be read lazily), mounts
@@ -49,7 +56,8 @@ function mount() {
   const mountPoint = document.createElement('div')
   shadow.appendChild(mountPoint)
 
-  render(<App widgetToken={widgetToken} />, mountPoint)
+  const autoOpen = loaderScript?.dataset.open === 'true'
+  render(<App widgetToken={widgetToken} autoOpen={autoOpen} />, mountPoint)
 }
 
 if (document.readyState === 'loading') {

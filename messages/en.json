@@ -1819,7 +1819,9 @@
         "saved": "Widget settings saved",
         "saveFailed": "Failed to save widget settings",
         "snippetCopied": "Embed code copied to clipboard",
-        "copyFailed": "Failed to copy"
+        "copyFailed": "Failed to copy",
+        "testChat": "Test chat",
+        "testChatHint": "Opens a popup with the real widget, already connected — chat with it yourself. Messages you send land in your Inbox like any other conversation."
       }
     },
     "sections": {
