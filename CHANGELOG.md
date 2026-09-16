@@ -9,6 +9,76 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.10.0] — 2026-09-17
+
+Adds a priority field to conversations.
+
+> **Migration required:** apply `supabase/migrations/047_conversation_priority.sql`
+> (adds `conversations.priority` — `urgent` / `high` / `normal` / `low`,
+> default `normal` — plus a supporting index. Idempotent.)
+
+### Added
+
+- **Conversation priority.** A Priority control in the thread header
+  (next to Status/Assign/Team), a priority filter and a Recent/Priority
+  sort toggle in the Inbox sidebar (sort defaults to Recent — switching
+  it doesn't change what's shown, only the order), and a flag badge on
+  non-normal rows. A new `set_priority` automation step lets a
+  condition on a contact field (e.g. a "VIP" custom field) set priority
+  to `urgent` automatically.
+
+### Fixed
+
+- **`close_conversation` could close the wrong conversation for a
+  contact.** Since 0.9.0, a contact can have both a WhatsApp and a
+  web-widget conversation. The step closed by `account_id` +
+  `contact_id`, which was harmless when a contact could only ever have
+  one conversation but closed *both* once that stopped being true.
+  Scoped to the one conversation that actually triggered the
+  automation instead.
+
+## [0.9.0] — 2026-09-17
+
+WhatsApp is no longer the only channel. Adds Settings → Channels
+(WhatsApp relocated there unchanged, plus "coming soon" entries for
+Instagram/Messenger/Email/SMS) and a real second channel: a self-hosted,
+embeddable web-chat widget.
+
+> **Migration required:** apply `supabase/migrations/046_channels.sql`
+> (adds `conversations.channel_type`, `contacts.widget_visitor_id`, the
+> `web_widget_config` and `widget_visitors` tables, and additive RLS
+> policies scoping an anonymous widget visitor to their own
+> conversation. Idempotent.) Also requires a one-time, non-SQL step:
+> enable **Anonymous Sign-ins** in the Supabase dashboard
+> (Authentication → Sign In / Providers) — the widget can't start a
+> visitor session without it. See `docs/web-chat-widget.md`.
+
+### Added
+
+- **Settings → Channels.** Replaces the old flat WhatsApp settings
+  page with a sub-nav: WhatsApp (moved, unchanged), Web Widget (new),
+  and UI-only "coming soon" cards for Instagram/Messenger/Email/SMS.
+- **Embeddable web-chat widget.** A small self-contained Preact bundle
+  (`widget/`, built by `scripts/build-widget.mjs`, wired into
+  `npm run build`) mountable via Shadow DOM with a single
+  `<script data-widget-token>` tag — works on any website or inside a
+  mobile app's WebView. Visitors authenticate via Supabase anonymous
+  auth; reads (history, live updates) go straight to Supabase under
+  RLS, sends go through a new public `/api/widget/message` route so
+  they run the same automations/AI-reply/outbound-webhook fan-out a
+  WhatsApp inbound message gets.
+- **Channel-aware sends and automations.** `sendMessageToConversation`
+  skips Meta entirely for a widget conversation; WhatsApp-only
+  automation step types (templates, interactive buttons/lists) now
+  fail with a clear logged error on a widget conversation instead of
+  erroring against Meta. The visual Flow builder is WhatsApp-only for
+  now — see `docs/web-chat-widget.md` for why.
+- **Inbox channel badges/filter.** Conversation rows and the thread
+  header show which channel a conversation is on; the sidebar gets a
+  channel filter alongside the existing team/label filters.
+
+Full setup guide: `docs/web-chat-widget.md`.
+
 ## [0.8.1] — 2026-07-10
 
 Fixes inbound chats fragmenting into multiple threads for the same
