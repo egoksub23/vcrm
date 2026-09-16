@@ -1,0 +1,193 @@
+# Web Chat Widget — setup and configuration
+
+The Web Widget is a second inbound channel alongside WhatsApp: a
+self-hosted chat bubble you embed on your own website (or inside a
+mobile app's WebView) with one `<script>` tag. Visitors chat
+anonymously — no WhatsApp number, no app install — and their messages
+land in the same Inbox, run through the same automations, and get the
+same AI auto-reply as WhatsApp conversations do. Introduced in
+migration 046; see `supabase/migrations/046_channels.sql` for the
+schema and RLS this page assumes.
+
+## What lives where
+
+| Value | Lives in | Scope |
+| --- | --- | --- |
+| Widget name, welcome message, color, position, allowed origins, enabled toggle | `web_widget_config` (one row per account) | per account |
+| `widget_token` (public, non-secret — embedded in the `<script>` tag) | `web_widget_config.widget_token`, generated once on first save | per account |
+| A visitor's identity | Supabase **anonymous auth** session (`auth.users`, `is_anonymous = true`) mapped via `widget_visitors` | per browser/device |
+| A visitor's conversation | `conversations` row with `channel_type = 'web_widget'` | per visitor |
+| Anonymous sign-ins toggle | Supabase dashboard → Authentication → Sign In / Providers | **per Supabase project** — not settable from wacrm |
+
+The widget bundle itself is a small self-contained Preact app built by
+`scripts/build-widget.mjs` into `public/widget/loader.js`, wired into
+`npm run build` ahead of `next build` — a normal deploy always ships a
+current bundle, no separate step.
+
+## Setup
+
+### 1. Enable anonymous sign-ins (one-time, per Supabase project)
+
+The widget authenticates every visitor with Supabase's built-in
+anonymous auth (`supabase.auth.signInAnonymously()`) so Row Level
+Security can scope what they can read — this is what makes "visitor
+sees only their own conversation" a database-enforced guarantee rather
+than something the client has to be trusted to respect. This can't be
+turned on by a migration; it's a project-level Auth setting:
+
+Supabase dashboard → your project → **Authentication → Sign In /
+Providers → Anonymous Sign-ins → Enable**.
+
+Without this, the widget's session bootstrap fails immediately and no
+visitor can start a chat.
+
+### 2. Configure the channel
+
+**Settings → Channels → Web Widget** (admin+ role required to save;
+any account member can view). Fields:
+
+- **Enabled** — the widget refuses new sessions while off (existing
+  conversations stay visible in the Inbox either way).
+- **Widget name** — shown in the chat panel header.
+- **Welcome message** — shown above the message list before the
+  visitor's first send.
+- **Primary color** — the launcher button, header background, and the
+  visitor's own message bubbles.
+- **Position** — bottom-left or bottom-right.
+- **Allowed origins** — a CORS allow-list for the two public API
+  routes the widget calls (`/api/widget/session`,
+  `/api/widget/message`). Enter full origins (`https://example.com`),
+  not paths. **Leave empty to allow any origin** — the visible,
+  copy-pasted `widget_token` is the actual embedding boundary for most
+  setups, same as other chat-widget products; only set this if you
+  specifically want to pin the widget to known domains.
+
+Saving for the first time generates the account's `widget_token` and
+reveals the embed snippet. That token never changes on later saves —
+once you've pasted the snippet onto your site, it keeps working.
+
+### 3. Embed it
+
+Copy the snippet from the Web Widget panel and paste it once, anywhere
+before the closing `</body>` tag, on every page you want the chat
+bubble to appear:
+
+```html
+<script src="https://<your-host>/widget/loader.js" data-widget-token="wt_..." async></script>
+```
+
+That's the whole integration — no other markup, no CSS to load. The
+widget mounts itself inside a Shadow DOM, so it can't collide with
+your page's styles and your page's styles can't leak into it. It
+works the same way inside a mobile app's WebView, since a WebView is
+just rendering the page.
+
+### 4. Test it
+
+Open a page carrying the snippet, click the launcher, send a message.
+It should appear in the CRM's Inbox under a conversation badged with
+the widget's channel icon; reply from the dashboard and it should
+appear back in the widget within about a second, with no page reload
+(Supabase Realtime, not polling).
+
+## How it works, briefly
+
+- **Reads** (message history, live updates) go straight from the
+  visitor's browser to Supabase — a plain `SELECT` for history on
+  load, and a `postgres_changes` Realtime subscription for anything
+  after that — scoped by the visitor's own anonymous-auth session
+  against the `messages_widget_visitor_select` /
+  `conversations_widget_visitor_select` RLS policies. No server route
+  is in that path.
+- **Sends** go through `POST /api/widget/message` (not a direct
+  client insert) specifically so the same request can also run
+  automations, AI auto-reply, and outbound webhooks synchronously —
+  the identical fan-out a WhatsApp inbound message gets from the
+  webhook route. This is the one deliberate exception to "reads and
+  writes both go direct."
+- Both public routes (`/api/widget/session`, `/api/widget/message`)
+  verify the visitor's Supabase JWT server-side and are rate-limited
+  (`RATE_LIMITS.widgetSession`, `RATE_LIMITS.widgetMessage` in
+  `src/lib/rate-limit.ts`).
+- A widget visitor is a real `contacts` row (`widget_visitor_id` set,
+  `phone` empty — mirrors how a WhatsApp business-scoped-user-ID-only
+  contact already stores `phone: ''`) and a real `conversations` row
+  (`channel_type: 'web_widget'`), so tags, labels, priority, contact
+  notes, deals, and reporting all work on widget conversations exactly
+  as they do on WhatsApp ones.
+
+## What's channel-specific
+
+The composer hides these for a widget conversation, and the server
+rejects them too if something tries anyway (`sendMessageToConversation`
+in `src/lib/whatsapp/send-message.ts`, and `assertWhatsappChannel` in
+`src/lib/automations/engine.ts`):
+
+- Message templates, interactive buttons/lists, and media attach —
+  all Meta-specific concepts with no widget equivalent yet.
+- The visual **Flow builder** doesn't run for widget conversations —
+  its send nodes call Meta's API directly rather than going through
+  the channel-aware send core, so a Flow with an interactive node
+  would error against a widget contact. Plain **Automations** remain
+  fully available: `send_message` works on both channels, and
+  WhatsApp-only step types fail with a clear logged error instead of
+  silently misfiring.
+
+Everything else — labels, internal comments, handoff notes, priority,
+assignment/teams, contact tags and custom fields — works identically
+across both channels.
+
+## Automating priority for widget visitors
+
+A common ask is routing widget chats from known/VIP contacts to the
+top of the queue. There's no separate "VIP" concept to build — wire it
+with what already exists: a custom field on the contact (e.g. `VIP =
+true`), a `condition` step checking that field, and a `set_priority`
+step (added alongside this channel; see
+`supabase/migrations/047_conversation_priority.sql`) setting `urgent`.
+Works the same for WhatsApp and widget conversations.
+
+## Local development
+
+The widget bundle needs `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` at **build** time (they're inlined
+into the bundle, the same as Next.js does for the dashboard's own
+client code) — set in `.env.local` like everything else.
+
+```
+npm run build:widget         # one-off build → public/widget/loader.js
+npm run build:widget:watch   # rebuild on change, with inline sourcemaps
+```
+
+`npm run dev` does not rebuild the widget automatically — run
+`build:widget` (or `build:widget:watch` in a second terminal) after
+editing anything under `widget/src/`, then hard-refresh the test page.
+
+## Troubleshooting
+
+- **Launcher never appears / console error "missing
+  data-widget-token"** — the `<script>` tag's `data-widget-token`
+  attribute is missing or the script failed to load. Confirm the
+  `src` URL resolves and returns JS, not a 404.
+- **"Failed to start an anonymous session"** — anonymous sign-ins are
+  disabled on the Supabase project (step 1 above), or the widget
+  bundle was built against a different Supabase project than the one
+  the CRM itself uses.
+- **`403 Origin not allowed for this widget`** — the page embedding
+  the widget isn't in `allowed_origins`. Either add it in Settings →
+  Channels → Web Widget, or clear the list to allow any origin.
+- **`404 Widget not found or disabled`** — the `widget_token` in the
+  snippet doesn't match any account's config, or the widget is
+  currently switched off in Settings.
+- **Messages send but never appear in the Inbox** — confirm migration
+  046 is applied to the account's Supabase project
+  (`supabase migration list` should show `046` and `047` on the
+  `remote` side) and that the account's RLS policies weren't hand-
+  edited; `conversations_widget_visitor_select` and
+  `messages_widget_visitor_select` are what let the visitor read back
+  the same rows the dashboard sees.
+- **A reply from the dashboard doesn't show up live in the widget**
+  — check the browser console for a Realtime `CHANNEL_ERROR`/`TIMED_OUT`
+  on the `widget-messages-<id>` channel; this usually means the
+  anonymous session expired mid-visit. Reloading the page re-runs
+  `signInAnonymously()` and reconnects.

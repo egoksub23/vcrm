@@ -163,6 +163,9 @@ Key pages:
   trace id to quote to Meta support
 - [Several WABAs on one deployment](./docs/multi-waba.md) — one Meta
   App or several; how `META_APP_SECRET` takes a comma-separated list
+- [Web chat widget](./docs/web-chat-widget.md) — set up the embeddable
+  web-chat channel, the one Supabase Auth toggle it needs, and what's
+  WhatsApp-only vs. channel-agnostic
 
 ## Stack
 
