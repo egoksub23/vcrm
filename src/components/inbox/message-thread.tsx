@@ -48,6 +48,7 @@ import {
   addConversationLabel,
   deleteConversationLabel,
 } from "@/lib/conversations/label-api";
+import { postComment } from "@/lib/conversations/comment-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
@@ -60,6 +61,7 @@ import {
 } from "./message-composer";
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
+import { HandoffNoteDialog } from "./handoff-note-dialog";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
@@ -543,6 +545,52 @@ export function MessageThread({
     [conversation, onNewMessage, onUpdateMessage, t]
   );
 
+  // Shared by the composer's "Comment" mode and the handoff-note dialog —
+  // both post an internal comment the same way, they just differ in what
+  // (if anything) happens after it lands.
+  const postCommentAndSync = useCallback(
+    async (text: string, mentions: string[]): Promise<boolean> => {
+      if (!conversation) return false;
+
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMsg: Message = {
+        id: tempId,
+        conversation_id: conversation.id,
+        sender_type: "agent",
+        sender_id: user?.id,
+        content_type: "text",
+        content_text: text,
+        status: "sent",
+        created_at: new Date().toISOString(),
+        is_internal: true,
+        mentions,
+      };
+      onNewMessage(optimisticMsg);
+
+      try {
+        await postComment(conversation.id, text, mentions);
+        // Realtime's message INSERT handler swaps the temp bubble for
+        // the real row (same dedup path every other send goes through);
+        // nothing further to do on success.
+        return true;
+      } catch (err) {
+        console.error("Failed to post comment:", err);
+        const reason = err instanceof Error ? err.message : "network error";
+        toast.error(t("commentFailed", { reason }));
+        onUpdateMessage(tempId, { status: "failed" });
+        return false;
+      }
+    },
+    [conversation, user?.id, onNewMessage, onUpdateMessage, t],
+  );
+
+  const handleSendComment = useCallback(
+    (text: string, mentions: string[]) => {
+      void postCommentAndSync(text, mentions);
+    },
+    [postCommentAndSync],
+  );
+
   const handleSendMedia = useCallback(
     async (payload: SendMediaPayload) => {
       if (!conversation) return;
@@ -927,6 +975,36 @@ export function MessageThread({
     [conversation, onLabelsChange, t],
   );
 
+  // ---- Agent handoff note --------------------------------------------
+  // Reassigning to a different human agent opens a small "add context"
+  // dialog instead of assigning immediately. A note (optional) posts as
+  // an internal comment right before the assignment change, so it's the
+  // most recent thing the new owner sees when they open the conversation.
+  const [pendingHandoffAgent, setPendingHandoffAgent] = useState<Profile | null>(null);
+  const [handoffBusy, setHandoffBusy] = useState(false);
+
+  const handleConfirmHandoff = useCallback(
+    async (note: string) => {
+      if (!pendingHandoffAgent) return;
+      setHandoffBusy(true);
+      try {
+        const trimmed = note.trim();
+        if (trimmed) {
+          const posted = await postCommentAndSync(
+            t("handoffCommentBody", { note: trimmed }),
+            [],
+          );
+          if (!posted) return; // error already toasted; don't reassign on a failed note
+        }
+        await handleAssignChange(pendingHandoffAgent.user_id);
+        setPendingHandoffAgent(null);
+      } finally {
+        setHandoffBusy(false);
+      }
+    },
+    [pendingHandoffAgent, postCommentAndSync, handleAssignChange, t],
+  );
+
   // Empty state — same WhatsApp-style doodle background as the active
   // thread below, so swapping between empty/selected doesn't change the
   // pattern under the user's eye.
@@ -1114,7 +1192,10 @@ export function MessageThread({
                   return (
                     <DropdownMenuItem
                       key={p.id}
-                      onClick={() => handleAssignChange(p.user_id)}
+                      onClick={() => {
+                        if (isSelected) return;
+                        setPendingHandoffAgent(p);
+                      }}
                       className={cn(
                         "text-sm",
                         isSelected ? "text-primary" : "text-popover-foreground"
@@ -1314,6 +1395,24 @@ export function MessageThread({
                       const next = own?.emoji === emoji ? "" : emoji;
                       void postReaction(msg.id, next);
                     };
+                    // Internal comments render full-width — the isAgent-
+                    // aligned, 75%-capped wrapper MessageActions applies
+                    // is built for two-sided chat bubbles, and reply/react
+                    // don't map cleanly onto a comment (there's no Meta
+                    // wamid to quote or react to). Skip the wrapper.
+                    if (msg.is_internal) {
+                      return (
+                        <MessageBubble
+                          key={msg.id}
+                          message={msg}
+                          authorLabel={
+                            msg.sender_id === user?.id
+                              ? t("meLabel")
+                              : profiles.find((p) => p.user_id === msg.sender_id)?.full_name
+                          }
+                        />
+                      );
+                    }
                     return (
                       <MessageActions
                         key={msg.id}
@@ -1364,6 +1463,8 @@ export function MessageThread({
         onSend={handleSend}
         onSendMedia={handleSendMedia}
         onSendInteractive={handleSendInteractive}
+        onSendComment={handleSendComment}
+        mentionCandidates={profiles}
         onOpenTemplates={handleOpenTemplates}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
@@ -1373,6 +1474,16 @@ export function MessageThread({
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         onSelect={handleSendTemplate}
+      />
+
+      <HandoffNoteDialog
+        open={pendingHandoffAgent !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingHandoffAgent(null);
+        }}
+        agentName={pendingHandoffAgent?.full_name ?? ""}
+        onConfirm={handleConfirmHandoff}
+        busy={handoffBusy}
       />
 
       {/* Full-size viewer for the thread's images/videos. Renders nothing

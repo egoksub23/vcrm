@@ -209,7 +209,7 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned';
+export type NotificationType = 'conversation_assigned' | 'mention';
 
 export interface Notification {
   id: string;
@@ -288,6 +288,15 @@ export interface Message {
   error_code?: number | null;
   error_title?: string | null;
   error_details?: string | null;
+  /**
+   * True for an internal comment — never sent to WhatsApp, visible to
+   * teammates only. Migration 045. Defaults to false for every row
+   * written before this migration and every ordinary customer-facing
+   * message since.
+   */
+  is_internal?: boolean;
+  /** Mentioned user_ids, only meaningful when `is_internal` is true. */
+  mentions?: string[];
 }
 
 export type ReactionActor = 'customer' | 'agent';

@@ -181,6 +181,9 @@
       "teamAssignmentUpdateFailed": "팀 업데이트에 실패했습니다",
       "labels": "라벨",
       "labelUpdateFailed": "라벨 업데이트에 실패했습니다",
+      "meLabel": "나",
+      "commentFailed": "코멘트 게시에 실패했습니다: {reason}",
+      "handoffCommentBody": "인계 메모: {note}",
       "noMessagesYet": "아직 메시지가 없습니다",
       "sendTemplateHint": "템플릿을 보내 대화를 시작하세요",
       "selectConversation": "대화를 선택하세요",
@@ -236,7 +239,12 @@
       "send": "보내기",
       "quickReplyNamePrompt": "이 빠른 답장의 이름을 지정하세요:",
       "quickReplySaved": "빠른 답장으로 저장되었습니다.",
-      "quickReplySaveError": "빠른 답장을 저장하지 못했습니다."
+      "quickReplySaveError": "빠른 답장을 저장하지 못했습니다.",
+      "modeMessage": "메시지",
+      "modeComment": "코멘트",
+      "mentionSomeone": "멘션하기",
+      "commentPlaceholder": "내부 코멘트 추가 — 팀원만 볼 수 있으며 고객에게는 전송되지 않습니다",
+      "commentHint": "코멘트는 팀원에게만 보이며 WhatsApp으로 전송되지 않습니다."
     },
     "bubble": {
       "photo": "사진",
@@ -256,7 +264,17 @@
       "downloadFailed": "첨부파일을 다운로드할 수 없습니다",
       "viewImage": "이미지 보기",
       "expandVideo": "동영상 확대",
-      "imageAlt": "공유된 이미지"
+      "imageAlt": "공유된 이미지",
+      "internalComment": "내부 코멘트",
+      "commentNotPosted": "코멘트가 게시되지 않았습니다"
+    },
+    "handoff": {
+      "title": "{name}에게 배정",
+      "description": "새 담당자를 위한 맥락을 추가하세요 (선택 사항) — 내부 코멘트로 게시되며 팀원에게만 보입니다.",
+      "notePlaceholder": "예: 고객이 환불 대상임을 확인했으며 결제 처리만 남았습니다.",
+      "cancel": "취소",
+      "assign": "배정",
+      "assigning": "배정 중..."
     },
     "mediaViewer": {
       "counter": "{total}개 중 {index}번째",

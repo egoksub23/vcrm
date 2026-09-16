@@ -181,6 +181,9 @@
       "teamAssignmentUpdateFailed": "Error al actualizar el equipo",
       "labels": "Rótulos",
       "labelUpdateFailed": "Error al actualizar el rótulo",
+      "meLabel": "Yo",
+      "commentFailed": "Error al publicar el comentario: {reason}",
+      "handoffCommentBody": "Nota de traspaso: {note}",
       "noMessagesYet": "Aún no hay mensajes",
       "sendTemplateHint": "Envía una plantilla para iniciar la conversación",
       "selectConversation": "Selecciona una conversación",
@@ -236,7 +239,12 @@
       "send": "Enviar",
       "quickReplyNamePrompt": "Ponle un nombre a esta respuesta rápida:",
       "quickReplySaved": "Guardada como respuesta rápida.",
-      "quickReplySaveError": "No se pudo guardar la respuesta rápida."
+      "quickReplySaveError": "No se pudo guardar la respuesta rápida.",
+      "modeMessage": "Mensaje",
+      "modeComment": "Comentario",
+      "mentionSomeone": "Mencionar a alguien",
+      "commentPlaceholder": "Añade un comentario interno — solo para el equipo, nunca se envía al cliente",
+      "commentHint": "Los comentarios solo los ve tu equipo y nunca llegan a WhatsApp."
     },
     "bubble": {
       "photo": "Foto",
@@ -256,7 +264,17 @@
       "downloadFailed": "No se pudo descargar el adjunto",
       "viewImage": "Ver imagen",
       "expandVideo": "Ampliar video",
-      "imageAlt": "Imagen compartida"
+      "imageAlt": "Imagen compartida",
+      "internalComment": "Comentario interno",
+      "commentNotPosted": "Comentario no publicado"
+    },
+    "handoff": {
+      "title": "Asignar a {name}",
+      "description": "Añade contexto para el nuevo responsable (opcional) — se publica como un comentario interno, visible solo para tu equipo.",
+      "notePlaceholder": "p. ej. El cliente confirmó que tiene derecho al reembolso, solo falta procesar el pago.",
+      "cancel": "Cancelar",
+      "assign": "Asignar",
+      "assigning": "Asignando..."
     },
     "mediaViewer": {
       "counter": "{index} de {total}",

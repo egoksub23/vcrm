@@ -181,6 +181,9 @@
       "teamAssignmentUpdateFailed": "Failed to update team",
       "labels": "Labels",
       "labelUpdateFailed": "Failed to update label",
+      "meLabel": "Me",
+      "commentFailed": "Failed to post comment: {reason}",
+      "handoffCommentBody": "Handoff note: {note}",
       "noMessagesYet": "No messages yet",
       "sendTemplateHint": "Send a template to start the conversation",
       "selectConversation": "Select a conversation",
@@ -236,7 +239,12 @@
       "send": "Send",
       "quickReplyNamePrompt": "Name this quick reply:",
       "quickReplySaved": "Saved as a quick reply.",
-      "quickReplySaveError": "Couldn't save the quick reply."
+      "quickReplySaveError": "Couldn't save the quick reply.",
+      "modeMessage": "Message",
+      "modeComment": "Comment",
+      "mentionSomeone": "Mention someone",
+      "commentPlaceholder": "Add an internal comment — teammates only, never sent to the customer",
+      "commentHint": "Comments are visible to your team only and never reach WhatsApp."
     },
     "bubble": {
       "photo": "Photo",
@@ -256,7 +264,17 @@
       "downloadFailed": "Couldn't download the attachment",
       "viewImage": "View image",
       "expandVideo": "Expand video",
-      "imageAlt": "Shared image"
+      "imageAlt": "Shared image",
+      "internalComment": "Internal comment",
+      "commentNotPosted": "Comment not posted"
+    },
+    "handoff": {
+      "title": "Assign to {name}",
+      "description": "Add context for the new owner (optional) — it posts as an internal comment, visible only to your team.",
+      "notePlaceholder": "e.g. Customer confirmed refund eligibility, just needs the payment processed.",
+      "cancel": "Cancel",
+      "assign": "Assign",
+      "assigning": "Assigning..."
     },
     "mediaViewer": {
       "counter": "{index} of {total}",

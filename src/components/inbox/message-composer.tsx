@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
   KeyboardEvent,
 } from "react";
 import {
@@ -22,6 +23,8 @@ import {
   Plus,
   MessageSquareDashed,
   Zap,
+  Lock,
+  AtSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
@@ -53,7 +56,7 @@ import {
   blankButtonsPayload,
 } from "@/components/interactive/interactive-builder";
 import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
-import type { InteractiveMessagePayload, QuickReply } from "@/types";
+import type { InteractiveMessagePayload, Profile, QuickReply } from "@/types";
 import { QuickReplyPicker } from "./quick-reply-picker";
 
 /** Media content types an agent can send from the composer. */
@@ -109,12 +112,19 @@ interface MediaDraft {
   caption: string;
 }
 
+/** "Message" goes to WhatsApp; "Comment" posts internally, teammates
+ *  only — respond.io's "Comment" mode (P0 gap-analysis item). */
+type ComposerMode = "message" | "comment";
+
 interface MessageComposerProps {
   conversationId: string;
   sessionExpired: boolean;
   onSend: (text: string, replyToId?: string) => void;
   onSendMedia: (payload: SendMediaPayload) => void;
   onSendInteractive: (payload: InteractiveMessagePayload, replyToId?: string) => void;
+  onSendComment: (text: string, mentions: string[]) => void;
+  /** Account teammates offered by the @mention autocomplete. */
+  mentionCandidates?: Profile[];
   onOpenTemplates: () => void;
   replyTo?: ReplyDraft | null;
   onClearReply?: () => void;
@@ -137,6 +147,8 @@ export function MessageComposer({
   onSend,
   onSendMedia,
   onSendInteractive,
+  onSendComment,
+  mentionCandidates = [],
   onOpenTemplates,
   replyTo,
   onClearReply,
@@ -147,6 +159,91 @@ export function MessageComposer({
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ---- Message vs. Comment mode --------------------------------------
+  const [mode, setMode] = useState<ComposerMode>("message");
+  const isComment = mode === "comment";
+  // Ids the agent picked from the @mention dropdown. Best-effort: if they
+  // hand-edit the inserted "@Name" text afterward, this can drift from
+  // what's literally in the textarea — an accepted simplification rather
+  // than building a token-aware rich-text editor for this.
+  const [mentionedIds, setMentionedIds] = useState<Set<string>>(new Set());
+  // Non-null (possibly empty string) while the cursor sits right after an
+  // unterminated "@query" — drives the autocomplete dropdown below.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
+  const switchMode = useCallback(
+    (next: ComposerMode) => {
+      if (next === mode) return;
+      setMode(next);
+      setMentionQuery(null);
+      // A reply-to draft only makes sense for a WhatsApp message; carrying
+      // it into Comment mode would silently vanish since comments don't
+      // thread, which is more confusing than just clearing it up front.
+      if (next === "comment") onClearReply?.();
+    },
+    [mode, onClearReply],
+  );
+
+  // Detect an unterminated "@query" right before the caret whenever the
+  // text changes in Comment mode, and drive the autocomplete off it.
+  useEffect(() => {
+    if (!isComment) {
+      setMentionQuery(null);
+      return;
+    }
+    const el = textareaRef.current;
+    if (!el) return;
+    const cursor = el.selectionStart ?? text.length;
+    const before = text.slice(0, cursor);
+    const match = before.match(/(?:^|\s)@(\w*)$/);
+    setMentionQuery(match ? match[1] : null);
+  }, [text, isComment]);
+
+  const mentionMatches = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return mentionCandidates
+      .filter((p) => p.full_name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionQuery, mentionCandidates]);
+
+  const insertMention = useCallback((candidate: Profile) => {
+    const el = textareaRef.current;
+    setText((prev) => {
+      const cursor = el?.selectionStart ?? prev.length;
+      const before = prev.slice(0, cursor);
+      const after = prev.slice(cursor);
+      const atIndex = before.lastIndexOf("@");
+      if (atIndex === -1) return prev;
+      const newBefore = `${before.slice(0, atIndex)}@${candidate.full_name} `;
+      requestAnimationFrame(() => {
+        el?.focus();
+        el?.setSelectionRange(newBefore.length, newBefore.length);
+      });
+      return newBefore + after;
+    });
+    setMentionedIds((prev) => new Set(prev).add(candidate.user_id));
+    setMentionQuery(null);
+  }, []);
+
+  // Manual trigger for agents who'd rather click than type "@" — inserts
+  // "@" at the caret (or appends it) and opens the same dropdown.
+  const openMentionPicker = useCallback(() => {
+    const el = textareaRef.current;
+    const cursor = el?.selectionStart ?? text.length;
+    const before = text.slice(0, cursor);
+    const needsSpace = before.length > 0 && !/\s$/.test(before);
+    const insert = `${needsSpace ? " " : ""}@`;
+    const next = before + insert + text.slice(cursor);
+    setText(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const pos = before.length + insert.length;
+      el?.setSelectionRange(pos, pos);
+    });
+    setMentionQuery("");
+  }, [text]);
 
   // Interactive-message builder dialog + quick-reply picker.
   const [interactiveOpen, setInteractiveOpen] = useState(false);
@@ -222,11 +319,18 @@ export function MessageComposer({
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
-    if (!trimmed || sending || sessionExpired) return;
+    // Comments bypass the 24h WhatsApp session window entirely — they
+    // never leave the account, so there's nothing for that window to gate.
+    if (!trimmed || sending || (!isComment && sessionExpired)) return;
 
     setSending(true);
     try {
-      onSend(trimmed, replyTo?.id);
+      if (isComment) {
+        onSendComment(trimmed, Array.from(mentionedIds));
+        setMentionedIds(new Set());
+      } else {
+        onSend(trimmed, replyTo?.id);
+      }
       setText("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
@@ -234,16 +338,27 @@ export function MessageComposer({
     } finally {
       setSending(false);
     }
-  }, [text, sending, sessionExpired, onSend, replyTo?.id]);
+  }, [text, sending, sessionExpired, isComment, onSend, onSendComment, mentionedIds, replyTo?.id]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // While the mention dropdown is open, Enter/Tab picks the top
+      // match instead of sending — standard autocomplete behavior.
+      if (mentionQuery !== null && mentionMatches.length > 0 && (e.key === "Enter" || e.key === "Tab")) {
+        e.preventDefault();
+        insertMention(mentionMatches[0]);
+        return;
+      }
+      if (e.key === "Escape" && mentionQuery !== null) {
+        setMentionQuery(null);
+        return;
+      }
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }
     },
-    [handleSend]
+    [handleSend, mentionQuery, mentionMatches, insertMention]
   );
 
   const handleChange = useCallback(
@@ -546,7 +661,7 @@ export function MessageComposer({
           />
         </div>
       )}
-      {sessionExpired && (
+      {sessionExpired && !isComment && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
           <p className="text-xs text-amber-400">
             {t("sessionExpiredHint")}
@@ -560,6 +675,39 @@ export function MessageComposer({
             <LayoutTemplate className="mr-1 h-3 w-3" />
             {t("templates")}
           </Button>
+        </div>
+      )}
+
+      {/* Message / Comment mode toggle — a comment never reaches the
+          customer, so it's kept visually and functionally distinct from
+          the WhatsApp send path below. Hidden once a media draft or a
+          live recording takes over the composer — those are always
+          customer-facing sends. */}
+      {!draft && !recording && !readOnly && (
+        <div className="mb-2 inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => switchMode("message")}
+            className={cn(
+              "rounded-md px-2.5 py-1 font-medium transition-colors",
+              !isComment ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("modeMessage")}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("comment")}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
+              isComment
+                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Lock className="h-3 w-3" />
+            {t("modeComment")}
+          </button>
         </div>
       )}
 
@@ -629,134 +777,183 @@ export function MessageComposer({
           </Button>
         </div>
       ) : (
-        <div className="flex items-end gap-2">
-          {/* Attach menu — photo / video / document / voice. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={inputsDisabled || busy}
-              title={
-                readOnly
-                  ? t("readOnlyTitle")
-                  : inputsDisabled
-                    ? undefined
-                    : t("attachMedia")
-              }
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        <div className="relative flex items-end gap-2">
+          {!isComment && (
+            <>
+              {/* Attach menu — photo / video / document / voice. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={inputsDisabled || busy}
+                  title={
+                    readOnly
+                      ? t("readOnlyTitle")
+                      : inputsDisabled
+                        ? undefined
+                        : t("attachMedia")
+                  }
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="border-border bg-popover">
+                  <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
+                    <ImageIcon className="mr-2 h-4 w-4" />
+                    {t("photo")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => videoInputRef.current?.click()}>
+                    <Video className="mr-2 h-4 w-4" />
+                    {t("video")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => documentInputRef.current?.click()}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t("document")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void startRecording()}>
+                    <Mic className="mr-2 h-4 w-4" />
+                    {t("voiceNote")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* + menu — interactive messages + quick replies. Gated on the
+                  24h window like free-form text (interactive requires it). */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={inputsDisabled}
+                  title={
+                    readOnly
+                      ? t("readOnlyTitle")
+                      : inputsDisabled
+                        ? undefined
+                        : t("moreActions")
+                  }
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="border-border bg-popover">
+                  <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
+                    <MessageSquareDashed className="mr-2 h-4 w-4" />
+                    {t("interactiveMessage")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setQuickReplyOpen(true)}>
+                    <Zap className="mr-2 h-4 w-4" />
+                    {t("quickReplies")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <GatedButton
+                variant="ghost"
+                size="sm"
+                canAct={!readOnly}
+                gateReason="send messages"
+                title={readOnly ? undefined : t("sendTemplate")}
+                className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                onClick={onOpenTemplates}
+              >
+                <LayoutTemplate className="h-4 w-4" />
+              </GatedButton>
+
+              <GatedButton
+                variant="ghost"
+                size="sm"
+                canAct={!readOnly}
+                gateReason="send messages"
+                disabled={drafting}
+                title={readOnly ? undefined : t("draftWithAI")}
+                className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
+                onClick={handleDraft}
+              >
+                {drafting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+              </GatedButton>
+            </>
+          )}
+
+          {isComment && mentionCandidates.length > 0 && (
+            <GatedButton
+              variant="ghost"
+              size="sm"
+              canAct={!readOnly}
+              gateReason="send messages"
+              title={readOnly ? undefined : t("mentionSomeone")}
+              className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+              onClick={openMentionPicker}
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Paperclip className="h-4 w-4" />
+              <AtSign className="h-4 w-4" />
+            </GatedButton>
+          )}
+
+          <div className="relative flex-1">
+            {mentionQuery !== null && mentionMatches.length > 0 && (
+              <div className="absolute bottom-full left-0 mb-1 w-56 overflow-hidden rounded-lg border border-border bg-popover shadow-md">
+                {mentionMatches.map((p) => (
+                  <button
+                    key={p.user_id}
+                    type="button"
+                    onMouseDown={(e) => {
+                      // mousedown (not click) fires before the textarea's
+                      // blur, so the caret position insertMention reads is
+                      // still valid.
+                      e.preventDefault();
+                      insertMention(p);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-muted"
+                  >
+                    <AtSign className="h-3 w-3 text-muted-foreground" />
+                    <span className="truncate">{p.full_name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                readOnly
+                  ? t("readOnlyPlaceholder")
+                  : isComment
+                    ? t("commentPlaceholder")
+                    : sessionExpired
+                      ? t("sessionExpiredPlaceholder")
+                      : t("typeMessagePlaceholder")
+              }
+              disabled={(!isComment && sessionExpired) || readOnly}
+              rows={1}
+              // Textarea keeps its own inline title — the GatedButton
+              // wrapping pattern doesn't apply to non-button inputs.
+              // The placeholder text also surfaces the read-only state.
+              title={readOnly ? t("readOnlyTitle") : undefined}
+              className={cn(
+                "w-full resize-none rounded-xl border px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors",
+                isComment
+                  ? "border-amber-500/40 bg-amber-500/5 focus:border-amber-500/70"
+                  : "border-border bg-muted focus:border-primary/50",
+                ((!isComment && sessionExpired) || readOnly) && "cursor-not-allowed opacity-50"
               )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="border-border bg-popover">
-              <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
-                <ImageIcon className="mr-2 h-4 w-4" />
-                {t("photo")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => videoInputRef.current?.click()}>
-                <Video className="mr-2 h-4 w-4" />
-                {t("video")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => documentInputRef.current?.click()}>
-                <FileText className="mr-2 h-4 w-4" />
-                {t("document")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void startRecording()}>
-                <Mic className="mr-2 h-4 w-4" />
-                {t("voiceNote")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* + menu — interactive messages + quick replies. Gated on the
-              24h window like free-form text (interactive requires it). */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={inputsDisabled}
-              title={
-                readOnly
-                  ? t("readOnlyTitle")
-                  : inputsDisabled
-                    ? undefined
-                    : t("moreActions")
-              }
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="border-border bg-popover">
-              <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
-                <MessageSquareDashed className="mr-2 h-4 w-4" />
-                {t("interactiveMessage")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setQuickReplyOpen(true)}>
-                <Zap className="mr-2 h-4 w-4" />
-                {t("quickReplies")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <GatedButton
-            variant="ghost"
-            size="sm"
-            canAct={!readOnly}
-            gateReason="send messages"
-            title={readOnly ? undefined : t("sendTemplate")}
-            className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
-            onClick={onOpenTemplates}
-          >
-            <LayoutTemplate className="h-4 w-4" />
-          </GatedButton>
-
-          <GatedButton
-            variant="ghost"
-            size="sm"
-            canAct={!readOnly}
-            gateReason="send messages"
-            disabled={drafting}
-            title={readOnly ? undefined : t("draftWithAI")}
-            className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
-            onClick={handleDraft}
-          >
-            {drafting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-          </GatedButton>
-
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              readOnly
-                ? t("readOnlyPlaceholder")
-                : sessionExpired
-                  ? t("sessionExpiredPlaceholder")
-                  : t("typeMessagePlaceholder")
-            }
-            disabled={sessionExpired || readOnly}
-            rows={1}
-            // Textarea keeps its own inline title — the GatedButton
-            // wrapping pattern doesn't apply to non-button inputs.
-            // The placeholder text also surfaces the read-only state.
-            title={readOnly ? t("readOnlyTitle") : undefined}
-            className={cn(
-              "flex-1 resize-none rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary/50",
-              (sessionExpired || readOnly) && "cursor-not-allowed opacity-50"
-            )}
-          />
+            />
+          </div>
 
           <GatedButton
             size="sm"
             canAct={!readOnly}
             gateReason="send messages"
-            disabled={!text.trim() || sessionExpired || sending}
+            disabled={!text.trim() || (!isComment && sessionExpired) || sending}
             onClick={handleSend}
-            className="h-9 w-9 shrink-0 bg-primary p-0 hover:bg-primary/90 disabled:opacity-40"
+            className={cn(
+              "h-9 w-9 shrink-0 p-0 disabled:opacity-40",
+              isComment ? "bg-amber-500 hover:bg-amber-500/90" : "bg-primary hover:bg-primary/90",
+            )}
           >
             <Send className="h-4 w-4" />
           </GatedButton>
@@ -766,9 +963,14 @@ export function MessageComposer({
       {/* Hint sits outside the flex row so its height doesn't push
           `items-end` buttons below the textarea. Indented to line up
           under the textarea left edge. */}
-      {!draft && !recording && (
+      {!draft && !recording && !isComment && (
         <p className="mt-1 pl-[5.5rem] text-[10px] text-muted-foreground">
           {t("draftHint")}
+        </p>
+      )}
+      {!draft && !recording && isComment && (
+        <p className="mt-1 pl-2 text-[10px] text-amber-600 dark:text-amber-400">
+          {t("commentHint")}
         </p>
       )}
 

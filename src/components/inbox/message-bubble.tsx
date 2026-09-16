@@ -11,6 +11,7 @@ import {
   LayoutTemplate,
   CornerDownLeft,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -38,6 +39,10 @@ interface MessageBubbleProps {
    * stays inline and non-clickable.
    */
   onOpenMedia?: (messageId: string) => void;
+  /** Resolved display name of `message.sender_id`, for internal comments
+   *  only — every other bubble conveys "who" through left/right alignment
+   *  alone, but a full-width comment card needs an explicit author line. */
+  authorLabel?: string;
 }
 
 /**
@@ -245,12 +250,43 @@ export function MessageBubble({
   currentUserId,
   onToggleReaction,
   onOpenMedia,
+  authorLabel,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
   const failure = isAgent ? failureReason(message) : null;
+
+  // Internal comments are deliberately NOT a left/right chat bubble —
+  // that shape reads as "part of the WhatsApp conversation," which is
+  // exactly what a comment isn't. A full-width amber card makes it
+  // unmistakable at a glance that this never reached the customer.
+  if (message.is_internal) {
+    return (
+      <div className="flex justify-center px-2">
+        <div className="w-full max-w-[85%] rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            <Lock className="h-3 w-3" />
+            {t("internalComment")}
+            {authorLabel && <span className="normal-case">· {authorLabel}</span>}
+            <span className="ml-auto normal-case text-amber-600/70 dark:text-amber-400/70">
+              {time}
+            </span>
+          </div>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+            {message.content_text}
+          </p>
+          {message.status === "failed" && (
+            <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400">
+              <XCircle className="h-3 w-3" />
+              {t("commentNotPosted")}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Row alignment + width cap are owned by <MessageActions> so its hover
   // group matches the bubble's content area, not the full row.

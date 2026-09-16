@@ -239,29 +239,36 @@ function InboxPageInner() {
         // the preview and triggering a hydrate — see the comment on
         // knownConvIdsRef for why a closure flag inside the updater would
         // always read false here.
-        if (knownConvIdsRef.current.has(newMsg.conversation_id)) {
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === newMsg.conversation_id
-                ? {
-                    ...c,
-                    last_message_text: newMsg.content_text ?? "",
-                    last_message_at: newMsg.created_at,
-                    unread_count:
-                      activeConversation?.id === newMsg.conversation_id
-                        ? 0
-                        : c.unread_count + 1,
-                  }
-                : c,
-            ),
-          );
-        } else {
-          // First time we're seeing this conv: the conv-INSERT event
-          // hasn't landed yet, or was missed. Hydrate from the DB so
-          // the row surfaces with its `contact` joined; the conv-UPDATE
-          // event the webhook emits right after the message INSERT will
-          // converge state when it arrives.
-          hydrateConversation(newMsg.conversation_id);
+        //
+        // Internal comments are deliberately excluded: the sidebar
+        // preview and unread badge are customer-facing context ("what
+        // did they last say, is there something new to read"), and a
+        // teammate's internal comment isn't that.
+        if (!newMsg.is_internal) {
+          if (knownConvIdsRef.current.has(newMsg.conversation_id)) {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === newMsg.conversation_id
+                  ? {
+                      ...c,
+                      last_message_text: newMsg.content_text ?? "",
+                      last_message_at: newMsg.created_at,
+                      unread_count:
+                        activeConversation?.id === newMsg.conversation_id
+                          ? 0
+                          : c.unread_count + 1,
+                    }
+                  : c,
+              ),
+            );
+          } else {
+            // First time we're seeing this conv: the conv-INSERT event
+            // hasn't landed yet, or was missed. Hydrate from the DB so
+            // the row surfaces with its `contact` joined; the conv-UPDATE
+            // event the webhook emits right after the message INSERT will
+            // converge state when it arrives.
+            hydrateConversation(newMsg.conversation_id);
+          }
         }
       }
 
