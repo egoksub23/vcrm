@@ -21,6 +21,10 @@ import type {
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
+import {
+  addConversationLabelIfAbsent,
+  removeConversationLabel as removeConversationLabelRow,
+} from '@/lib/conversations/label-write'
 import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
@@ -479,6 +483,34 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .eq('contact_id', args.contactId)
         .eq('tag_id', cfg.tag_id)
       return `tag ${cfg.tag_id} removed`
+    }
+
+    case 'add_conversation_label': {
+      const cfg = step.step_config as TagStepConfig
+      if (!args.contactId || !cfg.tag_id) {
+        throw new Error('add_conversation_label needs a contact + tag_id')
+      }
+      const conversationId = await resolveConversationId(args)
+      const added = await addConversationLabelIfAbsent(db, {
+        accountId: args.automation.account_id,
+        conversationId,
+        tagId: cfg.tag_id,
+      })
+      return added ? `label ${cfg.tag_id} added` : `label ${cfg.tag_id} already present`
+    }
+
+    case 'remove_conversation_label': {
+      const cfg = step.step_config as TagStepConfig
+      if (!args.contactId || !cfg.tag_id) {
+        throw new Error('remove_conversation_label needs a contact + tag_id')
+      }
+      const conversationId = await resolveConversationId(args)
+      await removeConversationLabelRow(db, {
+        accountId: args.automation.account_id,
+        conversationId,
+        tagId: cfg.tag_id,
+      })
+      return `label ${cfg.tag_id} removed`
     }
 
     case 'assign_conversation': {

@@ -146,6 +146,18 @@ describe("validateStepsForActivation", () => {
     expect(specificComplete).toEqual([]);
   });
 
+  it("flags add_conversation_label / remove_conversation_label when tag_id is missing", () => {
+    const issues = validateStepsForActivation([
+      { step_type: "add_conversation_label", step_config: {} },
+      { step_type: "remove_conversation_label", step_config: { tag_id: "" } },
+      { step_type: "add_conversation_label", step_config: { tag_id: "tag-uuid" } },
+    ]);
+    expect(issues.map((i) => i.path)).toEqual([
+      "steps[0].tag_id",
+      "steps[1].tag_id",
+    ]);
+  });
+
   it("flags create_deal when required fields are missing", () => {
     const issues = validateStepsForActivation([
       { step_type: "create_deal", step_config: {} },

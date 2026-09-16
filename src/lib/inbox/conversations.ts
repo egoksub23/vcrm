@@ -1,32 +1,43 @@
 import type { Conversation, Contact, Tag } from "@/types";
 
 /**
- * Conversation select that embeds the contact plus its tags, so the Inbox
- * can filter conversations by contact tag without a second round-trip.
- * `contact_tags(tags(*))` returns the join rows; {@link normalizeConversation}
- * flattens them onto `contact.tags`.
+ * Conversation select that embeds the contact plus its tags, and the
+ * conversation's own labels, so the Inbox can filter by either without
+ * a second round-trip. `contact_tags(tags(*))` / `conversation_labels(tags(*))`
+ * return the join rows; {@link normalizeConversation} flattens them onto
+ * `contact.tags` / `labels`.
  */
 export const CONVERSATION_SELECT =
-  "*, contact:contacts(*, contact_tags(tags(*)))";
+  "*, contact:contacts(*, contact_tags(tags(*))), conversation_labels(tags(*))";
 
 /** Raw shape returned by {@link CONVERSATION_SELECT} before flattening. */
 type RawContact = Contact & { contact_tags?: { tags: Tag | null }[] };
-type RawConversation = Omit<Conversation, "contact"> & {
+type RawConversation = Omit<Conversation, "contact" | "labels"> & {
   contact?: RawContact | null;
+  conversation_labels?: { tags: Tag | null }[];
 };
 
 /**
- * Flatten the embedded `contact_tags(tags(*))` join into `contact.tags`.
- * Safe to call on rows fetched with {@link CONVERSATION_SELECT}; a row with
- * no contact (e.g. a freshly-inserted conversation) passes through untouched.
+ * Flatten the embedded `contact_tags(tags(*))` and `conversation_labels(tags(*))`
+ * joins into `contact.tags` / `labels`. Safe to call on rows fetched with
+ * {@link CONVERSATION_SELECT}; a row with no contact (e.g. a freshly-inserted
+ * conversation) passes through untouched for the contact side.
  */
 export function normalizeConversation(raw: RawConversation): Conversation {
-  const rawContact = raw.contact;
-  if (!rawContact) return raw as Conversation;
+  const { conversation_labels, contact: rawContact, ...rest } = raw;
+  const labels = (conversation_labels ?? [])
+    .map((cl) => cl.tags)
+    .filter((t): t is Tag => t != null);
+
+  // Preserve the original contact value (null vs undefined) when there's
+  // nothing to flatten — consumers use `?.` either way, but a round-trip
+  // test asserts `contact: null` survives untouched.
+  if (!rawContact) return { ...rest, contact: rawContact, labels } as Conversation;
 
   const { contact_tags, ...contact } = rawContact;
   return {
-    ...raw,
+    ...rest,
+    labels,
     contact: {
       ...contact,
       tags: (contact_tags ?? [])

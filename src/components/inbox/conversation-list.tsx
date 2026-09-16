@@ -8,6 +8,8 @@ import {
   normalizeConversations,
 } from "@/lib/inbox/conversations";
 import { useTeams } from "@/hooks/use-teams";
+import { useTags } from "@/hooks/use-tags";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus, Tag, Team } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
@@ -45,7 +47,7 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 
 
-type InboxFilter = ConversationStatus | "all" | "unread";
+type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned";
 
 /** Sentinel for the "no team" bucket in the Team filter — distinct from
  *  `null` (no team filter applied at all). */
@@ -59,9 +61,12 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  
+  const { user } = useAuth();
+
   const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
+    { label: t("filterMine"), value: "mine" },
+    { label: t("filterUnassigned"), value: "unassigned" },
     { label: t("filterUnread"), value: "unread" },
     { label: t("filterOpen"), value: "open" },
     { label: t("filterPending"), value: "pending" },
@@ -74,7 +79,7 @@ export function ConversationList({
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
   // Broadcast audience filtering. Company is an exact match on the field.
-  const [tags, setTags] = useState<Tag[]>([]);
+  const { tags } = useTags();
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   // Team bucket filter (P0 gap-analysis item). `null` = no filter,
@@ -82,6 +87,10 @@ export function ConversationList({
   // otherwise a team id.
   const { teams } = useTeams();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  // Conversation label filter (P0 gap-analysis item) — OR logic across
+  // selected labels, same semantics as the contact-tag filter above but
+  // over `conversation.labels` instead of `conversation.contact.tags`.
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -136,20 +145,6 @@ export function ConversationList({
     // up on any events sent while the WS was disconnected or throttled.
   }, [resyncToken]);
 
-  // Tag definitions for the filter picker — loaded once so labels/colours
-  // stay stable regardless of which conversations happen to be loaded.
-  useEffect(() => {
-    const supabase = createClient();
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.from("tags").select("*").order("name");
-      if (!cancelled && data) setTags(data as Tag[]);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Company options are derived from the loaded conversations — there's no
   // separate companies table, and only companies with a live conversation
   // are worth offering as an inbox filter.
@@ -179,6 +174,13 @@ export function ConversationList({
 
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);
+    } else if (filter === "mine") {
+      result = result.filter((c) => !!user && c.assigned_agent_id === user.id);
+    } else if (filter === "unassigned") {
+      // Matches the P0 spec: no agent AND still open — a closed or
+      // pending conversation that never got assigned isn't a live queue
+      // item, so it shouldn't clutter this view.
+      result = result.filter((c) => !c.assigned_agent_id && c.status === "open");
     } else if (filter !== "all") {
       result = result.filter((c) => c.status === filter);
     }
@@ -202,6 +204,13 @@ export function ConversationList({
       result = result.filter((c) => c.assigned_team_id === selectedTeamId);
     }
 
+    // Conversation label filter — OR logic, same as the contact-tag filter.
+    if (selectedLabelIds.length > 0) {
+      result = result.filter((c) =>
+        (c.labels ?? []).some((l) => selectedLabelIds.includes(l.id)),
+      );
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((c) => {
@@ -213,7 +222,16 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany, selectedTeamId]);
+  }, [
+    conversations,
+    filter,
+    search,
+    selectedTagIds,
+    selectedCompany,
+    selectedTeamId,
+    selectedLabelIds,
+    user,
+  ]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -221,14 +239,24 @@ export function ConversationList({
     );
   }, []);
 
+  const toggleLabel = useCallback((id: string) => {
+    setSelectedLabelIds((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+    );
+  }, []);
+
   const clearContactFilters = useCallback(() => {
     setSelectedTagIds([]);
     setSelectedCompany(null);
     setSelectedTeamId(null);
+    setSelectedLabelIds([]);
   }, []);
 
   const hasContactFilters =
-    selectedTagIds.length > 0 || selectedCompany !== null || selectedTeamId !== null;
+    selectedTagIds.length > 0 ||
+    selectedCompany !== null ||
+    selectedTeamId !== null ||
+    selectedLabelIds.length > 0;
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,6 +353,51 @@ export function ConversationList({
                         style={{ backgroundColor: t.color }}
                       />
                       <span className="truncate">{t.name}</span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Conversation labels — draws from the same tag palette as the
+              contact-tag filter above, but filters on the conversation's
+              own `labels` (migration 044), not the contact's tags. */}
+          {tags.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  selectedLabelIds.length > 0
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t("labels")}
+                {selectedLabelIds.length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {selectedLabelIds.length}
+                  </span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-64 w-56 border-border bg-popover"
+              >
+                {tags.map((lb) => (
+                  <DropdownMenuCheckboxItem
+                    key={lb.id}
+                    checked={selectedLabelIds.includes(lb.id)}
+                    onCheckedChange={() => toggleLabel(lb.id)}
+                    className="text-sm text-popover-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: lb.color }}
+                      />
+                      <span className="truncate">{lb.name}</span>
                     </span>
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -501,6 +574,23 @@ export function ConversationList({
                 <X className="h-3 w-3" />
               </button>
             )}
+            {selectedLabelIds.map((id) => {
+              const label = tagsById.get(id);
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleLabel(id)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: label?.color ?? "var(--muted-foreground)" }}
+                  />
+                  <span className="max-w-24 truncate">{label?.name ?? t("labels")}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              );
+            })}
             <button
               onClick={clearContactFilters}
               className="px-1 text-[11px] text-muted-foreground hover:text-foreground"
@@ -631,6 +721,25 @@ function ConversationItem({
             />
           </div>
         </div>
+        {conversation.labels && conversation.labels.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {conversation.labels.slice(0, 3).map((label) => (
+              <span
+                key={label.id}
+                className="max-w-20 truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ backgroundColor: `${label.color}20`, color: label.color }}
+                title={label.name}
+              >
+                {label.name}
+              </span>
+            ))}
+            {conversation.labels.length > 3 && (
+              <span className="text-[9px] text-muted-foreground">
+                +{conversation.labels.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </button>
   );

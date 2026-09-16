@@ -115,6 +115,8 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
+  add_conversation_label: { label: "add_conversation_label", icon: Tag, border: "border-l-primary" },
+  remove_conversation_label: { label: "remove_conversation_label", icon: TagIcon, border: "border-l-primary" },
   assign_conversation: { label: "assign_conversation", icon: UserCheck, border: "border-l-primary" },
   assign_to_team: { label: "assign_to_team", icon: UsersRound, border: "border-l-primary" },
   update_contact_field: { label: "update_contact_field", icon: PencilLine, border: "border-l-primary" },
@@ -132,6 +134,8 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_template",
   "add_tag",
   "remove_tag",
+  "add_conversation_label",
+  "remove_conversation_label",
   "assign_conversation",
   "assign_to_team",
   "update_contact_field",
@@ -186,6 +190,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { template_name: "", language: "en_US" }
     case "add_tag":
     case "remove_tag":
+    case "add_conversation_label":
+    case "remove_conversation_label":
       return { tag_id: "" }
     case "assign_conversation":
       return { mode: "round_robin" }
@@ -1466,6 +1472,8 @@ function StepEditor({
       )
     case "add_tag":
     case "remove_tag":
+    case "add_conversation_label":
+    case "remove_conversation_label":
       return (
         <FieldBlock label={t("config.tagLabel")}>
           <TagSelect

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
+import { useTags } from "@/hooks/use-tags";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import type {
   ConversationStatus,
   MessageTemplate,
   Profile,
+  Tag,
   InteractiveMessagePayload,
 } from "@/types";
 import {
@@ -23,6 +25,7 @@ import {
   ChevronDown,
   UserPlus,
   Users,
+  Tag as TagIcon,
   Check,
   Clock,
   ArrowLeft,
@@ -35,11 +38,16 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  addConversationLabel,
+  deleteConversationLabel,
+} from "@/lib/conversations/label-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
@@ -79,6 +87,10 @@ interface MessageThreadProps {
   onTeamChange: (
     conversationId: string,
     assignedTeamId: string | null,
+  ) => void;
+  onLabelsChange: (
+    conversationId: string,
+    labels: Tag[],
   ) => void;
   /**
    * On mobile, the thread is shown full-screen with the conversation list
@@ -166,6 +178,7 @@ export function MessageThread({
   onStatusChange,
   onAssignChange,
   onTeamChange,
+  onLabelsChange,
   onBack,
   resyncToken = 0,
   onRefresh,
@@ -179,6 +192,7 @@ export function MessageThread({
   const { user } = useAuth();
   const { getPresence, getRow, now } = usePresence();
   const { teams } = useTeams();
+  const { tags: allTags } = useTags();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -891,6 +905,28 @@ export function MessageThread({
     [conversation, onTeamChange, t],
   );
 
+  const handleToggleLabel = useCallback(
+    async (tag: Tag) => {
+      if (!conversation) return;
+      const current = conversation.labels ?? [];
+      const isSelected = current.some((l) => l.id === tag.id);
+
+      try {
+        if (isSelected) {
+          await deleteConversationLabel(conversation.id, tag.id);
+          onLabelsChange(conversation.id, current.filter((l) => l.id !== tag.id));
+        } else {
+          await addConversationLabel(conversation.id, tag.id);
+          onLabelsChange(conversation.id, [...current, tag]);
+        }
+      } catch (err) {
+        console.error("Failed to update conversation label:", err);
+        toast.error(t("labelUpdateFailed"));
+      }
+    },
+    [conversation, onLabelsChange, t],
+  );
+
   // Empty state — same WhatsApp-style doodle background as the active
   // thread below, so swapping between empty/selected doesn't change the
   // pattern under the user's eye.
@@ -924,6 +960,8 @@ export function MessageThread({
   const assignedTeamId = conversation.assigned_team_id ?? null;
   const currentTeam = teams.find((tm) => tm.id === assignedTeamId);
   const teamLabel = assignedTeamId ? (currentTeam?.name ?? t("team")) : t("team");
+
+  const activeLabels = conversation.labels ?? [];
 
   return (
     // `min-w-0` is load-bearing: the page already puts min-w-0 on the
@@ -1178,6 +1216,51 @@ export function MessageThread({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Labels dropdown — conversation-level topic labels (billing,
+              refund, urgent, ...), independent of the contact's own tags.
+              Multi-select, same OR-filterable palette as the inbox
+              sidebar's Labels filter. */}
+          {allTags.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  activeLabels.length > 0 ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                <TagIcon className="h-3 w-3" />
+                <span className="hidden sm:inline">{t("labels")}</span>
+                {activeLabels.length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {activeLabels.length}
+                  </span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-64 w-56 border-border bg-popover"
+              >
+                {allTags.map((tag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag.id}
+                    checked={activeLabels.some((l) => l.id === tag.id)}
+                    onCheckedChange={() => handleToggleLabel(tag)}
+                    className="text-sm text-popover-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate">{tag.name}</span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 

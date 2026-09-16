@@ -142,4 +142,33 @@ describe("normalizeConversation", () => {
     // A contactless row passes through untouched (consumers use `?.`).
     expect(normalizeConversation(raw).contact).toBeNull();
   });
+
+  it("flattens embedded conversation_labels into labels", () => {
+    const raw = {
+      id: "c1",
+      user_id: "u1",
+      contact_id: "ct1",
+      status: "open" as const,
+      unread_count: 0,
+      created_at: "",
+      updated_at: "",
+      contact: null,
+      conversation_labels: [{ tags: tag("t1", "Billing") }, { tags: null }],
+    };
+    expect(normalizeConversation(raw).labels).toEqual([tag("t1", "Billing")]);
+  });
+
+  it("defaults labels to an empty array when no conversation_labels join is present", () => {
+    const raw = {
+      id: "c1",
+      user_id: "u1",
+      contact_id: "ct1",
+      status: "open" as const,
+      unread_count: 0,
+      created_at: "",
+      updated_at: "",
+      contact: null,
+    };
+    expect(normalizeConversation(raw).labels).toEqual([]);
+  });
 });

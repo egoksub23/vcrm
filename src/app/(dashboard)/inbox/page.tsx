@@ -572,6 +572,18 @@ function InboxPageInner() {
     [activeConversation]
   );
 
+  const handleLabelsChange = useCallback(
+    (conversationId: string, labels: Conversation["labels"]) => {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, labels } : c))
+      );
+      if (activeConversation?.id === conversationId) {
+        setActiveConversation((prev) => (prev ? { ...prev, labels } : prev));
+      }
+    },
+    [activeConversation]
+  );
+
   // On mobile (<lg) we show a SINGLE pane — either the list or the
   // thread — rather than cramming both side-by-side. Selecting a
   // conversation slides the thread in; the thread's back button pops
@@ -637,6 +649,7 @@ function InboxPageInner() {
             onStatusChange={handleStatusChange}
             onAssignChange={handleAssignChange}
             onTeamChange={handleTeamChange}
+            onLabelsChange={handleLabelsChange}
             onBack={handleCloseConversation}
             resyncToken={resyncToken}
             onRefresh={handleManualRefresh}

@@ -76,6 +76,8 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
       break
     case 'add_tag':
     case 'remove_tag':
+    case 'add_conversation_label':
+    case 'remove_conversation_label':
       if (!nonEmpty(c.tag_id)) {
         issues.push({ path: `${path}.tag_id`, message: 'tag is required' })
       }

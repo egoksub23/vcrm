@@ -179,6 +179,12 @@ export interface Conversation {
    *  specific agent, but the team pointer is kept so the inbox can
    *  bucket/filter by team. */
   assigned_team_id?: string | null;
+  /** Conversation-level topic labels (migration 044) — reuses the same
+   *  `tags` palette as contact tags, joined via `conversation_labels`.
+   *  Independent of `contact.tags`: labelling "billing issue" on this
+   *  conversation doesn't tag the contact, since the same contact may
+   *  have unrelated conversations later. */
+  labels?: Tag[];
   last_message_text?: string;
   last_message_at?: string;
   unread_count: number;
@@ -526,6 +532,8 @@ export type AutomationStepType =
   | 'send_template'
   | 'add_tag'
   | 'remove_tag'
+  | 'add_conversation_label'
+  | 'remove_conversation_label'
   | 'assign_conversation'
   | 'assign_to_team'
   | 'update_contact_field'
