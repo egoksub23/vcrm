@@ -158,6 +158,16 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web"
       },
+      "allPriorities": "Todas as prioridades",
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
+      },
+      "sortToggleTitle": "Alternar ordem de classificação",
+      "sortByRecent": "Recentes",
+      "sortByPriority": "Prioridade",
       "clearAll": "Limpar tudo",
       "noConversations": "Nenhuma conversa encontrada",
       "noMessagesYet": "Nenhuma mensagem ainda",
@@ -174,6 +184,12 @@
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
       },
       "status": "Status",
       "statusOpen": "Aberta",
@@ -952,7 +968,8 @@
         "wait": "Aguardar",
         "condition": "Condição (Se/Senão)",
         "send_webhook": "Enviar webhook",
-        "close_conversation": "Fechar conversa"
+        "close_conversation": "Fechar conversa",
+        "set_priority": "Definir prioridade"
       },
       "triggers": {
         "new_message_received": {
@@ -1106,7 +1123,14 @@
         "matchWord": "Palavra inteira",
         "matchWordHint": "Corresponde à palavra-chave apenas como palavra isolada, então \"k\" não dispara mais em \"thanks\". Ideal para palavras-chave curtas em idiomas com espaços; use Contém para idiomas escritos sem espaços.",
         "matchExact": "Exata",
-        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
+        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária.",
+        "priorityLabel": "Prioridade",
+        "priorities": {
+          "urgent": "Urgente",
+          "high": "Alta",
+          "normal": "Normal",
+          "low": "Baixa"
+        }
       }
     }
   },

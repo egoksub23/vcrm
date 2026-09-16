@@ -158,6 +158,16 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget"
       },
+      "allPriorities": "All priorities",
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      },
+      "sortToggleTitle": "Toggle sort order",
+      "sortByRecent": "Recent",
+      "sortByPriority": "Priority",
       "clearAll": "Clear all",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
@@ -174,6 +184,12 @@
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
       },
       "status": "Status",
       "statusOpen": "Open",
@@ -958,7 +974,8 @@
         "wait": "Wait",
         "condition": "Condition (If/Else)",
         "send_webhook": "Send Webhook",
-        "close_conversation": "Close Conversation"
+        "close_conversation": "Close Conversation",
+        "set_priority": "Set Priority"
       },
       "triggers": {
         "new_message_received": {
@@ -1112,7 +1129,14 @@
         "matchWord": "Whole word",
         "matchWordHint": "Matches the keyword only as a standalone word, so \"k\" no longer fires on \"thanks\". Best for short keywords in space-separated languages; use Contains for languages written without spaces.",
         "matchExact": "Exact",
-        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed."
+        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed.",
+        "priorityLabel": "Priority",
+        "priorities": {
+          "urgent": "Urgent",
+          "high": "High",
+          "normal": "Normal",
+          "low": "Low"
+        }
       }
     }
   },

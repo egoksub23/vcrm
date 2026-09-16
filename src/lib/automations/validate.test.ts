@@ -158,6 +158,18 @@ describe("validateStepsForActivation", () => {
     ]);
   });
 
+  it("flags set_priority when priority is missing or invalid", () => {
+    const issues = validateStepsForActivation([
+      { step_type: "set_priority", step_config: {} },
+      { step_type: "set_priority", step_config: { priority: "critical" } },
+      { step_type: "set_priority", step_config: { priority: "urgent" } },
+    ]);
+    expect(issues.map((i) => i.path)).toEqual([
+      "steps[0].priority",
+      "steps[1].priority",
+    ]);
+  });
+
   it("flags create_deal when required fields are missing", () => {
     const issues = validateStepsForActivation([
       { step_type: "create_deal", step_config: {} },

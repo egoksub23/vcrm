@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type {
   ChannelType,
   Conversation,
+  ConversationPriority,
   Message,
   MessageReaction,
   Contact,
@@ -25,6 +26,7 @@ import {
   MessageSquare,
   MessageCircle,
   Globe,
+  Flag,
   ChevronDown,
   UserPlus,
   Users,
@@ -85,6 +87,10 @@ interface MessageThreadProps {
   onNewMessage: (message: Message) => void;
   onUpdateMessage: (id: string, updates: Partial<Message>) => void;
   onStatusChange: (conversationId: string, status: ConversationStatus) => void;
+  onPriorityChange: (
+    conversationId: string,
+    priority: ConversationPriority,
+  ) => void;
   onAssignChange: (
     conversationId: string,
     assignedAgentId: string | null,
@@ -166,6 +172,13 @@ const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
   web_widget: Globe,
 };
 
+const PRIORITY_OPTIONS: { value: ConversationPriority; color: string }[] = [
+  { value: "urgent", color: "text-red-500" },
+  { value: "high", color: "text-amber-400" },
+  { value: "normal", color: "text-muted-foreground" },
+  { value: "low", color: "text-sky-400" },
+];
+
 /**
  * WhatsApp-style doodle background applied to the chat area (both the
  * active thread and the empty state). The SVG tile lives at
@@ -186,6 +199,7 @@ export function MessageThread({
   onNewMessage,
   onUpdateMessage,
   onStatusChange,
+  onPriorityChange,
   onAssignChange,
   onTeamChange,
   onLabelsChange,
@@ -733,6 +747,21 @@ export function MessageThread({
     [conversation, onStatusChange]
   );
 
+  const handlePriorityChange = useCallback(
+    async (priority: ConversationPriority) => {
+      if (!conversation) return;
+
+      const supabase = createClient();
+      await supabase
+        .from("conversations")
+        .update({ priority })
+        .eq("id", conversation.id);
+
+      onPriorityChange(conversation.id, priority);
+    },
+    [conversation, onPriorityChange]
+  );
+
   const handleOpenTemplates = useCallback(() => {
     setTemplateModalOpen(true);
   }, []);
@@ -1037,6 +1066,9 @@ export function MessageThread({
   const currentStatus = STATUS_OPTIONS.find(
     (s) => s.value === conversation.status
   );
+  const currentPriority = PRIORITY_OPTIONS.find(
+    (p) => p.value === conversation.priority
+  );
   const assignedAgentId = conversation.assigned_agent_id ?? null;
   const currentAssignee = profiles.find((p) => p.user_id === assignedAgentId);
   const assignLabel = assignedAgentId
@@ -1164,6 +1196,35 @@ export function MessageThread({
               </span>
             );
           })()}
+
+          {/* Priority dropdown — manual set; the set_priority automation
+              step (migration 047) sets the same column. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                currentPriority?.color ?? "text-muted-foreground"
+              )}
+            >
+              <Flag className="h-3 w-3" />
+              <span className="hidden sm:inline">
+                {t(`priority.${conversation.priority}`)}
+              </span>
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-border bg-popover">
+              {PRIORITY_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => handlePriorityChange(opt.value)}
+                  className={cn("text-sm", opt.color)}
+                >
+                  <Flag className="mr-2 h-3 w-3" />
+                  {t(`priority.${opt.value}`)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Status dropdown */}
           <DropdownMenu>

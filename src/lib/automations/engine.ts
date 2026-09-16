@@ -18,6 +18,7 @@ import type {
   CreateDealStepConfig,
   AssignConversationStepConfig,
   AssignToTeamStepConfig,
+  SetPriorityStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
@@ -697,12 +698,28 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
 
     case 'close_conversation': {
       if (!args.contactId) throw new Error('close_conversation needs a contact')
+      // Scoped to the ONE triggering conversation via resolveConversationId
+      // rather than every conversation for this contact — since migration
+      // 046 a contact can have both a WhatsApp and a web-widget
+      // conversation, and closing by contact_id alone would close both
+      // just because one of them fired the automation.
+      const conversationId = await resolveConversationId(args)
       await db
         .from('conversations')
         .update({ status: 'closed', updated_at: new Date().toISOString() })
-        .eq('account_id', args.automation.account_id)
-        .eq('contact_id', args.contactId)
+        .eq('id', conversationId)
       return 'conversation closed'
+    }
+
+    case 'set_priority': {
+      const cfg = step.step_config as SetPriorityStepConfig
+      if (!cfg.priority) throw new Error('set_priority needs a priority')
+      const conversationId = await resolveConversationId(args)
+      await db
+        .from('conversations')
+        .update({ priority: cfg.priority, updated_at: new Date().toISOString() })
+        .eq('id', conversationId)
+      return `priority set to ${cfg.priority}`
     }
 
     default:
@@ -720,6 +737,16 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
  * fall back to the contact's conversation for resumed/wait paths and
  * manual engine POSTs. Throws if none exists — send steps have
  * no meaningful target without a conversation.
+ *
+ * The fallback assumes one conversation per contact, which no longer
+ * strictly holds since migration 046 (a contact can have both a
+ * WhatsApp and a web-widget conversation): `.maybeSingle()` errors out
+ * on 2 rows instead of picking one. Every current trigger dispatch site
+ * (the WhatsApp webhook, the widget message route) already passes
+ * `context.conversation_id`, so this only bites a contact-only trigger
+ * (e.g. `tag_added`) for a contact who has messaged on both channels —
+ * narrow enough to leave as a known edge case rather than widen this
+ * into a full resolver here.
  */
 async function resolveConversationId(args: ExecuteArgs): Promise<string> {
   const fromCtx = args.context.conversation_id

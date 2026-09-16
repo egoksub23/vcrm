@@ -8,7 +8,7 @@ import {
   CONVERSATION_SELECT,
   normalizeConversation,
 } from "@/lib/inbox/conversations";
-import type { Conversation, Message, Contact, ConversationStatus } from "@/types";
+import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus } from "@/types";
 import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
@@ -561,6 +561,18 @@ function InboxPageInner() {
     [activeConversation]
   );
 
+  const handlePriorityChange = useCallback(
+    (conversationId: string, priority: ConversationPriority) => {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, priority } : c))
+      );
+      if (activeConversation?.id === conversationId) {
+        setActiveConversation((prev) => (prev ? { ...prev, priority } : prev));
+      }
+    },
+    [activeConversation]
+  );
+
   const handleTeamChange = useCallback(
     (conversationId: string, assignedTeamId: string | null) => {
       setConversations((prev) =>
@@ -654,6 +666,7 @@ function InboxPageInner() {
             onNewMessage={handleNewMessage}
             onUpdateMessage={handleUpdateMessage}
             onStatusChange={handleStatusChange}
+            onPriorityChange={handlePriorityChange}
             onAssignChange={handleAssignChange}
             onTeamChange={handleTeamChange}
             onLabelsChange={handleLabelsChange}

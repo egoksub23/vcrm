@@ -159,6 +159,11 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
     case 'close_conversation':
       // No config required.
       break
+    case 'set_priority':
+      if (!['urgent', 'high', 'normal', 'low'].includes(c.priority as string)) {
+        issues.push({ path: `${path}.priority`, message: 'a valid priority is required' })
+      }
+      break
     default:
       issues.push({ path, message: `unknown step type: ${step.step_type}` })
   }

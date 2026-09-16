@@ -158,6 +158,16 @@
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯"
       },
+      "allPriorities": "모든 우선순위",
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
+      },
+      "sortToggleTitle": "정렬 순서 전환",
+      "sortByRecent": "최신순",
+      "sortByPriority": "우선순위",
       "clearAll": "모두 지우기",
       "noConversations": "대화를 찾을 수 없습니다",
       "noMessagesYet": "아직 메시지가 없습니다",
@@ -174,6 +184,12 @@
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯"
+      },
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
       },
       "status": "상태",
       "statusOpen": "열림",
@@ -958,7 +974,8 @@
         "wait": "대기",
         "condition": "조건 (If/Else)",
         "send_webhook": "웹훅 보내기",
-        "close_conversation": "대화 닫기"
+        "close_conversation": "대화 닫기",
+        "set_priority": "우선순위 설정"
       },
       "triggers": {
         "new_message_received": {
@@ -1112,7 +1129,14 @@
         "matchWord": "단어 단위 일치",
         "matchWordHint": "키워드가 독립된 단어일 때만 일치하므로 \"k\"가 \"thanks\"에서 실행되지 않습니다. 공백으로 단어를 구분하는 언어의 짧은 키워드에 적합하며, 공백 없이 표기하는 언어에는 \"포함\"을 사용하세요.",
         "matchExact": "정확히 일치",
-        "closeConversationHint": "대화 상태를 \"닫힘\"으로 설정합니다. 추가 설정이 필요 없습니다."
+        "closeConversationHint": "대화 상태를 \"닫힘\"으로 설정합니다. 추가 설정이 필요 없습니다.",
+        "priorityLabel": "우선순위",
+        "priorities": {
+          "urgent": "긴급",
+          "high": "높음",
+          "normal": "보통",
+          "low": "낮음"
+        }
       }
     }
   },

@@ -11,8 +11,8 @@ import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import type { ChannelType, Conversation, ConversationStatus, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, MessageCircle, Globe } from "lucide-react";
+import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, Tag, Team } from "@/types";
+import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,23 @@ const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
   web_widget: Globe,
 };
 
+const PRIORITY_COLORS: Record<ConversationPriority, string> = {
+  urgent: "text-red-500",
+  high: "text-amber-400",
+  normal: "text-muted-foreground",
+  low: "text-sky-400",
+};
+
+/** Highest first — drives the "Priority" sort. */
+const PRIORITY_RANK: Record<ConversationPriority, number> = {
+  urgent: 0,
+  high: 1,
+  normal: 2,
+  low: 3,
+};
+
+type SortMode = "recent" | "priority";
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -98,6 +115,11 @@ export function ConversationList({
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   // Channel filter (WhatsApp vs. Web Widget). `null` = no filter.
   const [selectedChannelType, setSelectedChannelType] = useState<ChannelType | null>(null);
+  // Priority filter + sort (P1 gap-analysis item, migration 047). `null` =
+  // no priority filter. Sort defaults to "recent" (existing behavior) —
+  // switching to "priority" doesn't change what's *shown*, only order.
+  const [selectedPriority, setSelectedPriority] = useState<ConversationPriority | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -222,6 +244,10 @@ export function ConversationList({
       result = result.filter((c) => c.channel_type === selectedChannelType);
     }
 
+    if (selectedPriority !== null) {
+      result = result.filter((c) => c.priority === selectedPriority);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((c) => {
@@ -230,6 +256,15 @@ export function ConversationList({
         const lastMsg = c.last_message_text?.toLowerCase() ?? "";
         return name.includes(q) || phone.includes(q) || lastMsg.includes(q);
       });
+    }
+
+    if (sortMode === "priority") {
+      // Stable sort: priority rank first, then the existing recency order
+      // as the tiebreaker (Array.prototype.sort is stable per spec, and
+      // `result` already arrives in recency order from `conversations`).
+      result = [...result].sort(
+        (a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority],
+      );
     }
 
     return result;
@@ -242,6 +277,8 @@ export function ConversationList({
     selectedTeamId,
     selectedLabelIds,
     selectedChannelType,
+    selectedPriority,
+    sortMode,
     user,
   ]);
 
@@ -263,6 +300,7 @@ export function ConversationList({
     setSelectedTeamId(null);
     setSelectedLabelIds([]);
     setSelectedChannelType(null);
+    setSelectedPriority(null);
   }, []);
 
   const hasContactFilters =
@@ -270,7 +308,8 @@ export function ConversationList({
     selectedCompany !== null ||
     selectedTeamId !== null ||
     selectedLabelIds.length > 0 ||
-    selectedChannelType !== null;
+    selectedChannelType !== null ||
+    selectedPriority !== null;
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -593,6 +632,62 @@ export function ConversationList({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                selectedPriority !== null
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Flag className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {selectedPriority === null ? t("allPriorities") : t(`priority.${selectedPriority}`)}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40 border-border bg-popover">
+              <DropdownMenuItem
+                onClick={() => setSelectedPriority(null)}
+                className={cn(
+                  "text-sm",
+                  selectedPriority === null ? "text-primary" : "text-popover-foreground"
+                )}
+              >
+                {t("allPriorities")}
+              </DropdownMenuItem>
+              {(["urgent", "high", "normal", "low"] as ConversationPriority[]).map((p) => (
+                <DropdownMenuItem
+                  key={p}
+                  onClick={() => setSelectedPriority(p)}
+                  className={cn(
+                    "text-sm",
+                    selectedPriority === p ? "text-primary" : "text-popover-foreground"
+                  )}
+                >
+                  <Flag className={cn("mr-2 h-3.5 w-3.5", PRIORITY_COLORS[p])} />
+                  {t(`priority.${p}`)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <button
+            type="button"
+            onClick={() => setSortMode((m) => (m === "recent" ? "priority" : "recent"))}
+            title={t("sortToggleTitle")}
+            className={cn(
+              "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+              sortMode === "priority" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ArrowUpDown className="h-3 w-3 shrink-0" />
+            <span className="hidden truncate sm:inline">
+              {sortMode === "priority" ? t("sortByPriority") : t("sortByRecent")}
+            </span>
+          </button>
         </div>
 
         {hasContactFilters && (
@@ -648,6 +743,15 @@ export function ConversationList({
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
               >
                 <span className="max-w-24 truncate">{t(`channel.${selectedChannelType}`)}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {selectedPriority !== null && (
+              <button
+                onClick={() => setSelectedPriority(null)}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+              >
+                <span className="max-w-24 truncate">{t(`priority.${selectedPriority}`)}</span>
                 <X className="h-3 w-3" />
               </button>
             )}
@@ -773,6 +877,12 @@ function ConversationItem({
               className="h-3 w-3 shrink-0 text-muted-foreground"
               aria-label={t(`channel.${conversation.channel_type}`)}
             />
+            {conversation.priority !== "normal" && (
+              <Flag
+                className={cn("h-3 w-3 shrink-0", PRIORITY_COLORS[conversation.priority])}
+                aria-label={t(`priority.${conversation.priority}`)}
+              />
+            )}
             <span className="truncate text-sm font-medium text-foreground">
               {displayName}
             </span>

@@ -172,6 +172,11 @@ export interface ContactNote {
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';
 
+/** Migration 047. Sorts/badges in the inbox; set manually from the
+ *  thread header or via the `set_priority` automation step (e.g. a
+ *  condition on a "VIP" custom field → set_priority: urgent). */
+export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
+
 /** Which inbound channel this conversation belongs to (migration 046).
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
@@ -184,6 +189,7 @@ export interface Conversation {
   contact_id: string;
   status: ConversationStatus;
   channel_type: ChannelType;
+  priority: ConversationPriority;
   assigned_agent_id?: string;
   /** Team a conversation is routed to (migration 043); orthogonal to
    *  `assigned_agent_id` — a team assignment always resolves to a
@@ -581,7 +587,8 @@ export type AutomationStepType =
   | 'wait'
   | 'condition'
   | 'send_webhook'
-  | 'close_conversation';
+  | 'close_conversation'
+  | 'set_priority';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -703,6 +710,10 @@ export interface SendWebhookStepConfig {
   body_template?: string;
 }
 
+export interface SetPriorityStepConfig {
+  priority: ConversationPriority;
+}
+
 export type AutomationStepConfig =
   | SendMessageStepConfig
   | SendButtonsStepConfig
@@ -711,6 +722,7 @@ export type AutomationStepConfig =
   | TagStepConfig
   | AssignConversationStepConfig
   | AssignToTeamStepConfig
+  | SetPriorityStepConfig
   | UpdateContactFieldStepConfig
   | CreateDealStepConfig
   | WaitStepConfig

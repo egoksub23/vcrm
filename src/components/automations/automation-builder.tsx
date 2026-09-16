@@ -34,6 +34,7 @@ import {
   ArrowUp,
   MousePointerClick,
   List,
+  Flag,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -125,6 +126,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   condition: { label: "condition", icon: GitBranch, border: "border-l-amber-500" },
   send_webhook: { label: "send_webhook", icon: Webhook, border: "border-l-primary" },
   close_conversation: { label: "close_conversation", icon: CircleSlash, border: "border-l-primary" },
+  set_priority: { label: "set_priority", icon: Flag, border: "border-l-primary" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -144,6 +146,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "condition",
   "send_webhook",
   "close_conversation",
+  "set_priority",
 ]
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
@@ -209,6 +212,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { url: "", headers: {}, body_template: "" }
     case "close_conversation":
       return {}
+    case "set_priority":
+      return { priority: "high" }
     default:
       return {}
   }
@@ -1676,6 +1681,21 @@ function StepEditor({
         <p className="text-xs text-muted-foreground">
           {t("config.closeConversationHint", { defaultValue: "Sets the conversation status to \"closed\". No configuration needed." })}
         </p>
+      )
+    case "set_priority":
+      return (
+        <FieldBlock label={t("config.priorityLabel")}>
+          <select
+            value={(cfg.priority as string) ?? "high"}
+            onChange={(e) => set({ priority: e.target.value })}
+            className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+          >
+            <option value="urgent">{t("config.priorities.urgent")}</option>
+            <option value="high">{t("config.priorities.high")}</option>
+            <option value="normal">{t("config.priorities.normal")}</option>
+            <option value="low">{t("config.priorities.low")}</option>
+          </select>
+        </FieldBlock>
       )
     default:
       return null
