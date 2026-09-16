@@ -84,11 +84,16 @@ just rendering the page.
 
 ### 4. Test it
 
-Open a page carrying the snippet, click the launcher, send a message.
-It should appear in the CRM's Inbox under a conversation badged with
-the widget's channel icon; reply from the dashboard and it should
-appear back in the widget within about a second, with no page reload
-(Supabase Realtime, not polling).
+Click **Test chat** next to the embed snippet — it opens a small
+popup already connected and open to a conversation, no need to have
+the snippet live on a real page first. Send a message and it should
+appear in the CRM's Inbox under a conversation badged with the
+widget's channel icon; reply from the dashboard and it should appear
+back in the popup within about a second, with no page reload
+(Supabase Realtime, not polling). This is the exact widget code path a
+real visitor gets — the popup just auto-opens the panel
+(`/widget-preview`, `data-open="true"`) instead of requiring a click
+on the launcher bubble.
 
 ## How it works, briefly
 
