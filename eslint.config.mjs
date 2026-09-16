@@ -14,6 +14,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored minified opus-recorder encoder worker (served statically).
     "public/opus/**",
+    // Standalone Preact bundle (its own tsconfig + JSX runtime, checked
+    // separately via `tsc -p widget/tsconfig.json`) — not part of the
+    // Next.js app, so the Next-specific / React-JSX-scope rules here
+    // don't apply to it.
+    "widget/**",
   ]),
 ]);
 

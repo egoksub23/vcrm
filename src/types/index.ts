@@ -115,6 +115,10 @@ export interface Contact {
   /** WhatsApp username without the leading @. Display only: usernames
    *  are user-changeable, so they must never key a contact. */
   wa_username?: string | null;
+  /** Supabase anonymous-auth `auth.uid()` for a contact who arrived via
+   *  the web-chat widget (migration 046). Unique per account when set;
+   *  never present alongside a real `phone`. */
+  widget_visitor_id?: string | null;
   name?: string;
   email?: string;
   company?: string;
@@ -168,11 +172,18 @@ export interface ContactNote {
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';
 
+/** Which inbound channel this conversation belongs to (migration 046).
+ *  WhatsApp-only send affordances (templates, interactive buttons/lists)
+ *  only make sense for `'whatsapp'` — see send-message.ts and the
+ *  automation engine's per-step channel guards. */
+export type ChannelType = 'whatsapp' | 'web_widget';
+
 export interface Conversation {
   id: string;
   user_id: string;
   contact_id: string;
   status: ConversationStatus;
+  channel_type: ChannelType;
   assigned_agent_id?: string;
   /** Team a conversation is routed to (migration 043); orthogonal to
    *  `assigned_agent_id` — a team assignment always resolves to a
@@ -337,6 +348,26 @@ export interface WhatsAppConfig {
    * inbound attachments expire. Migration 039.
    */
   mirror_inbound_media?: boolean;
+}
+
+export interface WebWidgetConfig {
+  id: string;
+  account_id: string;
+  /** Public, non-secret identifier embedded in the `<script>` tag's
+   *  `data-widget-token` attribute — not a credential, just how a
+   *  visitor's browser tells us which account/config to bootstrap. */
+  widget_token: string;
+  name: string;
+  welcome_message: string;
+  primary_color: string;
+  avatar_url?: string | null;
+  position: 'left' | 'right';
+  /** Origins allowed to embed this widget (CORS allow-list). Empty
+   *  array means unrestricted — any origin may embed. */
+  allowed_origins: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

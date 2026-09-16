@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   state: {
     owned: null as { id: string } | null,
     ownedCustomField: null as { id: string } | null,
+    conversationChannelType: "whatsapp" as string,
     automations: [] as Record<string, unknown>[],
     steps: [] as Record<string, unknown>[],
     fromCalls: [] as string[],
@@ -33,6 +34,9 @@ vi.mock("./admin-client", () => {
       }
       // ownership guard / condition read
       return { data: state.owned, error: null };
+    }
+    if (table === "conversations") {
+      return { data: { channel_type: state.conversationChannelType }, error: null };
     }
     if (table === "custom_fields") {
       // account-scoped ownership lookup for a custom field definition
@@ -112,6 +116,7 @@ const ACCOUNT = "acct-1";
 beforeEach(() => {
   h.state.owned = null;
   h.state.ownedCustomField = null;
+  h.state.conversationChannelType = "whatsapp";
   h.state.automations = [];
   h.state.steps = [];
   h.state.fromCalls = [];
@@ -448,6 +453,107 @@ describe("tag_added — conversation policy", () => {
       status: "failed",
       error_message: "tag_added automation cannot send: contact has no existing conversation",
     }));
+  });
+});
+
+describe("channel guard — send_buttons/send_list/send_template on a web_widget conversation (migration 046)", () => {
+  it("fails send_template with a clear error rather than calling Meta", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversationChannelType = "web_widget";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "template outreach",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_template",
+      position: 0,
+      parent_step_id: null,
+      step_config: { template_name: "order_update" },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { conversation_id: "cv-1", message_text: "hi" },
+    });
+
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      status: "failed",
+      error_message: "send_template is only supported for WhatsApp conversations",
+    }));
+  });
+
+  it("fails send_buttons with a clear error rather than calling Meta", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversationChannelType = "web_widget";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "menu outreach",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_buttons",
+      position: 0,
+      parent_step_id: null,
+      step_config: { kind: "buttons", body: "Pick one", buttons: [{ id: "a", title: "A" }] },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { conversation_id: "cv-1", message_text: "hi" },
+    });
+
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      status: "failed",
+      error_message: "send_buttons is only supported for WhatsApp conversations",
+    }));
+  });
+
+  it("still allows plain send_message on a web_widget conversation", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversationChannelType = "web_widget";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "text outreach",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_message",
+      position: 0,
+      parent_step_id: null,
+      step_config: { text: "Hello" },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { conversation_id: "cv-1", message_text: "hi" },
+    });
+
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({ status: "success" }));
   });
 });
 

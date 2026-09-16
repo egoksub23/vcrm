@@ -234,57 +234,82 @@ export async function sendMessageToConversation(
 
   const contact = conversation.contact;
 
+  // Web-widget conversations never go anywhere near Meta — persisting
+  // the `messages` row *is* the delivery (the widget's own Realtime
+  // subscription picks it up). Only plain text is meaningful there;
+  // templates/interactive/media are Meta concepts the widget composer
+  // never even offers, but guard server-side too since this function is
+  // also the automation engine's send path.
+  const isWidgetConversation = conversation.channel_type === 'web_widget';
+  if (isWidgetConversation && messageType !== 'text') {
+    throw new SendMessageError(
+      'bad_request',
+      'Only text messages are supported on the web-chat channel',
+      400
+    );
+  }
+
   // A contact is addressable by phone number OR by business-scoped user
   // ID. Meta withholds the phone number for a customer who has adopted
   // a WhatsApp username, so those contacts carry only a BSUID and are
   // reached through Meta's `recipient` field instead of `to` (issue
   // #519). Phone stays preferred when we have one: only it supports the
-  // trunk-prefix variant retry below.
-  const resolvedTarget = resolveContactSendTarget(contact);
-  if (!resolvedTarget) {
-    throw new SendMessageError(
-      'bad_request',
-      contact?.phone
-        ? 'Invalid phone number format'
-        : 'Contact has no phone number or WhatsApp user ID',
-      400
-    );
-  }
-  const sendTarget = resolvedTarget.target;
-  const hasValidPhone = resolvedTarget.isPhone;
-  const sanitizedPhone = hasValidPhone ? sendTarget : '';
-
-  // WhatsApp config, account-scoped.
-  const { data: config, error: configError } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', accountId)
-    .single();
-
-  if (configError || !config) {
-    throw new SendMessageError(
-      'whatsapp_not_configured',
-      'WhatsApp not configured. Please set up your WhatsApp integration first.',
-      400
-    );
+  // trunk-prefix variant retry below. None of this applies to a widget
+  // conversation, whose contact has no phone/BSUID at all.
+  let sendTarget = '';
+  let hasValidPhone = false;
+  let sanitizedPhone = '';
+  if (!isWidgetConversation) {
+    const resolvedTarget = resolveContactSendTarget(contact);
+    if (!resolvedTarget) {
+      throw new SendMessageError(
+        'bad_request',
+        contact?.phone
+          ? 'Invalid phone number format'
+          : 'Contact has no phone number or WhatsApp user ID',
+        400
+      );
+    }
+    sendTarget = resolvedTarget.target;
+    hasValidPhone = resolvedTarget.isPhone;
+    sanitizedPhone = hasValidPhone ? sendTarget : '';
   }
 
-  const accessToken = decrypt(config.access_token);
-
-  // Self-heal legacy CBC ciphertexts. Fire-and-forget; idempotent.
-  if (isLegacyFormat(config.access_token)) {
-    void db
+  // WhatsApp config, account-scoped. Not needed at all for a widget send.
+  let config: { id: string; phone_number_id: string; access_token: string } | null = null;
+  let accessToken = '';
+  if (!isWidgetConversation) {
+    const { data: configRow, error: configError } = await db
       .from('whatsapp_config')
-      .update({ access_token: encrypt(accessToken) })
-      .eq('id', config.id)
-      .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
-          console.warn(
-            '[send-message] access_token GCM upgrade failed:',
-            error.message
-          );
-        }
-      });
+      .select('*')
+      .eq('account_id', accountId)
+      .single();
+
+    if (configError || !configRow) {
+      throw new SendMessageError(
+        'whatsapp_not_configured',
+        'WhatsApp not configured. Please set up your WhatsApp integration first.',
+        400
+      );
+    }
+    config = configRow;
+    accessToken = decrypt(configRow.access_token);
+
+    // Self-heal legacy CBC ciphertexts. Fire-and-forget; idempotent.
+    if (isLegacyFormat(configRow.access_token)) {
+      void db
+        .from('whatsapp_config')
+        .update({ access_token: encrypt(accessToken) })
+        .eq('id', configRow.id)
+        .then(({ error }: { error: { message: string } | null }) => {
+          if (error) {
+            console.warn(
+              '[send-message] access_token GCM upgrade failed:',
+              error.message
+            );
+          }
+        });
+    }
   }
 
   // Resolve the reply target to its Meta message_id. The parent must
@@ -339,117 +364,123 @@ export async function sendMessageToConversation(
     sendLanguage = resolved.language;
   }
 
-  const attempt = async (phone: string): Promise<string> => {
-    if (messageType === 'template') {
-      const result = await sendTemplateMessage({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
-        to: phone,
-        templateName: templateName!,
-        language: sendLanguage,
-        template: templateRow ?? undefined,
-        messageParams: templateMessageParams ?? undefined,
-        params: templateParams || [],
-        contextMessageId,
-      });
-      return result.messageId;
-    }
-    if (isMediaKind) {
-      const result = await sendMediaMessage({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
-        to: phone,
-        kind: messageType as MediaKind,
-        link: mediaUrl!,
-        caption: contentText || undefined,
-        filename: filename || undefined,
-        contextMessageId,
-      });
-      return result.messageId;
-    }
-    if (messageType === 'interactive') {
-      const p = interactivePayload!;
-      if (p.kind === 'buttons') {
-        const result = await sendInteractiveButtons({
-          phoneNumberId: config.phone_number_id,
+  // Send via Meta — retry across phone-number variants if Meta rejects
+  // with "recipient not in allowed list"; persist a working variant
+  // back to the contact so the next send goes straight through. Skipped
+  // entirely for a widget conversation: there's no Meta call, and
+  // `waMessageId` simply stays '' (the messages row has no Meta wamid).
+  let waMessageId = '';
+  let workingPhone = sendTarget;
+  if (!isWidgetConversation) {
+    const cfg = config!;
+
+    const attempt = async (phone: string): Promise<string> => {
+      if (messageType === 'template') {
+        const result = await sendTemplateMessage({
+          phoneNumberId: cfg.phone_number_id,
           accessToken,
           to: phone,
-          bodyText: p.body,
-          headerText: p.header || undefined,
-          footerText: p.footer || undefined,
-          buttons: p.buttons,
+          templateName: templateName!,
+          language: sendLanguage,
+          template: templateRow ?? undefined,
+          messageParams: templateMessageParams ?? undefined,
+          params: templateParams || [],
           contextMessageId,
         });
         return result.messageId;
       }
-      const result = await sendInteractiveList({
-        phoneNumberId: config.phone_number_id,
+      if (isMediaKind) {
+        const result = await sendMediaMessage({
+          phoneNumberId: cfg.phone_number_id,
+          accessToken,
+          to: phone,
+          kind: messageType as MediaKind,
+          link: mediaUrl!,
+          caption: contentText || undefined,
+          filename: filename || undefined,
+          contextMessageId,
+        });
+        return result.messageId;
+      }
+      if (messageType === 'interactive') {
+        const p = interactivePayload!;
+        if (p.kind === 'buttons') {
+          const result = await sendInteractiveButtons({
+            phoneNumberId: cfg.phone_number_id,
+            accessToken,
+            to: phone,
+            bodyText: p.body,
+            headerText: p.header || undefined,
+            footerText: p.footer || undefined,
+            buttons: p.buttons,
+            contextMessageId,
+          });
+          return result.messageId;
+        }
+        const result = await sendInteractiveList({
+          phoneNumberId: cfg.phone_number_id,
+          accessToken,
+          to: phone,
+          bodyText: p.body,
+          buttonLabel: p.button_label,
+          headerText: p.header || undefined,
+          footerText: p.footer || undefined,
+          sections: p.sections,
+          contextMessageId,
+        });
+        return result.messageId;
+      }
+      const result = await sendTextMessage({
+        phoneNumberId: cfg.phone_number_id,
         accessToken,
         to: phone,
-        bodyText: p.body,
-        buttonLabel: p.button_label,
-        headerText: p.header || undefined,
-        footerText: p.footer || undefined,
-        sections: p.sections,
+        text: contentText!,
         contextMessageId,
       });
       return result.messageId;
-    }
-    const result = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
-      to: phone,
-      text: contentText!,
-      contextMessageId,
-    });
-    return result.messageId;
-  };
+    };
 
-  // Send via Meta — retry across phone-number variants if Meta rejects
-  // with "recipient not in allowed list"; persist a working variant
-  // back to the contact so the next send goes straight through.
-  let waMessageId = '';
-  let workingPhone = sendTarget;
-  try {
-    // Variants only make sense for a phone number — a BSUID is opaque
-    // and has exactly one correct form, so it gets a single attempt.
-    const variants = hasValidPhone ? phoneVariants(sanitizedPhone) : [sendTarget];
-    let lastError: unknown = null;
+    try {
+      // Variants only make sense for a phone number — a BSUID is opaque
+      // and has exactly one correct form, so it gets a single attempt.
+      const variants = hasValidPhone ? phoneVariants(sanitizedPhone) : [sendTarget];
+      let lastError: unknown = null;
 
-    for (const variant of variants) {
-      try {
-        waMessageId = await attempt(variant);
-        workingPhone = variant;
-        lastError = null;
-        break;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!isRecipientNotAllowedError(message)) {
-          throw err;
+      for (const variant of variants) {
+        try {
+          waMessageId = await attempt(variant);
+          workingPhone = variant;
+          lastError = null;
+          break;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (!isRecipientNotAllowedError(message)) {
+            throw err;
+          }
+          lastError = err;
+          console.warn(
+            `[send-message] variant "${variant}" rejected by Meta, trying next…`
+          );
         }
-        lastError = err;
-        console.warn(
-          `[send-message] variant "${variant}" rejected by Meta, trying next…`
-        );
       }
+
+      if (lastError) throw lastError;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unknown Meta API error';
+      console.error('[send-message] Meta send failed for all variants:', message);
+      throw new SendMessageError('meta_error', `Meta API error: ${message}`, 502);
     }
 
-    if (lastError) throw lastError;
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Unknown Meta API error';
-    console.error('[send-message] Meta send failed for all variants:', message);
-    throw new SendMessageError('meta_error', `Meta API error: ${message}`, 502);
-  }
-
-  if (hasValidPhone && workingPhone !== sanitizedPhone) {
-    console.log(
-      `[send-message] Auto-corrected contact phone: ${sanitizedPhone} → ${workingPhone}`
-    );
-    await db
-      .from('contacts')
-      .update({ phone: workingPhone })
-      .eq('id', contact.id);
+    if (hasValidPhone && workingPhone !== sanitizedPhone) {
+      console.log(
+        `[send-message] Auto-corrected contact phone: ${sanitizedPhone} → ${workingPhone}`
+      );
+      await db
+        .from('contacts')
+        .update({ phone: workingPhone })
+        .eq('id', contact.id);
+    }
   }
 
   // Persist the sent message. Field names MUST match the messages
@@ -495,7 +526,9 @@ export async function sendMessageToConversation(
     console.error('[send-message] error inserting sent message:', msgError);
     throw new SendMessageError(
       'db_error',
-      `Message sent to Meta but failed to save to DB: ${msgError.message}`,
+      isWidgetConversation
+        ? `Failed to save message to DB: ${msgError.message}`
+        : `Message sent to Meta but failed to save to DB: ${msgError.message}`,
       500
     );
   }

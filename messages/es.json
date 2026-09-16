@@ -153,6 +153,11 @@
       "teams": "Equipo",
       "allTeams": "Todos los equipos",
       "unassignedTeam": "Sin equipo",
+      "allChannels": "Todos los canales",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Widget web"
+      },
       "clearAll": "Limpiar todo",
       "noConversations": "No se encontraron conversaciones",
       "noMessagesYet": "Aún no hay mensajes",
@@ -166,6 +171,10 @@
       "showContact": "Mostrar contacto",
       "refresh": "Actualizar",
       "refreshConversation": "Actualizar conversación",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Widget web"
+      },
       "status": "Estado",
       "statusOpen": "Abierta",
       "statusPending": "Pendiente",
@@ -1730,12 +1739,55 @@
       "wabaSubscribed": "La cuenta de WhatsApp Business está suscrita a esta app: los webhooks entrantes pueden entregarse.",
       "wabaNotSubscribed": "La cuenta de WhatsApp Business no está suscrita a esta app, así que Meta no entregará webhooks entrantes. Vuelve a ingresar el token de acceso y guarda de nuevo para suscribirla."
     },
+    "channels": {
+      "title": "Canales",
+      "description": "Conecta WhatsApp, el widget de chat web y otros canales entrantes para esta cuenta.",
+      "names": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Widget web",
+        "instagram": "Instagram",
+        "messenger": "Messenger",
+        "email": "Correo electrónico",
+        "sms": "SMS"
+      },
+      "comingSoonBadge": "Próximamente",
+      "comingSoonTitle": "{channel} estará disponible pronto",
+      "comingSoonDescription": "Este canal aún no está disponible. WhatsApp y el widget web ya se pueden usar hoy.",
+      "webWidget": {
+        "title": "Widget web",
+        "description": "Un widget de chat integrable para tu sitio web o app — un canal entrante gratuito y distinto de WhatsApp.",
+        "enabled": "Activado",
+        "disabled": "Desactivado",
+        "embedTitle": "Código de inserción",
+        "embedDescription": "Pega este fragmento antes de la etiqueta de cierre body en cualquier página donde quieras que aparezca el widget de chat.",
+        "copy": "Copiar",
+        "saveToGetSnippet": "Guarda la configuración del widget una vez para generar un código de inserción.",
+        "appearanceTitle": "Apariencia",
+        "nameLabel": "Nombre del widget",
+        "welcomeLabel": "Mensaje de bienvenida",
+        "colorLabel": "Color principal",
+        "positionLabel": "Posición",
+        "position": {
+          "left": "Inferior izquierda",
+          "right": "Inferior derecha"
+        },
+        "originsTitle": "Orígenes permitidos",
+        "originsDescription": "Restringe qué sitios web pueden insertar este widget. Déjalo vacío para permitir cualquier origen.",
+        "invalidOrigin": "Ingresa una URL válida, p. ej. https://ejemplo.com",
+        "noOriginsRestriction": "Sin restricción — este widget puede insertarse en cualquier sitio.",
+        "save": "Guardar cambios",
+        "saved": "Configuración del widget guardada",
+        "saveFailed": "Error al guardar la configuración del widget",
+        "snippetCopied": "Código de inserción copiado al portapapeles",
+        "copyFailed": "Error al copiar"
+      }
+    },
     "sections": {
       "overview": "Resumen",
       "profile": "Tu perfil",
       "security": "Acceso y seguridad",
       "appearance": "Apariencia",
-      "whatsapp": "WhatsApp",
+      "channels": "Canales",
       "templates": "Plantillas",
       "quick-replies": "Respuestas rápidas",
       "fields": "Campos y etiquetas",

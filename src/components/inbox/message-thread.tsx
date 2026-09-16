@@ -10,6 +10,7 @@ import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import type {
+  ChannelType,
   Conversation,
   Message,
   MessageReaction,
@@ -22,6 +23,8 @@ import type {
 } from "@/types";
 import {
   MessageSquare,
+  MessageCircle,
+  Globe,
   ChevronDown,
   UserPlus,
   Users,
@@ -157,6 +160,11 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
   { label: "Pending", value: "pending", color: "text-amber-400" },
   { label: "Closed", value: "closed", color: "text-muted-foreground" },
 ];
+
+const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
+  whatsapp: MessageCircle,
+  web_widget: Globe,
+};
 
 /**
  * WhatsApp-style doodle background applied to the chat area (both the
@@ -1140,6 +1148,23 @@ export function MessageThread({
             </button>
           )}
 
+          {/* Channel badge — static, not a control. Which inbound channel
+              this conversation belongs to (migration 046). */}
+          {(() => {
+            const ChannelIcon = CHANNEL_ICONS[conversation.channel_type];
+            return (
+              <span
+                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground"
+                title={t(`channel.${conversation.channel_type}`)}
+              >
+                <ChannelIcon className="h-3 w-3" />
+                <span className="hidden sm:inline">
+                  {t(`channel.${conversation.channel_type}`)}
+                </span>
+              </span>
+            );
+          })()}
+
           {/* Status dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(
@@ -1459,6 +1484,7 @@ export function MessageThread({
       {/* Composer */}
       <MessageComposer
         conversationId={conversation.id}
+        channelType={conversation.channel_type}
         sessionExpired={sessionInfo.expired}
         onSend={handleSend}
         onSendMedia={handleSendMedia}

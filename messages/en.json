@@ -153,6 +153,11 @@
       "teams": "Team",
       "allTeams": "All teams",
       "unassignedTeam": "No team",
+      "allChannels": "All channels",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Web Widget"
+      },
       "clearAll": "Clear all",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
@@ -166,6 +171,10 @@
       "showContact": "Show contact",
       "refresh": "Refresh",
       "refreshConversation": "Refresh conversation",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Web Widget"
+      },
       "status": "Status",
       "statusOpen": "Open",
       "statusPending": "Pending",
@@ -1746,12 +1755,55 @@
       "wabaSubscribed": "The WhatsApp Business Account is subscribed to this app — inbound webhooks can be delivered.",
       "wabaNotSubscribed": "The WhatsApp Business Account is not subscribed to this app, so Meta will not deliver inbound webhooks. Re-enter the access token and save again to subscribe it."
     },
+    "channels": {
+      "title": "Channels",
+      "description": "Connect WhatsApp, the web-chat widget, and other inbound channels for this account.",
+      "names": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Web Widget",
+        "instagram": "Instagram",
+        "messenger": "Messenger",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "comingSoonBadge": "Soon",
+      "comingSoonTitle": "{channel} is coming soon",
+      "comingSoonDescription": "This channel isn't available yet. WhatsApp and the Web Widget are ready to use today.",
+      "webWidget": {
+        "title": "Web Widget",
+        "description": "An embeddable chat widget for your website or app — a free, non-WhatsApp inbound channel.",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "embedTitle": "Embed code",
+        "embedDescription": "Paste this snippet before the closing body tag on any page where you want the chat widget to appear.",
+        "copy": "Copy",
+        "saveToGetSnippet": "Save your widget settings once to generate an embed snippet.",
+        "appearanceTitle": "Appearance",
+        "nameLabel": "Widget name",
+        "welcomeLabel": "Welcome message",
+        "colorLabel": "Primary color",
+        "positionLabel": "Position",
+        "position": {
+          "left": "Bottom left",
+          "right": "Bottom right"
+        },
+        "originsTitle": "Allowed origins",
+        "originsDescription": "Restrict which websites may embed this widget. Leave empty to allow any origin.",
+        "invalidOrigin": "Enter a valid URL, e.g. https://example.com",
+        "noOriginsRestriction": "No restriction — this widget can be embedded on any site.",
+        "save": "Save changes",
+        "saved": "Widget settings saved",
+        "saveFailed": "Failed to save widget settings",
+        "snippetCopied": "Embed code copied to clipboard",
+        "copyFailed": "Failed to copy"
+      }
+    },
     "sections": {
       "overview": "Overview",
       "profile": "Your profile",
       "security": "Login & security",
       "appearance": "Appearance",
-      "whatsapp": "WhatsApp",
+      "channels": "Channels",
       "templates": "Templates",
       "quick-replies": "Quick replies",
       "fields": "Fields & tags",

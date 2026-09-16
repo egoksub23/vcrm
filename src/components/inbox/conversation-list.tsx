@@ -11,8 +11,8 @@ import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import type { Conversation, ConversationStatus, Tag, Team } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
+import type { ChannelType, Conversation, ConversationStatus, Tag, Team } from "@/types";
+import { Search, ChevronDown, X, MessageCircle, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,11 @@ type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned"
  *  `null` (no team filter applied at all). */
 const UNASSIGNED_TEAM = "__unassigned__";
 
+const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
+  whatsapp: MessageCircle,
+  web_widget: Globe,
+};
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -91,6 +96,8 @@ export function ConversationList({
   // selected labels, same semantics as the contact-tag filter above but
   // over `conversation.labels` instead of `conversation.contact.tags`.
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  // Channel filter (WhatsApp vs. Web Widget). `null` = no filter.
+  const [selectedChannelType, setSelectedChannelType] = useState<ChannelType | null>(null);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -211,6 +218,10 @@ export function ConversationList({
       );
     }
 
+    if (selectedChannelType !== null) {
+      result = result.filter((c) => c.channel_type === selectedChannelType);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((c) => {
@@ -230,6 +241,7 @@ export function ConversationList({
     selectedCompany,
     selectedTeamId,
     selectedLabelIds,
+    selectedChannelType,
     user,
   ]);
 
@@ -250,13 +262,15 @@ export function ConversationList({
     setSelectedCompany(null);
     setSelectedTeamId(null);
     setSelectedLabelIds([]);
+    setSelectedChannelType(null);
   }, []);
 
   const hasContactFilters =
     selectedTagIds.length > 0 ||
     selectedCompany !== null ||
     selectedTeamId !== null ||
-    selectedLabelIds.length > 0;
+    selectedLabelIds.length > 0 ||
+    selectedChannelType !== null;
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -525,6 +539,60 @@ export function ConversationList({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                selectedChannelType !== null
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="truncate">
+                {selectedChannelType === null
+                  ? t("allChannels")
+                  : t(`channel.${selectedChannelType}`)}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-48 border-border bg-popover"
+            >
+              <DropdownMenuItem
+                onClick={() => setSelectedChannelType(null)}
+                className={cn(
+                  "text-sm",
+                  selectedChannelType === null
+                    ? "text-primary"
+                    : "text-popover-foreground"
+                )}
+              >
+                {t("allChannels")}
+              </DropdownMenuItem>
+              {(["whatsapp", "web_widget"] as ChannelType[]).map((ct) => {
+                const Icon = CHANNEL_ICONS[ct];
+                return (
+                  <DropdownMenuItem
+                    key={ct}
+                    onClick={() => setSelectedChannelType(ct)}
+                    className={cn(
+                      "text-sm",
+                      selectedChannelType === ct
+                        ? "text-primary"
+                        : "text-popover-foreground"
+                    )}
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{t(`channel.${ct}`)}</span>
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {hasContactFilters && (
@@ -571,6 +639,15 @@ export function ConversationList({
                     ? t("unassignedTeam")
                     : (teamsById.get(selectedTeamId)?.name ?? t("teams"))}
                 </span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {selectedChannelType !== null && (
+              <button
+                onClick={() => setSelectedChannelType(null)}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+              >
+                <span className="max-w-24 truncate">{t(`channel.${selectedChannelType}`)}</span>
                 <X className="h-3 w-3" />
               </button>
             )}
@@ -655,6 +732,7 @@ function ConversationItem({
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
   const initials = displayName.charAt(0).toUpperCase();
+  const ChannelIcon = CHANNEL_ICONS[conversation.channel_type];
 
   const handleClick = useCallback(() => {
     onSelect(conversation);
@@ -690,8 +768,14 @@ function ConversationItem({
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-foreground">
-            {displayName}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <ChannelIcon
+              className="h-3 w-3 shrink-0 text-muted-foreground"
+              aria-label={t(`channel.${conversation.channel_type}`)}
+            />
+            <span className="truncate text-sm font-medium text-foreground">
+              {displayName}
+            </span>
           </span>
           <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
         </div>

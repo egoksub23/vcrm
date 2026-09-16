@@ -56,7 +56,7 @@ import {
   blankButtonsPayload,
 } from "@/components/interactive/interactive-builder";
 import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
-import type { InteractiveMessagePayload, Profile, QuickReply } from "@/types";
+import type { ChannelType, InteractiveMessagePayload, Profile, QuickReply } from "@/types";
 import { QuickReplyPicker } from "./quick-reply-picker";
 
 /** Media content types an agent can send from the composer. */
@@ -118,6 +118,11 @@ type ComposerMode = "message" | "comment";
 
 interface MessageComposerProps {
   conversationId: string;
+  /** Which channel this conversation belongs to — gates the WhatsApp/
+   *  Meta-only affordances below (templates, interactive buttons/lists,
+   *  media attach) that a web-widget conversation has no equivalent
+   *  for. Plain text + quick replies + AI draft stay available on both. */
+  channelType: ChannelType;
   sessionExpired: boolean;
   onSend: (text: string, replyToId?: string) => void;
   onSendMedia: (payload: SendMediaPayload) => void;
@@ -143,6 +148,7 @@ const OPUS_ENCODER_PATH = "/opus/encoderWorker.min.js";
 
 export function MessageComposer({
   conversationId,
+  channelType,
   sessionExpired,
   onSend,
   onSendMedia,
@@ -154,6 +160,7 @@ export function MessageComposer({
   onClearReply,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
+  const isWhatsapp = channelType === "whatsapp";
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -780,47 +787,52 @@ export function MessageComposer({
         <div className="relative flex items-end gap-2">
           {!isComment && (
             <>
-              {/* Attach menu — photo / video / document / voice. */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  disabled={inputsDisabled || busy}
-                  title={
-                    readOnly
-                      ? t("readOnlyTitle")
-                      : inputsDisabled
-                        ? undefined
-                        : t("attachMedia")
-                  }
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Paperclip className="h-4 w-4" />
-                  )}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="border-border bg-popover">
-                  <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    {t("photo")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => videoInputRef.current?.click()}>
-                    <Video className="mr-2 h-4 w-4" />
-                    {t("video")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => documentInputRef.current?.click()}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    {t("document")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void startRecording()}>
-                    <Mic className="mr-2 h-4 w-4" />
-                    {t("voiceNote")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Attach menu — photo / video / document / voice. Meta-only
+                  today: a web-widget conversation has no media pipeline
+                  yet (fast-follow), so the whole menu is WhatsApp-gated
+                  rather than offered and failing server-side. */}
+              {isWhatsapp && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    disabled={inputsDisabled || busy}
+                    title={
+                      readOnly
+                        ? t("readOnlyTitle")
+                        : inputsDisabled
+                          ? undefined
+                          : t("attachMedia")
+                    }
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="border-border bg-popover">
+                    <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      {t("photo")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => videoInputRef.current?.click()}>
+                      <Video className="mr-2 h-4 w-4" />
+                      {t("video")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => documentInputRef.current?.click()}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      {t("document")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void startRecording()}>
+                      <Mic className="mr-2 h-4 w-4" />
+                      {t("voiceNote")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-              {/* + menu — interactive messages + quick replies. Gated on the
-                  24h window like free-form text (interactive requires it). */}
+              {/* + menu — interactive messages (WhatsApp-only) + quick
+                  replies (plain text, works on any channel). */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   disabled={inputsDisabled}
@@ -836,10 +848,12 @@ export function MessageComposer({
                   <Plus className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="border-border bg-popover">
-                  <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
-                    <MessageSquareDashed className="mr-2 h-4 w-4" />
-                    {t("interactiveMessage")}
-                  </DropdownMenuItem>
+                  {isWhatsapp && (
+                    <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
+                      <MessageSquareDashed className="mr-2 h-4 w-4" />
+                      {t("interactiveMessage")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => setQuickReplyOpen(true)}>
                     <Zap className="mr-2 h-4 w-4" />
                     {t("quickReplies")}
@@ -847,17 +861,19 @@ export function MessageComposer({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <GatedButton
-                variant="ghost"
-                size="sm"
-                canAct={!readOnly}
-                gateReason="send messages"
-                title={readOnly ? undefined : t("sendTemplate")}
-                className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
-                onClick={onOpenTemplates}
-              >
-                <LayoutTemplate className="h-4 w-4" />
-              </GatedButton>
+              {isWhatsapp && (
+                <GatedButton
+                  variant="ghost"
+                  size="sm"
+                  canAct={!readOnly}
+                  gateReason="send messages"
+                  title={readOnly ? undefined : t("sendTemplate")}
+                  className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={onOpenTemplates}
+                >
+                  <LayoutTemplate className="h-4 w-4" />
+                </GatedButton>
+              )}
 
               <GatedButton
                 variant="ghost"

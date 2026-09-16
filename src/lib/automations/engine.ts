@@ -390,6 +390,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       const check = validateInteractivePayload(payload)
       if (!check.ok) throw new Error(check.error)
       const conversationId = await resolveConversationId(args)
+      await assertWhatsappChannel(conversationId, step.step_type)
       const { whatsapp_message_id } = await engineSendInteractive({
         accountId: args.automation.account_id,
         userId: args.automation.user_id,
@@ -405,6 +406,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       if (!args.contactId) throw new Error('send_template needs a contact')
       if (!cfg.template_name) throw new Error('send_template needs template_name')
       const conversationId = await resolveConversationId(args)
+      await assertWhatsappChannel(conversationId, step.step_type)
       // Meta templates use positional {{1}}, {{2}}, … placeholders, so
       // we MUST emit params in strict numeric order. Lexicographic sort
       // of "1", "2", …, "10" yields "1", "10", "2", … which silently
@@ -737,6 +739,26 @@ async function resolveConversationId(args: ExecuteArgs): Promise<string> {
     throw new Error(`${prefix}: contact has no existing conversation`)
   }
   return data.id as string
+}
+
+/**
+ * Templates and interactive buttons/lists are Meta concepts with no
+ * equivalent on the web-chat channel — the builder UI doesn't even
+ * offer these steps for a widget-triggered automation, but a step can
+ * still reach a widget conversation via a shared/renamed automation.
+ * Guard server-side: throws (caught by the caller's existing try/catch,
+ * recorded as a normal failed step) rather than silently no-op'ing.
+ */
+async function assertWhatsappChannel(conversationId: string, stepType: string): Promise<void> {
+  const { data, error } = await supabaseAdmin()
+    .from('conversations')
+    .select('channel_type')
+    .eq('id', conversationId)
+    .single()
+  if (error) throw new Error(`conversation lookup failed: ${error.message}`)
+  if (data.channel_type !== 'whatsapp') {
+    throw new Error(`${stepType} is only supported for WhatsApp conversations`)
+  }
 }
 
 /** Letter, digit or underscore in any script — the "inside a word" test. */

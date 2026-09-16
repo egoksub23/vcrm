@@ -207,11 +207,13 @@ interface CapturedWrites {
 function sendPathDb(
   templateRows: unknown[],
   captured: CapturedWrites,
-  contact: Record<string, unknown> = { id: 'ct-1', phone: '+15551234567' }
+  contact: Record<string, unknown> = { id: 'ct-1', phone: '+15551234567' },
+  channelType: 'whatsapp' | 'web_widget' = 'whatsapp',
 ): SupabaseClient {
   const conversation = {
     id: 'cv-1',
     contact,
+    channel_type: channelType,
   };
   const config = {
     id: 'cfg-1',
@@ -221,6 +223,9 @@ function sendPathDb(
 
   return {
     from(table: string) {
+      if (channelType === 'web_widget' && table === 'whatsapp_config') {
+        throw new Error('whatsapp_config should not be queried for a web_widget conversation');
+      }
       const builder: Record<string, unknown> = {
         select: () => builder,
         eq: () => builder,
@@ -443,5 +448,37 @@ describe('sendMessageToConversation — BSUID recipients (#519)', () => {
         { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
       )
     ).rejects.toThrow(/no phone number or WhatsApp user ID/);
+  });
+});
+
+// ============================================================
+// Web-widget channel (migration 046) — persisting the row IS the
+// delivery; Meta/whatsapp_config must never be touched.
+// ============================================================
+
+describe('sendMessageToConversation — web_widget channel', () => {
+  it('persists a text message without ever querying whatsapp_config', async () => {
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', widget_visitor_id: 'v-1' }, 'web_widget'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hi from the widget' }
+    );
+
+    // No Meta wamid for a widget send — the DB row is the delivery.
+    expect(result.whatsappMessageId).toBe('');
+    expect(captured.message?.content_text).toBe('hi from the widget');
+    expect(captured.message?.message_id).toBe('');
+  });
+
+  it('rejects any non-text message_type for a widget conversation', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'web_widget'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
+      )
+    ).rejects.toThrow(/Only text messages are supported/);
   });
 });

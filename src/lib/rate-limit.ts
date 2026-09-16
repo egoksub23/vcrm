@@ -173,6 +173,15 @@ export const RATE_LIMITS = {
    *  capping a stampede; excess inbounds simply don't get an auto-reply
    *  (they still land in the inbox for a human). */
   aiAutoReplyAccount: { limit: 30, windowMs: 60_000 },
+  /** Public widget session bootstrap (`/api/widget/session`), keyed
+   *  per widget_token+IP. Called once per page load (not per message),
+   *  so 30/min comfortably covers a busy embedding site while bounding
+   *  a script hammering the endpoint to enumerate/probe it. */
+  widgetSession: { limit: 30, windowMs: 60_000 },
+  /** Public widget message send (`/api/widget/message`), keyed per
+   *  visitor (their anon auth.uid()). Same budget as an authenticated
+   *  agent's `send` bucket — a live visitor typing should never hit it. */
+  widgetMessage: { limit: 60, windowMs: 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

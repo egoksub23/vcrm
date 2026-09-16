@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
-import { SettingsPanelHead } from './settings-panel-head';
+import { SettingsPanelHead } from '../settings-panel-head';
 import {
   Accordion,
   AccordionItem,
