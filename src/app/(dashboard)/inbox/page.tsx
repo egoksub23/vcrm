@@ -554,6 +554,24 @@ function InboxPageInner() {
     [activeConversation]
   );
 
+  const handleTeamChange = useCallback(
+    (conversationId: string, assignedTeamId: string | null) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, assigned_team_id: assignedTeamId }
+            : c
+        )
+      );
+      if (activeConversation?.id === conversationId) {
+        setActiveConversation((prev) =>
+          prev ? { ...prev, assigned_team_id: assignedTeamId } : prev
+        );
+      }
+    },
+    [activeConversation]
+  );
+
   // On mobile (<lg) we show a SINGLE pane — either the list or the
   // thread — rather than cramming both side-by-side. Selecting a
   // conversation slides the thread in; the thread's back button pops
@@ -618,6 +636,7 @@ function InboxPageInner() {
             onUpdateMessage={handleUpdateMessage}
             onStatusChange={handleStatusChange}
             onAssignChange={handleAssignChange}
+            onTeamChange={handleTeamChange}
             onBack={handleCloseConversation}
             resyncToken={resyncToken}
             onRefresh={handleManualRefresh}

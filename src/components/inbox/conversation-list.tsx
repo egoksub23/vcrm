@@ -7,8 +7,9 @@ import {
   matchesContactFilters,
   normalizeConversations,
 } from "@/lib/inbox/conversations";
+import { useTeams } from "@/hooks/use-teams";
 import { cn } from "@/lib/utils";
-import type { Conversation, ConversationStatus, Tag } from "@/types";
+import type { Conversation, ConversationStatus, Tag, Team } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -46,6 +47,10 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 type InboxFilter = ConversationStatus | "all" | "unread";
 
+/** Sentinel for the "no team" bucket in the Team filter — distinct from
+ *  `null` (no team filter applied at all). */
+const UNASSIGNED_TEAM = "__unassigned__";
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -72,6 +77,11 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  // Team bucket filter (P0 gap-analysis item). `null` = no filter,
+  // `UNASSIGNED_TEAM` = only conversations with no assigned_team_id,
+  // otherwise a team id.
+  const { teams } = useTeams();
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -158,6 +168,12 @@ export function ConversationList({
     return m;
   }, [tags]);
 
+  const teamsById = useMemo(() => {
+    const m = new Map<string, (typeof teams)[number]>();
+    for (const tm of teams) m.set(tm.id, tm);
+    return m;
+  }, [teams]);
+
   const filtered = useMemo(() => {
     let result = conversations;
 
@@ -177,6 +193,15 @@ export function ConversationList({
       );
     }
 
+    // Team bucket filter — conversation-level, not contact-level, so it
+    // filters directly on assigned_team_id rather than through
+    // matchesContactFilters.
+    if (selectedTeamId === UNASSIGNED_TEAM) {
+      result = result.filter((c) => !c.assigned_team_id);
+    } else if (selectedTeamId !== null) {
+      result = result.filter((c) => c.assigned_team_id === selectedTeamId);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((c) => {
@@ -188,7 +213,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany]);
+  }, [conversations, filter, search, selectedTagIds, selectedCompany, selectedTeamId]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -199,9 +224,11 @@ export function ConversationList({
   const clearContactFilters = useCallback(() => {
     setSelectedTagIds([]);
     setSelectedCompany(null);
+    setSelectedTeamId(null);
   }, []);
 
-  const hasContactFilters = selectedTagIds.length > 0 || selectedCompany !== null;
+  const hasContactFilters =
+    selectedTagIds.length > 0 || selectedCompany !== null || selectedTeamId !== null;
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,6 +377,81 @@ export function ConversationList({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          {teams.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  selectedTeamId !== null
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {selectedTeamId !== null && selectedTeamId !== UNASSIGNED_TEAM && (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: teamsById.get(selectedTeamId)?.color }}
+                  />
+                )}
+                <span className="truncate">
+                  {selectedTeamId === null
+                    ? t("allTeams")
+                    : selectedTeamId === UNASSIGNED_TEAM
+                      ? t("unassignedTeam")
+                      : (teamsById.get(selectedTeamId)?.name ?? t("teams"))}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-64 w-56 border-border bg-popover"
+              >
+                <DropdownMenuItem
+                  onClick={() => setSelectedTeamId(null)}
+                  className={cn(
+                    "text-sm",
+                    selectedTeamId === null
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  {t("allTeams")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedTeamId(UNASSIGNED_TEAM)}
+                  className={cn(
+                    "text-sm",
+                    selectedTeamId === UNASSIGNED_TEAM
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  {t("unassignedTeam")}
+                </DropdownMenuItem>
+                {teams.map((tm) => (
+                  <DropdownMenuItem
+                    key={tm.id}
+                    onClick={() => setSelectedTeamId(tm.id)}
+                    className={cn(
+                      "text-sm",
+                      selectedTeamId === tm.id
+                        ? "text-primary"
+                        : "text-popover-foreground"
+                    )}
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tm.color }}
+                      />
+                      <span className="truncate">{tm.name}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {hasContactFilters && (
@@ -377,6 +479,25 @@ export function ConversationList({
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
               >
                 <span className="max-w-24 truncate">{selectedCompany}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {selectedTeamId !== null && (
+              <button
+                onClick={() => setSelectedTeamId(null)}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+              >
+                {selectedTeamId !== UNASSIGNED_TEAM && (
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: teamsById.get(selectedTeamId)?.color }}
+                  />
+                )}
+                <span className="max-w-24 truncate">
+                  {selectedTeamId === UNASSIGNED_TEAM
+                    ? t("unassignedTeam")
+                    : (teamsById.get(selectedTeamId)?.name ?? t("teams"))}
+                </span>
                 <X className="h-3 w-3" />
               </button>
             )}
@@ -413,6 +534,7 @@ export function ConversationList({
                 conversation={conv}
                 isActive={conv.id === activeConversationId}
                 onSelect={handleSelect}
+                team={conv.assigned_team_id ? teamsById.get(conv.assigned_team_id) : undefined}
                 t={t}
               />
             ))}
@@ -427,6 +549,9 @@ interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
   onSelect: (conversation: Conversation) => void;
+  /** The conversation's assigned team, if any — resolved by the parent
+   *  from its `teamsById` map so each row doesn't redo the lookup. */
+  team?: Pick<Team, "id" | "name" | "color">;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -434,6 +559,7 @@ function ConversationItem({
   conversation,
   isActive,
   onSelect,
+  team,
   t,
 }: ConversationItemProps) {
   const contact = conversation.contact;
@@ -488,6 +614,13 @@ function ConversationItem({
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                 {conversation.unread_count}
               </span>
+            )}
+            {team && (
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: team.color }}
+                title={team.name}
+              />
             )}
             <span
               className={cn(

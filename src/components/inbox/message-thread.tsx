@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { usePresence } from "@/hooks/use-presence";
+import { useTeams } from "@/hooks/use-teams";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import {
   MessageSquare,
   ChevronDown,
   UserPlus,
+  Users,
   Check,
   Clock,
   ArrowLeft,
@@ -73,6 +75,10 @@ interface MessageThreadProps {
   onAssignChange: (
     conversationId: string,
     assignedAgentId: string | null,
+  ) => void;
+  onTeamChange: (
+    conversationId: string,
+    assignedTeamId: string | null,
   ) => void;
   /**
    * On mobile, the thread is shown full-screen with the conversation list
@@ -159,6 +165,7 @@ export function MessageThread({
   onUpdateMessage,
   onStatusChange,
   onAssignChange,
+  onTeamChange,
   onBack,
   resyncToken = 0,
   onRefresh,
@@ -171,6 +178,7 @@ export function MessageThread({
 
   const { user } = useAuth();
   const { getPresence, getRow, now } = usePresence();
+  const { teams } = useTeams();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -862,6 +870,27 @@ export function MessageThread({
     [conversation, onAssignChange, t],
   );
 
+  const handleTeamChange = useCallback(
+    async (teamId: string | null) => {
+      if (!conversation) return;
+
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("conversations")
+        .update({ assigned_team_id: teamId })
+        .eq("id", conversation.id);
+
+      if (error) {
+        console.error("Failed to update team assignment:", error);
+        toast.error(t("teamAssignmentUpdateFailed"));
+        return;
+      }
+
+      onTeamChange(conversation.id, teamId);
+    },
+    [conversation, onTeamChange, t],
+  );
+
   // Empty state — same WhatsApp-style doodle background as the active
   // thread below, so swapping between empty/selected doesn't change the
   // pattern under the user's eye.
@@ -891,6 +920,10 @@ export function MessageThread({
   const assignLabel = assignedAgentId
     ? (currentAssignee?.full_name ?? t("assigned"))
     : t("assign");
+
+  const assignedTeamId = conversation.assigned_team_id ?? null;
+  const currentTeam = teams.find((tm) => tm.id === assignedTeamId);
+  const teamLabel = assignedTeamId ? (currentTeam?.name ?? t("team")) : t("team");
 
   return (
     // `min-w-0` is load-bearing: the page already puts min-w-0 on the
@@ -1075,6 +1108,71 @@ export function MessageThread({
                     className="text-sm text-muted-foreground"
                   >
                     {t("unassign")}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Team dropdown — routes the conversation to a group (Tech,
+              Compliance, Payments, ...) independently of the individual
+              agent assignment above. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                assignedTeamId ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              {currentTeam ? (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: currentTeam.color }}
+                />
+              ) : (
+                <Users className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">{teamLabel}</span>
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="border-border bg-popover"
+            >
+              {teams.length === 0 ? (
+                <DropdownMenuItem disabled className="text-sm text-muted-foreground">
+                  {t("noTeamsAvailable")}
+                </DropdownMenuItem>
+              ) : (
+                teams.map((tm) => {
+                  const isSelected = tm.id === assignedTeamId;
+                  return (
+                    <DropdownMenuItem
+                      key={tm.id}
+                      onClick={() => handleTeamChange(tm.id)}
+                      className={cn(
+                        "text-sm",
+                        isSelected ? "text-primary" : "text-popover-foreground"
+                      )}
+                    >
+                      <span
+                        className="mr-2 h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tm.color }}
+                      />
+                      <span className="flex-1 truncate">{tm.name}</span>
+                      {isSelected && <Check className="ml-2 h-3 w-3" />}
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+              {assignedTeamId && (
+                <>
+                  <DropdownMenuSeparator className="bg-border" />
+                  <DropdownMenuItem
+                    onClick={() => handleTeamChange(null)}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {t("unassignTeam")}
                   </DropdownMenuItem>
                 </>
               )}
