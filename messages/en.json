@@ -36,6 +36,8 @@
     "roleAgent": "Agent",
     "roleViewer": "Viewer",
     "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse sidebar",
+    "pinSidebar": "Pin sidebar open",
     "defaultUser": "User",
     "defaultAvatar": "Avatar",
     "menuProfile": "Profile",

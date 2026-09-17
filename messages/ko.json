@@ -36,6 +36,8 @@
     "roleAgent": "상담원",
     "roleViewer": "뷰어",
     "closeMenu": "메뉴 닫기",
+    "collapseSidebar": "사이드바 접기",
+    "pinSidebar": "사이드바 고정",
     "defaultUser": "사용자",
     "defaultAvatar": "아바타",
     "menuProfile": "프로필",
