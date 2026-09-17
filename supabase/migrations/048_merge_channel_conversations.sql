@@ -145,17 +145,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_account_contact
   ON conversations (account_id, contact_id);
 
 -- ============================================================
--- 5) Drop the now-redundant per-thread channel column/index
--- ============================================================
-DROP INDEX IF EXISTS idx_conversations_channel_type;
-ALTER TABLE conversations DROP COLUMN IF EXISTS channel_type;
-
--- ============================================================
--- 6) Visitor-scoped RLS (migration 046) — drop the channel_type
+-- 5) Visitor-scoped RLS (migration 046) — drop the channel_type
 -- condition now that a widget visitor's contact_id can point at a
 -- conversation whose most recent message came in on either channel.
 -- Contact_id match alone is the correct scope: it's their own
 -- conversation regardless of which channel any given message used.
+--
+-- MUST run before step 6 below: the old conversations_widget_visitor_select
+-- policy's USING clause references conversations.channel_type, so
+-- Postgres refuses to drop that column while the policy still depends
+-- on it (2BP01). Dropping/recreating the policy here first clears that
+-- dependency.
 -- ============================================================
 DROP POLICY IF EXISTS conversations_widget_visitor_select ON conversations;
 CREATE POLICY conversations_widget_visitor_select ON conversations FOR SELECT USING (
@@ -175,6 +175,12 @@ CREATE POLICY messages_widget_visitor_select ON messages FOR SELECT USING (
       AND wv.id = auth.uid()
   )
 );
+
+-- ============================================================
+-- 6) Drop the now-redundant per-thread channel column/index
+-- ============================================================
+DROP INDEX IF EXISTS idx_conversations_channel_type;
+ALTER TABLE conversations DROP COLUMN IF EXISTS channel_type;
 
 -- ============================================================
 -- 7) bump_conversation_on_inbound — add p_channel_type so an inbound
