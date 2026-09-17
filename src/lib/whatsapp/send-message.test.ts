@@ -193,6 +193,24 @@ vi.mock('@/lib/flows/admin-client', () => ({
   }),
 }));
 
+const sendMessengerText = vi.fn(async () => ({ messageId: 'msgr.1' }));
+const sendMessengerMedia = vi.fn(async () => ({ messageId: 'msgr.media.1' }));
+vi.mock('@/lib/messenger/meta-api', () => ({
+  sendMessengerText: (...args: unknown[]) =>
+    (sendMessengerText as unknown as (...a: unknown[]) => unknown)(...args),
+  sendMessengerMedia: (...args: unknown[]) =>
+    (sendMessengerMedia as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
+const sendInstagramText = vi.fn(async () => ({ messageId: 'ig.1' }));
+const sendInstagramMedia = vi.fn(async () => ({ messageId: 'ig.media.1' }));
+vi.mock('@/lib/instagram/meta-api', () => ({
+  sendInstagramText: (...args: unknown[]) =>
+    (sendInstagramText as unknown as (...a: unknown[]) => unknown)(...args),
+  sendInstagramMedia: (...args: unknown[]) =>
+    (sendInstagramMedia as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
 interface CapturedWrites {
   message?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
@@ -204,11 +222,17 @@ interface CapturedWrites {
  * object serves `.single()` lookups and the bare `select().eq().eq()`
  * the template resolver uses.
  */
+type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram';
+
 function sendPathDb(
   templateRows: unknown[],
   captured: CapturedWrites,
   contact: Record<string, unknown> = { id: 'ct-1', phone: '+15551234567' },
-  channelType: 'whatsapp' | 'web_widget' = 'whatsapp',
+  channelType: TestChannelType = 'whatsapp',
+  configOverrides: {
+    messengerConfig?: Record<string, unknown> | null;
+    instagramConfig?: Record<string, unknown> | null;
+  } = {},
 ): SupabaseClient {
   const conversation = {
     id: 'cv-1',
@@ -220,11 +244,20 @@ function sendPathDb(
     phone_number_id: 'pn-1',
     access_token: 'token',
   };
+  const messengerConfig =
+    'messengerConfig' in configOverrides
+      ? configOverrides.messengerConfig
+      : { id: 'mc-1', page_id: 'page-1', page_access_token: 'page-token' };
+  const instagramConfig =
+    'instagramConfig' in configOverrides
+      ? configOverrides.instagramConfig
+      : { id: 'ic-1', ig_business_account_id: 'ig-1', page_access_token: 'page-token' };
+  const configUpdates: Record<string, Record<string, unknown>> = {};
 
   return {
     from(table: string) {
-      if (channelType === 'web_widget' && table === 'whatsapp_config') {
-        throw new Error('whatsapp_config should not be queried for a web_widget conversation');
+      if (channelType !== 'whatsapp' && table === 'whatsapp_config') {
+        throw new Error(`whatsapp_config should not be queried for a ${channelType} conversation`);
       }
       const builder: Record<string, unknown> = {
         select: () => builder,
@@ -235,6 +268,9 @@ function sendPathDb(
         },
         update: (row: Record<string, unknown>) => {
           if (table === 'conversations') captured.conversation = row;
+          if (table === 'messenger_config' || table === 'instagram_config') {
+            configUpdates[table] = row;
+          }
           return builder;
         },
         maybeSingle: async () => ({ data: null, error: null }),
@@ -243,6 +279,16 @@ function sendPathDb(
             return { data: conversation, error: null };
           }
           if (table === 'whatsapp_config') return { data: config, error: null };
+          if (table === 'messenger_config') {
+            return messengerConfig
+              ? { data: messengerConfig, error: null }
+              : { data: null, error: { message: 'not found' } };
+          }
+          if (table === 'instagram_config') {
+            return instagramConfig
+              ? { data: instagramConfig, error: null }
+              : { data: null, error: { message: 'not found' } };
+          }
           if (table === 'messages') {
             return { data: { id: 'msg-1' }, error: null };
           }
@@ -257,7 +303,8 @@ function sendPathDb(
       };
       return builder;
     },
-  } as unknown as SupabaseClient;
+    __configUpdates: configUpdates,
+  } as unknown as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
 }
 
 const TEMPLATE_ROW = {
@@ -537,5 +584,167 @@ describe('sendMessageToConversation — web_widget channel', () => {
         { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
       )
     ).rejects.toThrow(/Only text messages are supported/);
+  });
+});
+
+// ============================================================
+// Messenger / Instagram channels (migration 055) — real Graph API
+// calls via the connected Page/IG business account, unlike the
+// widget's no-op branch.
+// ============================================================
+
+describe('sendMessageToConversation — messenger channel', () => {
+  it('sends via the Messenger Send API and persists the result', async () => {
+    sendMessengerText.mockClear();
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'psid-1' }, 'messenger'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hi from the page' }
+    );
+
+    expect(sendMessengerText).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'page-1', recipientPsid: 'psid-1', text: 'hi from the page' })
+    );
+    expect(result.whatsappMessageId).toBe('msgr.1');
+    expect(captured.message?.channel_type).toBe('messenger');
+    expect(captured.message?.message_id).toBe('msgr.1');
+  });
+
+  it('sends media via the Messenger Send API, mapping document → file', async () => {
+    sendMessengerMedia.mockClear();
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'psid-1' }, 'messenger'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'document', mediaUrl: 'https://x/y.pdf' }
+    );
+    expect(sendMessengerMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'file', url: 'https://x/y.pdf' })
+    );
+  });
+
+  it('400s when the contact has no Messenger identity', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'messenger'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/no Messenger identity/);
+  });
+
+  it('400s when Messenger is not connected', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb(
+          [],
+          captured,
+          { id: 'ct-1', phone: '', messenger_psid: 'psid-1' },
+          'messenger',
+          { messengerConfig: null },
+        ),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Messenger is not connected/);
+  });
+
+  it('rejects template and interactive message types', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'psid-1' }, 'messenger'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
+      )
+    ).rejects.toThrow(/Only text and media messages/);
+  });
+
+  it('flips needs_reauth on a Meta OAuthException (code 190)', async () => {
+    const { MetaApiError } = await import('@/lib/meta/errors');
+    sendMessengerText.mockRejectedValueOnce(
+      new MetaApiError('Token expired', { code: 190, httpStatus: 401 }),
+    );
+    const captured: CapturedWrites = {};
+    const db = sendPathDb(
+      [],
+      captured,
+      { id: 'ct-1', phone: '', messenger_psid: 'psid-1' },
+      'messenger',
+    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'hi',
+      })
+    ).rejects.toThrow(/Messenger API error/);
+
+    expect(db.__configUpdates.messenger_config).toMatchObject({ needs_reauth: true });
+  });
+});
+
+describe('sendMessageToConversation — instagram channel', () => {
+  it('sends via the Instagram Messaging API and persists the result', async () => {
+    sendInstagramText.mockClear();
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', instagram_igsid: 'igsid-1' }, 'instagram'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hi from the grid' }
+    );
+
+    expect(sendInstagramText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        igBusinessAccountId: 'ig-1',
+        recipientIgsid: 'igsid-1',
+        text: 'hi from the grid',
+      })
+    );
+    expect(result.whatsappMessageId).toBe('ig.1');
+    expect(captured.message?.channel_type).toBe('instagram');
+  });
+
+  it('400s when the contact has no Instagram identity', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'instagram'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/no Instagram identity/);
+  });
+
+  it('400s when Instagram is not connected', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb(
+          [],
+          captured,
+          { id: 'ct-1', phone: '', instagram_igsid: 'igsid-1' },
+          'instagram',
+          { instagramConfig: null },
+        ),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Instagram is not connected/);
+  });
+
+  it('rejects template and interactive message types', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', instagram_igsid: 'igsid-1' }, 'instagram'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
+      )
+    ).rejects.toThrow(/Only text and media messages/);
   });
 });

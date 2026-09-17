@@ -119,6 +119,14 @@ export interface Contact {
    *  the web-chat widget (migration 046). Unique per account when set;
    *  never present alongside a real `phone`. */
   widget_visitor_id?: string | null;
+  /** Facebook Messenger page-scoped user ID (migration 055). Unique per
+   *  account, asserted server-side by Meta's webhook — same trust model
+   *  as `wa_user_id`, not a self-asserted identity. */
+  messenger_psid?: string | null;
+  /** Instagram-scoped user ID (migration 055). Same shape as
+   *  `messenger_psid`, keyed to the account's connected IG business
+   *  account instead of a Page. */
+  instagram_igsid?: string | null;
   /** Informational only (migration 054) — passed through from a
    *  verified in-app/WebView widget handoff. Never used for contact
    *  matching; phone stays the sole identity key. */
@@ -195,10 +203,11 @@ export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
  *  migration 046 as a whole-conversation property, then moved down to
  *  the message level in migration 048 once a single conversation could
  *  span both channels (WhatsApp + Web Widget merged by contact).
+ *  Messenger and Instagram added in migration 055.
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
  *  automation engine's per-step channel guards. */
-export type ChannelType = 'whatsapp' | 'web_widget';
+export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram';
 
 export interface Conversation {
   id: string;
@@ -418,6 +427,22 @@ export interface WebWidgetConfig {
   enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Connection status shared by Messenger/Instagram config rows — GET
+ *  responses for both never include the token, only this summary. */
+export interface MetaChannelConnectionStatus {
+  connected: boolean;
+  page_name?: string | null;
+  connected_at?: string | null;
+  needs_reauth: boolean;
+  status: 'connected' | 'disconnected' | 'error';
+}
+
+export type MessengerConnectionStatus = MetaChannelConnectionStatus;
+
+export interface InstagramConnectionStatus extends MetaChannelConnectionStatus {
+  ig_username?: string | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

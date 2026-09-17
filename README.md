@@ -166,6 +166,9 @@ Key pages:
 - [Web chat widget](./docs/web-chat-widget.md) — set up the embeddable
   web-chat channel, the one Supabase Auth toggle it needs, and what's
   WhatsApp-only vs. channel-agnostic
+- [Messenger & Instagram DM setup](./docs/messenger-instagram-setup.md) —
+  Meta App products, OAuth redirect URIs, webhook registration, and App
+  Review
 
 ## Stack
 

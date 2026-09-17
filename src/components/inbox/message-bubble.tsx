@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ChannelType, Message, MessageReaction } from "@/types";
+import type { Message, MessageReaction } from "@/types";
 import {
   Clock,
   Check,
@@ -12,8 +12,6 @@ import {
   CornerDownLeft,
   Sparkles,
   Lock,
-  MessageCircle,
-  Globe,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -27,6 +25,7 @@ import {
 } from "./message-media";
 import { InteractivePreview } from "@/components/interactive/interactive-preview";
 import { useTranslations } from "next-intl";
+import { CHANNEL_ICONS } from "./channel-icons";
 
 interface MessageBubbleProps {
   message: Message;
@@ -65,11 +64,6 @@ function failureReason(message: Message): string | null {
     ? `${message.error_title} — ${message.error_details}`
     : message.error_title;
 }
-
-const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
-  whatsapp: MessageCircle,
-  web_widget: Globe,
-};
 
 function StatusIcon({
   status,

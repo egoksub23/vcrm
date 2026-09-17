@@ -159,7 +159,9 @@
       "allChannels": "Todos los canales",
       "channel": {
         "whatsapp": "WhatsApp",
-        "web_widget": "Widget web"
+        "web_widget": "Widget web",
+        "messenger": "Messenger",
+        "instagram": "Instagram"
       },
       "allPriorities": "Todas las prioridades",
       "priority": {
@@ -207,7 +209,9 @@
       "refreshConversation": "Actualizar conversación",
       "channel": {
         "whatsapp": "WhatsApp",
-        "web_widget": "Widget web"
+        "web_widget": "Widget web",
+        "messenger": "Messenger",
+        "instagram": "Instagram"
       },
       "awaitingResponseSince": "Esperando respuesta — el cliente escribió {time}",
       "priority": {
@@ -1854,6 +1858,56 @@
         "copyFailed": "Error al copiar",
         "testChat": "Probar chat",
         "testChatHint": "Abre una ventana emergente con el widget real, ya conectado — chatea tú mismo. Los mensajes que envíes llegan a tu bandeja de entrada como cualquier otra conversación."
+      },
+      "messenger": {
+        "title": "Messenger",
+        "description": "Conecta una página de Facebook para responder conversaciones de Messenger desde tu bandeja de entrada.",
+        "notConnected": "Aún no hay ninguna página de Facebook conectada.",
+        "connectButton": "Conectar con Facebook",
+        "connectedAs": "Conectado — {name}",
+        "connectedAtLabel": "Conectado",
+        "disconnect": "Desconectar",
+        "disconnectConfirmDescription": "¿Desconectar esta página de Facebook? Las conversaciones de Messenger dejarán de sincronizarse hasta que vuelvas a conectarla.",
+        "disconnectFailed": "No se pudo desconectar Messenger",
+        "disconnected": "Messenger desconectado",
+        "connected": "Messenger conectado",
+        "connectFailed": "No se pudo conectar Messenger",
+        "reauthBanner": "Messenger necesita reconectarse — tu acceso de Facebook expiró o fue revocado.",
+        "reauthButton": "Reconectar",
+        "pageSelectTitle": "Elige una página",
+        "pageSelectDescription": "Administras más de una página de Facebook — elige cuál conectar.",
+        "oauthError": {
+          "invalid_state": "La solicitud de conexión expiró o no era válida. Intenta conectar de nuevo.",
+          "no_pages": "No se encontraron páginas de Facebook para esta cuenta.",
+          "denied": "Se canceló la conexión con Facebook.",
+          "unknown": "Ocurrió un error al conectar con Facebook. Intenta de nuevo."
+        }
+      },
+      "instagram": {
+        "title": "Instagram",
+        "description": "Conecta una página de Facebook con una cuenta profesional de Instagram vinculada para responder mensajes directos de Instagram desde tu bandeja de entrada.",
+        "notConnected": "Aún no hay ninguna cuenta de Instagram conectada.",
+        "connectButton": "Conectar con Facebook",
+        "connectedAs": "Conectado — {name}",
+        "connectedAtLabel": "Conectado",
+        "igUsernameLabel": "Instagram:",
+        "disconnect": "Desconectar",
+        "disconnectConfirmDescription": "¿Desconectar esta cuenta de Instagram? Las conversaciones de Instagram DM dejarán de sincronizarse hasta que vuelvas a conectarla.",
+        "disconnectFailed": "No se pudo desconectar Instagram",
+        "disconnected": "Instagram desconectado",
+        "connected": "Instagram conectado",
+        "connectFailed": "No se pudo conectar Instagram",
+        "reauthBanner": "Instagram necesita reconectarse — tu acceso de Facebook expiró o fue revocado.",
+        "reauthButton": "Reconectar",
+        "pageSelectTitle": "Elige una página",
+        "pageSelectDescription": "Administras más de una página de Facebook — elige la que tiene la cuenta de Instagram a conectar.",
+        "oauthError": {
+          "invalid_state": "La solicitud de conexión expiró o no era válida. Intenta conectar de nuevo.",
+          "no_pages": "No se encontraron páginas de Facebook para esta cuenta.",
+          "no_ig_account": "La página seleccionada no tiene una cuenta profesional de Instagram vinculada.",
+          "denied": "Se canceló la conexión con Facebook.",
+          "unknown": "Ocurrió un error al conectar con Instagram. Intenta de nuevo."
+        }
       }
     },
     "sections": {

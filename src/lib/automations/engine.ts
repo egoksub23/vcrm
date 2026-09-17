@@ -846,6 +846,14 @@ async function resolveConversationId(args: ExecuteArgs): Promise<string> {
  * still reach a widget conversation via a shared/renamed automation.
  * Guard server-side: throws (caught by the caller's existing try/catch,
  * recorded as a normal failed step) rather than silently no-op'ing.
+ *
+ * Messenger and Instagram (migration 055) are deliberately NOT allow-
+ * listed here either, even though `send_message` already works on both.
+ * Messenger's quick-replies are a different payload shape/limit (max 13
+ * vs WhatsApp's 3 buttons) than `send_buttons`/`send_list`, and neither
+ * channel has anything resembling WhatsApp's pre-approved HSM template
+ * system — mapping these steps onto them is real, separate scope, not
+ * a simple allow-list expansion. Deferred to a fast-follow.
  */
 async function assertWhatsappChannel(conversationId: string, stepType: string): Promise<void> {
   const { data, error } = await supabaseAdmin()

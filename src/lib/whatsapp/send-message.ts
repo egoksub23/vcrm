@@ -41,12 +41,15 @@ import {
   isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils';
 import { resolveContactSendTarget } from '@/lib/whatsapp/wa-identity';
-import type { MessageTemplate } from '@/types';
+import type { ChannelType, MessageTemplate } from '@/types';
 import {
   resolveTemplateRow,
   templateBodyParams,
   templateContentText,
 } from '@/lib/whatsapp/template-body';
+import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '@/lib/messenger/meta-api';
+import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
+import { MetaApiError } from '@/lib/meta/errors';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -254,20 +257,41 @@ export async function sendMessageToConversation(
 
   const contact = conversation.contact;
 
+  // A merged conversation (migration 048) may have messages on any
+  // channel; an agent's reply targets whichever channel the customer
+  // most recently used, tracked by the last_channel_type rollup.
+  const channel = conversation.last_channel_type as ChannelType;
+
   // Web-widget conversations never go anywhere near Meta — persisting
   // the `messages` row *is* the delivery (the widget's own Realtime
   // subscription picks it up). Only plain text is meaningful there;
   // templates/interactive/media are Meta concepts the widget composer
   // never even offers, but guard server-side too since this function is
   // also the automation engine's send path.
-  // A merged conversation (migration 048) may have messages on either
-  // channel; an agent's reply targets whichever channel the customer
-  // most recently used, tracked by the last_channel_type rollup.
-  const isWidgetConversation = conversation.last_channel_type === 'web_widget';
+  const isWidgetConversation = channel === 'web_widget';
   if (isWidgetConversation && messageType !== 'text') {
     throw new SendMessageError(
       'bad_request',
       'Only text messages are supported on the web-chat channel',
+      400
+    );
+  }
+
+  // Messenger/Instagram support text + media, but neither has anything
+  // resembling WhatsApp's pre-approved HSM template system or its
+  // interactive buttons/lists (see the automation engine's
+  // assertWhatsappChannel for the same scope decision on the
+  // automation-step side).
+  const isMessengerConversation = channel === 'messenger';
+  const isInstagramConversation = channel === 'instagram';
+  if (
+    (isMessengerConversation || isInstagramConversation) &&
+    messageType !== 'text' &&
+    !isMediaKind
+  ) {
+    throw new SendMessageError(
+      'bad_request',
+      'Only text and media messages are supported on this channel',
       400
     );
   }
@@ -277,12 +301,12 @@ export async function sendMessageToConversation(
   // a WhatsApp username, so those contacts carry only a BSUID and are
   // reached through Meta's `recipient` field instead of `to` (issue
   // #519). Phone stays preferred when we have one: only it supports the
-  // trunk-prefix variant retry below. None of this applies to a widget
-  // conversation, whose contact has no phone/BSUID at all.
+  // trunk-prefix variant retry below. WhatsApp-only — the other
+  // channels resolve their own send target below.
   let sendTarget = '';
   let hasValidPhone = false;
   let sanitizedPhone = '';
-  if (!isWidgetConversation) {
+  if (channel === 'whatsapp') {
     const resolvedTarget = resolveContactSendTarget(contact);
     if (!resolvedTarget) {
       throw new SendMessageError(
@@ -301,7 +325,7 @@ export async function sendMessageToConversation(
   // WhatsApp config, account-scoped. Not needed at all for a widget send.
   let config: { id: string; phone_number_id: string; access_token: string } | null = null;
   let accessToken = '';
-  if (!isWidgetConversation) {
+  if (channel === 'whatsapp') {
     const { data: configRow, error: configError } = await db
       .from('whatsapp_config')
       .select('*')
@@ -394,7 +418,7 @@ export async function sendMessageToConversation(
   // `waMessageId` simply stays '' (the messages row has no Meta wamid).
   let waMessageId = '';
   let workingPhone = sendTarget;
-  if (!isWidgetConversation) {
+  if (channel === 'whatsapp') {
     const cfg = config!;
 
     const attempt = async (phone: string): Promise<string> => {
@@ -506,6 +530,96 @@ export async function sendMessageToConversation(
     }
   }
 
+  // Messenger send — real Graph API call (unlike the widget's no-op
+  // branch above), via the account's connected Page.
+  if (isMessengerConversation) {
+    if (!contact.messenger_psid) {
+      throw new SendMessageError('bad_request', 'Contact has no Messenger identity', 400);
+    }
+    const { data: cfg, error: cfgError } = await db
+      .from('messenger_config')
+      .select('id, page_id, page_access_token')
+      .eq('account_id', accountId)
+      .single();
+    if (cfgError || !cfg) {
+      throw new SendMessageError(
+        'messenger_not_configured',
+        'Messenger is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    const pageAccessToken = decrypt(cfg.page_access_token);
+    try {
+      const result = isMediaKind
+        ? await sendMessengerMedia({
+            pageId: cfg.page_id,
+            pageAccessToken,
+            recipientPsid: contact.messenger_psid,
+            kind: (messageType === 'document' ? 'file' : messageType) as MessengerMediaKind,
+            url: mediaUrl!,
+          })
+        : await sendMessengerText({
+            pageId: cfg.page_id,
+            pageAccessToken,
+            recipientPsid: contact.messenger_psid,
+            text: contentText!,
+          });
+      waMessageId = result.messageId;
+    } catch (err) {
+      if (err instanceof MetaApiError && err.code === 190) {
+        await db.from('messenger_config').update({ needs_reauth: true }).eq('id', cfg.id);
+      }
+      const message = err instanceof Error ? err.message : 'Unknown Messenger API error';
+      console.error('[send-message] Messenger send failed:', message);
+      throw new SendMessageError('meta_error', `Messenger API error: ${message}`, 502);
+    }
+  }
+
+  // Instagram DM send — same shape as Messenger, scoped to the linked
+  // IG business account instead of the Page.
+  if (isInstagramConversation) {
+    if (!contact.instagram_igsid) {
+      throw new SendMessageError('bad_request', 'Contact has no Instagram identity', 400);
+    }
+    const { data: cfg, error: cfgError } = await db
+      .from('instagram_config')
+      .select('id, ig_business_account_id, page_access_token')
+      .eq('account_id', accountId)
+      .single();
+    if (cfgError || !cfg) {
+      throw new SendMessageError(
+        'instagram_not_configured',
+        'Instagram is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    const pageAccessToken = decrypt(cfg.page_access_token);
+    try {
+      const result = isMediaKind
+        ? await sendInstagramMedia({
+            igBusinessAccountId: cfg.ig_business_account_id,
+            pageAccessToken,
+            recipientIgsid: contact.instagram_igsid,
+            kind: (messageType === 'document' ? 'file' : messageType) as InstagramMediaKind,
+            url: mediaUrl!,
+          })
+        : await sendInstagramText({
+            igBusinessAccountId: cfg.ig_business_account_id,
+            pageAccessToken,
+            recipientIgsid: contact.instagram_igsid,
+            text: contentText!,
+          });
+      waMessageId = result.messageId;
+    } catch (err) {
+      if (err instanceof MetaApiError && err.code === 190) {
+        await db.from('instagram_config').update({ needs_reauth: true }).eq('id', cfg.id);
+      }
+      const message = err instanceof Error ? err.message : 'Unknown Instagram API error';
+      console.error('[send-message] Instagram send failed:', message);
+      throw new SendMessageError('meta_error', `Instagram API error: ${message}`, 502);
+    }
+  }
+
   // Persist the sent message. Field names MUST match the messages
   // schema (see 001_initial_schema.sql).
   // Interactive messages persist the body as content_text (so the
@@ -539,7 +653,7 @@ export async function sendMessageToConversation(
       template_name: templateName || null,
       interactive_payload:
         messageType === 'interactive' ? interactivePayload : null,
-      channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
+      channel_type: channel,
       ai_generated: aiGenerated,
       // A widget send never gets a Meta wamid, so `waMessageId` stays ''.
       // Persist NULL there instead of '' — the unique index on
@@ -575,7 +689,7 @@ export async function sendMessageToConversation(
     .update({
       last_message_text: lastMessageText,
       last_message_at: new Date().toISOString(),
-      last_channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
+      last_channel_type: channel,
       // A reply — human, bot, or automation — closes the current wait
       // cycle regardless of channel (migration 049).
       awaiting_response: false,

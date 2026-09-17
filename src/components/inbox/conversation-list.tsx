@@ -14,7 +14,8 @@ import { useNow } from "@/hooks/use-now";
 import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
+import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
+import { CHANNEL_ICONS } from "./channel-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -66,10 +67,6 @@ type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned"
  *  `null` (no team filter applied at all). */
 const UNASSIGNED_TEAM = "__unassigned__";
 
-const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
-  whatsapp: MessageCircle,
-  web_widget: Globe,
-};
 
 const PRIORITY_COLORS: Record<ConversationPriority, string> = {
   urgent: "text-red-500",
@@ -853,7 +850,7 @@ export function ConversationList({
               >
                 {t("allChannels")}
               </DropdownMenuItem>
-              {(["whatsapp", "web_widget"] as ChannelType[]).map((ct) => {
+              {(["whatsapp", "web_widget", "messenger", "instagram"] as ChannelType[]).map((ct) => {
                 const Icon = CHANNEL_ICONS[ct];
                 return (
                   <DropdownMenuItem

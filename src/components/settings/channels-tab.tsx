@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   MessageCircle,
@@ -15,6 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { WhatsAppConfig } from './channels/whatsapp-channel';
 import { WebWidgetChannel } from './channels/web-widget-channel';
+import { MessengerChannel } from './channels/messenger-channel';
+import { InstagramChannel } from './channels/instagram-channel';
 
 type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email' | 'sms';
 
@@ -27,11 +30,17 @@ interface ChannelEntry {
 const CHANNELS: ChannelEntry[] = [
   { id: 'whatsapp', icon: MessageCircle },
   { id: 'web_widget', icon: Globe },
-  { id: 'instagram', icon: Camera, comingSoon: true },
-  { id: 'messenger', icon: Send, comingSoon: true },
+  { id: 'instagram', icon: Camera },
+  { id: 'messenger', icon: Send },
   { id: 'email', icon: Mail, comingSoon: true },
   { id: 'sms', icon: MessageSquareText, comingSoon: true },
 ];
+
+const CHANNEL_IDS: readonly string[] = CHANNELS.map((c) => c.id);
+
+function isChannelId(value: string | null): value is ChannelId {
+  return !!value && CHANNEL_IDS.includes(value);
+}
 
 /**
  * Settings → Channels. Owns an internal sub-nav rather than being a
@@ -42,7 +51,14 @@ const CHANNELS: ChannelEntry[] = [
  */
 export function ChannelsTab() {
   const t = useTranslations('Settings.channels');
-  const [active, setActive] = useState<ChannelId>('whatsapp');
+  const searchParams = useSearchParams();
+  // The OAuth connect flow (Messenger/Instagram) redirects back here
+  // with `?channel=`, so a completed connection (or an error) lands on
+  // the right sub-nav tab instead of defaulting to WhatsApp.
+  const [active, setActive] = useState<ChannelId>(() => {
+    const fromUrl = searchParams.get('channel');
+    return isChannelId(fromUrl) ? fromUrl : 'whatsapp';
+  });
 
   return (
     <div>
@@ -81,7 +97,9 @@ export function ChannelsTab() {
 
       {active === 'whatsapp' ? <WhatsAppConfig /> : null}
       {active === 'web_widget' ? <WebWidgetChannel /> : null}
-      {active !== 'whatsapp' && active !== 'web_widget' ? (
+      {active === 'messenger' ? <MessengerChannel /> : null}
+      {active === 'instagram' ? <InstagramChannel /> : null}
+      {active === 'email' || active === 'sms' ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <p className="text-sm font-medium text-foreground">
             {t('comingSoonTitle', { channel: t(`names.${active}`) })}

@@ -10,7 +10,6 @@ import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import type {
-  ChannelType,
   Conversation,
   ConversationPriority,
   Message,
@@ -24,8 +23,6 @@ import type {
 } from "@/types";
 import {
   MessageSquare,
-  MessageCircle,
-  Globe,
   Flag,
   ChevronDown,
   UserPlus,
@@ -38,6 +35,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
 } from "lucide-react";
+import { CHANNEL_ICONS } from "./channel-icons";
 import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
@@ -166,11 +164,6 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
   { label: "Pending", value: "pending", color: "text-amber-400" },
   { label: "Closed", value: "closed", color: "text-muted-foreground" },
 ];
-
-const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
-  whatsapp: MessageCircle,
-  web_widget: Globe,
-};
 
 const PRIORITY_OPTIONS: { value: ConversationPriority; color: string }[] = [
   { value: "urgent", color: "text-red-500" },

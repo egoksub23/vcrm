@@ -159,7 +159,9 @@
       "allChannels": "All channels",
       "channel": {
         "whatsapp": "WhatsApp",
-        "web_widget": "Web Widget"
+        "web_widget": "Web Widget",
+        "messenger": "Messenger",
+        "instagram": "Instagram"
       },
       "allPriorities": "All priorities",
       "priority": {
@@ -207,7 +209,9 @@
       "refreshConversation": "Refresh conversation",
       "channel": {
         "whatsapp": "WhatsApp",
-        "web_widget": "Web Widget"
+        "web_widget": "Web Widget",
+        "messenger": "Messenger",
+        "instagram": "Instagram"
       },
       "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "priority": {
@@ -1870,6 +1874,56 @@
         "copyFailed": "Failed to copy",
         "testChat": "Test chat",
         "testChatHint": "Opens a popup with the real widget, already connected — chat with it yourself. Messages you send land in your Inbox like any other conversation."
+      },
+      "messenger": {
+        "title": "Messenger",
+        "description": "Connect a Facebook Page to reply to Messenger conversations from your Inbox.",
+        "notConnected": "No Facebook Page connected yet.",
+        "connectButton": "Connect with Facebook",
+        "connectedAs": "Connected — {name}",
+        "connectedAtLabel": "Connected",
+        "disconnect": "Disconnect",
+        "disconnectConfirmDescription": "Disconnect this Facebook Page? Messenger conversations will stop syncing until you reconnect.",
+        "disconnectFailed": "Failed to disconnect Messenger",
+        "disconnected": "Messenger disconnected",
+        "connected": "Messenger connected",
+        "connectFailed": "Failed to connect Messenger",
+        "reauthBanner": "Messenger needs to be reconnected — your Facebook access has expired or was revoked.",
+        "reauthButton": "Reconnect",
+        "pageSelectTitle": "Choose a Page",
+        "pageSelectDescription": "You manage more than one Facebook Page — pick the one to connect.",
+        "oauthError": {
+          "invalid_state": "The connection request expired or was invalid. Try connecting again.",
+          "no_pages": "No Facebook Pages were found for this account.",
+          "denied": "Facebook connection was cancelled.",
+          "unknown": "Something went wrong connecting to Facebook. Try again."
+        }
+      },
+      "instagram": {
+        "title": "Instagram",
+        "description": "Connect a Facebook Page with a linked Instagram professional account to reply to Instagram DMs from your Inbox.",
+        "notConnected": "No Instagram account connected yet.",
+        "connectButton": "Connect with Facebook",
+        "connectedAs": "Connected — {name}",
+        "connectedAtLabel": "Connected",
+        "igUsernameLabel": "Instagram:",
+        "disconnect": "Disconnect",
+        "disconnectConfirmDescription": "Disconnect this Instagram account? Instagram DM conversations will stop syncing until you reconnect.",
+        "disconnectFailed": "Failed to disconnect Instagram",
+        "disconnected": "Instagram disconnected",
+        "connected": "Instagram connected",
+        "connectFailed": "Failed to connect Instagram",
+        "reauthBanner": "Instagram needs to be reconnected — your Facebook access has expired or was revoked.",
+        "reauthButton": "Reconnect",
+        "pageSelectTitle": "Choose a Page",
+        "pageSelectDescription": "You manage more than one Facebook Page — pick the one with the Instagram account to connect.",
+        "oauthError": {
+          "invalid_state": "The connection request expired or was invalid. Try connecting again.",
+          "no_pages": "No Facebook Pages were found for this account.",
+          "no_ig_account": "The selected Page has no linked Instagram professional account.",
+          "denied": "Facebook connection was cancelled.",
+          "unknown": "Something went wrong connecting to Instagram. Try again."
+        }
       }
     },
     "sections": {

@@ -75,6 +75,7 @@ function makeSupabaseMock() {
               id: 'conv-new',
               account_id: 'acct-1',
               contact_id: 'contact-1',
+              last_channel_type: 'whatsapp',
               contact: CONTACT,
             },
             error: null,
@@ -102,6 +103,7 @@ function makeSupabaseMock() {
           id: 'conv-new',
           account_id: 'acct-1',
           contact_id: 'contact-1',
+          last_channel_type: 'whatsapp',
           contact: CONTACT,
         }
       }
@@ -236,6 +238,7 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
       id: 'conv-existing',
       account_id: 'acct-1',
       contact_id: 'contact-1',
+      last_channel_type: 'whatsapp',
       contact: CONTACT,
     }
 
@@ -277,6 +280,7 @@ describe('POST /api/whatsapp/send — role enforcement', () => {
       id: 'conv-existing',
       account_id: 'acct-1',
       contact_id: 'contact-1',
+      last_channel_type: 'whatsapp',
       contact: CONTACT,
     }
     createdConversation = null

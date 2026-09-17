@@ -160,7 +160,13 @@ export function MessageComposer({
   onClearReply,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
-  const isWhatsapp = channelType === "whatsapp";
+  // Media attach works on every channel except the web widget (no media
+  // pipeline there yet — fast-follow). Templates and interactive
+  // buttons/lists are Meta concepts with no Messenger/Instagram
+  // equivalent (different quick-reply shape, no pre-approved template
+  // system at all) — WhatsApp-only until that's built out separately.
+  const supportsMedia = channelType !== "web_widget";
+  const supportsTemplatesAndInteractive = channelType === "whatsapp";
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -787,11 +793,12 @@ export function MessageComposer({
         <div className="relative flex items-end gap-2">
           {!isComment && (
             <>
-              {/* Attach menu — photo / video / document / voice. Meta-only
-                  today: a web-widget conversation has no media pipeline
-                  yet (fast-follow), so the whole menu is WhatsApp-gated
-                  rather than offered and failing server-side. */}
-              {isWhatsapp && (
+              {/* Attach menu — photo / video / document / voice. Every
+                  channel except the web widget supports media; it has no
+                  media pipeline yet (fast-follow), so the whole menu is
+                  gated on that rather than offered and failing
+                  server-side. */}
+              {supportsMedia && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     disabled={inputsDisabled || busy}
@@ -848,7 +855,7 @@ export function MessageComposer({
                   <Plus className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="border-border bg-popover">
-                  {isWhatsapp && (
+                  {supportsTemplatesAndInteractive && (
                     <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
                       <MessageSquareDashed className="mr-2 h-4 w-4" />
                       {t("interactiveMessage")}
@@ -861,7 +868,7 @@ export function MessageComposer({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {isWhatsapp && (
+              {supportsTemplatesAndInteractive && (
                 <GatedButton
                   variant="ghost"
                   size="sm"
