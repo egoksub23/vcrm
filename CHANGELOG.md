@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.16.0] — 2026-09-17
+
+Closes the Navigation & Layout roadmap gap: a collapsible sidebar.
+
+### Added
+
+- **Collapsible hover-expand sidebar** — a pin/collapse toggle (desktop
+  only) switches the left nav between always-expanded (unchanged default)
+  and an icon-only rail that hover-expands to show labels without
+  reflowing the page. Preference persists per-browser.
+
 ## [0.15.0] — 2026-09-17
 
 Closes the Inbox Views roadmap gap: saved/custom inbox filter combinations.
