@@ -9,6 +9,39 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.21.0] — 2026-09-18
+
+Ships Microsoft 365 / Outlook email as a full channel, alongside
+WhatsApp, the Web Widget, Messenger and Instagram DM.
+
+**Migration required**: apply `056_ms365_email_channel.sql`.
+
+- **Connect flow**: a real "Connect Microsoft 365" OAuth flow (Microsoft
+  identity platform v2.0, delegated Graph permissions) under Settings →
+  Channels — no manual token entry, and no separate webhook-URL
+  registration step: the inbound Graph change-notification subscription
+  is created automatically by the connect flow itself. Requires an Azure
+  AD app registration (`MS365_CLIENT_ID`/`MS365_CLIENT_SECRET`) — see
+  `docs/microsoft-365-email-setup.md`. Shows a Reconnect banner if
+  Microsoft access is later revoked or the refresh token expires.
+- **Send + receive**: plain text and a single attachment both ways.
+  Replies thread onto the customer's own Outlook conversation via
+  Graph's `reply` action (not a disconnected new email each time); the
+  first outbound message to a contact who hasn't written in yet falls
+  back to a fresh `sendMail`.
+- **Contacts**: matched by email address (case-insensitively) against
+  the CRM's existing `email` field — no new identity column, unlike
+  Messenger/Instagram's PSID/IGSID.
+- **Keeping it alive**: Graph mail subscriptions expire on their own
+  after ~2.94 days and must be renewed — a new
+  `/api/email/subscription-renew` cron endpoint (shares
+  `AUTOMATION_CRON_SECRET` with the existing automations cron) needs a
+  daily-or-more-often pinger hit. See the setup doc.
+- **Scope for this release**: templates and interactive buttons/lists
+  stay WhatsApp-only, same as every other non-WhatsApp channel.
+  Attachments over ~3 MB and delta-query reconciliation for missed
+  notifications are deferred.
+
 ## [0.20.0] — 2026-09-17
 
 Ships Facebook Messenger and Instagram DM as full channels, alongside
