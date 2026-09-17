@@ -9,6 +9,37 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.20.0] — 2026-09-17
+
+Ships Facebook Messenger and Instagram DM as full channels, alongside
+WhatsApp and the Web Widget.
+
+**Migration required**: apply `055_messenger_instagram_channels.sql`.
+
+- **Connect flow**: a real "Connect with Facebook" OAuth flow (Facebook
+  Login for Business) under Settings → Channels — no manual token entry.
+  Reuses the same Meta App as WhatsApp (`META_APP_ID`/`META_APP_SECRET`);
+  add the Messenger and Instagram products plus their permission scopes
+  (`pages_messaging`, `instagram_manage_messages`, etc.) to that app in
+  Meta for Developers before connecting. Handles a Page picker when an
+  admin manages more than one Page, and a Reconnect banner if Facebook
+  access is later revoked or expires.
+- **Send + receive**: text and media (image/video/audio/document) both
+  ways, through each channel's real Graph API — not a WhatsApp-only send
+  path pretending to support them. New webhook endpoints
+  (`/api/messenger/webhook`, `/api/instagram/webhook`) reuse the exact
+  same automation/flow/AI-reply/public-webhook fan-out WhatsApp's webhook
+  already runs.
+- **Contacts**: keyed by Messenger PSID / Instagram-scoped ID (mirrors
+  how a WhatsApp username-only contact is already keyed by BSUID) — no
+  phone number required or assumed.
+- **Scope for this release**: templates and interactive buttons/lists
+  stay WhatsApp-only — neither channel has a real equivalent to WhatsApp's
+  pre-approved template system, and Messenger's quick-replies are a
+  different enough shape to need their own mapping later. Plain-text and
+  media automation sends (`send_message`) already work on both channels
+  today.
+
 ## [0.19.1] — 2026-09-17
 
 Inbox chat area: removed the decorative doodle background (plain
