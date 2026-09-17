@@ -55,7 +55,9 @@ describe('reopenClosedConversation', () => {
     expect(reopened).toBe(true)
     expect(calls).toHaveLength(1)
     expect(calls[0].table).toBe('conversations')
-    expect(calls[0].payload).toMatchObject({ status: 'open' })
+    // closed_at (migration 050) must clear on reopen, or a later
+    // re-close would inherit this close's stale timestamp.
+    expect(calls[0].payload).toMatchObject({ status: 'open', closed_at: null })
     expect(calls[0].payload).toHaveProperty('updated_at')
   })
 

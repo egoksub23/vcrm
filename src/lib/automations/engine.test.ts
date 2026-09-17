@@ -594,6 +594,43 @@ describe("set_priority step", () => {
   });
 });
 
+describe("close_conversation step", () => {
+  it("closes the resolved conversation", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "auto-close",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "close_conversation",
+      position: 0,
+      parent_step_id: null,
+      step_config: {},
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { conversation_id: "cv-1", message_text: "hi" },
+    });
+
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      status: "success",
+      steps_executed: [
+        expect.objectContaining({ step_id: "s1", status: "success", detail: "conversation closed" }),
+      ],
+    }));
+  });
+});
+
 describe("triggerMatches — keyword_match", () => {
   function automation(
     cfg: Partial<KeywordMatchTriggerConfig> & { keywords: string[] },

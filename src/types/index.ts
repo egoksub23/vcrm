@@ -219,6 +219,11 @@ export interface Conversation {
    *  `last_message_at`, which reflects ANY message including our own
    *  replies. Null for a conversation with no customer message yet. */
   last_customer_message_at?: string | null;
+  /** When this conversation was most recently closed (migration 050) —
+   *  null while open/pending, cleared on reopen. Powers the Resolutions
+   *  report's open→closed duration; rows closed before this migration
+   *  are backfilled from `updated_at` as an approximation. */
+  closed_at?: string | null;
   unread_count: number;
   created_at: string;
   updated_at: string;

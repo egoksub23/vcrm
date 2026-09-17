@@ -26,6 +26,7 @@
     "automations": "자동화",
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
+    "reports": "리포트",
     "settings": "설정",
     "beta": "베타",
     "unreadConversations": "읽지 않은 대화 {count}건",
@@ -2182,6 +2183,54 @@
       "byModel": "모델별",
       "modelCalls": "{tokens} 토큰 · 호출 {count}회",
       "partialWindow": "일부 기간만 표시 중 — 사용량이 많아 최근 기록만 요약되었습니다."
+    }
+  },
+  "Reports": {
+    "pageTitle": "리포트",
+    "pageDesc": "계정의 대화, 응답, 연락처 추세입니다.",
+    "vsPreviousPeriod": "이전 기간 대비",
+    "tabs": {
+      "conversations": "대화",
+      "responses": "응답",
+      "resolutions": "해결",
+      "messages": "메시지",
+      "contacts": "연락처"
+    },
+    "dateRange": {
+      "today": "오늘",
+      "7d": "최근 7일",
+      "14d": "최근 14일",
+      "30d": "최근 30일",
+      "90d": "최근 90일",
+      "thisMonth": "이번 달"
+    },
+    "conversations": {
+      "loading": "대화 리포트를 불러오는 중…",
+      "opened": "열림",
+      "closed": "닫힘",
+      "chartTitle": "일별 열림 대 닫힘"
+    },
+    "responses": {
+      "loading": "응답 리포트를 불러오는 중…",
+      "avgFirstResponse": "평균 첫 응답",
+      "chartTitle": "일별 평균 첫 응답 시간"
+    },
+    "resolutions": {
+      "loading": "해결 리포트를 불러오는 중…",
+      "avgResolution": "평균 해결 시간",
+      "chartTitle": "일별 평균 열림→닫힘 소요 시간",
+      "approximateNotice": "2026년 9월 17일 이전에 닫힌 대화는 근사치 마감 시간을 사용합니다 — 그 전에는 closed_at이 기록되지 않았습니다."
+    },
+    "messages": {
+      "loading": "메시지 리포트를 불러오는 중…",
+      "incoming": "수신",
+      "outgoing": "발신",
+      "chartTitle": "일별 메시지 볼륨"
+    },
+    "contacts": {
+      "loading": "연락처 리포트를 불러오는 중…",
+      "newContacts": "신규 연락처",
+      "chartTitle": "일별 신규 연락처"
     }
   },
   "Interactive": {

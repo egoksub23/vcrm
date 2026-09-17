@@ -707,9 +707,10 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       // conversation, and closing by contact_id alone would close both
       // just because one of them fired the automation.
       const conversationId = await resolveConversationId(args)
+      const closedAt = new Date().toISOString()
       await db
         .from('conversations')
-        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .update({ status: 'closed', closed_at: closedAt, updated_at: closedAt })
         .eq('id', conversationId)
       return 'conversation closed'
     }

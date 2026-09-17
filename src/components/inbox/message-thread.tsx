@@ -746,7 +746,10 @@ export function MessageThread({
       const supabase = createClient();
       await supabase
         .from("conversations")
-        .update({ status })
+        // closed_at (migration 050) powers the Resolutions report's
+        // open→closed duration — stamped on close, cleared on reopen
+        // so re-closing later doesn't inherit a stale timestamp.
+        .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
         .eq("id", conversation.id);
 
       onStatusChange(conversation.id, status);

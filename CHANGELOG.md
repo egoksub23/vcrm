@@ -9,6 +9,35 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.13.0] — 2026-09-17
+
+Adds a Reports section — Conversations, Responses, Resolutions,
+Messages, and Contacts trends.
+
+> **Migration required:** apply `supabase/migrations/050_conversation_closed_at.sql`.
+> Adds `conversations.closed_at`, stamped whenever a conversation transitions to
+> `closed` (the dashboard Status control and the `close_conversation` automation
+> step) and cleared on reopen; backfills already-closed conversations from
+> `updated_at` as an approximation (flagged in the Resolutions report UI).
+> Idempotent.
+
+### Added
+
+- **Reports** (new sidebar item) — five report tabs, each with a date-range
+  preset picker (Today / 7 / 14 / 30 / 90 days / This month) and a "vs.
+  previous period" comparison on every tile:
+  - **Conversations** — opened/closed counts and a daily bar chart.
+  - **Responses** — average first-response time.
+  - **Resolutions** — average open→closed duration (needs the `closed_at`
+    migration above; conversations closed before this release show an
+    approximate duration).
+  - **Messages** — incoming vs. outgoing volume.
+  - **Contacts** — new contacts over time.
+  
+  Client-side aggregation, same pattern (and same scale caveat) as the
+  existing Dashboard widgets — a note in `src/lib/reports/queries.ts` flags
+  the SQL-RPC migration path for when a tenant's dataset outgrows it.
+
 ## [0.12.0] — 2026-09-17
 
 Adds an "aging response" indicator and SLA breach alerts.

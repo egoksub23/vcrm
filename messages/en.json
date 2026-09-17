@@ -26,6 +26,7 @@
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
+    "reports": "Reports",
     "settings": "Settings",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
@@ -2182,6 +2183,54 @@
       "byModel": "By model",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# call} other {# calls}}",
       "partialWindow": "Showing a partial window — usage is high enough that only the most recent records are summarized here."
+    }
+  },
+  "Reports": {
+    "pageTitle": "Reports",
+    "pageDesc": "Conversation, response, and contact trends for your account.",
+    "vsPreviousPeriod": "vs previous period",
+    "tabs": {
+      "conversations": "Conversations",
+      "responses": "Responses",
+      "resolutions": "Resolutions",
+      "messages": "Messages",
+      "contacts": "Contacts"
+    },
+    "dateRange": {
+      "today": "Today",
+      "7d": "Last 7 days",
+      "14d": "Last 14 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "thisMonth": "This month"
+    },
+    "conversations": {
+      "loading": "Loading conversations report…",
+      "opened": "Opened",
+      "closed": "Closed",
+      "chartTitle": "Opened vs closed, per day"
+    },
+    "responses": {
+      "loading": "Loading responses report…",
+      "avgFirstResponse": "Avg. first response",
+      "chartTitle": "Average first-response time, per day"
+    },
+    "resolutions": {
+      "loading": "Loading resolutions report…",
+      "avgResolution": "Avg. resolution time",
+      "chartTitle": "Average open → closed duration, per day",
+      "approximateNotice": "Conversations closed before Sep 17, 2026 use an approximate close time — closed_at wasn't tracked until then."
+    },
+    "messages": {
+      "loading": "Loading messages report…",
+      "incoming": "Incoming",
+      "outgoing": "Outgoing",
+      "chartTitle": "Message volume, per day"
+    },
+    "contacts": {
+      "loading": "Loading contacts report…",
+      "newContacts": "New contacts",
+      "chartTitle": "New contacts, per day"
     }
   },
   "Interactive": {

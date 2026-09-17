@@ -26,6 +26,7 @@
     "automations": "Automações",
     "flows": "Fluxos",
     "aiAgents": "Agentes de IA",
+    "reports": "Relatórios",
     "settings": "Configurações",
     "beta": "Beta",
     "unreadConversations": "{count} {count, plural, =1 {conversa não lida} other {conversas não lidas}}",
@@ -2164,6 +2165,54 @@
       "byModel": "Por modelo",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# chamada} other {# chamadas}}",
       "partialWindow": "Exibindo uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui."
+    }
+  },
+  "Reports": {
+    "pageTitle": "Relatórios",
+    "pageDesc": "Tendências de conversas, respostas e contatos da sua conta.",
+    "vsPreviousPeriod": "vs. período anterior",
+    "tabs": {
+      "conversations": "Conversas",
+      "responses": "Respostas",
+      "resolutions": "Resoluções",
+      "messages": "Mensagens",
+      "contacts": "Contatos"
+    },
+    "dateRange": {
+      "today": "Hoje",
+      "7d": "Últimos 7 dias",
+      "14d": "Últimos 14 dias",
+      "30d": "Últimos 30 dias",
+      "90d": "Últimos 90 dias",
+      "thisMonth": "Este mês"
+    },
+    "conversations": {
+      "loading": "Carregando relatório de conversas…",
+      "opened": "Abertas",
+      "closed": "Fechadas",
+      "chartTitle": "Abertas vs. fechadas, por dia"
+    },
+    "responses": {
+      "loading": "Carregando relatório de respostas…",
+      "avgFirstResponse": "Primeira resposta média",
+      "chartTitle": "Tempo médio de primeira resposta, por dia"
+    },
+    "resolutions": {
+      "loading": "Carregando relatório de resoluções…",
+      "avgResolution": "Tempo médio de resolução",
+      "chartTitle": "Duração média de abertura até fechamento, por dia",
+      "approximateNotice": "Conversas fechadas antes de 17/09/2026 usam um horário de fechamento aproximado — closed_at não era registrado até então."
+    },
+    "messages": {
+      "loading": "Carregando relatório de mensagens…",
+      "incoming": "Recebidas",
+      "outgoing": "Enviadas",
+      "chartTitle": "Volume de mensagens, por dia"
+    },
+    "contacts": {
+      "loading": "Carregando relatório de contatos…",
+      "newContacts": "Novos contatos",
+      "chartTitle": "Novos contatos, por dia"
     }
   },
   "Interactive": {

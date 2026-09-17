@@ -26,7 +26,11 @@ export async function reopenClosedConversation(
 
   const { error } = await db
     .from('conversations')
-    .update({ status: 'open', updated_at: new Date().toISOString() })
+    // closed_at (migration 050) reflects the CURRENT close, not
+    // history — clearing it here means a later re-close starts a
+    // fresh resolution-time measurement rather than inheriting this
+    // one's timestamp.
+    .update({ status: 'open', closed_at: null, updated_at: new Date().toISOString() })
     .eq('id', conversation.id)
     // Re-checked in SQL, not just in the `if` above: the caller's row was
     // read earlier in the request, so two concurrent inbound deliveries
