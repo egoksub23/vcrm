@@ -40,11 +40,43 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
   const [messages, setMessages] = useState<LocalMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [visitorName, setVisitorName] = useState('')
-  const [showNameBar, setShowNameBar] = useState(true)
+  // null = not determined yet (still bootstrapping); true = this browser
+  // is unidentified and the phone gate must show; false = identified,
+  // normal composer shows. See startSession's two-step protocol.
+  const [needsPhone, setNeedsPhone] = useState<boolean | null>(null)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [nameInput, setNameInput] = useState('')
   const bootstrapped = useRef(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+
+  // Fetches history + opens the Realtime subscription once a
+  // conversation exists — shared by the initial bootstrap (returning
+  // visitor, identified immediately) and handleStartChat (new visitor,
+  // identified after submitting the phone gate).
+  const connectConversation = useCallback(async (id: string) => {
+    setConversationId(id)
+    const history = await fetchMessageHistory(id)
+    setMessages(history)
+
+    const channel = supabase
+      .channel(`widget-messages-${id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as WidgetMessage & { is_internal?: boolean; sender_type: string }
+          // Our own sends are already rendered optimistically below —
+          // only agent/bot replies need to be appended from Realtime.
+          // is_internal is also excluded server-side by RLS (migration
+          // 046), this is belt-and-braces.
+          if (row.sender_type === 'customer' || row.is_internal) return
+          setMessages((prev) => [...prev, row])
+        },
+      )
+      .subscribe()
+    channelRef.current = channel
+  }, [])
 
   const bootstrap = useCallback(async () => {
     if (bootstrapped.current) return
@@ -54,39 +86,40 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
     try {
       const session = await startSession(widgetToken)
       setBranding(session.branding)
-      setConversationId(session.conversationId)
-      const history = await fetchMessageHistory(session.conversationId)
-      setMessages(history)
-
-      const channel = supabase
-        .channel(`widget-messages-${session.conversationId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${session.conversationId}`,
-          },
-          (payload) => {
-            const row = payload.new as WidgetMessage & { is_internal?: boolean; sender_type: string }
-            // Our own sends are already rendered optimistically below —
-            // only agent/bot replies need to be appended from Realtime.
-            // is_internal is also excluded server-side by RLS (migration
-            // 046), this is belt-and-braces.
-            if (row.sender_type === 'customer' || row.is_internal) return
-            setMessages((prev) => [...prev, row])
-          },
-        )
-        .subscribe()
-      channelRef.current = channel
+      if (session.needsPhone) {
+        setNeedsPhone(true)
+        return
+      }
+      setNeedsPhone(false)
+      await connectConversation(session.conversationId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       bootstrapped.current = false
     } finally {
       setLoading(false)
     }
-  }, [widgetToken])
+  }, [widgetToken, connectConversation])
+
+  const handleStartChat = useCallback(async () => {
+    const phone = phoneInput.trim()
+    if (!phone || loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      const session = await startSession(widgetToken, phone, nameInput.trim() || undefined)
+      setBranding(session.branding)
+      if (session.needsPhone) {
+        setError('Enter a valid phone number')
+        return
+      }
+      setNeedsPhone(false)
+      await connectConversation(session.conversationId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }, [phoneInput, nameInput, loading, widgetToken, connectConversation])
 
   useEffect(() => {
     if (open) bootstrap()
@@ -122,17 +155,6 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
     }
   }, [input, conversationId, sending])
 
-  const handleSaveName = useCallback(async () => {
-    const name = visitorName.trim()
-    setShowNameBar(false)
-    if (!name) return
-    try {
-      await startSession(widgetToken, name)
-    } catch {
-      /* best-effort — the conversation already works without a name */
-    }
-  }, [visitorName, widgetToken])
-
   const position = branding?.position ?? 'right'
   const primaryColor = branding?.primaryColor ?? '#3b82f6'
 
@@ -165,45 +187,63 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
             ))}
           </div>
 
-          {showNameBar && (
-            <div class="wcw-namebar">
+          {needsPhone === true && (
+            <div class="wcw-gate">
+              <p class="wcw-gate-hint">Enter your phone number to start chatting</p>
+              <input
+                type="tel"
+                inputMode="tel"
+                placeholder="Phone number, e.g. 601234455678"
+                value={phoneInput}
+                disabled={loading}
+                onInput={(e) => setPhoneInput((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStartChat()}
+              />
               <input
                 type="text"
                 placeholder="Your name (optional)"
-                value={visitorName}
-                onInput={(e) => setVisitorName((e.target as HTMLInputElement).value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                value={nameInput}
+                disabled={loading}
+                onInput={(e) => setNameInput((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStartChat()}
               />
-              <button type="button" onClick={handleSaveName}>
-                Save
+              <button
+                type="button"
+                class="wcw-gate-submit"
+                disabled={!phoneInput.trim() || loading}
+                onClick={handleStartChat}
+              >
+                {loading ? 'Starting…' : 'Start chat'}
               </button>
             </div>
           )}
 
-          <div class="wcw-composer">
-            <textarea
-              class="wcw-input"
-              placeholder="Type a message…"
-              value={input}
-              onInput={(e) => setInput((e.target as HTMLTextAreaElement).value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              rows={1}
-            />
-            <button
-              type="button"
-              class="wcw-send"
-              disabled={!input.trim() || sending || !conversationId}
-              onClick={handleSend}
-              aria-label="Send"
-            >
-              {SEND_ICON}
-            </button>
-          </div>
+          {needsPhone === false && (
+            <div class="wcw-composer">
+              <textarea
+                class="wcw-input"
+                placeholder="Type a message…"
+                value={input}
+                onInput={(e) => setInput((e.target as HTMLTextAreaElement).value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                rows={1}
+              />
+              <button
+                type="button"
+                class="wcw-send"
+                disabled={!input.trim() || sending || !conversationId}
+                onClick={handleSend}
+                aria-label="Send"
+              >
+                {SEND_ICON}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

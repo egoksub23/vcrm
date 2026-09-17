@@ -7,6 +7,12 @@ export const WIDGET_CSS = `
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --wcw-primary: #3b82f6;
   --wcw-radius: 16px;
+  /* The widget is a fixed light theme regardless of the host page or
+     the visitor's OS setting. Without this, a browser in dark mode
+     paints bare input/textarea elements with its own dark user-agent
+     colors (dark background, light text) since the "all: initial"
+     reset above resets properties, not the inherited color-scheme. */
+  color-scheme: light;
 }
 .wcw-root * { box-sizing: border-box; }
 
@@ -148,6 +154,8 @@ export const WIDGET_CSS = `
   max-height: 80px;
   min-height: 36px;
   outline: none;
+  background: #fff;
+  color: #222;
 }
 .wcw-input:focus { border-color: var(--wcw-primary); }
 .wcw-send {
@@ -159,29 +167,45 @@ export const WIDGET_CSS = `
 }
 .wcw-send:disabled { opacity: 0.5; cursor: default; }
 
-.wcw-namebar {
+.wcw-gate {
+  flex-shrink: 0;
   display: flex;
-  gap: 6px;
-  padding: 8px 10px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
   border-top: 1px solid #e6e7eb;
-  background: #fafafa;
+  background: #fff;
 }
-.wcw-namebar input {
-  flex: 1;
-  border: 1px solid #e0e1e6;
-  border-radius: 8px;
-  padding: 6px 8px;
+.wcw-gate-hint {
   font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 2px;
+}
+.wcw-gate input {
+  border: 1px solid #e0e1e6;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
   font-family: inherit;
   outline: none;
+  background: #fff;
+  color: #222;
 }
-.wcw-namebar button {
+.wcw-gate input:focus { border-color: var(--wcw-primary); }
+.wcw-gate-submit {
   border: none;
-  background: none;
-  color: #8a8f98;
-  font-size: 12px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--wcw-primary);
+  color: #fff;
   cursor: pointer;
-  padding: 0 4px;
+}
+.wcw-gate-submit:disabled { opacity: 0.5; cursor: default; }
+.wcw-gate input::placeholder,
+.wcw-input::placeholder {
+  color: #9aa0ab;
 }
 
 .wcw-error {

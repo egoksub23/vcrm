@@ -25,10 +25,9 @@ export interface Branding {
   position: 'left' | 'right'
 }
 
-export interface SessionResult {
-  conversationId: string
-  branding: Branding
-}
+export type SessionResult =
+  | { needsPhone: true; branding: Branding }
+  | { needsPhone: false; conversationId: string; branding: Branding }
 
 export interface WidgetMessage {
   id: string
@@ -80,10 +79,18 @@ async function currentAccessToken(): Promise<string> {
   return signedIn.session.access_token
 }
 
+/**
+ * Two-step identity protocol (see the matching comment in
+ * src/app/api/widget/session/route.ts): call with no `visitorPhone`
+ * first — a brand-new browser gets back `needsPhone: true` instead of
+ * a conversation, a returning one (already bound via widget_visitors)
+ * gets a conversation immediately, phone or not. Call again with
+ * `visitorPhone` once the visitor has entered it.
+ */
 export async function startSession(
   widgetToken: string,
+  visitorPhone?: string,
   visitorName?: string,
-  visitorEmail?: string,
 ): Promise<SessionResult> {
   const token = await currentAccessToken()
   const res = await fetch(`${API_ORIGIN}/api/widget/session`, {
@@ -92,11 +99,11 @@ export async function startSession(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ widgetToken, visitorName, visitorEmail }),
+    body: JSON.stringify({ widgetToken, visitorPhone, visitorName }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error ?? 'Failed to start chat session')
-  return { conversationId: data.conversationId, branding: data.branding }
+  return data as SessionResult
 }
 
 /**

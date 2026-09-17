@@ -4,9 +4,36 @@
 // First call the embedded widget bundle makes on load. It has
 // already called `supabase.auth.signInAnonymously()` itself (using
 // the public anon key) and sends that session's access token as a
-// bearer credential — this route verifies it, then finds-or-creates
-// the `widget_visitors` / `contacts` / `conversations` rows for that
-// visitor and hands back the conversation to subscribe to.
+// bearer credential — this route verifies it, then resolves the
+// `contacts` / `conversations` rows for that visitor and hands back
+// the conversation to subscribe to.
+//
+// Two-step protocol for identity: a brand-new browser session (no
+// `widget_visitors` row yet) has no way to know who it's talking to,
+// so the FIRST call — made with no `visitorPhone` — gets back
+// `{ needsPhone: true }` instead of an error. The widget shows a
+// phone-entry gate, then calls this route again with `visitorPhone`
+// filled in. Identity is phone-first, not anonymous-auth-first: the
+// phone is looked up against existing contacts in the account
+// (`findExistingContact`, the same trunk-prefix-tolerant match every
+// other phone-identified path in the app uses) so a visitor who has
+// already messaged this business on WhatsApp lands on that SAME
+// contact record — one unified history, even though the WhatsApp and
+// widget conversations stay two separate `conversations` rows
+// (different `channel_type`). A returning visitor on the SAME browser
+// skips the gate entirely: `widget_visitors` (keyed by their anonymous
+// auth uid) already points at a resolved contact from last time.
+//
+// This is intentionally unverified — there's no OTP. A visitor who
+// types someone else's real phone number lands their chat on that
+// person's contact record. That's a real, accepted trade-off (the
+// same one every "enter your number to chat" widget makes without a
+// verification step) rather than an oversight: the widget itself
+// never exposes anything beyond its own conversation thread even when
+// merged onto an existing contact — RLS scopes by `contact_id` /
+// `conversation_id`, not "everything this contact ever said" — so the
+// only real exposure is on the business side (an agent could be
+// talking to someone who isn't actually who the contact record says).
 //
 // Public, unauthenticated (any origin can call it, subject to the
 // account's own `allowed_origins` allow-list) and CORS-enabled —
@@ -17,14 +44,14 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
-import { isUniqueViolation } from '@/lib/contacts/dedupe'
+import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
+import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors'
 
 const NAME_MAX_LEN = 120
-const EMAIL_MAX_LEN = 200
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
@@ -34,7 +61,7 @@ export async function POST(request: Request) {
   const requestOrigin = request.headers.get('origin')
 
   const body = (await request.json().catch(() => null)) as
-    | { widgetToken?: unknown; visitorName?: unknown; visitorEmail?: unknown }
+    | { widgetToken?: unknown; visitorName?: unknown; visitorPhone?: unknown }
     | null
   const widgetToken = typeof body?.widgetToken === 'string' ? body.widgetToken : ''
   if (!widgetToken) {
@@ -92,8 +119,15 @@ export async function POST(request: Request) {
 
   const visitorName =
     typeof body?.visitorName === 'string' ? body.visitorName.trim().slice(0, NAME_MAX_LEN) : ''
-  const visitorEmail =
-    typeof body?.visitorEmail === 'string' ? body.visitorEmail.trim().slice(0, EMAIL_MAX_LEN) : ''
+  const rawPhone = typeof body?.visitorPhone === 'string' ? body.visitorPhone.trim() : ''
+
+  const brandingPayload = {
+    name: config.name,
+    welcomeMessage: config.welcome_message,
+    primaryColor: config.primary_color,
+    avatarUrl: config.avatar_url,
+    position: config.position,
+  }
 
   try {
     let ownerUserId: string
@@ -106,57 +140,70 @@ export async function POST(request: Request) {
       throw err
     }
 
-    // ---- contact: find by widget_visitor_id, or create -----------
-    let contactId: string
-    const { data: existingContact } = await admin
-      .from('contacts')
-      .select('id, name, email')
-      .eq('account_id', config.account_id)
-      .eq('widget_visitor_id', visitorId)
+    // ---- fast path: this browser already has a resolved contact --
+    const { data: knownVisitor } = await admin
+      .from('widget_visitors')
+      .select('contact_id')
+      .eq('id', visitorId)
       .maybeSingle()
 
+    let contactId: string
     let contactCreated = false
-    if (existingContact) {
-      contactId = existingContact.id
-      // A visitor who types their name/email after already chatting
-      // once fills the gap rather than overwriting a name they set.
-      const patch: Record<string, string> = {}
-      if (visitorName && !existingContact.name) patch.name = visitorName
-      if (visitorEmail && !existingContact.email) patch.email = visitorEmail
-      if (Object.keys(patch).length > 0) {
-        await admin.from('contacts').update(patch).eq('id', contactId)
-      }
-    } else {
-      const { data: created, error: createErr } = await admin
-        .from('contacts')
-        .insert({
-          account_id: config.account_id,
-          user_id: ownerUserId,
-          phone: '',
-          widget_visitor_id: visitorId,
-          name: visitorName || 'Website visitor',
-          email: visitorEmail || null,
-        })
-        .select('id')
-        .single()
 
-      if (createErr || !created) {
-        if (isUniqueViolation(createErr)) {
-          const { data: raced } = await admin
-            .from('contacts')
-            .select('id')
-            .eq('account_id', config.account_id)
-            .eq('widget_visitor_id', visitorId)
-            .maybeSingle()
-          if (!raced) throw new Error('Failed to resolve contact after race')
-          contactId = raced.id
-        } else {
-          console.error('[widget/session] contact create error:', createErr)
-          return withCors(NextResponse.json({ error: 'Failed to start session' }, { status: 500 }), corsOrigin)
+    if (knownVisitor) {
+      contactId = knownVisitor.contact_id
+      await admin
+        .from('widget_visitors')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('id', visitorId)
+    } else {
+      // Brand-new browser session — identity is unknown until the
+      // visitor supplies a phone number. First call (no phone yet)
+      // gets a structured "ask for it" response, not an error.
+      if (!rawPhone) {
+        return withCors(NextResponse.json({ needsPhone: true, branding: brandingPayload }), corsOrigin)
+      }
+
+      const sanitizedPhone = sanitizePhoneForMeta(rawPhone)
+      if (!isValidE164(sanitizedPhone)) {
+        return withCors(
+          NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 }),
+          corsOrigin,
+        )
+      }
+
+      const existing = await findExistingContact(admin, config.account_id, sanitizedPhone)
+      if (existing) {
+        contactId = existing.id
+        if (visitorName && !existing.name) {
+          await admin.from('contacts').update({ name: visitorName }).eq('id', contactId)
         }
       } else {
-        contactId = created.id
-        contactCreated = true
+        const { data: created, error: createErr } = await admin
+          .from('contacts')
+          .insert({
+            account_id: config.account_id,
+            user_id: ownerUserId,
+            phone: sanitizedPhone,
+            widget_visitor_id: visitorId,
+            name: visitorName || 'Website visitor',
+          })
+          .select('id')
+          .single()
+
+        if (createErr || !created) {
+          if (isUniqueViolation(createErr)) {
+            const raced = await findExistingContact(admin, config.account_id, sanitizedPhone)
+            if (!raced) throw new Error('Failed to resolve contact after race')
+            contactId = raced.id
+          } else {
+            console.error('[widget/session] contact create error:', createErr)
+            return withCors(NextResponse.json({ error: 'Failed to start session' }, { status: 500 }), corsOrigin)
+          }
+        } else {
+          contactId = created.id
+          contactCreated = true
+        }
       }
     }
 
@@ -206,7 +253,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // ---- visitor mapping (upsert; keeps last_seen_at fresh) -------
+    // Binds this browser to the resolved contact (new-visitor path) or
+    // just refreshes last_seen_at (fast-path — already bound). One
+    // upsert covers both since the row shape is identical either way.
     await admin.from('widget_visitors').upsert(
       {
         id: visitorId,
@@ -228,18 +277,7 @@ export async function POST(request: Request) {
     }
 
     return withCors(
-      NextResponse.json({
-        conversationId,
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        branding: {
-          name: config.name,
-          welcomeMessage: config.welcome_message,
-          primaryColor: config.primary_color,
-          avatarUrl: config.avatar_url,
-          position: config.position,
-        },
-      }),
+      NextResponse.json({ conversationId, needsPhone: false, branding: brandingPayload }),
       corsOrigin,
     )
   } catch (err) {

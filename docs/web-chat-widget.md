@@ -15,7 +15,9 @@ schema and RLS this page assumes.
 | --- | --- | --- |
 | Widget name, welcome message, color, position, allowed origins, enabled toggle | `web_widget_config` (one row per account) | per account |
 | `widget_token` (public, non-secret — embedded in the `<script>` tag) | `web_widget_config.widget_token`, generated once on first save | per account |
-| A visitor's identity | Supabase **anonymous auth** session (`auth.users`, `is_anonymous = true`) mapped via `widget_visitors` | per browser/device |
+| A visitor's browser session | Supabase **anonymous auth** (`auth.users`, `is_anonymous = true`) | per browser/device |
+| A visitor's *identity* — who they actually are | The phone number they type into the pre-chat gate, matched against existing `contacts` | per phone number, not per browser |
+| The browser ↔ contact binding (skips the gate on return visits) | `widget_visitors` (row per anonymous auth uid → `contact_id`) | per browser/device |
 | A visitor's conversation | `conversations` row with `channel_type = 'web_widget'` | per visitor |
 | Anonymous sign-ins toggle | Supabase dashboard → Authentication → Sign In / Providers | **per Supabase project** — not settable from wacrm |
 
@@ -114,12 +116,40 @@ on the launcher bubble.
   verify the visitor's Supabase JWT server-side and are rate-limited
   (`RATE_LIMITS.widgetSession`, `RATE_LIMITS.widgetMessage` in
   `src/lib/rate-limit.ts`).
-- A widget visitor is a real `contacts` row (`widget_visitor_id` set,
-  `phone` empty — mirrors how a WhatsApp business-scoped-user-ID-only
-  contact already stores `phone: ''`) and a real `conversations` row
-  (`channel_type: 'web_widget'`), so tags, labels, priority, contact
-  notes, deals, and reporting all work on widget conversations exactly
-  as they do on WhatsApp ones.
+- A widget visitor is a real `contacts` row and a real `conversations`
+  row (`channel_type: 'web_widget'`), so tags, labels, priority,
+  contact notes, deals, and reporting all work on widget conversations
+  exactly as they do on WhatsApp ones.
+
+## Visitor identity — the phone gate
+
+Right after the welcome message, a first-time visitor is asked for
+their phone number (and, optionally, their name) before they can send
+anything — the composer doesn't appear until they submit it. That
+phone number is looked up against the account's existing contacts
+(the same fuzzy, trunk-prefix-tolerant match every other phone-
+identified path in the app uses): if it matches someone who has
+already messaged this business on WhatsApp, the widget conversation
+attaches to that **same contact record** — one unified customer, two
+separate conversation threads (one per `channel_type`). If it's a new
+number, a new contact is created from it.
+
+A returning visitor on the **same browser** skips the gate entirely —
+`widget_visitors` already remembers which contact this browser belongs
+to from last time, so it only ever asks once per device, not once per
+visit.
+
+**This is intentionally unverified — there's no OTP.** Someone who
+types a real customer's phone number lands their chat on that
+customer's contact record. The widget itself doesn't leak anything
+extra from that: RLS scopes a visitor to their own conversation
+thread, never the contact's full history, tags, deals, or notes — that
+data stays dashboard-only. The actual risk is on the business side: an
+agent could be talking to someone who isn't who the contact record
+says. That's the same trade-off every "enter your number to chat"
+widget makes without a verification step — accepted here rather than
+overlooked, and worth keeping in mind for anything sensitive (payment
+details, account changes) an agent might otherwise take on trust.
 
 ## What's channel-specific
 
