@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.15.0] — 2026-09-17
+
+Closes the Inbox Views roadmap gap: saved/custom inbox filter combinations.
+
+> **Migration required:** apply `supabase/migrations/051_inbox_views.sql`.
+> Adds the `inbox_views` table (personal or account-shared named filter
+> combinations). Idempotent.
+
+### Added
+
+- **Saved inbox views** — a "Views" dropdown in the Inbox lets you save
+  the current filter combination (status, tags, team, labels, channel,
+  priority, sort) under a name and re-apply it later instead of rebuilding
+  it every session. Personal views are visible only to you; admins can
+  also save a shared view visible to the whole account.
+
 ## [0.14.0] — 2026-09-17
 
 Closes two gaps flagged in the Conversation Labels roadmap audit.
