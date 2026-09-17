@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.14.0] — 2026-09-17
+
+Closes two gaps flagged in the Conversation Labels roadmap audit.
+
+### Added
+
+- **`conversation_label_added` automation trigger** — automations can now
+  react to a conversation being labeled (previously only the reverse
+  direction existed: an automation step could apply a label, but nothing
+  could fire *because of* one). Mirrors the existing `tag_added` trigger's
+  chain-depth guard so label-triggered automations can't loop forever.
+- **Bulk label apply** — a "Select" toggle in the Inbox conversation list
+  turns on multi-select; with one or more conversations selected, "Apply
+  label" applies a label to all of them in one action instead of one at a
+  time in the thread view.
+
 ## [0.13.0] — 2026-09-17
 
 Adds a Reports section — Conversations, Responses, Resolutions,
