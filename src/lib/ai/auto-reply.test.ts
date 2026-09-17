@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   buildConversationContext: vi.fn(),
   retrieveKnowledge: vi.fn(),
   generateReply: vi.fn(),
-  engineSendText: vi.fn(),
+  sendMessageToConversation: vi.fn(),
   loadAccountMetaCredentials: vi.fn(),
   sendTypingIndicator: vi.fn(),
   state: {
@@ -24,8 +24,10 @@ vi.mock('./context', () => ({ buildConversationContext: h.buildConversationConte
 vi.mock('./knowledge', () => ({ retrieveKnowledge: h.retrieveKnowledge }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({
-  engineSendText: h.engineSendText,
   loadAccountMetaCredentials: h.loadAccountMetaCredentials,
+}))
+vi.mock('@/lib/whatsapp/send-message', () => ({
+  sendMessageToConversation: h.sendMessageToConversation,
 }))
 vi.mock('@/lib/whatsapp/meta-api', () => ({
   sendTypingIndicator: h.sendTypingIndicator,
@@ -104,7 +106,7 @@ beforeEach(() => {
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
-  h.engineSendText.mockResolvedValue({ whatsapp_message_id: 'm1' })
+  h.sendMessageToConversation.mockResolvedValue({ messageId: 'msg-1', whatsappMessageId: 'm1' })
   h.loadAccountMetaCredentials.mockResolvedValue({
     phoneNumberId: 'pn-1',
     accessToken: 'tok',
@@ -121,8 +123,16 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
         args: { conversation_id: 'conv-1', max_replies: 3 },
       },
     ])
-    expect(h.engineSendText).toHaveBeenCalledWith(
-      expect.objectContaining({ conversationId: 'conv-1', text: 'Hello!' }),
+    expect(h.sendMessageToConversation).toHaveBeenCalledWith(
+      expect.anything(),
+      'acct-1',
+      expect.objectContaining({
+        conversationId: 'conv-1',
+        contentText: 'Hello!',
+        messageType: 'text',
+        senderType: 'bot',
+        aiGenerated: true,
+      }),
     )
   })
 
@@ -138,7 +148,7 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     h.state.autoResponders = [{ id: 'auto-1' }]
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
     expect(h.sendTypingIndicator).not.toHaveBeenCalled()
   })
 
@@ -147,20 +157,20 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     await dispatchInboundToAiReply(ARGS)
     // It still attempts the claim, but the send is skipped.
     expect(h.state.rpcCalls).toHaveLength(1)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
   })
 
   it('skips when AI is off / not configured', async () => {
     h.loadAiConfig.mockResolvedValue(null)
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
   })
 
   it('skips when auto-reply is disabled for the account', async () => {
     h.loadAiConfig.mockResolvedValue(aiConfig({ autoReplyEnabled: false }))
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
   })
 
   it('skips when a human agent is assigned', async () => {
@@ -170,7 +180,7 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
       ai_reply_count: 0,
     }
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
     expect(h.sendTypingIndicator).not.toHaveBeenCalled()
   })
 
@@ -181,7 +191,7 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
       ai_reply_count: 0,
     }
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
   })
 
   it('skips when the per-conversation cap is reached', async () => {
@@ -191,14 +201,14 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
       ai_reply_count: 3,
     }
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
   })
 
   it('skips when there is nothing to reply to', async () => {
     h.buildConversationContext.mockResolvedValue([])
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
     expect(h.sendTypingIndicator).not.toHaveBeenCalled()
   })
 })
@@ -221,7 +231,7 @@ describe('dispatchInboundToAiReply — typing indicator (#527)', () => {
     const typingOrder = h.sendTypingIndicator.mock.invocationCallOrder[0]
     const llmOrder = h.generateReply.mock.invocationCallOrder[0]
     expect(typingOrder).toBeLessThan(llmOrder)
-    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+    expect(h.sendMessageToConversation).toHaveBeenCalledTimes(1)
   })
 
   it('still sends the reply when the indicator request fails', async () => {
@@ -229,8 +239,10 @@ describe('dispatchInboundToAiReply — typing indicator (#527)', () => {
     h.sendTypingIndicator.mockRejectedValue(new Error('Meta API error: 400'))
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).toHaveBeenCalledTimes(1)
-    expect(h.engineSendText).toHaveBeenCalledWith(
-      expect.objectContaining({ conversationId: 'conv-1', text: 'Hello!' }),
+    expect(h.sendMessageToConversation).toHaveBeenCalledWith(
+      expect.anything(),
+      'acct-1',
+      expect.objectContaining({ conversationId: 'conv-1', contentText: 'Hello!' }),
     )
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('typing indicator failed'),
@@ -246,7 +258,7 @@ describe('dispatchInboundToAiReply — typing indicator (#527)', () => {
     )
     await dispatchInboundToAiReply(ARGS)
     expect(h.sendTypingIndicator).not.toHaveBeenCalled()
-    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+    expect(h.sendMessageToConversation).toHaveBeenCalledTimes(1)
     warn.mockRestore()
   })
 
@@ -256,7 +268,7 @@ describe('dispatchInboundToAiReply — typing indicator (#527)', () => {
     await dispatchInboundToAiReply(legacyArgs)
     expect(h.sendTypingIndicator).not.toHaveBeenCalled()
     expect(h.loadAccountMetaCredentials).not.toHaveBeenCalled()
-    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+    expect(h.sendMessageToConversation).toHaveBeenCalledTimes(1)
   })
 
   it('does not fire when a gate short-circuits before the LLM', async () => {
@@ -271,7 +283,7 @@ describe('dispatchInboundToAiReply — handoff', () => {
   it('disables auto-reply, writes a summary, and does not send on handoff', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.sendMessageToConversation).not.toHaveBeenCalled()
     expect(h.state.rpcCalls).toHaveLength(0)
     expect(h.state.updatePayload).toMatchObject({ ai_autoreply_disabled: true })
     expect(h.state.updatePayload?.ai_handoff_summary).toContain(

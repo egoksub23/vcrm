@@ -41,6 +41,14 @@ thread.
   `(conversation_id, message_id)` unique index on the second such reply,
   throwing a Postgres unique-violation and silently failing the send. Now
   persists `NULL`, which the index already treats as distinct.
+- **AI auto-reply and the automation engine's `send_message` step
+  couldn't actually reply to a web-widget conversation**, despite both
+  being documented as channel-agnostic. Both called a WhatsApp-only Meta
+  sender with no widget branch (AI auto-reply borrowed the Flow runner's
+  sender; `send_message` had its own separate one), so either would throw
+  "contact has no usable WhatsApp address" against a widget contact. Both
+  now delegate to the same channel-aware core the dashboard composer
+  uses.
 
 ## [0.10.0] — 2026-09-17
 

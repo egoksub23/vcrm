@@ -378,7 +378,10 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         contactId: args.contactId,
         text,
       })
-      return `sent via Meta (${whatsapp_message_id})`
+      // A widget send has no Meta wamid — engineSendText is
+      // channel-aware (delegates to sendMessageToConversation), so this
+      // step also works on web-widget conversations.
+      return whatsapp_message_id ? `sent via Meta (${whatsapp_message_id})` : 'sent'
     }
 
     case 'send_buttons':

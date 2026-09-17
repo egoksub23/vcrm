@@ -7,10 +7,8 @@ import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import {
-  engineSendText,
-  loadAccountMetaCredentials,
-} from '@/lib/flows/meta-send'
+import { loadAccountMetaCredentials } from '@/lib/flows/meta-send'
+import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { sendTypingIndicator } from '@/lib/whatsapp/meta-api'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
@@ -50,13 +48,12 @@ interface DispatchArgs {
 export async function dispatchInboundToAiReply(
   args: DispatchArgs,
 ): Promise<void> {
-  const {
-    accountId,
-    conversationId,
-    contactId,
-    configOwnerUserId,
-    inboundMessageId,
-  } = args
+  // configOwnerUserId and contactId aren't destructured —
+  // sendMessageToConversation resolves the contact from the
+  // conversation itself and needs no author id, unlike the Flows-only
+  // sender this used to call. Both stay part of DispatchArgs since the
+  // caller already has them on hand.
+  const { accountId, conversationId, inboundMessageId } = args
 
   try {
     const db = supabaseAdmin()
@@ -203,12 +200,16 @@ export async function dispatchInboundToAiReply(
     }
     if (claimed !== true) return // lost the per-conversation cap race
 
-    await engineSendText({
-      accountId,
-      userId: configOwnerUserId,
+    // Channel-aware (migration 046/048): the widget doc promises "the
+    // same AI auto-reply as WhatsApp conversations", so this uses the
+    // shared send core rather than the Flows-only Meta sender — that
+    // one has no widget branch and would throw for a widget contact
+    // (no phone/wa_user_id to send to).
+    await sendMessageToConversation(db, accountId, {
       conversationId,
-      contactId,
-      text,
+      messageType: 'text',
+      contentText: text,
+      senderType: 'bot',
       aiGenerated: true,
     })
   } catch (err) {

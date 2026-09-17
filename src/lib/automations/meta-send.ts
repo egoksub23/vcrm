@@ -14,6 +14,7 @@ import {
   resolveTemplateRow,
   templateContentText,
 } from '@/lib/whatsapp/template-body'
+import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { supabaseAdmin } from './admin-client'
 
 // ------------------------------------------------------------
@@ -51,8 +52,23 @@ interface SendTemplateArgs {
   params?: string[]
 }
 
+/**
+ * Plain-text automation send — channel-aware (migration 046/048): a
+ * widget conversation's `send_message` step is meant to work exactly
+ * like WhatsApp's, so this delegates to the same channel-aware core
+ * the dashboard composer and public API use, rather than the
+ * WhatsApp-only `sendViaMeta` below. Templates/interactive stay on
+ * `sendViaMeta` since those steps are already guarded to WhatsApp-only
+ * by `assertWhatsappChannel` before the engine ever calls them.
+ */
 export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
-  return sendViaMeta({ ...args, kind: 'text' })
+  const result = await sendMessageToConversation(supabaseAdmin(), args.accountId, {
+    conversationId: args.conversationId,
+    messageType: 'text',
+    contentText: args.text,
+    senderType: 'bot',
+  })
+  return { whatsapp_message_id: result.whatsappMessageId }
 }
 
 export async function engineSendTemplate(

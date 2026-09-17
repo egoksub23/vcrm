@@ -87,6 +87,15 @@ export interface SendMessageParams {
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
   replyToMessageId?: string | null;
+  /** Who's actually sending — the dashboard composer and the public API
+   *  never pass this (default 'agent'); the automation engine's
+   *  send_message step and the AI auto-reply bot pass 'bot' so the
+   *  inbox renders it correctly and it's excluded from a human agent's
+   *  own reply-time metrics. */
+  senderType?: 'agent' | 'bot';
+  /** Marks the persisted row `ai_generated = true` (badges it in the
+   *  inbox). Only the AI auto-reply bot sets this. */
+  aiGenerated?: boolean;
 }
 
 export interface SendMessageResult {
@@ -200,6 +209,8 @@ export async function sendMessageToConversation(
     templateMessageParams,
     interactivePayload,
     replyToMessageId,
+    senderType = 'agent',
+    aiGenerated = false,
   } = params;
 
   if (!conversationId) {
@@ -511,7 +522,7 @@ export async function sendMessageToConversation(
     .from('messages')
     .insert({
       conversation_id: conversationId,
-      sender_type: 'agent',
+      sender_type: senderType,
       content_type: messageType,
       content_text: persistedText,
       media_url: mediaUrl || null,
@@ -519,6 +530,7 @@ export async function sendMessageToConversation(
       interactive_payload:
         messageType === 'interactive' ? interactivePayload : null,
       channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
+      ai_generated: aiGenerated,
       // A widget send never gets a Meta wamid, so `waMessageId` stays ''.
       // Persist NULL there instead of '' — the unique index on
       // (conversation_id, message_id) (migration 037) treats NULLs as
