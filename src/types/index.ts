@@ -119,6 +119,10 @@ export interface Contact {
    *  the web-chat widget (migration 046). Unique per account when set;
    *  never present alongside a real `phone`. */
   widget_visitor_id?: string | null;
+  /** Informational only (migration 054) — passed through from a
+   *  verified in-app/WebView widget handoff. Never used for contact
+   *  matching; phone stays the sole identity key. */
+  wallet_id?: string | null;
   name?: string;
   email?: string;
   company?: string;

@@ -25,9 +25,28 @@ export interface Branding {
   position: 'left' | 'right'
 }
 
+/** Identity a host app already verified (in-app/WebView embed) — hands
+ *  the widget a known phone (and optionally a wallet id / email) so it
+ *  never has to ask the visitor to type anything. See the matching
+ *  comment in src/app/api/widget/session/route.ts. */
+export interface VerifiedIdentity {
+  phone?: string
+  walletId?: string
+  email?: string
+}
+
+export interface StartSessionOptions {
+  visitorPhone?: string
+  visitorName?: string
+  verifiedIdentity?: VerifiedIdentity
+  /** The visitor answered "no" to "are you already a Vircle user?" —
+   *  starts a plain anonymous guest session. */
+  skipIdentity?: boolean
+}
+
 export type SessionResult =
   | { needsPhone: true; branding: Branding }
-  | { needsPhone: false; conversationId: string; branding: Branding }
+  | { needsPhone: false; conversationId: string; isGuest: boolean; branding: Branding }
 
 export interface WidgetMessage {
   id: string
@@ -80,17 +99,19 @@ async function currentAccessToken(): Promise<string> {
 }
 
 /**
- * Two-step identity protocol (see the matching comment in
- * src/app/api/widget/session/route.ts): call with no `visitorPhone`
- * first — a brand-new browser gets back `needsPhone: true` instead of
- * a conversation, a returning one (already bound via widget_visitors)
- * gets a conversation immediately, phone or not. Call again with
- * `visitorPhone` once the visitor has entered it.
+ * Identity protocol (see the matching comment in
+ * src/app/api/widget/session/route.ts): call with none of
+ * `verifiedIdentity` / `visitorPhone` / `skipIdentity` set first — a
+ * brand-new browser gets back `needsPhone: true` instead of a
+ * conversation, a returning one (already bound via widget_visitors)
+ * gets a conversation immediately either way. `verifiedIdentity` (an
+ * in-app/WebView host already knows the visitor) and `skipIdentity`
+ * (visitor declined) both skip `needsPhone` entirely; `visitorPhone`
+ * answers a prior `needsPhone: true` after the visitor typed it in.
  */
 export async function startSession(
   widgetToken: string,
-  visitorPhone?: string,
-  visitorName?: string,
+  opts: StartSessionOptions = {},
 ): Promise<SessionResult> {
   const token = await currentAccessToken()
   const res = await fetch(`${API_ORIGIN}/api/widget/session`, {
@@ -99,7 +120,13 @@ export async function startSession(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ widgetToken, visitorPhone, visitorName }),
+    body: JSON.stringify({
+      widgetToken,
+      visitorPhone: opts.visitorPhone,
+      visitorName: opts.visitorName,
+      verifiedIdentity: opts.verifiedIdentity,
+      skipIdentity: opts.skipIdentity,
+    }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error ?? 'Failed to start chat session')

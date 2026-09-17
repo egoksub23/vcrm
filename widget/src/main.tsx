@@ -22,11 +22,31 @@
 import { render } from 'preact'
 import { App } from './App'
 import { WIDGET_CSS } from './styles'
+import type { VerifiedIdentity } from './api'
 
 declare global {
   interface Window {
     __vircleWidgetMounted?: boolean
+    /**
+     * Async handoff for a host app whose own sign-in finishes AFTER
+     * this script has already loaded and mounted (the common WebView
+     * shape: the wrapper injects the widget script early, then calls
+     * identify() once its own auth resolves). If identify() is called
+     * before the widget has mounted its listener, the call is queued
+     * and delivered as soon as it's ready — no race on load order.
+     */
+    VircleWidget?: { identify: (identity: VerifiedIdentity) => void }
   }
+}
+
+let identifyListener: ((identity: VerifiedIdentity) => void) | null = null
+let queuedIdentify: VerifiedIdentity | null = null
+
+window.VircleWidget = {
+  identify(identity: VerifiedIdentity) {
+    if (identifyListener) identifyListener(identity)
+    else queuedIdentify = identity
+  },
 }
 
 // Captured synchronously, at module-evaluation time — `document
@@ -57,7 +77,33 @@ function mount() {
   shadow.appendChild(mountPoint)
 
   const autoOpen = loaderScript?.dataset.open === 'true'
-  render(<App widgetToken={widgetToken} autoOpen={autoOpen} />, mountPoint)
+
+  // Optional synchronous handoff (the loader tag's own data-* attrs) —
+  // the common shape when the host already knows the user BEFORE it
+  // injects this script (it finished its own login, then set these
+  // when appending the tag). The async window.VircleWidget.identify()
+  // path above covers the case where that isn't possible.
+  const initialIdentity: VerifiedIdentity = {
+    phone: loaderScript?.dataset.userPhone || undefined,
+    walletId: loaderScript?.dataset.userWalletId || undefined,
+    email: loaderScript?.dataset.userEmail || undefined,
+  }
+
+  render(
+    <App
+      widgetToken={widgetToken}
+      autoOpen={autoOpen}
+      initialIdentity={initialIdentity}
+      onIdentifyReady={(cb) => {
+        identifyListener = cb
+        if (queuedIdentify) {
+          cb(queuedIdentify)
+          queuedIdentify = null
+        }
+      }}
+    />,
+    mountPoint,
+  )
 }
 
 if (document.readyState === 'loading') {

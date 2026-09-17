@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { supabase, startSession, sendWidgetMessage, fetchMessageHistory } from './api'
-import type { Branding, WidgetMessage } from './api'
+import type { Branding, VerifiedIdentity, WidgetMessage } from './api'
 
 interface LocalMessage extends WidgetMessage {
   pending?: boolean
@@ -31,7 +31,19 @@ const SEND_ICON = (
   </svg>
 )
 
-export function App({ widgetToken, autoOpen = false }: { widgetToken: string; autoOpen?: boolean }) {
+interface AppProps {
+  widgetToken: string
+  autoOpen?: boolean
+  /** Synchronous handoff from the loader's own data-* attrs — set when
+   *  the host app already knew the user before injecting the widget
+   *  script. A present `.phone` skips the identity gate entirely. */
+  initialIdentity?: VerifiedIdentity
+  /** Registers the callback main.tsx's window.VircleWidget.identify()
+   *  invokes for an ASYNC handoff (host auth finishes after mount). */
+  onIdentifyReady?: (cb: (identity: VerifiedIdentity) => void) => void
+}
+
+export function App({ widgetToken, autoOpen = false, initialIdentity, onIdentifyReady }: AppProps) {
   const [open, setOpen] = useState(autoOpen)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,20 +53,36 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   // null = not determined yet (still bootstrapping); true = this browser
-  // is unidentified and the phone gate must show; false = identified,
-  // normal composer shows. See startSession's two-step protocol.
+  // is unidentified and the identity prompt must show; false = resolved
+  // (guest or identified), normal composer shows.
   const [needsPhone, setNeedsPhone] = useState<boolean | null>(null)
+  // 'ask' = "are you already a Vircle user?" yes/no; 'phone' = the
+  // phone-entry form (after "yes", or answering a prior needsPhone).
+  const [identityStage, setIdentityStage] = useState<'ask' | 'phone'>('ask')
+  const [isGuest, setIsGuest] = useState(false)
+  // Whether the "link your account" phone input is expanded — separate
+  // from `linking` (the in-flight request state) so a failed attempt
+  // leaves the form open with the typed number and the error visible,
+  // instead of collapsing back to the toggle button.
+  const [linkFormOpen, setLinkFormOpen] = useState(false)
+  const [linking, setLinking] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [nameInput, setNameInput] = useState('')
   const bootstrapped = useRef(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  // Fetches history + opens the Realtime subscription once a
-  // conversation exists — shared by the initial bootstrap (returning
-  // visitor, identified immediately) and handleStartChat (new visitor,
-  // identified after submitting the phone gate).
+  // Fetches history + opens the Realtime subscription for `id`, tearing
+  // down any previous subscription first — reused not just by the
+  // initial bootstrap but by every later re-identify (self-service
+  // link, a late identify() call), where the conversationId can change
+  // out from under an already-open chat if the visitor's guest history
+  // gets merged into an existing contact's thread.
   const connectConversation = useCallback(async (id: string) => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
     setConversationId(id)
     const history = await fetchMessageHistory(id)
     setMessages(history)
@@ -78,27 +106,42 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
     channelRef.current = channel
   }, [])
 
+  // Shared by every path that resolves (or re-resolves) identity:
+  // initial bootstrap, the "yes" phone-gate submit, "no"/skip, a
+  // mid-session "link your account", and an async identify() handoff.
+  // Reconnects only when the conversationId actually changed (a guest
+  // merge can land on a different, pre-existing conversation).
+  const applyIdentity = useCallback(
+    async (opts: Parameters<typeof startSession>[1]) => {
+      const session = await startSession(widgetToken, opts)
+      setBranding(session.branding)
+      if (session.needsPhone) return session
+      setNeedsPhone(false)
+      setIsGuest(session.isGuest)
+      if (session.conversationId !== conversationId) {
+        await connectConversation(session.conversationId)
+      }
+      return session
+    },
+    [widgetToken, conversationId, connectConversation],
+  )
+
   const bootstrap = useCallback(async () => {
     if (bootstrapped.current) return
     bootstrapped.current = true
     setLoading(true)
     setError(null)
     try {
-      const session = await startSession(widgetToken)
-      setBranding(session.branding)
-      if (session.needsPhone) {
-        setNeedsPhone(true)
-        return
-      }
-      setNeedsPhone(false)
-      await connectConversation(session.conversationId)
+      const hasVerified = !!initialIdentity?.phone
+      const session = await applyIdentity(hasVerified ? { verifiedIdentity: initialIdentity } : {})
+      if (session.needsPhone) setNeedsPhone(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       bootstrapped.current = false
     } finally {
       setLoading(false)
     }
-  }, [widgetToken, connectConversation])
+  }, [initialIdentity, applyIdentity])
 
   const handleStartChat = useCallback(async () => {
     const phone = phoneInput.trim()
@@ -106,24 +149,64 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
     setLoading(true)
     setError(null)
     try {
-      const session = await startSession(widgetToken, phone, nameInput.trim() || undefined)
-      setBranding(session.branding)
-      if (session.needsPhone) {
-        setError('Enter a valid phone number')
-        return
-      }
-      setNeedsPhone(false)
-      await connectConversation(session.conversationId)
+      const session = await applyIdentity({ visitorPhone: phone, visitorName: nameInput.trim() || undefined })
+      if (session.needsPhone) setError('Enter a valid phone number')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
-  }, [phoneInput, nameInput, loading, widgetToken, connectConversation])
+  }, [phoneInput, nameInput, loading, applyIdentity])
+
+  const handleDecline = useCallback(async () => {
+    if (loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      await applyIdentity({ skipIdentity: true, visitorName: nameInput.trim() || undefined })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }, [loading, nameInput, applyIdentity])
+
+  // "Link your account" — a guest visitor identifying themselves after
+  // already chatting a while, not at the initial gate. Reuses the same
+  // applyIdentity path; the backend does the guest -> known-contact
+  // merge (migration 054) and applyIdentity's conversationId check
+  // handles reconnecting to the (possibly different) merged thread.
+  const handleLinkAccount = useCallback(async () => {
+    const phone = phoneInput.trim()
+    if (!phone || linking) return
+    setLinking(true)
+    setError(null)
+    try {
+      await applyIdentity({ visitorPhone: phone })
+      setPhoneInput('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLinking(false)
+    }
+  }, [phoneInput, linking, applyIdentity])
 
   useEffect(() => {
     if (open) bootstrap()
   }, [open, bootstrap])
+
+  // Async handoff — a host app whose own sign-in finishes after this
+  // widget already mounted (and possibly already started a guest
+  // session) calls window.VircleWidget.identify(...), which main.tsx
+  // routes here.
+  useEffect(() => {
+    onIdentifyReady?.((identity) => {
+      if (!identity.phone) return
+      applyIdentity({ verifiedIdentity: identity }).catch((err) =>
+        setError(err instanceof Error ? err.message : 'Something went wrong'),
+      )
+    })
+  }, [onIdentifyReady, applyIdentity])
 
   useEffect(() => {
     return () => {
@@ -187,9 +270,33 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
             ))}
           </div>
 
-          {needsPhone === true && (
+          {needsPhone === true && identityStage === 'ask' && (
             <div class="wcw-gate">
-              <p class="wcw-gate-hint">Enter your phone number to start chatting</p>
+              <p class="wcw-gate-hint">Are you already a Vircle user?</p>
+              <div class="wcw-gate-row">
+                <button
+                  type="button"
+                  class="wcw-gate-submit"
+                  disabled={loading}
+                  onClick={() => setIdentityStage('phone')}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  class="wcw-gate-secondary"
+                  disabled={loading}
+                  onClick={handleDecline}
+                >
+                  {loading ? 'Starting…' : "No, I'm just browsing"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {needsPhone === true && identityStage === 'phone' && (
+            <div class="wcw-gate">
+              <p class="wcw-gate-hint">Enter your Vircle phone number to continue</p>
               <input
                 type="tel"
                 inputMode="tel"
@@ -215,6 +322,31 @@ export function App({ widgetToken, autoOpen = false }: { widgetToken: string; au
               >
                 {loading ? 'Starting…' : 'Start chat'}
               </button>
+            </div>
+          )}
+
+          {needsPhone === false && isGuest && (
+            <div class="wcw-link-account">
+              {linkFormOpen ? (
+                <>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Your phone number"
+                    value={phoneInput}
+                    disabled={linking}
+                    onInput={(e) => setPhoneInput((e.target as HTMLInputElement).value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLinkAccount()}
+                  />
+                  <button type="button" disabled={!phoneInput.trim() || linking} onClick={handleLinkAccount}>
+                    {linking ? 'Linking…' : 'Link'}
+                  </button>
+                </>
+              ) : (
+                <button type="button" class="wcw-link-account-toggle" onClick={() => setLinkFormOpen(true)}>
+                  Already a Vircle user? Link your account
+                </button>
+              )}
             </div>
           )}
 

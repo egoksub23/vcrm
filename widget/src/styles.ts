@@ -203,10 +203,72 @@ export const WIDGET_CSS = `
   cursor: pointer;
 }
 .wcw-gate-submit:disabled { opacity: 0.5; cursor: default; }
+.wcw-gate-row {
+  display: flex;
+  gap: 8px;
+}
+.wcw-gate-row .wcw-gate-submit,
+.wcw-gate-row .wcw-gate-secondary {
+  flex: 1;
+}
+.wcw-gate-secondary {
+  border: 1px solid #e0e1e6;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+}
+.wcw-gate-secondary:disabled { opacity: 0.5; cursor: default; }
 .wcw-gate input::placeholder,
 .wcw-input::placeholder {
   color: #9aa0ab;
 }
+
+.wcw-link-account {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid #e6e7eb;
+  background: #f9fafb;
+}
+.wcw-link-account-toggle {
+  border: none;
+  background: none;
+  color: var(--wcw-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.wcw-link-account input {
+  flex: 1;
+  border: 1px solid #e0e1e6;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  color: #222;
+}
+.wcw-link-account input:focus { border-color: var(--wcw-primary); }
+.wcw-link-account button {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--wcw-primary);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.wcw-link-account button:disabled { opacity: 0.5; cursor: default; }
 
 .wcw-error {
   padding: 8px 12px;
