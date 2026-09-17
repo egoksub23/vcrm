@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { toast } from 'sonner';
-import type { Contact, Tag, ContactTag } from '@/types';
+import type { Contact, Tag, ContactTag, LifecycleStage } from '@/types';
 import {
   findExistingContact,
   isExactMatch,
@@ -55,6 +55,7 @@ export function ContactForm({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
+  const [lifecycleStage, setLifecycleStage] = useState<LifecycleStage>('lead');
   const [saving, setSaving] = useState(false);
 
   // Duplicate-phone detection for NEW contacts. `exact` (same digits)
@@ -76,6 +77,7 @@ export function ContactForm({
       setPhone(contact?.phone ?? '');
       setEmail(contact?.email ?? '');
       setCompany(contact?.company ?? '');
+      setLifecycleStage(contact?.lifecycle_stage ?? 'lead');
       setSelectedTagIds(contactTags.map((ct) => ct.tag_id));
       setDupMatch(null);
       fetchTags();
@@ -150,6 +152,7 @@ export function ContactForm({
       let contactId = contact?.id;
 
       if (isEdit && contactId) {
+        const stageChanged = lifecycleStage !== (contact?.lifecycle_stage ?? 'lead');
         const { error } = await supabase
           .from('contacts')
           .update({
@@ -157,6 +160,8 @@ export function ContactForm({
             phone: phone.trim(),
             email: email.trim() || null,
             company: company.trim() || null,
+            lifecycle_stage: lifecycleStage,
+            ...(stageChanged ? { lifecycle_stage_changed_at: new Date().toISOString() } : {}),
             updated_at: new Date().toISOString(),
           })
           .eq('id', contactId);
@@ -171,6 +176,8 @@ export function ContactForm({
             phone: phone.trim(),
             email: email.trim() || null,
             company: company.trim() || null,
+            lifecycle_stage: lifecycleStage,
+            lifecycle_stage_changed_at: lifecycleStage === 'lead' ? null : new Date().toISOString(),
           })
           .select('id')
           .single();
@@ -321,6 +328,23 @@ export function ContactForm({
               placeholder={t('companyPlaceholder')}
               className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cf-lifecycle" className="text-muted-foreground">
+              {t('lifecycleStageLabel')}
+            </Label>
+            <select
+              id="cf-lifecycle"
+              value={lifecycleStage}
+              onChange={(e) => setLifecycleStage(e.target.value as LifecycleStage)}
+              className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            >
+              <option value="lead">{t('lifecycleStage.lead')}</option>
+              <option value="active">{t('lifecycleStage.active')}</option>
+              <option value="customer">{t('lifecycleStage.customer')}</option>
+              <option value="churned">{t('lifecycleStage.churned')}</option>
+            </select>
           </div>
 
           <div className="space-y-2">

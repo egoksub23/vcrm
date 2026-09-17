@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { LifecycleStage } from '@/types'
 import {
   dayKeysInRange,
   exclusiveEnd,
@@ -315,6 +316,405 @@ export async function loadMessagesReport(
 export interface ContactsReport {
   newContacts: OverviewMetric
   series: { day: string; value: number }[]
+}
+
+// --- Assignments report ----------------------------------------------------
+
+export interface AssignmentBucket {
+  id: string | null
+  name: string
+  count: number
+}
+
+export interface AssignmentsReport {
+  totalConversations: number
+  byAgent: AssignmentBucket[]
+  byTeam: AssignmentBucket[]
+}
+
+/** Conversations created within `range`, distributed across agents and
+ *  teams — the columns already exist (`assigned_agent_id`,
+ *  `assigned_team_id`), this is a count-by-agent/team over what's
+ *  already there. `id: null` is the "Unassigned" bucket in each list. */
+export async function loadAssignmentsReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<AssignmentsReport> {
+  const spanStart = range.from.toISOString()
+  const spanEnd = exclusiveEnd(range.to).toISOString()
+
+  const [convRes, profilesRes, teamsRes] = await Promise.all([
+    db
+      .from('conversations')
+      .select('assigned_agent_id, assigned_team_id')
+      .eq('account_id', accountId)
+      .gte('created_at', spanStart)
+      .lt('created_at', spanEnd),
+    db.from('profiles').select('user_id, full_name').eq('account_id', accountId),
+    db.from('teams').select('id, name').eq('account_id', accountId),
+  ])
+  if (convRes.error) throw convRes.error
+  if (profilesRes.error) throw profilesRes.error
+  if (teamsRes.error) throw teamsRes.error
+
+  const rows = (convRes.data ?? []) as {
+    assigned_agent_id: string | null
+    assigned_team_id: string | null
+  }[]
+  const nameByAgent = new Map(
+    ((profilesRes.data ?? []) as { user_id: string; full_name: string }[]).map((p) => [
+      p.user_id,
+      p.full_name,
+    ]),
+  )
+  const nameByTeam = new Map(
+    ((teamsRes.data ?? []) as { id: string; name: string }[]).map((tm) => [tm.id, tm.name]),
+  )
+
+  const agentCounts = new Map<string | null, number>()
+  const teamCounts = new Map<string | null, number>()
+  for (const r of rows) {
+    agentCounts.set(r.assigned_agent_id, (agentCounts.get(r.assigned_agent_id) ?? 0) + 1)
+    teamCounts.set(r.assigned_team_id, (teamCounts.get(r.assigned_team_id) ?? 0) + 1)
+  }
+
+  const toBuckets = (
+    counts: Map<string | null, number>,
+    names: Map<string, string>,
+    unassignedLabel: string,
+  ): AssignmentBucket[] =>
+    Array.from(counts.entries())
+      .map(([id, count]) => ({
+        id,
+        name: id === null ? unassignedLabel : (names.get(id) ?? unassignedLabel),
+        count,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+  return {
+    totalConversations: rows.length,
+    byAgent: toBuckets(agentCounts, nameByAgent, 'Unassigned'),
+    byTeam: toBuckets(teamCounts, nameByTeam, 'No team'),
+  }
+}
+
+// --- Shared per-agent stats (Leaderboard + Users reports) ------------------
+
+interface AgentStats {
+  userId: string
+  fullName: string
+  email: string
+  memberSince: string
+  messagesSent: number
+  conversationsAssigned: number
+  conversationsClosed: number
+  avgResponseMinutes: number | null
+}
+
+/** One pass computing everything both the Leaderboard and Users reports
+ *  need per agent: message volume (via `messages.sender_id`, populated
+ *  for an ordinary agent send starting with this reporting work — NULL
+ *  for every message sent before then, so older activity undercounts,
+ *  same accepted gap as `closed_at`'s backfill), conversations
+ *  assigned/closed, and average first-response time attributed to
+ *  whichever agent's reply actually answered the
+ *  customer. */
+async function loadAgentStats(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<AgentStats[]> {
+  const spanStart = range.from.toISOString()
+  const spanEnd = exclusiveEnd(range.to).toISOString()
+
+  const [profilesRes, messagesRes, convRes] = await Promise.all([
+    db
+      .from('profiles')
+      .select('user_id, full_name, email, created_at')
+      .eq('account_id', accountId),
+    db
+      .from('messages')
+      .select('conversation_id, sender_type, sender_id, created_at')
+      .gte('created_at', spanStart)
+      .lt('created_at', spanEnd)
+      .order('conversation_id', { ascending: true })
+      .order('created_at', { ascending: true }),
+    db
+      .from('conversations')
+      .select('assigned_agent_id, created_at, closed_at')
+      .eq('account_id', accountId)
+      .gte('created_at', spanStart)
+      .lt('created_at', spanEnd),
+  ])
+  if (profilesRes.error) throw profilesRes.error
+  if (messagesRes.error) throw messagesRes.error
+  if (convRes.error) throw convRes.error
+
+  const profiles = (profilesRes.data ?? []) as {
+    user_id: string
+    full_name: string
+    email: string
+    created_at: string
+  }[]
+  const messageRows = (messagesRes.data ?? []) as {
+    conversation_id: string
+    sender_type: string
+    sender_id: string | null
+    created_at: string
+  }[]
+  const convRows = (convRes.data ?? []) as {
+    assigned_agent_id: string | null
+    created_at: string
+    closed_at: string | null
+  }[]
+
+  const messagesSent = new Map<string, number>()
+  const responseSamples = new Map<string, number[]>()
+  let currentConv = ''
+  let pendingCustomer: Date | null = null
+  for (const row of messageRows) {
+    if (row.conversation_id !== currentConv) {
+      currentConv = row.conversation_id
+      pendingCustomer = null
+    }
+    if (row.sender_type === 'customer') {
+      if (!pendingCustomer) pendingCustomer = new Date(row.created_at)
+      continue
+    }
+    if (row.sender_type === 'agent' && row.sender_id) {
+      messagesSent.set(row.sender_id, (messagesSent.get(row.sender_id) ?? 0) + 1)
+      if (pendingCustomer) {
+        const diffMin = (new Date(row.created_at).getTime() - pendingCustomer.getTime()) / 60_000
+        if (diffMin >= 0) {
+          const arr = responseSamples.get(row.sender_id) ?? []
+          arr.push(diffMin)
+          responseSamples.set(row.sender_id, arr)
+        }
+        pendingCustomer = null
+      }
+    } else if (pendingCustomer) {
+      // A bot/system reply answered the customer — clears the wait but
+      // isn't attributable to any one agent's response time.
+      pendingCustomer = null
+    }
+  }
+
+  const conversationsAssigned = new Map<string, number>()
+  const conversationsClosed = new Map<string, number>()
+  for (const r of convRows) {
+    if (!r.assigned_agent_id) continue
+    conversationsAssigned.set(
+      r.assigned_agent_id,
+      (conversationsAssigned.get(r.assigned_agent_id) ?? 0) + 1,
+    )
+    if (r.closed_at) {
+      conversationsClosed.set(
+        r.assigned_agent_id,
+        (conversationsClosed.get(r.assigned_agent_id) ?? 0) + 1,
+      )
+    }
+  }
+
+  const avg = (arr: number[] | undefined) =>
+    !arr || arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length
+
+  return profiles.map((p) => ({
+    userId: p.user_id,
+    fullName: p.full_name,
+    email: p.email,
+    memberSince: p.created_at,
+    messagesSent: messagesSent.get(p.user_id) ?? 0,
+    conversationsAssigned: conversationsAssigned.get(p.user_id) ?? 0,
+    conversationsClosed: conversationsClosed.get(p.user_id) ?? 0,
+    avgResponseMinutes: avg(responseSamples.get(p.user_id)),
+  }))
+}
+
+// --- Leaderboard report ------------------------------------------------------
+
+export interface LeaderboardEntry extends AgentStats {
+  rank: number
+}
+
+export interface LeaderboardReport {
+  entries: LeaderboardEntry[]
+}
+
+/** Ranked by message volume (the metric respond.io's own Leaderboard
+ *  defaults to) — ties broken by more conversations closed. */
+export async function loadLeaderboardReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<LeaderboardReport> {
+  const stats = await loadAgentStats(db, accountId, range)
+  const sorted = [...stats].sort(
+    (a, b) => b.messagesSent - a.messagesSent || b.conversationsClosed - a.conversationsClosed,
+  )
+  return { entries: sorted.map((s, i) => ({ ...s, rank: i + 1 })) }
+}
+
+// --- Users report ------------------------------------------------------------
+
+export interface UsersReport {
+  users: AgentStats[]
+}
+
+/** Per-teammate activity summary for the selected range — message
+ *  volume, conversations assigned/closed, average response time, and
+ *  "member since" (profiles.created_at, real data). NOT a login/audit
+ *  history: `member_presence` only stores a live online/away snapshot
+ *  with no history table behind it, so that specific respond.io feature
+ *  stays out of scope here rather than being faked. */
+export async function loadUsersReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<UsersReport> {
+  const users = await loadAgentStats(db, accountId, range)
+  return { users: users.sort((a, b) => a.fullName.localeCompare(b.fullName)) }
+}
+
+// --- Lifecycle report --------------------------------------------------------
+
+export const LIFECYCLE_STAGES: readonly LifecycleStage[] = [
+  'lead',
+  'active',
+  'customer',
+  'churned',
+] as const
+
+export interface LifecycleReport {
+  /** Current snapshot — every contact counted once, by their stage
+   *  right now. Not range-scoped: a stage is current-state, not an
+   *  event. */
+  distribution: Record<LifecycleStage, number>
+  /** Contacts whose most recent stage transition fell within `range`,
+   *  by the stage they moved TO. Approximate — migration 052 only
+   *  tracks the latest transition, not full history, so a contact that
+   *  changed stage twice in one day only counts once, under its final
+   *  stage. Documented in the report UI, not silently exact. */
+  movedIn: Record<LifecycleStage, number>
+}
+
+export async function loadLifecycleReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<LifecycleReport> {
+  const spanStart = range.from.toISOString()
+  const spanEnd = exclusiveEnd(range.to).toISOString()
+
+  const [allRes, movedRes] = await Promise.all([
+    db.from('contacts').select('lifecycle_stage').eq('account_id', accountId),
+    db
+      .from('contacts')
+      .select('lifecycle_stage')
+      .eq('account_id', accountId)
+      .not('lifecycle_stage_changed_at', 'is', null)
+      .gte('lifecycle_stage_changed_at', spanStart)
+      .lt('lifecycle_stage_changed_at', spanEnd),
+  ])
+  if (allRes.error) throw allRes.error
+  if (movedRes.error) throw movedRes.error
+
+  const emptyDist = (): Record<LifecycleStage, number> => ({
+    lead: 0,
+    active: 0,
+    customer: 0,
+    churned: 0,
+  })
+  const distribution = emptyDist()
+  for (const r of (allRes.data ?? []) as { lifecycle_stage: LifecycleStage }[]) {
+    distribution[r.lifecycle_stage] = (distribution[r.lifecycle_stage] ?? 0) + 1
+  }
+  const movedIn = emptyDist()
+  for (const r of (movedRes.data ?? []) as { lifecycle_stage: LifecycleStage }[]) {
+    movedIn[r.lifecycle_stage] = (movedIn[r.lifecycle_stage] ?? 0) + 1
+  }
+
+  return { distribution, movedIn }
+}
+
+// --- Broadcasts report --------------------------------------------------------
+
+export interface BroadcastsReport {
+  broadcastsSent: OverviewMetric
+  totalRecipients: OverviewMetric
+  /** delivered / sent across every broadcast in range, 0–100. Not an
+   *  OverviewMetric — a rate, not a count, so "vs previous period" reads
+   *  as a plain point difference rather than a %-of-a-% change. */
+  deliveredRate: number | null
+  readRate: number | null
+  failedRate: number | null
+  series: { day: string; sent: number }[]
+}
+
+export async function loadBroadcastsReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<BroadcastsReport> {
+  const prev = previousPeriod(range)
+  const spanStart = prev.from.toISOString()
+  const spanEnd = exclusiveEnd(range.to).toISOString()
+
+  const { data, error } = await db
+    .from('broadcasts')
+    .select('created_at, total_recipients, sent_count, delivered_count, read_count, failed_count')
+    .eq('account_id', accountId)
+    .gte('created_at', spanStart)
+    .lt('created_at', spanEnd)
+  if (error) throw error
+
+  const rows = (data ?? []) as {
+    created_at: string
+    total_recipients: number | null
+    sent_count: number | null
+    delivered_count: number | null
+    read_count: number | null
+    failed_count: number | null
+  }[]
+
+  const days = dayKeysInRange(range)
+  const prevKeys = new Set(dayKeysInRange(prev))
+  const currentByDay = new Map(days.map((d) => [d, 0]))
+  let previousBroadcasts = 0
+  let currentRecipients = 0
+  let previousRecipients = 0
+  let sentTotal = 0
+  let deliveredTotal = 0
+  let readTotal = 0
+  let failedTotal = 0
+
+  for (const r of rows) {
+    const key = localDayKey(r.created_at)
+    const recipients = r.total_recipients ?? 0
+    if (currentByDay.has(key)) {
+      currentByDay.set(key, (currentByDay.get(key) ?? 0) + 1)
+      currentRecipients += recipients
+      sentTotal += r.sent_count ?? 0
+      deliveredTotal += r.delivered_count ?? 0
+      readTotal += r.read_count ?? 0
+      failedTotal += r.failed_count ?? 0
+    } else if (prevKeys.has(key)) {
+      previousBroadcasts += 1
+      previousRecipients += recipients
+    }
+  }
+
+  const broadcastsCurrent = days.reduce((sum, d) => sum + (currentByDay.get(d) ?? 0), 0)
+  const rate = (num: number, den: number) => (den === 0 ? null : (num / den) * 100)
+
+  return {
+    broadcastsSent: metric(broadcastsCurrent, previousBroadcasts),
+    totalRecipients: metric(currentRecipients, previousRecipients),
+    deliveredRate: rate(deliveredTotal, sentTotal),
+    readRate: rate(readTotal, sentTotal),
+    failedRate: rate(failedTotal, sentTotal),
+    series: days.map((day) => ({ day, sent: currentByDay.get(day) ?? 0 })),
+  }
 }
 
 export async function loadContactsReport(

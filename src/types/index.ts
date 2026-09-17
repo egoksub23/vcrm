@@ -123,12 +123,22 @@ export interface Contact {
   email?: string;
   company?: string;
   avatar_url?: string;
+  /** Lifecycle report follow-up (migration 052). Defaults to 'lead' for
+   *  every contact — set manually from the contact form, or via the
+   *  `set_lifecycle_stage` automation step. */
+  lifecycle_stage?: LifecycleStage;
+  /** Stamped on every `lifecycle_stage` write — see `LifecycleReport`'s
+   *  `movedIn` in @/lib/reports/queries for how this is used (and its
+   *  documented "latest transition only" limitation). */
+  lifecycle_stage_changed_at?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
    *  Inbox conversation list, for tag filtering). Absent otherwise. */
   tags?: Tag[];
 }
+
+export type LifecycleStage = 'lead' | 'active' | 'customer' | 'churned';
 
 export interface Tag {
   id: string;
@@ -281,6 +291,11 @@ export interface Message {
   id: string;
   conversation_id: string;
   sender_type: SenderType;
+  /** The team member who sent this — set for internal comments (always)
+   *  and, since the Leaderboard/Users reports needed per-agent
+   *  attribution, for ordinary outbound agent sends too. Never set for
+   *  bot/system/customer messages. NULL on every agent message sent
+   *  before that reporting work shipped (no historical backfill). */
   sender_id?: string;
   content_type: ContentType;
   content_text?: string;
@@ -642,7 +657,8 @@ export type AutomationStepType =
   | 'condition'
   | 'send_webhook'
   | 'close_conversation'
-  | 'set_priority';
+  | 'set_priority'
+  | 'set_lifecycle_stage';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -772,6 +788,10 @@ export interface SetPriorityStepConfig {
   priority: ConversationPriority;
 }
 
+export interface SetLifecycleStageStepConfig {
+  stage: LifecycleStage;
+}
+
 export type AutomationStepConfig =
   | SendMessageStepConfig
   | SendButtonsStepConfig
@@ -781,6 +801,7 @@ export type AutomationStepConfig =
   | AssignConversationStepConfig
   | AssignToTeamStepConfig
   | SetPriorityStepConfig
+  | SetLifecycleStageStepConfig
   | UpdateContactFieldStepConfig
   | CreateDealStepConfig
   | WaitStepConfig

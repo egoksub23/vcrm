@@ -456,6 +456,31 @@ describe('sendMessageToConversation — BSUID recipients (#519)', () => {
 // delivery; Meta/whatsapp_config must never be touched.
 // ============================================================
 
+describe('sendMessageToConversation — sender attribution (Leaderboard/Users reports)', () => {
+  it('persists senderUserId onto sender_id for an agent send', async () => {
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'hi',
+      senderUserId: 'user-1',
+    });
+    expect(captured.message?.sender_id).toBe('user-1');
+  });
+
+  it('never attributes a bot send to a human, even if senderUserId is passed', async () => {
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'auto-reply',
+      senderType: 'bot',
+      senderUserId: 'user-1',
+    });
+    expect(captured.message?.sender_id).toBeNull();
+  });
+});
+
 describe('sendMessageToConversation — web_widget channel', () => {
   it('persists a text message without ever querying whatsapp_config', async () => {
     const captured: CapturedWrites = {};

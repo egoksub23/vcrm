@@ -96,6 +96,14 @@ export interface SendMessageParams {
   /** Marks the persisted row `ai_generated = true` (badges it in the
    *  inbox). Only the AI auto-reply bot sets this. */
   aiGenerated?: boolean;
+  /** Which teammate sent this — persisted onto the existing
+   *  `messages.sender_id` column (migration 001; previously only ever
+   *  populated for internal comments, see comment-write.ts). Only
+   *  meaningful when `senderType` is 'agent'; leave unset for bot/
+   *  automation sends so per-agent reports (Leaderboard, Users) don't
+   *  attribute bot volume to a human. The dashboard composer passes the
+   *  signed-in user; nothing else does. */
+  senderUserId?: string | null;
 }
 
 export interface SendMessageResult {
@@ -211,6 +219,7 @@ export async function sendMessageToConversation(
     replyToMessageId,
     senderType = 'agent',
     aiGenerated = false,
+    senderUserId = null,
   } = params;
 
   if (!conversationId) {
@@ -523,6 +532,7 @@ export async function sendMessageToConversation(
     .insert({
       conversation_id: conversationId,
       sender_type: senderType,
+      sender_id: senderType === 'agent' ? senderUserId : null,
       content_type: messageType,
       content_text: persistedText,
       media_url: mediaUrl || null,

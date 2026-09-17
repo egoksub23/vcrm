@@ -35,6 +35,7 @@ import {
   MousePointerClick,
   List,
   Flag,
+  Milestone,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -127,6 +128,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_webhook: { label: "send_webhook", icon: Webhook, border: "border-l-primary" },
   close_conversation: { label: "close_conversation", icon: CircleSlash, border: "border-l-primary" },
   set_priority: { label: "set_priority", icon: Flag, border: "border-l-primary" },
+  set_lifecycle_stage: { label: "set_lifecycle_stage", icon: Milestone, border: "border-l-primary" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -147,6 +149,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_webhook",
   "close_conversation",
   "set_priority",
+  "set_lifecycle_stage",
 ]
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
@@ -215,6 +218,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return {}
     case "set_priority":
       return { priority: "high" }
+    case "set_lifecycle_stage":
+      return { stage: "active" }
     default:
       return {}
   }
@@ -1707,6 +1712,21 @@ function StepEditor({
             <option value="high">{t("config.priorities.high")}</option>
             <option value="normal">{t("config.priorities.normal")}</option>
             <option value="low">{t("config.priorities.low")}</option>
+          </select>
+        </FieldBlock>
+      )
+    case "set_lifecycle_stage":
+      return (
+        <FieldBlock label={t("config.lifecycleStageLabel")}>
+          <select
+            value={(cfg.stage as string) ?? "active"}
+            onChange={(e) => set({ stage: e.target.value })}
+            className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+          >
+            <option value="lead">{t("config.lifecycleStages.lead")}</option>
+            <option value="active">{t("config.lifecycleStages.active")}</option>
+            <option value="customer">{t("config.lifecycleStages.customer")}</option>
+            <option value="churned">{t("config.lifecycleStages.churned")}</option>
           </select>
         </FieldBlock>
       )

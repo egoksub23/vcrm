@@ -13,9 +13,25 @@ import {
   ResolutionsReportPanel,
   MessagesReportPanel,
   ContactsReportPanel,
+  AssignmentsReportPanel,
+  LeaderboardReportPanel,
+  UsersReportPanel,
+  LifecycleReportPanel,
+  BroadcastsReportPanel,
 } from "@/components/reports/report-panels";
 
-const REPORT_TABS = ["conversations", "responses", "resolutions", "messages", "contacts"] as const;
+const REPORT_TABS = [
+  "conversations",
+  "responses",
+  "resolutions",
+  "messages",
+  "contacts",
+  "assignments",
+  "leaderboard",
+  "users",
+  "lifecycle",
+  "broadcasts",
+] as const;
 type ReportTab = (typeof REPORT_TABS)[number];
 
 function isReportTab(value: string | null): value is ReportTab {
@@ -59,12 +75,17 @@ function ReportsPageInner() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => go(v as ReportTab)} className="mt-6">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="conversations">{t("tabs.conversations")}</TabsTrigger>
           <TabsTrigger value="responses">{t("tabs.responses")}</TabsTrigger>
           <TabsTrigger value="resolutions">{t("tabs.resolutions")}</TabsTrigger>
           <TabsTrigger value="messages">{t("tabs.messages")}</TabsTrigger>
           <TabsTrigger value="contacts">{t("tabs.contacts")}</TabsTrigger>
+          <TabsTrigger value="assignments">{t("tabs.assignments")}</TabsTrigger>
+          <TabsTrigger value="leaderboard">{t("tabs.leaderboard")}</TabsTrigger>
+          <TabsTrigger value="users">{t("tabs.users")}</TabsTrigger>
+          <TabsTrigger value="lifecycle">{t("tabs.lifecycle")}</TabsTrigger>
+          <TabsTrigger value="broadcasts">{t("tabs.broadcasts")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="conversations" className="mt-4">
@@ -81,6 +102,21 @@ function ReportsPageInner() {
         </TabsContent>
         <TabsContent value="contacts" className="mt-4">
           <ContactsReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="assignments" className="mt-4">
+          <AssignmentsReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="leaderboard" className="mt-4">
+          <LeaderboardReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="users" className="mt-4">
+          <UsersReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="lifecycle" className="mt-4">
+          <LifecycleReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="broadcasts" className="mt-4">
+          <BroadcastsReportPanel accountId={accountId} range={range} />
         </TabsContent>
       </Tabs>
     </div>

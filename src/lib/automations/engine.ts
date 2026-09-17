@@ -20,6 +20,7 @@ import type {
   AssignConversationStepConfig,
   AssignToTeamStepConfig,
   SetPriorityStepConfig,
+  SetLifecycleStageStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
@@ -752,6 +753,21 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .update({ priority: cfg.priority, updated_at: new Date().toISOString() })
         .eq('id', conversationId)
       return `priority set to ${cfg.priority}`
+    }
+
+    case 'set_lifecycle_stage': {
+      const cfg = step.step_config as SetLifecycleStageStepConfig
+      if (!cfg.stage) throw new Error('set_lifecycle_stage needs a stage')
+      if (!args.contactId) throw new Error('set_lifecycle_stage needs a contact')
+      await db
+        .from('contacts')
+        .update({
+          lifecycle_stage: cfg.stage,
+          lifecycle_stage_changed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', args.contactId)
+      return `lifecycle stage set to ${cfg.stage}`
     }
 
     default:

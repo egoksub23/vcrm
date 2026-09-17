@@ -454,6 +454,13 @@
       "emailPlaceholder": "maria@example.com",
       "companyLabel": "Empresa",
       "companyPlaceholder": "Acme S.A.",
+      "lifecycleStageLabel": "Etapa del ciclo de vida",
+      "lifecycleStage": {
+        "lead": "Prospecto",
+        "active": "Activo",
+        "customer": "Cliente",
+        "churned": "Perdido"
+      },
       "tagsLabel": "Etiquetas",
       "tagsPlaceholder": "Selecciona etiquetas...",
       "noTagsFound": "No se encontraron etiquetas.",
@@ -994,7 +1001,8 @@
         "condition": "Condición (Si/Si no)",
         "send_webhook": "Enviar webhook",
         "close_conversation": "Cerrar conversación",
-        "set_priority": "Establecer prioridad"
+        "set_priority": "Establecer prioridad",
+        "set_lifecycle_stage": "Establecer etapa del ciclo de vida"
       },
       "triggers": {
         "new_message_received": {
@@ -1159,6 +1167,13 @@
           "high": "Alta",
           "normal": "Normal",
           "low": "Baja"
+        },
+        "lifecycleStageLabel": "Etapa del ciclo de vida",
+        "lifecycleStages": {
+          "lead": "Prospecto",
+          "active": "Activo",
+          "customer": "Cliente",
+          "churned": "Perdido"
         }
       }
     }
@@ -2202,7 +2217,12 @@
       "responses": "Respuestas",
       "resolutions": "Resoluciones",
       "messages": "Mensajes",
-      "contacts": "Contactos"
+      "contacts": "Contactos",
+      "assignments": "Asignaciones",
+      "leaderboard": "Clasificación",
+      "users": "Usuarios",
+      "lifecycle": "Ciclo de vida",
+      "broadcasts": "Difusiones"
     },
     "dateRange": {
       "today": "Hoy",
@@ -2239,6 +2259,57 @@
       "loading": "Cargando informe de contactos…",
       "newContacts": "Contactos nuevos",
       "chartTitle": "Contactos nuevos, por día"
+    },
+    "assignments": {
+      "loading": "Cargando informe de asignaciones…",
+      "totalConversations": "Conversaciones creadas",
+      "byAgent": "Por agente",
+      "byTeam": "Por equipo",
+      "noData": "No hay conversaciones en este período"
+    },
+    "leaderboard": {
+      "loading": "Cargando clasificación…",
+      "topAgent": "Mejor agente",
+      "rank": "Puesto",
+      "agent": "Agente",
+      "messagesSent": "Mensajes enviados",
+      "conversationsAssigned": "Conversaciones asignadas",
+      "conversationsClosed": "Conversaciones cerradas",
+      "avgResponse": "Respuesta media",
+      "noData": "Sin actividad de agentes en este período"
+    },
+    "users": {
+      "loading": "Cargando informe de usuarios…",
+      "scopeNotice": "Volumen de mensajes, conversaciones y tiempo de respuesta para este período — no es un historial de inicio de sesión/actividad (Vircle aún no lo registra).",
+      "teamSize": "Miembros del equipo",
+      "rank": "Puesto",
+      "agent": "Compañero",
+      "messagesSent": "Mensajes enviados",
+      "conversationsAssigned": "Conversaciones asignadas",
+      "conversationsClosed": "Conversaciones cerradas",
+      "avgResponse": "Respuesta media",
+      "noData": "No se encontraron miembros del equipo"
+    },
+    "lifecycle": {
+      "loading": "Cargando informe de ciclo de vida…",
+      "approximateNotice": "\"Movidos en este período\" solo registra el cambio de etapa más reciente de cada contacto — un contacto que cambió de etapa dos veces en un día se cuenta una vez, bajo su etapa final.",
+      "distributionTitle": "Distribución actual",
+      "movedTitle": "Movidos a la etapa, este período",
+      "stage": {
+        "lead": "Prospecto",
+        "active": "Activo",
+        "customer": "Cliente",
+        "churned": "Perdido"
+      }
+    },
+    "broadcasts": {
+      "loading": "Cargando informe de difusiones…",
+      "broadcastsSent": "Difusiones enviadas",
+      "totalRecipients": "Destinatarios totales",
+      "deliveredRate": "Tasa de entrega",
+      "readRate": "Tasa de lectura",
+      "failedRate": "Tasa de fallos",
+      "chartTitle": "Difusiones enviadas, por día"
     }
   },
   "Interactive": {

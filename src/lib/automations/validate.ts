@@ -164,6 +164,11 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.priority`, message: 'a valid priority is required' })
       }
       break
+    case 'set_lifecycle_stage':
+      if (!['lead', 'active', 'customer', 'churned'].includes(c.stage as string)) {
+        issues.push({ path: `${path}.stage`, message: 'a valid lifecycle stage is required' })
+      }
+      break
     default:
       issues.push({ path, message: `unknown step type: ${step.step_type}` })
   }

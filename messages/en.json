@@ -454,6 +454,13 @@
       "emailPlaceholder": "jane@example.com",
       "companyLabel": "Company",
       "companyPlaceholder": "Acme Corp",
+      "lifecycleStageLabel": "Lifecycle stage",
+      "lifecycleStage": {
+        "lead": "Lead",
+        "active": "Active",
+        "customer": "Customer",
+        "churned": "Churned"
+      },
       "tagsLabel": "Tags",
       "tagsPlaceholder": "Select tags...",
       "noTagsFound": "No tags found.",
@@ -1000,7 +1007,8 @@
         "condition": "Condition (If/Else)",
         "send_webhook": "Send Webhook",
         "close_conversation": "Close Conversation",
-        "set_priority": "Set Priority"
+        "set_priority": "Set Priority",
+        "set_lifecycle_stage": "Set Lifecycle Stage"
       },
       "triggers": {
         "new_message_received": {
@@ -1165,6 +1173,13 @@
           "high": "High",
           "normal": "Normal",
           "low": "Low"
+        },
+        "lifecycleStageLabel": "Lifecycle stage",
+        "lifecycleStages": {
+          "lead": "Lead",
+          "active": "Active",
+          "customer": "Customer",
+          "churned": "Churned"
         }
       }
     }
@@ -2220,7 +2235,12 @@
       "responses": "Responses",
       "resolutions": "Resolutions",
       "messages": "Messages",
-      "contacts": "Contacts"
+      "contacts": "Contacts",
+      "assignments": "Assignments",
+      "leaderboard": "Leaderboard",
+      "users": "Users",
+      "lifecycle": "Lifecycle",
+      "broadcasts": "Broadcasts"
     },
     "dateRange": {
       "today": "Today",
@@ -2257,6 +2277,57 @@
       "loading": "Loading contacts report…",
       "newContacts": "New contacts",
       "chartTitle": "New contacts, per day"
+    },
+    "assignments": {
+      "loading": "Loading assignments report…",
+      "totalConversations": "Conversations created",
+      "byAgent": "By agent",
+      "byTeam": "By team",
+      "noData": "No conversations in this range"
+    },
+    "leaderboard": {
+      "loading": "Loading leaderboard…",
+      "topAgent": "Top agent",
+      "rank": "Rank",
+      "agent": "Agent",
+      "messagesSent": "Messages sent",
+      "conversationsAssigned": "Conversations assigned",
+      "conversationsClosed": "Conversations closed",
+      "avgResponse": "Avg. response",
+      "noData": "No agent activity in this range"
+    },
+    "users": {
+      "loading": "Loading users report…",
+      "scopeNotice": "Message volume, conversations, and response time for this range — not a login/activity history (Vircle doesn't track that yet).",
+      "teamSize": "Team members",
+      "rank": "Rank",
+      "agent": "Teammate",
+      "messagesSent": "Messages sent",
+      "conversationsAssigned": "Conversations assigned",
+      "conversationsClosed": "Conversations closed",
+      "avgResponse": "Avg. response",
+      "noData": "No team members found"
+    },
+    "lifecycle": {
+      "loading": "Loading lifecycle report…",
+      "approximateNotice": "\"Moved in this period\" tracks only each contact's most recent stage change — a contact that changed stage twice in one day is counted once, under its final stage.",
+      "distributionTitle": "Current distribution",
+      "movedTitle": "Moved into stage, this period",
+      "stage": {
+        "lead": "Lead",
+        "active": "Active",
+        "customer": "Customer",
+        "churned": "Churned"
+      }
+    },
+    "broadcasts": {
+      "loading": "Loading broadcasts report…",
+      "broadcastsSent": "Broadcasts sent",
+      "totalRecipients": "Total recipients",
+      "deliveredRate": "Delivered rate",
+      "readRate": "Read rate",
+      "failedRate": "Failed rate",
+      "chartTitle": "Broadcasts sent, per day"
     }
   },
   "Interactive": {

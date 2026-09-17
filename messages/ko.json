@@ -454,6 +454,13 @@
       "emailPlaceholder": "jane@example.com",
       "companyLabel": "회사",
       "companyPlaceholder": "Acme Corp",
+      "lifecycleStageLabel": "생애주기 단계",
+      "lifecycleStage": {
+        "lead": "리드",
+        "active": "활성",
+        "customer": "고객",
+        "churned": "이탈"
+      },
       "tagsLabel": "태그",
       "tagsPlaceholder": "태그 선택...",
       "noTagsFound": "태그를 찾을 수 없습니다.",
@@ -1000,7 +1007,8 @@
         "condition": "조건 (If/Else)",
         "send_webhook": "웹훅 보내기",
         "close_conversation": "대화 닫기",
-        "set_priority": "우선순위 설정"
+        "set_priority": "우선순위 설정",
+        "set_lifecycle_stage": "생애주기 단계 설정"
       },
       "triggers": {
         "new_message_received": {
@@ -1165,6 +1173,13 @@
           "high": "높음",
           "normal": "보통",
           "low": "낮음"
+        },
+        "lifecycleStageLabel": "생애주기 단계",
+        "lifecycleStages": {
+          "lead": "리드",
+          "active": "활성",
+          "customer": "고객",
+          "churned": "이탈"
         }
       }
     }
@@ -2220,7 +2235,12 @@
       "responses": "응답",
       "resolutions": "해결",
       "messages": "메시지",
-      "contacts": "연락처"
+      "contacts": "연락처",
+      "assignments": "배정",
+      "leaderboard": "리더보드",
+      "users": "사용자",
+      "lifecycle": "생애주기",
+      "broadcasts": "브로드캐스트"
     },
     "dateRange": {
       "today": "오늘",
@@ -2257,6 +2277,57 @@
       "loading": "연락처 리포트를 불러오는 중…",
       "newContacts": "신규 연락처",
       "chartTitle": "일별 신규 연락처"
+    },
+    "assignments": {
+      "loading": "배정 리포트를 불러오는 중…",
+      "totalConversations": "생성된 대화",
+      "byAgent": "상담원별",
+      "byTeam": "팀별",
+      "noData": "이 기간에 대화가 없습니다"
+    },
+    "leaderboard": {
+      "loading": "리더보드를 불러오는 중…",
+      "topAgent": "최고 상담원",
+      "rank": "순위",
+      "agent": "상담원",
+      "messagesSent": "보낸 메시지",
+      "conversationsAssigned": "배정된 대화",
+      "conversationsClosed": "종료된 대화",
+      "avgResponse": "평균 응답",
+      "noData": "이 기간에 상담원 활동이 없습니다"
+    },
+    "users": {
+      "loading": "사용자 리포트를 불러오는 중…",
+      "scopeNotice": "이 기간의 메시지 볼륨, 대화, 응답 시간입니다 — 로그인/활동 기록이 아닙니다(Vircle은 아직 이를 추적하지 않습니다).",
+      "teamSize": "팀원 수",
+      "rank": "순위",
+      "agent": "팀원",
+      "messagesSent": "보낸 메시지",
+      "conversationsAssigned": "배정된 대화",
+      "conversationsClosed": "종료된 대화",
+      "avgResponse": "평균 응답",
+      "noData": "팀원을 찾을 수 없습니다"
+    },
+    "lifecycle": {
+      "loading": "생애주기 리포트를 불러오는 중…",
+      "approximateNotice": "\"이 기간에 이동함\"은 각 연락처의 가장 최근 단계 변경만 추적합니다 — 하루에 두 번 단계가 바뀐 연락처는 최종 단계 기준으로 한 번만 집계됩니다.",
+      "distributionTitle": "현재 분포",
+      "movedTitle": "이 기간에 단계로 이동함",
+      "stage": {
+        "lead": "리드",
+        "active": "활성",
+        "customer": "고객",
+        "churned": "이탈"
+      }
+    },
+    "broadcasts": {
+      "loading": "브로드캐스트 리포트를 불러오는 중…",
+      "broadcastsSent": "전송된 브로드캐스트",
+      "totalRecipients": "총 수신자",
+      "deliveredRate": "전달률",
+      "readRate": "읽음률",
+      "failedRate": "실패율",
+      "chartTitle": "일별 전송된 브로드캐스트"
     }
   },
   "Interactive": {

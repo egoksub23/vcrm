@@ -6,6 +6,11 @@ import {
   loadResolutionsReport,
   loadMessagesReport,
   loadContactsReport,
+  loadAssignmentsReport,
+  loadLeaderboardReport,
+  loadUsersReport,
+  loadLifecycleReport,
+  loadBroadcastsReport,
 } from './queries'
 import type { DateRange } from './date-utils'
 
@@ -171,5 +176,126 @@ describe('loadContactsReport', () => {
     const report = await loadContactsReport(db, 'acct-1', RANGE)
     expect(report.newContacts.current).toBe(2)
     expect(report.series.find((s) => s.day === '2026-09-15')?.value).toBe(1)
+  })
+})
+
+describe('loadAssignmentsReport', () => {
+  it('distributes conversations across agents and teams, with an Unassigned bucket', async () => {
+    const db = fakeDb({
+      conversations: [
+        { assigned_agent_id: 'u1', assigned_team_id: 't1' },
+        { assigned_agent_id: 'u1', assigned_team_id: 't1' },
+        { assigned_agent_id: null, assigned_team_id: null },
+      ],
+      profiles: [{ user_id: 'u1', full_name: 'Alice' }],
+      teams: [{ id: 't1', name: 'Payments' }],
+    })
+    const report = await loadAssignmentsReport(db, 'acct-1', RANGE)
+    expect(report.totalConversations).toBe(3)
+    expect(report.byAgent).toEqual([
+      { id: 'u1', name: 'Alice', count: 2 },
+      { id: null, name: 'Unassigned', count: 1 },
+    ])
+    expect(report.byTeam).toEqual([
+      { id: 't1', name: 'Payments', count: 2 },
+      { id: null, name: 'No team', count: 1 },
+    ])
+  })
+})
+
+describe('loadLeaderboardReport / loadUsersReport', () => {
+  const profiles = [
+    { user_id: 'u1', full_name: 'Alice', email: 'alice@x.com', created_at: '2026-01-01T00:00:00' },
+    { user_id: 'u2', full_name: 'Bob', email: 'bob@x.com', created_at: '2026-02-01T00:00:00' },
+  ]
+  const messages = [
+    // u1 answers a customer wait in 5 minutes.
+    { conversation_id: 'c1', sender_type: 'customer', sender_id: null, created_at: '2026-09-15T10:00:00' },
+    { conversation_id: 'c1', sender_type: 'agent', sender_id: 'u1', created_at: '2026-09-15T10:05:00' },
+    // u2 sends a second message with no pending customer wait — counts
+    // toward volume but not toward response time.
+    { conversation_id: 'c1', sender_type: 'agent', sender_id: 'u2', created_at: '2026-09-15T10:06:00' },
+    // A bot reply clears a wait but isn't attributable to any agent.
+    { conversation_id: 'c2', sender_type: 'customer', sender_id: null, created_at: '2026-09-15T11:00:00' },
+    { conversation_id: 'c2', sender_type: 'bot', sender_id: null, created_at: '2026-09-15T11:01:00' },
+  ]
+  const conversations = [
+    { assigned_agent_id: 'u1', created_at: CUR_DAY_1, closed_at: CUR_DAY_2 },
+    { assigned_agent_id: 'u1', created_at: CUR_DAY_1, closed_at: null },
+  ]
+
+  it('ranks agents by message volume, tie-broken by conversations closed', async () => {
+    const db = fakeDb({ profiles, messages, conversations })
+    const report = await loadLeaderboardReport(db, 'acct-1', RANGE)
+    expect(report.entries.map((e) => e.fullName)).toEqual(['Alice', 'Bob'])
+    expect(report.entries[0]).toMatchObject({
+      rank: 1,
+      messagesSent: 1,
+      conversationsAssigned: 2,
+      conversationsClosed: 1,
+      avgResponseMinutes: 5,
+    })
+    expect(report.entries[1]).toMatchObject({
+      rank: 2,
+      messagesSent: 1,
+      conversationsAssigned: 0,
+      avgResponseMinutes: null,
+    })
+  })
+
+  it('lists every account member alphabetically, including zero-activity ones', async () => {
+    const db = fakeDb({ profiles, messages: [], conversations: [] })
+    const report = await loadUsersReport(db, 'acct-1', RANGE)
+    expect(report.users.map((u) => u.fullName)).toEqual(['Alice', 'Bob'])
+    expect(report.users[0].memberSince).toBe('2026-01-01T00:00:00')
+    expect(report.users.every((u) => u.messagesSent === 0)).toBe(true)
+  })
+})
+
+describe('loadLifecycleReport', () => {
+  it('snapshots the current distribution and this-period moves separately', async () => {
+    const db = fakeDb({
+      contacts: [
+        { lifecycle_stage: 'lead', lifecycle_stage_changed_at: null },
+        { lifecycle_stage: 'active', lifecycle_stage_changed_at: '2026-09-15T10:00:00' },
+        { lifecycle_stage: 'customer', lifecycle_stage_changed_at: '2026-09-15T11:00:00' },
+      ],
+    })
+    const report = await loadLifecycleReport(db, 'acct-1', RANGE)
+    expect(report.distribution).toEqual({ lead: 1, active: 1, customer: 1, churned: 0 })
+    // Only the two rows with a non-null lifecycle_stage_changed_at
+    // survive the fake DB's `.not(...)` filter.
+    expect(report.movedIn).toEqual({ lead: 0, active: 1, customer: 1, churned: 0 })
+  })
+})
+
+describe('loadBroadcastsReport', () => {
+  it('sums recipients/delivered/read/failed and computes rates', async () => {
+    const db = fakeDb({
+      broadcasts: [
+        {
+          created_at: CUR_DAY_1,
+          total_recipients: 100,
+          sent_count: 100,
+          delivered_count: 90,
+          read_count: 50,
+          failed_count: 10,
+        },
+      ],
+    })
+    const report = await loadBroadcastsReport(db, 'acct-1', RANGE)
+    expect(report.broadcastsSent.current).toBe(1)
+    expect(report.totalRecipients.current).toBe(100)
+    expect(report.deliveredRate).toBe(90)
+    expect(report.readRate).toBe(50)
+    expect(report.failedRate).toBe(10)
+  })
+
+  it('reports null rates when nothing was sent in range', async () => {
+    const db = fakeDb({ broadcasts: [] })
+    const report = await loadBroadcastsReport(db, 'acct-1', RANGE)
+    expect(report.deliveredRate).toBeNull()
+    expect(report.readRate).toBeNull()
+    expect(report.failedRate).toBeNull()
   })
 })
