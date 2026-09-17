@@ -9,6 +9,39 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.11.0] — 2026-09-17
+
+Merges a contact's WhatsApp and Web Widget conversations into a single
+thread.
+
+> **Migration required:** apply `supabase/migrations/048_merge_channel_conversations.sql`.
+> This migration mutates existing data — for any contact who has both a
+> WhatsApp and a Web Widget conversation, it merges them into one (keeping
+> the earlier-created row, moving all messages/labels/reactions/deals/
+> notifications/AI-usage-log rows onto it, then deleting the other) before
+> dropping `conversations.channel_type` in favor of a new per-message
+> `messages.channel_type` and a `conversations.last_channel_type` rollup.
+> Idempotent — safe to re-run.
+
+### Added
+
+- **Omnichannel conversation merge.** A contact who has messaged via both
+  WhatsApp and the Web Widget now has exactly one conversation, with full
+  history from both channels in a single thread, instead of two separate
+  ones. Each message bubble shows a small icon for which channel it came
+  in/went out on; the thread header's channel badge and an agent's reply
+  now follow `last_channel_type` — whichever channel the customer most
+  recently used — instead of a fixed per-conversation channel.
+
+### Fixed
+
+- **Web-widget conversations could only ever receive one agent reply.**
+  Every agent-sent message on a widget conversation persisted
+  `message_id: ''` (no Meta wamid), which collided with itself under the
+  `(conversation_id, message_id)` unique index on the second such reply,
+  throwing a Postgres unique-violation and silently failing the send. Now
+  persists `NULL`, which the index already treats as distinct.
+
 ## [0.10.0] — 2026-09-17
 
 Adds a priority field to conversations.

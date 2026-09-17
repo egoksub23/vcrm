@@ -7,7 +7,9 @@ anonymously — no WhatsApp number, no app install — and their messages
 land in the same Inbox, run through the same automations, and get the
 same AI auto-reply as WhatsApp conversations do. Introduced in
 migration 046; see `supabase/migrations/046_channels.sql` for the
-schema and RLS this page assumes.
+original schema and RLS, and migration 048
+(`supabase/migrations/048_merge_channel_conversations.sql`) for the
+omnichannel merge described below.
 
 ## What lives where
 
@@ -18,7 +20,9 @@ schema and RLS this page assumes.
 | A visitor's browser session | Supabase **anonymous auth** (`auth.users`, `is_anonymous = true`) | per browser/device |
 | A visitor's *identity* — who they actually are | The phone number they type into the pre-chat gate, matched against existing `contacts` | per phone number, not per browser |
 | The browser ↔ contact binding (skips the gate on return visits) | `widget_visitors` (row per anonymous auth uid → `contact_id`) | per browser/device |
-| A visitor's conversation | `conversations` row with `channel_type = 'web_widget'` | per visitor |
+| A visitor's conversation | The contact's single `conversations` row (migration 048 — shared with WhatsApp, not a separate widget-only row) | per contact |
+| Which channel a given message came in/went out on | `messages.channel_type`, per message | per message |
+| The conversation's most recent channel (drives UI badges + reply routing) | `conversations.last_channel_type` | per conversation |
 | Anonymous sign-ins toggle | Supabase dashboard → Authentication → Sign In / Providers | **per Supabase project** — not settable from wacrm |
 
 The widget bundle itself is a small self-contained Preact app built by
@@ -117,9 +121,14 @@ on the launcher bubble.
   (`RATE_LIMITS.widgetSession`, `RATE_LIMITS.widgetMessage` in
   `src/lib/rate-limit.ts`).
 - A widget visitor is a real `contacts` row and a real `conversations`
-  row (`channel_type: 'web_widget'`), so tags, labels, priority,
-  contact notes, deals, and reporting all work on widget conversations
-  exactly as they do on WhatsApp ones.
+  row — the *same* conversation as their WhatsApp thread if they've
+  messaged this business there too (migration 048 merges by contact,
+  not by channel) — so tags, labels, priority, contact notes, deals,
+  and reporting all work on it exactly as they do on a WhatsApp-only
+  conversation. `messages.channel_type` records which channel each
+  individual message used; `conversations.last_channel_type` is a
+  rollup of the most recent one, and is what an agent's reply defaults
+  to sending on.
 
 ## Visitor identity — the phone gate
 
@@ -129,10 +138,12 @@ anything — the composer doesn't appear until they submit it. That
 phone number is looked up against the account's existing contacts
 (the same fuzzy, trunk-prefix-tolerant match every other phone-
 identified path in the app uses): if it matches someone who has
-already messaged this business on WhatsApp, the widget conversation
-attaches to that **same contact record** — one unified customer, two
-separate conversation threads (one per `channel_type`). If it's a new
-number, a new contact is created from it.
+already messaged this business on WhatsApp, the widget attaches to
+that **same contact record — and the same conversation**. There's no
+separate widget-only thread: it's one merged conversation with the
+customer's full history in it regardless of which channel each
+message came in on (migration 048). If it's a new number, a new
+contact — and a new conversation — is created from it.
 
 A returning visitor on the **same browser** skips the gate entirely —
 `widget_visitors` already remembers which contact this browser belongs
@@ -141,22 +152,30 @@ visit.
 
 **This is intentionally unverified — there's no OTP.** Someone who
 types a real customer's phone number lands their chat on that
-customer's contact record. The widget itself doesn't leak anything
-extra from that: RLS scopes a visitor to their own conversation
-thread, never the contact's full history, tags, deals, or notes — that
-data stays dashboard-only. The actual risk is on the business side: an
-agent could be talking to someone who isn't who the contact record
-says. That's the same trade-off every "enter your number to chat"
-widget makes without a verification step — accepted here rather than
-overlooked, and worth keeping in mind for anything sensitive (payment
-details, account changes) an agent might otherwise take on trust.
+customer's contact record — and, since the merge, on their actual
+conversation history too, not just a fresh empty thread. The widget
+still doesn't leak anything beyond that one conversation: RLS scopes a
+visitor to their contact's conversation specifically, never the
+contact's tags, deals, or notes — that data stays dashboard-only. But
+because the merged conversation can include past WhatsApp messages,
+the accepted risk is a little larger than before: someone typing a
+real customer's number now sees that customer's past conversation
+content through the widget, not just an empty chat. That's the
+trade-off explicitly chosen here in exchange for one unified thread —
+worth keeping in mind for any account expecting to receive sensitive
+content (payment details, account changes) over either channel.
 
 ## What's channel-specific
 
-The composer hides these for a widget conversation, and the server
-rejects them too if something tries anyway (`sendMessageToConversation`
-in `src/lib/whatsapp/send-message.ts`, and `assertWhatsappChannel` in
-`src/lib/automations/engine.ts`):
+Since a merged conversation can span both channels, "channel-specific"
+now means "gated on `conversations.last_channel_type`" rather than a
+fixed per-conversation property. The composer hides these whenever the
+conversation's most recent message came in via the widget, and the
+server rejects them too if something tries anyway
+(`sendMessageToConversation` in `src/lib/whatsapp/send-message.ts`, and
+`assertWhatsappChannel` in `src/lib/automations/engine.ts`) — the same
+guard re-evaluates on the customer's very next message, so these
+affordances come back the moment they message in on WhatsApp again:
 
 - Message templates, interactive buttons/lists, and media attach —
   all Meta-specific concepts with no widget equivalent yet.
@@ -214,9 +233,9 @@ editing anything under `widget/src/`, then hard-refresh the test page.
 - **`404 Widget not found or disabled`** — the `widget_token` in the
   snippet doesn't match any account's config, or the widget is
   currently switched off in Settings.
-- **Messages send but never appear in the Inbox** — confirm migration
-  046 is applied to the account's Supabase project
-  (`supabase migration list` should show `046` and `047` on the
+- **Messages send but never appear in the Inbox** — confirm migrations
+  046, 047, and 048 are all applied to the account's Supabase project
+  (`supabase migration list` should show all three on the
   `remote` side) and that the account's RLS policies weren't hand-
   edited; `conversations_widget_visitor_select` and
   `messages_widget_visitor_select` are what let the visitor read back

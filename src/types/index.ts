@@ -177,7 +177,10 @@ export type ConversationStatus = 'open' | 'pending' | 'closed';
  *  condition on a "VIP" custom field → set_priority: urgent). */
 export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
 
-/** Which inbound channel this conversation belongs to (migration 046).
+/** Which channel a given message came in/went out on. Introduced in
+ *  migration 046 as a whole-conversation property, then moved down to
+ *  the message level in migration 048 once a single conversation could
+ *  span both channels (WhatsApp + Web Widget merged by contact).
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
  *  automation engine's per-step channel guards. */
@@ -188,7 +191,11 @@ export interface Conversation {
   user_id: string;
   contact_id: string;
   status: ConversationStatus;
-  channel_type: ChannelType;
+  /** Rollup of the most recent message's channel (migration 048) — a
+   *  merged conversation can contain messages from both channels, so
+   *  this (not a fixed per-conversation channel) is what UI badges show
+   *  and what an agent's reply defaults to sending on. */
+  last_channel_type: ChannelType;
   priority: ConversationPriority;
   assigned_agent_id?: string;
   /** Team a conversation is routed to (migration 043); orthogonal to
@@ -273,6 +280,11 @@ export interface Message {
   media_type?: string | null;
   template_name?: string;
   message_id?: string;
+  /** Which channel this specific message came in/went out on
+   *  (migration 048) — a merged conversation can interleave WhatsApp
+   *  and Web Widget messages, so this is per-message, not inherited
+   *  from the conversation. */
+  channel_type: ChannelType;
   status: MessageStatus;
   created_at: string;
   reply_to_message_id?: string;

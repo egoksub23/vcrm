@@ -36,7 +36,7 @@ vi.mock("./admin-client", () => {
       return { data: state.owned, error: null };
     }
     if (table === "conversations") {
-      return { data: { channel_type: state.conversationChannelType }, error: null };
+      return { data: { last_channel_type: state.conversationChannelType }, error: null };
     }
     if (table === "custom_fields") {
       // account-scoped ownership lookup for a custom field definition

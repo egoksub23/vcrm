@@ -523,6 +523,7 @@ export function MessageThread({
         sender_type: "agent",
         content_type: "text",
         content_text: text,
+        channel_type: conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
@@ -582,6 +583,7 @@ export function MessageThread({
         sender_id: user?.id,
         content_type: "text",
         content_text: text,
+        channel_type: conversation.last_channel_type,
         status: "sent",
         created_at: new Date().toISOString(),
         is_internal: true,
@@ -633,6 +635,7 @@ export function MessageThread({
         content_type: payload.kind,
         content_text: contentText,
         media_url: payload.mediaUrl,
+        channel_type: conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: payload.replyToId,
@@ -693,6 +696,7 @@ export function MessageThread({
         content_type: "interactive",
         content_text: payload.body,
         interactive_payload: payload,
+        channel_type: conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
@@ -787,6 +791,7 @@ export function MessageThread({
         content_type: "template",
         content_text: renderedBody,
         template_name: template.name,
+        channel_type: conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
       };
@@ -1180,18 +1185,20 @@ export function MessageThread({
             </button>
           )}
 
-          {/* Channel badge — static, not a control. Which inbound channel
-              this conversation belongs to (migration 046). */}
+          {/* Channel badge — static, not a control. Shows the channel of
+              the MOST RECENT message (migration 048's last_channel_type
+              rollup) — a merged conversation can span both channels, so
+              this is a rollup, not a fixed per-conversation value. */}
           {(() => {
-            const ChannelIcon = CHANNEL_ICONS[conversation.channel_type];
+            const ChannelIcon = CHANNEL_ICONS[conversation.last_channel_type];
             return (
               <span
                 className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground"
-                title={t(`channel.${conversation.channel_type}`)}
+                title={t(`channel.${conversation.last_channel_type}`)}
               >
                 <ChannelIcon className="h-3 w-3" />
                 <span className="hidden sm:inline">
-                  {t(`channel.${conversation.channel_type}`)}
+                  {t(`channel.${conversation.last_channel_type}`)}
                 </span>
               </span>
             );
@@ -1545,7 +1552,7 @@ export function MessageThread({
       {/* Composer */}
       <MessageComposer
         conversationId={conversation.id}
-        channelType={conversation.channel_type}
+        channelType={conversation.last_channel_type}
         sessionExpired={sessionInfo.expired}
         onSend={handleSend}
         onSendMedia={handleSendMedia}

@@ -240,7 +240,10 @@ export async function sendMessageToConversation(
   // templates/interactive/media are Meta concepts the widget composer
   // never even offers, but guard server-side too since this function is
   // also the automation engine's send path.
-  const isWidgetConversation = conversation.channel_type === 'web_widget';
+  // A merged conversation (migration 048) may have messages on either
+  // channel; an agent's reply targets whichever channel the customer
+  // most recently used, tracked by the last_channel_type rollup.
+  const isWidgetConversation = conversation.last_channel_type === 'web_widget';
   if (isWidgetConversation && messageType !== 'text') {
     throw new SendMessageError(
       'bad_request',
@@ -515,7 +518,14 @@ export async function sendMessageToConversation(
       template_name: templateName || null,
       interactive_payload:
         messageType === 'interactive' ? interactivePayload : null,
-      message_id: waMessageId,
+      channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
+      // A widget send never gets a Meta wamid, so `waMessageId` stays ''.
+      // Persist NULL there instead of '' — the unique index on
+      // (conversation_id, message_id) (migration 037) treats NULLs as
+      // distinct but not repeated empty strings, so a literal '' would
+      // make every widget conversation's SECOND agent reply fail with a
+      // unique violation.
+      message_id: waMessageId || null,
       status: 'sent',
       reply_to_message_id: replyToMessageId || null,
     })
@@ -543,6 +553,7 @@ export async function sendMessageToConversation(
     .update({
       last_message_text: lastMessageText,
       last_message_at: new Date().toISOString(),
+      last_channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);

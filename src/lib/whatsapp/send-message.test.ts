@@ -213,7 +213,7 @@ function sendPathDb(
   const conversation = {
     id: 'cv-1',
     contact,
-    channel_type: channelType,
+    last_channel_type: channelType,
   };
   const config = {
     id: 'cfg-1',
@@ -468,7 +468,39 @@ describe('sendMessageToConversation — web_widget channel', () => {
     // No Meta wamid for a widget send — the DB row is the delivery.
     expect(result.whatsappMessageId).toBe('');
     expect(captured.message?.content_text).toBe('hi from the widget');
-    expect(captured.message?.message_id).toBe('');
+    // NULL, not '' — a literal '' would collide with itself under the
+    // (conversation_id, message_id) unique index (migration 037) on any
+    // second widget send in the same conversation. See the regression
+    // test below.
+    expect(captured.message?.message_id).toBeNull();
+  });
+
+  it('persists NULL message_id on every send in the same conversation, not just the first', async () => {
+    // Regression for the bug where widget sends persisted message_id: ''
+    // — a literal empty string is not distinct from itself under the
+    // plain unique index on (conversation_id, message_id), so a second
+    // agent reply in the same widget conversation failed with a Postgres
+    // 23505 unique violation. NULL is always distinct from NULL, so this
+    // asserts the fix holds across repeated sends.
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', widget_visitor_id: 'v-1' }, 'web_widget');
+
+    const first = await sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'first reply',
+    });
+    expect(captured.message?.message_id).toBeNull();
+
+    const second = await sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'second reply',
+    });
+    expect(captured.message?.message_id).toBeNull();
+
+    expect(first.whatsappMessageId).toBe('');
+    expect(second.whatsappMessageId).toBe('');
   });
 
   it('rejects any non-text message_type for a widget conversation', async () => {

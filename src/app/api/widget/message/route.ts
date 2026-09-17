@@ -102,13 +102,16 @@ export async function POST(request: Request) {
 
   // The conversation must belong to THIS visitor's own contact — a
   // visitor can't guess another conversation's UUID and post into it.
+  // Ownership is purely the contact_id chain now (migration 048 merged
+  // per-channel conversations into one per contact) — a merged
+  // conversation may have originated on WhatsApp, so there's no
+  // channel_type left to filter by.
   const { data: conversation, error: convError } = await admin
     .from('conversations')
     .select('id, account_id, contact_id, status')
     .eq('id', conversationId)
     .eq('account_id', visitor.account_id)
     .eq('contact_id', visitor.contact_id)
-    .eq('channel_type', 'web_widget')
     .maybeSingle()
 
   if (convError) {
@@ -138,6 +141,7 @@ export async function POST(request: Request) {
       sender_type: 'customer',
       content_type: 'text',
       content_text: text,
+      channel_type: 'web_widget',
       status: 'delivered',
     })
     .select('id')
@@ -151,6 +155,7 @@ export async function POST(request: Request) {
   await admin.rpc('bump_conversation_on_inbound', {
     p_conversation_id: conversationId,
     p_last_message_text: text,
+    p_channel_type: 'web_widget',
   })
 
   await reopenClosedConversation(admin, conversation)

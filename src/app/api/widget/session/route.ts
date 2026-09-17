@@ -207,13 +207,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // ---- conversation: find or create (account, contact, web_widget) --
+    // ---- conversation: find or create (account, contact) --
+    //
+    // No channel_type filter (migration 048 merged per-channel
+    // conversations into one per contact) — a contact who has already
+    // messaged via WhatsApp gets their existing conversation here too,
+    // same shape as the WhatsApp webhook's own find-or-create.
     const { data: existingConv } = await admin
       .from('conversations')
       .select('id')
       .eq('account_id', config.account_id)
       .eq('contact_id', contactId)
-      .eq('channel_type', 'web_widget')
       .order('created_at', { ascending: true })
       .limit(1)
 
@@ -227,7 +231,6 @@ export async function POST(request: Request) {
           account_id: config.account_id,
           user_id: ownerUserId,
           contact_id: contactId,
-          channel_type: 'web_widget',
         })
         .select('id')
         .single()
@@ -239,7 +242,6 @@ export async function POST(request: Request) {
             .select('id')
             .eq('account_id', config.account_id)
             .eq('contact_id', contactId)
-            .eq('channel_type', 'web_widget')
             .order('created_at', { ascending: true })
             .limit(1)
           if (!raced || raced.length === 0) throw new Error('Failed to resolve conversation after race')

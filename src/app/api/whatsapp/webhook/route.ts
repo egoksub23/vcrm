@@ -798,6 +798,7 @@ async function processMessage(
         // bytes had already been fetched successfully.
         media_type: mediaType,
         message_id: message.id,
+        channel_type: 'whatsapp',
         status: 'delivered',
         created_at: new Date(parseInt(message.timestamp) * 1000).toISOString(),
         reply_to_message_id: replyToInternalId,
@@ -839,6 +840,7 @@ async function processMessage(
     {
       p_conversation_id: conversation.id,
       p_last_message_text: contentText || `[${message.type}]`,
+      p_channel_type: 'whatsapp',
     }
   )
 

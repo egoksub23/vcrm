@@ -12,6 +12,7 @@ function msg(
     conversation_id: "conv-1",
     sender_type: (overrides.sender_type ?? "customer") as SenderType,
     content_type,
+    channel_type: "whatsapp",
     status: "delivered",
     created_at: "2026-08-04T10:00:00.000Z",
     ...overrides,

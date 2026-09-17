@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { Message, MessageReaction } from "@/types";
+import type { ChannelType, Message, MessageReaction } from "@/types";
 import {
   Clock,
   Check,
@@ -12,6 +12,8 @@ import {
   CornerDownLeft,
   Sparkles,
   Lock,
+  MessageCircle,
+  Globe,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -56,6 +58,11 @@ function failureReason(message: Message): string | null {
     ? `${message.error_title} — ${message.error_details}`
     : message.error_title;
 }
+
+const CHANNEL_ICONS: Record<ChannelType, typeof MessageCircle> = {
+  whatsapp: MessageCircle,
+  web_widget: Globe,
+};
 
 function StatusIcon({
   status,
@@ -253,6 +260,9 @@ export function MessageBubble({
   authorLabel,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
+  // Reuses the same channel labels the thread header's badge already
+  // uses — no new i18n keys needed across the 4 locale files.
+  const tChannel = useTranslations("Inbox.messageThread");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
@@ -337,6 +347,23 @@ export function MessageBubble({
               {t("aiBadge")}
             </span>
           )}
+          {/* Per-message channel icon (migration 048) — a merged
+              conversation can interleave WhatsApp and Web Widget
+              messages, so each bubble needs its own indicator rather
+              than relying on the thread-level badge alone. */}
+          {(() => {
+            const ChannelIcon = CHANNEL_ICONS[message.channel_type];
+            return (
+              <span title={tChannel(`channel.${message.channel_type}`)}>
+                <ChannelIcon
+                  className={cn(
+                    "h-2.5 w-2.5",
+                    isAgent ? "text-primary-foreground/70" : "text-muted-foreground",
+                  )}
+                />
+              </span>
+            );
+          })()}
           <span
             className={cn(
               "text-[10px]",

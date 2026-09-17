@@ -779,11 +779,11 @@ async function resolveConversationId(args: ExecuteArgs): Promise<string> {
 async function assertWhatsappChannel(conversationId: string, stepType: string): Promise<void> {
   const { data, error } = await supabaseAdmin()
     .from('conversations')
-    .select('channel_type')
+    .select('last_channel_type')
     .eq('id', conversationId)
     .single()
   if (error) throw new Error(`conversation lookup failed: ${error.message}`)
-  if (data.channel_type !== 'whatsapp') {
+  if (data.last_channel_type !== 'whatsapp') {
     throw new Error(`${stepType} is only supported for WhatsApp conversations`)
   }
 }

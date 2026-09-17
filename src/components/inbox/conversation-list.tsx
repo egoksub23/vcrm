@@ -241,7 +241,7 @@ export function ConversationList({
     }
 
     if (selectedChannelType !== null) {
-      result = result.filter((c) => c.channel_type === selectedChannelType);
+      result = result.filter((c) => c.last_channel_type === selectedChannelType);
     }
 
     if (selectedPriority !== null) {
@@ -836,7 +836,7 @@ function ConversationItem({
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
   const initials = displayName.charAt(0).toUpperCase();
-  const ChannelIcon = CHANNEL_ICONS[conversation.channel_type];
+  const ChannelIcon = CHANNEL_ICONS[conversation.last_channel_type];
 
   const handleClick = useCallback(() => {
     onSelect(conversation);
@@ -875,7 +875,7 @@ function ConversationItem({
           <span className="flex min-w-0 items-center gap-1.5">
             <ChannelIcon
               className="h-3 w-3 shrink-0 text-muted-foreground"
-              aria-label={t(`channel.${conversation.channel_type}`)}
+              aria-label={t(`channel.${conversation.last_channel_type}`)}
             />
             {conversation.priority !== "normal" && (
               <Flag
