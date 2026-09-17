@@ -9,6 +9,24 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.18.0] — 2026-09-17
+
+Closes the last 2 Assignment Strategies P1 gaps: least-loaded routing
+and an online-only filter.
+
+> **Migration required:** apply `supabase/migrations/053_assignment_routing_strategies.sql`.
+> Adds `pick_least_loaded_agent` / `pick_least_loaded_team_member`, and an
+> `online_only` parameter to all four assignment-picker functions. Idempotent.
+
+### Added
+
+- **Least-loaded assignment** — new `assign_conversation`/`assign_to_team`
+  mode that routes to the agent (or team member) with the fewest
+  currently open conversations, instead of round-robin rotation.
+- **Online-only routing filter** — a checkbox on both steps' round-robin
+  and least-loaded modes that skips agents who aren't currently online
+  (same "online" definition the presence dots already use).
+
 ## [0.17.0] — 2026-09-17
 
 Ships the remaining 5 Reporting Suite follow-ups: Assignments,
