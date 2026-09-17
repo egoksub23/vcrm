@@ -9,6 +9,35 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.17.0] — 2026-09-17
+
+Ships the remaining 5 Reporting Suite follow-ups: Assignments,
+Leaderboard, Users, Lifecycle, and Broadcasts reports.
+
+> **Migration required:** apply `supabase/migrations/052_contact_lifecycle_stage.sql`.
+> Adds `contacts.lifecycle_stage` (lead/active/customer/churned, default 'lead')
+> and `lifecycle_stage_changed_at`. Idempotent.
+
+### Added
+
+- **Reports: Assignments** — conversation distribution across agents and
+  teams for the selected range.
+- **Reports: Leaderboard** — agents ranked by message volume (ties broken
+  by conversations closed), with conversations assigned/closed and
+  average response time per agent.
+- **Reports: Users** — per-teammate activity summary (message volume,
+  conversations, response time, member since) — explicitly not a login/
+  activity audit log, which Vircle doesn't track yet.
+- **Reports: Lifecycle** — current contact distribution across
+  lead/active/customer/churned, plus this-period stage moves.
+- **Reports: Broadcasts** — account-wide, cross-campaign send/delivery/
+  read/failed trend.
+- **Contact lifecycle stage** — settable from the contact form, or via a
+  new `set_lifecycle_stage` automation step.
+- `messages.sender_id` (previously populated only for internal comments)
+  is now also set on ordinary outbound agent sends, powering the
+  Leaderboard/Users reports' per-agent attribution.
+
 ## [0.16.0] — 2026-09-17
 
 Closes the Navigation & Layout roadmap gap: a collapsible sidebar.
