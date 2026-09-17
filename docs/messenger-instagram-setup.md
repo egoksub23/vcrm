@@ -20,7 +20,21 @@ Under **Facebook Login for Business** settings, add these permission
 scopes: `pages_show_list`, `pages_messaging`, `pages_read_engagement`,
 `business_management`, `instagram_basic`, `instagram_manage_messages`.
 
-## 2. Register the OAuth redirect URIs
+## 2. Add your domain to App Domains
+
+**App Settings → Basic → App Domains** — add the bare domain (no
+`https://`, no path):
+
+```
+your-domain.com
+```
+
+This is a separate field from the redirect URIs below, and Meta's error
+for missing it ("Can't load URL — the domain of this URL isn't included
+in the app's domains") doesn't mention *which* setting to fix, so it's
+easy to do step 3 and skip this one. Do both.
+
+## 3. Register the OAuth redirect URIs
 
 Add both of these to the app's **Valid OAuth Redirect URIs**
 (Facebook Login for Business → Settings), swapping in your deployment's
@@ -35,7 +49,7 @@ This must exactly match `NEXT_PUBLIC_SITE_URL` (see `.env.local.example`)
 — set that env var explicitly rather than relying on request-header
 guessing, since a mismatch here is the most common OAuth failure.
 
-## 3. Register the webhook URLs
+## 4. Register the webhook URLs
 
 Same App Dashboard, under each product's **Webhooks** setup:
 
@@ -49,7 +63,7 @@ you'll type into the account's Settings → Channels panel after
 connecting — same self-service pattern as WhatsApp's verify token
 (see `docs/multi-waba.md`).
 
-## 4. Connect from the app
+## 5. Connect from the app
 
 Settings → Channels → Messenger (or Instagram) → **Connect with
 Facebook**. If the signed-in Facebook user administers more than one
@@ -57,7 +71,7 @@ Page, you'll be asked to pick one. Instagram additionally requires that
 Page to have a linked Instagram professional account — connecting fails
 with a clear error otherwise.
 
-## 5. App Review
+## 6. App Review
 
 Before real (non-test) users can message your Page/Instagram account,
 Meta requires **App Review** approval for `pages_messaging` and
