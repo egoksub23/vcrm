@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.19.1] — 2026-09-17
+
+Inbox chat area: removed the decorative doodle background (plain
+surface now) and added a sender name label above each message group —
+the contact's name on customer bubbles, the agent's (or "Bot") on
+outbound ones — so a thread with more than one participant on either
+side is unambiguous at a glance.
+
 ## [0.19.0] — 2026-09-17
 
 Ships Widget Identity Passing — both halves.
