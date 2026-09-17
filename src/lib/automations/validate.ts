@@ -204,7 +204,7 @@ export function validateTriggerForActivation(
     if (!nonEmpty(cfg.schedule)) {
       issues.push({ path: 'trigger.schedule', message: 'schedule is required' })
     }
-  } else if (triggerType === 'tag_added') {
+  } else if (triggerType === 'tag_added' || triggerType === 'conversation_label_added') {
     if (!nonEmpty(cfg.tag_id)) {
       issues.push({ path: 'trigger.tag_id', message: 'tag is required' })
     }

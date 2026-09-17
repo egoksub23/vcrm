@@ -639,6 +639,7 @@ function InboxPageInner() {
             conversations={conversations}
             onConversationsLoaded={handleConversationsLoaded}
             resyncToken={resyncToken}
+            onLabelsChange={handleLabelsChange}
           />
         </div>
 

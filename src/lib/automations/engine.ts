@@ -7,6 +7,7 @@ import type {
   KeywordMatchTriggerConfig,
   InteractiveReplyTriggerConfig,
   TagTriggerConfig,
+  ConversationLabelTriggerConfig,
   SendMessageStepConfig,
   SendButtonsStepConfig,
   SendListStepConfig,
@@ -502,7 +503,34 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         conversationId,
         tagId: cfg.tag_id,
       })
-      return added ? `label ${cfg.tag_id} added` : `label ${cfg.tag_id} already present`
+      if (!added) return `label ${cfg.tag_id} already present`
+
+      const depth = getTagChainDepth(args.context)
+      if (depth >= MAX_TAG_CHAIN_DEPTH) {
+        console.warn('[automations] conversation_label_added chain depth limit reached', {
+          automationId: args.automation.id,
+          conversationId,
+          tagId: cfg.tag_id,
+          depth,
+        })
+        return `label ${cfg.tag_id} added; conversation_label_added dispatch skipped at depth ${depth}`
+      }
+
+      await runAutomationsForTrigger({
+        accountId: args.automation.account_id,
+        triggerType: 'conversation_label_added',
+        contactId: args.contactId,
+        context: {
+          ...args.context,
+          conversation_id: conversationId,
+          tag_id: cfg.tag_id,
+          vars: {
+            ...(args.context.vars ?? {}),
+            _tag_chain_depth: depth + 1,
+          },
+        },
+      })
+      return `label ${cfg.tag_id} added and conversation_label_added dispatched`
     }
 
     case 'remove_conversation_label': {
@@ -863,6 +891,12 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
 
   if (automation.trigger_type === 'tag_added') {
     const cfg = automation.trigger_config as TagTriggerConfig
+    const tagId = ctx?.tag_id
+    return Boolean(tagId && cfg?.tag_id && cfg.tag_id === tagId)
+  }
+
+  if (automation.trigger_type === 'conversation_label_added') {
+    const cfg = automation.trigger_config as ConversationLabelTriggerConfig
     const tagId = ctx?.tag_id
     return Boolean(tagId && cfg?.tag_id && cfg.tag_id === tagId)
   }

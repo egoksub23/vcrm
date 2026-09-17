@@ -170,6 +170,13 @@
       "sortByRecent": "Reciente",
       "sortByPriority": "Prioridad",
       "clearAll": "Limpiar todo",
+      "select": "Seleccionar",
+      "selectModeTitle": "Selecciona conversaciones para una acción masiva",
+      "selectedCount": "{count} seleccionadas",
+      "applyLabel": "Aplicar etiqueta",
+      "noLabelsAvailable": "No hay etiquetas disponibles",
+      "bulkLabelApplied": "Se aplicó \"{label}\" a {count} conversaciones",
+      "bulkLabelPartialFailure": "Se aplicó a {succeeded} de {total} conversaciones — algunas fallaron",
       "noConversations": "No se encontraron conversaciones",
       "noMessagesYet": "Aún no hay mensajes",
       "unknown": "Desconocido",
@@ -1002,6 +1009,10 @@
         "tag_added": {
           "label": "Etiqueta agregada",
           "hint": "Cuando se agrega una etiqueta a un contacto"
+        },
+        "conversation_label_added": {
+          "label": "Etiqueta de conversación agregada",
+          "hint": "Cuando se aplica una etiqueta a una conversación"
         },
         "time_based": {
           "label": "Por horario",

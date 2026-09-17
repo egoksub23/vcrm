@@ -591,6 +591,7 @@ export type AutomationTriggerType =
   | 'new_contact_created'
   | 'conversation_assigned'
   | 'tag_added'
+  | 'conversation_label_added'
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
@@ -634,6 +635,10 @@ export interface KeywordMatchTriggerConfig {
 export interface TagTriggerConfig {
   tag_id: string;
 }
+
+/** Same shape as TagTriggerConfig — kept as a distinct alias since it
+ *  scopes a different trigger (conversation_label_added, not tag_added). */
+export type ConversationLabelTriggerConfig = TagTriggerConfig;
 
 export interface TimeBasedTriggerConfig {
   /** Cron expression or simple HH:mm string; engine can accept either. */

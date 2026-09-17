@@ -170,6 +170,13 @@
       "sortByRecent": "Recent",
       "sortByPriority": "Priority",
       "clearAll": "Clear all",
+      "select": "Select",
+      "selectModeTitle": "Select conversations for a bulk action",
+      "selectedCount": "{count} selected",
+      "applyLabel": "Apply label",
+      "noLabelsAvailable": "No labels available",
+      "bulkLabelApplied": "Applied \"{label}\" to {count} conversations",
+      "bulkLabelPartialFailure": "Applied to {succeeded} of {total} conversations — some failed",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
       "unknown": "Unknown",
@@ -1008,6 +1015,10 @@
         "tag_added": {
           "label": "Tag Added",
           "hint": "When a tag is added to a contact"
+        },
+        "conversation_label_added": {
+          "label": "Conversation Label Added",
+          "hint": "When a label is applied to a conversation"
         },
         "time_based": {
           "label": "Time-Based",

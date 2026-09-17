@@ -157,6 +157,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "new_contact_created" },
   { value: "conversation_assigned" },
   { value: "tag_added" },
+  { value: "conversation_label_added" },
   { value: "time_based" },
 ]
 
@@ -1002,6 +1003,18 @@ function TriggerCard({
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Tag
+                </label>
+                <TagSelect
+                  value={(config.tag_id as string) ?? ""}
+                  onChange={(v) => onConfigChange({ ...config, tag_id: v })}
+                  t={t}
+                />
+              </div>
+            )}
+            {type === "conversation_label_added" && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Label
                 </label>
                 <TagSelect
                   value={(config.tag_id as string) ?? ""}

@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
 import {
   ConversationLabelWriteError,
-  addConversationLabelIfAbsent,
   removeConversationLabel,
 } from '@/lib/conversations/label-write';
+import { addConversationLabelAndDispatch } from '@/lib/conversations/label-events';
 
 function labelWriteErrorResponse(
   error: ConversationLabelWriteError
@@ -34,7 +34,8 @@ export async function POST(
       return NextResponse.json({ error: 'tag_id required' }, { status: 400 });
     }
 
-    const added = await addConversationLabelIfAbsent(ctx.supabase, {
+    const { added } = await addConversationLabelAndDispatch({
+      db: ctx.supabase,
       accountId: ctx.accountId,
       conversationId,
       tagId,

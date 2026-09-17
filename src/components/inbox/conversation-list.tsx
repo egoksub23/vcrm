@@ -13,9 +13,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock } from "lucide-react";
+import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { addConversationLabel } from "@/lib/conversations/label-api";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -38,6 +40,14 @@ interface ConversationListProps {
    * or the tab was throttled. Optional so existing callers keep working.
    */
   resyncToken?: number;
+  /**
+   * Optimistic-update hook, same one MessageThread's single-conversation
+   * label toggle uses (see inbox/page.tsx's handleLabelsChange) — the
+   * bulk-apply action below calls this per conversation instead of
+   * waiting on a full refetch/realtime round-trip. Optional so this
+   * stays backward-compatible for any other caller of ConversationList.
+   */
+  onLabelsChange?: (conversationId: string, labels: Conversation["labels"]) => void;
 }
 
 const STATUS_COLORS: Record<ConversationStatus, string> = {
@@ -82,6 +92,7 @@ export function ConversationList({
   conversations,
   onConversationsLoaded,
   resyncToken = 0,
+  onLabelsChange,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
   const { user, slaResponseMinutes } = useAuth();
@@ -124,6 +135,31 @@ export function ConversationList({
   // switching to "priority" doesn't change what's *shown*, only order.
   const [selectedPriority, setSelectedPriority] = useState<ConversationPriority | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("recent");
+
+  // Bulk label apply (Conversation Labels gap-analysis follow-up) — a
+  // lightweight multi-select mode scoped to the one bulk action this
+  // category actually needs today (apply a label to N conversations at
+  // once, e.g. after an incident). Bulk assign/close is a separate,
+  // not-yet-built roadmap card and intentionally out of scope here.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [applyingLabelId, setApplyingLabelId] = useState<string | null>(null);
+
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -314,6 +350,39 @@ export function ConversationList({
     selectedLabelIds.length > 0 ||
     selectedChannelType !== null ||
     selectedPriority !== null;
+
+  const handleBulkApplyLabel = useCallback(
+    async (tag: Tag) => {
+      if (selectedIds.size === 0) return;
+      setApplyingLabelId(tag.id);
+      const targetIds = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        targetIds.map((id) => addConversationLabel(id, tag.id))
+      );
+
+      let succeeded = 0;
+      results.forEach((result, i) => {
+        if (result.status !== "fulfilled") return;
+        succeeded += 1;
+        const id = targetIds[i];
+        const current = conversations.find((c) => c.id === id)?.labels ?? [];
+        if (current.some((l) => l.id === tag.id)) return;
+        onLabelsChange?.(id, [...current, tag]);
+      });
+
+      setApplyingLabelId(null);
+      if (succeeded === targetIds.length) {
+        toast.success(t("bulkLabelApplied", { count: succeeded, label: tag.name }));
+        setSelectMode(false);
+        setSelectedIds(new Set());
+      } else {
+        toast.error(
+          t("bulkLabelPartialFailure", { succeeded, total: targetIds.length })
+        );
+      }
+    },
+    [selectedIds, conversations, onLabelsChange, t]
+  );
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -692,6 +761,19 @@ export function ConversationList({
               {sortMode === "priority" ? t("sortByPriority") : t("sortByRecent")}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            title={t("selectModeTitle")}
+            className={cn(
+              "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+              selectMode ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ListChecks className="h-3 w-3 shrink-0" />
+            <span className="hidden truncate sm:inline">{t("select")}</span>
+          </button>
         </div>
 
         {hasContactFilters && (
@@ -786,6 +868,53 @@ export function ConversationList({
         )}
       </div>
 
+      {selectMode && selectedIds.size > 0 && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
+          <span className="text-xs font-medium text-foreground">
+            {t("selectedCount", { count: selectedIds.size })}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={applyingLabelId !== null}
+              className="ml-auto inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              <TagIcon className="h-3 w-3" />
+              {t("applyLabel")}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 w-56 border-border bg-popover">
+              {tags.length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("noLabelsAvailable")}</div>
+              ) : (
+                tags.map((tag) => (
+                  <DropdownMenuItem
+                    key={tag.id}
+                    onClick={() => handleBulkApplyLabel(tag)}
+                    disabled={applyingLabelId !== null}
+                    className="text-sm text-popover-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate">{tag.name}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {t("clearAll")}
+          </button>
+        </div>
+      )}
+
       {/* Conversation Items.
           `min-h-0` is load-bearing: a flex child defaults to
           min-height:auto, so without it this ScrollArea grows to fit
@@ -813,6 +942,9 @@ export function ConversationList({
                 t={t}
                 now={now}
                 slaResponseMinutes={slaResponseMinutes}
+                selectMode={selectMode}
+                selected={selectedIds.has(conv.id)}
+                onToggleSelect={toggleSelected}
               />
             ))}
           </div>
@@ -835,6 +967,11 @@ interface ConversationItemProps {
    *  is impure, and one shared interval beats one per row. */
   now: number;
   slaResponseMinutes: number;
+  /** Bulk label-apply mode (Conversation Labels follow-up) — when on,
+   *  the row toggles selection instead of opening the conversation. */
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
 function ConversationItem({
@@ -845,6 +982,9 @@ function ConversationItem({
   t,
   now,
   slaResponseMinutes,
+  selectMode,
+  selected,
+  onToggleSelect,
 }: ConversationItemProps) {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
@@ -852,8 +992,12 @@ function ConversationItem({
   const ChannelIcon = CHANNEL_ICONS[conversation.last_channel_type];
 
   const handleClick = useCallback(() => {
+    if (selectMode) {
+      onToggleSelect(conversation.id);
+      return;
+    }
     onSelect(conversation);
-  }, [onSelect, conversation]);
+  }, [selectMode, onToggleSelect, onSelect, conversation]);
 
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), {
@@ -879,9 +1023,23 @@ function ConversationItem({
       onClick={handleClick}
       className={cn(
         "flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50",
-        isActive && "border-l-2 border-primary bg-muted/70"
+        isActive && "border-l-2 border-primary bg-muted/70",
+        selectMode && selected && "bg-primary/5"
       )}
     >
+      {selectMode && (
+        <span
+          className={cn(
+            "mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+            selected
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border"
+          )}
+        >
+          {selected && <Check className="h-3 w-3" />}
+        </span>
+      )}
+
       {/* Avatar */}
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-foreground">
         {contact?.avatar_url ? (
