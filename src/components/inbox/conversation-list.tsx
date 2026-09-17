@@ -10,9 +10,10 @@ import {
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { useAuth } from "@/hooks/use-auth";
+import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown } from "lucide-react";
+import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,10 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  const { user } = useAuth();
+  const { user, slaResponseMinutes } = useAuth();
+  // One shared ticking clock for every row's aging-response chip,
+  // rather than each ConversationItem running its own interval.
+  const now = useNow(30000);
 
   const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
@@ -807,6 +811,8 @@ export function ConversationList({
                 onSelect={handleSelect}
                 team={conv.assigned_team_id ? teamsById.get(conv.assigned_team_id) : undefined}
                 t={t}
+                now={now}
+                slaResponseMinutes={slaResponseMinutes}
               />
             ))}
           </div>
@@ -824,6 +830,11 @@ interface ConversationItemProps {
    *  from its `teamsById` map so each row doesn't redo the lookup. */
   team?: Pick<Team, "id" | "name" | "color">;
   t: ReturnType<typeof useTranslations>;
+  /** Shared clock from the parent's single `useNow()` (migration 049's
+   *  aging-response chip) — reading `Date.now()` directly during render
+   *  is impure, and one shared interval beats one per row. */
+  now: number;
+  slaResponseMinutes: number;
 }
 
 function ConversationItem({
@@ -832,6 +843,8 @@ function ConversationItem({
   onSelect,
   team,
   t,
+  now,
+  slaResponseMinutes,
 }: ConversationItemProps) {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
@@ -847,6 +860,19 @@ function ConversationItem({
         addSuffix: false,
       })
     : "";
+
+  // "Aging response" indicator (migration 049) — only meaningful for a
+  // conversation that's still open/pending and genuinely waiting on us.
+  // Closed threads can carry a stale awaiting_response from before they
+  // were closed; nothing actionable to flag there.
+  const showAging =
+    conversation.awaiting_response &&
+    conversation.status !== "closed" &&
+    !!conversation.last_customer_message_at;
+  const waitingMinutes = showAging
+    ? (now - new Date(conversation.last_customer_message_at!).getTime()) / 60000
+    : 0;
+  const isBreached = showAging && waitingMinutes >= slaResponseMinutes;
 
   return (
     <button
@@ -894,6 +920,28 @@ function ConversationItem({
             {conversation.last_message_text || t("noMessagesYet")}
           </p>
           <div className="flex shrink-0 items-center gap-1.5">
+            {showAging && (
+              <span
+                className={cn(
+                  "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  isBreached
+                    ? "bg-red-500/15 text-red-500"
+                    : "bg-amber-500/15 text-amber-500",
+                )}
+                title={t("awaitingResponseSince", {
+                  time: formatDistanceToNow(
+                    new Date(conversation.last_customer_message_at!),
+                    { addSuffix: true },
+                  ),
+                })}
+              >
+                <Clock className="h-2.5 w-2.5" />
+                {formatDistanceToNow(
+                  new Date(conversation.last_customer_message_at!),
+                  { addSuffix: false },
+                )}
+              </span>
+            )}
             {conversation.unread_count > 0 && (
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                 {conversation.unread_count}

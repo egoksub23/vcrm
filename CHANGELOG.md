@@ -9,6 +9,33 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.12.0] — 2026-09-17
+
+Adds an "aging response" indicator and SLA breach alerts.
+
+> **Migration required:** apply `supabase/migrations/049_sla_response_targets.sql`.
+> Adds `accounts.sla_response_minutes` (default 30), `conversations.awaiting_response`
+> / `last_customer_message_at` / `sla_notified_at`, backfills both from existing
+> message history, extends `bump_conversation_on_inbound` to maintain them, and
+> widens `notifications.type` to include `sla_breach`. Idempotent.
+
+### Added
+
+- **Aging response indicator.** A conversation whose most recent message is
+  from the customer — and hasn't been answered yet, on either channel — now
+  shows a small "waiting" chip in the Inbox list and the thread header, with
+  elapsed time and a color that flips from amber to red once it passes the
+  account's response target. Clears the moment anyone (or any bot/automation)
+  replies.
+- **Response time setting.** Settings → Response time — a single account-wide
+  target, in minutes (default 30), admin+ to edit.
+- **SLA breach alerts.** New `GET /api/sla/cron` sweep (same
+  `AUTOMATION_CRON_SECRET` auth as the existing automation/flow cron routes —
+  point an external scheduler at it, e.g. every 5 minutes) notifies the
+  assigned agent, or every account admin/owner for an unassigned conversation,
+  once a wait exceeds the target. Notifies once per wait cycle, not on every
+  sweep run.
+
 ## [0.11.0] — 2026-09-17
 
 Merges a contact's WhatsApp and Web Widget conversations into a single

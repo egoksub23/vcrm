@@ -171,7 +171,8 @@
       "clearAll": "Limpiar todo",
       "noConversations": "No se encontraron conversaciones",
       "noMessagesYet": "Aún no hay mensajes",
-      "unknown": "Desconocido"
+      "unknown": "Desconocido",
+      "awaitingResponseSince": "Esperando respuesta — el cliente escribió {time}"
     },
     "messageThread": {
       "backToConversations": "Volver a las conversaciones",
@@ -185,6 +186,7 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web"
       },
+      "awaitingResponseSince": "Esperando respuesta — el cliente escribió {time}",
       "priority": {
         "urgent": "Urgente",
         "high": "Alta",
@@ -1964,6 +1966,19 @@
       "saving": "Guardando...",
       "saveFailed": "Error al guardar la moneda predeterminada",
       "saveSuccess": "Moneda predeterminada actualizada"
+    },
+    "responseTime": {
+      "title": "Tiempo de respuesta",
+      "description": "Cuánto tiempo tienen los agentes para responder a un cliente antes de que la bandeja de entrada lo marque como en espera.",
+      "target": "Objetivo de respuesta",
+      "targetDesc": "Las conversaciones reciben un indicador de antigüedad cuando el mensaje de un cliente lleva sin responder más de este tiempo.",
+      "minutesLabel": "Minutos",
+      "invalidMinutes": "Introduce un número entero mayor que 0.",
+      "adminOnlyHint": "Solo los administradores de la cuenta pueden cambiar el objetivo de respuesta.",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "saveFailed": "Error al guardar el objetivo de respuesta",
+      "saveSuccess": "Objetivo de respuesta actualizado"
     },
     "aiConfig": {
       "title": "Configuración del agente",

@@ -211,6 +211,14 @@ export interface Conversation {
   labels?: Tag[];
   last_message_text?: string;
   last_message_at?: string;
+  /** True from the moment a customer message arrives until the next
+   *  reply on either channel (migration 049) — drives the Inbox's
+   *  "aging response" indicator. */
+  awaiting_response: boolean;
+  /** When the customer's most recent message arrived — independent of
+   *  `last_message_at`, which reflects ANY message including our own
+   *  replies. Null for a conversation with no customer message yet. */
+  last_customer_message_at?: string | null;
   unread_count: number;
   created_at: string;
   updated_at: string;

@@ -13,6 +13,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+
+/** Fallback SLA response target (minutes) — mirrors DEFAULT_CURRENCY's
+ *  role: used while loading or when no account is resolved, migration
+ *  049's DB default is the same value. */
+const DEFAULT_SLA_MINUTES = 30;
 import {
   canEditSettings as canEditSettingsFor,
   canManageMembers as canManageMembersFor,
@@ -43,6 +48,10 @@ interface AccountSummary {
   /** Default deal currency (ISO-4217). NOT NULL DEFAULT 'USD' in the
    *  DB (migration 021); narrowed to DEFAULT_CURRENCY when absent. */
   default_currency: string;
+  /** Account-wide SLA response target, in minutes (migration 049).
+   *  NOT NULL DEFAULT 30 in the DB; narrowed to DEFAULT_SLA_MINUTES
+   *  when absent. */
+  sla_response_minutes: number;
 }
 
 /**
@@ -116,6 +125,10 @@ interface AuthContextValue {
    *  while loading or when no account is resolved, so callers can use
    *  it unconditionally. */
   defaultCurrency: string;
+  /** Account SLA response target, in minutes. Falls back to
+   *  DEFAULT_SLA_MINUTES while loading or when no account is
+   *  resolved, so callers can use it unconditionally. */
+  slaResponseMinutes: number;
   /** True if `accountRole === 'owner'`. */
   isOwner: boolean;
   /** True if `accountRole === 'admin'` (does NOT include owner — use canManageMembers for "admin or above"). */
@@ -237,9 +250,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.account_id) {
           const { data: account, error: accountErr } = await supabase
             .from("accounts")
-            // default_currency added in migration 021; narrowed to the
-            // USD fallback below for older schemas where it reads null.
-            .select("id, name, default_currency")
+            // default_currency added in migration 021, sla_response_minutes
+            // in migration 049; both narrowed to a fallback below for
+            // older schemas where they read null.
+            .select("id, name, default_currency, sla_response_minutes")
             .eq("id", data.account_id)
             .maybeSingle();
           if (accountErr) {
@@ -254,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: account.id,
               name: account.name,
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
+              sla_response_minutes: account.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
             };
           }
         }
@@ -436,6 +451,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         account,
         defaultCurrency: account?.default_currency ?? DEFAULT_CURRENCY,
+        slaResponseMinutes: account?.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
         accountStatus,
         accountStatusDetail: statusDetail,
         ...derived,
@@ -468,6 +484,7 @@ export function useAuth(): AuthContextValue {
       refreshProfile: async () => {},
       account: null,
       defaultCurrency: DEFAULT_CURRENCY,
+      slaResponseMinutes: DEFAULT_SLA_MINUTES,
       // Outside the provider there is nothing to resolve yet — 'loading'
       // keeps the access alert from firing on, say, the login page.
       accountStatus: "loading",

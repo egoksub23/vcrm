@@ -38,7 +38,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
 } from "lucide-react";
-import { format, isToday, isYesterday, differenceInHours } from "date-fns";
+import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -213,7 +213,10 @@ export function MessageThread({
   const tTimer = useTranslations("Inbox.sessionTimer");
   const tQuote = useTranslations("Inbox.replyQuote");
 
-  const { user } = useAuth();
+  const { user, slaResponseMinutes } = useAuth();
+  // `now` (a ticking clock, re-derived every RE_DERIVE_MS) already
+  // exists on usePresence for staleness checks — reused here for the
+  // aging-response indicator instead of a second interval.
   const { getPresence, getRow, now } = usePresence();
   const { teams } = useTeams();
   const { tags: allTags } = useTags();
@@ -1203,6 +1206,42 @@ export function MessageThread({
               </span>
             );
           })()}
+
+          {/* "Aging response" indicator (migration 049) — mirrors the
+              chip in conversation-list.tsx. Only meaningful for a
+              still-open/pending conversation genuinely waiting on us. */}
+          {conversation.awaiting_response &&
+            conversation.status !== "closed" &&
+            conversation.last_customer_message_at &&
+            (() => {
+              const waitingMinutes =
+                (now - new Date(conversation.last_customer_message_at!).getTime()) / 60000;
+              const isBreached = waitingMinutes >= slaResponseMinutes;
+              return (
+                <span
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                    isBreached
+                      ? "bg-red-500/15 text-red-500"
+                      : "bg-amber-500/15 text-amber-500",
+                  )}
+                  title={t("awaitingResponseSince", {
+                    time: formatDistanceToNow(
+                      new Date(conversation.last_customer_message_at!),
+                      { addSuffix: true },
+                    ),
+                  })}
+                >
+                  <Clock className="h-3 w-3" />
+                  <span className="hidden sm:inline">
+                    {formatDistanceToNow(
+                      new Date(conversation.last_customer_message_at!),
+                      { addSuffix: false },
+                    )}
+                  </span>
+                </span>
+              );
+            })()}
 
           {/* Priority dropdown — manual set; the set_priority automation
               step (migration 047) sets the same column. */}

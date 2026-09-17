@@ -264,6 +264,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
           ? (content_text ?? `[template:${input.templateName}]`)
           : input.text,
       last_message_at: new Date().toISOString(),
+      awaiting_response: false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.conversationId)

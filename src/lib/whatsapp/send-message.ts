@@ -566,6 +566,9 @@ export async function sendMessageToConversation(
       last_message_text: lastMessageText,
       last_message_at: new Date().toISOString(),
       last_channel_type: isWidgetConversation ? 'web_widget' : 'whatsapp',
+      // A reply — human, bot, or automation — closes the current wait
+      // cycle regardless of channel (migration 049).
+      awaiting_response: false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);

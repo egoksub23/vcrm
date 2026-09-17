@@ -171,7 +171,8 @@
       "clearAll": "모두 지우기",
       "noConversations": "대화를 찾을 수 없습니다",
       "noMessagesYet": "아직 메시지가 없습니다",
-      "unknown": "알 수 없음"
+      "unknown": "알 수 없음",
+      "awaitingResponseSince": "답변 대기 중 — 고객이 {time} 메시지를 보냈습니다"
     },
     "messageThread": {
       "backToConversations": "대화 목록으로 돌아가기",
@@ -185,6 +186,7 @@
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯"
       },
+      "awaitingResponseSince": "답변 대기 중 — 고객이 {time} 메시지를 보냈습니다",
       "priority": {
         "urgent": "긴급",
         "high": "높음",
@@ -1982,6 +1984,19 @@
       "saving": "저장 중...",
       "saveFailed": "기본 통화를 저장하지 못했습니다",
       "saveSuccess": "기본 통화가 업데이트되었습니다"
+    },
+    "responseTime": {
+      "title": "응답 시간",
+      "description": "고객 메시지에 답변하지 않으면 받은편지함에서 대기 중으로 표시되기까지 걸리는 시간입니다.",
+      "target": "응답 목표",
+      "targetDesc": "고객 메시지가 이 시간보다 오래 답변되지 않으면 대화에 경과 표시가 나타납니다.",
+      "minutesLabel": "분",
+      "invalidMinutes": "0보다 큰 정수를 입력하세요.",
+      "adminOnlyHint": "계정 관리자만 응답 목표를 변경할 수 있습니다.",
+      "save": "저장",
+      "saving": "저장 중...",
+      "saveFailed": "응답 목표를 저장하지 못했습니다",
+      "saveSuccess": "응답 목표가 업데이트되었습니다"
     },
     "aiConfig": {
       "title": "에이전트 설정",

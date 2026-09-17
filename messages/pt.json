@@ -171,7 +171,8 @@
       "clearAll": "Limpar tudo",
       "noConversations": "Nenhuma conversa encontrada",
       "noMessagesYet": "Nenhuma mensagem ainda",
-      "unknown": "Desconhecido"
+      "unknown": "Desconhecido",
+      "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}"
     },
     "messageThread": {
       "backToConversations": "Voltar às conversas",
@@ -185,6 +186,7 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web"
       },
+      "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}",
       "priority": {
         "urgent": "Urgente",
         "high": "Alta",
@@ -1964,6 +1966,19 @@
       "saving": "Salvando...",
       "saveFailed": "Falha ao salvar a moeda padrão",
       "saveSuccess": "Moeda padrão atualizada"
+    },
+    "responseTime": {
+      "title": "Tempo de resposta",
+      "description": "Quanto tempo os agentes têm para responder a um cliente antes de a Caixa de entrada marcar a conversa como em espera.",
+      "target": "Meta de resposta",
+      "targetDesc": "As conversas recebem um indicador de tempo de espera quando a mensagem de um cliente fica sem resposta por mais tempo do que este.",
+      "minutesLabel": "Minutos",
+      "invalidMinutes": "Informe um número inteiro maior que 0.",
+      "adminOnlyHint": "Somente administradores da conta podem alterar a meta de resposta.",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "saveFailed": "Falha ao salvar a meta de resposta",
+      "saveSuccess": "Meta de resposta atualizada"
     },
     "aiConfig": {
       "title": "Configuração do agente",

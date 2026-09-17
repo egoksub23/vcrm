@@ -16,6 +16,7 @@ import { TemplateManager } from '@/components/settings/template-manager';
 import { QuickRepliesManager } from '@/components/settings/quick-replies-manager';
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
 import { DealsSettings } from '@/components/settings/deals-settings';
+import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
 import { MembersTab } from '@/components/settings/members-tab';
 import { TeamsTab } from '@/components/settings/teams-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
@@ -43,7 +44,7 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency } = useAuth();
+  const { defaultCurrency, slaResponseMinutes } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
@@ -66,8 +67,9 @@ function SettingsPageInner() {
     () => ({
       appearance: mode.charAt(0).toUpperCase() + mode.slice(1),
       deals: defaultCurrency,
+      'response-time': `${slaResponseMinutes} min`,
     }),
-    [mode, defaultCurrency],
+    [mode, defaultCurrency, slaResponseMinutes],
   );
 
   const panel: Record<SettingsSection, ReactNode> = {
@@ -80,6 +82,7 @@ function SettingsPageInner() {
     'quick-replies': <QuickRepliesManager />,
     fields: <FieldsAndTagsPanel />,
     deals: <DealsSettings />,
+    'response-time': <ResponseTimeSettings />,
     members: <MembersTab />,
     teams: <TeamsTab />,
     api: <ApiKeysSettings />,

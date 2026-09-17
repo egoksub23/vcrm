@@ -171,7 +171,8 @@
       "clearAll": "Clear all",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "awaitingResponseSince": "Awaiting a reply — customer messaged {time}"
     },
     "messageThread": {
       "backToConversations": "Back to conversations",
@@ -185,6 +186,7 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget"
       },
+      "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "priority": {
         "urgent": "Urgent",
         "high": "High",
@@ -1982,6 +1984,19 @@
       "saving": "Saving...",
       "saveFailed": "Failed to save default currency",
       "saveSuccess": "Default currency updated"
+    },
+    "responseTime": {
+      "title": "Response time",
+      "description": "How long agents have to reply to a customer before the Inbox flags it as waiting.",
+      "target": "Response target",
+      "targetDesc": "Conversations get an aging indicator once a customer's message has gone unanswered longer than this.",
+      "minutesLabel": "Minutes",
+      "invalidMinutes": "Enter a whole number greater than 0.",
+      "adminOnlyHint": "Only account admins can change the response target.",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveFailed": "Failed to save the response target",
+      "saveSuccess": "Response target updated"
     },
     "aiConfig": {
       "title": "Agent setup",
