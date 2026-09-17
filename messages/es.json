@@ -1124,8 +1124,10 @@
         "modeLabel": "Modo",
         "modes": {
           "round_robin": "Rotativo",
+          "least_loaded": "Menor carga",
           "specific": "Agente específico"
         },
+        "onlineOnlyLabel": "Asignar solo a agentes que estén conectados ahora",
         "agentLabel": "Agente",
         "teamLabel": "Equipo",
         "fieldLabel": "Campo",

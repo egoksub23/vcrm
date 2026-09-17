@@ -1130,8 +1130,10 @@
         "modeLabel": "모드",
         "modes": {
           "round_robin": "순차 배정",
+          "least_loaded": "부하가 가장 적은 상담원",
           "specific": "특정 상담원"
         },
+        "onlineOnlyLabel": "현재 온라인 상태인 상담원에게만 배정",
         "agentLabel": "상담원",
         "teamLabel": "팀",
         "fieldLabel": "필드",

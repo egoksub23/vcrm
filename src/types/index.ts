@@ -726,17 +726,30 @@ export interface TagStepConfig {
 }
 
 export interface AssignConversationStepConfig {
-  mode: 'specific' | 'round_robin';
+  /** 'least_loaded' claims the agent+ profile with the fewest currently
+   *  open conversations (`pick_least_loaded_agent`) — the same shape as
+   *  'round_robin' but load-aware instead of rotation-based. */
+  mode: 'specific' | 'round_robin' | 'least_loaded';
   agent_id?: string;
+  /** Skip agents who aren't currently online (migration 053) — 'away'
+   *  and 'offline' are both excluded, not just 'offline', since the
+   *  point is "won't see this conversation soon". Ignored when
+   *  mode is 'specific'. Defaults to false. */
+  online_only?: boolean;
 }
 
 export interface AssignToTeamStepConfig {
   team_id: string;
   /** 'specific' pins to `agent_id` (validated to be a team member at
    *  run time); 'round_robin' claims the team's next-up member via
-   *  `pick_team_round_robin_member`. */
-  mode: 'specific' | 'round_robin';
+   *  `pick_team_round_robin_member`; 'least_loaded' claims the team
+   *  member with the fewest open conversations via
+   *  `pick_least_loaded_team_member`. */
+  mode: 'specific' | 'round_robin' | 'least_loaded';
   agent_id?: string;
+  /** Same online-only gate as AssignConversationStepConfig, scoped to
+   *  the team's own members. Ignored when mode is 'specific'. */
+  online_only?: boolean;
 }
 
 export interface UpdateContactFieldStepConfig {

@@ -6,6 +6,8 @@ const h = vi.hoisted(() => ({
   state: {
     owned: null as { id: string } | null,
     ownedCustomField: null as { id: string } | null,
+    team: null as { id: string } | null,
+    teamMembership: null as { user_id: string } | null,
     conversationChannelType: "whatsapp" as string,
     automations: [] as Record<string, unknown>[],
     steps: [] as Record<string, unknown>[],
@@ -14,6 +16,8 @@ const h = vi.hoisted(() => ({
     upsertCalls: [] as { table: string; payload: unknown }[],
     logInserts: [] as Record<string, unknown>[],
     logUpdates: [] as Record<string, unknown>[],
+    rpcCalls: [] as { name: string; args: unknown }[],
+    rpcResults: {} as Record<string, unknown>,
   },
 }));
 
@@ -36,7 +40,17 @@ vi.mock("./admin-client", () => {
       return { data: state.owned, error: null };
     }
     if (table === "conversations") {
+      if (type === "update") {
+        state.updateCalls.push({ table, filters: ops.filters });
+        return { data: null, error: null };
+      }
       return { data: { last_channel_type: state.conversationChannelType }, error: null };
+    }
+    if (table === "teams") {
+      return { data: state.team, error: null };
+    }
+    if (table === "team_members") {
+      return { data: state.teamMembership, error: null };
     }
     if (table === "custom_fields") {
       // account-scoped ownership lookup for a custom field definition
@@ -97,7 +111,10 @@ vi.mock("./admin-client", () => {
         state.fromCalls.push(t);
         return builder(t);
       },
-      rpc: () => Promise.resolve({ error: null }),
+      rpc: (name: string, args: unknown) => {
+        state.rpcCalls.push({ name, args });
+        return Promise.resolve({ data: state.rpcResults[name] ?? null, error: null });
+      },
     }),
   };
 });
@@ -116,6 +133,8 @@ const ACCOUNT = "acct-1";
 beforeEach(() => {
   h.state.owned = null;
   h.state.ownedCustomField = null;
+  h.state.team = null;
+  h.state.teamMembership = null;
   h.state.conversationChannelType = "whatsapp";
   h.state.automations = [];
   h.state.steps = [];
@@ -124,6 +143,8 @@ beforeEach(() => {
   h.state.upsertCalls = [];
   h.state.logInserts = [];
   h.state.logUpdates = [];
+  h.state.rpcCalls = [];
+  h.state.rpcResults = {};
 });
 
 describe("runAutomationsForTrigger — tenant isolation", () => {
@@ -626,6 +647,158 @@ describe("close_conversation step", () => {
       status: "success",
       steps_executed: [
         expect.objectContaining({ step_id: "s1", status: "success", detail: "conversation closed" }),
+      ],
+    }));
+  });
+});
+
+describe("assign_conversation step — least_loaded / online_only", () => {
+  it("least_loaded calls pick_least_loaded_agent and forwards online_only", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.rpcResults.pick_least_loaded_agent = "agent-2";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "assign",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "assign_conversation",
+      position: 0,
+      parent_step_id: null,
+      step_config: { mode: "least_loaded", online_only: true },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "hi" },
+    });
+
+    const call = h.state.rpcCalls.find((c) => c.name === "pick_least_loaded_agent");
+    expect(call?.args).toMatchObject({ p_account_id: ACCOUNT, p_online_only: true });
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      status: "success",
+      steps_executed: [
+        expect.objectContaining({ step_id: "s1", status: "success", detail: "assigned to agent-2" }),
+      ],
+    }));
+  });
+
+  it("round_robin defaults online_only to false when not set", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.rpcResults.pick_round_robin_agent = "agent-1";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "assign",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "assign_conversation",
+      position: 0,
+      parent_step_id: null,
+      step_config: { mode: "round_robin" },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "hi" },
+    });
+
+    const call = h.state.rpcCalls.find((c) => c.name === "pick_round_robin_agent");
+    expect(call?.args).toMatchObject({ p_account_id: ACCOUNT, p_online_only: false });
+  });
+
+  it("returns 'no agent resolved' when the online-only pool is empty", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.rpcResults.pick_least_loaded_agent = null;
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "assign",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "assign_conversation",
+      position: 0,
+      parent_step_id: null,
+      step_config: { mode: "least_loaded", online_only: true },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "hi" },
+    });
+
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      steps_executed: [
+        expect.objectContaining({ step_id: "s1", detail: "no agent resolved" }),
+      ],
+    }));
+  });
+});
+
+describe("assign_to_team step — least_loaded / online_only", () => {
+  it("least_loaded calls pick_least_loaded_team_member and forwards online_only", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.team = { id: "team-1" };
+    h.state.rpcResults.pick_least_loaded_team_member = "agent-3";
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "assign-team",
+      trigger_type: "new_message_received",
+      trigger_config: {},
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "assign_to_team",
+      position: 0,
+      parent_step_id: null,
+      step_config: { team_id: "team-1", mode: "least_loaded", online_only: true },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "hi" },
+    });
+
+    const call = h.state.rpcCalls.find((c) => c.name === "pick_least_loaded_team_member");
+    expect(call?.args).toMatchObject({ p_team_id: "team-1", p_online_only: true });
+    expect(h.state.logUpdates).toContainEqual(expect.objectContaining({
+      status: "success",
+      steps_executed: [
+        expect.objectContaining({
+          step_id: "s1",
+          status: "success",
+          detail: "assigned to team team-1 (agent agent-3)",
+        }),
       ],
     }));
   });

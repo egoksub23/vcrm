@@ -1130,8 +1130,10 @@
         "modeLabel": "Mode",
         "modes": {
           "round_robin": "Round-robin",
+          "least_loaded": "Least loaded",
           "specific": "Specific agent"
         },
+        "onlineOnlyLabel": "Only assign to agents who are currently online",
         "agentLabel": "Agent",
         "teamLabel": "Team",
         "fieldLabel": "Field",

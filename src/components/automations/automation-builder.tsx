@@ -1516,10 +1516,11 @@ function StepEditor({
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
               <option value="round_robin">{t("config.modes.round_robin")}</option>
+              <option value="least_loaded">{t("config.modes.least_loaded")}</option>
               <option value="specific">{t("config.modes.specific")}</option>
             </select>
           </FieldBlock>
-          {cfg.mode === "specific" && (
+          {cfg.mode === "specific" ? (
             <FieldBlock label={t("config.agentLabel")}>
               <AgentSelect
                 value={(cfg.agent_id as string) ?? ""}
@@ -1527,6 +1528,12 @@ function StepEditor({
                 t={t}
               />
             </FieldBlock>
+          ) : (
+            <OnlineOnlyCheckbox
+              checked={(cfg.online_only as boolean) ?? false}
+              onChange={(v) => set({ online_only: v })}
+              t={t}
+            />
           )}
         </>
       )
@@ -1547,10 +1554,11 @@ function StepEditor({
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
               <option value="round_robin">{t("config.modes.round_robin")}</option>
+              <option value="least_loaded">{t("config.modes.least_loaded")}</option>
               <option value="specific">{t("config.modes.specific")}</option>
             </select>
           </FieldBlock>
-          {cfg.mode === "specific" && (
+          {cfg.mode === "specific" ? (
             <FieldBlock label={t("config.agentLabel")}>
               <TeamAgentSelect
                 teamId={(cfg.team_id as string) ?? ""}
@@ -1559,6 +1567,12 @@ function StepEditor({
                 t={t}
               />
             </FieldBlock>
+          ) : (
+            <OnlineOnlyCheckbox
+              checked={(cfg.online_only as boolean) ?? false}
+              onChange={(v) => set({ online_only: v })}
+              t={t}
+            />
           )}
         </>
       )
@@ -1747,6 +1761,31 @@ function FieldBlock({
       <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
+  )
+}
+
+/** Shared "skip offline agents" toggle for assign_conversation /
+ *  assign_to_team's round_robin and least_loaded modes (migration 053).
+ *  Not shown for 'specific' mode — there's no pool to filter. */
+function OnlineOnlyCheckbox({
+  checked,
+  onChange,
+  t,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  return (
+    <label className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-3.5 w-3.5"
+      />
+      {t("config.onlineOnlyLabel")}
+    </label>
   )
 }
 

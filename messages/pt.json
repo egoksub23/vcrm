@@ -1124,8 +1124,10 @@
         "modeLabel": "Modo",
         "modes": {
           "round_robin": "Rodízio",
+          "least_loaded": "Menor carga",
           "specific": "Agente específico"
         },
+        "onlineOnlyLabel": "Atribuir apenas a agentes que estão online no momento",
         "agentLabel": "Agente",
         "teamLabel": "Equipe",
         "fieldLabel": "Campo",

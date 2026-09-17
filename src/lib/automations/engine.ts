@@ -561,8 +561,20 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         // the same "oldest" row.
         const { data, error } = await db.rpc('pick_round_robin_agent', {
           p_account_id: args.automation.account_id,
+          p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`round-robin pick failed: ${error.message}`)
+        agentId = data ?? undefined
+      } else if (cfg.mode === 'least_loaded') {
+        // Picks the agent+ profile with the fewest open conversations
+        // right now — see `pick_least_loaded_agent` in migration 053.
+        // Read-only (doesn't touch last_assigned_at), so it stays fully
+        // independent of the round-robin rotation cursor above.
+        const { data, error } = await db.rpc('pick_least_loaded_agent', {
+          p_account_id: args.automation.account_id,
+          p_online_only: cfg.online_only ?? false,
+        })
+        if (error) throw new Error(`least-loaded pick failed: ${error.message}`)
         agentId = data ?? undefined
       }
       if (!agentId) return 'no agent resolved'
@@ -596,8 +608,19 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         // account-wide round-robin used by plain `assign_conversation`.
         const { data, error } = await db.rpc('pick_team_round_robin_member', {
           p_team_id: cfg.team_id,
+          p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`team round-robin pick failed: ${error.message}`)
+        agentId = data ?? undefined
+        if (!agentId) return `team ${cfg.team_id} has no members`
+      } else if (cfg.mode === 'least_loaded') {
+        // Picks the team member with the fewest open conversations right
+        // now — see `pick_least_loaded_team_member` in migration 053.
+        const { data, error } = await db.rpc('pick_least_loaded_team_member', {
+          p_team_id: cfg.team_id,
+          p_online_only: cfg.online_only ?? false,
+        })
+        if (error) throw new Error(`team least-loaded pick failed: ${error.message}`)
         agentId = data ?? undefined
         if (!agentId) return `team ${cfg.team_id} has no members`
       } else {
