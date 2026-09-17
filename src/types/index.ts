@@ -581,6 +581,34 @@ export interface TeamMember {
 }
 
 // ============================================================
+// Inbox Views (migration 051)
+// ============================================================
+
+/** Schemaless on purpose (stored as JSONB) — mirrors ConversationList's
+ *  own filter state so a new filter there never needs a migration here. */
+export interface InboxViewFilterConfig {
+  filter?: string;
+  tagIds?: string[];
+  company?: string | null;
+  teamId?: string | null;
+  labelIds?: string[];
+  channelType?: ChannelType | null;
+  priority?: ConversationPriority | null;
+  sortMode?: string;
+}
+
+export interface InboxView {
+  id: string;
+  account_id: string;
+  /** NULL = shared with the whole account; otherwise personal to this user. */
+  owner_id: string | null;
+  name: string;
+  filter_config: InboxViewFilterConfig;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
 // Automations (migration 006)
 // ============================================================
 

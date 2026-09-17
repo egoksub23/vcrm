@@ -11,9 +11,10 @@ import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { useAuth } from "@/hooks/use-auth";
 import { useNow } from "@/hooks/use-now";
+import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
-import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check } from "lucide-react";
+import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
+import { Search, ChevronDown, X, MessageCircle, Globe, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addConversationLabel } from "@/lib/conversations/label-api";
+import { createInboxView, deleteInboxView } from "@/lib/inbox/views-api";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -95,7 +97,7 @@ export function ConversationList({
   onLabelsChange,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  const { user, slaResponseMinutes } = useAuth();
+  const { user, slaResponseMinutes, canEditSettings } = useAuth();
   // One shared ticking clock for every row's aging-response chip,
   // rather than each ConversationItem running its own interval.
   const now = useNow(30000);
@@ -160,6 +162,86 @@ export function ConversationList({
   }, []);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // Saved inbox views (P1 gap-analysis item) — persists the filter
+  // combination above as a named, re-selectable view instead of it
+  // resetting every session.
+  const { views, loading: viewsLoading, refetch: refetchViews } = useInboxViews();
+  const canSaveShared = canEditSettings;
+  const [showSaveViewForm, setShowSaveViewForm] = useState(false);
+  const [saveViewName, setSaveViewName] = useState("");
+  const [saveViewShared, setSaveViewShared] = useState(false);
+  const [savingView, setSavingView] = useState(false);
+
+  const applyView = useCallback((view: InboxView) => {
+    const cfg = view.filter_config ?? {};
+    setFilter((cfg.filter as InboxFilter) ?? "all");
+    setSelectedTagIds(cfg.tagIds ?? []);
+    setSelectedCompany(cfg.company ?? null);
+    setSelectedTeamId(cfg.teamId ?? null);
+    setSelectedLabelIds(cfg.labelIds ?? []);
+    setSelectedChannelType(cfg.channelType ?? null);
+    setSelectedPriority(cfg.priority ?? null);
+    setSortMode((cfg.sortMode as SortMode) ?? "recent");
+  }, []);
+
+  const handleSaveView = useCallback(async () => {
+    const name = saveViewName.trim();
+    if (!name) return;
+    setSavingView(true);
+    try {
+      await createInboxView({
+        name,
+        filterConfig: {
+          filter,
+          tagIds: selectedTagIds,
+          company: selectedCompany,
+          teamId: selectedTeamId,
+          labelIds: selectedLabelIds,
+          channelType: selectedChannelType,
+          priority: selectedPriority,
+          sortMode,
+        },
+        shared: saveViewShared,
+      });
+      refetchViews();
+      setShowSaveViewForm(false);
+      setSaveViewName("");
+      setSaveViewShared(false);
+      toast.success(t("viewSaved", { name }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("viewSaveFailed"));
+    } finally {
+      setSavingView(false);
+    }
+  }, [
+    saveViewName,
+    saveViewShared,
+    filter,
+    selectedTagIds,
+    selectedCompany,
+    selectedTeamId,
+    selectedLabelIds,
+    selectedChannelType,
+    selectedPriority,
+    sortMode,
+    refetchViews,
+    t,
+  ]);
+
+  const handleDeleteView = useCallback(
+    async (view: InboxView, e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await deleteInboxView(view.id);
+        refetchViews();
+        toast.success(t("viewDeleted", { name: view.name }));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("viewDeleteFailed"));
+      }
+    },
+    [refetchViews, t]
+  );
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -418,6 +500,94 @@ export function ConversationList({
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowSaveViewForm(false);
+                setSaveViewName("");
+                setSaveViewShared(false);
+              }
+            }}
+          >
+            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
+              <Bookmark className="h-3 w-3" />
+              {t("views")}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64 border-border bg-popover">
+              {viewsLoading ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("loading")}</div>
+              ) : views.length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("noSavedViews")}</div>
+              ) : (
+                views.map((view) => (
+                  <DropdownMenuItem
+                    key={view.id}
+                    onClick={() => applyView(view)}
+                    className="group flex items-center justify-between text-sm text-popover-foreground"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {view.owner_id === null && (
+                        <Users className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={t("shared")} />
+                      )}
+                      <span className="truncate">{view.name}</span>
+                    </span>
+                    {(view.owner_id === user?.id || (view.owner_id === null && canSaveShared)) && (
+                      <button
+                        onClick={(e) => handleDeleteView(view, e)}
+                        className="ml-2 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 hover:text-red-500 group-hover:opacity-100"
+                        title={t("deleteView")}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </DropdownMenuItem>
+                ))
+              )}
+              <div className="border-t border-border p-2">
+                {showSaveViewForm ? (
+                  <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      autoFocus
+                      value={saveViewName}
+                      onChange={(e) => setSaveViewName(e.target.value)}
+                      placeholder={t("viewNamePlaceholder")}
+                      className="h-7 border-border bg-muted text-xs text-foreground"
+                    />
+                    {canSaveShared && (
+                      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={saveViewShared}
+                          onChange={(e) => setSaveViewShared(e.target.checked)}
+                          className="h-3 w-3"
+                        />
+                        {t("shareWithTeam")}
+                      </label>
+                    )}
+                    <button
+                      onClick={handleSaveView}
+                      disabled={savingView || !saveViewName.trim()}
+                      className="w-full rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {t("save")}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSaveViewForm(true);
+                    }}
+                    className="w-full rounded-md px-2 py-1 text-left text-xs text-primary hover:bg-muted"
+                  >
+                    {t("saveCurrentView")}
+                  </button>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
                 {activeFilter?.label ?? t("filterAll")}
