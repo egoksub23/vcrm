@@ -132,6 +132,11 @@ export interface Contact {
    *  matching; phone stays the sole identity key. */
   wallet_id?: string | null;
   name?: string;
+  /** Not new — this pre-existing CRM field also doubles as the Email
+   *  channel's identity key (migration 056): inbound mail is matched
+   *  case-insensitively against it. See migration 056's header for why
+   *  there's no dedicated `email_*_id` column and no uniqueness
+   *  constraint here, unlike `messenger_psid`/`instagram_igsid`. */
   email?: string;
   company?: string;
   avatar_url?: string;
@@ -203,11 +208,12 @@ export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
  *  migration 046 as a whole-conversation property, then moved down to
  *  the message level in migration 048 once a single conversation could
  *  span both channels (WhatsApp + Web Widget merged by contact).
- *  Messenger and Instagram added in migration 055.
+ *  Messenger and Instagram added in migration 055; Email (Microsoft 365
+ *  / Outlook, via Microsoft Graph) added in migration 056.
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
  *  automation engine's per-step channel guards. */
-export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram';
+export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email';
 
 export interface Conversation {
   id: string;
@@ -443,6 +449,18 @@ export type MessengerConnectionStatus = MetaChannelConnectionStatus;
 
 export interface InstagramConnectionStatus extends MetaChannelConnectionStatus {
   ig_username?: string | null;
+}
+
+/** Email (Microsoft 365) channel connection status — migration 056.
+ *  Not a `MetaChannelConnectionStatus` extension: it's a Microsoft
+ *  Graph connection, not a Meta one, and shows a mailbox address
+ *  rather than a Page/IG name. */
+export interface EmailConnectionStatus {
+  connected: boolean;
+  mailbox_address?: string | null;
+  connected_at?: string | null;
+  needs_reauth: boolean;
+  status: 'connected' | 'disconnected' | 'error';
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

@@ -161,7 +161,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "이메일"
       },
       "allPriorities": "모든 우선순위",
       "priority": {
@@ -211,7 +212,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "이메일"
       },
       "awaitingResponseSince": "답변 대기 중 — 고객이 {time} 메시지를 보냈습니다",
       "priority": {
@@ -1923,6 +1925,27 @@
           "no_ig_account": "선택한 페이지에 연결된 Instagram 프로페셔널 계정이 없습니다.",
           "denied": "Facebook 연결이 취소되었습니다.",
           "unknown": "Instagram 연결 중 문제가 발생했습니다. 다시 시도해 주세요."
+        }
+      },
+      "email": {
+        "title": "이메일",
+        "description": "받은편지함에서 이메일을 주고받으려면 Microsoft 365 또는 Outlook 메일함을 연결하세요.",
+        "notConnected": "아직 연결된 메일함이 없습니다.",
+        "connectButton": "Microsoft 365 연결",
+        "connectedAs": "연결됨 — {mailbox}",
+        "connectedAtLabel": "연결일",
+        "disconnect": "연결 해제",
+        "disconnectConfirmDescription": "이 메일함 연결을 해제하시겠습니까? 다시 연결할 때까지 이메일 대화 동기화가 중지됩니다.",
+        "disconnectFailed": "이메일 연결 해제에 실패했습니다",
+        "disconnected": "이메일 연결이 해제되었습니다",
+        "connected": "이메일이 연결되었습니다",
+        "connectFailed": "이메일 연결에 실패했습니다",
+        "reauthBanner": "Microsoft 액세스가 만료되었거나 취소되어 이메일을 다시 연결해야 합니다.",
+        "reauthButton": "다시 연결",
+        "oauthError": {
+          "invalid_state": "연결 요청이 만료되었거나 유효하지 않습니다. 다시 연결해 보세요.",
+          "denied": "Microsoft 로그인이 취소되었습니다.",
+          "unknown": "Microsoft 365 연결 중 문제가 발생했습니다. 다시 시도해 주세요."
         }
       }
     },

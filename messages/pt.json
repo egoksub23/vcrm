@@ -161,7 +161,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "E-mail"
       },
       "allPriorities": "Todas as prioridades",
       "priority": {
@@ -211,7 +212,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "E-mail"
       },
       "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}",
       "priority": {
@@ -1907,6 +1909,27 @@
           "no_ig_account": "A Página selecionada não tem uma conta profissional do Instagram vinculada.",
           "denied": "A conexão com o Facebook foi cancelada.",
           "unknown": "Algo deu errado ao conectar com o Instagram. Tente novamente."
+        }
+      },
+      "email": {
+        "title": "E-mail",
+        "description": "Conecte uma caixa de entrada do Microsoft 365 ou Outlook para enviar e receber e-mails pela sua Caixa de entrada.",
+        "notConnected": "Ainda não há nenhuma caixa de entrada conectada.",
+        "connectButton": "Conectar Microsoft 365",
+        "connectedAs": "Conectado — {mailbox}",
+        "connectedAtLabel": "Conectado",
+        "disconnect": "Desconectar",
+        "disconnectConfirmDescription": "Desconectar esta caixa de entrada? As conversas por e-mail deixarão de sincronizar até você reconectar.",
+        "disconnectFailed": "Falha ao desconectar o e-mail",
+        "disconnected": "E-mail desconectado",
+        "connected": "E-mail conectado",
+        "connectFailed": "Falha ao conectar o e-mail",
+        "reauthBanner": "O e-mail precisa ser reconectado — seu acesso à Microsoft expirou ou foi revogado.",
+        "reauthButton": "Reconectar",
+        "oauthError": {
+          "invalid_state": "A solicitação de conexão expirou ou era inválida. Tente conectar novamente.",
+          "denied": "O login da Microsoft foi cancelado.",
+          "unknown": "Algo deu errado ao conectar com o Microsoft 365. Tente novamente."
         }
       }
     },

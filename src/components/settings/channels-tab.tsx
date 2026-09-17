@@ -18,6 +18,7 @@ import { WhatsAppConfig } from './channels/whatsapp-channel';
 import { WebWidgetChannel } from './channels/web-widget-channel';
 import { MessengerChannel } from './channels/messenger-channel';
 import { InstagramChannel } from './channels/instagram-channel';
+import { EmailChannel } from './channels/email-channel';
 
 type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email' | 'sms';
 
@@ -32,7 +33,7 @@ const CHANNELS: ChannelEntry[] = [
   { id: 'web_widget', icon: Globe },
   { id: 'instagram', icon: Camera },
   { id: 'messenger', icon: Send },
-  { id: 'email', icon: Mail, comingSoon: true },
+  { id: 'email', icon: Mail },
   { id: 'sms', icon: MessageSquareText, comingSoon: true },
 ];
 
@@ -99,7 +100,8 @@ export function ChannelsTab() {
       {active === 'web_widget' ? <WebWidgetChannel /> : null}
       {active === 'messenger' ? <MessengerChannel /> : null}
       {active === 'instagram' ? <InstagramChannel /> : null}
-      {active === 'email' || active === 'sms' ? (
+      {active === 'email' ? <EmailChannel /> : null}
+      {active === 'sms' ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <p className="text-sm font-medium text-foreground">
             {t('comingSoonTitle', { channel: t(`names.${active}`) })}

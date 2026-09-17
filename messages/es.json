@@ -161,7 +161,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "Correo electrónico"
       },
       "allPriorities": "Todas las prioridades",
       "priority": {
@@ -211,7 +212,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "Correo electrónico"
       },
       "awaitingResponseSince": "Esperando respuesta — el cliente escribió {time}",
       "priority": {
@@ -1907,6 +1909,27 @@
           "no_ig_account": "La página seleccionada no tiene una cuenta profesional de Instagram vinculada.",
           "denied": "Se canceló la conexión con Facebook.",
           "unknown": "Ocurrió un error al conectar con Instagram. Intenta de nuevo."
+        }
+      },
+      "email": {
+        "title": "Correo electrónico",
+        "description": "Conecta un buzón de Microsoft 365 u Outlook para enviar y recibir correos desde tu bandeja de entrada.",
+        "notConnected": "Aún no hay ningún buzón conectado.",
+        "connectButton": "Conectar Microsoft 365",
+        "connectedAs": "Conectado — {mailbox}",
+        "connectedAtLabel": "Conectado",
+        "disconnect": "Desconectar",
+        "disconnectConfirmDescription": "¿Desconectar este buzón? Las conversaciones por correo dejarán de sincronizarse hasta que vuelvas a conectarlo.",
+        "disconnectFailed": "No se pudo desconectar el correo",
+        "disconnected": "Correo desconectado",
+        "connected": "Correo conectado",
+        "connectFailed": "No se pudo conectar el correo",
+        "reauthBanner": "El correo necesita reconectarse — tu acceso de Microsoft expiró o fue revocado.",
+        "reauthButton": "Reconectar",
+        "oauthError": {
+          "invalid_state": "La solicitud de conexión expiró o no era válida. Intenta conectar de nuevo.",
+          "denied": "Se canceló el inicio de sesión de Microsoft.",
+          "unknown": "Ocurrió un error al conectar con Microsoft 365. Intenta de nuevo."
         }
       }
     },

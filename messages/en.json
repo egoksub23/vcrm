@@ -161,7 +161,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "Email"
       },
       "allPriorities": "All priorities",
       "priority": {
@@ -211,7 +212,8 @@
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget",
         "messenger": "Messenger",
-        "instagram": "Instagram"
+        "instagram": "Instagram",
+        "email": "Email"
       },
       "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "priority": {
@@ -1923,6 +1925,27 @@
           "no_ig_account": "The selected Page has no linked Instagram professional account.",
           "denied": "Facebook connection was cancelled.",
           "unknown": "Something went wrong connecting to Instagram. Try again."
+        }
+      },
+      "email": {
+        "title": "Email",
+        "description": "Connect a Microsoft 365 or Outlook mailbox to send and receive email from your Inbox.",
+        "notConnected": "No mailbox connected yet.",
+        "connectButton": "Connect Microsoft 365",
+        "connectedAs": "Connected — {mailbox}",
+        "connectedAtLabel": "Connected",
+        "disconnect": "Disconnect",
+        "disconnectConfirmDescription": "Disconnect this mailbox? Email conversations will stop syncing until you reconnect.",
+        "disconnectFailed": "Failed to disconnect Email",
+        "disconnected": "Email disconnected",
+        "connected": "Email connected",
+        "connectFailed": "Failed to connect Email",
+        "reauthBanner": "Email needs to be reconnected — your Microsoft access has expired or was revoked.",
+        "reauthButton": "Reconnect",
+        "oauthError": {
+          "invalid_state": "The connection request expired or was invalid. Try connecting again.",
+          "denied": "Microsoft sign-in was cancelled.",
+          "unknown": "Something went wrong connecting to Microsoft 365. Try again."
         }
       }
     },

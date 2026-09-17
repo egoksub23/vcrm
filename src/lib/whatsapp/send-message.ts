@@ -50,6 +50,9 @@ import {
 import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '@/lib/messenger/meta-api';
 import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
 import { MetaApiError } from '@/lib/meta/errors';
+import { getValidAccessToken } from '@/lib/ms365/token';
+import { sendNewMail, sendReplyText, sendReplyWithAttachment } from '@/lib/ms365/mail-api';
+import { GraphApiError } from '@/lib/ms365/errors';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -277,15 +280,16 @@ export async function sendMessageToConversation(
     );
   }
 
-  // Messenger/Instagram support text + media, but neither has anything
-  // resembling WhatsApp's pre-approved HSM template system or its
-  // interactive buttons/lists (see the automation engine's
-  // assertWhatsappChannel for the same scope decision on the
+  // Messenger/Instagram/Email support text + media, but none of them
+  // have anything resembling WhatsApp's pre-approved HSM template
+  // system or its interactive buttons/lists (see the automation
+  // engine's assertWhatsappChannel for the same scope decision on the
   // automation-step side).
   const isMessengerConversation = channel === 'messenger';
   const isInstagramConversation = channel === 'instagram';
+  const isEmailConversation = channel === 'email';
   if (
-    (isMessengerConversation || isInstagramConversation) &&
+    (isMessengerConversation || isInstagramConversation || isEmailConversation) &&
     messageType !== 'text' &&
     !isMediaKind
   ) {
@@ -617,6 +621,87 @@ export async function sendMessageToConversation(
       const message = err instanceof Error ? err.message : 'Unknown Instagram API error';
       console.error('[send-message] Instagram send failed:', message);
       throw new SendMessageError('meta_error', `Instagram API error: ${message}`, 502);
+    }
+  }
+
+  // Email send — via the connected Microsoft 365 mailbox. Threads as a
+  // real reply (POST /messages/{id}/reply) when there's a prior inbound
+  // message from this contact to reply to; otherwise a fresh
+  // POST /me/sendMail, same "first outbound has nothing to reply to"
+  // case Messenger/Instagram don't have (every send there targets an
+  // opaque PSID/IGSID, not an address a mail client would thread on).
+  if (isEmailConversation) {
+    if (!contact.email) {
+      throw new SendMessageError('bad_request', 'Contact has no email address', 400);
+    }
+    const { data: cfg, error: cfgError } = await db
+      .from('email_config')
+      .select('*')
+      .eq('account_id', accountId)
+      .single();
+    if (cfgError || !cfg) {
+      throw new SendMessageError(
+        'email_not_configured',
+        'Email is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    try {
+      const accessToken = await getValidAccessToken(cfg);
+
+      const { data: lastInbound } = await db
+        .from('messages')
+        .select('message_id')
+        .eq('conversation_id', conversationId)
+        .eq('sender_type', 'customer')
+        .eq('channel_type', 'email')
+        .not('message_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const replyToMessageId = lastInbound?.message_id as string | undefined;
+
+      let attachment: { name: string; contentType: string; contentBytesBase64: string } | undefined;
+      if (isMediaKind) {
+        const mediaResponse = await fetch(mediaUrl!);
+        if (!mediaResponse.ok) {
+          throw new Error(`Failed to fetch media for email attachment: ${mediaResponse.status}`);
+        }
+        const bytes = Buffer.from(await mediaResponse.arrayBuffer());
+        attachment = {
+          name: filename || mediaUrl!.split('/').pop() || 'attachment',
+          contentType: mediaResponse.headers.get('content-type') || 'application/octet-stream',
+          contentBytesBase64: bytes.toString('base64'),
+        };
+      }
+
+      const text = contentText || '';
+      if (replyToMessageId) {
+        if (attachment) {
+          await sendReplyWithAttachment({ accessToken, replyToMessageId, text, attachment });
+        } else {
+          await sendReplyText({ accessToken, replyToMessageId, text });
+        }
+      } else {
+        await sendNewMail({
+          accessToken,
+          toAddress: contact.email,
+          subject: 'New message',
+          text,
+          attachment,
+        });
+      }
+      // Graph's send/reply actions return no message id — there's no
+      // async delivery-status webhook for this channel either, so
+      // there's nothing to persist here. Same NULL convention as a
+      // widget send (see the message_id comment below).
+    } catch (err) {
+      if (err instanceof GraphApiError && err.isAuthError) {
+        await db.from('email_config').update({ needs_reauth: true }).eq('id', cfg.id);
+      }
+      const message = err instanceof Error ? err.message : 'Unknown Microsoft Graph error';
+      console.error('[send-message] Email send failed:', message);
+      throw new SendMessageError('meta_error', `Email send error: ${message}`, 502);
     }
   }
 

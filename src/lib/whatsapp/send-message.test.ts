@@ -211,6 +211,23 @@ vi.mock('@/lib/instagram/meta-api', () => ({
     (sendInstagramMedia as unknown as (...a: unknown[]) => unknown)(...args),
 }));
 
+const sendNewMail = vi.fn(async () => undefined);
+const sendReplyText = vi.fn(async () => undefined);
+const sendReplyWithAttachment = vi.fn(async () => undefined);
+vi.mock('@/lib/ms365/mail-api', () => ({
+  sendNewMail: (...args: unknown[]) => (sendNewMail as unknown as (...a: unknown[]) => unknown)(...args),
+  sendReplyText: (...args: unknown[]) =>
+    (sendReplyText as unknown as (...a: unknown[]) => unknown)(...args),
+  sendReplyWithAttachment: (...args: unknown[]) =>
+    (sendReplyWithAttachment as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
+const getValidAccessToken = vi.fn(async () => 'access-token-1');
+vi.mock('@/lib/ms365/token', () => ({
+  getValidAccessToken: (...args: unknown[]) =>
+    (getValidAccessToken as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
 interface CapturedWrites {
   message?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
@@ -222,7 +239,7 @@ interface CapturedWrites {
  * object serves `.single()` lookups and the bare `select().eq().eq()`
  * the template resolver uses.
  */
-type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram';
+type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email';
 
 function sendPathDb(
   templateRows: unknown[],
@@ -232,6 +249,10 @@ function sendPathDb(
   configOverrides: {
     messengerConfig?: Record<string, unknown> | null;
     instagramConfig?: Record<string, unknown> | null;
+    emailConfig?: Record<string, unknown> | null;
+    /** The `message_id` of the most recent inbound email in this
+     *  conversation, if any — drives the reply-vs-sendNewMail branch. */
+    emailLastInboundMessageId?: string | null;
   } = {},
 ): SupabaseClient {
   const conversation = {
@@ -252,6 +273,11 @@ function sendPathDb(
     'instagramConfig' in configOverrides
       ? configOverrides.instagramConfig
       : { id: 'ic-1', ig_business_account_id: 'ig-1', page_access_token: 'page-token' };
+  const emailConfig =
+    'emailConfig' in configOverrides
+      ? configOverrides.emailConfig
+      : { id: 'ec-1', mailbox_address: 'agent@company.com' };
+  const emailLastInboundMessageId = configOverrides.emailLastInboundMessageId ?? null;
   const configUpdates: Record<string, Record<string, unknown>> = {};
 
   return {
@@ -262,18 +288,28 @@ function sendPathDb(
       const builder: Record<string, unknown> = {
         select: () => builder,
         eq: () => builder,
+        not: () => builder,
+        order: () => builder,
+        limit: () => builder,
         insert: (row: Record<string, unknown>) => {
           if (table === 'messages') captured.message = row;
           return builder;
         },
         update: (row: Record<string, unknown>) => {
           if (table === 'conversations') captured.conversation = row;
-          if (table === 'messenger_config' || table === 'instagram_config') {
+          if (table === 'messenger_config' || table === 'instagram_config' || table === 'email_config') {
             configUpdates[table] = row;
           }
           return builder;
         },
-        maybeSingle: async () => ({ data: null, error: null }),
+        maybeSingle: async () => {
+          if (table === 'messages') {
+            return emailLastInboundMessageId
+              ? { data: { message_id: emailLastInboundMessageId }, error: null }
+              : { data: null, error: null };
+          }
+          return { data: null, error: null };
+        },
         single: async () => {
           if (table === 'conversations') {
             return { data: conversation, error: null };
@@ -287,6 +323,11 @@ function sendPathDb(
           if (table === 'instagram_config') {
             return instagramConfig
               ? { data: instagramConfig, error: null }
+              : { data: null, error: { message: 'not found' } };
+          }
+          if (table === 'email_config') {
+            return emailConfig
+              ? { data: emailConfig, error: null }
               : { data: null, error: { message: 'not found' } };
           }
           if (table === 'messages') {
@@ -746,5 +787,117 @@ describe('sendMessageToConversation — instagram channel', () => {
         { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
       )
     ).rejects.toThrow(/Only text and media messages/);
+  });
+});
+
+// ============================================================
+// Email channel (migration 056) — Microsoft Graph, via the connected
+// Microsoft 365 mailbox. Unlike Messenger/Instagram, sending has two
+// shapes depending on whether there's a prior inbound message to
+// thread a reply onto — see send-message.ts's email branch.
+// ============================================================
+describe('sendMessageToConversation — email channel', () => {
+  it('sends a fresh email (sendNewMail) when there is no prior inbound message', async () => {
+    sendNewMail.mockClear();
+    sendReplyText.mockClear();
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'Hi Jane' }
+    );
+
+    expect(sendNewMail).toHaveBeenCalledWith(
+      expect.objectContaining({ toAddress: 'jane@example.com', text: 'Hi Jane' })
+    );
+    expect(sendReplyText).not.toHaveBeenCalled();
+    // No Graph message id comes back from sendMail — same NULL
+    // convention as a widget send (see the message_id comment above).
+    expect(result.whatsappMessageId).toBe('');
+    expect(captured.message?.channel_type).toBe('email');
+    expect(captured.message?.message_id).toBeNull();
+  });
+
+  it('threads a real reply (sendReplyText) when there is a prior inbound message', async () => {
+    sendNewMail.mockClear();
+    sendReplyText.mockClear();
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(
+      sendPathDb(
+        [],
+        captured,
+        { id: 'ct-1', phone: '', email: 'jane@example.com' },
+        'email',
+        { emailLastInboundMessageId: 'graph-msg-1' },
+      ),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'Following up' }
+    );
+
+    expect(sendReplyText).toHaveBeenCalledWith(
+      expect.objectContaining({ replyToMessageId: 'graph-msg-1', text: 'Following up' })
+    );
+    expect(sendNewMail).not.toHaveBeenCalled();
+  });
+
+  it('400s when the contact has no email address', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'email'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/no email address/);
+  });
+
+  it('400s when Email is not connected', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb(
+          [],
+          captured,
+          { id: 'ct-1', phone: '', email: 'jane@example.com' },
+          'email',
+          { emailConfig: null },
+        ),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Email is not connected/);
+  });
+
+  it('rejects template and interactive message types', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
+      )
+    ).rejects.toThrow(/Only text and media messages/);
+  });
+
+  it('flips needs_reauth on a Graph auth error', async () => {
+    const { GraphApiError } = await import('@/lib/ms365/errors');
+    sendNewMail.mockRejectedValueOnce(new GraphApiError('Token expired', { httpStatus: 401 }));
+    const captured: CapturedWrites = {};
+    const db = sendPathDb(
+      [],
+      captured,
+      { id: 'ct-1', phone: '', email: 'jane@example.com' },
+      'email',
+    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'hi',
+      })
+    ).rejects.toThrow(/Email send error/);
+
+    expect(db.__configUpdates.email_config).toMatchObject({ needs_reauth: true });
   });
 });

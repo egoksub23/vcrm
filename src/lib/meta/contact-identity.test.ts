@@ -18,6 +18,7 @@ function stubClient(script: Script) {
       const builder: Record<string, unknown> = {
         select: () => builder,
         eq: () => builder,
+        ilike: () => builder,
         maybeSingle: async () => {
           maybeSingleCalls++
           if (maybeSingleCalls === 1) return { data: script.existing ?? null, error: null }
@@ -103,5 +104,40 @@ describe('findOrCreateContactByExternalId', () => {
     })
 
     expect(result).toEqual({ contact: { id: 'ct-raced', messenger_psid: 'psid-1' }, wasCreated: false })
+  })
+
+  it('matches an existing email case-insensitively via ilike, not eq', async () => {
+    const ilikeSpy = vi.fn()
+    const eqSpy = vi.fn()
+    const client = {
+      from() {
+        const builder: Record<string, unknown> = {
+          select: () => builder,
+          eq: (...args: unknown[]) => {
+            eqSpy(...args)
+            return builder
+          },
+          ilike: (...args: unknown[]) => {
+            ilikeSpy(...args)
+            return builder
+          },
+          maybeSingle: async () => ({ data: { id: 'ct-1', email: 'Jane@Example.com' }, error: null }),
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await findOrCreateContactByExternalId(client, {
+      accountId: 'acct-1',
+      configOwnerUserId: 'user-1',
+      column: 'email',
+      externalId: 'jane@example.com',
+      resolveDisplayName: async () => 'should not be called',
+    })
+
+    expect(result).toEqual({ contact: { id: 'ct-1', email: 'Jane@Example.com' }, wasCreated: false })
+    expect(ilikeSpy).toHaveBeenCalledWith('email', 'jane@example.com')
+    // account_id still goes through eq — only the identity column switches.
+    expect(eqSpy).toHaveBeenCalledWith('account_id', 'acct-1')
   })
 })

@@ -169,6 +169,9 @@ Key pages:
 - [Messenger & Instagram DM setup](./docs/messenger-instagram-setup.md) —
   Meta App products, OAuth redirect URIs, webhook registration, and App
   Review
+- [Microsoft 365 / Outlook email setup](./docs/microsoft-365-email-setup.md) —
+  Azure AD app registration, OAuth, and keeping the inbound
+  subscription alive
 
 ## Stack
 

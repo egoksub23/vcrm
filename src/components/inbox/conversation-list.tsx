@@ -850,7 +850,7 @@ export function ConversationList({
               >
                 {t("allChannels")}
               </DropdownMenuItem>
-              {(["whatsapp", "web_widget", "messenger", "instagram"] as ChannelType[]).map((ct) => {
+              {(["whatsapp", "web_widget", "messenger", "instagram", "email"] as ChannelType[]).map((ct) => {
                 const Icon = CHANNEL_ICONS[ct];
                 return (
                   <DropdownMenuItem

@@ -1,4 +1,4 @@
-import { MessageCircle, Globe, Send, Camera, type LucideIcon } from 'lucide-react';
+import { MessageCircle, Globe, Send, Camera, Mail, type LucideIcon } from 'lucide-react';
 import type { ChannelType } from '@/types';
 
 /**
@@ -13,4 +13,5 @@ export const CHANNEL_ICONS: Record<ChannelType, LucideIcon> = {
   web_widget: Globe,
   messenger: Send,
   instagram: Camera,
+  email: Mail,
 };
