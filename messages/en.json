@@ -232,6 +232,8 @@
       "labels": "Labels",
       "labelUpdateFailed": "Failed to update label",
       "meLabel": "Me",
+      "botLabel": "Bot",
+      "agentLabel": "Agent",
       "commentFailed": "Failed to post comment: {reason}",
       "handoffCommentBody": "Handoff note: {note}",
       "noMessagesYet": "No messages yet",

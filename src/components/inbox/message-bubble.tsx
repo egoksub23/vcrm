@@ -45,6 +45,13 @@ interface MessageBubbleProps {
    *  only — every other bubble conveys "who" through left/right alignment
    *  alone, but a full-width comment card needs an explicit author line. */
   authorLabel?: string;
+  /**
+   * Sender's display name (contact name for a customer bubble, agent/bot
+   * name for an outbound one) shown just above the bubble. The parent
+   * only passes this on the first bubble of a same-sender run, so it
+   * reads as a group header rather than repeating on every message.
+   */
+  senderLabel?: string;
 }
 
 /**
@@ -258,6 +265,7 @@ export function MessageBubble({
   onToggleReaction,
   onOpenMedia,
   authorLabel,
+  senderLabel,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
   // Reuses the same channel labels the thread header's badge already
@@ -307,6 +315,11 @@ export function MessageBubble({
         isAgent ? "items-end" : "items-start",
       )}
     >
+      {senderLabel && (
+        <span className="mb-0.5 px-1 text-[10px] font-medium text-muted-foreground">
+          {senderLabel}
+        </span>
+      )}
       <div
         className={cn(
           "relative rounded-2xl px-3 py-2",

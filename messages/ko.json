@@ -232,6 +232,8 @@
       "labels": "라벨",
       "labelUpdateFailed": "라벨 업데이트에 실패했습니다",
       "meLabel": "나",
+      "botLabel": "봇",
+      "agentLabel": "상담원",
       "commentFailed": "코멘트 게시에 실패했습니다: {reason}",
       "handoffCommentBody": "인계 메모: {note}",
       "noMessagesYet": "아직 메시지가 없습니다",

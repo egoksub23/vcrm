@@ -232,6 +232,8 @@
       "labels": "Rótulos",
       "labelUpdateFailed": "Error al actualizar el rótulo",
       "meLabel": "Yo",
+      "botLabel": "Bot",
+      "agentLabel": "Agente",
       "commentFailed": "Error al publicar el comentario: {reason}",
       "handoffCommentBody": "Nota de traspaso: {note}",
       "noMessagesYet": "Aún no hay mensajes",

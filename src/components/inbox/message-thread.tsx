@@ -180,16 +180,11 @@ const PRIORITY_OPTIONS: { value: ConversationPriority; color: string }[] = [
 ];
 
 /**
- * WhatsApp-style doodle background applied to the chat area (both the
- * active thread and the empty state). The SVG tile lives at
- * `/public/inbox-doodle.svg`; the slate-950 colour sits underneath so
- * the doodles read as a subtle pattern rather than a stark grid.
- *
- * Defined once at module scope so the two render paths can't drift —
- * if we ever switch the asset, both spots update together.
+ * Plain chat-area background (both the active thread and the empty
+ * state). Defined once at module scope so the two render paths can't
+ * drift — if the surface ever changes, both spots update together.
  */
-const DOODLE_BG_CLASSES =
-  "bg-background bg-[url('/inbox-doodle.svg')] bg-repeat";
+const CHAT_BG_CLASSES = "bg-background";
 
 export function MessageThread({
   conversation,
@@ -1058,7 +1053,7 @@ export function MessageThread({
   // pattern under the user's eye.
   if (!conversation || !contact) {
     return (
-      <div className={cn("flex flex-1 flex-col items-center justify-center", DOODLE_BG_CLASSES)}>
+      <div className={cn("flex flex-1 flex-col items-center justify-center", CHAT_BG_CLASSES)}>
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <MessageSquare className="h-8 w-8 text-muted-foreground" />
         </div>
@@ -1101,7 +1096,7 @@ export function MessageThread({
     // clipped and the hover toolbar overlaps the Tags panel. Letting the
     // root shrink lets the bubbles' break-words / max-w caps apply.
     // Issue #257.
-    <div className={cn("flex min-w-0 flex-1 flex-col", DOODLE_BG_CLASSES)}>
+    <div className={cn("flex min-w-0 flex-1 flex-col", CHAT_BG_CLASSES)}>
       {/* Header — solid card surface sits on top of the doodle so the
           name/avatar/dropdowns stay legible. */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:px-4">
@@ -1505,7 +1500,7 @@ export function MessageThread({
                 </div>
                 {/* Messages */}
                 <div className="space-y-2">
-                  {group.messages.map((msg) => {
+                  {group.messages.map((msg, idx) => {
                     const parent = msg.reply_to_message_id
                       ? messagesById.get(msg.reply_to_message_id)
                       : null;
@@ -1513,11 +1508,32 @@ export function MessageThread({
                       ? {
                           authorLabel:
                             parent.sender_type === "agent" || parent.sender_type === "bot"
-                              ? t("me") 
+                              ? t("me")
                               : contact?.name || contact?.phone || t("unknown"),
                           preview: buildReplyPreview(parent, tQuote),
                         }
                       : null;
+                    // Only the first bubble of a same-sender run gets a
+                    // name label, so it reads as a group header rather
+                    // than repeating on every message. A comment (or any
+                    // sender change, including one agent handing off to
+                    // another) always breaks the run.
+                    const prevMsg = idx > 0 ? group.messages[idx - 1] : null;
+                    const sameSenderAsPrev =
+                      !!prevMsg &&
+                      !prevMsg.is_internal &&
+                      prevMsg.sender_type === msg.sender_type &&
+                      (msg.sender_type !== "agent" || prevMsg.sender_id === msg.sender_id);
+                    const senderLabel = sameSenderAsPrev
+                      ? undefined
+                      : msg.sender_type === "customer"
+                        ? contact?.name || contact?.phone || t("unknown")
+                        : msg.sender_type === "bot"
+                          ? t("botLabel")
+                          : msg.sender_id === user?.id
+                            ? t("meLabel")
+                            : (profiles.find((p) => p.user_id === msg.sender_id)?.full_name ??
+                              t("agentLabel"));
                     const msgReactions = reactionsByMessageId.get(msg.id);
                     // Toggle is computed at the call site — `msgReactions`
                     // and `user?.id` are already in scope, no extra hook.
@@ -1564,6 +1580,7 @@ export function MessageThread({
                           currentUserId={user?.id}
                           onToggleReaction={handlePillToggle}
                           onOpenMedia={handleMediaChange}
+                          senderLabel={senderLabel}
                         />
                       </MessageActions>
                     );

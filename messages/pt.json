@@ -232,6 +232,8 @@
       "labels": "Etiquetas",
       "labelUpdateFailed": "Falha ao atualizar a etiqueta",
       "meLabel": "Eu",
+      "botLabel": "Bot",
+      "agentLabel": "Agente",
       "commentFailed": "Falha ao publicar o comentário: {reason}",
       "handoffCommentBody": "Nota de transferência: {note}",
       "noMessagesYet": "Nenhuma mensagem ainda",
