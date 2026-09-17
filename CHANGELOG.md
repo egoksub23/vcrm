@@ -9,6 +9,27 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.19.0] — 2026-09-17
+
+Ships Widget Identity Passing — both halves.
+
+> **Migration required:** apply `supabase/migrations/054_widget_verified_identity.sql`.
+> Adds `contacts.wallet_id` and the `merge_widget_guest_contact` SQL
+> function. Idempotent.
+
+### Added
+
+- **Verified-user identity passing** — an in-app/WebView widget embed
+  can hand the widget a known phone/wallet ID/email at init (loader
+  `data-user-*` attributes, or an async
+  `window.VircleWidget.identify()` call), skipping any identity prompt
+  entirely.
+- **Self-service identity linking** — a plain web visitor is now asked
+  "Are you already a Vircle user?" instead of a mandatory phone gate;
+  declining starts a plain anonymous guest session. A guest can later
+  link their account, folding their guest history into the identified
+  contact.
+
 ## [0.18.0] — 2026-09-17
 
 Closes the last 2 Assignment Strategies P1 gaps: least-loaded routing
