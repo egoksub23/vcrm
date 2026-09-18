@@ -302,9 +302,18 @@
       "quickReplySaveError": "빠른 답장을 저장하지 못했습니다.",
       "modeMessage": "메시지",
       "modeComment": "코멘트",
+      "modeSnippets": "스니펫",
       "mentionSomeone": "멘션하기",
       "commentPlaceholder": "내부 코멘트 추가 — 팀원만 볼 수 있으며 고객에게는 전송되지 않습니다",
-      "commentHint": "코멘트는 팀원에게만 보이며 WhatsApp으로 전송되지 않습니다."
+      "commentHint": "코멘트는 팀원에게만 보이며 WhatsApp으로 전송되지 않습니다.",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "웹 위젯",
+        "messenger": "Messenger",
+        "instagram": "Instagram",
+        "email": "이메일",
+        "gmail": "Gmail"
+      }
     },
     "bubble": {
       "photo": "사진",

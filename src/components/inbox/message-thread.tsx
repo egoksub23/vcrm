@@ -10,6 +10,7 @@ import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import type {
+  ChannelType,
   Conversation,
   ConversationPriority,
   Message,
@@ -501,8 +502,20 @@ export function MessageThread({
     }
   }, [messages]);
 
+  // Every channel this conversation has actually seen a message on —
+  // a merged conversation (migration 048) can span several, and the
+  // composer's channel selector only offers a pick among these rather
+  // than every channel type that exists in the abstract. Always
+  // includes the current last_channel_type rollup even if `messages`
+  // hasn't loaded yet, so the selector is never empty.
+  const availableChannels = useMemo(() => {
+    const set = new Set<ChannelType>(messages.map((m) => m.channel_type));
+    if (conversation) set.add(conversation.last_channel_type);
+    return Array.from(set);
+  }, [messages, conversation]);
+
   const handleSend = useCallback(
-    async (text: string, replyToId?: string) => {
+    async (text: string, replyToId?: string, channel?: ChannelType) => {
       if (!conversation) return;
 
       const tempId = `temp-${Date.now()}`;
@@ -514,7 +527,7 @@ export function MessageThread({
         sender_type: "agent",
         content_type: "text",
         content_text: text,
-        channel_type: conversation.last_channel_type,
+        channel_type: channel ?? conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
@@ -531,6 +544,7 @@ export function MessageThread({
             message_type: "text",
             content_text: text,
             reply_to_message_id: replyToId,
+            channel_override: channel,
           }),
         });
 
@@ -607,7 +621,7 @@ export function MessageThread({
   );
 
   const handleSendMedia = useCallback(
-    async (payload: SendMediaPayload) => {
+    async (payload: SendMediaPayload, channel?: ChannelType) => {
       if (!conversation) return;
 
       // Documents show their filename in our own bubble (and to the
@@ -626,7 +640,7 @@ export function MessageThread({
         content_type: payload.kind,
         content_text: contentText,
         media_url: payload.mediaUrl,
-        channel_type: conversation.last_channel_type,
+        channel_type: channel ?? conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: payload.replyToId,
@@ -645,6 +659,7 @@ export function MessageThread({
             content_text: contentText,
             filename: payload.filename,
             reply_to_message_id: payload.replyToId,
+            channel_override: channel,
           }),
         });
 
@@ -674,7 +689,7 @@ export function MessageThread({
   );
 
   const handleSendInteractive = useCallback(
-    async (payload: InteractiveMessagePayload, replyToId?: string) => {
+    async (payload: InteractiveMessagePayload, replyToId?: string, channel?: ChannelType) => {
       if (!conversation) return;
 
       const tempId = `temp-${Date.now()}`;
@@ -687,7 +702,7 @@ export function MessageThread({
         content_type: "interactive",
         content_text: payload.body,
         interactive_payload: payload,
-        channel_type: conversation.last_channel_type,
+        channel_type: channel ?? conversation.last_channel_type,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
@@ -703,6 +718,7 @@ export function MessageThread({
             message_type: "interactive",
             interactive_payload: payload,
             reply_to_message_id: replyToId,
+            channel_override: channel,
           }),
         });
 
@@ -1605,6 +1621,7 @@ export function MessageThread({
       <MessageComposer
         conversationId={conversation.id}
         channelType={conversation.last_channel_type}
+        availableChannels={availableChannels}
         sessionExpired={sessionInfo.expired}
         onSend={handleSend}
         onSendMedia={handleSendMedia}

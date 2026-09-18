@@ -20,11 +20,12 @@ import {
   X,
   Loader2,
   Sparkles,
-  Plus,
   MessageSquareDashed,
   Zap,
   Lock,
   AtSign,
+  ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
@@ -55,9 +56,9 @@ import {
   InteractiveBuilder,
   blankButtonsPayload,
 } from "@/components/interactive/interactive-builder";
-import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
+import { validateInteractivePayload, interactivePayloadPreviewText } from "@/lib/whatsapp/interactive";
 import type { ChannelType, InteractiveMessagePayload, Profile, QuickReply } from "@/types";
-import { QuickReplyPicker } from "./quick-reply-picker";
+import { CHANNEL_ICONS } from "./channel-icons";
 
 /** Media content types an agent can send from the composer. */
 export type ComposerMediaKind = "image" | "video" | "document" | "audio";
@@ -112,21 +113,33 @@ interface MediaDraft {
   caption: string;
 }
 
-/** "Message" goes to WhatsApp; "Comment" posts internally, teammates
- *  only — respond.io's "Comment" mode (P0 gap-analysis item). */
-type ComposerMode = "message" | "comment";
+/** "Message" goes to the selected channel; "Comment" posts internally,
+ *  teammates only (respond.io's "Comment" mode, P0 gap-analysis item);
+ *  "Snippets" swaps the textarea for an inline, scrollable quick-reply
+ *  list instead of opening a separate dialog. */
+type ComposerMode = "message" | "comment" | "snippets";
 
 interface MessageComposerProps {
   conversationId: string;
-  /** Which channel this conversation belongs to — gates the WhatsApp/
-   *  Meta-only affordances below (templates, interactive buttons/lists,
-   *  media attach) that a web-widget conversation has no equivalent
-   *  for. Plain text + quick replies + AI draft stay available on both. */
+  /** The conversation's current channel (last_channel_type rollup) —
+   *  the channel selector's default pick. Also gates the WhatsApp/Meta-
+   *  only affordances (templates, interactive buttons/lists, media
+   *  attach) together with whatever the agent actually selects below. */
   channelType: ChannelType;
+  /** Every channel this conversation has a message on (migration 048's
+   *  merge-by-contact can span several) — offered in the channel
+   *  selector so the agent can pick which one a reply goes out on,
+   *  instead of it always following `channelType`. A single-entry list
+   *  hides the selector entirely (nothing to choose between). */
+  availableChannels: ChannelType[];
   sessionExpired: boolean;
-  onSend: (text: string, replyToId?: string) => void;
-  onSendMedia: (payload: SendMediaPayload) => void;
-  onSendInteractive: (payload: InteractiveMessagePayload, replyToId?: string) => void;
+  onSend: (text: string, replyToId?: string, channel?: ChannelType) => void;
+  onSendMedia: (payload: SendMediaPayload, channel?: ChannelType) => void;
+  onSendInteractive: (
+    payload: InteractiveMessagePayload,
+    replyToId?: string,
+    channel?: ChannelType,
+  ) => void;
   onSendComment: (text: string, mentions: string[]) => void;
   /** Account teammates offered by the @mention autocomplete. */
   mentionCandidates?: Profile[];
@@ -149,6 +162,7 @@ const OPUS_ENCODER_PATH = "/opus/encoderWorker.min.js";
 export function MessageComposer({
   conversationId,
   channelType,
+  availableChannels,
   sessionExpired,
   onSend,
   onSendMedia,
@@ -160,22 +174,36 @@ export function MessageComposer({
   onClearReply,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
+
+  // ---- Channel selector ------------------------------------------------
+  // Defaults to the conversation's rollup channel; the agent can pick a
+  // different one this conversation has also used (respond.io-style).
+  // Resets whenever the conversation itself changes, not just when its
+  // rollup channel changes, so switching threads never carries a stale
+  // pick from a previous conversation into a new one.
+  const [selectedChannel, setSelectedChannel] = useState<ChannelType>(channelType);
+  useEffect(() => {
+    setSelectedChannel(channelType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
   // Media attach works on every channel except the web widget (no media
   // pipeline there yet — fast-follow). Templates and interactive
   // buttons/lists are Meta concepts with no Messenger/Instagram
   // equivalent (different quick-reply shape, no pre-approved template
   // system at all) — WhatsApp-only until that's built out separately.
-  const supportsMedia = channelType !== "web_widget";
-  const supportsTemplatesAndInteractive = channelType === "whatsapp";
+  const supportsMedia = selectedChannel !== "web_widget";
+  const supportsTemplatesAndInteractive = selectedChannel === "whatsapp";
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // ---- Message vs. Comment mode --------------------------------------
+  // ---- Message vs. Comment vs. Snippets mode --------------------------
   const [mode, setMode] = useState<ComposerMode>("message");
   const isComment = mode === "comment";
+  const isSnippets = mode === "snippets";
   // Ids the agent picked from the @mention dropdown. Best-effort: if they
   // hand-edit the inserted "@Name" text afterward, this can drift from
   // what's literally in the textarea — an accepted simplification rather
@@ -263,7 +291,31 @@ export function MessageComposer({
   const [interactivePayload, setInteractivePayload] =
     useState<InteractiveMessagePayload>(blankButtonsPayload);
   const [savingQuickReply, setSavingQuickReply] = useState(false);
-  const [quickReplyOpen, setQuickReplyOpen] = useState(false);
+
+  // ---- Inline snippet panel (Snippets mode) ---------------------------
+  // Fetched on demand rather than eagerly — most composer sessions never
+  // open it, and it can change between visits (someone else added one).
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [quickRepliesLoading, setQuickRepliesLoading] = useState(false);
+  useEffect(() => {
+    if (!isSnippets) return;
+    let cancelled = false;
+    setQuickRepliesLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/quick-replies", { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) {
+          setQuickReplies((data.quick_replies as QuickReply[]) ?? []);
+        }
+      } finally {
+        if (!cancelled) setQuickRepliesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSnippets]);
 
   // Media attachment state. `draft` holds an uploaded-but-not-yet-sent
   // attachment; `busy` covers the upload/transcode window.
@@ -342,7 +394,7 @@ export function MessageComposer({
         onSendComment(trimmed, Array.from(mentionedIds));
         setMentionedIds(new Set());
       } else {
-        onSend(trimmed, replyTo?.id);
+        onSend(trimmed, replyTo?.id, selectedChannel);
       }
       setText("");
       if (textareaRef.current) {
@@ -351,7 +403,7 @@ export function MessageComposer({
     } finally {
       setSending(false);
     }
-  }, [text, sending, sessionExpired, isComment, onSend, onSendComment, mentionedIds, replyTo?.id]);
+  }, [text, sending, sessionExpired, isComment, onSend, onSendComment, mentionedIds, replyTo?.id, selectedChannel]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -442,10 +494,10 @@ export function MessageComposer({
       toast.error(result.error);
       return;
     }
-    onSendInteractive(interactivePayload, replyTo?.id);
+    onSendInteractive(interactivePayload, replyTo?.id, selectedChannel);
     setInteractiveOpen(false);
     onClearReply?.();
-  }, [interactivePayload, onSendInteractive, replyTo?.id, onClearReply]);
+  }, [interactivePayload, onSendInteractive, replyTo?.id, onClearReply, selectedChannel]);
 
   // Persist the current builder payload as a reusable interactive snippet.
   const saveAsQuickReply = useCallback(async () => {
@@ -486,7 +538,7 @@ export function MessageComposer({
   // builder pre-filled so the agent can tweak before sending.
   const handlePickQuickReply = useCallback(
     (qr: QuickReply) => {
-      setQuickReplyOpen(false);
+      switchMode("message");
       if (qr.kind === "interactive" && qr.interactive_payload) {
         openInteractiveBuilder(qr.interactive_payload);
         return;
@@ -506,7 +558,7 @@ export function MessageComposer({
         }
       });
     },
-    [openInteractiveBuilder, adjustHeight],
+    [switchMode, openInteractiveBuilder, adjustHeight],
   );
 
   // Upload a captured file to chat-media and stage it as a draft.
@@ -635,21 +687,24 @@ export function MessageComposer({
 
   const sendDraft = useCallback(() => {
     if (!draft || busy) return;
-    onSendMedia({
-      kind: draft.kind,
-      mediaUrl: draft.mediaUrl,
-      path: draft.path,
-      // Audio takes no caption (Meta rejects it). Everything else: the
-      // trimmed caption, or undefined when blank.
-      caption:
-        draft.kind === "audio" ? undefined : draft.caption.trim() || undefined,
-      filename: draft.kind === "document" ? draft.filename : undefined,
-      replyToId: replyTo?.id,
-    });
+    onSendMedia(
+      {
+        kind: draft.kind,
+        mediaUrl: draft.mediaUrl,
+        path: draft.path,
+        // Audio takes no caption (Meta rejects it). Everything else: the
+        // trimmed caption, or undefined when blank.
+        caption:
+          draft.kind === "audio" ? undefined : draft.caption.trim() || undefined,
+        filename: draft.kind === "document" ? draft.filename : undefined,
+        replyToId: replyTo?.id,
+      },
+      selectedChannel,
+    );
     // The object is now owned by the sent message — clear without GC.
     setDraft(null);
     onClearReply?.();
-  }, [draft, busy, onSendMedia, replyTo?.id, onClearReply]);
+  }, [draft, busy, onSendMedia, replyTo?.id, onClearReply, selectedChannel]);
 
   // Discard GCs the staged object — it was uploaded but never sent.
   const discardDraft = useCallback(() => {
@@ -664,7 +719,7 @@ export function MessageComposer({
   // ---- Render --------------------------------------------------------
 
   return (
-    <div className="border-t border-border bg-card p-3">
+    <div className="border-t border-border bg-card p-3.5">
       {replyTo && (
         <div className="mb-2">
           <ReplyQuote
@@ -674,7 +729,7 @@ export function MessageComposer({
           />
         </div>
       )}
-      {sessionExpired && !isComment && (
+      {sessionExpired && !isComment && !isSnippets && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
           <p className="text-xs text-amber-400">
             {t("sessionExpiredHint")}
@@ -691,36 +746,81 @@ export function MessageComposer({
         </div>
       )}
 
-      {/* Message / Comment mode toggle — a comment never reaches the
-          customer, so it's kept visually and functionally distinct from
-          the WhatsApp send path below. Hidden once a media draft or a
-          live recording takes over the composer — those are always
-          customer-facing sends. */}
+      {/* Message / Comment / Snippets mode toggle — a comment never
+          reaches the customer, so it's kept visually and functionally
+          distinct from the send path below; Snippets swaps the textarea
+          for an inline, scrollable quick-reply list instead of opening a
+          separate dialog. Hidden once a media draft or a live recording
+          takes over the composer — those are always customer-facing
+          sends. */}
       {!draft && !recording && !readOnly && (
-        <div className="mb-2 inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
-          <button
-            type="button"
-            onClick={() => switchMode("message")}
-            className={cn(
-              "rounded-md px-2.5 py-1 font-medium transition-colors",
-              !isComment ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t("modeMessage")}
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("comment")}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
-              isComment
-                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Lock className="h-3 w-3" />
-            {t("modeComment")}
-          </button>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => switchMode("message")}
+              className={cn(
+                "rounded-md px-2.5 py-1 font-medium transition-colors",
+                mode === "message" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("modeMessage")}
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("comment")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
+                isComment
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Lock className="h-3 w-3" />
+              {t("modeComment")}
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode(isSnippets ? "message" : "snippets")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
+                isSnippets
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Zap className="h-3 w-3" />
+              {t("modeSnippets")}
+            </button>
+          </div>
+
+          {/* Channel selector — only when this conversation has actually
+              used more than one channel; nothing to pick between
+              otherwise. Hidden in Comment/Snippets mode, same as the
+              rest of the send-path affordances below. */}
+          {!isComment && !isSnippets && availableChannels.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/70">
+                {(() => {
+                  const Icon = CHANNEL_ICONS[selectedChannel];
+                  return <Icon className="size-3.5 shrink-0" />;
+                })()}
+                {t(`channel.${selectedChannel}`)}
+                <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="border-border bg-popover">
+                {availableChannels.map((ct) => {
+                  const Icon = CHANNEL_ICONS[ct];
+                  return (
+                    <DropdownMenuItem key={ct} onClick={() => setSelectedChannel(ct)}>
+                      <Icon className="mr-2 size-3.5 shrink-0" />
+                      {t(`channel.${ct}`)}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 
@@ -789,6 +889,51 @@ export function MessageComposer({
             <Square className="h-4 w-4" />
           </Button>
         </div>
+      ) : isSnippets ? (
+        // Inline snippet list — replaces the textarea while Snippets mode
+        // is active, scrolls independently so a long list never grows the
+        // composer itself. Picking an item switches back to Message mode
+        // (handlePickQuickReply) so the agent can review/edit before
+        // sending, same as the old dialog's behavior.
+        <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-muted/40">
+          {quickRepliesLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : quickReplies.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              {t("quickRepliesEmpty")}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1 p-1.5">
+              {quickReplies.map((qr) => (
+                <li key={qr.id}>
+                  <button
+                    type="button"
+                    onClick={() => handlePickQuickReply(qr)}
+                    className="flex w-full items-start gap-2 rounded-md border border-transparent bg-card p-2 text-left hover:border-primary/50"
+                  >
+                    {qr.kind === "interactive" ? (
+                      <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {qr.title}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {qr.kind === "interactive" && qr.interactive_payload
+                          ? interactivePayloadPreviewText(qr.interactive_payload)
+                          : qr.content_text}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <div className="relative flex items-end gap-2">
           {!isComment && (
@@ -838,35 +983,23 @@ export function MessageComposer({
                 </DropdownMenu>
               )}
 
-              {/* + menu — interactive messages (WhatsApp-only) + quick
-                  replies (plain text, works on any channel). */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
+              {/* Interactive message builder — WhatsApp-only. Quick
+                  replies moved to the Snippets tab above (no longer
+                  behind this "+" menu). */}
+              {supportsTemplatesAndInteractive && (
+                <GatedButton
+                  variant="ghost"
+                  size="sm"
+                  canAct={!readOnly}
+                  gateReason="send messages"
                   disabled={inputsDisabled}
-                  title={
-                    readOnly
-                      ? t("readOnlyTitle")
-                      : inputsDisabled
-                        ? undefined
-                        : t("moreActions")
-                  }
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  title={readOnly ? undefined : t("interactiveMessage")}
+                  className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => openInteractiveBuilder()}
                 >
-                  <Plus className="h-4 w-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="border-border bg-popover">
-                  {supportsTemplatesAndInteractive && (
-                    <DropdownMenuItem onClick={() => openInteractiveBuilder()}>
-                      <MessageSquareDashed className="mr-2 h-4 w-4" />
-                      {t("interactiveMessage")}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => setQuickReplyOpen(true)}>
-                    <Zap className="mr-2 h-4 w-4" />
-                    {t("quickReplies")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <MessageSquareDashed className="h-4 w-4" />
+                </GatedButton>
+              )}
 
               {supportsTemplatesAndInteractive && (
                 <GatedButton
@@ -986,7 +1119,7 @@ export function MessageComposer({
       {/* Hint sits outside the flex row so its height doesn't push
           `items-end` buttons below the textarea. Indented to line up
           under the textarea left edge. */}
-      {!draft && !recording && !isComment && (
+      {!draft && !recording && !isComment && !isSnippets && (
         <p className="mt-1 pl-[5.5rem] text-[10px] text-muted-foreground">
           {t("draftHint")}
         </p>
@@ -1029,13 +1162,6 @@ export function MessageComposer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Quick-reply picker. */}
-      <QuickReplyPicker
-        open={quickReplyOpen}
-        onOpenChange={setQuickReplyOpen}
-        onPick={handlePickQuickReply}
-      />
     </div>
   );
 }

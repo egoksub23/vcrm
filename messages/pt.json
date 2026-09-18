@@ -302,9 +302,18 @@
       "quickReplySaveError": "Não foi possível salvar a resposta rápida.",
       "modeMessage": "Mensagem",
       "modeComment": "Comentário",
+      "modeSnippets": "Trechos",
       "mentionSomeone": "Mencionar alguém",
       "commentPlaceholder": "Adicione um comentário interno — apenas para a equipe, nunca enviado ao cliente",
-      "commentHint": "Comentários são visíveis apenas para sua equipe e nunca chegam ao WhatsApp."
+      "commentHint": "Comentários são visíveis apenas para sua equipe e nunca chegam ao WhatsApp.",
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Widget web",
+        "messenger": "Messenger",
+        "instagram": "Instagram",
+        "email": "E-mail",
+        "gmail": "Gmail"
+      }
     },
     "bubble": {
       "photo": "Foto",

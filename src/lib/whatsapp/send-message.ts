@@ -100,6 +100,17 @@ export interface SendMessageParams {
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
   replyToMessageId?: string | null;
+  /** Explicit channel pick for a conversation that spans more than one
+   *  channel (migration 048's merge-by-contact) — the dashboard
+   *  composer's channel selector sends this when the agent picks a
+   *  channel other than the conversation's `last_channel_type` rollup.
+   *  Falls back to `last_channel_type` when unset, which is every
+   *  caller except the composer (automation engine, AI auto-reply,
+   *  the public API). Not separately validated here — sending on a
+   *  channel the contact has no identity for (e.g. Instagram without
+   *  an igsid) already 400s via that channel's own branch below, the
+   *  same failure mode as an invalid `last_channel_type`. */
+  channelOverride?: ChannelType | null;
   /** Who's actually sending — the dashboard composer and the public API
    *  never pass this (default 'agent'); the automation engine's
    *  send_message step and the AI auto-reply bot pass 'bot' so the
@@ -230,6 +241,7 @@ export async function sendMessageToConversation(
     templateMessageParams,
     interactivePayload,
     replyToMessageId,
+    channelOverride = null,
     senderType = 'agent',
     aiGenerated = false,
     senderUserId = null,
@@ -268,9 +280,11 @@ export async function sendMessageToConversation(
   const contact = conversation.contact;
 
   // A merged conversation (migration 048) may have messages on any
-  // channel; an agent's reply targets whichever channel the customer
-  // most recently used, tracked by the last_channel_type rollup.
-  const channel = conversation.last_channel_type as ChannelType;
+  // channel; an agent's reply defaults to whichever channel the
+  // customer most recently used (the last_channel_type rollup), unless
+  // the composer's channel selector explicitly picked a different one
+  // this conversation has also used.
+  const channel = (channelOverride ?? conversation.last_channel_type) as ChannelType;
 
   // Web-widget conversations never go anywhere near Meta — persisting
   // the `messages` row *is* the delivery (the widget's own Realtime
