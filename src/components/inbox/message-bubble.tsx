@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Message, MessageReaction } from "@/types";
 import {
@@ -24,6 +25,7 @@ import {
   MediaVideoBubble,
 } from "./message-media";
 import { InteractivePreview } from "@/components/interactive/interactive-preview";
+import { EmailHtmlView } from "./email-html-view";
 import { useTranslations } from "next-intl";
 import { CHANNEL_ICONS } from "./channel-icons";
 
@@ -93,6 +95,38 @@ function StatusIcon({
   }
 }
 
+/** An Email(MS365)/Gmail message whose source was HTML (migration 061)
+ *  — defaults to the rendered view, with a toggle down to the plain-
+ *  text fallback (useful for copy/paste, or if the rendering looks
+ *  off for a particular email). */
+function EmailBodyContent({
+  message,
+  t,
+}: {
+  message: Message;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [showHtml, setShowHtml] = useState(true);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setShowHtml((v) => !v)}
+        className="mb-1 text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      >
+        {showHtml ? t("viewPlainText") : t("viewFormatted")}
+      </button>
+      {showHtml ? (
+        <EmailHtmlView html={message.content_html!} />
+      ) : (
+        <p className="whitespace-pre-wrap break-words text-sm">
+          {message.content_text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MessageContent({
   message,
   t,
@@ -111,6 +145,9 @@ function MessageContent({
 
   switch (message.content_type) {
     case "text":
+      if (message.content_html) {
+        return <EmailBodyContent message={message} t={t} />;
+      }
       return (
         <p className="whitespace-pre-wrap break-words text-sm">
           {message.content_text}

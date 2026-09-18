@@ -8,6 +8,8 @@
  * in one small file rather than scattered across gmail-api.ts.
  */
 
+import { stripHtml } from '@/lib/email/strip-html'
+
 export interface GmailHeader {
   name: string
   value: string
@@ -83,49 +85,46 @@ export function getHeader(headers: GmailHeader[] | undefined, name: string): str
   return found?.value ?? null
 }
 
-/** Crude HTML→text fallback for a message with no text/plain part —
- *  good enough for CRM display, not a full renderer. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-/**
- * Walks the payload tree depth-first for the best available body text
- * — prefers a `text/plain` part, falls back to `text/html` (stripped).
- * Returns null if neither is present (e.g. an attachment-only message).
- */
-export function findTextBody(payload: GmailPayloadPart | undefined): string | null {
-  if (!payload) return null
-
-  let plainFallback: string | null = null
-  let htmlFallback: string | null = null
+/** Walks the payload tree depth-first, returning the first `text/plain`
+ *  and `text/html` part bodies found (each independently, not one as a
+ *  fallback for the other — callers that want both raw HTML *and* a
+ *  plain-text derivation need both). */
+function findBodyParts(payload: GmailPayloadPart | undefined): {
+  plain: string | null
+  html: string | null
+} {
+  let plain: string | null = null
+  let html: string | null = null
+  if (!payload) return { plain, html }
 
   function walk(part: GmailPayloadPart) {
-    if (part.mimeType === 'text/plain' && part.body?.data && plainFallback === null) {
-      plainFallback = decodeBase64Url(part.body.data).toString('utf-8')
-    } else if (part.mimeType === 'text/html' && part.body?.data && htmlFallback === null) {
-      htmlFallback = decodeBase64Url(part.body.data).toString('utf-8')
+    if (part.mimeType === 'text/plain' && part.body?.data && plain === null) {
+      plain = decodeBase64Url(part.body.data).toString('utf-8')
+    } else if (part.mimeType === 'text/html' && part.body?.data && html === null) {
+      html = decodeBase64Url(part.body.data).toString('utf-8')
     }
     for (const child of part.parts ?? []) walk(child)
   }
   walk(payload)
+  return { plain, html }
+}
 
-  if (plainFallback !== null) return plainFallback
-  if (htmlFallback !== null) return stripHtml(htmlFallback)
+/**
+ * Best available body text — prefers a `text/plain` part, falls back
+ * to `text/html` (stripped). Returns null if neither is present (e.g.
+ * an attachment-only message).
+ */
+export function findTextBody(payload: GmailPayloadPart | undefined): string | null {
+  const { plain, html } = findBodyParts(payload)
+  if (plain !== null) return plain
+  if (html !== null) return stripHtml(html)
   return null
+}
+
+/** Raw `text/html` part body, unstripped, for a rendered view — null
+ *  if the message has no HTML part at all (plain-text-only email). */
+export function findHtmlBody(payload: GmailPayloadPart | undefined): string | null {
+  return findBodyParts(payload).html
 }
 
 export interface GmailAttachmentPart {

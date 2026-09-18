@@ -18,6 +18,7 @@
  */
 
 import { throwGraphError } from './errors'
+import { stripHtml } from '@/lib/email/strip-html'
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0'
 
@@ -136,9 +137,13 @@ export interface GraphMessageSummary {
   subject: string | null
   fromAddress: string | null
   fromName: string | null
-  /** Plain text, via the `Prefer: outlook.body-content-type="text"`
-   *  header below — no HTML-to-text conversion needed in this codebase. */
+  /** Plain text — Graph's own content when the message was plain-text
+   *  to begin with, otherwise derived from `bodyHtml` via `stripHtml`. */
   bodyText: string | null
+  /** Raw HTML body, unstripped — null when the message was genuinely
+   *  plain-text. Rendered client-side, never trusted as-is (see
+   *  EmailHtmlView). */
+  bodyHtml: string | null
   hasAttachments: boolean
   receivedDateTime: string
 }
@@ -155,8 +160,11 @@ export async function getMessage(args: {
     {
       headers: {
         Authorization: `Bearer ${args.accessToken}`,
-        // Ask Graph to render body.content as plain text instead of HTML.
-        Prefer: 'outlook.body-content-type="text"',
+        // No `Prefer: outlook.body-content-type="text"` here — that
+        // would make Graph render body.content as plain text and throw
+        // away the original HTML we want for the rendered view. Fetch
+        // the native format instead (almost always HTML for a real
+        // email) and derive the plain-text fallback ourselves below.
       },
     },
   )
@@ -167,16 +175,19 @@ export async function getMessage(args: {
     id: string
     subject?: string
     from?: { emailAddress?: { address?: string; name?: string } }
-    body?: { content?: string }
+    body?: { contentType?: string; content?: string }
     hasAttachments?: boolean
     receivedDateTime: string
   }
+  const isHtml = data.body?.contentType?.toLowerCase() === 'html'
+  const rawContent = data.body?.content ?? null
   return {
     id: data.id,
     subject: data.subject ?? null,
     fromAddress: data.from?.emailAddress?.address ?? null,
     fromName: data.from?.emailAddress?.name ?? null,
-    bodyText: data.body?.content ?? null,
+    bodyText: rawContent === null ? null : isHtml ? stripHtml(rawContent) : rawContent,
+    bodyHtml: isHtml ? rawContent : null,
     hasAttachments: data.hasAttachments ?? false,
     receivedDateTime: data.receivedDateTime,
   }

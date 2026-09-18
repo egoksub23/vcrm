@@ -10,6 +10,7 @@ import {
   buildRawMessage,
   decodeBase64Url,
   findAttachmentParts,
+  findHtmlBody,
   findTextBody,
   getHeader,
   parseFromHeader,
@@ -131,6 +132,10 @@ export interface GmailMessageSummary {
   fromAddress: string | null
   fromName: string | null
   bodyText: string | null
+  /** Raw `text/html` part, unstripped — null when the message has no
+   *  HTML part (plain-text-only email). Rendered client-side, never
+   *  trusted as-is (see EmailHtmlView). */
+  bodyHtml: string | null
   attachments: GmailAttachmentPart[]
   /** Gmail's own send/receive timestamp, epoch milliseconds as a string. */
   internalDate: string
@@ -161,6 +166,7 @@ export async function getMessage(args: {
     fromAddress: address,
     fromName: name,
     bodyText: findTextBody(data.payload),
+    bodyHtml: findHtmlBody(data.payload),
     attachments: findAttachmentParts(data.payload),
     internalDate: data.internalDate,
   }

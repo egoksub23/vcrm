@@ -178,14 +178,39 @@ export function MessageComposer({
   // ---- Channel selector ------------------------------------------------
   // Defaults to the conversation's rollup channel; the agent can pick a
   // different one this conversation has also used (respond.io-style).
-  // Resets whenever the conversation itself changes, not just when its
-  // rollup channel changes, so switching threads never carries a stale
-  // pick from a previous conversation into a new one.
+  //
+  // Two things need to reset this, independently:
+  //  - The conversation itself changes (switching threads) — always
+  //    re-snap to the new thread's rollup channel, discarding whatever
+  //    was picked in the previous one.
+  //  - `channelType` (the rollup) changes WHILE the same conversation
+  //    stays open — e.g. the customer sends a new inbound message on a
+  //    different channel than the one the agent had this open on.
+  //    Without this, the agent could see a fresh WhatsApp message land
+  //    in an already-open thread and still have their reply silently
+  //    go out on whatever channel was selected before (issue: a
+  //    contact's reply defaulted to Web Widget right after they'd just
+  //    messaged in on WhatsApp). This only applies when the agent
+  //    hasn't manually picked a channel for THIS conversation yet —
+  //    once they have, their choice is respected until they switch
+  //    threads, so an incoming message never clobbers an intentional
+  //    pick mid-reply.
   const [selectedChannel, setSelectedChannel] = useState<ChannelType>(channelType);
+  const manualChannelPickRef = useRef(false);
   useEffect(() => {
+    manualChannelPickRef.current = false;
     setSelectedChannel(channelType);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
+  useEffect(() => {
+    if (!manualChannelPickRef.current) {
+      setSelectedChannel(channelType);
+    }
+  }, [channelType]);
+  const handleSelectChannel = useCallback((ch: ChannelType) => {
+    manualChannelPickRef.current = true;
+    setSelectedChannel(ch);
+  }, []);
 
   // Media attach works on every channel except the web widget (no media
   // pipeline there yet — fast-follow). Templates and interactive
@@ -823,7 +848,7 @@ export function MessageComposer({
                 {availableChannels.map((ct) => {
                   const Icon = CHANNEL_ICONS[ct];
                   return (
-                    <DropdownMenuItem key={ct} onClick={() => setSelectedChannel(ct)}>
+                    <DropdownMenuItem key={ct} onClick={() => handleSelectChannel(ct)}>
                       <Icon className="mr-2 size-3.5 shrink-0" />
                       {t(`channel.${ct}`)}
                     </DropdownMenuItem>

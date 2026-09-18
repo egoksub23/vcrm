@@ -322,6 +322,11 @@ export interface Message {
   sender_id?: string;
   content_type: ContentType;
   content_text?: string;
+  /** Original HTML body, for an Email(MS365)/Gmail message whose
+   *  source was HTML (migration 061). Null for every other channel
+   *  and for a genuinely plain-text email. Rendered client-side inside
+   *  a sandboxed iframe — see EmailHtmlView — never trusted as-is. */
+  content_html?: string | null;
   media_url?: string;
   /**
    * MIME type of `media_url`'s content, as Meta reported it. Inbound

@@ -327,6 +327,8 @@
       "buttonReply": "Respuesta de botón",
       "interactiveReply": "[Respuesta interactiva]",
       "unsupported": "[Tipo de mensaje no compatible]",
+      "viewFormatted": "Ver con formato",
+      "viewPlainText": "Ver texto sin formato",
       "aiBadge": "IA",
       "aiBadgeTitle": "Enviado automáticamente por el asistente de IA",
       "notDelivered": "No entregado",

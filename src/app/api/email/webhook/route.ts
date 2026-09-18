@@ -225,6 +225,7 @@ async function processMessage(config: Record<string, unknown>, graphMessageId: s
         sender_type: 'customer',
         content_type: contentType,
         content_text: contentText,
+        content_html: message.bodyHtml,
         media_url: mediaUrl,
         message_id: message.id,
         channel_type: 'email',
