@@ -179,6 +179,7 @@
       "clearAll": "Limpiar todo",
       "select": "Seleccionar",
       "selectModeTitle": "Selecciona conversaciones para una acción masiva",
+      "pendingDeleteTitle": "Pendiente de eliminar",
       "selectedCount": "{count} seleccionadas",
       "applyLabel": "Aplicar etiqueta",
       "noLabelsAvailable": "No hay etiquetas disponibles",
@@ -257,7 +258,9 @@
       "sendTemplateFailed": "Error al enviar la plantilla: {reason}",
       "waitForSending": "Espera a que el mensaje termine de enviarse",
       "reactionFailed": "Error en la reacción: {reason}",
-      "assignmentUpdateFailed": "Error al actualizar la asignación"
+      "assignmentUpdateFailed": "Error al actualizar la asignación",
+      "movedToTrash": "Mensaje movido a la papelera",
+      "trashFailed": "Error al mover el mensaje a la papelera"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -367,9 +370,29 @@
       "delete": "Eliminar",
       "react": "Reaccionar",
       "reactWith": "Reaccionar con {emoji}",
+      "moveToTrash": "Mover a la papelera",
       "nothingToCopy": "Nada que copiar",
       "copied": "Copiado",
       "copyFailed": "Error al copiar"
+    },
+    "pendingDelete": {
+      "title": "Pendiente de eliminar",
+      "description": "Mensajes movidos a la papelera desde cualquier conversación. Restaura uno o elimínalo definitivamente.",
+      "empty": "No hay nada en la papelera ahora mismo.",
+      "noPreview": "(sin texto)",
+      "unknownContact": "Contacto desconocido",
+      "restore": "Restaurar",
+      "restoreFailed": "Error al restaurar el mensaje",
+      "restored": "Mensaje restaurado",
+      "deletePermanently": "Eliminar permanentemente",
+      "deleteFailed": "Error al eliminar el mensaje",
+      "deleted": "Mensaje eliminado",
+      "emptyTrash": "Vaciar papelera ({count})",
+      "emptied": "Papelera vaciada",
+      "emptyConfirmTitle": "¿Vaciar la papelera?",
+      "emptyConfirmDescription": "Esto elimina permanentemente los {count} mensajes pendientes. No se puede deshacer.",
+      "emptyConfirmAction": "Eliminar todo",
+      "cancel": "Cancelar"
     },
     "replyQuote": {
       "photo": "[Foto]",

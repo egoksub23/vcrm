@@ -32,6 +32,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addConversationLabel } from "@/lib/conversations/label-api";
 import { createInboxView, deleteInboxView } from "@/lib/inbox/views-api";
+import { PendingDeletePanel } from "./pending-delete-panel";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -146,6 +147,26 @@ export function ConversationList({
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
   }, []);
+
+  // Pending Delete panel (migration 062) — account-wide, not scoped to
+  // any one conversation, so it lives at this level rather than inside
+  // MessageThread. The count badge refetches on mount and whenever the
+  // panel itself restores/clears a row, so it stays roughly current
+  // without a dedicated realtime subscription for what's a low-traffic
+  // number.
+  const [pendingDeleteOpen, setPendingDeleteOpen] = useState(false);
+  const [pendingDeleteCount, setPendingDeleteCount] = useState(0);
+  const refetchPendingDeleteCount = useCallback(() => {
+    const supabase = createClient();
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("pending_delete", true)
+      .then(({ count }) => setPendingDeleteCount(count ?? 0));
+  }, []);
+  useEffect(() => {
+    refetchPendingDeleteCount();
+  }, [refetchPendingDeleteCount]);
 
   const toggleSelected = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -486,9 +507,10 @@ export function ConversationList({
   const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
 
   return (
-    // w-full on mobile so the list occupies the whole viewport when it's
-    // the single pane showing; fixed 320px on desktop where it shares the
-    // row with the thread + contact sidebar.
+    <>
+    {/* w-full on mobile so the list occupies the whole viewport when it's
+        the single pane showing; fixed 320px on desktop where it shares the
+        row with the thread + contact sidebar. */}
     <div className="flex h-full w-full flex-col border-r border-border bg-card lg:w-80">
       {/* Search + Filter */}
       <div className="space-y-2 border-b border-border p-3">
@@ -945,6 +967,20 @@ export function ConversationList({
             <ListChecks className="h-3 w-3 shrink-0" />
             <span className="hidden truncate sm:inline">{t("select")}</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setPendingDeleteOpen(true)}
+            title={t("pendingDeleteTitle")}
+            className="relative inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Trash2 className="h-3 w-3 shrink-0" />
+            {pendingDeleteCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive/15 px-1 text-[10px] font-bold text-destructive">
+                {pendingDeleteCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {hasContactFilters && (
@@ -1124,6 +1160,12 @@ export function ConversationList({
         )}
       </ScrollArea>
     </div>
+    <PendingDeletePanel
+      open={pendingDeleteOpen}
+      onOpenChange={setPendingDeleteOpen}
+      onChanged={refetchPendingDeleteCount}
+    />
+    </>
   );
 }
 

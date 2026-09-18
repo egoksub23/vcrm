@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CornerUpLeft, Copy, SmilePlus } from "lucide-react";
+import { CornerUpLeft, Copy, SmilePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +20,11 @@ interface MessageActionsProps {
   message: Message;
   onReply: () => void;
   onReact: (emoji: string) => void;
+  /** Flags the message pending_delete (migration 062) — it disappears
+   *  from this thread right away; the agent reviews/clears it from the
+   *  account-wide Pending Delete panel. Optional so any other caller
+   *  of this wrapper doesn't need to wire up trash support. */
+  onTrash?: () => void;
   children: ReactNode;
 }
 
@@ -32,6 +37,7 @@ export function MessageActions({
   message,
   onReply,
   onReact,
+  onTrash,
   children,
 }: MessageActionsProps) {
   const t = useTranslations("Inbox.actions");
@@ -73,6 +79,11 @@ export function MessageActions({
 
   const handleReply = () => {
     onReply();
+    setTouchOpen(false);
+  };
+
+  const handleTrash = () => {
+    onTrash?.();
     setTouchOpen(false);
   };
 
@@ -144,6 +155,17 @@ export function MessageActions({
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
+        {onTrash && (
+          <button
+            type="button"
+            onClick={handleTrash}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-red-500/10 hover:text-red-500"
+            aria-label={t("moveToTrash")}
+            title={t("moveToTrash")}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       </div>
     </div>

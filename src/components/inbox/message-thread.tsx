@@ -1001,6 +1001,29 @@ export function MessageThread({
     [conversation, user?.id, t],
   );
 
+  // "Move to Trash" — soft-flags the message (pending_delete, migration
+  // 062) rather than deleting it outright. It vanishes from this thread
+  // immediately (filtered into `visibleMessages` above); an agent then
+  // reviews everything flagged account-wide in the Pending Delete panel
+  // and either restores it or clears it for real from there.
+  const handleMoveToTrash = useCallback(
+    async (messageId: string) => {
+      if (messageId.startsWith("temp-")) return;
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("messages")
+        .update({ pending_delete: true, pending_delete_at: new Date().toISOString() })
+        .eq("id", messageId);
+      if (error) {
+        toast.error(t("trashFailed"));
+        return;
+      }
+      onUpdateMessage(messageId, { pending_delete: true });
+      toast.success(t("movedToTrash"));
+    },
+    [onUpdateMessage, t],
+  );
+
   const handleAssignChange = useCallback(
     async (agentId: string | null) => {
       if (!conversation) return;
@@ -1115,13 +1138,20 @@ export function MessageThread({
   }
 
   const displayName = contact.name || contactHandle(contact);
-  const messageGroups = groupMessagesByDate(messages);
+  // Messages marked pending_delete (the "Move to Trash" action below)
+  // vanish from the thread immediately — they're not gone yet, just
+  // held in the account-wide Pending Delete panel until an agent
+  // clears or restores them. `messagesById` above stays built from the
+  // full, unfiltered `messages` so a reply-quote pointing at a now-
+  // trashed message still resolves its preview text.
+  const visibleMessages = messages.filter((m) => !m.pending_delete);
+  const messageGroups = groupMessagesByDate(visibleMessages);
   // Only the most recent email-rendered message defaults to expanded —
   // older ones in the same thread default collapsed to a one-line
   // preview (EmailBodyContent in message-bubble.tsx), the way a real
   // email client's history stays out of the way until you open it.
   const latestEmailMessageId =
-    [...messages].reverse().find((m) => !!m.content_html)?.id ?? null;
+    [...visibleMessages].reverse().find((m) => !!m.content_html)?.id ?? null;
   const currentStatus = STATUS_OPTIONS.find(
     (s) => s.value === conversation.status
   );
@@ -1625,6 +1655,7 @@ export function MessageThread({
                         onReact={(emoji) => {
                           if (emoji) void postReaction(msg.id, emoji);
                         }}
+                        onTrash={() => void handleMoveToTrash(msg.id)}
                       >
                         <MessageBubble
                           message={msg}

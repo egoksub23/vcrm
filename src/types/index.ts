@@ -382,6 +382,12 @@ export interface Message {
   is_internal?: boolean;
   /** Mentioned user_ids, only meaningful when `is_internal` is true. */
   mentions?: string[];
+  /** "Move to Trash" flag (migration 062) — true hides the message
+   *  from its own conversation thread and surfaces it in the
+   *  account-wide Pending Delete panel instead of deleting it
+   *  outright. `pending_delete_at` is when it was flagged. */
+  pending_delete?: boolean;
+  pending_delete_at?: string | null;
 }
 
 export type ReactionActor = 'customer' | 'agent';

@@ -179,6 +179,7 @@
       "clearAll": "Limpar tudo",
       "select": "Selecionar",
       "selectModeTitle": "Selecione conversas para uma ação em massa",
+      "pendingDeleteTitle": "Pendente de exclusão",
       "selectedCount": "{count} selecionadas",
       "applyLabel": "Aplicar etiqueta",
       "noLabelsAvailable": "Nenhuma etiqueta disponível",
@@ -257,7 +258,9 @@
       "sendTemplateFailed": "Falha ao enviar o modelo: {reason}",
       "waitForSending": "Aguarde a mensagem terminar de ser enviada",
       "reactionFailed": "Falha na reação: {reason}",
-      "assignmentUpdateFailed": "Falha ao atualizar a atribuição"
+      "assignmentUpdateFailed": "Falha ao atualizar a atribuição",
+      "movedToTrash": "Mensagem movida para a lixeira",
+      "trashFailed": "Falha ao mover a mensagem para a lixeira"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -367,9 +370,29 @@
       "delete": "Excluir",
       "react": "Reagir",
       "reactWith": "Reagir com {emoji}",
+      "moveToTrash": "Mover para a lixeira",
       "nothingToCopy": "Nada para copiar",
       "copied": "Copiado",
       "copyFailed": "Falha ao copiar"
+    },
+    "pendingDelete": {
+      "title": "Pendente de exclusão",
+      "description": "Mensagens movidas para a lixeira de qualquer conversa. Restaure uma ou exclua definitivamente.",
+      "empty": "Não há nada na lixeira no momento.",
+      "noPreview": "(sem texto)",
+      "unknownContact": "Contato desconhecido",
+      "restore": "Restaurar",
+      "restoreFailed": "Falha ao restaurar a mensagem",
+      "restored": "Mensagem restaurada",
+      "deletePermanently": "Excluir permanentemente",
+      "deleteFailed": "Falha ao excluir a mensagem",
+      "deleted": "Mensagem excluída",
+      "emptyTrash": "Esvaziar lixeira ({count})",
+      "emptied": "Lixeira esvaziada",
+      "emptyConfirmTitle": "Esvaziar a lixeira?",
+      "emptyConfirmDescription": "Isso exclui permanentemente as {count} mensagens pendentes. Não pode ser desfeito.",
+      "emptyConfirmAction": "Excluir tudo",
+      "cancel": "Cancelar"
     },
     "replyQuote": {
       "photo": "[Foto]",

@@ -179,6 +179,7 @@
       "clearAll": "Clear all",
       "select": "Select",
       "selectModeTitle": "Select conversations for a bulk action",
+      "pendingDeleteTitle": "Pending Delete",
       "selectedCount": "{count} selected",
       "applyLabel": "Apply label",
       "noLabelsAvailable": "No labels available",
@@ -257,7 +258,9 @@
       "sendTemplateFailed": "Failed to send template: {reason}",
       "waitForSending": "Wait for the message to finish sending",
       "reactionFailed": "Reaction failed: {reason}",
-      "assignmentUpdateFailed": "Failed to update assignment"
+      "assignmentUpdateFailed": "Failed to update assignment",
+      "movedToTrash": "Message moved to trash",
+      "trashFailed": "Failed to move message to trash"
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -367,9 +370,29 @@
       "delete": "Delete",
       "react": "React",
       "reactWith": "React with {emoji}",
+      "moveToTrash": "Move to trash",
       "nothingToCopy": "Nothing to copy",
       "copied": "Copied",
       "copyFailed": "Copy failed"
+    },
+    "pendingDelete": {
+      "title": "Pending Delete",
+      "description": "Messages moved to trash from any conversation. Restore one, or clear it for good.",
+      "empty": "Nothing in the trash right now.",
+      "noPreview": "(no text)",
+      "unknownContact": "Unknown contact",
+      "restore": "Restore",
+      "restoreFailed": "Failed to restore message",
+      "restored": "Message restored",
+      "deletePermanently": "Delete permanently",
+      "deleteFailed": "Failed to delete message",
+      "deleted": "Message deleted",
+      "emptyTrash": "Empty trash ({count})",
+      "emptied": "Trash emptied",
+      "emptyConfirmTitle": "Empty trash?",
+      "emptyConfirmDescription": "This permanently deletes all {count} pending messages. This can't be undone.",
+      "emptyConfirmAction": "Delete all",
+      "cancel": "Cancel"
     },
     "replyQuote": {
       "photo": "[Photo]",
