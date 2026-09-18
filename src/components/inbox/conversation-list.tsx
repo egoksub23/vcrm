@@ -13,6 +13,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNow } from "@/hooks/use-now";
 import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
+import type { StatusColors } from "@/lib/status-colors";
+import { hexWithAlpha } from "@/lib/status-colors";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
 import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
@@ -53,26 +55,20 @@ interface ConversationListProps {
   onLabelsChange?: (conversationId: string, labels: Conversation["labels"]) => void;
 }
 
-const STATUS_COLORS: Record<ConversationStatus, string> = {
-  open: "bg-primary",
-  pending: "bg-amber-500",
-  closed: "bg-muted-foreground",
-};
-
-
-
 type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned";
 
 /** Sentinel for the "no team" bucket in the Team filter — distinct from
  *  `null` (no team filter applied at all). */
 const UNASSIGNED_TEAM = "__unassigned__";
 
-
-const PRIORITY_COLORS: Record<ConversationPriority, string> = {
-  urgent: "text-red-500",
-  high: "text-amber-400",
-  normal: "text-muted-foreground",
-  low: "text-sky-400",
+/** `Inbox.conversationList` already has Open/Pending/Closed strings
+ *  under these filter-menu keys — reused here for the status dot's
+ *  tooltip and the priority flag's aria-label rather than adding a
+ *  second, redundant set of translations for the same three words. */
+const STATUS_FILTER_KEY: Record<ConversationStatus, "filterOpen" | "filterPending" | "filterClosed"> = {
+  open: "filterOpen",
+  pending: "filterPending",
+  closed: "filterClosed",
 };
 
 /** Highest first — drives the "Priority" sort. */
@@ -94,7 +90,7 @@ export function ConversationList({
   onLabelsChange,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  const { user, slaResponseMinutes, canEditSettings } = useAuth();
+  const { user, slaResponseMinutes, statusColors, canEditSettings } = useAuth();
   // One shared ticking clock for every row's aging-response chip,
   // rather than each ConversationItem running its own interval.
   const now = useNow(30000);
@@ -907,7 +903,7 @@ export function ConversationList({
                     selectedPriority === p ? "text-primary" : "text-popover-foreground"
                   )}
                 >
-                  <Flag className={cn("mr-2 h-3.5 w-3.5", PRIORITY_COLORS[p])} />
+                  <Flag className="mr-2 h-3.5 w-3.5" style={{ color: statusColors.priority[p] }} />
                   {t(`priority.${p}`)}
                 </DropdownMenuItem>
               ))}
@@ -1109,6 +1105,7 @@ export function ConversationList({
                 t={t}
                 now={now}
                 slaResponseMinutes={slaResponseMinutes}
+                statusColors={statusColors}
                 selectMode={selectMode}
                 selected={selectedIds.has(conv.id)}
                 onToggleSelect={toggleSelected}
@@ -1134,6 +1131,9 @@ interface ConversationItemProps {
    *  is impure, and one shared interval beats one per row. */
   now: number;
   slaResponseMinutes: number;
+  /** Per-account Inbox colors (migration 057) — drives the status dot,
+   *  the overdue pill, and the priority flag below. */
+  statusColors: StatusColors;
   /** Bulk label-apply mode (Conversation Labels follow-up) — when on,
    *  the row toggles selection instead of opening the conversation. */
   selectMode: boolean;
@@ -1149,6 +1149,7 @@ function ConversationItem({
   t,
   now,
   slaResponseMinutes,
+  statusColors,
   selectMode,
   selected,
   onToggleSelect,
@@ -1230,7 +1231,8 @@ function ConversationItem({
             />
             {conversation.priority !== "normal" && (
               <Flag
-                className={cn("h-3 w-3 shrink-0", PRIORITY_COLORS[conversation.priority])}
+                className="h-3 w-3 shrink-0"
+                style={{ color: statusColors.priority[conversation.priority] }}
                 aria-label={t(`priority.${conversation.priority}`)}
               />
             )}
@@ -1247,12 +1249,12 @@ function ConversationItem({
           <div className="flex shrink-0 items-center gap-1.5">
             {showAging && (
               <span
-                className={cn(
-                  "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                style={
                   isBreached
-                    ? "bg-red-500/15 text-red-500"
-                    : "bg-amber-500/15 text-amber-500",
-                )}
+                    ? { backgroundColor: hexWithAlpha(statusColors.overdue, 0.15), color: statusColors.overdue }
+                    : { backgroundColor: "rgba(245, 158, 11, 0.15)", color: "rgb(245, 158, 11)" }
+                }
                 title={t("awaitingResponseSince", {
                   time: formatDistanceToNow(
                     new Date(conversation.last_customer_message_at!),
@@ -1280,11 +1282,9 @@ function ConversationItem({
               />
             )}
             <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                STATUS_COLORS[conversation.status]
-              )}
-              title={conversation.status}
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: statusColors[conversation.status] }}
+              title={t(STATUS_FILTER_KEY[conversation.status])}
             />
           </div>
         </div>

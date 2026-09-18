@@ -1979,7 +1979,10 @@
       "quick-replies": "Quick replies",
       "fields": "Fields & tags",
       "deals": "Deals & currency",
+      "response-time": "Response time",
+      "status-colors": "Status colors",
       "members": "Team members",
+      "teams": "Teams",
       "api": "API keys"
     },
     "groups": {
@@ -2140,6 +2143,28 @@
       "saving": "Saving...",
       "saveFailed": "Failed to save the response target",
       "saveSuccess": "Response target updated"
+    },
+    "statusColors": {
+      "title": "Status colors",
+      "description": "Pick the colors the Inbox uses for conversation status, overdue replies, and priority — shown as the small dot and flag next to each conversation.",
+      "statusSectionTitle": "Conversation status",
+      "statusSectionDesc": "Colors for the status dot shown on every conversation row.",
+      "open": "Open",
+      "pending": "Pending",
+      "closed": "Closed",
+      "overdue": "Overdue (SLA breached)",
+      "prioritySectionTitle": "Priority",
+      "prioritySectionDesc": "Colors for the priority flag shown on conversations marked above Normal.",
+      "priorityUrgent": "Urgent",
+      "priorityHigh": "High",
+      "priorityNormal": "Normal",
+      "priorityLow": "Low",
+      "adminOnlyHint": "Only account admins can change status colors.",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveFailed": "Failed to save status colors",
+      "saveSuccess": "Status colors updated",
+      "resetToDefaults": "Reset to defaults"
     },
     "aiConfig": {
       "title": "Agent setup",

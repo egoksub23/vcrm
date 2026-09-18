@@ -1979,7 +1979,10 @@
       "quick-replies": "빠른 답장",
       "fields": "필드 & 태그",
       "deals": "딜 & 통화",
+      "response-time": "응답 시간",
+      "status-colors": "상태 색상",
       "members": "팀원",
+      "teams": "팀",
       "api": "API 키"
     },
     "groups": {
@@ -2140,6 +2143,28 @@
       "saving": "저장 중...",
       "saveFailed": "응답 목표를 저장하지 못했습니다",
       "saveSuccess": "응답 목표가 업데이트되었습니다"
+    },
+    "statusColors": {
+      "title": "상태 색상",
+      "description": "받은편지함이 대화 상태, 지연된 응답, 우선순위에 사용하는 색상을 선택하세요 — 각 대화 옆의 작은 점과 깃발로 표시됩니다.",
+      "statusSectionTitle": "대화 상태",
+      "statusSectionDesc": "모든 대화 행에 표시되는 상태 점의 색상입니다.",
+      "open": "열림",
+      "pending": "대기 중",
+      "closed": "종료됨",
+      "overdue": "지연됨 (SLA 초과)",
+      "prioritySectionTitle": "우선순위",
+      "prioritySectionDesc": "보통보다 높게 표시된 대화에 나타나는 우선순위 깃발의 색상입니다.",
+      "priorityUrgent": "긴급",
+      "priorityHigh": "높음",
+      "priorityNormal": "보통",
+      "priorityLow": "낮음",
+      "adminOnlyHint": "계정 관리자만 상태 색상을 변경할 수 있습니다.",
+      "save": "저장",
+      "saving": "저장 중...",
+      "saveFailed": "상태 색상을 저장하지 못했습니다",
+      "saveSuccess": "상태 색상이 업데이트되었습니다",
+      "resetToDefaults": "기본값으로 재설정"
     },
     "aiConfig": {
       "title": "에이전트 설정",

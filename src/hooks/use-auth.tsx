@@ -13,6 +13,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import {
+  DEFAULT_STATUS_COLORS,
+  withStatusColorDefaults,
+  type StatusColors,
+} from "@/lib/status-colors";
 
 /** Fallback SLA response target (minutes) — mirrors DEFAULT_CURRENCY's
  *  role: used while loading or when no account is resolved, migration
@@ -52,6 +57,10 @@ interface AccountSummary {
    *  NOT NULL DEFAULT 30 in the DB; narrowed to DEFAULT_SLA_MINUTES
    *  when absent. */
   sla_response_minutes: number;
+  /** Per-account Inbox status/priority colors (migration 057). NOT
+   *  NULL DEFAULT in the DB; narrowed through withStatusColorDefaults
+   *  in case a row predates a since-added key. */
+  status_colors: StatusColors;
 }
 
 /**
@@ -129,6 +138,10 @@ interface AuthContextValue {
    *  DEFAULT_SLA_MINUTES while loading or when no account is
    *  resolved, so callers can use it unconditionally. */
   slaResponseMinutes: number;
+  /** Account's Inbox status/priority colors. Falls back to
+   *  DEFAULT_STATUS_COLORS while loading or when no account is
+   *  resolved, so callers can use it unconditionally. */
+  statusColors: StatusColors;
   /** True if `accountRole === 'owner'`. */
   isOwner: boolean;
   /** True if `accountRole === 'admin'` (does NOT include owner — use canManageMembers for "admin or above"). */
@@ -251,9 +264,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: account, error: accountErr } = await supabase
             .from("accounts")
             // default_currency added in migration 021, sla_response_minutes
-            // in migration 049; both narrowed to a fallback below for
-            // older schemas where they read null.
-            .select("id, name, default_currency, sla_response_minutes")
+            // in migration 049, status_colors in migration 057; all
+            // narrowed to a fallback below for older schemas where
+            // they read null.
+            .select("id, name, default_currency, sla_response_minutes, status_colors")
             .eq("id", data.account_id)
             .maybeSingle();
           if (accountErr) {
@@ -269,6 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               name: account.name,
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
               sla_response_minutes: account.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
+              status_colors: withStatusColorDefaults(account.status_colors),
             };
           }
         }
@@ -452,6 +467,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         account,
         defaultCurrency: account?.default_currency ?? DEFAULT_CURRENCY,
         slaResponseMinutes: account?.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
+        statusColors: account?.status_colors ?? DEFAULT_STATUS_COLORS,
         accountStatus,
         accountStatusDetail: statusDetail,
         ...derived,
@@ -485,6 +501,7 @@ export function useAuth(): AuthContextValue {
       account: null,
       defaultCurrency: DEFAULT_CURRENCY,
       slaResponseMinutes: DEFAULT_SLA_MINUTES,
+      statusColors: DEFAULT_STATUS_COLORS,
       // Outside the provider there is nothing to resolve yet — 'loading'
       // keeps the access alert from firing on, say, the login page.
       accountStatus: "loading",

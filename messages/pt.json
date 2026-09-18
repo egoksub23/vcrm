@@ -1963,7 +1963,10 @@
       "quick-replies": "Respostas rápidas",
       "fields": "Campos e tags",
       "deals": "Negócios e moeda",
+      "response-time": "Tempo de resposta",
+      "status-colors": "Cores de status",
       "members": "Membros da equipe",
+      "teams": "Equipes",
       "api": "Chaves de API"
     },
     "groups": {
@@ -2122,6 +2125,28 @@
       "saving": "Salvando...",
       "saveFailed": "Falha ao salvar a meta de resposta",
       "saveSuccess": "Meta de resposta atualizada"
+    },
+    "statusColors": {
+      "title": "Cores de status",
+      "description": "Escolha as cores que a Caixa de entrada usa para o status da conversa, respostas atrasadas e prioridade — mostradas como o pequeno ponto e a bandeira ao lado de cada conversa.",
+      "statusSectionTitle": "Status da conversa",
+      "statusSectionDesc": "Cores para o ponto de status exibido em cada linha de conversa.",
+      "open": "Aberta",
+      "pending": "Pendente",
+      "closed": "Fechada",
+      "overdue": "Atrasada (SLA descumprido)",
+      "prioritySectionTitle": "Prioridade",
+      "prioritySectionDesc": "Cores para a bandeira de prioridade exibida em conversas marcadas acima de Normal.",
+      "priorityUrgent": "Urgente",
+      "priorityHigh": "Alta",
+      "priorityNormal": "Normal",
+      "priorityLow": "Baixa",
+      "adminOnlyHint": "Somente administradores da conta podem alterar as cores de status.",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "saveFailed": "Falha ao salvar as cores de status",
+      "saveSuccess": "Cores de status atualizadas",
+      "resetToDefaults": "Restaurar padrões"
     },
     "aiConfig": {
       "title": "Configuração do agente",

@@ -1963,7 +1963,10 @@
       "quick-replies": "Respuestas rápidas",
       "fields": "Campos y etiquetas",
       "deals": "Negocios y moneda",
+      "response-time": "Tiempo de respuesta",
+      "status-colors": "Colores de estado",
       "members": "Miembros del equipo",
+      "teams": "Equipos",
       "api": "Claves de API"
     },
     "groups": {
@@ -2122,6 +2125,28 @@
       "saving": "Guardando...",
       "saveFailed": "Error al guardar el objetivo de respuesta",
       "saveSuccess": "Objetivo de respuesta actualizado"
+    },
+    "statusColors": {
+      "title": "Colores de estado",
+      "description": "Elige los colores que usa la bandeja de entrada para el estado de la conversación, las respuestas atrasadas y la prioridad — se muestran como el pequeño punto y la bandera junto a cada conversación.",
+      "statusSectionTitle": "Estado de la conversación",
+      "statusSectionDesc": "Colores para el punto de estado que aparece en cada fila de conversación.",
+      "open": "Abierta",
+      "pending": "Pendiente",
+      "closed": "Cerrada",
+      "overdue": "Atrasada (SLA incumplido)",
+      "prioritySectionTitle": "Prioridad",
+      "prioritySectionDesc": "Colores para la bandera de prioridad que aparece en conversaciones marcadas por encima de Normal.",
+      "priorityUrgent": "Urgente",
+      "priorityHigh": "Alta",
+      "priorityNormal": "Normal",
+      "priorityLow": "Baja",
+      "adminOnlyHint": "Solo los administradores de la cuenta pueden cambiar los colores de estado.",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "saveFailed": "Error al guardar los colores de estado",
+      "saveSuccess": "Colores de estado actualizados",
+      "resetToDefaults": "Restablecer valores predeterminados"
     },
     "aiConfig": {
       "title": "Configuración del agente",

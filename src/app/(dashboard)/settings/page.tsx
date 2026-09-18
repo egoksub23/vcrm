@@ -17,6 +17,7 @@ import { QuickRepliesManager } from '@/components/settings/quick-replies-manager
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
+import { StatusColorsTab } from '@/components/settings/status-colors-tab';
 import { MembersTab } from '@/components/settings/members-tab';
 import { TeamsTab } from '@/components/settings/teams-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
@@ -83,6 +84,7 @@ function SettingsPageInner() {
     fields: <FieldsAndTagsPanel />,
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
+    'status-colors': <StatusColorsTab />,
     members: <MembersTab />,
     teams: <TeamsTab />,
     api: <ApiKeysSettings />,
