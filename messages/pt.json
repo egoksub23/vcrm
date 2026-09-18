@@ -157,6 +157,7 @@
       "allTeams": "Todas as equipes",
       "unassignedTeam": "Sem equipe",
       "allChannels": "Todos os canais",
+      "channelsSelected": "{count} canais",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
@@ -559,7 +560,17 @@
       "toastCustomFieldsSaved": "Campos personalizados salvos",
       "toastCustomFieldsFailed": "Falha ao salvar os campos personalizados",
       "toastTemplateSent": "Modelo \"{name}\" enviado",
-      "toastTemplateFailed": "Falha ao enviar o modelo: {reason}"
+      "toastTemplateFailed": "Falha ao enviar o modelo: {reason}",
+      "mergePrompt": {
+        "title": "Mesclar com contato existente?",
+        "description": "{name} já tem esse número de telefone, com seu próprio histórico de conversa. Mesclar todo o chat e os dados dele neste contato?",
+        "unnamed": "Outro contato",
+        "cancel": "Manter separados",
+        "confirm": "Mesclar",
+        "merging": "Mesclando...",
+        "toastMerged": "Contatos mesclados",
+        "toastFailed": "Falha ao mesclar contatos: {reason}"
+      }
     },
     "importModal": {
       "title": "Importar contatos",

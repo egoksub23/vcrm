@@ -674,7 +674,13 @@ export interface InboxViewFilterConfig {
   company?: string | null;
   teamId?: string | null;
   labelIds?: string[];
+  /** @deprecated single-channel form, kept only so pre-existing saved
+   *  views still apply correctly — new saves always write `channelTypes`. */
   channelType?: ChannelType | null;
+  /** Multi-select — lets a saved view group channels (e.g. "Email" =
+   *  email+gmail, "Everything else" = every non-email channel), not
+   *  just isolate one. Empty/absent = no filter. */
+  channelTypes?: ChannelType[];
   priority?: ConversationPriority | null;
   sortMode?: string;
 }

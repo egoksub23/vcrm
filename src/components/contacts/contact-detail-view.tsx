@@ -11,6 +11,8 @@ import {
   TemplatePicker,
   type TemplateSendValues,
 } from '@/components/inbox/template-picker';
+import { findExistingContact, type ExistingContact } from '@/lib/contacts/dedupe';
+import { mergeContacts } from '@/lib/contacts/merge-api';
 import {
   Sheet,
   SheetContent,
@@ -18,6 +20,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +49,7 @@ import {
   X,
   DollarSign,
   LayoutTemplate,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { contactHandle } from '@/lib/whatsapp/wa-identity';
@@ -76,6 +87,13 @@ export function ContactDetailView({
   const [editEmail, setEditEmail] = useState('');
   const [editCompany, setEditCompany] = useState('');
   const [savingDetails, setSavingDetails] = useState(false);
+
+  // Merge offer — surfaced after a phone edit lands on a number another
+  // contact already owns (e.g. an agent learns a phone number mid-email
+  // thread and updates it here). Never automatic: the agent explicitly
+  // confirms before any conversations/deals/tags move.
+  const [mergeCandidate, setMergeCandidate] = useState<ExistingContact | null>(null);
+  const [merging, setMerging] = useState(false);
 
   // Tags tab
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -204,12 +222,15 @@ export function ContactDetailView({
       return;
     }
 
+    const nextPhone = editPhone.trim();
+    const phoneChanged = nextPhone !== contact?.phone;
+
     setSavingDetails(true);
     const { error } = await supabase
       .from('contacts')
       .update({
         name: editName.trim() || null,
-        phone: editPhone.trim(),
+        phone: nextPhone,
         email: editEmail.trim() || null,
         company: editCompany.trim() || null,
         updated_at: new Date().toISOString(),
@@ -222,8 +243,39 @@ export function ContactDetailView({
       toast.success(t('toastUpdated'));
       fetchContact();
       onUpdated();
+
+      // The phone just changed to a number another contact already
+      // owns — offer to fold that contact's whole history into this
+      // one instead of leaving two separate records for the same
+      // person (issue raised: agent learns a phone number from an
+      // email thread and wants the WhatsApp/other-channel history
+      // that number already has attached to this contact).
+      if (phoneChanged && accountId) {
+        const existing = await findExistingContact(supabase, accountId, nextPhone, contactId);
+        if (existing) setMergeCandidate(existing);
+      }
     }
     setSavingDetails(false);
+  }
+
+  async function confirmMerge() {
+    if (!contactId || !mergeCandidate) return;
+    setMerging(true);
+    try {
+      await mergeContacts(contactId, mergeCandidate.id);
+      toast.success(t('mergePrompt.toastMerged'));
+      setMergeCandidate(null);
+      fetchContact();
+      fetchDeals();
+      fetchNotes();
+      fetchTags();
+      onUpdated();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'unknown error';
+      toast.error(t('mergePrompt.toastFailed', { reason }));
+    } finally {
+      setMerging(false);
+    }
   }
 
   async function toggleTag(tagId: string) {
@@ -755,6 +807,44 @@ export function ContactDetailView({
       onOpenChange={setTemplatePickerOpen}
       onSelect={handleSendTemplate}
     />
+    <Dialog open={!!mergeCandidate} onOpenChange={(open) => !open && setMergeCandidate(null)}>
+      <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-popover-foreground">
+            <AlertTriangle className="size-4 text-amber-500" />
+            {t('mergePrompt.title')}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            {t('mergePrompt.description', {
+              name: mergeCandidate?.name || t('mergePrompt.unnamed'),
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setMergeCandidate(null)}
+            disabled={merging}
+          >
+            {t('mergePrompt.cancel')}
+          </Button>
+          <Button
+            onClick={confirmMerge}
+            disabled={merging}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            {merging ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                {t('mergePrompt.merging')}
+              </>
+            ) : (
+              t('mergePrompt.confirm')
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

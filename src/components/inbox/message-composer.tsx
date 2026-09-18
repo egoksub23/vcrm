@@ -297,6 +297,7 @@ export function MessageComposer({
   // open it, and it can change between visits (someone else added one).
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [quickRepliesLoading, setQuickRepliesLoading] = useState(false);
+  const snippetListRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isSnippets) return;
     let cancelled = false;
@@ -316,6 +317,16 @@ export function MessageComposer({
       cancelled = true;
     };
   }, [isSnippets]);
+
+  // Always open the list scrolled to the top — a taller list from a
+  // prior session (or the composer's own layout shifting as it grows
+  // into Snippets mode) shouldn't leave the agent looking at whatever
+  // happened to be scrolled into view.
+  useEffect(() => {
+    if (isSnippets && snippetListRef.current) {
+      snippetListRef.current.scrollTop = 0;
+    }
+  }, [isSnippets, quickReplies]);
 
   // Media attachment state. `draft` holds an uploaded-but-not-yet-sent
   // attachment; `busy` covers the upload/transcode window.
@@ -895,7 +906,10 @@ export function MessageComposer({
         // composer itself. Picking an item switches back to Message mode
         // (handlePickQuickReply) so the agent can review/edit before
         // sending, same as the old dialog's behavior.
-        <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-muted/40">
+        <div
+          ref={snippetListRef}
+          className="max-h-48 overflow-y-auto rounded-xl border border-border bg-muted/40"
+        >
           {quickRepliesLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

@@ -31,22 +31,31 @@ export interface ExistingContact {
  * or null. Pre-filters in SQL by the last-8-digit suffix (so we don't
  * pull every contact), then applies the strict `phonesMatch` in JS on
  * the small candidate set — the exact approach the webhook has used.
+ *
+ * `excludeContactId` skips a given contact id from the candidate set —
+ * needed when checking a phone edit on an *existing* contact, so it
+ * doesn't just match itself.
  */
 export async function findExistingContact(
   db: SupabaseClient,
   accountId: string,
   phone: string,
+  excludeContactId?: string,
 ): Promise<ExistingContact | null> {
   const normalized = normalizePhone(phone);
   if (!normalized) return null;
 
   const suffix = normalized.length >= 8 ? normalized.slice(-8) : normalized;
 
-  const { data, error } = await db
+  let query = db
     .from("contacts")
     .select("*")
     .eq("account_id", accountId)
     .like("phone", `%${suffix}`);
+  if (excludeContactId) {
+    query = query.neq("id", excludeContactId);
+  }
+  const { data, error } = await query;
 
   if (error || !data) return null;
 

@@ -123,8 +123,10 @@ export function ConversationList({
   // selected labels, same semantics as the contact-tag filter above but
   // over `conversation.labels` instead of `conversation.contact.tags`.
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
-  // Channel filter (WhatsApp vs. Web Widget). `null` = no filter.
-  const [selectedChannelType, setSelectedChannelType] = useState<ChannelType | null>(null);
+  // Channel filter — multi-select (e.g. "Email" = email+gmail, or
+  // "Everything else" = every non-email channel) so a saved view can
+  // group channels, not just isolate one. Empty array = no filter.
+  const [selectedChannelTypes, setSelectedChannelTypes] = useState<ChannelType[]>([]);
   // Priority filter + sort (P1 gap-analysis item, migration 047). `null` =
   // no priority filter. Sort defaults to "recent" (existing behavior) —
   // switching to "priority" doesn't change what's *shown*, only order.
@@ -173,7 +175,9 @@ export function ConversationList({
     setSelectedCompany(cfg.company ?? null);
     setSelectedTeamId(cfg.teamId ?? null);
     setSelectedLabelIds(cfg.labelIds ?? []);
-    setSelectedChannelType(cfg.channelType ?? null);
+    setSelectedChannelTypes(
+      cfg.channelTypes ?? (cfg.channelType ? [cfg.channelType] : [])
+    );
     setSelectedPriority(cfg.priority ?? null);
     setSortMode((cfg.sortMode as SortMode) ?? "recent");
   }, []);
@@ -191,7 +195,7 @@ export function ConversationList({
           company: selectedCompany,
           teamId: selectedTeamId,
           labelIds: selectedLabelIds,
-          channelType: selectedChannelType,
+          channelTypes: selectedChannelTypes,
           priority: selectedPriority,
           sortMode,
         },
@@ -215,7 +219,7 @@ export function ConversationList({
     selectedCompany,
     selectedTeamId,
     selectedLabelIds,
-    selectedChannelType,
+    selectedChannelTypes,
     selectedPriority,
     sortMode,
     refetchViews,
@@ -355,8 +359,8 @@ export function ConversationList({
       );
     }
 
-    if (selectedChannelType !== null) {
-      result = result.filter((c) => c.last_channel_type === selectedChannelType);
+    if (selectedChannelTypes.length > 0) {
+      result = result.filter((c) => selectedChannelTypes.includes(c.last_channel_type));
     }
 
     if (selectedPriority !== null) {
@@ -391,7 +395,7 @@ export function ConversationList({
     selectedCompany,
     selectedTeamId,
     selectedLabelIds,
-    selectedChannelType,
+    selectedChannelTypes,
     selectedPriority,
     sortMode,
     user,
@@ -414,7 +418,7 @@ export function ConversationList({
     setSelectedCompany(null);
     setSelectedTeamId(null);
     setSelectedLabelIds([]);
-    setSelectedChannelType(null);
+    setSelectedChannelTypes([]);
     setSelectedPriority(null);
   }, []);
 
@@ -423,8 +427,14 @@ export function ConversationList({
     selectedCompany !== null ||
     selectedTeamId !== null ||
     selectedLabelIds.length > 0 ||
-    selectedChannelType !== null ||
+    selectedChannelTypes.length > 0 ||
     selectedPriority !== null;
+
+  const toggleChannelType = useCallback((ct: ChannelType) => {
+    setSelectedChannelTypes((prev) =>
+      prev.includes(ct) ? prev.filter((c) => c !== ct) : [...prev, ct]
+    );
+  }, []);
 
   const handleBulkApplyLabel = useCallback(
     async (tag: Tag) => {
@@ -819,15 +829,17 @@ export function ConversationList({
             <DropdownMenuTrigger
               className={cn(
                 "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
-                selectedChannelType !== null
+                selectedChannelTypes.length > 0
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <span className="truncate">
-                {selectedChannelType === null
+                {selectedChannelTypes.length === 0
                   ? t("allChannels")
-                  : t(`channel.${selectedChannelType}`)}
+                  : selectedChannelTypes.length === 1
+                    ? t(`channel.${selectedChannelTypes[0]}`)
+                    : t("channelsSelected", { count: selectedChannelTypes.length })}
               </span>
               <ChevronDown className="h-3 w-3 shrink-0" />
             </DropdownMenuTrigger>
@@ -836,10 +848,10 @@ export function ConversationList({
               className="w-48 border-border bg-popover"
             >
               <DropdownMenuItem
-                onClick={() => setSelectedChannelType(null)}
+                onClick={() => setSelectedChannelTypes([])}
                 className={cn(
                   "text-sm",
-                  selectedChannelType === null
+                  selectedChannelTypes.length === 0
                     ? "text-primary"
                     : "text-popover-foreground"
                 )}
@@ -849,21 +861,17 @@ export function ConversationList({
               {(["whatsapp", "web_widget", "messenger", "instagram", "email", "gmail"] as ChannelType[]).map((ct) => {
                 const Icon = CHANNEL_ICONS[ct];
                 return (
-                  <DropdownMenuItem
+                  <DropdownMenuCheckboxItem
                     key={ct}
-                    onClick={() => setSelectedChannelType(ct)}
-                    className={cn(
-                      "text-sm",
-                      selectedChannelType === ct
-                        ? "text-primary"
-                        : "text-popover-foreground"
-                    )}
+                    checked={selectedChannelTypes.includes(ct)}
+                    onCheckedChange={() => toggleChannelType(ct)}
+                    className="text-sm text-popover-foreground"
                   >
                     <span className="flex items-center gap-2 truncate">
                       <Icon className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{t(`channel.${ct}`)}</span>
                     </span>
-                  </DropdownMenuItem>
+                  </DropdownMenuCheckboxItem>
                 );
               })}
             </DropdownMenuContent>
@@ -986,15 +994,16 @@ export function ConversationList({
                 <X className="h-3 w-3" />
               </button>
             )}
-            {selectedChannelType !== null && (
+            {selectedChannelTypes.map((ct) => (
               <button
-                onClick={() => setSelectedChannelType(null)}
+                key={ct}
+                onClick={() => toggleChannelType(ct)}
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
               >
-                <span className="max-w-24 truncate">{t(`channel.${selectedChannelType}`)}</span>
+                <span className="max-w-24 truncate">{t(`channel.${ct}`)}</span>
                 <X className="h-3 w-3" />
               </button>
-            )}
+            ))}
             {selectedPriority !== null && (
               <button
                 onClick={() => setSelectedPriority(null)}

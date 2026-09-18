@@ -157,6 +157,7 @@
       "allTeams": "모든 팀",
       "unassignedTeam": "팀 없음",
       "allChannels": "모든 채널",
+      "channelsSelected": "채널 {count}개",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯",
@@ -559,7 +560,17 @@
       "toastCustomFieldsSaved": "커스텀 필드가 저장되었습니다",
       "toastCustomFieldsFailed": "커스텀 필드를 저장하지 못했습니다",
       "toastTemplateSent": "\"{name}\" 템플릿을 보냈습니다",
-      "toastTemplateFailed": "템플릿을 보내지 못했습니다: {reason}"
+      "toastTemplateFailed": "템플릿을 보내지 못했습니다: {reason}",
+      "mergePrompt": {
+        "title": "기존 연락처와 병합할까요?",
+        "description": "{name}이(가) 이미 이 전화번호를 사용 중이며, 별도의 대화 기록이 있습니다. 전체 채팅 및 상세정보를 이 연락처로 병합하시겠습니까?",
+        "unnamed": "다른 연락처",
+        "cancel": "분리 유지",
+        "confirm": "병합",
+        "merging": "병합 중...",
+        "toastMerged": "연락처가 병합되었습니다",
+        "toastFailed": "연락처 병합 실패: {reason}"
+      }
     },
     "importModal": {
       "title": "연락처 가져오기",

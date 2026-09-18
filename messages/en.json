@@ -157,6 +157,7 @@
       "allTeams": "All teams",
       "unassignedTeam": "No team",
       "allChannels": "All channels",
+      "channelsSelected": "{count} channels",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget",
@@ -559,7 +560,17 @@
       "toastCustomFieldsSaved": "Custom fields saved",
       "toastCustomFieldsFailed": "Failed to save custom fields",
       "toastTemplateSent": "Template \"{name}\" sent",
-      "toastTemplateFailed": "Failed to send template: {reason}"
+      "toastTemplateFailed": "Failed to send template: {reason}",
+      "mergePrompt": {
+        "title": "Merge with existing contact?",
+        "description": "{name} already has this phone number, with their own conversation history. Merge their entire chat and details into this contact?",
+        "unnamed": "Another contact",
+        "cancel": "Keep separate",
+        "confirm": "Merge",
+        "merging": "Merging...",
+        "toastMerged": "Contacts merged",
+        "toastFailed": "Failed to merge contacts: {reason}"
+      }
     },
     "importModal": {
       "title": "Import Contacts",

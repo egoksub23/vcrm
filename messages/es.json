@@ -157,6 +157,7 @@
       "allTeams": "Todos los equipos",
       "unassignedTeam": "Sin equipo",
       "allChannels": "Todos los canales",
+      "channelsSelected": "{count} canales",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
@@ -559,7 +560,17 @@
       "toastCustomFieldsSaved": "Campos personalizados guardados",
       "toastCustomFieldsFailed": "Error al guardar los campos personalizados",
       "toastTemplateSent": "Plantilla \"{name}\" enviada",
-      "toastTemplateFailed": "Error al enviar la plantilla: {reason}"
+      "toastTemplateFailed": "Error al enviar la plantilla: {reason}",
+      "mergePrompt": {
+        "title": "¿Fusionar con un contacto existente?",
+        "description": "{name} ya tiene este número de teléfono, con su propio historial de conversación. ¿Fusionar todo su chat y datos con este contacto?",
+        "unnamed": "Otro contacto",
+        "cancel": "Mantener separados",
+        "confirm": "Fusionar",
+        "merging": "Fusionando...",
+        "toastMerged": "Contactos fusionados",
+        "toastFailed": "Error al fusionar contactos: {reason}"
+      }
     },
     "importModal": {
       "title": "Importar contactos",
