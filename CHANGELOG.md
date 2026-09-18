@@ -9,6 +9,45 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.22.0] — 2026-09-18
+
+Ships Gmail as a full channel, alongside WhatsApp, the Web Widget,
+Messenger, Instagram DM, and Microsoft 365 / Outlook Email — kept as
+its own channel type distinct from `email` (Microsoft 365), so an
+account can connect one, the other, or both.
+
+**Migration required**: apply `058_gmail_channel.sql`.
+
+- **Connect flow**: a real "Connect Gmail" OAuth flow (Google OAuth
+  2.0) under Settings → Channels. Requires a Google Cloud OAuth client
+  (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — see
+  `docs/gmail-setup.md`. Sending works as soon as that's done; shows a
+  Reconnect banner if Google access is later revoked.
+- **Inbound delivery is a two-part setup, unlike every other channel
+  here**: Gmail has no self-service webhook registration, so receiving
+  needs a one-time Google Cloud Pub/Sub topic + push subscription the
+  operator creates by hand (this app can't do it — it needs
+  project-level GCP permissions no Gmail OAuth token grants). The
+  Settings panel shows the exact push-endpoint URL (with its
+  verification token) to paste into that subscription. A new
+  `/api/gmail/watch-renew` cron endpoint (shares
+  `AUTOMATION_CRON_SECRET`) renews the underlying watch registration
+  before its 7-day expiry.
+- **Send + receive**: plain text and a single attachment both ways.
+  Replies thread onto the customer's own Gmail conversation — both via
+  Gmail's own `threadId` and proper `In-Reply-To`/`References`
+  headers, fetched fresh at send time rather than cached. First
+  message to a contact who hasn't written in yet falls back to a fresh
+  send.
+- **Contacts**: matched by email address (case-insensitively) against
+  the same `email` field the Microsoft 365 channel already uses — a
+  contact who emails either connected mailbox resolves to one contact.
+- **Scope for this release**: templates and interactive buttons/lists
+  stay WhatsApp-only, same as every other non-WhatsApp channel.
+  Attachments beyond a few MB and reconciliation for a Pub/Sub
+  notification missed longer than Gmail's history retention window are
+  deferred.
+
 ## [0.21.0] — 2026-09-18
 
 Ships Microsoft 365 / Outlook email as a full channel, alongside
