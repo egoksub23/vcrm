@@ -35,8 +35,10 @@ import {
   RefreshCw,
   PanelRightOpen,
   PanelRightClose,
+  Ticket as TicketIcon,
 } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
 import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -1093,6 +1095,7 @@ export function MessageThread({
   // dialog instead of assigning immediately. A note (optional) posts as
   // an internal comment right before the assignment change, so it's the
   // most recent thing the new owner sees when they open the conversation.
+  const [raiseTicketOpen, setRaiseTicketOpen] = useState(false);
   const [pendingHandoffAgent, setPendingHandoffAgent] = useState<Profile | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
 
@@ -1323,6 +1326,19 @@ export function MessageThread({
                 </span>
               );
             })()}
+
+          {/* Raise Ticket — opens the create-ticket dialog pre-filled
+              with this contact + conversation, so the new ticket links
+              straight back to the chat it came from. */}
+          <button
+            type="button"
+            onClick={() => setRaiseTicketOpen(true)}
+            title={t("raiseTicket")}
+            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <TicketIcon className="h-3 w-3" />
+            <span className="hidden sm:inline">{t("raiseTicket")}</span>
+          </button>
 
           {/* Priority dropdown — manual set; the set_priority automation
               step (migration 047) sets the same column. */}
@@ -1723,6 +1739,13 @@ export function MessageThread({
         agentName={pendingHandoffAgent?.full_name ?? ""}
         onConfirm={handleConfirmHandoff}
         busy={handoffBusy}
+      />
+
+      <CreateTicketDialog
+        open={raiseTicketOpen}
+        onOpenChange={setRaiseTicketOpen}
+        contactId={conversation.contact_id}
+        conversationId={conversation.id}
       />
 
       {/* Full-size viewer for the thread's images/videos. Renders nothing

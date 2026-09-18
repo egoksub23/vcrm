@@ -23,6 +23,7 @@
     "contacts": "Contacts",
     "pipelines": "Pipelines",
     "broadcasts": "Broadcasts",
+    "tickets": "Tickets",
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
@@ -211,6 +212,7 @@
       "showContact": "Show contact",
       "refresh": "Refresh",
       "refreshConversation": "Refresh conversation",
+      "raiseTicket": "Raise Ticket",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget",
@@ -572,6 +574,7 @@
         "noTagsAvailable": "No tags available. Create tags in Settings."
       },
       "sendTemplateBtn": "Send template",
+      "newTicketBtn": "New Ticket",
       "saveChangesBtn": "Save Changes",
       "saveCustomFieldsBtn": "Save Custom Fields",
       "toastPhoneRequired": "Phone number is required",
@@ -2426,6 +2429,119 @@
       "byModel": "By model",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# call} other {# calls}}",
       "partialWindow": "Showing a partial window — usage is high enough that only the most recent records are summarized here."
+    }
+  },
+  "Tickets": {
+    "list": {
+      "pageTitle": "Tickets",
+      "pageDesc": "Track and resolve support tickets raised by your contacts.",
+      "newTicket": "New Ticket",
+      "empty": "No tickets match this view.",
+      "unassigned": "Unassigned",
+      "statusFilter": {
+        "all": "All",
+        "open": "Open",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "assigneeFilter": {
+        "all": "Everyone",
+        "mine": "Assigned to me",
+        "unassigned": "Unassigned"
+      },
+      "teamFilter": {
+        "all": "All teams"
+      },
+      "col": {
+        "number": "#",
+        "subject": "Subject",
+        "contact": "Contact",
+        "status": "Status",
+        "priority": "Priority",
+        "assignee": "Assignee",
+        "updated": "Updated"
+      },
+      "status": {
+        "open": "Open",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      }
+    },
+    "create": {
+      "title": "New Ticket",
+      "description": "Raise a support ticket for this contact.",
+      "contactLabel": "Contact",
+      "contactPlaceholder": "Search by name, phone, or email",
+      "noContacts": "No contacts found",
+      "change": "Change",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Brief summary of the issue",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Add more detail (optional)",
+      "categoryLabel": "Category",
+      "priorityLabel": "Priority",
+      "category": {
+        "general": "General",
+        "billing": "Billing",
+        "technical": "Technical",
+        "feature_request": "Feature request",
+        "bug": "Bug",
+        "account": "Account",
+        "other": "Other"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      },
+      "cancel": "Cancel",
+      "submit": "Create Ticket",
+      "subjectRequired": "Enter a subject",
+      "contactRequired": "Choose a contact",
+      "createFailed": "Failed to create ticket",
+      "created": "Ticket #{number} created"
+    },
+    "detail": {
+      "ticketNumber": "Ticket #{number}",
+      "unassigned": "Unassigned",
+      "noTeam": "No team",
+      "saving": "Saving…",
+      "commentsHeading": "Comments",
+      "noComments": "No comments yet",
+      "commentPlaceholder": "Write a comment — @mention a teammate to notify them",
+      "commentFailed": "Failed to post comment",
+      "unknownAgent": "Someone",
+      "updateFailed": "Failed to update ticket",
+      "status": {
+        "open": "Open",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      },
+      "category": {
+        "general": "General",
+        "billing": "Billing",
+        "technical": "Technical",
+        "feature_request": "Feature request",
+        "bug": "Bug",
+        "account": "Account",
+        "other": "Other"
+      }
     }
   },
   "Reports": {

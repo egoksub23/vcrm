@@ -50,9 +50,11 @@ import {
   DollarSign,
   LayoutTemplate,
   AlertTriangle,
+  Ticket as TicketIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { contactHandle } from '@/lib/whatsapp/wa-identity';
+import { CreateTicketDialog } from '@/components/tickets/create-ticket-dialog';
 
 interface ContactDetailViewProps {
   open: boolean;
@@ -79,6 +81,7 @@ export function ContactDetailView({
   // with this contact by sending an approved template. The send route
   // find-or-creates the conversation, so no inbound message is required.
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [raiseTicketOpen, setRaiseTicketOpen] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState(false);
 
   // Details tab
@@ -485,7 +488,7 @@ export function ContactDetailView({
                   </div>
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   onClick={() => setTemplatePickerOpen(true)}
@@ -498,6 +501,15 @@ export function ContactDetailView({
                     <LayoutTemplate className="size-4" />
                   )}
                   {t('sendTemplateBtn')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRaiseTicketOpen(true)}
+                  className="border-border text-foreground hover:bg-muted"
+                >
+                  <TicketIcon className="size-4" />
+                  {t('newTicketBtn')}
                 </Button>
               </div>
             </SheetHeader>
@@ -845,6 +857,13 @@ export function ContactDetailView({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {contact && (
+      <CreateTicketDialog
+        open={raiseTicketOpen}
+        onOpenChange={setRaiseTicketOpen}
+        contactId={contact.id}
+      />
+    )}
     </>
   );
 }

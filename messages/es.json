@@ -23,6 +23,7 @@
     "contacts": "Contactos",
     "pipelines": "Pipelines",
     "broadcasts": "Difusiones",
+    "tickets": "Tickets",
     "automations": "Automatizaciones",
     "flows": "Flujos",
     "aiAgents": "Agentes de IA",
@@ -211,6 +212,7 @@
       "showContact": "Mostrar contacto",
       "refresh": "Actualizar",
       "refreshConversation": "Actualizar conversación",
+      "raiseTicket": "Crear ticket",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
@@ -572,6 +574,7 @@
         "noTagsAvailable": "No hay etiquetas disponibles. Crea etiquetas en Configuración."
       },
       "sendTemplateBtn": "Enviar plantilla",
+      "newTicketBtn": "Nuevo ticket",
       "saveChangesBtn": "Guardar cambios",
       "saveCustomFieldsBtn": "Guardar campos personalizados",
       "toastPhoneRequired": "El número de teléfono es obligatorio",
@@ -2408,6 +2411,119 @@
       "byModel": "Por modelo",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# llamada} other {# llamadas}}",
       "partialWindow": "Se muestra una ventana parcial: el uso es tan alto que aquí solo se resumen los registros más recientes."
+    }
+  },
+  "Tickets": {
+    "list": {
+      "pageTitle": "Tickets",
+      "pageDesc": "Rastrea y resuelve los tickets de soporte creados por tus contactos.",
+      "newTicket": "Nuevo ticket",
+      "empty": "Ningún ticket coincide con esta vista.",
+      "unassigned": "Sin asignar",
+      "statusFilter": {
+        "all": "Todos",
+        "open": "Abierto",
+        "pending": "Pendiente",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      },
+      "assigneeFilter": {
+        "all": "Todos",
+        "mine": "Asignados a mí",
+        "unassigned": "Sin asignar"
+      },
+      "teamFilter": {
+        "all": "Todos los equipos"
+      },
+      "col": {
+        "number": "#",
+        "subject": "Asunto",
+        "contact": "Contacto",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "assignee": "Asignado",
+        "updated": "Actualizado"
+      },
+      "status": {
+        "open": "Abierto",
+        "pending": "Pendiente",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baja"
+      }
+    },
+    "create": {
+      "title": "Nuevo ticket",
+      "description": "Crea un ticket de soporte para este contacto.",
+      "contactLabel": "Contacto",
+      "contactPlaceholder": "Busca por nombre, teléfono o email",
+      "noContacts": "No se encontraron contactos",
+      "change": "Cambiar",
+      "subjectLabel": "Asunto",
+      "subjectPlaceholder": "Resumen breve del problema",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Agrega más detalles (opcional)",
+      "categoryLabel": "Categoría",
+      "priorityLabel": "Prioridad",
+      "category": {
+        "general": "General",
+        "billing": "Facturación",
+        "technical": "Técnico",
+        "feature_request": "Solicitud de función",
+        "bug": "Error",
+        "account": "Cuenta",
+        "other": "Otro"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baja"
+      },
+      "cancel": "Cancelar",
+      "submit": "Crear ticket",
+      "subjectRequired": "Ingresa un asunto",
+      "contactRequired": "Elige un contacto",
+      "createFailed": "No se pudo crear el ticket",
+      "created": "Ticket #{number} creado"
+    },
+    "detail": {
+      "ticketNumber": "Ticket #{number}",
+      "unassigned": "Sin asignar",
+      "noTeam": "Sin equipo",
+      "saving": "Guardando…",
+      "commentsHeading": "Comentarios",
+      "noComments": "Aún no hay comentarios",
+      "commentPlaceholder": "Escribe un comentario — usa @ para mencionar a un compañero",
+      "commentFailed": "No se pudo publicar el comentario",
+      "unknownAgent": "Alguien",
+      "updateFailed": "No se pudo actualizar el ticket",
+      "status": {
+        "open": "Abierto",
+        "pending": "Pendiente",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baja"
+      },
+      "category": {
+        "general": "General",
+        "billing": "Facturación",
+        "technical": "Técnico",
+        "feature_request": "Solicitud de función",
+        "bug": "Error",
+        "account": "Cuenta",
+        "other": "Otro"
+      }
     }
   },
   "Reports": {

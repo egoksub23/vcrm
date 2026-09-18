@@ -23,6 +23,7 @@
     "contacts": "연락처",
     "pipelines": "파이프라인",
     "broadcasts": "브로드캐스트",
+    "tickets": "티켓",
     "automations": "자동화",
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
@@ -211,6 +212,7 @@
       "showContact": "연락처 표시",
       "refresh": "새로고침",
       "refreshConversation": "대화 새로고침",
+      "raiseTicket": "티켓 생성",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯",
@@ -572,6 +574,7 @@
         "noTagsAvailable": "사용 가능한 태그가 없습니다. 설정에서 태그를 만드세요."
       },
       "sendTemplateBtn": "템플릿 보내기",
+      "newTicketBtn": "새 티켓",
       "saveChangesBtn": "변경 사항 저장",
       "saveCustomFieldsBtn": "커스텀 필드 저장",
       "toastPhoneRequired": "전화번호는 필수입니다",
@@ -2426,6 +2429,119 @@
       "byModel": "모델별",
       "modelCalls": "{tokens} 토큰 · 호출 {count}회",
       "partialWindow": "일부 기간만 표시 중 — 사용량이 많아 최근 기록만 요약되었습니다."
+    }
+  },
+  "Tickets": {
+    "list": {
+      "pageTitle": "티켓",
+      "pageDesc": "연락처가 등록한 지원 티켓을 추적하고 해결하세요.",
+      "newTicket": "새 티켓",
+      "empty": "이 보기에 해당하는 티켓이 없습니다.",
+      "unassigned": "담당자 없음",
+      "statusFilter": {
+        "all": "전체",
+        "open": "열림",
+        "pending": "보류",
+        "resolved": "해결됨",
+        "closed": "닫힘"
+      },
+      "assigneeFilter": {
+        "all": "전체",
+        "mine": "내게 할당됨",
+        "unassigned": "담당자 없음"
+      },
+      "teamFilter": {
+        "all": "모든 팀"
+      },
+      "col": {
+        "number": "#",
+        "subject": "제목",
+        "contact": "연락처",
+        "status": "상태",
+        "priority": "우선순위",
+        "assignee": "담당자",
+        "updated": "수정됨"
+      },
+      "status": {
+        "open": "열림",
+        "pending": "보류",
+        "resolved": "해결됨",
+        "closed": "닫힘"
+      },
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
+      }
+    },
+    "create": {
+      "title": "새 티켓",
+      "description": "이 연락처에 대한 지원 티켓을 생성합니다.",
+      "contactLabel": "연락처",
+      "contactPlaceholder": "이름, 전화번호 또는 이메일로 검색",
+      "noContacts": "연락처를 찾을 수 없습니다",
+      "change": "변경",
+      "subjectLabel": "제목",
+      "subjectPlaceholder": "문제에 대한 간단한 요약",
+      "descriptionLabel": "설명",
+      "descriptionPlaceholder": "자세한 내용을 추가하세요 (선택 사항)",
+      "categoryLabel": "카테고리",
+      "priorityLabel": "우선순위",
+      "category": {
+        "general": "일반",
+        "billing": "결제",
+        "technical": "기술",
+        "feature_request": "기능 요청",
+        "bug": "버그",
+        "account": "계정",
+        "other": "기타"
+      },
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
+      },
+      "cancel": "취소",
+      "submit": "티켓 생성",
+      "subjectRequired": "제목을 입력하세요",
+      "contactRequired": "연락처를 선택하세요",
+      "createFailed": "티켓 생성에 실패했습니다",
+      "created": "티켓 #{number}이(가) 생성되었습니다"
+    },
+    "detail": {
+      "ticketNumber": "티켓 #{number}",
+      "unassigned": "담당자 없음",
+      "noTeam": "팀 없음",
+      "saving": "저장 중…",
+      "commentsHeading": "댓글",
+      "noComments": "아직 댓글이 없습니다",
+      "commentPlaceholder": "댓글을 작성하세요 — @로 팀원을 멘션해 알릴 수 있습니다",
+      "commentFailed": "댓글 등록에 실패했습니다",
+      "unknownAgent": "누군가",
+      "updateFailed": "티켓 업데이트에 실패했습니다",
+      "status": {
+        "open": "열림",
+        "pending": "보류",
+        "resolved": "해결됨",
+        "closed": "닫힘"
+      },
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
+      },
+      "category": {
+        "general": "일반",
+        "billing": "결제",
+        "technical": "기술",
+        "feature_request": "기능 요청",
+        "bug": "버그",
+        "account": "계정",
+        "other": "기타"
+      }
     }
   },
   "Reports": {

@@ -279,7 +279,11 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned' | 'mention';
+export type NotificationType =
+  | 'conversation_assigned'
+  | 'mention'
+  | 'ticket_assigned'
+  | 'ticket_mention';
 
 export interface Notification {
   id: string;
@@ -289,11 +293,70 @@ export interface Notification {
   type: NotificationType;
   conversation_id?: string;
   contact_id?: string;
+  /** Migration 063. Set on ticket_assigned / ticket_mention notifications. */
+  ticket_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;
   body?: string;
   read_at?: string;
+  created_at: string;
+}
+
+// ============================================================
+// TICKETS (migration 063)
+// ============================================================
+
+export type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed';
+
+/** Same four-value scale as ConversationPriority — one shared mental
+ *  model for "how urgent" across conversations and tickets. */
+export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low';
+
+export type TicketCategory =
+  | 'general'
+  | 'billing'
+  | 'technical'
+  | 'feature_request'
+  | 'bug'
+  | 'account'
+  | 'other';
+
+export interface Ticket {
+  id: string;
+  account_id: string;
+  /** Human-readable, per-account sequential number (#1, #2, ...) —
+   *  assigned via the next_ticket_number RPC at creation time. */
+  ticket_number: number;
+  contact_id: string;
+  /** The chat this ticket was raised from, if any — null for tickets
+   *  raised directly from a Contact profile. */
+  conversation_id?: string | null;
+  subject: string;
+  description?: string | null;
+  category: TicketCategory;
+  status: TicketStatus;
+  priority: TicketPriority;
+  assigned_agent_id?: string | null;
+  assigned_team_id?: string | null;
+  created_by?: string | null;
+  resolved_at?: string | null;
+  closed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Optional joins, populated by callers that need them.
+  contact?: Contact;
+  assigned_team?: Team;
+}
+
+export interface TicketComment {
+  id: string;
+  ticket_id: string;
+  account_id: string;
+  author_id?: string | null;
+  body: string;
+  /** Array of mentioned user_ids — same shape as messages.mentions. */
+  mentions: string[];
   created_at: string;
 }
 

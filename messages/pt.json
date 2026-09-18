@@ -23,6 +23,7 @@
     "contacts": "Contatos",
     "pipelines": "Pipelines",
     "broadcasts": "Disparos",
+    "tickets": "Tickets",
     "automations": "Automações",
     "flows": "Fluxos",
     "aiAgents": "Agentes de IA",
@@ -211,6 +212,7 @@
       "showContact": "Mostrar contato",
       "refresh": "Atualizar",
       "refreshConversation": "Atualizar conversa",
+      "raiseTicket": "Abrir ticket",
       "channel": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",
@@ -572,6 +574,7 @@
         "noTagsAvailable": "Nenhuma tag disponível. Crie tags em Configurações."
       },
       "sendTemplateBtn": "Enviar modelo",
+      "newTicketBtn": "Novo ticket",
       "saveChangesBtn": "Salvar alterações",
       "saveCustomFieldsBtn": "Salvar campos personalizados",
       "toastPhoneRequired": "O número de telefone é obrigatório",
@@ -2408,6 +2411,119 @@
       "byModel": "Por modelo",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# chamada} other {# chamadas}}",
       "partialWindow": "Exibindo uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui."
+    }
+  },
+  "Tickets": {
+    "list": {
+      "pageTitle": "Tickets",
+      "pageDesc": "Acompanhe e resolva os tickets de suporte abertos pelos seus contatos.",
+      "newTicket": "Novo ticket",
+      "empty": "Nenhum ticket corresponde a esta visualização.",
+      "unassigned": "Não atribuído",
+      "statusFilter": {
+        "all": "Todos",
+        "open": "Aberto",
+        "pending": "Pendente",
+        "resolved": "Resolvido",
+        "closed": "Fechado"
+      },
+      "assigneeFilter": {
+        "all": "Todos",
+        "mine": "Atribuídos a mim",
+        "unassigned": "Não atribuído"
+      },
+      "teamFilter": {
+        "all": "Todas as equipes"
+      },
+      "col": {
+        "number": "#",
+        "subject": "Assunto",
+        "contact": "Contato",
+        "status": "Status",
+        "priority": "Prioridade",
+        "assignee": "Responsável",
+        "updated": "Atualizado"
+      },
+      "status": {
+        "open": "Aberto",
+        "pending": "Pendente",
+        "resolved": "Resolvido",
+        "closed": "Fechado"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
+      }
+    },
+    "create": {
+      "title": "Novo ticket",
+      "description": "Abra um ticket de suporte para este contato.",
+      "contactLabel": "Contato",
+      "contactPlaceholder": "Buscar por nome, telefone ou email",
+      "noContacts": "Nenhum contato encontrado",
+      "change": "Alterar",
+      "subjectLabel": "Assunto",
+      "subjectPlaceholder": "Resumo breve do problema",
+      "descriptionLabel": "Descrição",
+      "descriptionPlaceholder": "Adicione mais detalhes (opcional)",
+      "categoryLabel": "Categoria",
+      "priorityLabel": "Prioridade",
+      "category": {
+        "general": "Geral",
+        "billing": "Faturamento",
+        "technical": "Técnico",
+        "feature_request": "Solicitação de recurso",
+        "bug": "Bug",
+        "account": "Conta",
+        "other": "Outro"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
+      },
+      "cancel": "Cancelar",
+      "submit": "Criar ticket",
+      "subjectRequired": "Informe um assunto",
+      "contactRequired": "Escolha um contato",
+      "createFailed": "Falha ao criar o ticket",
+      "created": "Ticket #{number} criado"
+    },
+    "detail": {
+      "ticketNumber": "Ticket #{number}",
+      "unassigned": "Não atribuído",
+      "noTeam": "Sem equipe",
+      "saving": "Salvando…",
+      "commentsHeading": "Comentários",
+      "noComments": "Ainda não há comentários",
+      "commentPlaceholder": "Escreva um comentário — use @ para mencionar um colega",
+      "commentFailed": "Falha ao publicar o comentário",
+      "unknownAgent": "Alguém",
+      "updateFailed": "Falha ao atualizar o ticket",
+      "status": {
+        "open": "Aberto",
+        "pending": "Pendente",
+        "resolved": "Resolvido",
+        "closed": "Fechado"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
+      },
+      "category": {
+        "general": "Geral",
+        "billing": "Faturamento",
+        "technical": "Técnico",
+        "feature_request": "Solicitação de recurso",
+        "bug": "Bug",
+        "account": "Conta",
+        "other": "Outro"
+      }
     }
   },
   "Reports": {

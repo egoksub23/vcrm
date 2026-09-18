@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, CheckCheck, Loader2, UserPlus } from "lucide-react";
+import { AtSign, Bell, CheckCheck, Loader2, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ import { useTranslations } from "next-intl";
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   conversation_assigned: UserPlus,
   mention: AtSign,
+  ticket_assigned: Ticket,
+  ticket_mention: AtSign,
 };
 
 export default function NotificationsPage() {
@@ -116,7 +118,9 @@ export default function NotificationsPage() {
   const handleClick = useCallback(
     (n: Notification) => {
       if (!n.read_at) markRead(n.id);
-      if (n.conversation_id) {
+      if (n.ticket_id) {
+        router.push(`/tickets?t=${n.ticket_id}`);
+      } else if (n.conversation_id) {
         router.push(`/inbox?c=${n.conversation_id}`);
       }
     },
