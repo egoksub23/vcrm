@@ -1883,7 +1883,17 @@
           "no_pages": "No se encontraron páginas de Facebook para esta cuenta.",
           "denied": "Se canceló la conexión con Facebook.",
           "unknown": "Ocurrió un error al conectar con Facebook. Intenta de nuevo."
-        }
+        },
+        "webhookTitle": "Configuración del webhook",
+        "webhookDescription": "Registra esta URL de callback en Messenger → Webhooks en Meta for Developers, suscrita al campo \"messages\" de tu página — conectar no hace esto por ti.",
+        "webhookUrlLabel": "URL de callback",
+        "webhookCopied": "URL de callback copiada al portapapeles",
+        "verifyTokenLabel": "Token de verificación",
+        "verifyTokenPlaceholder": "Cualquier texto — debe coincidir con el que ingreses en Meta",
+        "verifyTokenHint": "Ingresa cualquier valor aquí y luego pega el mismo valor en el campo Verify token de Meta al registrar el webhook de arriba.",
+        "verifyTokenSave": "Guardar",
+        "verifyTokenSaved": "Token de verificación guardado",
+        "verifyTokenSaveFailed": "No se pudo guardar el token de verificación"
       },
       "instagram": {
         "title": "Instagram",
@@ -1909,7 +1919,17 @@
           "no_ig_account": "La página seleccionada no tiene una cuenta profesional de Instagram vinculada.",
           "denied": "Se canceló la conexión con Facebook.",
           "unknown": "Ocurrió un error al conectar con Instagram. Intenta de nuevo."
-        }
+        },
+        "webhookTitle": "Configuración del webhook",
+        "webhookDescription": "Registra esta URL de callback en Instagram → Webhooks en Meta for Developers, suscrita al campo \"messages\" — conectar no hace esto por ti.",
+        "webhookUrlLabel": "URL de callback",
+        "webhookCopied": "URL de callback copiada al portapapeles",
+        "verifyTokenLabel": "Token de verificación",
+        "verifyTokenPlaceholder": "Cualquier texto — debe coincidir con el que ingreses en Meta",
+        "verifyTokenHint": "Ingresa cualquier valor aquí y luego pega el mismo valor en el campo Verify token de Meta al registrar el webhook de arriba.",
+        "verifyTokenSave": "Guardar",
+        "verifyTokenSaved": "Token de verificación guardado",
+        "verifyTokenSaveFailed": "No se pudo guardar el token de verificación"
       },
       "email": {
         "title": "Correo electrónico",

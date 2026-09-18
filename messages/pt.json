@@ -1883,7 +1883,17 @@
           "no_pages": "Nenhuma Página do Facebook foi encontrada para esta conta.",
           "denied": "A conexão com o Facebook foi cancelada.",
           "unknown": "Algo deu errado ao conectar com o Facebook. Tente novamente."
-        }
+        },
+        "webhookTitle": "Configuração do webhook",
+        "webhookDescription": "Registre esta URL de callback em Messenger → Webhooks no Meta for Developers, inscrita no campo \"messages\" da sua Página — conectar não faz isso por você.",
+        "webhookUrlLabel": "URL de callback",
+        "webhookCopied": "URL de callback copiada para a área de transferência",
+        "verifyTokenLabel": "Token de verificação",
+        "verifyTokenPlaceholder": "Qualquer texto — deve coincidir com o que você informar na Meta",
+        "verifyTokenHint": "Informe qualquer valor aqui e depois cole o mesmo valor no campo Verify token da Meta ao registrar o webhook acima.",
+        "verifyTokenSave": "Salvar",
+        "verifyTokenSaved": "Token de verificação salvo",
+        "verifyTokenSaveFailed": "Falha ao salvar o token de verificação"
       },
       "instagram": {
         "title": "Instagram",
@@ -1909,7 +1919,17 @@
           "no_ig_account": "A Página selecionada não tem uma conta profissional do Instagram vinculada.",
           "denied": "A conexão com o Facebook foi cancelada.",
           "unknown": "Algo deu errado ao conectar com o Instagram. Tente novamente."
-        }
+        },
+        "webhookTitle": "Configuração do webhook",
+        "webhookDescription": "Registre esta URL de callback em Instagram → Webhooks no Meta for Developers, inscrita no campo \"messages\" — conectar não faz isso por você.",
+        "webhookUrlLabel": "URL de callback",
+        "webhookCopied": "URL de callback copiada para a área de transferência",
+        "verifyTokenLabel": "Token de verificação",
+        "verifyTokenPlaceholder": "Qualquer texto — deve coincidir com o que você informar na Meta",
+        "verifyTokenHint": "Informe qualquer valor aqui e depois cole o mesmo valor no campo Verify token da Meta ao registrar o webhook acima.",
+        "verifyTokenSave": "Salvar",
+        "verifyTokenSaved": "Token de verificação salvo",
+        "verifyTokenSaveFailed": "Falha ao salvar o token de verificação"
       },
       "email": {
         "title": "E-mail",

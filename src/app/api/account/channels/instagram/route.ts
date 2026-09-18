@@ -1,11 +1,13 @@
 // ============================================================
 // /api/account/channels/instagram
-//   GET    — connection status. DELETE — disconnect (admin+).
+//   GET — connection status. PUT — set webhook verify token (admin+,
+//   write-only). DELETE — disconnect (admin+).
 // Same shape as the Messenger route, plus ig_username.
 // ============================================================
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { encrypt } from '@/lib/whatsapp/encryption'
 import type { InstagramConnectionStatus } from '@/types'
 
 export async function GET() {
@@ -34,6 +36,31 @@ export async function GET() {
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 
     return NextResponse.json(result)
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const ctx = await requireRole('admin')
+    const body = (await request.json().catch(() => null)) as { verify_token?: unknown } | null
+    const verifyToken = typeof body?.verify_token === 'string' ? body.verify_token.trim() : ''
+    if (!verifyToken) {
+      return NextResponse.json({ error: 'verify_token is required' }, { status: 400 })
+    }
+
+    const { error } = await ctx.supabase
+      .from('instagram_config')
+      .update({ verify_token: encrypt(verifyToken) })
+      .eq('account_id', ctx.accountId)
+
+    if (error) {
+      console.error('[PUT /api/account/channels/instagram] update error:', error)
+      return NextResponse.json({ error: 'Failed to save verify token' }, { status: 500 })
+    }
+
+    return NextResponse.json({ saved: true })
   } catch (err) {
     return toErrorResponse(err)
   }

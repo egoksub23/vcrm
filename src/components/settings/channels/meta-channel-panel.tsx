@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, PlugZap, Loader2 } from 'lucide-react';
+import { AlertTriangle, PlugZap, Loader2, Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
 import type { MetaChannelConnectionStatus } from '@/types';
@@ -54,6 +56,43 @@ export function MetaChannelPanel({
     null,
   );
   const [selecting, setSelecting] = useState(false);
+
+  // Webhook verify token — write-only, same self-service pattern as
+  // WhatsApp's (src/app/api/whatsapp/config/route.ts): GET never echoes
+  // it back, so this field starts blank on every load regardless of
+  // whether one was set before.
+  const [verifyToken, setVerifyToken] = useState('');
+  const [savingVerifyToken, setSavingVerifyToken] = useState(false);
+  const webhookUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/api/${channel}/webhook` : '';
+
+  function handleCopyWebhookUrl() {
+    navigator.clipboard.writeText(webhookUrl);
+    toast.success(t('webhookCopied'));
+  }
+
+  async function handleSaveVerifyToken() {
+    if (!verifyToken.trim()) return;
+    setSavingVerifyToken(true);
+    try {
+      const res = await fetch(base, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verify_token: verifyToken.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || t('verifyTokenSaveFailed'));
+        return;
+      }
+      toast.success(t('verifyTokenSaved'));
+    } catch (err) {
+      console.error(`[${channel}-channel] verify token save error:`, err);
+      toast.error(t('verifyTokenSaveFailed'));
+    } finally {
+      setSavingVerifyToken(false);
+    }
+  }
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -238,6 +277,59 @@ export function MetaChannelPanel({
           )}
         </CardContent>
       </Card>
+
+      {status?.connected ? (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">{t('webhookTitle')}</CardTitle>
+            <CardDescription>{t('webhookDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">{t('webhookUrlLabel')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={webhookUrl}
+                  className="bg-muted border-border text-muted-foreground font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopyWebhookUrl}
+                  className="shrink-0"
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">{t('verifyTokenLabel')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder={t('verifyTokenPlaceholder')}
+                  value={verifyToken}
+                  onChange={(e) => setVerifyToken(e.target.value)}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
+                {canEditSettings ? (
+                  <Button
+                    type="button"
+                    onClick={handleSaveVerifyToken}
+                    disabled={savingVerifyToken || !verifyToken.trim()}
+                    className="shrink-0"
+                  >
+                    {savingVerifyToken ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {t('verifyTokenSave')}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">{t('verifyTokenHint')}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

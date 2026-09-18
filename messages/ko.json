@@ -1899,7 +1899,17 @@
           "no_pages": "이 계정에서 Facebook 페이지를 찾을 수 없습니다.",
           "denied": "Facebook 연결이 취소되었습니다.",
           "unknown": "Facebook 연결 중 문제가 발생했습니다. 다시 시도해 주세요."
-        }
+        },
+        "webhookTitle": "웹훅 설정",
+        "webhookDescription": "Meta for Developers의 Messenger → Webhooks에서 이 콜백 URL을 페이지의 \"messages\" 필드에 구독 등록하세요 — 연결만으로는 자동으로 되지 않습니다.",
+        "webhookUrlLabel": "콜백 URL",
+        "webhookCopied": "콜백 URL이 클립보드에 복사되었습니다",
+        "verifyTokenLabel": "인증 토큰",
+        "verifyTokenPlaceholder": "아무 문자열이나 — Meta에 입력하는 값과 일치해야 합니다",
+        "verifyTokenHint": "여기에 아무 값이나 입력한 다음, 위 웹훅을 등록할 때 Meta의 Verify token 필드에 동일한 값을 붙여넣으세요.",
+        "verifyTokenSave": "저장",
+        "verifyTokenSaved": "인증 토큰이 저장되었습니다",
+        "verifyTokenSaveFailed": "인증 토큰 저장에 실패했습니다"
       },
       "instagram": {
         "title": "Instagram",
@@ -1925,7 +1935,17 @@
           "no_ig_account": "선택한 페이지에 연결된 Instagram 프로페셔널 계정이 없습니다.",
           "denied": "Facebook 연결이 취소되었습니다.",
           "unknown": "Instagram 연결 중 문제가 발생했습니다. 다시 시도해 주세요."
-        }
+        },
+        "webhookTitle": "웹훅 설정",
+        "webhookDescription": "Meta for Developers의 Instagram → Webhooks에서 이 콜백 URL을 \"messages\" 필드에 구독 등록하세요 — 연결만으로는 자동으로 되지 않습니다.",
+        "webhookUrlLabel": "콜백 URL",
+        "webhookCopied": "콜백 URL이 클립보드에 복사되었습니다",
+        "verifyTokenLabel": "인증 토큰",
+        "verifyTokenPlaceholder": "아무 문자열이나 — Meta에 입력하는 값과 일치해야 합니다",
+        "verifyTokenHint": "여기에 아무 값이나 입력한 다음, 위 웹훅을 등록할 때 Meta의 Verify token 필드에 동일한 값을 붙여넣으세요.",
+        "verifyTokenSave": "저장",
+        "verifyTokenSaved": "인증 토큰이 저장되었습니다",
+        "verifyTokenSaveFailed": "인증 토큰 저장에 실패했습니다"
       },
       "email": {
         "title": "이메일",

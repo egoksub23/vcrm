@@ -1899,7 +1899,17 @@
           "no_pages": "No Facebook Pages were found for this account.",
           "denied": "Facebook connection was cancelled.",
           "unknown": "Something went wrong connecting to Facebook. Try again."
-        }
+        },
+        "webhookTitle": "Webhook setup",
+        "webhookDescription": "Register this callback URL under Messenger → Webhooks in Meta for Developers, subscribed to the \"messages\" field for your Page — connecting doesn't do this for you.",
+        "webhookUrlLabel": "Callback URL",
+        "webhookCopied": "Callback URL copied to clipboard",
+        "verifyTokenLabel": "Verify token",
+        "verifyTokenPlaceholder": "Any string — must match what you enter in Meta",
+        "verifyTokenHint": "Enter any value here, then paste the same value into Meta's Verify token field when registering the webhook above.",
+        "verifyTokenSave": "Save",
+        "verifyTokenSaved": "Verify token saved",
+        "verifyTokenSaveFailed": "Failed to save verify token"
       },
       "instagram": {
         "title": "Instagram",
@@ -1925,7 +1935,17 @@
           "no_ig_account": "The selected Page has no linked Instagram professional account.",
           "denied": "Facebook connection was cancelled.",
           "unknown": "Something went wrong connecting to Instagram. Try again."
-        }
+        },
+        "webhookTitle": "Webhook setup",
+        "webhookDescription": "Register this callback URL under Instagram → Webhooks in Meta for Developers, subscribed to the \"messages\" field — connecting doesn't do this for you.",
+        "webhookUrlLabel": "Callback URL",
+        "webhookCopied": "Callback URL copied to clipboard",
+        "verifyTokenLabel": "Verify token",
+        "verifyTokenPlaceholder": "Any string — must match what you enter in Meta",
+        "verifyTokenHint": "Enter any value here, then paste the same value into Meta's Verify token field when registering the webhook above.",
+        "verifyTokenSave": "Save",
+        "verifyTokenSaved": "Verify token saved",
+        "verifyTokenSaveFailed": "Failed to save verify token"
       },
       "email": {
         "title": "Email",
