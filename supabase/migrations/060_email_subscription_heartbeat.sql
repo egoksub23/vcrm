@@ -1,0 +1,21 @@
+-- ============================================================
+-- 060_email_subscription_heartbeat
+--
+-- Microsoft Graph mail subscriptions expire on their own after at
+-- most ~2.94 days (migration 056's email_config, subscription_id /
+-- subscription_expires_at). The /api/email/subscription-renew cron
+-- (AUTOMATION_CRON_SECRET-gated) already renews anything expiring
+-- within 24h — but that's only a safety net if an operator actually
+-- has a pinger scheduled against it.
+--
+-- This column backs a second, client-triggered path: whenever an
+-- agent opens the Inbox or an Email(MS365) conversation, the web app
+-- pings POST /api/email/subscription-heartbeat (session-authed, one
+-- account) and that route rate-limits itself off this timestamp —
+-- skip if checked within the last 24h, otherwise run the same
+-- renew-if-expiring-soon logic the cron uses. Ties subscription
+-- upkeep to actual CRM usage as a second safety net, independent of
+-- whether a cron is wired up.
+-- ============================================================
+ALTER TABLE email_config
+  ADD COLUMN IF NOT EXISTS last_renewal_checked_at TIMESTAMPTZ;

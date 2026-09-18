@@ -2,10 +2,8 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-import { getValidAccessToken } from '@/lib/ms365/token'
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
-import { createSubscription, renewSubscription } from '@/lib/ms365/mail-api'
-import { decrypt } from '@/lib/whatsapp/encryption'
+import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
 
 /**
  * Renews every connected mailbox's Graph change-notification
@@ -59,31 +57,11 @@ export async function GET(request: Request) {
   let failed = 0
   for (const config of configs) {
     try {
-      const accessToken = await getValidAccessToken(config)
-      const notificationUrl = `${getOAuthBaseUrl(request)}/api/email/webhook`
-
-      const subscription = config.subscription_id
-        ? await renewSubscription({ accessToken, subscriptionId: config.subscription_id }).catch(
-            () =>
-              createSubscription({
-                accessToken,
-                notificationUrl,
-                clientState: decrypt(config.client_state),
-              }),
-          )
-        : await createSubscription({
-            accessToken,
-            notificationUrl,
-            clientState: decrypt(config.client_state),
-          })
-
-      await admin
-        .from('email_config')
-        .update({
-          subscription_id: subscription.id,
-          subscription_expires_at: subscription.expirationDateTime,
-        })
-        .eq('id', config.id)
+      await renewMailboxSubscription({
+        admin,
+        config,
+        baseUrl: getOAuthBaseUrl(request),
+      })
       renewed++
     } catch (err) {
       failed++

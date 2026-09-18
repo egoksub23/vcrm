@@ -16,6 +16,7 @@ import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
 
 // Remembers the agent's show/hide choice for the desktop contact panel
 // across reloads and sessions (device-scoped, like the theme prefs).
@@ -210,6 +211,15 @@ function InboxPageInner() {
     };
 
     checkConnection();
+  }, []);
+
+  // Client-triggered companion to the /api/email/subscription-renew
+  // cron (migration 060) — pings the Graph mail subscription's
+  // keep-alive whenever an agent opens the Inbox. The route itself
+  // rate-limits to once per 24h per account, so it's safe to fire on
+  // every mount without any gating here.
+  useEffect(() => {
+    pingEmailSubscriptionHeartbeat();
   }, []);
 
   // Handle realtime message events

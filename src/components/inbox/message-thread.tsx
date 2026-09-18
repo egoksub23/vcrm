@@ -37,6 +37,7 @@ import {
   PanelRightClose,
 } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
 import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
@@ -472,6 +473,16 @@ export function MessageThread({
   useEffect(() => {
     setReplyTo(null);
   }, [conversationId]);
+
+  // Second trigger point for the Graph mail subscription keep-alive
+  // (migration 060) — opening an Email(MS365) conversation specifically,
+  // on top of the Inbox-page-mount ping. Same 24h server-side rate
+  // limit, so this is just another cheap chance to catch it.
+  useEffect(() => {
+    if (conversationId && conversation?.last_channel_type === "email") {
+      pingEmailSubscriptionHeartbeat();
+    }
+  }, [conversationId, conversation?.last_channel_type]);
 
   // Reset the server-side unread_count to 0 whenever an unread count
   // surfaces on the active conversation — covers both (a) opening a
