@@ -9,6 +9,46 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.23.0] — 2026-09-19
+
+**Migration required**: apply `059_merge_contacts.sql`, `060_email_subscription_heartbeat.sql`,
+`061_message_content_html.sql`, `062_message_pending_delete.sql`, and `063_tickets.sql`, in order.
+
+- **Support tickets**: a new Tickets section — raise a ticket from a
+  Contact's profile or straight from an open chat thread (a "Raise
+  Ticket" button in the thread header links the ticket back to that
+  conversation), then track it through status (Open/Pending/Resolved/
+  Closed), priority, category, and agent/team assignment. Tickets get
+  their own per-account sequential number (`#1`, `#2`, ...) and a
+  comment thread with `@mention` teammate notifications, reusing the
+  same assignment/priority/notification machinery conversations
+  already use rather than inventing a parallel system.
+- **Cross-channel contact merge**: updating a contact's phone number
+  now checks whether that phone already belongs to a different contact
+  and, if so, offers to merge the two — folding every conversation,
+  message, deal, label, and channel identity from the duplicate into
+  the kept contact.
+- **MS365 subscription keep-alive**: Microsoft Graph mail subscriptions
+  are refreshed automatically, tied to real inbox activity (opening the
+  Inbox or an email) rather than a blind timer — refreshed only if it's
+  been more than 24 hours since the last refresh.
+- **Rendered HTML email**: inbound HTML emails (Microsoft 365 and
+  Gmail) render as real formatted HTML in a sandboxed view instead of a
+  stripped plain-text wall, with a plain-text toggle.
+- **WYSIWYG email replies**: replying on an email channel now uses a
+  rich-text editor (bold/italic/links/lists) and sends real
+  `multipart/alternative` HTML mail, not a plain textarea.
+- **Move to Trash / Pending Delete**: any message can be flagged for
+  deletion from its hover toolbar — it disappears from the thread right
+  away, and an account-wide Pending Delete panel (Inbox toolbar) lets
+  an agent restore it or clear it for good, individually or all at
+  once.
+- Fixed a bug where the message composer's default send channel could
+  go stale after replying, showing the wrong channel selected for a
+  conversation that spans more than one.
+- Inbox views can now be saved as "Email" and "Everything else",
+  alongside the multi-select channel filter this builds on.
+
 ## [0.22.0] — 2026-09-18
 
 Ships Gmail as a full channel, alongside WhatsApp, the Web Widget,
