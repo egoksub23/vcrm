@@ -162,7 +162,8 @@
         "web_widget": "Widget web",
         "messenger": "Messenger",
         "instagram": "Instagram",
-        "email": "E-mail"
+        "email": "E-mail",
+        "gmail": "Gmail"
       },
       "allPriorities": "Todas as prioridades",
       "priority": {
@@ -213,7 +214,8 @@
         "web_widget": "Widget web",
         "messenger": "Messenger",
         "instagram": "Instagram",
-        "email": "E-mail"
+        "email": "E-mail",
+        "gmail": "Gmail"
       },
       "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}",
       "priority": {
@@ -1826,6 +1828,7 @@
         "instagram": "Instagram",
         "messenger": "Messenger",
         "email": "E-mail",
+        "gmail": "Gmail",
         "sms": "SMS"
       },
       "comingSoonBadge": "Em breve",
@@ -1951,6 +1954,34 @@
           "denied": "O login da Microsoft foi cancelado.",
           "unknown": "Algo deu errado ao conectar com o Microsoft 365. Tente novamente."
         }
+      },
+      "gmail": {
+        "title": "Gmail",
+        "description": "Conecte uma conta do Gmail para enviar e receber e-mails pela sua Caixa de entrada.",
+        "notConnected": "Ainda não há nenhuma conta do Gmail conectada.",
+        "connectButton": "Conectar Gmail",
+        "connectedAs": "Conectado — {mailbox}",
+        "connectedAtLabel": "Conectado",
+        "disconnect": "Desconectar",
+        "disconnectConfirmDescription": "Desconectar esta conta do Gmail? As conversas por e-mail deixarão de sincronizar até você reconectar.",
+        "disconnectFailed": "Falha ao desconectar o Gmail",
+        "disconnected": "Gmail desconectado",
+        "connected": "Gmail conectado",
+        "connectFailed": "Falha ao conectar o Gmail",
+        "reauthBanner": "O Gmail precisa ser reconectado — seu acesso ao Google expirou ou foi revogado.",
+        "reauthButton": "Reconectar",
+        "oauthError": {
+          "invalid_state": "A solicitação de conexão expirou ou era inválida. Tente conectar novamente.",
+          "denied": "O login do Google foi cancelado.",
+          "unknown": "Algo deu errado ao conectar com o Gmail. Tente novamente."
+        },
+        "pubsubTitle": "Configuração de notificações push",
+        "pubsubDescriptionConfigured": "O Google Cloud Pub/Sub está registrado — as mensagens recebidas do Gmail chegarão aqui automaticamente.",
+        "pubsubDescriptionNotConfigured": "Falta uma etapa manual no Google Cloud Console antes que as mensagens recebidas cheguem — o envio já funciona.",
+        "pubsubNotConfiguredHint": "Esta conta ainda não recebe notificações push. Siga docs/gmail-setup.md para criar um tópico Pub/Sub e uma assinatura push, depois reconecte.",
+        "pushEndpointLabel": "URL do endpoint push",
+        "pushEndpointHint": "Cole esta URL exata como o endpoint push ao criar a assinatura do Pub/Sub no Google Cloud Console — ela inclui o token de verificação próprio desta conexão.",
+        "pushEndpointCopied": "URL do endpoint push copiada para a área de transferência"
       }
     },
     "sections": {

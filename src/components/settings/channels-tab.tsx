@@ -13,8 +13,9 @@ import { WebWidgetChannel } from './channels/web-widget-channel';
 import { MessengerChannel } from './channels/messenger-channel';
 import { InstagramChannel } from './channels/instagram-channel';
 import { EmailChannel } from './channels/email-channel';
+import { GmailChannel } from './channels/gmail-channel';
 
-type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email' | 'sms';
+type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email' | 'gmail' | 'sms';
 
 interface ChannelEntry {
   id: ChannelId;
@@ -28,6 +29,7 @@ const CHANNELS: ChannelEntry[] = [
   { id: 'instagram', icon: CHANNEL_ICONS.instagram },
   { id: 'messenger', icon: CHANNEL_ICONS.messenger },
   { id: 'email', icon: CHANNEL_ICONS.email },
+  { id: 'gmail', icon: CHANNEL_ICONS.gmail },
   // No real channel behind SMS yet — no brand to show, so it keeps the
   // generic outline icon the others used before this changed to logos.
   { id: 'sms', icon: MessageSquareText, comingSoon: true },
@@ -97,6 +99,7 @@ export function ChannelsTab() {
       {active === 'messenger' ? <MessengerChannel /> : null}
       {active === 'instagram' ? <InstagramChannel /> : null}
       {active === 'email' ? <EmailChannel /> : null}
+      {active === 'gmail' ? <GmailChannel /> : null}
       {active === 'sms' ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <p className="text-sm font-medium text-foreground">

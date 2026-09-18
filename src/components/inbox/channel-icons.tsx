@@ -86,10 +86,25 @@ const EmailIcon: ChannelIconComponent = (props) => (
   </svg>
 );
 
+/** Gmail's envelope-with-a-red-M-fold silhouette, simplified — kept
+ *  visually distinct from the blue Microsoft 365 envelope (EmailIcon
+ *  above) since an account can connect both as separate channels. */
+const GmailIcon: ChannelIconComponent = (props) => (
+  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect width="32" height="32" rx="8" fill="#fff" stroke="#E0E0E0" />
+    <path d="M6 10.5v11a1.5 1.5 0 0 0 1.5 1.5h2V13.4L16 18l6.5-4.6V23h2A1.5 1.5 0 0 0 26 21.5v-11" fill="#EA4335" />
+    <path d="M9.5 23V13.4L16 18l6.5-4.6V23h-13Z" fill="#fff" />
+    <path d="M6 10.5 16 18l10-7.5" stroke="#EA4335" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <path d="M7.5 10c-.83 0-1.5.67-1.5 1.5v-1A1.5 1.5 0 0 1 7.5 9h2v3.6l-2-1.5V10Z" fill="#FBBC05" />
+    <path d="M24.5 10c.83 0 1.5.67 1.5 1.5v-1A1.5 1.5 0 0 0 24.5 9h-2v3.6l2-1.5V10Z" fill="#34A853" />
+  </svg>
+);
+
 export const CHANNEL_ICONS: Record<ChannelType, ChannelIconComponent> = {
   whatsapp: WhatsAppIcon,
   web_widget: WebWidgetIcon,
   messenger: MessengerIcon,
   instagram: InstagramIcon,
   email: EmailIcon,
+  gmail: GmailIcon,
 };

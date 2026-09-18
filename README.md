@@ -172,6 +172,9 @@ Key pages:
 - [Microsoft 365 / Outlook email setup](./docs/microsoft-365-email-setup.md) —
   Azure AD app registration, OAuth, and keeping the inbound
   subscription alive
+- [Gmail setup](./docs/gmail-setup.md) — Google Cloud OAuth
+  credentials, the Pub/Sub topic + push subscription inbound mail
+  needs, and keeping the watch registration alive
 
 ## Stack
 

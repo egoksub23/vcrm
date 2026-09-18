@@ -228,6 +228,26 @@ vi.mock('@/lib/ms365/token', () => ({
     (getValidAccessToken as unknown as (...a: unknown[]) => unknown)(...args),
 }));
 
+const sendNewGmailMock = vi.fn(async () => ({ messageId: 'gm.1' }));
+const sendGmailReplyMock = vi.fn(async () => ({ messageId: 'gm.reply.1' }));
+const getGmailThreadingInfoMock = vi.fn(async () => ({
+  threadId: 'thread-1',
+  rfc822MessageId: '<abc@mail.gmail.com>',
+  subject: 'Original subject',
+}));
+vi.mock('@/lib/gmail/gmail-api', () => ({
+  sendNewMail: (...args: unknown[]) => (sendNewGmailMock as unknown as (...a: unknown[]) => unknown)(...args),
+  sendReply: (...args: unknown[]) => (sendGmailReplyMock as unknown as (...a: unknown[]) => unknown)(...args),
+  getThreadingInfo: (...args: unknown[]) =>
+    (getGmailThreadingInfoMock as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
+const getValidGmailAccessTokenMock = vi.fn(async () => 'gmail-access-token-1');
+vi.mock('@/lib/gmail/token', () => ({
+  getValidAccessToken: (...args: unknown[]) =>
+    (getValidGmailAccessTokenMock as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
 interface CapturedWrites {
   message?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
@@ -239,7 +259,7 @@ interface CapturedWrites {
  * object serves `.single()` lookups and the bare `select().eq().eq()`
  * the template resolver uses.
  */
-type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email';
+type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail';
 
 function sendPathDb(
   templateRows: unknown[],
@@ -253,6 +273,8 @@ function sendPathDb(
     /** The `message_id` of the most recent inbound email in this
      *  conversation, if any — drives the reply-vs-sendNewMail branch. */
     emailLastInboundMessageId?: string | null;
+    gmailConfig?: Record<string, unknown> | null;
+    gmailLastInboundMessageId?: string | null;
   } = {},
 ): SupabaseClient {
   const conversation = {
@@ -278,6 +300,11 @@ function sendPathDb(
       ? configOverrides.emailConfig
       : { id: 'ec-1', mailbox_address: 'agent@company.com' };
   const emailLastInboundMessageId = configOverrides.emailLastInboundMessageId ?? null;
+  const gmailConfig =
+    'gmailConfig' in configOverrides
+      ? configOverrides.gmailConfig
+      : { id: 'gc-1', email_address: 'agent@gmail.com' };
+  const gmailLastInboundMessageId = configOverrides.gmailLastInboundMessageId ?? null;
   const configUpdates: Record<string, Record<string, unknown>> = {};
 
   return {
@@ -297,15 +324,21 @@ function sendPathDb(
         },
         update: (row: Record<string, unknown>) => {
           if (table === 'conversations') captured.conversation = row;
-          if (table === 'messenger_config' || table === 'instagram_config' || table === 'email_config') {
+          if (
+            table === 'messenger_config' ||
+            table === 'instagram_config' ||
+            table === 'email_config' ||
+            table === 'gmail_config'
+          ) {
             configUpdates[table] = row;
           }
           return builder;
         },
         maybeSingle: async () => {
           if (table === 'messages') {
-            return emailLastInboundMessageId
-              ? { data: { message_id: emailLastInboundMessageId }, error: null }
+            const lastInboundId = gmailLastInboundMessageId ?? emailLastInboundMessageId;
+            return lastInboundId
+              ? { data: { message_id: lastInboundId }, error: null }
               : { data: null, error: null };
           }
           return { data: null, error: null };
@@ -328,6 +361,11 @@ function sendPathDb(
           if (table === 'email_config') {
             return emailConfig
               ? { data: emailConfig, error: null }
+              : { data: null, error: { message: 'not found' } };
+          }
+          if (table === 'gmail_config') {
+            return gmailConfig
+              ? { data: gmailConfig, error: null }
               : { data: null, error: { message: 'not found' } };
           }
           if (table === 'messages') {
@@ -899,5 +937,153 @@ describe('sendMessageToConversation — email channel', () => {
     ).rejects.toThrow(/Email send error/);
 
     expect(db.__configUpdates.email_config).toMatchObject({ needs_reauth: true });
+  });
+});
+
+// ============================================================
+// Gmail channel (migration 058) — separate from the Microsoft 365
+// Email channel above even though both are "email". Threading needs
+// an extra getThreadingInfo lookup Microsoft 365 doesn't (Gmail's
+// in-reply-to header and threadId aren't the same as the stored
+// message_id) — see send-message.ts's gmail branch.
+// ============================================================
+describe('sendMessageToConversation — gmail channel', () => {
+  it('sends a fresh email (sendNewMail) when there is no prior inbound message', async () => {
+    sendNewGmailMock.mockClear();
+    sendGmailReplyMock.mockClear();
+    getGmailThreadingInfoMock.mockClear();
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail'),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'Hi Jane' }
+    );
+
+    expect(sendNewGmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ toAddress: 'jane@example.com', text: 'Hi Jane' })
+    );
+    expect(sendGmailReplyMock).not.toHaveBeenCalled();
+    expect(getGmailThreadingInfoMock).not.toHaveBeenCalled();
+    expect(result.whatsappMessageId).toBe('');
+    expect(captured.message?.channel_type).toBe('gmail');
+    expect(captured.message?.message_id).toBeNull();
+  });
+
+  it('threads a real reply (sendReply) using fresh threading info when there is a prior inbound message', async () => {
+    sendNewGmailMock.mockClear();
+    sendGmailReplyMock.mockClear();
+    getGmailThreadingInfoMock.mockClear();
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(
+      sendPathDb(
+        [],
+        captured,
+        { id: 'ct-1', phone: '', email: 'jane@example.com' },
+        'gmail',
+        { gmailLastInboundMessageId: 'gmail-msg-1' },
+      ),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'Following up' }
+    );
+
+    expect(getGmailThreadingInfoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: 'gmail-msg-1' })
+    );
+    expect(sendGmailReplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: 'thread-1',
+        inReplyToMessageId: '<abc@mail.gmail.com>',
+        subject: 'Re: Original subject',
+        text: 'Following up',
+      })
+    );
+    expect(sendNewGmailMock).not.toHaveBeenCalled();
+  });
+
+  it('does not double-prefix an already-"Re:" subject', async () => {
+    sendGmailReplyMock.mockClear();
+    getGmailThreadingInfoMock.mockClear();
+    getGmailThreadingInfoMock.mockResolvedValueOnce({
+      threadId: 'thread-2',
+      rfc822MessageId: '<def@mail.gmail.com>',
+      subject: 'Re: Already replied once',
+    });
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(
+      sendPathDb(
+        [],
+        captured,
+        { id: 'ct-1', phone: '', email: 'jane@example.com' },
+        'gmail',
+        { gmailLastInboundMessageId: 'gmail-msg-2' },
+      ),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'Still following up' }
+    );
+
+    expect(sendGmailReplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'Re: Already replied once' })
+    );
+  });
+
+  it('400s when the contact has no email address', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'gmail'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/no email address/);
+  });
+
+  it('400s when Gmail is not connected', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb(
+          [],
+          captured,
+          { id: 'ct-1', phone: '', email: 'jane@example.com' },
+          'gmail',
+          { gmailConfig: null },
+        ),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Gmail is not connected/);
+  });
+
+  it('rejects template and interactive message types', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
+      )
+    ).rejects.toThrow(/Only text and media messages/);
+  });
+
+  it('flips needs_reauth on a Gmail auth error', async () => {
+    const { GmailApiError } = await import('@/lib/gmail/errors');
+    sendNewGmailMock.mockRejectedValueOnce(new GmailApiError('Token expired', { httpStatus: 401 }));
+    const captured: CapturedWrites = {};
+    const db = sendPathDb(
+      [],
+      captured,
+      { id: 'ct-1', phone: '', email: 'jane@example.com' },
+      'gmail',
+    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'hi',
+      })
+    ).rejects.toThrow(/Gmail send error/);
+
+    expect(db.__configUpdates.gmail_config).toMatchObject({ needs_reauth: true });
   });
 });

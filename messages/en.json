@@ -162,7 +162,8 @@
         "web_widget": "Web Widget",
         "messenger": "Messenger",
         "instagram": "Instagram",
-        "email": "Email"
+        "email": "Email",
+        "gmail": "Gmail"
       },
       "allPriorities": "All priorities",
       "priority": {
@@ -213,7 +214,8 @@
         "web_widget": "Web Widget",
         "messenger": "Messenger",
         "instagram": "Instagram",
-        "email": "Email"
+        "email": "Email",
+        "gmail": "Gmail"
       },
       "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "priority": {
@@ -1842,6 +1844,7 @@
         "instagram": "Instagram",
         "messenger": "Messenger",
         "email": "Email",
+        "gmail": "Gmail",
         "sms": "SMS"
       },
       "comingSoonBadge": "Soon",
@@ -1967,6 +1970,34 @@
           "denied": "Microsoft sign-in was cancelled.",
           "unknown": "Something went wrong connecting to Microsoft 365. Try again."
         }
+      },
+      "gmail": {
+        "title": "Gmail",
+        "description": "Connect a Gmail mailbox to send and receive email from your Inbox.",
+        "notConnected": "No Gmail account connected yet.",
+        "connectButton": "Connect Gmail",
+        "connectedAs": "Connected — {mailbox}",
+        "connectedAtLabel": "Connected",
+        "disconnect": "Disconnect",
+        "disconnectConfirmDescription": "Disconnect this Gmail account? Email conversations will stop syncing until you reconnect.",
+        "disconnectFailed": "Failed to disconnect Gmail",
+        "disconnected": "Gmail disconnected",
+        "connected": "Gmail connected",
+        "connectFailed": "Failed to connect Gmail",
+        "reauthBanner": "Gmail needs to be reconnected — your Google access has expired or was revoked.",
+        "reauthButton": "Reconnect",
+        "oauthError": {
+          "invalid_state": "The connection request expired or was invalid. Try connecting again.",
+          "denied": "Google sign-in was cancelled.",
+          "unknown": "Something went wrong connecting to Gmail. Try again."
+        },
+        "pubsubTitle": "Push notification setup",
+        "pubsubDescriptionConfigured": "Google Cloud Pub/Sub is registered — inbound Gmail messages will arrive here automatically.",
+        "pubsubDescriptionNotConfigured": "One more manual step in Google Cloud Console is needed before inbound messages arrive — sending already works.",
+        "pubsubNotConfiguredHint": "This account isn't receiving push notifications yet. Follow docs/gmail-setup.md to create a Pub/Sub topic and push subscription, then reconnect.",
+        "pushEndpointLabel": "Push endpoint URL",
+        "pushEndpointHint": "Paste this exact URL as the push endpoint when creating the Pub/Sub subscription in Google Cloud Console — it includes this connection's own verification token.",
+        "pushEndpointCopied": "Push endpoint URL copied to clipboard"
       }
     },
     "sections": {

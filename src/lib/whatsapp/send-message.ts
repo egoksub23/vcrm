@@ -53,6 +53,13 @@ import { MetaApiError } from '@/lib/meta/errors';
 import { getValidAccessToken } from '@/lib/ms365/token';
 import { sendNewMail, sendReplyText, sendReplyWithAttachment } from '@/lib/ms365/mail-api';
 import { GraphApiError } from '@/lib/ms365/errors';
+import { getValidAccessToken as getValidGmailAccessToken } from '@/lib/gmail/token';
+import {
+  sendNewMail as sendNewGmail,
+  sendReply as sendGmailReply,
+  getThreadingInfo as getGmailThreadingInfo,
+} from '@/lib/gmail/gmail-api';
+import { GmailApiError } from '@/lib/gmail/errors';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -280,16 +287,17 @@ export async function sendMessageToConversation(
     );
   }
 
-  // Messenger/Instagram/Email support text + media, but none of them
-  // have anything resembling WhatsApp's pre-approved HSM template
+  // Messenger/Instagram/Email/Gmail support text + media, but none of
+  // them have anything resembling WhatsApp's pre-approved HSM template
   // system or its interactive buttons/lists (see the automation
   // engine's assertWhatsappChannel for the same scope decision on the
   // automation-step side).
   const isMessengerConversation = channel === 'messenger';
   const isInstagramConversation = channel === 'instagram';
   const isEmailConversation = channel === 'email';
+  const isGmailConversation = channel === 'gmail';
   if (
-    (isMessengerConversation || isInstagramConversation || isEmailConversation) &&
+    (isMessengerConversation || isInstagramConversation || isEmailConversation || isGmailConversation) &&
     messageType !== 'text' &&
     !isMediaKind
   ) {
@@ -702,6 +710,96 @@ export async function sendMessageToConversation(
       const message = err instanceof Error ? err.message : 'Unknown Microsoft Graph error';
       console.error('[send-message] Email send failed:', message);
       throw new SendMessageError('meta_error', `Email send error: ${message}`, 502);
+    }
+  }
+
+  // Gmail send — same reply-vs-fresh-send split as the Microsoft 365
+  // branch above, but Gmail's threading needs an extra lookup: the
+  // RFC822 Message-ID header and Gmail's own threadId aren't the same
+  // as the `message_id` we persist (Gmail's internal message id), so
+  // getThreadingInfo fetches them fresh right before replying rather
+  // than caching them on the messages row.
+  if (isGmailConversation) {
+    if (!contact.email) {
+      throw new SendMessageError('bad_request', 'Contact has no email address', 400);
+    }
+    const { data: cfg, error: cfgError } = await db
+      .from('gmail_config')
+      .select('*')
+      .eq('account_id', accountId)
+      .single();
+    if (cfgError || !cfg) {
+      throw new SendMessageError(
+        'gmail_not_configured',
+        'Gmail is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    try {
+      const accessToken = await getValidGmailAccessToken(cfg);
+
+      const { data: lastInbound } = await db
+        .from('messages')
+        .select('message_id')
+        .eq('conversation_id', conversationId)
+        .eq('sender_type', 'customer')
+        .eq('channel_type', 'gmail')
+        .not('message_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const replyToMessageId = lastInbound?.message_id as string | undefined;
+
+      let attachment: { name: string; contentType: string; contentBytesBase64: string } | undefined;
+      if (isMediaKind) {
+        const mediaResponse = await fetch(mediaUrl!);
+        if (!mediaResponse.ok) {
+          throw new Error(`Failed to fetch media for Gmail attachment: ${mediaResponse.status}`);
+        }
+        const bytes = Buffer.from(await mediaResponse.arrayBuffer());
+        attachment = {
+          name: filename || mediaUrl!.split('/').pop() || 'attachment',
+          contentType: mediaResponse.headers.get('content-type') || 'application/octet-stream',
+          contentBytesBase64: bytes.toString('base64'),
+        };
+      }
+
+      const text = contentText || '';
+      if (replyToMessageId) {
+        const threading = await getGmailThreadingInfo({ accessToken, messageId: replyToMessageId });
+        const subject = threading.subject
+          ? /^re:/i.test(threading.subject)
+            ? threading.subject
+            : `Re: ${threading.subject}`
+          : 'Re: your message';
+        await sendGmailReply({
+          accessToken,
+          threadId: threading.threadId,
+          inReplyToMessageId: threading.rfc822MessageId,
+          toAddress: contact.email,
+          subject,
+          text,
+          attachment,
+        });
+      } else {
+        await sendNewGmail({
+          accessToken,
+          toAddress: contact.email,
+          subject: 'New message',
+          text,
+          attachment,
+        });
+      }
+      // Gmail's send response has no async delivery-status webhook to
+      // correlate against, same as every other non-WhatsApp channel —
+      // nothing to persist here.
+    } catch (err) {
+      if (err instanceof GmailApiError && err.isAuthError) {
+        await db.from('gmail_config').update({ needs_reauth: true }).eq('id', cfg.id);
+      }
+      const message = err instanceof Error ? err.message : 'Unknown Gmail API error';
+      console.error('[send-message] Gmail send failed:', message);
+      throw new SendMessageError('meta_error', `Gmail send error: ${message}`, 502);
     }
   }
 

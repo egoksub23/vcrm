@@ -209,11 +209,15 @@ export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
  *  the message level in migration 048 once a single conversation could
  *  span both channels (WhatsApp + Web Widget merged by contact).
  *  Messenger and Instagram added in migration 055; Email (Microsoft 365
- *  / Outlook, via Microsoft Graph) added in migration 056.
+ *  / Outlook, via Microsoft Graph) added in migration 056; Gmail added
+ *  in migration 058 — kept distinct from `'email'` even though both are
+ *  "email", since an account may connect one, the other, or both (e.g.
+ *  support@ on Gmail and sales@ on Microsoft 365), same reasoning
+ *  Messenger/Instagram stay distinct despite both being Meta.
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
  *  automation engine's per-step channel guards. */
-export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email';
+export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail';
 
 export interface Conversation {
   id: string;
@@ -461,6 +465,22 @@ export interface EmailConnectionStatus {
   connected_at?: string | null;
   needs_reauth: boolean;
   status: 'connected' | 'disconnected' | 'error';
+}
+
+/** Gmail channel connection status — migration 058. Unlike every other
+ *  channel's status shape, this carries the Pub/Sub push-endpoint URL
+ *  (with its verify token) an admin needs to paste into Google Cloud
+ *  Console, and whether that one-time setup has actually been done
+ *  (`pubsub_configured`) — Gmail's inbound delivery doesn't self-
+ *  register the way Microsoft 365's or Messenger/Instagram's do. */
+export interface GmailConnectionStatus {
+  connected: boolean;
+  email_address?: string | null;
+  connected_at?: string | null;
+  needs_reauth: boolean;
+  status: 'connected' | 'disconnected' | 'error';
+  pubsub_configured: boolean;
+  push_endpoint_url: string | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)
