@@ -51,17 +51,29 @@ guessing, since a mismatch here is the most common OAuth failure.
 
 ## 4. Register the webhook URLs
 
-Same App Dashboard, under each product's **Webhooks** setup:
+Same App Dashboard, under each product's **Webhooks** setup. This is
+**two separate actions**, not one — it's easy to do the first and think
+you're done, but no events actually arrive until you also do the
+second:
 
-```
-Messenger:  https://your-domain.com/api/messenger/webhook
-Instagram:  https://your-domain.com/api/instagram/webhook
-```
-
-Subscribe to the `messages` field for each. The verify token is whatever
-you'll type into the account's Settings → Channels panel after
-connecting — same self-service pattern as WhatsApp's verify token
-(see `docs/multi-waba.md`).
+1. **Verify the callback URL.** Enter the Callback URL and Verify token
+   below and click "Verify and save". The verify token is a string
+   *you* make up — type the same value into both this Meta field and
+   your account's Settings → Channels → Messenger/Instagram panel (a
+   "Webhook setup" card appears there once connected, with a Save
+   button) — same self-service pattern as WhatsApp's verify token (see
+   `docs/multi-waba.md`). A green checkmark here means Meta *can* reach
+   your server; it does **not** mean anything is actually being sent yet.
+   ```
+   Messenger:  https://your-domain.com/api/messenger/webhook
+   Instagram:  https://your-domain.com/api/instagram/webhook
+   ```
+2. **Subscribe to the `messages` field.** Below the callback URL card,
+   find the webhook fields list (sometimes a separate "Webhook fields"
+   section, sometimes inline) and enable/subscribe `messages` for your
+   Page. Skipping this step is the single most common reason messages
+   never show up in the CRM despite the callback URL showing as
+   verified — verified and subscribed are two different checkmarks.
 
 ## 5. Connect from the app
 
