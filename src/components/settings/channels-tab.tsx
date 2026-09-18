@@ -1,19 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import type { ComponentType, SVGProps } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  MessageCircle,
-  Globe,
-  Camera,
-  Send,
-  Mail,
-  MessageSquareText,
-  type LucideIcon,
-} from 'lucide-react';
+import { MessageSquareText } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { CHANNEL_ICONS } from '@/components/inbox/channel-icons';
 import { WhatsAppConfig } from './channels/whatsapp-channel';
 import { WebWidgetChannel } from './channels/web-widget-channel';
 import { MessengerChannel } from './channels/messenger-channel';
@@ -24,16 +18,18 @@ type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email'
 
 interface ChannelEntry {
   id: ChannelId;
-  icon: LucideIcon;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   comingSoon?: boolean;
 }
 
 const CHANNELS: ChannelEntry[] = [
-  { id: 'whatsapp', icon: MessageCircle },
-  { id: 'web_widget', icon: Globe },
-  { id: 'instagram', icon: Camera },
-  { id: 'messenger', icon: Send },
-  { id: 'email', icon: Mail },
+  { id: 'whatsapp', icon: CHANNEL_ICONS.whatsapp },
+  { id: 'web_widget', icon: CHANNEL_ICONS.web_widget },
+  { id: 'instagram', icon: CHANNEL_ICONS.instagram },
+  { id: 'messenger', icon: CHANNEL_ICONS.messenger },
+  { id: 'email', icon: CHANNEL_ICONS.email },
+  // No real channel behind SMS yet — no brand to show, so it keeps the
+  // generic outline icon the others used before this changed to logos.
   { id: 'sms', icon: MessageSquareText, comingSoon: true },
 ];
 
