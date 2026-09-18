@@ -13,6 +13,7 @@ import {
   CornerDownLeft,
   Sparkles,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -53,6 +54,10 @@ interface MessageBubbleProps {
    * reads as a group header rather than repeating on every message.
    */
   senderLabel?: string;
+  /** True for the most recently received/sent Email(MS365)/Gmail
+   *  message in this thread — it defaults expanded; every earlier one
+   *  defaults collapsed to a one-line preview (EmailBodyContent). */
+  isLatestEmail?: boolean;
 }
 
 /**
@@ -98,17 +103,50 @@ function StatusIcon({
 /** An Email(MS365)/Gmail message whose source was HTML (migration 061)
  *  — defaults to the rendered view, with a toggle down to the plain-
  *  text fallback (useful for copy/paste, or if the rendering looks
- *  off for a particular email). */
+ *  off for a particular email).
+ *
+ * Color-coded by sender (a thin left rule, blue for the customer,
+ * the app's own primary color for you) and, for every message except
+ * the thread's most recent one, collapsed to a one-line preview —
+ * the way a real email client keeps older history out of the way
+ * until you open it. */
 function EmailBodyContent({
   message,
   t,
+  isAgent,
+  isLatestEmail,
 }: {
   message: Message;
   t: ReturnType<typeof useTranslations>;
+  isAgent: boolean;
+  isLatestEmail: boolean;
 }) {
+  const [expanded, setExpanded] = useState(isLatestEmail);
   const [showHtml, setShowHtml] = useState(true);
+  // Agent bubbles already sit on a filled `--primary` background, so
+  // the identification rule needs to contrast against THAT, not repeat
+  // it — a customer bubble sits on the neutral muted fill instead,
+  // where a distinct blue reads clearly.
+  const borderColor = isAgent ? "var(--primary-foreground)" : "#2f6fed";
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="flex w-full items-center gap-2 py-0.5 text-left"
+        style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 8 }}
+      >
+        <span className="min-w-0 flex-1 truncate text-sm opacity-80">
+          {message.content_text || t("unsupported")}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+      </button>
+    );
+  }
+
   return (
-    <div>
+    <div style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 10 }}>
       <button
         type="button"
         onClick={() => setShowHtml((v) => !v)}
@@ -131,12 +169,14 @@ function MessageContent({
   message,
   t,
   isAgent,
+  isLatestEmail,
   onOpenMedia,
 }: {
   message: Message;
   t: ReturnType<typeof useTranslations>;
   /** Outbound bubbles sit on the primary fill — badges must invert. */
   isAgent: boolean;
+  isLatestEmail: boolean;
   onOpenMedia?: (messageId: string) => void;
 }) {
   // Passed to the media bubbles as a no-arg callback; `undefined` when the
@@ -146,7 +186,9 @@ function MessageContent({
   switch (message.content_type) {
     case "text":
       if (message.content_html) {
-        return <EmailBodyContent message={message} t={t} />;
+        return (
+          <EmailBodyContent message={message} t={t} isAgent={isAgent} isLatestEmail={isLatestEmail} />
+        );
       }
       return (
         <p className="whitespace-pre-wrap break-words text-sm">
@@ -297,6 +339,7 @@ export function MessageBubble({
   onOpenMedia,
   authorLabel,
   senderLabel,
+  isLatestEmail = false,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
   // Reuses the same channel labels the thread header's badge already
@@ -370,6 +413,7 @@ export function MessageBubble({
           message={message}
           t={t}
           isAgent={isAgent}
+          isLatestEmail={isLatestEmail}
           onOpenMedia={onOpenMedia}
         />
         <div

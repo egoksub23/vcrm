@@ -59,6 +59,9 @@ import {
 import { validateInteractivePayload, interactivePayloadPreviewText } from "@/lib/whatsapp/interactive";
 import type { ChannelType, InteractiveMessagePayload, Profile, QuickReply } from "@/types";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { RichTextEditor } from "./rich-text-editor";
+import type { Editor } from "@tiptap/react";
+import { escapeHtml } from "@/lib/email/build-quote-html";
 
 /** Media content types an agent can send from the composer. */
 export type ComposerMediaKind = "image" | "video" | "document" | "audio";
@@ -133,7 +136,10 @@ interface MessageComposerProps {
    *  hides the selector entirely (nothing to choose between). */
   availableChannels: ChannelType[];
   sessionExpired: boolean;
-  onSend: (text: string, replyToId?: string, channel?: ChannelType) => void;
+  /** `html` is only ever set for an Email(MS365)/Gmail send made with
+   *  the WYSIWYG editor — the plain-text `text` is still always sent
+   *  as the fallback every other caller/channel already relies on. */
+  onSend: (text: string, replyToId?: string, channel?: ChannelType, html?: string) => void;
   onSendMedia: (payload: SendMediaPayload, channel?: ChannelType) => void;
   onSendInteractive: (
     payload: InteractiveMessagePayload,
@@ -229,6 +235,23 @@ export function MessageComposer({
   const [mode, setMode] = useState<ComposerMode>("message");
   const isComment = mode === "comment";
   const isSnippets = mode === "snippets";
+
+  // ---- WYSIWYG editor for Email(MS365)/Gmail replies -------------------
+  // Only these two channels have anything resembling formatted HTML mail
+  // to compose — every other channel is plain text (WhatsApp/Messenger/
+  // Instagram have no rich-formatting concept, and the web widget renders
+  // customer-facing text only). `text` still tracks the editor's plain-
+  // text derivation (via onChangeHtml's second arg) so the rest of the
+  // send path — validation, the optimistic bubble, every non-email
+  // channel — keeps working exactly as before without a parallel state.
+  const isEmailChannel =
+    !isComment && (selectedChannel === "email" || selectedChannel === "gmail");
+  const [emailHtml, setEmailHtml] = useState("");
+  const emailEditorRef = useRef<Editor | null>(null);
+  const handleEmailChange = useCallback((html: string, plain: string) => {
+    setEmailHtml(html);
+    setText(plain);
+  }, []);
   // Ids the agent picked from the @mention dropdown. Best-effort: if they
   // hand-edit the inserted "@Name" text afterward, this can drift from
   // what's literally in the textarea — an accepted simplification rather
@@ -430,16 +453,32 @@ export function MessageComposer({
         onSendComment(trimmed, Array.from(mentionedIds));
         setMentionedIds(new Set());
       } else {
-        onSend(trimmed, replyTo?.id, selectedChannel);
+        onSend(trimmed, replyTo?.id, selectedChannel, isEmailChannel ? emailHtml : undefined);
       }
       setText("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+      if (isEmailChannel) {
+        emailEditorRef.current?.commands.clearContent();
+        setEmailHtml("");
+      }
     } finally {
       setSending(false);
     }
-  }, [text, sending, sessionExpired, isComment, onSend, onSendComment, mentionedIds, replyTo?.id, selectedChannel]);
+  }, [
+    text,
+    sending,
+    sessionExpired,
+    isComment,
+    onSend,
+    onSendComment,
+    mentionedIds,
+    replyTo?.id,
+    selectedChannel,
+    isEmailChannel,
+    emailHtml,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -496,6 +535,21 @@ export function MessageComposer({
         toast.error(t("draftEmpty"));
         return;
       }
+      if (isEmailChannel) {
+        // The plain textarea's ref/height logic below doesn't apply —
+        // drop the draft into the Tiptap doc instead, one <p> per
+        // blank-line-separated paragraph so multi-paragraph drafts
+        // don't collapse into a single run-on line.
+        const html = draftText
+          .split(/\n{2,}/)
+          .map((para: string) => `<p>${escapeHtml(para).replace(/\n/g, "<br>")}</p>`)
+          .join("");
+        emailEditorRef.current?.commands.setContent(html);
+        emailEditorRef.current?.commands.focus("end");
+        setEmailHtml(html);
+        setText(draftText);
+        return;
+      }
       setText(draftText);
       // Let the textarea grow to fit and drop the cursor at the end so
       // the agent can tweak immediately.
@@ -512,7 +566,7 @@ export function MessageComposer({
     } finally {
       setDrafting(false);
     }
-  }, [drafting, conversationId, adjustHeight, t]);
+  }, [drafting, conversationId, adjustHeight, t, isEmailChannel]);
 
   // ---- Interactive message + quick replies --------------------------
 
@@ -1109,34 +1163,46 @@ export function MessageComposer({
                 ))}
               </div>
             )}
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                readOnly
-                  ? t("readOnlyPlaceholder")
-                  : isComment
-                    ? t("commentPlaceholder")
-                    : sessionExpired
-                      ? t("sessionExpiredPlaceholder")
-                      : t("typeMessagePlaceholder")
-              }
-              disabled={(!isComment && sessionExpired) || readOnly}
-              rows={1}
-              // Textarea keeps its own inline title — the GatedButton
-              // wrapping pattern doesn't apply to non-button inputs.
-              // The placeholder text also surfaces the read-only state.
-              title={readOnly ? t("readOnlyTitle") : undefined}
-              className={cn(
-                "w-full resize-none rounded-xl border px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors",
-                isComment
-                  ? "border-amber-500/40 bg-amber-500/5 focus:border-amber-500/70"
-                  : "border-border bg-muted focus:border-primary/50",
-                ((!isComment && sessionExpired) || readOnly) && "cursor-not-allowed opacity-50"
-              )}
-            />
+            {isEmailChannel ? (
+              <RichTextEditor
+                key={conversationId}
+                onChangeHtml={handleEmailChange}
+                onEditorReady={(editor) => {
+                  emailEditorRef.current = editor;
+                }}
+                placeholder={sessionExpired ? t("sessionExpiredPlaceholder") : t("typeMessagePlaceholder")}
+                disabled={sessionExpired || readOnly}
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  readOnly
+                    ? t("readOnlyPlaceholder")
+                    : isComment
+                      ? t("commentPlaceholder")
+                      : sessionExpired
+                        ? t("sessionExpiredPlaceholder")
+                        : t("typeMessagePlaceholder")
+                }
+                disabled={(!isComment && sessionExpired) || readOnly}
+                rows={1}
+                // Textarea keeps its own inline title — the GatedButton
+                // wrapping pattern doesn't apply to non-button inputs.
+                // The placeholder text also surfaces the read-only state.
+                title={readOnly ? t("readOnlyTitle") : undefined}
+                className={cn(
+                  "w-full resize-none rounded-xl border px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors",
+                  isComment
+                    ? "border-amber-500/40 bg-amber-500/5 focus:border-amber-500/70"
+                    : "border-border bg-muted focus:border-primary/50",
+                  ((!isComment && sessionExpired) || readOnly) && "cursor-not-allowed opacity-50"
+                )}
+              />
+            )}
           </div>
 
           <GatedButton

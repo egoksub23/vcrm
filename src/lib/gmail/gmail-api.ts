@@ -56,12 +56,14 @@ export async function sendNewMail(args: {
   toAddress: string
   subject: string
   text: string
+  html?: string
   attachment?: GmailAttachmentInput
 }): Promise<{ messageId: string }> {
   const raw = buildRawMessage({
     toAddress: args.toAddress,
     subject: args.subject,
     text: args.text,
+    html: args.html,
     attachment: args.attachment,
   })
   const result = await send({ accessToken: args.accessToken, raw })
@@ -77,12 +79,14 @@ export async function sendReply(args: {
   toAddress: string
   subject: string
   text: string
+  html?: string
   attachment?: GmailAttachmentInput
 }): Promise<{ messageId: string }> {
   const raw = buildRawMessage({
     toAddress: args.toAddress,
     subject: args.subject,
     text: args.text,
+    html: args.html,
     inReplyTo: args.inReplyToMessageId ?? undefined,
     references: args.inReplyToMessageId ?? undefined,
     attachment: args.attachment,

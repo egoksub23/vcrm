@@ -33,6 +33,11 @@ export interface OutgoingMailArgs {
   toAddress: string
   subject: string
   text: string
+  /** Rich-text body (the WYSIWYG composer's output, quoted history
+   *  already appended) — sent as the `text/html` alternative alongside
+   *  `text`, which stays the plain-text fallback every mail client
+   *  falls back to. Omit for a plain-text-only send. */
+  html?: string
   /** RFC822 `Message-ID` header of the message being replied to, e.g.
    *  `<abc123@mail.gmail.com>` — set together for a threaded reply. */
   inReplyTo?: string
@@ -42,7 +47,8 @@ export interface OutgoingMailArgs {
 
 /** Builds the base64url-encoded raw message `users.messages.send` expects. */
 export function buildRawMessage(args: OutgoingMailArgs): string {
-  const boundary = `part_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const mixedBoundary = `part_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const altBoundary = `alt_${Date.now()}_${Math.random().toString(36).slice(2)}`
   const headers: string[] = [
     `To: ${args.toAddress}`,
     `Subject: ${encodeMimeHeader(args.subject)}`,
@@ -51,22 +57,42 @@ export function buildRawMessage(args: OutgoingMailArgs): string {
   if (args.inReplyTo) headers.push(`In-Reply-To: ${args.inReplyTo}`)
   if (args.references) headers.push(`References: ${args.references}`)
 
+  // The plain-text/HTML pair, as either the whole body (own top-level
+  // Content-Type header) or one part nested inside the multipart/mixed
+  // envelope below (own Content-Type line, no top-level header needed).
+  const textOnlyPart = ['Content-Type: text/plain; charset="UTF-8"', '', args.text].join('\r\n')
+  const alternativeBody = [
+    `--${altBoundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    '',
+    args.text,
+    `--${altBoundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    '',
+    args.html,
+    `--${altBoundary}--`,
+  ].join('\r\n')
+  const alternativePart = [`Content-Type: multipart/alternative; boundary="${altBoundary}"`, '', alternativeBody].join(
+    '\r\n',
+  )
+
   let body: string
   if (args.attachment) {
-    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
+    headers.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`)
     body = [
-      `--${boundary}`,
-      'Content-Type: text/plain; charset="UTF-8"',
-      '',
-      args.text,
-      `--${boundary}`,
+      `--${mixedBoundary}`,
+      args.html ? alternativePart : textOnlyPart,
+      `--${mixedBoundary}`,
       `Content-Type: ${args.attachment.contentType}; name="${args.attachment.name}"`,
       `Content-Disposition: attachment; filename="${args.attachment.name}"`,
       'Content-Transfer-Encoding: base64',
       '',
       args.attachment.contentBytesBase64,
-      `--${boundary}--`,
+      `--${mixedBoundary}--`,
     ].join('\r\n')
+  } else if (args.html) {
+    headers.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`)
+    body = alternativeBody
   } else {
     headers.push('Content-Type: text/plain; charset="UTF-8"')
     body = args.text

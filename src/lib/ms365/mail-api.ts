@@ -49,6 +49,10 @@ export async function sendNewMail(args: {
   toAddress: string
   subject: string
   text: string
+  /** Rich-text body (the WYSIWYG composer's output) — sent as the
+   *  message's HTML body when present, instead of `text`. `text` is
+   *  still required as the value actually used when this is omitted. */
+  html?: string
   attachment?: GraphFileAttachment
 }): Promise<void> {
   const response = await fetch(`${GRAPH_BASE}/me/sendMail`, {
@@ -57,7 +61,9 @@ export async function sendNewMail(args: {
     body: JSON.stringify({
       message: {
         subject: args.subject,
-        body: { contentType: 'Text', content: args.text },
+        body: args.html
+          ? { contentType: 'HTML', content: args.html }
+          : { contentType: 'Text', content: args.text },
         toRecipients: [{ emailAddress: { address: args.toAddress } }],
         attachments: args.attachment ? [attachmentPayload(args.attachment)] : undefined,
       },
@@ -121,6 +127,63 @@ export async function sendReplyWithAttachment(args: {
   )
   if (!attachResponse.ok) {
     await throwGraphError(attachResponse, `attaching to reply draft failed: ${attachResponse.status}`)
+  }
+
+  const sendResponse = await fetch(
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(draft.id)}/send`,
+    { method: 'POST', headers: authHeaders(args.accessToken) },
+  )
+  if (!sendResponse.ok) {
+    await throwGraphError(sendResponse, `sending reply draft failed: ${sendResponse.status}`)
+  }
+}
+
+/**
+ * HTML-formatted reply (the WYSIWYG composer's output, quoted history
+ * already appended). The one-call `reply` action's `comment` field has
+ * no reliable way to carry real HTML formatting, so this uses the same
+ * createReply -> [attach] -> send dance as `sendReplyWithAttachment`,
+ * but PATCHes the draft's body to our own HTML instead of passing
+ * `comment` on creation — we already built the full quoted-history
+ * block client-side, so Graph's own auto-quoted draft body is
+ * overwritten rather than appended to.
+ */
+export async function sendReplyHtml(args: {
+  accessToken: string
+  replyToMessageId: string
+  html: string
+  attachment?: GraphFileAttachment
+}): Promise<void> {
+  const createResponse = await fetch(
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(args.replyToMessageId)}/createReply`,
+    { method: 'POST', headers: authHeaders(args.accessToken), body: JSON.stringify({}) },
+  )
+  if (!createResponse.ok) {
+    await throwGraphError(createResponse, `createReply failed: ${createResponse.status}`)
+  }
+  const draft = (await createResponse.json()) as { id: string }
+
+  const patchResponse = await fetch(`${GRAPH_BASE}/me/messages/${encodeURIComponent(draft.id)}`, {
+    method: 'PATCH',
+    headers: authHeaders(args.accessToken),
+    body: JSON.stringify({ body: { contentType: 'HTML', content: args.html } }),
+  })
+  if (!patchResponse.ok) {
+    await throwGraphError(patchResponse, `updating reply draft body failed: ${patchResponse.status}`)
+  }
+
+  if (args.attachment) {
+    const attachResponse = await fetch(
+      `${GRAPH_BASE}/me/messages/${encodeURIComponent(draft.id)}/attachments`,
+      {
+        method: 'POST',
+        headers: authHeaders(args.accessToken),
+        body: JSON.stringify(attachmentPayload(args.attachment)),
+      },
+    )
+    if (!attachResponse.ok) {
+      await throwGraphError(attachResponse, `attaching to reply draft failed: ${attachResponse.status}`)
+    }
   }
 
   const sendResponse = await fetch(

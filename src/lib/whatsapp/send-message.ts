@@ -51,7 +51,7 @@ import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '
 import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
 import { MetaApiError } from '@/lib/meta/errors';
 import { getValidAccessToken } from '@/lib/ms365/token';
-import { sendNewMail, sendReplyText, sendReplyWithAttachment } from '@/lib/ms365/mail-api';
+import { sendNewMail, sendReplyText, sendReplyWithAttachment, sendReplyHtml } from '@/lib/ms365/mail-api';
 import { GraphApiError } from '@/lib/ms365/errors';
 import { getValidAccessToken as getValidGmailAccessToken } from '@/lib/gmail/token';
 import {
@@ -89,6 +89,14 @@ export interface SendMessageParams {
   conversationId: string;
   messageType: string;
   contentText?: string | null;
+  /** Rich-text body from the WYSIWYG composer (Email(MS365)/Gmail only)
+   *  — quoted history already appended client-side. When set, the
+   *  email/gmail branches send this as the message's real HTML body
+   *  (so the recipient's own mail client renders it formatted) and
+   *  persist it as `content_html` on our own copy of the message.
+   *  `contentText` stays required as the plain-text fallback both the
+   *  wire format and every non-email channel need. */
+  contentHtml?: string | null;
   mediaUrl?: string | null;
   filename?: string | null;
   templateName?: string | null;
@@ -233,6 +241,7 @@ export async function sendMessageToConversation(
     conversationId,
     messageType,
     contentText,
+    contentHtml,
     mediaUrl,
     filename,
     templateName,
@@ -699,7 +708,9 @@ export async function sendMessageToConversation(
 
       const text = contentText || '';
       if (replyToMessageId) {
-        if (attachment) {
+        if (contentHtml) {
+          await sendReplyHtml({ accessToken, replyToMessageId, html: contentHtml, attachment });
+        } else if (attachment) {
           await sendReplyWithAttachment({ accessToken, replyToMessageId, text, attachment });
         } else {
           await sendReplyText({ accessToken, replyToMessageId, text });
@@ -710,6 +721,7 @@ export async function sendMessageToConversation(
           toAddress: contact.email,
           subject: 'New message',
           text,
+          html: contentHtml || undefined,
           attachment,
         });
       }
@@ -793,6 +805,7 @@ export async function sendMessageToConversation(
           toAddress: contact.email,
           subject,
           text,
+          html: contentHtml || undefined,
           attachment,
         });
       } else {
@@ -801,6 +814,7 @@ export async function sendMessageToConversation(
           toAddress: contact.email,
           subject: 'New message',
           text,
+          html: contentHtml || undefined,
           attachment,
         });
       }
@@ -846,6 +860,10 @@ export async function sendMessageToConversation(
       sender_id: senderType === 'agent' ? senderUserId : null,
       content_type: messageType,
       content_text: persistedText,
+      // Only ever set for Email(MS365)/Gmail sends from the WYSIWYG
+      // composer; every other channel/caller leaves this null, and
+      // MessageBubble only renders the rich view when it's present.
+      content_html: contentHtml || null,
       media_url: mediaUrl || null,
       template_name: templateName || null,
       interactive_payload:

@@ -71,6 +71,7 @@ import { AiThreadBanner } from "./ai-thread-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { buildQuoteHtml } from "@/lib/email/build-quote-html";
 import { toast } from "sonner";
 
 interface ReplyDraft {
@@ -526,10 +527,34 @@ export function MessageThread({
   }, [messages, conversation]);
 
   const handleSend = useCallback(
-    async (text: string, replyToId?: string, channel?: ChannelType) => {
+    async (text: string, replyToId?: string, channel?: ChannelType, html?: string) => {
       if (!conversation) return;
 
       const tempId = `temp-${Date.now()}`;
+      const effectiveChannel = channel ?? conversation.last_channel_type;
+
+      // A WYSIWYG send on Email(MS365)/Gmail gets the quoted-history
+      // block appended below the agent's own HTML — the same "On <date>,
+      // <name> wrote:" chain any mail client's own Reply builds, so the
+      // customer's inbox threads it normally. Built here (not in the
+      // composer) because this is where the full `messages` array
+      // already lives.
+      let contentHtml: string | undefined;
+      if (html && (effectiveChannel === "email" || effectiveChannel === "gmail")) {
+        const priorInbound = [...messages]
+          .reverse()
+          .find((m) => m.sender_type === "customer" && m.channel_type === effectiveChannel);
+        contentHtml = priorInbound
+          ? html +
+            buildQuoteHtml({
+              senderLabel: contact?.name || contact?.email || "the customer",
+              senderEmail: contact?.email,
+              createdAt: priorInbound.created_at,
+              contentHtml: priorInbound.content_html,
+              contentText: priorInbound.content_text,
+            })
+          : html;
+      }
 
       // Optimistic update — shows the message immediately with "sending" status
       const optimisticMsg: Message = {
@@ -538,7 +563,8 @@ export function MessageThread({
         sender_type: "agent",
         content_type: "text",
         content_text: text,
-        channel_type: channel ?? conversation.last_channel_type,
+        content_html: contentHtml ?? null,
+        channel_type: effectiveChannel,
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
@@ -554,6 +580,7 @@ export function MessageThread({
             conversation_id: conversation.id,
             message_type: "text",
             content_text: text,
+            content_html: contentHtml,
             reply_to_message_id: replyToId,
             channel_override: channel,
           }),
@@ -581,7 +608,7 @@ export function MessageThread({
         onUpdateMessage(tempId, { status: "failed" });
       }
     },
-    [conversation, onNewMessage, onUpdateMessage, t]
+    [conversation, contact, messages, onNewMessage, onUpdateMessage, t]
   );
 
   // Shared by the composer's "Comment" mode and the handoff-note dialog —
@@ -1089,6 +1116,12 @@ export function MessageThread({
 
   const displayName = contact.name || contactHandle(contact);
   const messageGroups = groupMessagesByDate(messages);
+  // Only the most recent email-rendered message defaults to expanded —
+  // older ones in the same thread default collapsed to a one-line
+  // preview (EmailBodyContent in message-bubble.tsx), the way a real
+  // email client's history stays out of the way until you open it.
+  const latestEmailMessageId =
+    [...messages].reverse().find((m) => !!m.content_html)?.id ?? null;
   const currentStatus = STATUS_OPTIONS.find(
     (s) => s.value === conversation.status
   );
@@ -1601,6 +1634,7 @@ export function MessageThread({
                           onToggleReaction={handlePillToggle}
                           onOpenMedia={handleMediaChange}
                           senderLabel={senderLabel}
+                          isLatestEmail={msg.id === latestEmailMessageId}
                         />
                       </MessageActions>
                     );

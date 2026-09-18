@@ -228,3 +228,34 @@ html[data-theme="rose"] {
     @apply font-sans;
   }
 }
+
+/* Tiptap/ProseMirror ships no styling of its own — this is the WYSIWYG
+   email composer's editing surface (RichTextEditor). Scoped to a class
+   rather than @layer base so it never leaks onto unrelated content. */
+.rte-content {
+  outline: none;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.rte-content p {
+  margin: 0 0 8px;
+}
+.rte-content p:last-child {
+  margin-bottom: 0;
+}
+.rte-content ul,
+.rte-content ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+.rte-content a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
