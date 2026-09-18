@@ -103,31 +103,23 @@ function StatusIcon({
 /** An Email(MS365)/Gmail message whose source was HTML (migration 061)
  *  — defaults to the rendered view, with a toggle down to the plain-
  *  text fallback (useful for copy/paste, or if the rendering looks
- *  off for a particular email).
- *
- * Color-coded by sender (a thin left rule, blue for the customer,
- * the app's own primary color for you) and, for every message except
- * the thread's most recent one, collapsed to a one-line preview —
- * the way a real email client keeps older history out of the way
- * until you open it. */
+ *  off for a particular email). For every message except the thread's
+ *  most recent one, collapsed to a one-line preview — the way a real
+ *  email client keeps older history out of the way until you open it.
+ *  Rendered inside the full-width "email card" shell in MessageBubble
+ *  below, not a chat bubble — the card's own left accent already
+ *  carries the sender color-coding. */
 function EmailBodyContent({
   message,
   t,
-  isAgent,
   isLatestEmail,
 }: {
   message: Message;
   t: ReturnType<typeof useTranslations>;
-  isAgent: boolean;
   isLatestEmail: boolean;
 }) {
   const [expanded, setExpanded] = useState(isLatestEmail);
   const [showHtml, setShowHtml] = useState(true);
-  // Agent bubbles already sit on a filled `--primary` background, so
-  // the identification rule needs to contrast against THAT, not repeat
-  // it — a customer bubble sits on the neutral muted fill instead,
-  // where a distinct blue reads clearly.
-  const borderColor = isAgent ? "var(--primary-foreground)" : "#2f6fed";
 
   if (!expanded) {
     return (
@@ -135,18 +127,17 @@ function EmailBodyContent({
         type="button"
         onClick={() => setExpanded(true)}
         className="flex w-full items-center gap-2 py-0.5 text-left"
-        style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 8 }}
       >
-        <span className="min-w-0 flex-1 truncate text-sm opacity-80">
+        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
           {message.content_text || t("unsupported")}
         </span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
     );
   }
 
   return (
-    <div style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 10 }}>
+    <div>
       <button
         type="button"
         onClick={() => setShowHtml((v) => !v)}
@@ -157,7 +148,7 @@ function EmailBodyContent({
       {showHtml ? (
         <EmailHtmlView html={message.content_html!} />
       ) : (
-        <p className="whitespace-pre-wrap break-words text-sm">
+        <p className="whitespace-pre-wrap break-words text-sm text-foreground">
           {message.content_text}
         </p>
       )}
@@ -186,9 +177,7 @@ function MessageContent({
   switch (message.content_type) {
     case "text":
       if (message.content_html) {
-        return (
-          <EmailBodyContent message={message} t={t} isAgent={isAgent} isLatestEmail={isLatestEmail} />
-        );
+        return <EmailBodyContent message={message} t={t} isLatestEmail={isLatestEmail} />;
       }
       return (
         <p className="whitespace-pre-wrap break-words text-sm">
@@ -376,6 +365,68 @@ export function MessageBubble({
             </p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // Rendered-HTML email (migration 061) gets its own full-width "email
+  // card" shell instead of a colored chat bubble — a stacked reading
+  // pane like a real email client's thread view, not a WhatsApp-style
+  // left/right bubble. Color-identifies the sender via a left accent
+  // bar (blue for the customer, the app's primary color for you)
+  // instead of a filled background, since the card itself stays a
+  // neutral surface so the HTML body renders with its own true colors.
+  if (message.content_type === "text" && message.content_html) {
+    const accentColor = isAgent ? "var(--primary)" : "#2f6fed";
+    return (
+      <div
+        className="w-full overflow-hidden rounded-lg border border-border bg-card"
+        style={{ borderLeft: `3px solid ${accentColor}` }}
+      >
+        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+            {senderLabel ?? (isAgent ? t("you") : t("customer"))}
+          </span>
+          {message.ai_generated && (
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-semibold uppercase leading-none tracking-wide text-primary"
+              title={t("aiBadgeTitle")}
+            >
+              <Sparkles className="h-2.5 w-2.5" />
+              {t("aiBadge")}
+            </span>
+          )}
+          {(() => {
+            const ChannelIcon = CHANNEL_ICONS[message.channel_type];
+            return (
+              <span title={tChannel(`channel.${message.channel_type}`)} className="shrink-0">
+                <ChannelIcon className="h-3 w-3 text-muted-foreground" />
+              </span>
+            );
+          })()}
+          <span className="shrink-0 text-[10px] text-muted-foreground">{time}</span>
+          {isAgent && <StatusIcon status={message.status} title={failure} />}
+        </div>
+        <div className="px-3 py-2">
+          <EmailBodyContent message={message} t={t} isLatestEmail={isLatestEmail} />
+        </div>
+        {failure && (
+          <p
+            className="border-t border-border/60 px-3 py-1 text-[10px] leading-tight text-muted-foreground"
+            title={failure}
+          >
+            {t("notDelivered")}: {failure}
+          </p>
+        )}
+        {reactions && reactions.length > 0 && onToggleReaction && (
+          <div className="border-t border-border/60 px-3 py-1.5">
+            <MessageReactions
+              reactions={reactions}
+              currentUserId={currentUserId}
+              onToggle={onToggleReaction}
+            />
+          </div>
+        )}
       </div>
     );
   }

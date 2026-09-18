@@ -1672,6 +1672,7 @@ export function MessageThread({
                           if (emoji) void postReaction(msg.id, emoji);
                         }}
                         onTrash={() => void handleMoveToTrash(msg.id)}
+                        wide={!!msg.content_html}
                       >
                         <MessageBubble
                           message={msg}

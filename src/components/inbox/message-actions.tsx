@@ -25,6 +25,12 @@ interface MessageActionsProps {
    *  account-wide Pending Delete panel. Optional so any other caller
    *  of this wrapper doesn't need to wire up trash support. */
   onTrash?: () => void;
+  /** Widens the hover-toolbar's content column from the standard chat-
+   *  bubble 75% cap to nearly the full row width, and drops the
+   *  left/right alignment — used for the rendered-HTML email card in
+   *  MessageBubble, which reads as an email client's message list
+   *  rather than a WhatsApp-style bubble thread. */
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -38,6 +44,7 @@ export function MessageActions({
   onReply,
   onReact,
   onTrash,
+  wide = false,
   children,
 }: MessageActionsProps) {
   const t = useTranslations("Inbox.actions");
@@ -94,17 +101,17 @@ export function MessageActions({
     <div
       className={cn(
         "flex w-full",
-        isAgent ? "justify-end" : "justify-start",
+        wide ? "justify-stretch" : isAgent ? "justify-end" : "justify-start",
       )}
       onContextMenu={handleContextMenu}
       onBlur={() => setTouchOpen(false)}
     >
-      {/* `min-w-0` lets this flex child actually respect the 75% cap.
+      {/* `min-w-0` lets this flex child actually respect the width cap.
        *  Default `min-width: auto` lets content (a long quote preview,
        *  an unbroken URL) push past the cap and shove the row past
        *  100%, which used to bleed across into the contact-sidebar
        *  area. See issue #165. */}
-      <div className="group/actions relative min-w-0 max-w-[75%]">
+      <div className={cn("group/actions relative min-w-0", wide ? "w-full" : "max-w-[75%]")}>
         {children}
       <div
         data-touch-open={touchOpen || pickerOpen ? "true" : undefined}
@@ -112,7 +119,7 @@ export function MessageActions({
           "absolute -top-3 z-10 flex h-7 items-center gap-0.5 rounded-full border border-border bg-popover/95 px-1 shadow-md backdrop-blur-sm transition-opacity",
           "opacity-0 group-hover/actions:opacity-100 group-focus-within/actions:opacity-100",
           "data-[touch-open=true]:opacity-100",
-          isAgent ? "right-3" : "left-3",
+          wide ? "right-3" : isAgent ? "right-3" : "left-3",
         )}
       >
         <Popover open={pickerOpen} onOpenChange={setPickerOpen}>

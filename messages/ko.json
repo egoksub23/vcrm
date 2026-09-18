@@ -343,7 +343,9 @@
       "expandVideo": "동영상 확대",
       "imageAlt": "공유된 이미지",
       "internalComment": "내부 코멘트",
-      "commentNotPosted": "코멘트가 게시되지 않았습니다"
+      "commentNotPosted": "코멘트가 게시되지 않았습니다",
+      "you": "나",
+      "customer": "고객"
     },
     "handoff": {
       "title": "{name}에게 배정",

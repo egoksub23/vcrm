@@ -343,7 +343,9 @@
       "expandVideo": "Expandir vídeo",
       "imageAlt": "Imagem compartilhada",
       "internalComment": "Comentário interno",
-      "commentNotPosted": "Comentário não publicado"
+      "commentNotPosted": "Comentário não publicado",
+      "you": "Você",
+      "customer": "Cliente"
     },
     "handoff": {
       "title": "Atribuir a {name}",

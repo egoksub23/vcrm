@@ -343,7 +343,9 @@
       "expandVideo": "Expand video",
       "imageAlt": "Shared image",
       "internalComment": "Internal comment",
-      "commentNotPosted": "Comment not posted"
+      "commentNotPosted": "Comment not posted",
+      "you": "You",
+      "customer": "Customer"
     },
     "handoff": {
       "title": "Assign to {name}",
