@@ -43,6 +43,19 @@ export async function GET(request: Request) {
     searchParams.get('error') === 'access_denied' ? 'denied' : searchParams.get('error')
 
   if (oauthError || !code || !state) {
+    // Microsoft's error_description carries the actual reason (e.g. which
+    // parameter it rejected) — logged here rather than surfaced to the
+    // user, since it can contain a correlation/request id worth having
+    // for support but isn't meaningful UI copy. This branch fires before
+    // any of our own code runs (Microsoft rejected the /authorize request
+    // itself), so there's nothing else to log leading up to it.
+    if (oauthError) {
+      console.error(
+        '[email oauth callback] Microsoft rejected the request:',
+        oauthError,
+        searchParams.get('error_description'),
+      )
+    }
     return settingsRedirect(baseUrl, { oauth_error: oauthError || 'invalid_state' })
   }
 
