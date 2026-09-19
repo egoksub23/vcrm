@@ -287,7 +287,9 @@
       "trashFailed": "Falha ao mover a mensagem para a lixeira",
       "statusUpdateFailed": "Falha ao atualizar o status",
       "tagTitle": "Tag: {name}",
-      "labelTitle": "Rótulo: {name}"
+      "labelTitle": "Rótulo: {name}",
+      "showTicketHistory": "Mostrar histórico de tickets",
+      "hideTicketHistory": "Ocultar histórico de tickets"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -511,7 +513,10 @@
       "noLabelsDefined": "Ainda não há rótulos — um administrador pode criá-los em Configurações → Rótulos de conversa.",
       "noLabels": "Sem rótulos",
       "removeLabel": "Remover o rótulo {name}",
-      "labelUpdateFailed": "Não foi possível atualizar os rótulos"
+      "labelUpdateFailed": "Não foi possível atualizar os rótulos",
+      "contactFields": "Campos do contato",
+      "manageFields": "Gerenciar",
+      "copyPhone": "Copiar número de telefone"
     },
     "aiBanner": {
       "pausedTitle": "O assistente de IA está pausado aqui",
@@ -522,6 +527,42 @@
       "resumed": "IA retomada.",
       "updateError": "Não foi possível atualizar o assistente de IA.",
       "networkError": "Não foi possível conectar ao servidor."
+    },
+    "ticketHistory": {
+      "title": "Histórico de tickets",
+      "none": "Ainda sem tickets",
+      "summary": "{total} no total · {active} ativos",
+      "raise": "Novo",
+      "filter": {
+        "all": "Todos",
+        "active": "Ativos",
+        "done": "Concluídos"
+      },
+      "empty": "Este contato ainda não tem tickets.",
+      "emptyFiltered": "Nenhum ticket nesta visualização.",
+      "thisChat": "Este chat"
+    },
+    "contactFields": {
+      "name": "Nome",
+      "addName": "Adicionar nome",
+      "phone": "Número de telefone",
+      "addPhone": "Adicionar número de telefone",
+      "email": "Endereço de e-mail",
+      "addEmail": "Adicionar endereço de e-mail",
+      "company": "Empresa",
+      "addCompany": "Adicionar empresa",
+      "country": "País",
+      "language": "Idioma",
+      "languageHint": "Idioma preferido de conversa — os rascunhos e respostas de IA o usam.",
+      "notSet": "Não definido",
+      "saveFailed": "Não foi possível salvar a alteração",
+      "errors": {
+        "email_invalid": "Informe um endereço de e-mail válido.",
+        "phone_invalid": "Use de 7 a 15 dígitos, com um + opcional no início.",
+        "phone_required": "Este contato precisa de um número de telefone.",
+        "phone_taken": "Outro contato já usa este número.",
+        "too_long": "Está longo demais."
+      }
     }
   },
   "Contacts": {

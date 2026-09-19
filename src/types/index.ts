@@ -139,6 +139,13 @@ export interface Contact {
    *  constraint here, unlike `messenger_psid`/`instagram_igsid`. */
   email?: string;
   company?: string;
+  /** ISO 3166-1 alpha-2, upper-case (migration 069). */
+  country?: string | null;
+  /** Preferred conversation language, ISO 639 lower-case, optionally with
+   *  a region (migration 069). AI drafts and auto-replies answer in it. */
+  language?: string | null;
+  /** Who set `language`: an agent, or AI detection (migration 069). */
+  language_source?: 'manual' | 'detected' | null;
   avatar_url?: string;
   /** Lifecycle report follow-up (migration 052). Defaults to 'lead' for
    *  every contact — set manually from the contact form, or via the

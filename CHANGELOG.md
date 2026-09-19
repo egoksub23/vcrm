@@ -9,6 +9,28 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.29.0] — 2026-09-19
+
+**Migration required**: apply `069_contact_country_language.sql`.
+
+- **Ticket history beside the chat.** A new column between the conversation
+  and the contact details lists every ticket for the person you're talking
+  to: number, subject, status, priority, age, and a "This chat" marker on
+  tickets raised from the open conversation. Filter by All / Active / Done,
+  click a ticket to open its full detail, or raise a new one without leaving
+  the chat. It updates live. Toggle it with the ticket icon in the chat
+  header; it is open by default on wide screens, remembers your choice, and
+  only shows on screens 1280px wide or more so the chat keeps its room.
+- **Edit the contact from the right-hand column.** Click a name, phone
+  number, email, or company to change it (Enter or clicking away saves, Esc
+  cancels), and pick a country and language from lists. Numbers are checked
+  (7–15 digits) and a number another contact already uses is refused. Viewers
+  see the values read-only, and admins get a "Manage" link to custom fields.
+- **Preferred conversation language.** The language you set on a contact is
+  now used by AI drafts and the auto-reply bot: they answer in that language
+  even when the customer's last message is short or in another one, unless
+  the customer asks to switch.
+
 ## [0.28.0] — 2026-09-19
 
 **Migration required**: apply `068_tag_management_and_currencies.sql`.

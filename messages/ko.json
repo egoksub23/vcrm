@@ -287,7 +287,9 @@
       "trashFailed": "메시지를 휴지통으로 이동하지 못했습니다",
       "statusUpdateFailed": "상태 업데이트에 실패했습니다",
       "tagTitle": "태그: {name}",
-      "labelTitle": "라벨: {name}"
+      "labelTitle": "라벨: {name}",
+      "showTicketHistory": "티켓 이력 보기",
+      "hideTicketHistory": "티켓 이력 숨기기"
     },
     "sessionTimer": {
       "expired": "만료됨",
@@ -511,7 +513,10 @@
       "noLabelsDefined": "아직 라벨이 없습니다. 관리자가 설정 → 대화 라벨에서 만들 수 있습니다.",
       "noLabels": "라벨 없음",
       "removeLabel": "라벨 {name} 제거",
-      "labelUpdateFailed": "라벨을 업데이트하지 못했습니다"
+      "labelUpdateFailed": "라벨을 업데이트하지 못했습니다",
+      "contactFields": "연락처 필드",
+      "manageFields": "관리",
+      "copyPhone": "전화번호 복사"
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",
@@ -522,6 +527,42 @@
       "resumed": "AI가 재개되었습니다.",
       "updateError": "AI 어시스턴트를 업데이트하지 못했습니다.",
       "networkError": "서버에 연결할 수 없습니다."
+    },
+    "ticketHistory": {
+      "title": "티켓 이력",
+      "none": "티켓 없음",
+      "summary": "전체 {total}건 · 진행 중 {active}건",
+      "raise": "새로 만들기",
+      "filter": {
+        "all": "전체",
+        "active": "진행 중",
+        "done": "완료"
+      },
+      "empty": "이 연락처의 티켓이 아직 없습니다.",
+      "emptyFiltered": "이 보기에 해당하는 티켓이 없습니다.",
+      "thisChat": "이 채팅"
+    },
+    "contactFields": {
+      "name": "이름",
+      "addName": "이름 추가",
+      "phone": "전화번호",
+      "addPhone": "전화번호 추가",
+      "email": "이메일 주소",
+      "addEmail": "이메일 주소 추가",
+      "company": "회사",
+      "addCompany": "회사 추가",
+      "country": "국가",
+      "language": "언어",
+      "languageHint": "선호 대화 언어 — AI 초안과 답변에 사용됩니다.",
+      "notSet": "설정 안 됨",
+      "saveFailed": "변경 사항을 저장하지 못했습니다",
+      "errors": {
+        "email_invalid": "올바른 이메일 주소를 입력하세요.",
+        "phone_invalid": "숫자 7~15자리로 입력하세요(앞에 +는 선택).",
+        "phone_required": "이 연락처에는 전화번호가 필요합니다.",
+        "phone_taken": "다른 연락처가 이미 이 번호를 사용 중입니다.",
+        "too_long": "너무 깁니다."
+      }
     }
   },
   "Contacts": {

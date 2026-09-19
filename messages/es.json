@@ -287,7 +287,9 @@
       "trashFailed": "Error al mover el mensaje a la papelera",
       "statusUpdateFailed": "Error al actualizar el estado",
       "tagTitle": "Etiqueta: {name}",
-      "labelTitle": "Rótulo: {name}"
+      "labelTitle": "Rótulo: {name}",
+      "showTicketHistory": "Mostrar historial de tickets",
+      "hideTicketHistory": "Ocultar historial de tickets"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -511,7 +513,10 @@
       "noLabelsDefined": "Aún no hay rótulos: un administrador puede crearlos en Configuración → Rótulos de conversación.",
       "noLabels": "Sin rótulos",
       "removeLabel": "Quitar el rótulo {name}",
-      "labelUpdateFailed": "No se pudieron actualizar los rótulos"
+      "labelUpdateFailed": "No se pudieron actualizar los rótulos",
+      "contactFields": "Campos del contacto",
+      "manageFields": "Gestionar",
+      "copyPhone": "Copiar número de teléfono"
     },
     "aiBanner": {
       "pausedTitle": "El asistente de IA está en pausa aquí",
@@ -522,6 +527,42 @@
       "resumed": "IA reanudada.",
       "updateError": "No se pudo actualizar el asistente de IA.",
       "networkError": "No se pudo conectar con el servidor."
+    },
+    "ticketHistory": {
+      "title": "Historial de tickets",
+      "none": "Aún no hay tickets",
+      "summary": "{total} en total · {active} activos",
+      "raise": "Nuevo",
+      "filter": {
+        "all": "Todos",
+        "active": "Activos",
+        "done": "Cerrados"
+      },
+      "empty": "Este contacto aún no tiene tickets.",
+      "emptyFiltered": "No hay tickets en esta vista.",
+      "thisChat": "Este chat"
+    },
+    "contactFields": {
+      "name": "Nombre",
+      "addName": "Añadir nombre",
+      "phone": "Número de teléfono",
+      "addPhone": "Añadir número de teléfono",
+      "email": "Correo electrónico",
+      "addEmail": "Añadir correo electrónico",
+      "company": "Empresa",
+      "addCompany": "Añadir empresa",
+      "country": "País",
+      "language": "Idioma",
+      "languageHint": "Idioma preferido de conversación: los borradores y respuestas de IA lo usan.",
+      "notSet": "Sin definir",
+      "saveFailed": "No se pudo guardar el cambio",
+      "errors": {
+        "email_invalid": "Introduce un correo electrónico válido.",
+        "phone_invalid": "Usa de 7 a 15 dígitos, con un + opcional al principio.",
+        "phone_required": "Este contacto necesita un número de teléfono.",
+        "phone_taken": "Otro contacto ya usa este número.",
+        "too_long": "Es demasiado largo."
+      }
     }
   },
   "Contacts": {

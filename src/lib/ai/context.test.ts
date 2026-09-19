@@ -51,3 +51,29 @@ describe('buildConversationContext', () => {
     expect(out).toEqual([{ role: 'user', content: 'real' }])
   })
 })
+
+describe('getPreferredLanguage', () => {
+  const dbReturning = (result: unknown, shouldThrow = false) =>
+    ({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () => (shouldThrow ? Promise.reject(new Error('boom')) : Promise.resolve({ data: result })),
+          }),
+        }),
+      }),
+    }) as never
+
+  it('reads the contact language, tolerating an array-shaped embed', async () => {
+    const { getPreferredLanguage } = await import('./context')
+    expect(await getPreferredLanguage(dbReturning({ contact: { language: 'ms' } }), 'c1')).toBe('ms')
+    expect(await getPreferredLanguage(dbReturning({ contact: [{ language: 'zh' }] }), 'c1')).toBe('zh')
+    expect(await getPreferredLanguage(dbReturning({ contact: { language: null } }), 'c1')).toBeNull()
+    expect(await getPreferredLanguage(dbReturning(null), 'c1')).toBeNull()
+  })
+
+  it('resolves to null when the lookup fails', async () => {
+    const { getPreferredLanguage } = await import('./context')
+    expect(await getPreferredLanguage(dbReturning(null, true), 'c1')).toBeNull()
+  })
+})

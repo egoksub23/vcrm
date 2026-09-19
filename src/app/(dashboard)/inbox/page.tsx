@@ -14,6 +14,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
+import { TicketHistoryPanel } from "@/components/inbox/ticket-history-panel";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,9 @@ import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbe
 // Remembers the agent's show/hide choice for the desktop contact panel
 // across reloads and sessions (device-scoped, like the theme prefs).
 const CONTACT_PANEL_STORAGE_KEY = "wacrm:inbox:contact-panel-open";
+const TICKET_PANEL_STORAGE_KEY = "wacrm:inbox:ticket-panel-open";
+/** Viewport width at/above which the ticket-history column is open by default. */
+const TICKET_PANEL_DEFAULT_OPEN_MIN_PX = 1536;
 
 // `useSearchParams` (the `?c=<id>` deep link below) requires a Suspense
 // boundary or the production build bails to CSR and errors out. Thin
@@ -82,6 +86,34 @@ function InboxPageInner() {
     } catch {
       // localStorage can throw in private-browsing / sandboxed contexts.
     }
+  }, []);
+
+  // Ticket history column (between the thread and the contact column).
+  // Same hydration-safe pattern as the contact panel: render closed, then
+  // reconcile after mount — stored choice first, else open only on wide
+  // screens where the thread still has room.
+  const [ticketPanelOpen, setTicketPanelOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(TICKET_PANEL_STORAGE_KEY);
+      setTicketPanelOpen(
+        stored !== null ? stored === "true" : window.innerWidth >= TICKET_PANEL_DEFAULT_OPEN_MIN_PX,
+      );
+    } catch {
+      // localStorage can throw in private-browsing / sandboxed contexts.
+    }
+  }, []);
+
+  const handleToggleTicketPanel = useCallback(() => {
+    setTicketPanelOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(TICKET_PANEL_STORAGE_KEY, String(next));
+      } catch {
+        // Persistence is best-effort; ignore storage failures.
+      }
+      return next;
+    });
   }, []);
 
   const handleToggleContactPanel = useCallback(() => {
@@ -643,6 +675,18 @@ function InboxPageInner() {
     setActiveContact((prev) => (prev && prev.id === contactId ? { ...prev, tags } : prev));
   }, []);
 
+  // An inline edit of a contact field (phone, email, country, language…):
+  // patch every loaded row for that contact and the open contact so the
+  // list, thread header and sidebar agree without a refetch.
+  const handleContactUpdated = useCallback((contactId: string, patch: Partial<Contact>) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.contact?.id === contactId ? { ...c, contact: { ...c.contact, ...patch } } : c
+      )
+    );
+    setActiveContact((prev) => (prev && prev.id === contactId ? { ...prev, ...patch } : prev));
+  }, []);
+
   // On mobile (<lg) we show a SINGLE pane — either the list or the
   // thread — rather than cramming both side-by-side. Selecting a
   // conversation slides the thread in; the thread's back button pops
@@ -720,8 +764,21 @@ function InboxPageInner() {
             onRefresh={handleManualRefresh}
             contactPanelOpen={contactPanelOpen}
             onToggleContactPanel={handleToggleContactPanel}
+            ticketPanelOpen={ticketPanelOpen}
+            onToggleTicketPanel={handleToggleTicketPanel}
           />
         </div>
+
+        {/* Ticket history — xl+ only (it would starve the thread on
+            smaller screens); the header toggle is hidden below xl too. */}
+        {ticketPanelOpen && activeConversation && (
+          <div className="hidden xl:block">
+            <TicketHistoryPanel
+              contactId={activeContact?.id ?? null}
+              conversationId={activeConversation.id}
+            />
+          </div>
+        )}
 
         {/* Right panel: Contact sidebar — desktop only, and only when the
             agent hasn't collapsed it via the thread-header toggle (#258).
@@ -735,6 +792,7 @@ function InboxPageInner() {
               labels={activeConversation?.labels ?? []}
               onLabelsChange={handleLabelsChange}
               onContactTagsChange={handleContactTagsChange}
+              onContactUpdated={handleContactUpdated}
             />
           </div>
         )}

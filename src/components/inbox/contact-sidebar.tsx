@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useCan } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
 import { addConversationLabel, deleteConversationLabel } from "@/lib/conversations/label-api";
 import type { Contact, Deal, ContactNote, Tag } from "@/types";
 import {
-  Phone,
-  Mail,
   Copy,
   Check,
   User,
@@ -28,6 +26,7 @@ import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
+import { ContactFieldsCard } from "./contact-fields-card";
 import { TagChip } from "./tag-chip";
 import { TagPicker } from "./tag-picker";
 
@@ -41,6 +40,8 @@ interface ContactSidebarProps {
   onLabelsChange?: (conversationId: string, labels: Tag[]) => void;
   /** Same, for the contact's own tags. */
   onContactTagsChange?: (contactId: string, tags: Tag[]) => void;
+  /** Called after an inline edit of a contact field saves. */
+  onContactUpdated?: (contactId: string, patch: Partial<Contact>) => void;
 }
 
 export function ContactSidebar({
@@ -49,6 +50,7 @@ export function ContactSidebar({
   labels = [],
   onLabelsChange,
   onContactTagsChange,
+  onContactUpdated,
 }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
@@ -62,6 +64,7 @@ export function ContactSidebar({
   // at a time — `busy` ignores a second click while one is in flight.
   const [busy, setBusy] = useState(false);
   const canEdit = useCan("send-messages");
+  const canManageFields = useCan("edit-settings");
   const { contactTags: tagOptions, conversationLabels: labelOptions } = useTags();
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -229,29 +232,41 @@ export function ContactSidebar({
             )}
           </div>
 
-          {/* Phone */}
-          <div className="mt-4 space-y-2">
-            <button
-              onClick={handleCopyPhone}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
-            >
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-left">
-                {contactHandle(contact)}
-              </span>
-              {copied ? (
-                <Check className="h-3 w-3 text-primary" />
-              ) : (
-                <Copy className="h-3 w-3 text-muted-foreground" />
-              )}
-            </button>
-
-            {contact.email && (
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate">{contact.email}</span>
-              </div>
-            )}
+          {/* Contact fields — click a value to edit. Language is the
+              customer's preferred conversation language (AI answers in it). */}
+          <div className="mt-4">
+            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <User className="h-3 w-3" />
+              <span className="flex-1">{tSidebar("contactFields")}</span>
+              {canManageFields ? (
+                <Link
+                  href="/settings?tab=fields"
+                  className="text-[10px] font-medium normal-case tracking-normal text-primary hover:underline"
+                >
+                  {tSidebar("manageFields")}
+                </Link>
+              ) : null}
+            </div>
+            <div className="mt-1">
+              <ContactFieldsCard
+                contact={contact}
+                canEdit={canEdit}
+                onUpdated={(id, patch) => onContactUpdated?.(id, patch)}
+                phoneAction={
+                  contactHandle(contact) ? (
+                    <button
+                      type="button"
+                      onClick={handleCopyPhone}
+                      aria-label={tSidebar("copyPhone")}
+                      title={tSidebar("copyPhone")}
+                      className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
           </div>
 
           {/* Divider */}

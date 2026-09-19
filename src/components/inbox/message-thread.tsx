@@ -153,6 +153,9 @@ interface MessageThreadProps {
    */
   contactPanelOpen?: boolean;
   onToggleContactPanel?: () => void;
+  /** Ticket-history column beside the thread (xl+). */
+  ticketPanelOpen?: boolean;
+  onToggleTicketPanel?: () => void;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -216,6 +219,8 @@ export function MessageThread({
   onRefresh,
   contactPanelOpen,
   onToggleContactPanel,
+  ticketPanelOpen,
+  onToggleTicketPanel,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
   const tTimer = useTranslations("Inbox.sessionTimer");
@@ -1338,6 +1343,22 @@ export function MessageThread({
               smaller laptops; this lets agents reclaim it when they just
               want to read and reply. Hidden on mobile, where the sidebar
               never renders as a permanent panel anyway. Issue #258. */}
+          {onToggleTicketPanel && (
+            <button
+              type="button"
+              onClick={onToggleTicketPanel}
+              aria-label={ticketPanelOpen ? t("hideTicketHistory") : t("showTicketHistory")}
+              title={ticketPanelOpen ? t("hideTicketHistory") : t("showTicketHistory")}
+              aria-pressed={ticketPanelOpen}
+              className={cn(
+                "hidden h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted hover:text-foreground xl:inline-flex",
+                ticketPanelOpen ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <TicketIcon className="h-4 w-4" />
+            </button>
+          )}
+
           {onToggleContactPanel && (
             <button
               type="button"

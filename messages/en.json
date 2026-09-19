@@ -287,7 +287,9 @@
       "trashFailed": "Failed to move message to trash",
       "statusUpdateFailed": "Failed to update status",
       "tagTitle": "Tag: {name}",
-      "labelTitle": "Label: {name}"
+      "labelTitle": "Label: {name}",
+      "showTicketHistory": "Show ticket history",
+      "hideTicketHistory": "Hide ticket history"
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -511,7 +513,10 @@
       "noLabelsDefined": "No labels exist yet — an admin can create them in Settings → Conversation labels.",
       "noLabels": "No labels",
       "removeLabel": "Remove label {name}",
-      "labelUpdateFailed": "Couldn’t update labels"
+      "labelUpdateFailed": "Couldn’t update labels",
+      "contactFields": "Contact fields",
+      "manageFields": "Manage",
+      "copyPhone": "Copy phone number"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -522,6 +527,42 @@
       "resumed": "AI resumed.",
       "updateError": "Couldn’t update the AI assistant.",
       "networkError": "Couldn’t reach the server."
+    },
+    "ticketHistory": {
+      "title": "Ticket history",
+      "none": "No tickets yet",
+      "summary": "{total} total · {active} active",
+      "raise": "New",
+      "filter": {
+        "all": "All",
+        "active": "Active",
+        "done": "Done"
+      },
+      "empty": "No tickets for this contact yet.",
+      "emptyFiltered": "No tickets in this view.",
+      "thisChat": "This chat"
+    },
+    "contactFields": {
+      "name": "Name",
+      "addName": "Add name",
+      "phone": "Phone number",
+      "addPhone": "Add phone number",
+      "email": "Email address",
+      "addEmail": "Add email address",
+      "company": "Company",
+      "addCompany": "Add company",
+      "country": "Country",
+      "language": "Language",
+      "languageHint": "Preferred conversation language — AI drafts and replies use it.",
+      "notSet": "Not set",
+      "saveFailed": "Couldn’t save that change",
+      "errors": {
+        "email_invalid": "Enter a valid email address.",
+        "phone_invalid": "Use 7–15 digits, with an optional + at the start.",
+        "phone_required": "A phone number is required for this contact.",
+        "phone_taken": "Another contact already uses this number.",
+        "too_long": "That’s too long."
+      }
     }
   },
   "Contacts": {

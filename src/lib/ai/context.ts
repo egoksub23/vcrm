@@ -8,6 +8,30 @@ interface DbMessage {
 }
 
 /**
+ * The preferred conversation language an agent set on the conversation's
+ * contact (migration 069), or null. Best-effort: a lookup failure must
+ * never block a draft or an auto-reply, so errors resolve to null.
+ */
+export async function getPreferredLanguage(
+  db: SupabaseClient,
+  conversationId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await db
+      .from('conversations')
+      .select('contact:contacts(language)')
+      .eq('id', conversationId)
+      .maybeSingle()
+    const contact = (data as { contact?: { language?: string | null } | { language?: string | null }[] | null } | null)
+      ?.contact
+    const row = Array.isArray(contact) ? contact[0] : contact
+    return row?.language ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Fetch the last N text messages of a conversation and map them to the
  * provider-neutral chat shape. Customer messages become `user`; agent
  * and bot messages become `assistant`. Non-text messages (media,
