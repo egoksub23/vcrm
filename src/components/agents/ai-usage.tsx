@@ -34,10 +34,11 @@ interface UsageResponse {
     completion_tokens: number;
     total_tokens: number;
   };
-  by_mode: {
-    auto_reply: { calls: number; tokens: number };
-    draft: { calls: number; tokens: number };
-  };
+  by_mode: Record<
+    'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary',
+    { calls: number; tokens: number }
+  >;
+  by_connection: { id: string | null; name: string | null; calls: number; tokens: number }[];
   by_model: {
     model: string;
     provider: string;
@@ -177,6 +178,41 @@ export function AiUsageCard() {
                 yAxisWidth={48}
                 className="h-[200px]"
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">{t('byJob')}</p>
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {(['auto_reply', 'draft', 'auto_label', 'closing_note', 'summary'] as const)
+                    .filter((k) => data.by_mode[k].calls > 0)
+                    .map((k) => (
+                      <li key={k} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <span className="text-foreground">{t(`jobs.${k}`)}</span>
+                        <span className="flex-shrink-0 tabular-nums text-muted-foreground">
+                          {t('modelCalls', { tokens: formatCompactNumber(data.by_mode[k].tokens), count: data.by_mode[k].calls })}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+              {data.by_connection.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{t('byConnection')}</p>
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {data.by_connection.map((c) => (
+                      <li key={c.id ?? 'default'} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <span className="min-w-0 truncate text-foreground">
+                          {c.id === null ? t('defaultConnection') : (c.name ?? t('deletedConnection'))}
+                        </span>
+                        <span className="flex-shrink-0 tabular-nums text-muted-foreground">
+                          {t('modelCalls', { tokens: formatCompactNumber(c.tokens), count: c.calls })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {data.by_model.length > 0 && (

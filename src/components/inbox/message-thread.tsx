@@ -74,7 +74,7 @@ import {
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { HandoffNoteDialog } from "./handoff-note-dialog";
-import { CloseConversationDialog } from "./close-conversation-dialog";
+import { CloseConversationDialog, type SuggestedLabel } from "./close-conversation-dialog";
 import {
   closeConversationWithNote,
   fetchConversationEvents,
@@ -886,13 +886,24 @@ export function MessageThread({
   );
 
   const handleConfirmClose = useCallback(
-    async (note: string) => {
+    async (note: string, suggested?: SuggestedLabel | null) => {
       if (!conversation) return;
       setCloseBusy(true);
       try {
         await closeConversationWithNote(conversation.id, note);
         onStatusChange(conversation.id, "closed");
         setCloseDialogOpen(false);
+        // The AI-suggested label the agent kept ticked: apply it now that
+        // the chat is closed. Best-effort — the close itself already worked.
+        const tag = suggested ? allTags.find((x) => x.id === suggested.id) : undefined;
+        if (tag && !(conversation.labels ?? []).some((l) => l.id === tag.id)) {
+          try {
+            await addConversationLabel(conversation.id, tag.id);
+            onLabelsChange(conversation.id, [...(conversation.labels ?? []), tag]);
+          } catch (labelErr) {
+            console.error("Failed to apply the suggested label:", labelErr);
+          }
+        }
       } catch (err) {
         console.error("Failed to close conversation:", err);
         toast.error(t("statusUpdateFailed"));
@@ -900,7 +911,7 @@ export function MessageThread({
         setCloseBusy(false);
       }
     },
-    [conversation, onStatusChange, t]
+    [conversation, onStatusChange, onLabelsChange, allTags, t]
   );
 
   const handlePriorityChange = useCallback(
@@ -1967,6 +1978,7 @@ export function MessageThread({
         onOpenChange={setCloseDialogOpen}
         onConfirm={handleConfirmClose}
         busy={closeBusy}
+        conversationId={conversation?.id ?? null}
       />
 
       <CreateTicketDialog

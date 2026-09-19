@@ -101,18 +101,20 @@ export async function applyAutoLabels(args: ApplyArgs): Promise<ApplyAutoLabelsR
       .eq('conversation_id', conversationId)
     if ((count ?? 0) > 0) return none
 
-    const config = await loadAiConfig(db, accountId)
+    const config = await loadAiConfig(db, accountId, { task: 'auto_label' })
     if (!config) return none
 
     const result = await generateReply({
       config,
       systemPrompt: buildClassifierPrompt(candidates),
       messages: [{ role: 'user', content: text.slice(0, AI_MAX_TEXT_LENGTH) }],
+      guard: { db, accountId },
     })
     void logAiUsage(db, {
       accountId,
       conversationId,
       mode: 'auto_label',
+      connectionId: config.connectionId,
       provider: config.provider,
       model: config.model,
       usage: result.usage,

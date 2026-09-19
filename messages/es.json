@@ -404,7 +404,13 @@
       "notePlaceholder": "p. ej. Reembolso procesado, el cliente confirmó la recepción.",
       "cancel": "Cancelar",
       "close": "Cerrar",
-      "closing": "Cerrando..."
+      "closing": "Cerrando...",
+      "aiBudget": "El presupuesto de IA de este mes está agotado. Escribe la nota tú.",
+      "aiFailed": "No se pudo redactar una nota. Escríbela tú.",
+      "aiDrafting": "Redactando una nota a partir del chat…",
+      "aiHint": "Redactada por IA. Edítala antes de cerrar.",
+      "aiRedo": "Redactar de nuevo",
+      "applyLabel": "Añadir también la etiqueta \"{name}\""
     },
     "sessionLog": {
       "heading": "Registro de sesión",
@@ -599,6 +605,20 @@
       "showFull": "Ver completo",
       "showLess": "Ver menos",
       "openLibrary": "Abrir la base de conocimiento"
+    },
+    "summary": {
+      "notConfigured": "La IA no está configurada. Un administrador puede hacerlo en Agentes de IA → Configuración.",
+      "budget": "El presupuesto de IA de este mes está agotado.",
+      "nothingYet": "Aún no hay nada que resumir en esta conversación.",
+      "failed": "No se pudo resumir esta conversación",
+      "copyFailed": "No se pudo copiar",
+      "working": "Resumiendo…",
+      "button": "Resumir esta conversación",
+      "title": "Resumen",
+      "refresh": "Resumir de nuevo",
+      "copy": "Copiar",
+      "hide": "Ocultar",
+      "disclaimer": "Escrito por IA a partir de los mensajes recientes. Compruébalo antes de fiarte. No se guarda."
     }
   },
   "Contacts": {
@@ -2910,7 +2930,121 @@
       "tokensPerDay": "Tokens por día",
       "byModel": "Por modelo",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# llamada} other {# llamadas}}",
-      "partialWindow": "Se muestra una ventana parcial: el uso es tan alto que aquí solo se resumen los registros más recientes."
+      "partialWindow": "Se muestra una ventana parcial: el uso es tan alto que aquí solo se resumen los registros más recientes.",
+      "byJob": "Por tarea",
+      "byConnection": "Por conexión",
+      "jobs": {
+        "auto_reply": "Respuesta automática",
+        "draft": "Borradores",
+        "auto_label": "Etiquetas automáticas",
+        "closing_note": "Notas de cierre",
+        "summary": "Resúmenes"
+      },
+      "defaultConnection": "Conexión predeterminada",
+      "deletedConnection": "Conexión eliminada"
+    },
+    "tabConnections": "Conexiones",
+    "connections": {
+      "loadFailed": "No se pudieron cargar las conexiones de IA",
+      "testOk": "Funciona ({ms} ms)",
+      "testFailed": "La prueba de la conexión falló",
+      "deleteConfirm": "¿Eliminar \"{name}\"? Las tareas que la usan pasarán a la conexión predeterminada.",
+      "deleteFailed": "No se pudo eliminar la conexión",
+      "deleted": "Conexión eliminada",
+      "routingFailed": "No se pudo guardar el enrutamiento",
+      "routingSaved": "Enrutamiento guardado",
+      "budgetFailed": "No se pudo guardar el presupuesto",
+      "budgetSaved": "Presupuesto guardado",
+      "budgetTitle": "Presupuesto mensual de tokens",
+      "budgetDescription": "Un tope de lo que pueden usar todas las tareas de IA en un mes natural con tu propia clave. Recibes una notificación al llegar al 80 %. Al 100 %, las respuestas y borradores de IA se detienen hasta el mes siguiente o hasta que lo subas, y los agentes escriben a mano.",
+      "tokens": "tokens",
+      "budgetExceeded": "Presupuesto agotado",
+      "budgetWarn": "{pct} % usado, casi al límite",
+      "budgetPct": "{pct} % usado",
+      "budgetExceededHint": "La IA está en pausa lo que queda del mes. Sube el presupuesto para reanudarla.",
+      "budgetNone": "Sin límite. {used} tokens usados este mes.",
+      "budgetLabel": "Tokens al mes",
+      "budgetPlaceholder": "p. ej. 2000000",
+      "save": "Guardar",
+      "budgetRemove": "Quitar el límite",
+      "title": "Conexiones",
+      "description": "Adónde van tus solicitudes de IA. La conexión predeterminada es la de Configuración. Añade otra para dar a una tarea un modelo más barato, rápido o potente.",
+      "add": "Añadir conexión",
+      "addNeedsDefault": "Configura primero la conexión predeterminada",
+      "defaultName": "Conexión predeterminada",
+      "defaultBadge": "De Configuración",
+      "defaultMissing": "Aún no está configurada.",
+      "test": "Probar",
+      "editInSetup": "Editar en Configuración",
+      "setUp": "Configurar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "routingTitle": "¿Qué conexión usa cada tarea?",
+      "routingDescription": "Envía las tareas rutinarias a un modelo rápido y barato y reserva uno más potente para las respuestas que leen los clientes.",
+      "routingNeedsDefault": "Configura primero la conexión predeterminada.",
+      "colJob": "Tarea",
+      "colConnection": "Conexión",
+      "colModel": "Modelo alternativo",
+      "colOn": "Activa",
+      "tasks": {
+        "draft": {
+          "name": "Borradores de respuesta",
+          "desc": "El botón Borrador de IA en el cuadro de respuesta."
+        },
+        "auto_reply": {
+          "name": "Respuesta automática",
+          "desc": "Responde a los clientes por sí sola si se activa en Configuración, y deriva cuando no puede ayudar."
+        },
+        "auto_label": {
+          "name": "Etiquetas automáticas",
+          "desc": "Etiqueta las conversaciones nuevas según su tema."
+        },
+        "closing_note": {
+          "name": "Notas de cierre",
+          "desc": "Redacta la nota y sugiere una etiqueta al cerrar un chat."
+        },
+        "summary": {
+          "name": "Resúmenes",
+          "desc": "El botón \"Resumir\" junto a una conversación."
+        }
+      },
+      "modelSameAsConnection": "El de la conexión",
+      "saveRouting": "Guardar enrutamiento",
+      "routingHint": "Una tarea sin modelo alternativo usa el modelo de la conexión. Desactivar una tarea solo detiene esa tarea.",
+      "healthCheckedAt": "Última comprobación {time}",
+      "healthOk": "Funciona",
+      "healthError": "No funciona",
+      "healthUntested": "Sin probar",
+      "keyFirst": "Introduce primero la clave de API",
+      "modelsFailed": "No se pudo cargar la lista de modelos",
+      "noModels": "Este servicio no lista sus modelos. Escribe el nombre del modelo.",
+      "saveFailed": "No se pudo guardar la conexión",
+      "updated": "Conexión actualizada",
+      "added": "Conexión añadida",
+      "editTitle": "Editar conexión",
+      "addTitle": "Añadir una conexión",
+      "editDescription": "Cambia su nombre o modelo, o pega una clave nueva. El servicio no se puede cambiar; añade otra conexión para eso.",
+      "addDescription": "La clave se prueba antes de guardarse y se almacena cifrada.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "p. ej. Rápida y barata",
+      "fixedService": "Servicio: {service}",
+      "serviceLabel": "Servicio",
+      "regionLabel": "Región",
+      "regionGlobal": "Global (moonshot.ai)",
+      "regionCn": "China (moonshot.cn)",
+      "urlLabel": "URL base de la API",
+      "newKeyLabel": "Nueva clave de API (opcional)",
+      "keyLabel": "Clave de API",
+      "keepKey": "Déjalo en blanco para conservar la clave actual",
+      "modelLabel": "Modelo",
+      "loadingModels": "Cargando…",
+      "fetchModels": "Cargar modelos",
+      "modelPlaceholder": "Nombre del modelo",
+      "noticeTitle": "Los mensajes de los clientes se enviarán a este servicio",
+      "noticeText": "El texto de la conversación se envía a {host} cuando se usa esta conexión. Confirma que estás de acuerdo.",
+      "noticeHostFallback": "la dirección indicada",
+      "cancel": "Cancelar",
+      "saveAndTest": "Probar y guardar"
     }
   },
   "Tickets": {

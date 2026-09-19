@@ -404,7 +404,13 @@
       "notePlaceholder": "ex.: Reembolso processado, cliente confirmou o recebimento.",
       "cancel": "Cancelar",
       "close": "Encerrar",
-      "closing": "Encerrando..."
+      "closing": "Encerrando...",
+      "aiBudget": "O orçamento de IA deste mês acabou. Escreva a nota você mesmo.",
+      "aiFailed": "Não foi possível redigir uma nota. Escreva você mesmo.",
+      "aiDrafting": "Redigindo uma nota a partir do chat…",
+      "aiHint": "Redigida por IA. Edite antes de encerrar.",
+      "aiRedo": "Redigir de novo",
+      "applyLabel": "Adicionar também a etiqueta \"{name}\""
     },
     "sessionLog": {
       "heading": "Registro da sessão",
@@ -599,6 +605,20 @@
       "showFull": "Ver completo",
       "showLess": "Ver menos",
       "openLibrary": "Abrir a base de conhecimento"
+    },
+    "summary": {
+      "notConfigured": "A IA não está configurada. Um administrador pode fazer isso em Agentes de IA → Configuração.",
+      "budget": "O orçamento de IA deste mês acabou.",
+      "nothingYet": "Ainda não há nada para resumir nesta conversa.",
+      "failed": "Não foi possível resumir esta conversa",
+      "copyFailed": "Não foi possível copiar",
+      "working": "Resumindo…",
+      "button": "Resumir esta conversa",
+      "title": "Resumo",
+      "refresh": "Resumir de novo",
+      "copy": "Copiar",
+      "hide": "Ocultar",
+      "disclaimer": "Escrito por IA a partir das mensagens recentes. Confira antes de confiar. Não é salvo."
     }
   },
   "Contacts": {
@@ -2910,7 +2930,121 @@
       "tokensPerDay": "Tokens por dia",
       "byModel": "Por modelo",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# chamada} other {# chamadas}}",
-      "partialWindow": "Exibindo uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui."
+      "partialWindow": "Exibindo uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui.",
+      "byJob": "Por tarefa",
+      "byConnection": "Por conexão",
+      "jobs": {
+        "auto_reply": "Resposta automática",
+        "draft": "Rascunhos",
+        "auto_label": "Etiquetas automáticas",
+        "closing_note": "Notas de encerramento",
+        "summary": "Resumos"
+      },
+      "defaultConnection": "Conexão padrão",
+      "deletedConnection": "Conexão excluída"
+    },
+    "tabConnections": "Conexões",
+    "connections": {
+      "loadFailed": "Não foi possível carregar as conexões de IA",
+      "testOk": "Funcionando ({ms} ms)",
+      "testFailed": "O teste da conexão falhou",
+      "deleteConfirm": "Excluir \"{name}\"? As tarefas que a usam passarão para a conexão padrão.",
+      "deleteFailed": "Não foi possível excluir a conexão",
+      "deleted": "Conexão excluída",
+      "routingFailed": "Não foi possível salvar o roteamento",
+      "routingSaved": "Roteamento salvo",
+      "budgetFailed": "Não foi possível salvar o orçamento",
+      "budgetSaved": "Orçamento salvo",
+      "budgetTitle": "Orçamento mensal de tokens",
+      "budgetDescription": "Um teto do que todas as tarefas de IA podem usar num mês civil com a sua própria chave. Você recebe uma notificação aos 80%. Aos 100%, as respostas e rascunhos de IA param até o mês seguinte ou até você aumentar o orçamento, e os agentes escrevem à mão.",
+      "tokens": "tokens",
+      "budgetExceeded": "Orçamento esgotado",
+      "budgetWarn": "{pct}% usado, quase no limite",
+      "budgetPct": "{pct}% usado",
+      "budgetExceededHint": "A IA está em pausa pelo resto do mês. Aumente o orçamento para retomar.",
+      "budgetNone": "Sem limite. {used} tokens usados neste mês.",
+      "budgetLabel": "Tokens por mês",
+      "budgetPlaceholder": "ex.: 2000000",
+      "save": "Salvar",
+      "budgetRemove": "Remover limite",
+      "title": "Conexões",
+      "description": "Para onde vão os seus pedidos de IA. A conexão padrão é a das Configurações. Adicione outra para dar a uma tarefa um modelo mais barato, rápido ou forte.",
+      "add": "Adicionar conexão",
+      "addNeedsDefault": "Configure primeiro a conexão padrão",
+      "defaultName": "Conexão padrão",
+      "defaultBadge": "Das Configurações",
+      "defaultMissing": "Ainda não configurada.",
+      "test": "Testar",
+      "editInSetup": "Editar nas Configurações",
+      "setUp": "Configurar",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "routingTitle": "Que conexão cada tarefa usa?",
+      "routingDescription": "Envie as tarefas de rotina a um modelo rápido e barato e reserve um mais forte para as respostas que os clientes leem.",
+      "routingNeedsDefault": "Configure primeiro a conexão padrão.",
+      "colJob": "Tarefa",
+      "colConnection": "Conexão",
+      "colModel": "Modelo alternativo",
+      "colOn": "Ativa",
+      "tasks": {
+        "draft": {
+          "name": "Rascunhos de resposta",
+          "desc": "O botão Rascunho de IA na caixa de resposta."
+        },
+        "auto_reply": {
+          "name": "Resposta automática",
+          "desc": "Responde aos clientes sozinha quando ativada nas Configurações e passa para um agente quando não consegue ajudar."
+        },
+        "auto_label": {
+          "name": "Etiquetas automáticas",
+          "desc": "Etiqueta as novas conversas pelo assunto."
+        },
+        "closing_note": {
+          "name": "Notas de encerramento",
+          "desc": "Redige a nota e sugere uma etiqueta ao encerrar um chat."
+        },
+        "summary": {
+          "name": "Resumos",
+          "desc": "O botão \"Resumir\" ao lado de uma conversa."
+        }
+      },
+      "modelSameAsConnection": "O da conexão",
+      "saveRouting": "Salvar roteamento",
+      "routingHint": "Uma tarefa sem modelo alternativo usa o modelo da conexão. Desligar uma tarefa para só essa tarefa.",
+      "healthCheckedAt": "Última verificação {time}",
+      "healthOk": "Funcionando",
+      "healthError": "Não funciona",
+      "healthUntested": "Ainda não testada",
+      "keyFirst": "Informe primeiro a chave de API",
+      "modelsFailed": "Não foi possível carregar a lista de modelos",
+      "noModels": "Este serviço não lista os seus modelos. Digite o nome do modelo.",
+      "saveFailed": "Não foi possível salvar a conexão",
+      "updated": "Conexão atualizada",
+      "added": "Conexão adicionada",
+      "editTitle": "Editar conexão",
+      "addTitle": "Adicionar uma conexão",
+      "editDescription": "Altere o nome ou o modelo, ou cole uma nova chave. O serviço não pode ser alterado; adicione outra conexão para isso.",
+      "addDescription": "A chave é testada antes de ser salva e guardada com criptografia.",
+      "nameLabel": "Nome",
+      "namePlaceholder": "ex.: Rápida e barata",
+      "fixedService": "Serviço: {service}",
+      "serviceLabel": "Serviço",
+      "regionLabel": "Região",
+      "regionGlobal": "Global (moonshot.ai)",
+      "regionCn": "China (moonshot.cn)",
+      "urlLabel": "URL base da API",
+      "newKeyLabel": "Nova chave de API (opcional)",
+      "keyLabel": "Chave de API",
+      "keepKey": "Deixe em branco para manter a chave atual",
+      "modelLabel": "Modelo",
+      "loadingModels": "Carregando…",
+      "fetchModels": "Carregar modelos",
+      "modelPlaceholder": "Nome do modelo",
+      "noticeTitle": "As mensagens dos clientes serão enviadas a este serviço",
+      "noticeText": "O texto da conversa é enviado a {host} quando esta conexão é usada. Confirme que concorda.",
+      "noticeHostFallback": "o endereço informado",
+      "cancel": "Cancelar",
+      "saveAndTest": "Testar e salvar"
     }
   },
   "Tickets": {

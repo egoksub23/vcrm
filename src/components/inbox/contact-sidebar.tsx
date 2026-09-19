@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
 import { ContactFieldsCard } from "./contact-fields-card";
+import { ConversationSummaryCard } from "./conversation-summary-card";
 import { TagChip } from "./tag-chip";
 import { TagPicker } from "./tag-picker";
 
@@ -187,6 +188,9 @@ export function ContactSidebar({
               <p className="text-xs text-muted-foreground">{contact.company}</p>
             )}
           </div>
+
+          {/* AI summary of this conversation, on demand. */}
+          {conversationId ? <ConversationSummaryCard key={conversationId} conversationId={conversationId} /> : null}
 
           {/* Contact fields — click a value to edit. Language is the
               customer's preferred conversation language (AI answers in it). */}

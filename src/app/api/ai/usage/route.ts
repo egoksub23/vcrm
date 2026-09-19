@@ -10,9 +10,12 @@ import { daysAgoStart, lastNDayKeys, localDayKey } from '@/lib/dashboard/date-ut
 const MAX_ROWS = 10_000
 const DEFAULT_WINDOW_DAYS = 30
 
+type UsageMode = 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary'
+
 interface UsageRow {
   created_at: string
-  mode: 'auto_reply' | 'draft'
+  mode: UsageMode
+  connection_id: string | null
   provider: string
   model: string
   prompt_tokens: number
@@ -54,7 +57,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from('ai_usage_log')
       .select(
-        'created_at, mode, provider, model, prompt_tokens, completion_tokens, total_tokens',
+        'created_at, mode, connection_id, provider, model, prompt_tokens, completion_tokens, total_tokens',
       )
       .eq('account_id', accountId)
       .gte('created_at', since.toISOString())
@@ -79,10 +82,15 @@ export async function GET(request: Request) {
     let totalTokens = 0
 
     // Per-mode + per-model tallies.
-    const byMode = {
+    const byMode: Record<UsageMode, { calls: number; tokens: number }> = {
       auto_reply: { calls: 0, tokens: 0 },
       draft: { calls: 0, tokens: 0 },
+      auto_label: { calls: 0, tokens: 0 },
+      closing_note: { calls: 0, tokens: 0 },
+      summary: { calls: 0, tokens: 0 },
     }
+    // Per connection: null id = the default connection.
+    const connMap = new Map<string, { id: string | null; calls: number; tokens: number }>()
     const modelMap = new Map<
       string,
       { model: string; provider: string; calls: number; tokens: number }
@@ -101,9 +109,16 @@ export async function GET(request: Request) {
       completionTokens += r.completion_tokens
       totalTokens += r.total_tokens
 
-      // `mode` is DB-CHECK-constrained to these two values.
-      byMode[r.mode].calls += 1
-      byMode[r.mode].tokens += r.total_tokens
+      // `mode` is DB-CHECK-constrained to the values above.
+      if (byMode[r.mode]) {
+        byMode[r.mode].calls += 1
+        byMode[r.mode].tokens += r.total_tokens
+      }
+      const ck = r.connection_id ?? 'default'
+      const c = connMap.get(ck) ?? { id: r.connection_id, calls: 0, tokens: 0 }
+      c.calls += 1
+      c.tokens += r.total_tokens
+      connMap.set(ck, c)
 
       const mk = `${r.provider}:${r.model}`
       const m =
@@ -122,6 +137,17 @@ export async function GET(request: Request) {
 
     const byModel = [...modelMap.values()].sort((a, b) => b.tokens - a.tokens)
 
+    // Name the connections (a deleted one shows as unknown).
+    const ids = [...connMap.values()].map((c) => c.id).filter((x): x is string => !!x)
+    const names = new Map<string, string>()
+    if (ids.length > 0) {
+      const { data: conns } = await supabase.from('ai_connections').select('id, name').in('id', ids)
+      for (const c of conns ?? []) names.set(c.id as string, c.name as string)
+    }
+    const byConnection = [...connMap.values()]
+      .map((c) => ({ id: c.id, name: c.id ? (names.get(c.id) ?? null) : null, calls: c.calls, tokens: c.tokens }))
+      .sort((a, b) => b.tokens - a.tokens)
+
     return NextResponse.json({
       window_days: days,
       truncated,
@@ -133,6 +159,7 @@ export async function GET(request: Request) {
       },
       by_mode: byMode,
       by_model: byModel,
+      by_connection: byConnection,
       daily: [...daily.values()],
     })
   } catch (err) {

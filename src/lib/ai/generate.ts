@@ -8,6 +8,8 @@ import {
 import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
+import { ensureWithinBudget } from './budget'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface GenerateArgs {
   config: AiConfig
@@ -15,6 +17,9 @@ export interface GenerateArgs {
   systemPrompt: string
   /** Recent conversation turns, oldest first. */
   messages: ChatMessage[]
+  /** When given, the account's monthly token budget is checked first (and
+   *  the 80% alert sent); an exhausted budget throws `budget_exceeded`. */
+  guard?: { db: SupabaseClient; accountId: string }
 }
 
 /**
@@ -23,7 +28,8 @@ export interface GenerateArgs {
  * of the raw text. Throws `AiError` on any provider/network failure.
  */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
-  const { config, systemPrompt, messages } = args
+  const { config, systemPrompt, messages, guard } = args
+  if (guard) await ensureWithinBudget(guard.db, guard.accountId, config)
   const timeoutMs = aiRequestTimeoutMs()
   const providerArgs = {
     apiKey: config.apiKey,

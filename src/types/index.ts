@@ -333,7 +333,9 @@ export type NotificationType =
   | 'conversation_assigned'
   | 'mention'
   | 'ticket_assigned'
-  | 'ticket_mention';
+  | 'ticket_mention'
+  /** Monthly AI token budget reached 80% / 100% (migration 075). */
+  | 'ai_budget';
 
 export interface Notification {
   id: string;

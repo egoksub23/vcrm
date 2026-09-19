@@ -9,6 +9,35 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.34.0] — 2026-09-20
+
+**Migration required**: apply `075_ai_connections.sql`.
+
+- **AI Connections (phase 2).** AI Agents has a new **Connections** tab.
+  - **More than one connection.** The connection from Setup stays the
+    default; add others (Kimi, OpenAI, Anthropic, DeepSeek or any
+    OpenAI-compatible service) with their own key and model. Keys are tested
+    before they are saved and stored encrypted, and a saved connection is tied
+    to its service, so a key can never be redirected to another host.
+  - **Routing per job.** Choose which connection, and optionally which model,
+    serves each job: draft replies, auto-reply, auto-labels, closing notes,
+    summaries. Each job can be switched off on its own. A job routed to a
+    connection that is later deleted falls back to the default.
+  - **Monthly token budget.** Set a ceiling for the calendar month. You get a
+    notification at 80%; at 100% AI replies, drafts and the other jobs stop
+    with a clear message (agents write by hand; the bot leaves the chat for a
+    human) until next month or until you raise it.
+  - **Health.** Each connection shows whether it last worked, and **Test**
+    re-checks it, so a revoked key shows up before an agent hits it.
+  - Usage now breaks spend down by job and by connection. This also fixes the
+    Usage tab failing for accounts that had auto-label spend.
+- **AI closing notes.** Closing a chat drafts the wrap-up note from the
+  conversation and suggests one of your existing conversation labels (never an
+  invented one). Edit or ignore both; the note is still required and audited.
+- **Conversation summary.** A **Summarise this conversation** button in the
+  contact column writes a few lines for whoever picks the chat up. It is shown
+  in place and not stored.
+
 ## [0.33.0] — 2026-09-20
 
 **Migration required**: apply `074_comments.sql`.

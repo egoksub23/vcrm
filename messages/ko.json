@@ -404,7 +404,13 @@
       "notePlaceholder": "예: 환불 처리 완료, 고객이 수령을 확인함.",
       "cancel": "취소",
       "close": "종료",
-      "closing": "종료 중..."
+      "closing": "종료 중...",
+      "aiBudget": "이번 달 AI 예산을 모두 사용했습니다. 메모를 직접 작성하세요.",
+      "aiFailed": "메모 초안을 만들지 못했습니다. 직접 작성하세요.",
+      "aiDrafting": "채팅 내용으로 메모를 작성하는 중…",
+      "aiHint": "AI가 작성했습니다. 종료 전에 수정하세요.",
+      "aiRedo": "다시 작성",
+      "applyLabel": "\"{name}\" 라벨도 추가"
     },
     "sessionLog": {
       "heading": "세션 기록",
@@ -599,6 +605,20 @@
       "showFull": "전체 보기",
       "showLess": "접기",
       "openLibrary": "지식 베이스 열기"
+    },
+    "summary": {
+      "notConfigured": "AI가 설정되지 않았습니다. 관리자가 AI 에이전트 → 설정에서 설정할 수 있습니다.",
+      "budget": "이번 달 AI 예산을 모두 사용했습니다.",
+      "nothingYet": "아직 요약할 내용이 없습니다.",
+      "failed": "대화를 요약하지 못했습니다",
+      "copyFailed": "복사하지 못했습니다",
+      "working": "요약하는 중…",
+      "button": "이 대화 요약",
+      "title": "요약",
+      "refresh": "다시 요약",
+      "copy": "복사",
+      "hide": "숨기기",
+      "disclaimer": "최근 메시지를 바탕으로 AI가 작성했습니다. 활용 전에 확인하세요. 저장되지 않습니다."
     }
   },
   "Contacts": {
@@ -2928,7 +2948,121 @@
       "tokensPerDay": "일별 토큰",
       "byModel": "모델별",
       "modelCalls": "{tokens} 토큰 · 호출 {count}회",
-      "partialWindow": "일부 기간만 표시 중 — 사용량이 많아 최근 기록만 요약되었습니다."
+      "partialWindow": "일부 기간만 표시 중 — 사용량이 많아 최근 기록만 요약되었습니다.",
+      "byJob": "작업별",
+      "byConnection": "연결별",
+      "jobs": {
+        "auto_reply": "자동 응답",
+        "draft": "초안",
+        "auto_label": "자동 라벨",
+        "closing_note": "종료 메모",
+        "summary": "요약"
+      },
+      "defaultConnection": "기본 연결",
+      "deletedConnection": "삭제된 연결"
+    },
+    "tabConnections": "연결",
+    "connections": {
+      "loadFailed": "AI 연결을 불러오지 못했습니다",
+      "testOk": "정상 작동 ({ms} ms)",
+      "testFailed": "연결 테스트에 실패했습니다",
+      "deleteConfirm": "\"{name}\"을(를) 삭제할까요? 이 연결을 쓰던 작업은 기본 연결로 전환됩니다.",
+      "deleteFailed": "연결을 삭제하지 못했습니다",
+      "deleted": "연결을 삭제했습니다",
+      "routingFailed": "라우팅을 저장하지 못했습니다",
+      "routingSaved": "라우팅을 저장했습니다",
+      "budgetFailed": "예산을 저장하지 못했습니다",
+      "budgetSaved": "예산을 저장했습니다",
+      "budgetTitle": "월간 토큰 예산",
+      "budgetDescription": "내 키로 모든 AI 작업이 한 달(달력 기준) 동안 사용할 수 있는 상한입니다. 80%에 도달하면 알림을 받고, 100%가 되면 다음 달이 되거나 예산을 올릴 때까지 AI 응답과 초안이 중단되며 상담원이 직접 작성합니다.",
+      "tokens": "토큰",
+      "budgetExceeded": "예산 소진",
+      "budgetWarn": "{pct}% 사용, 거의 다 사용",
+      "budgetPct": "{pct}% 사용",
+      "budgetExceededHint": "이번 달 남은 기간 동안 AI가 일시 중지됩니다. 예산을 올리면 다시 시작됩니다.",
+      "budgetNone": "한도 없음. 이번 달 {used} 토큰 사용.",
+      "budgetLabel": "월 토큰 수",
+      "budgetPlaceholder": "예: 2000000",
+      "save": "저장",
+      "budgetRemove": "한도 제거",
+      "title": "연결",
+      "description": "AI 요청이 전송되는 곳입니다. 기본 연결은 설정 탭의 연결입니다. 작업에 더 저렴하거나 빠르거나 강력한 모델을 쓰려면 다른 연결을 추가하세요.",
+      "add": "연결 추가",
+      "addNeedsDefault": "먼저 기본 연결을 설정하세요",
+      "defaultName": "기본 연결",
+      "defaultBadge": "설정 탭",
+      "defaultMissing": "아직 설정되지 않았습니다.",
+      "test": "테스트",
+      "editInSetup": "설정에서 편집",
+      "setUp": "설정",
+      "edit": "편집",
+      "delete": "삭제",
+      "routingTitle": "각 작업은 어떤 연결을 사용하나요?",
+      "routingDescription": "반복 작업은 빠르고 저렴한 모델로, 고객이 읽는 답변은 더 강력한 모델로 보내세요.",
+      "routingNeedsDefault": "먼저 기본 연결을 설정하세요.",
+      "colJob": "작업",
+      "colConnection": "연결",
+      "colModel": "모델 지정",
+      "colOn": "사용",
+      "tasks": {
+        "draft": {
+          "name": "답변 초안",
+          "desc": "답장 입력란의 AI 초안 버튼."
+        },
+        "auto_reply": {
+          "name": "자동 응답",
+          "desc": "설정에서 켜면 고객에게 직접 답하고, 도울 수 없으면 상담원에게 넘깁니다."
+        },
+        "auto_label": {
+          "name": "자동 라벨",
+          "desc": "새 대화를 주제에 따라 라벨링합니다."
+        },
+        "closing_note": {
+          "name": "종료 메모",
+          "desc": "채팅을 종료할 때 메모를 작성하고 라벨을 제안합니다."
+        },
+        "summary": {
+          "name": "요약",
+          "desc": "대화 옆의 \"요약\" 버튼."
+        }
+      },
+      "modelSameAsConnection": "연결의 모델 사용",
+      "saveRouting": "라우팅 저장",
+      "routingHint": "모델을 지정하지 않은 작업은 연결의 모델을 사용합니다. 작업을 끄면 그 작업만 중지됩니다.",
+      "healthCheckedAt": "마지막 확인 {time}",
+      "healthOk": "정상",
+      "healthError": "작동 안 함",
+      "healthUntested": "아직 테스트 안 함",
+      "keyFirst": "먼저 API 키를 입력하세요",
+      "modelsFailed": "모델 목록을 불러오지 못했습니다",
+      "noModels": "이 서비스는 모델 목록을 제공하지 않습니다. 모델 이름을 직접 입력하세요.",
+      "saveFailed": "연결을 저장하지 못했습니다",
+      "updated": "연결을 업데이트했습니다",
+      "added": "연결을 추가했습니다",
+      "editTitle": "연결 편집",
+      "addTitle": "연결 추가",
+      "editDescription": "이름이나 모델을 바꾸거나 새 키를 붙여넣을 수 있습니다. 서비스는 바꿀 수 없으니 새 연결을 추가하세요.",
+      "addDescription": "키는 저장 전에 테스트되며 암호화되어 저장됩니다.",
+      "nameLabel": "이름",
+      "namePlaceholder": "예: 빠르고 저렴한 모델",
+      "fixedService": "서비스: {service}",
+      "serviceLabel": "서비스",
+      "regionLabel": "지역",
+      "regionGlobal": "글로벌 (moonshot.ai)",
+      "regionCn": "중국 (moonshot.cn)",
+      "urlLabel": "API 기본 URL",
+      "newKeyLabel": "새 API 키(선택)",
+      "keyLabel": "API 키",
+      "keepKey": "비워 두면 현재 키를 유지합니다",
+      "modelLabel": "모델",
+      "loadingModels": "불러오는 중…",
+      "fetchModels": "모델 불러오기",
+      "modelPlaceholder": "모델 이름",
+      "noticeTitle": "고객 메시지가 이 서비스로 전송됩니다",
+      "noticeText": "이 연결을 사용하면 대화 내용이 {host}(으)로 전송됩니다. 동의하는지 확인하세요.",
+      "noticeHostFallback": "위에 입력한 주소",
+      "cancel": "취소",
+      "saveAndTest": "테스트 후 저장"
     }
   },
   "Tickets": {

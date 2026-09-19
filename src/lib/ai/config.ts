@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig, AiProvider } from './types'
+import type { AiTask } from './tasks'
 
 interface AiConfigRow {
   provider: AiProvider
@@ -15,10 +16,11 @@ interface AiConfigRow {
   embeddings_api_key: string | null
   embeddings_base_url: string | null
   embeddings_model: string | null
+  monthly_token_budget: number | null
 }
 
 const CONFIG_COLUMNS =
-  'provider, base_url, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, embeddings_base_url, embeddings_model'
+  'provider, base_url, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, embeddings_base_url, embeddings_model, monthly_token_budget'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -34,9 +36,9 @@ const CONFIG_COLUMNS =
 export async function loadAiConfig(
   db: SupabaseClient,
   accountId: string,
-  opts: { requireActive?: boolean } = {},
+  opts: { requireActive?: boolean; task?: AiTask } = {},
 ): Promise<AiConfig | null> {
-  const { requireActive = true } = opts
+  const { requireActive = true, task } = opts
   const { data, error } = await db
     .from('ai_configs')
     .select(CONFIG_COLUMNS)
@@ -72,7 +74,7 @@ export async function loadAiConfig(
     }
   }
 
-  return {
+  const base: AiConfig = {
     provider: row.provider,
     model: row.model,
     apiKey: decrypt(row.api_key),
@@ -85,6 +87,60 @@ export async function loadAiConfig(
     embeddingsApiKey,
     embeddingsBaseUrl: row.embeddings_base_url,
     embeddingsModel: row.embeddings_model,
+    connectionId: null,
+    monthlyTokenBudget: row.monthly_token_budget ?? null,
+  }
+
+  return task ? applyTaskRouting(db, accountId, task, base) : base
+}
+
+/**
+ * Point `base` at the connection (and model) this job is routed to.
+ * Returns null when the job is switched off. With no routing row — or a
+ * routed connection that has since been deleted or can't be decrypted —
+ * the account's default connection is used, so a routing mistake degrades
+ * to the previous behaviour rather than to no AI at all.
+ */
+async function applyTaskRouting(
+  db: SupabaseClient,
+  accountId: string,
+  task: AiTask,
+  base: AiConfig,
+): Promise<AiConfig | null> {
+  const { data: routing } = await db
+    .from('ai_task_routing')
+    .select('connection_id, model_override, enabled')
+    .eq('account_id', accountId)
+    .eq('task', task)
+    .maybeSingle()
+  if (!routing) return base
+  if (routing.enabled === false) return null
+
+  const override = (routing.model_override as string | null)?.trim() || null
+  if (!routing.connection_id) return override ? { ...base, model: override } : base
+
+  const { data: conn } = await db
+    .from('ai_connections')
+    .select('id, provider, base_url, model, api_key')
+    .eq('account_id', accountId)
+    .eq('id', routing.connection_id)
+    .maybeSingle()
+  if (!conn?.api_key) {
+    console.warn(`[ai config] ${task} is routed to a missing connection for account ${accountId}; using the default.`)
+    return override ? { ...base, model: override } : base
+  }
+  try {
+    return {
+      ...base,
+      provider: conn.provider as AiProvider,
+      baseUrl: (conn.base_url as string | null) ?? null,
+      model: override ?? (conn.model as string),
+      apiKey: decrypt(conn.api_key as string),
+      connectionId: conn.id as string,
+    }
+  } catch {
+    console.error(`[ai config] connection ${conn.id} could not be decrypted — check ENCRYPTION_KEY; ${task} uses the default connection.`)
+    return override ? { ...base, model: override } : base
   }
 }
 

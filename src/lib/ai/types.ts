@@ -39,6 +39,11 @@ export interface AiConfig {
    *  Null = OpenAI's own endpoint and text-embedding-3-small. */
   embeddingsBaseUrl?: string | null
   embeddingsModel?: string | null
+  /** Which additional connection served this config (null = the account's
+   *  default connection). Set by `loadAiConfig` for a routed task. */
+  connectionId?: string | null
+  /** Monthly token budget for the account; null/undefined = no limit. */
+  monthlyTokenBudget?: number | null
 }
 
 /** A single conversation turn in the shape both providers accept. */

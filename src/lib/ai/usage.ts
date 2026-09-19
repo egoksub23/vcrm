@@ -6,7 +6,9 @@ export interface LogAiUsageArgs {
   /** Null for a draft not tied to one thread, or when the row was
    *  deleted between generation and logging. */
   conversationId: string | null
-  mode: 'auto_reply' | 'draft' | 'auto_label'
+  mode: 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary'
+  /** The additional connection that served the call (null = default). */
+  connectionId?: string | null
   provider: AiProvider
   model: string
   /** Provider usage; a no-op when null (nothing worth recording). */
@@ -36,6 +38,7 @@ export async function logAiUsage(
       account_id: args.accountId,
       conversation_id: args.conversationId,
       mode: args.mode,
+      connection_id: args.connectionId ?? null,
       provider: args.provider,
       model: args.model,
       prompt_tokens: args.usage.promptTokens,

@@ -404,7 +404,13 @@
       "notePlaceholder": "e.g. Refund processed, customer confirmed receipt.",
       "cancel": "Cancel",
       "close": "Close",
-      "closing": "Closing..."
+      "closing": "Closing...",
+      "aiBudget": "The AI budget for this month is used up. Write the note yourself.",
+      "aiFailed": "Could not draft a note. Write it yourself.",
+      "aiDrafting": "Drafting a note from the chat…",
+      "aiHint": "Drafted by AI. Edit before closing.",
+      "aiRedo": "Draft again",
+      "applyLabel": "Also add the label \"{name}\""
     },
     "sessionLog": {
       "heading": "Session log",
@@ -599,6 +605,20 @@
       "showFull": "Show full",
       "showLess": "Show less",
       "openLibrary": "Open the knowledge base"
+    },
+    "summary": {
+      "notConfigured": "AI is not set up. An admin can do that in AI Agents → Setup.",
+      "budget": "The AI budget for this month is used up.",
+      "nothingYet": "There is nothing in this conversation to summarise yet.",
+      "failed": "Could not summarise this conversation",
+      "copyFailed": "Could not copy",
+      "working": "Summarising…",
+      "button": "Summarise this conversation",
+      "title": "Summary",
+      "refresh": "Summarise again",
+      "copy": "Copy",
+      "hide": "Hide",
+      "disclaimer": "Written by AI from the recent messages. Check it before relying on it. Not saved."
     }
   },
   "Contacts": {
@@ -2928,7 +2948,121 @@
       "tokensPerDay": "Tokens per day",
       "byModel": "By model",
       "modelCalls": "{tokens} tok · {count, plural, =1 {# call} other {# calls}}",
-      "partialWindow": "Showing a partial window — usage is high enough that only the most recent records are summarized here."
+      "partialWindow": "Showing a partial window — usage is high enough that only the most recent records are summarized here.",
+      "byJob": "By job",
+      "byConnection": "By connection",
+      "jobs": {
+        "auto_reply": "Auto-reply",
+        "draft": "Drafts",
+        "auto_label": "Auto-labels",
+        "closing_note": "Closing notes",
+        "summary": "Summaries"
+      },
+      "defaultConnection": "Default connection",
+      "deletedConnection": "Deleted connection"
+    },
+    "tabConnections": "Connections",
+    "connections": {
+      "loadFailed": "Could not load AI connections",
+      "testOk": "Working ({ms} ms)",
+      "testFailed": "The connection test failed",
+      "deleteConfirm": "Delete \"{name}\"? Jobs using it will switch to the default connection.",
+      "deleteFailed": "Could not delete the connection",
+      "deleted": "Connection deleted",
+      "routingFailed": "Could not save the routing",
+      "routingSaved": "Routing saved",
+      "budgetFailed": "Could not save the budget",
+      "budgetSaved": "Budget saved",
+      "budgetTitle": "Monthly token budget",
+      "budgetDescription": "A ceiling on what all AI jobs can use in a calendar month on your own key. You get a notification at 80%. At 100% AI replies and drafts stop until next month or you raise it, and agents write by hand.",
+      "tokens": "tokens",
+      "budgetExceeded": "Budget used up",
+      "budgetWarn": "{pct}% used, nearly there",
+      "budgetPct": "{pct}% used",
+      "budgetExceededHint": "AI is paused for the rest of this month. Raise the budget to resume.",
+      "budgetNone": "No limit set. {used} tokens used this month.",
+      "budgetLabel": "Tokens per month",
+      "budgetPlaceholder": "e.g. 2000000",
+      "save": "Save",
+      "budgetRemove": "Remove limit",
+      "title": "Connections",
+      "description": "Where your AI requests go. The default connection is the one from Setup. Add another to give a job a cheaper, faster or stronger model.",
+      "add": "Add connection",
+      "addNeedsDefault": "Set up the default connection first",
+      "defaultName": "Default connection",
+      "defaultBadge": "From Setup",
+      "defaultMissing": "Not set up yet.",
+      "test": "Test",
+      "editInSetup": "Edit in Setup",
+      "setUp": "Set up",
+      "edit": "Edit",
+      "delete": "Delete",
+      "routingTitle": "Which connection does each job use?",
+      "routingDescription": "Send routine jobs to a fast, cheap model and keep a stronger one for the replies customers read.",
+      "routingNeedsDefault": "Set up the default connection first.",
+      "colJob": "Job",
+      "colConnection": "Connection",
+      "colModel": "Model override",
+      "colOn": "On",
+      "tasks": {
+        "draft": {
+          "name": "Draft replies",
+          "desc": "The AI Draft button in the reply box."
+        },
+        "auto_reply": {
+          "name": "Auto-reply",
+          "desc": "Answers customers on its own when switched on in Setup, and hands off when it cannot help."
+        },
+        "auto_label": {
+          "name": "Auto-labels",
+          "desc": "Labels new conversations from their topic."
+        },
+        "closing_note": {
+          "name": "Closing notes",
+          "desc": "Drafts the note and suggests a label when you close a chat."
+        },
+        "summary": {
+          "name": "Summaries",
+          "desc": "The \"Summarise\" button beside a conversation."
+        }
+      },
+      "modelSameAsConnection": "Same as the connection",
+      "saveRouting": "Save routing",
+      "routingHint": "A job with no override uses the connection’s own model. Turning a job off stops only that job.",
+      "healthCheckedAt": "Last checked {time}",
+      "healthOk": "Working",
+      "healthError": "Not working",
+      "healthUntested": "Not tested yet",
+      "keyFirst": "Enter the API key first",
+      "modelsFailed": "Could not load the model list",
+      "noModels": "This service does not list its models. Type the model name.",
+      "saveFailed": "Could not save the connection",
+      "updated": "Connection updated",
+      "added": "Connection added",
+      "editTitle": "Edit connection",
+      "addTitle": "Add a connection",
+      "editDescription": "Change its name or model, or paste a new key. The service cannot be changed; add a new connection for that.",
+      "addDescription": "The key is tested before it is saved, and stored encrypted.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Fast and cheap",
+      "fixedService": "Service: {service}",
+      "serviceLabel": "Service",
+      "regionLabel": "Region",
+      "regionGlobal": "Global (moonshot.ai)",
+      "regionCn": "China (moonshot.cn)",
+      "urlLabel": "API base URL",
+      "newKeyLabel": "New API key (optional)",
+      "keyLabel": "API key",
+      "keepKey": "Leave blank to keep the current key",
+      "modelLabel": "Model",
+      "loadingModels": "Loading…",
+      "fetchModels": "Load models",
+      "modelPlaceholder": "Model name",
+      "noticeTitle": "Customer messages will be sent to this service",
+      "noticeText": "Conversation text is sent to {host} when this connection is used. Confirm you are happy with that.",
+      "noticeHostFallback": "the address above",
+      "cancel": "Cancel",
+      "saveAndTest": "Test and save"
     }
   },
   "Tickets": {

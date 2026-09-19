@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, CheckCheck, Loader2, Ticket, UserPlus } from "lucide-react";
+import { AtSign, Bell, Bot, CheckCheck, Loader2, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   mention: AtSign,
   ticket_assigned: Ticket,
   ticket_mention: AtSign,
+  ai_budget: Bot,
 };
 
 export default function NotificationsPage() {
@@ -120,6 +121,8 @@ export default function NotificationsPage() {
       if (!n.read_at) markRead(n.id);
       if (n.ticket_id) {
         router.push(`/tickets?t=${n.ticket_id}`);
+      } else if (n.type === "ai_budget") {
+        router.push("/agents");
       } else if (n.conversation_id) {
         router.push(`/inbox?c=${n.conversation_id}`);
       }

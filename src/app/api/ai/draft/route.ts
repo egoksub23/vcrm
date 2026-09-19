@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
     }
 
-    const config = await loadAiConfig(supabase, accountId).catch((err) => {
+    const config = await loadAiConfig(supabase, accountId, { task: 'draft' }).catch((err) => {
       // Decrypt failure — surface distinctly from "not configured".
       console.error('[ai/draft] loadAiConfig error:', err)
       throw new AiError('Stored API key could not be decrypted.', {
@@ -108,7 +108,12 @@ export async function POST(request: Request) {
       preferredLanguage,
     })
 
-    const { text, usage } = await generateReply({ config, systemPrompt, messages })
+    const { text, usage } = await generateReply({
+      config,
+      systemPrompt,
+      messages,
+      guard: { db: supabaseAdmin(), accountId },
+    })
 
     // Record spend on the account's BYO key. Best-effort + via the
     // service role (the log has no `authenticated` INSERT policy). This
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
         accountId,
         conversationId,
         mode: 'draft',
+        connectionId: config.connectionId,
         provider: config.provider,
         model: config.model,
         usage,

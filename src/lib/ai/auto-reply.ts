@@ -7,6 +7,7 @@ import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
+import { AiError } from './types'
 import { latestUserMessage, recentCustomerText } from './query'
 import { loadAccountMetaCredentials } from '@/lib/flows/meta-send'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
@@ -59,7 +60,7 @@ export async function dispatchInboundToAiReply(
   try {
     const db = supabaseAdmin()
 
-    const config = await loadAiConfig(db, accountId)
+    const config = await loadAiConfig(db, accountId, { task: 'auto_reply' })
     if (!config || !config.autoReplyEnabled) return
 
     // Deterministic, user-configured responders win over the LLM — the
@@ -141,6 +142,7 @@ export async function dispatchInboundToAiReply(
       config,
       systemPrompt,
       messages,
+      guard: { db, accountId },
     })
 
     // Record token spend on the account's BYO key. Fire-and-forget so it
@@ -152,6 +154,7 @@ export async function dispatchInboundToAiReply(
       accountId,
       conversationId,
       mode: 'auto_reply',
+      connectionId: config.connectionId,
       provider: config.provider,
       model: config.model,
       usage,
@@ -222,6 +225,11 @@ export async function dispatchInboundToAiReply(
       aiGenerated: true,
     })
   } catch (err) {
+    if (err instanceof AiError && err.code === 'budget_exceeded') {
+      // Over the monthly budget: stand down; the message waits for a human.
+      console.warn('[ai auto-reply] monthly token budget used up — not replying.')
+      return
+    }
     console.error('[ai auto-reply] dispatch failed:', err)
   }
 }

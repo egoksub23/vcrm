@@ -57,10 +57,21 @@ export function makeFakeDb(seed: Record<string, Row[]> = {}): FakeDb {
         filters.push((r) => re.test(String(r[c] ?? '')))
         return api
       },
-      // Used for `a.eq.X,b.eq.X`: match any listed equality.
+      // PostgREST or(): `col.eq.X,col.neq.Y,col.is.null` — match any.
       or(expr: string) {
-        const parts = expr.split(',').map((p) => p.split('.eq.'))
-        filters.push((r) => parts.some(([c, v]) => String(r[c]) === v))
+        const terms = expr.split(',').map((p) => {
+          const [col, op, ...rest] = p.split('.')
+          return { col, op, val: rest.join('.') }
+        })
+        filters.push((r) =>
+          terms.some(({ col, op, val }) => {
+            const v = r[col]
+            if (op === 'eq') return String(v) === val
+            if (op === 'neq') return v !== undefined && v !== null && String(v) !== val
+            if (op === 'is') return val === 'null' ? v === null || v === undefined : String(v) === val
+            return false
+          }),
+        )
         return api
       },
       order(c: string, o?: { ascending?: boolean }) { orderBy = { col: c, asc: o?.ascending !== false }; return api },

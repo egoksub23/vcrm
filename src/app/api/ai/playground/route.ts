@@ -55,6 +55,7 @@ export async function POST(request: Request) {
 
     const config = await loadAiConfig(supabase, accountId, {
       requireActive: false,
+      task: 'auto_reply',
     }).catch((err) => {
       console.error('[ai/playground] loadAiConfig error:', err)
       throw new AiError('Stored API key could not be decrypted.', {
