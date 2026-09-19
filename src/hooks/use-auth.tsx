@@ -12,7 +12,12 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { DEFAULT_CURRENCY } from "@/lib/currency";
+import {
+  CURRENCIES,
+  DEFAULT_CURRENCY,
+  resolveAccountCurrencies,
+  type CurrencyOption,
+} from "@/lib/currency";
 import {
   DEFAULT_STATUS_COLORS,
   withStatusColorDefaults,
@@ -61,6 +66,9 @@ interface AccountSummary {
    *  NULL DEFAULT in the DB; narrowed through withStatusColorDefaults
    *  in case a row predates a since-added key. */
   status_colors: StatusColors;
+  /** Currencies offered in pickers (migration 068). Falls back to the
+   *  built-in list when the account hasn't customised it. */
+  currencies: CurrencyOption[];
 }
 
 /**
@@ -134,6 +142,9 @@ interface AuthContextValue {
    *  while loading or when no account is resolved, so callers can use
    *  it unconditionally. */
   defaultCurrency: string;
+  /** Currencies this account offers (deal form, Settings → Deals &
+   *  currency). Never empty — falls back to the built-in list. */
+  currencies: CurrencyOption[];
   /** Account SLA response target, in minutes. Falls back to
    *  DEFAULT_SLA_MINUTES while loading or when no account is
    *  resolved, so callers can use it unconditionally. */
@@ -278,9 +289,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               code: accountErr.code,
             });
           } else if (account) {
+            // Read separately: `currencies` arrived in migration 068, and a
+            // select naming a missing column would fail the whole account
+            // lookup above. An error here just means "built-in list".
+            const { data: currencyRow } = await supabase
+              .from("accounts")
+              .select("currencies")
+              .eq("id", data.account_id)
+              .maybeSingle();
             accountRow = {
               id: account.id,
               name: account.name,
+              currencies: resolveAccountCurrencies(currencyRow?.currencies),
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
               sla_response_minutes: account.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
               status_colors: withStatusColorDefaults(account.status_colors),
@@ -466,6 +486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         account,
         defaultCurrency: account?.default_currency ?? DEFAULT_CURRENCY,
+        currencies: account?.currencies ?? CURRENCIES,
         slaResponseMinutes: account?.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
         statusColors: account?.status_colors ?? DEFAULT_STATUS_COLORS,
         accountStatus,
@@ -500,6 +521,7 @@ export function useAuth(): AuthContextValue {
       refreshProfile: async () => {},
       account: null,
       defaultCurrency: DEFAULT_CURRENCY,
+      currencies: CURRENCIES,
       slaResponseMinutes: DEFAULT_SLA_MINUTES,
       statusColors: DEFAULT_STATUS_COLORS,
       // Outside the provider there is nothing to resolve yet — 'loading'

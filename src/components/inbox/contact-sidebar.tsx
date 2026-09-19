@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useCan } from "@/hooks/use-can";
+import { useTags } from "@/hooks/use-tags";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
+import { addConversationLabel, deleteConversationLabel } from "@/lib/conversations/label-api";
 import type { Contact, Deal, ContactNote, Tag } from "@/types";
 import {
   Phone,
@@ -12,6 +17,7 @@ import {
   Check,
   User,
   Tag as TagIcon,
+  Bookmark,
   DollarSign,
   StickyNote,
   Plus,
@@ -22,14 +28,28 @@ import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
+import { TagChip } from "./tag-chip";
+import { TagPicker } from "./tag-picker";
 
 interface ContactSidebarProps {
   contact: Contact | null;
   /** Active conversation, for the session-log section (migration 065). */
   conversationId?: string | null;
+  /** The conversation's labels (migration 044), owned by the inbox page. */
+  labels?: Tag[];
+  /** Called after a label is added/removed here so the list and thread header stay in step. */
+  onLabelsChange?: (conversationId: string, labels: Tag[]) => void;
+  /** Same, for the contact's own tags. */
+  onContactTagsChange?: (contactId: string, tags: Tag[]) => void;
 }
 
-export function ContactSidebar({ contact, conversationId = null }: ContactSidebarProps) {
+export function ContactSidebar({
+  contact,
+  conversationId = null,
+  labels = [],
+  onLabelsChange,
+  onContactTagsChange,
+}: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -37,12 +57,18 @@ export function ContactSidebar({ contact, conversationId = null }: ContactSideba
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
-  const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  // Tag/label writes go through the API (audit + automation triggers), one
+  // at a time — `busy` ignores a second click while one is in flight.
+  const [busy, setBusy] = useState(false);
+  const canEdit = useCan("send-messages");
+  const { contactTags: tagOptions, conversationLabels: labelOptions } = useTags();
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
+  const contactId = contact?.id ?? null;
   const fetchContactData = useCallback(async () => {
-    if (!contact) return;
+    if (!contactId) return;
 
     const supabase = createClient();
 
@@ -51,17 +77,17 @@ export function ContactSidebar({ contact, conversationId = null }: ContactSideba
       supabase
         .from("deals")
         .select("*, stage:pipeline_stages(*)")
-        .eq("contact_id", contact.id)
+        .eq("contact_id", contactId)
         .order("created_at", { ascending: false }),
       supabase
         .from("contact_notes")
         .select("*")
-        .eq("contact_id", contact.id)
+        .eq("contact_id", contactId)
         .order("created_at", { ascending: false }),
       supabase
         .from("contact_tags")
         .select("id, tag_id, tags(*)")
-        .eq("contact_id", contact.id),
+        .eq("contact_id", contactId),
     ]);
 
     if (dealsRes.data) setDeals(dealsRes.data);
@@ -69,20 +95,61 @@ export function ContactSidebar({ contact, conversationId = null }: ContactSideba
     if (tagsRes.data) {
       const mapped = tagsRes.data
         .filter((ct: Record<string, unknown>) => ct.tags)
-        .map((ct: Record<string, unknown>) => ({
-          ...(ct.tags as Tag),
-          contact_tag_id: ct.id as string,
-        }));
+        .map((ct: Record<string, unknown>) => ct.tags as Tag);
       setTags(mapped);
     }
-  }, [contact]);
+    // Keyed on the id, not the object: the inbox page re-creates the
+    // contact whenever its tags change, which must not refetch deals/notes.
+  }, [contactId]);
 
   // Load on contact change. setContactData/setTags run inside async
   // Supabase callbacks, not synchronously in the effect body.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchContactData();
   }, [fetchContactData]);
+
+  const handleToggleTag = useCallback(
+    async (tag: Tag) => {
+      if (!contactId || busy) return;
+      const selected = tags.some((t) => t.id === tag.id);
+      setBusy(true);
+      try {
+        if (selected) await deleteContactTag(contactId, tag.id);
+        else await addContactTag(contactId, tag.id);
+        const next = selected ? tags.filter((t) => t.id !== tag.id) : [...tags, tag];
+        setTags(next);
+        onContactTagsChange?.(contactId, next);
+      } catch (err) {
+        console.error("Failed to update contact tag:", err);
+        toast.error(tSidebar("tagUpdateFailed"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [contactId, busy, tags, onContactTagsChange, tSidebar],
+  );
+
+  const handleToggleLabel = useCallback(
+    async (label: Tag) => {
+      if (!conversationId || busy) return;
+      const selected = labels.some((l) => l.id === label.id);
+      setBusy(true);
+      try {
+        if (selected) await deleteConversationLabel(conversationId, label.id);
+        else await addConversationLabel(conversationId, label.id);
+        onLabelsChange?.(
+          conversationId,
+          selected ? labels.filter((l) => l.id !== label.id) : [...labels, label],
+        );
+      } catch (err) {
+        console.error("Failed to update conversation label:", err);
+        toast.error(tSidebar("labelUpdateFailed"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [conversationId, busy, labels, onLabelsChange, tSidebar],
+  );
 
   const handleCopyPhone = useCallback(async () => {
     // Copies whatever the row displays — a BSUID-only contact has no
@@ -190,31 +257,81 @@ export function ContactSidebar({ contact, conversationId = null }: ContactSideba
           {/* Divider */}
           <div className="my-4 border-t border-border" />
 
-          {/* Tags */}
+          {/* Tags — about the person; colour-coded, and shown on the
+              conversation list too. */}
           <div>
             <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <TagIcon className="h-3 w-3" />
-              {tSidebar("tags")}
+              <span className="flex-1">{tSidebar("tags")}</span>
+              {canEdit ? (
+                <TagPicker
+                  options={tagOptions}
+                  selectedIds={new Set(tags.map((t) => t.id))}
+                  onToggle={handleToggleTag}
+                  disabled={busy}
+                  addLabel={tSidebar("addTag")}
+                  searchPlaceholder={tSidebar("searchTags")}
+                  emptyLabel={tSidebar("noTagsDefined")}
+                  noMatchesLabel={tSidebar("noMatches")}
+                />
+              ) : null}
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
               {tags.length === 0 ? (
                 <p className="px-1 text-xs text-muted-foreground">{tSidebar("noTags")}</p>
               ) : (
                 tags.map((tag) => (
-                  <span
-                    key={tag.contact_tag_id}
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{
-                      backgroundColor: `${tag.color}20`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                  </span>
+                  <TagChip
+                    key={tag.id}
+                    tag={tag}
+                    kind="tag"
+                    onRemove={canEdit ? () => handleToggleTag(tag) : undefined}
+                    removeLabel={tSidebar("removeTag", { name: tag.name })}
+                  />
                 ))
               )}
             </div>
           </div>
+
+          {/* Conversation labels — about this conversation's topic. */}
+          {conversationId ? (
+            <>
+              <div className="my-4 border-t border-border" />
+              <div>
+                <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <Bookmark className="h-3 w-3" />
+                  <span className="flex-1">{tSidebar("labels")}</span>
+                  {canEdit ? (
+                    <TagPicker
+                      options={labelOptions}
+                      selectedIds={new Set(labels.map((l) => l.id))}
+                      onToggle={handleToggleLabel}
+                      disabled={busy}
+                      addLabel={tSidebar("addLabel")}
+                      searchPlaceholder={tSidebar("searchLabels")}
+                      emptyLabel={tSidebar("noLabelsDefined")}
+                      noMatchesLabel={tSidebar("noMatches")}
+                    />
+                  ) : null}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {labels.length === 0 ? (
+                    <p className="px-1 text-xs text-muted-foreground">{tSidebar("noLabels")}</p>
+                  ) : (
+                    labels.map((label) => (
+                      <TagChip
+                        key={label.id}
+                        tag={label}
+                        kind="label"
+                        onRemove={canEdit ? () => handleToggleLabel(label) : undefined}
+                        removeLabel={tSidebar("removeLabel", { name: label.name })}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          ) : null}
 
           {/* Divider */}
           <div className="my-4 border-t border-border" />

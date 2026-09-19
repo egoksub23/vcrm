@@ -14,6 +14,8 @@ import { AppearancePanel } from '@/components/settings/appearance-panel';
 import { ChannelsTab } from '@/components/settings/channels-tab';
 import { QuickRepliesManager } from '@/components/settings/quick-replies-manager';
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
+import { TagsSettings } from '@/components/settings/tags/tags-settings';
+import { ConversationLabelsSettings } from '@/components/settings/tags/conversation-labels-settings';
 import { TicketFormSettings } from '@/components/settings/ticket-form-settings';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
@@ -82,6 +84,8 @@ function SettingsPageInner() {
     appearance: <AppearancePanel />,
     channels: <ChannelsTab />,
     'quick-replies': <QuickRepliesManager />,
+    tags: <TagsSettings />,
+    labels: <ConversationLabelsSettings />,
     fields: <FieldsAndTagsPanel />,
     'ticket-form': <TicketFormSettings />,
     deals: <DealsSettings />,

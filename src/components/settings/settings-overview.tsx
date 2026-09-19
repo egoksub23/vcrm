@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { THEMES } from '@/lib/themes';
-import { CURRENCIES } from '@/lib/currency';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -23,6 +22,7 @@ interface OverviewCounts {
   templates: number | null;
   templatesPending: number | null;
   tags: number | null;
+  labels: number | null;
   customFields: number | null;
 }
 
@@ -36,7 +36,7 @@ export function SettingsOverview({
 }: {
   onSelect: (section: SettingsSection, extraParams?: Record<string, string>) => void;
 }) {
-  const { user, profile, accountId, accountRole, defaultCurrency, canManageMembers } =
+  const { user, profile, accountId, accountRole, defaultCurrency, currencies, canManageMembers } =
     useAuth();
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
@@ -62,7 +62,7 @@ export function SettingsOverview({
     // Cheap counts — resolve fast, render immediately.
     (async () => {
       setCountsLoading(true);
-      const [membersRes, invitesRes, templatesTotal, templatesPending, tagsRes, fieldsRes] =
+      const [membersRes, invitesRes, templatesTotal, templatesPending, tagsRes, labelsRes, fieldsRes] =
         await Promise.allSettled([
           fetch('/api/account/members', { cache: 'no-store' }).then((r) => r.json()),
           canManageMembers
@@ -82,7 +82,11 @@ export function SettingsOverview({
           supabase
             .from('tags')
             .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId),
+            .eq('for_contacts', true),
+          supabase
+            .from('tags')
+            .select('id', { count: 'exact', head: true })
+            .eq('for_conversations', true),
           supabase.from('custom_fields').select('id', { count: 'exact', head: true }),
         ]);
 
@@ -111,6 +115,7 @@ export function SettingsOverview({
             ? templatesPending.value.count ?? null
             : null,
         tags: tagsRes.status === 'fulfilled' ? tagsRes.value.count ?? null : null,
+        labels: labelsRes.status === 'fulfilled' ? labelsRes.value.count ?? null : null,
         customFields:
           fieldsRes.status === 'fulfilled' ? fieldsRes.value.count ?? null : null,
       });
@@ -147,7 +152,7 @@ export function SettingsOverview({
   const RoleIcon = roleMeta?.icon;
 
   const currencyLabel =
-    CURRENCIES.find((c) => c.code === defaultCurrency)?.label ?? defaultCurrency;
+    currencies.find((c) => c.code === defaultCurrency)?.label ?? defaultCurrency;
   const themeName = THEMES.find((t) => t.id === theme)?.name ?? theme;
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -216,15 +221,26 @@ export function SettingsOverview({
       subtitle: `${defaultCurrency} — ${currencyLabel}`,
     },
     {
+      key: 'tags',
+      section: 'tags',
+      loading: countsLoading,
+      subtitle: counts?.tags == null ? t('manageTags') : t('tagsCount', { count: counts.tags }),
+    },
+    {
+      key: 'labels',
+      section: 'labels',
+      loading: countsLoading,
+      subtitle:
+        counts?.labels == null ? t('manageLabels') : t('labelsCount', { count: counts.labels }),
+    },
+    {
       key: 'fields',
       section: 'fields',
       loading: countsLoading,
       subtitle:
-        counts?.tags == null && counts?.customFields == null
-          ? t('tagsAndFields')
-          : `${t('tagsCount', { count: counts?.tags ?? 0 })} · ${t('fieldsCount', {
-              count: counts?.customFields ?? 0,
-            })}`,
+        counts?.customFields == null
+          ? t('manageFields')
+          : t('fieldsCount', { count: counts.customFields }),
     },
     {
       key: 'appearance',

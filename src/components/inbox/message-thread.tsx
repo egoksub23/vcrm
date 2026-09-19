@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
+import { TagChip } from "./tag-chip";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -226,7 +227,7 @@ export function MessageThread({
   // aging-response indicator instead of a second interval.
   const { getPresence, getRow, now } = usePresence();
   const { teams } = useTeams();
-  const { tags: allTags } = useTags();
+  const { conversationLabels: allTags } = useTags();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -1304,6 +1305,18 @@ export function MessageThread({
             <p className="truncate text-xs text-muted-foreground">
               {contactHandle(contact)}
             </p>
+            {/* Colour-coded tags (contact) and labels (conversation) —
+                the same chips the list rows show. */}
+            {(contact?.tags?.length ?? 0) + activeLabels.length > 0 && (
+              <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                {(contact?.tags ?? []).slice(0, 4).map((tag) => (
+                  <TagChip key={`tag-${tag.id}`} tag={tag} kind="tag" size="xs" title={t("tagTitle", { name: tag.name })} />
+                ))}
+                {activeLabels.slice(0, 4).map((tag) => (
+                  <TagChip key={`label-${tag.id}`} tag={tag} kind="label" size="xs" title={t("labelTitle", { name: tag.name })} />
+                ))}
+              </div>
+            )}
           </div>
           {/* Session timer badge — hidden on the narrowest phones so
               the name + back arrow keep their room. */}

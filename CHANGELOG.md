@@ -9,6 +9,41 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.28.0] — 2026-09-19
+
+**Migration required**: apply `068_tag_management_and_currencies.sql`.
+
+- **Tags and Conversation labels are now their own Settings pages**
+  (they used to share one "Fields & tags" page). Each is a searchable
+  table with a colour picker (presets plus any custom colour), a
+  description, an in-use count and who created it. Both have **Export CSV**
+  and **Import CSV**: the file needs a `name` column and may have
+  `description` and `color`; rows are matched to existing entries by name
+  (matches are updated, new names created, blank cells never erase
+  anything), and you get a preview of what will happen before anything is
+  written. Auto-label rules now live under Conversation labels. Custom
+  fields keep their own page.
+- **A tag and a label can be kept separate.** An entry is offered as a
+  contact tag, a conversation label, or both (a switch in the edit
+  dialog). Existing entries stay available in both lists, so nothing
+  changes until you split them. Names are now unique per account.
+- **Tag colours show in the chat.** Contact tags appear as coloured chips
+  on each conversation in the list and under the contact's name in the
+  thread header, next to the conversation labels that were already shown.
+  The two look different on purpose: tags are outlined pills with a dot,
+  labels are filled.
+- **Add and remove tags and labels from the right-hand column** while you
+  chat: a "+" opens a searchable list, and each chip has a remove button.
+  Changes appear in the conversation list straight away.
+- **Currencies are editable** (Settings → Deals & currency). Add or remove
+  a currency by code and name, or pick from a list of common ones — the
+  built-in list now includes Malaysian Ringgit (MYR) and other Asia-Pacific
+  currencies. The default currency can't be removed. Existing deals keep
+  the currency they were saved with, and a deal whose currency was later
+  removed still shows it in the edit form.
+- Fixed: the tag list on the old page only showed tags created by *you*,
+  so a second admin never saw their colleague's tags.
+
 ## [0.27.0] — 2026-09-19
 
 **Migration required**: apply `067_auto_label_rules.sql`.

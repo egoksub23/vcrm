@@ -159,10 +159,18 @@ export type LifecycleStage = 'lead' | 'active' | 'customer' | 'churned';
 
 export interface Tag {
   id: string;
+  /** Creator (auth user id). */
   user_id: string;
   name: string;
   color: string;
   created_at: string;
+  /** Migration 068. Optional so hand-built fixtures still type-check. */
+  description?: string | null;
+  /** Offered when tagging a contact (migration 068; undefined = true). */
+  for_contacts?: boolean;
+  /** Offered when labelling a conversation (migration 068; undefined = true). */
+  for_conversations?: boolean;
+  updated_at?: string;
 }
 
 export interface ContactTag {

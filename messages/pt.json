@@ -222,7 +222,9 @@
       "noConversations": "Nenhuma conversa encontrada",
       "noMessagesYet": "Nenhuma mensagem ainda",
       "unknown": "Desconhecido",
-      "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}"
+      "awaitingResponseSince": "Aguardando resposta — o cliente enviou uma mensagem {time}",
+      "tagTitle": "Tag: {name}",
+      "labelTitle": "Rótulo: {name}"
     },
     "messageThread": {
       "backToConversations": "Voltar às conversas",
@@ -283,7 +285,9 @@
       "assignmentUpdateFailed": "Falha ao atualizar a atribuição",
       "movedToTrash": "Mensagem movida para a lixeira",
       "trashFailed": "Falha ao mover a mensagem para a lixeira",
-      "statusUpdateFailed": "Falha ao atualizar o status"
+      "statusUpdateFailed": "Falha ao atualizar o status",
+      "tagTitle": "Tag: {name}",
+      "labelTitle": "Rótulo: {name}"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -494,7 +498,20 @@
       "deals": "Negócios",
       "noTags": "Sem tags",
       "noDeals": "Sem negócios",
-      "addNotePlaceholder": "Adicionar uma nota..."
+      "addNotePlaceholder": "Adicionar uma nota...",
+      "addTag": "Adicionar tag",
+      "searchTags": "Buscar tags",
+      "noTagsDefined": "Ainda não há tags — um administrador pode criá-las em Configurações → Tags.",
+      "noMatches": "Nenhum resultado",
+      "removeTag": "Remover a tag {name}",
+      "tagUpdateFailed": "Não foi possível atualizar as tags",
+      "labels": "Rótulos de conversa",
+      "addLabel": "Adicionar rótulo",
+      "searchLabels": "Buscar rótulos",
+      "noLabelsDefined": "Ainda não há rótulos — um administrador pode criá-los em Configurações → Rótulos de conversa.",
+      "noLabels": "Sem rótulos",
+      "removeLabel": "Remover o rótulo {name}",
+      "labelUpdateFailed": "Não foi possível atualizar os rótulos"
     },
     "aiBanner": {
       "pausedTitle": "O assistente de IA está pausado aqui",
@@ -1565,7 +1582,11 @@
       "fieldsCount": "{count} {count, plural, =1 {campo personalizado} other {campos personalizados}}",
       "appearance": "modo {mode} · destaque {theme}",
       "yourAccount": "Sua conta",
-      "loading": "Carregando…"
+      "loading": "Carregando…",
+      "manageTags": "Gerenciar tags de contato",
+      "manageLabels": "Gerenciar rótulos de conversa",
+      "manageFields": "Gerenciar campos personalizados",
+      "labelsCount": "{count} {count, plural, =1 {rótulo} other {rótulos}}"
     },
     "members": {
       "title": "Membros da equipe",
@@ -1678,8 +1699,8 @@
       "whatsappMessage": "Entre em {accountName} no wacrm usando este link (válido por {expiresInDays} dias): {url}"
     },
     "tagsAndFields": {
-      "title": "Campos e tags",
-      "description": "Duas formas de organizar contatos: tags coloridas para agrupar rapidamente e campos personalizados para dados estruturados.",
+      "title": "Campos personalizados",
+      "description": "Campos extras que aparecem em cada contato e na ação de automação “Atualizar campo do contato”.",
       "tagsTitle": "Tags",
       "tagsDesc": "Rótulos coloridos para agrupar e filtrar contatos.",
       "fieldsTitle": "Campos personalizados",
@@ -2118,7 +2139,7 @@
       "delete": "Excluir",
       "deleteConfirm": "Excluir esta regra? Os rótulos já aplicados permanecem nas conversas.",
       "addRule": "Adicionar regra",
-      "needLabels": "Crie um rótulo primeiro (Tags acima) e depois adicione uma regra para ele.",
+      "needLabels": "Crie um rótulo primeiro (na lista acima) e depois adicione uma regra para ele.",
       "testLabel": "Testar uma mensagem",
       "testPlaceholder": "Digite uma mensagem de cliente para ver quais regras correspondem",
       "testNoMatch": "Nenhuma regra de palavra-chave corresponde a esta mensagem.",
@@ -2197,14 +2218,16 @@
       "channels": "Canais",
       "templates": "Modelos",
       "quick-replies": "Respostas rápidas",
-      "fields": "Campos e tags",
+      "fields": "Campos personalizados",
       "ticket-form": "Formulário de tickets",
       "deals": "Negócios e moeda",
       "response-time": "Tempo de resposta",
       "status-colors": "Cores de status",
       "members": "Membros da equipe",
       "teams": "Equipes",
-      "api": "Chaves de API"
+      "api": "Chaves de API",
+      "tags": "Tags",
+      "labels": "Rótulos de conversa"
     },
     "groups": {
       "account": "Conta",
@@ -2348,7 +2371,28 @@
       "save": "Salvar",
       "saving": "Salvando...",
       "saveFailed": "Falha ao salvar a moeda padrão",
-      "saveSuccess": "Moeda padrão atualizada"
+      "saveSuccess": "Moeda padrão atualizada",
+      "currenciesTitle": "Moedas",
+      "currenciesDesc": "As moedas oferecidas ao criar um negócio. Adicione as que você usa e remova o resto. Use um código ISO de 3 letras, como MYR.",
+      "codeLabel": "Código",
+      "nameLabel": "Nome",
+      "add": "Adicionar moeda",
+      "addFromList": "Adicionar de moedas comuns…",
+      "removeAria": "Remover {code}",
+      "defaultBadge": "Padrão",
+      "cannotRemoveDefault": "A moeda padrão não pode ser removida — escolha outra como padrão primeiro.",
+      "cannotRemoveLast": "É necessária pelo menos uma moeda.",
+      "removeNote": "Remover uma moeda não altera os negócios existentes — eles mantêm a moeda com que foram salvos.",
+      "added": "{code} adicionada",
+      "removed": "{code} removida",
+      "saveCurrenciesFailed": "Não foi possível atualizar a lista de moedas",
+      "errors": {
+        "code_invalid": "Use um código de 3 letras, como MYR.",
+        "name_required": "Informe um nome para a moeda.",
+        "name_too_long": "Mantenha o nome abaixo de {max} caracteres.",
+        "duplicate": "Essa moeda já está na lista.",
+        "limit": "Você atingiu o limite de {max} moedas."
+      }
     },
     "responseTime": {
       "title": "Tempo de resposta",
@@ -2453,6 +2497,103 @@
       "editDoc": "Editar",
       "deleteDoc": "Excluir",
       "loading": "Carregando…"
+    },
+    "tagCatalog": {
+      "tag": {
+        "title": "Tags",
+        "description": "Tags coloridas para contatos. Aparecem na lista de conversas e na coluna direita do chat, para reconhecer um cliente rapidamente.",
+        "createButton": "Criar tag",
+        "createTitle": "Criar tag",
+        "editTitle": "Editar tag",
+        "dialogDescription": "Dê à tag um nome, uma descrição curta e uma cor.",
+        "namePlaceholder": "ex.: VIP",
+        "descriptionPlaceholder": "Opcional — o que esta tag significa",
+        "searchPlaceholder": "Buscar tags",
+        "empty": "Ainda não há tags. Crie uma ou importe um CSV.",
+        "singular": "tag",
+        "fileName": "tags",
+        "inUse": "{count, plural, =0 {Sem uso} one {# contato} other {# contatos}}",
+        "alsoUseLabel": "Usar também como rótulo de conversa",
+        "alsoUseHint": "Permite que os agentes a apliquem a uma conversa além de a um contato.",
+        "created": "Tag criada",
+        "updated": "Tag atualizada",
+        "deleted": "Tag excluída",
+        "deleteTitle": "Excluir tag",
+        "importTitle": "Importar tags de um CSV"
+      },
+      "label": {
+        "title": "Rótulos de conversa",
+        "description": "Rótulos de assunto para conversas individuais (cobrança, reembolso, problema técnico…). Nomes e descrições claros ajudam os agentes — e a rotulagem automática com IA — a escolher o certo.",
+        "createButton": "Criar rótulo",
+        "createTitle": "Criar rótulo",
+        "editTitle": "Editar rótulo",
+        "dialogDescription": "Dê ao rótulo um nome, uma descrição curta e uma cor.",
+        "namePlaceholder": "ex.: Pedido de reembolso",
+        "descriptionPlaceholder": "Opcional — quando usar este rótulo",
+        "searchPlaceholder": "Buscar rótulos",
+        "empty": "Ainda não há rótulos. Crie um ou importe um CSV.",
+        "singular": "rótulo",
+        "fileName": "rotulos-de-conversa",
+        "inUse": "{count, plural, =0 {Sem uso} one {# conversa} other {# conversas}}",
+        "alsoUseLabel": "Usar também como tag de contato",
+        "alsoUseHint": "Permite que os agentes o apliquem a um contato além de a uma conversa.",
+        "created": "Rótulo criado",
+        "updated": "Rótulo atualizado",
+        "deleted": "Rótulo excluído",
+        "deleteTitle": "Excluir rótulo",
+        "importTitle": "Importar rótulos de um CSV"
+      },
+      "columns": {
+        "name": "Nome",
+        "description": "Descrição",
+        "inUse": "Em uso",
+        "createdBy": "Criado por",
+        "createdOn": "Criado em",
+        "actions": "Ações"
+      },
+      "colorLabel": "Cor",
+      "customColor": "Cor personalizada",
+      "hexLabel": "Código de cor hexadecimal",
+      "preview": "Pré-visualização",
+      "importCsv": "Importar CSV",
+      "exportCsv": "Exportar CSV",
+      "noMatches": "Nada corresponde à sua busca.",
+      "adminOnlyHint": "Somente administradores da conta podem criar, editar ou importar.",
+      "editAria": "Editar {name}",
+      "deleteAria": "Excluir {name}",
+      "deleteConfirm": "Excluir “{name}”? Ele é usado em {contacts, plural, one {# contato} other {# contatos}} e {conversations, plural, one {# conversa} other {# conversas}} e será removido de todos. Isso não pode ser desfeito.",
+      "duplicateName": "Outra tag ou rótulo já usa este nome.",
+      "loadFailed": "Não foi possível carregar a lista",
+      "saveFailed": "Não foi possível salvar",
+      "deleteFailed": "Não foi possível excluir",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "import": {
+        "description": "Envie um CSV com linha de cabeçalho: name (obrigatório), description e color (como #3b82f6 ou “red”). As linhas são associadas às existentes pelo nome: correspondências são atualizadas, nomes novos são criados e células vazias nunca apagam valores existentes.",
+        "chooseFile": "Escolher arquivo CSV",
+        "chooseAnother": "Escolher outro arquivo",
+        "downloadTemplate": "Baixar modelo",
+        "readFailed": "Não foi possível ler esse arquivo",
+        "nothing": "Nenhuma linha utilizável nesse arquivo.",
+        "toCreate": "{count, plural, =0 {Nada novo a criar} other {# a criar}}",
+        "toUpdate": "{count, plural, =0 {Nada a atualizar} other {# existentes a atualizar}}",
+        "unchanged": "{count} sem alterações",
+        "linked": "{count, plural, one {# já existe como {other} e será adicionado aqui também} other {# já existem como {other} e serão adicionados aqui também}}",
+        "colorInvalid": "{count, plural, one {# linha tem uma cor que não pôde ser lida — a cor padrão será usada.} other {# linhas têm cores que não puderam ser lidas — a cor padrão será usada.}}",
+        "tooMany": "Somente as primeiras {max} linhas são importadas.",
+        "skipped": "{count, plural, one {# linha ignorada} other {# linhas ignoradas}}",
+        "moreIssues": "…e mais {count}",
+        "issue": {
+          "missing_name": "Linha {line}: sem nome",
+          "name_too_long": "Linha {line}: “{name}” tem mais de {max} caracteres",
+          "description_too_long": "Linha {line}: a descrição de “{name}” é longa demais",
+          "duplicate_in_file": "Linha {line}: “{name}” aparece antes no arquivo"
+        },
+        "action": "{count, plural, =0 {Importar} one {Importar # linha} other {Importar # linhas}}",
+        "importing": "Importando…",
+        "done": "{created} criados, {updated} atualizados",
+        "partial": "{done} importados, {failed} com falha"
+      }
     }
   },
   "SignupPage": {

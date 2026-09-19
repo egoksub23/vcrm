@@ -8,7 +8,7 @@ import {
   CONVERSATION_SELECT,
   normalizeConversation,
 } from "@/lib/inbox/conversations";
-import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus } from "@/types";
+import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus, Tag } from "@/types";
 import { tabForChannel, type InboxTab } from "@/lib/inbox/channel-scope";
 import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
@@ -631,6 +631,18 @@ function InboxPageInner() {
     [activeConversation]
   );
 
+  // A tag added/removed from the right-hand column: patch every loaded
+  // row for that contact (a contact can have several conversations) and
+  // the open contact, so the list chips and thread header update at once.
+  const handleContactTagsChange = useCallback((contactId: string, tags: Tag[]) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.contact?.id === contactId ? { ...c, contact: { ...c.contact, tags } } : c
+      )
+    );
+    setActiveContact((prev) => (prev && prev.id === contactId ? { ...prev, tags } : prev));
+  }, []);
+
   // On mobile (<lg) we show a SINGLE pane — either the list or the
   // thread — rather than cramming both side-by-side. Selecting a
   // conversation slides the thread in; the thread's back button pops
@@ -717,7 +729,13 @@ function InboxPageInner() {
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
           <div className="hidden lg:block">
-            <ContactSidebar contact={activeContact} conversationId={activeConversation?.id ?? null} />
+            <ContactSidebar
+              contact={activeContact}
+              conversationId={activeConversation?.id ?? null}
+              labels={activeConversation?.labels ?? []}
+              onLabelsChange={handleLabelsChange}
+              onContactTagsChange={handleContactTagsChange}
+            />
           </div>
         )}
       </div>

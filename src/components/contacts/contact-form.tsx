@@ -108,9 +108,11 @@ export function ContactForm({
 
   async function fetchTags() {
     setLoadingTags(true);
+    // Contact tags only — conversation-only labels (migration 068) aren't offered here.
     const { data } = await supabase
       .from('tags')
       .select('*')
+      .eq('for_contacts', true)
       .order('name');
     if (data) setTags(data);
     setLoadingTags(false);

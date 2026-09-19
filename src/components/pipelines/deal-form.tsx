@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { CURRENCIES } from "@/lib/currency";
+import { withCurrencyIncluded } from "@/lib/currency";
 import type {
   Contact,
   Conversation,
@@ -55,7 +55,7 @@ export function DealForm({
 }: DealFormProps) {
   const t = useTranslations("Pipelines.form");
   const supabase = createClient();
-  const { accountId, defaultCurrency } = useAuth();
+  const { accountId, defaultCurrency, currencies } = useAuth();
 
   const [title, setTitle] = useState("");
   const [value, setValue] = useState("");
@@ -316,7 +316,9 @@ export function DealForm({
                   onChange={(e) => setCurrency(e.target.value)}
                   className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary"
                 >
-                  {CURRENCIES.map((c) => (
+                  {/* The deal's own currency stays selectable even if the
+                      account later removed it from its list. */}
+                  {withCurrencyIncluded(currencies, currency).map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.code}
                     </option>

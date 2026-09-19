@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   CURRENCIES,
   DEFAULT_CURRENCY,
+  currencySymbol,
   formatCurrency,
   formatCurrencyShort,
+  resolveAccountCurrencies,
+  serializeCurrencies,
+  validateCurrencyEntry,
+  withCurrencyIncluded,
 } from "./currency";
 
 describe("formatCurrency", () => {
@@ -61,5 +66,78 @@ describe("formatCurrencyShort", () => {
 
   it("falls back to the code prefix for unknown currencies (no throw)", () => {
     expect(formatCurrencyShort(1_000, "ZZZ")).toBe("ZZZ 1.0k");
+  });
+});
+
+describe("built-in list", () => {
+  it("offers Malaysian Ringgit", () => {
+    expect(CURRENCIES.find((c) => c.code === "MYR")).toMatchObject({ label: "Malaysian Ringgit", symbol: "RM" });
+    expect(formatCurrencyShort(1_500, "MYR")).toBe("RM1.5k");
+  });
+
+  it("has unique codes", () => {
+    expect(new Set(CURRENCIES.map((c) => c.code)).size).toBe(CURRENCIES.length);
+  });
+});
+
+describe("currencySymbol", () => {
+  it("derives a symbol for codes outside the built-in list", () => {
+    expect(currencySymbol("SEK")).not.toBeNull();
+  });
+  it("returns null when there is no symbol", () => {
+    expect(currencySymbol("ZZZ")).toBeNull();
+  });
+});
+
+describe("resolveAccountCurrencies", () => {
+  it("falls back to the built-ins for null, non-arrays and empty/garbage arrays", () => {
+    expect(resolveAccountCurrencies(null)).toBe(CURRENCIES);
+    expect(resolveAccountCurrencies("USD")).toBe(CURRENCIES);
+    expect(resolveAccountCurrencies([])).toBe(CURRENCIES);
+    expect(resolveAccountCurrencies([{ code: "x" }, 5, null])).toBe(CURRENCIES);
+  });
+
+  it("keeps valid entries, upper-cases codes, defaults a blank name, drops duplicates", () => {
+    expect(
+      resolveAccountCurrencies([
+        { code: "myr", label: "Malaysian Ringgit" },
+        { code: "USD", label: "" },
+        { code: "MYR", label: "dupe" },
+        { code: "bad!", label: "no" },
+      ]),
+    ).toEqual([
+      { code: "MYR", label: "Malaysian Ringgit" },
+      { code: "USD", label: "USD" },
+    ]);
+  });
+
+  it("round-trips through serializeCurrencies", () => {
+    const list = [{ code: "MYR", label: "Malaysian Ringgit", symbol: "RM" }];
+    expect(resolveAccountCurrencies(serializeCurrencies(list))).toEqual([{ code: "MYR", label: "Malaysian Ringgit" }]);
+  });
+});
+
+describe("validateCurrencyEntry", () => {
+  const existing = [{ code: "USD", label: "US Dollar" }];
+  it("accepts a new well-formed entry (case-insensitive code)", () => {
+    expect(validateCurrencyEntry({ code: "myr", label: "Malaysian Ringgit" }, existing)).toBeNull();
+  });
+  it("rejects bad codes, blank/long names and duplicates", () => {
+    expect(validateCurrencyEntry({ code: "RM", label: "x" }, existing)).toBe("code_invalid");
+    expect(validateCurrencyEntry({ code: "MYR", label: "  " }, existing)).toBe("name_required");
+    expect(validateCurrencyEntry({ code: "MYR", label: "x".repeat(41) }, existing)).toBe("name_too_long");
+    expect(validateCurrencyEntry({ code: "usd", label: "Dollar" }, existing)).toBe("duplicate");
+  });
+});
+
+describe("withCurrencyIncluded", () => {
+  const list = [{ code: "USD", label: "US Dollar" }];
+  it("adds a code that was removed from the account list", () => {
+    expect(withCurrencyIncluded(list, "MYR")).toEqual([...list, { code: "MYR", label: "MYR" }]);
+  });
+  it("returns the same list when the code is present or empty", () => {
+    expect(withCurrencyIncluded(list, "USD")).toBe(list);
+    expect(withCurrencyIncluded(list, "")).toBe(list);
+    expect(withCurrencyIncluded(list, null)).toBe(list);
   });
 });

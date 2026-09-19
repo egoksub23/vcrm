@@ -51,7 +51,7 @@ const EMPTY: Draft = {
 };
 
 /**
- * Settings → Fields & tags → Auto-labels (migration 067). Admins map a
+ * Settings → Conversation labels → Auto-labels (migration 067). Admins map a
  * label to keywords and/or a plain description; matching inbound messages
  * get that conversation label automatically. An opt-in AI pass covers what
  * keywords miss.
@@ -59,7 +59,9 @@ const EMPTY: Draft = {
 export function AutoLabelSettings() {
   const t = useTranslations("Settings.autoLabels");
   const { accountId } = useAuth();
-  const { tags } = useTags();
+  // `tags` resolves ids on saved rules; only conversation labels can be
+  // picked for a new one (migration 068).
+  const { tags, conversationLabels } = useTags();
   const [rules, setRules] = useState<AutoLabelRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -243,11 +245,11 @@ export function AutoLabelSettings() {
               </ul>
             )}
 
-            <Button variant="outline" onClick={() => setDraft({ ...EMPTY })} disabled={tags.length === 0}>
+            <Button variant="outline" onClick={() => setDraft({ ...EMPTY })} disabled={conversationLabels.length === 0}>
               <Plus className="size-4" />
               {t("addRule")}
             </Button>
-            {tags.length === 0 && <p className="text-xs text-muted-foreground">{t("needLabels")}</p>}
+            {conversationLabels.length === 0 && <p className="text-xs text-muted-foreground">{t("needLabels")}</p>}
 
             <div className="space-y-1.5 border-t border-border pt-4">
               <Label htmlFor="al-test" className="text-foreground">
@@ -308,7 +310,7 @@ export function AutoLabelSettings() {
                     <SelectValue placeholder={t("labelPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {tags.map((tg) => (
+                    {conversationLabels.map((tg) => (
                       <SelectItem key={tg.id} value={tg.id}>
                         {tg.name}
                       </SelectItem>

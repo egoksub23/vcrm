@@ -222,7 +222,9 @@
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
       "unknown": "Unknown",
-      "awaitingResponseSince": "Awaiting a reply — customer messaged {time}"
+      "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
+      "tagTitle": "Tag: {name}",
+      "labelTitle": "Label: {name}"
     },
     "messageThread": {
       "backToConversations": "Back to conversations",
@@ -283,7 +285,9 @@
       "assignmentUpdateFailed": "Failed to update assignment",
       "movedToTrash": "Message moved to trash",
       "trashFailed": "Failed to move message to trash",
-      "statusUpdateFailed": "Failed to update status"
+      "statusUpdateFailed": "Failed to update status",
+      "tagTitle": "Tag: {name}",
+      "labelTitle": "Label: {name}"
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -494,7 +498,20 @@
       "deals": "Deals",
       "noTags": "No tags",
       "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+      "addNotePlaceholder": "Add a note...",
+      "addTag": "Add tag",
+      "searchTags": "Search tags",
+      "noTagsDefined": "No tags exist yet — an admin can create them in Settings → Tags.",
+      "noMatches": "No matches",
+      "removeTag": "Remove tag {name}",
+      "tagUpdateFailed": "Couldn’t update tags",
+      "labels": "Conversation labels",
+      "addLabel": "Add label",
+      "searchLabels": "Search labels",
+      "noLabelsDefined": "No labels exist yet — an admin can create them in Settings → Conversation labels.",
+      "noLabels": "No labels",
+      "removeLabel": "Remove label {name}",
+      "labelUpdateFailed": "Couldn’t update labels"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -1571,7 +1588,11 @@
       "fieldsCount": "{count} custom {count, plural, =1 {field} other {fields}}",
       "appearance": "{mode} mode · {theme} accent",
       "yourAccount": "Your account",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "manageTags": "Manage contact tags",
+      "manageLabels": "Manage conversation labels",
+      "manageFields": "Manage custom fields",
+      "labelsCount": "{count} {count, plural, =1 {label} other {labels}}"
     },
     "members": {
       "title": "Team members",
@@ -1684,8 +1705,8 @@
       "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}"
     },
     "tagsAndFields": {
-      "title": "Fields & tags",
-      "description": "Two ways to organize contacts: colour-coded tags for quick grouping, and custom fields for structured data.",
+      "title": "Custom fields",
+      "description": "Extra fields that appear on every contact and in the “Update Contact Field” automation action.",
       "tagsTitle": "Tags",
       "tagsDesc": "Colour-coded labels for grouping and filtering contacts.",
       "fieldsTitle": "Custom fields",
@@ -2134,7 +2155,7 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this auto-label rule? Labels already applied stay on their conversations.",
       "addRule": "Add rule",
-      "needLabels": "Create a label first (Tags above), then add a rule for it.",
+      "needLabels": "Create a label first (in the list above), then add a rule for it.",
       "testLabel": "Test a message",
       "testPlaceholder": "Type a customer message to see which rules match",
       "testNoMatch": "No keyword rule matches this message.",
@@ -2213,14 +2234,16 @@
       "channels": "Channels",
       "templates": "Templates",
       "quick-replies": "Quick replies",
-      "fields": "Fields & tags",
+      "fields": "Custom fields",
       "ticket-form": "Ticket form",
       "deals": "Deals & currency",
       "response-time": "Response time",
       "status-colors": "Status colors",
       "members": "Team members",
       "teams": "Teams",
-      "api": "API keys"
+      "api": "API keys",
+      "tags": "Tags",
+      "labels": "Conversation labels"
     },
     "groups": {
       "account": "Account",
@@ -2366,7 +2389,28 @@
       "save": "Save",
       "saving": "Saving...",
       "saveFailed": "Failed to save default currency",
-      "saveSuccess": "Default currency updated"
+      "saveSuccess": "Default currency updated",
+      "currenciesTitle": "Currencies",
+      "currenciesDesc": "The currencies offered when creating a deal. Add the ones you trade in and remove the rest. Use a 3-letter ISO code such as MYR.",
+      "codeLabel": "Code",
+      "nameLabel": "Name",
+      "add": "Add currency",
+      "addFromList": "Add from common currencies…",
+      "removeAria": "Remove {code}",
+      "defaultBadge": "Default",
+      "cannotRemoveDefault": "The default currency can’t be removed — choose another default first.",
+      "cannotRemoveLast": "At least one currency is required.",
+      "removeNote": "Removing a currency doesn’t change existing deals — they keep the currency they were saved with.",
+      "added": "{code} added",
+      "removed": "{code} removed",
+      "saveCurrenciesFailed": "Couldn’t update the currency list",
+      "errors": {
+        "code_invalid": "Use a 3-letter code such as MYR.",
+        "name_required": "Enter a name for the currency.",
+        "name_too_long": "Keep the name under {max} characters.",
+        "duplicate": "That currency is already in the list.",
+        "limit": "You’ve reached the limit of {max} currencies."
+      }
     },
     "responseTime": {
       "title": "Response time",
@@ -2471,6 +2515,103 @@
       "editDoc": "Edit",
       "deleteDoc": "Delete",
       "loading": "Loading…"
+    },
+    "tagCatalog": {
+      "tag": {
+        "title": "Tags",
+        "description": "Colour-coded tags for contacts. They appear on the conversation list and in the chat’s right-hand column, so agents can spot a customer at a glance.",
+        "createButton": "Create tag",
+        "createTitle": "Create tag",
+        "editTitle": "Edit tag",
+        "dialogDescription": "Give the tag a name, a short description and a colour.",
+        "namePlaceholder": "e.g. VIP",
+        "descriptionPlaceholder": "Optional — what this tag means",
+        "searchPlaceholder": "Search tags",
+        "empty": "No tags yet. Create one, or import a CSV.",
+        "singular": "tag",
+        "fileName": "tags",
+        "inUse": "{count, plural, =0 {Not used} one {# contact} other {# contacts}}",
+        "alsoUseLabel": "Also use as a conversation label",
+        "alsoUseHint": "Lets agents apply it to a conversation as well as to a contact.",
+        "created": "Tag created",
+        "updated": "Tag updated",
+        "deleted": "Tag deleted",
+        "deleteTitle": "Delete tag",
+        "importTitle": "Import tags from CSV"
+      },
+      "label": {
+        "title": "Conversation labels",
+        "description": "Topic labels for individual conversations (billing, refund, technical issue…). Clear names and descriptions help agents — and the AI auto-labeller — pick the right one.",
+        "createButton": "Create label",
+        "createTitle": "Create label",
+        "editTitle": "Edit label",
+        "dialogDescription": "Give the label a name, a short description and a colour.",
+        "namePlaceholder": "e.g. Refund request",
+        "descriptionPlaceholder": "Optional — when to use this label",
+        "searchPlaceholder": "Search labels",
+        "empty": "No labels yet. Create one, or import a CSV.",
+        "singular": "label",
+        "fileName": "conversation-labels",
+        "inUse": "{count, plural, =0 {Not used} one {# conversation} other {# conversations}}",
+        "alsoUseLabel": "Also use as a contact tag",
+        "alsoUseHint": "Lets agents apply it to a contact as well as to a conversation.",
+        "created": "Label created",
+        "updated": "Label updated",
+        "deleted": "Label deleted",
+        "deleteTitle": "Delete label",
+        "importTitle": "Import labels from CSV"
+      },
+      "columns": {
+        "name": "Name",
+        "description": "Description",
+        "inUse": "In use",
+        "createdBy": "Created by",
+        "createdOn": "Created on",
+        "actions": "Actions"
+      },
+      "colorLabel": "Colour",
+      "customColor": "Custom colour",
+      "hexLabel": "Hex colour code",
+      "preview": "Preview",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV",
+      "noMatches": "Nothing matches your search.",
+      "adminOnlyHint": "Only account admins can create, edit or import.",
+      "editAria": "Edit {name}",
+      "deleteAria": "Delete {name}",
+      "deleteConfirm": "Delete “{name}”? It’s used on {contacts, plural, one {# contact} other {# contacts}} and {conversations, plural, one {# conversation} other {# conversations}}, and will be removed from all of them. This can’t be undone.",
+      "duplicateName": "Another tag or label already uses this name.",
+      "loadFailed": "Couldn’t load the list",
+      "saveFailed": "Couldn’t save",
+      "deleteFailed": "Couldn’t delete",
+      "cancel": "Cancel",
+      "save": "Save",
+      "import": {
+        "description": "Upload a CSV with a header row: name (required), description and color (like #3b82f6 or “red”). Rows are matched to existing entries by name — matches are updated, new names are created, and blank cells never erase existing values.",
+        "chooseFile": "Choose CSV file",
+        "chooseAnother": "Choose another file",
+        "downloadTemplate": "Download template",
+        "readFailed": "Couldn’t read that file",
+        "nothing": "No usable rows found in that file.",
+        "toCreate": "{count, plural, =0 {Nothing new to create} other {# new to create}}",
+        "toUpdate": "{count, plural, =0 {Nothing to update} other {# existing to update}}",
+        "unchanged": "{count} unchanged",
+        "linked": "{count, plural, one {# already exists as a {other} and will be added here too} other {# already exist as a {other} and will be added here too}}",
+        "colorInvalid": "{count, plural, one {# row has a colour that couldn’t be read — the default colour is used.} other {# rows have colours that couldn’t be read — the default colour is used.}}",
+        "tooMany": "Only the first {max} rows are imported.",
+        "skipped": "{count, plural, one {# row skipped} other {# rows skipped}}",
+        "moreIssues": "…and {count} more",
+        "issue": {
+          "missing_name": "Line {line}: no name",
+          "name_too_long": "Line {line}: “{name}” is longer than {max} characters",
+          "description_too_long": "Line {line}: the description for “{name}” is too long",
+          "duplicate_in_file": "Line {line}: “{name}” appears earlier in the file"
+        },
+        "action": "{count, plural, =0 {Import} one {Import # row} other {Import # rows}}",
+        "importing": "Importing…",
+        "done": "{created} created, {updated} updated",
+        "partial": "{done} imported, {failed} failed"
+      }
     }
   },
   "SignupPage": {

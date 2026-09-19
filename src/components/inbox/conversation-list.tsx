@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addConversationLabel } from "@/lib/conversations/label-api";
+import { TagChip } from "./tag-chip";
 import { createInboxView, deleteInboxView } from "@/lib/inbox/views-api";
 import {
   TAB_CHANNELS,
@@ -134,7 +135,9 @@ export function ConversationList({
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
   // Broadcast audience filtering. Company is an exact match on the field.
-  const { tags } = useTags();
+  // `tags` = the full palette (resolves ids in saved views); the two
+  // pickers below offer only what each list is for (migration 068).
+  const { tags, contactTags, conversationLabels } = useTags();
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   // Team bucket filter (P0 gap-analysis item). `null` = no filter,
@@ -721,7 +724,7 @@ export function ConversationList({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {tags.length > 0 && (
+          {contactTags.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
@@ -743,7 +746,7 @@ export function ConversationList({
                 align="start"
                 className="max-h-64 w-56 border-border bg-popover"
               >
-                {tags.map((t) => (
+                {contactTags.map((t) => (
                   <DropdownMenuCheckboxItem
                     key={t.id}
                     checked={selectedTagIds.includes(t.id)}
@@ -766,7 +769,7 @@ export function ConversationList({
           {/* Conversation labels — draws from the same tag palette as the
               contact-tag filter above, but filters on the conversation's
               own `labels` (migration 044), not the contact's tags. */}
-          {tags.length > 0 && (
+          {conversationLabels.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
@@ -788,7 +791,7 @@ export function ConversationList({
                 align="start"
                 className="max-h-64 w-56 border-border bg-popover"
               >
-                {tags.map((lb) => (
+                {conversationLabels.map((lb) => (
                   <DropdownMenuCheckboxItem
                     key={lb.id}
                     checked={selectedLabelIds.includes(lb.id)}
@@ -1312,6 +1315,14 @@ function ConversationItem({
     : 0;
   const isBreached = showAging && waitingMinutes >= slaResponseMinutes;
 
+  // Contact tags first (about the person), then conversation labels
+  // (about this thread) — both carry their colour so an agent can scan
+  // the list for e.g. VIP customers without opening anything.
+  const chips: { tag: Tag; kind: "tag" | "label" }[] = [
+    ...(contact?.tags ?? []).map((tag) => ({ tag, kind: "tag" as const })),
+    ...(conversation.labels ?? []).map((tag) => ({ tag, kind: "label" as const })),
+  ];
+
   return (
     <button
       onClick={handleClick}
@@ -1414,22 +1425,19 @@ function ConversationItem({
             />
           </div>
         </div>
-        {conversation.labels && conversation.labels.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {conversation.labels.slice(0, 3).map((label) => (
-              <span
-                key={label.id}
-                className="max-w-20 truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                style={{ backgroundColor: `${label.color}20`, color: label.color }}
-                title={label.name}
-              >
-                {label.name}
-              </span>
+        {chips.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {chips.slice(0, 3).map(({ tag, kind }) => (
+              <TagChip
+                key={`${kind}-${tag.id}`}
+                tag={tag}
+                kind={kind}
+                size="xs"
+                title={t(kind === "tag" ? "tagTitle" : "labelTitle", { name: tag.name })}
+              />
             ))}
-            {conversation.labels.length > 3 && (
-              <span className="text-[9px] text-muted-foreground">
-                +{conversation.labels.length - 3}
-              </span>
+            {chips.length > 3 && (
+              <span className="text-[9px] text-muted-foreground">+{chips.length - 3}</span>
             )}
           </div>
         )}

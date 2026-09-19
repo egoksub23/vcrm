@@ -143,7 +143,8 @@ export function ContactDetailView({
     if (!contactId) return;
 
     const [tagsRes, contactTagsRes] = await Promise.all([
-      supabase.from('tags').select('*').order('name'),
+      // Contact tags only — conversation-only labels (migration 068) aren't offered here.
+      supabase.from('tags').select('*').eq('for_contacts', true).order('name'),
       supabase.from('contact_tags').select('tag_id').eq('contact_id', contactId),
     ]);
 

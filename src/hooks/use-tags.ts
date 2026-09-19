@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isContactTag, isConversationLabel } from "@/lib/tags/scope";
 import type { Tag } from "@/types";
 
 /**
  * Account-scoped tag palette (RLS-scoped read of the `tags` table).
- * Shared by every surface that offers a tag picker over the same
- * palette — contact tags, conversation labels, automation config —
- * so the fetch-once-and-share logic lives in exactly one place.
+ * One fetch shared by every picker: `contactTags` and
+ * `conversationLabels` are the two lists Settings manages (migration
+ * 068); `tags` is the full palette for surfaces that don't care
+ * (e.g. rendering a chip for whatever is already attached).
  */
-export function useTags(): { tags: Tag[]; loading: boolean } {
+export function useTags(): {
+  tags: Tag[];
+  contactTags: Tag[];
+  conversationLabels: Tag[];
+  loading: boolean;
+} {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,5 +43,8 @@ export function useTags(): { tags: Tag[]; loading: boolean } {
     };
   }, []);
 
-  return { tags, loading };
+  const contactTags = useMemo(() => tags.filter(isContactTag), [tags]);
+  const conversationLabels = useMemo(() => tags.filter(isConversationLabel), [tags]);
+
+  return { tags, contactTags, conversationLabels, loading };
 }

@@ -112,7 +112,12 @@ export function Step2SelectAudience({
       setLoadingTags(true);
       try {
         const supabase = createClient();
-        const { data } = await supabase.from('tags').select('*').order('name');
+        // Contact tags only — conversation-only labels (migration 068) aren't offered here.
+        const { data } = await supabase
+          .from('tags')
+          .select('*')
+          .eq('for_contacts', true)
+          .order('name');
         setTags(data ?? []);
       } finally {
         setLoadingTags(false);

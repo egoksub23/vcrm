@@ -1,4 +1,5 @@
 import {
+  Bookmark,
   Boxes,
   ClipboardList,
   Coins,
@@ -7,8 +8,9 @@ import {
   Palette,
   PlugZap,
   Shield,
+  SlidersHorizontal,
   SwatchBook,
-  Tags,
+  Tag,
   Timer,
   User,
   UsersRound,
@@ -31,6 +33,8 @@ export const SETTINGS_SECTIONS = [
   'appearance',
   'channels',
   'quick-replies',
+  'tags',
+  'labels',
   'fields',
   'ticket-form',
   'deals',
@@ -60,7 +64,9 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   appearance: { id: 'appearance', label: 'Appearance', icon: Palette, group: 'account' },
   channels: { id: 'channels', label: 'Channels', icon: PlugZap, group: 'workspace' },
   'quick-replies': { id: 'quick-replies', label: 'Quick replies', icon: Zap, group: 'workspace' },
-  fields: { id: 'fields', label: 'Fields & tags', icon: Tags, group: 'workspace' },
+  tags: { id: 'tags', label: 'Tags', icon: Tag, group: 'workspace' },
+  labels: { id: 'labels', label: 'Conversation labels', icon: Bookmark, group: 'workspace' },
+  fields: { id: 'fields', label: 'Custom fields', icon: SlidersHorizontal, group: 'workspace' },
   'ticket-form': { id: 'ticket-form', label: 'Ticket form', icon: ClipboardList, group: 'workspace' },
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   'response-time': { id: 'response-time', label: 'Response time', icon: Timer, group: 'workspace' },
@@ -82,12 +88,12 @@ function isSection(value: string | null): value is SettingsSection {
 
 /**
  * Resolve a raw `?tab=` value to a section. Legacy tabs from the old
- * flat layout collapse onto their new home (Tags + Custom fields → the
- * merged "Fields & tags" section). Anything unknown falls back to the
- * Overview landing.
+ * flat layout collapse onto their new home (`custom-fields` → Custom
+ * fields; `tags` is a section of its own again). Anything unknown falls
+ * back to the Overview landing.
  */
 export function resolveSection(raw: string | null): SettingsSection {
-  if (raw === 'tags' || raw === 'custom-fields') return 'fields';
+  if (raw === 'custom-fields') return 'fields';
   // WhatsApp templates moved under Channels → WhatsApp → Templates.
   if (raw === 'whatsapp' || raw === 'templates') return 'channels';
   if (isSection(raw)) return raw;
