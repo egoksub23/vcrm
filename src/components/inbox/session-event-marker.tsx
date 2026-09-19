@@ -33,7 +33,9 @@ export function SessionEventMarker({
         : t("closedByAutomation")
     : actorName
       ? t("reopenedBy", { name: actorName })
-      : t("reopened");
+      : event.metadata?.reason === "customer_message"
+        ? t("reopenedByCustomer")
+        : t("reopened");
 
   return (
     <div className="my-1 flex flex-col items-center gap-1" role="separator">
@@ -50,7 +52,7 @@ export function SessionEventMarker({
       </div>
       {event.note && (
         <p className="max-w-[80%] whitespace-pre-wrap text-center text-xs text-muted-foreground">
-          <span className="font-medium">{t("note")}:</span> {event.note}
+          <span className="font-medium">{t(closed ? "note" : "reopenNote")}:</span> {event.note}
         </p>
       )}
       <p className="text-[10px] text-muted-foreground/70">{t("teamOnly")}</p>

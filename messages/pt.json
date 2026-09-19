@@ -367,6 +367,8 @@
       "closedByAutomation": "Encerrada automaticamente",
       "reopenedBy": "Reaberta por {name}",
       "reopened": "Reaberta",
+      "reopenedByCustomer": "Reaberta — o cliente escreveu novamente",
+      "reopenNote": "Nota",
       "note": "Nota de encerramento",
       "teamOnly": "Visível apenas para sua equipe"
     },
@@ -391,6 +393,7 @@
       "priorityChanged": "Prioridade alterada de {from} para {to}",
       "closed": "Encerrado",
       "reopened": "Reaberto",
+      "reopenedByCustomer": "Reaberta — o cliente escreveu novamente",
       "priority": {
         "urgent": "Urgente",
         "high": "Alta",

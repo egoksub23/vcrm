@@ -94,7 +94,7 @@ export function ConversationSessionLog({ conversationId }: ConversationSessionLo
       case "closed":
         return t("closed");
       case "reopened":
-        return t("reopened");
+        return e.metadata?.reason === "customer_message" ? t("reopenedByCustomer") : t("reopened");
       default:
         return e.event_type;
     }

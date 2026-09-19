@@ -25,6 +25,10 @@ No migration required.
   it, when, and the closure note — and the same for a reopen. Conversations
   closed before closure notes existed show a plain "Closed" marker at their
   close time, since who closed them wasn't recorded.
+- **Customer-caused reopens are logged too**: when a customer writes to a
+  closed conversation and it reopens by itself, the chat now shows a
+  team-only "Reopened — customer wrote again" marker (and the session log
+  records it) instead of the conversation silently becoming open.
 
 ## [0.26.0] — 2026-09-19
 

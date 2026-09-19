@@ -367,6 +367,8 @@
       "closedByAutomation": "자동으로 종료됨",
       "reopenedBy": "{name}님이 다시 엶",
       "reopened": "다시 열림",
+      "reopenedByCustomer": "다시 열림 — 고객이 다시 메시지를 보냄",
+      "reopenNote": "메모",
       "note": "종료 메모",
       "teamOnly": "팀원에게만 보입니다"
     },
@@ -391,6 +393,7 @@
       "priorityChanged": "우선순위가 {from}에서 {to}(으)로 변경됨",
       "closed": "종료됨",
       "reopened": "다시 열림",
+      "reopenedByCustomer": "다시 열림 — 고객이 다시 메시지를 보냄",
       "priority": {
         "urgent": "긴급",
         "high": "높음",
