@@ -754,21 +754,59 @@ export async function loadContactsReport(
 // reports below. Mirrors loadConversationsReport (opened/closed pattern)
 // + loadResolutionsReport (open→resolved duration) + the per-agent
 // breakdown shape loadAgentStats already established for Leaderboard.
+// Extended into a fuller "ticket performance" view: first-response time,
+// resolved-within-24h rate, live backlog + its age, and category /
+// priority / team breakdowns.
 
 export interface TicketAgentBucket {
   userId: string
   fullName: string
   ticketsResolved: number
   avgResolutionMinutes: number | null
+  /** Tickets assigned to them that are open/pending right now (not
+   *  range-bound — a live workload figure). */
+  openNow: number
+}
+
+export interface TicketBreakdownRow {
+  /** category / priority value, or a team id ('' = no team). */
+  key: string
+  /** Team name for the team breakdown; null otherwise (the UI translates
+   *  category and priority keys itself). */
+  label: string | null
+  opened: number
+  resolved: number
+  avgResolutionMinutes: number | null
+}
+
+export interface TicketAging {
+  under1d: number
+  d1to3: number
+  d3to7: number
+  over7d: number
 }
 
 export interface TicketsReport {
   opened: OverviewMetric
   resolved: OverviewMetric
   avgResolutionMinutes: OverviewMetric
+  /** Ticket created → the first teammate comment on it, for tickets
+   *  opened in the period. */
+  avgFirstResponseMinutes: OverviewMetric
+  /** Share of tickets resolved in the period that took ≤ 24h; null when
+   *  none were resolved. */
+  resolvedWithin24hPct: number | null
+  /** Open + pending tickets right now, and how old they are. */
+  openNow: number
+  aging: TicketAging
   series: { day: string; opened: number; resolved: number }[]
   byAgent: TicketAgentBucket[]
+  byCategory: TicketBreakdownRow[]
+  byPriority: TicketBreakdownRow[]
+  byTeam: TicketBreakdownRow[]
 }
+
+const PRIORITY_ORDER = ['urgent', 'high', 'normal', 'low']
 
 export async function loadTicketsReport(
   db: DB,
@@ -779,38 +817,69 @@ export async function loadTicketsReport(
   const spanStart = prev.from.toISOString()
   const spanEnd = exclusiveEnd(range.to).toISOString()
 
-  const [openedRes, resolvedRes, profilesRes] = await Promise.all([
-    db
-      .from('tickets')
-      .select('created_at')
-      .eq('account_id', accountId)
-      .gte('created_at', spanStart)
-      .lt('created_at', spanEnd),
-    // "Resolved" here covers both `resolved` and `closed` — either is a
-    // ticket an agent finished working, same as klink.cloud's own
-    // CX Log doesn't distinguish them for duration reporting.
-    db
-      .from('tickets')
-      .select('created_at, resolved_at, closed_at, assigned_agent_id, status')
-      .eq('account_id', accountId)
-      .in('status', ['resolved', 'closed'])
-      .or(`resolved_at.gte.${spanStart},closed_at.gte.${spanStart}`),
-    db.from('profiles').select('user_id, full_name').eq('account_id', accountId),
-  ])
-  if (openedRes.error) throw openedRes.error
-  if (resolvedRes.error) throw resolvedRes.error
-  if (profilesRes.error) throw profilesRes.error
+  const [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes] =
+    await Promise.all([
+      db
+        .from('tickets')
+        .select('id, created_at, category, priority, assigned_team_id')
+        .eq('account_id', accountId)
+        .gte('created_at', spanStart)
+        .lt('created_at', spanEnd),
+      // "Resolved" here covers both `resolved` and `closed` — either is a
+      // ticket an agent finished working, same as klink.cloud's own
+      // CX Log doesn't distinguish them for duration reporting.
+      db
+        .from('tickets')
+        .select(
+          'created_at, resolved_at, closed_at, assigned_agent_id, assigned_team_id, category, priority, status',
+        )
+        .eq('account_id', accountId)
+        .in('status', ['resolved', 'closed'])
+        .or(`resolved_at.gte.${spanStart},closed_at.gte.${spanStart}`),
+      // Live backlog — deliberately NOT range-bound.
+      db
+        .from('tickets')
+        .select('created_at, assigned_agent_id, status')
+        .eq('account_id', accountId)
+        .in('status', ['open', 'pending']),
+      // Any comment inside the span is enough to find the first one on
+      // tickets opened in it (a comment can't predate its ticket). Same
+      // client-side-aggregation scale caveat as the rest of this file.
+      db
+        .from('ticket_comments')
+        .select('ticket_id, created_at')
+        .eq('account_id', accountId)
+        .gte('created_at', spanStart)
+        .lt('created_at', spanEnd)
+        .order('created_at', { ascending: true }),
+      db.from('profiles').select('user_id, full_name').eq('account_id', accountId),
+      db.from('teams').select('id, name').eq('account_id', accountId),
+    ])
+  for (const res of [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes]) {
+    if (res.error) throw res.error
+  }
 
-  const openedRows = (openedRes.data ?? []) as { created_at: string }[]
+  type OpenedRow = {
+    id: string
+    created_at: string
+    category: string | null
+    priority: string | null
+    assigned_team_id: string | null
+  }
+  const openedRows = (openedRes.data ?? []) as OpenedRow[]
   const opened = splitByPeriod(openedRows.map((r) => ({ at: r.created_at })), range, prev)
   const days = dayKeysInRange(range)
   const openedCurrent = days.reduce((sum, d) => sum + (opened.currentByDay.get(d) ?? 0), 0)
+  const inCurrentRange = (iso: string) => opened.currentByDay.has(localDayKey(iso))
 
   type ResolvedRow = {
     created_at: string
     resolved_at: string | null
     closed_at: string | null
     assigned_agent_id: string | null
+    assigned_team_id: string | null
+    category: string | null
+    priority: string | null
     status: string
   }
   const resolvedRows = ((resolvedRes.data ?? []) as ResolvedRow[])
@@ -828,13 +897,47 @@ export async function loadTicketsReport(
   const previousDurations: number[] = []
   const byAgentResolved = new Map<string, number>()
   const byAgentDurations = new Map<string, number[]>()
+  let resolvedCurrentCount = 0
+  let resolvedWithin24h = 0
+
+  // Breakdown accumulators, current period only.
+  type Acc = { opened: number; resolved: number; durations: number[] }
+  const newAcc = (): Acc => ({ opened: 0, resolved: 0, durations: [] })
+  const cat = new Map<string, Acc>()
+  const pri = new Map<string, Acc>()
+  const team = new Map<string, Acc>()
+  const acc = (m: Map<string, Acc>, k: string) => {
+    let a = m.get(k)
+    if (!a) m.set(k, (a = newAcc()))
+    return a
+  }
+
+  for (const r of openedRows) {
+    if (!inCurrentRange(r.created_at)) continue
+    acc(cat, r.category ?? 'other').opened += 1
+    acc(pri, r.priority ?? 'normal').opened += 1
+    acc(team, r.assigned_team_id ?? '').opened += 1
+  }
 
   for (const r of resolvedRows) {
     const diffMin = (new Date(r.finishedAt).getTime() - new Date(r.created_at).getTime()) / 60_000
     const key = localDayKey(r.finishedAt)
     if (resolvedByDay.has(key)) {
       resolvedByDay.set(key, (resolvedByDay.get(key) ?? 0) + 1)
-      if (diffMin >= 0) resolvedDurationsByDay.get(key)!.push(diffMin)
+      resolvedCurrentCount += 1
+      if (diffMin >= 0) {
+        resolvedDurationsByDay.get(key)!.push(diffMin)
+        if (diffMin <= 24 * 60) resolvedWithin24h += 1
+      }
+      for (const [m, k] of [
+        [cat, r.category ?? 'other'],
+        [pri, r.priority ?? 'normal'],
+        [team, r.assigned_team_id ?? ''],
+      ] as [Map<string, Acc>, string][]) {
+        const a = acc(m, k)
+        a.resolved += 1
+        if (diffMin >= 0) a.durations.push(diffMin)
+      }
     } else if (prevKeys.has(key)) {
       previousResolvedTotal += 1
       if (diffMin >= 0) previousDurations.push(diffMin)
@@ -844,6 +947,43 @@ export async function loadTicketsReport(
       const arr = byAgentDurations.get(r.assigned_agent_id) ?? []
       arr.push(diffMin)
       byAgentDurations.set(r.assigned_agent_id, arr)
+    }
+  }
+
+  // First response: earliest comment per ticket (rows arrive ascending).
+  const createdById = new Map(openedRows.map((r) => [r.id, r.created_at]))
+  const firstComment = new Map<string, string>()
+  for (const c of (commentsRes.data ?? []) as { ticket_id: string; created_at: string }[]) {
+    if (!firstComment.has(c.ticket_id)) firstComment.set(c.ticket_id, c.created_at)
+  }
+  const frCurrent: number[] = []
+  const frPrevious: number[] = []
+  for (const [ticketId, at] of firstComment) {
+    const createdAt = createdById.get(ticketId)
+    if (!createdAt) continue
+    const diffMin = (new Date(at).getTime() - new Date(createdAt).getTime()) / 60_000
+    if (diffMin < 0) continue
+    if (inCurrentRange(createdAt)) frCurrent.push(diffMin)
+    else if (prevKeys.has(localDayKey(createdAt))) frPrevious.push(diffMin)
+  }
+
+  // Live backlog + age.
+  const openNowRows = ((openNowRes.data ?? []) as {
+    created_at: string
+    assigned_agent_id: string | null
+    status: string
+  }[]).filter((r) => r.status === 'open' || r.status === 'pending')
+  const aging: TicketAging = { under1d: 0, d1to3: 0, d3to7: 0, over7d: 0 }
+  const openByAgent = new Map<string, number>()
+  const now = Date.now()
+  for (const r of openNowRows) {
+    const ageDays = (now - new Date(r.created_at).getTime()) / 86_400_000
+    if (ageDays < 1) aging.under1d += 1
+    else if (ageDays < 3) aging.d1to3 += 1
+    else if (ageDays < 7) aging.d3to7 += 1
+    else aging.over7d += 1
+    if (r.assigned_agent_id) {
+      openByAgent.set(r.assigned_agent_id, (openByAgent.get(r.assigned_agent_id) ?? 0) + 1)
     }
   }
 
@@ -858,9 +998,24 @@ export async function loadTicketsReport(
       fullName: p.full_name,
       ticketsResolved: byAgentResolved.get(p.user_id) ?? 0,
       avgResolutionMinutes: avg(byAgentDurations.get(p.user_id) ?? []),
+      openNow: openByAgent.get(p.user_id) ?? 0,
     }))
-    .filter((a) => a.ticketsResolved > 0)
-    .sort((a, b) => b.ticketsResolved - a.ticketsResolved)
+    .filter((a) => a.ticketsResolved > 0 || a.openNow > 0)
+    .sort((a, b) => b.ticketsResolved - a.ticketsResolved || b.openNow - a.openNow)
+
+  const teamNames = new Map(
+    ((teamsRes.data ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]),
+  )
+  const rows = (m: Map<string, Acc>, label?: (k: string) => string | null): TicketBreakdownRow[] =>
+    [...m.entries()].map(([key, a]) => ({
+      key,
+      label: label ? label(key) : null,
+      opened: a.opened,
+      resolved: a.resolved,
+      avgResolutionMinutes: avg(a.durations),
+    }))
+  const byOpenedDesc = (a: TicketBreakdownRow, b: TicketBreakdownRow) =>
+    b.opened - a.opened || b.resolved - a.resolved
 
   return {
     opened: metric(openedCurrent, opened.previousTotal),
@@ -870,11 +1025,25 @@ export async function loadTicketsReport(
       previous: avg(previousDurations) ?? 0,
       percentChange: percentChange(avg(currentDurationsAll) ?? 0, avg(previousDurations) ?? 0),
     },
+    avgFirstResponseMinutes: {
+      current: avg(frCurrent) ?? 0,
+      previous: avg(frPrevious) ?? 0,
+      percentChange: percentChange(avg(frCurrent) ?? 0, avg(frPrevious) ?? 0),
+    },
+    resolvedWithin24hPct:
+      resolvedCurrentCount === 0 ? null : (resolvedWithin24h / resolvedCurrentCount) * 100,
+    openNow: openNowRows.length,
+    aging,
     series: days.map((day) => ({
       day,
       opened: opened.currentByDay.get(day) ?? 0,
       resolved: resolvedByDay.get(day) ?? 0,
     })),
     byAgent,
+    byCategory: rows(cat).sort(byOpenedDesc),
+    byPriority: rows(pri).sort(
+      (a, b) => PRIORITY_ORDER.indexOf(a.key) - PRIORITY_ORDER.indexOf(b.key),
+    ),
+    byTeam: rows(team, (k) => (k === '' ? null : (teamNames.get(k) ?? null))).sort(byOpenedDesc),
   }
 }

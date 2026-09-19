@@ -333,7 +333,7 @@ describe('loadTicketsReport', () => {
     expect(report.resolved.current).toBe(1)
     expect(report.avgResolutionMinutes.current).toBe(24 * 60)
     expect(report.byAgent).toEqual([
-      { userId: 'u1', fullName: 'Alice', ticketsResolved: 1, avgResolutionMinutes: 24 * 60 },
+      { userId: 'u1', fullName: 'Alice', ticketsResolved: 1, avgResolutionMinutes: 24 * 60, openNow: 0 },
     ])
   })
 
@@ -358,7 +358,56 @@ describe('loadTicketsReport', () => {
     expect(report.resolved.current).toBe(1)
     expect(report.avgResolutionMinutes.current).toBe(90)
     expect(report.byAgent).toEqual([
-      { userId: 'u2', fullName: 'Bob', ticketsResolved: 1, avgResolutionMinutes: 90 },
+      { userId: 'u2', fullName: 'Bob', ticketsResolved: 1, avgResolutionMinutes: 90, openNow: 0 },
     ])
+  })
+
+  it('reports first response, 24h resolution rate, live backlog age, and breakdowns', async () => {
+    const db = fakeDb({
+      tickets: [
+        // Resolved in 2h, billing/urgent, team tm1, Alice.
+        { id: 't1', created_at: '2026-09-15T10:00:00', resolved_at: '2026-09-15T12:00:00', closed_at: null,
+          assigned_agent_id: 'u1', assigned_team_id: 'tm1', category: 'billing', priority: 'urgent', status: 'resolved' },
+        // Resolved in 48h, bug/normal, no team.
+        { id: 't2', created_at: '2026-09-15T10:00:00', resolved_at: '2026-09-17T10:00:00', closed_at: null,
+          assigned_agent_id: null, assigned_team_id: null, category: 'bug', priority: 'normal', status: 'resolved' },
+        // Old and still open — backlog only, and Alice's live workload.
+        { id: 't3', created_at: '2020-01-01T00:00:00', resolved_at: null, closed_at: null,
+          assigned_agent_id: 'u1', assigned_team_id: null, category: 'general', priority: 'low', status: 'open' },
+      ],
+      ticket_comments: [
+        { ticket_id: 't1', created_at: '2026-09-15T10:30:00' },
+        { ticket_id: 't1', created_at: '2026-09-15T11:00:00' }, // not the first — ignored
+        { ticket_id: 't2', created_at: '2026-09-15T11:00:00' },
+      ],
+      profiles: [{ user_id: 'u1', full_name: 'Alice' }],
+      teams: [{ id: 'tm1', name: 'Payments' }],
+    })
+
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.openNow).toBe(1)
+    expect(report.aging).toEqual({ under1d: 0, d1to3: 0, d3to7: 0, over7d: 1 })
+    expect(report.resolvedWithin24hPct).toBe(50)
+    // 30 min and 60 min → 45 min average, from each ticket's FIRST comment.
+    expect(report.avgFirstResponseMinutes.current).toBe(45)
+    expect(report.byCategory.map((r) => [r.key, r.opened, r.resolved, r.avgResolutionMinutes])).toEqual([
+      ['billing', 1, 1, 120],
+      ['bug', 1, 1, 2880],
+    ])
+    // Urgent before normal, regardless of count.
+    expect(report.byPriority.map((r) => r.key)).toEqual(['urgent', 'normal'])
+    expect(report.byTeam.find((r) => r.key === 'tm1')?.label).toBe('Payments')
+    expect(report.byTeam.find((r) => r.key === '')?.label).toBeNull()
+    expect(report.byAgent).toEqual([
+      { userId: 'u1', fullName: 'Alice', ticketsResolved: 1, avgResolutionMinutes: 120, openNow: 1 },
+    ])
+  })
+
+  it('returns null rates and zeroes on an empty account', async () => {
+    const report = await loadTicketsReport(fakeDb({ tickets: [] }), 'acct-1', RANGE)
+    expect(report.resolvedWithin24hPct).toBeNull()
+    expect(report.openNow).toBe(0)
+    expect(report.avgFirstResponseMinutes.current).toBe(0)
+    expect(report.byAgent).toEqual([])
   })
 })

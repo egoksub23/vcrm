@@ -19,6 +19,7 @@ import {
   loadTicketsReport,
   LIFECYCLE_STAGES,
   type OverviewMetric,
+  type TicketBreakdownRow,
 } from "@/lib/reports/queries";
 import { useReportData, formatMinutes, formatPercent } from "./report-hooks";
 
@@ -470,13 +471,77 @@ export function BroadcastsReportPanel({ accountId, range }: PanelProps) {
   );
 }
 
+function minutesOrDash(minutes: number | null): string {
+  return minutes === null ? "—" : formatMinutes(minutes);
+}
+
+/** Opened / resolved / avg-resolution table for one ticket dimension
+ *  (category, priority, or team). */
+function TicketBreakdownTable({
+  title,
+  rows,
+  labelFor,
+  t,
+}: {
+  title: string;
+  rows: TicketBreakdownRow[];
+  labelFor: (row: TicketBreakdownRow) => string;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <p className="px-4 pt-4 text-sm font-medium text-foreground">{title}</p>
+      <table className="mt-2 w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="px-4 py-2">{t("dimension")}</th>
+            <th className="px-4 py-2 text-right">{t("colOpened")}</th>
+            <th className="px-4 py-2 text-right">{t("colResolved")}</th>
+            <th className="px-4 py-2 text-right">{t("avgResolution")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                {t("noBreakdownData")}
+              </td>
+            </tr>
+          ) : (
+            rows.map((r) => (
+              <tr key={r.key} className="border-b border-border last:border-0">
+                <td className="px-4 py-2.5 font-medium text-foreground">{labelFor(r)}</td>
+                <td className="px-4 py-2.5 text-right text-foreground">{r.opened}</td>
+                <td className="px-4 py-2.5 text-right text-foreground">{r.resolved}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">
+                  {minutesOrDash(r.avgResolutionMinutes)}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function TicketsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.tickets");
   const tShared = useTranslations("Reports");
+  const tCat = useTranslations("Tickets.detail.category");
+  const tPri = useTranslations("Tickets.detail.priority");
   const { data, loading, error } = useReportData(loadTicketsReport, accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
+
+  const vs = tShared("vsPreviousPeriod");
+  const agingSeries = [
+    { bucket: t("aging.under1d"), tickets: data.aging.under1d },
+    { bucket: t("aging.d1to3"), tickets: data.aging.d1to3 },
+    { bucket: t("aging.d3to7"), tickets: data.aging.d3to7 },
+    { bucket: t("aging.over7d"), tickets: data.aging.over7d },
+  ];
 
   return (
     <div className="space-y-4">
@@ -485,21 +550,36 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
           title={t("opened")}
           value={String(data.opened.current)}
           icon={TicketIcon}
-          delta={deltaFor(data.opened, tShared("vsPreviousPeriod"))}
+          delta={deltaFor(data.opened, vs)}
         />
         <MetricCard
           title={t("resolved")}
           value={String(data.resolved.current)}
           icon={CheckCircle2}
-          delta={deltaFor(data.resolved, tShared("vsPreviousPeriod"))}
+          delta={deltaFor(data.resolved, vs)}
         />
         <MetricCard
           title={t("avgResolution")}
           value={formatMinutes(data.avgResolutionMinutes.current)}
           icon={Timer}
-          delta={deltaFor(data.avgResolutionMinutes, tShared("vsPreviousPeriod"), true)}
+          delta={deltaFor(data.avgResolutionMinutes, vs, true)}
         />
       </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard title={t("openNow")} value={String(data.openNow)} icon={Clock} />
+        <MetricCard
+          title={t("avgFirstResponse")}
+          value={formatMinutes(data.avgFirstResponseMinutes.current)}
+          icon={MessageCircle}
+          delta={deltaFor(data.avgFirstResponseMinutes, vs, true)}
+        />
+        <MetricCard
+          title={t("resolvedWithin24h")}
+          value={data.resolvedWithin24hPct === null ? "—" : `${Math.round(data.resolvedWithin24hPct)}%`}
+          icon={TrendingUp}
+        />
+      </div>
+
       <div className="rounded-xl border border-border bg-card p-5">
         <p className="mb-4 text-sm font-medium text-foreground">{t("chartTitle")}</p>
         <BarChart
@@ -510,19 +590,55 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
           className="h-72"
         />
       </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-medium text-foreground">{t("agingTitle")}</p>
+        <p className="mb-4 mt-0.5 text-xs text-muted-foreground">{t("agingHint")}</p>
+        <BarChart
+          data={agingSeries}
+          index="bucket"
+          categories={["tickets"]}
+          colors={["amber"]}
+          className="h-56"
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TicketBreakdownTable
+          title={t("byCategory")}
+          rows={data.byCategory}
+          labelFor={(r) => tCat(r.key as never)}
+          t={t}
+        />
+        <TicketBreakdownTable
+          title={t("byPriority")}
+          rows={data.byPriority}
+          labelFor={(r) => tPri(r.key as never)}
+          t={t}
+        />
+      </div>
+      <TicketBreakdownTable
+        title={t("byTeam")}
+        rows={data.byTeam}
+        labelFor={(r) => r.label ?? (r.key === "" ? t("noTeam") : t("unknownTeam"))}
+        t={t}
+      />
+
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
+        <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("byAgent")}</p>
+        <table className="mt-2 w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3">{t("agent")}</th>
-              <th className="px-4 py-3 text-right">{t("ticketsResolved")}</th>
-              <th className="px-4 py-3 text-right">{t("avgResolution")}</th>
+              <th className="px-4 py-2">{t("agent")}</th>
+              <th className="px-4 py-2 text-right">{t("ticketsResolved")}</th>
+              <th className="px-4 py-2 text-right">{t("avgResolution")}</th>
+              <th className="px-4 py-2 text-right">{t("agentOpenNow")}</th>
             </tr>
           </thead>
           <tbody>
             {data.byAgent.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
                   {t("noData")}
                 </td>
               </tr>
@@ -532,8 +648,9 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
                   <td className="px-4 py-3 font-medium text-foreground">{a.fullName}</td>
                   <td className="px-4 py-3 text-right text-foreground">{a.ticketsResolved}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">
-                    {a.avgResolutionMinutes === null ? "—" : formatMinutes(a.avgResolutionMinutes)}
+                    {minutesOrDash(a.avgResolutionMinutes)}
                   </td>
+                  <td className="px-4 py-3 text-right text-foreground">{a.openNow}</td>
                 </tr>
               ))
             )}
