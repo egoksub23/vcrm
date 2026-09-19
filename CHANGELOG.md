@@ -23,6 +23,11 @@ No migration required.
   row, with saved views, sort, select, and pending delete as icons.
   Notification and dashboard links to an email conversation open on the
   Emails tab.
+- **Fuller ticket performance report** (Reports → Tickets): adds
+  first-response time, the share of tickets resolved within 24 hours, the
+  live open backlog with its age (under 1 day, 1–3, 3–7, 7+), opened /
+  resolved / average resolution broken down by category, priority, and
+  team, and an "open now" workload column per agent.
 - **Templates moved under WhatsApp**: Settings → Templates is now
   Settings → Channels → WhatsApp → Templates, the first of two tabs
   (Templates, Connection). Old bookmarks and the account-menu Settings
