@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, FileText, Loader2, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { createClient } from '@/lib/supabase/client';
@@ -34,7 +34,7 @@ interface WhatsAppStatus {
 export function SettingsOverview({
   onSelect,
 }: {
-  onSelect: (section: SettingsSection) => void;
+  onSelect: (section: SettingsSection, extraParams?: Record<string, string>) => void;
 }) {
   const { user, profile, accountId, accountRole, defaultCurrency, canManageMembers } =
     useAuth();
@@ -154,11 +154,18 @@ export function SettingsOverview({
   // Per-tile loading + subtitle. `null` counts render as a graceful
   // fallback so a single failed query never blanks a tile.
   const tiles: {
+    key: string;
     section: SettingsSection;
+    /** Overrides the section's own rail label / icon (templates now
+     *  lives inside Channels but keeps its own overview tile). */
+    label?: string;
+    icon?: LucideIcon;
+    extraParams?: Record<string, string>;
     loading: boolean;
     subtitle: ReactNode;
   }[] = [
     {
+      key: 'channels',
       section: 'channels',
       loading: whatsappLoading,
       subtitle: !whatsapp?.configured ? (
@@ -174,6 +181,7 @@ export function SettingsOverview({
       ),
     },
     {
+      key: 'members',
       section: 'members',
       loading: countsLoading,
       subtitle:
@@ -186,7 +194,11 @@ export function SettingsOverview({
             }`,
     },
     {
-      section: 'templates',
+      key: 'templates',
+      section: 'channels',
+      label: tSections('templates'),
+      icon: FileText,
+      extraParams: { channel: 'whatsapp', view: 'templates' },
       loading: countsLoading,
       subtitle:
         counts?.templates == null
@@ -198,11 +210,13 @@ export function SettingsOverview({
             }`,
     },
     {
+      key: 'deals',
       section: 'deals',
       loading: false,
       subtitle: `${defaultCurrency} — ${currencyLabel}`,
     },
     {
+      key: 'fields',
       section: 'fields',
       loading: countsLoading,
       subtitle:
@@ -213,6 +227,7 @@ export function SettingsOverview({
             })}`,
     },
     {
+      key: 'appearance',
       section: 'appearance',
       loading: false,
       subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
@@ -251,14 +266,13 @@ export function SettingsOverview({
 
       {/* Status tiles */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {tiles.map(({ section, loading, subtitle }) => {
-          const meta = SECTION_META[section];
-          const Icon = meta.icon;
+        {tiles.map(({ key, section, label, icon, extraParams, loading, subtitle }) => {
+          const Icon = icon ?? SECTION_META[section].icon;
           return (
             <button
-              key={section}
+              key={key}
               type="button"
-              onClick={() => onSelect(section)}
+              onClick={() => onSelect(section, extraParams)}
               className={cn(
                 'group flex items-start gap-3.5 rounded-xl border border-border bg-card p-4 text-left transition-colors',
                 'hover:border-primary-soft-2 hover:bg-card-2',
@@ -269,7 +283,7 @@ export function SettingsOverview({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-foreground">
-                  {tSections(section)}
+                  {label ?? tSections(section)}
                 </span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                   {loading ? (

@@ -1903,6 +1903,10 @@
     "channels": {
       "title": "Canais",
       "description": "Conecte o WhatsApp, o widget de chat web e outros canais de entrada para esta conta.",
+      "whatsappTabs": {
+        "templates": "Modelos",
+        "connection": "Conexão"
+      },
       "names": {
         "whatsapp": "WhatsApp",
         "web_widget": "Widget web",

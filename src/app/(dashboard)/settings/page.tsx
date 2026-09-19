@@ -12,7 +12,6 @@ import { ProfileForm } from '@/components/settings/profile-form';
 import { SecurityPanel } from '@/components/settings/security-panel';
 import { AppearancePanel } from '@/components/settings/appearance-panel';
 import { ChannelsTab } from '@/components/settings/channels-tab';
-import { TemplateManager } from '@/components/settings/template-manager';
 import { QuickRepliesManager } from '@/components/settings/quick-replies-manager';
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
 import { TicketFormSettings } from '@/components/settings/ticket-form-settings';
@@ -56,9 +55,11 @@ function SettingsPageInner() {
   // resolve onto their new home; unknown/empty → the Overview landing.
   const section = resolveSection(searchParams.get('tab'));
 
-  const go = (next: SettingsSection) => {
+  const go = (next: SettingsSection, extraParams?: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', next);
+    // Deep-link into a sub-view (e.g. Channels → WhatsApp → Templates).
+    for (const [k, v] of Object.entries(extraParams ?? {})) params.set(k, v);
     router.replace(`/settings?${params.toString()}`, { scroll: false });
   };
 
@@ -80,7 +81,6 @@ function SettingsPageInner() {
     security: <SecurityPanel />,
     appearance: <AppearancePanel />,
     channels: <ChannelsTab />,
-    templates: <TemplateManager />,
     'quick-replies': <QuickRepliesManager />,
     fields: <FieldsAndTagsPanel />,
     'ticket-form': <TicketFormSettings />,
@@ -104,7 +104,7 @@ function SettingsPageInner() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start">
-        <SettingsRail active={section} onSelect={go} hints={hints} />
+        <SettingsRail active={section} onSelect={(s) => go(s)} hints={hints} />
         <div className="min-w-0">{panel[section]}</div>
       </div>
     </div>

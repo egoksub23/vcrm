@@ -8,7 +8,7 @@ import { MessageSquareText } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { CHANNEL_ICONS } from '@/components/inbox/channel-icons';
-import { WhatsAppConfig } from './channels/whatsapp-channel';
+import { WhatsAppChannel, type WhatsAppView } from './channels/whatsapp-tabs';
 import { WebWidgetChannel } from './channels/web-widget-channel';
 import { MessengerChannel } from './channels/messenger-channel';
 import { InstagramChannel } from './channels/instagram-channel';
@@ -58,6 +58,18 @@ export function ChannelsTab() {
     const fromUrl = searchParams.get('channel');
     return isChannelId(fromUrl) ? fromUrl : 'whatsapp';
   });
+  // WhatsApp's own sub-tabs: an explicit `?view=` wins; the legacy
+  // `?tab=whatsapp` link (account menu) means the connection, and the
+  // legacy `?tab=templates` link means templates. Otherwise Templates
+  // (the first tab) opens.
+  const rawTab = searchParams.get('tab');
+  const viewParam = searchParams.get('view');
+  const initialWhatsAppView: WhatsAppView =
+    viewParam === 'connection' || viewParam === 'templates'
+      ? viewParam
+      : rawTab === 'whatsapp'
+        ? 'connection'
+        : 'templates';
 
   return (
     <div>
@@ -94,7 +106,7 @@ export function ChannelsTab() {
         ))}
       </div>
 
-      {active === 'whatsapp' ? <WhatsAppConfig /> : null}
+      {active === 'whatsapp' ? <WhatsAppChannel initialView={initialWhatsAppView} /> : null}
       {active === 'web_widget' ? <WebWidgetChannel /> : null}
       {active === 'messenger' ? <MessengerChannel /> : null}
       {active === 'instagram' ? <InstagramChannel /> : null}

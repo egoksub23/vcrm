@@ -1919,6 +1919,10 @@
     "channels": {
       "title": "Channels",
       "description": "Connect WhatsApp, the web-chat widget, and other inbound channels for this account.",
+      "whatsappTabs": {
+        "templates": "Templates",
+        "connection": "Connection"
+      },
       "names": {
         "whatsapp": "WhatsApp",
         "web_widget": "Web Widget",

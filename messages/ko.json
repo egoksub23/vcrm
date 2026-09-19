@@ -1919,6 +1919,10 @@
     "channels": {
       "title": "채널",
       "description": "이 계정에 WhatsApp, 웹 채팅 위젯 및 기타 수신 채널을 연결하세요.",
+      "whatsappTabs": {
+        "templates": "템플릿",
+        "connection": "연결"
+      },
       "names": {
         "whatsapp": "WhatsApp",
         "web_widget": "웹 위젯",
