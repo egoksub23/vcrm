@@ -9,6 +9,25 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.26.0] — 2026-09-19
+
+No migration required.
+
+- **Chats / Emails tabs in the Inbox**: the conversation column now has
+  two tabs above Search — Chats (WhatsApp, Web Widget, Messenger,
+  Instagram) and Emails (Gmail, Microsoft 365) — each with a circular
+  count of conversations that have unread messages. This replaces the
+  separate "Email Inbox" menu entry from 0.24.0 (the sidebar goes back to
+  one "Inbox"). The row of channel chips is gone; the channel dropdown is
+  scoped to the active tab, and the filters are condensed to a single
+  row, with saved views, sort, select, and pending delete as icons.
+  Notification and dashboard links to an email conversation open on the
+  Emails tab.
+- **Templates moved under WhatsApp**: Settings → Templates is now
+  Settings → Channels → WhatsApp → Templates, the first of two tabs
+  (Templates, Connection). Old bookmarks and the account-menu Settings
+  link still land in the right place.
+
 ## [0.25.0] — 2026-09-19
 
 **Migration required**: apply `066_ticket_custom_fields.sql`.
