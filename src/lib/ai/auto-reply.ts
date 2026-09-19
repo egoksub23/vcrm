@@ -1,12 +1,13 @@
 import { supabaseAdmin } from './admin-client'
 import { loadAiConfig } from './config'
 import { buildConversationContext, getPreferredLanguage } from './context'
-import { retrieveKnowledge } from './knowledge'
+import { logKnowledgeGap, logKnowledgeUse, searchKnowledge } from './knowledge'
+import { normalizeLanguage } from './knowledge-query'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
-import { latestUserMessage } from './query'
+import { latestUserMessage, recentCustomerText } from './query'
 import { loadAccountMetaCredentials } from '@/lib/flows/meta-send'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { sendTypingIndicator } from '@/lib/whatsapp/meta-api'
@@ -120,18 +121,20 @@ export async function dispatchInboundToAiReply(
     }
 
     // Ground the reply in the account's knowledge base (best-effort).
-    const knowledge = await retrieveKnowledge(
-      db,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
+    const preferredLanguage = await getPreferredLanguage(db, conversationId)
+    const hits = await searchKnowledge(db, accountId, config, recentCustomerText(messages), {
+      audience: 'ai',
+      k: 5,
+      language: normalizeLanguage(preferredLanguage),
+    })
+    const knowledge = hits.map((h) => h.content)
+    void logKnowledgeUse(db, { accountId, conversationId, mode: 'auto_reply', hits })
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
-      preferredLanguage: await getPreferredLanguage(db, conversationId),
+      preferredLanguage,
     })
 
     const { text, handoff, usage } = await generateReply({
@@ -155,6 +158,11 @@ export async function dispatchInboundToAiReply(
     })
 
     if (handoff || !text) {
+      // Nothing in the knowledge base matched, so a human is needed for
+      // want of an article: queue the question so someone can write one.
+      if (hits.length === 0) {
+        void logKnowledgeGap(db, accountId, latestUserMessage(messages), conversationId)
+      }
       // The model can't (or shouldn't) answer — stop auto-replying on
       // this thread and hand it to a human. We (a) pause the bot here
       // (sticky until re-enabled), (b) route the conversation to the

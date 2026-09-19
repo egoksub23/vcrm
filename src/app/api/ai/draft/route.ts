@@ -3,10 +3,11 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext, getPreferredLanguage } from '@/lib/ai/context'
-import { retrieveKnowledge } from '@/lib/ai/knowledge'
+import { logKnowledgeUse, searchKnowledge } from '@/lib/ai/knowledge'
+import { normalizeLanguage } from '@/lib/ai/knowledge-query'
+import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
-import { latestUserMessage } from '@/lib/ai/query'
 import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError } from '@/lib/ai/types'
@@ -91,18 +92,20 @@ export async function POST(request: Request) {
 
     // Ground the draft in the account's knowledge base (best-effort —
     // returns [] when there's no KB or retrieval fails).
-    const knowledge = await retrieveKnowledge(
-      supabase,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
+    const preferredLanguage = await getPreferredLanguage(supabase, conversationId)
+    const hits = await searchKnowledge(supabase, accountId, config, recentCustomerText(messages), {
+      audience: 'ai',
+      k: 5,
+      language: normalizeLanguage(preferredLanguage),
+    })
+    const knowledge = hits.map((h) => h.content)
+    void logKnowledgeUse(supabase, { accountId, conversationId, mode: 'draft', hits })
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'draft',
       knowledge,
-      preferredLanguage: await getPreferredLanguage(supabase, conversationId),
+      preferredLanguage,
     })
 
     const { text, usage } = await generateReply({ config, systemPrompt, messages })

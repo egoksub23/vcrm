@@ -67,8 +67,9 @@ describe('embedTexts', () => {
       }),
     )
     const out = await embedTexts('sk-x', ['a', 'b', 'c'])
-    expect(out[0]).toEqual([0, 0.5]) // index 0 first despite shuffle
-    expect(out[2]).toEqual([2, 2.5])
+    // index 0 first despite shuffle (vectors are zero-padded to 1536)
+    expect(out[0].slice(0, 2)).toEqual([0, 0.5])
+    expect(out[2].slice(0, 2)).toEqual([2, 2.5])
   })
 
   it('maps a 401 to an invalid_key AiError', async () => {
@@ -107,5 +108,33 @@ describe('embedTexts', () => {
       } as unknown as Response),
     )
     await expect(embedTexts('sk-x', ['a', 'b'])).rejects.toBeInstanceOf(AiError)
+  })
+})
+
+describe('embedTexts — custom service', () => {
+  const okOne = (embedding: number[]) =>
+    ({ ok: true, status: 200, json: async () => ({ data: [{ index: 0, embedding }] }) }) as unknown as Response
+
+  it('posts to the given base URL with the given model', async () => {
+    const fetchMock = vi.fn(async () => okOne([0.1]))
+    vi.stubGlobal('fetch', fetchMock)
+    await embedTexts('key', ['a'], { baseUrl: 'https://emb.example/v1/', model: 'text-embedding-v3' })
+    const [url, opts] = fetchMock.mock.calls[0] as unknown as [string, { body: string }]
+    expect(url).toBe('https://emb.example/v1/embeddings')
+    expect(JSON.parse(opts.body).model).toBe('text-embedding-v3')
+  })
+
+  it('pads a shorter vector with zeros to 1536', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => okOne([1, 2, 3])))
+    const [v] = await embedTexts('key', ['a'], { baseUrl: 'https://emb.example/v1' })
+    expect(v).toHaveLength(1536)
+    expect(v.slice(0, 4)).toEqual([1, 2, 3, 0])
+  })
+
+  it('rejects a vector wider than the column', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => okOne(new Array(2048).fill(0.1))))
+    await expect(embedTexts('key', ['a'], { baseUrl: 'https://emb.example/v1' })).rejects.toMatchObject({
+      code: 'embeddings_too_wide',
+    })
   })
 })

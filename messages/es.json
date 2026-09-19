@@ -43,7 +43,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configuración",
-    "menuSignOut": "Cerrar sesión"
+    "menuSignOut": "Cerrar sesión",
+    "knowledge": "Conocimiento"
   },
   "Header": {
     "dashboard": "Panel",
@@ -346,7 +347,8 @@
         "instagram": "Instagram",
         "email": "Correo electrónico",
         "gmail": "Gmail"
-      }
+      },
+      "modeKnowledge": "Conocimiento"
     },
     "bubble": {
       "photo": "Foto",
@@ -446,7 +448,8 @@
       "moveToTrash": "Mover a la papelera",
       "nothingToCopy": "Nada que copiar",
       "copied": "Copiado",
-      "copyFailed": "Error al copiar"
+      "copyFailed": "Error al copiar",
+      "addToKnowledge": "Añadir a la base de conocimiento"
     },
     "pendingDelete": {
       "title": "Pendiente de eliminar",
@@ -580,6 +583,21 @@
       "saveFailed": "No se pudo guardar la nota",
       "deleteFailed": "No se pudo eliminar la nota",
       "unknownAuthor": "Desconocido"
+    },
+    "knowledge": {
+      "searchPlaceholder": "Buscar en la base de conocimiento…",
+      "add": "Añadir",
+      "addHint": "Añade un artículo nuevo a partir de tu borrador de respuesta",
+      "suggested": "Sugeridos para este chat",
+      "typeToSearch": "Escribe para buscar en la base de conocimiento.",
+      "noSuggestions": "Nada en la base de conocimiento coincide aún con este chat. Prueba a buscar o añade un artículo.",
+      "noResults": "No se encontraron artículos.",
+      "agentsOnly": "Solo agentes",
+      "agentsOnlyHint": "La IA nunca usa este artículo. Solo uso interno.",
+      "insert": "Insertar",
+      "showFull": "Ver completo",
+      "showLess": "Ver menos",
+      "openLibrary": "Abrir la base de conocimiento"
     }
   },
   "Contacts": {
@@ -2576,7 +2594,13 @@
       "noticeText": "Los borradores, las respuestas automáticas y el etiquetado envían el texto de la conversación a {host}. Comprueba que encaja con tu política de privacidad y con lo que esperan tus clientes antes de activarlo.",
       "noticeHostFallback": "este proveedor",
       "noticeRequired": "Confirma el aviso de datos para continuar.",
-      "keyRequiredForChange": "Vuelve a introducir la clave de API al cambiar el proveedor o la URL."
+      "keyRequiredForChange": "Vuelve a introducir la clave de API al cambiar el proveedor o la URL.",
+      "embeddingsUrl": "URL del servicio de embeddings",
+      "embeddingsModel": "Modelo de embeddings",
+      "embeddingsServiceHint": "Opcional. Deja ambos vacíos para usar OpenAI. Sirve cualquier servicio de embeddings compatible con OpenAI, así que quien use Kimi puede combinarlo con otro proveedor. Tras cambiarlos, pulsa Reindexar en la página de Conocimiento.",
+      "knowledgeCardTitle": "Base de conocimiento",
+      "knowledgeCardDesc": "Los artículos que la IA lee antes de responder ahora tienen su propia página, donde los agentes también pueden buscarlos.",
+      "knowledgeCardLink": "Abrir la base de conocimiento"
     },
     "aiKnowledge": {
       "loadFailed": "Error al cargar la base de conocimiento",
@@ -3118,5 +3142,100 @@
   },
   "DashboardShell": {
     "loading": "Cargando..."
+  },
+  "Knowledge": {
+    "title": "Base de conocimiento",
+    "description": "Lo que sabe tu negocio: precios, políticas, guías. Los agentes la consultan mientras chatean y la IA la lee al redactar y responder automáticamente. Escribe en inglés, malayo o chino.",
+    "tabArticles": "Artículos",
+    "tabGaps": "Sin respuesta",
+    "add": "Añadir artículo",
+    "reindex": "Reindexar",
+    "reindexHint": "Reconstruye el índice de búsqueda de todos los artículos publicados, por ejemplo tras configurar un servicio de embeddings.",
+    "reindexed": "{count} artículos reindexados",
+    "reindexFailed": "No se pudo reindexar",
+    "searchModeMeaning": "Búsqueda por significado activa",
+    "searchModeKeyword": "Búsqueda por palabras clave",
+    "searchModeMeaningHint": "Encuentra artículos por significado, así que \"devolver el dinero\" encuentra una política de reembolsos.",
+    "searchModeKeywordHint": "Encuentra artículos por coincidencia de palabras. Añade un servicio de embeddings en Agentes de IA → Configuración para buscar por significado.",
+    "draftsWaiting": "{count, plural, one {# borrador espera} other {# borradores esperan}} tu revisión. Haz clic para verlos.",
+    "searchPlaceholder": "Buscar por título y categoría…",
+    "filterLanguage": "Idioma",
+    "filterStatus": "Estado",
+    "filterCategory": "Categoría",
+    "allLanguages": "Todos los idiomas",
+    "allStatuses": "Todos los artículos",
+    "allCategories": "Todas las categorías",
+    "statusPublished": "Publicado",
+    "statusDraft": "Borrador",
+    "reviewDue": "Revisión pendiente",
+    "audienceAi": "La IA puede usarlo",
+    "audienceAgents": "Solo agentes",
+    "emptyTitle": "Aún no hay artículos",
+    "emptyBody": "Añade tu primer artículo, o abre un chat y usa \"Añadir a la base de conocimiento\" en una buena respuesta. Los agentes y la IA lo encontrarán.",
+    "noMatches": "Ningún artículo coincide con estos filtros.",
+    "colTitle": "Título",
+    "colLanguage": "Idioma",
+    "colAudience": "Audiencia",
+    "colStatus": "Estado",
+    "colAiUses": "Usos de la IA",
+    "colAiUsesHint": "Veces que la IA usó este artículo en los últimos 30 días",
+    "colUpdated": "Actualizado",
+    "kindArticle": "Artículo",
+    "kindQa": "Pregunta y respuesta",
+    "publish": "Publicar",
+    "published": "Publicado",
+    "publishFailed": "No se pudo publicar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar \"{title}\"? Esta acción no se puede deshacer.",
+    "deleted": "Artículo eliminado",
+    "deleteFailed": "No se pudo eliminar el artículo",
+    "openFailed": "No se pudo abrir el artículo",
+    "loadFailed": "No se pudo cargar la base de conocimiento",
+    "dialog": {
+      "newTitle": "Añadir artículo",
+      "editTitle": "Editar artículo",
+      "descriptionAdmin": "Los artículos publicados se pueden buscar de inmediato. La IA también puede usarlos, salvo que lo desactives.",
+      "descriptionAgent": "Tu artículo se guarda como borrador. Un administrador lo revisa y lo publica antes de que se pueda buscar.",
+      "kindArticle": "Artículo",
+      "kindQa": "Pregunta y respuesta",
+      "titleLabel": "Título",
+      "titlePlaceholder": "p. ej. Política de reembolsos y cancelaciones",
+      "question": "Pregunta",
+      "questionPlaceholder": "p. ej. ¿Puedo pedir un reembolso después de 30 días?",
+      "content": "Contenido",
+      "contentPlaceholder": "Escríbelo como se lo explicarías a un cliente. Incluye precios, fechas y pasos exactos.",
+      "answer": "Respuesta",
+      "answerPlaceholder": "La respuesta aprobada. La IA mantiene su redacción en precios y políticas.",
+      "language": "Idioma",
+      "category": "Categoría",
+      "categoryPlaceholder": "p. ej. Facturación",
+      "reviewBy": "Revisar antes de",
+      "useInAi": "Permitir que la IA use este artículo",
+      "useInAiHint": "Desactivado significa solo agentes: nunca llega a un prompt de IA. Úsalo para notas internas como límites de descuento.",
+      "publish": "Publicar",
+      "publishHint": "Desactivado lo guarda como borrador que nadie puede buscar todavía.",
+      "draftNotice": "Se guarda como borrador para que un administrador lo revise y lo publique.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saveFailed": "No se pudo guardar el artículo",
+      "savedForReview": "Guardado como borrador para revisión de un administrador",
+      "savedPublished": "Artículo publicado",
+      "savedDraft": "Borrador guardado"
+    },
+    "gaps": {
+      "hint": "Preguntas que la IA no pudo responder por falta de un artículo, las más frecuentes primero. Escribe el artículo y la IA podrá responder la próxima vez.",
+      "open": "Abiertas",
+      "resolved": "Resueltas",
+      "dismissed": "Descartadas",
+      "empty": "No hay nada aquí. Las preguntas que la IA derive aparecerán cuando ningún artículo coincida.",
+      "asked": "Preguntada {count}×",
+      "viewChat": "Ver chat",
+      "writeArticle": "Escribir artículo",
+      "dismiss": "Descartar",
+      "reopen": "Reabrir",
+      "loadFailed": "No se pudieron cargar las preguntas sin respuesta",
+      "updateFailed": "No se pudo actualizar la pregunta"
+    }
   }
 }

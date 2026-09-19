@@ -5,7 +5,9 @@ import type { AiConfig } from './types'
 const h = vi.hoisted(() => ({
   loadAiConfig: vi.fn(),
   buildConversationContext: vi.fn(),
-  retrieveKnowledge: vi.fn(),
+  searchKnowledge: vi.fn(),
+  logKnowledgeUse: vi.fn(),
+  logKnowledgeGap: vi.fn(),
   generateReply: vi.fn(),
   getPreferredLanguage: vi.fn(),
   sendMessageToConversation: vi.fn(),
@@ -25,7 +27,11 @@ vi.mock('./context', () => ({
   buildConversationContext: h.buildConversationContext,
   getPreferredLanguage: h.getPreferredLanguage,
 }))
-vi.mock('./knowledge', () => ({ retrieveKnowledge: h.retrieveKnowledge }))
+vi.mock('./knowledge', () => ({
+  searchKnowledge: h.searchKnowledge,
+  logKnowledgeUse: h.logKnowledgeUse,
+  logKnowledgeGap: h.logKnowledgeGap,
+}))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({
   loadAccountMetaCredentials: h.loadAccountMetaCredentials,
@@ -110,7 +116,7 @@ beforeEach(() => {
   h.state.rpcCalls = []
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
-  h.retrieveKnowledge.mockResolvedValue([])
+  h.searchKnowledge.mockResolvedValue([])
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
   h.sendMessageToConversation.mockResolvedValue({ messageId: 'msg-1', whatsappMessageId: 'm1' })
   h.loadAccountMetaCredentials.mockResolvedValue({
@@ -143,9 +149,18 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
   })
 
   it('grounds the reply in retrieved knowledge', async () => {
-    h.retrieveKnowledge.mockResolvedValue(['Returns accepted within 30 days.'])
+    h.searchKnowledge.mockResolvedValue([
+      { chunkId: 'c1', documentId: 'd1', title: 'Returns', category: null, language: 'en', content: 'Returns accepted within 30 days.', score: 1, via: 'keyword' },
+    ])
     await dispatchInboundToAiReply(ARGS)
-    expect(h.retrieveKnowledge).toHaveBeenCalled()
+    expect(h.searchKnowledge).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.anything(),
+      'hi',
+      expect.objectContaining({ audience: 'ai' }),
+    )
+    expect(h.logKnowledgeUse).toHaveBeenCalled()
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
     expect(systemPrompt).toContain('Returns accepted within 30 days.')
   })
@@ -304,6 +319,21 @@ describe('dispatchInboundToAiReply — handoff', () => {
     )
     // No handoff target configured → conversation left unassigned.
     expect(h.state.updatePayload).not.toHaveProperty('assigned_agent_id')
+  })
+
+  it('queues the question as a knowledge gap when nothing matched', async () => {
+    h.generateReply.mockResolvedValue({ text: '', handoff: true })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.logKnowledgeGap).toHaveBeenCalledWith(expect.anything(), expect.any(String), 'hi', 'conv-1')
+  })
+
+  it('does not queue a gap when an article matched but the AI still handed off', async () => {
+    h.searchKnowledge.mockResolvedValue([
+      { chunkId: 'c1', documentId: 'd1', title: 'T', category: null, language: 'en', content: 'x', score: 1, via: 'keyword' },
+    ])
+    h.generateReply.mockResolvedValue({ text: '', handoff: true })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.logKnowledgeGap).not.toHaveBeenCalled()
   })
 
   it('routes to the configured handoff agent on handoff', async () => {

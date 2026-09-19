@@ -43,7 +43,8 @@
     "defaultAvatar": "아바타",
     "menuProfile": "프로필",
     "menuSettings": "설정",
-    "menuSignOut": "로그아웃"
+    "menuSignOut": "로그아웃",
+    "knowledge": "지식 베이스"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -346,7 +347,8 @@
         "instagram": "Instagram",
         "email": "이메일",
         "gmail": "Gmail"
-      }
+      },
+      "modeKnowledge": "지식"
     },
     "bubble": {
       "photo": "사진",
@@ -446,7 +448,8 @@
       "moveToTrash": "휴지통으로 이동",
       "nothingToCopy": "복사할 내용이 없습니다",
       "copied": "복사됨",
-      "copyFailed": "복사 실패"
+      "copyFailed": "복사 실패",
+      "addToKnowledge": "지식 베이스에 추가"
     },
     "pendingDelete": {
       "title": "삭제 대기",
@@ -580,6 +583,21 @@
       "saveFailed": "메모를 저장하지 못했습니다",
       "deleteFailed": "메모를 삭제하지 못했습니다",
       "unknownAuthor": "알 수 없음"
+    },
+    "knowledge": {
+      "searchPlaceholder": "지식 베이스 검색…",
+      "add": "추가",
+      "addHint": "작성 중인 답변을 바탕으로 새 문서 추가",
+      "suggested": "이 채팅에 추천",
+      "typeToSearch": "입력하여 지식 베이스를 검색하세요.",
+      "noSuggestions": "이 채팅과 일치하는 문서가 아직 없습니다. 검색하거나 문서를 추가하세요.",
+      "noResults": "문서를 찾지 못했습니다.",
+      "agentsOnly": "상담원 전용",
+      "agentsOnlyHint": "AI는 이 문서를 사용하지 않습니다. 내부용입니다.",
+      "insert": "삽입",
+      "showFull": "전체 보기",
+      "showLess": "접기",
+      "openLibrary": "지식 베이스 열기"
     }
   },
   "Contacts": {
@@ -2594,7 +2612,13 @@
       "noticeText": "초안, 자동 응답, 라벨링은 대화 내용을 {host}(으)로 보냅니다. 켜기 전에 개인정보 처리방침과 고객의 기대에 맞는지 확인하세요.",
       "noticeHostFallback": "이 제공업체",
       "noticeRequired": "계속하려면 데이터 안내를 확인하세요.",
-      "keyRequiredForChange": "제공업체나 URL을 변경할 때는 API 키를 다시 입력하세요."
+      "keyRequiredForChange": "제공업체나 URL을 변경할 때는 API 키를 다시 입력하세요.",
+      "embeddingsUrl": "임베딩 서비스 URL",
+      "embeddingsModel": "임베딩 모델",
+      "embeddingsServiceHint": "선택 사항입니다. 둘 다 비우면 OpenAI를 사용합니다. OpenAI 호환 임베딩 서비스라면 무엇이든 되므로 Kimi 사용자는 다른 제공업체와 함께 쓸 수 있습니다. 변경한 뒤에는 지식 베이스 페이지에서 재색인을 누르세요.",
+      "knowledgeCardTitle": "지식 베이스",
+      "knowledgeCardDesc": "AI가 답하기 전에 읽는 문서는 이제 별도 페이지에 있으며 상담원도 검색할 수 있습니다.",
+      "knowledgeCardLink": "지식 베이스 열기"
     },
     "aiKnowledge": {
       "loadFailed": "지식베이스를 불러오지 못했습니다",
@@ -3136,5 +3160,100 @@
   },
   "DashboardShell": {
     "loading": "불러오는 중..."
+  },
+  "Knowledge": {
+    "title": "지식 베이스",
+    "description": "가격, 정책, 사용법 등 비즈니스가 아는 내용입니다. 상담원은 채팅 중에 검색하고, AI는 답변 초안과 자동 응답을 만들 때 읽습니다. 영어, 말레이어, 중국어로 작성할 수 있습니다.",
+    "tabArticles": "문서",
+    "tabGaps": "미답변",
+    "add": "문서 추가",
+    "reindex": "재색인",
+    "reindexHint": "임베딩 서비스를 설정한 뒤 등 게시된 모든 문서의 검색 색인을 다시 만듭니다.",
+    "reindexed": "문서 {count}개를 재색인했습니다",
+    "reindexFailed": "재색인하지 못했습니다",
+    "searchModeMeaning": "의미 검색 사용 중",
+    "searchModeKeyword": "키워드 검색",
+    "searchModeMeaningHint": "의미로 문서를 찾으므로 \"돈 돌려받기\"로 환불 정책을 찾을 수 있습니다.",
+    "searchModeKeywordHint": "단어가 일치하는 문서를 찾습니다. 의미 검색을 쓰려면 AI 에이전트 → 설정에서 임베딩 서비스를 추가하세요.",
+    "draftsWaiting": "검토를 기다리는 초안이 {count}개 있습니다. 클릭하여 보기.",
+    "searchPlaceholder": "제목과 카테고리 검색…",
+    "filterLanguage": "언어",
+    "filterStatus": "상태",
+    "filterCategory": "카테고리",
+    "allLanguages": "모든 언어",
+    "allStatuses": "모든 문서",
+    "allCategories": "모든 카테고리",
+    "statusPublished": "게시됨",
+    "statusDraft": "초안",
+    "reviewDue": "검토 필요",
+    "audienceAi": "AI 사용 가능",
+    "audienceAgents": "상담원 전용",
+    "emptyTitle": "아직 문서가 없습니다",
+    "emptyBody": "첫 문서를 추가하거나, 채팅에서 좋은 답변에 \"지식 베이스에 추가\"를 사용하세요. 상담원과 AI 모두 찾을 수 있습니다.",
+    "noMatches": "조건에 맞는 문서가 없습니다.",
+    "colTitle": "제목",
+    "colLanguage": "언어",
+    "colAudience": "대상",
+    "colStatus": "상태",
+    "colAiUses": "AI 사용",
+    "colAiUsesHint": "최근 30일 동안 AI가 이 문서를 사용한 횟수",
+    "colUpdated": "수정일",
+    "kindArticle": "문서",
+    "kindQa": "Q&A",
+    "publish": "게시",
+    "published": "게시했습니다",
+    "publishFailed": "게시하지 못했습니다",
+    "edit": "편집",
+    "delete": "삭제",
+    "deleteConfirm": "\"{title}\" 문서를 삭제할까요? 되돌릴 수 없습니다.",
+    "deleted": "문서를 삭제했습니다",
+    "deleteFailed": "문서를 삭제하지 못했습니다",
+    "openFailed": "문서를 열지 못했습니다",
+    "loadFailed": "지식 베이스를 불러오지 못했습니다",
+    "dialog": {
+      "newTitle": "문서 추가",
+      "editTitle": "문서 편집",
+      "descriptionAdmin": "게시한 문서는 상담원이 바로 검색할 수 있습니다. 끄지 않으면 AI도 사용할 수 있습니다.",
+      "descriptionAgent": "작성한 문서는 초안으로 저장됩니다. 관리자가 검토하고 게시해야 검색할 수 있습니다.",
+      "kindArticle": "문서",
+      "kindQa": "질문과 답변",
+      "titleLabel": "제목",
+      "titlePlaceholder": "예: 환불 및 취소 정책",
+      "question": "질문",
+      "questionPlaceholder": "예: 30일이 지나도 환불받을 수 있나요?",
+      "content": "내용",
+      "contentPlaceholder": "고객에게 설명하듯 작성하세요. 정확한 가격, 날짜, 절차를 포함하세요.",
+      "answer": "답변",
+      "answerPlaceholder": "승인된 답변입니다. AI는 가격과 정책에서 이 표현을 그대로 유지합니다.",
+      "language": "언어",
+      "category": "카테고리",
+      "categoryPlaceholder": "예: 결제",
+      "reviewBy": "검토 기한",
+      "useInAi": "AI가 이 문서를 사용하도록 허용",
+      "useInAiHint": "끄면 상담원 전용이며 AI 프롬프트에 절대 들어가지 않습니다. 할인 한도 같은 내부 메모에 사용하세요.",
+      "publish": "게시",
+      "publishHint": "끄면 아직 아무도 검색할 수 없는 초안으로 저장됩니다.",
+      "draftNotice": "관리자가 검토하고 게시할 수 있도록 초안으로 저장됩니다.",
+      "cancel": "취소",
+      "save": "저장",
+      "saveFailed": "문서를 저장하지 못했습니다",
+      "savedForReview": "관리자 검토를 위해 초안으로 저장했습니다",
+      "savedPublished": "문서를 게시했습니다",
+      "savedDraft": "초안을 저장했습니다"
+    },
+    "gaps": {
+      "hint": "문서가 없어 AI가 답하지 못한 질문이며, 많이 들어온 순서입니다. 문서를 작성하면 다음에는 AI가 답할 수 있습니다.",
+      "open": "열림",
+      "resolved": "해결됨",
+      "dismissed": "무시됨",
+      "empty": "아직 없습니다. 일치하는 문서가 없어 AI가 넘긴 질문이 여기에 표시됩니다.",
+      "asked": "{count}회 질문",
+      "viewChat": "채팅 보기",
+      "writeArticle": "문서 작성",
+      "dismiss": "무시",
+      "reopen": "다시 열기",
+      "loadFailed": "미답변 질문을 불러오지 못했습니다",
+      "updateFailed": "질문을 업데이트하지 못했습니다"
+    }
   }
 }

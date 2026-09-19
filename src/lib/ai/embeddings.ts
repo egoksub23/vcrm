@@ -26,6 +26,22 @@ interface EmbeddingResponse {
   data?: { embedding?: number[]; index?: number }[]
 }
 
+/**
+ * The column is vector(1536). A shorter vector (many services return
+ * 768 / 1024 dimensions) is padded with zeros, which leaves cosine
+ * similarity unchanged; a longer one cannot be stored.
+ */
+export function padEmbedding(v: number[]): number[] {
+  if (v.length === EMBEDDING_DIMENSIONS) return v
+  if (v.length > EMBEDDING_DIMENSIONS) {
+    throw new AiError(
+      `This embeddings model returns ${v.length} dimensions; the knowledge base stores at most ${EMBEDDING_DIMENSIONS}.`,
+      { code: 'embeddings_too_wide' },
+    )
+  }
+  return [...v, ...new Array<number>(EMBEDDING_DIMENSIONS - v.length).fill(0)]
+}
+
 /** Format a vector for a pgvector column / RPC param: `[0.1,0.2,...]`.
  *  PostgREST casts this text literal to `vector`; a raw JS array does
  *  not cast reliably. */
@@ -41,8 +57,13 @@ export function toVectorLiteral(embedding: number[]): string {
 export async function embedTexts(
   apiKey: string,
   inputs: string[],
+  opts: { baseUrl?: string | null; model?: string | null } = {},
 ): Promise<number[][]> {
   if (inputs.length === 0) return []
+  const url = opts.baseUrl
+    ? `${opts.baseUrl.replace(/\/+$/, '')}/embeddings`
+    : OPENAI_EMBEDDINGS_URL
+  const model = opts.model?.trim() || EMBEDDING_MODEL
   const timeoutMs = aiRequestTimeoutMs()
   const out: number[][] = []
 
@@ -51,13 +72,13 @@ export async function embedTexts(
 
     let res: Response
     try {
-      res = await fetch(OPENAI_EMBEDDINGS_URL, {
+      res = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model: EMBEDDING_MODEL, input: batch }),
+        body: JSON.stringify({ model, input: batch }),
         signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (err) {
@@ -92,7 +113,7 @@ export async function embedTexts(
           code: 'embeddings_malformed',
         })
       }
-      out.push(r.embedding)
+      out.push(padEmbedding(r.embedding))
     }
   }
 

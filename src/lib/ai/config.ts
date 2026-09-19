@@ -13,10 +13,12 @@ interface AiConfigRow {
   auto_reply_max_per_conversation: number
   handoff_agent_id: string | null
   embeddings_api_key: string | null
+  embeddings_base_url: string | null
+  embeddings_model: string | null
 }
 
 const CONFIG_COLUMNS =
-  'provider, base_url, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key'
+  'provider, base_url, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, embeddings_base_url, embeddings_model'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -81,6 +83,8 @@ export async function loadAiConfig(
     autoReplyMaxPerConversation: row.auto_reply_max_per_conversation,
     handoffAgentId: row.handoff_agent_id,
     embeddingsApiKey,
+    embeddingsBaseUrl: row.embeddings_base_url,
+    embeddingsModel: row.embeddings_model,
   }
 }
 
@@ -112,5 +116,33 @@ export async function loadEmbeddingsKey(
       `[ai config] embeddings key for account ${accountId} could not be decrypted — check ENCRYPTION_KEY.`,
     )
     return { key: null, corrupt: true }
+  }
+}
+
+/**
+ * The embeddings settings the knowledge-base ingest routes need: the
+ * decrypted key plus the optional service URL and model. Same failure
+ * handling as `loadEmbeddingsKey`.
+ */
+export async function loadEmbeddingsConfig(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<{
+  config: Pick<AiConfig, 'embeddingsApiKey' | 'embeddingsBaseUrl' | 'embeddingsModel'>
+  corrupt: boolean
+}> {
+  const { key, corrupt } = await loadEmbeddingsKey(db, accountId)
+  const { data } = await db
+    .from('ai_configs')
+    .select('embeddings_base_url, embeddings_model')
+    .eq('account_id', accountId)
+    .maybeSingle()
+  return {
+    config: {
+      embeddingsApiKey: key,
+      embeddingsBaseUrl: (data?.embeddings_base_url as string | null) ?? null,
+      embeddingsModel: (data?.embeddings_model as string | null) ?? null,
+    },
+    corrupt,
   }
 }

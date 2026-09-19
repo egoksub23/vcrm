@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bell,
   Bot,
+  BookOpen,
   ChevronsLeft,
   ChevronsRight,
   Crown,
@@ -103,6 +104,7 @@ const navItems: NavItem[] = [
   { href: "/tickets", labelKey: "tickets", icon: Ticket },
   { href: "/automations", labelKey: "automations", icon: Zap },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
+  { href: "/knowledge", labelKey: "knowledge", icon: BookOpen },
   { href: "/agents", labelKey: "aiAgents", icon: Bot },
   { href: "/reports", labelKey: "reports", icon: BarChart3 },
 ];

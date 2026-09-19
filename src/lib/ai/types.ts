@@ -35,6 +35,10 @@ export interface AiConfig {
    *  knowledge base is embedded and semantic retrieval turns on; when
    *  null, retrieval falls back to lexical full-text search. */
   embeddingsApiKey: string | null
+  /** Optional OpenAI-compatible embeddings endpoint (API root) and model.
+   *  Null = OpenAI's own endpoint and text-embedding-3-small. */
+  embeddingsBaseUrl?: string | null
+  embeddingsModel?: string | null
 }
 
 /** A single conversation turn in the shape both providers accept. */

@@ -43,7 +43,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configurações",
-    "menuSignOut": "Sair"
+    "menuSignOut": "Sair",
+    "knowledge": "Conhecimento"
   },
   "Header": {
     "dashboard": "Painel",
@@ -346,7 +347,8 @@
         "instagram": "Instagram",
         "email": "E-mail",
         "gmail": "Gmail"
-      }
+      },
+      "modeKnowledge": "Conhecimento"
     },
     "bubble": {
       "photo": "Foto",
@@ -446,7 +448,8 @@
       "moveToTrash": "Mover para a lixeira",
       "nothingToCopy": "Nada para copiar",
       "copied": "Copiado",
-      "copyFailed": "Falha ao copiar"
+      "copyFailed": "Falha ao copiar",
+      "addToKnowledge": "Adicionar à base de conhecimento"
     },
     "pendingDelete": {
       "title": "Pendente de exclusão",
@@ -580,6 +583,21 @@
       "saveFailed": "Não foi possível salvar a nota",
       "deleteFailed": "Não foi possível excluir a nota",
       "unknownAuthor": "Desconhecido"
+    },
+    "knowledge": {
+      "searchPlaceholder": "Pesquisar na base de conhecimento…",
+      "add": "Adicionar",
+      "addHint": "Adicionar um artigo novo a partir do seu rascunho de resposta",
+      "suggested": "Sugeridos para este chat",
+      "typeToSearch": "Escreva para pesquisar na base de conhecimento.",
+      "noSuggestions": "Nada na base de conhecimento corresponde ainda a este chat. Tente pesquisar ou adicione um artigo.",
+      "noResults": "Nenhum artigo encontrado.",
+      "agentsOnly": "Só agentes",
+      "agentsOnlyHint": "A IA nunca usa este artigo. Apenas uso interno.",
+      "insert": "Inserir",
+      "showFull": "Ver completo",
+      "showLess": "Ver menos",
+      "openLibrary": "Abrir a base de conhecimento"
     }
   },
   "Contacts": {
@@ -2576,7 +2594,13 @@
       "noticeText": "Rascunhos, respostas automáticas e rotulagem enviam o texto da conversa para {host}. Confirme que isso está de acordo com sua política de privacidade e com o que seus clientes esperam antes de ativar.",
       "noticeHostFallback": "este provedor",
       "noticeRequired": "Confirme o aviso de dados para continuar.",
-      "keyRequiredForChange": "Informe a chave de API novamente ao trocar o provedor ou a URL."
+      "keyRequiredForChange": "Informe a chave de API novamente ao trocar o provedor ou a URL.",
+      "embeddingsUrl": "URL do serviço de embeddings",
+      "embeddingsModel": "Modelo de embeddings",
+      "embeddingsServiceHint": "Opcional. Deixe ambos vazios para usar a OpenAI. Qualquer serviço de embeddings compatível com a OpenAI funciona, então quem usa Kimi pode combiná-lo com outro fornecedor. Depois de alterar, use Reindexar na página de Conhecimento.",
+      "knowledgeCardTitle": "Base de conhecimento",
+      "knowledgeCardDesc": "Os artigos que a IA lê antes de responder agora têm a sua própria página, onde os agentes também podem pesquisá-los.",
+      "knowledgeCardLink": "Abrir a base de conhecimento"
     },
     "aiKnowledge": {
       "loadFailed": "Falha ao carregar a base de conhecimento",
@@ -3118,5 +3142,100 @@
   },
   "DashboardShell": {
     "loading": "Carregando..."
+  },
+  "Knowledge": {
+    "title": "Base de conhecimento",
+    "description": "O que o seu negócio sabe: preços, políticas, passo a passo. Os agentes pesquisam enquanto conversam e a IA lê ao redigir e responder automaticamente. Escreva em inglês, malaio ou chinês.",
+    "tabArticles": "Artigos",
+    "tabGaps": "Sem resposta",
+    "add": "Adicionar artigo",
+    "reindex": "Reindexar",
+    "reindexHint": "Reconstrói o índice de busca de todos os artigos publicados, por exemplo depois de configurar um serviço de embeddings.",
+    "reindexed": "{count} artigos reindexados",
+    "reindexFailed": "Não foi possível reindexar",
+    "searchModeMeaning": "Busca por significado ativa",
+    "searchModeKeyword": "Busca por palavras-chave",
+    "searchModeMeaningHint": "Encontra artigos pelo significado, então \"devolver o dinheiro\" encontra uma política de reembolso.",
+    "searchModeKeywordHint": "Encontra artigos por palavras coincidentes. Adicione um serviço de embeddings em Agentes de IA → Configuração para buscar por significado.",
+    "draftsWaiting": "{count, plural, one {# rascunho aguarda} other {# rascunhos aguardam}} a sua revisão. Clique para ver.",
+    "searchPlaceholder": "Pesquisar títulos e categorias…",
+    "filterLanguage": "Idioma",
+    "filterStatus": "Estado",
+    "filterCategory": "Categoria",
+    "allLanguages": "Todos os idiomas",
+    "allStatuses": "Todos os artigos",
+    "allCategories": "Todas as categorias",
+    "statusPublished": "Publicado",
+    "statusDraft": "Rascunho",
+    "reviewDue": "Revisão pendente",
+    "audienceAi": "A IA pode usar",
+    "audienceAgents": "Só agentes",
+    "emptyTitle": "Ainda não há artigos",
+    "emptyBody": "Adicione o seu primeiro artigo ou abra um chat e use \"Adicionar à base de conhecimento\" numa boa resposta. Agentes e IA vão encontrá-lo.",
+    "noMatches": "Nenhum artigo corresponde a estes filtros.",
+    "colTitle": "Título",
+    "colLanguage": "Idioma",
+    "colAudience": "Público",
+    "colStatus": "Estado",
+    "colAiUses": "Usos da IA",
+    "colAiUsesHint": "Vezes que a IA usou este artigo nos últimos 30 dias",
+    "colUpdated": "Atualizado",
+    "kindArticle": "Artigo",
+    "kindQa": "Pergunta e resposta",
+    "publish": "Publicar",
+    "published": "Publicado",
+    "publishFailed": "Não foi possível publicar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir \"{title}\"? Isso não pode ser desfeito.",
+    "deleted": "Artigo excluído",
+    "deleteFailed": "Não foi possível excluir o artigo",
+    "openFailed": "Não foi possível abrir o artigo",
+    "loadFailed": "Não foi possível carregar a base de conhecimento",
+    "dialog": {
+      "newTitle": "Adicionar artigo",
+      "editTitle": "Editar artigo",
+      "descriptionAdmin": "Os artigos publicados ficam pesquisáveis de imediato. A IA também pode usá-los, a menos que você desative.",
+      "descriptionAgent": "O seu artigo é guardado como rascunho. Um administrador revisa e publica antes de poder ser pesquisado.",
+      "kindArticle": "Artigo",
+      "kindQa": "Pergunta e resposta",
+      "titleLabel": "Título",
+      "titlePlaceholder": "ex.: Política de reembolso e cancelamento",
+      "question": "Pergunta",
+      "questionPlaceholder": "ex.: Posso pedir reembolso depois de 30 dias?",
+      "content": "Conteúdo",
+      "contentPlaceholder": "Escreva como explicaria a um cliente. Inclua preços, datas e passos exatos.",
+      "answer": "Resposta",
+      "answerPlaceholder": "A resposta aprovada. A IA mantém a redação em preços e políticas.",
+      "language": "Idioma",
+      "category": "Categoria",
+      "categoryPlaceholder": "ex.: Faturação",
+      "reviewBy": "Rever até",
+      "useInAi": "Permitir que a IA use este artigo",
+      "useInAiHint": "Desativado significa só agentes: nunca chega a um prompt de IA. Use para notas internas, como limites de desconto.",
+      "publish": "Publicar",
+      "publishHint": "Desativado guarda como rascunho que ninguém pode pesquisar ainda.",
+      "draftNotice": "Fica guardado como rascunho para um administrador rever e publicar.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saveFailed": "Não foi possível guardar o artigo",
+      "savedForReview": "Guardado como rascunho para revisão de um administrador",
+      "savedPublished": "Artigo publicado",
+      "savedDraft": "Rascunho guardado"
+    },
+    "gaps": {
+      "hint": "Perguntas que a IA não soube responder por falta de artigo, as mais frequentes primeiro. Escreva o artigo e a IA poderá responder da próxima vez.",
+      "open": "Abertas",
+      "resolved": "Resolvidas",
+      "dismissed": "Descartadas",
+      "empty": "Nada por aqui. As perguntas que a IA encaminhar aparecem quando nenhum artigo corresponder.",
+      "asked": "Perguntada {count}×",
+      "viewChat": "Ver chat",
+      "writeArticle": "Escrever artigo",
+      "dismiss": "Descartar",
+      "reopen": "Reabrir",
+      "loadFailed": "Não foi possível carregar as perguntas sem resposta",
+      "updateFailed": "Não foi possível atualizar a pergunta"
+    }
   }
 }

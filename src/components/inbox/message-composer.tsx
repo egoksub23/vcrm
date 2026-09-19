@@ -23,6 +23,7 @@ import {
   MessageSquareDashed,
   Zap,
   Lock,
+  BookOpen,
   AtSign,
   ChevronDown,
   MessageSquare,
@@ -58,6 +59,8 @@ import {
 } from "@/components/interactive/interactive-builder";
 import { validateInteractivePayload, interactivePayloadPreviewText } from "@/lib/whatsapp/interactive";
 import type { ChannelType, InteractiveMessagePayload, Profile, QuickReply } from "@/types";
+import type { ArticleDraftSeed } from "@/lib/knowledge-types";
+import { KnowledgePanel } from "./knowledge-panel";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
 import type { Editor } from "@tiptap/react";
@@ -120,7 +123,7 @@ interface MediaDraft {
  *  teammates only (respond.io's "Comment" mode, P0 gap-analysis item);
  *  "Snippets" swaps the textarea for an inline, scrollable quick-reply
  *  list instead of opening a separate dialog. */
-type ComposerMode = "message" | "comment" | "snippets";
+type ComposerMode = "message" | "comment" | "snippets" | "knowledge";
 
 interface MessageComposerProps {
   conversationId: string;
@@ -152,6 +155,13 @@ interface MessageComposerProps {
   onOpenTemplates: () => void;
   replyTo?: ReplyDraft | null;
   onClearReply?: () => void;
+  /** The customer's recent messages — what the Knowledge tab searches on
+   *  until the agent types something. */
+  knowledgeQuery?: string;
+  /** The contact's language code, so answers in it rank first. */
+  contactLanguage?: string | null;
+  /** Opens the "Add to knowledge base" dialog (owned by the thread). */
+  onAddToKnowledge?: (seed: ArticleDraftSeed) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -178,8 +188,12 @@ export function MessageComposer({
   onOpenTemplates,
   replyTo,
   onClearReply,
+  knowledgeQuery = "",
+  contactLanguage,
+  onAddToKnowledge,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
+  const canWriteKnowledge = useCan("send-messages");
 
   // ---- Channel selector ------------------------------------------------
   // Defaults to the conversation's rollup channel; the agent can pick a
@@ -235,6 +249,9 @@ export function MessageComposer({
   const [mode, setMode] = useState<ComposerMode>("message");
   const isComment = mode === "comment";
   const isSnippets = mode === "snippets";
+  const isKnowledge = mode === "knowledge";
+  /** Snippets and Knowledge both replace the textarea with a list. */
+  const isPicker = isSnippets || isKnowledge;
 
   // ---- WYSIWYG editor for Email(MS365)/Gmail replies -------------------
   // Only these two channels have anything resembling formatted HTML mail
@@ -651,6 +668,24 @@ export function MessageComposer({
     [switchMode, openInteractiveBuilder, adjustHeight],
   );
 
+  // An article picked in the Knowledge tab: its text lands in the reply
+  // box for the agent to review and edit before sending.
+  const handleInsertKnowledge = useCallback(
+    (body: string) => {
+      switchMode("message");
+      setText((prev) => (prev && !/\s$/.test(prev) ? `${prev}\n${body}` : `${prev}${body}`));
+      requestAnimationFrame(() => {
+        adjustHeight();
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      });
+    },
+    [switchMode, adjustHeight],
+  );
+
   // Upload a captured file to chat-media and stage it as a draft.
   const stageUpload = useCallback(
     async (kind: ComposerMediaKind, file: File) => {
@@ -819,7 +854,7 @@ export function MessageComposer({
           />
         </div>
       )}
-      {sessionExpired && !isComment && !isSnippets && (
+      {sessionExpired && !isComment && !isPicker && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
           <p className="text-xs text-amber-400">
             {t("sessionExpiredHint")}
@@ -882,13 +917,26 @@ export function MessageComposer({
               <Zap className="h-3 w-3" />
               {t("modeSnippets")}
             </button>
+            <button
+              type="button"
+              onClick={() => switchMode(isKnowledge ? "message" : "knowledge")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
+                isKnowledge
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <BookOpen className="h-3 w-3" />
+              {t("modeKnowledge")}
+            </button>
           </div>
 
           {/* Channel selector — only when this conversation has actually
               used more than one channel; nothing to pick between
               otherwise. Hidden in Comment/Snippets mode, same as the
               rest of the send-path affordances below. */}
-          {!isComment && !isSnippets && availableChannels.length > 1 && (
+          {!isComment && !isPicker && availableChannels.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/70">
                 {(() => {
@@ -979,6 +1027,19 @@ export function MessageComposer({
             <Square className="h-4 w-4" />
           </Button>
         </div>
+      ) : isKnowledge ? (
+        <KnowledgePanel
+          suggestQuery={knowledgeQuery}
+          contactLanguage={contactLanguage}
+          canAdd={canWriteKnowledge && !!onAddToKnowledge}
+          onInsert={handleInsertKnowledge}
+          onAdd={() =>
+            onAddToKnowledge?.({
+              content: text.trim() || undefined,
+              sourceConversationId: conversationId,
+            })
+          }
+        />
       ) : isSnippets ? (
         // Inline snippet list — replaces the textarea while Snippets mode
         // is active, scrolls independently so a long list never grows the
@@ -1224,7 +1285,7 @@ export function MessageComposer({
       {/* Hint sits outside the flex row so its height doesn't push
           `items-end` buttons below the textarea. Indented to line up
           under the textarea left edge. */}
-      {!draft && !recording && !isComment && !isSnippets && (
+      {!draft && !recording && !isComment && !isPicker && (
         <p className="mt-1 pl-[5.5rem] text-[10px] text-muted-foreground">
           {t("draftHint")}
         </p>

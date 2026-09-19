@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, AlertTriangle, BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
-import { AiKnowledgeCard } from './ai-knowledge';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
 import {
   AI_PRESET_IDS,
@@ -89,6 +89,8 @@ export function AiConfig() {
   const [embeddingsKey, setEmbeddingsKey] = useState('');
   const [embeddingsKeyEdited, setEmbeddingsKeyEdited] = useState(false);
   const [hasStoredEmbeddingsKey, setHasStoredEmbeddingsKey] = useState(false);
+  const [embeddingsUrl, setEmbeddingsUrl] = useState('');
+  const [embeddingsModel, setEmbeddingsModel] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
@@ -130,6 +132,8 @@ export function AiConfig() {
         setHasStoredEmbeddingsKey(Boolean(data.has_embeddings_key));
         setEmbeddingsKey(data.has_embeddings_key ? MASKED_KEY : '');
         setEmbeddingsKeyEdited(false);
+        setEmbeddingsUrl(data.embeddings_base_url ?? '');
+        setEmbeddingsModel(data.embeddings_model ?? '');
       }
     } catch {
       toast.error(t('loadFailed'));
@@ -180,6 +184,8 @@ export function AiConfig() {
     model: model.trim(),
     api_key: keyPayload(),
     embeddings_api_key: embeddingsKeyPayload(),
+    embeddings_base_url: embeddingsUrl.trim() || null,
+    embeddings_model: embeddingsModel.trim() || null,
     system_prompt: systemPrompt.trim() || null,
     is_active: isActive,
     auto_reply_enabled: autoReplyEnabled,
@@ -574,6 +580,35 @@ export function AiConfig() {
                   sameKeyText: provider === 'openai' ? t('sameKeyText') : '',
                 })}
               </p>
+              <div className="grid gap-3 pt-1 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ai-embeddings-url" className="text-xs">
+                    {t('embeddingsUrl')}
+                  </Label>
+                  <Input
+                    id="ai-embeddings-url"
+                    value={embeddingsUrl}
+                    onChange={(e) => setEmbeddingsUrl(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                    disabled={disabled}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ai-embeddings-model" className="text-xs">
+                    {t('embeddingsModel')}
+                  </Label>
+                  <Input
+                    id="ai-embeddings-model"
+                    value={embeddingsModel}
+                    onChange={(e) => setEmbeddingsModel(e.target.value)}
+                    placeholder="text-embedding-3-small"
+                    disabled={disabled}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('embeddingsServiceHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -683,15 +718,22 @@ export function AiConfig() {
           </CardContent>
         </Card>
 
-        <AiKnowledgeCard
-          accountId={accountId}
-          canEdit={canEdit}
-          hasEmbeddingsKey={
-            embeddingsKeyEdited
-              ? embeddingsKey.trim().length > 0
-              : hasStoredEmbeddingsKey
-          }
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpen className="h-4 w-4 text-primary" /> {t('knowledgeCardTitle')}
+            </CardTitle>
+            <CardDescription>{t('knowledgeCardDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/knowledge"
+              className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
+            >
+              {t('knowledgeCardLink')}
+            </Link>
+          </CardContent>
+        </Card>
 
         <div className="flex items-center justify-between">
           {configured ? (

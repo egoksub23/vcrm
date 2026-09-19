@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CornerUpLeft, Copy, SmilePlus, Trash2 } from "lucide-react";
+import { BookPlus, CornerUpLeft, Copy, SmilePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -25,6 +25,8 @@ interface MessageActionsProps {
    *  account-wide Pending Delete panel. Optional so any other caller
    *  of this wrapper doesn't need to wire up trash support. */
   onTrash?: () => void;
+  /** Opens "Add to knowledge base" pre-filled from this message. */
+  onAddToKnowledge?: () => void;
   /** Widens the hover-toolbar's content column from the standard chat-
    *  bubble 75% cap to nearly the full row width, and drops the
    *  left/right alignment — used for the rendered-HTML email card in
@@ -44,6 +46,7 @@ export function MessageActions({
   onReply,
   onReact,
   onTrash,
+  onAddToKnowledge,
   wide = false,
   children,
 }: MessageActionsProps) {
@@ -86,6 +89,11 @@ export function MessageActions({
 
   const handleReply = () => {
     onReply();
+    setTouchOpen(false);
+  };
+
+  const handleAddToKnowledge = () => {
+    onAddToKnowledge?.();
     setTouchOpen(false);
   };
 
@@ -162,6 +170,17 @@ export function MessageActions({
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
+        {onAddToKnowledge && (message.content_text ?? "").trim() && (
+          <button
+            type="button"
+            onClick={handleAddToKnowledge}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("addToKnowledge")}
+            title={t("addToKnowledge")}
+          >
+            <BookPlus className="h-3.5 w-3.5" />
+          </button>
+        )}
         {onTrash && (
           <button
             type="button"

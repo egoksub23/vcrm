@@ -61,6 +61,9 @@ import { postComment } from "@/lib/conversations/comment-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
+import { ArticleDialog } from "@/components/knowledge/article-dialog";
+import type { ArticleDraftSeed } from "@/lib/knowledge-types";
+import { useCan } from "@/hooks/use-can";
 import { MediaLightbox } from "./media-lightbox";
 import { collectMediaGallery } from "@/lib/media/gallery";
 import {
@@ -1027,6 +1030,53 @@ export function MessageThread({
     [contactDisplayName],
   );
 
+  // ---- Knowledge base ---------------------------------------------------
+  // "Add to knowledge base" from a message (or from the composer's
+  // Knowledge tab) opens the shared article dialog, pre-filled. An agent's
+  // reply becomes the answer under the customer's question just above it;
+  // a customer message becomes the question, ready for an answer.
+  const canAddKnowledge = useCan("send-messages");
+  const [kbSeed, setKbSeed] = useState<{ key: number; seed: ArticleDraftSeed } | null>(null);
+  const openKnowledgeDialog = useCallback((seed: ArticleDraftSeed) => {
+    setKbSeed({ key: Date.now(), seed });
+  }, []);
+  const seedFromMessage = useCallback(
+    (msg: Message): ArticleDraftSeed => {
+      const text = (msg.content_text ?? "").trim();
+      const conversationId = conversation?.id ?? null;
+      if (msg.sender_type === "customer") {
+        return { title: text.slice(0, 200), kind: "qa", sourceConversationId: conversationId };
+      }
+      const idx = messages.findIndex((m) => m.id === msg.id);
+      const question = messages
+        .slice(0, Math.max(idx, 0))
+        .reverse()
+        .find((m) => m.sender_type === "customer" && !m.is_internal && (m.content_text ?? "").trim());
+      return {
+        title: (question?.content_text ?? "").trim().slice(0, 200),
+        content: text,
+        kind: question ? "qa" : "article",
+        sourceConversationId: conversationId,
+      };
+    },
+    [messages, conversation?.id],
+  );
+  // What the composer's Knowledge tab searches on until the agent types:
+  // the customer's last few messages.
+  const knowledgeQuery = useMemo(() => {
+    const picked: string[] = [];
+    let chars = 0;
+    for (let i = messages.length - 1; i >= 0 && picked.length < 3; i--) {
+      const m = messages[i];
+      const text = (m.content_text ?? "").trim();
+      if (m.sender_type !== "customer" || m.is_internal || !text) continue;
+      if (picked.length > 0 && chars + text.length > 500) break;
+      picked.unshift(text.slice(0, 500));
+      chars += text.length;
+    }
+    return picked.join("\n");
+  }, [messages]);
+
   const handleStartReply = useCallback(
     (msg: Message) => {
       setReplyTo({
@@ -1822,6 +1872,9 @@ export function MessageThread({
                           if (emoji) void postReaction(msg.id, emoji);
                         }}
                         onTrash={() => void handleMoveToTrash(msg.id)}
+                        onAddToKnowledge={
+                          canAddKnowledge ? () => openKnowledgeDialog(seedFromMessage(msg)) : undefined
+                        }
                         wide={!!msg.content_html}
                       >
                         <MessageBubble
@@ -1874,7 +1927,24 @@ export function MessageThread({
         onOpenTemplates={handleOpenTemplates}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
+        knowledgeQuery={knowledgeQuery}
+        contactLanguage={contact?.language ?? null}
+        onAddToKnowledge={openKnowledgeDialog}
       />
+
+      {kbSeed && (
+        <ArticleDialog
+          key={kbSeed.key}
+          open
+          onOpenChange={(o) => {
+            if (!o) setKbSeed(null);
+          }}
+          article={null}
+          seed={kbSeed.seed}
+          categories={[]}
+          onSaved={() => {}}
+        />
+      )}
 
       <TemplatePicker
         open={templateModalOpen}

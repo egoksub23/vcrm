@@ -9,6 +9,39 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.32.0] — 2026-09-20
+
+**Migration required**: apply `073_knowledge_base_v2.sql`.
+
+- **Knowledge base, rebuilt.** It now has its own page (Knowledge, in the
+  sidebar) instead of a card inside AI Setup, and both agents and the AI
+  use it.
+  - **Three languages.** Every article is English, Bahasa Melayu or
+    Chinese. Keyword search now works for Chinese (it used to treat an
+    unspaced Chinese sentence as one long word), and articles in the
+    customer's language rank first. The AI answers in the customer's
+    language whatever language the article is in.
+  - **From the chat.** A new **Knowledge** tab in the reply box searches
+    the base as you chat and suggests articles for what the customer just
+    asked; **Insert** drops the text into your reply to edit. Hover any
+    message and click **Add to knowledge base** to turn a good answer (or a
+    customer's question) into an article.
+  - **Articles** can be a Q&A or free text, carry a category and a
+    "review by" date, and be marked draft or published. **Let the AI use
+    this article** off makes it agents-only: it never reaches an AI prompt.
+    Agents' articles are saved as drafts for an admin to publish.
+  - **Better AI answers.** The AI searches on the customer's last few
+    messages (not just the latest), ignores weak matches, and records which
+    article it used (the "AI uses" column).
+  - **Unanswered questions.** When the AI hands a chat to a human because
+    no article matched, the question lands in an Unanswered list, most
+    asked first, with "Write article" pre-filled from the customer's words.
+  - **Any embeddings service.** Meaning search no longer needs an OpenAI
+    key: set an OpenAI-compatible embeddings URL and model in AI Agents →
+    Setup (useful with Kimi, which has none). After changing it, press
+    Reindex on the Knowledge page.
+  - Existing articles become published, AI-enabled and English.
+
 ## [0.31.0] — 2026-09-19
 
 **Migration required**: apply `072_session_notes_edit_delete.sql`.

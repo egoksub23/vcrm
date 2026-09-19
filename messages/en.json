@@ -43,7 +43,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Profile",
     "menuSettings": "Settings",
-    "menuSignOut": "Sign out"
+    "menuSignOut": "Sign out",
+    "knowledge": "Knowledge"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -346,7 +347,8 @@
         "instagram": "Instagram",
         "email": "Email",
         "gmail": "Gmail"
-      }
+      },
+      "modeKnowledge": "Knowledge"
     },
     "bubble": {
       "photo": "Photo",
@@ -446,7 +448,8 @@
       "moveToTrash": "Move to trash",
       "nothingToCopy": "Nothing to copy",
       "copied": "Copied",
-      "copyFailed": "Copy failed"
+      "copyFailed": "Copy failed",
+      "addToKnowledge": "Add to knowledge base"
     },
     "pendingDelete": {
       "title": "Pending Delete",
@@ -580,6 +583,21 @@
       "saveFailed": "Couldn’t save the note",
       "deleteFailed": "Couldn’t delete the note",
       "unknownAuthor": "Unknown"
+    },
+    "knowledge": {
+      "searchPlaceholder": "Search the knowledge base…",
+      "add": "Add",
+      "addHint": "Add a new article, starting from your draft reply",
+      "suggested": "Suggested for this chat",
+      "typeToSearch": "Type to search the knowledge base.",
+      "noSuggestions": "Nothing in the knowledge base matches this chat yet. Try searching, or add an article.",
+      "noResults": "No articles found.",
+      "agentsOnly": "Agents only",
+      "agentsOnlyHint": "The AI never uses this article. Internal use only.",
+      "insert": "Insert",
+      "showFull": "Show full",
+      "showLess": "Show less",
+      "openLibrary": "Open the knowledge base"
     }
   },
   "Contacts": {
@@ -2594,7 +2612,13 @@
       "noticeText": "Drafts, auto-replies and labelling send conversation text to {host}. Check that this fits your privacy policy and your customers’ expectations before turning it on.",
       "noticeHostFallback": "this provider",
       "noticeRequired": "Confirm the data notice to continue.",
-      "keyRequiredForChange": "Enter the API key again when changing the provider or URL."
+      "keyRequiredForChange": "Enter the API key again when changing the provider or URL.",
+      "embeddingsUrl": "Embeddings service URL",
+      "embeddingsModel": "Embeddings model",
+      "embeddingsServiceHint": "Optional. Leave both blank to use OpenAI. Any OpenAI-compatible embeddings service works, so Kimi users can pair it with another provider. After changing them, press Reindex on the Knowledge page.",
+      "knowledgeCardTitle": "Knowledge base",
+      "knowledgeCardDesc": "The articles the AI reads before it replies now live on their own page, where agents can search them too.",
+      "knowledgeCardLink": "Open the knowledge base"
     },
     "aiKnowledge": {
       "loadFailed": "Failed to load knowledge base",
@@ -3136,5 +3160,100 @@
   },
   "DashboardShell": {
     "loading": "Loading..."
+  },
+  "Knowledge": {
+    "title": "Knowledge base",
+    "description": "What your business knows: prices, policies, how-tos. Agents search it while they chat, and the AI reads it when it drafts and auto-replies. Write in English, Bahasa Melayu or Chinese.",
+    "tabArticles": "Articles",
+    "tabGaps": "Unanswered",
+    "add": "Add article",
+    "reindex": "Reindex",
+    "reindexHint": "Rebuild the search index for every published article, for example after setting up an embeddings service.",
+    "reindexed": "Reindexed {count} articles",
+    "reindexFailed": "Could not reindex",
+    "searchModeMeaning": "Meaning search on",
+    "searchModeKeyword": "Keyword search",
+    "searchModeMeaningHint": "Finds articles by meaning, so \"money back\" finds a refund policy.",
+    "searchModeKeywordHint": "Finds articles by matching words. Add an embeddings service in AI Agents → Setup to search by meaning.",
+    "draftsWaiting": "{count, plural, one {# draft is} other {# drafts are}} waiting for your review. Click to show.",
+    "searchPlaceholder": "Search titles and categories…",
+    "filterLanguage": "Language",
+    "filterStatus": "Status",
+    "filterCategory": "Category",
+    "allLanguages": "All languages",
+    "allStatuses": "All articles",
+    "allCategories": "All categories",
+    "statusPublished": "Published",
+    "statusDraft": "Draft",
+    "reviewDue": "Review due",
+    "audienceAi": "AI can use",
+    "audienceAgents": "Agents only",
+    "emptyTitle": "No articles yet",
+    "emptyBody": "Add your first article, or open a chat and use \"Add to knowledge base\" on a good answer. Agents and the AI will both find it.",
+    "noMatches": "No articles match these filters.",
+    "colTitle": "Title",
+    "colLanguage": "Language",
+    "colAudience": "Audience",
+    "colStatus": "Status",
+    "colAiUses": "AI uses",
+    "colAiUsesHint": "Times the AI used this article in the last 30 days",
+    "colUpdated": "Updated",
+    "kindArticle": "Article",
+    "kindQa": "Q&A",
+    "publish": "Publish",
+    "published": "Published",
+    "publishFailed": "Could not publish",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{title}\"? This can't be undone.",
+    "deleted": "Article deleted",
+    "deleteFailed": "Could not delete the article",
+    "openFailed": "Could not open the article",
+    "loadFailed": "Could not load the knowledge base",
+    "dialog": {
+      "newTitle": "Add article",
+      "editTitle": "Edit article",
+      "descriptionAdmin": "Published articles are searchable by agents right away. The AI can use them too, unless you switch that off.",
+      "descriptionAgent": "Your article is saved as a draft. An admin reviews and publishes it before anyone can search it.",
+      "kindArticle": "Article",
+      "kindQa": "Question & answer",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Refund and cancellation policy",
+      "question": "Question",
+      "questionPlaceholder": "e.g. Can I get a refund after 30 days?",
+      "content": "Content",
+      "contentPlaceholder": "Write it the way you would explain it to a customer. Include the exact prices, dates and steps.",
+      "answer": "Answer",
+      "answerPlaceholder": "The approved answer. The AI keeps its wording for prices and policy.",
+      "language": "Language",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Billing",
+      "reviewBy": "Review by",
+      "useInAi": "Let the AI use this article",
+      "useInAiHint": "Off means agents only: it never reaches an AI prompt. Use it for internal notes such as discount limits.",
+      "publish": "Publish",
+      "publishHint": "Off saves it as a draft that nobody can search yet.",
+      "draftNotice": "This is saved as a draft for an admin to review and publish.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saveFailed": "Could not save the article",
+      "savedForReview": "Saved as a draft for an admin to review",
+      "savedPublished": "Article published",
+      "savedDraft": "Draft saved"
+    },
+    "gaps": {
+      "hint": "Questions the AI could not answer for lack of an article, most asked first. Write the article and the AI can answer next time.",
+      "open": "Open",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed",
+      "empty": "Nothing here. Questions the AI hands off will appear when no article matches.",
+      "asked": "Asked {count}×",
+      "viewChat": "View chat",
+      "writeArticle": "Write article",
+      "dismiss": "Dismiss",
+      "reopen": "Reopen",
+      "loadFailed": "Could not load unanswered questions",
+      "updateFailed": "Could not update the question"
+    }
   }
 }

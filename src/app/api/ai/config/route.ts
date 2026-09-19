@@ -34,7 +34,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, base_url, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, data_notice_ack_at, api_key, embeddings_api_key',
+        'provider, base_url, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, data_notice_ack_at, api_key, embeddings_api_key, embeddings_base_url, embeddings_model',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -143,6 +143,26 @@ export async function POST(request: Request) {
         : ''
     const clearEmbeddingsKey = body.embeddings_api_key === null
 
+    // Optional embeddings service (any OpenAI-compatible host) and model.
+    // Absent leaves them unchanged; '' or null clears (back to OpenAI).
+    let embeddingsBaseUrl: string | null | undefined
+    if (body.embeddings_base_url !== undefined) {
+      if (body.embeddings_base_url === null || body.embeddings_base_url === '') {
+        embeddingsBaseUrl = null
+      } else {
+        const checked = await validateBaseUrl(body.embeddings_base_url)
+        if (!checked.ok) return bad('The embeddings URL is not usable (it must be a public https address).')
+        embeddingsBaseUrl = checked.url
+      }
+    }
+    let embeddingsModel: string | null | undefined
+    if (body.embeddings_model !== undefined) {
+      embeddingsModel =
+        typeof body.embeddings_model === 'string' && body.embeddings_model.trim()
+          ? body.embeddings_model.trim().slice(0, 100)
+          : null
+    }
+
     // Reuse the stored key when the form didn't send a fresh one.
     const { data: existing } = await supabase
       .from('ai_configs')
@@ -235,7 +255,10 @@ export async function POST(request: Request) {
     // embed), same "verify before save" discipline as the chat key.
     if (rawEmbeddingsKey) {
       try {
-        await embedTexts(rawEmbeddingsKey, ['ping'])
+        await embedTexts(rawEmbeddingsKey, ['ping'], {
+          baseUrl: embeddingsBaseUrl,
+          model: embeddingsModel,
+        })
       } catch (err) {
         if (err instanceof AiError) {
           return NextResponse.json(
@@ -268,6 +291,8 @@ export async function POST(request: Request) {
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.
     if (handoffProvided) shared.handoff_agent_id = handoffAgentId
+    if (embeddingsBaseUrl !== undefined) shared.embeddings_base_url = embeddingsBaseUrl
+    if (embeddingsModel !== undefined) shared.embeddings_model = embeddingsModel
     if (rawEmbeddingsKey) {
       shared.embeddings_api_key = encrypt(rawEmbeddingsKey)
     } else if (clearEmbeddingsKey) {
