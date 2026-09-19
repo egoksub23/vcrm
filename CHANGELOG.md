@@ -9,6 +9,23 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.26.1] — 2026-09-19
+
+No migration required.
+
+- **Light scrollbars**: scrollbars now follow the app's own light/dark
+  theme instead of your operating system's. On the light theme they are a
+  thin light-grey thumb over the page background (no dark track), and
+  native controls such as date pickers match the theme too.
+- **Date rule in the chat**: each new day in a conversation is now marked
+  with the date centered on a horizontal line, so it stands out while
+  scrolling.
+- **Closed / reopened markers in the chat**: when a conversation is
+  closed, the thread shows a team-only marker at that point — who closed
+  it, when, and the closure note — and the same for a reopen. Conversations
+  closed before closure notes existed show a plain "Closed" marker at their
+  close time, since who closed them wasn't recorded.
+
 ## [0.26.0] — 2026-09-19
 
 No migration required.

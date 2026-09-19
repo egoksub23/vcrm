@@ -217,6 +217,24 @@ html[data-theme="rose"] {
   --sidebar-ring: oklch(0.645 0.22 16);
 }
 
+/* Scrollbars + native controls follow the app's own light/dark mode
+   (html[data-mode]), not the OS setting — with viewport color-scheme
+   "dark light", a dark-OS user on the app's light theme got a black
+   scrollbar. Track is transparent so it shows the page background and
+   only the light-grey thumb is visible. */
+html[data-mode="light"] {
+  color-scheme: light;
+  --scrollbar-thumb: oklch(0.83 0.005 260);
+}
+html[data-mode="dark"] {
+  color-scheme: dark;
+  --scrollbar-thumb: oklch(0.38 0.01 260);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, oklch(0.6 0.01 260)) transparent;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

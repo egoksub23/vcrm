@@ -20,6 +20,7 @@ import type {
   MessageTemplate,
   Profile,
   Tag,
+  ConversationEvent,
   InteractiveMessagePayload,
 } from "@/types";
 import {
@@ -70,7 +71,18 @@ import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { HandoffNoteDialog } from "./handoff-note-dialog";
 import { CloseConversationDialog } from "./close-conversation-dialog";
-import { closeConversationWithNote, reopenConversation } from "@/lib/conversations/session-log-api";
+import {
+  closeConversationWithNote,
+  fetchConversationEvents,
+  reopenConversation,
+} from "@/lib/conversations/session-log-api";
+import {
+  buildSessionMarkers,
+  isMarkerId,
+  markerEventId,
+  mergeMarkersIntoTimeline,
+} from "@/lib/inbox/session-markers";
+import { SessionEventMarker } from "./session-event-marker";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
@@ -219,6 +231,11 @@ export function MessageThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  // Closed / reopened events (migration 065) shown inline as staff-only
+  // markers. Separate channel name from ConversationSessionLog's own
+  // subscription — two .on() registrations on one named channel would
+  // collide.
+  const [sessionEvents, setSessionEvents] = useState<ConversationEvent[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   // Purely visual spin state for the manual-refresh button. The actual
   // refetch is fire-and-forget through `onRefresh` (which bumps the
@@ -785,6 +802,38 @@ export function MessageThread({
     [conversation, onNewMessage, onUpdateMessage, t],
   );
 
+  const sessionEventsConversationId = conversation?.id ?? null;
+  useEffect(() => {
+    setSessionEvents([]);
+    if (!sessionEventsConversationId) return;
+    let cancelled = false;
+    fetchConversationEvents(sessionEventsConversationId)
+      .then((rows) => {
+        if (!cancelled) setSessionEvents(rows);
+      })
+      .catch(() => {});
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`thread-session-events-${sessionEventsConversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "conversation_events",
+          filter: `conversation_id=eq.${sessionEventsConversationId}`,
+        },
+        (payload) => {
+          setSessionEvents((prev) => [...prev, payload.new as ConversationEvent]);
+        },
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
+  }, [sessionEventsConversationId]);
+
   // ---- Closure note + session log (migration 065, klink.cloud parity) --
   // Closing requires a note — routed through CloseConversationDialog
   // instead of an immediate update. Moving OFF 'closed' (however it got
@@ -1192,7 +1241,11 @@ export function MessageThread({
   // full, unfiltered `messages` so a reply-quote pointing at a now-
   // trashed message still resolves its preview text.
   const visibleMessages = messages.filter((m) => !m.pending_delete);
-  const messageGroups = groupMessagesByDate(visibleMessages);
+  const sessionMarkers = buildSessionMarkers(sessionEvents, conversation);
+  const sessionMarkersById = new Map(sessionMarkers.map((e) => [e.id, e]));
+  const messageGroups = groupMessagesByDate(
+    mergeMarkersIntoTimeline(visibleMessages, sessionMarkers),
+  );
   // Only the most recent email-rendered message defaults to expanded —
   // older ones in the same thread default collapsed to a one-line
   // preview (EmailBodyContent in message-bubble.tsx), the way a real
@@ -1635,15 +1688,34 @@ export function MessageThread({
           <div className="space-y-4">
             {messageGroups.map((group) => (
               <div key={group.date}>
-                {/* Date separator */}
-                <div className="mb-4 flex items-center justify-center">
-                  <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-medium text-muted-foreground">
+                {/* Date separator — the date sits centered ON a rule so
+                    a new day is easy to spot while scrolling. */}
+                <div className="mb-4 flex items-center gap-3" role="separator">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground">
                     {formatDateSeparator(group.date, t)}
                   </span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
                 {/* Messages */}
                 <div className="space-y-2">
                   {group.messages.map((msg, idx) => {
+                    if (isMarkerId(msg.id)) {
+                      const event = sessionMarkersById.get(markerEventId(msg.id));
+                      if (!event) return null;
+                      return (
+                        <SessionEventMarker
+                          key={msg.id}
+                          event={event}
+                          actorName={
+                            event.actor_user_id
+                              ? (profiles.find((p) => p.user_id === event.actor_user_id)?.full_name ??
+                                t("agentLabel"))
+                              : null
+                          }
+                        />
+                      );
+                    }
                     const parent = msg.reply_to_message_id
                       ? messagesById.get(msg.reply_to_message_id)
                       : null;

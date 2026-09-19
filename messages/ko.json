@@ -361,6 +361,15 @@
       "assign": "배정",
       "assigning": "배정 중..."
     },
+    "sessionMarker": {
+      "closedBy": "{name}님이 종료함",
+      "closed": "종료됨",
+      "closedByAutomation": "자동으로 종료됨",
+      "reopenedBy": "{name}님이 다시 엶",
+      "reopened": "다시 열림",
+      "note": "종료 메모",
+      "teamOnly": "팀원에게만 보입니다"
+    },
     "closeDialog": {
       "title": "대화 종료",
       "description": "종료 메모를 추가하세요 — 필수이며, 나중에 이 대화를 검토하는 사람이 어떻게 해결되었는지 알 수 있습니다.",

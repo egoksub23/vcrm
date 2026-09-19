@@ -361,6 +361,15 @@
       "assign": "Atribuir",
       "assigning": "Atribuindo..."
     },
+    "sessionMarker": {
+      "closedBy": "Encerrada por {name}",
+      "closed": "Encerrada",
+      "closedByAutomation": "Encerrada automaticamente",
+      "reopenedBy": "Reaberta por {name}",
+      "reopened": "Reaberta",
+      "note": "Nota de encerramento",
+      "teamOnly": "Visível apenas para sua equipe"
+    },
     "closeDialog": {
       "title": "Encerrar conversa",
       "description": "Adicione uma nota de encerramento — obrigatória, para que qualquer pessoa que revise esta conversa depois saiba como foi resolvida.",

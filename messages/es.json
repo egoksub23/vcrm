@@ -361,6 +361,15 @@
       "assign": "Asignar",
       "assigning": "Asignando..."
     },
+    "sessionMarker": {
+      "closedBy": "Cerrada por {name}",
+      "closed": "Cerrada",
+      "closedByAutomation": "Cerrada automáticamente",
+      "reopenedBy": "Reabierta por {name}",
+      "reopened": "Reabierta",
+      "note": "Nota de cierre",
+      "teamOnly": "Solo visible para tu equipo"
+    },
     "closeDialog": {
       "title": "Cerrar conversación",
       "description": "Añade una nota de cierre — obligatoria, para que cualquiera que revise esta conversación más tarde sepa cómo se resolvió.",
