@@ -21,12 +21,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { ConversationSessionLog } from "./conversation-session-log";
 
 interface ContactSidebarProps {
   contact: Contact | null;
+  /** Active conversation, for the session-log section (migration 065). */
+  conversationId?: string | null;
 }
 
-export function ContactSidebar({ contact }: ContactSidebarProps) {
+export function ContactSidebar({ contact, conversationId = null }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -302,6 +305,12 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
               </div>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="my-4 border-t border-border" />
+
+          {/* Session log (migration 065) */}
+          <ConversationSessionLog conversationId={conversationId} />
         </div>
       </ScrollArea>
     </div>

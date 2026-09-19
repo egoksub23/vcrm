@@ -262,7 +262,8 @@
       "reactionFailed": "반응 추가 실패: {reason}",
       "assignmentUpdateFailed": "담당자 변경에 실패했습니다",
       "movedToTrash": "메시지가 휴지통으로 이동되었습니다",
-      "trashFailed": "메시지를 휴지통으로 이동하지 못했습니다"
+      "trashFailed": "메시지를 휴지통으로 이동하지 못했습니다",
+      "statusUpdateFailed": "상태 업데이트에 실패했습니다"
     },
     "sessionTimer": {
       "expired": "만료됨",
@@ -354,6 +355,34 @@
       "cancel": "취소",
       "assign": "배정",
       "assigning": "배정 중..."
+    },
+    "closeDialog": {
+      "title": "대화 종료",
+      "description": "종료 메모를 추가하세요 — 필수이며, 나중에 이 대화를 검토하는 사람이 어떻게 해결되었는지 알 수 있습니다.",
+      "notePlaceholder": "예: 환불 처리 완료, 고객이 수령을 확인함.",
+      "cancel": "취소",
+      "close": "종료",
+      "closing": "종료 중..."
+    },
+    "sessionLog": {
+      "heading": "세션 기록",
+      "loading": "기록을 불러오는 중…",
+      "empty": "아직 활동이 없습니다",
+      "unknownAgent": "누군가",
+      "noTeam": "팀 없음",
+      "assigned": "{to}에게 배정됨",
+      "unassigned": "배정 해제됨",
+      "teamAssigned": "{to} 팀에 배정됨",
+      "teamUnassigned": "팀 배정이 해제됨",
+      "priorityChanged": "우선순위가 {from}에서 {to}(으)로 변경됨",
+      "closed": "종료됨",
+      "reopened": "다시 열림",
+      "priority": {
+        "urgent": "긴급",
+        "high": "높음",
+        "normal": "보통",
+        "low": "낮음"
+      }
     },
     "mediaViewer": {
       "counter": "{total}개 중 {index}번째",

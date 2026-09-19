@@ -262,7 +262,8 @@
       "reactionFailed": "Reaction failed: {reason}",
       "assignmentUpdateFailed": "Failed to update assignment",
       "movedToTrash": "Message moved to trash",
-      "trashFailed": "Failed to move message to trash"
+      "trashFailed": "Failed to move message to trash",
+      "statusUpdateFailed": "Failed to update status"
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -354,6 +355,34 @@
       "cancel": "Cancel",
       "assign": "Assign",
       "assigning": "Assigning..."
+    },
+    "closeDialog": {
+      "title": "Close conversation",
+      "description": "Add a closure note — required, so anyone reviewing this conversation later knows how it was resolved.",
+      "notePlaceholder": "e.g. Refund processed, customer confirmed receipt.",
+      "cancel": "Cancel",
+      "close": "Close",
+      "closing": "Closing..."
+    },
+    "sessionLog": {
+      "heading": "Session log",
+      "loading": "Loading history…",
+      "empty": "No activity yet",
+      "unknownAgent": "Someone",
+      "noTeam": "No team",
+      "assigned": "Assigned to {to}",
+      "unassigned": "Unassigned",
+      "teamAssigned": "Assigned to team {to}",
+      "teamUnassigned": "Unassigned from team",
+      "priorityChanged": "Priority changed from {from} to {to}",
+      "closed": "Closed",
+      "reopened": "Reopened",
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      }
     },
     "mediaViewer": {
       "counter": "{index} of {total}",

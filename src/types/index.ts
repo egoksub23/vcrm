@@ -276,6 +276,37 @@ export interface Conversation {
 }
 
 // ============================================================
+// Conversation session log (migration 065)
+//
+// klink.cloud parity — a "session log" / "case log" per conversation:
+// assigned/reassigned/priority changes are logged automatically by a DB
+// trigger; closed/reopened go through close_conversation_with_note /
+// reopen_conversation RPCs, so a closure note is enforced server-side.
+// ============================================================
+
+export type ConversationEventType =
+  | 'assigned'
+  | 'unassigned'
+  | 'team_assigned'
+  | 'team_unassigned'
+  | 'priority_changed'
+  | 'closed'
+  | 'reopened';
+
+export interface ConversationEvent {
+  id: string;
+  conversation_id: string;
+  event_type: ConversationEventType;
+  /** Null for an automation/system-driven event. */
+  actor_user_id?: string | null;
+  /** Required (enforced by a DB CHECK) when event_type is 'closed'. */
+  note?: string | null;
+  /** e.g. { agent_id } / { team_id } / { from, to } depending on event_type. */
+  metadata: Record<string, string | null>;
+  created_at: string;
+}
+
+// ============================================================
 // Notifications (migration 027)
 // ============================================================
 

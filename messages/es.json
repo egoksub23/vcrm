@@ -262,7 +262,8 @@
       "reactionFailed": "Error en la reacción: {reason}",
       "assignmentUpdateFailed": "Error al actualizar la asignación",
       "movedToTrash": "Mensaje movido a la papelera",
-      "trashFailed": "Error al mover el mensaje a la papelera"
+      "trashFailed": "Error al mover el mensaje a la papelera",
+      "statusUpdateFailed": "Error al actualizar el estado"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -354,6 +355,34 @@
       "cancel": "Cancelar",
       "assign": "Asignar",
       "assigning": "Asignando..."
+    },
+    "closeDialog": {
+      "title": "Cerrar conversación",
+      "description": "Añade una nota de cierre — obligatoria, para que cualquiera que revise esta conversación más tarde sepa cómo se resolvió.",
+      "notePlaceholder": "p. ej. Reembolso procesado, el cliente confirmó la recepción.",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "closing": "Cerrando..."
+    },
+    "sessionLog": {
+      "heading": "Registro de sesión",
+      "loading": "Cargando historial…",
+      "empty": "Sin actividad todavía",
+      "unknownAgent": "Alguien",
+      "noTeam": "Sin equipo",
+      "assigned": "Asignado a {to}",
+      "unassigned": "Sin asignar",
+      "teamAssigned": "Asignado al equipo {to}",
+      "teamUnassigned": "Desasignado del equipo",
+      "priorityChanged": "Prioridad cambiada de {from} a {to}",
+      "closed": "Cerrado",
+      "reopened": "Reabierto",
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baja"
+      }
     },
     "mediaViewer": {
       "counter": "{index} de {total}",

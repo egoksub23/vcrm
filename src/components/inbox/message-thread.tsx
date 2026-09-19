@@ -69,6 +69,8 @@ import {
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { HandoffNoteDialog } from "./handoff-note-dialog";
+import { CloseConversationDialog } from "./close-conversation-dialog";
+import { closeConversationWithNote, reopenConversation } from "@/lib/conversations/session-log-api";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
@@ -783,22 +785,64 @@ export function MessageThread({
     [conversation, onNewMessage, onUpdateMessage, t],
   );
 
+  // ---- Closure note + session log (migration 065, klink.cloud parity) --
+  // Closing requires a note — routed through CloseConversationDialog
+  // instead of an immediate update. Moving OFF 'closed' (however it got
+  // there) goes through the reopen_conversation RPC so it lands in the
+  // conversation_events timeline too; open<->pending stays a plain update,
+  // same as before this feature — the session log tracks assignment,
+  // priority, and open/closed lifecycle events, not every status nuance.
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closeBusy, setCloseBusy] = useState(false);
+
   const handleStatusChange = useCallback(
     async (status: ConversationStatus) => {
       if (!conversation) return;
 
+      if (status === "closed") {
+        setCloseDialogOpen(true);
+        return;
+      }
+
+      if (conversation.status === "closed") {
+        try {
+          await reopenConversation(conversation.id);
+        } catch (err) {
+          console.error("Failed to reopen conversation:", err);
+          toast.error(t("statusUpdateFailed"));
+          return;
+        }
+        onStatusChange(conversation.id, status);
+        return;
+      }
+
       const supabase = createClient();
       await supabase
         .from("conversations")
-        // closed_at (migration 050) powers the Resolutions report's
-        // open→closed duration — stamped on close, cleared on reopen
-        // so re-closing later doesn't inherit a stale timestamp.
-        .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
+        .update({ status, closed_at: null })
         .eq("id", conversation.id);
 
       onStatusChange(conversation.id, status);
     },
-    [conversation, onStatusChange]
+    [conversation, onStatusChange, t]
+  );
+
+  const handleConfirmClose = useCallback(
+    async (note: string) => {
+      if (!conversation) return;
+      setCloseBusy(true);
+      try {
+        await closeConversationWithNote(conversation.id, note);
+        onStatusChange(conversation.id, "closed");
+        setCloseDialogOpen(false);
+      } catch (err) {
+        console.error("Failed to close conversation:", err);
+        toast.error(t("statusUpdateFailed"));
+      } finally {
+        setCloseBusy(false);
+      }
+    },
+    [conversation, onStatusChange, t]
   );
 
   const handlePriorityChange = useCallback(
@@ -1740,6 +1784,13 @@ export function MessageThread({
         agentName={pendingHandoffAgent?.full_name ?? ""}
         onConfirm={handleConfirmHandoff}
         busy={handoffBusy}
+      />
+
+      <CloseConversationDialog
+        open={closeDialogOpen}
+        onOpenChange={setCloseDialogOpen}
+        onConfirm={handleConfirmClose}
+        busy={closeBusy}
       />
 
       <CreateTicketDialog

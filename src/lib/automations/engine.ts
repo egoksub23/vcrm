@@ -759,11 +759,15 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       // conversation, and closing by contact_id alone would close both
       // just because one of them fired the automation.
       const conversationId = await resolveConversationId(args)
-      const closedAt = new Date().toISOString()
-      await db
-        .from('conversations')
-        .update({ status: 'closed', closed_at: closedAt, updated_at: closedAt })
-        .eq('id', conversationId)
+      // Goes through the same RPC the UI's Close action uses (migration
+      // 065) rather than a raw UPDATE, so automation-driven closes get a
+      // conversation_events row too — a close with no session-log entry
+      // would be a silent gap in the timeline.
+      const { error } = await db.rpc('close_conversation_with_note', {
+        p_conversation_id: conversationId,
+        p_note: `Closed automatically by automation "${args.automation.name}"`,
+      })
+      if (error) throw error
       return 'conversation closed'
     }
 
