@@ -11,7 +11,7 @@ and polish.
 
 ## [0.25.0] — 2026-09-19
 
-**Migration required**: apply .
+**Migration required**: apply `066_ticket_custom_fields.sql`.
 
 - **Customizable ticket form**: admins can add their own fields to the
   ticket form under Settings → Ticket form — short text, long text,
