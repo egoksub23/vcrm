@@ -50,7 +50,8 @@ const MASKED_KEY = '••••••••••••••••';
 // unassigned" choice gets a sentinel that maps to null in the payload.
 const HANDOFF_QUEUE = '__queue__';
 
-const DEFAULT_SELECTION: PresetSelection = { preset: 'openai', region: 'global', customUrl: '' };
+// A fresh setup starts on Kimi (Global). An existing config replaces this on load.
+const DEFAULT_SELECTION: PresetSelection = { preset: 'kimi', region: 'global', customUrl: '' };
 
 /** Outcome of the last "Test connection", shown under the key field. */
 type TestOutcome =
@@ -70,7 +71,7 @@ export function AiConfig() {
   const [configured, setConfigured] = useState(false);
   const [sel, setSel] = useState<PresetSelection>(DEFAULT_SELECTION);
   const { provider, baseUrl } = resolveSelection(sel);
-  const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai);
+  const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai_compatible);
   // Live model list + last test result from "Test connection".
   const [models, setModels] = useState<string[] | null>(null);
   const [testOutcome, setTestOutcome] = useState<TestOutcome | null>(null);

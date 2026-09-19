@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.30.2] — 2026-09-19
+
+No migration needed.
+
+- **Kimi is the default provider** when you first open AI Agents → Setup, instead
+  of OpenAI. Accounts that already have a connection are unchanged.
+
 ## [0.30.1] — 2026-09-19
 
 No migration needed.
