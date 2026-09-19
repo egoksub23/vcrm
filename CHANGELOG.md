@@ -9,6 +9,30 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.24.0] — 2026-09-19
+
+**Migration required**: apply `064_ticket_activity.sql` and `065_conversation_session_log.sql`, in order.
+
+- **Ticket activity log**: every ticket now has a real history — status,
+  priority, category, and assignment changes are logged automatically,
+  interleaved with the comment thread in the ticket detail panel so an
+  agent can see exactly what happened and when, not just the current
+  state. Closes a gap found auditing Ticketing against klink.cloud's
+  assign/transfer UX.
+- **Ticket performance reporting**: a new Reports → Tickets tab —
+  opened/resolved counts and average resolution time over the selected
+  date range, plus a tickets-resolved-per-agent breakdown.
+- **Conversation session log + required closure notes**: klink.cloud
+  parity — closing a conversation now requires a short closure note
+  (enforced by the database, not just the dialog), and every
+  conversation gets a persistent "session log" in the contact sidebar:
+  assigned, reassigned, priority changes, closed, and reopened, each
+  with who did it and when. Automation-driven closes are logged too.
+- **Email Inbox / Chat Inbox split**: two sidebar entries — Chat Inbox
+  (WhatsApp, Web Widget, Messenger, Instagram) and Email Inbox (Gmail,
+  Microsoft 365) — filtering the same omnichannel conversation data by
+  channel, so email threads no longer mix into the main chat inbox.
+
 ## [0.23.0] — 2026-09-19
 
 **Migration required**: apply `059_merge_contacts.sql`, `060_email_subscription_heartbeat.sql`,
