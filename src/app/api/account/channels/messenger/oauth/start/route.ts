@@ -24,7 +24,8 @@ export async function GET(request: Request) {
     })
 
     const redirectUri = `${getOAuthBaseUrl(request)}/api/account/channels/messenger/oauth/callback`
-    const oauthUrl = buildMetaOAuthUrl({ channel: 'messenger', state, redirectUri })
+    const withComments = new URL(request.url).searchParams.get('comments') === '1'
+    const oauthUrl = buildMetaOAuthUrl({ channel: 'messenger', state, redirectUri, withComments })
 
     return NextResponse.redirect(oauthUrl)
   } catch (err) {

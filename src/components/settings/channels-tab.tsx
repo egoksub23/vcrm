@@ -14,8 +14,12 @@ import { MessengerChannel } from './channels/messenger-channel';
 import { InstagramChannel } from './channels/instagram-channel';
 import { EmailChannel } from './channels/email-channel';
 import { GmailChannel } from './channels/gmail-channel';
+import { TikTokChannel } from './channels/tiktok-channel';
+import { CommentsSamplesCard } from './channels/comments-samples-card';
+import { PROVIDER_ICONS } from '@/components/comments/provider-icons';
+import { useCan } from '@/hooks/use-can';
 
-type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'email' | 'gmail' | 'sms';
+type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'tiktok' | 'email' | 'gmail' | 'sms';
 
 interface ChannelEntry {
   id: ChannelId;
@@ -28,6 +32,7 @@ const CHANNELS: ChannelEntry[] = [
   { id: 'web_widget', icon: CHANNEL_ICONS.web_widget },
   { id: 'instagram', icon: CHANNEL_ICONS.instagram },
   { id: 'messenger', icon: CHANNEL_ICONS.messenger },
+  { id: 'tiktok', icon: PROVIDER_ICONS.tiktok },
   { id: 'email', icon: CHANNEL_ICONS.email },
   { id: 'gmail', icon: CHANNEL_ICONS.gmail },
   // No real channel behind SMS yet — no brand to show, so it keeps the
@@ -50,6 +55,7 @@ function isChannelId(value: string | null): value is ChannelId {
  */
 export function ChannelsTab() {
   const t = useTranslations('Settings.channels');
+  const canEditSettings = useCan('edit-settings');
   const searchParams = useSearchParams();
   // The OAuth connect flow (Messenger/Instagram) redirects back here
   // with `?channel=`, so a completed connection (or an error) lands on
@@ -110,6 +116,10 @@ export function ChannelsTab() {
       {active === 'web_widget' ? <WebWidgetChannel /> : null}
       {active === 'messenger' ? <MessengerChannel /> : null}
       {active === 'instagram' ? <InstagramChannel /> : null}
+      {active === 'tiktok' ? <TikTokChannel /> : null}
+      {canEditSettings && (active === 'messenger' || active === 'instagram' || active === 'tiktok') ? (
+        <CommentsSamplesCard />
+      ) : null}
       {active === 'email' ? <EmailChannel /> : null}
       {active === 'gmail' ? <GmailChannel /> : null}
       {active === 'sms' ? (

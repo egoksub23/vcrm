@@ -21,7 +21,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from('messenger_config')
-      .select('page_name, connected_at, needs_reauth, status')
+      .select('page_name, connected_at, needs_reauth, status, comments_enabled_at')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -37,6 +37,7 @@ export async function GET() {
           connected_at: data.connected_at,
           needs_reauth: data.needs_reauth,
           status: data.status,
+          comments_enabled_at: data.comments_enabled_at,
         }
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 

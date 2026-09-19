@@ -30,6 +30,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { getMessengerUserProfile } from '@/lib/messenger/meta-api'
+import { hasCommentChanges, processMetaCommentChanges, type MetaEntryWithChanges } from '@/lib/comments/meta-webhook'
 
 export const maxDuration = 60
 
@@ -167,6 +168,10 @@ async function processWebhook(body: { entry?: MessengerWebhookEntry[] }) {
   if (!body.entry) return
 
   for (const entry of body.entry) {
+    // Page feed comments (incl. ad comments) arrive as `changes`, not `messaging`.
+    if (hasCommentChanges(entry as unknown as MetaEntryWithChanges)) {
+      await processMetaCommentChanges(supabaseAdmin(), 'page', entry as unknown as MetaEntryWithChanges)
+    }
     if (!entry.messaging || entry.messaging.length === 0) continue
 
     const pageId = entry.id

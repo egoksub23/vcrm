@@ -14,6 +14,7 @@
 // id instead.
 // ============================================================
 import { NextResponse, after } from 'next/server'
+import { hasCommentChanges, processMetaCommentChanges, type MetaEntryWithChanges } from '@/lib/comments/meta-webhook'
 import { createClient } from '@supabase/supabase-js'
 
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
@@ -158,6 +159,10 @@ async function processWebhook(body: { entry?: InstagramWebhookEntry[] }) {
   if (!body.entry) return
 
   for (const entry of body.entry) {
+    // Post comments arrive as `changes` (field "comments" / "live_comments").
+    if (hasCommentChanges(entry as unknown as MetaEntryWithChanges)) {
+      await processMetaCommentChanges(supabaseAdmin(), 'instagram', entry as unknown as MetaEntryWithChanges)
+    }
     if (!entry.messaging || entry.messaging.length === 0) continue
 
     const igBusinessAccountId = entry.id

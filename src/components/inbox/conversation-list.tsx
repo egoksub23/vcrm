@@ -16,10 +16,11 @@ import { cn } from "@/lib/utils";
 import type { StatusColors } from "@/lib/status-colors";
 import { hexWithAlpha } from "@/lib/status-colors";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, Flag, Mail, MessagesSquare, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
+import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
+import { InboxTabBar } from "./inbox-tab-bar";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,6 +57,8 @@ interface ConversationListProps {
    */
   tab: InboxTab;
   onTabChange: (tab: InboxTab) => void;
+  /** Comments still waiting for a first response — the Comments tab's bubble. */
+  commentsOpen?: number;
   /**
    * Increment to force the fetch effect below to refire. The parent
    * bumps this on realtime reconnect / tab visibility → visible so the
@@ -111,6 +114,7 @@ export function ConversationList({
   onBulkPatch,
   tab,
   onTabChange,
+  commentsOpen = 0,
 }: ConversationListProps) {
   const channelScope = TAB_CHANNELS[tab];
   const t = useTranslations("Inbox.conversationList");
@@ -559,41 +563,11 @@ export function ConversationList({
         the single pane showing; fixed 320px on desktop where it shares the
         row with the thread + contact sidebar. */}
     <div className="flex h-full w-full flex-col border-r border-border bg-card lg:w-80">
-      <div role="tablist" className="flex shrink-0 border-b border-border">
-        {(["chats", "emails"] as InboxTab[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => handleTabClick(k)}
-            className={cn(
-              "-mb-px flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm transition-colors",
-              tab === k
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-            )}
-          >
-            {k === "chats" ? (
-              <MessagesSquare className="h-4 w-4" />
-            ) : (
-              <Mail className="h-4 w-4" />
-            )}
-            {t(k === "chats" ? "tabChats" : "tabEmails")}
-            <span
-              aria-label={t("tabUnreadAria", { count: unreadByTab[k] })}
-              className={cn(
-                "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium",
-                unreadByTab[k] > 0
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {unreadByTab[k]}
-            </span>
-          </button>
-        ))}
-      </div>
+      <InboxTabBar
+        tab={tab}
+        onTabClick={handleTabClick}
+        unread={{ ...unreadByTab, comments: commentsOpen }}
+      />
 
       {/* Search + Filter */}
       <div className="space-y-2 border-b border-border p-3">

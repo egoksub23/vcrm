@@ -9,6 +9,34 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.33.0] — 2026-09-20
+
+**Migration required**: apply `074_comments.sql`.
+
+- **Comments inbox.** The inbox now has three tabs: **Chats**, **Emails**
+  and **Comments**. Comments collects the public comments on your
+  **Facebook Page posts (including ads)**, **Instagram posts** and **TikTok
+  videos**, with the post each sits under. From a comment an agent can reply
+  publicly, send the commenter a **private message** (Facebook and
+  Instagram: once per comment, within 7 days; the message starts a normal
+  chat with that person), **hide** or **unhide** it, **delete** it (admins),
+  and mark it **resolved** or **spam**. The tab bubble counts comments still
+  waiting for a first response; the list updates live.
+- **TikTok channel.** Settings → Channels → TikTok connects an account with
+  TikTok's own sign-in; comments arrive by webhook (with a **Fetch comments
+  now** button as a safety net). Tokens are stored encrypted and refreshed
+  automatically. TikTok has no private-message option for commenters and
+  only lets you delete your own comments, so those buttons explain why they
+  are off. Needs `TIKTOK_APP_ID` / `TIKTOK_APP_SECRET` on the server.
+- **Facebook / Instagram comments** are opt-in on the Messenger and Instagram
+  channel pages: **Allow comments** reconnects with the extra permissions and
+  **Turn on comments** subscribes the Page. Existing DM connections are not
+  touched.
+- **Try it first.** Settings → Channels has **Add sample comments** so the
+  screens can be explored (and shown) before anything is connected. Actions
+  on samples are simulated.
+- Not yet run against live accounts; see `docs/comments-setup.md`.
+
 ## [0.32.0] — 2026-09-20
 
 **Migration required**: apply `073_knowledge_base_v2.sql`.

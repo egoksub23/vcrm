@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { CommentsChannelCard } from './comments-channel-card';
 import type { MetaChannelConnectionStatus } from '@/types';
 
 interface MetaPage {
@@ -277,6 +278,15 @@ export function MetaChannelPanel({
           )}
         </CardContent>
       </Card>
+
+      {status?.connected ? (
+        <CommentsChannelCard
+          channel={channel}
+          enabledAt={status.comments_enabled_at}
+          canEdit={canEditSettings}
+          onEnabled={fetchStatus}
+        />
+      ) : null}
 
       {status?.connected ? (
         <Card className="mt-6">

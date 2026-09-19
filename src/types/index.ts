@@ -630,6 +630,8 @@ export interface MetaChannelConnectionStatus {
   connected_at?: string | null;
   needs_reauth: boolean;
   status: 'connected' | 'disconnected' | 'error';
+  /** Set once the Page is subscribed to comment events (migration 074). */
+  comments_enabled_at?: string | null;
 }
 
 export type MessengerConnectionStatus = MetaChannelConnectionStatus;

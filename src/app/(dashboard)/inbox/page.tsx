@@ -9,7 +9,8 @@ import {
   normalizeConversation,
 } from "@/lib/inbox/conversations";
 import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus, Tag } from "@/types";
-import { tabForChannel, type InboxTab } from "@/lib/inbox/channel-scope";
+import { tabForChannel, unreadConversationCounts, type InboxTab } from "@/lib/inbox/channel-scope";
+import { CommentsInbox } from "@/components/comments/comments-inbox";
 import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
@@ -57,6 +58,21 @@ function InboxPageInner() {
   // ConversationList) because the WhatsApp banner and deep links depend
   // on it too.
   const [inboxTab, setInboxTab] = useState<InboxTab>("chats");
+  // Comments still waiting for a first response — the Comments tab's bubble.
+  const [commentsOpen, setCommentsOpen] = useState(0);
+  const refreshCommentsCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/comments/count", { cache: "no-store" });
+      if (res.ok) setCommentsOpen(((await res.json()) as { open?: number }).open ?? 0);
+    } catch {
+      // The bubble just keeps its last value.
+    }
+  }, []);
+  useEffect(() => {
+    void refreshCommentsCount();
+    const timer = setInterval(() => void refreshCommentsCount(), 60_000);
+    return () => clearInterval(timer);
+  }, [refreshCommentsCount]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(
     null
@@ -708,6 +724,13 @@ function InboxPageInner() {
         </div>
       )}
 
+      {inboxTab === "comments" ? (
+        <CommentsInbox
+          unread={{ ...unreadConversationCounts(conversations), comments: commentsOpen }}
+          onTabChange={setInboxTab}
+          onCountChange={refreshCommentsCount}
+        />
+      ) : (
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: Conversation list.
             Hidden on mobile when a conversation is selected so the
@@ -728,6 +751,7 @@ function InboxPageInner() {
             onBulkPatch={handleBulkPatch}
             tab={inboxTab}
             onTabChange={setInboxTab}
+            commentsOpen={commentsOpen}
           />
         </div>
 
@@ -797,6 +821,7 @@ function InboxPageInner() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

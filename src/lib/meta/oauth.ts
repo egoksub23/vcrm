@@ -49,12 +49,26 @@ const INSTAGRAM_SCOPES = [
   'business_management',
 ]
 
+/** Extra permissions to read and moderate public comments. Requested only
+ *  when an admin opts in ("Allow comments"), so a workspace that only wants
+ *  DMs is never asked for more (and never blocked by an un-reviewed scope). */
+const FACEBOOK_COMMENT_SCOPES = ['pages_manage_engagement', 'pages_read_user_content', 'pages_manage_metadata']
+const INSTAGRAM_COMMENT_SCOPES = ['instagram_manage_comments', 'pages_manage_metadata']
+
 export function buildMetaOAuthUrl(args: {
   channel: MetaOAuthChannel
   state: string
   redirectUri: string
+  /** Also request the comment-moderation permissions. */
+  withComments?: boolean
 }): string {
-  const scopes = args.channel === 'messenger' ? MESSENGER_SCOPES : INSTAGRAM_SCOPES
+  const base = args.channel === 'messenger' ? MESSENGER_SCOPES : INSTAGRAM_SCOPES
+  const extra = args.withComments
+    ? args.channel === 'messenger'
+      ? FACEBOOK_COMMENT_SCOPES
+      : INSTAGRAM_COMMENT_SCOPES
+    : []
+  const scopes = Array.from(new Set([...base, ...extra]))
   const params = new URLSearchParams({
     client_id: appId(),
     redirect_uri: args.redirectUri,
