@@ -32,6 +32,12 @@ import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { matchesWholeWord } from './keyword-match'
+
+// Re-exported: the matcher moved to ./keyword-match so client code (the
+// auto-label settings test box) can use it without pulling in this
+// server-only module.
+export { matchesWholeWord }
 
 // ------------------------------------------------------------
 // Public API
@@ -98,6 +104,29 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
         console.warn('[automations] contact not in account, refusing dispatch', input.contactId)
         return
       }
+    }
+
+    // Auto-label by category (migration 067). Every channel's inbound path
+    // already dispatches new_message_received exactly once per customer
+    // message, so hooking here covers WhatsApp, Web Widget, Messenger,
+    // Instagram, and both email channels without touching six webhooks.
+    // Runs BEFORE automations so a rule that labels the conversation is
+    // visible to (and can trigger) the automations below. Dynamic import:
+    // auto-label reuses this module's keyword matcher, and label-events
+    // already imports this module — a static import would be a cycle.
+    if (
+      input.triggerType === 'new_message_received' &&
+      input.context?.conversation_id &&
+      input.context.message_text
+    ) {
+      const { applyAutoLabels } = await import('@/lib/conversations/auto-label')
+      await applyAutoLabels({
+        db,
+        accountId: input.accountId,
+        conversationId: input.context.conversation_id,
+        text: input.context.message_text,
+        context: input.context,
+      })
     }
 
     const { data: automations, error } = await db
@@ -870,45 +899,6 @@ async function assertWhatsappChannel(conversationId: string, stepType: string): 
   if (data.last_channel_type !== 'whatsapp') {
     throw new Error(`${stepType} is only supported for WhatsApp conversations`)
   }
-}
-
-/** Letter, digit or underscore in any script — the "inside a word" test. */
-const WORD_CHAR = '[\\p{L}\\p{N}_]'
-
-/**
- * Whole-word keyword test, behind `match_type: 'word'` (issue #409 — a
- * one-letter keyword under `contains` fires on every message containing
- * that letter, e.g. "k" on "thanks").
- *
- * Deliberately NOT `\b`, which is defined against `[A-Za-z0-9_]` and so
- * breaks two cases that matter for WhatsApp traffic:
- *
- *   - A keyword carrying punctuation: `/\bhi!\b/` demands a word character
- *     after the "!", so it never matches "say hi!".
- *   - Any non-Latin script: every character of "안녕" is a non-word
- *     character to `\b`, so `/\b안녕\b/` matches nothing at all.
- *
- * Unicode-aware lookarounds handle both. Note this really is word-based:
- * it won't find "안녕" inside "안녕하세요", because a language that doesn't
- * delimit words with spaces has no word edge there. That's what `contains`
- * is for, and it stays the default.
- *
- * Exported for direct unit testing of the escaping / boundary edges.
- */
-export function matchesWholeWord(
-  text: string,
-  keyword: string,
-  caseSensitive = false,
-): boolean {
-  if (!keyword) return false
-  // The keyword is account-supplied free text, so metacharacters have to
-  // be literal — otherwise "(" is an unterminated group and RegExp throws.
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = new RegExp(
-    `(?<!${WORD_CHAR})${escaped}(?!${WORD_CHAR})`,
-    caseSensitive ? 'u' : 'iu',
-  )
-  return pattern.test(text)
 }
 
 export function triggerMatches(automation: Automation, ctx: AutomationContext | undefined): boolean {

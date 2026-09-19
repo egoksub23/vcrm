@@ -9,6 +9,25 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.27.0] — 2026-09-19
+
+**Migration required**: apply `067_auto_label_rules.sql`.
+
+- **Bulk conversation actions**: in the Inbox's multi-select mode you can
+  now assign the selected conversations to an agent (or unassign them),
+  close them all with one shared closure note, mark them read or unread,
+  or apply a label — alongside "Select all" for the current list. Each
+  conversation still gets its own history entry and assignment
+  notification, exactly as if you had done it one by one.
+- **Auto-labels by category**: Settings → Fields & tags → Auto-labels.
+  Map a label to keywords (whole-word or contains) and matching customer
+  messages get that label automatically, on every channel. A "test a
+  message" box shows which rules would fire. Optionally, turn on the AI
+  pass: for a message no keyword matched, on a conversation with no label
+  yet, your AI key picks a label from the descriptions you wrote — roughly
+  one classification per unlabeled conversation, off by default, with its
+  token spend logged like the other AI features.
+
 ## [0.26.1] — 2026-09-19
 
 No migration required.

@@ -4,6 +4,7 @@ import { useCan } from '@/hooks/use-can';
 
 import { useTranslations } from 'next-intl';
 
+import { AutoLabelSettings } from './auto-label-settings';
 import { CustomFieldsSettings } from './custom-fields-settings';
 import { SettingsPanelHead } from './settings-panel-head';
 import { TagManager } from './tag-manager';
@@ -26,6 +27,7 @@ export function FieldsAndTagsPanel() {
         description={t('description')}
       />
       <TagManager />
+      {canEditSettings ? <AutoLabelSettings /> : null}
       {canEditSettings ? <CustomFieldsSettings /> : null}
     </section>
   );
