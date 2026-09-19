@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,19 @@ import {
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
-import type { AiProvider } from '@/lib/ai/types';
+import {
+  AI_PRESET_IDS,
+  KIMI_BASE_URLS,
+  PRESET_KEY_PLACEHOLDER,
+  hostOf,
+  normalizeBaseUrl,
+  resolveSelection,
+  selectionFromConfig,
+  type AiPresetId,
+  type KimiRegion,
+  type PresetSelection,
+} from '@/lib/ai/presets';
+import { cn } from '@/lib/utils';
 import type { AccountMember } from '@/types';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
 import { useTranslations } from 'next-intl';
@@ -38,15 +50,12 @@ const MASKED_KEY = '••••••••••••••••';
 // unassigned" choice gets a sentinel that maps to null in the payload.
 const HANDOFF_QUEUE = '__queue__';
 
-const PROVIDER_LABEL: Record<AiProvider, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
-};
+const DEFAULT_SELECTION: PresetSelection = { preset: 'openai', region: 'global', customUrl: '' };
 
-const KEY_PLACEHOLDER: Record<AiProvider, string> = {
-  openai: 'sk-...',
-  anthropic: 'sk-ant-...',
-};
+/** Outcome of the last "Test connection", shown under the key field. */
+type TestOutcome =
+  | { ok: true; testedModel: boolean; latencyMs?: number; tokens?: number; sample?: string; modelCount: number | null }
+  | { ok: false; error: string; hint: string | null };
 
 export function AiConfig() {
   const { accountId, accountRole, profileLoading } = useAuth();
@@ -59,8 +68,19 @@ export function AiConfig() {
   const [removing, setRemoving] = useState(false);
 
   const [configured, setConfigured] = useState(false);
-  const [provider, setProvider] = useState<AiProvider>('openai');
+  const [sel, setSel] = useState<PresetSelection>(DEFAULT_SELECTION);
+  const { provider, baseUrl } = resolveSelection(sel);
   const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai);
+  // Live model list + last test result from "Test connection".
+  const [models, setModels] = useState<string[] | null>(null);
+  const [testOutcome, setTestOutcome] = useState<TestOutcome | null>(null);
+  // Customer messages go to a third party for OpenAI-compatible providers;
+  // an admin acknowledges that once per host. `ackedBaseUrl` is the URL the
+  // stored acknowledgment was given for.
+  const [noticeAck, setNoticeAck] = useState(false);
+  const [ackedBaseUrl, setAckedBaseUrl] = useState<string | null>(null);
+  // "provider|url" the stored key was saved for — the key can only be reused for that.
+  const [storedTarget, setStoredTarget] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -93,7 +113,10 @@ export function AiConfig() {
       }
       if (data.configured) {
         setConfigured(true);
-        setProvider(data.provider);
+        setSel(selectionFromConfig(data.provider, data.base_url ?? null));
+        setNoticeAck(Boolean(data.data_notice_ack_at));
+        setAckedBaseUrl(data.data_notice_ack_at ? normalizeBaseUrl(data.base_url ?? '') : null);
+        setStoredTarget(`${data.provider}|${normalizeBaseUrl(data.base_url ?? '')}`);
         setModel(data.model);
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
@@ -124,16 +147,24 @@ export function AiConfig() {
     void fetchAccountMembers().then(setMembers);
   }, [accountId, fetchConfig]);
 
-  // Swap the model default when the provider changes, unless the user
-  // typed a custom model.
-  const handleProviderChange = (next: AiProvider) => {
-    setProvider(next);
+  // Switching provider swaps the model default (unless the user typed a
+  // custom one) and forgets the previous provider's models and test result.
+  const applySelection = (next: PresetSelection) => {
+    const nextProvider = resolveSelection(next).provider;
     const isDefaultModel =
       model === AI_PROVIDER_DEFAULT_MODEL.openai ||
       model === AI_PROVIDER_DEFAULT_MODEL.anthropic ||
       model.trim() === '';
-    if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[next]);
+    if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[nextProvider]);
+    setSel(next);
+    setModels(null);
+    setTestOutcome(null);
   };
+  const handlePresetChange = (preset: AiPresetId) => applySelection({ ...sel, preset });
+
+  // The acknowledgment covers one host: pointing at a different URL asks again.
+  const isCompatible = provider === 'openai_compatible';
+  const noticeAcked = noticeAck && ackedBaseUrl === normalizeBaseUrl(baseUrl ?? '');
 
   const keyPayload = () => (keyEdited ? apiKey.trim() : undefined);
 
@@ -143,6 +174,8 @@ export function AiConfig() {
 
   const buildBody = () => ({
     provider,
+    base_url: baseUrl,
+    data_notice_ack: isCompatible ? noticeAck : undefined,
     model: model.trim(),
     api_key: keyPayload(),
     embeddings_api_key: embeddingsKeyPayload(),
@@ -161,15 +194,31 @@ export function AiConfig() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
+          base_url: baseUrl,
           model: model.trim(),
           api_key: keyPayload(),
         }),
       });
       const data = await res.json();
-      if (res.ok) toast.success(t('testSuccess'));
-      else toast.error(data.error ?? t('testRejected'));
+      if (res.ok) {
+        setModels(Array.isArray(data.models) ? data.models : null);
+        setTestOutcome({
+          ok: true,
+          testedModel: Boolean(data.tested_model),
+          latencyMs: data.latency_ms,
+          tokens: data.usage?.totalTokens,
+          sample: data.sample,
+          modelCount: Array.isArray(data.models) ? data.models.length : null,
+        });
+      } else {
+        setTestOutcome({
+          ok: false,
+          error: data.code?.startsWith?.('base_url') ? t(`baseUrlErrors.${data.code}`) : (data.error ?? t('testRejected')),
+          hint: data.hint ?? null,
+        });
+      }
     } catch {
-      toast.error(t('testNetworkError'));
+      setTestOutcome({ ok: false, error: t('testNetworkError'), hint: null });
     } finally {
       setTesting(false);
     }
@@ -184,6 +233,18 @@ export function AiConfig() {
       toast.error(t('missingApiKey'));
       return;
     }
+    if (configured && !keyEdited && storedTarget !== `${provider}|${normalizeBaseUrl(baseUrl ?? '')}`) {
+      toast.error(t('keyRequiredForChange'));
+      return;
+    }
+    if (isCompatible && !baseUrl) {
+      toast.error(t('baseUrlErrors.base_url_required'));
+      return;
+    }
+    if (isCompatible && !noticeAcked) {
+      toast.error(t('noticeRequired'));
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/ai/config', {
@@ -196,7 +257,7 @@ export function AiConfig() {
         toast.success(t('saveSuccess'));
         await fetchConfig();
       } else {
-        toast.error(data.error ?? t('saveFailed'));
+        toast.error(data.code?.startsWith?.('base_url') ? t(`baseUrlErrors.${data.code}`) : (data.error ?? t('saveFailed')));
       }
     } catch {
       toast.error(t('saveFailed'));
@@ -265,36 +326,105 @@ export function AiConfig() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t('provider')}</Label>
-                <Select
-                  value={provider}
-                  onValueChange={(v) => handleProviderChange(v as AiProvider)}
-                  disabled={disabled}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
-                    <SelectItem value="anthropic">
-                      {PROVIDER_LABEL.anthropic}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label id="ai-provider-label">{t('provider')}</Label>
+              <div
+                role="radiogroup"
+                aria-labelledby="ai-provider-label"
+                className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+              >
+                {AI_PRESET_IDS.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={sel.preset === id}
+                    disabled={disabled}
+                    onClick={() => handlePresetChange(id)}
+                    className={cn(
+                      'rounded-lg border p-2.5 text-left transition-colors disabled:opacity-60',
+                      sel.preset === id
+                        ? 'border-2 border-primary bg-primary/5 p-[9px]'
+                        : 'border-border hover:bg-muted',
+                    )}
+                  >
+                    <span className="block text-sm font-medium text-foreground">{t(`presets.${id}.name`)}</span>
+                    <span className="block text-[11px] text-muted-foreground">{t(`presets.${id}.desc`)}</span>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="ai-model">{t('model')}</Label>
-                <Input
-                  id="ai-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
+            {sel.preset === 'kimi' && (
+              <div className="space-y-2 sm:max-w-sm">
+                <Label htmlFor="ai-region">{t('region')}</Label>
+                <select
+                  id="ai-region"
+                  value={sel.region}
                   disabled={disabled}
+                  onChange={(e) => applySelection({ ...sel, region: e.target.value as KimiRegion })}
+                  className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
+                >
+                  <option value="global">{t('regionGlobal', { host: hostOf(KIMI_BASE_URLS.global) })}</option>
+                  <option value="cn">{t('regionCn', { host: hostOf(KIMI_BASE_URLS.cn) })}</option>
+                </select>
+                <p className="text-xs text-muted-foreground">{t('regionHint')}</p>
+              </div>
+            )}
+
+            {isCompatible && (
+              <div className="space-y-2">
+                <Label htmlFor="ai-base-url">{t('baseUrl')}</Label>
+                <Input
+                  id="ai-base-url"
+                  value={sel.preset === 'custom' ? sel.customUrl : (baseUrl ?? '')}
+                  readOnly={sel.preset !== 'custom'}
+                  onChange={(e) => applySelection({ ...sel, customUrl: e.target.value })}
+                  placeholder="https://api.example.com/v1"
+                  disabled={disabled}
+                  spellCheck={false}
+                  className={cn('font-mono text-xs', sel.preset !== 'custom' && 'text-muted-foreground')}
                 />
               </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="ai-model">{t('model')}</Label>
+              <Input
+                id="ai-model"
+                list="ai-model-options"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder={AI_PROVIDER_DEFAULT_MODEL[provider] || t('modelPlaceholderCompatible')}
+                disabled={disabled}
+                spellCheck={false}
+              />
+              <datalist id="ai-model-options">
+                {(models ?? []).map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              {models && models.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-muted-foreground">{t('modelsFromProvider', { count: models.length })}</span>
+                  {models.slice(0, 8).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setModel(m)}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 font-mono text-[11px] transition-colors',
+                        model === m ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              ) : isCompatible ? (
+                <p className="text-xs text-muted-foreground">{t('modelHintCompatible')}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -315,7 +445,7 @@ export function AiConfig() {
                         setKeyEdited(true);
                       }
                     }}
-                    placeholder={KEY_PLACEHOLDER[provider]}
+                    placeholder={PRESET_KEY_PLACEHOLDER[sel.preset]}
                     disabled={disabled}
                     autoComplete="off"
                   />
@@ -342,10 +472,76 @@ export function AiConfig() {
                   ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  {t('testKey')}
+                  {t('testConnection')}
                 </Button>
               </div>
+              {testOutcome && (
+                <div
+                  role="status"
+                  className={cn(
+                    'rounded-md border px-3 py-2 text-sm',
+                    testOutcome.ok
+                      ? 'border-emerald-500/30 bg-emerald-500/5 text-foreground'
+                      : 'border-destructive/40 bg-destructive/5 text-foreground',
+                  )}
+                >
+                  {testOutcome.ok ? (
+                    <>
+                      <p className="flex items-center gap-1.5 font-medium">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        {testOutcome.testedModel ? t('connectedAndReplied') : t('connected')}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {[
+                          testOutcome.modelCount !== null ? t('modelsFound', { count: testOutcome.modelCount }) : null,
+                          testOutcome.latencyMs !== undefined ? t('latency', { ms: testOutcome.latencyMs }) : null,
+                          testOutcome.tokens ? t('tokensUsed', { count: testOutcome.tokens }) : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                        {!testOutcome.testedModel && testOutcome.modelCount ? ` ${t('chooseModelNext')}` : ''}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="flex items-start gap-1.5 font-medium">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        <span>{testOutcome.error}</span>
+                      </p>
+                      {testOutcome.hint ? (
+                        <p className="mt-1 text-xs text-muted-foreground">{t(`hints.${testOutcome.hint}`)}</p>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+
+            {isCompatible && (
+              <label
+                className={cn(
+                  'flex items-start gap-2.5 rounded-md border p-3 text-sm',
+                  noticeAcked ? 'border-border' : 'border-amber-500/40 bg-amber-500/5',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={noticeAcked}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    setNoticeAck(e.target.checked);
+                    setAckedBaseUrl(e.target.checked ? normalizeBaseUrl(baseUrl ?? '') : null);
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                />
+                <span>
+                  <span className="block font-medium text-foreground">{t('noticeTitle')}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t('noticeText', { host: hostOf(baseUrl) || t('noticeHostFallback') })}
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="ai-embeddings-key">

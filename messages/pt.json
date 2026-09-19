@@ -2508,7 +2508,58 @@
       "saveSuccess": "Assistente de IA salvo.",
       "saveFailed": "Falha ao salvar.",
       "removeSuccess": "Configuração de IA removida.",
-      "removeFailed": "Falha ao remover."
+      "removeFailed": "Falha ao remover.",
+      "presets": {
+        "kimi": {
+          "name": "Kimi",
+          "desc": "Moonshot AI"
+        },
+        "openai": {
+          "name": "OpenAI",
+          "desc": "Modelos GPT"
+        },
+        "anthropic": {
+          "name": "Anthropic",
+          "desc": "Modelos Claude"
+        },
+        "deepseek": {
+          "name": "DeepSeek",
+          "desc": "Compatível com OpenAI"
+        },
+        "custom": {
+          "name": "Personalizado",
+          "desc": "Qualquer API compatível"
+        }
+      },
+      "region": "Região da conta",
+      "regionGlobal": "Global ({host})",
+      "regionCn": "China ({host})",
+      "regionHint": "As chaves do Kimi só funcionam na região em que foram criadas. Uma divergência parece uma chave inválida.",
+      "baseUrl": "URL base",
+      "baseUrlErrors": {
+        "base_url_required": "Informe a URL base do provedor.",
+        "base_url_invalid": "Isso não parece uma URL válida. Use o formato https://api.exemplo.com/v1, sem chave nem parâmetros.",
+        "base_url_not_https": "A URL base deve começar com https://.",
+        "base_url_blocked": "Esse endereço não pode ser usado: não é um host público da internet."
+      },
+      "modelPlaceholderCompatible": "Escolha ou digite um modelo",
+      "modelHintCompatible": "Teste a conexão para carregar os modelos da sua conta, ou digite o nome de um modelo.",
+      "modelsFromProvider": "{count, plural, one {# modelo na sua conta:} other {# modelos na sua conta:}}",
+      "testConnection": "Testar conexão",
+      "connected": "Conectado",
+      "connectedAndReplied": "Conectado — o modelo respondeu",
+      "modelsFound": "{count, plural, one {# modelo encontrado} other {# modelos encontrados}}",
+      "latency": "{ms} ms",
+      "tokensUsed": "{count} tokens",
+      "chooseModelNext": "Escolha um modelo e teste de novo.",
+      "hints": {
+        "kimi_region": "As chaves do Kimi são específicas por região. Se esta chave foi criada na outra plataforma do Kimi, troque a região acima e teste de novo."
+      },
+      "noticeTitle": "As mensagens dos clientes serão enviadas a um terceiro",
+      "noticeText": "Rascunhos, respostas automáticas e rotulagem enviam o texto da conversa para {host}. Confirme que isso está de acordo com sua política de privacidade e com o que seus clientes esperam antes de ativar.",
+      "noticeHostFallback": "este provedor",
+      "noticeRequired": "Confirme o aviso de dados para continuar.",
+      "keyRequiredForChange": "Informe a chave de API novamente ao trocar o provedor ou a URL."
     },
     "aiKnowledge": {
       "loadFailed": "Falha ao carregar a base de conhecimento",

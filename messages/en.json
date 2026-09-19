@@ -2526,7 +2526,58 @@
       "saveSuccess": "AI assistant saved.",
       "saveFailed": "Failed to save.",
       "removeSuccess": "AI configuration removed.",
-      "removeFailed": "Failed to remove."
+      "removeFailed": "Failed to remove.",
+      "presets": {
+        "kimi": {
+          "name": "Kimi",
+          "desc": "Moonshot AI"
+        },
+        "openai": {
+          "name": "OpenAI",
+          "desc": "GPT models"
+        },
+        "anthropic": {
+          "name": "Anthropic",
+          "desc": "Claude models"
+        },
+        "deepseek": {
+          "name": "DeepSeek",
+          "desc": "OpenAI-compatible"
+        },
+        "custom": {
+          "name": "Custom",
+          "desc": "Any compatible API"
+        }
+      },
+      "region": "Account region",
+      "regionGlobal": "Global ({host})",
+      "regionCn": "China ({host})",
+      "regionHint": "Kimi keys only work in the region they were created in. A mismatch looks like an invalid key.",
+      "baseUrl": "Base URL",
+      "baseUrlErrors": {
+        "base_url_required": "Enter the provider’s base URL.",
+        "base_url_invalid": "That doesn’t look like a valid URL. Use the form https://api.example.com/v1, with no key or query in it.",
+        "base_url_not_https": "The base URL must start with https://.",
+        "base_url_blocked": "That address can’t be used — it isn’t a public internet host."
+      },
+      "modelPlaceholderCompatible": "Choose or type a model",
+      "modelHintCompatible": "Test the connection to load the models on your account, or type a model name.",
+      "modelsFromProvider": "{count, plural, one {# model on your account:} other {# models on your account:}}",
+      "testConnection": "Test connection",
+      "connected": "Connected",
+      "connectedAndReplied": "Connected — the model replied",
+      "modelsFound": "{count, plural, one {# model found} other {# models found}}",
+      "latency": "{ms} ms",
+      "tokensUsed": "{count} tokens",
+      "chooseModelNext": "Choose a model, then test again.",
+      "hints": {
+        "kimi_region": "Kimi keys are region-specific. If this key was created on the other Kimi platform, switch the region above and test again."
+      },
+      "noticeTitle": "Customer messages will be sent to a third party",
+      "noticeText": "Drafts, auto-replies and labelling send conversation text to {host}. Check that this fits your privacy policy and your customers’ expectations before turning it on.",
+      "noticeHostFallback": "this provider",
+      "noticeRequired": "Confirm the data notice to continue.",
+      "keyRequiredForChange": "Enter the API key again when changing the provider or URL."
     },
     "aiKnowledge": {
       "loadFailed": "Failed to load knowledge base",

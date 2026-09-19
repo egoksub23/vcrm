@@ -8,7 +8,11 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
+import { validateBaseUrl } from '@/lib/ai/base-url'
+import { hostOf, normalizeBaseUrl } from '@/lib/ai/presets'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+
+const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openai_compatible']
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -30,7 +34,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key',
+        'provider, base_url, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, data_notice_ack_at, api_key, embeddings_api_key',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -78,8 +82,22 @@ export async function POST(request: Request) {
     if (!body || typeof body !== 'object') return bad('Invalid request body')
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic') {
-      return bad('provider must be "openai" or "anthropic"')
+    if (!PROVIDERS.includes(provider)) {
+      return bad('provider must be "openai", "anthropic" or "openai_compatible"')
+    }
+
+    // An OpenAI-compatible provider needs a public https base URL (the
+    // server will call it with the stored key), and nothing else may carry one.
+    let baseUrl: string | null = null
+    if (provider === 'openai_compatible') {
+      const checked = await validateBaseUrl(body.base_url)
+      if (!checked.ok) {
+        return NextResponse.json(
+          { error: 'That base URL can’t be used.', code: checked.code },
+          { status: 400 },
+        )
+      }
+      baseUrl = checked.url
     }
     const model = typeof body.model === 'string' ? body.model.trim() : ''
     if (!model) return bad('model is required')
@@ -128,13 +146,26 @@ export async function POST(request: Request) {
     // Reuse the stored key when the form didn't send a fresh one.
     const { data: existing } = await supabase
       .from('ai_configs')
-      .select('id, provider, model, api_key')
+      .select('id, provider, base_url, model, api_key, data_notice_ack_at')
       .eq('account_id', accountId)
       .maybeSingle()
+
+    // The stored key may only be reused for the provider and URL it was
+    // saved for — otherwise an admin (who can't read it) could aim it at a
+    // host they control.
+    const sameTarget =
+      !!existing &&
+      existing.provider === provider &&
+      normalizeBaseUrl(existing.base_url ?? '') === normalizeBaseUrl(baseUrl ?? '')
 
     let apiKeyPlain: string
     if (rawKey) {
       apiKeyPlain = rawKey
+    } else if (existing?.api_key && !sameTarget) {
+      return NextResponse.json(
+        { error: 'Enter the API key again when changing the provider or URL.', code: 'key_required' },
+        { status: 400 },
+      )
     } else if (existing?.api_key) {
       try {
         apiKeyPlain = decrypt(existing.api_key)
@@ -152,8 +183,27 @@ export async function POST(request: Request) {
     const credentialsChanged =
       !existing ||
       rawKey !== '' ||
-      provider !== existing.provider ||
+      !sameTarget ||
       model !== existing.model
+
+    // Customer messages will be sent to a third party: an admin has to say
+    // they understand that, once per host (and again if the host changes).
+    let noticeAckAt: string | null = null
+    if (provider === 'openai_compatible') {
+      const sameHost = sameTarget && !!existing?.data_notice_ack_at
+      if (!sameHost) {
+        if (body.data_notice_ack !== true) {
+          return NextResponse.json(
+            {
+              error: `Confirm that customer messages will be sent to ${hostOf(baseUrl)}.`,
+              code: 'data_notice_required',
+            },
+            { status: 400 },
+          )
+        }
+        noticeAckAt = new Date().toISOString()
+      }
+    }
 
     if (credentialsChanged) {
       try {
@@ -161,6 +211,7 @@ export async function POST(request: Request) {
           provider,
           model,
           apiKey: apiKeyPlain,
+          baseUrl,
           systemPrompt,
           isActive,
           autoReplyEnabled,
@@ -200,11 +251,19 @@ export async function POST(request: Request) {
     const encryptedKey = rawKey ? encrypt(rawKey) : null
     const shared: Record<string, unknown> = {
       provider,
+      base_url: baseUrl,
       model,
       system_prompt: systemPrompt,
       is_active: isActive,
       auto_reply_enabled: autoReplyEnabled,
       auto_reply_max_per_conversation: maxPer,
+    }
+    if (noticeAckAt) {
+      shared.data_notice_ack_at = noticeAckAt
+      shared.data_notice_ack_by = userId
+    } else if (provider !== 'openai_compatible') {
+      shared.data_notice_ack_at = null
+      shared.data_notice_ack_by = null
     }
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.

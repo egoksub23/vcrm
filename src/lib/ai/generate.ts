@@ -27,6 +27,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   const timeoutMs = aiRequestTimeoutMs()
   const providerArgs = {
     apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
     model: config.model,
     systemPrompt,
     messages,
@@ -36,6 +37,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   let result: { text: string; usage: AiUsage | null }
   switch (config.provider) {
     case 'openai':
+    case 'openai_compatible':
       result = await generateOpenAi(providerArgs)
       break
     case 'anthropic':

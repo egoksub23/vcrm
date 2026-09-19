@@ -14,6 +14,9 @@ import { languageName } from '@/lib/contacts/locale-options'
 export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
   openai: 'gpt-5.4-mini',
   anthropic: 'claude-haiku-4-5-20251001',
+  // No default: model names differ per service and change often, so the
+  // form loads the real list from the provider ("Test connection").
+  openai_compatible: '',
 }
 
 /**

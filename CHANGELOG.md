@@ -9,6 +9,31 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.30.0] — 2026-09-19
+
+**Migration required**: apply `070_ai_openai_compatible.sql` and `071_ai_base_url_check_fix.sql`.
+
+- **Connect Kimi, DeepSeek, or any OpenAI-compatible AI** (AI Agents → Setup).
+  The provider is now picked from cards — Kimi, OpenAI, Anthropic, DeepSeek,
+  Custom — instead of a two-item dropdown. Kimi has a Global / China region
+  choice (its keys only work in the region they were created in, and a
+  mismatch looks like a bad key, so a rejected Kimi key now says so). Custom
+  takes any https base URL; addresses that aren't on the public internet are
+  refused. Draft replies, the auto-reply bot, the auto-labeller and the
+  knowledge base all work with the new provider without further setup.
+- **Test connection** replaces "Test key". It checks the key, reads the list
+  of models available on your account, and — once you've chosen a model —
+  sends a small test message and shows the time it took and the tokens used.
+  The model field offers the models it found, so you don't have to know their
+  names. If the key was saved earlier you can re-test without retyping it,
+  but only against the provider and URL it was saved for.
+- **Data notice.** For third-party providers the form asks an admin to
+  confirm that customer messages will be sent to that host. It's recorded once
+  per host, and asked again if the host changes.
+- Reasoning models that return their thinking separately (some Kimi models)
+  are handled: only the final answer is used as the reply.
+- Not yet verified against a live Kimi account — see the roadmap.
+
 ## [0.29.0] — 2026-09-19
 
 **Migration required**: apply `069_contact_country_language.sql`.

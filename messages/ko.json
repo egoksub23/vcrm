@@ -2526,7 +2526,58 @@
       "saveSuccess": "AI 어시스턴트가 저장되었습니다.",
       "saveFailed": "저장하지 못했습니다.",
       "removeSuccess": "AI 설정이 제거되었습니다.",
-      "removeFailed": "제거하지 못했습니다."
+      "removeFailed": "제거하지 못했습니다.",
+      "presets": {
+        "kimi": {
+          "name": "Kimi",
+          "desc": "Moonshot AI"
+        },
+        "openai": {
+          "name": "OpenAI",
+          "desc": "GPT 모델"
+        },
+        "anthropic": {
+          "name": "Anthropic",
+          "desc": "Claude 모델"
+        },
+        "deepseek": {
+          "name": "DeepSeek",
+          "desc": "OpenAI 호환"
+        },
+        "custom": {
+          "name": "직접 설정",
+          "desc": "호환되는 모든 API"
+        }
+      },
+      "region": "계정 지역",
+      "regionGlobal": "글로벌 ({host})",
+      "regionCn": "중국 ({host})",
+      "regionHint": "Kimi 키는 생성된 지역에서만 작동합니다. 지역이 맞지 않으면 잘못된 키처럼 보입니다.",
+      "baseUrl": "기본 URL",
+      "baseUrlErrors": {
+        "base_url_required": "제공업체의 기본 URL을 입력하세요.",
+        "base_url_invalid": "올바른 URL이 아닙니다. 키나 쿼리 없이 https://api.example.com/v1 형식으로 입력하세요.",
+        "base_url_not_https": "기본 URL은 https://로 시작해야 합니다.",
+        "base_url_blocked": "이 주소는 사용할 수 없습니다. 공개 인터넷 호스트가 아닙니다."
+      },
+      "modelPlaceholderCompatible": "모델을 선택하거나 입력하세요",
+      "modelHintCompatible": "연결을 테스트하면 계정의 모델 목록을 불러옵니다. 모델 이름을 직접 입력해도 됩니다.",
+      "modelsFromProvider": "{count, plural, other {계정의 모델 #개:}}",
+      "testConnection": "연결 테스트",
+      "connected": "연결됨",
+      "connectedAndReplied": "연결됨 — 모델이 응답했습니다",
+      "modelsFound": "{count, plural, other {모델 #개 발견}}",
+      "latency": "{ms}ms",
+      "tokensUsed": "토큰 {count}개",
+      "chooseModelNext": "모델을 선택한 다음 다시 테스트하세요.",
+      "hints": {
+        "kimi_region": "Kimi 키는 지역별로 다릅니다. 이 키를 다른 Kimi 플랫폼에서 만들었다면 위의 지역을 바꾸고 다시 테스트하세요."
+      },
+      "noticeTitle": "고객 메시지가 제3자에게 전송됩니다",
+      "noticeText": "초안, 자동 응답, 라벨링은 대화 내용을 {host}(으)로 보냅니다. 켜기 전에 개인정보 처리방침과 고객의 기대에 맞는지 확인하세요.",
+      "noticeHostFallback": "이 제공업체",
+      "noticeRequired": "계속하려면 데이터 안내를 확인하세요.",
+      "keyRequiredForChange": "제공업체나 URL을 변경할 때는 API 키를 다시 입력하세요."
     },
     "aiKnowledge": {
       "loadFailed": "지식베이스를 불러오지 못했습니다",

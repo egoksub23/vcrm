@@ -6,6 +6,8 @@ import { AiError, type AiUsage, type ChatMessage } from '../types'
 
 export interface ProviderArgs {
   apiKey: string
+  /** Set for OpenAI-compatible providers; the adapter falls back to OpenAI's URL when absent. */
+  baseUrl?: string | null
   model: string
   systemPrompt: string
   messages: ChatMessage[]

@@ -11,12 +11,31 @@ import {
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface OpenAiResponse {
-  choices?: { message?: { content?: string } }[]
+  choices?: { message?: { content?: string | { type?: string; text?: string }[] | null } }[]
   usage?: {
     prompt_tokens?: number
     completion_tokens?: number
     total_tokens?: number
   }
+}
+
+function hostOfUrl(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+/** Message content is a string, or (on some compatible services) a list of text parts. */
+function contentToText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map((p) => (p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string' ? (p as { text: string }).text : ''))
+      .join('')
+  }
+  return ''
 }
 
 /**
@@ -25,11 +44,17 @@ interface OpenAiResponse {
  * in `generateReply`).
  */
 export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, baseUrl } = args
+  // A base URL means an OpenAI-*compatible* service (Kimi, DeepSeek, …):
+  // same endpoint shape, but the classic `max_tokens` parameter is the one
+  // they all accept, and errors should name that host rather than OpenAI.
+  const compatible = !!baseUrl
+  const url = compatible ? `${baseUrl.replace(/\/+$/, '')}/chat/completions` : OPENAI_URL
+  const providerName = compatible ? hostOfUrl(baseUrl) : 'OpenAI'
 
   let res: Response
   try {
-    res = await fetch(OPENAI_URL, {
+    res = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -41,7 +66,9 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
           { role: 'system', content: systemPrompt },
           ...mergeConsecutive(messages),
         ],
-        max_completion_tokens: MAX_OUTPUT_TOKENS,
+        ...(compatible
+          ? { max_tokens: MAX_OUTPUT_TOKENS }
+          : { max_completion_tokens: MAX_OUTPUT_TOKENS }),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -50,13 +77,15 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   }
 
   if (!res.ok) {
-    throw await providerHttpError('OpenAI', res)
+    throw await providerHttpError(providerName, res)
   }
 
   const data = (await res.json().catch(() => null)) as OpenAiResponse | null
-  const text = data?.choices?.[0]?.message?.content
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    throw new AiError('OpenAI returned an empty response.', {
+  // Reasoning models (e.g. Kimi's thinking models) return their working in a
+  // separate `reasoning_content`; only the final `content` is the reply.
+  const text = contentToText(data?.choices?.[0]?.message?.content)
+  if (!text.trim()) {
+    throw new AiError(`${providerName} returned an empty response.`, {
       code: 'empty_response',
     })
   }

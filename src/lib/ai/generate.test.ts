@@ -7,6 +7,7 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     provider: 'openai',
     model: 'gpt-test',
     apiKey: 'sk-test',
+    baseUrl: null,
     systemPrompt: null,
     isActive: true,
     autoReplyEnabled: false,
@@ -94,6 +95,15 @@ describe('generateReply — OpenAI', () => {
     const [url, opts] = fetchMock.mock.calls[0]
     expect(url).toContain('api.openai.com')
     expect(opts.headers.Authorization).toBe('Bearer sk-test')
+  })
+
+  it('sends OpenAI its own token-limit parameter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+    await generateReply({ config: config(), systemPrompt: 'sys', messages: [{ role: 'user', content: 'Hi' }] })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.max_completion_tokens).toBeGreaterThan(0)
+    expect(body.max_tokens).toBeUndefined()
   })
 
   it('maps a 401 to an invalid_key AiError', async () => {
@@ -190,5 +200,68 @@ describe('generateReply — Anthropic', () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[0].role).toBe('user')
     expect(body.messages).toHaveLength(1)
+  })
+})
+
+describe('generateReply — OpenAI-compatible provider', () => {
+  const compat = (over: Partial<AiConfig> = {}) =>
+    config({ provider: 'openai_compatible', baseUrl: 'https://api.moonshot.ai/v1/', model: 'kimi-test', ...over })
+
+  it('calls {baseUrl}/chat/completions with the classic max_tokens parameter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okResponse({
+        choices: [{ message: { content: 'Hello from Kimi' } }],
+        usage: { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16 },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({ config: compat(), systemPrompt: 'sys', messages: [{ role: 'user', content: 'Hi' }] })
+
+    expect(res.text).toBe('Hello from Kimi')
+    expect(res.usage).toEqual({ promptTokens: 12, completionTokens: 4, totalTokens: 16 })
+    const [url, opts] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://api.moonshot.ai/v1/chat/completions')
+    expect(opts.headers.Authorization).toBe('Bearer sk-test')
+    const body = JSON.parse(opts.body)
+    expect(body.model).toBe('kimi-test')
+    expect(body.max_tokens).toBeGreaterThan(0)
+    expect(body.max_completion_tokens).toBeUndefined()
+  })
+
+  it('uses only the final content of a reasoning model, not its thinking', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        okResponse({ choices: [{ message: { content: 'Final answer', reasoning_content: 'Let me think…' } }] }),
+      ),
+    )
+    const res = await generateReply({ config: compat(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] })
+    expect(res.text).toBe('Final answer')
+  })
+
+  it('accepts content returned as a list of text parts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        okResponse({ choices: [{ message: { content: [{ type: 'text', text: 'Part one. ' }, { type: 'text', text: 'Part two.' }] } }] }),
+      ),
+    )
+    const res = await generateReply({ config: compat(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] })
+    expect(res.text).toBe('Part one. Part two.')
+  })
+
+  it('names the compatible host, not OpenAI, in errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(errResponse(401, { error: { message: 'Invalid Authentication' } })))
+    await expect(
+      generateReply({ config: compat(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] }),
+    ).rejects.toMatchObject({ code: 'invalid_key', message: expect.stringContaining('api.moonshot.ai') })
+  })
+
+  it('reports an empty reply as an error naming the host', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: '' } }] })))
+    await expect(
+      generateReply({ config: compat(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] }),
+    ).rejects.toMatchObject({ code: 'empty_response', message: expect.stringContaining('api.moonshot.ai') })
   })
 })

@@ -6,7 +6,11 @@
 // whether the account is on OpenAI or Anthropic.
 // ============================================================
 
-export type AiProvider = 'openai' | 'anthropic'
+/**
+ * `openai_compatible` is any service that speaks the OpenAI chat-completions
+ * dialect at a custom `baseUrl` — Kimi (Moonshot), DeepSeek, a gateway.
+ */
+export type AiProvider = 'openai' | 'anthropic' | 'openai_compatible'
 
 /**
  * Account AI setup, decrypted and ready to use. Produced by
@@ -17,6 +21,8 @@ export interface AiConfig {
   provider: AiProvider
   model: string
   apiKey: string
+  /** API root for `openai_compatible`; null for the built-in providers. */
+  baseUrl: string | null
   systemPrompt: string | null
   isActive: boolean
   autoReplyEnabled: boolean
