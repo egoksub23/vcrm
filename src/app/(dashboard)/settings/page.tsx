@@ -15,6 +15,7 @@ import { ChannelsTab } from '@/components/settings/channels-tab';
 import { TemplateManager } from '@/components/settings/template-manager';
 import { QuickRepliesManager } from '@/components/settings/quick-replies-manager';
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
+import { TicketFormSettings } from '@/components/settings/ticket-form-settings';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
 import { StatusColorsTab } from '@/components/settings/status-colors-tab';
@@ -82,6 +83,7 @@ function SettingsPageInner() {
     templates: <TemplateManager />,
     'quick-replies': <QuickRepliesManager />,
     fields: <FieldsAndTagsPanel />,
+    'ticket-form': <TicketFormSettings />,
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
     'status-colors': <StatusColorsTab />,

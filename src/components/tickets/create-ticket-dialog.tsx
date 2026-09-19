@@ -26,7 +26,20 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
-import type { Contact, Ticket, TicketCategory, TicketPriority } from "@/types";
+import { useTicketFields } from "@/hooks/use-ticket-fields";
+import {
+  fieldsForCategory,
+  missingRequiredFields,
+  sanitizeCustomValues,
+} from "@/lib/tickets/custom-fields";
+import { TicketFieldInput } from "./ticket-field-input";
+import type {
+  Contact,
+  Ticket,
+  TicketCategory,
+  TicketCustomValues,
+  TicketPriority,
+} from "@/types";
 
 const CATEGORIES: TicketCategory[] = [
   "general",
@@ -77,6 +90,14 @@ export function CreateTicketDialog({
   const [priority, setPriority] = useState<TicketPriority>("normal");
   const [busy, setBusy] = useState(false);
 
+  // Admin-defined form fields (migration 066). Only fetched while the
+  // dialog is open; the visible set follows the selected category.
+  const { fields: fieldDefs } = useTicketFields(open);
+  const [customValues, setCustomValues] = useState<TicketCustomValues>({});
+  const [showInvalid, setShowInvalid] = useState(false);
+  const visibleFields = fieldsForCategory(fieldDefs, category);
+  const missingIds = new Set(missingRequiredFields(fieldDefs, category, customValues));
+
   // Contact picker — only shown when the caller didn't already know
   // which contact this ticket is for (the standalone /tickets page's
   // "New Ticket" button).
@@ -117,6 +138,8 @@ export function CreateTicketDialog({
     setDescription("");
     setCategory("general");
     setPriority("normal");
+    setCustomValues({});
+    setShowInvalid(false);
     setContactQuery("");
     setContactMatches([]);
     setPickedContact(null);
@@ -145,6 +168,12 @@ export function CreateTicketDialog({
       return;
     }
 
+    if (missingIds.size > 0) {
+      setShowInvalid(true);
+      toast.error(t("requiredFieldsMissing"));
+      return;
+    }
+
     setBusy(true);
     try {
       const supabase = createClient();
@@ -168,6 +197,7 @@ export function CreateTicketDialog({
           description: description.trim() || null,
           category,
           priority,
+          custom_fields: sanitizeCustomValues(fieldDefs, category, customValues),
           created_by: user.id,
         })
         .select("*")
@@ -188,7 +218,7 @@ export function CreateTicketDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-md">
+      <DialogContent className="bg-popover border-border text-popover-foreground max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("title")}</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -326,6 +356,25 @@ export function CreateTicketDialog({
               </Select>
             </div>
           </div>
+
+          {visibleFields.map((field) => (
+            <TicketFieldInput
+              key={field.id}
+              field={field}
+              value={customValues[field.id]}
+              onChange={(v) =>
+                setCustomValues((prev) => {
+                  const next = { ...prev };
+                  if (v === undefined) delete next[field.id];
+                  else next[field.id] = v;
+                  return next;
+                })
+              }
+              disabled={busy}
+              invalid={showInvalid && missingIds.has(field.id)}
+              idPrefix="create-ticket-field"
+            />
+          ))}
         </div>
 
         <DialogFooter className="bg-popover border-border">

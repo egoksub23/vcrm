@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.25.0] — 2026-09-19
+
+**Migration required**: apply .
+
+- **Customizable ticket form**: admins can add their own fields to the
+  ticket form under Settings → Ticket form — short text, long text,
+  number, date, dropdown, or checkbox — mark them required, reorder them,
+  and scope each to specific ticket categories (or every ticket). A live
+  preview shows the form an agent will see for any category. Fields show
+  up in the New Ticket dialog and as an editable Details section on an
+  open ticket, and every edit lands in the ticket's activity history.
+  Archiving a field hides it from new tickets without losing the values
+  old tickets already hold.
+
 ## [0.24.0] — 2026-09-19
 
 **Migration required**: apply `064_ticket_activity.sql` and `065_conversation_session_log.sql`, in order.

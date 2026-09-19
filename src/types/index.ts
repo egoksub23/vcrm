@@ -373,11 +373,45 @@ export interface Ticket {
   created_by?: string | null;
   resolved_at?: string | null;
   closed_at?: string | null;
+  /** Values for admin-defined ticket fields (migration 066), keyed by
+   *  TicketFieldDefinition.id. */
+  custom_fields?: TicketCustomValues;
   created_at: string;
   updated_at: string;
   // Optional joins, populated by callers that need them.
   contact?: Contact;
   assigned_team?: Team;
+}
+
+export type TicketFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'date'
+  | 'dropdown'
+  | 'checkbox';
+
+/** string for text/textarea/dropdown/date (ISO yyyy-mm-dd), number for
+ *  number, boolean for checkbox. */
+export type TicketCustomValue = string | number | boolean;
+export type TicketCustomValues = Record<string, TicketCustomValue>;
+
+/** One field on the account's customizable ticket form (migration 066). */
+export interface TicketFieldDefinition {
+  id: string;
+  account_id: string;
+  label: string;
+  field_type: TicketFieldType;
+  /** Dropdown choices; empty for other types. */
+  options: string[];
+  is_required: boolean;
+  /** Ticket categories this field appears on; empty = all of them. */
+  applies_to_categories: TicketCategory[];
+  position: number;
+  /** false = archived: hidden from new forms, still labels old values. */
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TicketComment {
@@ -400,13 +434,16 @@ export type TicketActivityEventType =
   | 'priority_changed'
   | 'category_changed'
   | 'assigned_agent_changed'
-  | 'assigned_team_changed';
+  | 'assigned_team_changed'
+  | 'custom_field_changed';
 
 export interface TicketActivity {
   id: string;
   ticket_id: string;
   account_id: string;
   actor_id?: string | null;
+  /** Set for custom_field_changed — the TicketFieldDefinition edited. */
+  field_id?: string | null;
   event_type: TicketActivityEventType;
   from_value?: string | null;
   to_value?: string | null;

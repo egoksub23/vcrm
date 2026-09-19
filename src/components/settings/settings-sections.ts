@@ -1,5 +1,6 @@
 import {
   Boxes,
+  ClipboardList,
   Coins,
   FileText,
   KeyRound,
@@ -33,6 +34,7 @@ export const SETTINGS_SECTIONS = [
   'templates',
   'quick-replies',
   'fields',
+  'ticket-form',
   'deals',
   'response-time',
   'status-colors',
@@ -62,6 +64,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   templates: { id: 'templates', label: 'Templates', icon: FileText, group: 'workspace' },
   'quick-replies': { id: 'quick-replies', label: 'Quick replies', icon: Zap, group: 'workspace' },
   fields: { id: 'fields', label: 'Fields & tags', icon: Tags, group: 'workspace' },
+  'ticket-form': { id: 'ticket-form', label: 'Ticket form', icon: ClipboardList, group: 'workspace' },
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   'response-time': { id: 'response-time', label: 'Response time', icon: Timer, group: 'workspace' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },

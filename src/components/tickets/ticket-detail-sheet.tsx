@@ -24,6 +24,14 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { useTicketFields } from "@/hooks/use-ticket-fields";
+import {
+  coerceValue,
+  fieldsForCategory,
+  fieldsForTicket,
+  isEmptyValue,
+} from "@/lib/tickets/custom-fields";
+import { TicketFieldInput } from "./ticket-field-input";
 import type {
   Contact,
   Profile,
@@ -32,6 +40,8 @@ import type {
   TicketActivity,
   TicketCategory,
   TicketComment,
+  TicketCustomValues,
+  TicketFieldDefinition,
   TicketPriority,
   TicketStatus,
 } from "@/types";
@@ -67,6 +77,83 @@ interface TicketDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Lets the list page refresh its row without waiting for realtime. */
   onChanged?: () => void;
+}
+
+/**
+ * The account's custom ticket fields (migration 066) on an existing
+ * ticket. Each edit saves as it's committed (blur / selection), same
+ * as the header controls; the local draft only exists so typing isn't
+ * interrupted by a round-trip. Keyed by ticket id by the parent, so it
+ * resets when a different ticket opens — but NOT on every save, which
+ * would steal focus while tabbing between fields.
+ */
+function CustomFieldsSection({
+  ticket,
+  defs,
+  onSave,
+}: {
+  ticket: Ticket;
+  defs: TicketFieldDefinition[];
+  onSave: (next: TicketCustomValues) => Promise<boolean>;
+}) {
+  const t = useTranslations("Tickets.detail");
+  const [draft, setDraft] = useState<TicketCustomValues>(ticket.custom_fields ?? {});
+  const stored = ticket.custom_fields ?? {};
+  const shown = fieldsForTicket(defs, ticket.category, stored);
+  if (shown.length === 0) return null;
+
+  const requiredIds = new Set(
+    fieldsForCategory(defs, ticket.category)
+      .filter((d) => d.is_required)
+      .map((d) => d.id),
+  );
+
+  const revert = (def: TicketFieldDefinition) =>
+    setDraft((prev) => {
+      const next = { ...prev };
+      if (stored[def.id] === undefined) delete next[def.id];
+      else next[def.id] = stored[def.id];
+      return next;
+    });
+
+  const commit = async (def: TicketFieldDefinition, raw: Parameters<typeof coerceValue>[1]) => {
+    const coerced = coerceValue(def, raw);
+    if (coerced === stored[def.id]) return;
+    if (coerced === undefined && requiredIds.has(def.id) && !isEmptyValue(stored[def.id])) {
+      toast.error(t("requiredField", { field: def.label }));
+      revert(def);
+      return;
+    }
+    const next = { ...stored };
+    if (coerced === undefined) delete next[def.id];
+    else next[def.id] = coerced;
+    if (!(await onSave(next))) revert(def);
+  };
+
+  return (
+    <div className="space-y-3 border-t border-border/50 pt-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {t("detailsHeading")}
+      </h4>
+      {shown.map((def) => (
+        <TicketFieldInput
+          key={def.id}
+          field={def}
+          value={draft[def.id]}
+          onChange={(v) =>
+            setDraft((prev) => {
+              const next = { ...prev };
+              if (v === undefined) delete next[def.id];
+              else next[def.id] = v;
+              return next;
+            })
+          }
+          onCommit={(v) => void commit(def, v)}
+          idPrefix="detail-ticket-field"
+        />
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -168,21 +255,24 @@ export function TicketDetailSheet({
   }, [ticketId]);
 
   const updateField = useCallback(
-    async (patch: Partial<Ticket>, fieldKey: string) => {
-      if (!ticket) return;
+    async (patch: Partial<Ticket>, fieldKey: string): Promise<boolean> => {
+      if (!ticket) return false;
       setSavingField(fieldKey);
       const supabase = createClient();
       const { error } = await supabase.from("tickets").update(patch).eq("id", ticket.id);
+      setSavingField(null);
       if (error) {
         toast.error(t("updateFailed"));
-      } else {
-        setTicket((prev) => (prev ? { ...prev, ...patch } : prev));
-        onChanged?.();
+        return false;
       }
-      setSavingField(null);
+      setTicket((prev) => (prev ? { ...prev, ...patch } : prev));
+      onChanged?.();
+      return true;
     },
     [ticket, onChanged, t],
   );
+
+  const { fields: fieldDefs } = useTicketFields(open);
 
   const handleStatusChange = (status: TicketStatus) => {
     const patch: Partial<Ticket> = { status };
@@ -289,6 +379,19 @@ export function TicketDetailSheet({
         if (!a.to_value) return t("activity.unassignedTeam", { from: teamName(a.from_value) });
         if (!a.from_value) return t("activity.assignedTeam", { to: teamName(a.to_value) });
         return t("activity.reassignedTeam", { from: teamName(a.from_value), to: teamName(a.to_value) });
+      case "custom_field_changed": {
+        const def = fieldDefs.find((d) => d.id === a.field_id);
+        const field = def?.label ?? t("activity.unknownField");
+        const show = (v: string | null | undefined) =>
+          v == null ? "" : def?.field_type === "checkbox" ? t("activity.yes") : v;
+        if (!a.to_value) return t("activity.customFieldCleared", { field });
+        if (!a.from_value) return t("activity.customFieldSet", { field, to: show(a.to_value) });
+        return t("activity.customFieldChanged", {
+          field,
+          from: show(a.from_value),
+          to: show(a.to_value),
+        });
+      }
       default:
         return a.event_type;
     }
@@ -434,6 +537,13 @@ export function TicketDetailSheet({
               {ticket.description && (
                 <p className="whitespace-pre-wrap text-sm text-foreground">{ticket.description}</p>
               )}
+
+              <CustomFieldsSection
+                key={ticket.id}
+                ticket={ticket}
+                defs={fieldDefs}
+                onSave={(next) => updateField({ custom_fields: next }, "custom_fields")}
+              />
 
               <div className="border-t border-border/50 pt-3">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
