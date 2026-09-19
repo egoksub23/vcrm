@@ -9,6 +9,19 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.30.1] — 2026-09-19
+
+No migration needed.
+
+- **Customer notes moved next to the chat.** The column beside the
+  conversation is now split into two halves: ticket history on top, customer
+  notes below. Each half scrolls on its own, so a long ticket list never
+  pushes the notes out of view. In the notes half, Ctrl+Enter (or Cmd+Enter)
+  adds a note. The ticket icon in the chat header now shows or hides both.
+- **Fixed: the contact details column wouldn't scroll.** With the customer's
+  tags, labels, deals, and session log stacked in it, everything below the
+  fold was unreachable. It now scrolls.
+
 ## [0.30.0] — 2026-09-19
 
 **Migration required**: apply `070_ai_openai_compatible.sql` and `071_ai_base_url_check_fix.sql`.

@@ -112,8 +112,8 @@ export function TicketHistoryPanel({
   const activeCount = rows.filter((r) => r.status === "open" || r.status === "pending").length;
 
   return (
-    <div className="flex h-full w-72 flex-col border-l border-border bg-card">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <TicketIcon className="h-4 w-4 text-primary" />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
@@ -155,7 +155,7 @@ export function TicketHistoryPanel({
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {!contactId ? null : loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />

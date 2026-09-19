@@ -288,8 +288,8 @@
       "statusUpdateFailed": "Failed to update status",
       "tagTitle": "Tag: {name}",
       "labelTitle": "Label: {name}",
-      "showTicketHistory": "Show ticket history",
-      "hideTicketHistory": "Hide ticket history"
+      "showTicketHistory": "Show tickets and notes",
+      "hideTicketHistory": "Hide tickets and notes"
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -563,6 +563,11 @@
         "phone_taken": "Another contact already uses this number.",
         "too_long": "That’s too long."
       }
+    },
+    "notesPanel": {
+      "add": "Add note",
+      "empty": "No notes yet.",
+      "addFailed": "Couldn’t add the note"
     }
   },
   "Contacts": {

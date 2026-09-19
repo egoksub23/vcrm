@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { useCan } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
 import { toast } from "sonner";
 import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
 import { addConversationLabel, deleteConversationLabel } from "@/lib/conversations/label-api";
-import type { Contact, Deal, ContactNote, Tag } from "@/types";
+import type { Contact, Deal, Tag } from "@/types";
 import {
   Copy,
   Check,
@@ -17,12 +16,8 @@ import {
   Tag as TagIcon,
   Bookmark,
   DollarSign,
-  StickyNote,
-  Plus,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
@@ -55,10 +50,8 @@ export function ContactSidebar({
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
-  const { accountId } = useAuth();
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [notes, setNotes] = useState<ContactNote[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   // Tag/label writes go through the API (audit + automation triggers), one
   // at a time — `busy` ignores a second click while one is in flight.
@@ -66,8 +59,6 @@ export function ContactSidebar({
   const canEdit = useCan("send-messages");
   const canManageFields = useCan("edit-settings");
   const { contactTags: tagOptions, conversationLabels: labelOptions } = useTags();
-  const [newNote, setNewNote] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
 
   const contactId = contact?.id ?? null;
   const fetchContactData = useCallback(async () => {
@@ -75,16 +66,11 @@ export function ContactSidebar({
 
     const supabase = createClient();
 
-    // Fetch deals, notes, and tags in parallel
-    const [dealsRes, notesRes, tagsRes] = await Promise.all([
+    // Fetch deals and tags in parallel (notes live in the column beside the chat).
+    const [dealsRes, tagsRes] = await Promise.all([
       supabase
         .from("deals")
         .select("*, stage:pipeline_stages(*)")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contact_notes")
-        .select("*")
         .eq("contact_id", contactId)
         .order("created_at", { ascending: false }),
       supabase
@@ -94,7 +80,6 @@ export function ContactSidebar({
     ]);
 
     if (dealsRes.data) setDeals(dealsRes.data);
-    if (notesRes.data) setNotes(notesRes.data);
     if (tagsRes.data) {
       const mapped = tagsRes.data
         .filter((ct: Record<string, unknown>) => ct.tags)
@@ -102,7 +87,7 @@ export function ContactSidebar({
       setTags(mapped);
     }
     // Keyed on the id, not the object: the inbox page re-creates the
-    // contact whenever its tags change, which must not refetch deals/notes.
+    // contact whenever its tags change, which must not refetch deals.
   }, [contactId]);
 
   // Load on contact change. setContactData/setTags run inside async
@@ -167,35 +152,6 @@ export function ContactSidebar({
     // fixes the `preserve-manual-memoization` lint error.
   }, [contact]);
 
-  const handleAddNote = useCallback(async () => {
-    if (!contact || !newNote.trim()) return;
-    if (!accountId) return;
-    setAddingNote(true);
-
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-
-    const { data, error } = await supabase
-      .from("contact_notes")
-      .insert({
-        contact_id: contact.id,
-        account_id: accountId,
-        user_id: user?.id,
-        note_text: newNote.trim(),
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setNotes((prev) => [data, ...prev]);
-      setNewNote("");
-    }
-    setAddingNote(false);
-  }, [contact, newNote, accountId]);
-
   if (!contact) {
     return (
       <div className="flex h-full w-70 items-center justify-center border-l border-border bg-card">
@@ -208,8 +164,8 @@ export function ContactSidebar({
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="flex h-full w-70 flex-col border-l border-border bg-card">
-      <ScrollArea className="flex-1">
+    <div className="flex h-full min-h-0 w-70 flex-col border-l border-border bg-card">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="p-4">
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center">
@@ -389,52 +345,6 @@ export function ContactSidebar({
                   </div>
                 ))
               )}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="my-4 border-t border-border" />
-
-          {/* Notes */}
-          <div>
-            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <StickyNote className="h-3 w-3" />
-              {tSidebar("notes")}
-            </div>
-            <div className="mt-2">
-              <div className="flex gap-2">
-                <textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder={tSidebar("addNotePlaceholder")}
-                  rows={2}
-                  className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
-                />
-                <Button
-                  size="sm"
-                  className="h-auto bg-primary px-2 hover:bg-primary/90"
-                  onClick={handleAddNote}
-                  disabled={!newNote.trim() || addingNote}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-
-              <div className="mt-2 space-y-2">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="rounded-lg bg-muted px-3 py-2"
-                  >
-                    <p className="whitespace-pre-wrap text-xs text-muted-foreground">
-                      {note.note_text}
-                    </p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {format(new Date(note.created_at), "MMM d, yyyy HH:mm")}
-                    </p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
 

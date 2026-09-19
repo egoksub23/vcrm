@@ -288,8 +288,8 @@
       "statusUpdateFailed": "Falha ao atualizar o status",
       "tagTitle": "Tag: {name}",
       "labelTitle": "Rótulo: {name}",
-      "showTicketHistory": "Mostrar histórico de tickets",
-      "hideTicketHistory": "Ocultar histórico de tickets"
+      "showTicketHistory": "Mostrar tickets e notas",
+      "hideTicketHistory": "Ocultar tickets e notas"
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -563,6 +563,11 @@
         "phone_taken": "Outro contato já usa este número.",
         "too_long": "Está longo demais."
       }
+    },
+    "notesPanel": {
+      "add": "Adicionar nota",
+      "empty": "Ainda não há notas.",
+      "addFailed": "Não foi possível adicionar a nota"
     }
   },
   "Contacts": {

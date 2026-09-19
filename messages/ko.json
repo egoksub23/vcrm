@@ -288,8 +288,8 @@
       "statusUpdateFailed": "상태 업데이트에 실패했습니다",
       "tagTitle": "태그: {name}",
       "labelTitle": "라벨: {name}",
-      "showTicketHistory": "티켓 이력 보기",
-      "hideTicketHistory": "티켓 이력 숨기기"
+      "showTicketHistory": "티켓 및 메모 보기",
+      "hideTicketHistory": "티켓 및 메모 숨기기"
     },
     "sessionTimer": {
       "expired": "만료됨",
@@ -563,6 +563,11 @@
         "phone_taken": "다른 연락처가 이미 이 번호를 사용 중입니다.",
         "too_long": "너무 깁니다."
       }
+    },
+    "notesPanel": {
+      "add": "메모 추가",
+      "empty": "아직 메모가 없습니다.",
+      "addFailed": "메모를 추가하지 못했습니다"
     }
   },
   "Contacts": {

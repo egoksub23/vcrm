@@ -14,7 +14,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
-import { TicketHistoryPanel } from "@/components/inbox/ticket-history-panel";
+import { InboxSideColumn } from "@/components/inbox/inbox-side-column";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -769,11 +769,11 @@ function InboxPageInner() {
           />
         </div>
 
-        {/* Ticket history — xl+ only (it would starve the thread on
+        {/* Ticket history + customer notes — xl+ only (it would starve the thread on
             smaller screens); the header toggle is hidden below xl too. */}
         {ticketPanelOpen && activeConversation && (
-          <div className="hidden xl:block">
-            <TicketHistoryPanel
+          <div className="hidden h-full min-h-0 xl:block">
+            <InboxSideColumn
               contactId={activeContact?.id ?? null}
               conversationId={activeConversation.id}
             />
@@ -785,7 +785,7 @@ function InboxPageInner() {
             On mobile it's always hidden (the `lg:block` below), so the
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
-          <div className="hidden lg:block">
+          <div className="hidden h-full min-h-0 lg:block">
             <ContactSidebar
               contact={activeContact}
               conversationId={activeConversation?.id ?? null}
