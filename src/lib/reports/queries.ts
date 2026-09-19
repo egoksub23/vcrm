@@ -747,3 +747,134 @@ export async function loadContactsReport(
     series: days.map((day) => ({ day, value: currentByDay.get(day) ?? 0 })),
   }
 }
+
+// --- Tickets report ---------------------------------------------------------
+// Added after auditing Ticketing (migration 063) against klink.cloud —
+// there was no ticket-scoped analytics at all, only conversation-scoped
+// reports below. Mirrors loadConversationsReport (opened/closed pattern)
+// + loadResolutionsReport (open→resolved duration) + the per-agent
+// breakdown shape loadAgentStats already established for Leaderboard.
+
+export interface TicketAgentBucket {
+  userId: string
+  fullName: string
+  ticketsResolved: number
+  avgResolutionMinutes: number | null
+}
+
+export interface TicketsReport {
+  opened: OverviewMetric
+  resolved: OverviewMetric
+  avgResolutionMinutes: OverviewMetric
+  series: { day: string; opened: number; resolved: number }[]
+  byAgent: TicketAgentBucket[]
+}
+
+export async function loadTicketsReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<TicketsReport> {
+  const prev = previousPeriod(range)
+  const spanStart = prev.from.toISOString()
+  const spanEnd = exclusiveEnd(range.to).toISOString()
+
+  const [openedRes, resolvedRes, profilesRes] = await Promise.all([
+    db
+      .from('tickets')
+      .select('created_at')
+      .eq('account_id', accountId)
+      .gte('created_at', spanStart)
+      .lt('created_at', spanEnd),
+    // "Resolved" here covers both `resolved` and `closed` — either is a
+    // ticket an agent finished working, same as klink.cloud's own
+    // CX Log doesn't distinguish them for duration reporting.
+    db
+      .from('tickets')
+      .select('created_at, resolved_at, closed_at, assigned_agent_id, status')
+      .eq('account_id', accountId)
+      .in('status', ['resolved', 'closed'])
+      .or(`resolved_at.gte.${spanStart},closed_at.gte.${spanStart}`),
+    db.from('profiles').select('user_id, full_name').eq('account_id', accountId),
+  ])
+  if (openedRes.error) throw openedRes.error
+  if (resolvedRes.error) throw resolvedRes.error
+  if (profilesRes.error) throw profilesRes.error
+
+  const openedRows = (openedRes.data ?? []) as { created_at: string }[]
+  const opened = splitByPeriod(openedRows.map((r) => ({ at: r.created_at })), range, prev)
+  const days = dayKeysInRange(range)
+  const openedCurrent = days.reduce((sum, d) => sum + (opened.currentByDay.get(d) ?? 0), 0)
+
+  type ResolvedRow = {
+    created_at: string
+    resolved_at: string | null
+    closed_at: string | null
+    assigned_agent_id: string | null
+    status: string
+  }
+  const resolvedRows = ((resolvedRes.data ?? []) as ResolvedRow[])
+    .map((r) => ({ ...r, finishedAt: r.resolved_at ?? r.closed_at }))
+    .filter((r): r is ResolvedRow & { finishedAt: string } => {
+      if (!r.finishedAt) return false
+      const t = new Date(r.finishedAt).getTime()
+      return t >= new Date(spanStart).getTime() && t < new Date(spanEnd).getTime()
+    })
+
+  const prevKeys = new Set(dayKeysInRange(prev))
+  const resolvedByDay = new Map<string, number>(days.map((d) => [d, 0]))
+  const resolvedDurationsByDay = new Map<string, number[]>(days.map((d) => [d, []]))
+  let previousResolvedTotal = 0
+  const previousDurations: number[] = []
+  const byAgentResolved = new Map<string, number>()
+  const byAgentDurations = new Map<string, number[]>()
+
+  for (const r of resolvedRows) {
+    const diffMin = (new Date(r.finishedAt).getTime() - new Date(r.created_at).getTime()) / 60_000
+    const key = localDayKey(r.finishedAt)
+    if (resolvedByDay.has(key)) {
+      resolvedByDay.set(key, (resolvedByDay.get(key) ?? 0) + 1)
+      if (diffMin >= 0) resolvedDurationsByDay.get(key)!.push(diffMin)
+    } else if (prevKeys.has(key)) {
+      previousResolvedTotal += 1
+      if (diffMin >= 0) previousDurations.push(diffMin)
+    }
+    if (r.assigned_agent_id && diffMin >= 0) {
+      byAgentResolved.set(r.assigned_agent_id, (byAgentResolved.get(r.assigned_agent_id) ?? 0) + 1)
+      const arr = byAgentDurations.get(r.assigned_agent_id) ?? []
+      arr.push(diffMin)
+      byAgentDurations.set(r.assigned_agent_id, arr)
+    }
+  }
+
+  const avg = (arr: number[]) => (arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length)
+  const resolvedCurrent = days.reduce((sum, d) => sum + (resolvedByDay.get(d) ?? 0), 0)
+  const currentDurationsAll = days.flatMap((d) => resolvedDurationsByDay.get(d) ?? [])
+
+  const profiles = (profilesRes.data ?? []) as { user_id: string; full_name: string }[]
+  const byAgent: TicketAgentBucket[] = profiles
+    .map((p) => ({
+      userId: p.user_id,
+      fullName: p.full_name,
+      ticketsResolved: byAgentResolved.get(p.user_id) ?? 0,
+      avgResolutionMinutes: avg(byAgentDurations.get(p.user_id) ?? []),
+    }))
+    .filter((a) => a.ticketsResolved > 0)
+    .sort((a, b) => b.ticketsResolved - a.ticketsResolved)
+
+  return {
+    opened: metric(openedCurrent, opened.previousTotal),
+    resolved: metric(resolvedCurrent, previousResolvedTotal),
+    avgResolutionMinutes: {
+      current: avg(currentDurationsAll) ?? 0,
+      previous: avg(previousDurations) ?? 0,
+      percentChange: percentChange(avg(currentDurationsAll) ?? 0, avg(previousDurations) ?? 0),
+    },
+    series: days.map((day) => ({
+      day,
+      opened: opened.currentByDay.get(day) ?? 0,
+      resolved: resolvedByDay.get(day) ?? 0,
+    })),
+    byAgent,
+  }
+}

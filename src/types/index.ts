@@ -360,6 +360,28 @@ export interface TicketComment {
   created_at: string;
 }
 
+/** System-logged ticket history events (migration 064) — status/priority/
+ *  category/assignment changes, written by a DB trigger so every write
+ *  path (UI, future automation steps) is captured for free. */
+export type TicketActivityEventType =
+  | 'created'
+  | 'status_changed'
+  | 'priority_changed'
+  | 'category_changed'
+  | 'assigned_agent_changed'
+  | 'assigned_team_changed';
+
+export interface TicketActivity {
+  id: string;
+  ticket_id: string;
+  account_id: string;
+  actor_id?: string | null;
+  event_type: TicketActivityEventType;
+  from_value?: string | null;
+  to_value?: string | null;
+  created_at: string;
+}
+
 export type SenderType = 'customer' | 'agent' | 'bot';
 export type ContentType =
   | 'text'

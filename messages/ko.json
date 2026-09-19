@@ -2517,12 +2517,25 @@
       "unassigned": "담당자 없음",
       "noTeam": "팀 없음",
       "saving": "저장 중…",
+      "historyHeading": "댓글 및 기록",
       "commentsHeading": "댓글",
-      "noComments": "아직 댓글이 없습니다",
+      "noComments": "아직 활동이 없습니다",
       "commentPlaceholder": "댓글을 작성하세요 — @로 팀원을 멘션해 알릴 수 있습니다",
       "commentFailed": "댓글 등록에 실패했습니다",
       "unknownAgent": "누군가",
       "updateFailed": "티켓 업데이트에 실패했습니다",
+      "activity": {
+        "created": "이 티켓을 생성했습니다",
+        "statusChanged": "상태를 {from}에서 {to}(으)로 변경했습니다",
+        "priorityChanged": "우선순위를 {from}에서 {to}(으)로 변경했습니다",
+        "categoryChanged": "카테고리를 {from}에서 {to}(으)로 변경했습니다",
+        "assignedAgent": "이 티켓을 {to}에게 배정했습니다",
+        "unassignedAgent": "이 티켓의 담당자를 해제했습니다 (이전: {from})",
+        "reassignedAgent": "이 티켓을 {from}에서 {to}(으)로 재배정했습니다",
+        "assignedTeam": "이 티켓을 {to} 팀에 배정했습니다",
+        "unassignedTeam": "이 티켓의 {from} 팀 배정을 해제했습니다",
+        "reassignedTeam": "이 티켓을 {from} 팀에서 {to} 팀으로 재배정했습니다"
+      },
       "status": {
         "open": "열림",
         "pending": "보류",
@@ -2560,7 +2573,8 @@
       "leaderboard": "리더보드",
       "users": "사용자",
       "lifecycle": "생애주기",
-      "broadcasts": "브로드캐스트"
+      "broadcasts": "브로드캐스트",
+      "tickets": "티켓"
     },
     "dateRange": {
       "today": "오늘",
@@ -2648,6 +2662,16 @@
       "readRate": "읽음률",
       "failedRate": "실패율",
       "chartTitle": "일별 전송된 브로드캐스트"
+    },
+    "tickets": {
+      "loading": "티켓 리포트를 불러오는 중…",
+      "opened": "생성된 티켓",
+      "resolved": "해결된 티켓",
+      "avgResolution": "평균 해결 시간",
+      "chartTitle": "일별 생성 대 해결",
+      "agent": "상담원",
+      "ticketsResolved": "해결된 티켓",
+      "noData": "이 기간에 해결된 티켓이 없습니다"
     }
   },
   "Interactive": {

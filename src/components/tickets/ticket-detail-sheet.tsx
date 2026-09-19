@@ -29,6 +29,7 @@ import type {
   Profile,
   Team,
   Ticket,
+  TicketActivity,
   TicketCategory,
   TicketComment,
   TicketPriority,
@@ -83,6 +84,7 @@ export function TicketDetailSheet({
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [contact, setContact] = useState<Contact | null>(null);
   const [comments, setComments] = useState<TicketComment[]>([]);
+  const [activity, setActivity] = useState<TicketActivity[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,20 +102,31 @@ export function TicketDetailSheet({
     if (!ticketId) return;
     setLoading(true);
     const supabase = createClient();
-    const [{ data: ticketRow }, { data: commentRows }, { data: profileRows }, { data: teamRows }] =
-      await Promise.all([
-        supabase.from("tickets").select("*").eq("id", ticketId).maybeSingle(),
-        supabase
-          .from("ticket_comments")
-          .select("*")
-          .eq("ticket_id", ticketId)
-          .order("created_at", { ascending: true }),
-        supabase.from("profiles").select("*").order("full_name"),
-        supabase.from("teams").select("id, account_id, name, description, color, created_at, updated_at").order("name"),
-      ]);
+    const [
+      { data: ticketRow },
+      { data: commentRows },
+      { data: activityRows },
+      { data: profileRows },
+      { data: teamRows },
+    ] = await Promise.all([
+      supabase.from("tickets").select("*").eq("id", ticketId).maybeSingle(),
+      supabase
+        .from("ticket_comments")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("ticket_activity")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true }),
+      supabase.from("profiles").select("*").order("full_name"),
+      supabase.from("teams").select("id, account_id, name, description, color, created_at, updated_at").order("name"),
+    ]);
 
     setTicket((ticketRow as Ticket) ?? null);
     setComments((commentRows as TicketComment[]) ?? []);
+    setActivity((activityRows as TicketActivity[]) ?? []);
     setProfiles((profileRows as Profile[]) ?? []);
     setTeams((teamRows as Team[]) ?? []);
 
@@ -135,6 +148,24 @@ export function TicketDetailSheet({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [open, load]);
+
+  useEffect(() => {
+    if (!ticketId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`ticket-activity-${ticketId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "ticket_activity", filter: `ticket_id=eq.${ticketId}` },
+        (payload) => {
+          setActivity((prev) => [...prev, payload.new as TicketActivity]);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [ticketId]);
 
   const updateField = useCallback(
     async (patch: Partial<Ticket>, fieldKey: string) => {
@@ -226,6 +257,51 @@ export function TicketDetailSheet({
   const assignedProfile = profiles.find((p) => p.user_id === ticket?.assigned_agent_id);
   const commentAuthorName = (authorId: string | null | undefined) =>
     profiles.find((p) => p.user_id === authorId)?.full_name ?? t("unknownAgent");
+  const profileName = (userId: string | null | undefined) =>
+    profiles.find((p) => p.user_id === userId)?.full_name ?? t("unknownAgent");
+  const teamName = (teamId: string | null | undefined) =>
+    teams.find((tm) => tm.id === teamId)?.name ?? t("noTeam");
+
+  const describeActivity = (a: TicketActivity): string => {
+    switch (a.event_type) {
+      case "created":
+        return t("activity.created");
+      case "status_changed":
+        return t("activity.statusChanged", {
+          from: a.from_value ? t(`status.${a.from_value}` as never) : "—",
+          to: a.to_value ? t(`status.${a.to_value}` as never) : "—",
+        });
+      case "priority_changed":
+        return t("activity.priorityChanged", {
+          from: a.from_value ? t(`priority.${a.from_value}` as never) : "—",
+          to: a.to_value ? t(`priority.${a.to_value}` as never) : "—",
+        });
+      case "category_changed":
+        return t("activity.categoryChanged", {
+          from: a.from_value ? t(`category.${a.from_value}` as never) : "—",
+          to: a.to_value ? t(`category.${a.to_value}` as never) : "—",
+        });
+      case "assigned_agent_changed":
+        if (!a.to_value) return t("activity.unassignedAgent", { from: profileName(a.from_value) });
+        if (!a.from_value) return t("activity.assignedAgent", { to: profileName(a.to_value) });
+        return t("activity.reassignedAgent", { from: profileName(a.from_value), to: profileName(a.to_value) });
+      case "assigned_team_changed":
+        if (!a.to_value) return t("activity.unassignedTeam", { from: teamName(a.from_value) });
+        if (!a.from_value) return t("activity.assignedTeam", { to: teamName(a.to_value) });
+        return t("activity.reassignedTeam", { from: teamName(a.from_value), to: teamName(a.to_value) });
+      default:
+        return a.event_type;
+    }
+  };
+
+  type TimelineItem =
+    | { kind: "comment"; id: string; created_at: string; comment: TicketComment }
+    | { kind: "activity"; id: string; created_at: string; activityEvent: TicketActivity };
+
+  const timeline: TimelineItem[] = [
+    ...comments.map((c): TimelineItem => ({ kind: "comment", id: c.id, created_at: c.created_at, comment: c })),
+    ...activity.map((a): TimelineItem => ({ kind: "activity", id: a.id, created_at: a.created_at, activityEvent: a })),
+  ].sort((x, y) => new Date(x.created_at).getTime() - new Date(y.created_at).getTime());
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onOpenChange(false)}>
@@ -361,28 +437,51 @@ export function TicketDetailSheet({
 
               <div className="border-t border-border/50 pt-3">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t("commentsHeading")}
+                  {t("historyHeading")}
                 </h4>
                 <div className="space-y-2">
-                  {comments.length === 0 && (
+                  {timeline.length === 0 && (
                     <p className="text-xs text-muted-foreground">{t("noComments")}</p>
                   )}
-                  {comments.map((c) => (
-                    <div
-                      key={c.id}
-                      className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-2.5"
-                    >
-                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          {commentAuthorName(c.author_id)}
+                  {timeline.map((item) =>
+                    item.kind === "comment" ? (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {commentAuthorName(item.comment.author_id)}
+                          </span>
+                          <span title={format(new Date(item.comment.created_at), "PPpp")}>
+                            {formatDistanceToNow(new Date(item.comment.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.comment.body}</p>
+                      </div>
+                    ) : (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 px-1 py-1 text-xs text-muted-foreground"
+                      >
+                        <span className="size-1 shrink-0 rounded-full bg-border" />
+                        <span className="flex-1">
+                          {item.activityEvent.actor_id && (
+                            <span className="font-medium text-foreground">
+                              {profileName(item.activityEvent.actor_id)}{" "}
+                            </span>
+                          )}
+                          {describeActivity(item.activityEvent)}
                         </span>
-                        <span title={format(new Date(c.created_at), "PPpp")}>
-                          {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                        <span
+                          className="shrink-0"
+                          title={format(new Date(item.activityEvent.created_at), "PPpp")}
+                        >
+                          {formatDistanceToNow(new Date(item.activityEvent.created_at), { addSuffix: true })}
                         </span>
                       </div>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               </div>
             </div>

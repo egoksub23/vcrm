@@ -18,6 +18,7 @@ import {
   UsersReportPanel,
   LifecycleReportPanel,
   BroadcastsReportPanel,
+  TicketsReportPanel,
 } from "@/components/reports/report-panels";
 
 const REPORT_TABS = [
@@ -31,6 +32,7 @@ const REPORT_TABS = [
   "users",
   "lifecycle",
   "broadcasts",
+  "tickets",
 ] as const;
 type ReportTab = (typeof REPORT_TABS)[number];
 
@@ -86,6 +88,7 @@ function ReportsPageInner() {
           <TabsTrigger value="users">{t("tabs.users")}</TabsTrigger>
           <TabsTrigger value="lifecycle">{t("tabs.lifecycle")}</TabsTrigger>
           <TabsTrigger value="broadcasts">{t("tabs.broadcasts")}</TabsTrigger>
+          <TabsTrigger value="tickets">{t("tabs.tickets")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="conversations" className="mt-4">
@@ -117,6 +120,9 @@ function ReportsPageInner() {
         </TabsContent>
         <TabsContent value="broadcasts" className="mt-4">
           <BroadcastsReportPanel accountId={accountId} range={range} />
+        </TabsContent>
+        <TabsContent value="tickets" className="mt-4">
+          <TicketsReportPanel accountId={accountId} range={range} />
         </TabsContent>
       </Tabs>
     </div>

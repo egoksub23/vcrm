@@ -2517,12 +2517,25 @@
       "unassigned": "Unassigned",
       "noTeam": "No team",
       "saving": "Saving…",
+      "historyHeading": "Comments & History",
       "commentsHeading": "Comments",
-      "noComments": "No comments yet",
+      "noComments": "No activity yet",
       "commentPlaceholder": "Write a comment — @mention a teammate to notify them",
       "commentFailed": "Failed to post comment",
       "unknownAgent": "Someone",
       "updateFailed": "Failed to update ticket",
+      "activity": {
+        "created": "created this ticket",
+        "statusChanged": "changed status from {from} to {to}",
+        "priorityChanged": "changed priority from {from} to {to}",
+        "categoryChanged": "changed category from {from} to {to}",
+        "assignedAgent": "assigned this ticket to {to}",
+        "unassignedAgent": "unassigned this ticket (was {from})",
+        "reassignedAgent": "reassigned this ticket from {from} to {to}",
+        "assignedTeam": "assigned this ticket to {to}",
+        "unassignedTeam": "unassigned this ticket from {from}",
+        "reassignedTeam": "reassigned this ticket from {from} to {to}"
+      },
       "status": {
         "open": "Open",
         "pending": "Pending",
@@ -2560,7 +2573,8 @@
       "leaderboard": "Leaderboard",
       "users": "Users",
       "lifecycle": "Lifecycle",
-      "broadcasts": "Broadcasts"
+      "broadcasts": "Broadcasts",
+      "tickets": "Tickets"
     },
     "dateRange": {
       "today": "Today",
@@ -2648,6 +2662,16 @@
       "readRate": "Read rate",
       "failedRate": "Failed rate",
       "chartTitle": "Broadcasts sent, per day"
+    },
+    "tickets": {
+      "loading": "Loading tickets report…",
+      "opened": "Tickets opened",
+      "resolved": "Tickets resolved",
+      "avgResolution": "Avg. resolution time",
+      "chartTitle": "Opened vs resolved, per day",
+      "agent": "Agent",
+      "ticketsResolved": "Tickets resolved",
+      "noData": "No tickets resolved in this range"
     }
   },
   "Interactive": {

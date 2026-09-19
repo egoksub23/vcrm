@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MessageCircle, CheckCircle2, Clock, Timer, Send, UserPlus, Users2, Trophy, Radio, TrendingUp } from "lucide-react";
+import { MessageCircle, CheckCircle2, Clock, Timer, Send, UserPlus, Users2, Trophy, Radio, TrendingUp, Ticket as TicketIcon } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { BarChart } from "@/components/tremor/bar-chart";
 import type { DateRange } from "@/lib/reports/date-utils";
@@ -16,6 +16,7 @@ import {
   loadUsersReport,
   loadLifecycleReport,
   loadBroadcastsReport,
+  loadTicketsReport,
   LIFECYCLE_STAGES,
   type OverviewMetric,
 } from "@/lib/reports/queries";
@@ -464,6 +465,80 @@ export function BroadcastsReportPanel({ accountId, range }: PanelProps) {
           colors={["blue"]}
           className="h-72"
         />
+      </div>
+    </div>
+  );
+}
+
+export function TicketsReportPanel({ accountId, range }: PanelProps) {
+  const t = useTranslations("Reports.tickets");
+  const tShared = useTranslations("Reports");
+  const { data, loading, error } = useReportData(loadTicketsReport, accountId, range);
+
+  if (error) return <ErrorState message={error} />;
+  if (loading || !data) return <EmptyState label={t("loading")} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          title={t("opened")}
+          value={String(data.opened.current)}
+          icon={TicketIcon}
+          delta={deltaFor(data.opened, tShared("vsPreviousPeriod"))}
+        />
+        <MetricCard
+          title={t("resolved")}
+          value={String(data.resolved.current)}
+          icon={CheckCircle2}
+          delta={deltaFor(data.resolved, tShared("vsPreviousPeriod"))}
+        />
+        <MetricCard
+          title={t("avgResolution")}
+          value={formatMinutes(data.avgResolutionMinutes.current)}
+          icon={Timer}
+          delta={deltaFor(data.avgResolutionMinutes, tShared("vsPreviousPeriod"), true)}
+        />
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="mb-4 text-sm font-medium text-foreground">{t("chartTitle")}</p>
+        <BarChart
+          data={data.series}
+          index="day"
+          categories={["opened", "resolved"]}
+          colors={["blue", "emerald"]}
+          className="h-72"
+        />
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="px-4 py-3">{t("agent")}</th>
+              <th className="px-4 py-3 text-right">{t("ticketsResolved")}</th>
+              <th className="px-4 py-3 text-right">{t("avgResolution")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.byAgent.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                  {t("noData")}
+                </td>
+              </tr>
+            ) : (
+              data.byAgent.map((a) => (
+                <tr key={a.userId} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 font-medium text-foreground">{a.fullName}</td>
+                  <td className="px-4 py-3 text-right text-foreground">{a.ticketsResolved}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {a.avgResolutionMinutes === null ? "—" : formatMinutes(a.avgResolutionMinutes)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

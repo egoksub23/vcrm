@@ -2499,12 +2499,25 @@
       "unassigned": "Não atribuído",
       "noTeam": "Sem equipe",
       "saving": "Salvando…",
+      "historyHeading": "Comentários e histórico",
       "commentsHeading": "Comentários",
-      "noComments": "Ainda não há comentários",
+      "noComments": "Ainda não há atividade",
       "commentPlaceholder": "Escreva um comentário — use @ para mencionar um colega",
       "commentFailed": "Falha ao publicar o comentário",
       "unknownAgent": "Alguém",
       "updateFailed": "Falha ao atualizar o ticket",
+      "activity": {
+        "created": "criou este ticket",
+        "statusChanged": "alterou o status de {from} para {to}",
+        "priorityChanged": "alterou a prioridade de {from} para {to}",
+        "categoryChanged": "alterou a categoria de {from} para {to}",
+        "assignedAgent": "atribuiu este ticket a {to}",
+        "unassignedAgent": "removeu a atribuição deste ticket (era {from})",
+        "reassignedAgent": "reatribuiu este ticket de {from} para {to}",
+        "assignedTeam": "atribuiu este ticket à equipe {to}",
+        "unassignedTeam": "removeu a atribuição deste ticket da equipe {from}",
+        "reassignedTeam": "reatribuiu este ticket da equipe {from} para a equipe {to}"
+      },
       "status": {
         "open": "Aberto",
         "pending": "Pendente",
@@ -2542,7 +2555,8 @@
       "leaderboard": "Classificação",
       "users": "Usuários",
       "lifecycle": "Ciclo de vida",
-      "broadcasts": "Transmissões"
+      "broadcasts": "Transmissões",
+      "tickets": "Tickets"
     },
     "dateRange": {
       "today": "Hoje",
@@ -2630,6 +2644,16 @@
       "readRate": "Taxa de leitura",
       "failedRate": "Taxa de falha",
       "chartTitle": "Transmissões enviadas, por dia"
+    },
+    "tickets": {
+      "loading": "Carregando relatório de tickets…",
+      "opened": "Tickets abertos",
+      "resolved": "Tickets resolvidos",
+      "avgResolution": "Tempo médio de resolução",
+      "chartTitle": "Abertos vs. resolvidos, por dia",
+      "agent": "Agente",
+      "ticketsResolved": "Tickets resolvidos",
+      "noData": "Nenhum ticket resolvido neste período"
     }
   },
   "Interactive": {

@@ -11,6 +11,7 @@ import {
   loadUsersReport,
   loadLifecycleReport,
   loadBroadcastsReport,
+  loadTicketsReport,
 } from './queries'
 import type { DateRange } from './date-utils'
 
@@ -40,6 +41,12 @@ function fakeDb(tables: Record<string, unknown[]>): SupabaseClient {
           rows = rows.filter((r) => (r as Record<string, unknown>)[column] != null)
           return builder
         },
+        // No-op filters, same reasoning as `.eq()`/`.gte()`/`.lt()` above —
+        // loadTicketsReport's two `tickets` queries (opened vs resolved)
+        // both get the full fixture; the precise resolved-vs-not split is
+        // asserted via each test's fixture composition, not via these.
+        in: () => builder,
+        or: () => builder,
         order: () => builder,
         then: (resolve: (r: { data: unknown[]; error: null }) => unknown) =>
           resolve({ data: rows, error: null }),
@@ -297,5 +304,61 @@ describe('loadBroadcastsReport', () => {
     expect(report.deliveredRate).toBeNull()
     expect(report.readRate).toBeNull()
     expect(report.failedRate).toBeNull()
+  })
+})
+
+describe('loadTicketsReport', () => {
+  it('counts opened tickets separately from resolved ones, and computes avg resolution time per agent', async () => {
+    const db = fakeDb({
+      tickets: [
+        // Opened this period, still open — counts toward `opened` only.
+        { created_at: CUR_DAY_1, resolved_at: null, closed_at: null, assigned_agent_id: null, status: 'open' },
+        // Opened AND resolved this period, 24h turnaround, assigned to u1.
+        {
+          created_at: CUR_DAY_1,
+          resolved_at: CUR_DAY_2,
+          closed_at: null,
+          assigned_agent_id: 'u1',
+          status: 'resolved',
+        },
+        // Opened in the previous period — counts toward `opened.previous`.
+        { created_at: PREV_DAY, resolved_at: null, closed_at: null, assigned_agent_id: null, status: 'open' },
+      ],
+      profiles: [{ user_id: 'u1', full_name: 'Alice' }],
+    })
+
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.opened.current).toBe(2)
+    expect(report.opened.previous).toBe(1)
+    expect(report.resolved.current).toBe(1)
+    expect(report.avgResolutionMinutes.current).toBe(24 * 60)
+    expect(report.byAgent).toEqual([
+      { userId: 'u1', fullName: 'Alice', ticketsResolved: 1, avgResolutionMinutes: 24 * 60 },
+    ])
+  })
+
+  it('falls back to closed_at when resolved_at is null, and excludes agents with nothing resolved', async () => {
+    const db = fakeDb({
+      tickets: [
+        {
+          created_at: '2026-09-15T09:00:00',
+          resolved_at: null,
+          closed_at: '2026-09-15T10:30:00',
+          assigned_agent_id: 'u2',
+          status: 'closed',
+        },
+      ],
+      profiles: [
+        { user_id: 'u1', full_name: 'Alice' },
+        { user_id: 'u2', full_name: 'Bob' },
+      ],
+    })
+
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.resolved.current).toBe(1)
+    expect(report.avgResolutionMinutes.current).toBe(90)
+    expect(report.byAgent).toEqual([
+      { userId: 'u2', fullName: 'Bob', ticketsResolved: 1, avgResolutionMinutes: 90 },
+    ])
   })
 })
