@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { StatusColors } from "@/lib/status-colors";
 import { hexWithAlpha } from "@/lib/status-colors";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
+import { Search, ChevronDown, X, Flag, Mail, MessagesSquare, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -32,7 +32,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addConversationLabel } from "@/lib/conversations/label-api";
 import { createInboxView, deleteInboxView } from "@/lib/inbox/views-api";
-import { ALL_CHANNELS } from "@/lib/inbox/channel-scope";
+import {
+  TAB_CHANNELS,
+  tabForChannel,
+  unreadConversationCounts,
+  type InboxTab,
+} from "@/lib/inbox/channel-scope";
 import { PendingDeletePanel } from "./pending-delete-panel";
 
 interface ConversationListProps {
@@ -41,15 +46,14 @@ interface ConversationListProps {
   conversations: Conversation[];
   onConversationsLoaded: (conversations: Conversation[]) => void;
   /**
-   * Hard channel restriction for the Email/Chat inbox split — unlike
-   * `selectedChannelTypes` (the user's own optional multi-select filter,
-   * unaffected by this), conversations outside this set are never shown
-   * or selectable here at all. `undefined` = no split, show every
-   * channel (used nowhere today, kept for callers that don't need the
-   * split). The channel-filter dropdown below is also restricted to this
-   * set, so a "Chat Inbox" instance never even offers Email as an option.
+   * Active Chats / Emails tab (controlled by the inbox page, which also
+   * needs it for the WhatsApp banner and deep links). The tab is a hard
+   * channel boundary, applied before every other filter — unlike
+   * `selectedChannelTypes`, the user's own optional multi-select within
+   * the tab. The channel dropdown only offers the active tab's channels.
    */
-  channelScope?: ChannelType[];
+  tab: InboxTab;
+  onTabChange: (tab: InboxTab) => void;
   /**
    * Increment to force the fetch effect below to refire. The parent
    * bumps this on realtime reconnect / tab visibility → visible so the
@@ -100,8 +104,10 @@ export function ConversationList({
   onConversationsLoaded,
   resyncToken = 0,
   onLabelsChange,
-  channelScope,
+  tab,
+  onTabChange,
 }: ConversationListProps) {
+  const channelScope = TAB_CHANNELS[tab];
   const t = useTranslations("Inbox.conversationList");
   const { user, slaResponseMinutes, statusColors, canEditSettings } = useAuth();
   // One shared ticking clock for every row's aging-response chip,
@@ -208,12 +214,28 @@ export function ConversationList({
     setSelectedCompany(cfg.company ?? null);
     setSelectedTeamId(cfg.teamId ?? null);
     setSelectedLabelIds(cfg.labelIds ?? []);
-    setSelectedChannelTypes(
-      cfg.channelTypes ?? (cfg.channelType ? [cfg.channelType] : [])
-    );
+    const viewChannels: ChannelType[] =
+      cfg.channelTypes ?? (cfg.channelType ? [cfg.channelType] : []);
+    setSelectedChannelTypes(viewChannels);
+    // A saved view that targets email channels belongs on the Emails tab
+    // (and vice versa); one with no channel filter keeps the current tab.
+    if (viewChannels.length > 0) onTabChange(tabForChannel(viewChannels[0]));
     setSelectedPriority(cfg.priority ?? null);
     setSortMode((cfg.sortMode as SortMode) ?? "recent");
-  }, []);
+  }, [onTabChange]);
+
+  const unreadByTab = useMemo(() => unreadConversationCounts(conversations), [conversations]);
+
+  const handleTabClick = useCallback(
+    (next: InboxTab) => {
+      if (next === tab) return;
+      // Channels differ per tab, so a channel filter picked on one tab
+      // can't carry over to the other.
+      setSelectedChannelTypes([]);
+      onTabChange(next);
+    },
+    [tab, onTabChange],
+  );
 
   const handleSaveView = useCallback(async () => {
     const name = saveViewName.trim();
@@ -357,9 +379,7 @@ export function ConversationList({
     // other (togglable) filter below, so a "Chat Inbox" instance can
     // never surface an email conversation regardless of what else is
     // selected.
-    if (channelScope) {
-      result = result.filter((c) => channelScope.includes(c.last_channel_type));
-    }
+    result = result.filter((c) => channelScope.includes(c.last_channel_type));
 
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);
@@ -469,7 +489,6 @@ export function ConversationList({
     selectedCompany !== null ||
     selectedTeamId !== null ||
     selectedLabelIds.length > 0 ||
-    selectedChannelTypes.length > 0 ||
     selectedPriority !== null;
 
   const toggleChannelType = useCallback((ct: ChannelType) => {
@@ -533,6 +552,42 @@ export function ConversationList({
         the single pane showing; fixed 320px on desktop where it shares the
         row with the thread + contact sidebar. */}
     <div className="flex h-full w-full flex-col border-r border-border bg-card lg:w-80">
+      <div role="tablist" className="flex shrink-0 border-b border-border">
+        {(["chats", "emails"] as InboxTab[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => handleTabClick(k)}
+            className={cn(
+              "-mb-px flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm transition-colors",
+              tab === k
+                ? "border-primary font-medium text-foreground"
+                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+            )}
+          >
+            {k === "chats" ? (
+              <MessagesSquare className="h-4 w-4" />
+            ) : (
+              <Mail className="h-4 w-4" />
+            )}
+            {t(k === "chats" ? "tabChats" : "tabEmails")}
+            <span
+              aria-label={t("tabUnreadAria", { count: unreadByTab[k] })}
+              className={cn(
+                "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium",
+                unreadByTab[k] > 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {unreadByTab[k]}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {/* Search + Filter */}
       <div className="space-y-2 border-b border-border p-3">
         <div className="relative">
@@ -555,10 +610,12 @@ export function ConversationList({
               }
             }}
           >
-            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
-              <Bookmark className="h-3 w-3" />
-              {t("views")}
-              <ChevronDown className="h-3 w-3" />
+            <DropdownMenuTrigger
+              title={t("views")}
+              aria-label={t("views")}
+              className="order-10 ml-auto inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted"
+            >
+              <Bookmark className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64 border-border bg-popover">
               {viewsLoading ? (
@@ -879,7 +936,7 @@ export function ConversationList({
             >
               <span className="truncate">
                 {selectedChannelTypes.length === 0
-                  ? t("allChannels")
+                  ? t(tab === "chats" ? "allChatChannels" : "allEmailChannels")
                   : selectedChannelTypes.length === 1
                     ? t(`channel.${selectedChannelTypes[0]}`)
                     : t("channelsSelected", { count: selectedChannelTypes.length })}
@@ -899,9 +956,9 @@ export function ConversationList({
                     : "text-popover-foreground"
                 )}
               >
-                {t("allChannels")}
+                {t(tab === "chats" ? "allChatChannels" : "allEmailChannels")}
               </DropdownMenuItem>
-              {(channelScope ?? ALL_CHANNELS).map((ct) => {
+              {channelScope.map((ct) => {
                 const Icon = CHANNEL_ICONS[ct];
                 return (
                   <DropdownMenuCheckboxItem
@@ -922,6 +979,8 @@ export function ConversationList({
 
           <DropdownMenu>
             <DropdownMenuTrigger
+              title={t("allPriorities")}
+              aria-label={t("allPriorities")}
               className={cn(
                 "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
                 selectedPriority !== null
@@ -929,11 +988,15 @@ export function ConversationList({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Flag className="h-3 w-3 shrink-0" />
-              <span className="truncate">
-                {selectedPriority === null ? t("allPriorities") : t(`priority.${selectedPriority}`)}
-              </span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
+              <Flag className="h-3.5 w-3.5 shrink-0" />
+              {/* Icon-only until a priority is chosen, to keep the filter
+                  row to one line in the 320px column. */}
+              {selectedPriority !== null && (
+                <>
+                  <span className="truncate">{t(`priority.${selectedPriority}`)}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                </>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40 border-border bg-popover">
               <DropdownMenuItem
@@ -966,14 +1029,11 @@ export function ConversationList({
             onClick={() => setSortMode((m) => (m === "recent" ? "priority" : "recent"))}
             title={t("sortToggleTitle")}
             className={cn(
-              "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+              "order-11 inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
               sortMode === "priority" ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <ArrowUpDown className="h-3 w-3 shrink-0" />
-            <span className="hidden truncate sm:inline">
-              {sortMode === "priority" ? t("sortByPriority") : t("sortByRecent")}
-            </span>
+            <ArrowUpDown className="h-3.5 w-3.5 shrink-0" />
           </button>
 
           <button
@@ -981,21 +1041,20 @@ export function ConversationList({
             onClick={toggleSelectMode}
             title={t("selectModeTitle")}
             className={cn(
-              "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+              "order-12 inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
               selectMode ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <ListChecks className="h-3 w-3 shrink-0" />
-            <span className="hidden truncate sm:inline">{t("select")}</span>
+            <ListChecks className="h-3.5 w-3.5 shrink-0" />
           </button>
 
           <button
             type="button"
             onClick={() => setPendingDeleteOpen(true)}
             title={t("pendingDeleteTitle")}
-            className="relative inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="relative order-13 inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Trash2 className="h-3 w-3 shrink-0" />
+            <Trash2 className="h-3.5 w-3.5 shrink-0" />
             {pendingDeleteCount > 0 && (
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive/15 px-1 text-[10px] font-bold text-destructive">
                 {pendingDeleteCount}
@@ -1051,16 +1110,6 @@ export function ConversationList({
                 <X className="h-3 w-3" />
               </button>
             )}
-            {selectedChannelTypes.map((ct) => (
-              <button
-                key={ct}
-                onClick={() => toggleChannelType(ct)}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
-              >
-                <span className="max-w-24 truncate">{t(`channel.${ct}`)}</span>
-                <X className="h-3 w-3" />
-              </button>
-            ))}
             {selectedPriority !== null && (
               <button
                 onClick={() => setSelectedPriority(null)}
