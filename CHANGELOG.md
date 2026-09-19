@@ -9,6 +9,24 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.31.0] — 2026-09-19
+
+**Migration required**: apply `072_session_notes_edit_delete.sql`.
+
+- **Session notes.** "Notes" is now "Session notes". Every note shows who
+  wrote it and when (their name, date, and time). The author can **edit** or
+  **delete** their own notes, and admins can change anyone's; an edited note
+  is marked "edited", with who and when on hover. Long notes are folded to a
+  few lines with **Show more / Show less**. Delete asks for confirmation
+  first. The database now enforces this too: until now any agent could change
+  or delete a teammate's note, and the author and the written-at time can no
+  longer be altered by an edit.
+- **Kimi replies are much faster.** Kimi's models "think" before answering by
+  default, which is what made replies slow. Thinking is now switched off for
+  Kimi (Global and China). If a model can't turn it off, the request is
+  retried once with thinking left on and a bigger token allowance, so the
+  reasoning can't use up the whole reply.
+
 ## [0.30.2] — 2026-09-19
 
 No migration needed.

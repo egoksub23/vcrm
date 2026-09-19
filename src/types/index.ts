@@ -207,9 +207,13 @@ export interface ContactCustomValue {
 export interface ContactNote {
   id: string;
   contact_id: string;
+  /** Author — fixed at creation (migration 072 blocks changing it). */
   user_id: string;
   note_text: string;
   created_at: string;
+  /** Stamped by the database when the text is edited (migration 072). */
+  edited_at?: string | null;
+  edited_by?: string | null;
 }
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';

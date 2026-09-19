@@ -265,3 +265,81 @@ describe('generateReply — OpenAI-compatible provider', () => {
     ).rejects.toMatchObject({ code: 'empty_response', message: expect.stringContaining('api.moonshot.ai') })
   })
 })
+
+describe('generateReply — Kimi thinking control', () => {
+  const kimi = (over: Partial<AiConfig> = {}) =>
+    config({ provider: 'openai_compatible', baseUrl: 'https://api.moonshot.ai/v1', model: 'kimi-test', ...over })
+  const bodyOf = (fetchMock: ReturnType<typeof vi.fn>, call = 0) => JSON.parse(fetchMock.mock.calls[call][1].body)
+
+  it('switches thinking off for Moonshot hosts (global and China)', async () => {
+    for (const baseUrl of ['https://api.moonshot.ai/v1', 'https://api.moonshot.cn/v1']) {
+      const fetchMock = vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+      vi.stubGlobal('fetch', fetchMock)
+      await generateReply({ config: kimi({ baseUrl }), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] })
+      expect(bodyOf(fetchMock).thinking).toEqual({ type: 'disabled' })
+    }
+  })
+
+  it('leaves other compatible providers alone', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+    await generateReply({
+      config: kimi({ baseUrl: 'https://api.deepseek.com/v1' }),
+      systemPrompt: 's',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+    expect(bodyOf(fetchMock).thinking).toBeUndefined()
+  })
+
+  it('does not treat a lookalike host as Moonshot', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+    await generateReply({
+      config: kimi({ baseUrl: 'https://api.notmoonshot.ai.evil.example/v1' }),
+      systemPrompt: 's',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+    expect(bodyOf(fetchMock).thinking).toBeUndefined()
+  })
+
+  it('retries once without the switch, with more room, when the model refuses it', async () => {
+    const refusal = {
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'thinking cannot be disabled for this model' } }),
+      clone() {
+        return { text: async () => JSON.stringify({ error: { message: 'thinking cannot be disabled for this model' } }) }
+      },
+    } as unknown as Response
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(refusal)
+      .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'answer', reasoning_content: 'hmm' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({ config: kimi(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] })
+
+    expect(res.text).toBe('answer')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(bodyOf(fetchMock, 0).thinking).toEqual({ type: 'disabled' })
+    expect(bodyOf(fetchMock, 1).thinking).toBeUndefined()
+    expect(bodyOf(fetchMock, 1).max_tokens).toBeGreaterThan(bodyOf(fetchMock, 0).max_tokens)
+  })
+
+  it('does not retry an unrelated 400', async () => {
+    const other = {
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'model not found' } }),
+      clone() {
+        return { text: async () => JSON.stringify({ error: { message: 'model not found' } }) }
+      },
+    } as unknown as Response
+    const fetchMock = vi.fn().mockResolvedValue(other)
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      generateReply({ config: kimi(), systemPrompt: 's', messages: [{ role: 'user', content: 'Hi' }] }),
+    ).rejects.toMatchObject({ code: 'provider_error' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

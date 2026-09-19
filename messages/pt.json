@@ -496,11 +496,11 @@
     "sidebar": {
       "contactInfo": "Informações do contato",
       "tags": "Tags",
-      "notes": "Notas",
+      "notes": "Notas da sessão",
       "deals": "Negócios",
       "noTags": "Sem tags",
       "noDeals": "Sem negócios",
-      "addNotePlaceholder": "Adicionar uma nota...",
+      "addNotePlaceholder": "Adicionar uma nota da sessão…",
       "addTag": "Adicionar tag",
       "searchTags": "Buscar tags",
       "noTagsDefined": "Ainda não há tags — um administrador pode criá-las em Configurações → Tags.",
@@ -566,8 +566,20 @@
     },
     "notesPanel": {
       "add": "Adicionar nota",
-      "empty": "Ainda não há notas.",
-      "addFailed": "Não foi possível adicionar a nota"
+      "empty": "Ainda não há notas da sessão.",
+      "addFailed": "Não foi possível adicionar a nota",
+      "edit": "Editar nota",
+      "delete": "Excluir nota",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "edited": "editada",
+      "editedTitle": "Editada em {time} por {name}",
+      "showMore": "Ver mais",
+      "showLess": "Ver menos",
+      "deleteConfirm": "Excluir esta nota?",
+      "saveFailed": "Não foi possível salvar a nota",
+      "deleteFailed": "Não foi possível excluir a nota",
+      "unknownAuthor": "Desconhecido"
     }
   },
   "Contacts": {

@@ -496,11 +496,11 @@
     "sidebar": {
       "contactInfo": "Contact info",
       "tags": "Tags",
-      "notes": "Notes",
+      "notes": "Session notes",
       "deals": "Deals",
       "noTags": "No tags",
       "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note...",
+      "addNotePlaceholder": "Add a session note…",
       "addTag": "Add tag",
       "searchTags": "Search tags",
       "noTagsDefined": "No tags exist yet — an admin can create them in Settings → Tags.",
@@ -566,8 +566,20 @@
     },
     "notesPanel": {
       "add": "Add note",
-      "empty": "No notes yet.",
-      "addFailed": "Couldn’t add the note"
+      "empty": "No session notes yet.",
+      "addFailed": "Couldn’t add the note",
+      "edit": "Edit note",
+      "delete": "Delete note",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edited": "edited",
+      "editedTitle": "Edited {time} by {name}",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "deleteConfirm": "Delete this note?",
+      "saveFailed": "Couldn’t save the note",
+      "deleteFailed": "Couldn’t delete the note",
+      "unknownAuthor": "Unknown"
     }
   },
   "Contacts": {
