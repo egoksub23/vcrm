@@ -608,6 +608,17 @@ function InboxPageInner() {
     [activeConversation]
   );
 
+  // Bulk inbox actions (assign / close / mark read): patch the rows the
+  // write succeeded on, and the open thread if it's one of them.
+  const handleBulkPatch = useCallback(
+    (ids: string[], patch: Partial<Conversation>) => {
+      const idSet = new Set(ids);
+      setConversations((prev) => prev.map((c) => (idSet.has(c.id) ? { ...c, ...patch } : c)));
+      setActiveConversation((prev) => (prev && idSet.has(prev.id) ? { ...prev, ...patch } : prev));
+    },
+    []
+  );
+
   const handleLabelsChange = useCallback(
     (conversationId: string, labels: Conversation["labels"]) => {
       setConversations((prev) =>
@@ -658,6 +669,7 @@ function InboxPageInner() {
             onConversationsLoaded={handleConversationsLoaded}
             resyncToken={resyncToken}
             onLabelsChange={handleLabelsChange}
+            onBulkPatch={handleBulkPatch}
             tab={inboxTab}
             onTabChange={setInboxTab}
           />

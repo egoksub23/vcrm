@@ -21,6 +21,9 @@ interface CloseConversationDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (note: string) => void;
   busy: boolean;
+  /** >1 when closing several conversations at once (bulk close) — one
+   *  shared note is applied to each. */
+  count?: number;
 }
 
 /**
@@ -36,6 +39,7 @@ export function CloseConversationDialog({
   onOpenChange,
   onConfirm,
   busy,
+  count = 1,
 }: CloseConversationDialogProps) {
   const t = useTranslations("Inbox.closeDialog");
   const [note, setNote] = useState("");
@@ -54,9 +58,11 @@ export function CloseConversationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover border-border sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-popover-foreground">{t("title")}</DialogTitle>
+          <DialogTitle className="text-popover-foreground">
+            {count > 1 ? t("titleBulk", { count }) : t("title")}
+          </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            {t("description")}
+            {count > 1 ? t("descriptionBulk", { count }) : t("description")}
           </DialogDescription>
         </DialogHeader>
 

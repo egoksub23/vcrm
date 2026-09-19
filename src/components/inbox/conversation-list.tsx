@@ -39,6 +39,7 @@ import {
   type InboxTab,
 } from "@/lib/inbox/channel-scope";
 import { PendingDeletePanel } from "./pending-delete-panel";
+import { BulkActionsBar } from "./bulk-actions-bar";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -69,6 +70,8 @@ interface ConversationListProps {
    * stays backward-compatible for any other caller of ConversationList.
    */
   onLabelsChange?: (conversationId: string, labels: Conversation["labels"]) => void;
+  /** Patches local state after a bulk write (assign / close / read state), same role as `onLabelsChange` for labels. */
+  onBulkPatch?: (ids: string[], patch: Partial<Conversation>) => void;
 }
 
 type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned";
@@ -104,6 +107,7 @@ export function ConversationList({
   onConversationsLoaded,
   resyncToken = 0,
   onLabelsChange,
+  onBulkPatch,
   tab,
   onTabChange,
 }: ConversationListProps) {
@@ -1147,50 +1151,51 @@ export function ConversationList({
       </div>
 
       {selectMode && selectedIds.size > 0 && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
-          <span className="text-xs font-medium text-foreground">
-            {t("selectedCount", { count: selectedIds.size })}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={applyingLabelId !== null}
-              className="ml-auto inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-            >
-              <TagIcon className="h-3 w-3" />
-              {t("applyLabel")}
-              <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-64 w-56 border-border bg-popover">
-              {tags.length === 0 ? (
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("noLabelsAvailable")}</div>
-              ) : (
-                tags.map((tag) => (
-                  <DropdownMenuItem
-                    key={tag.id}
-                    onClick={() => handleBulkApplyLabel(tag)}
-                    disabled={applyingLabelId !== null}
-                    className="text-sm text-popover-foreground"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="truncate">{tag.name}</span>
-                    </span>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {t("clearAll")}
-          </button>
-        </div>
+        <BulkActionsBar
+          selected={conversations.filter((c) => selectedIds.has(c.id))}
+          visibleCount={filtered.length}
+          onSelectAll={() => setSelectedIds(new Set(filtered.map((c) => c.id)))}
+          onClear={clearSelection}
+          onPatch={(ids, patch) => onBulkPatch?.(ids, patch)}
+          onDone={() => {
+            setSelectMode(false);
+            setSelectedIds(new Set());
+          }}
+          labelControl={
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={applyingLabelId !== null}
+                  className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-foreground hover:bg-muted disabled:opacity-60"
+                >
+                  <TagIcon className="h-3 w-3" />
+                  {t("applyLabel")}
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-64 w-56 border-border bg-popover">
+                  {tags.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("noLabelsAvailable")}</div>
+                  ) : (
+                    tags.map((tag) => (
+                      <DropdownMenuItem
+                        key={tag.id}
+                        onClick={() => handleBulkApplyLabel(tag)}
+                        disabled={applyingLabelId !== null}
+                        className="text-sm text-popover-foreground"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="truncate">{tag.name}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+          }
+        />
       )}
 
       {/* Conversation Items.
