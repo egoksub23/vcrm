@@ -8,7 +8,8 @@ import {
   CONVERSATION_SELECT,
   normalizeConversation,
 } from "@/lib/inbox/conversations";
-import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus } from "@/types";
+import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus, ChannelType } from "@/types";
+import { CHAT_CHANNELS } from "@/lib/inbox/channel-scope";
 import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
@@ -25,15 +26,21 @@ const CONTACT_PANEL_STORAGE_KEY = "wacrm:inbox:contact-panel-open";
 // `useSearchParams` (the `?c=<id>` deep link below) requires a Suspense
 // boundary or the production build bails to CSR and errors out. Thin
 // wrapper supplies it; the inner component holds all the inbox state.
+//
+// This route is the "Chat Inbox" half of the Email/Chat split
+// (user-requested Sep 19, 2026) — `/inbox/email/page.tsx` renders the
+// same `InboxPageInner` (exported below) with the complementary scope,
+// so the split is a filtered view over the existing inbox rather than a
+// second inbox implementation.
 export default function InboxPage() {
   return (
     <Suspense fallback={null}>
-      <InboxPageInner />
+      <InboxPageInner channelScope={CHAT_CHANNELS} />
     </Suspense>
   );
 }
 
-function InboxPageInner() {
+export function InboxPageInner({ channelScope }: { channelScope?: ChannelType[] } = {}) {
   const t = useTranslations("Inbox.page");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -623,8 +630,9 @@ function InboxPageInner() {
   return (
     <div className="-m-4 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden sm:-m-6">
       {/* WhatsApp connection banner — in the flex column, not absolute,
-          so it pushes the panels down instead of overlapping them. */}
-      {whatsappConnected === false && (
+          so it pushes the panels down instead of overlapping them.
+          Irrelevant on the Email Inbox scope, so gated out there. */}
+      {whatsappConnected === false && (!channelScope || channelScope.includes("whatsapp")) && (
         <div className="flex shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
           <WifiOff className="h-4 w-4 text-amber-400" />
           <p className="text-xs text-amber-400">
@@ -650,6 +658,7 @@ function InboxPageInner() {
             onConversationsLoaded={handleConversationsLoaded}
             resyncToken={resyncToken}
             onLabelsChange={handleLabelsChange}
+            channelScope={channelScope}
           />
         </div>
 

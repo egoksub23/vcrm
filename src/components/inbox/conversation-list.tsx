@@ -32,6 +32,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addConversationLabel } from "@/lib/conversations/label-api";
 import { createInboxView, deleteInboxView } from "@/lib/inbox/views-api";
+import { ALL_CHANNELS } from "@/lib/inbox/channel-scope";
 import { PendingDeletePanel } from "./pending-delete-panel";
 
 interface ConversationListProps {
@@ -39,6 +40,16 @@ interface ConversationListProps {
   onSelect: (conversation: Conversation) => void;
   conversations: Conversation[];
   onConversationsLoaded: (conversations: Conversation[]) => void;
+  /**
+   * Hard channel restriction for the Email/Chat inbox split — unlike
+   * `selectedChannelTypes` (the user's own optional multi-select filter,
+   * unaffected by this), conversations outside this set are never shown
+   * or selectable here at all. `undefined` = no split, show every
+   * channel (used nowhere today, kept for callers that don't need the
+   * split). The channel-filter dropdown below is also restricted to this
+   * set, so a "Chat Inbox" instance never even offers Email as an option.
+   */
+  channelScope?: ChannelType[];
   /**
    * Increment to force the fetch effect below to refire. The parent
    * bumps this on realtime reconnect / tab visibility → visible so the
@@ -89,6 +100,7 @@ export function ConversationList({
   onConversationsLoaded,
   resyncToken = 0,
   onLabelsChange,
+  channelScope,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
   const { user, slaResponseMinutes, statusColors, canEditSettings } = useAuth();
@@ -341,6 +353,14 @@ export function ConversationList({
   const filtered = useMemo(() => {
     let result = conversations;
 
+    // Email/Chat inbox split — a hard boundary, applied before every
+    // other (togglable) filter below, so a "Chat Inbox" instance can
+    // never surface an email conversation regardless of what else is
+    // selected.
+    if (channelScope) {
+      result = result.filter((c) => channelScope.includes(c.last_channel_type));
+    }
+
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);
     } else if (filter === "mine") {
@@ -410,6 +430,7 @@ export function ConversationList({
     return result;
   }, [
     conversations,
+    channelScope,
     filter,
     search,
     selectedTagIds,
@@ -880,7 +901,7 @@ export function ConversationList({
               >
                 {t("allChannels")}
               </DropdownMenuItem>
-              {(["whatsapp", "web_widget", "messenger", "instagram", "email", "gmail"] as ChannelType[]).map((ct) => {
+              {(channelScope ?? ALL_CHANNELS).map((ct) => {
                 const Icon = CHANNEL_ICONS[ct];
                 return (
                   <DropdownMenuCheckboxItem

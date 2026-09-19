@@ -17,6 +17,7 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  Mail,
   MessageSquare,
   Radio,
   Settings,
@@ -96,6 +97,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
   { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
+  { href: "/inbox/email", labelKey: "emailInbox", icon: Mail },
   { href: "/notifications", labelKey: "notifications", icon: Bell },
   { href: "/contacts", labelKey: "contacts", icon: Users },
   { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
@@ -138,6 +140,16 @@ export function Sidebar({
   const { profile, profileLoading, account, accountRole, signOut } = useAuth();
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
+
+  // Longest-prefix match, not "first item whose href prefixes pathname" —
+  // /inbox/email is nested under /inbox (the Email/Chat inbox split), so a
+  // naive prefix check would light up BOTH the Chat Inbox and Email Inbox
+  // rows while on /inbox/email. Computed once here rather than per-item
+  // below so every navItem agrees on which single row is active.
+  const activeHref = [...navItems, ...bottomNavItems]
+    .map((item) => item.href)
+    .filter((href) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")))
+    .sort((a, b) => b.length - a.length)[0];
 
   // Only matters at lg+ — mobile always shows the full drawer regardless
   // of `pinned`. Tracked via matchMedia rather than a CSS-only approach
@@ -276,9 +288,7 @@ export function Sidebar({
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
             {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const isActive = item.href === activeHref;
 
               const showUnreadDot =
                 item.href === "/inbox" && totalUnread > 0 && !isActive;
