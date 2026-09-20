@@ -99,6 +99,12 @@ export async function getInstagramMedia(a: { mediaId: string; token: string }) {
   return r
 }
 
+/** Permissions the connecting user actually granted (status "granted"). */
+export async function getGrantedPermissions(a: { token: string }): Promise<string[]> {
+  const r = await graph<{ data?: { permission?: string; status?: string }[] }>('me/permissions', { token: a.token })
+  return (r.data ?? []).filter((p) => p.status === 'granted' && p.permission).map((p) => p.permission as string)
+}
+
 /**
  * Subscribe a Page to more webhook fields WITHOUT dropping the ones it
  * already has (POST replaces the list, so send the union).

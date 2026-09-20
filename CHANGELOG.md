@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.34.2] — 2026-09-20
+
+- **Instagram "Turn on comments" no longer fails.** Meta rejects `comments` as a
+  Page subscription field, so Instagram now only checks that the comment
+  permission was granted on reconnect. Turn on `comments` and `live_comments`
+  under the Instagram object in the Meta dashboard's Webhooks page.
+
 ## [0.34.1] — 2026-09-20
 
 - **Email replies work like Outlook.** Clicking Reply no longer fills the

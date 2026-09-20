@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   deleteMetaComment,
+  getGrantedPermissions,
   replyFacebookComment,
   replyInstagramComment,
   sendPrivateReply,
@@ -68,6 +69,17 @@ describe('moderation', () => {
   it('throws the Graph error message', async () => {
     stub(json({ error: { message: 'Permissions error', code: 200 } }, 403))
     await expect(deleteMetaComment({ commentId: 'C1', token: 't' })).rejects.toMatchObject({ name: 'MetaApiError', message: 'Permissions error', code: 200 })
+  })
+})
+
+describe('getGrantedPermissions', () => {
+  it('returns only the permissions with status granted', async () => {
+    stub(json({ data: [
+      { permission: 'instagram_manage_comments', status: 'granted' },
+      { permission: 'pages_read_user_content', status: 'declined' },
+      { permission: 'pages_show_list', status: 'granted' },
+    ] }))
+    expect(await getGrantedPermissions({ token: 't' })).toEqual(['instagram_manage_comments', 'pages_show_list'])
   })
 })
 

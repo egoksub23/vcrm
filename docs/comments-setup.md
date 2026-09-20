@@ -38,7 +38,10 @@ Meta app. Comments need extra permissions, so it is opt-in:
    (`/api/messenger/webhook` and `/api/instagram/webhook`).
 3. In **Settings → Channels → Messenger** (or **Instagram**), use
    **Allow comments (reconnect)** to sign in again with the extra permissions,
-   then **Turn on comments** to subscribe the Page to comment events.
+   then **Turn on comments**. On Facebook this subscribes the Page to `feed`.
+   On Instagram, `comments` / `live_comments` are app-level webhook fields
+   (step 2), not Page fields, so **Turn on comments** only checks that the
+   `instagram_manage_comments` permission was granted.
 
 Notes:
 
