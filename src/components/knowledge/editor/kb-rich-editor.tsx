@@ -110,7 +110,11 @@ export function KbRichEditor({ initialHtml, onChange, placeholder, disabled, cla
         ),
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
+      // Only real edits count: tiptap also emits "update" when the editor is
+      // merely switched between editable and locked (on load and around each
+      // save), which used to mark a freshly saved article as unsaved.
+      if (!transaction.docChanged) return;
       onChangeRef.current(editor.isEmpty ? "" : editor.getHTML(), editor.getText({ blockSeparator: "\n\n" }));
     },
     editable: !disabled,
@@ -120,7 +124,8 @@ export function KbRichEditor({ initialHtml, onChange, placeholder, disabled, cla
   });
 
   useEffect(() => {
-    editor?.setEditable(!disabled);
+    // `false` = do not emit an "update" event for a mere editable toggle.
+    editor?.setEditable(!disabled, false);
   }, [editor, disabled]);
 
   const setLink = () => {

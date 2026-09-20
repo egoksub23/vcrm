@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.35.1] — 2026-09-20
+
+- **Knowledge editor no longer says "unsaved changes" after saving.** The article
+  was being saved correctly, but the editor treated loading and locking itself
+  during a save as an edit, so the page always warned "You have unsaved changes"
+  (and the test box said your edits were not included) even right after Save.
+  Only real typing counts now.
+
 ## [0.35.0] — 2026-09-20 — **migrations required: 076, 077**
 
 The Knowledge base now follows the design page it was proposed with, plus a
