@@ -36,7 +36,9 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
+import { setCachedTicketKeyPrefix, useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { createClient } from "@/lib/supabase/client";
+import { isValidPrefix, normalizePrefix, ticketKey } from "@/lib/tickets/key";
 import {
   TICKET_FIELD_TYPES,
   fieldsForCategory,
@@ -92,6 +94,9 @@ export function TicketFormSettings() {
   const canEdit = useCapability("tickets.configure-form");
   const { accountId } = useAuth();
   const { fields, loading, reload } = useTicketFields();
+  const { prefix: savedPrefix } = useTicketKeyPrefix();
+  const [prefixDraft, setPrefixDraft] = useState<string | null>(null);
+  const [savingPrefix, setSavingPrefix] = useState(false);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -191,6 +196,25 @@ export function TicketFormSettings() {
 
   const previewFields = fieldsForCategory(fields, previewCategory);
 
+  const prefixValue = prefixDraft ?? savedPrefix;
+  const prefixValid = isValidPrefix(prefixValue);
+  const savePrefix = async () => {
+    if (!accountId || !prefixValid || prefixValue === savedPrefix) return;
+    setSavingPrefix(true);
+    const { error } = await createClient()
+      .from("accounts")
+      .update({ ticket_key_prefix: prefixValue })
+      .eq("id", accountId);
+    setSavingPrefix(false);
+    if (error) {
+      toast.error(t("prefixSaveFailed"));
+      return;
+    }
+    setCachedTicketKeyPrefix(accountId, prefixValue);
+    setPrefixDraft(null);
+    toast.success(t("prefixSaved", { key: ticketKey(prefixValue, 12) }));
+  };
+
   return (
     <section className="max-w-3xl animate-in fade-in-50 space-y-4 duration-200">
       <SettingsPanelHead
@@ -211,6 +235,40 @@ export function TicketFormSettings() {
           {t("adminOnly")}
         </p>
       )}
+
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">{t("prefixTitle")}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("prefixHint")}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={prefixValue}
+              onChange={(e) => setPrefixDraft(normalizePrefix(e.target.value).slice(0, 6))}
+              disabled={!canEdit || savingPrefix}
+              maxLength={6}
+              aria-label={t("prefixTitle")}
+              aria-invalid={!prefixValid}
+              className="w-28 font-mono uppercase"
+            />
+            <span className="text-sm text-muted-foreground">
+              {t("prefixPreview", { key: ticketKey(prefixValid ? prefixValue : savedPrefix, 12) })}
+            </span>
+            {canEdit && (
+              <Button
+                size="sm"
+                onClick={() => void savePrefix()}
+                disabled={savingPrefix || !prefixValid || prefixValue === savedPrefix}
+              >
+                {savingPrefix ? <Loader2 className="size-4 animate-spin" /> : null}
+                {t("save")}
+              </Button>
+            )}
+          </div>
+          {!prefixValid && <p className="text-xs text-destructive">{t("prefixInvalid")}</p>}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-0">

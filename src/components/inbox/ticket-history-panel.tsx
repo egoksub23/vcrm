@@ -7,11 +7,14 @@ import { Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useCapability } from "@/hooks/use-can";
+import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { cn } from "@/lib/utils";
+import { isActiveStatus } from "@/lib/tickets/constants";
 import { Button } from "@/components/ui/button";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
-import { TicketDetailSheet } from "@/components/tickets/ticket-detail-sheet";
-import type { Ticket, TicketPriority, TicketStatus } from "@/types";
+import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
+import { STATUS_DOT } from "@/components/tickets/ticket-visuals";
+import type { Ticket, TicketPriority } from "@/types";
 
 type Row = Pick<
   Ticket,
@@ -27,13 +30,6 @@ type Row = Pick<
 >;
 
 type Filter = "all" | "active" | "done";
-
-const STATUS_DOT: Record<TicketStatus, string> = {
-  open: "bg-sky-500",
-  pending: "bg-amber-500",
-  resolved: "bg-emerald-500",
-  closed: "bg-muted-foreground",
-};
 
 const PRIORITY_TEXT: Record<TicketPriority, string> = {
   urgent: "text-red-500",
@@ -56,7 +52,8 @@ export function TicketHistoryPanel({
   conversationId: string | null;
 }) {
   const t = useTranslations("Inbox.ticketHistory");
-  const tt = useTranslations("Tickets.detail");
+  const tt = useTranslations("Tickets.common");
+  const { keyOf } = useTicketKeyPrefix();
   const canRaise = useCapability("tickets.work");
 
   const [rows, setRows] = useState<Row[]>([]);
@@ -105,11 +102,10 @@ export function TicketHistoryPanel({
 
   const visible = useMemo(() => {
     if (filter === "all") return rows;
-    const active = (s: TicketStatus) => s === "open" || s === "pending";
-    return rows.filter((r) => (filter === "active" ? active(r.status) : !active(r.status)));
+    return rows.filter((r) => (filter === "active" ? isActiveStatus(r.status) : !isActiveStatus(r.status)));
   }, [rows, filter]);
 
-  const activeCount = rows.filter((r) => r.status === "open" || r.status === "pending").length;
+  const activeCount = rows.filter((r) => isActiveStatus(r.status)).length;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -175,7 +171,7 @@ export function TicketHistoryPanel({
                 >
                   <div className="flex items-start gap-2">
                     <span className="mt-0.5 shrink-0 text-[11px] font-medium text-muted-foreground">
-                      #{r.ticket_number}
+                      {keyOf(r.ticket_number)}
                     </span>
                     <span className="line-clamp-2 min-w-0 flex-1 text-sm font-medium text-foreground">
                       {r.subject}
@@ -203,12 +199,14 @@ export function TicketHistoryPanel({
         )}
       </div>
 
-      <TicketDetailSheet
+      <TicketDetailDialog
         ticketId={openId}
         onOpenChange={(o) => {
           if (!o) setOpenId(null);
         }}
         onChanged={() => void load()}
+        onDeleted={() => void load()}
+        onOpenTicket={setOpenId}
       />
       {contactId ? (
         <CreateTicketDialog
@@ -217,6 +215,7 @@ export function TicketHistoryPanel({
           contactId={contactId}
           conversationId={conversationId}
           onCreated={() => void load()}
+          onOpenCreated={setOpenId}
         />
       ) : null}
     </div>

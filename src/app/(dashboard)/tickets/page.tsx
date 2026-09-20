@@ -3,54 +3,56 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { formatDistanceToNow } from "date-fns";
-import { Flag, Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronDown, KanbanSquare, List, Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { useTeams } from "@/hooks/use-teams";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { useAccountMembers } from "@/hooks/use-account-members";
+import { useAuth } from "@/hooks/use-auth";
+import { useCapability } from "@/hooks/use-can";
+import { useTeams } from "@/hooks/use-teams";
+import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
+import { useTicketLabels } from "@/hooks/use-ticket-labels";
+import { useTicketStore, type TicketViewMode } from "@/hooks/use-ticket-store";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
-import { TicketDetailSheet } from "@/components/tickets/ticket-detail-sheet";
-import type { Contact, Profile, Ticket, TicketPriority, TicketStatus } from "@/types";
+import { TicketBoard, type BoardMove } from "@/components/tickets/ticket-board";
+import { TicketBulkBar } from "@/components/tickets/ticket-bulk-bar";
+import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
+import { TicketFilterBar } from "@/components/tickets/ticket-filter-bar";
+import { TicketListView } from "@/components/tickets/ticket-list-view";
+import {
+  applyFilters,
+  hasActiveFilters,
+  emptyFilters,
+  parseFilters,
+  serializeFilters,
+  type TicketFilters,
+} from "@/lib/tickets/filters";
+import { buildBulkUpdates, buildTicketPatch, type BulkAction } from "@/lib/tickets/patch";
+import {
+  DEFAULT_SORT,
+  GROUP_BYS,
+  parseGroupBy,
+  parseSort,
+  serializeSort,
+  sortTickets,
+  toggleSort,
+  type GroupBy,
+  type SortKey,
+  type SortSpec,
+} from "@/lib/tickets/sort-group";
+import { updateTicket, updateTickets } from "@/lib/tickets/update";
+import type { Ticket, TicketStatus } from "@/types";
 
-const PRIORITY_COLOR: Record<TicketPriority, string> = {
-  urgent: "text-red-500",
-  high: "text-amber-500",
-  normal: "text-muted-foreground",
-  low: "text-sky-500",
-};
-
-const STATUS_COLOR: Record<TicketStatus, string> = {
-  open: "bg-sky-500/10 text-sky-500",
-  pending: "bg-amber-500/10 text-amber-500",
-  resolved: "bg-emerald-500/10 text-emerald-500",
-  closed: "bg-muted text-muted-foreground",
-};
-
-interface TicketRow extends Ticket {
-  contact?: Contact;
-}
-
-const STATUS_FILTERS = ["all", "open", "pending", "resolved", "closed"] as const;
-type StatusFilter = (typeof STATUS_FILTERS)[number];
+const VIEW_STORAGE_KEY = "wacrm:tickets:view";
 
 // `useSearchParams` opts the page out of static prerendering unless it
 // sits under a Suspense boundary — same reason Settings/Reports do this.
@@ -64,82 +66,185 @@ export default function TicketsPage() {
 
 function TicketsPageInner() {
   const t = useTranslations("Tickets.list");
+  const tView = useTranslations("Tickets.view");
+  const tBulk = useTranslations("Tickets.bulk");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { teams } = useTeams();
+  const { members, nameOf } = useAccountMembers();
+  const { prefix, keyOf } = useTicketKeyPrefix();
+  const { labels: knownLabels, reload: reloadLabels } = useTicketLabels();
+  const canWork = useCapability("tickets.work");
+  const canDelete = useCapability("tickets.delete");
 
-  const [rows, setRows] = useState<TicketRow[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Board or list, remembered per browser. Until it is known nothing loads,
+  // so a list user does not pay for a board fetch first.
+  const [view, setView] = useState<TicketViewMode | null>(null);
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(VIEW_STORAGE_KEY);
+    } catch {
+      // storage blocked: fall back to the default
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setView(stored === "list" ? "list" : "board");
+  }, []);
+  const changeView = (next: TicketViewMode) => {
+    setView(next);
+    setSelected(new Set());
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      // storage blocked: the choice just is not remembered
+    }
+  };
+  const mode: TicketViewMode = view ?? "board";
+
+  // Filters, sort and grouping live in state and are mirrored into the URL
+  // (`?q=&assignee=&sort=...`), so a link carries them. They are read from the
+  // URL once, on load.
+  const [filters, setFilters] = useState<TicketFilters>(() => parseFilters(searchParams));
+  const [sort, setSort] = useState<SortSpec>(() => parseSort(searchParams.get("sort")));
+  const [group, setGroup] = useState<GroupBy>(() => parseGroupBy(searchParams.get("group")));
+  useEffect(() => {
+    const next = serializeFilters(filters, new URLSearchParams(searchParams.toString()));
+    if (sort.key === DEFAULT_SORT.key && sort.dir === DEFAULT_SORT.dir) next.delete("sort");
+    else next.set("sort", serializeSort(sort));
+    if (group === "none") next.delete("group");
+    else next.set("group", group);
+    if (next.toString() !== searchParams.toString()) {
+      const qs = next.toString();
+      router.replace(qs ? `/tickets?${qs}` : "/tickets", { scroll: false });
+    }
+  }, [filters, sort, group, searchParams, router]);
+
+  const store = useTicketStore(mode, view !== null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [closedOpen, setClosedOpen] = useState(false);
+
+  // Closed is fetched when opened; coming back to a board that had it open
+  // reloads it too.
+  const { loading: storeLoading, columnLoaded, loadColumn } = store;
+  useEffect(() => {
+    if (mode === "board" && closedOpen && !storeLoading && !columnLoaded.closed) void loadColumn("closed");
+  }, [mode, closedOpen, storeLoading, columnLoaded.closed, loadColumn]);
 
   const openTicketId = searchParams.get("t");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const [{ data: ticketRows }, { data: profileRows }] = await Promise.all([
-      supabase
-        .from("tickets")
-        .select("*, contact:contacts(*)")
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("*").order("full_name"),
-    ]);
-    setRows((ticketRows as TicketRow[]) ?? []);
-    setProfiles((profileRows as Profile[]) ?? []);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [load]);
-
-  // Realtime — any insert/update to tickets in this account refreshes
-  // the list (RLS already scopes what comes through).
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel("tickets-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
-        void load();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    return rows.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (assigneeFilter === "mine" && r.assigned_agent_id !== user?.id) return false;
-      if (assigneeFilter === "unassigned" && r.assigned_agent_id) return false;
-      if (teamFilter !== "all" && r.assigned_team_id !== teamFilter) return false;
-      return true;
-    });
-  }, [rows, statusFilter, assigneeFilter, teamFilter, user?.id]);
-
-  const openTicket = (id: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("t", id);
-    router.replace(`/tickets?${params.toString()}`, { scroll: false });
-  };
-
-  const closeTicket = () => {
+  const openTicket = useCallback(
+    (id: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("t", id);
+      router.replace(`/tickets?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+  const closeTicket = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("t");
-    router.replace(params.toString() ? `/tickets?${params.toString()}` : "/tickets", {
-      scroll: false,
-    });
+    router.replace(params.toString() ? `/tickets?${params.toString()}` : "/tickets", { scroll: false });
+  }, [router, searchParams]);
+
+  // ---- What is shown -------------------------------------------------------
+  const ctx = useMemo(() => ({ userId: user?.id ?? null, prefix }), [user?.id, prefix]);
+  const filtered = useMemo(
+    () => applyFilters(store.rows, filters, ctx, mode === "list"),
+    [store.rows, filters, ctx, mode],
+  );
+  const listRows = useMemo(
+    () => (mode === "list" ? sortTickets(filtered, sort, { assigneeName: (id) => nameOf(id) }) : filtered),
+    [mode, filtered, sort, nameOf],
+  );
+  const loadedCounts = useMemo(() => {
+    const counts: Record<TicketStatus, number> = { open: 0, in_progress: 0, pending: 0, resolved: 0, closed: 0 };
+    for (const r of store.rows) counts[r.status] += 1;
+    return counts;
+  }, [store.rows]);
+  const selectedRows = useMemo(() => listRows.filter((r) => selected.has(r.id)), [listRows, selected]);
+  const narrowed = hasActiveFilters(filters, mode === "list");
+
+  // ---- Edits -----------------------------------------------------------------
+  /** One ticket, optimistic: an inline edit in the list. */
+  const handlePatch = async (id: string, patch: Partial<Ticket>) => {
+    const full = buildTicketPatch(patch);
+    const undo = store.applyPatch([id], full);
+    const written = await updateTicket(id, full);
+    if (!written) {
+      undo();
+      toast.error(t("updateFailed"));
+    } else if (patch.labels) {
+      void reloadLabels();
+    }
   };
 
-  const assigneeName = (agentId: string | null | undefined) =>
-    profiles.find((p) => p.user_id === agentId)?.full_name ?? null;
+  /** A card dropped on the board: a status change (with its resolved_at /
+   *  closed_at) and/or a new rank; rolled back if the write fails. */
+  const handleMove = async (move: BoardMove) => {
+    const row = store.rows.find((r) => r.id === move.id);
+    if (!row) return;
+    const rankOf = (id: string) => move.rebalance?.find((r) => r.id === id)?.rank;
+    const patch: Partial<Ticket> = buildTicketPatch({
+      ...(move.status !== row.status ? { status: move.status } : {}),
+      board_rank: rankOf(move.id) ?? move.rank,
+    });
+    const undos = [store.applyPatch([move.id], patch)];
+    const writes = [updateTicket(move.id, patch)];
+    for (const other of move.rebalance ?? []) {
+      if (other.id === move.id) continue;
+      undos.push(store.applyPatch([other.id], { board_rank: other.rank }));
+      writes.push(updateTicket(other.id, { board_rank: other.rank }));
+    }
+    const results = await Promise.all(writes);
+    if (results.some((r) => r === null)) {
+      for (const undo of undos) undo();
+      toast.error(t("moveFailed"));
+    }
+  };
+
+  const handleBulk = async (action: BulkAction) => {
+    const plan = buildBulkUpdates(action, selectedRows);
+    if (plan.changed === 0) {
+      toast.info(tBulk("nothingToChange"));
+      return;
+    }
+    setBulkBusy(true);
+    // One update per field (labels: per distinct result), each for all its ids.
+    const outcomes = await Promise.all(
+      plan.updates.map(async (u) => {
+        const undo = store.applyPatch(u.ids, u.patch);
+        const written = await updateTickets(u.ids, u.patch);
+        if (!written) undo();
+        return written ? u.ids.length : 0;
+      }),
+    );
+    setBulkBusy(false);
+    const done = outcomes.reduce((n, c) => n + c, 0);
+    if (done === plan.changed) toast.success(tBulk("done", { count: done }));
+    else if (done > 0) toast.warning(tBulk("partial", { done, total: plan.changed }));
+    else toast.error(tBulk("failed"));
+    if (action.kind === "label") void reloadLabels();
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = selectedRows.map((r) => r.id);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const { error } = await createClient().from("tickets").delete().in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      toast.error(tBulk("deleteFailed"));
+      return;
+    }
+    store.removeRows(ids);
+    setSelected(new Set());
+    toast.success(tBulk("deleted", { count: ids.length }));
+  };
+
+  const handleSortChange = (key: SortKey) => setSort((prev) => toggleSort(prev, key));
 
   return (
     <div>
@@ -148,145 +253,150 @@ function TicketsPageInner() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("pageTitle")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("pageDesc")}</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          {t("newTicket")}
-        </Button>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                statusFilter === s
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(`statusFilter.${s}`)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label={tView("label")}>
+            {(["board", "list"] as const).map((v) => {
+              const Icon = v === "board" ? KanbanSquare : List;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={mode === v}
+                  onClick={() => changeView(v)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    mode === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {tView(v)}
+                </button>
+              );
+            })}
+          </div>
+          {mode === "list" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
+                {tView("groupBy", { by: tView(`group.${group}`) })}
+                <ChevronDown className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 border-border bg-popover">
+                {GROUP_BYS.map((g) => (
+                  <DropdownMenuItem key={g} onClick={() => setGroup(g)}>
+                    {tView(`group.${g}`)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          <Button onClick={() => setCreateOpen(true)} disabled={!canWork} title={canWork ? undefined : t("readOnly")}>
+            <Plus className="size-4" />
+            {t("newTicket")}
+          </Button>
         </div>
-
-        <Select value={assigneeFilter} onValueChange={(v) => setAssigneeFilter(v ?? "all")}>
-          <SelectTrigger className="w-40 bg-muted">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("assigneeFilter.all")}</SelectItem>
-            <SelectItem value="mine">{t("assigneeFilter.mine")}</SelectItem>
-            <SelectItem value="unassigned">{t("assigneeFilter.unassigned")}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {teams.length > 0 && (
-          <Select value={teamFilter} onValueChange={(v) => setTeamFilter(v ?? "all")}>
-            <SelectTrigger className="w-40 bg-muted">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("teamFilter.all")}</SelectItem>
-              {teams.map((team) => (
-                <SelectItem key={team.id} value={team.id}>
-                  {team.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
-      <div className="mt-4 rounded-xl border border-border bg-card">
-        {loading ? (
+      <div className="mt-4">
+        <TicketFilterBar
+          filters={filters}
+          onChange={setFilters}
+          view={mode}
+          members={members}
+          teams={teams}
+          knownLabels={knownLabels.map((k) => k.label)}
+        />
+      </div>
+
+      <div className={cn("mt-4", mode === "list" && "rounded-xl border border-border bg-card")}>
+        {view === null || store.loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-primary" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : store.error ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <p className="text-sm text-muted-foreground">{t("loadFailed")}</p>
+            <Button variant="outline" size="sm" onClick={() => void store.reload()}>
+              {t("retry")}
+            </Button>
+          </div>
+        ) : mode === "board" ? (
+          <TicketBoard
+            rows={filtered}
+            totals={store.totals}
+            loadedCounts={loadedCounts}
+            columnLoaded={store.columnLoaded}
+            loadingMore={store.loadingMore}
+            filtered={narrowed}
+            canWork={canWork}
+            keyOf={keyOf}
+            members={members}
+            onOpen={openTicket}
+            onMove={(move) => void handleMove(move)}
+            onShowMore={(status) => void store.loadColumn(status)}
+            onExpandColumn={(status) => {
+              if (!store.columnLoaded[status]) void store.loadColumn(status);
+            }}
+            closedOpen={closedOpen}
+            onClosedOpenChange={setClosedOpen}
+          />
+        ) : listRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <TicketIcon className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            {narrowed ? (
+              <Button variant="outline" size="sm" onClick={() => setFilters(emptyFilters())}>
+                {t("clearFilters")}
+              </Button>
+            ) : null}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">{t("col.number")}</TableHead>
-                <TableHead>{t("col.subject")}</TableHead>
-                <TableHead>{t("col.contact")}</TableHead>
-                <TableHead>{t("col.status")}</TableHead>
-                <TableHead>{t("col.priority")}</TableHead>
-                <TableHead>{t("col.assignee")}</TableHead>
-                <TableHead className="text-right">{t("col.updated")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((row) => (
-                <TableRow
-                  key={row.id}
-                  onClick={() => openTicket(row.id)}
-                  className="cursor-pointer"
-                >
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{row.ticket_number}
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate font-medium text-foreground">
-                    {row.subject}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.contact?.name || (row.contact ? contactHandle(row.contact) : "—")}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        STATUS_COLOR[row.status],
-                      )}
-                    >
-                      {t(`status.${row.status}`)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 text-xs font-medium",
-                        PRIORITY_COLOR[row.priority],
-                      )}
-                    >
-                      <Flag className="size-3" />
-                      {t(`priority.${row.priority}`)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {assigneeName(row.assigned_agent_id) ?? t("unassigned")}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <TicketListView
+            rows={listRows}
+            sort={sort}
+            onSortChange={handleSortChange}
+            groupBy={group}
+            selected={selected}
+            onSelectedChange={setSelected}
+            canWork={canWork}
+            keyOf={keyOf}
+            members={members}
+            nameOf={nameOf}
+            onOpen={openTicket}
+            onPatch={(id, patch) => void handlePatch(id, patch)}
+            hasMore={store.listHasMore}
+            loadingMore={store.loadingMore === "list"}
+            onLoadMore={() => void store.loadMore()}
+          />
         )}
       </div>
+
+      {mode === "list" && selectedRows.length > 0 ? (
+        <TicketBulkBar
+          count={selectedRows.length}
+          members={members}
+          teams={teams}
+          knownLabels={knownLabels}
+          canDelete={canDelete}
+          busy={bulkBusy}
+          onApply={(action) => void handleBulk(action)}
+          onDelete={() => void handleBulkDelete()}
+          onClear={() => setSelected(new Set())}
+        />
+      ) : null}
 
       <CreateTicketDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={(ticket) => {
-          setRows((prev) => [ticket as TicketRow, ...prev]);
-          openTicket(ticket.id);
-        }}
+        onCreated={(ticket) => void store.refreshOne(ticket.id)}
+        onOpenCreated={openTicket}
       />
 
-      <TicketDetailSheet
+      <TicketDetailDialog
         ticketId={openTicketId}
         onOpenChange={(open) => !open && closeTicket()}
-        onChanged={() => void load()}
+        onChanged={(id, patch) => (patch ? store.applyPatch([id], patch) : void store.refreshOne(id))}
+        onDeleted={(id) => store.removeRows([id])}
+        onOpenTicket={openTicket}
       />
     </div>
   );

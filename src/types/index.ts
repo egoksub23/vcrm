@@ -334,6 +334,9 @@ export type NotificationType =
   | 'mention'
   | 'ticket_assigned'
   | 'ticket_mention'
+  /** Migration 081: a watched ticket changed status / assignee, or got a comment. */
+  | 'ticket_updated'
+  | 'ticket_comment'
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
   | 'ai_budget';
 
@@ -359,7 +362,9 @@ export interface Notification {
 // TICKETS (migration 063)
 // ============================================================
 
-export type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed';
+/** `in_progress` was added in migration 081 (Open, In progress, Pending,
+ *  Resolved, Closed). */
+export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed';
 
 /** Same four-value scale as ConversationPriority — one shared mental
  *  model for "how urgent" across conversations and tickets. */
@@ -397,6 +402,12 @@ export interface Ticket {
   /** Values for admin-defined ticket fields (migration 066), keyed by
    *  TicketFieldDefinition.id. */
   custom_fields?: TicketCustomValues;
+  /** Migration 081. Date only (yyyy-mm-dd), no time of day. */
+  due_date?: string | null;
+  /** Migration 081. Lower-case, trimmed, at most 10 of 30 chars. */
+  labels?: string[];
+  /** Migration 081. Position on the board: higher is nearer the top. */
+  board_rank?: number;
   created_at: string;
   updated_at: string;
   // Optional joins, populated by callers that need them.
@@ -444,6 +455,8 @@ export interface TicketComment {
   /** Array of mentioned user_ids — same shape as messages.mentions. */
   mentions: string[];
   created_at: string;
+  /** Migration 081: set by the DB when the body is edited. */
+  edited_at?: string | null;
 }
 
 /** System-logged ticket history events (migration 064) — status/priority/
@@ -456,7 +469,17 @@ export type TicketActivityEventType =
   | 'category_changed'
   | 'assigned_agent_changed'
   | 'assigned_team_changed'
-  | 'custom_field_changed';
+  | 'custom_field_changed'
+  // Migration 081. Link events store the point of view of this ticket in
+  // from_value (blocks / blocked_by / relates / duplicates / duplicated_by)
+  // and the other ticket's id in to_value; description_changed has no values.
+  | 'due_date_changed'
+  | 'labels_changed'
+  | 'summary_changed'
+  | 'description_changed'
+  | 'link_added'
+  | 'link_removed'
+  | 'attachment_added';
 
 export interface TicketActivity {
   id: string;
@@ -468,6 +491,52 @@ export interface TicketActivity {
   event_type: TicketActivityEventType;
   from_value?: string | null;
   to_value?: string | null;
+  created_at: string;
+}
+
+/** Migration 081: people following a ticket. Creator and assignee are added by the DB. */
+export interface TicketWatcher {
+  ticket_id: string;
+  user_id: string;
+  account_id: string;
+  created_at: string;
+}
+
+export type TicketLinkType = 'blocks' | 'relates' | 'duplicates';
+
+/** Migration 081: `from` blocks / relates to / duplicates `to`. */
+export interface TicketLink {
+  id: string;
+  account_id: string;
+  from_ticket_id: string;
+  to_ticket_id: string;
+  link_type: TicketLinkType;
+  created_by?: string | null;
+  created_at: string;
+}
+
+/** Migration 081: a file on a ticket (stored in the chat-media bucket). */
+export interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  account_id: string;
+  storage_path: string;
+  url: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by?: string | null;
+  created_at: string;
+}
+
+/** Migration 081: a saved ticket filter; `filter` is the serialised TicketFilters. */
+export interface TicketSavedFilter {
+  id: string;
+  account_id: string;
+  user_id: string;
+  name: string;
+  filter: Record<string, unknown>;
+  is_shared: boolean;
   created_at: string;
 }
 

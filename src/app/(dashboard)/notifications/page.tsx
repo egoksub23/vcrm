@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, Bot, CheckCheck, Loader2, Ticket, UserPlus } from "lucide-react";
+import { AtSign, Bell, Bot, CheckCheck, Loader2, MessageSquare, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   mention: AtSign,
   ticket_assigned: Ticket,
   ticket_mention: AtSign,
+  ticket_updated: Ticket,
+  ticket_comment: MessageSquare,
   ai_budget: Bot,
 };
 

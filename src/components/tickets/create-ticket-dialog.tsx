@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { FileText, Loader2, Paperclip, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,15 +26,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
-import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { useTeams } from "@/hooks/use-teams";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
+import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
+import { useTicketLabels } from "@/hooks/use-ticket-labels";
+import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { dragHasFiles, pastedImages } from "@/lib/media/clipboard-images";
+import { attachFileToTicket } from "@/lib/tickets/attachment-actions";
+import {
+  TICKET_MAX_ATTACHMENTS,
+  checkTicketFile,
+  formatBytes,
+  isImageMime,
+} from "@/lib/tickets/attachments";
+import { TICKET_CATEGORIES, TICKET_PRIORITIES } from "@/lib/tickets/constants";
 import {
   fieldsForCategory,
   missingRequiredFields,
   sanitizeCustomValues,
 } from "@/lib/tickets/custom-fields";
 import { TicketFieldInput } from "./ticket-field-input";
+import { TicketLabelPicker } from "./ticket-label-picker";
+import { PriorityIcon, TypeIcon } from "./ticket-visuals";
 import type {
   Contact,
   Ticket,
@@ -41,17 +58,14 @@ import type {
   TicketPriority,
 } from "@/types";
 
-const CATEGORIES: TicketCategory[] = [
-  "general",
-  "billing",
-  "technical",
-  "feature_request",
-  "bug",
-  "account",
-  "other",
-];
+const NONE = "__none__";
 
-const PRIORITIES: TicketPriority[] = ["urgent", "high", "normal", "low"];
+interface StagedFile {
+  key: string;
+  file: File;
+  /** Local preview for pictures; revoked when removed / after creating. */
+  preview: string | null;
+}
 
 interface CreateTicketDialogProps {
   open: boolean;
@@ -66,14 +80,20 @@ interface CreateTicketDialogProps {
    *  profile, matching klink.cloud's own flow. */
   conversationId?: string | null;
   onCreated?: (ticket: Ticket) => void;
+  /** The "Open" button on the created toast. Without it the button goes to
+   *  /tickets?t=<id>. */
+  onOpenCreated?: (ticketId: string) => void;
 }
 
 /**
- * Raise-a-ticket form, opened either from a Contact profile ("+ New
- * Ticket", the klink.cloud pattern) or from an open conversation's
- * thread header ("Raise Ticket"). Ticket numbering is a per-account
- * atomic counter (next_ticket_number RPC, migration 063) so two agents
- * creating tickets at once never collide.
+ * Raise-a-ticket form in Jira's "Create issue" order: type, customer,
+ * summary, description, assignee, team, priority, labels, due date,
+ * attachments, then the account's custom fields (migration 066). Opened from
+ * the Tickets page, a Contact profile or an open conversation (the last two
+ * arrive with the customer / chat filled in). Ticket numbering is a
+ * per-account atomic counter (next_ticket_number RPC, migration 063) so two
+ * agents creating tickets at once never collide. "Create another" keeps the
+ * dialog open with the person and the routing fields kept.
  */
 export function CreateTicketDialog({
   open,
@@ -81,17 +101,34 @@ export function CreateTicketDialog({
   contactId,
   conversationId,
   onCreated,
+  onOpenCreated,
 }: CreateTicketDialogProps) {
   const t = useTranslations("Tickets.create");
+  const tCommon = useTranslations("Tickets.common");
+  const router = useRouter();
   const { user, accountId } = useAuth();
+  const { members } = useAccountMembers();
+  const { teams } = useTeams();
+  const { prefix } = useTicketKeyPrefix();
+  const { labels: knownLabels } = useTicketLabels(open);
+
+  const [category, setCategory] = useState<TicketCategory>("general");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<TicketCategory>("general");
+  const [assignee, setAssignee] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [priority, setPriority] = useState<TicketPriority>("normal");
+  const [labels, setLabels] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState("");
+  const [staged, setStaged] = useState<StagedFile[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [another, setAnother] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
 
   // Admin-defined form fields (migration 066). Only fetched while the
-  // dialog is open; the visible set follows the selected category.
+  // dialog is open; the visible set follows the selected type.
   const { fields: fieldDefs } = useTicketFields(open);
   const [customValues, setCustomValues] = useState<TicketCustomValues>({});
   const [showInvalid, setShowInvalid] = useState(false);
@@ -115,11 +152,13 @@ export function CreateTicketDialog({
     let cancelled = false;
     setSearchingContacts(true);
     const supabase = createClient();
+    // Characters that would break the PostgREST filter list are dropped.
+    const q = contactQuery.replace(/[,()%*\\]/g, " ").trim();
     const handle = setTimeout(() => {
       supabase
         .from("contacts")
         .select("*")
-        .or(`name.ilike.%${contactQuery}%,phone.ilike.%${contactQuery}%,email.ilike.%${contactQuery}%`)
+        .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
         .limit(8)
         .then(({ data }) => {
           if (cancelled) return;
@@ -133,16 +172,28 @@ export function CreateTicketDialog({
     };
   }, [needsContactPicker, contactQuery, accountId]);
 
+  const clearStaged = () => {
+    for (const s of staged) if (s.preview) URL.revokeObjectURL(s.preview);
+    setStaged([]);
+  };
+
+  /** Back to a blank form (what "Create another" keeps is handled by the caller). */
   const reset = () => {
+    setCategory("general");
     setSubject("");
     setDescription("");
-    setCategory("general");
+    setAssignee(null);
+    setTeamId(null);
     setPriority("normal");
+    setLabels([]);
+    setDueDate("");
     setCustomValues({});
     setShowInvalid(false);
+    setAnother(false);
     setContactQuery("");
     setContactMatches([]);
     setPickedContact(null);
+    clearStaged();
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -150,10 +201,41 @@ export function CreateTicketDialog({
     onOpenChange(next);
   };
 
+  const addFiles = (files: File[]) => {
+    let count = staged.length;
+    const next: StagedFile[] = [];
+    for (const file of files) {
+      const rejection = checkTicketFile(file, count);
+      if (rejection) {
+        toast.error(
+          rejection.reason === "tooMany"
+            ? t("tooManyFiles", { max: TICKET_MAX_ATTACHMENTS })
+            : t("fileTooLarge", { name: file.name, max: formatBytes(rejection.maxBytes) }),
+        );
+        if (rejection.reason === "tooMany") break;
+        continue;
+      }
+      count += 1;
+      next.push({
+        key: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        preview: isImageMime(file.type) ? URL.createObjectURL(file) : null,
+      });
+    }
+    if (next.length) setStaged((prev) => [...prev, ...next]);
+  };
+
+  const removeStaged = (key: string) =>
+    setStaged((prev) => {
+      const gone = prev.find((s) => s.key === key);
+      if (gone?.preview) URL.revokeObjectURL(gone.preview);
+      return prev.filter((s) => s.key !== key);
+    });
+
   const handleSubmit = async () => {
     const trimmedSubject = subject.trim();
     if (!trimmedSubject) {
-      toast.error(t("subjectRequired"));
+      toast.error(t("summaryRequired"));
       return;
     }
 
@@ -186,7 +268,7 @@ export function CreateTicketDialog({
         return;
       }
 
-      const { data: ticket, error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from("tickets")
         .insert({
           account_id: accountId,
@@ -197,20 +279,56 @@ export function CreateTicketDialog({
           description: description.trim() || null,
           category,
           priority,
+          assigned_agent_id: assignee,
+          assigned_team_id: teamId,
+          labels,
+          due_date: dueDate || null,
           custom_fields: sanitizeCustomValues(fieldDefs, category, customValues),
           created_by: user.id,
         })
         .select("*")
         .single();
 
-      if (insertError || !ticket) {
+      if (insertError || !inserted) {
         toast.error(t("createFailed"));
         return;
       }
+      const ticket = inserted as Ticket;
 
-      toast.success(t("created", { number: ticketNumber }));
-      onCreated?.(ticket as Ticket);
-      handleOpenChange(false);
+      // Files go up after the ticket exists (they are filed under it). A
+      // failed file does not undo the ticket.
+      let failed = 0;
+      for (const s of staged) {
+        try {
+          await attachFileToTicket(ticket, s.file, user.id);
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }));
+
+      const key = `${prefix}-${ticketNumber}`;
+      toast.success(t("created", { key }), {
+        action: {
+          label: t("open"),
+          onClick: () => (onOpenCreated ? onOpenCreated(ticket.id) : router.push(`/tickets?t=${ticket.id}`)),
+        },
+      });
+      onCreated?.(ticket);
+
+      if (another) {
+        // Keep who it is for and how it is routed; clear what is about this one.
+        setSubject("");
+        setDescription("");
+        setLabels([]);
+        setDueDate("");
+        setCustomValues({});
+        setShowInvalid(false);
+        clearStaged();
+        requestAnimationFrame(() => subjectRef.current?.focus());
+      } else {
+        handleOpenChange(false);
+      }
     } finally {
       setBusy(false);
     }
@@ -218,15 +336,40 @@ export function CreateTicketDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-popover border-border text-popover-foreground max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto border-border bg-popover text-popover-foreground sm:max-w-2xl"
+        onPaste={(e) => {
+          // A picture pasted anywhere in the form is staged as an attachment.
+          const images = pastedImages(e.clipboardData?.files, e.clipboardData?.getData("text/plain"));
+          if (images.length === 0) return;
+          e.preventDefault();
+          addFiles(images);
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("title")}</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            {t("description")}
-          </DialogDescription>
+          <DialogDescription className="text-muted-foreground">{t("description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-foreground">{t("typeLabel")}</Label>
+            <Select value={category} onValueChange={(v) => setCategory((v ?? "general") as TicketCategory)}>
+              <SelectTrigger className="w-full bg-muted sm:w-64">
+                <SelectValue>
+                  <TypeIcon category={category} withLabel />
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {TICKET_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    <TypeIcon category={c} withLabel />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {needsContactPicker && (
             <div className="space-y-1.5">
               <Label htmlFor="ticket-contact" className="text-foreground">
@@ -234,9 +377,7 @@ export function CreateTicketDialog({
               </Label>
               {pickedContact ? (
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2 text-sm">
-                  <span className="text-foreground">
-                    {pickedContact.name || contactHandle(pickedContact)}
-                  </span>
+                  <span className="text-foreground">{pickedContact.name || contactHandle(pickedContact)}</span>
                   <button
                     type="button"
                     onClick={() => setPickedContact(null)}
@@ -274,9 +415,7 @@ export function CreateTicketDialog({
                             className="flex w-full flex-col items-start px-3 py-1.5 text-left text-sm hover:bg-muted"
                           >
                             <span className="text-foreground">{c.name || contactHandle(c)}</span>
-                            {c.name && (
-                              <span className="text-xs text-muted-foreground">{contactHandle(c)}</span>
-                            )}
+                            {c.name && <span className="text-xs text-muted-foreground">{contactHandle(c)}</span>}
                           </button>
                         ))
                       )}
@@ -289,13 +428,14 @@ export function CreateTicketDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="ticket-subject" className="text-foreground">
-              {t("subjectLabel")}
+              {t("summaryLabel")} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="ticket-subject"
+              ref={subjectRef}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder={t("subjectPlaceholder")}
+              placeholder={t("summaryPlaceholder")}
               disabled={busy}
               maxLength={200}
               autoFocus={!needsContactPicker}
@@ -313,24 +453,72 @@ export function CreateTicketDialog({
               placeholder={t("descriptionPlaceholder")}
               rows={4}
               disabled={busy}
-              className="w-full resize-none rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary/50 disabled:opacity-60"
+              className="w-full resize-y rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary/50 disabled:opacity-60"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-foreground">{t("categoryLabel")}</Label>
-              <Select
-                value={category}
-                onValueChange={(v) => setCategory(v as TicketCategory)}
-              >
+              <div className="flex items-center justify-between">
+                <Label className="text-foreground">{t("assigneeLabel")}</Label>
+                {user && assignee !== user.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setAssignee(user.id)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {t("assignToMe")}
+                  </button>
+                ) : null}
+              </div>
+              <Select value={assignee ?? NONE} onValueChange={(v) => setAssignee(!v || v === NONE ? null : v)}>
                 <SelectTrigger className="w-full bg-muted">
-                  <SelectValue />
+                  <SelectValue>
+                    {assignee ? (members.find((m) => m.user_id === assignee)?.full_name ?? tCommon("unknownPerson")) : tCommon("unassigned")}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {t(`category.${c}`)}
+                  <SelectItem value={NONE}>{tCommon("unassigned")}</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {teams.length > 0 ? (
+              <div className="space-y-1.5">
+                <Label className="text-foreground">{t("teamLabel")}</Label>
+                <Select value={teamId ?? NONE} onValueChange={(v) => setTeamId(!v || v === NONE ? null : v)}>
+                  <SelectTrigger className="w-full bg-muted">
+                    <SelectValue>{teams.find((tm) => tm.id === teamId)?.name ?? tCommon("noTeam")}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>{tCommon("noTeam")}</SelectItem>
+                    {teams.map((tm) => (
+                      <SelectItem key={tm.id} value={tm.id}>
+                        {tm.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="space-y-1.5">
+              <Label className="text-foreground">{t("priorityLabel")}</Label>
+              <Select value={priority} onValueChange={(v) => setPriority((v ?? "normal") as TicketPriority)}>
+                <SelectTrigger className="w-full bg-muted">
+                  <SelectValue>
+                    <PriorityIcon priority={priority} withLabel />
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TICKET_PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <PriorityIcon priority={p} withLabel />
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -338,23 +526,96 @@ export function CreateTicketDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-foreground">{t("priorityLabel")}</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as TicketPriority)}
-              >
-                <SelectTrigger className="w-full bg-muted">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {t(`priority.${p}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="ticket-due" className="text-foreground">
+                {t("dueDateLabel")}
+              </Label>
+              <Input
+                id="ticket-due"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                disabled={busy}
+                className="dark:scheme-dark"
+              />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-foreground">{t("labelsLabel")}</Label>
+            <TicketLabelPicker labels={labels} known={knownLabels} onChange={setLabels} disabled={busy} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-foreground">
+              <Paperclip className="size-3.5 text-muted-foreground" />
+              {t("attachmentsLabel")}
+            </Label>
+            <div
+              onDragOver={(e) => {
+                if (!dragHasFiles(e.dataTransfer.types)) return;
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                if (!dragHasFiles(e.dataTransfer.types)) return;
+                e.preventDefault();
+                setDragging(false);
+                addFiles(Array.from(e.dataTransfer.files));
+              }}
+              className={`rounded-lg border border-dashed px-3 py-3 text-center text-xs text-muted-foreground transition-colors ${
+                dragging ? "border-primary bg-primary/5" : "border-border"
+              }`}
+            >
+              <button
+                type="button"
+                disabled={busy || staged.length >= TICKET_MAX_ATTACHMENTS}
+                onClick={() => fileInput.current?.click()}
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+              >
+                <Upload className="size-3.5" />
+                {t("addFiles")}
+              </button>{" "}
+              {t("attachmentsHint")}
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                hidden
+                onChange={(e) => {
+                  addFiles(Array.from(e.target.files ?? []));
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            {staged.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {staged.map((s) => (
+                  <li
+                    key={s.key}
+                    className="flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/50 py-1 pr-1.5 pl-1 text-xs"
+                  >
+                    {s.preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.preview} alt="" className="size-8 rounded object-cover" />
+                    ) : (
+                      <FileText className="mx-1.5 size-4 text-muted-foreground" />
+                    )}
+                    <span className="max-w-40 truncate">{s.file.name || t("pastedImage")}</span>
+                    <span className="text-muted-foreground">{formatBytes(s.file.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeStaged(s.key)}
+                      disabled={busy}
+                      aria-label={t("removeFile", { name: s.file.name })}
+                      className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {visibleFields.map((field) => (
@@ -377,7 +638,11 @@ export function CreateTicketDialog({
           ))}
         </div>
 
-        <DialogFooter className="bg-popover border-border">
+        <DialogFooter className="items-center border-border bg-popover">
+          <label className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox checked={another} onCheckedChange={(v) => setAnother(v === true)} disabled={busy} />
+            {t("createAnother")}
+          </label>
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}

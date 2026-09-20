@@ -9,6 +9,59 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.39.0] — 2026-09-20 — **migration required: 081**
+
+- **Tickets look and feel like Jira, a little.** Every ticket now has a key such
+  as **VIR-12** instead of #12, everywhere a ticket is shown: the list, the board,
+  the ticket itself, the "created" message and the ticket history beside a chat. An
+  admin can change the prefix in Settings > Ticket form (2 to 6 capital letters or
+  digits). It only changes how numbers are displayed; old numbers and links keep
+  working.
+- **A board.** Tickets are columns: **Open, In progress, Pending, Resolved,
+  Closed** (Closed is folded away until you open it). Drag a card to another column
+  to change its status, or up and down to put it where you want it in the column;
+  it is saved as you drop it and put back with a message if it fails. It works from
+  the keyboard too (Space picks a card up, arrows move it, Space drops it, Enter
+  opens it). Each card shows the type, key, summary, labels, priority, due date,
+  who it is assigned to, the number of comments and the customer. **In progress**
+  is a new status.
+- **A list with inline edits.** Switch between Board and List at the top (the
+  choice is remembered). In the list, change status, priority or assignee right in
+  the row, click a column heading to sort, and group by assignee, status or
+  priority. Tick rows to change status, assignee, priority or team, or add a label,
+  for all of them at once; people who may delete tickets can also delete them
+  there.
+- **Search and filters.** Search by key (VIR-12), number or words. Quick buttons for
+  My tickets, Unassigned, Overdue and Updated today, and filters for assignee, type,
+  priority, label, team and (in the list) status. The filters are in the address, so
+  a link carries them. **Saved filters** keep a combination for one click, and can be
+  shared with everyone in the workspace.
+- **A proper ticket view.** Opening a ticket shows a large two-column window (the
+  same page also opens at its own link, "Copy link"): click the summary to edit it,
+  edit the description, attach files (drop them, paste a picture, or use the button),
+  link related tickets (blocks, is blocked by, relates to, duplicates), and read
+  Activity with All, Comments and History tabs. Comments can be edited and deleted by
+  their author. On the right: a status button, assignee (with "Assign to me"),
+  reporter, team, priority, type, **labels**, **due date**, watchers and the customer.
+- **Due dates and labels.** Set a due date (red on the card once it is overdue, amber
+  on the day) and add free-text labels; labels already used in your workspace are
+  suggested.
+- **Watching.** The person who raised a ticket and the person it is assigned to
+  watch it automatically, and anyone can watch or stop watching. Watchers get a
+  notification when the status changes, the ticket is reassigned or someone comments.
+  You are never notified about your own change.
+- **Create ticket** follows Jira's order (type, customer, summary, description,
+  assignee, team, priority, labels, due date, attachments, then your own fields), has
+  **Create another**, and its confirmation has an **Open** button.
+- **Faster on big accounts.** The list loads the most recently updated 200 tickets
+  with **Load more**, each board column loads its first 100 with **Show more**, and
+  changes made by others update the one ticket instead of reloading everything.
+- Filters and search work on the tickets loaded so far; sending them to the database
+  is a follow-up for very large accounts.
+- Read-only viewers can look at everything but see the editing controls switched off.
+- Reports count In progress tickets as still open. Korean is translated; the other
+  languages are not part of this release.
+
 ## [0.38.1] — 2026-09-20
 
 - **Voice notes: choose the microphone.** Recording used whichever input the browser had as its default, which on a desk with several monitors (or a headset and a webcam) is often a device that hears nothing, so the note came out silent. The recording bar now has a **Microphone** menu, a live **level meter**, and a **“No sound detected”** warning after two seconds of silence. Pick another microphone and the take restarts on it. The choice is remembered on that computer. If the microphone is unplugged mid-take, the recording is discarded with a message instead of sending silence.

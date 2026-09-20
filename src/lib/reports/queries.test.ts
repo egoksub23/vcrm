@@ -403,6 +403,24 @@ describe('loadTicketsReport', () => {
     ])
   })
 
+  it('counts an in-progress ticket in the live backlog and the assignee workload', async () => {
+    const db = fakeDb({
+      tickets: [
+        { id: 't1', created_at: '2020-01-01T00:00:00', resolved_at: null, closed_at: null,
+          assigned_agent_id: 'u1', assigned_team_id: null, category: 'general', priority: 'normal', status: 'in_progress' },
+        { id: 't2', created_at: '2020-01-01T00:00:00', resolved_at: null, closed_at: null,
+          assigned_agent_id: 'u1', assigned_team_id: null, category: 'general', priority: 'normal', status: 'closed' },
+      ],
+      profiles: [{ user_id: 'u1', full_name: 'Alice' }],
+    })
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.openNow).toBe(1)
+    expect(report.aging.over7d).toBe(1)
+    expect(report.byAgent).toEqual([
+      { userId: 'u1', fullName: 'Alice', ticketsResolved: 0, avgResolutionMinutes: null, openNow: 1 },
+    ])
+  })
+
   it('returns null rates and zeroes on an empty account', async () => {
     const report = await loadTicketsReport(fakeDb({ tickets: [] }), 'acct-1', RANGE)
     expect(report.resolvedWithin24hPct).toBeNull()

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { LifecycleStage } from '@/types'
+import type { LifecycleStage, TicketStatus } from '@/types'
+import { ACTIVE_STATUSES, isActiveStatus } from '@/lib/tickets/constants'
 import {
   dayKeysInRange,
   exclusiveEnd,
@@ -763,8 +764,8 @@ export interface TicketAgentBucket {
   fullName: string
   ticketsResolved: number
   avgResolutionMinutes: number | null
-  /** Tickets assigned to them that are open/pending right now (not
-   *  range-bound — a live workload figure). */
+  /** Tickets assigned to them that are open / in progress / pending right
+   *  now (not range-bound — a live workload figure). */
   openNow: number
 }
 
@@ -796,7 +797,7 @@ export interface TicketsReport {
   /** Share of tickets resolved in the period that took ≤ 24h; null when
    *  none were resolved. */
   resolvedWithin24hPct: number | null
-  /** Open + pending tickets right now, and how old they are. */
+  /** Open + in progress + pending tickets right now, and how old they are. */
   openNow: number
   aging: TicketAging
   series: { day: string; opened: number; resolved: number }[]
@@ -841,7 +842,7 @@ export async function loadTicketsReport(
         .from('tickets')
         .select('created_at, assigned_agent_id, status')
         .eq('account_id', accountId)
-        .in('status', ['open', 'pending']),
+        .in('status', ACTIVE_STATUSES),
       // Any comment inside the span is enough to find the first one on
       // tickets opened in it (a comment can't predate its ticket). Same
       // client-side-aggregation scale caveat as the rest of this file.
@@ -972,7 +973,7 @@ export async function loadTicketsReport(
     created_at: string
     assigned_agent_id: string | null
     status: string
-  }[]).filter((r) => r.status === 'open' || r.status === 'pending')
+  }[]).filter((r) => isActiveStatus(r.status as TicketStatus))
   const aging: TicketAging = { under1d: 0, d1to3: 0, d3to7: 0, over7d: 0 }
   const openByAgent = new Map<string, number>()
   const now = Date.now()
