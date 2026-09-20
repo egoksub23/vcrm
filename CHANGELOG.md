@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.34.3] — 2026-09-20
+
+- **Wider inbox list, and the Comments tab is fully visible.** The left column
+  of the inbox (Chats, Emails and Comments lists) is wider on large screens, so
+  the Comments tab and its count are no longer cut off. All three tabs share the
+  same width, so switching between them doesn't shift the layout.
+
 ## [0.34.2] — 2026-09-20
 
 - **Instagram "Turn on comments" no longer fails.** Meta rejects `comments` as a

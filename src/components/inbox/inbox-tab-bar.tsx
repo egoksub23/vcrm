@@ -38,7 +38,7 @@ export function InboxTabBar({
           aria-selected={tab === key}
           onClick={() => onTabClick(key)}
           className={cn(
-            "-mb-px flex flex-1 items-center justify-center gap-1.5 border-b-2 px-1.5 py-3 text-sm transition-colors",
+            "-mb-px flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 py-3 text-sm transition-colors",
             tab === key
               ? "border-primary font-medium text-foreground"
               : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",

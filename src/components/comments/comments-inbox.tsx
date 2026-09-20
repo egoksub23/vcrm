@@ -161,7 +161,7 @@ export function CommentsInbox({
       {/* List */}
       <div
         className={cn(
-          "flex h-full w-full flex-col border-r border-border bg-card lg:w-80 lg:flex-none",
+          "flex h-full w-full flex-col border-r border-border bg-card lg:w-96 lg:flex-none xl:w-[28rem]",
           selectedId ? "hidden lg:flex" : "flex",
         )}
       >
