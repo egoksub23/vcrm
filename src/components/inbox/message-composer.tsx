@@ -121,8 +121,8 @@ interface MediaDraft {
 
 /** "Message" goes to the selected channel; "Comment" posts internally,
  *  teammates only (respond.io's "Comment" mode, P0 gap-analysis item);
- *  "Snippets" swaps the textarea for an inline, scrollable quick-reply
- *  list instead of opening a separate dialog. */
+ *  "Snippets" and "Knowledge" open a panel that slides up over the chat
+ *  (the reply box stays put). */
 type ComposerMode = "message" | "comment" | "snippets" | "knowledge";
 
 interface MessageComposerProps {
@@ -252,6 +252,7 @@ export function MessageComposer({
   const isKnowledge = mode === "knowledge";
   /** Snippets and Knowledge both replace the textarea with a list. */
   const isPicker = isSnippets || isKnowledge;
+  const composerRef = useRef<HTMLDivElement>(null);
 
   // ---- WYSIWYG editor for Email(MS365)/Gmail replies -------------------
   // Only these two channels have anything resembling formatted HTML mail
@@ -841,10 +842,97 @@ export function MessageComposer({
     setDraft((d) => (d ? { ...d, caption } : d));
   }, []);
 
+  // The slide-up panel closes on Escape or a click anywhere outside the
+  // composer (the tab buttons live inside it, so they still work).
+  useEffect(() => {
+    if (!isPicker) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") switchMode("message");
+    };
+    const onDown = (e: MouseEvent) => {
+      if (composerRef.current && !composerRef.current.contains(e.target as Node)) {
+        switchMode("message");
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [isPicker, switchMode]);
+
   // ---- Render --------------------------------------------------------
 
   return (
-    <div className="border-t border-border bg-card p-3.5">
+    <div ref={composerRef} className="relative border-t border-border bg-card p-3.5">
+      {/* Snippets / Knowledge: a panel that slides UP from the reply box
+          (over the chat) instead of replacing the textarea and pushing the
+          composer taller. Closes on Escape, a click outside, or picking. */}
+      {isPicker && (
+        <div className="absolute inset-x-0 bottom-full z-30 px-3.5 pb-2 duration-200 animate-in fade-in-0 slide-in-from-bottom-4">
+          <div className="overflow-hidden rounded-xl bg-popover shadow-xl ring-1 ring-border">
+            {isKnowledge ? (
+        <KnowledgePanel
+              suggestQuery={knowledgeQuery}
+              contactLanguage={contactLanguage}
+              canAdd={canWriteKnowledge && !!onAddToKnowledge}
+              onInsert={handleInsertKnowledge}
+              onAdd={() =>
+                onAddToKnowledge?.({
+                  content: text.trim() || undefined,
+                  sourceConversationId: conversationId,
+                })
+              }
+            />
+            ) : (
+        <div
+            ref={snippetListRef}
+            className="max-h-72 overflow-y-auto"
+          >
+            {quickRepliesLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : quickReplies.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                {t("quickRepliesEmpty")}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1 p-1.5">
+                {quickReplies.map((qr) => (
+                  <li key={qr.id}>
+                    <button
+                      type="button"
+                      onClick={() => handlePickQuickReply(qr)}
+                      className="flex w-full items-start gap-2 rounded-md border border-transparent bg-card p-2 text-left hover:border-primary/50"
+                    >
+                      {qr.kind === "interactive" ? (
+                        <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      ) : (
+                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {qr.title}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {qr.kind === "interactive" && qr.interactive_payload
+                            ? interactivePayloadPreviewText(qr.interactive_payload)
+                            : qr.content_text}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {replyTo && (
         <div className="mb-2">
           <ReplyQuote
@@ -854,7 +942,7 @@ export function MessageComposer({
           />
         </div>
       )}
-      {sessionExpired && !isComment && !isPicker && (
+      {sessionExpired && !isComment && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
           <p className="text-xs text-amber-400">
             {t("sessionExpiredHint")}
@@ -936,7 +1024,7 @@ export function MessageComposer({
               used more than one channel; nothing to pick between
               otherwise. Hidden in Comment/Snippets mode, same as the
               rest of the send-path affordances below. */}
-          {!isComment && !isPicker && availableChannels.length > 1 && (
+          {!isComment && availableChannels.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/70">
                 {(() => {
@@ -1026,67 +1114,6 @@ export function MessageComposer({
           >
             <Square className="h-4 w-4" />
           </Button>
-        </div>
-      ) : isKnowledge ? (
-        <KnowledgePanel
-          suggestQuery={knowledgeQuery}
-          contactLanguage={contactLanguage}
-          canAdd={canWriteKnowledge && !!onAddToKnowledge}
-          onInsert={handleInsertKnowledge}
-          onAdd={() =>
-            onAddToKnowledge?.({
-              content: text.trim() || undefined,
-              sourceConversationId: conversationId,
-            })
-          }
-        />
-      ) : isSnippets ? (
-        // Inline snippet list — replaces the textarea while Snippets mode
-        // is active, scrolls independently so a long list never grows the
-        // composer itself. Picking an item switches back to Message mode
-        // (handlePickQuickReply) so the agent can review/edit before
-        // sending, same as the old dialog's behavior.
-        <div
-          ref={snippetListRef}
-          className="max-h-48 overflow-y-auto rounded-xl border border-border bg-muted/40"
-        >
-          {quickRepliesLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : quickReplies.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-              {t("quickRepliesEmpty")}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-1 p-1.5">
-              {quickReplies.map((qr) => (
-                <li key={qr.id}>
-                  <button
-                    type="button"
-                    onClick={() => handlePickQuickReply(qr)}
-                    className="flex w-full items-start gap-2 rounded-md border border-transparent bg-card p-2 text-left hover:border-primary/50"
-                  >
-                    {qr.kind === "interactive" ? (
-                      <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    ) : (
-                      <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {qr.title}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {qr.kind === "interactive" && qr.interactive_payload
-                          ? interactivePayloadPreviewText(qr.interactive_payload)
-                          : qr.content_text}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       ) : (
         <div className="relative flex items-end gap-2">
@@ -1285,7 +1312,7 @@ export function MessageComposer({
       {/* Hint sits outside the flex row so its height doesn't push
           `items-end` buttons below the textarea. Indented to line up
           under the textarea left edge. */}
-      {!draft && !recording && !isComment && !isPicker && (
+      {!draft && !recording && !isComment && (
         <p className="mt-1 pl-[5.5rem] text-[10px] text-muted-foreground">
           {t("draftHint")}
         </p>

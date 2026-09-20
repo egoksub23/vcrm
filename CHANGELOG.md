@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.34.1] — 2026-09-20
+
+- **Snippets and Knowledge slide up.** The two panels no longer replace the
+  reply box and push the composer taller; they open as a panel that slides up
+  over the chat, with the reply box staying where it is. Close it with Escape,
+  by clicking outside, or by picking an item.
+
 ## [0.34.0] — 2026-09-20
 
 **Migration required**: apply `075_ai_connections.sql`.

@@ -67,7 +67,7 @@ export function KnowledgePanel({
   }, [query, lang]);
 
   return (
-    <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-muted/40">
+    <div className="max-h-72 overflow-y-auto">
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-muted/90 p-1.5 backdrop-blur-sm">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
