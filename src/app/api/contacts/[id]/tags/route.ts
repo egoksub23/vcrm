@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import { addContactTagAndDispatch } from '@/lib/contacts/tag-events';
 import {
   ContactTagWriteError,
@@ -25,7 +25,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireCapability('contacts.edit');
     const { id: contactId } = await params;
     const tagId = await readTagId(request);
     if (!tagId) {
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireCapability('contacts.edit');
     const { id: contactId } = await params;
     const tagId = await readTagId(request);
     if (!tagId) {

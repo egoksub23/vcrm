@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { probeConnection, recordConnectionHealth } from '@/lib/ai/connections'
@@ -16,7 +16,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function POST(_request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('ai.configure')
     const limit = checkRateLimit(`ai-test:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params

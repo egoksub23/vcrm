@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { assertCapability, getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 
 // Saved inbox views (P1 gap-analysis item) — a named ConversationList
 // filter combination. GET lists everything the caller can see (their own
 // views + every shared one, per inbox_views_select RLS); POST creates
-// either a personal view (default) or a shared one (admin+ only). The
+// either a personal view (default, needs conversations.manage) or a shared one (also needs inbox.shared-views, admins by default). The
 // write path below uses the service-role client (supabaseAdmin), which
-// bypasses RLS entirely — so unlike the read path, the shared/admin
+// bypasses RLS entirely — so unlike the read path, the shared-view
 // check has to be enforced here explicitly rather than left to the
 // inbox_views_insert policy.
 
@@ -28,7 +28,7 @@ export async function GET() {
 export async function POST(request: Request) {
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('conversations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -43,11 +43,15 @@ export async function POST(request: Request) {
     body.filter_config && typeof body.filter_config === 'object' ? body.filter_config : {}
   const shared = body.shared === true
 
-  if (shared && ctx.role !== 'admin' && ctx.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Only admins can save a shared inbox view' },
-      { status: 403 },
-    )
+  if (shared) {
+    try {
+      assertCapability(ctx, 'inbox.shared-views')
+    } catch {
+      return NextResponse.json(
+        { error: 'You do not have permission to save a shared inbox view' },
+        { status: 403 },
+      )
+    }
   }
 
   const { data, error } = await supabaseAdmin()

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   deleteMessageTemplate,
@@ -55,6 +56,14 @@ export async function PATCH(
         { error: 'Invalid template id.' },
         { status: 400 },
       )
+    }
+    // Editing or deleting a template calls Meta before the RLS-gated
+    // write, so `channels.manage` (admins by default) is checked first.
+    // RLS on the table enforces the same rule for the database write.
+    try {
+      await requireCapability('channels.manage')
+    } catch (err) {
+      return toErrorResponse(err)
     }
     const supabase = await createClient()
     const {
@@ -242,6 +251,14 @@ export async function DELETE(
         { error: 'Invalid template id.' },
         { status: 400 },
       )
+    }
+    // Editing or deleting a template calls Meta before the RLS-gated
+    // write, so `channels.manage` (admins by default) is checked first.
+    // RLS on the table enforces the same rule for the database write.
+    try {
+      await requireCapability('channels.manage')
+    } catch (err) {
+      return toErrorResponse(err)
     }
     const supabase = await createClient()
     const {

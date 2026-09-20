@@ -29,6 +29,7 @@ import {
 import { InteractivePreview } from "@/components/interactive/interactive-preview";
 import { EmailHtmlView } from "./email-html-view";
 import { useTranslations } from "next-intl";
+import { useCapability } from "@/hooks/use-auth";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { parseAiSourcesNote } from "@/lib/inbox/kb-agent";
 
@@ -337,6 +338,8 @@ export function MessageBubble({
   // uses — no new i18n keys needed across the 4 locale files.
   const tChannel = useTranslations("Inbox.messageThread");
   const tKnowledge = useTranslations("Knowledge.agent");
+  // Source links open the Knowledge page: only offer them with menu.knowledge.
+  const canOpenKnowledge = useCapability("menu.knowledge");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
@@ -359,7 +362,7 @@ export function MessageBubble({
             <span>{tKnowledge("aiAnsweredFrom")}</span>
             {sourcesNote.sources.map((source, i) => (
               <span key={`${source.id ?? source.title}-${i}`} className="inline-flex items-center">
-                {source.id ? (
+                {source.id && canOpenKnowledge ? (
                   <a
                     href={`/knowledge/${source.id}`}
                     target="_blank"

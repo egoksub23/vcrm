@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { getFlowTemplate } from '@/lib/flows/templates'
 
@@ -29,11 +29,14 @@ async function requireUser(): Promise<
 }
 
 export async function GET() {
-  const guard = await requireUser()
-  if (!guard.ok) {
-    return NextResponse.json(guard.body, { status: guard.status })
+  // Listing flows is a read of the Flows menu: `menu.flows` (every role
+  // by default).
+  let supabase
+  try {
+    ;({ supabase } = await requireCapability('menu.flows'))
+  } catch (err) {
+    return toErrorResponse(err)
   }
-  const { supabase } = guard
 
   const { data, error } = await supabase
     .from('flows')
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
   // `agent`, but this route inserts via the service-role client which
   // bypasses RLS, so the role must be enforced here.
   try {
-    await requireRole('agent')
+    await requireCapability('flows.manage')
   } catch (err) {
     return toErrorResponse(err)
   }

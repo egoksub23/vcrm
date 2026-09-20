@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, AlertTriangle, BookOpen } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
-import { canEditSettings } from '@/lib/auth/roles';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,8 +58,9 @@ type TestOutcome =
   | { ok: false; error: string; hint: string | null };
 
 export function AiConfig() {
-  const { accountId, accountRole, profileLoading } = useAuth();
-  const canEdit = accountRole ? canEditSettings(accountRole) : false;
+  const { accountId, profileLoading } = useAuth();
+  const canEdit = useCapability('ai.configure');
+  const canOpenKnowledge = useCapability('menu.knowledge');
   const t = useTranslations('Settings.aiConfig');
 
   const [loading, setLoading] = useState(true);
@@ -726,12 +726,14 @@ export function AiConfig() {
             <CardDescription>{t('knowledgeCardDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Link
-              href="/knowledge"
-              className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
-            >
-              {t('knowledgeCardLink')}
-            </Link>
+            {canOpenKnowledge ? (
+              <Link
+                href="/knowledge"
+                className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
+              >
+                {t('knowledgeCardLink')}
+              </Link>
+            ) : null}
           </CardContent>
         </Card>
 

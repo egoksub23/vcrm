@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+  requireCapability: vi.fn(),
   add: vi.fn(),
   remove: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/account', () => ({
-  requireRole: mocks.requireRole,
+  requireCapability: mocks.requireCapability,
   toErrorResponse: vi.fn(() =>
     Response.json({ error: 'auth failed' }, { status: 403 })
   ),
@@ -49,20 +49,20 @@ function request(method: 'POST' | 'DELETE', body: unknown) {
 const params = { params: Promise.resolve({ id: 'contact-1' }) };
 
 beforeEach(() => {
-  mocks.requireRole.mockReset();
+  mocks.requireCapability.mockReset();
   mocks.add.mockReset();
   mocks.remove.mockReset();
-  mocks.requireRole.mockResolvedValue(context);
+  mocks.requireCapability.mockResolvedValue(context);
 });
 
 describe('/api/contacts/[id]/tags', () => {
-  it('requires an agent and dispatches a newly-added tag', async () => {
+  it('requires contacts.edit and dispatches a newly-added tag', async () => {
     mocks.add.mockResolvedValue({ added: true, dispatched: true });
 
     const response = await POST(request('POST', { tag_id: 'tag-1' }), params);
 
     expect(response.status).toBe(200);
-    expect(mocks.requireRole).toHaveBeenCalledWith('agent');
+    expect(mocks.requireCapability).toHaveBeenCalledWith('contacts.edit');
     expect(mocks.add).toHaveBeenCalledWith({
       db: context.supabase,
       accountId: 'account-1',
@@ -86,6 +86,7 @@ describe('/api/contacts/[id]/tags', () => {
     );
 
     expect(response.status).toBe(200);
+    expect(mocks.requireCapability).toHaveBeenCalledWith('contacts.edit');
     expect(mocks.remove).toHaveBeenCalledWith(context.supabase, {
       accountId: 'account-1',
       contactId: 'contact-1',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { isAiTask } from '@/lib/ai/tasks'
 
 const MODEL_MAX = 100
@@ -14,7 +14,7 @@ const MODEL_MAX = 100
  */
 export async function PUT(request: Request) {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireCapability('ai.configure')
     const body = (await request.json().catch(() => null)) as { routing?: unknown } | null
     if (!body || !Array.isArray(body.routing) || body.routing.length === 0) {
       return NextResponse.json({ error: 'routing must be a list' }, { status: 400 })

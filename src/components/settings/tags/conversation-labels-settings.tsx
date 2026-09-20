@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 
 import { AutoLabelSettings } from '../auto-label-settings';
 import { TagCatalogPanel } from './tag-catalog-panel';
@@ -13,7 +13,7 @@ import { TagCatalogPanel } from './tag-catalog-panel';
  * to sit under "Fields & tags".
  */
 export function ConversationLabelsSettings() {
-  const canEditSettings = useCan('edit-settings');
+  const canManageTags = useCapability('tags.manage');
   // Bumped whenever the list changes above; remounts the rules card so
   // its label picker (a separate palette fetch) sees new labels.
   const [paletteVersion, setPaletteVersion] = useState(0);
@@ -21,7 +21,7 @@ export function ConversationLabelsSettings() {
   return (
     <div className="max-w-5xl space-y-6">
       <TagCatalogPanel kind="label" onChanged={() => setPaletteVersion((v) => v + 1)} />
-      {canEditSettings ? <AutoLabelSettings key={paletteVersion} /> : null}
+      {canManageTags ? <AutoLabelSettings key={paletteVersion} /> : null}
     </div>
   );
 }

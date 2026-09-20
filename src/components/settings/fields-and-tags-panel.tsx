@@ -1,6 +1,6 @@
 'use client';
 
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 
 import { useTranslations } from 'next-intl';
 
@@ -16,7 +16,7 @@ import { SettingsPanelHead } from './settings-panel-head';
  */
 export function FieldsAndTagsPanel() {
   const t = useTranslations('Settings.tagsAndFields');
-  const canEditSettings = useCan('edit-settings');
+  const canManageFields = useCapability('settings.workspace');
 
   return (
     <section className="max-w-3xl animate-in fade-in-50 space-y-4 duration-200">
@@ -24,7 +24,7 @@ export function FieldsAndTagsPanel() {
         title={t('title')}
         description={t('description')}
       />
-      {canEditSettings ? <CustomFieldsSettings /> : null}
+      {canManageFields ? <CustomFieldsSettings /> : null}
     </section>
   );
 }

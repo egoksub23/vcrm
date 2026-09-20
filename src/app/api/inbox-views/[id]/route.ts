@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 
 // Rename / delete a saved inbox view. Like the POST route, this uses the
 // service-role client, so ownership has to be checked explicitly: a
 // personal view can only be touched by its owner, a shared view (owner_id
-// IS NULL) only by admin+.
+// IS NULL) only by holders of inbox.shared-views.
 
 async function loadOwnedView(id: string, accountId: string) {
   const { data, error } = await supabaseAdmin()
@@ -20,9 +20,9 @@ async function loadOwnedView(id: string, accountId: string) {
 
 function canModify(
   view: { owner_id: string | null },
-  ctx: { userId: string; role: string },
+  ctx: Pick<CapabilityContext, 'userId' | 'capabilities'>,
 ): boolean {
-  if (view.owner_id === null) return ctx.role === 'admin' || ctx.role === 'owner'
+  if (view.owner_id === null) return ctx.capabilities.has('inbox.shared-views')
   return view.owner_id === ctx.userId
 }
 
@@ -33,7 +33,7 @@ export async function PATCH(
   const { id } = await params
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('conversations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -77,7 +77,7 @@ export async function DELETE(
   const { id } = await params
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('conversations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }

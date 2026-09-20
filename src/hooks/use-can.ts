@@ -1,20 +1,24 @@
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
+import { LEGACY_CAN_ACTIONS } from "@/lib/auth/capabilities";
 import {
   canDeleteAccount,
-  canEditSettings,
-  canManageMembers,
-  canSendMessages,
   canTransferOwnership,
   canViewOnly,
 } from "@/lib/auth/roles";
 
+export { useCapability };
+
 /**
- * Typed action keys for `useCan`. Adding a capability = one new
- * entry here + one new case in the switch below + (usually) one
- * new predicate in `@/lib/auth/roles`. Keeping the list closed
- * lets the compiler catch typos at every call site.
+ * Typed action keys for `useCan`. The closed list lets the compiler
+ * catch typos at every call site.
+ *
+ * Three of them are capabilities in disguise (`LEGACY_CAN_ACTIONS`):
+ * `manage-members` = members.change-role, `edit-settings` =
+ * settings.workspace, `send-messages` = messages.send. New code should
+ * call `useCapability(...)` with the specific capability instead. The
+ * other three are role facts that stay outside the matrix.
  */
 export type CanAction =
   | "manage-members"
@@ -26,12 +30,11 @@ export type CanAction =
 
 /**
  * Inline alternative to `<RequireRole>` for places that need a
- * boolean rather than a render conditional — typically disabled-
- * state on buttons, the readOnly flag on inputs, or controlling
- * tooltip copy ("Read-only" vs the action label).
+ * boolean rather than a render conditional.
  *
- * Returns `false` while `profileLoading` is true so transient
- * "you can!" flashes never appear to under-privileged users.
+ * Fails closed: false while capabilities / the profile are loading and
+ * without a role, so transient "you can!" flashes never appear to
+ * under-privileged users.
  *
  * Example:
  *   const canEdit = useCan("edit-settings");
@@ -39,15 +42,16 @@ export type CanAction =
  */
 export function useCan(action: CanAction): boolean {
   const { profileLoading, accountRole } = useAuth();
+  // Hooks may not be conditional: resolve the capability (or none) first.
+  const mapped = LEGACY_CAN_ACTIONS[action] ?? null;
+  const hasCapability = useCapability(mapped ?? "");
   if (profileLoading || !accountRole) return false;
 
   switch (action) {
     case "manage-members":
-      return canManageMembers(accountRole);
     case "edit-settings":
-      return canEditSettings(accountRole);
     case "send-messages":
-      return canSendMessages(accountRole);
+      return mapped !== null && hasCapability;
     case "view-only":
       return canViewOnly(accountRole);
     case "delete-account":
@@ -55,11 +59,8 @@ export function useCan(action: CanAction): boolean {
     case "transfer-ownership":
       return canTransferOwnership(accountRole);
     default: {
-      // Exhaustiveness check — adding a new `CanAction` without a
-      // case here fails the typecheck because TS narrows `action`
-      // to `never` in this branch. The runtime throw is unreachable
-      // for valid inputs; it only fires if someone bypasses the
-      // type system at the call site (e.g. with a wrong-typed cast).
+      // Exhaustiveness check: a new `CanAction` without a case fails
+      // the typecheck because `action` narrows to `never` here.
       const _exhaustive: never = action;
       throw new Error(`Unknown CanAction: ${String(_exhaustive)}`);
     }

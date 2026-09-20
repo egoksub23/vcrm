@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import {
   loadStepsTree,
@@ -25,15 +25,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const user = await requireUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Reading one automation needs `menu.automations` (every role by
+  // default); this route reads through the service-role client, so the
+  // check has to be explicit.
+  let userId: string
+  try {
+    ;({ userId } = await requireCapability('menu.automations'))
+  } catch (err) {
+    return toErrorResponse(err)
+  }
 
   const admin = supabaseAdmin()
   const { data: automation, error } = await admin
     .from('automations')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -53,7 +60,7 @@ export async function PATCH(
   // requires `agent`, but this route mutates via the service-role client
   // which bypasses RLS, so enforce the role here.
   try {
-    await requireRole('agent')
+    await requireCapability('automations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -140,7 +147,7 @@ export async function DELETE(
   // Deleting an automation is a write — enforce `agent` (the service-role
   // client below bypasses the agent-gated automations_delete RLS).
   try {
-    await requireRole('agent')
+    await requireCapability('automations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }

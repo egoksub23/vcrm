@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Copy, ExternalLink, Loader2, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,8 @@ function widgetOrigin(): string {
 
 export function WebWidgetChannel() {
   const t = useTranslations('Settings.channels.webWidget');
-  const { user, accountId, loading: authLoading, profileLoading, canEditSettings } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
+  const canManageChannels = useCapability('channels.manage');
 
   const [config, setConfig] = useState<WebWidgetConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ export function WebWidgetChannel() {
   }
 
   async function handleSave() {
-    if (!canEditSettings) return;
+    if (!canManageChannels) return;
     setSaving(true);
     try {
       const res = await fetch('/api/account/channels/web-widget', {
@@ -177,7 +178,7 @@ export function WebWidgetChannel() {
               id="widget-enabled"
               checked={enabled}
               onCheckedChange={setEnabled}
-              disabled={!canEditSettings}
+              disabled={!canManageChannels}
             />
           </div>
         }
@@ -225,7 +226,7 @@ export function WebWidgetChannel() {
               id="widget-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={!canEditSettings}
+              disabled={!canManageChannels}
               maxLength={80}
               className="mt-1.5"
             />
@@ -237,7 +238,7 @@ export function WebWidgetChannel() {
               id="widget-welcome"
               value={welcomeMessage}
               onChange={(e) => setWelcomeMessage(e.target.value)}
-              disabled={!canEditSettings}
+              disabled={!canManageChannels}
               maxLength={300}
               rows={2}
               className="mt-1.5"
@@ -251,7 +252,7 @@ export function WebWidgetChannel() {
                 <button
                   key={color}
                   type="button"
-                  disabled={!canEditSettings}
+                  disabled={!canManageChannels}
                   onClick={() => setPrimaryColor(color)}
                   aria-label={color}
                   aria-pressed={primaryColor === color}
@@ -273,7 +274,7 @@ export function WebWidgetChannel() {
                 <button
                   key={p}
                   type="button"
-                  disabled={!canEditSettings}
+                  disabled={!canManageChannels}
                   onClick={() => setPosition(p)}
                   className={cn(
                     'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
@@ -307,9 +308,9 @@ export function WebWidgetChannel() {
                 }
               }}
               placeholder="https://example.com"
-              disabled={!canEditSettings}
+              disabled={!canManageChannels}
             />
-            <Button variant="outline" onClick={addOrigin} disabled={!canEditSettings}>
+            <Button variant="outline" onClick={addOrigin} disabled={!canManageChannels}>
               <Plus className="size-4" />
             </Button>
           </div>
@@ -321,7 +322,7 @@ export function WebWidgetChannel() {
                   className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground"
                 >
                   {origin}
-                  {canEditSettings ? (
+                  {canManageChannels ? (
                     <button type="button" onClick={() => removeOrigin(origin)}>
                       <X className="size-3" />
                     </button>
@@ -335,7 +336,7 @@ export function WebWidgetChannel() {
         </CardContent>
       </Card>
 
-      {canEditSettings ? (
+      {canManageChannels ? (
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}

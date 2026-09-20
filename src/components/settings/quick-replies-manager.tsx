@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SettingsPanelHead } from "./settings-panel-head";
+import { useCapability } from "@/hooks/use-auth";
 import {
   InteractiveBuilder,
   blankButtonsPayload,
@@ -43,6 +44,9 @@ function emptyDraft(): DraftState {
 }
 
 export function QuickRepliesManager() {
+  // Creating, editing and deleting snippets: snippets.manage. Without it
+  // the list is read-only (people can still insert them from the composer).
+  const canManage = useCapability("snippets.manage");
   const [items, setItems] = useState<QuickReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -129,10 +133,12 @@ export function QuickRepliesManager() {
         title="Quick replies"
         description="Reusable snippets — plain text or a saved interactive message — that agents can insert from the inbox composer."
         action={
-          <Button onClick={openCreate}>
-            <Plus className="mr-1 h-4 w-4" />
-            New quick reply
-          </Button>
+          canManage ? (
+            <Button onClick={openCreate}>
+              <Plus className="mr-1 h-4 w-4" />
+              New quick reply
+            </Button>
+          ) : undefined
         }
       />
 
@@ -142,7 +148,9 @@ export function QuickRepliesManager() {
         </div>
       ) : items.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          No quick replies yet. Create one to reuse it across conversations.
+          {canManage
+            ? "No quick replies yet. Create one to reuse it across conversations."
+            : "No quick replies yet."}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -164,19 +172,21 @@ export function QuickRepliesManager() {
                     : qr.content_text}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => remove(qr.id)}
-                  className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {canManage ? (
+                <div className="flex shrink-0 gap-1">
+                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => remove(qr.id)}
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

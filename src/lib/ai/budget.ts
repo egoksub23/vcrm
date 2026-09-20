@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AiError, type AiConfig } from './types'
+import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
 
 // ============================================================
 // Monthly token budget. Usage is summed from ai_usage_log for the current
@@ -70,7 +71,7 @@ export async function ensureWithinBudget(
   }
 }
 
-/** One notification per admin per month, claimed atomically so two
+/** One notification per member holding `ai.configure` per month, claimed atomically so two
  *  concurrent calls cannot both send it. Never throws. */
 export async function sendBudgetAlert(db: SupabaseClient, accountId: string, state: BudgetState): Promise<void> {
   try {
@@ -83,12 +84,9 @@ export async function sendBudgetAlert(db: SupabaseClient, accountId: string, sta
       .select('account_id')
     if (!claimed || claimed.length === 0) return
 
-    const { data: admins } = await db
-      .from('profiles')
-      .select('user_id')
-      .eq('account_id', accountId)
-      .in('account_role', ['owner', 'admin'])
-    if (!admins || admins.length === 0) return
+    // Whoever can configure AI (`ai.configure`: owner + admin by default).
+    const recipientIds = await loadCapabilityRecipients(db, accountId, 'ai.configure')
+    if (recipientIds.length === 0) return
 
     const pct = Math.min(999, Math.round((state.fraction ?? 0) * 100))
     const title = state.exceeded ? 'AI budget used up' : `AI budget at ${pct}%`
@@ -96,9 +94,9 @@ export async function sendBudgetAlert(db: SupabaseClient, accountId: string, sta
       state.exceeded ? ' AI replies are paused until next month or the budget is raised.' : ''
     }`
     const { error } = await db.from('notifications').insert(
-      admins.map((a) => ({
+      recipientIds.map((userId) => ({
         account_id: accountId,
-        user_id: a.user_id as string,
+        user_id: userId,
         type: 'ai_budget',
         title,
         body,

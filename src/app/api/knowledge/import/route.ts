@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { extractFile } from '@/lib/knowledge/import-file'
 import {
@@ -45,7 +45,7 @@ const MAX_BODY_BYTES = MAX_IMPORT_FILE_BYTES + 512 * 1024
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('agent')
+    const { supabase, accountId, userId } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb-import:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const ctx = { accountId, userId }

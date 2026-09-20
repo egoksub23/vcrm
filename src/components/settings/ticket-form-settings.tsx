@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -89,7 +89,7 @@ const EMPTY_DRAFT: Draft = {
 export function TicketFormSettings() {
   const t = useTranslations("Settings.ticketForm");
   const tCat = useTranslations("Tickets.detail.category");
-  const canEdit = useCan("edit-settings");
+  const canEdit = useCapability("tickets.configure-form");
   const { accountId } = useAuth();
   const { fields, loading, reload } = useTicketFields();
 

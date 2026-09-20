@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
 
 /**
  * Sweep conversations that have breached their account's SLA response
@@ -14,7 +15,7 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  * account's `sla_response_minutes`.
  *
  * Recipient: the assigned agent if the conversation has one, otherwise
- * every owner/admin on the account (an unassigned conversation is
+ * every owner/admin on the account who holds `conversations.manage` (an unassigned conversation is
  * everyone's problem, not nobody's).
  *
  * Auth: reuses `AUTOMATION_CRON_SECRET`, same header contract as
@@ -88,12 +89,14 @@ export async function GET(request: Request) {
     if (r.assigned_agent_id) {
       recipientIds = [r.assigned_agent_id]
     } else {
-      const { data: admins } = await admin
-        .from('profiles')
-        .select('user_id')
-        .eq('account_id', r.account_id)
-        .in('account_role', ['owner', 'admin'])
-      recipientIds = (admins ?? []).map((p) => p.user_id)
+      // Owner/admin members who still hold `conversations.manage`
+      // (everyone in those roles, unless an admin switched it off).
+      recipientIds = await loadCapabilityRecipients(
+        admin,
+        r.account_id,
+        'conversations.manage',
+        { roles: ['owner', 'admin'] },
+      )
     }
     if (recipientIds.length === 0) continue
 

@@ -15,7 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,8 +73,8 @@ export function WhatsAppConfig() {
     accountId,
     loading: authLoading,
     profileLoading,
-    canEditSettings,
   } = useAuth();
+  const canManageChannels = useCapability('channels.manage');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -110,7 +110,7 @@ export function WhatsAppConfig() {
   // the access token so it can re-verify with Meta, which is a silly
   // toll to pay for flipping a boolean. The switch writes straight to
   // the row instead — RLS (migration 017) restricts whatsapp_config
-  // UPDATE to admins, hence the canEditSettings gate below; without it
+  // UPDATE to admins, hence the canManageChannels gate below; without it
   // a viewer's toggle would match zero rows and appear to work.
   const [mirrorMedia, setMirrorMedia] = useState(true);
   const [savingMirror, setSavingMirror] = useState(false);
@@ -883,7 +883,7 @@ export function WhatsAppConfig() {
                 <Switch
                   checked={mirrorMedia}
                   onCheckedChange={handleToggleMirrorMedia}
-                  disabled={savingMirror || !canEditSettings}
+                  disabled={savingMirror || !canManageChannels}
                   aria-label={t('mirrorInbound')}
                 />
               </div>

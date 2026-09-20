@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { syncTikTokComments, TikTokReauthRequired } from '@/lib/comments/tiktok/connection'
@@ -15,7 +15,7 @@ export const maxDuration = 60
  */
 export async function POST() {
   try {
-    const { accountId, userId } = await requireRole('agent')
+    const { accountId, userId } = await requireCapability('comments.moderate')
     const limit = checkRateLimit(`comment-sync:${userId}`, { limit: 6, windowMs: 60_000 })
     if (!limit.success) return rateLimitResponse(limit)
 

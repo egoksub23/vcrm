@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import type { KbKind } from '@/lib/ai/knowledge-doc';
 import type { KbLanguage } from '@/lib/ai/knowledge-query';
 import type { ArticleDraftSeed, KnowledgeArticle } from '@/lib/knowledge-types';
@@ -61,8 +61,8 @@ export function ArticleDialog({
   const t = useTranslations('Knowledge.dialog');
   const te = useTranslations('Knowledge.editor');
   const { user } = useAuth();
-  const isAdmin = useCan('edit-settings');
-  const canWrite = useCan('send-messages');
+  const isAdmin = useCapability('knowledge.publish');
+  const canWrite = useCapability('knowledge.draft');
 
   const [full, setFull] = useState<KnowledgeArticle | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);

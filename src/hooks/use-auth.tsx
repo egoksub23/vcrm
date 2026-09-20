@@ -28,13 +28,21 @@ import {
  *  role: used while loading or when no account is resolved, migration
  *  049's DB default is the same value. */
 const DEFAULT_SLA_MINUTES = 30;
-import {
-  canEditSettings as canEditSettingsFor,
-  canManageMembers as canManageMembersFor,
-  canSendMessages as canSendMessagesFor,
-  isAccountRole,
-  type AccountRole,
-} from "@/lib/auth/roles";
+import { isAccountRole, type AccountRole } from "@/lib/auth/roles";
+import type { CapabilityKey } from "@/lib/auth/capabilities";
+
+/** How often the effective capability set is re-read in the background. */
+const CAPABILITIES_REFRESH_MS = 2 * 60 * 1000;
+/** Minimum gap between focus-triggered refreshes. */
+const CAPABILITIES_FOCUS_THROTTLE_MS = 15 * 1000;
+
+const NO_CAPABILITIES: ReadonlySet<string> = new Set<string>();
+
+function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
 
 interface Profile {
   id: string;
@@ -161,12 +169,28 @@ interface AuthContextValue {
   isAgent: boolean;
   /** True if `accountRole === 'viewer'`. */
   isViewer: boolean;
-  /** True if the caller can manage members (admin+). */
+  /** True if the caller may change member roles (`members.change-role`). */
   canManageMembers: boolean;
-  /** True if the caller can edit account-wide settings (admin+). */
+  /** True if the caller may edit account-wide settings (`settings.workspace`). */
   canEditSettings: boolean;
-  /** True if the caller can send messages and edit operational data (agent+). */
+  /** True if the caller may send messages (`messages.send`). */
   canSendMessages: boolean;
+
+  // ----------------------------------------------------------
+  // Capabilities (Roles & permissions)
+  // ----------------------------------------------------------
+
+  /**
+   * The caller's effective capability set (role default plus the
+   * account's overrides), from GET /api/account/capabilities. EMPTY
+   * while loading, on a first-load failure, or without a role: every
+   * check fails closed. Its identity only changes when the contents do.
+   */
+  capabilities: ReadonlySet<string>;
+  /** True until the first capability load has settled (success or failure). */
+  capabilitiesLoading: boolean;
+  /** Re-read the capability set now (e.g. after editing the matrix). */
+  refreshCapabilities: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -210,10 +234,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // window they're in — see the type doc above.
   const [profileLoading, setProfileLoading] = useState(true);
 
+  // Effective capabilities. `capabilitiesLoading` flips to false once,
+  // when the first load settles, and is NOT raised again by background
+  // refreshes or profile refreshes: a re-render loop or a flash of
+  // "no access" every two minutes would be worse than a briefly stale
+  // set. It is raised again only when a different user signs in.
+  const [capabilities, setCapabilities] =
+    useState<ReadonlySet<string>>(NO_CAPABILITIES);
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(true);
+  const capabilitiesRef = useRef<ReadonlySet<string>>(NO_CAPABILITIES);
+  const capabilitiesUserRef = useRef<string | null>(null);
+  const capabilitiesSeqRef = useRef(0);
+  const capabilitiesLastRunRef = useRef(0);
+
   // Tracks the user ID we've successfully initiated/completed fetching
   // a profile for. This prevents redundant re-fetches and toggling
   // profileLoading back to true on window focus events/token refresh.
   const lastFetchedUserIdRef = useRef<string | null>(null);
+
+  // Reads the caller's effective capabilities. Never throws. A failure
+  // keeps the last good set (and only ever fails closed when there has
+  // never been a good load, because the set then is still empty). The
+  // set is only stored when its contents differ, so consumers do not
+  // re-render on every refresh.
+  const loadCapabilities = useCallback(async () => {
+    const seq = ++capabilitiesSeqRef.current;
+    capabilitiesLastRunRef.current = Date.now();
+    try {
+      const res = await fetch("/api/account/capabilities", {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body: unknown = await res.json();
+      const list =
+        body && typeof body === "object"
+          ? (body as { capabilities?: unknown }).capabilities
+          : null;
+      if (!Array.isArray(list)) throw new Error("unexpected response shape");
+      if (seq !== capabilitiesSeqRef.current) return;
+      const next = new Set<string>(
+        list.filter((c): c is string => typeof c === "string"),
+      );
+      if (!sameSet(capabilitiesRef.current, next)) {
+        capabilitiesRef.current = next;
+        setCapabilities(next);
+      }
+    } catch (err) {
+      if (seq !== capabilitiesSeqRef.current) return;
+      console.error("[AuthProvider] loadCapabilities failed:", err);
+    } finally {
+      if (seq === capabilitiesSeqRef.current) setCapabilitiesLoading(false);
+    }
+  }, []);
+
+  // Drop the capability set (sign-out, a different user, or no role):
+  // everything fails closed again.
+  const resetCapabilities = useCallback((settled: boolean) => {
+    capabilitiesSeqRef.current++;
+    capabilitiesRef.current = NO_CAPABILITIES;
+    setCapabilities(NO_CAPABILITIES);
+    setCapabilitiesLoading(!settled);
+  }, []);
 
   // Shared across init, auth-state-change listener, and the exposed
   // refreshProfile() callback. Reads the current session's user id and
@@ -223,6 +304,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     setStatusDetail(null);
     lastFetchedUserIdRef.current = userId;
+    // A different person than the one the capability set belongs to:
+    // start from empty (fail closed) and show the loading state again.
+    // The same person re-fetching their profile keeps the current set.
+    if (capabilitiesUserRef.current !== userId) {
+      capabilitiesUserRef.current = userId;
+      resetCapabilities(false);
+    }
+    let capabilitiesStarted = false;
     try {
       let data: ProfileRow | null = null;
       for (let attempt = 1; ; attempt++) {
@@ -342,6 +431,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             `profile ${data.id} has no ${!data.account_id ? "account_id" : "account_role"}`,
           );
         }
+        if (accountRole) {
+          // Once per profile fetch; not awaited so it never delays the
+          // profile. `capabilitiesLoading` stays true until it settles.
+          capabilitiesStarted = true;
+          void loadCapabilities();
+        } else {
+          // No role means no capabilities, whatever the server might say.
+          resetCapabilities(true);
+          capabilitiesStarted = true;
+        }
       } else {
         lastFetchedUserIdRef.current = null;
         setStatusDetail("no profiles row for the signed-in user");
@@ -351,9 +450,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastFetchedUserIdRef.current = null;
       setStatusDetail(err instanceof Error ? err.message : "profile fetch failed");
     } finally {
+      // The profile could not be resolved, so no capability request was
+      // made. Settle the loading flag; the set stays whatever it was
+      // (empty unless an earlier load succeeded).
+      if (!capabilitiesStarted) setCapabilitiesLoading(false);
       setProfileLoading(false);
     }
-  }, []);
+  }, [loadCapabilities, resetCapabilities]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -364,6 +467,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("[AuthProvider] getSession() timed out after 3s");
         setLoading(false);
         setProfileLoading(false);
+        setCapabilitiesLoading(false);
       }
     }, 3000);
 
@@ -391,6 +495,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // pages that gate on it don't wait forever on the logged-out
           // path (the route guard or redirect should fire instead).
           setProfileLoading(false);
+          capabilitiesUserRef.current = null;
+          resetCapabilities(true);
         }
       } catch (err) {
         console.error("[AuthProvider] init threw:", err);
@@ -415,6 +521,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         lastFetchedUserIdRef.current = null;
+        capabilitiesUserRef.current = null;
+        resetCapabilities(true);
         setProfile(null);
         setAccount(null);
         setProfileLoading(false);
@@ -428,7 +536,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, resetCapabilities]);
 
   const signOut = useCallback(async () => {
     const supabase = createClient();
@@ -436,8 +544,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setAccount(null);
+    capabilitiesUserRef.current = null;
+    resetCapabilities(true);
     window.location.href = "/login";
-  }, []);
+  }, [resetCapabilities]);
+
+  const refreshCapabilities = useCallback(async () => {
+    if (!capabilitiesUserRef.current) return;
+    await loadCapabilities();
+  }, [loadCapabilities]);
+
+  // Keep the set fresh without a reload: when the tab regains focus
+  // (throttled) and every couple of minutes. Background reads never
+  // raise a loading flag and never re-render when nothing changed.
+  const roleForRefresh = profile?.account_role ?? null;
+  useEffect(() => {
+    if (!roleForRefresh) return;
+    const run = (throttled: boolean) => {
+      if (document.visibilityState === "hidden") return;
+      if (
+        throttled &&
+        Date.now() - capabilitiesLastRunRef.current <
+          CAPABILITIES_FOCUS_THROTTLE_MS
+      ) {
+        return;
+      }
+      void loadCapabilities();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") run(true);
+    };
+    const onFocus = () => run(true);
+    const timer = setInterval(() => run(false), CAPABILITIES_REFRESH_MS);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [roleForRefresh, loadCapabilities]);
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -457,11 +603,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: role === "admin",
       isAgent: role === "agent",
       isViewer: role === "viewer",
-      canManageMembers: role ? canManageMembersFor(role) : false,
-      canEditSettings: role ? canEditSettingsFor(role) : false,
-      canSendMessages: role ? canSendMessagesFor(role) : false,
+      // Derived from the capability set (empty while loading / without
+      // a role), so a switch in Roles & permissions moves these too.
+      canManageMembers: role ? capabilities.has("members.change-role") : false,
+      canEditSettings: role ? capabilities.has("settings.workspace") : false,
+      canSendMessages: role ? capabilities.has("messages.send") : false,
     };
-  }, [profile?.account_role, profile?.account_id]);
+  }, [profile?.account_role, profile?.account_id, capabilities]);
 
   // Signed out is not a broken account — the shell redirects to /login
   // before anything reads this.
@@ -491,6 +639,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         statusColors: account?.status_colors ?? DEFAULT_STATUS_COLORS,
         accountStatus,
         accountStatusDetail: statusDetail,
+        capabilities,
+        capabilitiesLoading,
+        refreshCapabilities,
         ...derived,
       }}
     >
@@ -537,7 +688,23 @@ export function useAuth(): AuthContextValue {
       canManageMembers: false,
       canEditSettings: false,
       canSendMessages: false,
+      capabilities: NO_CAPABILITIES,
+      capabilitiesLoading: false,
+      refreshCapabilities: async () => {},
     };
   }
   return ctx;
+}
+
+/**
+ * useCapability: does the caller hold `cap` right now?
+ *
+ * Fails closed: false while capabilities load, when the load never
+ * succeeded, without a role, and outside an AuthProvider. Unknown
+ * keys are simply not in the set, so they are false too.
+ */
+export function useCapability(cap: CapabilityKey | (string & {})): boolean {
+  const { capabilities, capabilitiesLoading, accountRole } = useAuth();
+  if (capabilitiesLoading || !accountRole) return false;
+  return capabilities.has(cap);
 }

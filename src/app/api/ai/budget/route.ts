@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 
 const MAX_BUDGET = 1_000_000_000_000
 
@@ -12,7 +12,7 @@ const MAX_BUDGET = 1_000_000_000_000
  */
 export async function PUT(request: Request) {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireCapability('ai.configure')
     const body = (await request.json().catch(() => null)) as { monthly_token_budget?: unknown } | null
     if (!body || !('monthly_token_budget' in body)) {
       return NextResponse.json({ error: 'monthly_token_budget is required' }, { status: 400 })

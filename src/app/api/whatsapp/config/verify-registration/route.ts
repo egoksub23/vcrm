@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   getSubscribedApps,
@@ -29,6 +30,14 @@ import {
  * what the UI badges on.
  */
 export async function GET() {
+  // Diagnostic that calls Meta with the stored token: `channels.manage`
+  // (admins by default), checked before any Meta call.
+  try {
+    await requireCapability('channels.manage')
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

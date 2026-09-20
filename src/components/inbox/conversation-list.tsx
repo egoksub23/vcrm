@@ -9,7 +9,7 @@ import {
 } from "@/lib/inbox/conversations";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 import { useNow } from "@/hooks/use-now";
 import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
@@ -118,7 +118,7 @@ export function ConversationList({
 }: ConversationListProps) {
   const channelScope = TAB_CHANNELS[tab];
   const t = useTranslations("Inbox.conversationList");
-  const { user, slaResponseMinutes, statusColors, canEditSettings } = useAuth();
+  const { user, slaResponseMinutes, statusColors } = useAuth();
   // One shared ticking clock for every row's aging-response chip,
   // rather than each ConversationItem running its own interval.
   const now = useNow(30000);
@@ -212,7 +212,8 @@ export function ConversationList({
   // combination above as a named, re-selectable view instead of it
   // resetting every session.
   const { views, loading: viewsLoading, refetch: refetchViews } = useInboxViews();
-  const canSaveShared = canEditSettings;
+  // Shared (team-wide) views: inbox.shared-views (admin+ by default).
+  const canSaveShared = useCapability("inbox.shared-views");
   const [showSaveViewForm, setShowSaveViewForm] = useState(false);
   const [saveViewName, setSaveViewName] = useState("");
   const [saveViewShared, setSaveViewShared] = useState(false);

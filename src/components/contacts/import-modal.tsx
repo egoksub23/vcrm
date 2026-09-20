@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import {
   dedupeByPhone,
   isUniqueViolation,
@@ -128,7 +128,8 @@ export function ImportModal({
 }: ImportModalProps) {
   const t = useTranslations('Contacts.importModal');
   const supabase = createClient();
-  const { accountId, canEditSettings } = useAuth();
+  const { accountId } = useAuth();
+  const canCreateTags = useCapability('tags.manage');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -269,7 +270,7 @@ export function ImportModal({
           accountId,
           userId: user.id,
           tagNames: allTagNames,
-          canCreateTags: canEditSettings,
+          canCreateTags,
         }));
       }
 

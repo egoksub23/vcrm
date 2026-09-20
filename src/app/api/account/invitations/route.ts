@@ -4,7 +4,7 @@
 //   GET  — list outstanding (un-redeemed, non-expired) invites.
 //   POST — create a new invite link.
 //
-// Both admin+. The list endpoint is what the Members tab uses to
+// Both need the `members.invite` capability (admins by default). The list endpoint is what the Members tab uses to
 // populate the "Pending invitations" section; create is what the
 // "Invite member" dialog calls.
 //
@@ -19,14 +19,14 @@
 
 import { NextResponse } from "next/server";
 
-import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import {
   clampExpiryDays,
   generateInviteToken,
   inviteExpiresAt,
   inviteUrl,
 } from "@/lib/auth/invitations";
-import { isAccountRole } from "@/lib/auth/roles";
+import { isAccountRole, roleRank } from "@/lib/auth/roles";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -138,7 +138,7 @@ const MAX_LABEL_LEN = 80;
 
 export async function GET() {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("members.invite");
 
     const { data, error } = await ctx.supabase
       .from("account_invitations")
@@ -166,7 +166,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("members.invite");
 
     // 30/min per user. The Members tab is a clicks-only UI so any
     // legitimate admin is far below this; the cap exists to keep
@@ -190,6 +190,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "'role' must be one of admin, agent, viewer" },
         { status: 400 },
+      );
+    }
+
+    // Nobody may invite someone to a role at or above their own (an
+    // Admin can invite agent/viewer, an Owner admin/agent/viewer). The
+    // database trigger on account_invitations is the backstop; this
+    // gives a clear 403 before the insert.
+    if (roleRank(role) >= roleRank(ctx.role)) {
+      return NextResponse.json(
+        {
+          error: `You cannot invite someone to the '${role}' role: it is at or above your own role ('${ctx.role}')`,
+        },
+        { status: 403 },
       );
     }
 

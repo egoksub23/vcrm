@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Coins, ListPlus, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 import {
   CURRENCIES,
   CURRENCY_LABEL_MAX,
@@ -47,10 +47,10 @@ export function DealsSettings() {
     accountId,
     defaultCurrency,
     currencies,
-    canEditSettings,
     profileLoading,
     refreshProfile,
   } = useAuth();
+  const canEditWorkspace = useCapability('settings.workspace');
 
   const [selected, setSelected] = useState(defaultCurrency);
   const [saving, setSaving] = useState(false);
@@ -164,7 +164,7 @@ export function DealsSettings() {
             <select
               value={selected}
               onChange={(e) => setSelected(e.target.value)}
-              disabled={!canEditSettings || profileLoading}
+              disabled={!canEditWorkspace || profileLoading}
               className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
             >
               {defaultChoices.map((c) => (
@@ -173,14 +173,14 @@ export function DealsSettings() {
                 </option>
               ))}
             </select>
-            {!canEditSettings && (
+            {!canEditWorkspace && (
               <p className="text-xs text-muted-foreground">
                 {t("adminOnlyHint")}
               </p>
             )}
           </div>
 
-          {canEditSettings && (
+          {canEditWorkspace && (
             <Button
               onClick={handleSave}
               disabled={saving || !dirty}
@@ -229,7 +229,7 @@ export function DealsSettings() {
                       {t("defaultBadge")}
                     </span>
                   ) : null}
-                  {canEditSettings ? (
+                  {canEditWorkspace ? (
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -247,7 +247,7 @@ export function DealsSettings() {
           </ul>
           <p className="text-xs text-muted-foreground">{t("removeNote")}</p>
 
-          {canEditSettings ? (
+          {canEditWorkspace ? (
             <div className="space-y-3 rounded-lg border border-dashed border-border p-3">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="grid w-24 gap-1.5">

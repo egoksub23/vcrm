@@ -8,6 +8,7 @@ import {
   Palette,
   PlugZap,
   Shield,
+  ShieldCheck,
   SlidersHorizontal,
   SwatchBook,
   Tag,
@@ -42,6 +43,7 @@ export const SETTINGS_SECTIONS = [
   'status-colors',
   'members',
   'teams',
+  'roles',
   'api',
 ] as const;
 
@@ -55,6 +57,12 @@ export interface SectionMeta {
   label: string;
   icon: LucideIcon;
   group: 'top' | 'account' | 'workspace';
+  /**
+   * Capability needed to see this section in the rail (and to open it by
+   * URL). Sections without one stay visible to everyone who can open
+   * Settings at all (menu.settings guards the whole page).
+   */
+  capability?: string;
 }
 
 export const SECTION_META: Record<SettingsSection, SectionMeta> = {
@@ -73,7 +81,8 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
   teams: { id: 'teams', label: 'Teams', icon: Boxes, group: 'workspace' },
-  api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace' },
+  roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },
+  api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace', capability: 'api.manage' },
 };
 
 export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[] = [
@@ -81,6 +90,22 @@ export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[
   { label: 'Account', group: 'account' },
   { label: 'Workspace', group: 'workspace' },
 ];
+
+/** May the caller see / open `section`? (Pure: pass a capability check.) */
+export function canSeeSection(
+  section: SettingsSection,
+  has: (cap: string) => boolean,
+): boolean {
+  const cap = SECTION_META[section].capability;
+  return !cap || has(cap);
+}
+
+/** The sections the caller may see, in rail order. */
+export function visibleSections(
+  has: (cap: string) => boolean,
+): SettingsSection[] {
+  return SETTINGS_SECTIONS.filter((s) => canSeeSection(s, has));
+}
 
 function isSection(value: string | null): value is SettingsSection {
   return !!value && (SETTINGS_SECTIONS as readonly string[]).includes(value);

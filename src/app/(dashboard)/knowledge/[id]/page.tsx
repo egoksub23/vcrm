@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import type { KnowledgeArticle } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
 import { KbEditorForm } from '@/components/knowledge/editor/kb-editor-form';
@@ -23,8 +23,8 @@ export default function KnowledgeArticlePage() {
   const t = useTranslations('Knowledge.editor');
   const { id } = useParams<{ id: string }>();
   const { user, profileLoading } = useAuth();
-  const isAdmin = useCan('edit-settings');
-  const canWrite = useCan('send-messages');
+  const isAdmin = useCapability('knowledge.publish');
+  const canWrite = useCapability('knowledge.draft');
 
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 

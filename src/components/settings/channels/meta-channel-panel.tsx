@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, PlugZap, Loader2, Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,8 @@ export function MetaChannelPanel({
   renderConnectedExtra,
 }: MetaChannelPanelProps) {
   const t = useTranslations(translationNamespace);
-  const { user, accountId, loading: authLoading, profileLoading, canEditSettings } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
+  const canManageChannels = useCapability('channels.manage');
   const searchParams = useSearchParams();
 
   const base = `/api/account/channels/${channel}`;
@@ -234,7 +235,7 @@ export function MetaChannelPanel({
               <AlertTriangle className="size-4 shrink-0" />
               {t('reauthBanner')}
             </div>
-            {canEditSettings ? (
+            {canManageChannels ? (
               <a href={`${base}/oauth/start`} className={buttonVariants({ size: 'sm' })}>
                 {t('reauthButton')}
               </a>
@@ -258,7 +259,7 @@ export function MetaChannelPanel({
                   </p>
                 ) : null}
               </div>
-              {canEditSettings ? (
+              {canManageChannels ? (
                 <Button variant="outline" size="sm" onClick={handleDisconnect} disabled={disconnecting}>
                   {disconnecting ? <Loader2 className="size-4 animate-spin" /> : null}
                   {t('disconnect')}
@@ -268,7 +269,7 @@ export function MetaChannelPanel({
           ) : (
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">{t('notConnected')}</p>
-              {canEditSettings ? (
+              {canManageChannels ? (
                 <a href={`${base}/oauth/start`} className={buttonVariants({})}>
                   <PlugZap className="size-4" />
                   {t('connectButton')}
@@ -283,7 +284,7 @@ export function MetaChannelPanel({
         <CommentsChannelCard
           channel={channel}
           enabledAt={status.comments_enabled_at}
-          canEdit={canEditSettings}
+          canEdit={canManageChannels}
           onEnabled={fetchStatus}
         />
       ) : null}
@@ -323,7 +324,7 @@ export function MetaChannelPanel({
                   onChange={(e) => setVerifyToken(e.target.value)}
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
-                {canEditSettings ? (
+                {canManageChannels ? (
                   <Button
                     type="button"
                     onClick={handleSaveVerifyToken}

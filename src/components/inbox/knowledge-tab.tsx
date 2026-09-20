@@ -9,7 +9,7 @@ import type { Message } from "@/types";
 import type { KnowledgeSearchResult } from "@/lib/knowledge-types";
 import { buildKnowledgeQuery } from "@/lib/inbox/kb-agent";
 import { requestKbDraft, requestKbInsert } from "@/lib/inbox/kb-bus";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
 
 /**
@@ -30,7 +30,7 @@ export function KnowledgeTab({
 }) {
   const t = useTranslations("Inbox.knowledge");
   const tk = useTranslations("Knowledge.agent");
-  const canSend = useCan("send-messages");
+  const canSend = useCapability("knowledge.draft");
   const [typed, setTyped] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 

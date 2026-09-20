@@ -7,13 +7,13 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { registerTikTokCommentWebhook, TikTokApiError, tiktokConfigured } from '@/lib/comments/tiktok/api'
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     if (!tiktokConfigured()) {
       return NextResponse.json({ error: 'TikTok is not configured on this server.' }, { status: 409 })
     }

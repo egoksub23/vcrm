@@ -4,14 +4,14 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { buildMetaOAuthUrl, getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { createPendingConnection } from '@/lib/meta/oauth-connect'
 
 export async function GET(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
 
     const { state } = await createPendingConnection(supabaseAdmin(), {
       accountId: ctx.accountId,

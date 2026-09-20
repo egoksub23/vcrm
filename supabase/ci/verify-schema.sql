@@ -75,6 +75,25 @@ BEGIN
       'messages.error_code/error_title/error_details are missing — migration 042 did not apply';
   END IF;
 
+  -- Role capabilities (079): the catalogue is seeded, the guard function
+  -- exists, and the database-tier policies really call it (a typo'd
+  -- policy name in the migration's loop would silently keep the old rule).
+  IF (SELECT COUNT(*) FROM public.capability_catalogue) < 40
+     OR (SELECT COUNT(*) FROM public.role_capability_defaults WHERE role = 'admin') < 40 THEN
+    RAISE EXCEPTION 'capability catalogue/defaults are not seeded — migration 079 did not apply';
+  END IF;
+  IF to_regprocedure('public.has_capability(uuid,text)') IS NULL
+     OR to_regprocedure('public.set_role_capabilities(uuid,account_role_enum,jsonb)') IS NULL THEN
+    RAISE EXCEPTION 'has_capability / set_role_capabilities are missing — migration 079 did not apply';
+  END IF;
+  IF (
+    SELECT COUNT(*) FROM pg_policies
+    WHERE schemaname = 'public'
+      AND (qual LIKE '%has_capability%' OR with_check LIKE '%has_capability%')
+  ) < 40 THEN
+    RAISE EXCEPTION 'the channel/AI/API-key policies do not use has_capability — migration 079 did not apply';
+  END IF;
+
   RAISE NOTICE 'schema verification passed';
 END
 $$;

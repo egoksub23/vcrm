@@ -24,7 +24,8 @@ interface RailProps {
   counts: LibraryCounts;
   collections: KnowledgeCollection[];
   openGaps: number;
-  isAdmin: boolean;
+  /** knowledge.manage: may create, rename and delete collections. */
+  canManageCollections: boolean;
   onManageCollections: () => void;
 }
 
@@ -77,7 +78,7 @@ function RailButton({
 
 /** The library's left rail: all articles, collections, and the views. On
  *  phones it folds into a single dropdown. */
-export function LibraryRail({ view, onView, counts, collections, openGaps, isAdmin, onManageCollections }: RailProps) {
+export function LibraryRail({ view, onView, counts, collections, openGaps, canManageCollections, onManageCollections }: RailProps) {
   const t = useTranslations('Knowledge.library');
 
   return (
@@ -106,7 +107,7 @@ export function LibraryRail({ view, onView, counts, collections, openGaps, isAdm
             <option value="insights">{t('rail.insights')}</option>
           </optgroup>
         </select>
-        {isAdmin && (
+        {canManageCollections && (
           <button
             type="button"
             onClick={onManageCollections}
@@ -135,7 +136,7 @@ export function LibraryRail({ view, onView, counts, collections, openGaps, isAdm
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t('rail.collections')}
           </h2>
-          {isAdmin && (
+          {canManageCollections && (
             <button
               type="button"
               onClick={onManageCollections}

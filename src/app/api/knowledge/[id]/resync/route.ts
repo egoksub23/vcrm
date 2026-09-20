@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
-import { hasMinRole } from '@/lib/auth/roles'
 import { indexArticle } from '@/lib/knowledge/articles'
 import {
   PageFetchError,
@@ -22,7 +21,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function POST(_request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb-import:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params
@@ -35,7 +34,7 @@ export async function POST(_request: Request, { params }: Params) {
       .maybeSingle()
     if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const isAdmin = hasMinRole(role, 'admin')
+    const isAdmin = capabilities.has('knowledge.publish')
     if (!isAdmin && (doc.status !== 'draft' || doc.created_by !== userId)) {
       return NextResponse.json(
         { error: 'You can only re-sync your own drafts. Ask an admin for published articles.' },

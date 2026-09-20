@@ -5,14 +5,14 @@ import { ChevronRight, FileText, Loader2, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { THEMES } from '@/lib/themes';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-import { SECTION_META, type SettingsSection } from './settings-sections';
+import { SECTION_META, canSeeSection, type SettingsSection } from './settings-sections';
 import { SettingsChip, StatusDot } from './settings-chip';
 import { ROLE_META } from './role-meta';
 
@@ -36,8 +36,10 @@ export function SettingsOverview({
 }: {
   onSelect: (section: SettingsSection, extraParams?: Record<string, string>) => void;
 }) {
-  const { user, profile, accountId, accountRole, defaultCurrency, currencies, canManageMembers } =
+  const { user, profile, accountId, accountRole, defaultCurrency, currencies, capabilities } =
     useAuth();
+  // The pending-invitations count comes from the invitations route (members.invite).
+  const canSeeInvites = useCapability('members.invite');
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
   const tRoles = useTranslations('Settings.roles');
@@ -65,7 +67,7 @@ export function SettingsOverview({
       const [membersRes, invitesRes, templatesTotal, templatesPending, tagsRes, labelsRes, fieldsRes] =
         await Promise.allSettled([
           fetch('/api/account/members', { cache: 'no-store' }).then((r) => r.json()),
-          canManageMembers
+          canSeeInvites
             ? fetch('/api/account/invitations', { cache: 'no-store' }).then((r) =>
                 r.json(),
               )
@@ -144,7 +146,7 @@ export function SettingsOverview({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, accountId, canManageMembers]);
+  }, [user?.id, accountId, canSeeInvites]);
 
   const displayName = profile?.full_name || profile?.email || t('yourAccount');
   const initial = (profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase();
@@ -282,7 +284,9 @@ export function SettingsOverview({
 
       {/* Status tiles */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {tiles.map(({ key, section, label, icon, extraParams, loading, subtitle }) => {
+        {tiles
+          .filter((tile) => canSeeSection(tile.section, (c) => capabilities.has(c)))
+          .map(({ key, section, label, icon, extraParams, loading, subtitle }) => {
           const Icon = icon ?? SECTION_META[section].icon;
           return (
             <button

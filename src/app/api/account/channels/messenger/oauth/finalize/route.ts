@@ -10,7 +10,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 import { getPageAccessToken } from '@/lib/meta/oauth'
@@ -18,7 +18,7 @@ import { findPendingConnectionById, markCompleted } from '@/lib/meta/oauth-conne
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const body = (await request.json().catch(() => null)) as
       | { connection_id?: unknown; page_id?: unknown }
       | null

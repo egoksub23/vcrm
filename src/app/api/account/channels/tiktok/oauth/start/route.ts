@@ -8,14 +8,14 @@
 import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { buildTikTokAuthUrl, tiktokConfigured } from '@/lib/comments/tiktok/api'
 
 export async function GET(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const baseUrl = getOAuthBaseUrl(request)
 
     if (!tiktokConfigured()) {

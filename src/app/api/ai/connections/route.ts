@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import { validateBaseUrl } from '@/lib/ai/base-url'
@@ -19,7 +19,7 @@ const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openai_compatible']
  */
 export async function GET() {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireCapability('ai.configure')
 
     const [cfgRes, connRes, routeRes] = await Promise.all([
       supabase
@@ -76,7 +76,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('ai.configure')
     const limit = checkRateLimit(`ai-conn:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 

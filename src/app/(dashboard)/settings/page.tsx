@@ -23,7 +23,10 @@ import { StatusColorsTab } from '@/components/settings/status-colors-tab';
 import { MembersTab } from '@/components/settings/members-tab';
 import { TeamsTab } from '@/components/settings/teams-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
+import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab';
+import { NoAccess } from '@/components/auth/no-access';
 import {
+  canSeeSection,
   resolveSection,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
@@ -47,9 +50,10 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency, slaResponseMinutes } = useAuth();
+  const { defaultCurrency, slaResponseMinutes, capabilities } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
+  const tAccess = useTranslations('Permissions.access');
 
   // The URL (`?tab=`) is the single source of truth for the active
   // section — deep-linkable, and it keeps the existing links in the
@@ -93,8 +97,14 @@ function SettingsPageInner() {
     'status-colors': <StatusColorsTab />,
     members: <MembersTab />,
     teams: <TeamsTab />,
+    roles: <RolesPermissionsTab />,
     api: <ApiKeysSettings />,
   };
+
+  // A section behind a capability (?tab=roles, ?tab=api) the person does
+  // not hold shows the friendly no-access state inside the panel, not an
+  // empty panel. The page itself is guarded by menu.settings.
+  const allowed = canSeeSection(section, (cap) => capabilities.has(cap));
 
   return (
     <div>
@@ -109,7 +119,16 @@ function SettingsPageInner() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start">
         <SettingsRail active={section} onSelect={(s) => go(s)} hints={hints} />
-        <div className="min-w-0">{panel[section]}</div>
+        <div className="min-w-0">
+          {allowed ? (
+            panel[section]
+          ) : (
+            <NoAccess
+              href="/settings"
+              linkLabel={tAccess('backToSettings')}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

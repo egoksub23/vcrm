@@ -39,9 +39,11 @@ const KIND_THEME: Record<ActivityKind, KindTheme> = {
 }
 
 import { useTranslations } from 'next-intl'
+import { useCapability } from '@/hooks/use-auth'
 
 export function ActivityFeed({ items, loading }: ActivityFeedProps) {
   const t = useTranslations('Dashboard.activityFeed')
+  const canOpenInbox = useCapability('menu.inbox')
   // Start at 5 — a quick scan of the most recent events without
   // dominating vertical real estate. User expands explicitly via the
   // footer control when they want deeper history.
@@ -60,12 +62,14 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
     <section className="rounded-xl border border-border bg-card">
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>
-        <Link
-          href="/inbox"
-          className="text-xs font-medium text-primary hover:text-primary/80"
-        >
-          {t('viewAll')}
-        </Link>
+        {canOpenInbox ? (
+          <Link
+            href="/inbox"
+            className="text-xs font-medium text-primary hover:text-primary/80"
+          >
+            {t('viewAll')}
+          </Link>
+        ) : null}
       </header>
 
       {loading || !items ? (

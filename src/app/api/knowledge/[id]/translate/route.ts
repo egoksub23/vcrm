@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
-import { hasMinRole } from '@/lib/auth/roles'
+import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { handleTranslate } from '@/lib/knowledge/translate-run'
@@ -27,7 +26,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const user = checkRateLimit(`kb-translate:${userId}`, RATE_LIMITS.aiDraft)
     if (!user.success) return rateLimitResponse(user)
     const account = checkRateLimit(`kb-translate-acct:${accountId}`, RATE_LIMITS.aiDraftAccount)
@@ -37,7 +36,7 @@ export async function POST(request: Request, { params }: Params) {
     const body = await request.json().catch(() => null)
 
     const result = await handleTranslate(
-      { db: supabase, admin: supabaseAdmin(), accountId, userId, isAdmin: hasMinRole(role, 'admin') },
+      { db: supabase, admin: supabaseAdmin(), accountId, userId, isAdmin: capabilities.has('knowledge.publish') },
       id,
       body,
     )

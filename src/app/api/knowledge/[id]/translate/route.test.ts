@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { resolveCapabilities } from '@/lib/auth/capabilities'
+import type { AccountRole } from '@/lib/auth/roles'
 
 const h = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+  requireAnyCapability: vi.fn(),
   handleTranslate: vi.fn(),
   checkRateLimit: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/account', () => ({
-  requireRole: h.requireRole,
+  requireAnyCapability: h.requireAnyCapability,
   toErrorResponse: () => Response.json({ error: 'auth failed' }, { status: 403 }),
 }))
 vi.mock('@/lib/knowledge/translate-run', () => ({ handleTranslate: h.handleTranslate }))
@@ -20,7 +22,13 @@ vi.mock('@/lib/rate-limit', () => ({
 
 import { POST } from './route'
 
-const ctx = (role: string) => ({ supabase: { name: 'scoped' }, accountId: 'acct', userId: 'user-1', role })
+const ctx = (role: AccountRole, overrides?: Record<string, boolean>) => ({
+  supabase: { name: 'scoped' },
+  accountId: 'acct',
+  userId: 'user-1',
+  role,
+  capabilities: resolveCapabilities(role, overrides),
+})
 const params = { params: Promise.resolve({ id: 'base-1' }) }
 const req = (body: unknown) =>
   new Request('http://localhost/api/knowledge/base-1/translate', {
@@ -30,18 +38,18 @@ const req = (body: unknown) =>
   })
 
 beforeEach(() => {
-  h.requireRole.mockReset()
+  h.requireAnyCapability.mockReset()
   h.handleTranslate.mockReset()
   h.checkRateLimit.mockReset()
   h.checkRateLimit.mockReturnValue({ success: true, remaining: 5, reset: 0, limit: 20 })
-  h.requireRole.mockResolvedValue(ctx('agent'))
+  h.requireAnyCapability.mockResolvedValue(ctx('agent'))
   h.handleTranslate.mockResolvedValue({ status: 200, body: { results: [{ language: 'ms', ok: true, id: 'ms1' }] } })
 })
 
 describe('POST /api/knowledge/[id]/translate', () => {
-  it('needs an agent and hands the request to the translate logic', async () => {
+  it('needs the draft or publish capability and hands the request to the translate logic', async () => {
     const res = await POST(req({ language: 'ms' }), params)
-    expect(h.requireRole).toHaveBeenCalledWith('agent')
+    expect(h.requireAnyCapability).toHaveBeenCalledWith(['knowledge.draft', 'knowledge.publish'])
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ results: [{ language: 'ms', ok: true, id: 'ms1' }] })
     expect(h.handleTranslate).toHaveBeenCalledWith(
@@ -52,12 +60,18 @@ describe('POST /api/knowledge/[id]/translate', () => {
   })
 
   it('tells the logic when the caller is an admin or the owner', async () => {
-    for (const role of ['admin', 'owner']) {
+    for (const role of ['admin', 'owner'] as const) {
       h.handleTranslate.mockClear()
-      h.requireRole.mockResolvedValue(ctx(role))
+      h.requireAnyCapability.mockResolvedValue(ctx(role))
       await POST(req({ language: 'ms' }), params)
       expect(h.handleTranslate.mock.calls[0][0].isAdmin).toBe(true)
     }
+  })
+
+  it('passes the publish capability, not the role: an admin without knowledge.publish is not a publisher', async () => {
+    h.requireAnyCapability.mockResolvedValue(ctx('admin', { 'knowledge.publish': false }))
+    await POST(req({ language: 'ms' }), params)
+    expect(h.handleTranslate.mock.calls[0][0].isAdmin).toBe(false)
   })
 
   it('passes the logic status and typed error straight through', async () => {
@@ -80,7 +94,7 @@ describe('POST /api/knowledge/[id]/translate', () => {
   })
 
   it('answers with the auth error when the caller is not allowed', async () => {
-    h.requireRole.mockRejectedValue(new Error('Forbidden'))
+    h.requireAnyCapability.mockRejectedValue(new Error('Forbidden'))
     expect((await POST(req({ language: 'ms' }), params)).status).toBe(403)
     expect(h.handleTranslate).not.toHaveBeenCalled()
   })

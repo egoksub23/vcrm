@@ -6,13 +6,13 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { enableChannelComments } from '@/lib/comments/enable-comments'
 
 export async function POST() {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const r = await enableChannelComments(supabaseAdmin(), ctx.accountId, 'instagram')
     if (!r.ok) {
       return NextResponse.json({ error: r.error, reconnect: r.reconnect ?? false }, { status: r.status })

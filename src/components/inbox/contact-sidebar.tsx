@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
 import { toast } from "sonner";
 import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
@@ -64,8 +64,10 @@ export function ContactSidebar({
   // Tag/label writes go through the API (audit + automation triggers), one
   // at a time — `busy` ignores a second click while one is in flight.
   const [busy, setBusy] = useState(false);
-  const canEdit = useCan("send-messages");
-  const canManageFields = useCan("edit-settings");
+  const canEdit = useCapability("contacts.edit");
+  // The link goes to Settings, which also needs menu.settings.
+  const canOpenSettings = useCapability("menu.settings");
+  const canManageFields = useCapability("settings.workspace") && canOpenSettings;
   const { contactTags: tagOptions, conversationLabels: labelOptions } = useTags();
 
   const contactId = contact?.id ?? null;

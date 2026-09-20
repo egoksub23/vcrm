@@ -7,14 +7,14 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { buildGoogleOAuthUrl, getOAuthBaseUrl } from '@/lib/gmail/oauth'
 import { createPendingGmailConnection } from '@/lib/gmail/oauth-connect'
 
 export async function GET(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
 
     const { state } = await createPendingGmailConnection(supabaseAdmin(), {
       accountId: ctx.accountId,

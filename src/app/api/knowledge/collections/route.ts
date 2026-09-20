@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadCollections } from '@/lib/knowledge/articles'
 import { DEFAULT_COLLECTION_COLOR, parseCollectionInput } from '@/lib/knowledge/collections'
@@ -40,7 +40,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('knowledge.manage')
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 

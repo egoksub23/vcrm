@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseDocInput, type DocFields } from '@/lib/ai/knowledge-doc'
-import { hasMinRole } from '@/lib/auth/roles'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadAttachments, removeStoredFiles, syncAttachments } from '@/lib/knowledge/articles'
 import { buildTranslationInfos, isTranslationOutOfDate, textUnchanged } from '@/lib/knowledge/translate'
@@ -102,7 +101,7 @@ export async function GET(_request: Request, { params }: Params) {
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 
@@ -124,7 +123,7 @@ export async function PATCH(request: Request, { params }: Params) {
       fields = parsed.fields
     }
 
-    const isAdmin = hasMinRole(role, 'admin')
+    const isAdmin = capabilities.has('knowledge.publish')
     const { data: current } = await supabase
       .from('ai_knowledge_documents')
       .select('id, created_by, status, language, translation_of, machine_translated, title, content, content_html, updated_at')
@@ -239,11 +238,11 @@ export async function PATCH(request: Request, { params }: Params) {
  */
 export async function DELETE(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params
-    const isAdmin = hasMinRole(role, 'admin')
+    const isAdmin = capabilities.has('knowledge.publish')
 
     const { data: current } = await supabase
       .from('ai_knowledge_documents')

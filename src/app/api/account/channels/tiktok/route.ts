@@ -6,7 +6,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { tiktokConfigured } from '@/lib/comments/tiktok/api'
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
 export async function DELETE() {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const { error } = await ctx.supabase.from('tiktok_config').delete().eq('account_id', ctx.accountId)
     if (error) {
       console.error('[DELETE /api/account/channels/tiktok] delete error:', error)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 import { CONNECTION_NAME_MAX, probeConnection } from '@/lib/ai/connections'
@@ -18,7 +18,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('ai.configure')
     const limit = checkRateLimit(`ai-conn:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, { params }: Params) {
  *  to the default connection (the routing row's connection is cleared). */
 export async function DELETE(_request: Request, { params }: Params) {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireCapability('ai.configure')
     const { id } = await params
     const { error } = await supabase.from('ai_connections').delete().eq('account_id', accountId).eq('id', id)
     if (error) {

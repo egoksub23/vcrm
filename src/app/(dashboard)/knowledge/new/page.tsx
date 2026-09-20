@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import { KbEditorForm } from '@/components/knowledge/editor/kb-editor-form';
 import { canEditArticle, parseSeedParams } from '@/components/knowledge/editor/kb-editor-utils';
 
@@ -22,8 +22,8 @@ function NewArticle() {
   const router = useRouter();
   const params = useSearchParams();
   const { user, profileLoading } = useAuth();
-  const isAdmin = useCan('edit-settings');
-  const canWrite = useCan('send-messages');
+  const isAdmin = useCapability('knowledge.publish');
+  const canWrite = useCapability('knowledge.draft');
 
   const seed = useMemo(() => parseSeedParams((k) => params.get(k)), [params]);
 

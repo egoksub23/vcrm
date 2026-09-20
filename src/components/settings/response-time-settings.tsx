@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Timer, Loader2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,10 +34,10 @@ export function ResponseTimeSettings() {
   const {
     accountId,
     slaResponseMinutes,
-    canEditSettings,
     profileLoading,
     refreshProfile,
   } = useAuth();
+  const canEditWorkspace = useCapability('settings.workspace');
 
   const [minutes, setMinutes] = useState(String(slaResponseMinutes));
   const [saving, setSaving] = useState(false);
@@ -90,17 +90,17 @@ export function ResponseTimeSettings() {
               step={1}
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
-              disabled={!canEditSettings || profileLoading}
+              disabled={!canEditWorkspace || profileLoading}
             />
             {!valid && (
               <p className="text-xs text-destructive">{t("invalidMinutes")}</p>
             )}
-            {!canEditSettings && (
+            {!canEditWorkspace && (
               <p className="text-xs text-muted-foreground">{t("adminOnlyHint")}</p>
             )}
           </div>
 
-          {canEditSettings && (
+          {canEditWorkspace && (
             <Button
               onClick={handleSave}
               disabled={saving || !dirty}

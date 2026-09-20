@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useCapability } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -47,6 +48,8 @@ export function KnowledgeGaps({
   onCount: (openCount: number) => void;
 }) {
   const t = useTranslations('Knowledge.gaps');
+  // The chat link opens the Inbox: only offered with menu.inbox.
+  const canOpenInbox = useCapability('menu.inbox');
   const router = useRouter();
   const [replyBusy, setReplyBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<GapStatus>('open');
@@ -170,7 +173,7 @@ export function KnowledgeGaps({
                   {t('asked', { count: g.times_asked })}
                   {g.channel ? ` · ${CHANNEL_NAMES[g.channel] ?? t('channelWebWidget')}` : ''} ·{' '}
                   {formatDistanceToNow(new Date(g.last_asked_at), { addSuffix: true })}
-                  {g.conversation_id ? (
+                  {g.conversation_id && canOpenInbox ? (
                     <>
                       {' · '}
                       <a className="text-primary hover:underline" href={`/inbox?c=${g.conversation_id}`}>

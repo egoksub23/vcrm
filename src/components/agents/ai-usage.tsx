@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { BarChart3, Bot, PencilLine } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
-import { canEditSettings } from '@/lib/auth/roles';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import {
   Card,
   CardContent,
@@ -57,8 +56,8 @@ const WINDOWS = [7, 30, 90] as const;
  */
 export function AiUsageCard() {
   const t = useTranslations('Agents.usage');
-  const { accountId, accountRole, profileLoading } = useAuth();
-  const canView = accountRole ? canEditSettings(accountRole) : false;
+  const { accountId, profileLoading } = useAuth();
+  const canView = useCapability('ai.configure');
 
   const [days, setDays] = useState<number>(30);
   const [loading, setLoading] = useState(true);

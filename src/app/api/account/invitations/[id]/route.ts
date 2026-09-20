@@ -1,7 +1,7 @@
 // ============================================================
 // DELETE /api/account/invitations/[id]
 //
-// Admin+. Revokes a pending invitation by id. RLS on
+// Needs `members.invite` (admins by default). Revokes a pending invitation by id. RLS on
 // `account_invitations` already restricts the DELETE to admins
 // of the inviting account; we lean on it and skip the explicit
 // ownership check.
@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -27,7 +27,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("members.invite");
 
     const limit = checkRateLimit(
       `admin:inviteRevoke:${ctx.userId}`,

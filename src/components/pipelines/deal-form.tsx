@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 import { withCurrencyIncluded } from "@/lib/currency";
 import type {
   Contact,
@@ -56,6 +56,8 @@ export function DealForm({
   const t = useTranslations("Pipelines.form");
   const supabase = createClient();
   const { accountId, defaultCurrency, currencies } = useAuth();
+  // The "link to conversation" chip opens the Inbox: only with menu.inbox.
+  const canOpenInbox = useCapability("menu.inbox");
 
   const [title, setTitle] = useState("");
   const [value, setValue] = useState("");
@@ -284,7 +286,7 @@ export function DealForm({
                 ))}
               </select>
 
-              {linkedConversation && (
+              {linkedConversation && canOpenInbox && (
                 <Link
                   href="/inbox"
                   className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md bg-primary/10 px-2 py-1 text-xs text-primary hover:bg-primary/20"

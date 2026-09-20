@@ -5,6 +5,8 @@ import { UserPlus, Briefcase, Radio, Zap } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 import { useTranslations } from 'next-intl'
+import { useAuth } from '@/hooks/use-auth'
+import { filterByCapability } from '@/lib/auth/page-access'
 
 // Quick-action shortcuts. Each navigates to the page that owns the
 // relevant "create" flow. We deliberately don't try to auto-open any
@@ -15,21 +17,28 @@ interface Action {
   href: string
   icon: ComponentType<{ className?: string }>
   tint: string
+  /** Menu capability of the page the shortcut opens. */
+  capability: string
 }
 
 const ACTIONS: Action[] = [
-  { labelKey: 'newContact', href: '/contacts', icon: UserPlus, tint: 'text-primary' },
-  { labelKey: 'newDeal', href: '/pipelines', icon: Briefcase, tint: 'text-blue-400' },
-  { labelKey: 'newBroadcast', href: '/broadcasts/new', icon: Radio, tint: 'text-amber-400' },
-  { labelKey: 'newAutomation', href: '/automations/new', icon: Zap, tint: 'text-primary' },
+  { labelKey: 'newContact', href: '/contacts', icon: UserPlus, tint: 'text-primary', capability: 'menu.contacts' },
+  { labelKey: 'newDeal', href: '/pipelines', icon: Briefcase, tint: 'text-blue-400', capability: 'menu.pipelines' },
+  { labelKey: 'newBroadcast', href: '/broadcasts/new', icon: Radio, tint: 'text-amber-400', capability: 'menu.broadcasts' },
+  { labelKey: 'newAutomation', href: '/automations/new', icon: Zap, tint: 'text-primary', capability: 'menu.automations' },
 ]
 
 export function QuickActions() {
   const t = useTranslations('Dashboard.quickActions')
-  
+  const { capabilities } = useAuth()
+  // Hide shortcuts to pages the person has no menu for.
+  const visible = filterByCapability(ACTIONS, (cap) => capabilities.has(cap))
+
+  if (visible.length === 0) return null
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {ACTIONS.map((a) => {
+      {visible.map((a) => {
         const Icon = a.icon
         return (
           <Link

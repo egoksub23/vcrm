@@ -6,13 +6,13 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { findPendingConnectionById } from '@/lib/meta/oauth-connect'
 
 export async function GET(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const { searchParams } = new URL(request.url)
     const connectionId = searchParams.get('connection_id')
     if (!connectionId) {

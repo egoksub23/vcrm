@@ -19,7 +19,8 @@ export interface ArticleTableProps {
   docs: KnowledgeDocSummary[];
   collections: KnowledgeCollection[];
   today: string;
-  isAdmin: boolean;
+  /** knowledge.publish: may publish a draft. */
+  canPublish: boolean;
   canManage: (d: KnowledgeDocSummary) => boolean;
   /** Id of the article a row action is running for. */
   busyId: string | null;
@@ -123,7 +124,7 @@ export function ArticleTable({
   docs,
   collections,
   today,
-  isAdmin,
+  canPublish,
   canManage,
   busyId,
   onPublish,
@@ -266,7 +267,7 @@ export function ArticleTable({
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center justify-end gap-1">
-                    {isAdmin && d.status === 'draft' && (
+                    {canPublish && d.status === 'draft' && (
                       <Button
                         size="sm"
                         variant="outline"

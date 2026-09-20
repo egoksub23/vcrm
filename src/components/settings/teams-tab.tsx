@@ -10,9 +10,9 @@
 // the whole account, and every team also gets a color swatch used
 // for chips elsewhere (inbox buckets, automation step badges).
 //
-// Role-gating mirrors MembersTab: any member can view; RequireRole
-// gates every mutating control. The API routes double-check admin+
-// server-side regardless.
+// Role-gating mirrors MembersTab: any member can view; RequireCapability
+// (teams.manage) gates every mutating control. The API routes double-check
+// the capability server-side regardless.
 // ============================================================
 
 import { useCallback, useEffect, useState } from 'react';
@@ -49,7 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
-import { RequireRole } from '@/components/auth/require-role';
+import { RequireCapability } from '@/components/auth/require-capability';
 import { cn } from '@/lib/utils';
 import type { AccountMember, Team, TeamMember } from '@/types';
 import { SettingsPanelHead } from './settings-panel-head';
@@ -173,12 +173,12 @@ export function TeamsTab() {
         title={t('title')}
         description={t('description')}
         action={
-          <RequireRole min="admin">
+          <RequireCapability cap="teams.manage">
             <Button onClick={openCreate}>
               <Plus className="size-4" />
               {t('createTeam')}
             </Button>
-          </RequireRole>
+          </RequireCapability>
         }
       />
 
@@ -360,7 +360,7 @@ function TeamCard({
               )}
             </div>
           </div>
-          <RequireRole min="admin">
+          <RequireCapability cap="teams.manage">
             <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant="outline"
@@ -381,7 +381,7 @@ function TeamCard({
                 <Trash2 className="size-3.5" />
               </Button>
             </div>
-          </RequireRole>
+          </RequireCapability>
         </div>
 
         <div className="space-y-1.5">
@@ -410,7 +410,7 @@ function TeamCard({
                       {member.full_name || t('unnamed')}
                     </span>
                   </div>
-                  <RequireRole min="admin">
+                  <RequireCapability cap="teams.manage">
                     <button
                       type="button"
                       onClick={() => handleRemove(member.user_id)}
@@ -420,14 +420,14 @@ function TeamCard({
                     >
                       <X className="size-3" />
                     </button>
-                  </RequireRole>
+                  </RequireCapability>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        <RequireRole min="admin">
+        <RequireCapability cap="teams.manage">
           {eligible.length > 0 ? (
             <div className="flex items-center gap-2">
               <Select value={addingUserId} onValueChange={(v) => v && setAddingUserId(v)}>
@@ -456,7 +456,7 @@ function TeamCard({
           ) : (
             <p className="text-xs text-muted-foreground">{t('noEligibleMembers')}</p>
           )}
-        </RequireRole>
+        </RequireCapability>
       </CardContent>
     </Card>
   );

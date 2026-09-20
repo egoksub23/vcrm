@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import { downloadCsv } from '@/lib/csv';
 import { createClient } from '@/lib/supabase/client';
 import { isContactTag, isConversationLabel } from '@/lib/tags/scope';
@@ -57,7 +57,7 @@ export function TagCatalogPanel({
 }) {
   const t = useTranslations('Settings.tagCatalog');
   const { accountId, loading: authLoading } = useAuth();
-  const canEdit = useCan('edit-settings');
+  const canEdit = useCapability('tags.manage');
 
   const [loading, setLoading] = useState(true);
   const [tags, setTags] = useState<Tag[]>([]);

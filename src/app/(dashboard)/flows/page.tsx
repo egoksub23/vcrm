@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
 import {
@@ -84,7 +84,7 @@ const TEMPLATE_ICONS = {
 
 export default function FlowsPage() {
   const router = useRouter();
-  const canCreate = useCan("send-messages");
+  const canCreate = useCapability("flows.manage");
   const t = useTranslations("Flows.list");
   const [flows, setFlows] = useState<FlowRow[]>([]);
   const [loading, setLoading] = useState(true);

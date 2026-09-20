@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   ForbiddenError,
   UnauthorizedError,
-  requireRole,
+  requireCapability,
   toErrorResponse,
 } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     // membership, so a viewer or agent could push a template to Meta for
     // approval — an external side effect RLS can't roll back — before the
     // local upsert was refused.
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('channels.manage')
 
     let payload: TemplatePayload
     try {

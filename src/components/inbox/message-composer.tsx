@@ -43,7 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -233,7 +233,7 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
   const tk = useTranslations("Knowledge.agent");
-  const canWriteKnowledge = useCan("send-messages");
+  const canWriteKnowledge = useCapability("knowledge.draft");
 
   // ---- Channel selector ------------------------------------------------
   // Defaults to the conversation's rollup channel; the agent can pick a
@@ -490,7 +490,10 @@ export function MessageComposer({
   // Viewers (read-only role) can browse the inbox but never send.
   // For solo users this is always true — single-owner accounts pass
   // every capability — so the disabled branch is a no-op there.
-  const canSend = useCan("send-messages");
+  const canSend = useCapability("messages.send");
+  const canManageSnippets = useCapability("snippets.manage");
+  // Source chips open the Knowledge page: only link them with menu.knowledge.
+  const canOpenKnowledge = useCapability("menu.knowledge");
   const readOnly = !canSend;
   // Media (like free-form text) is only allowed inside the 24h window.
   const inputsDisabled = readOnly || sessionExpired;
@@ -1342,20 +1345,34 @@ export function MessageComposer({
             <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
               <BookOpen className="h-3 w-3 shrink-0 text-primary" />
               <span className="text-muted-foreground">{tk("basedOn")}</span>
-              {draftSources.map((src) => (
-                <a
-                  key={src.id}
-                  href={`/knowledge/${src.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary hover:bg-primary/15"
-                  title={tk("openArticle")}
-                >
-                  <span className="shrink-0">{src.n}</span>
-                  <span aria-hidden="true">·</span>
-                  <span className="truncate">{src.title}</span>
-                </a>
-              ))}
+              {draftSources.map((src) => {
+                const chipBody = (
+                  <>
+                    <span className="shrink-0">{src.n}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="truncate">{src.title}</span>
+                  </>
+                );
+                return canOpenKnowledge ? (
+                  <a
+                    key={src.id}
+                    href={`/knowledge/${src.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary hover:bg-primary/15"
+                    title={tk("openArticle")}
+                  >
+                    {chipBody}
+                  </a>
+                ) : (
+                  <span
+                    key={src.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary"
+                  >
+                    {chipBody}
+                  </span>
+                );
+              })}
             </div>
           )}
           {kbFiles.length > 0 && (
@@ -1641,18 +1658,21 @@ export function MessageComposer({
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={savingQuickReply}
-              onClick={saveAsQuickReply}
-            >
-              {savingQuickReply ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <Zap className="mr-1 h-4 w-4" />
-              )}
-              {t("saveAsQuickReply")}
-            </Button>
+            {/* Saving a quick reply creates a snippet: snippets.manage. */}
+            {canManageSnippets ? (
+              <Button
+                variant="outline"
+                disabled={savingQuickReply}
+                onClick={saveAsQuickReply}
+              >
+                {savingQuickReply ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="mr-1 h-4 w-4" />
+                )}
+                {t("saveAsQuickReply")}
+              </Button>
+            ) : null}
             <Button onClick={sendInteractive}>
               <Send className="mr-1 h-4 w-4" />
               {t("send")}

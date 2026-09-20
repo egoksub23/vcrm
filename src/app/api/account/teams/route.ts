@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 
-import { getCurrentAccount, requireRole, toErrorResponse } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -106,7 +106,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("teams.manage");
 
     const limit = checkRateLimit(
       `admin:teamCreate:${ctx.userId}`,

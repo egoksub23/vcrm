@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import {
   REPLY_MAX_CHARS,
@@ -65,8 +65,9 @@ export function CommentDetail({
   onChanged: () => void;
 }) {
   const t = useTranslations("Comments");
-  const canWrite = useCan("send-messages");
-  const isAdmin = useCan("edit-settings");
+  const canWrite = useCapability("comments.moderate");
+  // Deleting a comment: comments.delete (admin+ by default).
+  const isAdmin = useCapability("comments.delete");
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);

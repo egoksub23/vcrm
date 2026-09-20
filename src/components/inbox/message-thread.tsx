@@ -64,7 +64,7 @@ import { MessageActions } from "./message-actions";
 import { ArticleDialog } from "@/components/knowledge/article-dialog";
 import { buildKnowledgeQuery } from "@/lib/inbox/kb-agent";
 import type { ArticleDraftSeed } from "@/lib/knowledge-types";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { MediaLightbox } from "./media-lightbox";
 import { collectMediaGallery } from "@/lib/media/gallery";
 import {
@@ -1060,7 +1060,7 @@ export function MessageThread({
   // Knowledge tab) opens the shared article dialog, pre-filled. An agent's
   // reply becomes the answer under the customer's question just above it;
   // a customer message becomes the question, ready for an answer.
-  const canAddKnowledge = useCan("send-messages");
+  const canAddKnowledge = useCapability("knowledge.draft");
   const [kbSeed, setKbSeed] = useState<{ key: number; seed: ArticleDraftSeed } | null>(null);
   const openKnowledgeDialog = useCallback((seed: ArticleDraftSeed) => {
     setKbSeed({ key: Date.now(), seed });

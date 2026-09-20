@@ -17,7 +17,7 @@ import { GmailChannel } from './channels/gmail-channel';
 import { TikTokChannel } from './channels/tiktok-channel';
 import { CommentsSamplesCard } from './channels/comments-samples-card';
 import { PROVIDER_ICONS } from '@/components/comments/provider-icons';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 
 type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'tiktok' | 'email' | 'gmail' | 'sms';
 
@@ -55,7 +55,7 @@ function isChannelId(value: string | null): value is ChannelId {
  */
 export function ChannelsTab() {
   const t = useTranslations('Settings.channels');
-  const canEditSettings = useCan('edit-settings');
+  const canManageChannels = useCapability('channels.manage');
   const searchParams = useSearchParams();
   // The OAuth connect flow (Messenger/Instagram) redirects back here
   // with `?channel=`, so a completed connection (or an error) lands on
@@ -117,7 +117,7 @@ export function ChannelsTab() {
       {active === 'messenger' ? <MessengerChannel /> : null}
       {active === 'instagram' ? <InstagramChannel /> : null}
       {active === 'tiktok' ? <TikTokChannel /> : null}
-      {canEditSettings && (active === 'messenger' || active === 'instagram' || active === 'tiktok') ? (
+      {canManageChannels && (active === 'messenger' || active === 'instagram' || active === 'tiktok') ? (
         <CommentsSamplesCard />
       ) : null}
       {active === 'email' ? <EmailChannel /> : null}

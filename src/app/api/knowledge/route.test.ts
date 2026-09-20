@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({ getCurrentAccount: vi.fn() }))
 vi.mock('@/lib/auth/account', () => ({
   getCurrentAccount: h.getCurrentAccount,
-  requireRole: vi.fn(),
+  requireAnyCapability: vi.fn(),
   toErrorResponse: () => Response.json({ error: 'auth failed' }, { status: 403 }),
 }))
 

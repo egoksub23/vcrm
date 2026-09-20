@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -22,7 +22,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; userId: string }> },
 ) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("teams.manage");
 
     const limit = checkRateLimit(
       `admin:teamMemberRemove:${ctx.userId}`,

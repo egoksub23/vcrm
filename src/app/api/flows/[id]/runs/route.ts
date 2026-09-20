@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 
 /**
  * GET /api/flows/[id]/runs
@@ -22,12 +22,12 @@ export async function GET(
 ) {
   const { id } = await context.params
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // The run history belongs to the Flows menu: `menu.flows`.
+  let supabase
+  try {
+    ;({ supabase } = await requireCapability('menu.flows'))
+  } catch (err) {
+    return toErrorResponse(err)
   }
 
   // Confirm flow exists + caller owns it (RLS does this) before doing

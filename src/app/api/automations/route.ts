@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { getTemplate } from '@/lib/automations/templates'
 import { insertSteps, type BuilderStepInput } from '@/lib/automations/steps-tree'
@@ -10,11 +10,14 @@ import {
 } from '@/lib/automations/validate'
 
 export async function GET() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Listing is a read of the Automations menu: it needs `menu.automations`
+  // (every role by default).
+  let supabase
+  try {
+    ;({ supabase } = await requireCapability('menu.automations'))
+  } catch (err) {
+    return toErrorResponse(err)
+  }
 
   const { data, error } = await supabase
     .from('automations')
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
   // requires `agent`, but this route inserts via the service-role client
   // which bypasses RLS, so the role must be enforced here.
   try {
-    await requireRole('agent')
+    await requireCapability('automations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }

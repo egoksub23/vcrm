@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { daysAgoStart, lastNDayKeys, localDayKey } from '@/lib/dashboard/date-utils'
 
 // Rows are aggregated in-process over a bounded window. An active
@@ -33,7 +33,7 @@ interface UsageRow {
  */
 export async function GET(request: Request) {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireCapability('ai.configure')
 
     const url = new URL(request.url)
     const rawDays = Number(url.searchParams.get('days'))

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { BookOpen, Loader2, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
 import { KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from '@/lib/ai/knowledge-query';
 import { canTranslateArticle } from '@/lib/knowledge/translate';
@@ -68,8 +68,12 @@ export function KnowledgeLibrary() {
   const router = useRouter();
   const translate = useTranslate();
   const { user } = useAuth();
-  const isAdmin = useCan('edit-settings');
-  const canWrite = useCan('send-messages');
+  // knowledge.publish: publish, and edit / delete anyone's article.
+  // knowledge.manage: collections and re-indexing. knowledge.draft: write
+  // and edit your own drafts.
+  const canPublish = useCapability('knowledge.publish');
+  const canManageKb = useCapability('knowledge.manage');
+  const canWrite = useCapability('knowledge.draft');
 
   const [docs, setDocs] = useState<KnowledgeDocSummary[]>([]);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
@@ -132,12 +136,12 @@ export function KnowledgeLibrary() {
   }, [viewCollectionId, collections, loading]);
 
   const canManage = (d: KnowledgeDocSummary) =>
-    isAdmin || (canWrite && d.status === 'draft' && d.created_by === user?.id);
+    canPublish || (canWrite && d.status === 'draft' && d.created_by === user?.id);
 
   // Translating uses the AI and can take a while, so it asks first, shows a
   // spinner on the chip, and opens the new draft when it is done.
   const canTranslate = (d: KnowledgeDocSummary) =>
-    !d.translation_of && canTranslateArticle({ isAdmin, userId: user?.id ?? null, article: d });
+    !d.translation_of && canTranslateArticle({ isAdmin: canPublish, userId: user?.id ?? null, article: d });
 
   async function translateInto(d: KnowledgeDocSummary, language: KbLanguage) {
     if (!window.confirm(tt('translateConfirm', { language: KB_LANGUAGE_LABELS[language], title: d.title }))) return;
@@ -270,7 +274,7 @@ export function KnowledgeLibrary() {
           >
             {searchMode === 'meaning' ? t('searchModeMeaning') : t('searchModeKeyword')}
           </span>
-          {isAdmin && docs.length > 0 && (
+          {canManageKb && docs.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => void reindex()} disabled={reindexing} title={t('reindexHint')}>
               {reindexing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
               {t('reindex')}
@@ -307,7 +311,7 @@ export function KnowledgeLibrary() {
             counts={counts}
             collections={collections}
             openGaps={openGaps}
-            isAdmin={isAdmin}
+            canManageCollections={canManageKb}
             onManageCollections={() => setManaging(true)}
           />
 
@@ -351,7 +355,7 @@ export function KnowledgeLibrary() {
                       </option>
                     ))}
                   </select>
-                  {isAdmin && (
+                  {canPublish && (
                     <label className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Switch checked={showTranslations} onCheckedChange={setShowTranslations} aria-label={tt('showAsRows')} />
                       {tt('showAsRows')}
@@ -378,7 +382,7 @@ export function KnowledgeLibrary() {
                       docs={shown}
                       collections={collections}
                       today={today}
-                      isAdmin={isAdmin}
+                      canPublish={canPublish}
                       canManage={canManage}
                       busyId={busyId}
                       onPublish={(d) => void publish(d)}

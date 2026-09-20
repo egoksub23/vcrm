@@ -8,15 +8,14 @@ import { AiPlayground } from '@/components/agents/ai-playground';
 import { AiUsageCard } from '@/components/agents/ai-usage';
 import { AiConfig } from '@/components/settings/ai-config';
 import { AiConnections } from '@/components/agents/ai-connections';
-import { useAuth } from '@/hooks/use-auth';
-import { canEditSettings } from '@/lib/auth/roles';
+import { useCapability } from '@/hooks/use-auth';
 
 type Tab = 'playground' | 'setup' | 'connections' | 'usage';
 
 export default function AgentsPage() {
   const t = useTranslations('Agents');
-  const { accountRole } = useAuth();
-  const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
+  // Usage and cost data: ai.configure (admin+ by default).
+  const canViewUsage = useCapability('ai.configure');
   const [tab, setTab] = useState<Tab>('playground');
   const [decided, setDecided] = useState(false);
 

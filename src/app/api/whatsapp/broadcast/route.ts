@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     // to arbitrary phone numbers from the account's WhatsApp number.
     // Nothing about that is recoverable after the fact, so the check has
     // to happen here.
-    const { supabase, accountId, userId } = await requireRole('agent')
+    const { supabase, accountId, userId } = await requireCapability('broadcasts.send')
 
     // Per-user broadcast budget. Note: this limits how often a user
     // can *start* a campaign, not how many messages go out inside
@@ -239,7 +239,7 @@ export async function POST(request: Request) {
       results,
     })
   } catch (error) {
-    // requireRole throws Unauthorized/Forbidden; toErrorResponse maps
+    // requireCapability throws Unauthorized/Forbidden; toErrorResponse maps
     // those to 401/403 and collapses anything else to a generic 500.
     console.error('Error in WhatsApp broadcast POST:', error)
     return toErrorResponse(error)

@@ -8,7 +8,7 @@ import { Loader2, MessageCircleMore, RefreshCw, Search } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { COMMENT_PROVIDERS, type CommentPost, type CommentProvider, type CommentRow } from "@/lib/comments/types";
 import type { InboxTab } from "@/lib/inbox/channel-scope";
@@ -40,7 +40,7 @@ export function CommentsInbox({
 }) {
   const t = useTranslations("Comments");
   const { accountId } = useAuth();
-  const canWrite = useCan("send-messages");
+  const canWrite = useCapability("comments.moderate");
 
   const [view, setView] = useState<View>("open");
   const [provider, setProvider] = useState<CommentProvider | "">("");

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, Copy, Loader2, PlugZap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,7 +57,8 @@ function CopyField({ label, value, copiedMsg }: { label: string; value: string; 
  */
 export function TikTokChannel() {
   const t = useTranslations('Settings.channels.tiktok');
-  const { user, accountId, loading: authLoading, profileLoading, canEditSettings } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
+  const canManageChannels = useCapability('channels.manage');
   const searchParams = useSearchParams();
 
   const [status, setStatus] = useState<TikTokStatus | null>(null);
@@ -186,7 +187,7 @@ export function TikTokChannel() {
               <AlertTriangle className="size-4 shrink-0" />
               {t('reauthBanner')}
             </div>
-            {canEditSettings ? (
+            {canManageChannels ? (
               <a href={connectHref} className={buttonVariants({ size: 'sm' })}>
                 {t('reauthButton')}
               </a>
@@ -216,7 +217,7 @@ export function TikTokChannel() {
                   {busy === 'sync' ? <Loader2 className="size-4 animate-spin" /> : null}
                   {t('syncNow')}
                 </Button>
-                {canEditSettings ? (
+                {canManageChannels ? (
                   <Button size="sm" variant="outline" onClick={() => void disconnect()} disabled={busy !== null}>
                     {busy === 'disconnect' ? <Loader2 className="size-4 animate-spin" /> : null}
                     {t('disconnect')}
@@ -227,7 +228,7 @@ export function TikTokChannel() {
           ) : (
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">{t('notConnected')}</p>
-              {canEditSettings && status?.app_configured ? (
+              {canManageChannels && status?.app_configured ? (
                 <a href={connectHref} className={buttonVariants({})}>
                   <PlugZap className="size-4" />
                   {t('connectButton')}
@@ -238,7 +239,7 @@ export function TikTokChannel() {
         </CardContent>
       </Card>
 
-      {canEditSettings && status ? (
+      {canManageChannels && status ? (
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-base">{t('setupTitle')}</CardTitle>

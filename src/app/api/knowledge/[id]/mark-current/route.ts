@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
-import { hasMinRole } from '@/lib/auth/roles'
+import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadBaseOf } from '@/lib/knowledge/translations'
 
@@ -17,7 +16,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function POST(_request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params
@@ -32,7 +31,7 @@ export async function POST(_request: Request, { params }: Params) {
     if (!doc.translation_of) {
       return NextResponse.json({ error: 'Only a translation can be marked up to date.' }, { status: 400 })
     }
-    if (!hasMinRole(role, 'admin') && (doc.status !== 'draft' || doc.created_by !== userId)) {
+    if (!capabilities.has('knowledge.publish') && (doc.status !== 'draft' || doc.created_by !== userId)) {
       return NextResponse.json({ error: 'You can only change your own drafts. Ask an admin.' }, { status: 403 })
     }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import { CommentWriteError, postInternalComment } from '@/lib/conversations/comment-write';
 
 export async function POST(
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireCapability('conversations.manage');
     const { id: conversationId } = await params;
 
     const body = (await request.json().catch(() => null)) as

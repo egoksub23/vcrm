@@ -17,7 +17,7 @@
 import { NextResponse } from 'next/server';
 import { after } from 'next/server';
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import {
   BroadcastError,
   deliverBroadcast,
@@ -51,7 +51,7 @@ export async function POST(
     // Same gate as the batch send endpoint: running a broadcast is a
     // write, and viewers are read-only. Resuming is no different — it
     // puts real messages on real phones.
-    const { supabase, accountId, userId } = await requireRole('agent');
+    const { supabase, accountId, userId } = await requireCapability('broadcasts.send');
 
     const limit = checkRateLimit(
       `broadcast-resume:${userId}`,

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseDocInput } from '@/lib/ai/knowledge-doc'
-import { hasMinRole } from '@/lib/auth/roles'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadCollections, syncAttachments } from '@/lib/knowledge/articles'
 import { groupTranslationsByBase } from '@/lib/knowledge/translate'
@@ -167,7 +166,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId, role } = await requireRole('agent')
+    const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 
@@ -185,7 +184,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const isAdmin = hasMinRole(role, 'admin')
+    const isAdmin = capabilities.has('knowledge.publish')
     const status = isAdmin ? (parsed.fields.status ?? 'published') : 'draft'
 
     const { data: doc, error } = await supabase

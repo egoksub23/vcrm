@@ -23,6 +23,10 @@
 //   } catch (err) {
 //     return errorResponse(err); // see toErrorResponse() below
 //   }
+//
+// Prefer `requireCapability("tags.manage")` over `requireRole` for
+// anything an Owner/Admin can edit per role (see ./capabilities.ts).
+// `requireRole` stays for owner-only actions.
 // ============================================================
 
 import { NextResponse } from "next/server";
@@ -30,6 +34,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
 import { hasMinRole, isAccountRole, type AccountRole } from "./roles";
+import {
+  getCapability,
+  overridesFromRows,
+  resolveCapabilities,
+} from "./capabilities";
 
 // ------------------------------------------------------------
 // Errors
@@ -187,4 +196,102 @@ export async function requireRole(min: AccountRole): Promise<AccountContext> {
     );
   }
   return ctx;
+}
+
+// ------------------------------------------------------------
+// Capabilities (migration 079, see ./capabilities.ts)
+// ------------------------------------------------------------
+
+/** Account context plus the caller's effective capability set. */
+export interface CapabilityContext extends AccountContext {
+  /** Effective capabilities of the caller's role (default + overrides). */
+  capabilities: ReadonlySet<string>;
+}
+
+/** Postgres / PostgREST codes for "that table does not exist (yet)". */
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
+
+// One load per request context: `getCurrentAccount()` builds a fresh
+// context object per call, so keying on it memoises per request while
+// never leaking one caller's capabilities to another.
+const capabilityCache = new WeakMap<AccountContext, Promise<Set<string>>>();
+
+/**
+ * Resolve the caller's effective capabilities: the role's default set
+ * plus the account's overrides for that role. One query, memoised per
+ * context. Fails closed: if the overrides cannot be read the request is
+ * refused rather than falling back to defaults (which could grant more
+ * than an admin allowed). The one exception is a missing table, meaning
+ * migration 079 is not applied, where no override can exist yet and the
+ * defaults equal the pre-079 role floors.
+ */
+export function loadCapabilities(ctx: AccountContext): Promise<Set<string>> {
+  let pending = capabilityCache.get(ctx);
+  if (!pending) {
+    pending = (async () => {
+      if (ctx.role === "owner") return resolveCapabilities("owner");
+      const { data, error } = await ctx.supabase
+        .from("role_capabilities")
+        .select("capability, granted")
+        .eq("account_id", ctx.accountId)
+        .eq("role", ctx.role);
+      if (error) {
+        if (error.code && MISSING_TABLE_CODES.has(error.code)) {
+          return resolveCapabilities(ctx.role);
+        }
+        console.error("[loadCapabilities] overrides fetch error:", error);
+        throw new ForbiddenError("Could not load permissions");
+      }
+      return resolveCapabilities(ctx.role, overridesFromRows(data));
+    })();
+    capabilityCache.set(ctx, pending);
+    // A rejected load must not poison a later retry on the same ctx.
+    pending.catch(() => capabilityCache.delete(ctx));
+  }
+  return pending;
+}
+
+function capabilityDenied(cap: string): ForbiddenError {
+  return new ForbiddenError(`This action requires the '${cap}' permission`);
+}
+
+/**
+ * Resolve the caller's account context and enforce a capability.
+ * Returns the same context as `requireRole` plus `capabilities`.
+ *
+ * Throws `UnauthorizedError` / `ForbiddenError` as documented on
+ * `getCurrentAccount`, plus `ForbiddenError("This action requires the
+ * '<capability>' permission")`. An unknown capability key is always
+ * denied (deny by default).
+ */
+export async function requireCapability(cap: string): Promise<CapabilityContext> {
+  const ctx = await getCurrentAccount();
+  const capabilities = await loadCapabilities(ctx);
+  if (!getCapability(cap) || !capabilities.has(cap)) {
+    throw capabilityDenied(cap);
+  }
+  return Object.assign(ctx, { capabilities });
+}
+
+/** Like `requireCapability`, but any one of `caps` is enough. */
+export async function requireAnyCapability(
+  caps: readonly string[],
+): Promise<CapabilityContext> {
+  const ctx = await getCurrentAccount();
+  const capabilities = await loadCapabilities(ctx);
+  if (!caps.some((c) => getCapability(c) && capabilities.has(c))) {
+    throw capabilityDenied(caps.join("' or '"));
+  }
+  return Object.assign(ctx, { capabilities });
+}
+
+/**
+ * Second, action-specific check on a context that already passed
+ * `requireCapability` (for example `comments.delete` inside a route
+ * gated by `comments.moderate`). Throws `ForbiddenError`.
+ */
+export function assertCapability(ctx: CapabilityContext, cap: string): void {
+  if (!getCapability(cap) || !ctx.capabilities.has(cap)) {
+    throw capabilityDenied(cap);
+  }
 }

@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/use-auth';
+import { editableRoles } from '@/lib/auth/capabilities';
 
 type InviteRole = 'admin' | 'agent' | 'viewer';
 
@@ -76,8 +77,18 @@ export function InviteMemberDialog({
 }: InviteMemberDialogProps) {
   const t = useTranslations('Settings.invite');
   const tRoles = useTranslations('Settings.roles');
-  const { account } = useAuth();
-  const [role, setRole] = useState<InviteRole>('agent');
+  const { account, accountRole } = useAuth();
+  // A person can only invite into a role strictly below their own: an
+  // admin offers agent/viewer, an owner offers admin/agent/viewer.
+  const roleOptions = (accountRole ? editableRoles(accountRole) : []).filter(
+    (r): r is InviteRole => r !== 'owner',
+  );
+  const [chosenRole, setRole] = useState<InviteRole>('agent');
+  // The remembered choice may not be offered to this caller (e.g. the
+  // default 'agent' for someone who can only invite viewers).
+  const role: InviteRole = roleOptions.includes(chosenRole)
+    ? chosenRole
+    : (roleOptions[0] ?? chosenRole);
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -277,9 +288,11 @@ export function InviteMemberDialog({
                     <SelectValue>{tRoles(role)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">{tRoles('admin')}</SelectItem>
-                    <SelectItem value="agent">{tRoles('agent')}</SelectItem>
-                    <SelectItem value="viewer">{tRoles('viewer')}</SelectItem>
+                    {roleOptions.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {tRoles(r)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">

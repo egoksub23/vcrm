@@ -8,7 +8,7 @@ import { Check, Loader2, Pencil, Plus, StickyNote, Trash2, X } from "lucide-reac
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { ContactNote } from "@/types";
@@ -30,9 +30,14 @@ const stamp = (iso: string) => format(new Date(iso), "MMM d, yyyy HH:mm");
 export function ContactNotesPanel({ contactId }: { contactId: string | null }) {
   const t = useTranslations("Inbox.sidebar");
   const tn = useTranslations("Inbox.notesPanel");
-  const { accountId, user, profile } = useAuth();
-  const canWrite = useCan("send-messages");
-  const isAdmin = useCan("edit-settings");
+  const { accountId, user, profile, accountRole } = useAuth();
+  // Own notes: contacts.edit (agent+ by default; it covers contact notes).
+  const canWrite = useCapability("contacts.edit");
+  // Managing OTHER people's notes is a role fact, not a capability: the
+  // contact_notes RLS policy lets admin+ change any note in the account.
+  // It is kept behind contacts.edit so switching that off blocks notes too.
+  const isAdmin =
+    canWrite && (accountRole === "owner" || accountRole === "admin");
 
   const [notes, setNotes] = useState<ContactNote[]>([]);
   const [authors, setAuthors] = useState<Map<string, string>>(new Map());

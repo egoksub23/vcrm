@@ -11,7 +11,7 @@
 import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import type { WebWidgetConfig } from '@/types'
 
@@ -49,7 +49,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
 
     const limit = checkRateLimit(`admin:webWidgetConfig:${ctx.userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)

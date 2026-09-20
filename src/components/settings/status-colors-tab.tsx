@@ -6,7 +6,7 @@ import { SwatchBook, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -73,7 +73,8 @@ function ColorField({ label, value, onChange, disabled }: ColorFieldProps) {
  */
 export function StatusColorsTab() {
   const supabase = createClient();
-  const { accountId, statusColors, canEditSettings, profileLoading, refreshProfile } = useAuth();
+  const { accountId, statusColors, profileLoading, refreshProfile } = useAuth();
+  const canEditWorkspace = useCapability('settings.workspace');
   const t = useTranslations('Settings.statusColors');
 
   const [colors, setColors] = useState<StatusColors>(statusColors);
@@ -84,7 +85,7 @@ export function StatusColorsTab() {
   }, [statusColors]);
 
   const dirty = JSON.stringify(colors) !== JSON.stringify(statusColors);
-  const disabled = !canEditSettings || profileLoading;
+  const disabled = !canEditWorkspace || profileLoading;
 
   function setField(field: 'open' | 'pending' | 'closed' | 'overdue', value: string) {
     setColors((prev) => ({ ...prev, [field]: value }));
@@ -167,11 +168,11 @@ export function StatusColorsTab() {
         </CardContent>
       </Card>
 
-      {!canEditSettings && (
+      {!canEditWorkspace && (
         <p className="mt-4 text-xs text-muted-foreground">{t('adminOnlyHint')}</p>
       )}
 
-      {canEditSettings && (
+      {canEditWorkspace && (
         <div className="mt-6 flex items-center gap-2">
           <Button
             onClick={handleSave}

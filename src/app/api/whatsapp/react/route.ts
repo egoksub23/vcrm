@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import { sendReactionMessage } from '@/lib/whatsapp/meta-api';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import { resolveContactSendTarget } from '@/lib/whatsapp/wa-identity';
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     // reaction to Meta before mirroring it locally — so, as on /send, a
     // missing role check let a read-only viewer put a visible reaction on
     // the customer's message even though RLS blocked the local mirror.
-    const { supabase, accountId, userId } = await requireRole('agent');
+    const { supabase, accountId, userId } = await requireCapability('messages.send');
 
     const limit = checkRateLimit(`react:${userId}`, RATE_LIMITS.react);
     if (!limit.success) {
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    // requireRole throws Unauthorized/Forbidden; toErrorResponse maps
+    // requireCapability throws Unauthorized/Forbidden; toErrorResponse maps
     // those to 401/403 and collapses anything else to a generic 500.
     console.error('Error in WhatsApp react POST:', error);
     return toErrorResponse(error);

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useCapability } from "@/hooks/use-auth";
 import { BookOpen, ExternalLink, FileText, Image as ImageIcon, Loader2, Paperclip, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -137,6 +138,8 @@ export function KnowledgeCard({
 }) {
   const t = useTranslations("Inbox.knowledge");
   const tk = useTranslations("Knowledge.agent");
+  // "Open" goes to the Knowledge page: only offered with menu.knowledge.
+  const canOpenKnowledge = useCapability("menu.knowledge");
   const r = result;
   const canDraft = !!onDraft && r.use_in_ai;
 
@@ -183,16 +186,18 @@ export function KnowledgeCard({
                 {t("insert")}
               </button>
             ) : null}
-            <a
-              href={`/knowledge/${r.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-0.5 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
-              title={t("openLibrary")}
-            >
-              <ExternalLink className="h-3 w-3" />
-              {tk("open")}
-            </a>
+            {canOpenKnowledge ? (
+              <a
+                href={`/knowledge/${r.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-0.5 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
+                title={t("openLibrary")}
+              >
+                <ExternalLink className="h-3 w-3" />
+                {tk("open")}
+              </a>
+            ) : null}
             {canDraft ? (
               <button
                 type="button"

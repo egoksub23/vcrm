@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { AiError } from '@/lib/ai/types'
@@ -18,7 +18,7 @@ import { outputLanguage, runWrapUpJob } from '@/lib/ai/wrap-up-run'
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('agent')
+    const { supabase, accountId, userId } = await requireCapability('ai.use')
     const limit = checkRateLimit(`ai-closing:${userId}`, RATE_LIMITS.aiDraft ?? RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 

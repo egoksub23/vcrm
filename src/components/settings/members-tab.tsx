@@ -14,11 +14,12 @@
 //                 rather than pretending we can resurface it.
 //
 // Role-gating
-//   The tab itself is reachable by any member, but mutation buttons
-//   are wrapped in `<RequireRole min="admin">` / `useCan` so an
-//   agent or viewer sees the roster read-only. The server-side
-//   RPCs (set_member_role, remove_account_member) double-check
-//   the role anyway.
+//   The tab itself is reachable by any member, but each mutation is
+//   behind its own capability (members.invite / members.change-role /
+//   members.remove) so a person without them sees the roster
+//   read-only. On top of that nobody can act on a member whose role
+//   is at or above their own, and only roles below their own are
+//   offered. The server-side RPCs double-check all of it.
 // ============================================================
 
 import { useCallback, useEffect, useState } from 'react';
@@ -63,10 +64,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
-import { RequireRole } from '@/components/auth/require-role';
-import { useAuth } from '@/hooks/use-auth';
+import { RequireCapability } from '@/components/auth/require-capability';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { usePresence } from '@/hooks/use-presence';
-import type { AccountRole } from '@/lib/auth/roles';
+import { roleRank, type AccountRole } from '@/lib/auth/roles';
 import { presenceLabel, summarize } from '@/lib/presence';
 import {
   PRESENCE_DOT_CLASS,
@@ -127,7 +128,15 @@ function fmtExpiresIn(iso: string, t: (key: string, values?: Record<string, stri
 export function MembersTab() {
   const t = useTranslations('Settings.members');
   const tRoles = useTranslations('Settings.roles');
-  const { user, canManageMembers } = useAuth();
+  const { user, accountRole } = useAuth();
+  const canInvite = useCapability('members.invite');
+  const canChangeRole = useCapability('members.change-role');
+  const canRemove = useCapability('members.remove');
+  // Only members strictly below the caller can be acted on, and only
+  // roles strictly below the caller can be handed out.
+  const isBelowMe = (role: AccountRole) =>
+    !!accountRole && roleRank(role) < roleRank(accountRole);
+  const assignableRoles = EDITABLE_ROLES.filter((r) => isBelowMe(r.value));
   const { getPresence, getRow, now } = usePresence();
 
   const [members, setMembers] = useState<Member[]>([]);
@@ -144,7 +153,7 @@ export function MembersTab() {
     try {
       const [mres, ires] = await Promise.all([
         fetch('/api/account/members', { cache: 'no-store' }),
-        canManageMembers
+        canInvite
           ? fetch('/api/account/invitations', { cache: 'no-store' })
           : Promise.resolve(null),
       ]);
@@ -174,7 +183,7 @@ export function MembersTab() {
     } finally {
       setLoading(false);
     }
-  }, [canManageMembers, t]);
+  }, [canInvite, t]);
 
   useEffect(() => {
     void loadEverything();
@@ -286,12 +295,12 @@ export function MembersTab() {
         title={t('title')}
         description={t('description')}
         action={
-          <RequireRole min="admin">
+          <RequireCapability cap="members.invite">
             <Button onClick={() => setInviteOpen(true)}>
               <Plus className="size-4" />
               {t('inviteMember')}
             </Button>
-          </RequireRole>
+          </RequireCapability>
         }
       />
 
@@ -331,6 +340,9 @@ export function MembersTab() {
               const isSelf = member.user_id === user?.id;
               const isOwnerRow = member.role === 'owner';
               const isBusy = pendingMemberAction === member.user_id;
+              // Never the owner row (isBelowMe is false for it), never
+              // yourself, never a role at or above your own.
+              const canActOnRow = !isOwnerRow && !isSelf && isBelowMe(member.role);
               const presence = getPresence(member.user_id);
               const presenceRow = getRow(member.user_id);
               const presenceText = presenceLabel(
@@ -413,7 +425,7 @@ export function MembersTab() {
                     {/* Role display / editor. Inline Select is admin+
                         only AND not allowed on the owner row (owner
                         changes go through transfer, which lands later). */}
-                    {canManageMembers && !isOwnerRow && !isSelf ? (
+                    {canChangeRole && canActOnRow && assignableRoles.length > 0 ? (
                       <Select
                         value={member.role}
                         onValueChange={(v) =>
@@ -431,7 +443,7 @@ export function MembersTab() {
                           <SelectValue>{tRoles(member.role)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {EDITABLE_ROLES.map((r) => (
+                          {assignableRoles.map((r) => (
                             <SelectItem key={r.value} value={r.value}>
                               {tRoles(r.value)}
                             </SelectItem>
@@ -454,7 +466,7 @@ export function MembersTab() {
                         user moused over. Now red is the default
                         state with a darker shade on hover so the
                         affordance reads at-a-glance. */}
-                    {canManageMembers && !isOwnerRow && !isSelf && (
+                    {canRemove && canActOnRow && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -473,8 +485,8 @@ export function MembersTab() {
         </CardContent>
       </Card>
 
-      {/* Pending invitations — admin+ only */}
-      <RequireRole min="admin">
+      {/* Pending invitations — members.invite only */}
+      <RequireCapability cap="members.invite">
         <div>
           <div className="mb-2 flex items-center gap-2">
             <UsersRound className="size-4 text-muted-foreground" />
@@ -558,7 +570,7 @@ export function MembersTab() {
             </Card>
           )}
         </div>
-      </RequireRole>
+      </RequireCapability>
 
       <InviteMemberDialog
         open={inviteOpen}

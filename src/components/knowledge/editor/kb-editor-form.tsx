@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { detectLanguage, KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from "@/lib/ai/knowledge-query";
 import { MAX_CONTENT_CHARS, MAX_TITLE_CHARS, type KbKind, type KbStatus } from "@/lib/ai/knowledge-doc";
@@ -98,7 +98,10 @@ export function KbEditorForm({
   const td = useTranslations("Knowledge.dialog");
   const tt = useTranslations("Knowledge.translations");
   const router = useRouter();
-  const isAdmin = useCan("edit-settings");
+  // isAdmin here means "may publish": knowledge.publish (publish, edit anyone's
+  // article, translate). Creating a collection is knowledge.manage.
+  const isAdmin = useCapability("knowledge.publish");
+  const canManageCollections = useCapability("knowledge.manage");
   const { user } = useAuth();
 
   const initialText = article?.content ?? seed?.content ?? "";
@@ -451,7 +454,7 @@ export function KbEditorForm({
                     {c.name}
                   </option>
                 ))}
-                {isAdmin && <option value={NEW_COLLECTION}>{t("newCollection")}</option>}
+                {canManageCollections && <option value={NEW_COLLECTION}>{t("newCollection")}</option>}
               </select>
               {newCollection !== null && (
                 <div className="flex gap-2">

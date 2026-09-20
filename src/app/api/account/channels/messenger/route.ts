@@ -11,7 +11,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import type { MessengerConnectionStatus } from '@/types'
 
@@ -49,7 +49,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const body = (await request.json().catch(() => null)) as { verify_token?: unknown } | null
     const verifyToken = typeof body?.verify_token === 'string' ? body.verify_token.trim() : ''
     if (!verifyToken) {
@@ -74,7 +74,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE() {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
 
     const { error } = await ctx.supabase
       .from('messenger_config')

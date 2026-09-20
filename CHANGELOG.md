@@ -9,6 +9,33 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.37.0] — 2026-09-20 — **migration required: 079**
+
+- **Roles & permissions.** A new Settings screen where an Owner or Admin adds or
+  removes menus and capabilities for each role. The four roles stay (Owner, Admin,
+  Agent, Viewer); nothing changes until someone edits it, because the defaults
+  reproduce today's behaviour exactly. About 40 capabilities: 13 sidebar menus plus
+  actions such as sending messages, managing tags, publishing knowledge, connecting
+  channels and configuring AI. Includes presets (a "Support Manager" profile that
+  trims the Admin role), a save bar that lists what will change, a change log, and a
+  "By capability" view showing which roles and people hold each one.
+- **Rules that stop privilege creep.** The Owner always has everything and cannot be
+  edited. An Admin edits only Agent and Viewer. Nobody can grant a capability they do
+  not hold. These rules live in the database, not only on the screen.
+- **Menus and pages follow the role.** Hidden menus disappear from the sidebar and
+  settings rail, and their pages show a friendly "no access" state instead of an
+  error. Buttons follow the same capabilities.
+- **Database-enforced where it matters most:** channel connections, AI settings,
+  connections and usage, API keys and webhooks. Every switch on the screen says
+  whether it is enforced by the database or by the app.
+- **Security fixes.** About 14 routes had no role check (WhatsApp settings and
+  template edits, and the automation and flow lists). WhatsApp saves and template
+  edits now check permission before anything is sent to Meta.
+- **Invitations and role changes** only reach roles below your own: an Admin can
+  invite Agents and Viewers, and can no longer change or remove another Admin.
+- **Behaviour change:** the WhatsApp registration check is now for people who may
+  manage channels (Owner, Admin), no longer every member.
+
 ## [0.36.0] — 2026-09-20 — **migration required: 078**
 
 - **Knowledge base: English is the base, with AI translations you can edit.**

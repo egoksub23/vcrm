@@ -5,7 +5,7 @@
 //
 // Manage the credentials that authenticate the public REST API
 // (`/api/v1/*`). Any member sees the roster (read-only); admin+ can
-// mint and revoke (gated by <RequireRole min="admin"> here and the
+// mint and revoke (gated by <RequireCapability cap="api.manage"> here and the
 // admin-only API routes + RLS on the server).
 //
 // One-time reveal: a freshly-minted key's plaintext is shown ONCE in
@@ -33,8 +33,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RequireRole } from '@/components/auth/require-role';
-import { useAuth } from '@/hooks/use-auth';
+import { RequireCapability } from '@/components/auth/require-capability';
+import { useCapability } from '@/hooks/use-auth';
 import {
   API_SCOPES,
   SCOPE_DESCRIPTIONS,
@@ -70,7 +70,7 @@ function keyStatus(k: ApiKey): 'active' | 'revoked' | 'expired' {
 }
 
 export function ApiKeysSettings() {
-  const { canEditSettings } = useAuth();
+  const canManageApi = useCapability('api.manage');
   const t = useTranslations('Settings.apiKeys');
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -145,12 +145,12 @@ export function ApiKeysSettings() {
           })
         }
         action={
-          <RequireRole min="admin">
+          <RequireCapability cap="api.manage">
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" />
               {t('newApiKey')}
             </Button>
-          </RequireRole>
+          </RequireCapability>
         }
       />
 
@@ -161,7 +161,7 @@ export function ApiKeysSettings() {
             <p className="text-muted-foreground mt-2 text-sm">
               {t('noApiKeys')}
             </p>
-            {canEditSettings ? (
+            {canManageApi ? (
               <p className="text-muted-foreground mt-1 text-xs">
                 {t.rich('createOneHint', {
                   bold: (chunks: React.ReactNode) => (
@@ -242,7 +242,7 @@ export function ApiKeysSettings() {
                     </div>
 
                     {status === 'active' && (
-                      <RequireRole min="admin">
+                      <RequireCapability cap="api.manage">
                         <Button
                           variant="outline"
                           size="sm"
@@ -257,7 +257,7 @@ export function ApiKeysSettings() {
                           )}
                           {t('revoke')}
                         </Button>
-                      </RequireRole>
+                      </RequireCapability>
                     )}
                   </li>
                 );

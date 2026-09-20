@@ -13,7 +13,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { getValidAccessToken } from '@/lib/gmail/token'
 import { stopWatch } from '@/lib/gmail/gmail-api'
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
 export async function DELETE() {
   try {
-    const ctx = await requireRole('admin')
+    const ctx = await requireCapability('channels.manage')
     const admin = supabaseAdmin()
 
     const { data: config } = await admin

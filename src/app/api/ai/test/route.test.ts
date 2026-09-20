@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+  requireCapability: vi.fn(),
   listModels: vi.fn(),
   validateAiCredentials: vi.fn(),
   decrypt: vi.fn((v: string) => `plain:${v}`),
@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/auth/account', () => ({
-  requireRole: mocks.requireRole,
+  requireCapability: mocks.requireCapability,
   toErrorResponse: vi.fn(() => Response.json({ error: 'auth failed' }, { status: 403 })),
 }))
 vi.mock('@/lib/rate-limit', () => ({
@@ -44,13 +44,18 @@ function post(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.stored = null
-  mocks.requireRole.mockResolvedValue({ supabase, accountId: 'a1', userId: 'u1' })
+  mocks.requireCapability.mockResolvedValue({ supabase, accountId: 'a1', userId: 'u1' })
   mocks.listModels.mockResolvedValue(['kimi-a', 'kimi-b'])
   mocks.validateAiCredentials.mockResolvedValue({ sample: 'OK', usage: { promptTokens: 5, completionTokens: 1, totalTokens: 6 }, latencyMs: 321 })
 })
 
 describe('POST /api/ai/test', () => {
   const kimi = { provider: 'openai_compatible', base_url: 'https://api.moonshot.ai/v1', api_key: 'sk-typed' }
+
+  it('requires the ai.configure capability', async () => {
+    await post(kimi)
+    expect(mocks.requireCapability).toHaveBeenCalledWith('ai.configure')
+  })
 
   it('lists models only when no model is chosen yet', async () => {
     const res = await post(kimi)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadEmbeddingsConfig } from '@/lib/ai/config'
 import { ingestDocument } from '@/lib/ai/knowledge'
@@ -15,7 +15,7 @@ import { AiError } from '@/lib/ai/types'
  */
 export async function POST() {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireCapability('knowledge.manage')
     const limit = checkRateLimit(`kb-reindex:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 

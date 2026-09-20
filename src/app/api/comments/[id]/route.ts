@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { commentCapabilities } from '@/lib/comments/types'
 
 type Params = { params: Promise<{ id: string }> }
@@ -60,7 +60,7 @@ export async function GET(_request: Request, { params }: Params) {
 /** PATCH /api/comments/[id] — { handled_status?, assigned_to? } (agent+) */
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId } = await requireRole('agent')
+    const { supabase, accountId } = await requireCapability('comments.moderate')
     const { id } = await params
     const body = (await request.json().catch(() => null)) as {
       handled_status?: unknown

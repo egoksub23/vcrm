@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, PlugZap, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
@@ -23,7 +23,8 @@ const BASE = '/api/account/channels/email';
  */
 export function EmailChannel() {
   const t = useTranslations('Settings.channels.email');
-  const { user, accountId, loading: authLoading, profileLoading, canEditSettings } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
+  const canManageChannels = useCapability('channels.manage');
   const searchParams = useSearchParams();
 
   const [status, setStatus] = useState<EmailConnectionStatus | null>(null);
@@ -111,7 +112,7 @@ export function EmailChannel() {
               <AlertTriangle className="size-4 shrink-0" />
               {t('reauthBanner')}
             </div>
-            {canEditSettings ? (
+            {canManageChannels ? (
               <a href={`${BASE}/oauth/start`} className={buttonVariants({ size: 'sm' })}>
                 {t('reauthButton')}
               </a>
@@ -134,7 +135,7 @@ export function EmailChannel() {
                   </p>
                 ) : null}
               </div>
-              {canEditSettings ? (
+              {canManageChannels ? (
                 <Button variant="outline" size="sm" onClick={handleDisconnect} disabled={disconnecting}>
                   {disconnecting ? <Loader2 className="size-4 animate-spin" /> : null}
                   {t('disconnect')}
@@ -144,7 +145,7 @@ export function EmailChannel() {
           ) : (
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">{t('notConnected')}</p>
-              {canEditSettings ? (
+              {canManageChannels ? (
                 <a href={`${BASE}/oauth/start`} className={buttonVariants({})}>
                   <PlugZap className="size-4" />
                   {t('connectButton')}

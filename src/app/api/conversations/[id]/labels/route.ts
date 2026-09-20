@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import {
   ConversationLabelWriteError,
   removeConversationLabel,
@@ -27,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireCapability('conversations.manage');
     const { id: conversationId } = await params;
     const tagId = await readTagId(request);
     if (!tagId) {
@@ -56,7 +56,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireCapability('conversations.manage');
     const { id: conversationId } = await params;
     const tagId = await readTagId(request);
     if (!tagId) {

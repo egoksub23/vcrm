@@ -48,7 +48,10 @@ import { useTranslations } from "next-intl";
 export function Header({ onOpenSidebar }: HeaderProps) {
   const t = useTranslations("Header");
   const pathname = usePathname();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, capabilities, capabilitiesLoading } = useAuth();
+  // Both account-menu links open Settings, which needs menu.settings.
+  const canOpenSettings =
+    !capabilitiesLoading && capabilities.has("menu.settings");
   const titleKey = getPageTitleKey(pathname);
 
   const initial =
@@ -110,29 +113,33 @@ export function Header({ onOpenSidebar }: HeaderProps) {
             </p>
           </div>
           <DropdownMenuSeparator className="bg-border" />
-          <DropdownMenuItem
-            render={
-              <Link
-                href="/settings?tab=profile"
-                className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
-              />
-            }
-          >
-            <User className="size-4" />
-            {t("menuProfile")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            render={
-              <Link
-                href="/settings?tab=whatsapp"
-                className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
-              />
-            }
-          >
-            <SettingsIcon className="size-4" />
-            {t("menuSettings")}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-border" />
+          {canOpenSettings ? (
+            <>
+              <DropdownMenuItem
+                render={
+                  <Link
+                    href="/settings?tab=profile"
+                    className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
+                  />
+                }
+              >
+                <User className="size-4" />
+                {t("menuProfile")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={
+                  <Link
+                    href="/settings?tab=whatsapp"
+                    className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
+                  />
+                }
+              >
+                <SettingsIcon className="size-4" />
+                {t("menuSettings")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border" />
+            </>
+          ) : null}
           <DropdownMenuItem
             onClick={signOut}
             className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"

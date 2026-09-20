@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GitBranch, Plus, ChevronDown, Settings } from "lucide-react";
 import { toast } from "sonner";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
 import { GatedButton } from "@/components/ui/gated-button";
 import { useTranslations } from "next-intl";
@@ -48,8 +48,8 @@ const SPEC_DEFAULT_STAGES = [
 export default function PipelinesPage() {
   const t = useTranslations("Pipelines.page");
   const supabase = createClient();
-  const canEditSettings = useCan("edit-settings");
-  const canCreateDeals = useCan("send-messages");
+  const canConfigurePipelines = useCapability("pipelines.configure");
+  const canCreateDeals = useCapability("deals.manage");
   const { accountId } = useAuth();
 
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -369,7 +369,7 @@ export default function PipelinesPage() {
         <div className="flex items-center gap-2">
           <GatedButton
             variant="outline"
-            canAct={canEditSettings}
+            canAct={canConfigurePipelines}
             gateReason="create pipelines"
             onClick={() => setNewPipelineOpen(true)}
             className="border-border bg-card text-foreground hover:bg-muted"
@@ -401,7 +401,7 @@ export default function PipelinesPage() {
             {t("createToStartTracking")}
           </p>
           <GatedButton
-            canAct={canEditSettings}
+            canAct={canConfigurePipelines}
             gateReason="create pipelines"
             onClick={() => setNewPipelineOpen(true)}
             className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90"

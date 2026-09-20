@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
-import { useCan } from "@/hooks/use-can";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
@@ -57,7 +57,7 @@ export function TicketHistoryPanel({
 }) {
   const t = useTranslations("Inbox.ticketHistory");
   const tt = useTranslations("Tickets.detail");
-  const canRaise = useCan("send-messages");
+  const canRaise = useCapability("tickets.work");
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);

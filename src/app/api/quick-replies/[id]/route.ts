@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 
@@ -15,7 +15,7 @@ export async function PATCH(
   const { id } = await params
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('snippets.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -88,7 +88,7 @@ export async function DELETE(
   const { id } = await params
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('snippets.manage')
   } catch (err) {
     return toErrorResponse(err)
   }

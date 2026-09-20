@@ -32,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { AccountRole } from "@/lib/auth/roles";
+import { filterByCapability } from "@/lib/auth/page-access";
 
 // Per-role chip metadata used in the sidebar's account strip + the
 // Members tab roster. Keeping this near both consumers in a single
@@ -92,25 +93,31 @@ interface NavItem {
    * Purely informational — doesn't affect routing or access.
    */
   beta?: boolean;
+  /**
+   * Menu capability that shows this item (Roles & permissions). The
+   * item is hidden unless the caller holds it; the page itself is
+   * guarded by the same capability in the dashboard shell.
+   */
+  capability?: string;
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
-  { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
-  { href: "/notifications", labelKey: "notifications", icon: Bell },
-  { href: "/contacts", labelKey: "contacts", icon: Users },
-  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
-  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
-  { href: "/tickets", labelKey: "tickets", icon: Ticket },
-  { href: "/automations", labelKey: "automations", icon: Zap },
-  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
-  { href: "/knowledge", labelKey: "knowledge", icon: BookOpen },
-  { href: "/agents", labelKey: "aiAgents", icon: Bot },
-  { href: "/reports", labelKey: "reports", icon: BarChart3 },
+  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard, capability: "menu.dashboard" },
+  { href: "/inbox", labelKey: "inbox", icon: MessageSquare, capability: "menu.inbox" },
+  { href: "/notifications", labelKey: "notifications", icon: Bell, capability: "menu.notifications" },
+  { href: "/contacts", labelKey: "contacts", icon: Users, capability: "menu.contacts" },
+  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch, capability: "menu.pipelines" },
+  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio, capability: "menu.broadcasts" },
+  { href: "/tickets", labelKey: "tickets", icon: Ticket, capability: "menu.tickets" },
+  { href: "/automations", labelKey: "automations", icon: Zap, capability: "menu.automations" },
+  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true, capability: "menu.flows" },
+  { href: "/knowledge", labelKey: "knowledge", icon: BookOpen, capability: "menu.knowledge" },
+  { href: "/agents", labelKey: "aiAgents", icon: Bot, capability: "menu.agents" },
+  { href: "/reports", labelKey: "reports", icon: BarChart3, capability: "menu.reports" },
 ];
 
-const bottomNavItems = [
-  { href: "/settings", labelKey: "settings", icon: Settings },
+const bottomNavItems: NavItem[] = [
+  { href: "/settings", labelKey: "settings", icon: Settings, capability: "menu.settings" },
 ];
 
 interface SidebarProps {
@@ -137,7 +144,26 @@ export function Sidebar({
 }: SidebarProps) {
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
-  const { profile, profileLoading, account, accountRole, signOut } = useAuth();
+  const {
+    profile,
+    profileLoading,
+    account,
+    accountRole,
+    signOut,
+    capabilities,
+    capabilitiesLoading,
+  } = useAuth();
+  // Fail closed, without a flash: while capabilities load nothing is
+  // listed (items that might then disappear are never shown); a failed
+  // load leaves the set empty, so the list stays empty too.
+  const hasCap = (cap: string) => capabilities.has(cap);
+  const visibleNavItems = capabilitiesLoading
+    ? []
+    : filterByCapability(navItems, hasCap);
+  const visibleBottomItems = capabilitiesLoading
+    ? []
+    : filterByCapability(bottomNavItems, hasCap);
+  const canOpenSettings = !capabilitiesLoading && hasCap("menu.settings");
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
 
@@ -277,7 +303,7 @@ export function Sidebar({
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -343,10 +369,12 @@ export function Sidebar({
             })}
           </ul>
 
-          <div className="my-4 border-t border-border" />
+          {visibleBottomItems.length > 0 && visibleNavItems.length > 0 ? (
+            <div className="my-4 border-t border-border" />
+          ) : null}
 
           <ul className="flex flex-col gap-1">
-            {bottomNavItems.map((item) => {
+            {visibleBottomItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <li key={item.href}>
@@ -446,31 +474,37 @@ export function Sidebar({
               sideOffset={6}
               className="min-w-56 bg-popover text-popover-foreground ring-border"
             >
-              <DropdownMenuItem
-                render={
-                  <Link
-                    href="/settings?tab=profile"
-                    onClick={onClose}
-                    className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
-                  />
-                }
-              >
-                <User className="size-4" />
-                {t("menuProfile")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                render={
-                  <Link
-                    href="/settings?tab=whatsapp"
-                    onClick={onClose}
-                    className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
-                  />
-                }
-              >
-                <Settings className="size-4" />
-                {t("menuSettings")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-border" />
+              {/* Both links land on the Settings page, which is guarded by
+                  menu.settings: hide them when the person has no access. */}
+              {canOpenSettings ? (
+                <>
+                  <DropdownMenuItem
+                    render={
+                      <Link
+                        href="/settings?tab=profile"
+                        onClick={onClose}
+                        className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
+                      />
+                    }
+                  >
+                    <User className="size-4" />
+                    {t("menuProfile")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <Link
+                        href="/settings?tab=whatsapp"
+                        onClick={onClose}
+                        className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
+                      />
+                    }
+                  >
+                    <Settings className="size-4" />
+                    {t("menuSettings")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border" />
+                </>
+              ) : null}
               <DropdownMenuItem
                 onClick={signOut}
                 className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"

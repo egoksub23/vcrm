@@ -1,8 +1,8 @@
 // ============================================================
 // /api/account/members/[userId]
 //
-//   PATCH  — change a member's role.   Admin+.
-//   DELETE — remove a member.          Admin+.
+//   PATCH  — change a member's role.   `members.change-role`.
+//   DELETE — remove a member.          `members.remove`.
 //
 // Both delegate to SECURITY DEFINER RPCs from migration 018:
 //   - set_member_role(p_user_id, p_new_role)
@@ -17,7 +17,7 @@
 import { NextResponse } from "next/server";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { isAccountRole } from "@/lib/auth/roles";
 import {
   checkRateLimit,
@@ -47,7 +47,7 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string }> },
 ) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("members.change-role");
 
     const limit = checkRateLimit(
       `admin:memberRole:${ctx.userId}`,
@@ -99,7 +99,7 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string }> },
 ) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireCapability("members.remove");
 
     const limit = checkRateLimit(
       `admin:memberRemove:${ctx.userId}`,

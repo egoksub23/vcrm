@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId } = await requireRole('agent')
+    const { supabase, accountId } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const { id } = await params
     const body = (await request.json().catch(() => null)) as {
       status?: unknown

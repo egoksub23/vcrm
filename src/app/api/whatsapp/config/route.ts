@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import {
   getSubscribedApps,
@@ -246,6 +247,14 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    // Writing channel settings needs `channels.manage` (admins by default),
+    // checked BEFORE anything is sent to Meta. RLS on the table enforces the
+    // same rule for the database write.
+    try {
+      await requireCapability('channels.manage')
+    } catch (err) {
+      return toErrorResponse(err)
+    }
     const supabase = await createClient()
 
     const {
@@ -582,6 +591,14 @@ export async function POST(request: Request) {
  */
 export async function DELETE() {
   try {
+    // Writing channel settings needs `channels.manage` (admins by default),
+    // checked BEFORE anything is sent to Meta. RLS on the table enforces the
+    // same rule for the database write.
+    try {
+      await requireCapability('channels.manage')
+    } catch (err) {
+      return toErrorResponse(err)
+    }
     const supabase = await createClient()
 
     const {

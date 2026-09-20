@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeFakeDb, type FakeDb } from '@/lib/comments/fake-db'
+import { resolveCapabilities } from '@/lib/auth/capabilities'
+import type { AccountRole } from '@/lib/auth/roles'
 
 const h = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+  requireAnyCapability: vi.fn(),
   getCurrentAccount: vi.fn(),
   keepTranslationsCurrent: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/account', () => ({
-  requireRole: h.requireRole,
+  requireAnyCapability: h.requireAnyCapability,
   getCurrentAccount: h.getCurrentAccount,
   toErrorResponse: () => Response.json({ error: 'auth failed' }, { status: 403 }),
 }))
@@ -60,9 +62,9 @@ const att = (id: string, documentId: string) => ({
   position: 0,
 })
 
-function as(role: string, userId: string, fake: FakeDb) {
-  const c = { supabase: fake.db, accountId: ACCT, userId, role }
-  h.requireRole.mockResolvedValue(c)
+function as(role: AccountRole, userId: string, fake: FakeDb, overrides?: Record<string, boolean>) {
+  const c = { supabase: fake.db, accountId: ACCT, userId, role, capabilities: resolveCapabilities(role, overrides) }
+  h.requireAnyCapability.mockResolvedValue(c)
   h.getCurrentAccount.mockResolvedValue(c)
 }
 
@@ -70,7 +72,7 @@ const json = (method: string, body: unknown, url = 'http://localhost/api/knowled
   new Request(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 beforeEach(() => {
-  h.requireRole.mockReset()
+  h.requireAnyCapability.mockReset()
   h.getCurrentAccount.mockReset()
   h.keepTranslationsCurrent.mockReset()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -232,6 +234,17 @@ describe('DELETE /api/knowledge/[id] with translations', () => {
     expect((await DELETE(del('ms1'), params('ms1'))).status).toBe(200)
     expect(fake.tables.ai_knowledge_documents.map((d) => d.id).sort()).toEqual(['base', 'zh1'])
     expect((await DELETE(del('base', '?with_translations=true'), params('base'))).status).toBe(200)
+  })
+
+  it('asks for the draft or publish capability, and treats an admin without knowledge.publish as a drafter', async () => {
+    const fake = makeFakeDb({ ai_knowledge_documents: [doc({ created_by: 'someone' })] })
+    as('admin', 'admin-1', fake, { 'knowledge.publish': false })
+    expect((await DELETE(del('base'), params('base'))).status).toBe(403)
+    expect(h.requireAnyCapability).toHaveBeenCalledWith(['knowledge.draft', 'knowledge.publish'])
+    expect(fake.tables.ai_knowledge_documents).toHaveLength(1)
+
+    as('admin', 'admin-1', fake)
+    expect((await DELETE(del('base'), params('base'))).status).toBe(200)
   })
 
   it('still refuses an agent someone else draft, and 404s an unknown article', async () => {

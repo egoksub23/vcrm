@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 
 // POST /api/contacts/merge
@@ -14,7 +14,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client'
 export async function POST(request: Request) {
   let ctx
   try {
-    ctx = await requireRole('agent')
+    ctx = await requireCapability('contacts.merge')
   } catch (err) {
     return toErrorResponse(err)
   }

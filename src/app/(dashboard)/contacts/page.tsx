@@ -54,7 +54,7 @@ import { ContactForm } from '@/components/contacts/contact-form';
 import { ContactDetailView } from '@/components/contacts/contact-detail-view';
 import { ImportModal } from '@/components/contacts/import-modal';
 import { CustomFieldsManager } from '@/components/contacts/custom-fields-manager';
-import { useCan } from '@/hooks/use-can';
+import { useCapability } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { useTranslations } from 'next-intl';
 
@@ -67,8 +67,9 @@ interface ContactWithTags extends Contact {
 export default function ContactsPage() {
   const t = useTranslations('Contacts.page');
   const supabase = createClient();
-  const canEdit = useCan('send-messages');
-  const canEditSettings = useCan('edit-settings');
+  const canEdit = useCapability('contacts.edit');
+  // Gates the Custom fields manager: same capability as Settings -> Custom fields.
+  const canManageFields = useCapability('settings.workspace');
 
   const [contacts, setContacts] = useState<ContactWithTags[]>([]);
   const [loading, setLoading] = useState(true);
@@ -350,7 +351,7 @@ export default function ContactsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canEditSettings && (
+          {canManageFields && (
             <Button
               variant="outline"
               onClick={() => setCustomFieldsOpen(true)}
@@ -761,7 +762,7 @@ export default function ContactsPage() {
       />
 
       {/* Custom Fields Manager (admin+) */}
-      {canEditSettings && (
+      {canManageFields && (
         <CustomFieldsManager
           open={customFieldsOpen}
           onOpenChange={setCustomFieldsOpen}

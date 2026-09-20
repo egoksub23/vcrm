@@ -2407,7 +2407,8 @@
       "teams": "Teams",
       "api": "API keys",
       "tags": "Tags",
-      "labels": "Conversation labels"
+      "labels": "Conversation labels",
+      "roles": "Roles & permissions"
     },
     "groups": {
       "account": "Account",
@@ -3828,5 +3829,340 @@
     "emptyBody": "Comments on your Facebook, Instagram and TikTok posts appear here once those channels are connected in Settings → Channels.",
     "loadMore": "Load more",
     "selectPrompt": "Select a comment to see the post, the conversation and reply."
+  },
+  "Permissions": {
+    "cap": {
+      "menu_dashboard": {
+        "label": "Menu: Dashboard",
+        "description": "Show the Dashboard in the sidebar and allow opening its page."
+      },
+      "menu_inbox": {
+        "label": "Menu: Inbox",
+        "description": "Show the Inbox in the sidebar and allow opening its page."
+      },
+      "menu_notifications": {
+        "label": "Menu: Notifications",
+        "description": "Show Notifications in the sidebar and allow opening its page."
+      },
+      "menu_contacts": {
+        "label": "Menu: Contacts",
+        "description": "Show Contacts in the sidebar and allow opening its page."
+      },
+      "menu_pipelines": {
+        "label": "Menu: Pipelines",
+        "description": "Show Pipelines in the sidebar and allow opening its page."
+      },
+      "menu_broadcasts": {
+        "label": "Menu: Broadcasts",
+        "description": "Show Broadcasts in the sidebar and allow opening its page."
+      },
+      "menu_tickets": {
+        "label": "Menu: Tickets",
+        "description": "Show Tickets in the sidebar and allow opening its page."
+      },
+      "menu_automations": {
+        "label": "Menu: Automations",
+        "description": "Show Automations in the sidebar and allow opening its page."
+      },
+      "menu_flows": {
+        "label": "Menu: Flows",
+        "description": "Show Flows in the sidebar and allow opening its page."
+      },
+      "menu_knowledge": {
+        "label": "Menu: Knowledge",
+        "description": "Show Knowledge in the sidebar and allow opening its page."
+      },
+      "menu_agents": {
+        "label": "Menu: AI Agents",
+        "description": "Show AI Agents in the sidebar and allow opening its page."
+      },
+      "menu_reports": {
+        "label": "Menu: Reports",
+        "description": "Show Reports in the sidebar and allow opening its page."
+      },
+      "menu_settings": {
+        "label": "Menu: Settings",
+        "description": "Show Settings in the sidebar and allow opening its page."
+      },
+      "messages_send": {
+        "label": "Send messages",
+        "description": "Send replies and internal comments to customers."
+      },
+      "conversations_manage": {
+        "label": "Manage conversations",
+        "description": "Assign, close and reopen conversations, set priority, apply labels, add internal notes and save personal inbox views."
+      },
+      "comments_moderate": {
+        "label": "Moderate public comments",
+        "description": "Reply to, hide and resolve public comments on Facebook, Instagram and TikTok."
+      },
+      "comments_delete": {
+        "label": "Delete public comments",
+        "description": "Delete a public comment on the platform. This cannot be undone."
+      },
+      "inbox_shared_views": {
+        "label": "Shared inbox views",
+        "description": "Create and edit inbox views that the whole team sees."
+      },
+      "contacts_edit": {
+        "label": "Edit contacts",
+        "description": "Create, edit, import and delete contacts, apply tags and write contact notes."
+      },
+      "contacts_merge": {
+        "label": "Merge contacts",
+        "description": "Merge duplicate contacts into one."
+      },
+      "deals_manage": {
+        "label": "Manage deals",
+        "description": "Create deals and move them between pipeline stages."
+      },
+      "pipelines_configure": {
+        "label": "Configure pipelines",
+        "description": "Create and edit pipelines and their stages."
+      },
+      "broadcasts_send": {
+        "label": "Send broadcasts",
+        "description": "Create, send and resume broadcasts."
+      },
+      "automations_manage": {
+        "label": "Manage automations",
+        "description": "Create, edit, duplicate and turn automations on or off."
+      },
+      "flows_manage": {
+        "label": "Manage flows",
+        "description": "Create, edit and activate flows."
+      },
+      "tickets_work": {
+        "label": "Work on tickets",
+        "description": "Create and update tickets and comment on them."
+      },
+      "tickets_delete": {
+        "label": "Delete tickets",
+        "description": "Delete tickets permanently."
+      },
+      "tickets_configure_form": {
+        "label": "Edit the ticket form",
+        "description": "Change the custom fields on the ticket form."
+      },
+      "tags_manage": {
+        "label": "Manage tags and labels",
+        "description": "Create, edit and delete contact tags, conversation labels and auto-label rules."
+      },
+      "snippets_manage": {
+        "label": "Manage quick replies",
+        "description": "Create, edit and delete quick replies (snippets)."
+      },
+      "knowledge_draft": {
+        "label": "Write knowledge drafts",
+        "description": "Write and edit your own draft articles, import content and handle knowledge gaps. Drafts need someone with publish access to go live."
+      },
+      "knowledge_publish": {
+        "label": "Publish knowledge",
+        "description": "Publish, edit or delete any article, including drafts written by others."
+      },
+      "knowledge_manage": {
+        "label": "Manage the knowledge base",
+        "description": "Manage collections, reindex the library and run imports on behalf of the team."
+      },
+      "ai_use": {
+        "label": "Use AI",
+        "description": "AI drafts, conversation summaries, closing notes, auto-reply, translations and the playground."
+      },
+      "ai_configure": {
+        "label": "Configure AI",
+        "description": "AI setup, connections and API keys, task routing, monthly budget and usage."
+      },
+      "channels_manage": {
+        "label": "Manage channels",
+        "description": "Connect, disconnect and configure WhatsApp, Messenger, Instagram, TikTok, Email, Gmail, the web widget and message templates."
+      },
+      "api_manage": {
+        "label": "Manage API keys and webhooks",
+        "description": "Create and revoke API keys and outbound webhooks."
+      },
+      "settings_workspace": {
+        "label": "Workspace settings",
+        "description": "Custom fields, deal currencies, response-time target, status colours and the workspace name."
+      },
+      "reports_view": {
+        "label": "View reports",
+        "description": "Open the Reports page and its numbers."
+      },
+      "members_invite": {
+        "label": "Invite members",
+        "description": "Create and revoke invitations. You can only invite roles below your own."
+      },
+      "members_change_role": {
+        "label": "Change member roles",
+        "description": "Change the role of a member. You can only change members whose role is below yours."
+      },
+      "members_remove": {
+        "label": "Remove members",
+        "description": "Remove a member from the workspace. You can only remove members whose role is below yours."
+      },
+      "teams_manage": {
+        "label": "Manage teams",
+        "description": "Create, edit and delete teams and choose who is in them."
+      },
+      "roles_manage": {
+        "label": "Manage roles and permissions",
+        "description": "Open Roles & permissions and edit roles below your own."
+      }
+    },
+    "group": {
+      "menus": "Menus",
+      "inbox": "Inbox",
+      "contacts": "Contacts and sales",
+      "automation": "Automation",
+      "tickets": "Tickets",
+      "tags": "Tags, labels and quick replies",
+      "knowledge": "Knowledge",
+      "ai": "AI",
+      "channels": "Channels and integrations",
+      "workspace": "Workspace",
+      "people": "People"
+    },
+    "preset": {
+      "support-manager": {
+        "name": "Support Manager profile",
+        "description": "Trim the Admin role: no AI setup, channels, API keys or workspace settings. Keeps chats, contacts, tickets, knowledge, teams and reports."
+      },
+      "chat-only-agent": {
+        "name": "Chat-only agent",
+        "description": "For agents who only chat: hides Broadcasts, Automations, Flows, Pipelines and Reports and removes sending broadcasts, managing automations and flows, and deals."
+      },
+      "read-only-stakeholder": {
+        "name": "Read-only stakeholder",
+        "description": "For viewers who only look: menus limited to Dashboard, Inbox, Reports and Tickets."
+      }
+    },
+    "access": {
+      "title": "You don't have access to this page",
+      "description": "Your role doesn't include this part of Vircle. If you need it, ask an owner or admin to turn it on for you.",
+      "descriptionUnknown": "We couldn't check what you have access to just now. Try again in a moment, or ask an owner or admin if this keeps happening.",
+      "goTo": "Go to {page}",
+      "backToSettings": "Back to Settings",
+      "recheck": "Check again"
+    },
+    "readOnly": {
+      "askAdmin": "Ask an admin for access"
+    },
+    "screen": {
+      "title": "Roles & permissions",
+      "description": "Choose what each role can see and do. Changes are saved together and apply to everyone in that role.",
+      "loading": "Loading roles and permissions",
+      "noAccessTitle": "You do not have access to this page",
+      "noAccessBody": "Managing roles and permissions needs the Roles & permissions capability. Ask an Owner or Admin if you need it.",
+      "loadFailed": "Could not load roles and permissions",
+      "loadFailedBody": "Something went wrong while loading. Check your connection and try again.",
+      "retry": "Try again",
+      "rolesNav": "Roles",
+      "locked": "Locked",
+      "roleUnsaved": "{count, plural, =1 {# unsaved change} other {# unsaved changes}}",
+      "peopleCount": "{count, plural, =0 {No people} =1 {# person} other {# people}}",
+      "ownerNote": "Owner always has full access",
+      "readOnlyChip": "Read only",
+      "applyPreset": "Apply preset",
+      "presetSuggested": "Suggested",
+      "resetDefault": "Reset to default",
+      "viewLog": "View change log",
+      "reason": {
+        "owner-locked": "The Owner always has full access and cannot be edited.",
+        "role-not-editable": "You can only edit roles below your own, so this role is read-only for you.",
+        "editor-lacks": "You cannot give a capability you do not have yourself.",
+        "below-min-role": "The {role} role cannot be given this yet: the database still restricts it to {min} and above.",
+        "unknown": "This capability is not recognised, so it cannot be changed."
+      },
+      "changed": "Changed",
+      "unsaved": "Not saved yet",
+      "changedByAt": "Changed by {name} on {date}",
+      "changedAt": "Changed on {date}",
+      "searchPlaceholder": "Search capabilities",
+      "searchLabel": "Search capabilities by name or description",
+      "onlyChanged": "Only show changed",
+      "noChanged": "Nothing differs from the default for this role.",
+      "noResults": "No capabilities match your search.",
+      "clearFilters": "Clear filters",
+      "saveBarLabel": "Unsaved changes",
+      "changeCount": "{count, plural, =1 {# change} other {# changes}}",
+      "discard": "Discard",
+      "save": "Save",
+      "presetApplied": "Preset {name} applied to the draft. Review it, then press Save.",
+      "resetApplied": "Defaults loaded into the draft. Review them, then press Save.",
+      "bulkSkipped": "{count, plural, =1 {# capability was left off because you cannot give it.} other {# capabilities were left off because you cannot give them.}}",
+      "savedToast": "{role} permissions saved",
+      "tabRoles": "By role",
+      "tabCapabilities": "By capability"
+    },
+    "tier": {
+      "database": "Database + App",
+      "app": "App",
+      "databaseTooltip": "Enforced by the screens and API routes, and also by the database itself, so it holds even if someone calls the database with their own login.",
+      "appTooltip": "Enforced by the screens and API routes. The underlying table is still written under the older role rule in some places, so a determined person with their own login could get around it until those tables move over.",
+      "databaseLegend": "Enforced by the app and by the database itself. It cannot be bypassed by calling the database directly.",
+      "appLegend": "Enforced by the screens and API routes. In some places the underlying table is still written under the older rule, so the database alone would not stop it yet."
+    },
+    "role": {
+      "owner": {
+        "description": "Full control of the workspace. Always has every capability, cannot be edited, and is the only role that can transfer ownership or delete the workspace."
+      },
+      "admin": {
+        "description": "Runs the workspace: channels, AI setup, API keys, team and settings, on top of everything an Agent can do."
+      },
+      "agent": {
+        "description": "Works conversations, contacts, deals, tickets and broadcasts. Cannot change workspace settings, channels or members."
+      },
+      "viewer": {
+        "description": "Read-only. Sees the menus they are given and reports, and cannot change any data."
+      }
+    },
+    "dialog": {
+      "title": "Save changes to {role}?",
+      "description": "{count, plural, =1 {# change} other {# changes}} will be saved. Review them before you confirm.",
+      "peopleAffected": "{count, plural, =1 {# person holds} other {# people hold}} the {role} role.",
+      "loseTiming": "They will lose {lost, plural, =1 {# capability} other {# capabilities}} (listed below) the next time their page loads or gets focus, or within about 2 minutes, without signing out.",
+      "gainTiming": "They will gain {gained, plural, =1 {# capability} other {# capabilities}} (listed below) the next time their page loads or gets focus, or within about 2 minutes, without signing out.",
+      "nobodyAffected": "Nobody has the {role} role right now, so nobody is affected yet. It applies to anyone given this role later.",
+      "warnMenus": "{count, plural, =1 {# menu is} other {# menus are}} being hidden. The sidebar item disappears and its page shows a no-access message for everyone in this role.",
+      "warnRolesManage": "You are removing access to Roles & permissions. People with the {role} role will no longer be able to open this screen, and only someone with a higher role can give it back.",
+      "on": "On",
+      "off": "Off",
+      "to": "changes to",
+      "cancel": "Cancel",
+      "saving": "Saving",
+      "confirm": "Confirm and save"
+    },
+    "log": {
+      "title": "Change log",
+      "description": "Who changed what, from what, and when. Newest first.",
+      "filter": "Filter the change log",
+      "thisRole": "{role} only",
+      "allRoles": "All roles",
+      "loading": "Loading the change log",
+      "empty": "No changes have been recorded yet.",
+      "loadMore": "Load more",
+      "unknownActor": "Someone who has since left",
+      "byWho": "By {name} on {date}",
+      "byWhoRole": "{role}: by {name} on {date}"
+    },
+    "errors": {
+      "saveFailed": "Could not save these changes. Nothing was changed. Please try again.",
+      "network": "Could not reach the server. Check your connection and try again.",
+      "refreshAfterSave": "Saved, but the screen could not refresh. Reload the page to see the latest.",
+      "logFailed": "Could not load the change log."
+    },
+    "byCapability": {
+      "pick": "Pick a capability",
+      "savedNote": "Shows what is saved now, not unsaved changes in the By role tab.",
+      "roles": "Roles that have it",
+      "always": "Always (Owner)",
+      "has": "Has it",
+      "hasNot": "Does not have it",
+      "people": "People who have it",
+      "loadingPeople": "Loading people",
+      "peopleFailed": "Could not load the list of people.",
+      "nobody": "Nobody currently has this capability.",
+      "unnamed": "Unnamed"
+    }
   }
 }
