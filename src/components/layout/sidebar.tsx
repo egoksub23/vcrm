@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
+import { useApprovalsCount } from "@/hooks/use-approvals-count";
+import { badgeLabel } from "@/lib/approvals/rules";
 import {
   BarChart3,
   Bell,
@@ -166,6 +168,8 @@ export function Sidebar({
   const canOpenSettings = !capabilitiesLoading && hasCap("menu.settings");
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
+  // Proposals waiting for a decision (0 unless the person can review them).
+  const { count: pendingApprovals } = useApprovalsCount();
 
   // Only matters at lg+ — mobile always shows the full drawer regardless
   // of `pinned`. Tracked via matchMedia rather than a CSS-only approach
@@ -390,7 +394,17 @@ export function Sidebar({
                     )}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
-                    {expanded && t(item.labelKey as string)}
+                    {expanded && (
+                      <span className="flex-1">{t(item.labelKey as string)}</span>
+                    )}
+                    {item.href === "/settings" && pendingApprovals > 0 && (
+                      <span
+                        aria-label={t("pendingApprovals", { count: pendingApprovals })}
+                        className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white"
+                      >
+                        {badgeLabel(pendingApprovals)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

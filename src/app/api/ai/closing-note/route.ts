@@ -29,7 +29,8 @@ export async function POST(request: Request) {
     // Candidate labels: this account's conversation labels, minus any the
     // chat already carries.
     const [tagsRes, appliedRes] = await Promise.all([
-      supabase.from('tags').select('id, name').eq('account_id', accountId).eq('for_conversations', true).limit(200),
+      // Approved labels only: a proposal that waits for a reviewer (migration 084) is never suggested.
+      supabase.from('tags').select('id, name').eq('account_id', accountId).eq('for_conversations', true).eq('approval_status', 'approved').limit(200),
       supabase.from('conversation_labels').select('tag_id').eq('conversation_id', conversationId),
     ])
     const applied = new Set((appliedRes.data ?? []).map((r) => r.tag_id as string))

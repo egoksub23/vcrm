@@ -20,11 +20,13 @@ import { TicketFormSettings } from '@/components/settings/ticket-form-settings';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
 import { StatusColorsTab } from '@/components/settings/status-colors-tab';
-import { MembersTab } from '@/components/settings/members-tab';
-import { TeamsTab } from '@/components/settings/teams-tab';
+import { TeamSection } from '@/components/settings/team/team-section';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab';
 import { AuditLogPanel } from '@/components/settings/audit/audit-log-panel';
+import { ApprovalsPanel } from '@/components/settings/approvals/approvals-panel';
+import { useApprovalsCount } from '@/hooks/use-approvals-count';
+import { badgeLabel } from '@/lib/approvals/rules';
 import { NoAccess } from '@/components/auth/no-access';
 import {
   canSeeSection,
@@ -52,6 +54,7 @@ function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { defaultCurrency, slaResponseMinutes, capabilities } = useAuth();
+  const { count: approvalsCount } = useApprovalsCount();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
   const tAccess = useTranslations('Permissions.access');
@@ -78,8 +81,14 @@ function SettingsPageInner() {
       appearance: mode.charAt(0).toUpperCase() + mode.slice(1),
       deals: defaultCurrency,
       'response-time': `${slaResponseMinutes} min`,
+      // Proposals waiting for a decision (only reviewers ever see a number).
+      approvals: approvalsCount > 0 ? (
+        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500/15 px-1.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+          {badgeLabel(approvalsCount)}
+        </span>
+      ) : undefined,
     }),
-    [mode, defaultCurrency, slaResponseMinutes],
+    [mode, defaultCurrency, slaResponseMinutes, approvalsCount],
   );
 
   const panel: Record<SettingsSection, ReactNode> = {
@@ -96,9 +105,9 @@ function SettingsPageInner() {
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
     'status-colors': <StatusColorsTab />,
-    members: <MembersTab />,
-    teams: <TeamsTab />,
+    team: <TeamSection />,
     roles: <RolesPermissionsTab />,
+    approvals: <ApprovalsPanel />,
     audit: <AuditLogPanel />,
     api: <ApiKeysSettings />,
   };

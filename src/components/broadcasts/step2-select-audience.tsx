@@ -117,6 +117,8 @@ export function Step2SelectAudience({
           .from('tags')
           .select('*')
           .eq('for_contacts', true)
+          // A tag that still waits for approval (migration 084) is not offered.
+          .eq('approval_status', 'approved')
           .order('name');
         setTags(data ?? []);
       } finally {

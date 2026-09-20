@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, Bot, CheckCheck, Loader2, MessageSquare, Ticket, UserPlus } from "lucide-react";
+import { AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { approvalNotificationHref, isApprovalNotification } from "@/lib/approvals/notifications";
 
 // Icon per notification type — a one-line add per new type.
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
@@ -20,6 +21,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   ticket_mention: AtSign,
   ticket_updated: Ticket,
   ticket_comment: MessageSquare,
+  approval_requested: ClipboardCheck,
+  approval_decided: ClipboardCheck,
   ai_budget: Bot,
 };
 
@@ -121,7 +124,9 @@ export default function NotificationsPage() {
   const handleClick = useCallback(
     (n: Notification) => {
       if (!n.read_at) markRead(n.id);
-      if (n.ticket_id) {
+      if (isApprovalNotification(n.type)) {
+        router.push(approvalNotificationHref(n.type, n.title));
+      } else if (n.ticket_id) {
         router.push(`/tickets?t=${n.ticket_id}`);
       } else if (n.type === "ai_budget") {
         router.push("/agents");

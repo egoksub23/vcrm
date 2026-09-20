@@ -78,15 +78,16 @@ BEGIN
   INSERT INTO ai_configs (account_id, provider, model, api_key) VALUES (a, 'openai', 'm', 'k');
 
   -- ---------------------------------------------------------
-  -- 1. Seed: catalogue + defaults have the expected shape (45 = the 44 keys of 079
-  --    plus audit.view, added by migration 082)
+  -- 1. Seed: catalogue + defaults have the expected shape (48 = the 44 keys of 079
+  --    plus audit.view, added by migration 082, plus approvals.review,
+  --    snippets.propose and tags.propose, added by migration 084)
   -- ---------------------------------------------------------
-  IF (SELECT count(*) FROM capability_catalogue) <> 45 THEN
+  IF (SELECT count(*) FROM capability_catalogue) <> 48 THEN
     RAISE EXCEPTION 'FAIL catalogue size %', (SELECT count(*) FROM capability_catalogue);
   END IF;
-  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> 45
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> 45
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')  <> 27
+  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> 48
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> 48
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')  <> 29
   OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'viewer') <> 14 THEN
     RAISE EXCEPTION 'FAIL default set sizes';
   END IF;
@@ -132,9 +133,9 @@ BEGIN
     RAISE EXCEPTION 'FAIL cross-account has_capability must be false';
   END IF;
   -- capabilities_for_current_user sizes
-  IF pg_temp.run(owner_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '44'
-  OR pg_temp.run(admin_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '44'
-  OR pg_temp.run(agent_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '27'
+  IF pg_temp.run(owner_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '48'
+  OR pg_temp.run(admin_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '48'
+  OR pg_temp.run(agent_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '29'
   OR pg_temp.run(viewer_a, format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '14' THEN
     RAISE EXCEPTION 'FAIL capabilities_for_current_user sizes';
   END IF;

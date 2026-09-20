@@ -9,7 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
-## [0.40.0] — 2026-09-21 — **migration required: 082**
+## [0.42.0] — 2026-09-20 — **migration required: 084 (apply it BEFORE deploying this version)**
+
+- **Propose and approve.** Agents can now *propose* new contact tags, new conversation labels and new snippets, and edits to existing ones. A proposal is saved as **Pending**: only the person who made it and the reviewers can see it, and it is left out of every picker, search, automation and broadcast until approved. Applying an existing label or tag to a chat or contact stays free.
+- **Settings → Approvals** (for people with the new *Review proposals* capability, Owner and Admin by default) has a **Pending** and a **Decided** tab. Each row shows the proposer and, for edits, the current version next to the proposed one. **Approve**, **Edit then approve**, or **Reject** with a note (bulk approve too). The proposer is notified of the decision and sees Pending, Pending changes and Rejected chips on their own items, with withdraw, edit and resubmit. Knowledge articles drafted by agents appear in the same queue; approving one publishes it.
+- **Turn it on for snippets:** by default agents still edit snippets directly. In Settings → Approvals, the switch **“Agents need approval for: Snippets”** makes agents propose instead (it removes *Manage snippets* from the Agent role). Agents proposing tags and labels is new and needs no switch, because agents could not create them before.
+- Three new capabilities in Roles & permissions: *Review proposals*, *Propose snippets*, *Propose tags and labels*. *Manage tags* and *Manage snippets* are now enforced by the database as well, so approvals cannot be bypassed.
+- Contact imports by an agent skip unknown tags instead of creating them.
+
+## [0.41.0] — 2026-09-20 — **migration required: 083**
+
+- **Team and Members are now one page.** Settings → **Team** has a **Members | Teams** switch (the old Team members and Teams links still land on it). Members shows each person's role and **every team they belong to** (up to four chips, then “+N” with the full list), presence and last active, with filters (team, role, status), search and sort. Click a person to change their role (only roles below yours), edit their teams, see how many open conversations and tickets they hold, or remove them. Select several people to add or remove them from a team in one go.
+- **Invite with teams.** When you invite someone you pick their role (only roles below your own, so an Admin invites Agents and Viewers) and, optionally, the teams they join automatically when they accept. Pending invitations appear at the top of the Members list with who invited them, the role, the teams and when they expire; an invite link can't be shown again, so to re-send one, revoke it and invite again.
+- **Teams view** shows each team's colour, members, and how many open conversations it holds, with quick add and remove.
+- **Safe removal.** Removing a member also takes them out of every team and either unassigns their open conversations and tickets or hands them to someone you choose, and tells you how many were affected.
+
+## [0.40.0] — 2026-09-20 — **migration required: 082**
 
 - **Audit trail: who added, changed and removed what.** A new **Settings → Audit log** (for people with the *View the audit log* capability, Owner and Admin by default) lists every change to knowledge articles, conversation labels, contact tags, snippets, teams, team members, roles, capabilities, invitations and member removals, plus which sensitive settings (channels, AI, API keys) were changed. It names the person, the action and the item, with filters (person, action, type, date) and **Export CSV**. The log cannot be edited or deleted by anyone.
 - **Activity buttons** on knowledge articles, tags and labels, and snippets show that item's history (“Added by Maya, edited by Ravi”), and tag and snippet rows show who added them.

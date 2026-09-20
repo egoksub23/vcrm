@@ -1,13 +1,14 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { readMigration } from "@/lib/testing/read-migration";
 
 import { CAPABILITIES, DEFAULT_CAPABILITIES } from "./capabilities";
 import { ACCOUNT_ROLES } from "./roles";
 
 // Migration 079 seeds `capability_catalogue` and `role_capability_defaults`
 // from the TypeScript catalogue; later migrations add capabilities the
-// same way (082 adds `audit.view`). This test parses the seeds out of the
+// same way (082 adds `audit.view`, 084 adds the approvals capabilities and
+// moves tags.manage / snippets.manage to the database tier). This test parses the seeds out of the
 // migration text and fails if the SQL mirror and the TS source of truth
 // ever disagree (someone edited one without the other). Migrations that
 // add capabilities are listed in order.
@@ -15,11 +16,10 @@ import { ACCOUNT_ROLES } from "./roles";
 const migrationFiles = [
   "079_role_capabilities.sql",
   "082_audit_trail.sql",
+  "084_approvals.sql",
 ];
 
-const migrationTexts = migrationFiles.map((f) =>
-  readFileSync(join(process.cwd(), "supabase", "migrations", f), "utf8"),
-);
+const migrationTexts = migrationFiles.map((f) => readMigration(f));
 const migration = migrationTexts[0];
 
 function seedRows(insertHeader: string): string[][] {
@@ -37,7 +37,7 @@ function seedRows(insertHeader: string): string[][] {
   return rows;
 }
 
-describe("migrations 079 + 082 mirror the TS catalogue", () => {
+describe("migrations 079 + 082 + 084 mirror the TS catalogue", () => {
   it("seeds the catalogue with the same keys, min grant role and tier", () => {
     const rows = seedRows(
       "INSERT INTO public.capability_catalogue (capability, min_grant_role, enforced_by) VALUES",

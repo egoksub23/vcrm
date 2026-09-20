@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, MessageSquare, Pencil, Plus, Trash2, Zap } from "lucide-react";
+import Link from "next/link";
+import { Loader2, MessageSquare, Pencil, Plus, Trash2, Undo2, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -17,7 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { SettingsPanelHead } from "./settings-panel-head";
 import { ActivityButton } from "./audit/activity-sheet";
+import { ApprovalChip } from "@/components/approvals/approval-chip";
 import { useAuth, useCapability } from "@/hooks/use-auth";
+import { notifyApprovalsChanged } from "@/hooks/use-approvals-count";
+import { withdrawProposal } from "@/lib/approvals/client";
+import { canWithdraw, chipState, isUsable, mergePendingEdit } from "@/lib/approvals/rules";
 import { createClient } from "@/lib/supabase/client";
 import {
   InteractiveBuilder,
@@ -48,10 +53,17 @@ function emptyDraft(): DraftState {
 
 export function QuickRepliesManager() {
   const tAudit = useTranslations("Audit");
-  const { accountId, loading: authLoading } = useAuth();
+  const tApprovals = useTranslations("Approvals");
+  const { accountId, loading: authLoading, user } = useAuth();
   // Creating, editing and deleting snippets: snippets.manage. Without it
   // the list is read-only (people can still insert them from the composer).
+  // Propose and approve (migration 084): with only snippets.propose a person
+  // can add and edit too, but their snippets and changes wait for a reviewer;
+  // they see their own proposals here with a Pending / Rejected chip.
   const canManage = useCapability("snippets.manage");
+  const canPropose = useCapability("snippets.propose");
+  const canReview = useCapability("approvals.review");
+  const canWrite = canManage || canPropose;
   const [items, setItems] = useState<QuickReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -99,7 +111,12 @@ export function QuickRepliesManager() {
     people.get(qr.created_by ?? qr.user_id) ?? "";
 
   const openCreate = () => setDraft(emptyDraft());
-  const openEdit = (qr: QuickReply) =>
+  const openEdit = (row: QuickReply) => {
+    // A proposer who reopens their own pending edit sees their proposed values.
+    const qr =
+      row.pending_edit && row.proposed_by === user?.id && !canManage
+        ? mergePendingEdit(row, row.pending_edit as Partial<QuickReply>)
+        : row;
     setDraft({
       id: qr.id,
       title: qr.title,
@@ -108,6 +125,20 @@ export function QuickRepliesManager() {
       interactive_payload:
         qr.interactive_payload ?? blankButtonsPayload(),
     });
+  };
+
+  const withdraw = async (qr: QuickReply) => {
+    const result = await withdrawProposal("snippet", qr.id);
+    if (!result.ok) {
+      toast.error(tApprovals(`errors.${result.code}`));
+      return;
+    }
+    toast.success(
+      tApprovals(qr.approval_status === "rejected" || qr.edit_status === "rejected" ? "dismissed" : "withdrawn"),
+    );
+    notifyApprovalsChanged();
+    await load();
+  };
 
   const save = useCallback(async () => {
     if (!draft) return;
@@ -132,10 +163,17 @@ export function QuickRepliesManager() {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data.error ?? "Couldn't save the quick reply.");
+        toast.error(
+          data.code ? tApprovals(`errors.${data.code}`) : (data.error ?? "Couldn't save the quick reply."),
+        );
         return;
       }
-      toast.success(draft.id ? "Quick reply updated." : "Quick reply created.");
+      if (data.pending) {
+        toast.success(tApprovals("sentForApproval"));
+        notifyApprovalsChanged();
+      } else {
+        toast.success(draft.id ? "Quick reply updated." : "Quick reply created.");
+      }
       setDraft(null);
       await load();
     } catch {
@@ -143,7 +181,7 @@ export function QuickRepliesManager() {
     } finally {
       setSaving(false);
     }
-  }, [draft, load]);
+  }, [draft, load, tApprovals]);
 
   const remove = useCallback(
     async (id: string) => {
@@ -164,7 +202,7 @@ export function QuickRepliesManager() {
         title="Quick replies"
         description="Reusable snippets — plain text or a saved interactive message — that agents can insert from the inbox composer."
         action={
-          canManage ? (
+          canWrite ? (
             <Button onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" />
               New quick reply
@@ -179,7 +217,7 @@ export function QuickRepliesManager() {
         </div>
       ) : items.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          {canManage
+          {canWrite
             ? "No quick replies yet. Create one to reuse it across conversations."
             : "No quick replies yet."}
         </p>
@@ -196,7 +234,10 @@ export function QuickRepliesManager() {
                 <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{qr.title}</p>
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <span className="truncate">{qr.title}</span>
+                  <ApprovalChip row={qr} viewerId={user?.id} canReview={canReview} />
+                </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {qr.kind === "interactive" && qr.interactive_payload
                     ? interactivePayloadPreviewText(qr.interactive_payload)
@@ -208,13 +249,41 @@ export function QuickRepliesManager() {
                   </p>
                 ) : null}
               </div>
-              <ActivityButton
-                compact
-                entityType="snippet"
-                entityId={qr.id}
-                entityLabel={qr.title}
-              />
-              {canManage ? (
+              {isUsable(qr) ? (
+                <ActivityButton
+                  compact
+                  entityType="snippet"
+                  entityId={qr.id}
+                  entityLabel={qr.title}
+                />
+              ) : null}
+              {!isUsable(qr) ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  {canReview && qr.proposed_by !== user?.id ? (
+                    <Link
+                      href="/settings?tab=approvals"
+                      className="mr-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      {tApprovals("review")}
+                    </Link>
+                  ) : null}
+                  {canPropose && canWithdraw(qr, user?.id) ? (
+                    <>
+                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={tApprovals(qr.approval_status === "rejected" ? "dismissAria" : "withdrawAria", { name: qr.title })}
+                        onClick={() => void withdraw(qr)}
+                      >
+                        <Undo2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              ) : canManage ? (
                 <div className="flex shrink-0 gap-1">
                   <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
                     <Pencil className="h-4 w-4" />
@@ -227,6 +296,23 @@ export function QuickRepliesManager() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                </div>
+              ) : canPropose ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {chipState(qr, user?.id, false) === "pending_changes" ||
+                  chipState(qr, user?.id, false) === "changes_rejected" ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={tApprovals(qr.edit_status === "rejected" ? "dismissAria" : "withdrawAria", { name: qr.title })}
+                      onClick={() => void withdraw(qr)}
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -283,7 +369,7 @@ export function QuickRepliesManager() {
             </Button>
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Save
+              {!canManage && canPropose ? tApprovals("sendForApproval") : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

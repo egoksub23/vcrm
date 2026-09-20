@@ -2,7 +2,8 @@
 // /api/account/teams
 //
 //   GET  — list every team in the caller's account, each with its
-//          member roster (name/email/avatar joined from profiles).
+//          member roster (name/email/avatar joined from profiles) and
+//          how many open conversations are assigned to the team.
 //          Any member can call it (mirrors /api/account/members —
 //          read is account-wide, write is admin+).
 //   POST — create a team. Admin+.
@@ -93,9 +94,27 @@ export async function GET() {
       }
     }
 
+    // Open conversations per team (one grouped query, migration 083).
+    // A failure only blanks the counts; the list itself still loads.
+    const openByTeam = new Map<string, number>();
+    const { data: countRows, error: countsErr } = await ctx.supabase.rpc(
+      "team_open_conversation_counts",
+    );
+    if (countsErr) {
+      console.error("[GET /api/account/teams] counts error:", countsErr);
+    } else {
+      for (const row of (countRows ?? []) as {
+        team_id: string;
+        open_conversations: number;
+      }[]) {
+        openByTeam.set(row.team_id, row.open_conversations);
+      }
+    }
+
     const result: Team[] = (teams ?? []).map((t) => ({
       ...t,
       members: membersByTeam.get(t.id) ?? [],
+      open_conversations: openByTeam.get(t.id) ?? 0,
     }));
 
     return NextResponse.json({ teams: result });

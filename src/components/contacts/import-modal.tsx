@@ -195,7 +195,9 @@ export function ImportModal({
       const { data: tags } = await supabase
         .from('tags')
         .select('name, color')
-        .eq('account_id', accountId);
+        .eq('account_id', accountId)
+        // A tag that still waits for approval (migration 084) does not exist yet.
+        .eq('approval_status', 'approved');
 
       const colors = new Map<string, string>();
       for (const tag of tags ?? []) {

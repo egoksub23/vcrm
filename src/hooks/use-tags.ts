@@ -11,6 +11,10 @@ import type { Tag } from "@/types";
  * `conversationLabels` are the two lists Settings manages (migration
  * 068); `tags` is the full palette for surfaces that don't care
  * (e.g. rendering a chip for whatever is already attached).
+ *
+ * Only APPROVED tags: a proposal that waits for a reviewer (migration 084)
+ * is visible to its proposer and to reviewers through RLS, but it must never
+ * appear in a picker, so it is filtered here as well.
  */
 export function useTags(): {
   tags: Tag[];
@@ -27,6 +31,7 @@ export function useTags(): {
     supabase
       .from("tags")
       .select("*")
+      .eq("approval_status", "approved")
       .order("name")
       .then(({ data, error }) => {
         if (cancelled) return;

@@ -74,11 +74,16 @@ describe("catalogue", () => {
       [
         "ai.configure",
         "api.manage",
+        "approvals.review",
         "audit.view",
         "channels.manage",
         "members.change-role",
         "members.remove",
         "roles.manage",
+        "snippets.manage",
+        "snippets.propose",
+        "tags.manage",
+        "tags.propose",
       ].sort(),
     );
   });

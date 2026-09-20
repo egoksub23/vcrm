@@ -31,14 +31,17 @@ function ctx(role: string) {
   }
 }
 
-const post = (role: unknown) =>
+const post = (role: unknown, extra: Record<string, unknown> = {}) =>
   POST(
     new Request('http://localhost/api/account/invitations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', host: 'crm.test' },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, ...extra }),
     }),
   )
+
+const TEAM_A = '11111111-1111-4111-8111-111111111111'
+const TEAM_B = '22222222-2222-4222-8222-222222222222'
 
 beforeEach(() => {
   h.requireCapability.mockReset()
@@ -79,6 +82,35 @@ describe('POST /api/account/invitations', () => {
   it('never lets anyone invite an owner (400)', async () => {
     h.requireCapability.mockResolvedValue(ctx('owner'))
     expect((await post('owner')).status).toBe(400)
+    expect(h.insert).not.toHaveBeenCalled()
+  })
+
+  it('stores the teams the invitee joins (de-duplicated)', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    const res = await post('agent', { teamIds: [TEAM_A, TEAM_B, TEAM_A] })
+    expect(res.status).toBe(201)
+    expect(h.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'agent', team_ids: [TEAM_A, TEAM_B] }),
+    )
+  })
+
+  it('defaults to no teams when none are sent', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    await post('agent')
+    expect(h.insert).toHaveBeenCalledWith(expect.objectContaining({ team_ids: [] }))
+  })
+
+  it('rejects malformed team ids with a 400 before inserting', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    expect((await post('agent', { teamIds: ['nope'] })).status).toBe(400)
+    expect((await post('agent', { teamIds: TEAM_A })).status).toBe(400)
+    expect(h.insert).not.toHaveBeenCalled()
+  })
+
+  it('still refuses a role at or above the inviter even with teams', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    const res = await post('admin', { teamIds: [TEAM_A] })
+    expect(res.status).toBe(403)
     expect(h.insert).not.toHaveBeenCalled()
   })
 

@@ -1,22 +1,25 @@
 'use client';
 
 // ============================================================
-// InviteMemberDialog
+// InviteDialog
 //
-// Two-step modal:
-//   1. Form  — role + expiry + optional label → POST creates the invite.
+// Two-step modal (the mechanics of the earlier invite dialog, kept):
+//   1. Form   — role + teams to join + expiry + optional label → POST
+//               creates the invite.
 //   2. Result — the share URL, returned ONCE. Copy-to-clipboard, plus a
-//              "Send via WhatsApp" deep link that pre-fills wa.me with
-//              a friendly message containing the URL.
+//               "Send via WhatsApp" deep link.
 //
-// The plaintext token is server-stored only as a SHA-256 hash, so once
-// the result step is dismissed the link is gone forever — the dialog
-// shouts this in copy.
+// New: the Role list only holds roles strictly BELOW the inviter's own (an
+// Admin sees Agent and Viewer; only the Owner sees Admin), and "Teams to
+// join" stores team_ids on the invitation, applied automatically when the
+// link is redeemed. The token is stored only as a SHA-256 hash, so once the
+// result step is dismissed the link is gone forever.
 // ============================================================
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Loader2, MessageCircle, Sparkles } from 'lucide-react';
+import { Copy, Loader2, MessageCircle, Sparkles, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -36,66 +39,71 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/use-auth';
-import { editableRoles } from '@/lib/auth/capabilities';
+import { rolesBelow, type TeamRef } from '@/lib/teams/members';
+import type { Team } from '@/types';
+import { MultiSelectPopover } from './multi-select-popover';
+import { TeamChip } from './team-chips';
 
 type InviteRole = 'admin' | 'agent' | 'viewer';
-
-interface InviteMemberDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Called after a successful create so the parent re-fetches the
-   *  pending-invitations list. */
-  onCreated: () => void;
-}
 
 const EXPIRY_OPTIONS = [
   { value: '1', labelKey: 'days1' },
   { value: '7', labelKey: 'days7' },
   { value: '30', labelKey: 'days30' },
-];
+] as const;
 
 // Server caps label at 80 chars (see src/app/api/account/invitations/route.ts).
-// Mirror it on the client so we short-circuit before the round-trip
-// rather than letting the user submit and bounce off a 400.
 const MAX_LABEL_LEN = 80;
 
 interface CreatedInvite {
   url: string;
   role: InviteRole;
   expiresInDays: number;
-  /** Snapshotted at creation time so a later account rename can't
-   *  retroactively change the wa.me message text on the result step. */
+  teams: TeamRef[];
+  /** Snapshotted so a later account rename cannot change the message. */
   accountName: string;
 }
 
-export function InviteMemberDialog({
+export function InviteDialog({
   open,
   onOpenChange,
+  teams,
   onCreated,
-}: InviteMemberDialogProps) {
-  const t = useTranslations('Settings.invite');
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  teams: Team[];
+  /** Called after a successful create so the parent reloads the list. */
+  onCreated: () => void | Promise<void>;
+}) {
+  const t = useTranslations('Settings.team.invite');
   const tRoles = useTranslations('Settings.roles');
   const { account, accountRole } = useAuth();
-  // A person can only invite into a role strictly below their own: an
-  // admin offers agent/viewer, an owner offers admin/agent/viewer.
-  const roleOptions = (accountRole ? editableRoles(accountRole) : []).filter(
-    (r): r is InviteRole => r !== 'owner',
-  );
+
+  const roleOptions = rolesBelow(accountRole);
   const [chosenRole, setRole] = useState<InviteRole>('agent');
-  // The remembered choice may not be offered to this caller (e.g. the
-  // default 'agent' for someone who can only invite viewers).
+  // The remembered choice may not be offered to this caller.
   const role: InviteRole = roleOptions.includes(chosenRole)
     ? chosenRole
     : (roleOptions[0] ?? chosenRole);
+  const [teamIds, setTeamIds] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreatedInvite | null>(null);
 
+  const teamOptions = useMemo(
+    () => teams.map((tm) => ({ id: tm.id, label: tm.name, color: tm.color })),
+    [teams],
+  );
+  const chosenTeams: TeamRef[] = teams
+    .filter((tm) => teamIds.includes(tm.id))
+    .map((tm) => ({ id: tm.id, name: tm.name, color: tm.color }));
+
   function reset() {
     setRole('agent');
+    setTeamIds([]);
     setExpiry('7');
     setLabel('');
     setResult(null);
@@ -103,12 +111,6 @@ export function InviteMemberDialog({
   }
 
   async function handleCreate() {
-    // Mirror the server's max-length check so we don't ship an
-    // obviously-too-long label across the wire just to bounce off
-    // a 400. The Input also has a `maxLength={MAX_LABEL_LEN}` cap
-    // but a paste can land an over-limit string into state before
-    // the limit kicks in on the next keystroke — this is the safety
-    // net for that path.
     const trimmedLabel = label.trim();
     if (trimmedLabel.length > MAX_LABEL_LEN) {
       toast.error(t('labelTooLong', { max: MAX_LABEL_LEN }));
@@ -123,12 +125,13 @@ export function InviteMemberDialog({
           role,
           expiresInDays: Number(expiry),
           label: trimmedLabel || undefined,
+          teamIds,
         }),
       });
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || 'Failed to create invitation');
+        toast.error(payload.error || t('createFailed'));
         return;
       }
 
@@ -141,16 +144,12 @@ export function InviteMemberDialog({
         url: data.url,
         role,
         expiresInDays: data.expiresInDays,
-        // Snapshot the account name into the result so the wa.me
-        // share message has team context. Falls back to a generic
-        // string if `account` hasn't loaded yet (shouldn't happen
-        // — the dialog requires admin+ which requires a loaded
-        // profile — but stay safe).
+        teams: chosenTeams,
         accountName: account?.name ?? t('fallbackAccountName'),
       });
-      onCreated();
+      await onCreated();
     } catch (err) {
-      console.error('[InviteMemberDialog] create error:', err);
+      console.error('[InviteDialog] create error:', err);
       toast.error(t('networkError'));
     } finally {
       setSubmitting(false);
@@ -163,20 +162,18 @@ export function InviteMemberDialog({
       await navigator.clipboard.writeText(result.url);
       toast.success(t('copied'));
     } catch {
-      // Most likely "not in a secure context" — happens on http://
-      // local IPs. Surface the link in the toast so the admin can
-      // hand-copy it.
+      // Most likely "not in a secure context" (http:// local IPs).
       toast.error(t('clipboardBlocked'));
     }
   }
 
   function whatsappShareUrl(url: string): string {
-    // Include the account name so the recipient knows which team
-    // they're being invited to before clicking through. This matters
-    // for users in multi-team contexts where "our wacrm account"
-    // wouldn't be enough to disambiguate.
     const accountName = result?.accountName ?? t('fallbackAccountName');
-    const message = t('whatsappMessage', { accountName, expiresInDays: result?.expiresInDays ?? 0, url });
+    const message = t('whatsappMessage', {
+      accountName,
+      expiresInDays: result?.expiresInDays ?? 0,
+      url,
+    });
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   }
 
@@ -184,14 +181,12 @@ export function InviteMemberDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Reset state when the dialog closes — both for cancel and
-        // for dismissal after a successful create. The plaintext URL
-        // is intentionally NOT preserved across opens.
+        // The plaintext URL is intentionally NOT preserved across opens.
         if (!next) reset();
         onOpenChange(next);
       }}
     >
-      <DialogContent className="bg-popover border-border sm:max-w-md">
+      <DialogContent className="border-border bg-popover sm:max-w-md">
         {result ? (
           <>
             <DialogHeader>
@@ -203,35 +198,43 @@ export function InviteMemberDialog({
                 {t.rich('inviteCreatedDesc', {
                   role: tRoles(result.role),
                   days: result.expiresInDays,
-                  bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>
+                  bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
                 })}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 py-2">
+              {result.teams.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground">
+                    {t('willJoinTeams')}
+                  </Label>
+                  <div className="flex flex-wrap gap-1">
+                    {result.teams.map((tm) => (
+                      <TeamChip key={tm.id} team={tm} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Label className="text-muted-foreground">{t('inviteLink')}</Label>
               <div className="flex gap-2">
                 <Input
                   readOnly
                   value={result.url}
-                  className="bg-muted border-border text-foreground font-mono text-xs"
+                  className="border-border bg-muted font-mono text-xs text-foreground"
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <Button
                   type="button"
                   onClick={copyToClipboard}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+                  className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <Copy className="size-4" />
                   {t('copy')}
                 </Button>
               </div>
 
-              {/* Higher-contrast amber than the original 10% / amber-200.
-                  Reviewed against slate-900 to meet WCAG AAA for body
-                  text (target ratio 7:1). Border bumped to /50, bg to
-                  /15, foreground promoted to amber-100 for the strong
-                  intro, amber-200 for the body. */}
               <div className="rounded-md border border-amber-500/50 bg-amber-500/15 px-3 py-2 text-xs text-amber-200">
                 <strong className="font-semibold text-amber-100">
                   {t('saveLinkNow')}
@@ -239,11 +242,6 @@ export function InviteMemberDialog({
                 {t('saveLinkHint')}
               </div>
 
-              {/* Anchor styled with `buttonVariants` rather than wrapping
-                  in <Button asChild>. The wacrm Button is the Base UI
-                  ButtonPrimitive — it has no Radix-style asChild slot.
-                  Direct anchor preserves right-click "Open in new tab"
-                  behaviour too. */}
               <a
                 href={whatsappShareUrl(result.url)}
                 target="_blank"
@@ -259,10 +257,10 @@ export function InviteMemberDialog({
               </a>
             </div>
 
-            <DialogFooter className="bg-popover border-border">
+            <DialogFooter className="border-border bg-popover">
               <Button
                 onClick={() => onOpenChange(false)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {t('done')}
               </Button>
@@ -271,7 +269,9 @@ export function InviteMemberDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-popover-foreground">{t('dialogTitle')}</DialogTitle>
+              <DialogTitle className="text-popover-foreground">
+                {t('dialogTitle')}
+              </DialogTitle>
               <DialogDescription className="text-muted-foreground">
                 {t('dialogDesc')}
               </DialogDescription>
@@ -284,7 +284,7 @@ export function InviteMemberDialog({
                   value={role}
                   onValueChange={(v) => v && setRole(v as InviteRole)}
                 >
-                  <SelectTrigger className="w-full bg-muted border-border text-foreground">
+                  <SelectTrigger className="w-full border-border bg-muted text-foreground">
                     <SelectValue>{tRoles(role)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -298,21 +298,57 @@ export function InviteMemberDialog({
                 <p className="text-xs text-muted-foreground">
                   {tRoles(`${role}Hint` as 'adminHint' | 'agentHint' | 'viewerHint')}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {accountRole === 'owner'
+                    ? t('rolesOwnerHint')
+                    : t('rolesBelowHint')}
+                </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">{t('validForLabel')}</Label>
-                <Select
-                  value={expiry}
-                  onValueChange={(v) => v && setExpiry(v)}
-                >
-                  <SelectTrigger className="w-full bg-muted border-border text-foreground">
-                    <SelectValue />
+                <Label className="text-muted-foreground">
+                  {t('teamsLabel')}{' '}
+                  <span className="text-xs text-muted-foreground">
+                    {t('optional')}
+                  </span>
+                </Label>
+                <MultiSelectPopover
+                  options={teamOptions}
+                  selected={teamIds}
+                  onChange={setTeamIds}
+                  label={t('pickTeams')}
+                  icon={<Users className="size-3.5" />}
+                  searchPlaceholder={t('searchTeams')}
+                  emptyLabel={t('noTeamsYet')}
+                  className="w-full"
+                />
+                {chosenTeams.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {chosenTeams.map((tm) => (
+                      <TeamChip key={tm.id} team={tm} />
+                    ))}
+                  </div>
+                ) : null}
+                <p className="text-xs text-muted-foreground">{t('teamsHint')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  {t('validForLabel')}
+                </Label>
+                <Select value={expiry} onValueChange={(v) => v && setExpiry(v)}>
+                  <SelectTrigger className="w-full border-border bg-muted text-foreground">
+                    <SelectValue>
+                      {t(
+                        (EXPIRY_OPTIONS.find((o) => o.value === expiry)
+                          ?.labelKey ?? 'days7') as 'days7',
+                      )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {EXPIRY_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {t(opt.labelKey as Parameters<typeof t>[0])}
+                        {t(opt.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -322,22 +358,22 @@ export function InviteMemberDialog({
               <div className="space-y-2">
                 <Label className="text-muted-foreground">
                   {t('labelTitle')}{' '}
-                  <span className="text-xs text-muted-foreground">{t('optional')}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t('optional')}
+                  </span>
                 </Label>
                 <Input
                   placeholder={t('labelPlaceholder')}
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   maxLength={MAX_LABEL_LEN}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t('labelHint')}
-                </p>
+                <p className="text-xs text-muted-foreground">{t('labelHint')}</p>
               </div>
             </div>
 
-            <DialogFooter className="bg-popover border-border">
+            <DialogFooter className="border-border bg-popover">
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
@@ -347,8 +383,8 @@ export function InviteMemberDialog({
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={submitting}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={submitting || roleOptions.length === 0}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {submitting ? (
                   <>

@@ -6,7 +6,8 @@
 // Owner/Admin has switched on or off for that role (stored as sparse
 // overrides in `role_capabilities`, migration 079).
 //
-// The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082)
+// The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082,
+// + the approvals capabilities in 084)
 // (`capability_catalogue` + `role_capability_defaults`); a test
 // (`capabilities-sql.test.ts`) fails if the two disagree, and
 // `capability-parity.test.ts` proves the defaults equal the role
@@ -158,8 +159,14 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("tickets.configure-form", "tickets", ADMIN_UP, "admin"),
 
   // ---- Tags, labels, snippets ----
-  def("tags.manage", "tags", ADMIN_UP, "admin"),
-  def("snippets.manage", "tags", AGENT_UP, "agent"),
+  // Migration 084: the write policies of `tags` and `quick_replies` call
+  // has_capability(), so a review step cannot be bypassed from the browser.
+  def("tags.manage", "tags", ADMIN_UP, "admin", "database"),
+  def("snippets.manage", "tags", AGENT_UP, "agent", "database"),
+  // Propose and approve (migration 084). Without the direct `manage`
+  // capability a change is recorded as pending; without either it is denied.
+  def("tags.propose", "tags", AGENT_UP, "agent", "database"),
+  def("snippets.propose", "tags", AGENT_UP, "agent", "database"),
 
   // ---- Knowledge ----
   def("knowledge.draft", "knowledge", AGENT_UP, "agent"),
@@ -180,6 +187,9 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // Migration 082: the audit log's RLS policy and its SECURITY DEFINER
   // readers call has_capability(..., 'audit.view').
   def("audit.view", "workspace", ADMIN_UP, "agent", "database", true),
+  // Migration 084: the approvals RPCs (approvals_list, decide_proposal ...)
+  // and the queue's routes check it.
+  def("approvals.review", "workspace", ADMIN_UP, "agent", "database"),
 
   // ---- People ----
   def("members.invite", "people", ADMIN_UP, "admin"),
@@ -207,6 +217,8 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "tickets.configure-form"
   | "tags.manage"
   | "snippets.manage"
+  | "tags.propose"
+  | "snippets.propose"
   | "knowledge.draft"
   | "knowledge.publish"
   | "knowledge.manage"
@@ -217,6 +229,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "settings.workspace"
   | "reports.view"
   | "audit.view"
+  | "approvals.review"
   | "members.invite"
   | "members.change-role"
   | "members.remove"

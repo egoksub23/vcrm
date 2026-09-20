@@ -44,7 +44,8 @@
     "menuProfile": "Profile",
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
-    "knowledge": "Knowledge"
+    "knowledge": "Knowledge",
+    "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -1775,6 +1776,235 @@
       "editAria": "Edit {name}",
       "deleteAria": "Delete {name}"
     },
+    "team": {
+      "title": "Team",
+      "description": "Everyone in this account and the teams they belong to. Invite people, set their role and group them into teams.",
+      "inviteMember": "Invite member",
+      "createTeam": "Create team",
+      "viewsAria": "Team views",
+      "views": {
+        "members": "Members",
+        "teams": "Teams"
+      },
+      "loadMembersFailed": "Failed to load members",
+      "loadTeamsFailed": "Failed to load teams",
+      "loadInvitationsFailed": "Failed to load invitations",
+      "networkError": "Could not reach the server",
+      "picker": {
+        "search": "Search...",
+        "clear": "Clear",
+        "noMatches": "No matches"
+      },
+      "chips": {
+        "none": "No teams",
+        "more": "+{count}",
+        "showAll": "Show all {count} teams",
+        "allTeams": "All {count, plural, =1 {# team} other {# teams}}"
+      },
+      "members": {
+        "searchPlaceholder": "Search name or email",
+        "filterTeam": "Team",
+        "filterRole": "Role",
+        "filterStatus": "Status",
+        "searchTeams": "Search teams...",
+        "noTeamsYet": "No teams yet",
+        "noRoles": "No roles",
+        "status": {
+          "all": "All members",
+          "active": "Active",
+          "pending": "Pending invitation",
+          "pendingBadge": "Pending"
+        },
+        "sortBy": "Sort by",
+        "sort": {
+          "name": "Name",
+          "role": "Role"
+        },
+        "sortAsc": "Ascending. Click for descending",
+        "sortDesc": "Descending. Click for ascending",
+        "clearFilters": "Clear filters",
+        "presence": {
+          "online": "Online, active now",
+          "away": "Away, idle",
+          "offline": "Offline",
+          "offlineSince": "Offline, last seen {when}",
+          "onlineCount": "online",
+          "awayCount": "away",
+          "offlineCount": "offline"
+        },
+        "memberCount": "{count} {count, plural, =1 {member} other {members}}",
+        "showingCount": "Showing {shown} of {total}",
+        "selectedCount": "{count} selected",
+        "bulkAddTo": "Add to team...",
+        "bulkRemoveFrom": "Remove from team...",
+        "bulkApplyAdd": "Add to selected teams",
+        "bulkApplyRemove": "Remove from selected teams",
+        "clearSelection": "Clear selection",
+        "bulkAdded": "{count, plural, =0 {Everyone was already on those teams} =1 {Added to a team} other {# team memberships added}}",
+        "bulkRemoved": "{count, plural, =0 {Nobody was on those teams} =1 {Removed from a team} other {# team memberships removed}}",
+        "bulkFailed": "Failed to update teams",
+        "networkError": "Could not reach the server",
+        "pendingInvitations": "Pending invitations",
+        "inviteHint": "The invite link is shown only once, when it is created. To share it again, revoke the invitation and create a new one.",
+        "untitledInvite": "Untitled invite",
+        "invitedBy": "Invited by {name}",
+        "expired": "Expired",
+        "expiresOn": "Expires {date}",
+        "willJoin": "Joins:",
+        "noTeamsToJoin": "No teams to join",
+        "revoke": "Revoke",
+        "revokedToast": "Invitation revoked",
+        "revokeFailed": "Failed to revoke invitation",
+        "noMatches": "No one matches these filters.",
+        "noMembers": "No members yet.",
+        "selectAll": "Select all members",
+        "selectMember": "Select {name}",
+        "openMember": "Open {name}",
+        "col": {
+          "member": "Member",
+          "role": "Role",
+          "teams": "Teams",
+          "lastActive": "Last active"
+        },
+        "unnamed": "Unnamed",
+        "you": "You",
+        "activeNow": "Active now",
+        "never": "Not yet"
+      },
+      "sheet": {
+        "unnamed": "Unnamed",
+        "joined": "Joined {date}",
+        "role": "Role",
+        "roleLocked": {
+          "self": "You cannot change your own role.",
+          "owner": "The Owner's role can only change by transferring ownership.",
+          "capability": "Your role does not have the permission to change roles.",
+          "hierarchy": "You can only change members whose role is below your own."
+        },
+        "roleUpdated": "Updated {name} to {role}",
+        "roleFailed": "Failed to update role",
+        "teams": "Teams",
+        "editTeams": "Edit teams",
+        "searchTeams": "Search teams...",
+        "noTeamsYet": "No teams yet",
+        "teamsReadOnly": "You can see which teams this person is on. Changing teams needs the permission to manage teams.",
+        "teamsFailed": "Failed to update teams",
+        "access": "Effective access",
+        "accessSummary": "{role}: {enabled} of {total} capabilities enabled.",
+        "accessUnknown": "Access follows the {role} role.",
+        "reviewRoles": "Review in Roles & permissions",
+        "work": "Open work",
+        "openConversations": "Open conversations",
+        "openTickets": "Open tickets",
+        "remove": "Remove member",
+        "networkError": "Could not reach the server"
+      },
+      "remove": {
+        "title": "Remove member",
+        "description": "Remove <bold>{name}</bold> from this account? Their login is not deleted; they get a fresh personal account.",
+        "teamsLine": "{count, plural, =0 {Not on any team} =1 {Removed from 1 team} other {Removed from # teams}}",
+        "conversationsLine": "{count, plural, =0 {No open conversations assigned} =1 {1 open conversation assigned} other {# open conversations assigned}}",
+        "ticketsLine": "{count, plural, =0 {No open tickets assigned} =1 {1 open ticket assigned} other {# open tickets assigned}}",
+        "reassignLabel": "Reassign their open work to",
+        "leaveUnassigned": "Leave unassigned",
+        "reassignHint": "Their open conversations and tickets go to {name}.",
+        "unassignHint": "Their open conversations and tickets become unassigned, so anyone can pick them up.",
+        "cancel": "Cancel",
+        "confirm": "Remove member",
+        "removing": "Removing...",
+        "removedToast": "Removed {name}",
+        "failed": "Failed to remove member",
+        "networkError": "Could not reach the server",
+        "unnamed": "Unnamed"
+      },
+      "teams": {
+        "createTeam": "Create team",
+        "noTeamsTitle": "No teams yet.",
+        "noTeamsDesc": "Create your first team to start routing conversations by specialty.",
+        "openTeam": "Open {name}",
+        "noMembersYet": "No members yet",
+        "memberCount": "{count} {count, plural, =1 {member} other {members}}",
+        "openConversations": "{count} open {count, plural, =1 {conversation} other {conversations}}",
+        "editAria": "Edit {name}",
+        "deleteAria": "Delete {name}",
+        "deleteTeam": "Delete team",
+        "deleteConfirm": "Delete the team \"{name}\"? Its members stay in the account. Conversations and tickets assigned to this team keep their agent but become unassigned from the team. This cannot be undone.",
+        "deleting": "Deleting...",
+        "deleteFailed": "Failed to delete team",
+        "teamDeleted": "Team deleted",
+        "edit": "Edit team",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Tech Support",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What this team handles (optional)",
+        "colorLabel": "Color",
+        "nameRequired": "Team name is required",
+        "createFailed": "Failed to create team",
+        "teamCreated": "Team created",
+        "updateFailed": "Failed to update team",
+        "teamUpdated": "Team updated",
+        "networkError": "Could not reach the server",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving...",
+        "create": "Create",
+        "creating": "Creating..."
+      },
+      "teamSheet": {
+        "noDescription": "No description",
+        "memberCount": "{count} {count, plural, =1 {member} other {members}}",
+        "openConversations": "{count} open {count, plural, =1 {conversation} other {conversations}}",
+        "addMember": "Add member",
+        "searchMembers": "Search people...",
+        "everyoneOnTeam": "Everyone is already on this team",
+        "noMatches": "No one matches",
+        "noMembersYet": "No members yet",
+        "unnamed": "Unnamed",
+        "removeMemberAria": "Remove {name}",
+        "addFailed": "Failed to add member",
+        "removeFailed": "Failed to remove member",
+        "networkError": "Could not reach the server"
+      },
+      "invite": {
+        "inviteCreated": "Invite created",
+        "inviteCreatedDesc": "Share this link with your new teammate. They'll be able to sign up (or sign in) and join the account as <bold>{role}</bold>. The link is valid for <bold>{days} {days, plural, =1 {day} other {days}}</bold>.",
+        "willJoinTeams": "They will be added to these teams",
+        "inviteLink": "Invite link",
+        "copy": "Copy",
+        "saveLinkNow": "Save this link now.",
+        "saveLinkHint": "We never store the plaintext. Once you close this dialog the URL is gone. To re-share, revoke this invite and create a new one.",
+        "sendViaWhatsApp": "Send via WhatsApp",
+        "done": "Done",
+        "dialogTitle": "Invite a teammate",
+        "dialogDesc": "Generate a one-time invite link. Share it via WhatsApp, Slack, or any channel you like. No email service required.",
+        "roleLabel": "Role",
+        "rolesBelowHint": "You can invite roles below your own. Only the Owner can invite Admins.",
+        "rolesOwnerHint": "As the Owner you can invite Admins, Agents and Viewers.",
+        "teamsLabel": "Teams to join",
+        "pickTeams": "Choose teams...",
+        "searchTeams": "Search teams...",
+        "noTeamsYet": "No teams yet",
+        "teamsHint": "They are added to these teams automatically when they accept the link.",
+        "validForLabel": "Link valid for",
+        "days1": "1 day",
+        "days7": "7 days",
+        "days30": "30 days",
+        "labelTitle": "Label",
+        "optional": "(optional)",
+        "labelPlaceholder": "e.g. Sara, support team",
+        "labelHint": "Helps you remember who you sent the link to in the pending list.",
+        "cancel": "Cancel",
+        "creating": "Creating...",
+        "generateLink": "Generate link",
+        "labelTooLong": "Label must be {max} characters or fewer",
+        "createFailed": "Failed to create invitation",
+        "copied": "Invite link copied",
+        "clipboardBlocked": "Clipboard blocked. Copy the link manually",
+        "networkError": "Could not reach the server. Try again?",
+        "fallbackAccountName": "our wacrm account",
+        "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}"
+      }
+    },
     "invite": {
       "inviteCreated": "Invite created",
       "inviteCreatedDesc": "Share this link with your new teammate. They'll be able to sign up (or sign in) and join the account as <bold>{role}</bold>. The link is valid for <bold>{days} {days, plural, =1 {day} other {days}}</bold>.",
@@ -2478,11 +2708,13 @@
       "status-colors": "Status colors",
       "members": "Team members",
       "teams": "Teams",
+      "team": "Team",
       "api": "API keys",
       "tags": "Tags",
       "labels": "Conversation labels",
       "roles": "Roles & permissions",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "approvals": "Approvals"
     },
     "groups": {
       "account": "Account",
@@ -2907,6 +3139,113 @@
         "importing": "Importing…",
         "done": "{created} created, {updated} updated",
         "partial": "{done} imported, {failed} failed"
+      }
+    },
+    "approvals": {
+      "title": "Approvals",
+      "description": "Agents propose, a reviewer approves. New snippets, labels and tags, and changes to existing snippets and labels, wait here until you decide.",
+      "loading": "Loading proposals",
+      "loadFailed": "Could not load the proposals.",
+      "retry": "Try again",
+      "tabs": {
+        "pending": "Pending",
+        "decided": "Decided"
+      },
+      "filters": {
+        "type": "Type",
+        "anyType": "Any type",
+        "person": "Person",
+        "anyone": "Anyone",
+        "range": "Time range",
+        "range_7d": "Last 7 days",
+        "range_30d": "Last 30 days",
+        "range_90d": "Last 90 days"
+      },
+      "actions": {
+        "approve": "Approve",
+        "publish": "Approve and publish",
+        "editApprove": "Edit then approve",
+        "reject": "Reject",
+        "openEditor": "Open in editor",
+        "selectAll": "Select all",
+        "select": "Select {name}",
+        "approveSelected": "Approve selected ({count})"
+      },
+      "row": {
+        "ownProposal": "You proposed this, so someone else has to decide it.",
+        "articleNote": "An agent's {language} draft. Approving publishes it. To send it back, open it in the editor and leave it as a draft."
+      },
+      "empty": {
+        "pending": "Nothing is waiting for approval.",
+        "decided": "Nothing was decided in this time range.",
+        "filtered": "No proposals match these filters."
+      },
+      "decided": {
+        "status": {
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "approvedBy": "Approved by {name}",
+        "rejectedBy": "Rejected by {name}",
+        "note": "Note: {note}"
+      },
+      "toasts": {
+        "approved": "Approved",
+        "published": "Approved and published",
+        "rejected": "Rejected",
+        "approvedMany": "{count} approved",
+        "approvedPartial": "{approved} approved, {failed} could not be approved"
+      },
+      "reject": {
+        "title": "Reject this proposal",
+        "description": "“{name}” stays hidden. The person who proposed it is told why.",
+        "noteLabel": "Note",
+        "notePlaceholder": "Why is it being rejected?",
+        "noteHint": "Required, at least {min} characters.",
+        "cancel": "Cancel",
+        "submit": "Reject"
+      },
+      "edit": {
+        "title": "Edit then approve",
+        "description": "Change the proposed values, then approve. The person who proposed it is told the final version went live.",
+        "interactiveNote": "This is an interactive message. It is approved as it is; you can rename it here.",
+        "cancel": "Cancel",
+        "submit": "Approve with changes"
+      },
+      "switches": {
+        "title": "Agents need approval for",
+        "description": "Choose what agents can change directly and what has to be reviewed first.",
+        "snippets": {
+          "label": "Snippets",
+          "hintOn": "Agents' new snippets and edits wait for a reviewer.",
+          "hintOff": "Agents create and edit snippets directly."
+        },
+        "tags": {
+          "label": "Labels and tags",
+          "hint": "Agents' new labels and tags, and their edits, wait for a reviewer.",
+          "hintLocked": "Always on: agents cannot manage labels and tags directly, so what they add is reviewed. Applying an existing label or tag to a chat stays free."
+        },
+        "needRoles": "Changing this needs permission to edit roles (Settings → Roles & permissions).",
+        "loadFailed": "Could not load these settings.",
+        "saveFailed": "Could not change this setting.",
+        "savedOn": "Agents now need approval for snippets.",
+        "savedOff": "Agents can edit snippets directly again.",
+        "cancel": "Cancel",
+        "confirmOn": {
+          "title": "Require approval for snippets?",
+          "intro": "This changes what the Agent role can do:",
+          "one": "Agents lose direct snippet editing (the “Manage snippets” permission).",
+          "two": "Their new snippets and edits become proposals that reviewers approve or reject.",
+          "three": "Snippets that exist today keep working for everyone.",
+          "action": "Require approval"
+        },
+        "confirmOff": {
+          "title": "Let agents edit snippets directly?",
+          "intro": "This changes what the Agent role can do:",
+          "one": "Agents can create, edit and delete snippets without review again.",
+          "two": "Proposals that are already waiting stay in the queue until someone decides them.",
+          "action": "Allow direct editing"
+        }
       }
     }
   },
@@ -4388,6 +4727,18 @@
       "audit_view": {
         "label": "View the audit log",
         "description": "Open Settings → Audit log to see who added, changed or removed things, and export it."
+      },
+      "approvals_review": {
+        "label": "Review proposals",
+        "description": "Open Settings → Approvals to approve, edit or reject the snippets, labels and tags that agents propose, and publish agents' knowledge drafts."
+      },
+      "snippets_propose": {
+        "label": "Propose snippets",
+        "description": "Suggest new snippets and changes to existing ones. They go live once a reviewer approves them."
+      },
+      "tags_propose": {
+        "label": "Propose tags and labels",
+        "description": "Suggest new contact tags and conversation labels, and changes to existing ones. They go live once a reviewer approves them."
       }
     },
     "group": {
@@ -4679,6 +5030,90 @@
       "someone": "Someone",
       "addedBy": "Added by {name}, {date}",
       "editedBy": "last changed by {name}, {date}"
+    }
+  },
+  "Approvals": {
+    "chips": {
+      "pending": "Pending",
+      "rejected": "Rejected",
+      "pending_changes": "Pending changes",
+      "changes_rejected": "Changes rejected",
+      "pendingTip": "Waiting for a reviewer. It cannot be used yet.",
+      "pendingReviewTip": "Waiting for a decision in Settings → Approvals.",
+      "pendingChangesTip": "Your changes go live when a reviewer approves them. The current version stays as it is.",
+      "pendingChangesReviewTip": "A change is waiting for a decision in Settings → Approvals.",
+      "rejectedTip": "Rejected: {note}",
+      "rejectedNoNote": "Rejected by a reviewer."
+    },
+    "sentForApproval": "Sent for approval",
+    "sendForApproval": "Send for approval",
+    "withdrawn": "Proposal withdrawn",
+    "dismissed": "Dismissed",
+    "withdrawAria": "Withdraw the proposal for {name}",
+    "dismissAria": "Dismiss the rejected proposal for {name}",
+    "review": "Review",
+    "untitled": "Untitled",
+    "unknownPerson": "Unknown person",
+    "tags": {
+      "proposeHint": "You can propose tags and changes. They go live once a reviewer approves them."
+    },
+    "types": {
+      "tag": "Tag",
+      "label": "Label",
+      "both": "Tag and label",
+      "snippet": "Snippet",
+      "article": "Article"
+    },
+    "actions": {
+      "new": "New",
+      "edit": "Edit"
+    },
+    "fields": {
+      "name": "Name",
+      "color": "Colour",
+      "description": "Description",
+      "for_contacts": "Used for contacts",
+      "for_conversations": "Used for chats",
+      "title": "Name",
+      "kind": "Type",
+      "content_text": "Message",
+      "interactive_payload": "Interactive message",
+      "language": "Language"
+    },
+    "values": {
+      "empty": "Empty",
+      "yes": "Yes",
+      "no": "No",
+      "text": "Text",
+      "interactive": "Interactive"
+    },
+    "diff": {
+      "current": "Current",
+      "proposed": "Proposed",
+      "preview": "Preview",
+      "noValues": "Nothing to show."
+    },
+    "errors": {
+      "name_conflict": "A tag or label with this name already exists. Choose another name.",
+      "note_required": "Write a short note (at least 3 characters) so the person knows why.",
+      "own_proposal": "You cannot decide your own proposal. Ask another reviewer.",
+      "not_pending": "This item was already decided or withdrawn.",
+      "not_found": "That item no longer exists.",
+      "not_live": "That item is not live yet. Decide it in Settings → Approvals.",
+      "edit_pending": "Someone else already has a change waiting for this item.",
+      "no_changes": "Nothing changed, so there is nothing to send.",
+      "invalid_name": "Give it a name of 1 to 60 characters.",
+      "invalid_color": "Pick a colour: a # followed by six hex digits.",
+      "invalid_description": "The description can be at most 240 characters.",
+      "invalid_usage": "Turn on at least one use: contacts or chats.",
+      "invalid_title": "Give it a name of 1 to 200 characters.",
+      "invalid_kind": "Choose text or interactive.",
+      "invalid_content": "Add the message text (up to 4,096 characters) or an interactive message.",
+      "reject_not_supported": "Articles can only be approved, which publishes them. To send one back, open it and leave it as a draft.",
+      "forbidden": "You do not have permission to do that.",
+      "unknown": "Something went wrong. Please try again.",
+      "invalid_decision": "Choose approve or reject.",
+      "invalid_type": "That type of item cannot be listed."
     }
   }
 }

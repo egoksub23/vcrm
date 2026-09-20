@@ -6,6 +6,10 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useCapability } from '@/hooks/use-can';
+import { notifyApprovalsChanged } from '@/hooks/use-approvals-count';
+import { proposeTag, proposeTagEdit } from '@/lib/approvals/client';
+import { buildEditPatch, mergePendingEdit, writeMode } from '@/lib/approvals/rules';
 import { createClient } from '@/lib/supabase/client';
 import {
   DEFAULT_TAG_COLOR,
@@ -39,6 +43,13 @@ const flagFor = (k: TagKind) => (k === 'tag' ? 'for_contacts' : 'for_conversatio
  * Create / edit one tag or conversation label. The parent remounts it
  * (via `key`) for each open, so initial state is read straight from
  * `tag` with no reset effect.
+ *
+ * Propose and approve (migration 084): with `tags.manage` it writes the tag
+ * directly, as before. With only `tags.propose` it calls the propose RPCs
+ * instead: a new tag becomes a pending proposal, an edit of a live tag
+ * becomes a pending edit (the live tag is untouched), and the toast says
+ * "Sent for approval". A proposer who reopens their own pending edit sees
+ * their proposed values.
  */
 export function TagEditDialog({
   open,
@@ -58,13 +69,23 @@ export function TagEditDialog({
   onSaved: () => void;
 }) {
   const t = useTranslations('Settings.tagCatalog');
-  const { user, accountId } = useAuth();
+  const tApprovals = useTranslations('Approvals');
+  const { user, accountId, capabilities } = useAuth();
+  const canPropose = useCapability('tags.propose');
+  const mode = writeMode(capabilities, 'tags.manage', 'tags.propose');
+
+  // What the form starts from: the live tag, or (for its proposer) the live
+  // tag with their own pending edit laid over it.
+  const source: Tag | null =
+    tag && tag.pending_edit && tag.proposed_by === user?.id && mode === 'propose'
+      ? mergePendingEdit(tag, tag.pending_edit as Partial<Tag>)
+      : tag;
 
   const other = otherKind(kind);
-  const [name, setName] = useState(tag?.name ?? '');
-  const [description, setDescription] = useState(tag?.description ?? '');
-  const [color, setColor] = useState((tag?.color ?? DEFAULT_TAG_COLOR).toLowerCase());
-  const [alsoOther, setAlsoOther] = useState(tag ? tag[flagFor(other)] !== false : false);
+  const [name, setName] = useState(source?.name ?? '');
+  const [description, setDescription] = useState(source?.description ?? '');
+  const [color, setColor] = useState((source?.color ?? DEFAULT_TAG_COLOR).toLowerCase());
+  const [alsoOther, setAlsoOther] = useState(source ? source[flagFor(other)] !== false : false);
   const [saving, setSaving] = useState(false);
 
   const trimmed = name.trim();
@@ -73,6 +94,7 @@ export function TagEditDialog({
 
   async function handleSave() {
     if (!canSave || !user || !accountId) return;
+    if (mode === 'deny') return;
     setSaving(true);
     const supabase = createClient();
     const fields = {
@@ -82,6 +104,37 @@ export function TagEditDialog({
       [flagFor(kind)]: true,
       [flagFor(other)]: alsoOther,
     };
+
+    if (mode === 'propose') {
+      const result = tag
+        ? await proposeTagEdit(
+            supabase,
+            tag.id,
+            // Only what differs from the live tag; a pending creation is
+            // edited in place, so it sends every field.
+            tag.approval_status && tag.approval_status !== 'approved'
+              ? fields
+              : buildEditPatch(tag as unknown as Record<string, unknown>, fields),
+          )
+        : await proposeTag(supabase, {
+            kind,
+            name: trimmed,
+            color,
+            description: description.trim() || null,
+            alsoOther,
+          });
+      setSaving(false);
+      if (!result.ok) {
+        toast.error(result.code === 'name_conflict' ? t('duplicateName') : tApprovals(`errors.${result.code}`));
+        return;
+      }
+      toast.success(tApprovals('sentForApproval'));
+      notifyApprovalsChanged();
+      onSaved();
+      onOpenChange(false);
+      return;
+    }
+
     const { error } = tag
       ? await supabase.from('tags').update(fields).eq('id', tag.id)
       : await supabase
@@ -177,7 +230,7 @@ export function TagEditDialog({
           </Button>
           <Button onClick={handleSave} disabled={!canSave}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-            {t('save')}
+            {mode === 'propose' && canPropose ? tApprovals('sendForApproval') : t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

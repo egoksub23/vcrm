@@ -9,6 +9,7 @@ import {
   isCapabilityKey,
 } from "./capabilities";
 import { ACCOUNT_ROLES, hasMinRole, type AccountRole } from "./roles";
+import { readMigration } from "@/lib/testing/read-migration";
 
 // ============================================================
 // THE PARITY FIXTURE
@@ -106,6 +107,9 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("account/invitations/[id]", "DELETE", "admin", "members.invite"),
   row("account/members/[userId]", "PATCH", "admin", "members.change-role"),
   row("account/members/[userId]", "DELETE", "admin", "members.remove"),
+  row("account/members/[userId]/remove", "POST", "admin", "members.remove"),
+  row("account/members/[userId]/teams", "PUT", "admin", "teams.manage"),
+  row("account/members/bulk-teams", "POST", "admin", "teams.manage"),
   row("account/teams", "POST", "admin", "teams.manage"),
   row("account/teams/[id]", "PATCH", "admin", "teams.manage"),
   row("account/teams/[id]", "DELETE", "admin", "teams.manage"),
@@ -162,8 +166,10 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("inbox-views", "POST (shared)", "admin", "inbox.shared-views", "was role !== admin/owner"),
   row("inbox-views/[id]", "PATCH (shared)", "admin", "inbox.shared-views", "was role === admin/owner"),
   row("inbox-views/[id]", "DELETE (shared)", "admin", "inbox.shared-views", "was role === admin/owner"),
-  row("quick-replies", "POST", "agent", "snippets.manage"),
-  row("quick-replies/[id]", "PATCH", "agent", "snippets.manage"),
+  // Migration 084: the same floor, or the propose capability (the route
+  // then records a pending proposal instead of writing the snippet).
+  row("quick-replies", "POST", "agent", ["snippets.manage", "snippets.propose"]),
+  row("quick-replies/[id]", "PATCH", "agent", ["snippets.manage", "snippets.propose"]),
   row("quick-replies/[id]", "DELETE", "agent", "snippets.manage"),
   row("whatsapp/send", "POST", "agent", "messages.send"),
   row("whatsapp/react", "POST", "agent", "messages.send"),
@@ -240,6 +246,17 @@ export const DB_TIER_ROWS: readonly Row[] = [
   row("ai_usage_log", "select", "admin", "ai.configure"),
   // Migration 082: new table, no legacy floor; Owner + Admin by default.
   row("audit_log", "select", "admin", "audit.view"),
+  // Migration 084: the write policies of tags (contact tags and conversation
+  // labels) and quick_replies (snippets) moved to has_capability so a
+  // review step cannot be bypassed from the browser. Same floors as before.
+  row("tags", "insert/update/delete", "admin", "tags.manage"),
+  row("quick_replies", "insert/update/delete", "agent", "snippets.manage"),
+  // Migration 084 RPCs (SECURITY DEFINER, they check the capability inside):
+  // new, no legacy floor. Propose = the floor of the direct write (an Admin
+  // who loses tags.manage falls back to proposing), review = Owner + Admin.
+  row("propose_tag / propose_tag_edit", "rpc", "agent", "tags.propose"),
+  row("propose_snippet / propose_snippet_edit", "rpc", "agent", "snippets.propose"),
+  row("decide_proposal / approvals_list", "rpc", "admin", "approvals.review"),
   ...["api_keys", "webhook_endpoints"].map((t) =>
     row(t, "insert/update/delete", "admin", "api.manage"),
   ),
@@ -295,8 +312,6 @@ export const MEMBER_TIER_ROWS: readonly Row[] = [
   row("ticket_comments", "insert", "agent", "tickets.work"),
   row("tickets", "delete", "admin", "tickets.delete"),
   row("ticket_custom_fields", "insert/update/delete", "admin", "tickets.configure-form"),
-  row("tags", "insert/update/delete", "admin", "tags.manage"),
-  row("quick_replies", "insert/update/delete", "agent", "snippets.manage"),
   row("inbox_views", "insert/update/delete (shared, owner_id null)", "admin", "inbox.shared-views"),
   row("teams", "insert/update/delete", "admin", "teams.manage"),
   row("team_members", "insert/delete", "admin", "teams.manage"),
@@ -455,6 +470,42 @@ describe("migration 079 database tier", () => {
   });
 });
 
+describe("migration 084 database tier", () => {
+  const migration = readMigration("084_approvals.sql");
+
+  it("moves the tags and quick_replies write policies onto has_capability()", () => {
+    for (const [table, cap] of [
+      ["tags", "tags.manage"],
+      ["quick_replies", "snippets.manage"],
+    ]) {
+      for (const [verb, clause] of [
+        ["insert", "FOR INSERT WITH CHECK"],
+        ["update", "FOR UPDATE USING"],
+        ["delete", "FOR DELETE USING"],
+      ]) {
+        const re = new RegExp(
+          `CREATE POLICY ${table}_${verb} ON public\\.${table}\\s+${clause} \\(has_capability\\(account_id, '${cap}'\\)\\)`,
+        );
+        expect(migration, `${table}_${verb}`).toMatch(re);
+      }
+    }
+  });
+
+  it("has a parity row for both tables", () => {
+    for (const [table, cap, floor] of [
+      ["tags", "tags.manage", "admin"],
+      ["quick_replies", "snippets.manage", "agent"],
+    ] as const) {
+      const match = DB_TIER_ROWS.find(
+        (r) => r.where === table && r.method === "insert/update/delete",
+      );
+      expect(match, table).toBeDefined();
+      expect(match!.capability).toBe(cap);
+      expect(match!.floor).toBe(floor);
+    }
+  });
+});
+
 // ------------------------------------------------------------
 // The route source must match the table: no route file may go back to
 // `requireRole(` (except the owner-only ones), and the capabilities a
@@ -524,7 +575,8 @@ describe("route handlers use capabilities, not role floors", () => {
       if (
         r.key.startsWith("account/roles") ||
         r.key.startsWith("account/capabilities") ||
-        r.key.startsWith("account/audit")
+        r.key.startsWith("account/audit") ||
+        r.key.startsWith("account/approvals")
       ) {
         continue;
       }

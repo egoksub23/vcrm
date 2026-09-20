@@ -12,7 +12,8 @@ interface FakeOptions {
 
 function fakeDb(
   options: FakeOptions = {},
-  isCalls: [string, string, unknown][] = []
+  isCalls: [string, string, unknown][] = [],
+  eqCalls: [string, string, unknown][] = []
 ): SupabaseClient {
   const contact =
     options.contact === undefined ? { id: 'contact-1' } : options.contact;
@@ -29,7 +30,8 @@ function fakeDb(
           state.operation = 'insert';
           return builder;
         },
-        eq() {
+        eq(column: string, value: unknown) {
+          eqCalls.push([table, column, value]);
           return builder;
         },
         is(column: string, value: unknown) {
@@ -69,6 +71,12 @@ describe('addContactTagIfAbsent', () => {
     const isCalls: [string, string, unknown][] = [];
     await addContactTagIfAbsent(fakeDb({}, isCalls), input);
     expect(isCalls).toContainEqual(['tags', 'deleted_at', null]);
+  });
+
+  it('never applies a tag that still waits for approval (migration 084)', async () => {
+    const eqCalls: [string, string, unknown][] = [];
+    await addContactTagIfAbsent(fakeDb({}, [], eqCalls), input);
+    expect(eqCalls).toContainEqual(['tags', 'approval_status', 'approved']);
   });
 
   it('returns true only when the join row was inserted', async () => {

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireAnyCapability, requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { approvalErrorResponse } from '@/lib/approvals/server'
+import { writeMode } from '@/lib/approvals/rules'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 
 // Update / delete a single quick reply. Quick replies are account-
@@ -7,6 +9,11 @@ import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 // caller's own client (agent-gated RLS), so the audit trail (migration 082)
 // records who changed or removed it. A delete is a soft delete: the
 // database keeps the row (deleted_at) so it can be restored.
+//
+// Propose and approve (migration 084): PATCH with only `snippets.propose`
+// stores the change as a pending edit through the propose_snippet_edit RPC
+// (the live snippet is unchanged until a reviewer approves); with
+// `snippets.manage` it applies at once. DELETE needs `snippets.manage`.
 
 export async function PATCH(
   request: Request,
@@ -15,10 +22,11 @@ export async function PATCH(
   const { id } = await params
   let ctx
   try {
-    ctx = await requireCapability('snippets.manage')
+    ctx = await requireAnyCapability(['snippets.manage', 'snippets.propose'])
   } catch (err) {
     return toErrorResponse(err)
   }
+  const mode = writeMode(ctx.capabilities, 'snippets.manage', 'snippets.propose')
 
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -70,6 +78,16 @@ export async function PATCH(
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: true })
+  }
+
+  if (mode === 'propose') {
+    const { data, error } = await ctx.supabase.rpc('propose_snippet_edit', {
+      p_id: id,
+      p_patch: update,
+    })
+    if (error) return approvalErrorResponse(error)
+    const result = (data ?? {}) as { mode?: string }
+    return NextResponse.json({ ok: true, pending: result.mode !== 'updated' })
   }
 
   const { error } = await ctx.supabase

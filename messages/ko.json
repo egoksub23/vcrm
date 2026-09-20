@@ -44,7 +44,8 @@
     "menuProfile": "프로필",
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
-    "knowledge": "지식 베이스"
+    "knowledge": "지식 베이스",
+    "pendingApprovals": "승인 대기 중인 제안 {count}건"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -1775,6 +1776,235 @@
       "editAria": "{name} 수정",
       "deleteAria": "{name} 삭제"
     },
+    "team": {
+      "title": "팀",
+      "description": "이 계정의 모든 구성원과 소속 팀입니다. 사람을 초대하고, 역할을 지정하고, 팀으로 묶을 수 있습니다.",
+      "inviteMember": "멤버 초대",
+      "createTeam": "팀 만들기",
+      "viewsAria": "팀 보기",
+      "views": {
+        "members": "멤버",
+        "teams": "팀"
+      },
+      "loadMembersFailed": "멤버를 불러오지 못했습니다",
+      "loadTeamsFailed": "팀을 불러오지 못했습니다",
+      "loadInvitationsFailed": "초대를 불러오지 못했습니다",
+      "networkError": "서버에 연결할 수 없습니다",
+      "picker": {
+        "search": "검색...",
+        "clear": "지우기",
+        "noMatches": "일치하는 항목이 없습니다"
+      },
+      "chips": {
+        "none": "팀 없음",
+        "more": "+{count}",
+        "showAll": "팀 {count}개 모두 보기",
+        "allTeams": "팀 {count}개 전체"
+      },
+      "members": {
+        "searchPlaceholder": "이름 또는 이메일 검색",
+        "filterTeam": "팀",
+        "filterRole": "역할",
+        "filterStatus": "상태",
+        "searchTeams": "팀 검색...",
+        "noTeamsYet": "아직 팀이 없습니다",
+        "noRoles": "역할 없음",
+        "status": {
+          "all": "모든 멤버",
+          "active": "활성",
+          "pending": "초대 대기 중",
+          "pendingBadge": "대기 중"
+        },
+        "sortBy": "정렬 기준",
+        "sort": {
+          "name": "이름",
+          "role": "역할"
+        },
+        "sortAsc": "오름차순. 클릭하면 내림차순",
+        "sortDesc": "내림차순. 클릭하면 오름차순",
+        "clearFilters": "필터 지우기",
+        "presence": {
+          "online": "온라인, 지금 활동 중",
+          "away": "자리 비움",
+          "offline": "오프라인",
+          "offlineSince": "오프라인, 마지막 접속 {when}",
+          "onlineCount": "온라인",
+          "awayCount": "자리 비움",
+          "offlineCount": "오프라인"
+        },
+        "memberCount": "멤버 {count}명",
+        "showingCount": "{total}명 중 {shown}명 표시",
+        "selectedCount": "{count}명 선택됨",
+        "bulkAddTo": "팀에 추가...",
+        "bulkRemoveFrom": "팀에서 제거...",
+        "bulkApplyAdd": "선택한 팀에 추가",
+        "bulkApplyRemove": "선택한 팀에서 제거",
+        "clearSelection": "선택 해제",
+        "bulkAdded": "{count, plural, =0 {모두 이미 해당 팀에 속해 있습니다} other {팀 소속 #건이 추가되었습니다}}",
+        "bulkRemoved": "{count, plural, =0 {해당 팀에 속한 사람이 없습니다} other {팀 소속 #건이 제거되었습니다}}",
+        "bulkFailed": "팀을 업데이트하지 못했습니다",
+        "networkError": "서버에 연결할 수 없습니다",
+        "pendingInvitations": "대기 중인 초대",
+        "inviteHint": "초대 링크는 만들 때 한 번만 표시됩니다. 다시 공유하려면 초대를 취소하고 새로 만드세요.",
+        "untitledInvite": "제목 없는 초대",
+        "invitedBy": "{name}님이 초대함",
+        "expired": "만료됨",
+        "expiresOn": "{date} 만료",
+        "willJoin": "가입할 팀:",
+        "noTeamsToJoin": "가입할 팀 없음",
+        "revoke": "취소",
+        "revokedToast": "초대가 취소되었습니다",
+        "revokeFailed": "초대를 취소하지 못했습니다",
+        "noMatches": "이 필터와 일치하는 사람이 없습니다.",
+        "noMembers": "아직 멤버가 없습니다.",
+        "selectAll": "모든 멤버 선택",
+        "selectMember": "{name} 선택",
+        "openMember": "{name} 열기",
+        "col": {
+          "member": "멤버",
+          "role": "역할",
+          "teams": "팀",
+          "lastActive": "최근 활동"
+        },
+        "unnamed": "이름 없음",
+        "you": "나",
+        "activeNow": "지금 활동 중",
+        "never": "아직 없음"
+      },
+      "sheet": {
+        "unnamed": "이름 없음",
+        "joined": "{date} 가입",
+        "role": "역할",
+        "roleLocked": {
+          "self": "본인의 역할은 변경할 수 없습니다.",
+          "owner": "소유자의 역할은 소유권 이전을 통해서만 바꿀 수 있습니다.",
+          "capability": "현재 역할에는 역할을 변경할 권한이 없습니다.",
+          "hierarchy": "본인보다 낮은 역할의 멤버만 변경할 수 있습니다."
+        },
+        "roleUpdated": "{name}님을 {role}(으)로 변경했습니다",
+        "roleFailed": "역할을 변경하지 못했습니다",
+        "teams": "팀",
+        "editTeams": "팀 편집",
+        "searchTeams": "팀 검색...",
+        "noTeamsYet": "아직 팀이 없습니다",
+        "teamsReadOnly": "이 사람이 속한 팀을 볼 수 있습니다. 팀을 변경하려면 팀 관리 권한이 필요합니다.",
+        "teamsFailed": "팀을 업데이트하지 못했습니다",
+        "access": "적용되는 권한",
+        "accessSummary": "{role}: 전체 {total}개 중 {enabled}개 기능 사용 가능.",
+        "accessUnknown": "권한은 {role} 역할을 따릅니다.",
+        "reviewRoles": "역할 및 권한에서 확인",
+        "work": "진행 중인 업무",
+        "openConversations": "열린 대화",
+        "openTickets": "열린 티켓",
+        "remove": "멤버 제거",
+        "networkError": "서버에 연결할 수 없습니다"
+      },
+      "remove": {
+        "title": "멤버 제거",
+        "description": "<bold>{name}</bold>님을 이 계정에서 제거하시겠습니까? 로그인 계정은 삭제되지 않으며, 새 개인 계정이 만들어집니다.",
+        "teamsLine": "{count, plural, =0 {소속된 팀 없음} other {팀 #곳에서 제거됨}}",
+        "conversationsLine": "{count, plural, =0 {배정된 열린 대화 없음} other {배정된 열린 대화 #건}}",
+        "ticketsLine": "{count, plural, =0 {배정된 열린 티켓 없음} other {배정된 열린 티켓 #건}}",
+        "reassignLabel": "진행 중인 업무를 다시 배정할 사람",
+        "leaveUnassigned": "미배정으로 두기",
+        "reassignHint": "열린 대화와 티켓이 {name}님에게 배정됩니다.",
+        "unassignHint": "열린 대화와 티켓이 미배정 상태가 되어 누구나 가져갈 수 있습니다.",
+        "cancel": "취소",
+        "confirm": "멤버 제거",
+        "removing": "제거 중...",
+        "removedToast": "{name}님을 제거했습니다",
+        "failed": "멤버를 제거하지 못했습니다",
+        "networkError": "서버에 연결할 수 없습니다",
+        "unnamed": "이름 없음"
+      },
+      "teams": {
+        "createTeam": "팀 만들기",
+        "noTeamsTitle": "아직 팀이 없습니다.",
+        "noTeamsDesc": "첫 팀을 만들어 전문 분야별로 대화를 배정해 보세요.",
+        "openTeam": "{name} 열기",
+        "noMembersYet": "아직 멤버가 없습니다",
+        "memberCount": "멤버 {count}명",
+        "openConversations": "열린 대화 {count}건",
+        "editAria": "{name} 편집",
+        "deleteAria": "{name} 삭제",
+        "deleteTeam": "팀 삭제",
+        "deleteConfirm": "\"{name}\" 팀을 삭제하시겠습니까? 팀원은 계정에 그대로 남습니다. 이 팀에 배정된 대화와 티켓은 담당자를 유지하지만 팀 배정은 해제됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "deleting": "삭제 중...",
+        "deleteFailed": "팀을 삭제하지 못했습니다",
+        "teamDeleted": "팀이 삭제되었습니다",
+        "edit": "팀 편집",
+        "nameLabel": "이름",
+        "namePlaceholder": "예: 기술 지원",
+        "descriptionLabel": "설명",
+        "descriptionPlaceholder": "이 팀이 담당하는 업무 (선택)",
+        "colorLabel": "색상",
+        "nameRequired": "팀 이름을 입력하세요",
+        "createFailed": "팀을 만들지 못했습니다",
+        "teamCreated": "팀이 만들어졌습니다",
+        "updateFailed": "팀을 업데이트하지 못했습니다",
+        "teamUpdated": "팀이 업데이트되었습니다",
+        "networkError": "서버에 연결할 수 없습니다",
+        "cancel": "취소",
+        "save": "저장",
+        "saving": "저장 중...",
+        "create": "만들기",
+        "creating": "만드는 중..."
+      },
+      "teamSheet": {
+        "noDescription": "설명 없음",
+        "memberCount": "멤버 {count}명",
+        "openConversations": "열린 대화 {count}건",
+        "addMember": "멤버 추가",
+        "searchMembers": "사람 검색...",
+        "everyoneOnTeam": "모든 사람이 이미 이 팀에 속해 있습니다",
+        "noMatches": "일치하는 사람이 없습니다",
+        "noMembersYet": "아직 멤버가 없습니다",
+        "unnamed": "이름 없음",
+        "removeMemberAria": "{name} 제거",
+        "addFailed": "멤버를 추가하지 못했습니다",
+        "removeFailed": "멤버를 제거하지 못했습니다",
+        "networkError": "서버에 연결할 수 없습니다"
+      },
+      "invite": {
+        "inviteCreated": "초대 링크가 만들어졌습니다",
+        "inviteCreatedDesc": "이 링크를 새 팀원에게 공유하세요. 가입하거나 로그인하면 <bold>{role}</bold> 역할로 계정에 참여합니다. 링크는 <bold>{days}일</bold> 동안 유효합니다.",
+        "willJoinTeams": "다음 팀에 자동으로 추가됩니다",
+        "inviteLink": "초대 링크",
+        "copy": "복사",
+        "saveLinkNow": "지금 이 링크를 저장하세요.",
+        "saveLinkHint": "링크 원문은 저장되지 않습니다. 이 창을 닫으면 URL을 다시 볼 수 없습니다. 다시 공유하려면 이 초대를 취소하고 새로 만드세요.",
+        "sendViaWhatsApp": "WhatsApp으로 보내기",
+        "done": "완료",
+        "dialogTitle": "팀원 초대",
+        "dialogDesc": "일회용 초대 링크를 만드세요. WhatsApp, Slack 등 원하는 채널로 공유할 수 있으며 이메일 서비스는 필요하지 않습니다.",
+        "roleLabel": "역할",
+        "rolesBelowHint": "본인보다 낮은 역할만 초대할 수 있습니다. 관리자는 소유자만 초대할 수 있습니다.",
+        "rolesOwnerHint": "소유자는 관리자, 상담원, 뷰어를 초대할 수 있습니다.",
+        "teamsLabel": "가입할 팀",
+        "pickTeams": "팀 선택...",
+        "searchTeams": "팀 검색...",
+        "noTeamsYet": "아직 팀이 없습니다",
+        "teamsHint": "링크를 수락하면 이 팀들에 자동으로 추가됩니다.",
+        "validForLabel": "링크 유효 기간",
+        "days1": "1일",
+        "days7": "7일",
+        "days30": "30일",
+        "labelTitle": "라벨",
+        "optional": "(선택)",
+        "labelPlaceholder": "예: 사라, 지원 팀",
+        "labelHint": "대기 중인 목록에서 링크를 누구에게 보냈는지 기억하는 데 도움이 됩니다.",
+        "cancel": "취소",
+        "creating": "만드는 중...",
+        "generateLink": "링크 만들기",
+        "labelTooLong": "라벨은 {max}자 이하여야 합니다",
+        "createFailed": "초대를 만들지 못했습니다",
+        "copied": "초대 링크를 복사했습니다",
+        "clipboardBlocked": "클립보드가 차단되었습니다. 링크를 직접 복사하세요",
+        "networkError": "서버에 연결할 수 없습니다. 다시 시도하시겠어요?",
+        "fallbackAccountName": "우리 wacrm 계정",
+        "whatsappMessage": "이 링크로 wacrm의 {accountName}에 참여하세요 ({expiresInDays}일 동안 유효): {url}"
+      }
+    },
     "invite": {
       "inviteCreated": "초대가 생성되었습니다",
       "inviteCreatedDesc": "이 링크를 새 팀원과 공유하세요. <bold>{role}</bold> 역할로 가입(또는 로그인)해 계정에 합류할 수 있습니다. 링크는 <bold>{days}일</bold> 동안 유효합니다.",
@@ -2478,11 +2708,13 @@
       "status-colors": "상태 색상",
       "members": "팀원",
       "teams": "팀",
+      "team": "팀",
       "api": "API 키",
       "tags": "태그",
       "labels": "대화 라벨",
       "roles": "역할 & 권한",
-      "audit": "감사 로그"
+      "audit": "감사 로그",
+      "approvals": "승인"
     },
     "groups": {
       "account": "계정",
@@ -2907,6 +3139,113 @@
         "importing": "가져오는 중…",
         "done": "{created}개 생성, {updated}개 업데이트",
         "partial": "{done}개 가져옴, {failed}개 실패"
+      }
+    },
+    "approvals": {
+      "title": "승인",
+      "description": "상담원이 제안하고 검토자가 승인합니다. 새 스니펫, 라벨, 태그와 기존 스니펫·라벨의 변경 사항은 결정할 때까지 여기서 대기합니다.",
+      "loading": "제안을 불러오는 중",
+      "loadFailed": "제안을 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "tabs": {
+        "pending": "대기 중",
+        "decided": "결정됨"
+      },
+      "filters": {
+        "type": "유형",
+        "anyType": "모든 유형",
+        "person": "사용자",
+        "anyone": "모든 사용자",
+        "range": "기간",
+        "range_7d": "최근 7일",
+        "range_30d": "최근 30일",
+        "range_90d": "최근 90일"
+      },
+      "actions": {
+        "approve": "승인",
+        "publish": "승인 및 게시",
+        "editApprove": "수정 후 승인",
+        "reject": "거절",
+        "openEditor": "편집기에서 열기",
+        "selectAll": "모두 선택",
+        "select": "{name} 선택",
+        "approveSelected": "선택 항목 승인 ({count})"
+      },
+      "row": {
+        "ownProposal": "직접 제안한 항목이므로 다른 사람이 결정해야 합니다.",
+        "articleNote": "상담원의 {language} 초안입니다. 승인하면 게시됩니다. 되돌리려면 편집기에서 열어 초안으로 두세요."
+      },
+      "empty": {
+        "pending": "승인을 기다리는 항목이 없습니다.",
+        "decided": "이 기간에 결정된 항목이 없습니다.",
+        "filtered": "이 필터와 일치하는 제안이 없습니다."
+      },
+      "decided": {
+        "status": {
+          "approved": "승인됨",
+          "rejected": "거절됨"
+        },
+        "approvedBy": "{name}님이 승인",
+        "rejectedBy": "{name}님이 거절",
+        "note": "메모: {note}"
+      },
+      "toasts": {
+        "approved": "승인했습니다",
+        "published": "승인하고 게시했습니다",
+        "rejected": "거절했습니다",
+        "approvedMany": "{count}건 승인",
+        "approvedPartial": "{approved}건 승인, {failed}건은 승인하지 못했습니다"
+      },
+      "reject": {
+        "title": "이 제안 거절",
+        "description": "“{name}”은(는) 계속 숨겨집니다. 제안한 사람에게 이유가 전달됩니다.",
+        "noteLabel": "메모",
+        "notePlaceholder": "거절하는 이유는 무엇인가요?",
+        "noteHint": "필수, {min}자 이상.",
+        "cancel": "취소",
+        "submit": "거절"
+      },
+      "edit": {
+        "title": "수정 후 승인",
+        "description": "제안된 값을 수정한 뒤 승인합니다. 제안한 사람에게 최종 버전이 적용되었음을 알립니다.",
+        "interactiveNote": "인터랙티브 메시지입니다. 그대로 승인되며 여기서 이름만 바꿀 수 있습니다.",
+        "cancel": "취소",
+        "submit": "변경하여 승인"
+      },
+      "switches": {
+        "title": "상담원 승인이 필요한 항목",
+        "description": "상담원이 직접 변경할 수 있는 항목과 먼저 검토가 필요한 항목을 선택합니다.",
+        "snippets": {
+          "label": "스니펫",
+          "hintOn": "상담원의 새 스니펫과 수정은 검토자를 기다립니다.",
+          "hintOff": "상담원이 스니펫을 직접 만들고 수정합니다."
+        },
+        "tags": {
+          "label": "라벨 및 태그",
+          "hint": "상담원의 새 라벨·태그와 수정은 검토자를 기다립니다.",
+          "hintLocked": "항상 켜져 있음: 상담원은 라벨과 태그를 직접 관리할 수 없으므로 추가한 내용은 검토됩니다. 기존 라벨이나 태그를 대화에 적용하는 것은 계속 자유롭습니다."
+        },
+        "needRoles": "이 설정을 변경하려면 역할을 편집할 권한이 필요합니다(설정 → 역할 및 권한).",
+        "loadFailed": "이 설정을 불러오지 못했습니다.",
+        "saveFailed": "이 설정을 변경하지 못했습니다.",
+        "savedOn": "이제 상담원의 스니펫에 승인이 필요합니다.",
+        "savedOff": "상담원이 다시 스니펫을 직접 수정할 수 있습니다.",
+        "cancel": "취소",
+        "confirmOn": {
+          "title": "스니펫에 승인을 요구할까요?",
+          "intro": "상담원 역할이 할 수 있는 일이 바뀝니다.",
+          "one": "상담원이 직접 스니펫을 편집할 수 없게 됩니다(“스니펫 관리” 권한).",
+          "two": "새 스니펫과 수정은 검토자가 승인하거나 거절하는 제안이 됩니다.",
+          "three": "현재 있는 스니펫은 모두에게 계속 사용됩니다.",
+          "action": "승인 요구"
+        },
+        "confirmOff": {
+          "title": "상담원이 스니펫을 직접 수정하게 할까요?",
+          "intro": "상담원 역할이 할 수 있는 일이 바뀝니다.",
+          "one": "상담원이 검토 없이 스니펫을 만들고, 수정하고, 삭제할 수 있습니다.",
+          "two": "이미 대기 중인 제안은 누군가 결정할 때까지 대기열에 남습니다.",
+          "action": "직접 수정 허용"
+        }
       }
     }
   },
@@ -4388,6 +4727,18 @@
       "audit_view": {
         "label": "감사 로그 보기",
         "description": "설정 → 감사 로그를 열어 누가 무엇을 추가·변경·삭제했는지 확인하고 내보냅니다."
+      },
+      "approvals_review": {
+        "label": "제안 검토",
+        "description": "설정 → 승인에서 상담원이 제안한 스니펫, 라벨, 태그를 승인·수정·거절하고 상담원의 지식 초안을 게시합니다."
+      },
+      "snippets_propose": {
+        "label": "스니펫 제안",
+        "description": "새 스니펫과 기존 스니펫의 변경을 제안합니다. 검토자가 승인하면 적용됩니다."
+      },
+      "tags_propose": {
+        "label": "태그 및 라벨 제안",
+        "description": "새 연락처 태그와 대화 라벨, 그리고 기존 항목의 변경을 제안합니다. 검토자가 승인하면 적용됩니다."
       }
     },
     "group": {
@@ -4679,6 +5030,90 @@
       "someone": "누군가",
       "addedBy": "{name}님이 {date}에 추가",
       "editedBy": "마지막 변경: {name}님, {date}"
+    }
+  },
+  "Approvals": {
+    "chips": {
+      "pending": "대기 중",
+      "rejected": "거절됨",
+      "pending_changes": "변경 대기 중",
+      "changes_rejected": "변경 거절됨",
+      "pendingTip": "검토자를 기다리는 중입니다. 아직 사용할 수 없습니다.",
+      "pendingReviewTip": "설정 → 승인에서 결정을 기다리고 있습니다.",
+      "pendingChangesTip": "검토자가 승인하면 변경 사항이 적용됩니다. 현재 버전은 그대로 유지됩니다.",
+      "pendingChangesReviewTip": "변경 사항이 설정 → 승인에서 결정을 기다리고 있습니다.",
+      "rejectedTip": "거절됨: {note}",
+      "rejectedNoNote": "검토자가 거절했습니다."
+    },
+    "sentForApproval": "승인 요청을 보냈습니다",
+    "sendForApproval": "승인 요청",
+    "withdrawn": "제안을 철회했습니다",
+    "dismissed": "닫았습니다",
+    "withdrawAria": "{name} 제안 철회",
+    "dismissAria": "{name}의 거절된 제안 닫기",
+    "review": "검토",
+    "untitled": "제목 없음",
+    "unknownPerson": "알 수 없는 사용자",
+    "tags": {
+      "proposeHint": "태그와 변경 사항을 제안할 수 있습니다. 검토자가 승인하면 적용됩니다."
+    },
+    "types": {
+      "tag": "태그",
+      "label": "라벨",
+      "both": "태그 및 라벨",
+      "snippet": "스니펫",
+      "article": "문서"
+    },
+    "actions": {
+      "new": "신규",
+      "edit": "수정"
+    },
+    "fields": {
+      "name": "이름",
+      "color": "색상",
+      "description": "설명",
+      "for_contacts": "연락처에 사용",
+      "for_conversations": "대화에 사용",
+      "title": "이름",
+      "kind": "유형",
+      "content_text": "메시지",
+      "interactive_payload": "인터랙티브 메시지",
+      "language": "언어"
+    },
+    "values": {
+      "empty": "비어 있음",
+      "yes": "예",
+      "no": "아니요",
+      "text": "텍스트",
+      "interactive": "인터랙티브"
+    },
+    "diff": {
+      "current": "현재",
+      "proposed": "제안",
+      "preview": "미리보기",
+      "noValues": "표시할 내용이 없습니다."
+    },
+    "errors": {
+      "name_conflict": "같은 이름의 태그 또는 라벨이 이미 있습니다. 다른 이름을 사용하세요.",
+      "note_required": "이유를 알 수 있도록 짧은 메모(3자 이상)를 작성하세요.",
+      "own_proposal": "본인의 제안은 직접 결정할 수 없습니다. 다른 검토자에게 요청하세요.",
+      "not_pending": "이 항목은 이미 결정되었거나 철회되었습니다.",
+      "not_found": "해당 항목이 더 이상 존재하지 않습니다.",
+      "not_live": "이 항목은 아직 적용되지 않았습니다. 설정 → 승인에서 결정하세요.",
+      "edit_pending": "다른 사람이 이 항목에 대한 변경을 이미 제안했습니다.",
+      "no_changes": "변경된 내용이 없어 보낼 것이 없습니다.",
+      "invalid_name": "이름은 1자 이상 60자 이하로 입력하세요.",
+      "invalid_color": "색상은 #과 6자리 16진수로 입력하세요.",
+      "invalid_description": "설명은 최대 240자까지 입력할 수 있습니다.",
+      "invalid_usage": "연락처 또는 대화 중 하나 이상에 사용하도록 설정하세요.",
+      "invalid_title": "이름은 1자 이상 200자 이하로 입력하세요.",
+      "invalid_kind": "텍스트 또는 인터랙티브를 선택하세요.",
+      "invalid_content": "메시지 텍스트(최대 4,096자) 또는 인터랙티브 메시지를 입력하세요.",
+      "reject_not_supported": "문서는 승인(게시)만 할 수 있습니다. 되돌리려면 문서를 열어 초안으로 두세요.",
+      "forbidden": "이 작업을 수행할 권한이 없습니다.",
+      "unknown": "문제가 발생했습니다. 다시 시도해 주세요.",
+      "invalid_decision": "승인 또는 거절을 선택하세요.",
+      "invalid_type": "해당 유형의 항목은 조회할 수 없습니다."
     }
   }
 }

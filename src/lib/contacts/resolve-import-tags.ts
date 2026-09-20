@@ -12,8 +12,9 @@ export interface ResolveImportTagsResult {
 /**
  * Resolve tag names from a CSV import to tag ids. Existing account tags
  * are matched case-insensitively. Missing names are created when
- * `canCreateTags` is true (admin+); otherwise they are reported in
- * `skippedNames`.
+ * `canCreateTags` is true (a caller holding `tags.manage`, or an API key);
+ * otherwise they are reported in `skippedNames`, never created directly: a
+ * person who can only PROPOSE tags does not get one made by an import.
  *
  * Unlike the manual contact form (existing tags only), import may
  * auto-create missing tag definitions for admin+ callers.
@@ -51,8 +52,11 @@ export async function resolveImportTagIds(
     .select('id, name')
     .eq('account_id', accountId)
     // Soft-deleted tags (migration 082) must not be matched by name when
-    // the caller bypasses RLS (API v1 uses the service role).
-    .is('deleted_at', null);
+    // the caller bypasses RLS (API v1 uses the service role). Neither may a
+    // proposal that still waits for a reviewer (migration 084): it is not a
+    // tag yet, and a contact must never be tagged with it.
+    .is('deleted_at', null)
+    .eq('approval_status', 'approved');
 
   if (fetchError) throw fetchError;
 

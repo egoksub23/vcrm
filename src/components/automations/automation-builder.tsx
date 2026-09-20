@@ -291,7 +291,7 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const [tagsRes, templatesRes, customFieldsRes, pipelinesRes, stagesRes] =
         await Promise.all([
-          supabase.from("tags").select("*").order("name"),
+          supabase.from("tags").select("*").eq("approval_status", "approved").order("name"),
           supabase
             .from("message_templates")
             .select("*")

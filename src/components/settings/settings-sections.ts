@@ -1,6 +1,6 @@
 import {
   Bookmark,
-  Boxes,
+  ClipboardCheck,
   ClipboardList,
   Coins,
   History,
@@ -42,9 +42,9 @@ export const SETTINGS_SECTIONS = [
   'deals',
   'response-time',
   'status-colors',
-  'members',
-  'teams',
+  'team',
   'roles',
+  'approvals',
   'audit',
   'api',
 ] as const;
@@ -81,9 +81,9 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   'response-time': { id: 'response-time', label: 'Response time', icon: Timer, group: 'workspace' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
-  members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
-  teams: { id: 'teams', label: 'Teams', icon: Boxes, group: 'workspace' },
+  team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },
+  approvals: { id: 'approvals', label: 'Approvals', icon: ClipboardCheck, group: 'workspace', capability: 'approvals.review' },
   audit: { id: 'audit', label: 'Audit log', icon: History, group: 'workspace', capability: 'audit.view' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace', capability: 'api.manage' },
 };
@@ -122,8 +122,26 @@ function isSection(value: string | null): value is SettingsSection {
  */
 export function resolveSection(raw: string | null): SettingsSection {
   if (raw === 'custom-fields') return 'fields';
+  // Team members and Teams merged into one Team section (two views).
+  if (raw === 'members' || raw === 'teams') return 'team';
   // WhatsApp templates moved under Channels → WhatsApp → Templates.
   if (raw === 'whatsapp' || raw === 'templates') return 'channels';
   if (isSection(raw)) return raw;
   return DEFAULT_SECTION;
+}
+
+/** The two views of the merged Team section. */
+export type TeamView = 'members' | 'teams';
+
+/**
+ * Which Team view to show. `?view=` wins; otherwise the legacy tab that
+ * got the person here decides (`?tab=teams` opens Teams, `?tab=members`
+ * and everything else open Members).
+ */
+export function resolveTeamView(
+  tab: string | null,
+  view: string | null,
+): TeamView {
+  if (view === 'teams' || view === 'members') return view;
+  return tab === 'teams' ? 'teams' : 'members';
 }

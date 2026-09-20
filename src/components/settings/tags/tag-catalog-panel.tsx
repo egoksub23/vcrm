@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Download, Loader2, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
+import Link from 'next/link';
+import { Download, Loader2, Pencil, Plus, Search, Trash2, Undo2, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useCapability } from '@/hooks/use-can';
+import { ApprovalChip } from '@/components/approvals/approval-chip';
+import { notifyApprovalsChanged } from '@/hooks/use-approvals-count';
+import { withdrawProposal } from '@/lib/approvals/client';
+import { canWithdraw, chipState, isUsable } from '@/lib/approvals/rules';
 import { downloadCsv } from '@/lib/csv';
 import { createClient } from '@/lib/supabase/client';
 import { isContactTag, isConversationLabel } from '@/lib/tags/scope';
@@ -47,6 +52,13 @@ interface Usage {
  * (migration 068): contact **tags** or **conversation labels**. Anyone
  * can read it; admins can create / edit / delete and bulk import /
  * export via CSV.
+ *
+ * Propose and approve (migration 084): people with only `tags.propose` can
+ * add and edit too, but their changes wait for a reviewer. A proposer sees
+ * their own proposals here with a Pending / Rejected chip (and can withdraw
+ * or dismiss them); a live tag with a change waiting wears "Pending changes".
+ * Reviewers see everyone's proposals with a link to the queue. Nobody else
+ * sees a proposal at all (RLS hides it).
  */
 export function TagCatalogPanel({
   kind,
@@ -58,9 +70,13 @@ export function TagCatalogPanel({
 }) {
   const t = useTranslations('Settings.tagCatalog');
   const tAudit = useTranslations('Audit');
-  const { accountId, loading: authLoading } = useAuth();
+  const tApprovals = useTranslations('Approvals');
+  const { accountId, loading: authLoading, user } = useAuth();
   const canEdit = useCapability('tags.manage');
+  const canPropose = useCapability('tags.propose');
+  const canReview = useCapability('approvals.review');
   const canAudit = useCapability('audit.view');
+  const canCreate = canEdit || canPropose;
 
   const [loading, setLoading] = useState(true);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -128,12 +144,29 @@ export function TagCatalogPanel({
     );
   }, [listTags, search]);
 
+  // Only live names bind: a proposal that waits for a reviewer does not
+  // (the database checks again when it is approved).
   const takenNamesFor = (self: Tag | null) =>
-    new Set(tags.filter((tag) => tag.id !== self?.id).map((tag) => tag.name.trim().toLowerCase()));
+    new Set(
+      tags
+        .filter((tag) => tag.id !== self?.id && isUsable(tag))
+        .map((tag) => tag.name.trim().toLowerCase()),
+    );
+
+  async function handleWithdraw(tag: Tag) {
+    const result = await withdrawProposal('tag', tag.id);
+    if (!result.ok) {
+      toast.error(tApprovals(`errors.${result.code}`));
+      return;
+    }
+    toast.success(tApprovals(tag.approval_status === 'rejected' || tag.edit_status === 'rejected' ? 'dismissed' : 'withdrawn'));
+    notifyApprovalsChanged();
+    await reload();
+  }
 
   function handleExport() {
     const date = format(new Date(), 'yyyy-MM-dd');
-    downloadCsv(`${t(`${kind}.fileName`)}-${date}.csv`, tagsToCsv(listTags));
+    downloadCsv(`${t(`${kind}.fileName`)}-${date}.csv`, tagsToCsv(listTags.filter(isUsable)));
   }
 
   async function handleDelete() {
@@ -166,7 +199,7 @@ export function TagCatalogPanel({
       <SettingsPanelHead title={t(`${kind}.title`)} description={t(`${kind}.description`)} />
 
       <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
+        {canCreate ? (
           <Button size="sm" onClick={() => setEditing({ tag: null, key: Date.now() })}>
             <Plus className="size-4" />
             {t(`${kind}.createButton`)}
@@ -187,7 +220,7 @@ export function TagCatalogPanel({
             variant="outline"
             size="sm"
             onClick={handleExport}
-            disabled={listTags.length === 0}
+            disabled={listTags.filter(isUsable).length === 0}
           >
             <Download className="size-4" />
             {t('exportCsv')}
@@ -219,8 +252,8 @@ export function TagCatalogPanel({
                 <TableHead>{t('columns.inUse')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdBy')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdOn')}</TableHead>
-                {canEdit || canAudit ? (
-                  <TableHead className="w-28 text-right">{t('columns.actions')}</TableHead>
+                {canEdit || canPropose || canAudit ? (
+                  <TableHead className="w-32 text-right">{t('columns.actions')}</TableHead>
                 ) : null}
               </TableRow>
             </TableHeader>
@@ -242,6 +275,12 @@ export function TagCatalogPanel({
                       />
                       <span className="truncate">{tag.name}</span>
                     </span>
+                    <ApprovalChip
+                      row={tag}
+                      viewerId={user?.id}
+                      canReview={canReview}
+                      className="ml-2 align-middle"
+                    />
                     {/* Small muted line; the Created by column takes over from lg. */}
                     {creatorOf(tag) ? (
                       <span className="mt-1 block text-xs text-muted-foreground lg:hidden">
@@ -261,15 +300,50 @@ export function TagCatalogPanel({
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
                     {format(new Date(tag.created_at), 'MMM d, yyyy')}
                   </TableCell>
-                  {canEdit || canAudit ? (
+                  {canEdit || canPropose || canAudit ? (
                     <TableCell className="text-right whitespace-nowrap">
-                      <ActivityButton
-                        compact
-                        entityType="tag"
-                        entityId={tag.id}
-                        entityLabel={tag.name}
-                      />
-                      {canEdit ? (
+                      {isUsable(tag) ? (
+                        <ActivityButton
+                          compact
+                          entityType="tag"
+                          entityId={tag.id}
+                          entityLabel={tag.name}
+                        />
+                      ) : null}
+                      {/* A proposal (not live yet): its proposer edits or withdraws it,
+                          a reviewer decides it in the queue. */}
+                      {!isUsable(tag) ? (
+                        <>
+                          {canReview && tag.proposed_by !== user?.id ? (
+                            <Link
+                              href="/settings?tab=approvals"
+                              className="mr-1 text-xs font-medium text-primary hover:underline"
+                            >
+                              {tApprovals('review')}
+                            </Link>
+                          ) : null}
+                          {canWithdraw(tag, user?.id) && canPropose ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={t('editAria', { name: tag.name })}
+                                onClick={() => setEditing({ tag, key: Date.now() })}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={tApprovals(tag.approval_status === 'rejected' ? 'dismissAria' : 'withdrawAria', { name: tag.name })}
+                                onClick={() => void handleWithdraw(tag)}
+                              >
+                                <Undo2 className="size-4" />
+                              </Button>
+                            </>
+                          ) : null}
+                        </>
+                      ) : canEdit ? (
                         <>
                         <Button
                           variant="ghost"
@@ -288,6 +362,28 @@ export function TagCatalogPanel({
                           <Trash2 className="size-4" />
                         </Button>
                         </>
+                      ) : canPropose ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={t('editAria', { name: tag.name })}
+                            onClick={() => setEditing({ tag, key: Date.now() })}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          {chipState(tag, user?.id, false) === 'pending_changes' ||
+                          chipState(tag, user?.id, false) === 'changes_rejected' ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={tApprovals(tag.edit_status === 'rejected' ? 'dismissAria' : 'withdrawAria', { name: tag.name })}
+                              onClick={() => void handleWithdraw(tag)}
+                            >
+                              <Undo2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </>
                       ) : null}
                     </TableCell>
                   ) : null}
@@ -298,7 +394,11 @@ export function TagCatalogPanel({
         )}
       </div>
 
-      {!canEdit ? <p className="text-xs text-muted-foreground">{t('adminOnlyHint')}</p> : null}
+      {!canEdit ? (
+        <p className="text-xs text-muted-foreground">
+          {canPropose ? tApprovals('tags.proposeHint') : t('adminOnlyHint')}
+        </p>
+      ) : null}
 
       {editing ? (
         <TagEditDialog
@@ -322,7 +422,7 @@ export function TagCatalogPanel({
             if (!o) setImportKey(null);
           }}
           kind={kind}
-          existing={tags}
+          existing={tags.filter(isUsable)}
           onDone={reload}
         />
       ) : null}

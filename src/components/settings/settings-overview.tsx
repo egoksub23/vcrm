@@ -84,11 +84,13 @@ export function SettingsOverview({
           supabase
             .from('tags')
             .select('id', { count: 'exact', head: true })
-            .eq('for_contacts', true),
+            .eq('for_contacts', true)
+            .eq('approval_status', 'approved'),
           supabase
             .from('tags')
             .select('id', { count: 'exact', head: true })
-            .eq('for_conversations', true),
+            .eq('for_conversations', true)
+            .eq('approval_status', 'approved'),
           supabase.from('custom_fields').select('id', { count: 'exact', head: true }),
         ]);
 
@@ -189,7 +191,7 @@ export function SettingsOverview({
     },
     {
       key: 'members',
-      section: 'members',
+      section: 'team',
       loading: countsLoading,
       subtitle:
         counts?.members == null

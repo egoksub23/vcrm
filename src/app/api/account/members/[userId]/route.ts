@@ -3,44 +3,35 @@
 //
 //   PATCH  — change a member's role.   `members.change-role`.
 //   DELETE — remove a member.          `members.remove`.
+//            Optional `?reassign_to=<user id>` hands their open work to
+//            someone instead of unassigning it. The Team screen uses
+//            POST /api/account/members/[userId]/remove (same behaviour,
+//            body instead of a query string); DELETE stays for older
+//            callers.
 //
-// Both delegate to SECURITY DEFINER RPCs from migration 018:
-//   - set_member_role(p_user_id, p_new_role)
-//   - remove_account_member(p_user_id)
+// Both delegate to SECURITY DEFINER RPCs:
+//   - set_member_role(p_user_id, p_new_role)          (018, 079)
+//   - remove_account_member(p_user_id, p_reassign_to) (018, 079, 083)
 //
-// The RPCs do the *real* authorisation work — caller must be
-// admin+, target must be in caller's account, target can't be the
-// owner, can't be self. The TS layer here only forwards the call
-// and maps Postgres SQLSTATEs back to HTTP statuses.
+// The RPCs do the *real* authorisation work: caller must hold the
+// capability, the target must be in the caller's account, strictly below
+// the caller's role, never the owner, never yourself. The TS layer here
+// only forwards the call and maps Postgres SQLSTATEs to HTTP statuses.
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { isAccountRole } from "@/lib/auth/roles";
+import {
+  removeMemberResponse,
+  rpcErrorToResponse,
+} from "@/lib/teams/member-rpc";
 import {
   checkRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
-
-// Map known SQLSTATEs from the RPCs (see migration 018) onto HTTP
-// statuses. The `error.code` field is the SQLSTATE; the `message`
-// is the human-readable RAISE message we put in the migration.
-function rpcErrorToResponse(err: PostgrestError): NextResponse {
-  if (err.code === "42501") {
-    return NextResponse.json({ error: err.message }, { status: 403 });
-  }
-  if (err.code === "22023") {
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
-  console.error("[members route] unexpected RPC error:", err);
-  return NextResponse.json(
-    { error: "Failed to update member" },
-    { status: 500 },
-  );
-}
 
 export async function PATCH(
   request: Request,
@@ -95,7 +86,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
   try {
@@ -108,14 +99,9 @@ export async function DELETE(
     if (!limit.success) return rateLimitResponse(limit);
 
     const { userId } = await params;
+    const reassignTo = new URL(request.url).searchParams.get("reassign_to");
 
-    const { data, error } = await ctx.supabase.rpc("remove_account_member", {
-      p_user_id: userId,
-    });
-
-    if (error) return rpcErrorToResponse(error);
-
-    return NextResponse.json({ ok: true, newPersonalAccountId: data });
+    return await removeMemberResponse(ctx, userId, reassignTo || null);
   } catch (err) {
     return toErrorResponse(err);
   }

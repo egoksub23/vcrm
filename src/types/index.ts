@@ -178,6 +178,20 @@ export interface Tag {
   /** Offered when labelling a conversation (migration 068; undefined = true). */
   for_conversations?: boolean;
   updated_at?: string;
+  /**
+   * Propose and approve (migration 084). Undefined = approved. A tag that is
+   * not approved is only ever seen by its proposer and by reviewers, and is
+   * never applied; `pending_edit` holds a proposed replacement for the live
+   * values (only the proposer and reviewers receive it).
+   */
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  proposed_by?: string | null;
+  proposed_at?: string | null;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  decision_note?: string | null;
+  pending_edit?: Record<string, unknown> | null;
+  edit_status?: 'pending' | 'rejected' | null;
 }
 
 export interface ContactTag {
@@ -337,6 +351,9 @@ export type NotificationType =
   /** Migration 081: a watched ticket changed status / assignee, or got a comment. */
   | 'ticket_updated'
   | 'ticket_comment'
+  /** Migration 084: a proposal waits for a reviewer / a proposal was decided. */
+  | 'approval_requested'
+  | 'approval_decided'
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
   | 'ai_budget';
 
@@ -907,6 +924,8 @@ export interface Team {
   updated_at: string;
   /** Populated by the list endpoint; absent on bare inserts/updates. */
   members?: TeamMember[];
+  /** Open conversations assigned to the team; list endpoint only. */
+  open_conversations?: number;
 }
 
 export interface TeamMember {
@@ -1226,4 +1245,13 @@ export interface QuickReply {
   interactive_payload?: InteractiveMessagePayload | null;
   created_at: string;
   updated_at: string;
+  /** Propose and approve (migration 084); same meaning as on `Tag`. */
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  proposed_by?: string | null;
+  proposed_at?: string | null;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  decision_note?: string | null;
+  pending_edit?: Record<string, unknown> | null;
+  edit_status?: 'pending' | 'rejected' | null;
 }

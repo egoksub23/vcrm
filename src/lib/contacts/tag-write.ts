@@ -33,8 +33,10 @@ async function assertContactAndTagOwnership(
       .eq('id', input.tagId)
       .eq('account_id', input.accountId)
       // A soft-deleted tag (migration 082) no longer exists for callers that
-      // bypass RLS with the service role.
+      // bypass RLS with the service role; nor does one that still waits for a
+      // reviewer (migration 084): it can never be applied.
       .is('deleted_at', null)
+      .eq('approval_status', 'approved')
       .maybeSingle(),
   ]);
 

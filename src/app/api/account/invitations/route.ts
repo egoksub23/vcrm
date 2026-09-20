@@ -27,6 +27,7 @@ import {
   inviteUrl,
 } from "@/lib/auth/invitations";
 import { isAccountRole, roleRank } from "@/lib/auth/roles";
+import { parseInviteTeamIds } from "@/lib/teams/team-ids";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -143,7 +144,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_invitations")
       .select(
-        "id, role, label, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
+        "id, role, label, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
       )
       .eq("account_id", ctx.accountId)
       .is("accepted_at", null)
@@ -179,7 +180,12 @@ export async function POST(request: Request) {
     if (!limit.success) return rateLimitResponse(limit);
 
     const body = (await request.json().catch(() => null)) as
-      | { role?: unknown; expiresInDays?: unknown; label?: unknown }
+      | {
+          role?: unknown;
+          expiresInDays?: unknown;
+          label?: unknown;
+          teamIds?: unknown;
+        }
       | null;
 
     const role = body?.role;
@@ -227,6 +233,14 @@ export async function POST(request: Request) {
       label = trimmed === "" ? null : trimmed;
     }
 
+    // Teams the new member joins when they redeem the link. Only the
+    // shape is checked here; the database trigger keeps just the teams of
+    // this account, and the redeem function ignores any deleted since.
+    const teams = parseInviteTeamIds(body?.teamIds);
+    if (!teams.ok) {
+      return NextResponse.json({ error: teams.error }, { status: 400 });
+    }
+
     const { token, hash } = generateInviteToken();
 
     const { data, error } = await ctx.supabase
@@ -237,9 +251,10 @@ export async function POST(request: Request) {
         role,
         created_by_user_id: ctx.userId,
         label,
+        team_ids: teams.ids,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, role, label, expires_at, created_at")
+      .select("id, role, label, team_ids, expires_at, created_at")
       .single();
 
     if (error || !data) {

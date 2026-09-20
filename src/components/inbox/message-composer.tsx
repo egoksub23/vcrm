@@ -453,7 +453,9 @@ export function MessageComposer({
     setQuickRepliesLoading(true);
     void (async () => {
       try {
-        const res = await fetch("/api/quick-replies", { cache: "no-store" });
+        // usable=1: only approved snippets. A proposal that waits for a
+        // reviewer (migration 084) is never offered for sending.
+        const res = await fetch("/api/quick-replies?usable=1", { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!cancelled && res.ok) {
           setQuickReplies((data.quick_replies as QuickReply[]) ?? []);
@@ -517,7 +519,11 @@ export function MessageComposer({
   // For solo users this is always true — single-owner accounts pass
   // every capability — so the disabled branch is a no-op there.
   const canSend = useCapability("messages.send");
+  // Saving a snippet: snippets.manage (goes live) or snippets.propose (waits
+  // for a reviewer, migration 084).
   const canManageSnippets = useCapability("snippets.manage");
+  const canProposeSnippets = useCapability("snippets.propose");
+  const tApprovals = useTranslations("Approvals");
   // Source chips open the Knowledge page: only link them with menu.knowledge.
   const canOpenKnowledge = useCapability("menu.knowledge");
   const readOnly = !canSend;
@@ -931,13 +937,13 @@ export function MessageComposer({
         toast.error(data.error ?? t("quickReplySaveError"));
         return;
       }
-      toast.success(t("quickReplySaved"));
+      toast.success(data.pending ? tApprovals("sentForApproval") : t("quickReplySaved"));
     } catch {
       toast.error(t("quickReplySaveError"));
     } finally {
       setSavingQuickReply(false);
     }
-  }, [interactivePayload, t]);
+  }, [interactivePayload, t, tApprovals]);
 
   // A picked quick reply: text fills the composer; interactive opens the
   // builder pre-filled so the agent can tweak before sending.
@@ -1918,8 +1924,9 @@ export function MessageComposer({
             />
           </div>
           <DialogFooter>
-            {/* Saving a quick reply creates a snippet: snippets.manage. */}
-            {canManageSnippets ? (
+            {/* Saving a quick reply creates a snippet: snippets.manage, or a
+                proposal for a reviewer with snippets.propose. */}
+            {canManageSnippets || canProposeSnippets ? (
               <Button
                 variant="outline"
                 disabled={savingQuickReply}
