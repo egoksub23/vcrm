@@ -9,10 +9,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { UNASSIGNED } from "@/lib/tickets/filters";
+import type { JiraChip } from "@/lib/tickets/jira-ui";
 import { groupTickets, type GroupBy, type SortKey, type SortSpec } from "@/lib/tickets/sort-group";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import type { TicketRow } from "@/hooks/use-ticket-store";
 import type { Profile, Ticket } from "@/types";
+import { JiraKeyChips } from "./jira-key-chip";
 import { AssigneeMenu, PriorityMenu, StatusMenu } from "./ticket-pickers";
 import { DueChip, LabelLozenge, PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 
@@ -34,6 +36,8 @@ interface TicketListViewProps {
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  /** Linked Jira issue keys per ticket id (optional: rows show up to two next to the summary). */
+  jiraChips?: Record<string, JiraChip[]>;
 }
 
 const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
@@ -63,6 +67,7 @@ export function TicketListView({
   hasMore,
   loadingMore,
   onLoadMore,
+  jiraChips,
 }: TicketListViewProps) {
   const t = useTranslations("Tickets.list");
   const tCommon = useTranslations("Tickets.common");
@@ -116,7 +121,10 @@ export function TicketListView({
         </TableCell>
         <TableCell className="py-1.5 font-mono text-xs text-muted-foreground">{keyOf(row.ticket_number)}</TableCell>
         <TableCell className="max-w-0 min-w-56 py-1.5 whitespace-normal">
-          <div className="truncate font-medium text-foreground">{row.subject}</div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-foreground">{row.subject}</span>
+            <JiraKeyChips chips={jiraChips?.[row.id]} className="shrink-0" />
+          </div>
           {customer ? <div className="truncate text-[11px] text-muted-foreground">{customer}</div> : null}
         </TableCell>
         <TableCell className="py-1.5">

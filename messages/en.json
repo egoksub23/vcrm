@@ -2714,7 +2714,8 @@
       "labels": "Conversation labels",
       "roles": "Roles & permissions",
       "audit": "Audit log",
-      "approvals": "Approvals"
+      "approvals": "Approvals",
+      "integrations": "Integrations"
     },
     "groups": {
       "account": "Account",
@@ -3245,6 +3246,478 @@
           "one": "Agents can create, edit and delete snippets without review again.",
           "two": "Proposals that are already waiting stay in the queue until someone decides them.",
           "action": "Allow direct editing"
+        }
+      }
+    },
+    "jira": {
+      "title": "Integrations",
+      "description": "Connect Vircle to the tools your team already works in. Jira Cloud links tickets to Jira issues.",
+      "jira": {
+        "name": "Jira Cloud",
+        "notConnected": "Not connected",
+        "connected": "Connected",
+        "needsReconnect": "Needs reconnect"
+      },
+      "tabs": {
+        "connection": "Connection",
+        "projects": "Projects",
+        "mapping": "Mapping",
+        "direction": "Direction & privacy",
+        "people": "People",
+        "diagnostics": "Diagnostics"
+      },
+      "common": {
+        "saving": "Saving",
+        "loading": "Loading",
+        "loadFailed": "Could not load the Jira settings.",
+        "retry": "Try again",
+        "defaultOn": "Default: on",
+        "defaultOff": "Default: off"
+      },
+      "toasts": {
+        "connected": "Jira is connected.",
+        "connectError": {
+          "denied": "Jira access was declined, so nothing was connected. Press Connect Jira to try again.",
+          "atlassian": "Atlassian reported a problem while connecting. Try again in a moment.",
+          "invalid_state": "The sign-in expired or was started by someone else. Press Connect Jira to start again.",
+          "no_sites": "That Atlassian account has no Jira site Vircle can use. Sign in with an account that belongs to your Jira site.",
+          "site_mismatch": "This workspace is already linked to a different Jira site. Disconnect it first if you want to connect another one.",
+          "forbidden": "Your role does not allow connecting Jira. Ask an Owner or Admin.",
+          "unknown": "Jira could not be connected. Try again, and check Diagnostics if it keeps failing."
+        },
+        "saved": "Saved.",
+        "saveFailed": "The change was not saved.",
+        "disconnected": "Jira is disconnected. Ticket links are paused.",
+        "disconnectedPurged": "Jira is disconnected and the cached Jira data was removed.",
+        "disconnectFailed": "Jira could not be disconnected."
+      },
+      "errors": {
+        "reauth_required": "Jira needs to be reconnected first. Open the Connection tab and press Reconnect.",
+        "no_connection": "Jira is not connected yet.",
+        "jira_not_configured": "Jira is not set up on this server. The operator has to add the Jira app settings first.",
+        "not_configured": "Jira is not set up on this server. The operator has to add the Jira app settings first.",
+        "jira_permission": "Jira says the connecting user is not allowed to do that.",
+        "jira_not_found": "Jira could not find that. It may have been removed.",
+        "jira_rate_limited": "Jira is asking Vircle to slow down. Try again in {seconds} seconds.",
+        "jira_rejected": "Jira did not accept that.",
+        "jira_unavailable": "Jira is not reachable right now. Try again in a moment.",
+        "forbidden": "Your role does not allow this.",
+        "no_permission": "Your role does not allow this.",
+        "invalid_state": "This sign-in expired. Press Connect Jira to start again.",
+        "invalid_site": "Pick one of the listed sites.",
+        "site_mismatch": "This workspace is already linked to a different Jira site. Disconnect it first.",
+        "bad_request": "That request was not valid.",
+        "not_found": "That was not found.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "internal": "Something went wrong on our side. Try again.",
+        "unknown": "Something went wrong. Try again.",
+        "resync_too_soon": "Synced a moment ago. Try again in {seconds} seconds."
+      },
+      "connection": {
+        "notConnected": {
+          "title": "Jira is not connected",
+          "description": "Connect one Jira Cloud site to this workspace. Agents can then create a Jira issue from a ticket, link an existing one, and share comments and status in both directions."
+        },
+        "notConfigured": {
+          "title": "Jira is not set up on this server",
+          "description": "Before anyone can connect, the person who runs this Vircle installation has to register Vircle as an app in Atlassian and add its settings to the server.",
+          "vars": "Set the environment variables JIRA_CLIENT_ID and JIRA_CLIENT_SECRET (and restart the server).",
+          "callback": "Register the callback address shown below in the Atlassian developer console.",
+          "docs": "Step by step instructions are in docs/jira-setup.md."
+        },
+        "connect": "Connect Jira",
+        "reconnect": "Reconnect",
+        "disconnect": "Disconnect",
+        "opensInNewTab": "Opens in a new tab",
+        "health": {
+          "connected": "Connected",
+          "needsReconnect": "Needs reconnect"
+        },
+        "reauth": {
+          "title": "Vircle can no longer use this Jira sign-in",
+          "body": "Ticket links are paused and nothing is sent to or received from Jira until you reconnect. Press Reconnect and sign in again.",
+          "reason": "Reason: {reason}"
+        },
+        "facts": {
+          "connectedAs": "Connected as",
+          "unknownUser": "Unknown Jira user",
+          "links": "Linked issues",
+          "linksValue": "{count, plural, one {# linked issue} other {# linked issues}} · {paused} paused · {broken} broken"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect {site}?",
+          "intro": "This is what happens to the link between Vircle and Jira.",
+          "tokens": "Vircle’s saved Jira sign-in is deleted.",
+          "webhooks": "The webhooks Vircle registered in Jira are removed.",
+          "linksPaused": "Linked tickets keep their links and cached issue details, but they are paused. Connecting the same site again resumes them.",
+          "linksRemoved": "The links between tickets and Jira issues, and the cached issue details, are removed.",
+          "notesStay": "Notes already copied from Jira stay on the tickets either way.",
+          "nothingDeleted": "Nothing is deleted in Jira.",
+          "purge": "Also remove cached Jira data",
+          "purgeHint": "Removes the ticket links and cached issue details, not only pauses them. Choose this if you will not reconnect this site.",
+          "cancel": "Cancel",
+          "confirm": "Disconnect"
+        },
+        "permissions": {
+          "title": "What Vircle asks Jira for",
+          "asks": "Vircle asks Atlassian to read and write Jira work, read Jira users, manage Jira webhooks, and keep the sign-in alive (offline access).",
+          "never": "It never asks for project or site administration, and it never deletes anything in Jira.",
+          "asUser": "Everything Vircle does in Jira appears as the user who connected it.",
+          "recommend": "We recommend connecting with a dedicated “Vircle Integration” user that has a Jira licence."
+        },
+        "setup": {
+          "title": "Setup help for a Jira admin",
+          "intro": "Share this checklist with whoever administers your Jira site.",
+          "one": {
+            "title": "Decide who connects",
+            "body": "Best a dedicated “Vircle Integration” user with a Jira licence. It must be a member of the target projects and allowed to browse them, create issues, comment, transition and assign issues."
+          },
+          "two": {
+            "title": "Press Connect Jira",
+            "body": "Sign in to Atlassian as that user, choose the Jira site and accept."
+          },
+          "three": {
+            "title": "If Atlassian asks for approval",
+            "body": "If Atlassian says a site admin must authorise the app, your organisation blocks user-installed apps. A Jira site admin has to approve it first in Atlassian Administration, under Apps and Connected apps. Then press Connect Jira again."
+          },
+          "four": {
+            "title": "Finish the setup here",
+            "body": "Choose the projects, issue types and mappings in the other tabs, then try Create issue on a test ticket."
+          }
+        },
+        "callback": {
+          "title": "Callback address",
+          "description": "Whoever sets up the Vircle app in Atlassian registers this address as its OAuth callback URL. It has to match exactly.",
+          "copy": "Copy",
+          "copied": "Callback address copied.",
+          "copyFailed": "Could not copy. Select the address and copy it by hand.",
+          "unknown": "Not available"
+        }
+      },
+      "sitePicker": {
+        "title": "Choose the Jira site",
+        "description": "Your Atlassian account has access to more than one Jira site. Pick the one this workspace should connect to.",
+        "loading": "Loading your Jira sites",
+        "empty": "No Jira sites were found for this sign-in.",
+        "connect": "Connect this site",
+        "cancel": "Cancel"
+      },
+      "projects": {
+        "allowed": {
+          "title": "Projects tickets may link to",
+          "description": "Agents can only create and link issues in these projects.",
+          "all": "Every project the connecting user can see",
+          "remove": "Remove {key}",
+          "clear": "Allow all projects",
+          "search": "Search projects by key or name",
+          "none": "The connecting Jira user cannot see any project yet.",
+          "noMatch": "No project matches your search.",
+          "truncated": "Showing the first {count} projects. To add another one, type its exact key above.",
+          "addKey": "Add {key}",
+          "hint": "Leave the selection empty to allow every project the connecting user can see."
+        },
+        "defaults": {
+          "title": "Defaults for new issues",
+          "description": "The Create issue dialog starts with these. Agents can still change them.",
+          "project": "Default project",
+          "noProject": "No default",
+          "issueType": "Default issue type",
+          "noIssueType": "No default",
+          "pickProjectFirst": "Choose a default project to pick an issue type.",
+          "loadingTypes": "Loading issue types",
+          "note": "The default project has to be one the connecting user is allowed to create issues in."
+        }
+      },
+      "mapping": {
+        "priority": {
+          "title": "Priority",
+          "description": "Which Jira priority a new issue gets for each ticket priority. Unmapped priorities use the Jira project’s default.",
+          "vircle": {
+            "urgent": "Urgent",
+            "high": "High",
+            "normal": "Normal",
+            "low": "Low"
+          },
+          "jiraDefault": "Jira default"
+        },
+        "status": {
+          "title": "Status",
+          "description": "When a linked issue moves in Jira, the ticket follows, and the other way around when that direction is on. Jira’s status category decides by default. You can override single Jira statuses by name.",
+          "defaults": {
+            "fromTitle": "Jira to Vircle (default)",
+            "toTitle": "Vircle to Jira (default)",
+            "noTwin": "Pending and Closed have no Jira twin, so a ticket set to them leaves the Jira issue alone unless you map them below."
+          },
+          "category": {
+            "new": "To do",
+            "indeterminate": "In progress",
+            "done": "Done"
+          },
+          "ticket": {
+            "open": "Open",
+            "in_progress": "In progress",
+            "pending": "Pending",
+            "resolved": "Resolved",
+            "closed": "Closed"
+          },
+          "project": {
+            "label": "Look up statuses from project",
+            "none": "Choose a project",
+            "hint": "Optional. Load a project’s statuses to pick them below, or type a status name yourself.",
+            "available": "Statuses in this project"
+          },
+          "from": {
+            "title": "Jira status to ticket status",
+            "description": "When a linked issue lands on this Jira status (by name), the ticket gets this status instead of the default.",
+            "empty": "No overrides. Jira’s status categories decide.",
+            "statusFor": "Ticket status for Jira status {name}",
+            "remove": "Remove override for {name}",
+            "namePlaceholder": "Jira status name",
+            "newStatus": "Ticket status",
+            "add": "Add"
+          },
+          "to": {
+            "title": "Ticket status to Jira status",
+            "description": "When a ticket gets this status, Vircle moves the linked issue to the Jira status with this name, if Jira’s workflow allows it right now.",
+            "placeholderDefault": "Default (by category)",
+            "placeholderNone": "Leave the Jira issue alone"
+          },
+          "save": "Save status mapping",
+          "discard": "Discard changes",
+          "unsaved": "You have unsaved changes."
+        },
+        "done": {
+          "title": "When a linked issue reaches Done",
+          "description": "What happens on the ticket when its Jira issue is finished.",
+          "note": {
+            "label": "Notify and add a note (default)",
+            "hint": "The ticket owner is notified and an internal note is added. The ticket status is not changed."
+          },
+          "resolve": {
+            "label": "Set the ticket to Resolved",
+            "hint": "Opt-in. The ticket is resolved as soon as the Jira issue is done."
+          }
+        },
+        "categoryLabel": {
+          "label": "Add the ticket category as a Jira label",
+          "hint": "New issues get a label with the ticket’s category, which helps you filter in Jira."
+        }
+      },
+      "direction": {
+        "flow": {
+          "title": "Direction",
+          "description": "Choose what flows between tickets and their linked Jira issues.",
+          "comments_to_jira": {
+            "label": "Comments to Jira",
+            "hint": "Internal notes an agent shares with Jira appear as comments on the issue."
+          },
+          "comments_from_jira": {
+            "label": "Comments from Jira",
+            "hint": "New Jira comments appear as notes on the ticket, marked as coming from Jira."
+          },
+          "status_from_jira": {
+            "label": "Status from Jira",
+            "hint": "When the issue moves in Jira, the ticket status follows."
+          },
+          "status_to_jira": {
+            "label": "Status to Jira",
+            "hint": "When the ticket status changes, Vircle tries to move the Jira issue too."
+          },
+          "assignee": {
+            "label": "Assignee",
+            "hint": "New issues are assigned to the ticket’s owner when they have a matching Jira user (see People)."
+          }
+        },
+        "privacy": {
+          "title": "Privacy",
+          "description": "Decide what customer data may leave Vircle.",
+          "include_customer": {
+            "label": "Include customer name and email in issues",
+            "hint": "Adds the customer’s name and email to the issue description.",
+            "warning": "Content sent to Jira is stored in your own Atlassian account, in the data region you chose there. Leave this off unless your Jira team needs to see who the customer is."
+          },
+          "preview_before_send": {
+            "label": "Preview before sending",
+            "hint": "Agents see exactly what will be created in Jira and confirm before it is sent."
+          }
+        },
+        "report": {
+          "title": "Personal data report",
+          "description": "Atlassian requires apps that store Jira user details to report regularly.",
+          "label": "Weekly personal data report",
+          "hint": "Atlassian requires this check. It only stores Jira account ids and display names, and lets Vircle remove people Atlassian says have been deleted."
+        },
+        "access": {
+          "title": "Access",
+          "description": "Who can use the Jira link. By default:",
+          "connect": {
+            "label": "Connect and configure Jira",
+            "hint": "jira.connect"
+          },
+          "link": {
+            "label": "Create and link Jira issues",
+            "hint": "jira.link"
+          },
+          "share": {
+            "label": "Share comments with Jira",
+            "hint": "jira.share-comments"
+          },
+          "roles": {
+            "owner": "Owner",
+            "admin": "Admin",
+            "agent": "Agent"
+          },
+          "viewers": "Viewers can never be given these permissions.",
+          "rolesLink": "Change this in Roles & permissions",
+          "rolesAsk": "To change who can do this, ask someone who can manage roles (Settings, Roles & permissions)."
+        }
+      },
+      "people": {
+        "explain": {
+          "title": "How matching works",
+          "email": "Vircle matches members to Jira users by email, and only when Jira shows the email address. Some Jira sites hide it, so match those people by hand.",
+          "unmatched": "Members without a match still work: their name is written in the comment text, and assigning an issue to them is skipped.",
+          "own": "Agents who can link issues but not configure Jira can set their own Jira user only."
+        },
+        "summary": "{matched} of {total} members matched",
+        "autoMatch": "Auto-match by email",
+        "autoMatchResult": "Matched {matched} of {tried} members.",
+        "empty": "There are no members yet.",
+        "unnamed": "Unnamed member",
+        "you": "(you)",
+        "method": {
+          "email": "matched by email",
+          "manual": "picked by hand"
+        },
+        "notMatched": "Not matched",
+        "saving": "Saving",
+        "cancel": "Cancel",
+        "change": "Change",
+        "pick": "Pick Jira user",
+        "clear": "Clear",
+        "saved": "Jira user saved.",
+        "cleared": "Match cleared.",
+        "saveFailed": "The match was not saved.",
+        "picker": {
+          "placeholder": "Search Jira users by name or email",
+          "minChars": "Type at least 2 characters.",
+          "searching": "Searching Jira",
+          "failed": "Jira could not be searched right now. Try again.",
+          "none": "No matching Jira users."
+        }
+      },
+      "diagnostics": {
+        "intro": "Check that Jira and Vircle are talking to each other. Press Refresh to load the latest numbers.",
+        "refresh": "Refresh",
+        "notConnected": "Jira is not connected.",
+        "never": "Never",
+        "catchupNow": "Run catch-up now",
+        "catchupDone": "Catch-up finished.",
+        "health": {
+          "connection": "Connection",
+          "connected": "Connected",
+          "needsReconnect": "Needs reconnect",
+          "token": "Access token expires",
+          "tokenHint": "Renewed automatically.",
+          "catchup": "Last catch-up",
+          "catchupHint": "Runs about every five minutes.",
+          "report": "Last personal data report",
+          "reportHint": "Sent weekly."
+        },
+        "webhooks": {
+          "title": "Webhooks",
+          "description": "Jira calls Vircle when an issue changes. They expire after 30 days and are renewed automatically.",
+          "registered": "{count, plural, one {# webhook registered} other {# webhooks registered}}",
+          "none": "No webhook registered",
+          "expires": "Expires",
+          "checked": "Last checked",
+          "lastDelivery": "Last delivery",
+          "noDelivery": "None received yet",
+          "honest": "Webhooks can be late or missed. If none ever arrives, nothing is lost: the catch-up check still finds changes within about five minutes.",
+          "reregister": "Re-register webhooks",
+          "reregistered": "Webhooks registered again."
+        },
+        "queue": {
+          "title": "Sync queue",
+          "description": "Work waiting to go to Jira.",
+          "pending": "Pending",
+          "running": "Running",
+          "dead": "Failed for good"
+        },
+        "links": {
+          "title": "Links",
+          "description": "The state of the ticket links.",
+          "ok": "Working",
+          "paused": "Paused",
+          "broken": "Broken"
+        },
+        "failures": {
+          "title": "Links that need attention",
+          "description": "Paused links resume after you reconnect. Broken links point to an issue Vircle can no longer reach.",
+          "paused": "Paused",
+          "broken": "Broken",
+          "error": {
+            "not_found": "The issue no longer exists in Jira.",
+            "no_access": "The connecting user can no longer see the issue."
+          },
+          "resync": "Resync",
+          "resyncDone": "Synced with Jira."
+        },
+        "rateLimit": {
+          "title": "Rate limit",
+          "description": "The last numbers Jira reported about how fast Vircle may call it.",
+          "reason": "Reason",
+          "noReason": "None given",
+          "remaining": "Remaining",
+          "limit": "Limit",
+          "at": "Reported",
+          "none": "Jira has not asked Vircle to slow down."
+        },
+        "events": {
+          "title": "Recent sync events",
+          "description": "Newest first.",
+          "empty": "Nothing has happened yet.",
+          "level": {
+            "info": "Info",
+            "warn": "Warning",
+            "error": "Error"
+          }
+        },
+        "deadJobs": {
+          "title": "Failed jobs",
+          "description": "Work Vircle gave up on after several tries.",
+          "empty": "No failed jobs.",
+          "attempts": "{count, plural, one {# attempt} other {# attempts}}"
+        },
+        "cheatSheet": {
+          "title": "What to check first",
+          "description": "The usual causes for the usual problems.",
+          "symptom": "What you see",
+          "cause": "Likely cause",
+          "siteAdmin": {
+            "symptom": "Cannot connect, and Atlassian says a site admin must authorise the app",
+            "cause": "Your organisation blocks user-installed apps. A Jira site admin has to approve the Vircle app first in Atlassian Administration, under Apps and Connected apps."
+          },
+          "projectMissing": {
+            "symptom": "Connected, but a project is missing",
+            "cause": "The connecting Jira user cannot browse that project or cannot create issues there. Add the user to the project."
+          },
+          "requiredField": {
+            "symptom": "Creating an issue fails on a required field",
+            "cause": "The project requires a field Vircle cannot show. Use Open in Jira instead, or make the field optional for that issue type."
+          },
+          "statusNotArriving": {
+            "symptom": "Status changes in Jira do not reach the ticket",
+            "cause": "The webhook is missing or expired. Check the webhooks above, then use Sync now on the ticket. The catch-up check still finds it within about five minutes."
+          },
+          "reconnectBanner": {
+            "symptom": "A Reconnect banner appears",
+            "cause": "The connecting user’s password changed, the user was removed or deactivated, or the sign-in was unused for 90 days. Press Reconnect."
+          },
+          "cannotMove": {
+            "symptom": "A ticket cannot move the Jira issue",
+            "cause": "Jira’s workflow offers no transition to that status right now, or it needs fields Vircle cannot fill. Move it in Jira."
+          }
         }
       }
     }
@@ -3881,7 +4354,17 @@
         "reassignedAgent": "reassigned this ticket from {from} to {to}",
         "assignedTeam": "assigned this ticket to {to}",
         "unassignedTeam": "unassigned this ticket from {from}",
-        "reassignedTeam": "reassigned this ticket from {from} to {to}"
+        "reassignedTeam": "reassigned this ticket from {from} to {to}",
+        "jiraLinked": "linked Jira issue {key}",
+        "jiraUnlinked": "unlinked Jira issue {key}",
+        "jiraStatusSynced": "Jira moved this from {from} to {to} ({key})",
+        "jiraStatusPushed": "moved Jira issue {key} to {status}",
+        "jiraNoteTag": "Jira · {author}",
+        "jiraUnknownAuthor": "Jira user",
+        "jiraDeleted": "deleted in Jira",
+        "shareWithJira": "Share with Jira",
+        "sharingWithJira": "Sharing…",
+        "sharedWithJira": "Shared with Jira"
       },
       "status": {
         "open": "Open",
@@ -4739,6 +5222,18 @@
       "tags_propose": {
         "label": "Propose tags and labels",
         "description": "Suggest new contact tags and conversation labels, and changes to existing ones. They go live once a reviewer approves them."
+      },
+      "jira_connect": {
+        "label": "Connect and configure Jira",
+        "description": "Open Settings → Integrations to connect the workspace to Jira Cloud, choose projects, mappings and privacy options, and disconnect. Only Owners and Admins can hold this."
+      },
+      "jira_link": {
+        "label": "Link tickets to Jira",
+        "description": "Create a Jira issue from a ticket, link an existing issue, unlink it, move the Jira issue to another status and sync it from the ticket."
+      },
+      "jira_share_comments": {
+        "label": "Share notes with Jira",
+        "description": "Send an internal note to the linked Jira issue with “Share with Jira”. Customer messages are never sent."
       }
     },
     "group": {
@@ -4919,7 +5414,12 @@
       "team_member_added": "Added to team",
       "team_member_removed": "Removed from team",
       "approved": "Approved",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "reconnected": "Reconnected",
+      "linked": "Linked",
+      "unlinked": "Unlinked"
     },
     "entities": {
       "tag": "Tag",
@@ -4934,7 +5434,9 @@
       "channel_config": "Channel",
       "ai_settings": "AI settings",
       "api_key": "API key",
-      "webhook": "Webhook"
+      "webhook": "Webhook",
+      "jira_connection": "Jira connection",
+      "ticket_jira_link": "Jira link"
     },
     "roleNames": {
       "owner": "Owner",
@@ -5114,6 +5616,177 @@
       "unknown": "Something went wrong. Please try again.",
       "invalid_decision": "Choose approve or reject.",
       "invalid_type": "That type of item cannot be listed."
+    }
+  },
+  "Jira": {
+    "common": {
+      "cancel": "Cancel"
+    },
+    "section": {
+      "heading": "Jira",
+      "create": "Create issue",
+      "link": "Link existing issue",
+      "created": "Created {key} in Jira",
+      "linked": "Linked {key}",
+      "limitReached": "This ticket already has the maximum of {max} linked Jira issues. Unlink one to add another.",
+      "emptyCanLink": "No Jira issue is linked yet. Create one from this ticket, or link an existing one.",
+      "empty": "No Jira issue is linked to this ticket.",
+      "hintConnect": "Jira is not connected yet. Connect it to create and link Jira issues from tickets.",
+      "hintReconnect": "Jira needs to be reconnected before tickets can create or link issues.",
+      "openSettings": "Open Settings > Integrations"
+    },
+    "card": {
+      "label": "Jira issue {key}",
+      "openIssueTitle": "Open {key} in Jira",
+      "updated": "Updated {when}",
+      "neverSynced": "Not synced yet",
+      "category": {
+        "new": "To do",
+        "indeterminate": "In progress",
+        "done": "Done",
+        "undefined": "Status category unknown"
+      },
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "reporter": "Reporter",
+      "priority": "Priority",
+      "resolution": "Resolution",
+      "sync": "Sync now",
+      "syncing": "Syncing…",
+      "synced": "Synced with Jira",
+      "open": "Open in Jira",
+      "move": "Move Jira issue to…",
+      "moveLoading": "Loading moves…",
+      "moveNone": "Jira offers no moves from this status right now.",
+      "moveBlocked": "This move needs extra information in Jira. Make it there.",
+      "moved": "Moved to {status} in Jira",
+      "unlink": "Unlink",
+      "unlinkYes": "Unlink",
+      "unlinkConfirm": "Unlink {key} from this ticket? Nothing is deleted in Jira.",
+      "comment": "Comment in Jira",
+      "commentLabel": "Comment for Jira",
+      "commentPlaceholder": "Write a comment. It is posted in Jira and kept as a note on this ticket.",
+      "commentPost": "Post",
+      "commentHint": "Ctrl+Enter to post",
+      "commentPosted": "Comment posted in Jira",
+      "commentPartial": "Saved as a note on this ticket, but Jira did not take it. {reason}",
+      "noPermission": "You do not have permission to change Jira links",
+      "noCommentPermission": "Comments to Jira are switched off or not available to you"
+    },
+    "banner": {
+      "notFoundTitle": "This Jira issue was deleted or is no longer accessible.",
+      "notFoundBody": "Vircle stopped syncing it. Unlink it, then link the right issue with “Link existing issue”.",
+      "noAccessTitle": "The connected Jira account can no longer see this issue.",
+      "noAccessBody": "Syncing stopped. Ask for access in Jira, or unlink it and link a different issue.",
+      "reconnectTitle": "Jira needs to be reconnected. Syncing is paused until then.",
+      "reconnectAction": "Reconnect in Settings > Integrations",
+      "reconnectAsk": "Ask a workspace admin to reconnect Jira.",
+      "pausedTitle": "Jira syncing is paused for this issue.",
+      "pausedBody": "It resumes once the Jira connection is healthy again.",
+      "noTransition": "Vircle could not change the Jira status: the issue’s workflow has no matching move from here. Move it in Jira, or use “Move Jira issue to…”.",
+      "screenFields": "Jira asks for extra fields before that move, so Vircle left the status alone. Move it in Jira.",
+      "permission": "Jira says the connected account cannot make that move, so the Jira status did not change."
+    },
+    "chip": {
+      "title": "Linked Jira issue {key}",
+      "titleBroken": "Linked Jira issue {key} (deleted or no longer accessible)",
+      "titlePaused": "Linked Jira issue {key} (syncing paused)",
+      "more": "{count, plural, one {# more Jira issue} other {# more Jira issues}}"
+    },
+    "picker": {
+      "placeholder": "Search Jira users",
+      "searching": "Searching…",
+      "none": "No matching Jira users",
+      "clear": "Clear"
+    },
+    "create": {
+      "title": "Create Jira issue",
+      "dialogDescription": "Choose where the issue goes, check what will be sent to Jira, then confirm.",
+      "chooseHeading": "Where to create it",
+      "project": "Project",
+      "loading": "Loading…",
+      "chooseProject": "Choose a project",
+      "issueType": "Issue type",
+      "chooseType": "Choose an issue type",
+      "priority": "Priority",
+      "priorityHint": "Leave as default to use the priority mapped from this ticket.",
+      "priorityDefault": "Default (from the ticket)",
+      "priorityNone": "Not set",
+      "assignee": "Assignee",
+      "assigneePlaceholder": "Search Jira users (optional)",
+      "assigneeIgnored": "This issue type has no Assignee field, so the issue will be created unassigned.",
+      "unassigned": "Unassigned",
+      "labels": "Labels",
+      "labelsHint": "Extra labels, separated by spaces or commas. “vircle” is always added.",
+      "labelsPlaceholder": "e.g. customer-facing urgent",
+      "choose": "Choose…",
+      "previewHeading": "What will be sent to Jira",
+      "previewLoading": "Preparing the preview…",
+      "previewRequired": "Review this before it is sent. Nothing is created until you press Create issue.",
+      "previewInfo": "This is what will be sent to Jira when you press Create issue.",
+      "summary": "Summary",
+      "description": "Description",
+      "descriptionTruncated": "The description is long and will be shortened to fit Jira’s limit.",
+      "customerIncluded": "The customer’s name and email are included in the issue.",
+      "customerExcluded": "The customer’s name and email are not included in the issue.",
+      "requiredHeading": "Required by this project",
+      "requiredHint": "Jira needs these fields before it accepts the issue.",
+      "unsupportedTitle": "This project requires fields Vircle cannot fill",
+      "unsupportedBody": "Create this issue in Jira instead. These required fields are not supported here:",
+      "openInJira": "Open in Jira instead",
+      "cancel": "Cancel",
+      "create": "Create issue",
+      "creating": "Creating…"
+    },
+    "link": {
+      "title": "Link existing Jira issue",
+      "description": "Paste an issue key or link, or search by key or text.",
+      "inputLabel": "Issue key, link or search text",
+      "inputPlaceholder": "ENG-482, an issue link, or words from the title",
+      "willLink": "Will link {key}",
+      "searching": "Searching Jira…",
+      "noResults": "No matching issues found.",
+      "resultsLabel": "Matching Jira issues",
+      "alreadyLinkedHere": "Already linked",
+      "noteShared": "A Jira issue can be linked from several tickets.",
+      "noteComments": "Comments already in Jira are not imported. Only new comments come across.",
+      "cancel": "Cancel",
+      "link": "Link issue",
+      "linkKey": "Link {key}",
+      "linking": "Linking…"
+    },
+    "share": {
+      "done": "Shared with Jira",
+      "queued": "Jira is busy. The note will be shared shortly."
+    },
+    "errors": {
+      "reauth_required": "Jira needs to be reconnected. Ask a workspace admin to reconnect it in Settings > Integrations.",
+      "no_connection": "Jira is not connected for this workspace.",
+      "jira_not_configured": "Jira is not set up on this server yet.",
+      "jira_permission": "Jira says the connected account cannot do that.",
+      "jira_not_found": "Jira could not find that issue or project.",
+      "jira_rate_limited": "Jira is busy. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+      "jira_rejected": "Jira did not accept this.",
+      "jira_unavailable": "Jira is not responding right now. Try again in a moment.",
+      "link_limit": "This ticket already has the maximum number of linked Jira issues.",
+      "already_linked": "This ticket is already linked to that issue.",
+      "project_not_allowed": "Tickets cannot link to issues in that project. An admin limited the allowed projects in Settings.",
+      "bad_reference": "That does not look like a Jira issue key or link. Try a key like ENG-482.",
+      "unsupported_fields": "This project requires fields Vircle cannot fill. Create the issue in Jira instead.",
+      "missing_fields": "Some required fields are missing.",
+      "no_permission": "You do not have permission to do that in Jira.",
+      "transition_unavailable": "That move is no longer available. The issue’s status may have changed in Jira.",
+      "resync_too_soon": "Synced a moment ago. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+      "toggle_off": "Sharing comments with Jira is switched off in Settings.",
+      "not_shareable": "Only notes written in Vircle can be shared with Jira.",
+      "no_links": "This ticket has no linked Jira issue.",
+      "link_not_ok": "This link is paused or no longer accessible, so nothing can be sent.",
+      "forbidden": "You do not have permission to do that.",
+      "network": "Could not reach Vircle. Check your connection and try again.",
+      "inactive": "The Jira connection is not active.",
+      "not_found": "That was not found. It may have been removed.",
+      "bad_request": "Something in the request was not valid.",
+      "generic": "Something went wrong. Try again."
     }
   }
 }

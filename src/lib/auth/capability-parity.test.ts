@@ -257,6 +257,13 @@ export const DB_TIER_ROWS: readonly Row[] = [
   row("propose_tag / propose_tag_edit", "rpc", "agent", "tags.propose"),
   row("propose_snippet / propose_snippet_edit", "rpc", "agent", "snippets.propose"),
   row("decide_proposal / approvals_list", "rpc", "admin", "approvals.review"),
+  // Migration 085 (Jira link): new, no legacy floor, app-enforced. Every
+  // /api/integrations/jira route calls requireCapability first (jira-routes.test.ts
+  // proves it route by route): connect = Owner + Admin, link and share-comments =
+  // Owner, Admin, Agent. A Viewer can never hold them (min grant role agent / admin).
+  row("integrations/jira (connect, settings, sites, diagnostics)", "route", "admin", "jira.connect"),
+  row("integrations/jira (create, link, unlink, transition, sync)", "route", "agent", "jira.link"),
+  row("integrations/jira (share with Jira)", "route", "agent", "jira.share-comments"),
   ...["api_keys", "webhook_endpoints"].map((t) =>
     row(t, "insert/update/delete", "admin", "api.manage"),
   ),
@@ -576,7 +583,8 @@ describe("route handlers use capabilities, not role floors", () => {
         r.key.startsWith("account/roles") ||
         r.key.startsWith("account/capabilities") ||
         r.key.startsWith("account/audit") ||
-        r.key.startsWith("account/approvals")
+        r.key.startsWith("account/approvals") ||
+        r.key.startsWith("integrations/jira")
       ) {
         continue;
       }

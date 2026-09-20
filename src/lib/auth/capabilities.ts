@@ -7,7 +7,7 @@
 // overrides in `role_capabilities`, migration 079).
 //
 // The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082,
-// + the approvals capabilities in 084)
+// + the approvals capabilities in 084, + the Jira ones in 085)
 // (`capability_catalogue` + `role_capability_defaults`); a test
 // (`capabilities-sql.test.ts`) fails if the two disagree, and
 // `capability-parity.test.ts` proves the defaults equal the role
@@ -180,6 +180,13 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // ---- Channels and integrations ----
   def("channels.manage", "channels", ADMIN_UP, "agent", "database"),
   def("api.manage", "channels", ADMIN_UP, "agent", "database"),
+  // Migration 085 (Jira link). App-enforced: every /api/integrations/jira route
+  // calls requireCapability. connect = connect / disconnect / settings;
+  // link = create, link, unlink, transition, sync now; share-comments = "Share
+  // with Jira" on a note. A Viewer can never hold them.
+  def("jira.connect", "channels", ADMIN_UP, "admin"),
+  def("jira.link", "channels", AGENT_UP, "agent"),
+  def("jira.share-comments", "channels", AGENT_UP, "agent"),
 
   // ---- Workspace ----
   def("settings.workspace", "workspace", ADMIN_UP, "admin"),
@@ -226,6 +233,9 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "ai.configure"
   | "channels.manage"
   | "api.manage"
+  | "jira.connect"
+  | "jira.link"
+  | "jira.share-comments"
   | "settings.workspace"
   | "reports.view"
   | "audit.view"

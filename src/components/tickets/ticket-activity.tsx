@@ -28,6 +28,8 @@ type Item =
 
 const splitLabels = (v: string | null | undefined) => (v ? v.split(",").filter(Boolean) : []);
 
+const NO_NOTES: ReadonlySet<string> = new Set();
+
 function relative(iso: string) {
   return formatDistanceToNow(new Date(iso), { addSuffix: true });
 }
@@ -51,6 +53,9 @@ export function TicketActivitySection({
   onAddComment,
   onEditComment,
   onDeleteComment,
+  canShareToJira = false,
+  jiraSharedNoteIds = NO_NOTES,
+  onShareToJira,
 }: {
   comments: TicketComment[];
   activity: TicketActivity[];
@@ -64,6 +69,14 @@ export function TicketActivitySection({
   onAddComment: (body: string, mentions: string[]) => Promise<boolean>;
   onEditComment: (id: string, body: string) => Promise<boolean>;
   onDeleteComment: (id: string) => Promise<boolean>;
+  /**
+   * "Share with Jira" on notes written here: true only when the caller may, the
+   * workspace lets notes go to Jira, Jira is connected and a link is healthy.
+   */
+  canShareToJira?: boolean;
+  /** Notes already posted to Jira: they show "Shared with Jira" instead. */
+  jiraSharedNoteIds?: ReadonlySet<string>;
+  onShareToJira?: (noteId: string) => Promise<boolean>;
 }) {
   const t = useTranslations("Tickets.detail");
   const tAct = useTranslations("Tickets.detail.activity");
@@ -85,6 +98,7 @@ export function TicketActivitySection({
   const [editDraft, setEditDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   // Other tickets named by link events that are no longer linked.
   const [extraKeys, setExtraKeys] = useState<Record<string, number>>({});
@@ -178,6 +192,14 @@ export function TicketActivitySection({
         return tAct("linkRemoved", { relation: tLinks(`group.${a.from_value ?? "relates"}` as never), ticket: ticketRef(a.to_value) });
       case "attachment_added":
         return tAct("attachmentAdded", { name: a.to_value ?? "" });
+      case "jira_linked":
+        return tAct("jiraLinked", { key: a.to_value ?? a.detail ?? "" });
+      case "jira_unlinked":
+        return tAct("jiraUnlinked", { key: a.to_value ?? a.detail ?? "" });
+      case "jira_status_synced":
+        return tAct("jiraStatusSynced", { from: status(a.from_value), to: status(a.to_value), key: a.detail ?? "" });
+      case "jira_status_pushed":
+        return tAct("jiraStatusPushed", { key: a.detail ?? "", status: a.to_value ?? "—" });
       default:
         return a.event_type;
     }
@@ -218,6 +240,17 @@ export function TicketActivitySection({
   };
 
   const showBox = tab !== "history";
+
+  // Notes that came from Jira belong to a Jira person: no Edit / Delete, never shared back.
+  const canEditNote = (c: TicketComment) => canWork && !!currentUserId && c.source !== "jira" && c.author_id === currentUserId;
+  const isSharedNote = (c: TicketComment) => c.source !== "jira" && jiraSharedNoteIds.has(c.id);
+  const canShareNote = (c: TicketComment) => canShareToJira && !!onShareToJira && c.source !== "jira" && !!c.author_id && !jiraSharedNoteIds.has(c.id);
+  const shareNote = async (id: string) => {
+    if (!onShareToJira || sharingId) return;
+    setSharingId(id);
+    await onShareToJira(id);
+    setSharingId(null);
+  };
 
   return (
     <section aria-label={t("activityHeading")} className="space-y-3">
@@ -293,17 +326,27 @@ export function TicketActivitySection({
           item.kind === "comment" ? (
             <li key={item.id} className="flex gap-2.5">
               <PersonAvatar
-                name={nameOf(item.comment.author_id)}
-                avatarUrl={members.find((m) => m.user_id === item.comment.author_id)?.avatar_url}
+                name={item.comment.source === "jira" ? (item.comment.jira_author ?? tAct("jiraUnknownAuthor")) : nameOf(item.comment.author_id)}
+                avatarUrl={item.comment.source === "jira" ? null : members.find((m) => m.user_id === item.comment.author_id)?.avatar_url}
                 size="lg"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
-                  <span className="text-[13px] font-semibold text-foreground">{nameOf(item.comment.author_id)}</span>
+                  {item.comment.source === "jira" ? (
+                    <span
+                      data-jira-note="yes"
+                      className="inline-flex max-w-full items-center rounded-[4px] bg-blue-500/15 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-blue-700 dark:text-blue-300"
+                    >
+                      <span className="truncate">{tAct("jiraNoteTag", { author: item.comment.jira_author ?? tAct("jiraUnknownAuthor") })}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[13px] font-semibold text-foreground">{nameOf(item.comment.author_id)}</span>
+                  )}
                   <span title={format(new Date(item.comment.created_at), "PPpp")}>{relative(item.comment.created_at)}</span>
                   {item.comment.edited_at ? (
                     <span title={format(new Date(item.comment.edited_at), "PPpp")}>{t("edited")}</span>
                   ) : null}
+                  {item.comment.deleted_in_jira ? <span className="italic">{tAct("jiraDeleted")}</span> : null}
                 </div>
                 {editingId === item.id ? (
                   <div className="mt-1 space-y-2">
@@ -330,9 +373,26 @@ export function TicketActivitySection({
                   </div>
                 ) : (
                   <>
-                    <p className="mt-0.5 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground">{item.comment.body}</p>
-                    {canWork && currentUserId && item.comment.author_id === currentUserId ? (
+                    <p
+                      className={`mt-0.5 text-[13px] leading-relaxed whitespace-pre-wrap ${item.comment.deleted_in_jira ? "text-muted-foreground" : "text-foreground"}`}
+                    >
+                      {item.comment.body}
+                    </p>
+                    {canEditNote(item.comment) || canShareNote(item.comment) || isSharedNote(item.comment) ? (
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                        {canShareNote(item.comment) ? (
+                          <button
+                            type="button"
+                            disabled={sharingId === item.id}
+                            onClick={() => void shareNote(item.id)}
+                            className="hover:text-foreground hover:underline disabled:opacity-60"
+                          >
+                            {sharingId === item.id ? tAct("sharingWithJira") : tAct("shareWithJira")}
+                          </button>
+                        ) : null}
+                        {isSharedNote(item.comment) ? <span>{tAct("sharedWithJira")}</span> : null}
+                        {canEditNote(item.comment) ? (
+                          <>
                         <button
                           type="button"
                           onClick={() => {
@@ -365,6 +425,8 @@ export function TicketActivitySection({
                             {t("delete")}
                           </button>
                         )}
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
                   </>
@@ -377,7 +439,7 @@ export function TicketActivitySection({
                 <span className="size-1.5 rounded-full bg-border" />
               </span>
               <div className="min-w-0 flex-1 pt-1.5">
-                {item.event.actor_id ? (
+                {item.event.actor_id && item.event.event_type !== "jira_status_synced" ? (
                   <span className="font-medium text-foreground">{nameOf(item.event.actor_id)} </span>
                 ) : null}
                 <span className="break-words">{describe(item.event)}</span>

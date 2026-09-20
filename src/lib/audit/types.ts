@@ -19,6 +19,12 @@ export const AUDIT_ACTIONS = [
   "team_member_removed",
   "approved",
   "rejected",
+  // Migration 085 (Jira link).
+  "connected",
+  "disconnected",
+  "reconnected",
+  "linked",
+  "unlinked",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -44,6 +50,9 @@ export const AUDIT_ENTITY_TYPES = [
   "ai_settings",
   "api_key",
   "webhook",
+  // Migration 085 (Jira link).
+  "jira_connection",
+  "ticket_jira_link",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

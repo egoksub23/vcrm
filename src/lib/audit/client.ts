@@ -90,6 +90,8 @@ export function entityHref(
       return "/settings?tab=roles";
     case "channel_config":
       return "/settings?tab=channels";
+    case "jira_connection":
+      return "/settings?tab=integrations";
     case "api_key":
     case "webhook":
       return "/settings?tab=api";

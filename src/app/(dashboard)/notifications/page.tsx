@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, Ticket, UserPlus } from "lucide-react";
+import { AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   ticket_comment: MessageSquare,
   approval_requested: ClipboardCheck,
   approval_decided: ClipboardCheck,
+  jira_reauth_required: PlugZap,
+  jira_issue_done: Ticket,
   ai_budget: Bot,
 };
 
@@ -126,6 +128,8 @@ export default function NotificationsPage() {
       if (!n.read_at) markRead(n.id);
       if (isApprovalNotification(n.type)) {
         router.push(approvalNotificationHref(n.type, n.title));
+      } else if (n.type === "jira_reauth_required") {
+        router.push("/settings?tab=integrations");
       } else if (n.ticket_id) {
         router.push(`/tickets?t=${n.ticket_id}`);
       } else if (n.type === "ai_budget") {

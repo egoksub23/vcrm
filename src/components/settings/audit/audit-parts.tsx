@@ -5,6 +5,7 @@ import {
   BookOpen,
   Boxes,
   KeyRound,
+  Link2,
   Mail,
   MessageSquare,
   PlugZap,
@@ -85,6 +86,11 @@ const ACTION_TONE: Readonly<Record<AuditAction, string>> = {
   team_member_removed: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
   approved: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   rejected: "bg-red-500/10 text-red-700 dark:text-red-300",
+  connected: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  disconnected: "bg-red-500/10 text-red-700 dark:text-red-300",
+  reconnected: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  linked: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  unlinked: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
 };
 
 export function AuditActionBadge({ action }: { action: AuditAction }) {
@@ -115,6 +121,8 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   ai_settings: Sparkles,
   api_key: KeyRound,
   webhook: Webhook,
+  jira_connection: PlugZap,
+  ticket_jira_link: Link2,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.43.0] — 2026-09-20 — **migration required: 085; new settings: JIRA_CLIENT_ID, JIRA_CLIENT_SECRET**
+
+- **Link tickets to Jira (Cloud, two-way).** Settings → **Integrations → Jira** connects a Jira site through Atlassian sign-in (Owner and Admin, capability *Connect Jira*). On a ticket, a **Jira card** offers **Create issue** (pre-filled from the ticket, with a preview of exactly what is sent; customer name and email are left out unless you turn them on) or **Link existing issue** (up to five per ticket). The card shows the issue key, its live status, assignee and priority from a cached copy, with **Sync now**, **Open in Jira**, **Move Jira issue to…** and **Unlink**. Linked tickets show the Jira key on board cards and list rows.
+- **Two-way sync.** Jira status changes update the ticket (To do → Open, In progress → In progress, Done → a note to the owner, or Resolved if you choose); Jira comments appear as internal notes tagged “Jira”; an agent can **Share with Jira** on an internal note; a ticket status change can move the Jira issue when Jira offers a matching step. Updates arrive by Jira webhooks with a catch-up check every few minutes. Loops are guarded so Vircle’s own changes are not echoed back.
+- Settings for projects, priority and status mapping, which directions sync (status to Jira is off by default), privacy, user matching and Diagnostics. New capabilities: *Connect Jira*, *Link tickets to Jira*, *Share notes with Jira*. Every connect, link and mapping change is in the audit log.
+- **Setup:** see `docs/jira-setup.md` (create the Atlassian app, set the two env variables, add one cron line for `/api/integrations/jira/cron`). **Not yet proven against a real Jira site:** webhook delivery to customer sites, and the exact webhook signature method, are unconfirmed; the catch-up poll works either way.
+
 ## [0.42.0] — 2026-09-20 — **migration required: 084 (apply it BEFORE deploying this version)**
 
 - **Propose and approve.** Agents can now *propose* new contact tags, new conversation labels and new snippets, and edits to existing ones. A proposal is saved as **Pending**: only the person who made it and the reviewers can see it, and it is left out of every picker, search, automation and broadcast until approved. Applying an existing label or tag to a chat or contact stays free.

@@ -25,6 +25,7 @@ import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab';
 import { AuditLogPanel } from '@/components/settings/audit/audit-log-panel';
 import { ApprovalsPanel } from '@/components/settings/approvals/approvals-panel';
+import { IntegrationsPanel } from '@/components/settings/integrations/integrations-panel';
 import { useApprovalsCount } from '@/hooks/use-approvals-count';
 import { badgeLabel } from '@/lib/approvals/rules';
 import { NoAccess } from '@/components/auth/no-access';
@@ -109,6 +110,7 @@ function SettingsPageInner() {
     roles: <RolesPermissionsTab />,
     approvals: <ApprovalsPanel />,
     audit: <AuditLogPanel />,
+    integrations: <IntegrationsPanel />,
     api: <ApiKeysSettings />,
   };
 

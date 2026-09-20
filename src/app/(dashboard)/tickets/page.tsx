@@ -19,6 +19,7 @@ import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTeams } from "@/hooks/use-teams";
+import { useJiraLinkChips } from "@/hooks/use-ticket-jira";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
 import { useTicketStore, type TicketViewMode } from "@/hooks/use-ticket-store";
@@ -164,6 +165,8 @@ function TicketsPageInner() {
     for (const r of store.rows) counts[r.status] += 1;
     return counts;
   }, [store.rows]);
+  // Linked Jira keys for the cards / rows on screen: cached rows, one query, no Jira call.
+  const jiraChips = useJiraLinkChips(useMemo(() => listRows.map((r) => r.id), [listRows]));
   const selectedRows = useMemo(() => listRows.filter((r) => selected.has(r.id)), [listRows, selected]);
   const narrowed = hasActiveFilters(filters, mode === "list");
 
@@ -338,6 +341,7 @@ function TicketsPageInner() {
             }}
             closedOpen={closedOpen}
             onClosedOpenChange={setClosedOpen}
+            jiraChips={jiraChips}
           />
         ) : listRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
@@ -366,6 +370,7 @@ function TicketsPageInner() {
             hasMore={store.listHasMore}
             loadingMore={store.loadingMore === "list"}
             onLoadMore={() => void store.loadMore()}
+            jiraChips={jiraChips}
           />
         )}
       </div>

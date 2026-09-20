@@ -27,6 +27,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTeams } from "@/hooks/use-teams";
 import { useTicketDetail } from "@/hooks/use-ticket-detail";
+import { useTicketJira } from "@/hooks/use-ticket-jira";
+import { errorKeyOf, loose, retrySeconds } from "@/lib/tickets/jira-ui";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
@@ -36,6 +38,7 @@ import { TicketActivitySection } from "./ticket-activity";
 import { TicketAttachmentsSection } from "./ticket-attachments";
 import { CustomFieldsSection } from "./ticket-custom-fields";
 import { TicketDetailsCard } from "./ticket-details-card";
+import { TicketJiraSection } from "./ticket-jira-section";
 import { TicketLinksSection } from "./ticket-links";
 import { TypeIcon } from "./ticket-visuals";
 
@@ -213,6 +216,25 @@ export function TicketDetail({
   });
   const { ticket } = detail;
 
+  // Jira: cached link rows for the section and the "Share with Jira" action of the notes.
+  const jira = useTicketJira(ticketId);
+  const tJira = useTranslations("Jira");
+  const canShareJira = useCapability("jira.share-comments") && jira.connected && jira.commentsToJira && jira.hasOkLink;
+  const shareNoteToJira = async (noteId: string): Promise<boolean> => {
+    const r = await jira.shareNote(noteId);
+    if (!r.ok) {
+      toast.error(loose(tJira)(`errors.${errorKeyOf(r.code)}`, { seconds: retrySeconds(r.retryAfterSeconds) }));
+      return false;
+    }
+    const failed = (r.data.results ?? []).find((x) => !x.ok);
+    if (failed) {
+      toast.error(loose(tJira)(`errors.${errorKeyOf(failed.code)}`, { seconds: 30 }));
+      return false;
+    }
+    toast.success(r.data.queued ? tJira("share.queued") : tJira("share.done"));
+    return true;
+  };
+
   const [contactOpen, setContactOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -339,6 +361,7 @@ export function TicketDetail({
               onAddFiles={(files) => void detail.addFiles(files)}
               onRemove={(a) => void detail.removeAttachment(a)}
             />
+            <TicketJiraSection ticketId={ticket.id} jira={jira} />
             <TicketLinksSection
               ticketId={ticket.id}
               links={detail.links}
@@ -369,6 +392,9 @@ export function TicketDetail({
               onAddComment={detail.addComment}
               onEditComment={detail.editComment}
               onDeleteComment={detail.deleteComment}
+              canShareToJira={canShareJira}
+              jiraSharedNoteIds={jira.sharedNoteIds}
+              onShareToJira={shareNoteToJira}
             />
           </div>
 

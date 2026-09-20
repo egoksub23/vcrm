@@ -354,6 +354,9 @@ export type NotificationType =
   /** Migration 084: a proposal waits for a reviewer / a proposal was decided. */
   | 'approval_requested'
   | 'approval_decided'
+  /** Migration 085: the Jira connection needs reconnecting / a linked Jira issue reached Done. */
+  | 'jira_reauth_required'
+  | 'jira_issue_done'
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
   | 'ai_budget';
 
@@ -474,6 +477,13 @@ export interface TicketComment {
   created_at: string;
   /** Migration 081: set by the DB when the body is edited. */
   edited_at?: string | null;
+  /** Migration 085: 'jira' for a note copied from a Jira comment (no author). */
+  source?: 'vircle' | 'jira';
+  /** Migration 085: the Jira display name of the comment's author. */
+  jira_author?: string | null;
+  jira_comment_id?: string | null;
+  /** Migration 085: the comment was deleted in Jira (the text is kept). */
+  deleted_in_jira?: boolean;
 }
 
 /** System-logged ticket history events (migration 064) — status/priority/
@@ -496,7 +506,15 @@ export type TicketActivityEventType =
   | 'description_changed'
   | 'link_added'
   | 'link_removed'
-  | 'attachment_added';
+  | 'attachment_added'
+  // Migration 085 (Jira link): `detail` holds the issue key. jira_linked /
+  // jira_unlinked: to_value = key. jira_status_synced: from / to = the ticket
+  // statuses, no actor ("by Jira"). jira_status_pushed: to_value = the Jira
+  // status Vircle moved the issue to.
+  | 'jira_linked'
+  | 'jira_unlinked'
+  | 'jira_status_synced'
+  | 'jira_status_pushed';
 
 export interface TicketActivity {
   id: string;
@@ -508,6 +526,8 @@ export interface TicketActivity {
   event_type: TicketActivityEventType;
   from_value?: string | null;
   to_value?: string | null;
+  /** Migration 085: extra context, the Jira issue key for the jira_* events. */
+  detail?: string | null;
   created_at: string;
 }
 

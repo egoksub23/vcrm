@@ -8,7 +8,8 @@ import { ACCOUNT_ROLES } from "./roles";
 // Migration 079 seeds `capability_catalogue` and `role_capability_defaults`
 // from the TypeScript catalogue; later migrations add capabilities the
 // same way (082 adds `audit.view`, 084 adds the approvals capabilities and
-// moves tags.manage / snippets.manage to the database tier). This test parses the seeds out of the
+// moves tags.manage / snippets.manage to the database tier, 085 adds the three
+// Jira capabilities). This test parses the seeds out of the
 // migration text and fails if the SQL mirror and the TS source of truth
 // ever disagree (someone edited one without the other). Migrations that
 // add capabilities are listed in order.
@@ -17,6 +18,7 @@ const migrationFiles = [
   "079_role_capabilities.sql",
   "082_audit_trail.sql",
   "084_approvals.sql",
+  "085_jira_link.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

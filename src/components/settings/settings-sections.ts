@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutGrid,
   Palette,
+  Plug,
   PlugZap,
   Shield,
   ShieldCheck,
@@ -46,6 +47,7 @@ export const SETTINGS_SECTIONS = [
   'roles',
   'approvals',
   'audit',
+  'integrations',
   'api',
 ] as const;
 
@@ -85,6 +87,8 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },
   approvals: { id: 'approvals', label: 'Approvals', icon: ClipboardCheck, group: 'workspace', capability: 'approvals.review' },
   audit: { id: 'audit', label: 'Audit log', icon: History, group: 'workspace', capability: 'audit.view' },
+  // Migration 085: Settings > Integrations > Jira (jira.connect).
+  integrations: { id: 'integrations', label: 'Integrations', icon: Plug, group: 'workspace', capability: 'jira.connect' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace', capability: 'api.manage' },
 };
 

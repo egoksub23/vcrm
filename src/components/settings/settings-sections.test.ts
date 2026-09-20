@@ -41,6 +41,16 @@ describe("settings sections and capabilities", () => {
     expect(order.indexOf("approvals")).toBeGreaterThan(order.indexOf("roles"));
   });
 
+  it("registers Integrations in the workspace group behind jira.connect", () => {
+    expect(SECTION_META.integrations.group).toBe("workspace");
+    expect(SECTION_META.integrations.capability).toBe("jira.connect");
+    expect(resolveSection("integrations")).toBe("integrations");
+    expect(canSeeSection("integrations", holds())).toBe(false);
+    expect(canSeeSection("integrations", holds("jira.connect"))).toBe(true);
+    // Agents hold jira.link but not jira.connect, so they never see the section.
+    expect(canSeeSection("integrations", holds("jira.link"))).toBe(false);
+  });
+
   it("hides roles without roles.manage and api without api.manage", () => {
     expect(canSeeSection("roles", holds())).toBe(false);
     expect(canSeeSection("api", holds())).toBe(false);
@@ -50,7 +60,7 @@ describe("settings sections and capabilities", () => {
 
   it("keeps every other section visible to anyone who can open Settings", () => {
     const rest = SETTINGS_SECTIONS.filter(
-      (s) => s !== "roles" && s !== "api" && s !== "audit" && s !== "approvals",
+      (s) => s !== "roles" && s !== "api" && s !== "audit" && s !== "approvals" && s !== "integrations",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
     expect(visibleSections(holds())).toEqual(rest);
@@ -58,7 +68,7 @@ describe("settings sections and capabilities", () => {
 
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
-      visibleSections(holds("roles.manage", "api.manage", "audit.view", "approvals.review")),
+      visibleSections(holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect")),
     ).toEqual([
       ...SETTINGS_SECTIONS,
     ]);
