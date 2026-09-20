@@ -5,6 +5,7 @@ import { parseDocInput } from '@/lib/ai/knowledge-doc'
 import { hasMinRole } from '@/lib/auth/roles'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadCollections, syncAttachments } from '@/lib/knowledge/articles'
+import { groupTranslationsByBase } from '@/lib/knowledge/translate'
 import type {
   KnowledgeDocSummary,
   KnowledgeLibraryResponse,
@@ -36,6 +37,10 @@ async function fetchAll<T>(
  * status, language, collection and how often the AI used it lately, the
  * collections with their article counts, plus whether meaning search is set
  * up. See `KnowledgeLibraryResponse`.
+ *
+ * Translations are rows of their own (`translation_of` set); each base
+ * article lists its translations in `translations`, and its use count and
+ * the collection counts leave translations out so an article counts once.
  */
 export async function GET() {
   try {
@@ -46,7 +51,7 @@ export async function GET() {
       supabase
         .from('ai_knowledge_documents')
         .select(
-          'id, title, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, source_conversation_id, source_id',
+          'id, title, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at',
         )
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
@@ -87,7 +92,20 @@ export async function GET() {
       attachmentCounts.set(row.document_id, (attachmentCounts.get(row.document_id) ?? 0) + 1)
     }
 
-    const docs = (docsRes.data ?? []) as Array<Record<string, unknown> & { id: string; source_id: string | null; collection_id: string | null }>
+    const docs = (docsRes.data ?? []) as Array<
+      Record<string, unknown> & {
+        id: string
+        source_id: string | null
+        collection_id: string | null
+        translation_of: string | null
+        machine_translated: boolean
+        translated_from_at: string | null
+        updated_at: string
+        language: KnowledgeDocSummary['language']
+        status: KnowledgeDocSummary['status']
+      }
+    >
+    const translationsByBase = groupTranslationsByBase(docs)
 
     // Where imported articles came from ('file' | 'url').
     const sourceIds = Array.from(new Set(docs.map((d) => d.source_id).filter((x): x is string => !!x)))
@@ -103,16 +121,22 @@ export async function GET() {
 
     const perCollection = new Map<string, number>()
     for (const d of docs) {
+      if (d.translation_of) continue
       if (d.collection_id) perCollection.set(d.collection_id, (perCollection.get(d.collection_id) ?? 0) + 1)
     }
 
     const documents: KnowledgeDocSummary[] = docs.map((d) => {
-      const { source_id, ...rest } = d
+      const { source_id, translated_from_at, ...rest } = d
+      void translated_from_at
+      const translations = translationsByBase.get(d.id) ?? []
       return {
-        ...(rest as unknown as Omit<KnowledgeDocSummary, 'source_kind' | 'ai_uses' | 'attachment_count'>),
+        ...(rest as unknown as Omit<KnowledgeDocSummary, 'source_kind' | 'ai_uses' | 'attachment_count' | 'translations'>),
         source_kind: source_id ? (sourceKinds.get(source_id) ?? null) : null,
-        ai_uses: uses.get(d.id) ?? 0,
+        // A base article is credited with the uses of its translations too:
+        // the AI answers a Malay customer from the Malay one.
+        ai_uses: translations.reduce((n, t) => n + (uses.get(t.id) ?? 0), uses.get(d.id) ?? 0),
         attachment_count: attachmentCounts.get(d.id) ?? 0,
+        translations,
       }
     })
 

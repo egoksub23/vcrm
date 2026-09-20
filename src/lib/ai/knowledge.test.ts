@@ -301,3 +301,87 @@ describe('usage and gap logging', () => {
     expect(state.rpcCalls).toHaveLength(0)
   })
 })
+
+describe('searchKnowledge — translations count as one article', () => {
+  const t = (id: string, doc: string, of: string | null, content: string, language: Row['language'], rank = 0.5) => ({
+    ...fts(id, doc, content, rank, language),
+    translation_of: of,
+  })
+
+  it('answers from the translation when the customer writes in its language', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      t('en', 'Refunds', null, 'bayaran balik dalam 14 hari', 'en', 0.9),
+      t('ms', 'Bayaran balik', 'Refunds', 'bayaran balik dalam 14 hari', 'ms', 0.4),
+    ]
+    // No language given: the query itself reads as Malay.
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, 'bayaran balik', { audience: 'ai' })
+    expect(hits.map((x) => x.documentId)).toEqual(['Bayaran balik'])
+    expect(hits[0].translationOf).toBe('Refunds')
+  })
+
+  it('answers from the base when the customer language is English', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      t('ms', 'Bayaran balik', 'Refunds', 'refund dalam 14 hari', 'ms', 0.9),
+      t('en', 'Refunds', null, 'refund within 14 days', 'en', 0.4),
+    ]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, 'refund', { audience: 'ai', language: 'en' })
+    expect(hits.map((x) => x.documentId)).toEqual(['Refunds'])
+  })
+
+  it('keeps the best-ranked article when the customer language is unknown', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      t('ms', 'Harga 12345', 'Prices', 'harga 12345', 'ms', 0.9),
+      t('en', 'Prices', null, 'price 12345', 'en', 0.4),
+    ]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, '12345', { audience: 'agent' })
+    expect(hits.map((x) => x.documentId)).toEqual(['Harga 12345'])
+  })
+
+  it('keeps every passage of the winning article, not the sibling', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      t('en1', 'Refunds', null, 'refund one', 'en', 0.9),
+      t('ms1', 'Bayaran balik', 'Refunds', 'refund satu', 'ms', 0.8),
+      t('en2', 'Refunds', null, 'refund two', 'en', 0.7),
+    ]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, 'refund', { audience: 'ai', language: 'en' })
+    expect(hits.map((x) => x.chunkId).sort()).toEqual(['en1', 'en2'])
+  })
+
+  it('dedupes before the cap, so a sibling does not crowd out another topic', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      t('a', 'Refunds', null, 'refund', 'en', 0.9),
+      t('a-ms', 'Bayaran balik', 'Refunds', 'refund', 'ms', 0.8),
+      t('b', 'Shipping', null, 'refund shipping', 'en', 0.7),
+    ]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, 'refund', { audience: 'ai', language: 'en', k: 2 })
+    expect(hits.map((x) => x.documentId)).toEqual(['Refunds', 'Shipping'])
+  })
+
+  it('leaves unrelated articles alone even in different languages', async () => {
+    const { db, state } = makeDb()
+    state.fts = [t('a', 'Refunds', null, 'refund', 'en', 0.9), t('b', 'Bayaran', null, 'refund bayaran', 'ms', 0.8)]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, 'refund', { audience: 'ai', language: 'en' })
+    expect(hits.map((x) => x.documentId).sort()).toEqual(['Bayaran', 'Refunds'])
+  })
+
+  it('does not let a weak passage of a sibling into the test box', async () => {
+    const { db, state } = makeDb()
+    const q = 'how many days until my invoice arrives for the pro plan yearly subscription'
+    state.fts = [
+      t('good', 'Pricing', null, 'Pricing\n\nThe pro plan invoice arrives yearly.', 'en'),
+      t('weak-sibling', 'Harga', 'Pricing', 'Harga takes days.', 'ms'),
+      t('weak-other', 'Shipping', null, 'Shipping takes days.', 'en'),
+    ]
+    const debug = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, q, {
+      audience: 'ai',
+      language: 'en',
+      includeBelowCutoff: true,
+    })
+    expect(debug.map((x) => x.chunkId)).toEqual(['good', 'weak-other'])
+  })
+})

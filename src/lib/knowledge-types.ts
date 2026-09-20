@@ -50,6 +50,26 @@ export interface StagedKnowledgeAttachment {
   send_with_ai: boolean
 }
 
+/** One translation of a base article, as listed on the base (library row,
+ *  editor card). `out_of_date` = the base changed after it was translated. */
+export interface KnowledgeTranslationInfo {
+  language: KbLanguage
+  id: string
+  status: KbStatus
+  out_of_date: boolean
+  /** true until a person edits and saves it. */
+  machine_translated: boolean
+}
+
+/** The base article a translation belongs to (GET /api/knowledge/[id]). */
+export interface KnowledgeTranslationBase {
+  id: string
+  title: string
+  language: KbLanguage
+  status: KbStatus
+  created_by: string | null
+}
+
 /** One row of the knowledge library (GET /api/knowledge). */
 export interface KnowledgeDocSummary {
   id: string
@@ -67,9 +87,15 @@ export interface KnowledgeDocSummary {
   source_conversation_id: string | null
   /** 'file' | 'url' when the article was imported; null when written by hand. */
   source_kind: 'file' | 'url' | null
-  /** Times the AI used it in the last 30 days. */
+  /** Times the AI used it in the last 30 days. For a base article this
+   *  includes uses of its translations. */
   ai_uses: number
   attachment_count: number
+  /** The base article when this row is a translation; null for a base article. */
+  translation_of: string | null
+  machine_translated: boolean
+  /** The translations of a base article (empty on a translation row). */
+  translations: KnowledgeTranslationInfo[]
 }
 
 /** GET /api/knowledge */
@@ -103,7 +129,22 @@ export interface KnowledgeArticle {
   source_conversation_id: string | null
   source_kind: 'file' | 'url' | null
   source_url: string | null
+  /** The article's OWN files (what the editor saves). */
   attachments: KnowledgeAttachment[]
+  /** The base article when this is a translation; null for a base article. */
+  translation_of: string | null
+  machine_translated: boolean
+  /** The base's updated_at when this was last translated or marked up to date. */
+  translated_from_at: string | null
+  /** The base changed after this translation was made. */
+  out_of_date: boolean
+  /** The translations of this article (empty for a translation). */
+  translations: KnowledgeTranslationInfo[]
+  /** The base article of a translation; null for a base article. */
+  base: KnowledgeTranslationBase | null
+  /** A translation with no files of its own uses its base's: those files,
+   *  shown read-only. Empty when it has its own or is not a translation. */
+  inherited_attachments: KnowledgeAttachment[]
 }
 
 /** One search result (GET /api/knowledge/search). */
@@ -157,6 +198,36 @@ export interface KnowledgeInsights {
   /** Articles written to answer an unanswered question, with the number of
    *  handoffs each one closed. */
   handoff_fixes: { id: string; title: string; handoffs: number }[]
+}
+
+/** POST /api/knowledge/[id]/translate: body `{ language }` or `{ languages }`,
+ *  plus `overwrite` to replace an existing translation. */
+export interface TranslateRequest {
+  language?: KbLanguage
+  languages?: KbLanguage[]
+  overwrite?: boolean
+}
+
+/** One language's outcome. `id` is the translation article (a new draft, or
+ *  the existing one when `overwritten`). */
+export interface TranslateLanguageResult {
+  language: KbLanguage
+  ok: boolean
+  id?: string
+  overwritten?: boolean
+  /** Failure: a stable code (translation_exists, budget_exceeded,
+   *  ai_not_configured, bad_model_output, too_long, forbidden ...) and text. */
+  code?: string
+  error?: string
+}
+
+/** 200 = `{ results }`. When every language failed for the same reason the
+ *  HTTP status is that reason's (409, 429, 400 ...) and the body is
+ *  `{ error, code, results }`. */
+export interface TranslateResponse {
+  results: TranslateLanguageResult[]
+  error?: string
+  code?: string
 }
 
 /** A source the AI used (POST /api/ai/draft returns these as `sources`). */

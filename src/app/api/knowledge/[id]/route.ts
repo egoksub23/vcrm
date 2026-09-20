@@ -5,14 +5,23 @@ import { parseDocInput, type DocFields } from '@/lib/ai/knowledge-doc'
 import { hasMinRole } from '@/lib/auth/roles'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadAttachments, removeStoredFiles, syncAttachments } from '@/lib/knowledge/articles'
-import type { KnowledgeArticle, StagedKnowledgeAttachment } from '@/lib/knowledge-types'
+import { buildTranslationInfos, isTranslationOutOfDate, textUnchanged } from '@/lib/knowledge/translate'
+import { keepTranslationsCurrent, loadBaseOf, loadTranslationsOf } from '@/lib/knowledge/translations'
+import type { KnowledgeArticle, KnowledgeAttachment, KnowledgeTranslationBase, KnowledgeTranslationInfo, StagedKnowledgeAttachment } from '@/lib/knowledge-types'
 
 type Params = { params: Promise<{ id: string }> }
 
 const FULL_COLUMNS =
-  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, source_conversation_id, source_id'
+  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at'
 
-/** GET /api/knowledge/[id] — the whole article, attachments included (any member). */
+/**
+ * GET /api/knowledge/[id] — the whole article, attachments included (any member).
+ *
+ * A base article also lists its `translations`; a translation carries its
+ * `base`, whether it is `out_of_date`, and, when it has no files of its own,
+ * its base's files as `inherited_attachments` (read-only: they are sent with
+ * the translation's answers until it gets files of its own).
+ */
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { supabase, accountId } = await getCurrentAccount()
@@ -44,11 +53,33 @@ export async function GET(_request: Request, { params }: Params) {
     }
     const attachments = (await loadAttachments(supabase, accountId, [id])).get(id) ?? []
 
+    let translations: KnowledgeTranslationInfo[] = []
+    let base: KnowledgeTranslationBase | null = null
+    let outOfDate = false
+    let inherited: KnowledgeAttachment[] = []
+    if (doc.translation_of) {
+      const b = await loadBaseOf(supabase, accountId, doc.translation_of as string)
+      if (b) {
+        base = { id: b.id, title: b.title, language: b.language, status: b.status, created_by: b.created_by }
+        outOfDate = isTranslationOutOfDate(b.updated_at, (doc.translated_from_at as string | null) ?? null)
+        if (attachments.length === 0) inherited = (await loadAttachments(supabase, accountId, [b.id])).get(b.id) ?? []
+      }
+    } else {
+      translations = buildTranslationInfos(
+        { updated_at: doc.updated_at as string },
+        await loadTranslationsOf(supabase, accountId, id),
+      )
+    }
+
     const article = {
       ...doc,
       source_kind: sourceKind,
       source_url: sourceUrl,
       attachments,
+      out_of_date: outOfDate,
+      translations,
+      base,
+      inherited_attachments: inherited,
     } as unknown as KnowledgeArticle
     return NextResponse.json(article)
   } catch (err) {
@@ -63,6 +94,11 @@ export async function GET(_request: Request, { params }: Params) {
  * edit their own draft, and cannot publish it. `attachments` is the whole
  * list: entries with an id are kept, entries without one are new, and any
  * existing attachment not listed is removed.
+ *
+ * A translation: its language is fixed, and saving it clears
+ * `machine_translated` (a person has now reviewed it). Saving a base article
+ * without changing its text keeps its translations "up to date"; changing the
+ * text is what makes them out of date.
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
@@ -91,11 +127,15 @@ export async function PATCH(request: Request, { params }: Params) {
     const isAdmin = hasMinRole(role, 'admin')
     const { data: current } = await supabase
       .from('ai_knowledge_documents')
-      .select('id, created_by, status')
+      .select('id, created_by, status, language, translation_of, machine_translated, title, content, content_html, updated_at')
       .eq('account_id', accountId)
       .eq('id', id)
       .maybeSingle()
     if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    if (current.translation_of && fields.language !== undefined && fields.language !== current.language) {
+      return NextResponse.json({ error: 'The language of a translation cannot be changed.' }, { status: 400 })
+    }
 
     if (!isAdmin) {
       if (current.status !== 'draft' || current.created_by !== userId) {
@@ -109,25 +149,45 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    type Saved = { id: string; title: string; content: string; status: 'draft' | 'published' }
+    type Saved = { id: string; title: string; content: string; status: 'draft' | 'published'; updated_at?: string }
     let updated: Saved
     if (Object.keys(fields).length > 0) {
       const { data, error } = await supabase
         .from('ai_knowledge_documents')
-        .update({ ...fields, updated_by: userId })
+        .update({
+          ...fields,
+          updated_by: userId,
+          // A person saved it: it is no longer just the machine text.
+          ...(current.translation_of && current.machine_translated ? { machine_translated: false } : {}),
+        })
         .eq('account_id', accountId)
         .eq('id', id)
-        .select('id, title, content, status')
+        .select('id, title, content, status, updated_at')
         .maybeSingle()
       if (error) {
         if ((error as { code?: string }).code === '23503') {
           return NextResponse.json({ error: 'That collection no longer exists.' }, { status: 400 })
+        }
+        if ((error as { code?: string }).code === '23514') {
+          return NextResponse.json(
+            { error: 'A translation of this article already exists in that language. Change or delete it first.' },
+            { status: 409 },
+          )
         }
         console.error('[knowledge/[id] PATCH] error:', error)
         return NextResponse.json({ error: 'Failed to update the article' }, { status: 500 })
       }
       if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
       updated = data as Saved
+      // Not a text change (publishing, the AI switch ...): translations that
+      // were current stay current.
+      if (
+        !current.translation_of &&
+        updated.updated_at &&
+        textUnchanged(current as { title: string; content: string; content_html: string | null }, fields)
+      ) {
+        await keepTranslationsCurrent(supabase, accountId, id, current.updated_at as string, updated.updated_at)
+      }
     } else {
       const { data } = await supabase
         .from('ai_knowledge_documents')
@@ -168,36 +228,69 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-/** DELETE /api/knowledge/[id] — an admin, or the author of a draft. */
-export async function DELETE(_request: Request, { params }: Params) {
+/**
+ * DELETE /api/knowledge/[id] — an admin, or the author of a draft.
+ *
+ * Deleting a base article deletes its translations with it (and their files),
+ * so a request that would do that is refused with 409 `has_translations`
+ * (and the count) unless it carries `?with_translations=true`. Someone who
+ * cannot delete every one of the translations (not an admin, and not the
+ * author of a draft) cannot delete the article.
+ */
+export async function DELETE(request: Request, { params }: Params) {
   try {
     const { supabase, accountId, userId, role } = await requireRole('agent')
     const limit = checkRateLimit(`kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
     const { id } = await params
+    const isAdmin = hasMinRole(role, 'admin')
 
-    if (!hasMinRole(role, 'admin')) {
-      const { data: current } = await supabase
-        .from('ai_knowledge_documents')
-        .select('created_by, status')
-        .eq('account_id', accountId)
-        .eq('id', id)
-        .maybeSingle()
-      if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-      if (current.status !== 'draft' || current.created_by !== userId) {
+    const { data: current } = await supabase
+      .from('ai_knowledge_documents')
+      .select('created_by, status')
+      .eq('account_id', accountId)
+      .eq('id', id)
+      .maybeSingle()
+    if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!isAdmin && (current.status !== 'draft' || current.created_by !== userId)) {
+      return NextResponse.json(
+        { error: 'You can only delete your own drafts.' },
+        { status: 403 },
+      )
+    }
+
+    const { data: children } = await supabase
+      .from('ai_knowledge_documents')
+      .select('id, status, created_by')
+      .eq('account_id', accountId)
+      .eq('translation_of', id)
+    const translations = (children ?? []) as { id: string; status: string; created_by: string | null }[]
+    if (translations.length > 0) {
+      if (!isAdmin && translations.some((t) => t.status !== 'draft' || t.created_by !== userId)) {
         return NextResponse.json(
-          { error: 'You can only delete your own drafts.' },
+          { error: 'This article has translations you cannot delete. Ask an admin.' },
           { status: 403 },
+        )
+      }
+      if (new URL(request.url).searchParams.get('with_translations') !== 'true') {
+        return NextResponse.json(
+          {
+            error: `This article has ${translations.length} translation${translations.length === 1 ? '' : 's'} that would be deleted with it.`,
+            code: 'has_translations',
+            count: translations.length,
+          },
+          { status: 409 },
         )
       }
     }
 
-    // Remember the files so they can be removed once the rows are gone.
+    // Remember the files (the article and its translations) so they can be
+    // removed once the rows are gone.
     const { data: files } = await supabase
       .from('knowledge_attachments')
       .select('storage_path')
       .eq('account_id', accountId)
-      .eq('document_id', id)
+      .in('document_id', [id, ...translations.map((t) => t.id)])
 
     const { error } = await supabase
       .from('ai_knowledge_documents')

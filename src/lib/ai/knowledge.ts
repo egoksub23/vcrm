@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AiConfig } from './types'
 import { chunkText } from './chunk'
 import { embedTexts, toVectorLiteral } from './embeddings'
+import { dedupeAgainst, dedupeByTranslationGroup } from '@/lib/knowledge/translate'
 import {
   buildFtsQuery,
   detectLanguage,
@@ -36,6 +37,10 @@ export interface KnowledgeHit {
   category: string | null
   language: KbLanguage
   content: string
+  /** The base article when this passage is from a translation. Retrieval keeps
+   *  one article per translation group, so a translation and its base are
+   *  never both used. */
+  translationOf?: string | null
   /** Higher is better; comparable only within one result list. */
   score: number
   via: 'meaning' | 'keyword'
@@ -56,6 +61,7 @@ interface FtsRow {
   language: KbLanguage
   content: string
   rank: number
+  translation_of?: string | null
 }
 interface SemanticRow extends Omit<FtsRow, 'rank'> {
   distance: number
@@ -236,7 +242,8 @@ export async function searchKnowledge(
     }
   }
 
-  const used = fuse(meaning, keyword, opts.language ?? detectLanguage(query), k)
+  const customerLanguage = opts.language ?? detectLanguage(query)
+  const used = fuse(meaning, keyword, customerLanguage, k)
   if (!opts.includeBelowCutoff) return used
 
   const usedChunks = new Set(used.map((h) => h.chunkId))
@@ -246,9 +253,13 @@ export async function searchKnowledge(
     const existing = weak.get(h.chunkId)
     if (!existing || (h.raw ?? 0) > (existing.raw ?? 0)) weak.set(h.chunkId, h)
   }
-  const weakest = Array.from(weak.values())
-    .sort((a, b) => (b.raw ?? 0) - (a.raw ?? 0))
-    .slice(0, k)
+  // A weak passage may not bring in a translation (or the base) of an article
+  // that already made it into the result.
+  const weakest = dedupeAgainst(
+    Array.from(weak.values()).sort((a, b) => (b.raw ?? 0) - (a.raw ?? 0)),
+    used,
+    customerLanguage,
+  ).slice(0, k)
   return [...used, ...weakest]
 }
 
@@ -260,6 +271,7 @@ function toHit(row: Omit<FtsRow, 'rank'>): Omit<KnowledgeHit, 'score' | 'via'> {
     category: row.category,
     language: row.language,
     content: row.content,
+    translationOf: row.translation_of ?? null,
   }
 }
 
@@ -286,10 +298,14 @@ function fuse(
     .map((h) => ({ ...h, fused: h.fused + (language && h.language === language ? LANGUAGE_BOOST : 0) }))
     .sort((a, b) => b.fused - a.fused)
 
+  // One article per translation group (the customer's language wins), decided
+  // before the per-article cap so a translation cannot crowd out other topics.
+  const candidates = dedupeByTranslationGroup(ranked, language)
+
   const perDoc = new Map<string, number>()
   const out: KnowledgeHit[] = []
   let chars = 0
-  for (const hit of ranked) {
+  for (const hit of candidates) {
     const n = perDoc.get(hit.documentId) ?? 0
     if (n >= MAX_CHUNKS_PER_DOC) continue
     if (out.length > 0 && chars + hit.content.length > MAX_EXCERPT_CHARS) continue

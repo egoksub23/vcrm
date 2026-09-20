@@ -9,6 +9,26 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.36.0] — 2026-09-20 — **migration required: 078**
+
+- **Knowledge base: English is the base, with AI translations you can edit.**
+  Open an article and use the new **Translations** card to translate it into
+  Bahasa Melayu or Mandarin (one language or all). Each translation is its own
+  article, saved as a **draft** with a banner "AI translation: review before
+  publishing", and you edit it in the normal editor. Nothing is ever published or
+  translated automatically.
+- **Out-of-date warning.** If the English changes after a translation was made,
+  the translation is flagged; choose **Re-translate with AI** (replaces your
+  edits, with a confirmation), **Mark up to date**, or leave it.
+- **No doubling in AI answers.** If an article and its translation both match, the
+  AI sees only the one in the customer's language. Files are shared with the
+  English article unless the translation has its own.
+- **Library:** a Translations column with a chip per language (status dot for
+  draft, out of date, AI-translated) and a "+" chip that runs the translation.
+  Deleting an article that has translations asks first.
+- **New AI job "Translate"** on the Connections page and in Usage, so it follows
+  your monthly budget and can use its own connection and model.
+
 ## [0.35.1] — 2026-09-20
 
 - **Knowledge editor no longer says "unsaved changes" after saving.** The article

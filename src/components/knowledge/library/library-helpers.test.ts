@@ -16,6 +16,7 @@ import {
   isReviewDue,
   readImportedDrafts,
   safeHexColor,
+  translationMark,
 } from './library-helpers';
 
 const TODAY = '2026-09-20';
@@ -37,6 +38,9 @@ function doc(over: Partial<KnowledgeDocSummary>): KnowledgeDocSummary {
     source_kind: null,
     ai_uses: 0,
     attachment_count: 0,
+    translation_of: null,
+    machine_translated: false,
+    translations: [],
     ...over,
   };
 }
@@ -196,5 +200,55 @@ describe('import file and url checks', () => {
     expect(isHttpUrl('ftp://example.com')).toBe(false);
     expect(isHttpUrl('javascript:alert(1)')).toBe(false);
     expect(isHttpUrl('example.com')).toBe(false);
+  });
+});
+
+describe('translations in the library', () => {
+  const info = (language: 'ms' | 'zh', over: Partial<KnowledgeDocSummary['translations'][number]> = {}) => ({
+    language,
+    id: `t-${language}`,
+    status: 'draft' as const,
+    out_of_date: false,
+    machine_translated: true,
+    ...over,
+  });
+  const withTranslations = [
+    doc({ id: 'base', translations: [info('ms'), info('zh', { status: 'published', machine_translated: false })] }),
+    doc({ id: 't-ms', language: 'ms', translation_of: 'base', status: 'draft', machine_translated: true }),
+    doc({ id: 't-zh', language: 'zh', translation_of: 'base' }),
+    doc({ id: 'other', collection_id: 'c-pricing' }),
+  ];
+  const run = (over: Partial<Parameters<typeof filterDocs>[1]>) =>
+    ids(filterDocs(withTranslations, { view: 'all', language: '', query: '', today: TODAY, ...over }));
+
+  it('lists base articles only by default', () => {
+    expect(run({})).toEqual(['base', 'other']);
+  });
+
+  it('shows translations as rows when asked', () => {
+    expect(run({ showTranslations: true })).toEqual(['base', 't-ms', 't-zh', 'other']);
+  });
+
+  it('a language filter finds articles available in that language, translations included', () => {
+    expect(run({ language: 'ms' })).toEqual(['base']);
+    expect(run({ language: 'en' })).toEqual(['base', 'other']);
+    expect(run({ language: 'zh' })).toEqual(['base']);
+    // as rows, only the rows in that language
+    expect(run({ language: 'ms', showTranslations: true })).toEqual(['t-ms']);
+  });
+
+  it('counts articles, not their translations', () => {
+    const c = countDocs(withTranslations, TODAY);
+    expect(c.all).toBe(2);
+    expect(c.published).toBe(2);
+    expect(c.drafts).toBe(0);
+    expect(c.byCollection).toEqual({ 'c-billing': 1, 'c-pricing': 1 });
+  });
+
+  it('marks a translation chip by what needs attention first', () => {
+    expect(translationMark({ status: 'published', out_of_date: true, machine_translated: true })).toBe('outOfDate');
+    expect(translationMark({ status: 'published', out_of_date: false, machine_translated: true })).toBe('machine');
+    expect(translationMark({ status: 'draft', out_of_date: false, machine_translated: false })).toBe('draft');
+    expect(translationMark({ status: 'published', out_of_date: false, machine_translated: false })).toBe('ok');
   });
 });

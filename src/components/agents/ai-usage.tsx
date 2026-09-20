@@ -35,7 +35,7 @@ interface UsageResponse {
     total_tokens: number;
   };
   by_mode: Record<
-    'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary',
+    'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate',
     { calls: number; tokens: number }
   >;
   by_connection: { id: string | null; name: string | null; calls: number; tokens: number }[];
@@ -184,7 +184,7 @@ export function AiUsageCard() {
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">{t('byJob')}</p>
                 <ul className="divide-y divide-border rounded-md border border-border">
-                  {(['auto_reply', 'draft', 'auto_label', 'closing_note', 'summary'] as const)
+                  {(['auto_reply', 'draft', 'auto_label', 'closing_note', 'summary', 'translate'] as const)
                     .filter((k) => data.by_mode[k].calls > 0)
                     .map((k) => (
                       <li key={k} className="flex items-center justify-between px-3 py-2 text-sm">

@@ -10,7 +10,7 @@ import { daysAgoStart, lastNDayKeys, localDayKey } from '@/lib/dashboard/date-ut
 const MAX_ROWS = 10_000
 const DEFAULT_WINDOW_DAYS = 30
 
-type UsageMode = 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary'
+type UsageMode = 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate'
 
 interface UsageRow {
   created_at: string
@@ -88,6 +88,7 @@ export async function GET(request: Request) {
       auto_label: { calls: 0, tokens: 0 },
       closing_note: { calls: 0, tokens: 0 },
       summary: { calls: 0, tokens: 0 },
+      translate: { calls: 0, tokens: 0 },
     }
     // Per connection: null id = the default connection.
     const connMap = new Map<string, { id: string | null; calls: number; tokens: number }>()

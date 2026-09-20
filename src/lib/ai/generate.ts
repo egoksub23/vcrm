@@ -20,6 +20,10 @@ export interface GenerateArgs {
   /** When given, the account's monthly token budget is checked first (and
    *  the 80% alert sent); an exhausted budget throws `budget_exceeded`. */
   guard?: { db: SupabaseClient; accountId: string }
+  /** Longer than a chat reply (e.g. translating an article): a higher cap on
+   *  the reply length, and a per-call timeout that replaces the default. */
+  maxOutputTokens?: number
+  timeoutMs?: number
 }
 
 /**
@@ -30,7 +34,7 @@ export interface GenerateArgs {
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
   const { config, systemPrompt, messages, guard } = args
   if (guard) await ensureWithinBudget(guard.db, guard.accountId, config)
-  const timeoutMs = aiRequestTimeoutMs()
+  const timeoutMs = args.timeoutMs ?? aiRequestTimeoutMs()
   const providerArgs = {
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,
@@ -38,6 +42,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     systemPrompt,
     messages,
     timeoutMs,
+    maxOutputTokens: args.maxOutputTokens,
   }
 
   let result: { text: string; usage: AiUsage | null }

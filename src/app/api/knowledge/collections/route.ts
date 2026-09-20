@@ -17,6 +17,8 @@ export async function GET() {
       .select('collection_id')
       .eq('account_id', accountId)
       .not('collection_id', 'is', null)
+      // A translation is the same article in another language: count it once.
+      .is('translation_of', null)
       .limit(20000)
     for (const d of (docs ?? []) as { collection_id: string }[]) {
       counts.set(d.collection_id, (counts.get(d.collection_id) ?? 0) + 1)

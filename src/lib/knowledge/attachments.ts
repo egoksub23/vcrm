@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import type { ChannelType } from '@/types'
 import type { KnowledgeAttachment } from '@/lib/knowledge-types'
-import { ATTACHMENT_COLUMNS, toAttachment, type AttachmentRow } from './articles'
+import { loadEffectiveAttachments } from './translations'
 
 // ============================================================
 // Sending an article's files along with an AI answer.
@@ -66,9 +66,11 @@ export function buildLinkText(files: Pick<KnowledgeAttachment, 'file_name' | 'ur
 
 /**
  * The files of these articles that are switched on for AI answers, in the
- * order of the articles and then their own order. Uses whichever client it is
- * given (the service role in the auto-reply bot, the agent's own in the draft
- * route).
+ * order of the articles and then their own order. A translation sends its own
+ * files, or its base article's when it has none, and a translation and its
+ * base never both send theirs (see `loadEffectiveAttachments`). Uses whichever
+ * client it is given (the service role in the auto-reply bot, the agent's own
+ * in the draft route).
  */
 export async function loadSendableAttachments(
   db: SupabaseClient,
@@ -76,22 +78,10 @@ export async function loadSendableAttachments(
   documentIds: string[],
 ): Promise<KnowledgeAttachment[]> {
   if (documentIds.length === 0) return []
-  const { data, error } = await db
-    .from('knowledge_attachments')
-    .select(ATTACHMENT_COLUMNS)
-    .eq('account_id', accountId)
-    .eq('send_with_ai', true)
-    .in('document_id', documentIds)
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: true })
-  if (error) {
-    console.error('[knowledge attachments] load failed:', error)
-    return []
-  }
-  const rank = new Map(documentIds.map((id, i) => [id, i]))
-  return ((data ?? []) as AttachmentRow[])
-    .map(toAttachment)
-    .sort((a, b) => (rank.get(a.document_id) ?? 0) - (rank.get(b.document_id) ?? 0))
+  const effective = await loadEffectiveAttachments(db, accountId, documentIds)
+  return Array.from(effective.values())
+    .flat()
+    .filter((a) => a.send_with_ai)
 }
 
 /** URLs already sent to the customer in this conversation, as a media message

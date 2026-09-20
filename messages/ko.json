@@ -2956,7 +2956,8 @@
         "draft": "초안",
         "auto_label": "자동 라벨",
         "closing_note": "종료 메모",
-        "summary": "요약"
+        "summary": "요약",
+        "translate": "번역"
       },
       "defaultConnection": "기본 연결",
       "deletedConnection": "삭제된 연결"
@@ -3024,6 +3025,10 @@
         "summary": {
           "name": "요약",
           "desc": "대화 옆의 \"요약\" 버튼."
+        },
+        "translate": {
+          "name": "문서 번역",
+          "desc": "AI로 번역을 선택하면 지식 베이스 문서를 다른 언어로 번역합니다."
         }
       },
       "modelSameAsConnection": "연결의 모델 사용",
@@ -3693,6 +3698,63 @@
       "fromKnowledge": "지식 베이스에서:",
       "removeFile": "이 답변에서 {name} 제거",
       "linkFallback": "이 채널은 파일을 보낼 수 없어 각 파일의 링크가 메시지에 대신 추가됩니다."
+    },
+    "translations": {
+      "title": "번역",
+      "description": "AI로 이 문서를 다른 언어로 번역한 다음, 각각 직접 편집하세요. 번역본은 모두 독립된 문서입니다.",
+      "saveFirst": "먼저 문서를 저장하세요. 번역은 저장된 문서를 기준으로 만들어집니다.",
+      "needsSave": "먼저 변경 사항을 저장하세요. 번역은 저장된 문서를 기준으로 만들어집니다.",
+      "notTranslated": "아직 번역되지 않음",
+      "translate": "AI로 번역",
+      "retranslate": "다시 번역",
+      "retranslateWithAi": "AI로 다시 번역",
+      "edit": "편집",
+      "translateAll": "모든 언어로 번역",
+      "translating": "번역 중…",
+      "statusDraft": "초안",
+      "statusPublished": "게시됨",
+      "machine": "AI 번역",
+      "edited": "직접 편집함",
+      "outOfDate": "최신 아님",
+      "articleLanguage": "문서 언어: {language}",
+      "translateConfirm": "\"{title}\" 문서를 AI로 {language}(으)로 번역할까요? 검토할 수 있도록 초안으로 저장되며, 게시되는 내용은 없습니다.",
+      "retranslateConfirm": "AI로 {language}(으)로 다시 번역할까요? 직접 수정한 내용을 포함해 현재 {language} 텍스트가 새 초안으로 대체됩니다.",
+      "translateAllConfirm": "이미 번역된 언어가 있습니다. 모든 언어로 번역하고 기존 번역을 대체할까요? 직접 수정한 내용은 사라집니다.",
+      "translated": "{language}(으)로 번역했습니다. 게시하기 전에 초안을 검토하세요.",
+      "translatedMany": "{count, plural, other {번역 #개}}를 초안으로 만들었습니다. 게시하기 전에 검토하세요.",
+      "failedFor": "{language}: {message}",
+      "err": {
+        "translation_exists": "이 언어의 번역이 이미 있습니다. 대체하려면 다시 번역을 사용하세요.",
+        "budget_exceeded": "월간 AI 토큰 예산을 모두 사용했습니다. AI 에이전트 → 연결에서 예산을 올리거나 번역을 직접 작성하세요.",
+        "ai_not_configured": "AI가 설정되지 않았거나 번역 작업이 꺼져 있습니다. AI 에이전트 → 설정에서 설정하세요.",
+        "key_decrypt_failed": "저장된 AI 키를 읽을 수 없습니다. AI 에이전트 → 설정에서 다시 입력하세요.",
+        "bad_model_output": "AI가 사용할 수 있는 번역을 반환하지 않았습니다. 다시 시도하거나, 긴 문서는 더 짧은 문서로 나누세요.",
+        "too_long": "이 문서는 한 번에 번역하기에는 너무 깁니다. 더 짧은 문서로 나누세요.",
+        "forbidden": "본인의 초안만 번역할 수 있습니다. 그 외에는 관리자에게 문의하세요.",
+        "not_found": "해당 문서가 더 이상 없습니다.",
+        "translation_of_translation": "이 문서는 이미 번역본입니다. 대신 원본을 번역하세요.",
+        "same_language": "문서를 같은 언어로 번역할 수 없습니다.",
+        "network": "서버에 연결할 수 없습니다. 연결 상태를 확인한 후 다시 시도하세요.",
+        "generic": "번역하지 못했습니다. 다시 시도하세요."
+      },
+      "bannerMachine": "\"{title}\"의 AI 번역: 게시하기 전에 검토하세요.",
+      "bannerOutOfDate": "이 문서를 번역한 이후 {language} 원본이 변경되었습니다.",
+      "markCurrent": "최신 상태로 표시",
+      "markedCurrent": "최신 상태로 표시했습니다.",
+      "markCurrentFailed": "번역을 업데이트하지 못했습니다.",
+      "viewOriginal": "{language} 보기",
+      "languageFixed": "{language} ({title}의 번역)",
+      "inheritedFiles": "원본의 파일",
+      "fromBaseFiles": "이 파일은 {language} 문서의 파일이며 이 번역본과 함께 전송됩니다. 이 언어에서 대체하려면 여기에 파일을 추가하세요.",
+      "filesReplace": "여기에 추가한 파일은 이 언어에서 {language} 문서의 파일을 대체합니다.",
+      "colTranslations": "번역",
+      "chipTitle": "{language}: {state}",
+      "openTranslation": "{language} 번역 열기",
+      "notTranslatedIn": "{language}(으)로 번역되지 않음",
+      "addLanguage": "{language}(으)로 번역",
+      "translationOf": "{title}의 번역",
+      "deleteWithTranslations": "\"{title}\" 문서와 {count, plural, other {번역 #개}}를 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
+      "showAsRows": "번역을 행으로 표시"
     }
   },
   "Comments": {

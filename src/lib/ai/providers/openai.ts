@@ -61,6 +61,7 @@ const MOONSHOT_THINKING_MAX_TOKENS = 4096
  */
 export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
   const { apiKey, model, systemPrompt, messages, timeoutMs, baseUrl } = args
+  const maxOutputTokens = args.maxOutputTokens ?? MAX_OUTPUT_TOKENS
   // A base URL means an OpenAI-*compatible* service (Kimi, DeepSeek, …):
   // same endpoint shape, but the classic `max_tokens` parameter is the one
   // they all accept, and errors should name that host rather than OpenAI.
@@ -84,8 +85,8 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
             ...mergeConsecutive(messages),
           ],
           ...(compatible
-            ? { max_tokens: moonshot && !thinkingOff ? MOONSHOT_THINKING_MAX_TOKENS : MAX_OUTPUT_TOKENS }
-            : { max_completion_tokens: MAX_OUTPUT_TOKENS }),
+            ? { max_tokens: moonshot && !thinkingOff ? Math.max(MOONSHOT_THINKING_MAX_TOKENS, maxOutputTokens) : maxOutputTokens }
+            : { max_completion_tokens: maxOutputTokens }),
           ...(moonshot && thinkingOff ? { thinking: { type: 'disabled' } } : {}),
         }),
         signal: AbortSignal.timeout(timeoutMs),

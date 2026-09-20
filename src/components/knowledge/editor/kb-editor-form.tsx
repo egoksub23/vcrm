@@ -7,10 +7,12 @@ import { ArrowLeft, ExternalLink, History, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import { useCan } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { detectLanguage, KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from "@/lib/ai/knowledge-query";
 import { MAX_CONTENT_CHARS, MAX_TITLE_CHARS, type KbKind, type KbStatus } from "@/lib/ai/knowledge-doc";
+import { canTranslateArticle } from "@/lib/knowledge/translate";
 import type { ArticleDraftSeed, KnowledgeArticle, KnowledgeCollection } from "@/lib/knowledge-types";
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,7 @@ import {
 import { KbHistory } from "./kb-history";
 import { KbRichEditor } from "./kb-rich-editor";
 import { KbTestBox } from "./kb-test-box";
+import { KbInheritedFiles, KbLanguageChip, KbTranslationBanners, KbTranslationsCard } from "./kb-translations";
 
 const selectClass =
   "h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-60";
@@ -49,6 +52,9 @@ export interface KbEditorFormProps {
   onCancel?: () => void;
   /** After a history restore; the parent reloads the article. */
   onRestored?: () => void;
+  /** After translations were made, replaced or marked up to date; the parent
+   *  reloads the article (default: refresh the page). */
+  onTranslationsChanged?: () => void;
   /** Page only: where the back link goes. */
   backHref?: string;
 }
@@ -85,12 +91,15 @@ export function KbEditorForm({
   onSaved,
   onCancel,
   onRestored,
+  onTranslationsChanged,
   backHref = "/knowledge",
 }: KbEditorFormProps) {
   const t = useTranslations("Knowledge.editor");
   const td = useTranslations("Knowledge.dialog");
+  const tt = useTranslations("Knowledge.translations");
   const router = useRouter();
   const isAdmin = useCan("edit-settings");
+  const { user } = useAuth();
 
   const initialText = article?.content ?? seed?.content ?? "";
   const [kind, setKind] = useState<KbKind>(article?.kind ?? seed?.kind ?? "article");
@@ -115,6 +124,11 @@ export function KbEditorForm({
   const [creatingCollection, setCreatingCollection] = useState(false);
 
   const isQa = kind === "qa";
+  // A translation is an article of its own linked to a base article: its
+  // language is fixed and it carries banners; a base article carries the
+  // Translations card.
+  const isTranslation = !!article?.translation_of;
+  const translatedLanguages = new Set((article?.translations ?? []).map((x) => x.language));
   const status: KbStatus = article?.status ?? "draft";
   const readOnly = !canEdit;
   const busy = saving !== null;
@@ -170,6 +184,7 @@ export function KbEditorForm({
   }, [collections, collectionId, article?.category]);
 
   const touch = () => setDirty(true);
+  const translationsChanged = () => (onTranslationsChanged ? onTranslationsChanged() : router.refresh());
 
   async function createCollection() {
     const name = (newCollection ?? "").trim();
@@ -320,6 +335,19 @@ export function KbEditorForm({
         </p>
       )}
 
+      {variant === "page" && article && isTranslation && (
+        <KbTranslationBanners
+          article={article}
+          canRetranslate={
+            canEdit && !!article.base && canTranslateArticle({ isAdmin, userId: user?.id ?? null, article: article.base })
+          }
+          canMarkCurrent={canEdit}
+          dirty={dirty}
+          onChanged={translationsChanged}
+          onLeave={goBack}
+        />
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <div className="inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
@@ -343,7 +371,10 @@ export function KbEditorForm({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="kb-title">{isQa ? td("question") : td("titleLabel")}</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="kb-title">{isQa ? td("question") : td("titleLabel")}</Label>
+              {!isTranslation && <KbLanguageChip language={language} />}
+            </div>
             <Input
               id="kb-title"
               value={title}
@@ -376,6 +407,14 @@ export function KbEditorForm({
               </p>
             )}
           </div>
+
+          {article && isTranslation && article.base && (
+            <KbInheritedFiles
+              files={article.inherited_attachments}
+              baseLanguage={article.base.language}
+              replaced={rows.length > 0}
+            />
+          )}
 
           <KbAttachments
             rows={rows}
@@ -455,22 +494,36 @@ export function KbEditorForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="kb-language">{td("language")}</Label>
-              <select
-                id="kb-language"
-                className={selectClass}
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value as KbLanguage);
-                  touch();
-                }}
-                disabled={readOnly || busy}
-              >
-                {KB_LANGUAGES.map((l) => (
-                  <option key={l} value={l}>
-                    {KB_LANGUAGE_LABELS[l]}
-                  </option>
-                ))}
-              </select>
+              {isTranslation && article?.base ? (
+                <div id="kb-language" className="space-y-1 rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground">
+                  <p>{tt("languageFixed", { language: KB_LANGUAGE_LABELS[language], title: article.base.title })}</p>
+                  <Link
+                    href={`/knowledge/${article.base.id}`}
+                    onClick={goBack}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {tt("viewOriginal", { language: KB_LANGUAGE_LABELS[article.base.language] })}
+                  </Link>
+                </div>
+              ) : (
+                <select
+                  id="kb-language"
+                  className={selectClass}
+                  value={language}
+                  onChange={(e) => {
+                    setLanguage(e.target.value as KbLanguage);
+                    touch();
+                  }}
+                  disabled={readOnly || busy}
+                >
+                  {KB_LANGUAGES.map((l) => (
+                    // A language one of its translations already uses would clash.
+                    <option key={l} value={l} disabled={translatedLanguages.has(l)}>
+                      {KB_LANGUAGE_LABELS[l]}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -507,6 +560,16 @@ export function KbEditorForm({
               </Button>
             )}
           </section>
+
+          {variant === "page" && !isTranslation && (
+            <KbTranslationsCard
+              article={article}
+              canTranslate={canEdit && !!article}
+              dirty={dirty}
+              onChanged={translationsChanged}
+              onLeave={goBack}
+            />
+          )}
 
           <KbTestBox articleId={article?.id ?? null} status={status} useInAi={useInAi} dirty={dirty} language={language} />
         </aside>

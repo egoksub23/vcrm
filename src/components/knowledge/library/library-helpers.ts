@@ -1,4 +1,4 @@
-import type { ArticleDraftSeed, KnowledgeDocSummary } from '@/lib/knowledge-types';
+import type { ArticleDraftSeed, KnowledgeDocSummary, KnowledgeTranslationInfo } from '@/lib/knowledge-types';
 
 // Pure helpers for the knowledge library screen: which view shows which
 // articles, the counts on the left rail, and small formatters. Kept apart
@@ -44,13 +44,23 @@ export interface LibraryFilters {
   query: string;
   /** yyyy-MM-dd, so "review due" is decided by the caller's clock. */
   today: string;
+  /** List translations as rows of their own (default: only base articles;
+   *  a translation shows in its base's Translations cell). */
+  showTranslations?: boolean;
 }
 
 export function filterDocs(docs: KnowledgeDocSummary[], f: LibraryFilters): KnowledgeDocSummary[] {
   const needle = f.query.trim().toLowerCase();
   const collectionId = collectionIdOfView(f.view);
   return docs.filter((d) => {
-    if (f.language && d.language !== f.language) return false;
+    // Translations are not top-level rows unless asked for.
+    if (d.translation_of && !f.showTranslations) return false;
+    if (f.language) {
+      // A base article also answers to a language it is translated into, so
+      // the filter reads "everything available in Bahasa Melayu".
+      const hasTranslation = !f.showTranslations && d.translations.some((t) => t.language === f.language);
+      if (d.language !== f.language && !hasTranslation) return false;
+    }
     if (collectionId && d.collection_id !== collectionId) return false;
     if (f.view === 'drafts' && d.status !== 'draft') return false;
     if (f.view === 'review' && !isReviewDue(d, f.today)) return false;
@@ -70,7 +80,10 @@ export interface LibraryCounts {
   byCollection: Record<string, number>;
 }
 
-export function countDocs(docs: KnowledgeDocSummary[], today: string): LibraryCounts {
+/** Counts are of ARTICLES: a translation is the same article in another
+ *  language and is not counted again. */
+export function countDocs(allDocs: KnowledgeDocSummary[], today: string): LibraryCounts {
+  const docs = allDocs.filter((d) => !d.translation_of);
   const c: LibraryCounts = { all: docs.length, published: 0, drafts: 0, review: 0, agents: 0, byCollection: {} };
   for (const d of docs) {
     if (d.status === 'published') c.published++;
@@ -80,6 +93,17 @@ export function countDocs(docs: KnowledgeDocSummary[], today: string): LibraryCo
     if (d.collection_id) c.byCollection[d.collection_id] = (c.byCollection[d.collection_id] ?? 0) + 1;
   }
   return c;
+}
+
+export type TranslationMark = 'draft' | 'outOfDate' | 'machine' | 'ok';
+
+/** The dot on a translation chip, most important first: out of date, then
+ *  still the machine text, then not live yet. */
+export function translationMark(t: Pick<KnowledgeTranslationInfo, 'status' | 'out_of_date' | 'machine_translated'>): TranslationMark {
+  if (t.out_of_date) return 'outOfDate';
+  if (t.machine_translated) return 'machine';
+  if (t.status === 'draft') return 'draft';
+  return 'ok';
 }
 
 /** Only #rgb / #rrggbb reach a style attribute; anything else gets the default. */

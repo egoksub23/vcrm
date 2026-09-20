@@ -3,7 +3,7 @@
 // connection and model (Settings → AI Agents → Connections).
 // ============================================================
 
-export const AI_TASKS = ['draft', 'auto_reply', 'auto_label', 'closing_note', 'summary'] as const
+export const AI_TASKS = ['draft', 'auto_reply', 'auto_label', 'closing_note', 'summary', 'translate'] as const
 export type AiTask = (typeof AI_TASKS)[number]
 
 export function isAiTask(v: unknown): v is AiTask {

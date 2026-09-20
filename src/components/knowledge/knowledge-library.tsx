@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -9,11 +10,15 @@ import { BookOpen, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
-import { KB_LANGUAGES, KB_LANGUAGE_LABELS } from '@/lib/ai/knowledge-query';
+import { KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from '@/lib/ai/knowledge-query';
+import { canTranslateArticle } from '@/lib/knowledge/translate';
 import type { KnowledgeCollection, KnowledgeDocSummary, KnowledgeLibraryResponse } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 
+import { createdArticleId } from './translate-client';
+import { useTranslate } from './use-translate';
 import { KnowledgeGaps } from './knowledge-gaps';
 import { AddContentMenu } from './library/add-content-menu';
 import { ArticleTable } from './library/article-table';
@@ -59,6 +64,9 @@ function StatTile({
 export function KnowledgeLibrary() {
   const t = useTranslations('Knowledge');
   const tl = useTranslations('Knowledge.library');
+  const tt = useTranslations('Knowledge.translations');
+  const router = useRouter();
+  const translate = useTranslate();
   const { user } = useAuth();
   const isAdmin = useCan('edit-settings');
   const canWrite = useCan('send-messages');
@@ -78,6 +86,8 @@ export function KnowledgeLibrary() {
   const [reindexing, setReindexing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
+  const [showTranslations, setShowTranslations] = useState(false);
+  const [translatingKey, setTranslatingKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -110,9 +120,10 @@ export function KnowledgeLibrary() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const counts = useMemo(() => countDocs(docs, today), [docs, today]);
   const shown = useMemo(
-    () => filterDocs(docs, { view, language: lang, query: q, today }),
-    [docs, view, lang, q, today],
+    () => filterDocs(docs, { view, language: lang, query: q, today, showTranslations }),
+    [docs, view, lang, q, today, showTranslations],
   );
+  const titleById = useMemo(() => new Map(docs.map((d) => [d.id, d.title])), [docs]);
 
   // A collection that was deleted while it was selected has nothing to show.
   const viewCollectionId = collectionIdOfView(view);
@@ -123,17 +134,42 @@ export function KnowledgeLibrary() {
   const canManage = (d: KnowledgeDocSummary) =>
     isAdmin || (canWrite && d.status === 'draft' && d.created_by === user?.id);
 
+  // Translating uses the AI and can take a while, so it asks first, shows a
+  // spinner on the chip, and opens the new draft when it is done.
+  const canTranslate = (d: KnowledgeDocSummary) =>
+    !d.translation_of && canTranslateArticle({ isAdmin, userId: user?.id ?? null, article: d });
+
+  async function translateInto(d: KnowledgeDocSummary, language: KbLanguage) {
+    if (!window.confirm(tt('translateConfirm', { language: KB_LANGUAGE_LABELS[language], title: d.title }))) return;
+    setTranslatingKey(`${d.id}:${language}`);
+    try {
+      const outcomes = await translate(d.id, [language], false);
+      const id = createdArticleId(outcomes);
+      if (id) router.push(`/knowledge/${id}`);
+      else await load();
+    } finally {
+      setTranslatingKey(null);
+    }
+  }
+
   async function remove(d: KnowledgeDocSummary) {
-    if (!window.confirm(t('deleteConfirm', { title: d.title }))) return;
+    // Deleting an article deletes its translations too: say so first.
+    const message =
+      d.translations.length > 0
+        ? tt('deleteWithTranslations', { title: d.title, count: d.translations.length })
+        : t('deleteConfirm', { title: d.title });
+    if (!window.confirm(message)) return;
     setBusyId(d.id);
     try {
-      const res = await fetch(`/api/knowledge/${d.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/knowledge/${d.id}${d.translations.length > 0 ? '?with_translations=true' : ''}`, {
+        method: 'DELETE',
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error ?? t('deleteFailed'));
         return;
       }
-      setDocs((prev) => prev.filter((x) => x.id !== d.id));
+      setDocs((prev) => prev.filter((x) => x.id !== d.id && x.translation_of !== d.id));
       toast.success(t('deleted'));
     } catch {
       toast.error(t('deleteFailed'));
@@ -315,6 +351,12 @@ export function KnowledgeLibrary() {
                       </option>
                     ))}
                   </select>
+                  {isAdmin && (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Switch checked={showTranslations} onCheckedChange={setShowTranslations} aria-label={tt('showAsRows')} />
+                      {tt('showAsRows')}
+                    </label>
+                  )}
                 </div>
 
                 {docs.length === 0 ? (
@@ -343,6 +385,10 @@ export function KnowledgeLibrary() {
                       onDelete={(d) => void remove(d)}
                       onResync={(d) => void resync(d)}
                       onOpenSource={(d) => void openSource(d)}
+                      canTranslate={canTranslate}
+                      translatingKey={translatingKey}
+                      onTranslate={(d, language) => void translateInto(d, language)}
+                      titleOf={(id) => titleById.get(id)}
                     />
                   )
                 )}

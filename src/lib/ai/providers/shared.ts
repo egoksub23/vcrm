@@ -12,6 +12,9 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  /** Cap on the reply length; the default suits a chat reply, a job that
+   *  returns a whole article (translation) asks for more. */
+  maxOutputTokens?: number
 }
 
 /**

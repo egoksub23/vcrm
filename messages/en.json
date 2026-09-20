@@ -2956,7 +2956,8 @@
         "draft": "Drafts",
         "auto_label": "Auto-labels",
         "closing_note": "Closing notes",
-        "summary": "Summaries"
+        "summary": "Summaries",
+        "translate": "Translations"
       },
       "defaultConnection": "Default connection",
       "deletedConnection": "Deleted connection"
@@ -3024,6 +3025,10 @@
         "summary": {
           "name": "Summaries",
           "desc": "The \"Summarise\" button beside a conversation."
+        },
+        "translate": {
+          "name": "Article translations",
+          "desc": "Translates a knowledge base article into another language when you choose Translate with AI."
         }
       },
       "modelSameAsConnection": "Same as the connection",
@@ -3693,6 +3698,63 @@
       "fromKnowledge": "From knowledge base:",
       "removeFile": "Remove {name} from this reply",
       "linkFallback": "This channel cannot carry files, so a link to each file is added to the message instead."
+    },
+    "translations": {
+      "title": "Translations",
+      "description": "Translate this article into other languages with AI, then edit each one by hand. Every translation is an article of its own.",
+      "saveFirst": "Save the article first. Translations are made from the saved article.",
+      "needsSave": "Save your changes first. A translation is made from the saved article.",
+      "notTranslated": "Not translated yet",
+      "translate": "Translate with AI",
+      "retranslate": "Re-translate",
+      "retranslateWithAi": "Re-translate with AI",
+      "edit": "Edit",
+      "translateAll": "Translate to all",
+      "translating": "Translating…",
+      "statusDraft": "Draft",
+      "statusPublished": "Published",
+      "machine": "AI translation",
+      "edited": "Edited by hand",
+      "outOfDate": "Out of date",
+      "articleLanguage": "Article language: {language}",
+      "translateConfirm": "Translate “{title}” into {language} with AI? It is saved as a draft for you to review. Nothing is published.",
+      "retranslateConfirm": "Re-translate into {language} with AI? This replaces the current {language} text, including any edits you made, with a new draft.",
+      "translateAllConfirm": "Some translations already exist. Translate into every language and replace them? Any edits you made to them will be lost.",
+      "translated": "Translated into {language}. Review the draft before publishing.",
+      "translatedMany": "{count, plural, one {# translation} other {# translations}} created as drafts. Review before publishing.",
+      "failedFor": "{language}: {message}",
+      "err": {
+        "translation_exists": "A translation in this language already exists. Use Re-translate to replace it.",
+        "budget_exceeded": "The monthly AI token budget has been used up. Raise it in AI Agents → Connections, or write the translation by hand.",
+        "ai_not_configured": "AI is not set up, or the translate job is switched off. Set it up in AI Agents → Setup.",
+        "key_decrypt_failed": "The stored AI key could not be read. Re-enter it in AI Agents → Setup.",
+        "bad_model_output": "The AI did not return a usable translation. Try again, or split a long article into shorter ones.",
+        "too_long": "This article is too long to translate in one go. Split it into shorter articles.",
+        "forbidden": "You can only translate your own drafts. Ask an admin for anything else.",
+        "not_found": "That article no longer exists.",
+        "translation_of_translation": "This article is already a translation. Translate the original instead.",
+        "same_language": "An article cannot be translated into its own language.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "generic": "The translation failed. Try again."
+      },
+      "bannerMachine": "AI translation of “{title}”: review it before publishing.",
+      "bannerOutOfDate": "The {language} original changed after this was translated.",
+      "markCurrent": "Mark up to date",
+      "markedCurrent": "Marked as up to date.",
+      "markCurrentFailed": "Could not update the translation.",
+      "viewOriginal": "View {language}",
+      "languageFixed": "{language} (translation of {title})",
+      "inheritedFiles": "Files from the original",
+      "fromBaseFiles": "These files come from the {language} article and are sent with this translation. Add files here to replace them for this language.",
+      "filesReplace": "The files added here replace the ones from the {language} article for this language.",
+      "colTranslations": "Translations",
+      "chipTitle": "{language}: {state}",
+      "openTranslation": "Open the {language} translation",
+      "notTranslatedIn": "Not translated into {language}",
+      "addLanguage": "Translate into {language}",
+      "translationOf": "Translation of {title}",
+      "deleteWithTranslations": "Delete “{title}” and its {count, plural, one {# translation} other {# translations}}? This cannot be undone.",
+      "showAsRows": "Show translations as rows"
     }
   },
   "Comments": {

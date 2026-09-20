@@ -6,11 +6,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { ExternalLink, FileText, Globe, Loader2, MoreHorizontal, Paperclip, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import type { KnowledgeCollection, KnowledgeDocSummary } from '@/lib/knowledge-types';
+import { KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from '@/lib/ai/knowledge-query';
+import type { KnowledgeCollection, KnowledgeDocSummary, KnowledgeTranslationInfo } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-import { docStatusOf, safeHexColor } from './library-helpers';
+import { docStatusOf, safeHexColor, translationMark, type TranslationMark } from './library-helpers';
 
 const chip = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap';
 
@@ -26,6 +27,96 @@ export interface ArticleTableProps {
   onDelete: (d: KnowledgeDocSummary) => void;
   onResync: (d: KnowledgeDocSummary) => void;
   onOpenSource: (d: KnowledgeDocSummary) => void;
+  /** May this person translate this (base) article? */
+  canTranslate: (d: KnowledgeDocSummary) => boolean;
+  /** `${articleId}:${language}` of the translation running now. */
+  translatingKey: string | null;
+  onTranslate: (d: KnowledgeDocSummary, language: KbLanguage) => void;
+  /** Title of any article by id, for "Translation of ..." on a translation row. */
+  titleOf: (id: string) => string | undefined;
+}
+
+const DOT: Record<TranslationMark, string> = {
+  outOfDate: 'bg-amber-500',
+  machine: 'bg-primary',
+  draft: 'bg-muted-foreground/60',
+  ok: 'bg-emerald-500',
+};
+
+/** Chips for the other languages of a base article: filled when a translation
+ *  exists (a dot shows what needs attention), an outline "+ Translate" when
+ *  not. */
+function TranslationChips({
+  d,
+  canTranslate,
+  translatingKey,
+  onTranslate,
+  disabled,
+}: {
+  d: KnowledgeDocSummary;
+  canTranslate: boolean;
+  translatingKey: string | null;
+  onTranslate: (d: KnowledgeDocSummary, language: KbLanguage) => void;
+  disabled: boolean;
+}) {
+  const tt = useTranslations('Knowledge.translations');
+  const byLanguage = new Map<KbLanguage, KnowledgeTranslationInfo>(d.translations.map((x) => [x.language, x]));
+  const base = 'inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium whitespace-nowrap';
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {KB_LANGUAGES.filter((l) => l !== d.language).map((language) => {
+        const info = byLanguage.get(language);
+        const label = KB_LANGUAGE_LABELS[language];
+        if (info) {
+          const mark = translationMark(info);
+          const parts = [
+            info.status === 'published' ? tt('statusPublished') : tt('statusDraft'),
+            info.machine_translated ? tt('machine') : tt('edited'),
+            ...(info.out_of_date ? [tt('outOfDate')] : []),
+          ];
+          return (
+            <Link
+              key={language}
+              href={`/knowledge/${info.id}`}
+              className={cn(base, 'bg-muted text-foreground hover:bg-muted/70')}
+              title={tt('chipTitle', { language: label, state: parts.join(', ') })}
+              aria-label={tt('openTranslation', { language: label })}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', DOT[mark])} aria-hidden />
+              {language.toUpperCase()}
+            </Link>
+          );
+        }
+        const running = translatingKey === `${d.id}:${language}`;
+        if (!canTranslate) {
+          return (
+            <span
+              key={language}
+              className={cn(base, 'border border-dashed border-border text-muted-foreground/60')}
+              title={tt('notTranslatedIn', { language: label })}
+            >
+              {language.toUpperCase()}
+            </span>
+          );
+        }
+        return (
+          <button
+            key={language}
+            type="button"
+            onClick={() => onTranslate(d, language)}
+            disabled={disabled}
+            className={cn(base, 'border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60')}
+            title={tt('addLanguage', { language: label })}
+            aria-label={tt('addLanguage', { language: label })}
+          >
+            {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <span aria-hidden>+</span>}
+            {language.toUpperCase()}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function ArticleTable({
@@ -39,18 +130,24 @@ export function ArticleTable({
   onDelete,
   onResync,
   onOpenSource,
+  canTranslate,
+  translatingKey,
+  onTranslate,
+  titleOf,
 }: ArticleTableProps) {
   const t = useTranslations('Knowledge');
   const tl = useTranslations('Knowledge.library');
+  const tt = useTranslations('Knowledge.translations');
   const byId = new Map(collections.map((c) => [c.id, c]));
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[760px] text-sm">
+      <table className="w-full min-w-[860px] text-sm">
         <thead className="bg-muted text-left text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">{t('colTitle')}</th>
             <th className="px-3 py-2 font-medium">{tl('colCollection')}</th>
+            <th className="px-3 py-2 font-medium">{tt('colTranslations')}</th>
             <th className="px-3 py-2 font-medium">{t('colAudience')}</th>
             <th className="px-3 py-2 font-medium">{t('colStatus')}</th>
             <th className="px-3 py-2 text-right font-medium" title={t('colAiUsesHint')}>
@@ -75,6 +172,12 @@ export function ArticleTable({
                     >
                       {d.title}
                     </Link>
+                    <span
+                      className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                      title={KB_LANGUAGE_LABELS[d.language]}
+                    >
+                      {d.language.toUpperCase()}
+                    </span>
                     {d.attachment_count > 0 && (
                       <span
                         className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
@@ -121,6 +224,24 @@ export function ArticleTable({
                     </span>
                   ) : (
                     <span className="text-muted-foreground">–</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5">
+                  {d.translation_of ? (
+                    <Link
+                      href={`/knowledge/${d.translation_of}`}
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      {tt('translationOf', { title: titleOf(d.translation_of) ?? '…' })}
+                    </Link>
+                  ) : (
+                    <TranslationChips
+                      d={d}
+                      canTranslate={canTranslate(d)}
+                      translatingKey={translatingKey}
+                      onTranslate={onTranslate}
+                      disabled={translatingKey !== null}
+                    />
                   )}
                 </td>
                 <td className="px-3 py-2.5">

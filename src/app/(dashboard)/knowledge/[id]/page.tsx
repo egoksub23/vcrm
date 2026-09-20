@@ -96,6 +96,7 @@ export default function KnowledgeArticlePage() {
         canEdit={canEditArticle({ isAdmin, canWrite, userId: user?.id ?? null, article })}
         onSaved={reload}
         onRestored={reload}
+        onTranslationsChanged={reload}
       />
     );
   }
