@@ -842,6 +842,13 @@ export function MessageComposer({
     setDraft((d) => (d ? { ...d, caption } : d));
   }, []);
 
+  // Clicking Reply on an email puts the cursor straight into the reply box
+  // (at the top, Outlook style); the quoted chain sits below it.
+  const replyToId = replyTo?.id;
+  useEffect(() => {
+    if (replyToId && isEmailChannel) emailEditorRef.current?.commands.focus("start");
+  }, [replyToId, isEmailChannel]);
+
   // The slide-up panel closes on Escape or a click anywhere outside the
   // composer (the tab buttons live inside it, so they still work).
   useEffect(() => {
@@ -933,7 +940,9 @@ export function MessageComposer({
         </div>
       )}
 
-      {replyTo && (
+      {/* For email the quoted message goes BELOW the reply box (Outlook
+          style: you type on top and scroll the chain underneath). */}
+      {replyTo && !isEmailChannel && (
         <div className="mb-2">
           <ReplyQuote
             authorLabel={replyTo.authorLabel}
@@ -1316,6 +1325,16 @@ export function MessageComposer({
         <p className="mt-1 pl-[5.5rem] text-[10px] text-muted-foreground">
           {t("draftHint")}
         </p>
+      )}
+      {replyTo && isEmailChannel && (
+        <div className="mt-2">
+          <ReplyQuote
+            authorLabel={replyTo.authorLabel}
+            preview={replyTo.preview}
+            onDismiss={onClearReply}
+            previewMaxHeightClass="max-h-[min(16rem,30vh)]"
+          />
+        </div>
       )}
       {!draft && !recording && isComment && (
         <p className="mt-1 pl-2 text-[10px] text-amber-600 dark:text-amber-400">

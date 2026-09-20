@@ -11,6 +11,10 @@ and polish.
 
 ## [0.34.1] — 2026-09-20
 
+- **Email replies work like Outlook.** Clicking Reply no longer fills the
+  screen with the whole email chain. The reply box stays on top with the cursor
+  in it, and the quoted message sits underneath in its own scrolling area.
+  Long quoted messages in other channels are height-capped too.
 - **Snippets and Knowledge slide up.** The two panels no longer replace the
   reply box and push the composer taller; they open as a panel that slides up
   over the chat, with the reply box staying where it is. Close it with Escape,

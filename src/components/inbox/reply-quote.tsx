@@ -19,6 +19,9 @@ interface ReplyQuoteProps {
    *  quote must read against the primary surface rather than the neutral
    *  foreground — otherwise it goes low-contrast in light mode. */
   onPrimary?: boolean;
+  /** Height cap for the quoted text (it scrolls inside). A long email chain
+   *  used to be shown in full and pushed the reply box off the screen. */
+  previewMaxHeightClass?: string;
 }
 
 export function ReplyQuote({
@@ -26,6 +29,7 @@ export function ReplyQuote({
   preview,
   onDismiss,
   onPrimary = false,
+  previewMaxHeightClass = "max-h-24",
 }: ReplyQuoteProps) {
   const t = useTranslations("Inbox.replyQuote");
   const isChip = !!onDismiss;
@@ -57,7 +61,13 @@ export function ReplyQuote({
          *  layout wider, shoving the contact sidebar off-screen.
          *  `break-words` also wraps long URLs that have no whitespace
          *  to break on. Issue #165. */}
-        <div className="whitespace-pre-wrap break-words text-xs text-foreground/80">
+        <div
+          className={cn(
+            "whitespace-pre-wrap break-words text-xs text-foreground/80",
+            isChip && "overflow-y-auto",
+            isChip && previewMaxHeightClass,
+          )}
+        >
           {preview}
         </div>
       </div>
