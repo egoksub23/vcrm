@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ActivityButton } from "@/components/settings/audit/activity-sheet";
 
 import { KbAttachments } from "./kb-attachments";
 import {
@@ -581,9 +582,17 @@ export function KbEditorForm({
             )}
 
             {article && (
-              <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setHistoryOpen(true)}>
-                <History className="mr-1.5 h-4 w-4" /> {t("history")}
-              </Button>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setHistoryOpen(true)}>
+                  <History className="mr-1.5 h-4 w-4" /> {t("history")}
+                </Button>
+                {/* Who added / changed / removed it (audit.view only). */}
+                <ActivityButton
+                  entityType="article"
+                  entityId={article.translation_of ?? article.id}
+                  entityLabel={article.title}
+                />
+              </div>
             )}
           </section>
 

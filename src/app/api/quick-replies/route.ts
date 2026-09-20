@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 
 // Quick replies — reusable snippets (plain text or a saved interactive
-// message) shared across the account. GET lists; POST creates. Mirrors
-// the automations route: RLS-scoped read via the user client, service-
-// role write after an explicit role check.
+// message) shared across the account. GET lists; POST creates. Both use
+// the caller's own client: the agent-gated RLS policies scope the write to
+// the account, and the audit trail (migration 082) needs auth.uid() to
+// record who added the snippet (a service-role write would read as "system").
 
 export async function GET() {
   try {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     content_text = text
   }
 
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await ctx.supabase
     .from('quick_replies')
     .insert({
       account_id: ctx.accountId,

@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.40.0] — 2026-09-21 — **migration required: 082**
+
+- **Audit trail: who added, changed and removed what.** A new **Settings → Audit log** (for people with the *View the audit log* capability, Owner and Admin by default) lists every change to knowledge articles, conversation labels, contact tags, snippets, teams, team members, roles, capabilities, invitations and member removals, plus which sensitive settings (channels, AI, API keys) were changed. It names the person, the action and the item, with filters (person, action, type, date) and **Export CSV**. The log cannot be edited or deleted by anyone.
+- **Activity buttons** on knowledge articles, tags and labels, and snippets show that item's history (“Added by Maya, edited by Ravi”), and tag and snippet rows show who added them.
+- **Deleting is now reversible.** Deleted articles, tags, labels and snippets go to **Recently removed** (Audit log → second tab) for 90 days with a **Restore** button. A deleted tag name can be used again straight away. Applied labels, contact tag links, teams and team members are still removed for good, but the removal is recorded.
+- Only column names are logged for channel, AI and API-key changes, never tokens or secrets. Automations and API calls show as “System” for now.
+
 ## [0.39.0] — 2026-09-20 — **migration required: 081**
 
 - **Tickets look and feel like Jira, a little.** Every ticket now has a key such

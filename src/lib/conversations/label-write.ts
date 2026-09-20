@@ -34,6 +34,9 @@ async function assertConversationAndTagOwnership(
       .select('id')
       .eq('id', input.tagId)
       .eq('account_id', input.accountId)
+      // A soft-deleted tag (migration 082) no longer exists for callers that
+      // bypass RLS with the service role.
+      .is('deleted_at', null)
       .maybeSingle(),
   ]);
 

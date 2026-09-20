@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 
 // Update / delete a single quick reply. Quick replies are account-
-// shared, so every mutation is scoped by `account_id` (the service-role
-// client bypasses the agent-gated RLS, so both the role check and the
-// account scope are enforced here).
+// shared: every mutation is scoped by `account_id` and goes through the
+// caller's own client (agent-gated RLS), so the audit trail (migration 082)
+// records who changed or removed it. A delete is a soft delete: the
+// database keeps the row (deleted_at) so it can be restored.
 
 export async function PATCH(
   request: Request,
@@ -72,7 +72,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true })
   }
 
-  const { error } = await supabaseAdmin()
+  const { error } = await ctx.supabase
     .from('quick_replies')
     .update(update)
     .eq('id', id)
@@ -93,7 +93,7 @@ export async function DELETE(
     return toErrorResponse(err)
   }
 
-  const { error } = await supabaseAdmin()
+  const { error } = await ctx.supabase
     .from('quick_replies')
     .delete()
     .eq('id', id)

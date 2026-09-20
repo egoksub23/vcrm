@@ -22,6 +22,14 @@ describe("settings sections and capabilities", () => {
     expect(resolveSection("roles")).toBe("roles");
   });
 
+  it("registers the Audit log in the workspace group behind audit.view", () => {
+    expect(SECTION_META.audit.group).toBe("workspace");
+    expect(SECTION_META.audit.capability).toBe("audit.view");
+    expect(resolveSection("audit")).toBe("audit");
+    expect(canSeeSection("audit", holds())).toBe(false);
+    expect(canSeeSection("audit", holds("audit.view"))).toBe(true);
+  });
+
   it("hides roles without roles.manage and api without api.manage", () => {
     expect(canSeeSection("roles", holds())).toBe(false);
     expect(canSeeSection("api", holds())).toBe(false);
@@ -30,13 +38,15 @@ describe("settings sections and capabilities", () => {
   });
 
   it("keeps every other section visible to anyone who can open Settings", () => {
-    const rest = SETTINGS_SECTIONS.filter((s) => s !== "roles" && s !== "api");
+    const rest = SETTINGS_SECTIONS.filter(
+      (s) => s !== "roles" && s !== "api" && s !== "audit",
+    );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
     expect(visibleSections(holds())).toEqual(rest);
   });
 
-  it("shows everything to someone who holds both capabilities", () => {
-    expect(visibleSections(holds("roles.manage", "api.manage"))).toEqual([
+  it("shows everything to someone who holds all the gating capabilities", () => {
+    expect(visibleSections(holds("roles.manage", "api.manage", "audit.view"))).toEqual([
       ...SETTINGS_SECTIONS,
     ]);
   });

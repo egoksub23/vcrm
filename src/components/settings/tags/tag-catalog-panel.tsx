@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import type { Tag } from '@/types';
 
+import { ActivityButton } from '../audit/activity-sheet';
 import { SettingsPanelHead } from '../settings-panel-head';
 import { TagEditDialog } from './tag-edit-dialog';
 import { TagImportDialog } from './tag-import-dialog';
@@ -56,8 +57,10 @@ export function TagCatalogPanel({
   onChanged?: () => void;
 }) {
   const t = useTranslations('Settings.tagCatalog');
+  const tAudit = useTranslations('Audit');
   const { accountId, loading: authLoading } = useAuth();
   const canEdit = useCapability('tags.manage');
+  const canAudit = useCapability('audit.view');
 
   const [loading, setLoading] = useState(true);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -148,6 +151,11 @@ export function TagCatalogPanel({
     await reload();
   }
 
+  // Who added it: the audit stamp (created_by, migration 082), else the
+  // original owner column; blank when the person is no longer known.
+  const creatorOf = (tag: Tag & { created_by?: string | null }) =>
+    creators.get(tag.created_by ?? tag.user_id) ?? '';
+
   const usageCount = (tag: Tag) => {
     const u = usage.get(tag.id);
     return kind === 'tag' ? (u?.contacts ?? 0) : (u?.conversations ?? 0);
@@ -211,7 +219,9 @@ export function TagCatalogPanel({
                 <TableHead>{t('columns.inUse')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdBy')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdOn')}</TableHead>
-                {canEdit ? <TableHead className="w-20 text-right">{t('columns.actions')}</TableHead> : null}
+                {canEdit || canAudit ? (
+                  <TableHead className="w-28 text-right">{t('columns.actions')}</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,6 +242,12 @@ export function TagCatalogPanel({
                       />
                       <span className="truncate">{tag.name}</span>
                     </span>
+                    {/* Small muted line; the Created by column takes over from lg. */}
+                    {creatorOf(tag) ? (
+                      <span className="mt-1 block text-xs text-muted-foreground lg:hidden">
+                        {tAudit('addedBy', { name: creatorOf(tag) })}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
                     {tag.description || '—'}
@@ -240,29 +256,39 @@ export function TagCatalogPanel({
                     {t(`${kind}.inUse`, { count: usageCount(tag) })}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {creators.get(tag.user_id) || '—'}
+                    {creatorOf(tag) || '—'}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
                     {format(new Date(tag.created_at), 'MMM d, yyyy')}
                   </TableCell>
-                  {canEdit ? (
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t('editAria', { name: tag.name })}
-                        onClick={() => setEditing({ tag, key: Date.now() })}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t('deleteAria', { name: tag.name })}
-                        onClick={() => setToDelete(tag)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                  {canEdit || canAudit ? (
+                    <TableCell className="text-right whitespace-nowrap">
+                      <ActivityButton
+                        compact
+                        entityType="tag"
+                        entityId={tag.id}
+                        entityLabel={tag.name}
+                      />
+                      {canEdit ? (
+                        <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('editAria', { name: tag.name })}
+                          onClick={() => setEditing({ tag, key: Date.now() })}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('deleteAria', { name: tag.name })}
+                          onClick={() => setToDelete(tag)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                        </>
+                      ) : null}
                     </TableCell>
                   ) : null}
                 </TableRow>

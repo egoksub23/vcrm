@@ -6,7 +6,7 @@
 // Owner/Admin has switched on or off for that role (stored as sparse
 // overrides in `role_capabilities`, migration 079).
 //
-// The catalogue is mirrored in SQL by migration 079
+// The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082)
 // (`capability_catalogue` + `role_capability_defaults`); a test
 // (`capabilities-sql.test.ts`) fails if the two disagree, and
 // `capability-parity.test.ts` proves the defaults equal the role
@@ -177,6 +177,9 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // ---- Workspace ----
   def("settings.workspace", "workspace", ADMIN_UP, "admin"),
   def("reports.view", "workspace", ALL, "viewer", "app", true),
+  // Migration 082: the audit log's RLS policy and its SECURITY DEFINER
+  // readers call has_capability(..., 'audit.view').
+  def("audit.view", "workspace", ADMIN_UP, "agent", "database", true),
 
   // ---- People ----
   def("members.invite", "people", ADMIN_UP, "admin"),
@@ -213,6 +216,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "api.manage"
   | "settings.workspace"
   | "reports.view"
+  | "audit.view"
   | "members.invite"
   | "members.change-role"
   | "members.remove"

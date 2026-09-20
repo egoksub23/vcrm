@@ -10,7 +10,10 @@ interface FakeOptions {
   insertError?: { code?: string; message: string } | null;
 }
 
-function fakeDb(options: FakeOptions = {}): SupabaseClient {
+function fakeDb(
+  options: FakeOptions = {},
+  isCalls: [string, string, unknown][] = []
+): SupabaseClient {
   const contact =
     options.contact === undefined ? { id: 'contact-1' } : options.contact;
   const tag = options.tag === undefined ? { id: 'tag-1' } : options.tag;
@@ -27,6 +30,10 @@ function fakeDb(options: FakeOptions = {}): SupabaseClient {
           return builder;
         },
         eq() {
+          return builder;
+        },
+        is(column: string, value: unknown) {
+          isCalls.push([table, column, value]);
           return builder;
         },
         maybeSingle() {
@@ -58,6 +65,12 @@ const input = {
 };
 
 describe('addContactTagIfAbsent', () => {
+  it('only accepts a tag that has not been soft-deleted (migration 082)', async () => {
+    const isCalls: [string, string, unknown][] = [];
+    await addContactTagIfAbsent(fakeDb({}, isCalls), input);
+    expect(isCalls).toContainEqual(['tags', 'deleted_at', null]);
+  });
+
   it('returns true only when the join row was inserted', async () => {
     await expect(addContactTagIfAbsent(fakeDb(), input)).resolves.toBe(true);
   });

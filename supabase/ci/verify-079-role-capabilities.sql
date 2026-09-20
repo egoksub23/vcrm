@@ -78,13 +78,14 @@ BEGIN
   INSERT INTO ai_configs (account_id, provider, model, api_key) VALUES (a, 'openai', 'm', 'k');
 
   -- ---------------------------------------------------------
-  -- 1. Seed: catalogue + defaults have the expected shape
+  -- 1. Seed: catalogue + defaults have the expected shape (45 = the 44 keys of 079
+  --    plus audit.view, added by migration 082)
   -- ---------------------------------------------------------
-  IF (SELECT count(*) FROM capability_catalogue) <> 44 THEN
+  IF (SELECT count(*) FROM capability_catalogue) <> 45 THEN
     RAISE EXCEPTION 'FAIL catalogue size %', (SELECT count(*) FROM capability_catalogue);
   END IF;
-  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> 44
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> 44
+  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> 45
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> 45
   OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')  <> 27
   OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'viewer') <> 14 THEN
     RAISE EXCEPTION 'FAIL default set sizes';

@@ -49,7 +49,10 @@ export async function resolveImportTagIds(
   const { data: existing, error: fetchError } = await supabase
     .from('tags')
     .select('id, name')
-    .eq('account_id', accountId);
+    .eq('account_id', accountId)
+    // Soft-deleted tags (migration 082) must not be matched by name when
+    // the caller bypasses RLS (API v1 uses the service role).
+    .is('deleted_at', null);
 
   if (fetchError) throw fetchError;
 

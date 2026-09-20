@@ -3,7 +3,7 @@ import { getCurrentAccount, requireAnyCapability, toErrorResponse } from '@/lib/
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseDocInput, type DocFields } from '@/lib/ai/knowledge-doc'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
-import { indexArticle, loadAttachments, removeStoredFiles, syncAttachments } from '@/lib/knowledge/articles'
+import { indexArticle, loadAttachments, syncAttachments } from '@/lib/knowledge/articles'
 import { kbImagePolicy, reconcileInlineImages } from '@/lib/knowledge/inline-images'
 import { buildTranslationInfos, isTranslationOutOfDate, textUnchanged } from '@/lib/knowledge/translate'
 import { keepTranslationsCurrent, loadBaseOf, loadTranslationsOf } from '@/lib/knowledge/translations'
@@ -272,11 +272,15 @@ export async function PATCH(request: Request, { params }: Params) {
 /**
  * DELETE /api/knowledge/[id] — an admin, or the author of a draft.
  *
- * Deleting a base article deletes its translations with it (and their files),
- * so a request that would do that is refused with 409 `has_translations`
+ * Deleting a base article deletes its translations with it, so a request that would do that is refused with 409 `has_translations`
  * (and the count) unless it carries `?with_translations=true`. Someone who
  * cannot delete every one of the translations (not an admin, and not the
  * author of a draft) cannot delete the article.
+ *
+ * It is a SOFT delete (migration 082): a database trigger sets deleted_at /
+ * deleted_by instead of removing the row, and the audit log records who did
+ * it. The attachments' files stay in storage so Settings > Audit log >
+ * Recently removed can restore the article whole; nothing purges them yet.
  */
 export async function DELETE(request: Request, { params }: Params) {
   try {
@@ -325,14 +329,6 @@ export async function DELETE(request: Request, { params }: Params) {
       }
     }
 
-    // Remember the files (the article and its translations) so they can be
-    // removed once the rows are gone.
-    const { data: files } = await supabase
-      .from('knowledge_attachments')
-      .select('storage_path')
-      .eq('account_id', accountId)
-      .in('document_id', [id, ...translations.map((t) => t.id)])
-
     const { error } = await supabase
       .from('ai_knowledge_documents')
       .delete()
@@ -342,11 +338,6 @@ export async function DELETE(request: Request, { params }: Params) {
       console.error('[knowledge/[id] DELETE] error:', error)
       return NextResponse.json({ error: 'Failed to delete the article' }, { status: 500 })
     }
-    await removeStoredFiles(
-      supabase,
-      accountId,
-      ((files ?? []) as { storage_path: string }[]).map((f) => f.storage_path),
-    )
     return NextResponse.json({ success: true })
   } catch (err) {
     return toErrorResponse(err)

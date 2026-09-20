@@ -238,6 +238,8 @@ export const DB_TIER_ROWS: readonly Row[] = [
   ),
   row("ai_connections", "select", "admin", "ai.configure"),
   row("ai_usage_log", "select", "admin", "ai.configure"),
+  // Migration 082: new table, no legacy floor; Owner + Admin by default.
+  row("audit_log", "select", "admin", "audit.view"),
   ...["api_keys", "webhook_endpoints"].map((t) =>
     row(t, "insert/update/delete", "admin", "api.manage"),
   ),
@@ -517,8 +519,15 @@ describe("route handlers use capabilities, not role floors", () => {
 
     const problems: string[] = [];
     for (const r of ROUTES) {
-      // New with this feature, no legacy floor to compare against.
-      if (r.key.startsWith("account/roles") || r.key.startsWith("account/capabilities")) continue;
+      // New with this feature, no legacy floor to compare against (the
+      // audit routes, migration 082, are new as well).
+      if (
+        r.key.startsWith("account/roles") ||
+        r.key.startsWith("account/capabilities") ||
+        r.key.startsWith("account/audit")
+      ) {
+        continue;
+      }
 
       const used = new Set<string>();
       for (const m of r.src.matchAll(/require(?:Any)?Capability\(\s*(\[[^\]]*\]|'[^']*'|"[^"]*")\s*\)/g)) {

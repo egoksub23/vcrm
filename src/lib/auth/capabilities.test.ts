@@ -74,6 +74,7 @@ describe("catalogue", () => {
       [
         "ai.configure",
         "api.manage",
+        "audit.view",
         "channels.manage",
         "members.change-role",
         "members.remove",

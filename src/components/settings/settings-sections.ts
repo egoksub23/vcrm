@@ -3,6 +3,7 @@ import {
   Boxes,
   ClipboardList,
   Coins,
+  History,
   KeyRound,
   LayoutGrid,
   Palette,
@@ -44,6 +45,7 @@ export const SETTINGS_SECTIONS = [
   'members',
   'teams',
   'roles',
+  'audit',
   'api',
 ] as const;
 
@@ -82,6 +84,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
   teams: { id: 'teams', label: 'Teams', icon: Boxes, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },
+  audit: { id: 'audit', label: 'Audit log', icon: History, group: 'workspace', capability: 'audit.view' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace', capability: 'api.manage' },
 };
 

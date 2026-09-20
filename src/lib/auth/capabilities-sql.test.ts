@@ -6,28 +6,38 @@ import { CAPABILITIES, DEFAULT_CAPABILITIES } from "./capabilities";
 import { ACCOUNT_ROLES } from "./roles";
 
 // Migration 079 seeds `capability_catalogue` and `role_capability_defaults`
-// from the TypeScript catalogue. This test parses the seed out of the
+// from the TypeScript catalogue; later migrations add capabilities the
+// same way (082 adds `audit.view`). This test parses the seeds out of the
 // migration text and fails if the SQL mirror and the TS source of truth
-// ever disagree (someone edited one without the other).
+// ever disagree (someone edited one without the other). Migrations that
+// add capabilities are listed in order.
 
-const migration = readFileSync(
-  join(process.cwd(), "supabase", "migrations", "079_role_capabilities.sql"),
-  "utf8",
+const migrationFiles = [
+  "079_role_capabilities.sql",
+  "082_audit_trail.sql",
+];
+
+const migrationTexts = migrationFiles.map((f) =>
+  readFileSync(join(process.cwd(), "supabase", "migrations", f), "utf8"),
 );
+const migration = migrationTexts[0];
 
 function seedRows(insertHeader: string): string[][] {
-  const start = migration.indexOf(insertHeader);
-  expect(start, `seed for ${insertHeader} not found`).toBeGreaterThan(-1);
-  const end = migration.indexOf(";", start);
-  const body = migration.slice(start, end);
   const rows: string[][] = [];
-  for (const m of body.matchAll(/\(\s*('[^']*'(?:\s*,\s*'[^']*')*)\s*\)/g)) {
-    rows.push([...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]));
+  for (const text of migrationTexts) {
+    const start = text.indexOf(insertHeader);
+    if (start < 0) continue;
+    const end = text.indexOf(";", start);
+    const body = text.slice(start, end);
+    for (const m of body.matchAll(/\(\s*('[^']*'(?:\s*,\s*'[^']*')*)\s*\)/g)) {
+      rows.push([...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]));
+    }
   }
+  expect(rows.length, `seed for ${insertHeader} not found`).toBeGreaterThan(0);
   return rows;
 }
 
-describe("migration 079 mirrors the TS catalogue", () => {
+describe("migrations 079 + 082 mirror the TS catalogue", () => {
   it("seeds the catalogue with the same keys, min grant role and tier", () => {
     const rows = seedRows(
       "INSERT INTO public.capability_catalogue (capability, min_grant_role, enforced_by) VALUES",
@@ -69,10 +79,15 @@ describe("migration 079 mirrors the TS catalogue", () => {
     expect(seedStart).toBeGreaterThan(-1);
     expect(seedEnd).toBeGreaterThan(seedStart);
     const withoutSeed = migration.slice(0, seedStart) + migration.slice(seedEnd);
+    // Later migrations: drop their seed INSERTs, keep policies/functions.
+    const laterWithoutSeed = migrationTexts
+      .slice(1)
+      .join("\n")
+      .replace(/INSERT INTO public\.(capability_catalogue|role_capability_defaults)[^;]*;/g, "");
     for (const c of CAPABILITIES.filter((x) => x.enforcedBy === "database")) {
       expect(
-        withoutSeed.includes(`'${c.key}'`),
-        `${c.key} is marked database-enforced but 079 never checks it`,
+        withoutSeed.includes(`'${c.key}'`) || laterWithoutSeed.includes(`'${c.key}'`),
+        `${c.key} is marked database-enforced but no migration checks it`,
       ).toBe(true);
     }
   });

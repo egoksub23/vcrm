@@ -24,6 +24,7 @@ import { MembersTab } from '@/components/settings/members-tab';
 import { TeamsTab } from '@/components/settings/teams-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab';
+import { AuditLogPanel } from '@/components/settings/audit/audit-log-panel';
 import { NoAccess } from '@/components/auth/no-access';
 import {
   canSeeSection,
@@ -98,6 +99,7 @@ function SettingsPageInner() {
     members: <MembersTab />,
     teams: <TeamsTab />,
     roles: <RolesPermissionsTab />,
+    audit: <AuditLogPanel />,
     api: <ApiKeysSettings />,
   };
 

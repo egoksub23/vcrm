@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MessageSquare, Pencil, Plus, Trash2, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SettingsPanelHead } from "./settings-panel-head";
-import { useCapability } from "@/hooks/use-auth";
+import { ActivityButton } from "./audit/activity-sheet";
+import { useAuth, useCapability } from "@/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import {
   InteractiveBuilder,
   blankButtonsPayload,
@@ -44,6 +47,8 @@ function emptyDraft(): DraftState {
 }
 
 export function QuickRepliesManager() {
+  const tAudit = useTranslations("Audit");
+  const { accountId, loading: authLoading } = useAuth();
   // Creating, editing and deleting snippets: snippets.manage. Without it
   // the list is read-only (people can still insert them from the composer).
   const canManage = useCapability("snippets.manage");
@@ -51,6 +56,29 @@ export function QuickRepliesManager() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
+  // user id -> name, for the small "Added by" line (blank if unknown).
+  const [people, setPeople] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (authLoading || !accountId) return;
+    let cancelled = false;
+    createClient()
+      .from("profiles")
+      .select("user_id, full_name, email")
+      .then(({ data }) => {
+        if (cancelled) return;
+        setPeople(
+          new Map(
+            ((data ?? []) as { user_id: string; full_name: string | null; email: string | null }[]).map(
+              (p) => [p.user_id, p.full_name?.trim() || p.email || ""],
+            ),
+          ),
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, accountId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +94,9 @@ export function QuickRepliesManager() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const addedByName = (qr: QuickReply & { created_by?: string | null }) =>
+    people.get(qr.created_by ?? qr.user_id) ?? "";
 
   const openCreate = () => setDraft(emptyDraft());
   const openEdit = (qr: QuickReply) =>
@@ -171,7 +202,18 @@ export function QuickRepliesManager() {
                     ? interactivePayloadPreviewText(qr.interactive_payload)
                     : qr.content_text}
                 </p>
+                {addedByName(qr) ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {tAudit("addedBy", { name: addedByName(qr) })}
+                  </p>
+                ) : null}
               </div>
+              <ActivityButton
+                compact
+                entityType="snippet"
+                entityId={qr.id}
+                entityLabel={qr.title}
+              />
               {canManage ? (
                 <div className="flex shrink-0 gap-1">
                   <Button variant="ghost" size="icon-sm" onClick={() => openEdit(qr)}>
