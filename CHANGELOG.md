@@ -9,6 +9,38 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.35.0] — 2026-09-20 — **migrations required: 076, 077**
+
+The Knowledge base now follows the design page it was proposed with, plus a
+rich-text editor and attachments.
+
+- **Article editor on its own page** (`/knowledge/new`, `/knowledge/[id]`) with a
+  WYSIWYG toolbar (bold, italic, underline, headings, lists, quote, link), a
+  settings column, Save draft / Publish, and edit history with restore.
+- **"Test it: would the AI find this?"** box: runs the same search the AI runs and
+  shows which passages would be sent and which fall under the cut-off.
+- **Attachments on articles**: images and files (PDF, Word, PowerPoint, Excel,
+  images and more, up to 10 per article, images 5 MB, other files 16 MB). When an
+  agent inserts the article, or the AI answers from it, the files go with the
+  answer. Each file has a "Send with AI answers" switch. A file already sent in a
+  conversation is not sent again. Channels that cannot carry a file get a link.
+- **Collections** replace free-text categories (existing categories became
+  collections). The library has the design's left rail (All articles, Collections,
+  Drafts, Review due, Agents only, Gaps, Insights), stat tiles and a fuller table.
+- **Add content**: write an article, add Q&A pairs (paste or CSV), upload a file
+  (text, Markdown, CSV, Word, PDF) or import a web page with re-sync. Imports
+  always land as drafts.
+- **Agent access**: a Knowledge tab in the chat's right column (suggested articles,
+  search, Insert, Open, Draft with AI, an "Agents only" chip) and `/kb` in the
+  message box.
+- **The AI shows its sources**: "Based on" chips and "Will attach" chips on AI
+  drafts, and an internal "AI answered from" note on auto-replies (never visible to
+  the customer). Internal notes no longer reach the AI's prompt.
+- **Gaps**: "Save agent reply" drafts an article from the agent's answer after a
+  handoff. **Insights**: most used, never used, and handoff-fixing articles.
+- Interface strings: English and Korean updated; es and pt are no longer
+  maintained.
+
 ## [0.34.3] — 2026-09-20
 
 - **Wider inbox list, and the Comments tab is fully visible.** The left column

@@ -11,7 +11,11 @@ import { createTranslator } from 'next-intl';
 
 const MESSAGES_DIR = join(process.cwd(), 'messages');
 const SOURCE_LOCALE = 'en';
-const TRANSLATED_LOCALES = ['ko', 'pt', 'es'];
+// Maintained locales. es and pt are frozen (no longer needed: the product
+// runs in English, Bahasa Melayu and Mandarin, with Korean and Japanese as
+// backups) so they are not held to parity. Add 'ms', 'zh' and 'ja' here as
+// their message files are built.
+const TRANSLATED_LOCALES = ['ko'];
 
 type Catalogue = Record<string, unknown>;
 

@@ -1,4 +1,5 @@
 import { KB_LANGUAGES, type KbLanguage } from './knowledge-query'
+import { kbHtmlToPlainText, sanitizeKbHtml } from '../knowledge-format'
 
 // ============================================================
 // Validation for knowledge-base article input (create / update).
@@ -12,11 +13,16 @@ export type KbStatus = (typeof KB_STATUSES)[number]
 
 export const MAX_TITLE_CHARS = 200
 export const MAX_CONTENT_CHARS = 20000
+/** Raw rich text accepted from a client, before it is sanitised. */
+export const MAX_HTML_CHARS = 200000
 const MAX_CATEGORY_CHARS = 60
 
 export interface DocFields {
   title?: string
   content?: string
+  /** Sanitised rich text; `content` is derived from it (null = plain-only). */
+  content_html?: string | null
+  collection_id?: string | null
   language?: KbLanguage
   kind?: KbKind
   status?: KbStatus
@@ -27,6 +33,8 @@ export interface DocFields {
 }
 
 export type ParsedDoc = { ok: true; fields: DocFields } | { ok: false; error: string }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T =>
   typeof v === 'string' && (list as readonly string[]).includes(v)
@@ -45,10 +53,35 @@ export function parseDocInput(body: unknown, opts: { partial: boolean }): Parsed
     if (b.title.trim().length > MAX_TITLE_CHARS) return { ok: false, error: `title is limited to ${MAX_TITLE_CHARS} characters` }
     fields.title = b.title.trim()
   }
-  if (b.content !== undefined) {
+  if (b.content !== undefined && typeof b.content_html !== 'string') {
     if (typeof b.content !== 'string' || !b.content.trim()) return { ok: false, error: 'content cannot be empty' }
     if (b.content.trim().length > MAX_CONTENT_CHARS) return { ok: false, error: `content is limited to ${MAX_CONTENT_CHARS} characters` }
     fields.content = b.content.trim()
+  }
+  if (b.content_html !== undefined) {
+    if (b.content_html === null) fields.content_html = null
+    else if (typeof b.content_html !== 'string') return { ok: false, error: 'content_html must be text' }
+    else if (b.content_html.length > MAX_HTML_CHARS) {
+      return { ok: false, error: 'The article is too long.' }
+    } else {
+      // Sanitise on the server whatever the editor sent, and derive the
+      // plain text search and the AI read from the result — a client's own
+      // `content` is ignored when it sends rich text.
+      const html = sanitizeKbHtml(b.content_html)
+      const plain = kbHtmlToPlainText(html)
+      if (!plain.trim()) return { ok: false, error: 'content cannot be empty' }
+      if (plain.length > MAX_CONTENT_CHARS) {
+        return { ok: false, error: `content is limited to ${MAX_CONTENT_CHARS} characters` }
+      }
+      fields.content_html = html
+      fields.content = plain
+    }
+  }
+  if (b.collection_id !== undefined) {
+    if (b.collection_id === null || b.collection_id === '') fields.collection_id = null
+    else if (typeof b.collection_id !== 'string' || !UUID.test(b.collection_id)) {
+      return { ok: false, error: 'collection_id must be a collection id' }
+    } else fields.collection_id = b.collection_id
   }
   if (b.language !== undefined) {
     if (!isOneOf(KB_LANGUAGES, b.language)) return { ok: false, error: 'language must be en, ms or zh' }

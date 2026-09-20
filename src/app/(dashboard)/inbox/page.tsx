@@ -817,6 +817,7 @@ function InboxPageInner() {
               onLabelsChange={handleLabelsChange}
               onContactTagsChange={handleContactTagsChange}
               onContactUpdated={handleContactUpdated}
+              messages={messages}
             />
           </div>
         )}

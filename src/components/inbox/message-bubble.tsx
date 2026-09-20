@@ -14,6 +14,7 @@ import {
   Sparkles,
   Lock,
   ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -29,6 +30,7 @@ import { InteractivePreview } from "@/components/interactive/interactive-preview
 import { EmailHtmlView } from "./email-html-view";
 import { useTranslations } from "next-intl";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { parseAiSourcesNote } from "@/lib/inbox/kb-agent";
 
 interface MessageBubbleProps {
   message: Message;
@@ -334,6 +336,7 @@ export function MessageBubble({
   // Reuses the same channel labels the thread header's badge already
   // uses — no new i18n keys needed across the 4 locale files.
   const tChannel = useTranslations("Inbox.messageThread");
+  const tKnowledge = useTranslations("Knowledge.agent");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
@@ -344,6 +347,38 @@ export function MessageBubble({
   // exactly what a comment isn't. A full-width amber card makes it
   // unmistakable at a glance that this never reached the customer.
   if (message.is_internal) {
+    // The note the AI leaves after an auto-reply: which articles it
+    // answered from. Internal rows never reach the customer, so this is
+    // for agents only.
+    const sourcesNote = parseAiSourcesNote(message.content_text);
+    if (sourcesNote) {
+      return (
+        <div className="flex justify-center px-2">
+          <div className="flex w-full max-w-[85%] flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-muted-foreground">
+            <BookOpen className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>{tKnowledge("aiAnsweredFrom")}</span>
+            {sourcesNote.sources.map((source, i) => (
+              <span key={`${source.id ?? source.title}-${i}`} className="inline-flex items-center">
+                {source.id ? (
+                  <a
+                    href={`/knowledge/${source.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {source.title}
+                  </a>
+                ) : (
+                  <span className="font-medium text-foreground">{source.title}</span>
+                )}
+                {i < sourcesNote.sources.length - 1 ? "," : ""}
+              </span>
+            ))}
+            <span className="ml-auto text-[10px] text-amber-600/70 dark:text-amber-400/70">{time}</span>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex justify-center px-2">
         <div className="w-full max-w-[85%] rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">

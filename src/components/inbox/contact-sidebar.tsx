@@ -8,7 +8,7 @@ import { useTags } from "@/hooks/use-tags";
 import { toast } from "sonner";
 import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
 import { addConversationLabel, deleteConversationLabel } from "@/lib/conversations/label-api";
-import type { Contact, Deal, Tag } from "@/types";
+import type { Contact, Deal, Message, Tag } from "@/types";
 import {
   Copy,
   Check,
@@ -23,6 +23,7 @@ import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
 import { ContactFieldsCard } from "./contact-fields-card";
 import { ConversationSummaryCard } from "./conversation-summary-card";
+import { KnowledgeTab } from "./knowledge-tab";
 import { TagChip } from "./tag-chip";
 import { TagPicker } from "./tag-picker";
 
@@ -38,6 +39,9 @@ interface ContactSidebarProps {
   onContactTagsChange?: (contactId: string, tags: Tag[]) => void;
   /** Called after an inline edit of a contact field saves. */
   onContactUpdated?: (contactId: string, patch: Partial<Contact>) => void;
+  /** The open conversation's messages: the Knowledge tab suggests articles
+   *  from what the customer just wrote. */
+  messages?: Message[];
 }
 
 export function ContactSidebar({
@@ -47,10 +51,13 @@ export function ContactSidebar({
   onLabelsChange,
   onContactTagsChange,
   onContactUpdated,
+  messages = [],
 }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
+  const tKnowledge = useTranslations("Knowledge.agent");
   const tThread = useTranslations("Inbox.messageThread");
 
+  const [tab, setTab] = useState<"contact" | "knowledge">("contact");
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -166,6 +173,34 @@ export function ContactSidebar({
 
   return (
     <div className="flex h-full min-h-0 w-70 flex-col border-l border-border bg-card">
+      {/* Contact | Knowledge. (Tickets and notes keep their own column.) */}
+      <div role="tablist" className="flex shrink-0 border-b border-border px-2 pt-1.5">
+        {(["contact", "knowledge"] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={
+              tab === id
+                ? "flex-1 border-b-2 border-primary px-2 pb-1.5 text-xs font-semibold text-foreground"
+                : "flex-1 border-b-2 border-transparent px-2 pb-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            }
+          >
+            {id === "contact" ? tKnowledge("tabContact") : tKnowledge("tabKnowledge")}
+          </button>
+        ))}
+      </div>
+      {tab === "knowledge" ? (
+        <div className="min-h-0 flex-1">
+          <KnowledgeTab
+            messages={messages}
+            contactLanguage={contact.language ?? null}
+            hasConversation={!!conversationId}
+          />
+        </div>
+      ) : (
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-4">
           {/* Contact Info */}
@@ -359,6 +394,7 @@ export function ContactSidebar({
           <ConversationSessionLog conversationId={conversationId} />
         </div>
       </ScrollArea>
+      )}
     </div>
   );
 }

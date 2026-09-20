@@ -59,8 +59,24 @@ import {
 } from "@/components/interactive/interactive-builder";
 import { validateInteractivePayload, interactivePayloadPreviewText } from "@/lib/whatsapp/interactive";
 import type { ChannelType, InteractiveMessagePayload, Profile, QuickReply } from "@/types";
-import type { ArticleDraftSeed } from "@/lib/knowledge-types";
+import type {
+  ArticleDraftSeed,
+  KnowledgeAttachment,
+  KnowledgeSearchResult,
+  KnowledgeSource,
+} from "@/lib/knowledge-types";
+import { kbHtmlToChannelText, plainTextToKbHtml } from "@/lib/knowledge-format";
+import {
+  appendBelow,
+  appendLinkLines,
+  parseKbCommand,
+  planKbFile,
+  stageKbFiles,
+  type StagedKbFile,
+} from "@/lib/inbox/kb-agent";
+import { onKbDraft, onKbInsert } from "@/lib/inbox/kb-bus";
 import { KnowledgePanel } from "./knowledge-panel";
+import { FileChip, KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
 import type { Editor } from "@tiptap/react";
@@ -90,6 +106,9 @@ export interface SendMediaPayload {
   /** Original file name — surfaced to the recipient for documents. */
   filename?: string;
   replyToId?: string;
+  /** The object belongs to something else (a knowledge base article), so a
+   *  failed send must NOT delete it from the bucket. */
+  keepObject?: boolean;
 }
 
 interface ReplyDraft {
@@ -142,8 +161,16 @@ interface MessageComposerProps {
   /** `html` is only ever set for an Email(MS365)/Gmail send made with
    *  the WYSIWYG editor — the plain-text `text` is still always sent
    *  as the fallback every other caller/channel already relies on. */
-  onSend: (text: string, replyToId?: string, channel?: ChannelType, html?: string) => void;
-  onSendMedia: (payload: SendMediaPayload, channel?: ChannelType) => void;
+  onSend: (
+    text: string,
+    replyToId?: string,
+    channel?: ChannelType,
+    html?: string,
+  ) => void | boolean | Promise<boolean | void>;
+  onSendMedia: (
+    payload: SendMediaPayload,
+    channel?: ChannelType,
+  ) => void | boolean | Promise<boolean | void>;
   onSendInteractive: (
     payload: InteractiveMessagePayload,
     replyToId?: string,
@@ -162,6 +189,18 @@ interface MessageComposerProps {
   contactLanguage?: string | null;
   /** Opens the "Add to knowledge base" dialog (owned by the thread). */
   onAddToKnowledge?: (seed: ArticleDraftSeed) => void;
+}
+
+const NO_FILES: StagedKbFile[] = [];
+const NO_SOURCES: KnowledgeSource[] = [];
+
+/** Plain text as email paragraphs: one <p> per blank-line-separated block,
+ *  single newlines kept as <br>. */
+function plainToParagraphHtml(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((para) => `<p>${escapeHtml(para).replace(/\n/g, "<br>")}</p>`)
+    .join("");
 }
 
 function formatDuration(seconds: number): string {
@@ -193,6 +232,7 @@ export function MessageComposer({
   onAddToKnowledge,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
+  const tk = useTranslations("Knowledge.agent");
   const canWriteKnowledge = useCan("send-messages");
 
   // ---- Channel selector ------------------------------------------------
@@ -243,6 +283,30 @@ export function MessageComposer({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  // Which article an AI draft is being written from (its card shows the spinner).
+  const [draftingId, setDraftingId] = useState<string | null>(null);
+  // Knowledge base files staged above the box, and the articles the last AI
+  // draft was based on. Tied to a conversation so switching threads never
+  // carries one chat's files into another.
+  const [kb, setKb] = useState<{ cid: string; files: StagedKbFile[]; sources: KnowledgeSource[] }>({
+    cid: conversationId,
+    files: NO_FILES,
+    sources: NO_SOURCES,
+  });
+  const kbFiles = kb.cid === conversationId ? kb.files : NO_FILES;
+  const draftSources = kb.cid === conversationId ? kb.sources : NO_SOURCES;
+  const updateKb = useCallback(
+    (fn: (cur: { files: StagedKbFile[]; sources: KnowledgeSource[] }) => {
+      files: StagedKbFile[];
+      sources: KnowledgeSource[];
+    }) => {
+      setKb((prev) => {
+        const cur = prev.cid === conversationId ? prev : { files: NO_FILES, sources: NO_SOURCES };
+        return { cid: conversationId, ...fn(cur) };
+      });
+    },
+    [conversationId],
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ---- Message vs. Comment vs. Snippets mode --------------------------
@@ -459,17 +523,134 @@ export function MessageComposer({
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }, []);
 
+  // ---- Knowledge base: insert an article, and the /kb picker ----------
+
+  // An article picked from the Knowledge tab, the right-hand column or /kb:
+  // its text lands in the reply box (formatted for the channel) and its
+  // files are staged as chips. Nothing is sent. `replace` swaps out the whole
+  // box, used when the box only held the "/kb …" command.
+  const insertKnowledge = useCallback(
+    (r: KnowledgeSearchResult, replace = false) => {
+      const channel = selectedChannel;
+      const emailish = channel === "email" || channel === "gmail";
+      const editor = emailEditorRef.current;
+      switchMode("message");
+      if (emailish && mode !== "comment" && editor) {
+        // Email keeps the article's formatting: its HTML goes into the editor.
+        const html = r.body_html || plainTextToKbHtml(r.body);
+        if (replace || !editor.getText().trim()) editor.commands.setContent(html);
+        else editor.chain().focus("end").insertContent(html).run();
+        setEmailHtml(editor.getHTML());
+        setText(editor.getText());
+        editor.commands.focus("end");
+      } else {
+        const body = kbHtmlToChannelText(r.body_html, r.body, emailish ? "web_widget" : channel);
+        setText((prev) => (replace ? body : appendBelow(prev, body)));
+        requestAnimationFrame(() => {
+          adjustHeight();
+          const el = textareaRef.current;
+          if (el) {
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          }
+        });
+      }
+      updateKb((cur) => ({
+        files: stageKbFiles(cur.files, r.attachments ?? [], "kb"),
+        sources: replace ? NO_SOURCES : cur.sources,
+      }));
+    },
+    [selectedChannel, mode, switchMode, adjustHeight, updateKb],
+  );
+
+  // Typing "/kb" (optionally with a search) as the whole message opens the
+  // same article picker; Escape closes it until the text changes.
+  const kbCommand = mode === "message" ? parseKbCommand(text) : null;
+  const [kbDismissedFor, setKbDismissedFor] = useState<string | null>(null);
+  const kbSlashOpen = kbCommand !== null && kbDismissedFor !== text;
+  const kbSlash = useKnowledgeSearch({
+    query: kbCommand?.query || knowledgeQuery,
+    contactLanguage,
+    enabled: kbSlashOpen,
+  });
+  useEffect(() => {
+    if (!kbSlashOpen) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setKbDismissedFor(text);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [kbSlashOpen, text]);
+
+  // Sends the text, then each staged knowledge base file as its own message,
+  // in that order. Files a channel cannot carry go as link lines in the text
+  // instead, so none is ever dropped. If the text fails, the files stay
+  // staged (nothing lost); a file that fails goes back to staging to retry.
+  const sendWithKbFiles = useCallback(
+    (
+      trimmed: string,
+      files: StagedKbFile[],
+      opts: { replyToId?: string; channel: ChannelType; html?: string },
+    ) => {
+      const plans = files.map((file) => ({ file, plan: planKbFile(opts.channel, file) }));
+      const linked = plans.filter((p) => p.plan.mode === "link").map((p) => p.file);
+      const outText = appendLinkLines(trimmed, linked);
+      // A linked file changes the plain text; the email HTML only matters
+      // when the channel is email, which always carries real attachments.
+      void (async () => {
+        if (outText) {
+          const ok = await Promise.resolve(onSend(outText, opts.replyToId, opts.channel, opts.html));
+          if (ok === false) {
+            updateKb((cur) => ({ ...cur, files: [...files, ...cur.files.filter((f) => !files.includes(f))] }));
+            return;
+          }
+        }
+        const failed: StagedKbFile[] = [];
+        for (const { file, plan } of plans) {
+          if (plan.mode !== "media") continue;
+          const ok = await Promise.resolve(
+            onSendMedia(
+              {
+                kind: plan.kind,
+                mediaUrl: file.url,
+                path: file.storagePath,
+                filename: plan.kind === "document" ? file.fileName : undefined,
+                keepObject: true,
+              },
+              opts.channel,
+            ),
+          );
+          if (ok === false) failed.push(file);
+        }
+        if (failed.length > 0) {
+          updateKb((cur) => ({
+            ...cur,
+            files: [...cur.files, ...failed.filter((f) => !cur.files.some((c) => c.url === f.url))],
+          }));
+        }
+      })();
+    },
+    [onSend, onSendMedia, updateKb],
+  );
+
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
+    const files = isComment ? NO_FILES : kbFiles;
     // Comments bypass the 24h WhatsApp session window entirely — they
     // never leave the account, so there's nothing for that window to gate.
-    if (!trimmed || sending || (!isComment && sessionExpired)) return;
+    if ((!trimmed && files.length === 0) || sending || (!isComment && sessionExpired)) return;
 
     setSending(true);
     try {
       if (isComment) {
         onSendComment(trimmed, Array.from(mentionedIds));
         setMentionedIds(new Set());
+      } else if (files.length > 0) {
+        sendWithKbFiles(trimmed, files, {
+          replyToId: replyTo?.id,
+          channel: selectedChannel,
+          html: isEmailChannel ? emailHtml : undefined,
+        });
       } else {
         onSend(trimmed, replyTo?.id, selectedChannel, isEmailChannel ? emailHtml : undefined);
       }
@@ -481,6 +662,7 @@ export function MessageComposer({
         emailEditorRef.current?.commands.clearContent();
         setEmailHtml("");
       }
+      if (!isComment) updateKb(() => ({ files: NO_FILES, sources: NO_SOURCES }));
     } finally {
       setSending(false);
     }
@@ -489,8 +671,11 @@ export function MessageComposer({
     sending,
     sessionExpired,
     isComment,
+    kbFiles,
     onSend,
     onSendComment,
+    sendWithKbFiles,
+    updateKb,
     mentionedIds,
     replyTo?.id,
     selectedChannel,
@@ -511,12 +696,20 @@ export function MessageComposer({
         setMentionQuery(null);
         return;
       }
+      // While the /kb picker is open, Enter inserts the top match instead
+      // of sending "/kb …" to the customer.
+      if (e.key === "Enter" && !e.shiftKey && kbSlashOpen) {
+        e.preventDefault();
+        const top = kbSlash.results[0];
+        if (top) insertKnowledge(top, true);
+        return;
+      }
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }
     },
-    [handleSend, mentionQuery, mentionMatches, insertMention]
+    [handleSend, mentionQuery, mentionMatches, insertMention, kbSlashOpen, kbSlash.results, insertKnowledge]
   );
 
   const handleChange = useCallback(
@@ -530,14 +723,19 @@ export function MessageComposer({
   // Ask the AI assistant for a suggested reply and drop it into the
   // composer for the agent to edit + send. Read-only server-side —
   // nothing is sent until the agent hits Send.
-  const handleDraft = useCallback(async () => {
+  const handleDraft = useCallback(async (articleId?: string) => {
     if (drafting) return;
     setDrafting(true);
+    setDraftingId(articleId ?? null);
     try {
       const res = await fetch("/api/ai/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: conversationId }),
+        // `article_id` asks the AI to write from that one article.
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          ...(articleId ? { article_id: articleId } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -553,15 +751,32 @@ export function MessageComposer({
         toast.error(t("draftEmpty"));
         return;
       }
+      // The articles the draft was based on, and the files of those that are
+      // sent along with an AI answer: shown as chips and staged like Insert.
+      // A new draft replaces the previous draft's files but keeps any the
+      // agent inserted by hand.
+      const sources = Array.isArray(data.sources)
+        ? (data.sources as KnowledgeSource[]).filter(
+            (src) => src && typeof src.id === "string" && typeof src.title === "string",
+          )
+        : [];
+      const draftFiles = Array.isArray(data.attachments)
+        ? (data.attachments as KnowledgeAttachment[]).filter((a) => a && a.url && a.send_with_ai !== false)
+        : [];
+      updateKb((cur) => ({
+        files: stageKbFiles(
+          cur.files.filter((f) => f.origin !== "ai"),
+          draftFiles,
+          "ai",
+        ),
+        sources,
+      }));
       if (isEmailChannel) {
         // The plain textarea's ref/height logic below doesn't apply —
         // drop the draft into the Tiptap doc instead, one <p> per
         // blank-line-separated paragraph so multi-paragraph drafts
         // don't collapse into a single run-on line.
-        const html = draftText
-          .split(/\n{2,}/)
-          .map((para: string) => `<p>${escapeHtml(para).replace(/\n/g, "<br>")}</p>`)
-          .join("");
+        const html = plainToParagraphHtml(draftText);
         emailEditorRef.current?.commands.setContent(html);
         emailEditorRef.current?.commands.focus("end");
         setEmailHtml(html);
@@ -583,8 +798,24 @@ export function MessageComposer({
       toast.error(t("aiUnreachable"));
     } finally {
       setDrafting(false);
+      setDraftingId(null);
     }
-  }, [drafting, conversationId, adjustHeight, t, isEmailChannel]);
+  }, [drafting, conversationId, adjustHeight, t, isEmailChannel, updateKb]);
+
+  // The right-hand Knowledge tab hands articles over through window events.
+  // A read-only viewer has no reply box to put them in.
+  useEffect(() => {
+    if (readOnly) return;
+    const offInsert = onKbInsert((article) => insertKnowledge(article));
+    const offDraft = onKbDraft((articleId) => {
+      switchMode("message");
+      void handleDraft(articleId);
+    });
+    return () => {
+      offInsert();
+      offDraft();
+    };
+  }, [readOnly, insertKnowledge, switchMode, handleDraft]);
 
   // ---- Interactive message + quick replies --------------------------
 
@@ -667,24 +898,6 @@ export function MessageComposer({
       });
     },
     [switchMode, openInteractiveBuilder, adjustHeight],
-  );
-
-  // An article picked in the Knowledge tab: its text lands in the reply
-  // box for the agent to review and edit before sending.
-  const handleInsertKnowledge = useCallback(
-    (body: string) => {
-      switchMode("message");
-      setText((prev) => (prev && !/\s$/.test(prev) ? `${prev}\n${body}` : `${prev}${body}`));
-      requestAnimationFrame(() => {
-        adjustHeight();
-        const el = textareaRef.current;
-        if (el) {
-          el.focus();
-          el.setSelectionRange(el.value.length, el.value.length);
-        }
-      });
-    },
-    [switchMode, adjustHeight],
   );
 
   // Upload a captured file to chat-media and stage it as a draft.
@@ -876,7 +1089,7 @@ export function MessageComposer({
       {/* Snippets / Knowledge: a panel that slides UP from the reply box
           (over the chat) instead of replacing the textarea and pushing the
           composer taller. Closes on Escape, a click outside, or picking. */}
-      {isPicker && (
+      {(isPicker || kbSlashOpen) && (
         <div className="absolute inset-x-0 bottom-full z-30 px-3.5 pb-2 duration-200 animate-in fade-in-0 slide-in-from-bottom-4">
           <div className="overflow-hidden rounded-xl bg-popover shadow-xl ring-1 ring-border">
             {isKnowledge ? (
@@ -884,7 +1097,12 @@ export function MessageComposer({
               suggestQuery={knowledgeQuery}
               contactLanguage={contactLanguage}
               canAdd={canWriteKnowledge && !!onAddToKnowledge}
-              onInsert={handleInsertKnowledge}
+              onInsert={(article) => insertKnowledge(article)}
+              onDraft={(article) => {
+                switchMode("message");
+                void handleDraft(article.id);
+              }}
+              draftingId={draftingId}
               onAdd={() =>
                 onAddToKnowledge?.({
                   content: text.trim() || undefined,
@@ -892,7 +1110,7 @@ export function MessageComposer({
                 })
               }
             />
-            ) : (
+            ) : isSnippets ? (
         <div
             ref={snippetListRef}
             className="max-h-72 overflow-y-auto"
@@ -935,6 +1153,31 @@ export function MessageComposer({
               </ul>
             )}
           </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto">
+                <p className="sticky top-0 z-10 border-b border-border bg-muted/90 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm">
+                  {kbCommand?.query ? tk("slashHint") : tk("slashSuggested")}
+                </p>
+                {kbSlash.loading && kbSlash.results.length === 0 ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !(kbCommand?.query || knowledgeQuery) ? (
+                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">{tk("slashEmpty")}</p>
+                ) : kbSlash.failed ? (
+                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">{tk("loadFailed")}</p>
+                ) : kbSlash.results.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">{tk("slashNoResults")}</p>
+                ) : (
+                  <ul className="flex flex-col gap-1 p-1.5">
+                    {kbSlash.results.map((r) => (
+                      <li key={r.id}>
+                        <KnowledgeCard result={r} onInsert={(article) => insertKnowledge(article, true)} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1091,6 +1334,49 @@ export function MessageComposer({
         }}
       />
 
+      {/* The articles an AI draft was based on, and the knowledge base files
+          that go out after the text. Never shown for an internal comment. */}
+      {!isComment && !recording && (draftSources.length > 0 || kbFiles.length > 0) && (
+        <div className="mb-2 flex flex-col gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-2">
+          {draftSources.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <BookOpen className="h-3 w-3 shrink-0 text-primary" />
+              <span className="text-muted-foreground">{tk("basedOn")}</span>
+              {draftSources.map((src) => (
+                <a
+                  key={src.id}
+                  href={`/knowledge/${src.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary hover:bg-primary/15"
+                  title={tk("openArticle")}
+                >
+                  <span className="shrink-0">{src.n}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="truncate">{src.title}</span>
+                </a>
+              ))}
+            </div>
+          )}
+          {kbFiles.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {kbFiles.map((f) => (
+                <FileChip
+                  key={f.key}
+                  file={{ file_name: f.fileName, kind: f.kind, size_bytes: f.sizeBytes }}
+                  prefix={f.origin === "ai" ? tk("willAttach") : tk("fromKnowledge")}
+                  onRemove={() => updateKb((cur) => ({ ...cur, files: cur.files.filter((x) => x.key !== f.key) }))}
+                  removeLabel={tk("removeFile", { name: f.fileName })}
+                />
+              ))}
+            </div>
+          )}
+          {kbFiles.some((f) => planKbFile(selectedChannel, f).mode === "link") && (
+            <p className="text-[10px] text-muted-foreground">{tk("linkFallback")}</p>
+          )}
+        </div>
+      )}
+
       {draft ? (
         <MediaDraftPreview
           draft={draft}
@@ -1213,7 +1499,7 @@ export function MessageComposer({
                 disabled={drafting}
                 title={readOnly ? undefined : t("draftWithAI")}
                 className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
-                onClick={handleDraft}
+                onClick={() => void handleDraft()}
               >
                 {drafting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1306,7 +1592,7 @@ export function MessageComposer({
             size="sm"
             canAct={!readOnly}
             gateReason="send messages"
-            disabled={!text.trim() || (!isComment && sessionExpired) || sending}
+            disabled={(!text.trim() && (isComment || kbFiles.length === 0)) || (!isComment && sessionExpired) || sending}
             onClick={handleSend}
             className={cn(
               "h-9 w-9 shrink-0 p-0 disabled:opacity-40",

@@ -556,6 +556,9 @@ export interface Message {
   is_internal?: boolean;
   /** Mentioned user_ids, only meaningful when `is_internal` is true. */
   mentions?: string[];
+  /** Knowledge articles an AI reply was based on. Only set on the internal
+   *  "AI answered from" note (migration 077); null / absent everywhere else. */
+  kb_sources?: { id: string; title: string }[] | null;
   /** "Move to Trash" flag (migration 062) — true hides the message
    *  from its own conversation thread and surfaces it in the
    *  account-wide Pending Delete panel instead of deleting it

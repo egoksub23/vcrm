@@ -62,6 +62,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
 import { ArticleDialog } from "@/components/knowledge/article-dialog";
+import { buildKnowledgeQuery } from "@/lib/inbox/kb-agent";
 import type { ArticleDraftSeed } from "@/lib/knowledge-types";
 import { useCan } from "@/hooks/use-can";
 import { MediaLightbox } from "./media-lightbox";
@@ -556,9 +557,13 @@ export function MessageThread({
     return Array.from(set);
   }, [messages, conversation]);
 
+  // Resolves true once the send went through, false when it failed (the
+  // failed bubble and toast are already shown). The composer waits on this
+  // so a knowledge base file never goes out ahead of, or after a failed,
+  // text.
   const handleSend = useCallback(
-    async (text: string, replyToId?: string, channel?: ChannelType, html?: string) => {
-      if (!conversation) return;
+    async (text: string, replyToId?: string, channel?: ChannelType, html?: string): Promise<boolean> => {
+      if (!conversation) return false;
 
       const tempId = `temp-${Date.now()}`;
       const effectiveChannel = channel ?? conversation.last_channel_type;
@@ -624,18 +629,20 @@ export function MessageThread({
           toast.error(t("sendFailed", { reason }));
           // Mark the optimistic bubble as failed so the user sees what happened
           onUpdateMessage(tempId, { status: "failed" });
-          return;
+          return false;
         }
 
         // Success — the realtime INSERT event will replace the temp bubble
         // with the real DB row. If realtime hasn't arrived yet, at least
         // flip status to 'sent' so the UI stops showing "sending".
         onUpdateMessage(tempId, { status: "sent" });
+        return true;
       } catch (err) {
         console.error("Failed to send message:", err);
         const reason = err instanceof Error ? err.message : "network error";
         toast.error(t("sendFailed", { reason }));
         onUpdateMessage(tempId, { status: "failed" });
+        return false;
       }
     },
     [conversation, contact, messages, onNewMessage, onUpdateMessage, t]
@@ -689,8 +696,8 @@ export function MessageThread({
   );
 
   const handleSendMedia = useCallback(
-    async (payload: SendMediaPayload, channel?: ChannelType) => {
-      if (!conversation) return;
+    async (payload: SendMediaPayload, channel?: ChannelType): Promise<boolean> => {
+      if (!conversation) return false;
 
       // Documents show their filename in our own bubble (and to the
       // recipient as the Meta caption when no caption was typed); other
@@ -740,17 +747,24 @@ export function MessageThread({
           onUpdateMessage(tempId, { status: "failed" });
           // The upload never reached the recipient — GC the orphaned
           // object rather than leaving it in the public bucket forever.
-          void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
-          return;
+          // A knowledge base file is shared with its article, so it stays.
+          if (!payload.keepObject) {
+            void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
+          }
+          return false;
         }
 
         onUpdateMessage(tempId, { status: "sent" });
+        return true;
       } catch (err) {
         console.error("Failed to send media:", err);
         const reason = err instanceof Error ? err.message : "network error";
         toast.error(t("sendFailed", { reason }));
         onUpdateMessage(tempId, { status: "failed" });
-        void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
+        if (!payload.keepObject) {
+          void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
+        }
+        return false;
       }
     },
     [conversation, onNewMessage, onUpdateMessage, t],
@@ -1074,19 +1088,7 @@ export function MessageThread({
   );
   // What the composer's Knowledge tab searches on until the agent types:
   // the customer's last few messages.
-  const knowledgeQuery = useMemo(() => {
-    const picked: string[] = [];
-    let chars = 0;
-    for (let i = messages.length - 1; i >= 0 && picked.length < 3; i--) {
-      const m = messages[i];
-      const text = (m.content_text ?? "").trim();
-      if (m.sender_type !== "customer" || m.is_internal || !text) continue;
-      if (picked.length > 0 && chars + text.length > 500) break;
-      picked.unshift(text.slice(0, 500));
-      chars += text.length;
-    }
-    return picked.join("\n");
-  }, [messages]);
+  const knowledgeQuery = useMemo(() => buildKnowledgeQuery(messages), [messages]);
 
   const handleStartReply = useCallback(
     (msg: Message) => {

@@ -6,6 +6,8 @@ import { searchKnowledge } from '@/lib/ai/knowledge'
 import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
+import { extractCitations } from '@/lib/ai/citations'
+import { groupHitsByArticle } from '@/lib/knowledge/excerpts'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
 
 // Keep the tested transcript bounded, mirroring the live context window.
@@ -77,15 +79,15 @@ export async function POST(request: Request) {
       audience: 'ai',
       k: 5,
     })
-    const knowledge = hits.map((h) => h.content)
+    const { excerpts: knowledge } = groupHitsByArticle(hits)
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
     })
 
-    const { text, handoff } = await generateReply({ config, systemPrompt, messages })
-    return NextResponse.json({ reply: text, handoff })
+    const { text: rawText, handoff } = await generateReply({ config, systemPrompt, messages })
+    return NextResponse.json({ reply: extractCitations(rawText, knowledge.length).text, handoff })
   } catch (err) {
     if (err instanceof AiError) {
       return NextResponse.json(

@@ -1,27 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { BookOpen, ExternalLink, Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { KB_LANGUAGE_LABELS, normalizeLanguage, type KbLanguage } from "@/lib/ai/knowledge-query";
 import type { KnowledgeSearchResult } from "@/lib/knowledge-types";
-
-const chip = "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap";
+import { KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
 
 /**
  * The agent's window into the knowledge base, inside the chat composer.
  * With nothing typed it searches on the customer's latest messages, so the
  * likely answer is already listed; typing searches on that instead.
- * "Insert" puts the article text into the reply box for the agent to edit;
- * nothing is ever sent from here.
+ * "Insert" puts the article text (and stages its files) in the reply box for
+ * the agent to edit; nothing is ever sent from here.
  */
 export function KnowledgePanel({
   suggestQuery,
   contactLanguage,
   canAdd,
   onInsert,
+  onDraft,
+  draftingId,
   onAdd,
 }: {
   /** The customer's recent messages (empty when there are none yet). */
@@ -29,42 +28,19 @@ export function KnowledgePanel({
   /** The contact's stored language code, when set. */
   contactLanguage?: string | null;
   canAdd: boolean;
-  onInsert: (text: string) => void;
+  onInsert: (article: KnowledgeSearchResult) => void;
+  /** Writes a reply from one article with the AI. Omit to hide the button. */
+  onDraft?: (article: KnowledgeSearchResult) => void;
+  draftingId?: string | null;
   onAdd: () => void;
 }) {
   const t = useTranslations("Inbox.knowledge");
   const [typed, setTyped] = useState("");
-  const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const seq = useRef(0);
 
   const query = (typed.trim() || suggestQuery).trim();
-  const lang: KbLanguage | null = normalizeLanguage(contactLanguage);
   const usingSuggestion = !typed.trim();
-
-  useEffect(() => {
-    if (!query) {
-      setResults([]);
-      return;
-    }
-    const mine = ++seq.current;
-    setLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const params = new URLSearchParams({ q: query, limit: "6" });
-        if (lang) params.set("lang", lang);
-        const res = await fetch(`/api/knowledge/search?${params}`, { cache: "no-store" });
-        const data = await res.json().catch(() => ({}));
-        if (mine === seq.current) setResults(res.ok ? (data.results ?? []) : []);
-      } catch {
-        if (mine === seq.current) setResults([]);
-      } finally {
-        if (mine === seq.current) setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, lang]);
+  const { results, loading } = useKnowledgeSearch({ query, contactLanguage });
 
   return (
     <div className="max-h-72 overflow-y-auto">
@@ -111,58 +87,18 @@ export function KnowledgePanel({
         </p>
       ) : (
         <ul className="flex flex-col gap-1 p-1.5">
-          {results.map((r) => {
-            const open = openId === r.id;
-            return (
-              <li key={r.id} className="rounded-md border border-transparent bg-card p-2 hover:border-primary/40">
-                <div className="flex items-start gap-2">
-                  <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-medium text-foreground">{r.title}</span>
-                      <span className={cn(chip, "bg-muted text-muted-foreground")}>
-                        {KB_LANGUAGE_LABELS[r.language]}
-                      </span>
-                      {!r.use_in_ai && (
-                        <span className={cn(chip, "bg-amber-500/15 text-amber-700 dark:text-amber-400")} title={t("agentsOnlyHint")}>
-                          {t("agentsOnly")}
-                        </span>
-                      )}
-                    </div>
-                    <p className={cn("mt-0.5 whitespace-pre-wrap break-words text-xs text-muted-foreground", !open && "line-clamp-3")}>
-                      {open ? r.body : r.snippet}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onInsert(r.body)}
-                        className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
-                      >
-                        {t("insert")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOpenId(open ? null : r.id)}
-                        aria-expanded={open}
-                        className="text-[11px] font-medium text-primary hover:underline"
-                      >
-                        {open ? t("showLess") : t("showFull")}
-                      </button>
-                      <a
-                        href="/knowledge"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground"
-                        title={t("openLibrary")}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {results.map((r) => (
+            <li key={r.id}>
+              <KnowledgeCard
+                result={r}
+                expanded={openId === r.id}
+                onToggleExpanded={() => setOpenId(openId === r.id ? null : r.id)}
+                onInsert={onInsert}
+                onDraft={onDraft}
+                draftBusy={draftingId === r.id}
+              />
+            </li>
+          ))}
         </ul>
       )}
     </div>

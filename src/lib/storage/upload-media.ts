@@ -90,10 +90,14 @@ export interface UploadAccountMediaResult {
  *
  * Size validation is the caller's responsibility (limits can differ per
  * feature); `MEDIA_MAX_BYTES` is exported for the common case.
+ *
+ * `subfolder` nests the object one level below `account-<id>` (the
+ * knowledge base uses `kb`); omit it for the flat legacy layout.
  */
 export async function uploadAccountMedia(
   bucket: string,
   file: File,
+  subfolder?: string,
 ): Promise<UploadAccountMediaResult> {
   const supabase = createClient();
 
@@ -117,11 +121,18 @@ export async function uploadAccountMedia(
     throw new Error("Could not resolve your account.");
   }
 
-  const path = buildMediaPath(profile.account_id as string, file.name);
+  const path = buildMediaPath(
+    profile.account_id as string,
+    file.name,
+    Date.now(),
+    subfolder,
+  );
   const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",
     upsert: false,
-    contentType: file.type,
+    // Some files (.pptx from certain browsers, unknown extensions) arrive
+    // with an empty type; the bucket's allow-list accepts the generic one.
+    contentType: file.type || "application/octet-stream",
   });
   if (upErr) throw new Error(upErr.message);
 

@@ -50,6 +50,9 @@ export async function buildConversationContext(
     .select('sender_type, content_text')
     .eq('conversation_id', conversationId)
     .eq('content_type', 'text')
+    // Internal notes (teammate comments, the "AI answered from" note) are not
+    // part of the conversation with the customer.
+    .eq('is_internal', false)
     .order('created_at', { ascending: false })
     .limit(limit)
 

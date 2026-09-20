@@ -17,8 +17,13 @@ const COMMENT_MAX_LEN = 4000;
 interface PostInternalCommentInput {
   accountId: string;
   conversationId: string;
-  userId: string;
+  /** The author; null for a note the AI bot leaves (see `senderType`). */
+  userId: string | null;
   text: string;
+  /** Defaults to 'agent'. The AI bot's "answered from" note is 'bot'. */
+  senderType?: 'agent' | 'bot';
+  /** Knowledge articles the note points at (messages.kb_sources, migration 077). */
+  kbSources?: { id: string; title: string }[];
   /** Mentioned user_ids — the `notify_message_mentions` DB trigger
    *  (migration 045) turns these into 'mention' notifications. */
   mentions?: string[];
@@ -85,13 +90,14 @@ export async function postInternalComment(
     .from('messages')
     .insert({
       conversation_id: input.conversationId,
-      sender_type: 'agent',
+      sender_type: input.senderType ?? 'agent',
       sender_id: input.userId,
       content_type: 'text',
       content_text: text,
       status: 'sent',
       is_internal: true,
       mentions,
+      ...(input.kbSources && input.kbSources.length > 0 ? { kb_sources: input.kbSources } : {}),
     })
     .select('*')
     .single();

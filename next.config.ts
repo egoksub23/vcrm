@@ -69,6 +69,11 @@ const nextConfig: NextConfig = {
   // Harmless outside Docker: `next start` keeps working as before.
   output: "standalone",
 
+  // Knowledge-base file import reads .docx (mammoth) and PDF (unpdf) on the
+  // server. Both are plain Node packages that are loaded lazily; keeping them
+  // out of the bundle avoids bundler trouble with their internal requires.
+  serverExternalPackages: ["mammoth", "unpdf"],
+
   /**
    * Cross-origin dev access (Next.js 16).
    *

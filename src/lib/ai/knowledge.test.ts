@@ -138,6 +138,51 @@ describe('searchKnowledge — meaning path', () => {
   })
 })
 
+describe('searchKnowledge — includeBelowCutoff (the test box)', () => {
+  it('marks weak keyword matches instead of dropping them, listed after the good ones', async () => {
+    const { db, state } = makeDb()
+    state.fts = [
+      fts('good', 'Pricing', 'Pricing\n\nThe pro plan invoice arrives yearly.'),
+      fts('weak', 'Shipping', 'Shipping takes days.'),
+    ]
+    const q = 'how many days until my invoice arrives for the pro plan yearly subscription'
+    const plain = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, q, { audience: 'ai' })
+    expect(plain.map((x) => x.chunkId)).toEqual(['good'])
+    expect(plain[0].belowCutoff).toBeUndefined()
+
+    const debug = await searchKnowledge(db, 'acct', { embeddingsApiKey: null }, q, { audience: 'ai', includeBelowCutoff: true })
+    expect(debug.map((x) => [x.chunkId, x.belowCutoff ?? false])).toEqual([['good', false], ['weak', true]])
+    expect(debug[1].via).toBe('keyword')
+    expect(debug[1].raw).toBeGreaterThan(0)
+  })
+
+  it('keeps distant meaning matches with their similarity', async () => {
+    h.embedTexts.mockResolvedValue([[0.1]])
+    const { db, state } = makeDb()
+    state.semantic = [sem('close', 'A', 'close', 0.3), sem('far', 'B', 'far', 0.8), sem('farther', 'C', 'farther', 0.9)]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: 'k' }, 'money back', {
+      audience: 'ai',
+      includeBelowCutoff: true,
+    })
+    expect(hits.map((x) => [x.chunkId, x.belowCutoff ?? false])).toEqual([
+      ['close', false],
+      ['far', true],
+      ['farther', true],
+    ])
+    expect(hits[0].raw).toBeCloseTo(0.7)
+    expect(hits[1].raw).toBeCloseTo(0.2)
+  })
+
+  it('never lists a passage twice', async () => {
+    h.embedTexts.mockResolvedValue([[0.1]])
+    const { db, state } = makeDb()
+    state.semantic = [sem('c1', 'A', 'refund policy', 0.3)]
+    state.fts = [fts('c1', 'A', 'refund policy')]
+    const hits = await searchKnowledge(db, 'acct', { embeddingsApiKey: 'k' }, 'refund', { audience: 'ai', includeBelowCutoff: true })
+    expect(hits.map((x) => x.chunkId)).toEqual(['c1'])
+  })
+})
+
 describe('searchKnowledge — shaping', () => {
   it('keeps at most two chunks per article', async () => {
     const { db, state } = makeDb()

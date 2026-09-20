@@ -6,6 +6,7 @@ import {
   buildFtsQuery,
   detectLanguage,
   passesKeywordFloor,
+  termHits,
   type KbLanguage,
 } from './knowledge-query'
 
@@ -38,6 +39,13 @@ export interface KnowledgeHit {
   /** Higher is better; comparable only within one result list. */
   score: number
   via: 'meaning' | 'keyword'
+  /** How well the passage matched on its own, 0 to 1: cosine similarity for
+   *  a meaning match, the share of the question's terms found for a keyword
+   *  match. Unlike `score` it means the same thing across searches. */
+  raw?: number
+  /** Only set on results asked for with `includeBelowCutoff`: the passage
+   *  matched but was too weak for the AI to be shown it. */
+  belowCutoff?: boolean
 }
 
 interface FtsRow {
@@ -132,6 +140,10 @@ export interface SearchOptions {
   /** The customer's language, when known; the query's own language is
    *  used otherwise. Articles in it rank slightly higher. */
   language?: KbLanguage | null
+  /** Also return passages that fell under the relevance cut-off, marked
+   *  `belowCutoff` and listed after the ones that made it. Only the "test it"
+   *  box asks for this; the AI paths never do, so their results are unchanged. */
+  includeBelowCutoff?: boolean
 }
 
 /**
@@ -164,6 +176,7 @@ export async function searchKnowledge(
   const wanted = k * 3
   const meaning: KnowledgeHit[] = []
   const keyword: KnowledgeHit[] = []
+  const below: KnowledgeHit[] = []
 
   if (config.embeddingsApiKey) {
     try {
@@ -180,8 +193,14 @@ export async function searchKnowledge(
         })
         if (!error && Array.isArray(data)) {
           for (const row of data as SemanticRow[]) {
-            if (row.distance > MAX_SEMANTIC_DISTANCE) continue
-            meaning.push({ ...toHit(row), score: 1 - row.distance, via: 'meaning' })
+            const similarity = 1 - row.distance
+            if (row.distance > MAX_SEMANTIC_DISTANCE) {
+              if (opts.includeBelowCutoff) {
+                below.push({ ...toHit(row), score: similarity, raw: similarity, via: 'meaning', belowCutoff: true })
+              }
+              continue
+            }
+            meaning.push({ ...toHit(row), score: similarity, raw: similarity, via: 'meaning' })
           }
         }
       }
@@ -201,8 +220,15 @@ export async function searchKnowledge(
       })
       if (!error && Array.isArray(data)) {
         for (const row of data as FtsRow[]) {
-          if (!passesKeywordFloor(row.content, query)) continue
-          keyword.push({ ...toHit(row), score: row.rank, via: 'keyword' })
+          const { hits: found, total } = termHits(row.content, query)
+          const coverage = total ? found / total : 0
+          if (!passesKeywordFloor(row.content, query)) {
+            if (opts.includeBelowCutoff) {
+              below.push({ ...toHit(row), score: row.rank, raw: coverage, via: 'keyword', belowCutoff: true })
+            }
+            continue
+          }
+          keyword.push({ ...toHit(row), score: row.rank, raw: coverage, via: 'keyword' })
         }
       }
     } catch (err) {
@@ -210,7 +236,20 @@ export async function searchKnowledge(
     }
   }
 
-  return fuse(meaning, keyword, opts.language ?? detectLanguage(query), k)
+  const used = fuse(meaning, keyword, opts.language ?? detectLanguage(query), k)
+  if (!opts.includeBelowCutoff) return used
+
+  const usedChunks = new Set(used.map((h) => h.chunkId))
+  const weak = new Map<string, KnowledgeHit>()
+  for (const h of below) {
+    if (usedChunks.has(h.chunkId)) continue
+    const existing = weak.get(h.chunkId)
+    if (!existing || (h.raw ?? 0) > (existing.raw ?? 0)) weak.set(h.chunkId, h)
+  }
+  const weakest = Array.from(weak.values())
+    .sort((a, b) => (b.raw ?? 0) - (a.raw ?? 0))
+    .slice(0, k)
+  return [...used, ...weakest]
 }
 
 function toHit(row: Omit<FtsRow, 'rank'>): Omit<KnowledgeHit, 'score' | 'via'> {

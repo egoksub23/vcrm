@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import type { ArticleDraftSeed } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
+
+import { buildNewArticleHref } from './library/library-helpers';
 
 type GapStatus = 'open' | 'resolved' | 'dismissed';
 
@@ -18,23 +20,35 @@ interface Gap {
   times_asked: number;
   conversation_id: string | null;
   last_asked_at: string;
+  /** Not in the API yet: shown when present, so the row says where it was asked. */
+  channel?: string | null;
+  /** false = no human agent has replied in that chat, so "Save agent reply" is hidden. */
+  agent_replied?: boolean;
 }
+
+const CHANNEL_NAMES: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  messenger: 'Messenger',
+  instagram: 'Instagram',
+  email: 'Email',
+  gmail: 'Gmail',
+};
 
 /**
  * Questions the AI handed off for lack of an article. Someone writes the
- * article (pre-filled with the customer's words) or dismisses the
- * question; either way it leaves the queue.
+ * article (pre-filled with the customer's words, or with the reply an agent
+ * already gave) or dismisses the question; either way it leaves the queue.
  */
 export function KnowledgeGaps({
   canWrite,
   onCount,
-  onWrite,
 }: {
   canWrite: boolean;
   onCount: (openCount: number) => void;
-  onWrite: (seed: ArticleDraftSeed) => void;
 }) {
   const t = useTranslations('Knowledge.gaps');
+  const router = useRouter();
+  const [replyBusy, setReplyBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<GapStatus>('open');
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [counts, setCounts] = useState<Record<GapStatus, number>>({ open: 0, resolved: 0, dismissed: 0 });
@@ -80,6 +94,47 @@ export function KnowledgeGaps({
     void load(status);
   }
 
+  const write = (g: Gap) =>
+    router.push(
+      buildNewArticleHref({
+        title: g.question,
+        kind: 'qa',
+        sourceConversationId: g.conversation_id,
+        resolvesGapId: g.id,
+      }),
+    );
+
+  // Turns the agent's answer in the chat into the article body; the customer's
+  // question becomes the title.
+  async function saveAgentReply(g: Gap) {
+    setReplyBusy(g.id);
+    try {
+      const res = await fetch(`/api/knowledge/gaps/${g.id}/agent-reply`, { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? t('agentReplyFailed'));
+        return;
+      }
+      if (!data.text) {
+        toast.info(t('noAgentReply'));
+        return;
+      }
+      router.push(
+        buildNewArticleHref({
+          title: g.question,
+          content: data.text,
+          kind: 'qa',
+          sourceConversationId: g.conversation_id,
+          resolvesGapId: g.id,
+        }),
+      );
+    } catch {
+      toast.error(t('agentReplyFailed'));
+    } finally {
+      setReplyBusy(null);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <p className="max-w-2xl text-sm text-muted-foreground">{t('hint')}</p>
@@ -112,7 +167,8 @@ export function KnowledgeGaps({
               <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-medium text-foreground">{g.question}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t('asked', { count: g.times_asked })} ·{' '}
+                  {t('asked', { count: g.times_asked })}
+                  {g.channel ? ` · ${CHANNEL_NAMES[g.channel] ?? t('channelWebWidget')}` : ''} ·{' '}
                   {formatDistanceToNow(new Date(g.last_asked_at), { addSuffix: true })}
                   {g.conversation_id ? (
                     <>
@@ -125,20 +181,21 @@ export function KnowledgeGaps({
                 </p>
               </div>
               {canWrite && (
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                   {status === 'open' ? (
                     <>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          onWrite({
-                            title: g.question,
-                            kind: 'qa',
-                            sourceConversationId: g.conversation_id,
-                            resolvesGapId: g.id,
-                          })
-                        }
-                      >
+                      {g.conversation_id && g.agent_replied !== false && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void saveAgentReply(g)}
+                          disabled={replyBusy === g.id}
+                        >
+                          {replyBusy === g.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                          {t('saveAgentReply')}
+                        </Button>
+                      )}
+                      <Button size="sm" onClick={() => write(g)}>
                         {t('writeArticle')}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => void setGapStatus(g.id, 'dismissed')}>

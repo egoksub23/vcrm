@@ -3,6 +3,7 @@ import { loadAiConfig } from './config'
 import { buildConversationContext, getPreferredLanguage } from './context'
 import { logKnowledgeGap, logKnowledgeUse, searchKnowledge } from './knowledge'
 import { normalizeLanguage } from './knowledge-query'
+import { citedDocumentIds, extractCitations } from './citations'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -10,6 +11,9 @@ import { logAiUsage } from './usage'
 import { AiError } from './types'
 import { latestUserMessage, recentCustomerText } from './query'
 import { loadAccountMetaCredentials } from '@/lib/flows/meta-send'
+import { groupHitsByArticle } from '@/lib/knowledge/excerpts'
+import { loadSendableAttachments, sendKnowledgeAttachments } from '@/lib/knowledge/attachments'
+import { postSourcesNote } from '@/lib/knowledge/sources-note'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { sendTypingIndicator } from '@/lib/whatsapp/meta-api'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -128,7 +132,9 @@ export async function dispatchInboundToAiReply(
       k: 5,
       language: normalizeLanguage(preferredLanguage),
     })
-    const knowledge = hits.map((h) => h.content)
+    // One numbered excerpt per article, so the model's [n] citations map
+    // straight to the article (for its files and the "answered from" note).
+    const { excerpts: knowledge, documents: excerptDocs } = groupHitsByArticle(hits)
     void logKnowledgeUse(db, { accountId, conversationId, mode: 'auto_reply', hits })
 
     const systemPrompt = buildSystemPrompt({
@@ -138,7 +144,7 @@ export async function dispatchInboundToAiReply(
       preferredLanguage,
     })
 
-    const { text, handoff, usage } = await generateReply({
+    const { text: rawText, handoff, usage } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -159,6 +165,9 @@ export async function dispatchInboundToAiReply(
       model: config.model,
       usage,
     })
+
+    // The [n] markers are for us; the customer never sees them.
+    const { text, cited } = extractCitations(rawText, knowledge.length)
 
     if (handoff || !text) {
       // Nothing in the knowledge base matched, so a human is needed for
@@ -224,6 +233,11 @@ export async function dispatchInboundToAiReply(
       senderType: 'bot',
       aiGenerated: true,
     })
+
+    // The reply went out. Now the files of the articles it drew on, and an
+    // internal note saying which articles those were. Both are best-effort:
+    // neither can undo or fail the reply the customer already has.
+    await sendSourcesAfterReply(db, accountId, conversationId, cited, excerptDocs)
   } catch (err) {
     if (err instanceof AiError && err.code === 'budget_exceeded') {
       // Over the monthly budget: stand down; the message waits for a human.
@@ -256,5 +270,33 @@ async function showTypingIndicator(
     })
   } catch (err) {
     console.warn('[ai auto-reply] typing indicator failed (continuing):', err)
+  }
+}
+
+/**
+ * After an AI text reply: send the cited articles' files (those switched on
+ * for AI answers) and leave the internal "AI answered from" note. Never throws.
+ */
+async function sendSourcesAfterReply(
+  db: ReturnType<typeof supabaseAdmin>,
+  accountId: string,
+  conversationId: string,
+  cited: number[],
+  documents: { id: string; title: string }[],
+): Promise<void> {
+  try {
+    const ids = citedDocumentIds(cited, documents.map((d) => d.id))
+    if (ids.length === 0) return
+    const files = await loadSendableAttachments(db, accountId, ids)
+    await sendKnowledgeAttachments(db, accountId, { conversationId, attachments: files })
+    const byId = new Map(documents.map((d) => [d.id, d]))
+    await postSourcesNote(
+      db,
+      accountId,
+      conversationId,
+      ids.map((id) => byId.get(id)!).filter(Boolean),
+    )
+  } catch (err) {
+    console.error('[ai auto-reply] post-reply sources step failed:', err)
   }
 }

@@ -51,3 +51,49 @@ describe('parseDocInput (update)', () => {
     expect(parseDocInput({ title: '   ' }, { partial: true }).ok).toBe(false)
   })
 })
+
+describe('parseDocInput (rich text and collections)', () => {
+  it('derives plain content from sanitised html and ignores the client content', () => {
+    const r = parseDocInput(
+      { title: 'T', content: 'client-supplied text', content_html: '<p>Hello <strong>world</strong></p><script>x</script>' },
+      { partial: false },
+    )
+    expect(r).toEqual({
+      ok: true,
+      fields: { title: 'T', content: 'Hello world', content_html: '<p>Hello <strong>world</strong></p>' },
+    })
+  })
+
+  it('accepts html alone on create', () => {
+    const r = parseDocInput({ title: 'T', content_html: '<ul><li>a</li></ul>' }, { partial: false })
+    expect(r).toEqual({ ok: true, fields: { title: 'T', content: '- a', content_html: '<ul><li>a</li></ul>' } })
+  })
+
+  it('rejects html with no text in it', () => {
+    expect(parseDocInput({ title: 'T', content_html: '<p></p><script>x</script>' }, { partial: false })).toEqual({
+      ok: false,
+      error: 'content cannot be empty',
+    })
+  })
+
+  it('rejects oversized html and non-text html', () => {
+    expect(parseDocInput({ title: 'T', content_html: 'x'.repeat(200001) }, { partial: false }).ok).toBe(false)
+    expect(parseDocInput({ title: 'T', content_html: 5 }, { partial: false }).ok).toBe(false)
+    expect(parseDocInput({ title: 'T', content_html: '<p>' + 'x'.repeat(20001) + '</p>' }, { partial: false }).ok).toBe(false)
+  })
+
+  it('allows clearing the rich version on update', () => {
+    expect(parseDocInput({ content_html: null }, { partial: true })).toEqual({ ok: true, fields: { content_html: null } })
+  })
+
+  it('validates collection_id', () => {
+    const id = '0f8fad5b-d9cb-469f-a165-70867728950e'
+    expect(parseDocInput({ collection_id: id }, { partial: true })).toEqual({ ok: true, fields: { collection_id: id } })
+    expect(parseDocInput({ collection_id: null }, { partial: true })).toEqual({ ok: true, fields: { collection_id: null } })
+    expect(parseDocInput({ collection_id: '' }, { partial: true })).toEqual({ ok: true, fields: { collection_id: null } })
+    expect(parseDocInput({ collection_id: 'nope' }, { partial: true })).toEqual({
+      ok: false,
+      error: 'collection_id must be a collection id',
+    })
+  })
+})

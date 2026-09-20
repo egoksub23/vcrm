@@ -18,7 +18,11 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!body || !['open', 'resolved', 'dismissed'].includes(body.status as string)) {
       return NextResponse.json({ error: 'status must be open, resolved or dismissed' }, { status: 400 })
     }
-    const update: Record<string, unknown> = { status: body.status }
+    // resolved_at feeds the Insights "handoffs fixed" window.
+    const update: Record<string, unknown> = {
+      status: body.status,
+      resolved_at: body.status === 'resolved' ? new Date().toISOString() : null,
+    }
     if (typeof body.resolved_document_id === 'string') {
       update.resolved_document_id = body.resolved_document_id
     }

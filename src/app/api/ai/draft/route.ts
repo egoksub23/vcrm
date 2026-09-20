@@ -5,6 +5,9 @@ import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext, getPreferredLanguage } from '@/lib/ai/context'
 import { logKnowledgeUse, searchKnowledge } from '@/lib/ai/knowledge'
 import { normalizeLanguage } from '@/lib/ai/knowledge-query'
+import { citedDocumentIds, extractCitations } from '@/lib/ai/citations'
+import { buildSources, groupHitsByArticle } from '@/lib/knowledge/excerpts'
+import { loadSendableAttachments } from '@/lib/knowledge/attachments'
 import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
@@ -16,7 +19,10 @@ import { AiError } from '@/lib/ai/types'
  * POST /api/ai/draft  (agent+)
  *
  * Body: { conversation_id }
- * Returns: { draft } — a suggested reply for the agent to edit + send.
+ * Returns: { draft, sources, attachments } — a suggested reply for the agent
+ * to edit + send, the knowledge articles it was based on (`KnowledgeSource[]`)
+ * and the files of those articles that go with an AI answer
+ * (`KnowledgeAttachment[]`). Both lists are empty when no article was used.
  *
  * Uses the account's configured provider/key (BYO). Read-only: it never
  * sends or stores anything, just hands text back to the composer.
@@ -98,7 +104,9 @@ export async function POST(request: Request) {
       k: 5,
       language: normalizeLanguage(preferredLanguage),
     })
-    const knowledge = hits.map((h) => h.content)
+    // One numbered excerpt per article, so the model's [n] citations map
+    // straight to an article.
+    const { excerpts: knowledge, documents: excerptDocs } = groupHitsByArticle(hits)
     void logKnowledgeUse(supabase, { accountId, conversationId, mode: 'draft', hits })
 
     const systemPrompt = buildSystemPrompt({
@@ -108,7 +116,7 @@ export async function POST(request: Request) {
       preferredLanguage,
     })
 
-    const { text, usage } = await generateReply({
+    const { text: rawText, usage } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -136,7 +144,16 @@ export async function POST(request: Request) {
       console.error('[ai/draft] usage log skipped:', logErr)
     }
 
-    return NextResponse.json({ draft: text })
+    // The [n] markers are for us, not for the draft the agent edits.
+    const { text, cited } = extractCitations(rawText, knowledge.length)
+    const articleIds = citedDocumentIds(cited, excerptDocs.map((d) => d.id))
+    const attachments = await loadSendableAttachments(supabase, accountId, articleIds)
+
+    return NextResponse.json({
+      draft: text,
+      sources: buildSources(articleIds, excerptDocs),
+      attachments,
+    })
   } catch (err) {
     if (err instanceof AiError) {
       return NextResponse.json(

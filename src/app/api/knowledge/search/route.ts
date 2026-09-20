@@ -4,6 +4,8 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadEmbeddingsConfig } from '@/lib/ai/config'
 import { searchKnowledge } from '@/lib/ai/knowledge'
 import { normalizeLanguage } from '@/lib/ai/knowledge-query'
+import { loadAttachments } from '@/lib/knowledge/articles'
+import type { KnowledgeSearchResult } from '@/lib/knowledge-types'
 
 const MAX_QUERY_CHARS = 600
 const SNIPPET_CHARS = 320
@@ -20,7 +22,8 @@ function stripTitle(content: string, title: string): string {
  *
  * The agents' search: the same retrieval the AI uses, but with no model
  * call, so it is instant and free. Published articles only (agents-only
- * ones included). One result per article, best passage first.
+ * ones included). One result per article, best passage first, with the
+ * article's rich text and files so an agent can insert them into a reply.
  */
 export async function GET(request: Request) {
   try {
@@ -49,12 +52,13 @@ export async function GET(request: Request) {
 
     const { data: docs } = await supabase
       .from('ai_knowledge_documents')
-      .select('id, kind, content, use_in_ai')
+      .select('id, kind, content, content_html, use_in_ai')
       .in('id', top.map((h) => h.documentId))
     const byId = new Map((docs ?? []).map((d) => [d.id as string, d]))
+    const attachments = await loadAttachments(supabase, accountId, top.map((h) => h.documentId))
 
     return NextResponse.json({
-      results: top.map((h) => {
+      results: top.map((h): KnowledgeSearchResult => {
         const doc = byId.get(h.documentId)
         return {
           id: h.documentId,
@@ -65,7 +69,9 @@ export async function GET(request: Request) {
           use_in_ai: doc?.use_in_ai ?? true,
           snippet: stripTitle(h.content, h.title).slice(0, SNIPPET_CHARS),
           body: ((doc?.content as string | undefined) ?? stripTitle(h.content, h.title)).slice(0, BODY_CHARS),
+          body_html: (doc?.content_html as string | null | undefined) ?? null,
           via: h.via,
+          attachments: attachments.get(h.documentId) ?? [],
         }
       }),
     })

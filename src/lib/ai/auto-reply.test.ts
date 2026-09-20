@@ -13,6 +13,9 @@ const h = vi.hoisted(() => ({
   sendMessageToConversation: vi.fn(),
   loadAccountMetaCredentials: vi.fn(),
   sendTypingIndicator: vi.fn(),
+  loadSendableAttachments: vi.fn(),
+  sendKnowledgeAttachments: vi.fn(),
+  postSourcesNote: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
     autoResponders: [] as { id: string }[],
@@ -33,6 +36,11 @@ vi.mock('./knowledge', () => ({
   logKnowledgeGap: h.logKnowledgeGap,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+vi.mock('@/lib/knowledge/attachments', () => ({
+  loadSendableAttachments: h.loadSendableAttachments,
+  sendKnowledgeAttachments: h.sendKnowledgeAttachments,
+}))
+vi.mock('@/lib/knowledge/sources-note', () => ({ postSourcesNote: h.postSourcesNote }))
 vi.mock('@/lib/flows/meta-send', () => ({
   loadAccountMetaCredentials: h.loadAccountMetaCredentials,
 }))
@@ -124,6 +132,12 @@ beforeEach(() => {
     accessToken: 'tok',
   })
   h.sendTypingIndicator.mockResolvedValue(undefined)
+  h.loadSendableAttachments.mockReset()
+  h.sendKnowledgeAttachments.mockReset()
+  h.postSourcesNote.mockReset()
+  h.loadSendableAttachments.mockResolvedValue([])
+  h.sendKnowledgeAttachments.mockResolvedValue({ sent: 0, linked: 0, skipped: 0, failed: 0 })
+  h.postSourcesNote.mockResolvedValue(undefined)
 })
 
 describe('dispatchInboundToAiReply — eligibility gates', () => {
@@ -344,5 +358,102 @@ describe('dispatchInboundToAiReply — handoff', () => {
       ai_autoreply_disabled: true,
       assigned_agent_id: 'agent-7',
     })
+  })
+})
+
+const hit = (chunkId: string, documentId: string, title: string, body: string) => ({
+  chunkId, documentId, title, category: null, language: 'en', content: `${title}\n\n${body}`, score: 1, via: 'keyword',
+})
+
+describe('dispatchInboundToAiReply — citations, files and the sources note', () => {
+  it('numbers one excerpt per article and never shows the customer a [n] marker', async () => {
+    h.searchKnowledge.mockResolvedValue([
+      hit('c1', 'dA', 'Refunds', 'Within 14 days.'),
+      hit('c2', 'dB', 'Hours', 'Nine to six.'),
+      hit('c3', 'dA', 'Refunds', 'Keep the receipt.'),
+    ])
+    h.generateReply.mockResolvedValue({ text: 'Refunds take 14 days [1]. We open at 9 [2].', handoff: false })
+    await dispatchInboundToAiReply(ARGS)
+
+    const prompt = h.generateReply.mock.calls[0][0].systemPrompt as string
+    expect(prompt).toContain('[1] Refunds\n\nWithin 14 days.\n\nKeep the receipt.')
+    expect(prompt).toContain('[2] Hours\n\nNine to six.')
+    expect(prompt).not.toContain('[3]')
+    expect(h.sendMessageToConversation).toHaveBeenCalledWith(
+      expect.anything(),
+      'acct-1',
+      expect.objectContaining({ contentText: 'Refunds take 14 days. We open at 9.' }),
+    )
+  })
+
+  it("sends the cited articles' files after the text and posts the sources note", async () => {
+    const files = [{ id: 'f1', document_id: 'dB', file_name: 'hours.pdf', url: 'https://x/hours.pdf' }]
+    h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a'), hit('c2', 'dB', 'Hours', 'b')])
+    h.generateReply.mockResolvedValue({ text: 'We open at 9 [2].', handoff: false })
+    h.loadSendableAttachments.mockResolvedValue(files)
+    await dispatchInboundToAiReply(ARGS)
+
+    // only article B was cited
+    expect(h.loadSendableAttachments).toHaveBeenCalledWith(expect.anything(), 'acct-1', ['dB'])
+    expect(h.sendKnowledgeAttachments).toHaveBeenCalledWith(expect.anything(), 'acct-1', {
+      conversationId: 'conv-1',
+      attachments: files,
+    })
+    expect(h.postSourcesNote).toHaveBeenCalledWith(expect.anything(), 'acct-1', 'conv-1', [{ id: 'dB', title: 'Hours' }])
+    // text first, files after
+    expect(h.sendMessageToConversation.mock.invocationCallOrder[0]).toBeLessThan(
+      h.sendKnowledgeAttachments.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('falls back to the best-ranked article when the model cites nothing', async () => {
+    h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a'), hit('c2', 'dB', 'Hours', 'b')])
+    h.generateReply.mockResolvedValue({ text: 'Refunds take 14 days.', handoff: false })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.loadSendableAttachments).toHaveBeenCalledWith(expect.anything(), 'acct-1', ['dA'])
+    expect(h.postSourcesNote).toHaveBeenCalledWith(expect.anything(), 'acct-1', 'conv-1', [{ id: 'dA', title: 'Refunds' }])
+  })
+
+  it('sends no files and no note when no article was retrieved', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.loadSendableAttachments).not.toHaveBeenCalled()
+    expect(h.sendKnowledgeAttachments).not.toHaveBeenCalled()
+    expect(h.postSourcesNote).not.toHaveBeenCalled()
+  })
+
+  it('sends no files on a handoff', async () => {
+    h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a')])
+    h.generateReply.mockResolvedValue({ text: '', handoff: true })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.sendKnowledgeAttachments).not.toHaveBeenCalled()
+    expect(h.postSourcesNote).not.toHaveBeenCalled()
+  })
+
+  it('does not attach files when the reply slot was lost', async () => {
+    h.state.claim = false
+    h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a')])
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.sendKnowledgeAttachments).not.toHaveBeenCalled()
+  })
+
+  it('a failing file step cannot undo or break the reply', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a')])
+    h.generateReply.mockResolvedValue({ text: 'Answer [1].', handoff: false })
+    h.loadSendableAttachments.mockRejectedValue(new Error('db down'))
+    await expect(dispatchInboundToAiReply(ARGS)).resolves.toBeUndefined()
+    expect(h.sendMessageToConversation).toHaveBeenCalledTimes(1)
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('sources step failed'), expect.any(Error))
+    error.mockRestore()
+  })
+
+  it('leaves text without excerpts alone (nothing to cite)', async () => {
+    h.generateReply.mockResolvedValue({ text: 'Option [1] is popular.', handoff: false })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.sendMessageToConversation).toHaveBeenCalledWith(
+      expect.anything(),
+      'acct-1',
+      expect.objectContaining({ contentText: 'Option [1] is popular.' }),
+    )
   })
 })

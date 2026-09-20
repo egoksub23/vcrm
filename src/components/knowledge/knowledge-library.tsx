@@ -4,65 +4,99 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { BookOpen, HelpCircle, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { BookOpen, Loader2, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
 import { KB_LANGUAGES, KB_LANGUAGE_LABELS } from '@/lib/ai/knowledge-query';
-import type { ArticleDraftSeed, KnowledgeDocSummary } from '@/lib/knowledge-types';
+import type { KnowledgeCollection, KnowledgeDocSummary, KnowledgeLibraryResponse } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { ArticleDialog } from './article-dialog';
 import { KnowledgeGaps } from './knowledge-gaps';
-
-type FullArticle = NonNullable<React.ComponentProps<typeof ArticleDialog>['article']>;
+import { AddContentMenu } from './library/add-content-menu';
+import { ArticleTable } from './library/article-table';
+import { CollectionsDialog } from './library/collections-dialog';
+import { selectClass } from './library/import-shared';
+import { InsightsView } from './library/insights-view';
+import { LibraryRail } from './library/library-rail';
+import { collectionIdOfView, countDocs, filterDocs, isListView, type LibraryView } from './library/library-helpers';
 
 const chip = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap';
-const selectClass =
-  'h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary/50';
 
-const isReviewDue = (d: KnowledgeDocSummary) =>
-  !!d.review_by && d.review_by <= format(new Date(), 'yyyy-MM-dd');
+function StatTile({
+  label,
+  value,
+  onClick,
+  urgent,
+}: {
+  label: string;
+  value: number;
+  onClick?: () => void;
+  urgent?: boolean;
+}) {
+  const body = (
+    <>
+      <span className={cn('block text-2xl font-semibold tabular-nums', urgent ? 'text-destructive' : 'text-foreground')}>
+        {value}
+      </span>
+      <span className="mt-0.5 block text-xs text-muted-foreground">{label}</span>
+    </>
+  );
+  const cls = 'rounded-xl border border-border bg-card p-3 text-left';
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cn(cls, 'transition-colors hover:bg-muted/50')}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
 
-/** The knowledge library page: every article, plus the queue of questions
- *  the AI could not answer. */
+/** The knowledge library page: a rail of collections and views, the stats,
+ *  and the table of articles, plus the unanswered questions and insights. */
 export function KnowledgeLibrary() {
   const t = useTranslations('Knowledge');
+  const tl = useTranslations('Knowledge.library');
   const { user } = useAuth();
   const isAdmin = useCan('edit-settings');
   const canWrite = useCan('send-messages');
 
   const [docs, setDocs] = useState<KnowledgeDocSummary[]>([]);
+  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [searchMode, setSearchMode] = useState<'meaning' | 'keyword'>('keyword');
+  const [windowDays, setWindowDays] = useState(30);
+  const [aiAnswers, setAiAnswers] = useState(0);
+  const [openGaps, setOpenGaps] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const [view, setView] = useState<LibraryView>('all');
   const [q, setQ] = useState('');
   const [lang, setLang] = useState('');
-  const [status, setStatus] = useState('');
-  const [category, setCategory] = useState('');
-  const [dialog, setDialog] = useState<{
-    key: number;
-    article: FullArticle | null;
-    seed?: ArticleDraftSeed;
-  } | null>(null);
   const [reindexing, setReindexing] = useState(false);
-  const [tab, setTab] = useState('articles');
-  const [gapCount, setGapCount] = useState(0);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [managing, setManaging] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/knowledge', { cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as Partial<KnowledgeLibraryResponse> & { error?: string };
       if (!res.ok) {
+        setLoadFailed(true);
         toast.error(data.error ?? t('loadFailed'));
         return;
       }
       setDocs(data.documents ?? []);
+      setCollections(data.collections ?? []);
       setSearchMode(data.search_mode === 'meaning' ? 'meaning' : 'keyword');
-      setGapCount(data.open_gaps ?? 0);
+      setWindowDays(data.use_window_days ?? 30);
+      setAiAnswers(data.ai_answers_30d ?? 0);
+      setOpenGaps(data.open_gaps ?? 0);
+      setLoadFailed(false);
     } catch {
+      setLoadFailed(true);
       toast.error(t('loadFailed'));
     } finally {
       setLoading(false);
@@ -73,70 +107,99 @@ export function KnowledgeLibrary() {
     void load();
   }, [load]);
 
-  const categories = useMemo(
-    () => Array.from(new Set(docs.map((d) => d.category).filter((c): c is string => !!c))).sort(),
-    [docs],
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const counts = useMemo(() => countDocs(docs, today), [docs, today]);
+  const shown = useMemo(
+    () => filterDocs(docs, { view, language: lang, query: q, today }),
+    [docs, view, lang, q, today],
   );
 
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return docs.filter((d) => {
-      if (lang && d.language !== lang) return false;
-      if (category && d.category !== category) return false;
-      if (status === 'published' && d.status !== 'published') return false;
-      if (status === 'draft' && d.status !== 'draft') return false;
-      if (status === 'review' && !isReviewDue(d)) return false;
-      if (status === 'agents' && d.use_in_ai) return false;
-      if (needle && !`${d.title} ${d.category ?? ''}`.toLowerCase().includes(needle)) return false;
-      return true;
-    });
-  }, [docs, q, lang, status, category]);
+  // A collection that was deleted while it was selected has nothing to show.
+  const viewCollectionId = collectionIdOfView(view);
+  useEffect(() => {
+    if (viewCollectionId && !loading && !collections.some((c) => c.id === viewCollectionId)) setView('all');
+  }, [viewCollectionId, collections, loading]);
 
   const canManage = (d: KnowledgeDocSummary) =>
     isAdmin || (canWrite && d.status === 'draft' && d.created_by === user?.id);
 
-  const openNew = (seed?: ArticleDraftSeed) => setDialog({ key: Date.now(), article: null, seed });
-
-  async function openEdit(id: string) {
-    try {
-      const res = await fetch(`/api/knowledge/${id}`, { cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? t('openFailed'));
-        return;
-      }
-      setDialog({ key: Date.now(), article: data as FullArticle });
-    } catch {
-      toast.error(t('openFailed'));
-    }
-  }
-
   async function remove(d: KnowledgeDocSummary) {
     if (!window.confirm(t('deleteConfirm', { title: d.title }))) return;
-    const res = await fetch(`/api/knowledge/${d.id}`, { method: 'DELETE' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(data.error ?? t('deleteFailed'));
-      return;
+    setBusyId(d.id);
+    try {
+      const res = await fetch(`/api/knowledge/${d.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? t('deleteFailed'));
+        return;
+      }
+      setDocs((prev) => prev.filter((x) => x.id !== d.id));
+      toast.success(t('deleted'));
+    } catch {
+      toast.error(t('deleteFailed'));
+    } finally {
+      setBusyId(null);
     }
-    setDocs((prev) => prev.filter((x) => x.id !== d.id));
-    toast.success(t('deleted'));
   }
 
   async function publish(d: KnowledgeDocSummary) {
-    const res = await fetch(`/api/knowledge/${d.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'published' }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(data.error ?? t('publishFailed'));
-      return;
+    setBusyId(d.id);
+    try {
+      const res = await fetch(`/api/knowledge/${d.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'published' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? t('publishFailed'));
+        return;
+      }
+      if (data.warning) toast.warning(data.warning);
+      else toast.success(t('published'));
+      await load();
+    } catch {
+      toast.error(t('publishFailed'));
+    } finally {
+      setBusyId(null);
     }
-    if (data.warning) toast.warning(data.warning);
-    else toast.success(t('published'));
-    void load();
+  }
+
+  async function resync(d: KnowledgeDocSummary) {
+    setBusyId(d.id);
+    try {
+      const res = await fetch(`/api/knowledge/${d.id}/resync`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? tl('resyncFailed'));
+        return;
+      }
+      toast.success(tl('resynced'));
+      await load();
+    } catch {
+      toast.error(tl('resyncFailed'));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // The list rows do not carry the source address, so it is fetched on
+  // demand. The tab is opened first, inside the click, or the pop-up
+  // blocker would stop a window opened after the request.
+  async function openSource(d: KnowledgeDocSummary) {
+    const tab = window.open('', '_blank');
+    if (tab) tab.opener = null;
+    try {
+      const res = await fetch(`/api/knowledge/${d.id}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      const url = typeof data.source_url === 'string' ? data.source_url : '';
+      if (!res.ok || !/^https?:\/\//i.test(url)) throw new Error('no source');
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      tab?.close();
+      toast.error(tl('sourceFailed'));
+    }
   }
 
   async function reindex() {
@@ -153,10 +216,10 @@ export function KnowledgeLibrary() {
     }
   }
 
-  const pendingReview = docs.filter((d) => d.status === 'draft').length;
+  const listView = isListView(view);
 
   return (
-    <div className="mx-auto flex h-full max-w-6xl flex-col gap-4 overflow-y-auto p-4 md:p-6">
+    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-y-auto p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
@@ -177,208 +240,126 @@ export function KnowledgeLibrary() {
               {t('reindex')}
             </Button>
           )}
-          {canWrite && (
-            <Button size="sm" onClick={() => openNew()}>
-              <Plus className="mr-1.5 h-4 w-4" /> {t('add')}
-            </Button>
-          )}
+          {canWrite && <AddContentMenu collections={collections} onImported={() => void load()} />}
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="articles">
-            <BookOpen className="mr-1.5 h-4 w-4" /> {t('tabArticles')}
-          </TabsTrigger>
-          <TabsTrigger value="gaps">
-            <HelpCircle className="mr-1.5 h-4 w-4" /> {t('tabGaps')}
-            {gapCount > 0 && (
-              <span className={cn(chip, 'ml-1.5 bg-destructive/15 text-destructive')}>{gapCount}</span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : loadFailed && docs.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border p-10 text-center">
+          <p className="text-sm text-muted-foreground">{t('loadFailed')}</p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
+          >
+            {tl('retry')}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+          <LibraryRail
+            view={view}
+            onView={setView}
+            counts={counts}
+            collections={collections}
+            openGaps={openGaps}
+            isAdmin={isAdmin}
+            onManageCollections={() => setManaging(true)}
+          />
 
-        <TabsContent value="articles" className="mt-4 space-y-3">
-          {isAdmin && pendingReview > 0 && (
-            <button
-              type="button"
-              onClick={() => setStatus('draft')}
-              className="w-full rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-700 dark:text-amber-400"
-            >
-              {t('draftsWaiting', { count: pendingReview })}
-            </button>
-          )}
+          <div className="min-w-0 flex-1 space-y-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatTile label={tl('stats.articles')} value={counts.all} />
+              <StatTile label={tl('stats.published')} value={counts.published} />
+              <StatTile label={tl('stats.aiAnswers', { days: windowDays })} value={aiAnswers} />
+              <StatTile
+                label={tl('stats.unanswered')}
+                value={openGaps}
+                urgent={openGaps > 0}
+                onClick={() => setView('gaps')}
+              />
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="h-9 max-w-xs"
-              aria-label={t('searchPlaceholder')}
-            />
-            <select className={selectClass} value={lang} onChange={(e) => setLang(e.target.value)} aria-label={t('filterLanguage')}>
-              <option value="">{t('allLanguages')}</option>
-              {KB_LANGUAGES.map((l) => (
-                <option key={l} value={l}>
-                  {KB_LANGUAGE_LABELS[l]}
-                </option>
-              ))}
-            </select>
-            <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('filterStatus')}>
-              <option value="">{t('allStatuses')}</option>
-              <option value="published">{t('statusPublished')}</option>
-              <option value="draft">{t('statusDraft')}</option>
-              <option value="review">{t('reviewDue')}</option>
-              <option value="agents">{t('audienceAgents')}</option>
-            </select>
-            {categories.length > 0 && (
-              <select className={selectClass} value={category} onChange={(e) => setCategory(e.target.value)} aria-label={t('filterCategory')}>
-                <option value="">{t('allCategories')}</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+            {view === 'gaps' ? (
+              <KnowledgeGaps canWrite={canWrite} onCount={setOpenGaps} />
+            ) : view === 'insights' ? (
+              <InsightsView />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={tl('searchPlaceholder')}
+                    className="h-9 min-w-0 max-w-xs flex-1"
+                    aria-label={tl('searchPlaceholder')}
+                  />
+                  <select
+                    className={cn(selectClass, 'w-auto')}
+                    value={lang}
+                    onChange={(e) => setLang(e.target.value)}
+                    aria-label={t('filterLanguage')}
+                  >
+                    <option value="">{t('allLanguages')}</option>
+                    {KB_LANGUAGES.map((l) => (
+                      <option key={l} value={l}>
+                        {KB_LANGUAGE_LABELS[l]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {docs.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                    <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-3 text-sm font-medium text-foreground">{t('emptyTitle')}</p>
+                    <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{t('emptyBody')}</p>
+                    {canWrite && (
+                      <div className="mt-4 flex justify-center">
+                        <AddContentMenu collections={collections} onImported={() => void load()} />
+                      </div>
+                    )}
+                  </div>
+                ) : shown.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">{tl('noMatches')}</p>
+                ) : (
+                  listView && (
+                    <ArticleTable
+                      docs={shown}
+                      collections={collections}
+                      today={today}
+                      isAdmin={isAdmin}
+                      canManage={canManage}
+                      busyId={busyId}
+                      onPublish={(d) => void publish(d)}
+                      onDelete={(d) => void remove(d)}
+                      onResync={(d) => void resync(d)}
+                      onOpenSource={(d) => void openSource(d)}
+                    />
+                  )
+                )}
+              </>
             )}
           </div>
+        </div>
+      )}
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : docs.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-10 text-center">
-              <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm font-medium text-foreground">{t('emptyTitle')}</p>
-              <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{t('emptyBody')}</p>
-              {canWrite && (
-                <Button className="mt-4" size="sm" onClick={() => openNew()}>
-                  <Plus className="mr-1.5 h-4 w-4" /> {t('add')}
-                </Button>
-              )}
-            </div>
-          ) : shown.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">{t('noMatches')}</p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-muted text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">{t('colTitle')}</th>
-                    <th className="px-3 py-2 font-medium">{t('colLanguage')}</th>
-                    <th className="px-3 py-2 font-medium">{t('colAudience')}</th>
-                    <th className="px-3 py-2 font-medium">{t('colStatus')}</th>
-                    <th className="px-3 py-2 text-right font-medium" title={t('colAiUsesHint')}>
-                      {t('colAiUses')}
-                    </th>
-                    <th className="px-3 py-2 font-medium">{t('colUpdated')}</th>
-                    <th className="w-24 px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {shown.map((d) => (
-                    <tr key={d.id} className="align-top hover:bg-muted/40">
-                      <td className="max-w-[320px] px-3 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => void openEdit(d.id)}
-                          className="block max-w-full truncate text-left font-medium text-foreground hover:underline"
-                        >
-                          {d.title}
-                        </button>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {d.kind === 'qa' ? t('kindQa') : t('kindArticle')}
-                          {d.category ? ` · ${d.category}` : ''}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">{KB_LANGUAGE_LABELS[d.language]}</td>
-                      <td className="px-3 py-2.5">
-                        <span className={cn(chip, d.use_in_ai ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground')}>
-                          {d.use_in_ai ? t('audienceAi') : t('audienceAgents')}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        {d.status === 'draft' ? (
-                          <span className={cn(chip, 'bg-amber-500/15 text-amber-700 dark:text-amber-400')}>
-                            {t('statusDraft')}
-                          </span>
-                        ) : isReviewDue(d) ? (
-                          <span className={cn(chip, 'bg-amber-500/15 text-amber-700 dark:text-amber-400')}>
-                            {t('reviewDue')}
-                          </span>
-                        ) : (
-                          <span className={cn(chip, 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400')}>
-                            {t('statusPublished')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                        {d.use_in_ai && d.status === 'published' ? d.ai_uses : '–'}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
-                        {format(new Date(d.updated_at), 'MMM d, yyyy')}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          {isAdmin && d.status === 'draft' && (
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void publish(d)}>
-                              {t('publish')}
-                            </Button>
-                          )}
-                          {canManage(d) && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => void openEdit(d.id)}
-                                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                aria-label={t('edit')}
-                                title={t('edit')}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void remove(d)}
-                                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
-                                aria-label={t('delete')}
-                                title={t('delete')}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="gaps" className="mt-4">
-          <KnowledgeGaps
-            canWrite={canWrite}
-            onCount={setGapCount}
-            onWrite={(seed) => openNew(seed)}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {dialog && (
-        <ArticleDialog
-          key={dialog.key}
+      {managing && (
+        <CollectionsDialog
           open
           onOpenChange={(o) => {
-            if (!o) setDialog(null);
+            if (!o) setManaging(false);
           }}
-          article={dialog.article}
-          seed={dialog.seed}
-          categories={categories}
-          onSaved={() => void load()}
+          collections={collections}
+          onChanged={() => void load()}
         />
       )}
     </div>
