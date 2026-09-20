@@ -357,6 +357,9 @@ export type NotificationType =
   /** Migration 085: the Jira connection needs reconnecting / a linked Jira issue reached Done. */
   | 'jira_reauth_required'
   | 'jira_issue_done'
+  /** Migration 086: a ticket's SLA target is close to its limit / was missed. */
+  | 'ticket_sla_at_risk'
+  | 'ticket_sla_breached'
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
   | 'ai_budget';
 
@@ -430,6 +433,18 @@ export interface Ticket {
   board_rank?: number;
   created_at: string;
   updated_at: string;
+  // Migration 086 (ticket SLA). Written only by the database; see src/lib/sla.
+  sla_policy_id?: string | null;
+  sla_first_response_due_at?: string | null;
+  sla_first_response_risk_at?: string | null;
+  sla_first_response_at?: string | null;
+  sla_first_response_state?: 'none' | 'running' | 'paused' | 'met' | 'breached';
+  sla_resolution_due_at?: string | null;
+  sla_resolution_risk_at?: string | null;
+  sla_resolution_state?: 'none' | 'running' | 'paused' | 'met' | 'breached';
+  sla_paused_at?: string | null;
+  sla_stopped_at?: string | null;
+  sla_evaluated_at?: string | null;
   // Optional joins, populated by callers that need them.
   contact?: Contact;
   assigned_team?: Team;
@@ -563,6 +578,9 @@ export interface TicketAttachment {
   mime_type: string;
   size_bytes: number;
   uploaded_by?: string | null;
+  /** Migration 087: 'jira' for a file copied from a linked Jira issue. */
+  source?: 'vircle' | 'jira';
+  jira_attachment_id?: string | null;
   created_at: string;
 }
 

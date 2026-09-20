@@ -23,7 +23,7 @@ import type { Profile, Team } from "@/types";
 import { PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 import { SavedFiltersMenu } from "./ticket-saved-filters";
 
-const QUICK: QuickFilter[] = ["mine", "unassigned", "overdue", "today"];
+const QUICK: QuickFilter[] = ["mine", "unassigned", "overdue", "today", "sla_at_risk", "sla_breached"];
 
 /** A dropdown of checkable options; several can be on, and the trigger says how many. */
 function MultiFilter({

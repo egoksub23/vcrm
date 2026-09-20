@@ -51,6 +51,16 @@ describe("settings sections and capabilities", () => {
     expect(canSeeSection("integrations", holds("jira.link"))).toBe(false);
   });
 
+  it("registers SLA & business hours in the workspace group behind sla.configure", () => {
+    expect(SECTION_META.sla.group).toBe("workspace");
+    expect(SECTION_META.sla.capability).toBe("sla.configure");
+    expect(resolveSection("sla")).toBe("sla");
+    expect(canSeeSection("sla", holds())).toBe(false);
+    expect(canSeeSection("sla", holds("sla.configure"))).toBe(true);
+    // The conversation response-time section stays open to everyone in Settings.
+    expect(canSeeSection("response-time", holds())).toBe(true);
+  });
+
   it("hides roles without roles.manage and api without api.manage", () => {
     expect(canSeeSection("roles", holds())).toBe(false);
     expect(canSeeSection("api", holds())).toBe(false);
@@ -60,7 +70,7 @@ describe("settings sections and capabilities", () => {
 
   it("keeps every other section visible to anyone who can open Settings", () => {
     const rest = SETTINGS_SECTIONS.filter(
-      (s) => s !== "roles" && s !== "api" && s !== "audit" && s !== "approvals" && s !== "integrations",
+      (s) => s !== "roles" && s !== "api" && s !== "audit" && s !== "approvals" && s !== "integrations" && s !== "sla",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
     expect(visibleSections(holds())).toEqual(rest);
@@ -68,7 +78,7 @@ describe("settings sections and capabilities", () => {
 
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
-      visibleSections(holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect")),
+      visibleSections(holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure")),
     ).toEqual([
       ...SETTINGS_SECTIONS,
     ]);

@@ -1048,3 +1048,107 @@ export async function loadTicketsReport(
     byTeam: rows(team, (k) => (k === '' ? null : (teamNames.get(k) ?? null))).sort(byOpenedDesc),
   }
 }
+
+// --- Tickets report: SLA compliance (migration 086) --------------------------------
+// One server-side aggregate (`ticket_sla_report`, SQL): the counts are computed
+// in the database over the tickets CREATED in the range that have (or had) an
+// SLA, not over rows in the browser. "running" counts targets that are still
+// running or paused. A target is "met" or "breached" once it is settled; the
+// compliance % is met / (met + breached), so tickets still on the clock do not
+// count for or against it.
+
+export interface SlaCounts {
+  met: number
+  breached: number
+  /** Still running (or paused): not settled yet. */
+  running: number
+}
+
+export interface SlaBreakdownRow {
+  /** Priority value, or a team id ('' = no team). */
+  key: string
+  /** Team name for the team breakdown; null otherwise. */
+  label: string | null
+  firstResponse: SlaCounts
+  resolution: SlaCounts
+}
+
+export interface SlaBreachedTicket {
+  ticketId: string
+  ticketNumber: number
+  subject: string
+  assigneeId: string | null
+  target: 'first_response' | 'resolution'
+  dueAt: string
+  /** Wall-clock seconds past the due time (until the response / stop, or now). */
+  overdueSeconds: number
+}
+
+export interface TicketSlaReport {
+  firstResponse: SlaCounts
+  resolution: SlaCounts
+  byPriority: SlaBreakdownRow[]
+  byTeam: SlaBreakdownRow[]
+  breached: SlaBreachedTicket[]
+}
+
+const num = (v: unknown): number => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+const slaCounts = (v: unknown): SlaCounts => {
+  const o = (v ?? {}) as Record<string, unknown>
+  return { met: num(o.met), breached: num(o.breached), running: num(o.running) }
+}
+
+/** met / (met + breached) as a percentage; null when nothing has settled. */
+export function slaCompliancePct(c: SlaCounts): number | null {
+  const settled = c.met + c.breached
+  return settled === 0 ? null : (c.met / settled) * 100
+}
+
+export const SLA_BREACHED_LIST_LIMIT = 25
+
+export async function loadTicketSlaReport(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<TicketSlaReport> {
+  const { data, error } = await db.rpc('ticket_sla_report', {
+    p_account: accountId,
+    p_from: range.from.toISOString(),
+    p_to: exclusiveEnd(range.to).toISOString(),
+    p_limit: SLA_BREACHED_LIST_LIMIT,
+  })
+  if (error) throw error
+  const d = (data ?? {}) as Record<string, unknown>
+  const rows = (v: unknown): SlaBreakdownRow[] =>
+    (Array.isArray(v) ? v : []).map((r) => {
+      const o = r as Record<string, unknown>
+      return {
+        key: String(o.key ?? ''),
+        label: typeof o.label === 'string' ? o.label : null,
+        firstResponse: slaCounts(o.firstResponse),
+        resolution: slaCounts(o.resolution),
+      }
+    })
+  return {
+    firstResponse: slaCounts(d.firstResponse),
+    resolution: slaCounts(d.resolution),
+    byPriority: rows(d.byPriority),
+    byTeam: rows(d.byTeam),
+    breached: (Array.isArray(d.breached) ? d.breached : []).map((r) => {
+      const o = r as Record<string, unknown>
+      return {
+        ticketId: String(o.ticketId ?? ''),
+        ticketNumber: num(o.ticketNumber),
+        subject: String(o.subject ?? ''),
+        assigneeId: typeof o.assigneeId === 'string' ? o.assigneeId : null,
+        target: o.target === 'resolution' ? 'resolution' : 'first_response',
+        dueAt: String(o.dueAt ?? ''),
+        overdueSeconds: num(o.overdueSeconds),
+      }
+    }),
+  }
+}

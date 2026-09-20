@@ -80,6 +80,7 @@ describe("catalogue", () => {
         "members.change-role",
         "members.remove",
         "roles.manage",
+        "sla.configure",
         "snippets.manage",
         "snippets.propose",
         "tags.manage",

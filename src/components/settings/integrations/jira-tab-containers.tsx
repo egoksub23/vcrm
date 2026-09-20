@@ -9,21 +9,27 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { useAuth, useCapability } from "@/hooks/use-auth";
-import type { JiraSettings, TicketPriorityValue } from "@/lib/jira/types";
+import type { JiraSettings, ProjectOverride, TicketPriorityValue } from "@/lib/jira/types";
 
 import {
   jiraFetch,
   useJiraErrorText,
+  type JiraFieldsData,
+  type JiraMappingInput,
   type JiraNamed,
   type JiraPeopleData,
   type JiraProject,
   type JiraStatusOption,
+  type JiraTestResult,
   type JiraUserHit,
   type JiraDiagnostics,
 } from "./jira-api";
+import { JiraChecklistCard } from "./jira-checklist";
 import { JiraDiagnosticsTab } from "./jira-diagnostics-tab";
 import { JiraDirectionTab } from "./jira-direction-tab";
+import { JiraFieldsTab } from "./jira-fields-tab";
 import { JiraMappingTab } from "./jira-mapping-tab";
+import { JiraOverridesCard } from "./jira-overrides";
 import { JiraPeopleTab } from "./jira-people-tab";
 import { JiraProjectsTab } from "./jira-projects-tab";
 import type { UseJiraSettings } from "./use-jira-settings";
@@ -50,15 +56,48 @@ export function ProjectsTabContainer({ jira }: ContainerProps) {
   );
 
   return (
-    <JiraProjectsTab
-      value={settings.projects}
-      projects={projects.data?.projects ?? null}
-      projectsError={projects.error ? errorText(projects.error) : null}
-      issueTypes={defaultProject ? (types.data?.issueTypes ?? null) : null}
-      issueTypesError={types.error ? errorText(types.error) : null}
-      onChange={(next) => void patch({ projects: next })}
-      onRetryProjects={() => void projects.reload()}
-      onRetryIssueTypes={() => void types.reload()}
+    <div className="space-y-4">
+      <JiraProjectsTab
+        value={settings.projects}
+        projects={projects.data?.projects ?? null}
+        projectsError={projects.error ? errorText(projects.error) : null}
+        issueTypes={defaultProject ? (types.data?.issueTypes ?? null) : null}
+        issueTypesError={types.error ? errorText(types.error) : null}
+        onChange={(next) => void patch({ projects: next })}
+        onRetryProjects={() => void projects.reload()}
+        onRetryIssueTypes={() => void types.reload()}
+      />
+      <OverridesContainer jira={jira} />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// Per-project overrides (under Projects)
+// ------------------------------------------------------------
+
+function OverridesContainer({ jira }: ContainerProps) {
+  const { settings, patch } = jira;
+  const priorities = useJiraQuery<{ priorities: JiraNamed[] }>("metadata?kind=priorities");
+  // Issue types load when a project row is opened, one project at a time.
+  const [types, setTypes] = useState<Record<string, JiraNamed[]>>({});
+
+  const openProject = useCallback((project: string) => {
+    void jiraFetch<{ issueTypes: JiraNamed[] }>(`metadata?kind=issue_types&project=${encodeURIComponent(project)}`).then((r) => {
+      // A failure leaves an empty list: the select still offers "inherit" and the saved value.
+      setTypes((c) => ({ ...c, [project]: r.ok ? r.data.issueTypes : [] }));
+    });
+  }, []);
+
+  return (
+    <JiraOverridesCard
+      projects={settings.projects.allowed}
+      overrides={settings.project_overrides}
+      workspace={settings}
+      priorities={priorities.data?.priorities ?? (priorities.error ? [] : null)}
+      issueTypesFor={(p) => types[p] ?? null}
+      onOpenProject={openProject}
+      onChange={(project, next: ProjectOverride | null) => void patch({ project_overrides: { [project]: next } }, { toastOnSuccess: true })}
     />
   );
 }
@@ -121,6 +160,9 @@ export function DirectionTabContainer({ jira }: ContainerProps) {
       direction={settings.direction}
       privacy={settings.privacy}
       personalDataReport={settings.personal_data_report}
+      requireSigned={settings.webhook.require_signed}
+      webhookStats={jira.data?.connection?.webhook_stats ?? null}
+      onRequireSignedChange={(on) => void patch({ webhook: { require_signed: on } })}
       canManageRoles={canManageRoles}
       onDirectionChange={(key, on) => void patch({ direction: { [key]: on } as Partial<JiraSettings["direction"]> })}
       onPrivacyChange={(key, on) => void patch({ privacy: { [key]: on } as Partial<JiraSettings["privacy"]> })}
@@ -203,7 +245,7 @@ export function DiagnosticsTabContainer() {
   const t = useTranslations("Settings.jira.diagnostics");
   const errorText = useJiraErrorText();
   const diagnostics = useJiraQuery<JiraDiagnostics>("diagnostics");
-  const [action, setAction] = useState<"webhooks" | "catchup" | null>(null);
+  const [action, setAction] = useState<"webhooks" | "catchup" | "report" | null>(null);
   const [resyncing, setResyncing] = useState<string | null>(null);
   const reloadDiagnostics = diagnostics.reload;
 
@@ -235,6 +277,21 @@ export function DiagnosticsTabContainer() {
     await reloadDiagnostics();
   }
 
+  // The personal-data report, now: the answer says whether Atlassian took it.
+  const td = useTranslations("Settings.jira.depth.report");
+  async function sendReport() {
+    setAction("report");
+    const res = await jiraFetch<{ report: { ok: boolean; error?: string } | null }>("diagnostics", { method: "POST", body: { action: "send_report" } });
+    setAction(null);
+    if (!res.ok) {
+      toast.error(errorText(res.error));
+      return;
+    }
+    if (res.data.report?.ok) toast.success(td("sent"));
+    else toast.error(`${td("notSent")} ${res.data.report?.error ?? ""}`.trim());
+    await reloadDiagnostics();
+  }
+
   return (
     <JiraDiagnosticsTab
       data={diagnostics.data}
@@ -244,8 +301,125 @@ export function DiagnosticsTabContainer() {
       onRefresh={() => void reloadDiagnostics()}
       onRegisterWebhooks={() => void run("webhooks")}
       onCatchup={() => void run("catchup")}
+      onSendReport={() => void sendReport()}
       onResync={(id) => void resync(id)}
       resyncing={resyncing}
+    />
+  );
+}
+
+// ------------------------------------------------------------
+// Fields
+// ------------------------------------------------------------
+
+export function FieldsTabContainer({ jira }: ContainerProps) {
+  const t = useTranslations("Settings.jira.fields");
+  const errorText = useJiraErrorText();
+  const { settings } = jira;
+  const allowed = settings.projects.allowed;
+  const [project, setProject] = useState<string>(settings.projects.default_project ?? allowed[0] ?? "");
+  const [issueTypeId, setIssueTypeId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Every project when none is chosen: the same list the other tabs offer.
+  const projects = useJiraQuery<{ projects: JiraProject[] }>(allowed.length === 0 ? PROJECTS_PATH : null);
+  const choices = allowed.length > 0 ? allowed : (projects.data?.projects ?? []).map((p) => p.key.toUpperCase());
+
+  const path = project
+    ? `fields?project=${encodeURIComponent(project)}${issueTypeId ? `&issueType=${encodeURIComponent(issueTypeId)}` : ""}`
+    : null;
+  const fields = useJiraQuery<JiraFieldsData>(path);
+  const reloadFields = fields.reload;
+
+  async function refresh() {
+    if (!path) return;
+    const res = await jiraFetch<JiraFieldsData>(`${path}&refresh=1`);
+    if (!res.ok) {
+      toast.error(errorText(res.error));
+      return;
+    }
+    toast.success(t("refreshed"));
+    await reloadFields();
+  }
+
+  async function save(input: JiraMappingInput) {
+    setBusy(true);
+    const res = await jiraFetch<{ mapping: unknown }>("field-mappings", { method: "PUT", body: input });
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(`${t("saveFailed")} ${errorText(res.error)}`);
+      return;
+    }
+    toast.success(t("saved"));
+    await reloadFields();
+  }
+
+  async function remove(id: string) {
+    setBusy(true);
+    const res = await jiraFetch<{ ok: boolean }>(`field-mappings?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(`${t("removeFailed")} ${errorText(res.error)}`);
+      return;
+    }
+    toast.success(t("removed"));
+    await reloadFields();
+  }
+
+  return (
+    <JiraFieldsTab
+      projects={choices}
+      project={project}
+      onProjectChange={(p) => {
+        setProject(p);
+        setIssueTypeId("");
+      }}
+      data={fields.data}
+      error={fields.error ? errorText(fields.error) : null}
+      refreshing={fields.refreshing}
+      busy={busy}
+      allowEveryProject={!!settings.projects.default_project}
+      onIssueTypeChange={setIssueTypeId}
+      onRefresh={() => void refresh()}
+      onRetry={() => void reloadFields()}
+      onSave={(input) => void save(input)}
+      onRemove={(id) => void remove(id)}
+    />
+  );
+}
+
+// ------------------------------------------------------------
+// The first-run checklist and "Test connection" (Connection tab)
+// ------------------------------------------------------------
+
+export function ChecklistContainer({ jira }: ContainerProps) {
+  const errorText = useJiraErrorText();
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<JiraTestResult | null>(null);
+  const connection = jira.data?.connection;
+  const live = !!connection && connection.status === "active";
+
+  async function test() {
+    setTesting(true);
+    const res = await jiraFetch<{ test: JiraTestResult }>("diagnostics", { method: "POST", body: { action: "test_connection" } });
+    setTesting(false);
+    if (!res.ok) {
+      setResult({ ok: false, code: res.error.code, message: res.error.message });
+      return;
+    }
+    setResult(res.data.test);
+    // A passing test may be what turns a step of the checklist green.
+    await jira.reload();
+  }
+
+  return (
+    <JiraChecklistCard
+      steps={jira.data?.checklist ?? null}
+      canTest={live}
+      testing={testing}
+      result={result}
+      failureText={(code) => errorText({ code })}
+      onTest={() => void test()}
     />
   );
 }

@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import type { JiraSettings } from "@/lib/jira/types";
+import type { JiraSettings, WebhookStats } from "@/lib/jira/types";
 import { DEFAULT_JIRA_SETTINGS } from "@/lib/jira/types";
 
 import { SettingsChip } from "../settings-chip";
@@ -18,6 +18,11 @@ export interface JiraDirectionTabProps {
   direction: JiraSettings["direction"];
   privacy: JiraSettings["privacy"];
   personalDataReport: boolean;
+  /** "Require signed deliveries" (0.45.0). */
+  requireSigned?: boolean;
+  /** How deliveries have arrived so far (from the connection row). */
+  webhookStats?: WebhookStats | null;
+  onRequireSignedChange?: (on: boolean) => void;
   /** The caller holds roles.manage: link to Roles & permissions. */
   canManageRoles: boolean;
   disabled?: boolean;
@@ -34,6 +39,8 @@ const DIRECTION_KEYS = [
   "assignee",
 ] as const;
 
+const ATTACHMENT_KEYS = ["attachments", "attachments_auto"] as const;
+
 const ACCESS_ROWS = [
   { cap: "connect", roles: ["owner", "admin"] },
   { cap: "link", roles: ["owner", "admin", "agent"] },
@@ -44,6 +51,9 @@ export function JiraDirectionTab({
   direction,
   privacy,
   personalDataReport,
+  requireSigned = false,
+  webhookStats,
+  onRequireSignedChange,
   canManageRoles,
   disabled,
   onDirectionChange,
@@ -51,7 +61,9 @@ export function JiraDirectionTab({
   onPersonalDataReportChange,
 }: JiraDirectionTabProps) {
   const t = useTranslations("Settings.jira.direction");
+  const td = useTranslations("Settings.jira.depth");
   const defaults = DEFAULT_JIRA_SETTINGS;
+  const unsigned = webhookStats?.unsigned ?? 0;
 
   return (
     <div className="space-y-4">
@@ -69,6 +81,23 @@ export function JiraDirectionTab({
             />
           ))}
         </div>
+      </JiraCard>
+
+      <JiraCard title={td("flow.attachmentsTitle")} description={td("flow.attachmentsDescription")}>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {ATTACHMENT_KEYS.map((key) => (
+            <SwitchRow
+              key={key}
+              label={td(`flow.${key}.label`)}
+              hint={td(`flow.${key}.hint`)}
+              checked={direction[key]}
+              disabled={disabled || (key === "attachments_auto" && !direction.attachments)}
+              defaultOn={defaults.direction[key]}
+              onChange={(on) => onDirectionChange(key, on)}
+            />
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">{td("flow.attachmentsLimits")}</p>
       </JiraCard>
 
       <JiraCard title={t("privacy.title")} description={t("privacy.description")}>
@@ -91,6 +120,23 @@ export function JiraDirectionTab({
             onChange={(on) => onPrivacyChange("preview_before_send", on)}
           />
         </div>
+      </JiraCard>
+
+      <JiraCard title={td("webhook.title")} description={td("webhook.description")}>
+        {unsigned > 0 ? (
+          <p role="status" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            {td("webhook.unsignedNote", { unsigned, signed: webhookStats?.signed ?? 0 })}
+          </p>
+        ) : null}
+        <SwitchRow
+          label={td("webhook.requireSigned.label")}
+          hint={td("webhook.requireSigned.hint")}
+          warning={requireSigned ? undefined : td("webhook.requireSigned.warning")}
+          checked={requireSigned}
+          disabled={disabled || !onRequireSignedChange}
+          defaultOn={defaults.webhook.require_signed}
+          onChange={(on) => onRequireSignedChange?.(on)}
+        />
       </JiraCard>
 
       <JiraCard title={t("report.title")} description={t("report.description")}>

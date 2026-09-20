@@ -2715,7 +2715,8 @@
       "roles": "역할 & 권한",
       "audit": "감사 로그",
       "approvals": "승인",
-      "integrations": "연동"
+      "integrations": "연동",
+      "sla": "SLA 및 업무 시간"
     },
     "groups": {
       "account": "계정",
@@ -3250,6 +3251,241 @@
       }
     },
     "jira": {
+      "checklist": {
+        "title": "처음 설정 체크리스트",
+        "description": "각 단계가 완료되면 초록색으로 바뀝니다. 회색으로 남아 있는 단계를 확인하세요.",
+        "progress": "{total}단계 중 {done}단계 완료",
+        "allDone": "모든 설정이 끝났습니다.",
+        "doneSr": "(완료)",
+        "todoSr": "(아직 완료되지 않음)",
+        "steps": {
+          "credentials": {
+            "label": "서버에 Vircle 앱 자격 증명이 있습니다",
+            "hint": "서버 운영자가 JIRA_CLIENT_ID와 JIRA_CLIENT_SECRET을 추가해야 합니다(docs/jira-setup.md 참고).",
+            "doneHint": "Jira 앱 ID와 시크릿이 설정되어 있습니다."
+          },
+          "connected": {
+            "label": "Jira 사이트에 연결되었습니다",
+            "hint": "Jira 연결을 누르고 Vircle이 대신 작업할 사용자나 연동 전용 사용자로 로그인하세요.",
+            "doneHint": "연결이 활성 상태입니다."
+          },
+          "project": {
+            "label": "프로젝트를 선택했습니다",
+            "hint": "프로젝트 탭에서 티켓을 연결할 프로젝트와 기본 프로젝트를 선택하세요.",
+            "doneHint": "티켓을 선택한 프로젝트에 연결할 수 있습니다."
+          },
+          "webhook": {
+            "label": "Jira 웹훅이 등록되었습니다",
+            "hint": "첫 티켓을 연결한 뒤 등록됩니다. 진단에서 다시 등록할 수도 있습니다.",
+            "doneHint": "Jira에서 변경이 생기면 Vircle이 바로 알 수 있습니다."
+          },
+          "sync": {
+            "label": "첫 동기화가 이루어졌습니다",
+            "hint": "예약 작업(cron)이 실행되어야 합니다. 티켓을 연결하고 Jira에서 이슈를 바꾼 뒤 몇 분 기다려 보세요.",
+            "doneHint": "Vircle이 연결된 이슈를 Jira에서 읽어 왔습니다."
+          }
+        },
+        "test": {
+          "button": "연결 테스트",
+          "running": "테스트 중…",
+          "hint": "Vircle이 어떤 사용자로 로그인되어 있는지 Jira에 묻고, 그 사용자가 볼 수 있는 프로젝트를 보여 줍니다.",
+          "ok": "{name} 계정으로 연결되었습니다.",
+          "unknownUser": "연결된 사용자",
+          "noProjects": "이 사용자는 아직 볼 수 있는 프로젝트가 없습니다. Jira에서 프로젝트에 추가해 주세요.",
+          "projects": "프로젝트 {count}개를 볼 수 있습니다.",
+          "more": "처음 {count}개만 표시합니다. 더 있습니다.",
+          "failed": "테스트에 실패했습니다."
+        }
+      },
+      "fields": {
+        "scope": {
+          "title": "사용자 지정 필드 매핑",
+          "description": "티켓의 사용자 지정 필드를 같은 종류의 Jira 필드로 복사하고, 반대로도 복사합니다. 먼저 프로젝트를 선택하세요. Jira 필드는 프로젝트와 이슈 유형마다 다릅니다.",
+          "note": "텍스트, 숫자, 날짜, 선택, 체크박스 같은 단순한 유형만 매핑할 수 있습니다. 나머지는 지원되지 않음으로 표시됩니다."
+        },
+        "noProjects": "먼저 프로젝트 탭에서 티켓을 연결할 프로젝트를 선택한 다음, 여기서 필드를 매핑하세요.",
+        "project": "프로젝트",
+        "chooseProject": "프로젝트 선택",
+        "issueType": "이슈 유형",
+        "refresh": "Jira에서 새로 고침",
+        "cachedAt": "Jira의 필드 목록({when} 기준)입니다. 새로 고침하면 다시 읽어 옵니다.",
+        "liveNow": "방금 Jira에서 필드 목록을 읽어 왔습니다.",
+        "refreshed": "Jira에서 필드를 새로 고쳤습니다.",
+        "saved": "필드 매핑을 저장했습니다.",
+        "saveFailed": "매핑을 저장하지 못했습니다.",
+        "removed": "필드 매핑을 삭제했습니다.",
+        "removeFailed": "매핑을 삭제하지 못했습니다.",
+        "everyProject": "모든 프로젝트",
+        "directions": {
+          "to_jira": "Jira로",
+          "from_jira": "Jira에서",
+          "both": "양방향"
+        },
+        "missing": {
+          "skip": "비어 있으면 건너뛰기",
+          "clear": "비어 있으면 지우기",
+          "default": "기본값 사용"
+        },
+        "ticketTypes": {
+          "text": "텍스트",
+          "textarea": "긴 텍스트",
+          "number": "숫자",
+          "date": "날짜",
+          "dropdown": "드롭다운",
+          "checkbox": "체크박스"
+        },
+        "kinds": {
+          "text": "텍스트(한 줄)",
+          "textarea": "텍스트(여러 줄)",
+          "number": "숫자",
+          "date": "날짜",
+          "select": "단일 선택",
+          "multicheckbox": "체크박스",
+          "labels": "레이블"
+        },
+        "mappings": {
+          "title": "매핑된 필드",
+          "description": "이 프로젝트에서 복사되는 항목입니다. 다음 티켓 수정이나 동기화부터 적용됩니다.",
+          "empty": "이 프로젝트에는 아직 매핑된 필드가 없습니다.",
+          "archivedField": "(삭제된 티켓 필드)",
+          "notOnScreen": "이 생성 화면에 없음",
+          "remove": "{name} 매핑 삭제"
+        },
+        "add": {
+          "title": "매핑 추가",
+          "description": "티켓 필드를 고른 다음, 복사할 Jira 필드를 고르세요.",
+          "noTicketFields": "아직 티켓 사용자 지정 필드가 없습니다. 관리자가 설정 > 티켓에서 추가할 수 있습니다.",
+          "allMapped": "이 프로젝트에서는 모든 티켓 필드가 이미 매핑되어 있습니다.",
+          "ticketField": "티켓 필드",
+          "pickTicketField": "티켓 필드 선택",
+          "jiraField": "Jira 필드",
+          "pickJiraField": "Jira 필드 선택",
+          "noCompatible": "이 화면에 유형이 맞는 Jira 필드가 없습니다",
+          "compatibleWith": "사용 가능: {kinds}",
+          "direction": "방향",
+          "whenMissing": "값이 없을 때",
+          "whenMissingHint": {
+            "skip": "아무것도 보내지 않고 지우지도 않습니다.",
+            "clear": "반대쪽 값도 비웁니다.",
+            "default": "아래 기본값을 대신 사용합니다."
+          },
+          "defaultValue": "기본값",
+          "defaultPlaceholder": "예: 알 수 없음",
+          "label": "사용할 레이블",
+          "labelHint": "체크하면 이 레이블이 이슈에 추가되고, 해제하면 삭제됩니다. 다른 레이블은 건드리지 않습니다.",
+          "everyProject": "모든 프로젝트에 적용합니다({project}의 필드를 기준으로 함). 프로젝트별 매핑이 있으면 그것이 우선합니다.",
+          "submit": "매핑 추가"
+        },
+        "jiraFields": {
+          "title": "이 Jira 화면의 필드",
+          "description": "이 프로젝트와 이슈 유형에서 Jira가 제공하는 필드입니다.",
+          "name": "필드",
+          "type": "유형",
+          "status": "상태",
+          "supported": "매핑 가능",
+          "notSupported": "지원되지 않음",
+          "reasons": {
+            "type": "Vircle이 아직 채울 수 없는 유형입니다.",
+            "readonly": "Jira에서 앱이 설정할 수 없는 필드입니다.",
+            "handled": "Vircle이 직접 채우는 필드입니다."
+          }
+        },
+        "notes": {
+          "title": "동작 방식",
+          "adf": "서식 있는 텍스트: Jira의 긴 텍스트 필드는 Atlassian Document Format을 사용합니다. Vircle은 일반 단락으로 쓰고 일반 텍스트로 읽습니다. 서식은 전달되지 않습니다.",
+          "firstSync": "이미 있는 값은 기록만 하고 가져오지 않습니다. 이후 바뀐 값만 전달됩니다. 새 이슈는 만들 때 매핑된 값을 함께 받습니다.",
+          "jiraWins": "양쪽에서 같은 필드를 바꾸면 상태와 마찬가지로 Jira가 우선합니다. Jira에서 되돌아오는 내 변경은 알아보고 무시합니다.",
+          "checkbox": "체크박스는 체크박스 필드나 레이블에 매핑할 수 있습니다. 레이블은 체크하면 추가되고 해제하면 삭제됩니다."
+        }
+      },
+      "overrides": {
+        "title": "프로젝트별 재정의",
+        "description": "프로젝트 하나에만 기본 이슈 유형, 우선순위 매핑, 카테고리 처리, 방향 스위치를 따로 지정합니다. 상속으로 둔 항목은 위의 워크스페이스 설정을 따릅니다.",
+        "noProjects": "먼저 위에서 허용할 프로젝트를 선택하세요. 각 프로젝트가 여기에 표시됩니다.",
+        "note": "가장 구체적인 설정이 우선합니다. 프로젝트 재정의, 그다음 워크스페이스 설정 순서입니다.",
+        "noneSet": "워크스페이스 설정을 따름",
+        "summary": "{count}개 설정을 재정의함",
+        "overridden": "재정의 {count}개",
+        "issueType": "기본 이슈 유형",
+        "loadingTypes": "이슈 유형을 불러오는 중…",
+        "inheritValue": "상속({value})",
+        "none": "없음",
+        "inherit": "상속({value})",
+        "on": "켬",
+        "off": "끔",
+        "category": {
+          "category_label": "카테고리를 레이블로",
+          "category_component": "카테고리를 컴포넌트로"
+        },
+        "priority": "우선순위 매핑",
+        "priorityHint": "이 프로젝트에서 Vircle 우선순위가 어떤 Jira 우선순위가 될지 정합니다.",
+        "priorities": {
+          "urgent": "긴급",
+          "high": "높음",
+          "normal": "보통",
+          "low": "낮음"
+        },
+        "direction": "전달 항목",
+        "reset": "{project}의 재정의를 모두 삭제"
+      },
+      "depth": {
+        "flow": {
+          "attachmentsTitle": "첨부 파일",
+          "attachmentsDescription": "티켓과 연결된 Jira 이슈의 파일입니다. 켜기 전에는 꺼져 있습니다.",
+          "attachmentsLimits": "Jira로는 파일당 최대 10MB(또는 Jira 사이트가 알려 주는 한도), 이슈당 20개까지 보냅니다. Jira에서는 최대 16MB의 이미지와 문서만 가져옵니다. 그 밖의 파일은 Jira의 링크로 남습니다.",
+          "attachments": {
+            "label": "첨부 파일 양방향",
+            "hint": "상담원이 티켓의 파일을 연결된 이슈로 보낼 수 있고, 이슈에 새로 올라온 파일은 티켓으로 복사됩니다."
+          },
+          "attachments_auto": {
+            "label": "새 첨부 파일 모두 보내기",
+            "hint": "연결된 티켓에 추가되는 모든 파일이 자동으로 Jira로 갑니다. 첨부 파일이 켜져 있어야 합니다."
+          }
+        },
+        "webhook": {
+          "title": "웹훅 신뢰",
+          "description": "Jira는 비밀 웹 주소를 통해 변경 사항을 Vircle에 알립니다. Atlassian이 전달마다 서명할 수도 있습니다.",
+          "unsignedNote": "서명된 토큰 없이 {unsigned}건의 전달이 도착했습니다(서명된 전달 {signed}건). 실제 전달이 서명된다는 것이 확인되기 전까지는 비밀 주소가 보호 수단입니다. 전달 내용은 신뢰하지 않으며, 이슈는 항상 Jira에서 다시 읽습니다.",
+          "requireSigned": {
+            "label": "서명된 전달만 허용",
+            "hint": "앱 시크릿으로 검증되는 베어러 토큰이 없는 전달을 모두 거부합니다.",
+            "warning": "진단에서 서명된 전달이 도착하는 것을 확인하기 전에는 꺼 두세요. 미리 켜면 웹훅이 모두 멈출 수 있습니다. 캐치업 조회는 계속 동작합니다."
+          }
+        },
+        "trust": {
+          "title": "웹훅 도착 방식",
+          "description": "인증 방식별 전달 건수입니다.",
+          "unsignedNote": "베어러 토큰 없이 비밀 주소만으로 {count}건의 전달이 도착했습니다. 기본으로 허용되지만 Atlassian이 서명하지 않을 수 있다는 뜻입니다. 서명된 전달만 허용을 켜기 전에 실제 사이트에서 확인하세요.",
+          "signed": "서명됨",
+          "unsigned": "주소만",
+          "rejected": "거부됨(서명 없음)",
+          "strictOn": "서명된 전달만 허용이 켜져 있습니다. 서명되지 않은 전달은 거부됩니다.",
+          "strictOff": "서명된 전달만 허용이 꺼져 있습니다. 비밀 주소만으로도 받아들입니다.",
+          "sinceLabel": "집계 시작"
+        },
+        "report": {
+          "title": "개인정보 보고",
+          "description": "Atlassian은 Atlassian 사용자 데이터를 보관하는 앱이 보유한 계정 ID를 7일마다 보고하도록 요구합니다.",
+          "ok": "전송됨",
+          "failed": "실패",
+          "at": "마지막 시도",
+          "counts": "계정 {reported}개 보고, {erased}개 삭제, {refreshed}개 갱신",
+          "never": "아직 보고를 보낸 적이 없습니다.",
+          "sendNow": "지금 보내기",
+          "sent": "개인정보 보고를 보냈습니다.",
+          "notSent": "보고가 받아들여지지 않았습니다."
+        },
+        "stalled": {
+          "title": "캐치업이 멈췄습니다",
+          "body": "티켓이 연결되어 있는데 약 {minutes}분 동안 캐치업이 성공하지 않았습니다. 예약 작업이 설치되어 실행 중인지 확인하세요(docs/jira-setup.md 참고). 워크스페이스 소유자에게 알림을 보냈습니다."
+        },
+        "errors": {
+          "unsupported_field": "Vircle이 매핑할 수 없는 유형의 Jira 필드입니다.",
+          "incompatible_field": "두 필드의 유형이 서로 다릅니다.",
+          "too_many": "필드 매핑을 더 이상 추가할 수 없습니다.",
+          "project_not_allowed": "허용된 프로젝트 목록에 없는 프로젝트입니다."
+        }
+      },
       "title": "연동",
       "description": "Vircle을 팀이 이미 사용하는 도구와 연결합니다. Jira Cloud 연동은 티켓과 Jira 이슈를 연결합니다.",
       "jira": {
@@ -3259,6 +3495,7 @@
         "needsReconnect": "재연결 필요"
       },
       "tabs": {
+        "fields": "필드",
         "connection": "연결",
         "projects": "프로젝트",
         "mapping": "매핑",
@@ -3720,6 +3957,193 @@
           }
         }
       }
+    },
+    "sla": {
+      "title": "SLA 및 업무 시간",
+      "description": "팀이 근무하는 시간과, 티켓이 얼마나 빨리 첫 응답을 받고 해결되어야 하는지를 설정합니다. 목표 시간은 업무 시간만 계산합니다.",
+      "loadFailed": "SLA 설정을 불러오지 못했습니다. 다시 시도하세요.",
+      "tabs": {
+        "hours": "업무 시간",
+        "policies": "SLA 정책"
+      },
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "웹 채팅",
+        "messenger": "Messenger",
+        "instagram": "Instagram",
+        "email": "이메일",
+        "gmail": "Gmail"
+      },
+      "errors": {
+        "invalid_timezone": "올바르지 않은 시간대입니다. 목록에서 선택하세요.",
+        "invalid_weekly": "주간 근무 시간이 올바르지 않습니다.",
+        "overlap": "같은 날의 두 시간대가 겹칩니다. 하나를 수정하세요.",
+        "too_many_slots": "하루에 시간대는 최대 4개까지 설정할 수 있습니다.",
+        "bad_time": "올바르지 않은 시간입니다. 09:00처럼 시와 분으로 입력하세요.",
+        "end_before_start": "시간대는 시작 시각보다 늦게 끝나야 합니다. 자정까지 열려 있으려면 종료를 00:00으로 설정하세요.",
+        "no_open_day": "요일 중 최소 하루는 열어 두어야 합니다.",
+        "invalid_name": "80자 이내의 이름을 입력하세요.",
+        "invalid_targets": "목표를 하나 이상 설정하세요. 1에서 525600 사이의 정수(분)여야 합니다.",
+        "targets_order": "해결 목표 시간은 첫 응답 목표 시간보다 길어야 합니다.",
+        "invalid_conditions": "조건 중 하나가 올바르지 않습니다.",
+        "invalid_percent": "위험 기준 비율은 50에서 95 사이여야 합니다.",
+        "schedule_in_use": "이 일정을 사용하는 정책이 있습니다. 먼저 해당 정책을 변경하거나 삭제하세요.",
+        "schedule_missing": "해당 일정이 더 이상 없습니다. 다른 일정을 선택하세요.",
+        "default_required": "기본 일정은 항상 하나 있어야 합니다. 대신 다른 일정을 기본으로 지정하세요.",
+        "duplicate_holiday": "이미 휴일 목록에 있는 날짜입니다.",
+        "invalid_date": "올바른 날짜를 입력하세요.",
+        "policy_limit": "정책은 최대 50개까지 만들 수 있습니다.",
+        "not_found": "해당 항목이 더 이상 없습니다.",
+        "forbidden": "SLA 설정을 변경할 권한이 없습니다.",
+        "failed": "문제가 발생했습니다. 다시 시도하세요."
+      },
+      "hours": {
+        "intro": "일정은 팀이 근무하는 요일, 시간대, 휴일, 시간대(타임존)를 정의합니다. 정책은 이 시간 안에서만 목표 시간을 계산합니다.",
+        "new": "새 일정",
+        "emptyTitle": "아직 업무 시간이 없습니다",
+        "emptyHint": "일정이 없으면 SLA 목표가 24시간 연중무휴로 계산됩니다. 근무 시간만 계산하려면 일정을 추가하세요.",
+        "default": "기본",
+        "makeDefaultButton": "기본으로 지정",
+        "makeDefault": "이 일정을 기본 일정으로 지정",
+        "isDefaultHint": "기본 일정입니다. 정책을 만들 때 미리 선택됩니다.",
+        "defaultSet": "{name} 일정이 기본 일정이 되었습니다",
+        "edit": "편집",
+        "deleteAria": "{name} 삭제",
+        "deleteTitle": "{name} 일정을 삭제할까요?",
+        "deleteHint": "일정과 휴일이 삭제됩니다. 정책이 사용 중인 일정은 삭제할 수 없습니다.",
+        "delete": "삭제",
+        "deleted": "일정을 삭제했습니다",
+        "holidayCount": "휴일 {count}일",
+        "policyCount": "정책 {count}개에서 사용 중",
+        "newTitle": "새 업무 시간",
+        "editTitle": "업무 시간 편집",
+        "editorHint": "시간대를 선택한 다음 요일별 근무 시간을 설정하세요.",
+        "name": "이름",
+        "namePlaceholder": "예: 지원 근무 시간",
+        "timezone": "시간대",
+        "timezonePlaceholder": "시간대 선택",
+        "timezoneSearch": "시간대 검색",
+        "timezoneNone": "일치하는 시간대가 없습니다.",
+        "weekly": "주간 근무 시간",
+        "weeklyHint": "시간대는 자정을 넘길 수 없습니다. 야간 근무는 저녁과 다음 날 아침, 두 개의 시간대로 설정하세요.",
+        "presetMonFri": "월-금 09:00-18:00 불러오기",
+        "closed": "휴무",
+        "toggleDay": "{day} 근무",
+        "slotStart": "{day}, {n}번째 시간대 시작",
+        "slotEnd": "{day}, {n}번째 시간대 종료",
+        "removeSlot": "{day} {n}번째 시간대 삭제",
+        "addSlot": "시간대 추가",
+        "maxSlots": "하루 최대 {count}개 시간대",
+        "copyHours": "다른 요일에 시간 복사",
+        "copyFrom": "{day}의 시간을 다음 요일에 복사:",
+        "copyWeekdays": "월-금",
+        "copyWeekend": "주말",
+        "copyAll": "모든 요일",
+        "copyApply": "복사",
+        "holidays": "휴일",
+        "holidaysHint": "휴일은 하루 전체를 쉽니다. 그날은 목표 시간이 계산되지 않습니다.",
+        "noHolidays": "추가된 휴일이 없습니다.",
+        "holidayDate": "날짜",
+        "holidayName": "이름(선택)",
+        "holidayNamePlaceholder": "예: 개천절",
+        "addHoliday": "휴일 추가",
+        "removeHoliday": "{name} 삭제",
+        "cancel": "취소",
+        "save": "변경사항 저장",
+        "create": "일정 만들기",
+        "saved": "업무 시간을 저장했습니다"
+      },
+      "policies": {
+        "intro": "정책은 조건에 맞는 티켓의 첫 응답 및 해결 목표 시간을 정합니다. 티켓에 처음으로 일치하는 활성 정책이 적용되며, 어떤 정책에도 맞지 않는 티켓에는 SLA가 없습니다.",
+        "new": "새 정책",
+        "applyButton": "열린 티켓에 적용",
+        "emptyTitle": "아직 SLA 정책이 없습니다",
+        "emptyHint": "정책을 만들어 티켓에 첫 응답 및 해결 목표를 지정하세요. 그 전에는 어떤 티켓에도 SLA가 없습니다.",
+        "orderHint": "정책은 위에서부터 차례로 확인됩니다. 드래그하여 순서를 바꾸세요.",
+        "dragToReorder": "{name} 순서 변경(드래그)",
+        "inactive": "비활성",
+        "matchesAll": "모든 티켓에 적용",
+        "targetFirst": "첫 응답 {time}",
+        "targetResolution": "해결 {time}",
+        "summarySchedule": "근무 시간: {name}",
+        "summaryAllHours": "24시간 연중무휴",
+        "summaryPauses": "보류 중 일시 정지",
+        "summaryKeepsRunning": "보류 중에도 계속 진행",
+        "summaryAtRisk": "{percent}%에서 위험",
+        "unknownTeam": "삭제된 팀",
+        "edit": "편집",
+        "deleteAria": "{name} 삭제",
+        "activeAria": "{name} 정책 활성",
+        "deleteTitle": "{name} 정책을 삭제할까요?",
+        "deleteHint": "티켓은 더 이상 이 정책으로 계산되지 않습니다. 이미 목표를 준수했거나 위반한 티켓의 결과는 유지됩니다.",
+        "delete": "삭제",
+        "deleted": "정책을 삭제했습니다",
+        "any": "전체",
+        "labelsAny": "이 중 하나",
+        "newTitle": "새 SLA 정책",
+        "editTitle": "SLA 정책 편집",
+        "editorHint": "정책이 적용될 티켓을 고르고, 목표 시간과 계산에 사용할 근무 시간을 설정하세요.",
+        "name": "이름",
+        "namePlaceholder": "예: 긴급 티켓",
+        "active": "활성",
+        "appliesTo": "적용 대상",
+        "appliesHint": "비워 둔 항목은 모든 값과 일치합니다. 채운 항목은 모두 일치해야 합니다.",
+        "priority": "우선순위",
+        "type": "유형",
+        "channel": "채널",
+        "team": "팀",
+        "labels": "라벨",
+        "labelPlaceholder": "라벨 추가",
+        "removeLabel": "{label} 라벨 삭제",
+        "firstResponse": "첫 응답",
+        "firstResponseHint": "팀원의 첫 메모가 달릴 때까지의 시간입니다.",
+        "resolution": "해결",
+        "resolutionHint": "티켓이 해결될 때까지의 시간입니다. 첫 응답보다 길어야 합니다.",
+        "targetOn": "{target} 목표 사용",
+        "unit": "단위",
+        "units": {
+          "minutes": "분",
+          "hours": "시간",
+          "days": "일",
+          "short": {
+            "minutes": "{value}분",
+            "hours": "{value}시간",
+            "days": "{value}일"
+          }
+        },
+        "schedule": "근무 시간",
+        "allHours": "24시간 연중무휴 (24/7)",
+        "scheduleHint": "목표 시간은 이 시간 안에서만 계산됩니다.",
+        "noSchedulesHint": "아직 업무 시간이 없습니다. 근무 시간만 계산하려면 업무 시간 탭에서 추가하세요.",
+        "atRisk": "위험 기준",
+        "atRiskHint": "목표 시간의 이 비율을 사용하면 위험으로 표시됩니다({min}~{max}).",
+        "pausePending": "티켓이 보류 중일 때 일시 정지",
+        "pausePendingHint": "보류는 고객의 답변을 기다리는 상태입니다. 시계가 멈췄다가 티켓이 다음 단계로 넘어가면 다시 진행됩니다.",
+        "previewTitle": "미리보기",
+        "previewScheduled": "예시: 우선순위 {priority} 티켓을 {zone} 기준 {created}에 만들면",
+        "previewAllHours": "예시: 우선순위 {priority} 티켓을 지금 만들면",
+        "previewBoth": "{first}까지 응답하고 {resolution}까지 해결해야 합니다.",
+        "previewFirstOnly": "{first}까지 응답해야 합니다.",
+        "previewResolutionOnly": "{resolution}까지 해결해야 합니다.",
+        "previewClosed": "그 시각에는 근무 시간이 아니므로 다음 근무 시작 시점부터 계산됩니다.",
+        "previewNone": "올바른 목표를 하나 이상 설정하면 예시가 표시됩니다.",
+        "cancel": "취소",
+        "save": "변경사항 저장",
+        "create": "정책 만들기",
+        "saved": "정책을 저장했습니다",
+        "apply": {
+          "title": "열린 티켓에 적용",
+          "hint": "SLA가 없는 열림, 진행 중, 보류 티켓에 조건이 처음 일치하는 정책을 지정합니다. 목표 시간은 티켓이 만들어진 시점부터 계산됩니다.",
+          "counting": "티켓 수를 세는 중",
+          "none": "SLA가 없는 열린 티켓 중 정책과 일치하는 티켓이 없습니다. 적용할 항목이 없습니다.",
+          "willGet": "티켓 {count}개에 SLA가 적용됩니다.",
+          "overdue": "그중 {count}개는 이미 기한이 지나 위반으로 표시됩니다.",
+          "truncated": "한 번에 가장 오래된 티켓 5000개까지만 처리합니다. 나머지는 다시 실행하세요.",
+          "confirm": "티켓 {count}개에 적용",
+          "cancel": "취소",
+          "done": "티켓 {count}개에 SLA를 적용했습니다"
+        }
+      }
     }
   },
   "SignupPage": {
@@ -4006,8 +4430,10 @@
         "none": "없음",
         "assignee": "담당자",
         "status": "상태",
-        "priority": "우선순위"
-      }
+        "priority": "우선순위",
+        "sla": "SLA"
+      },
+      "slaColumn": "SLA 열"
     },
     "board": {
       "dropHere": "여기에 티켓을 놓으세요",
@@ -4032,7 +4458,9 @@
         "mine": "내 티켓",
         "unassigned": "담당자 없음",
         "overdue": "기한 초과",
-        "today": "오늘 업데이트"
+        "today": "오늘 업데이트",
+        "sla_at_risk": "SLA 위험",
+        "sla_breached": "SLA 위반"
       },
       "assignee": "담당자",
       "type": "유형",
@@ -4178,7 +4606,8 @@
         "status": "상태",
         "priority": "우선순위",
         "assignee": "담당자",
-        "updated": "수정됨"
+        "updated": "수정됨",
+        "sla": "SLA"
       },
       "status": {
         "open": "열림",
@@ -4387,6 +4816,46 @@
         "account": "계정",
         "other": "기타"
       }
+    },
+    "sla": {
+      "badgeLabel": "SLA",
+      "badge": {
+        "dueIn": "{time} 남음",
+        "dueInShort": "{time} 남음",
+        "atRisk": "위험 · {time} 남음",
+        "atRiskShort": "위험 · {time}",
+        "overdue": "{time} 초과",
+        "paused": "일시 정지",
+        "met": "준수"
+      },
+      "target": {
+        "first_response": "첫 응답",
+        "resolution": "해결"
+      },
+      "state": {
+        "none": "SLA 없음",
+        "on_track": "정상 진행",
+        "at_risk": "위험",
+        "breached": "위반",
+        "paused": "일시 정지",
+        "met": "준수"
+      },
+      "tooltip": {
+        "due": "마감 {when}",
+        "inZone": "{zone} 기준 {when}",
+        "pausedWhilePending": "티켓이 보류 중인 동안 일시 정지됩니다",
+        "policy": "정책: {name}",
+        "policyRemoved": "정책이 삭제되었습니다",
+        "hours": "근무 시간: {name} ({zone})",
+        "hours247": "근무 시간: 24시간 연중무휴",
+        "business": "업무 시간 기준으로 계산"
+      },
+      "detail": {
+        "heading": "SLA",
+        "dueOn": "마감 {when}",
+        "respondedAt": "응답 {when}",
+        "hours": "업무 시간: {name} ({zone})"
+      }
     }
   },
   "Reports": {
@@ -4518,7 +4987,30 @@
       "chartTitle": "일별 생성 대 해결",
       "agent": "상담원",
       "ticketsResolved": "해결된 티켓",
-      "noData": "이 기간에 해결된 티켓이 없습니다"
+      "noData": "이 기간에 해결된 티켓이 없습니다",
+      "sla": {
+        "title": "SLA 준수율",
+        "hint": "이 기간에 만들어진 티켓 중 SLA 정책이 있는 티켓입니다. 준수율은 준수 ÷ (준수 + 위반)이며, 아직 진행 중인 티켓은 포함하지 않습니다.",
+        "none": "이 기간에 SLA가 있는 티켓이 아직 없습니다.",
+        "counts": "준수 {met} · 위반 {breached} · 진행 중 {running}",
+        "firstResponseMet": "첫 응답 준수",
+        "resolutionMet": "해결 준수",
+        "byPriority": "우선순위별 SLA",
+        "byTeam": "팀별 SLA",
+        "breachedCount": "위반",
+        "breachedTitle": "목표를 놓친 티켓",
+        "colTicket": "티켓",
+        "colSubject": "제목",
+        "colAssignee": "담당자",
+        "colTarget": "목표",
+        "colOverdue": "초과 시간",
+        "noBreaches": "이 기간에 목표를 놓친 티켓이 없습니다.",
+        "unassigned": "담당자 없음",
+        "target": {
+          "first_response": "첫 응답",
+          "resolution": "해결"
+        }
+      }
     }
   },
   "Interactive": {
@@ -5234,6 +5726,10 @@
       "jira_share_comments": {
         "label": "노트를 Jira와 공유",
         "description": "‘Jira와 공유’로 내부 노트를 연결된 Jira 이슈에 보냅니다. 고객 메시지는 절대 전송되지 않습니다."
+      },
+      "sla_configure": {
+        "label": "SLA 및 업무 시간 설정",
+        "description": "설정 → SLA 및 업무 시간에서 업무 시간 일정과 휴일을 편집하고, 티켓 SLA 정책을 만들고 순서를 바꾸고 편집합니다. 티켓의 SLA 상태는 모든 구성원이 볼 수 있습니다."
       }
     },
     "group": {
@@ -5436,7 +5932,10 @@
       "api_key": "API 키",
       "webhook": "웹훅",
       "jira_connection": "Jira 연결",
-      "ticket_jira_link": "Jira 링크"
+      "ticket_jira_link": "Jira 링크",
+      "business_hours": "업무 시간",
+      "business_hours_holiday": "휴일",
+      "sla_policy": "SLA 정책"
     },
     "roleNames": {
       "owner": "소유자",
@@ -5519,7 +6018,17 @@
       "primary_color": "색상",
       "avatar_url": "아바타",
       "position": "위치",
-      "allowed_origins": "허용 사이트"
+      "allowed_origins": "허용 사이트",
+      "timezone": "시간대",
+      "is_default": "기본 일정",
+      "weekly": "주간 근무 시간",
+      "holiday_date": "날짜",
+      "first_response_minutes": "첫 응답 목표",
+      "resolution_minutes": "해결 목표",
+      "schedule_id": "근무 시간",
+      "pause_while_pending": "보류 중 일시 정지",
+      "at_risk_percent": "위험 기준 비율",
+      "conditions": "조건"
     },
     "activity": {
       "button": "활동",
@@ -5619,6 +6128,95 @@
     }
   },
   "Jira": {
+    "bulk": {
+      "createButton": "Jira 이슈 만들기",
+      "linkButton": "Jira 이슈에 연결",
+      "tooMany": "이 작업은 티켓을 최대 {max}개까지 선택할 수 있습니다.",
+      "cancel": "취소",
+      "close": "닫기",
+      "closeBackground": "닫기(계속 실행됨)",
+      "create": {
+        "title": "Jira 이슈 {count}개 만들기",
+        "description": "티켓마다 이슈를 하나씩 만듭니다. 먼저 만들어질 내용을 검토하세요. 확인하기 전에는 아무것도 전송되지 않습니다.",
+        "project": "프로젝트",
+        "issueType": "이슈 유형",
+        "reviewHeading": "검토",
+        "reviewHint": "각 이슈가 갖게 될 프로젝트, 유형, 요약입니다. 만들 수 없는 티켓은 제외됩니다.",
+        "loading": "티켓을 확인하는 중…",
+        "willCreate": "만들어짐",
+        "cannot": "만들 수 없음",
+        "counts": "이슈 {create}개를 만들고 {blocked}개는 제외합니다.",
+        "confirm": "이슈 {count}개 만들기",
+        "starting": "시작하는 중…"
+      },
+      "reasons": {
+        "link_limit": "이 티켓에는 이미 연결할 수 있는 최대 개수의 이슈가 연결되어 있습니다.",
+        "unsupported_fields": "Jira가 Vircle이 채울 수 없는 필드를 요구합니다: {fields}. Jira에서 직접 만들어 주세요.",
+        "required_fields": "Jira가 다음 값을 요구합니다: {fields}. 값을 입력할 수 있도록 이 티켓은 따로 만들어 주세요.",
+        "not_found": "이 티켓을 찾을 수 없습니다."
+      },
+      "link": {
+        "title": "티켓 {count}개를 Jira 이슈에 연결",
+        "description": "선택한 모든 티켓이 같은 이슈에 연결됩니다.",
+        "reference": "Jira 이슈",
+        "placeholder": "ENG-482 또는 이슈 링크",
+        "hint": "Jira의 이슈 키나 주소를 붙여 넣으세요.",
+        "ticketsHeading": "선택한 티켓",
+        "limit": "티켓 하나에는 이슈를 최대 5개까지 연결할 수 있습니다. 이미 이 이슈에 연결된 티켓은 건너뜁니다.",
+        "confirm": "티켓 {count}개 연결",
+        "target": "{key}에 연결하는 중",
+        "starting": "시작하는 중…"
+      },
+      "progress": {
+        "finished": "완료",
+        "running": "{total}개 중 {done}개 완료",
+        "summary": "성공 {done}건, 실패 {failed}건, 건너뜀 {skipped}건입니다.",
+        "background": "백그라운드에서 실행됩니다. 이 창을 닫아도 되며, 결과는 각 티켓에 남습니다.",
+        "toast": "Jira: 성공 {done}건, 실패 {failed}건, 건너뜀 {skipped}건.",
+        "status": {
+          "pending": "대기 중",
+          "running": "작업 중",
+          "done": "완료",
+          "failed": "실패",
+          "skipped": "건너뜀"
+        }
+      }
+    },
+    "attachments": {
+      "send": "Jira로 보내기",
+      "sendNamed": "{name}을(를) Jira로 보내기",
+      "sent": "Jira에 있음",
+      "sentHint": "연결된 Jira 이슈로 이미 보냈습니다",
+      "fromJira": "Jira에서",
+      "fromJiraHint": "연결된 Jira 이슈에서 복사한 파일입니다",
+      "sentToast": "Jira로 보냈습니다."
+    },
+    "depth": {
+      "syncState": {
+        "ok": "동기화됨",
+        "okWhen": "{when} 동기화됨",
+        "paused": "일시 중지됨",
+        "broken": "접근할 수 없음"
+      },
+      "compact": {
+        "toggle": "{key} 펼치기 또는 접기"
+      },
+      "skipped": {
+        "title": "Jira의 파일 {count}개를 복사하지 않았습니다",
+        "unnamed": "(이름 없는 파일)",
+        "open": "Jira에서 열기",
+        "reason": {
+          "skipped_type": "지원하지 않는 유형",
+          "skipped_size": "용량이 너무 큼",
+          "skipped_cap": "티켓에 파일이 20개 있음",
+          "failed": "복사하지 못함"
+        }
+      },
+      "preview": {
+        "mappedHeading": "티켓의 사용자 지정 필드",
+        "component": "컴포넌트:"
+      }
+    },
     "common": {
       "cancel": "취소"
     },
@@ -5760,6 +6358,17 @@
       "queued": "Jira가 혼잡합니다. 메모는 곧 공유됩니다."
     },
     "errors": {
+      "bulk_limit": "이 작업은 티켓을 최대 25개까지 선택할 수 있습니다.",
+      "too_large": "Jira가 허용하는 크기보다 큰 파일입니다.",
+      "issue_full": "이 Jira 이슈에는 Vircle에서 보낸 파일이 이미 최대 20개 있습니다.",
+      "mime_refused": "이 유형의 파일은 Jira로 보낼 수 없습니다.",
+      "mime_mismatch": "파일 내용이 유형과 맞지 않아 보내지 않았습니다.",
+      "active_content": "웹 페이지나 스크립트로 보이는 파일이라 보내지 않았습니다.",
+      "attachments_disabled": "해당 Jira 사이트에서 첨부 파일이 꺼져 있습니다.",
+      "already": "이 파일은 이미 Jira로 보냈습니다.",
+      "duplicate": "같은 파일이 이미 Jira 이슈에 있습니다.",
+      "from_jira": "Jira에서 온 파일이라 다시 보내지 않습니다.",
+      "bad_path": "Vircle이 보낼 수 있는 위치에 저장된 파일이 아닙니다.",
       "reauth_required": "Jira를 다시 연결해야 합니다. 워크스페이스 관리자에게 설정 > 연동에서 다시 연결해 달라고 요청하세요.",
       "no_connection": "이 워크스페이스에는 Jira가 연결되어 있지 않습니다.",
       "jira_not_configured": "이 서버에는 아직 Jira가 설정되지 않았습니다.",

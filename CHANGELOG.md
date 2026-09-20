@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.45.0] — 2026-09-20 — **migration required: 087**
+
+- **Jira link, more depth.** **Attachments both ways** (off by default): send a ticket's files to the linked Jira issue, one at a time or all new ones, and bring new Jira attachments onto the ticket, tagged “From Jira”. Only the file types the workspace already accepts are imported; anything else is shown as skipped with a link to Jira. **Custom-field mapping** (Settings → Integrations → Jira → Fields): map ticket fields (text, number, date, dropdown, checkbox) to Jira fields, per project and per direction; mapped fields show in the create-issue preview. **Per-project overrides** for issue type, priority map, category mapping and which directions sync. **Bulk actions** on the ticket list: create Jira issues for up to 25 selected tickets after a review step, or link all selected tickets to one issue.
+- **Hardening:** a per-connection “Require signed deliveries” switch and a visible note when Jira webhook calls arrive unsigned; a first-run checklist and Test connection button; an alert if the catch-up sync has stalled for 30 minutes; a “Send now” and last-result display for the personal-data report. Fixed: a failed weekly personal-data report was retried on every cron call; it now backs off six hours.
+- Still only tested against mocked Jira responses, never a real Atlassian site.
+
+## [0.44.0] — 2026-09-20 — **migration required: 086**
+
+- **Ticket SLA with business hours.** **Settings → SLA & business hours** has two tabs. *Business hours*: schedules with a timezone, working days with time slots, holidays, one default, copy hours across days, and a Mon–Fri 09:00–18:00 preset. *SLA policies*: an ordered list (first match wins) with conditions (priority, type, label, channel, team), a first-response target and a resolution target, a schedule (or 24/7), pause-while-pending, an at-risk percentage, and a live preview of when a ticket would be due. “Apply to open tickets” gives existing tickets an SLA after a confirmation.
+- **The clock runs on tickets.** It runs while a ticket is Open or In progress, pauses while it is Pending, stops when it is Resolved or Closed, and resumes if it is reopened. A badge (On track, At risk, Breached, Paused, Met) with a business-time countdown shows on board cards, the list (new sortable SLA column), the ticket view and the inbox ticket panel. New quick filters **SLA at risk** and **SLA breached**, sort and group by SLA. The assignee (or every admin if unassigned) and watchers are notified once when a ticket is at risk and once when it breaches.
+- **Reports → Tickets** gains **SLA compliance**: first-response and resolution met % by priority and by team, and a list of breached tickets.
+- New capability *Configure SLA* (Owner and Admin). “First response” means the first internal comment by a Vircle user on the ticket, the same as the existing ticket report; a reply in the linked chat does not count yet. Needs a cron line for `/api/sla/tickets-cron` (see `docs/ticket-sla.md`).
+- **Fixed:** the conversation response-time alerts (“sla_breach” notifications) had been failing since 0.39.0 because that notification type was dropped by mistake; migration 086 restores it.
+
 ## [0.43.0] — 2026-09-20 — **migration required: 085; new settings: JIRA_CLIENT_ID, JIRA_CLIENT_SECRET**
 
 - **Link tickets to Jira (Cloud, two-way).** Settings → **Integrations → Jira** connects a Jira site through Atlassian sign-in (Owner and Admin, capability *Connect Jira*). On a ticket, a **Jira card** offers **Create issue** (pre-filled from the ticket, with a preview of exactly what is sent; customer name and email are left out unless you turn them on) or **Link existing issue** (up to five per ticket). The card shows the issue key, its live status, assignee and priority from a cached copy, with **Sync now**, **Open in Jira**, **Move Jira issue to…** and **Unlink**. Linked tickets show the Jira key on board cards and list rows.

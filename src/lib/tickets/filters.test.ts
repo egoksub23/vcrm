@@ -145,3 +145,68 @@ describe('applyFilters', () => {
     expect(applyFilters(rows, { ...emptyFilters(), quick: ['mine'] }, { ...ctx, userId: null })).toEqual([])
   })
 })
+
+describe('SLA quick chips (migration 086)', () => {
+  const NOW = new Date('2026-09-20T12:00:00Z')
+  const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000).toISOString()
+  const ticket = (n: number, over: Partial<Ticket>) =>
+    ({
+      ticket_number: n,
+      subject: `S${n}`,
+      description: null,
+      status: 'open',
+      priority: 'normal',
+      category: 'general',
+      assigned_agent_id: null,
+      assigned_team_id: null,
+      labels: [],
+      due_date: null,
+      updated_at: '2026-09-01T00:00:00Z',
+      ...over,
+    }) as Pick<
+      Ticket,
+      | 'ticket_number' | 'subject' | 'description' | 'status' | 'priority' | 'category' | 'assigned_agent_id'
+      | 'assigned_team_id' | 'labels' | 'due_date' | 'updated_at' | 'sla_first_response_state'
+      | 'sla_first_response_due_at' | 'sla_first_response_risk_at' | 'sla_resolution_state'
+      | 'sla_resolution_due_at' | 'sla_resolution_risk_at'
+    >
+  const running = (due: number, risk: number): Partial<Ticket> => ({
+    sla_first_response_state: 'running',
+    sla_first_response_due_at: at(due),
+    sla_first_response_risk_at: at(risk),
+  })
+  const sla = [
+    ticket(1, running(120, 90)), // on track
+    ticket(2, running(30, -5)), // at risk
+    ticket(3, running(-10, -50)), // breached (past due, the sweep has not marked it yet)
+    ticket(4, { sla_first_response_state: 'breached', sla_first_response_due_at: at(-500), sla_first_response_risk_at: at(-600), status: 'resolved' }),
+    ticket(5, {}), // no SLA
+  ]
+  const ctx = { userId: 'me', prefix: 'VIR', now: NOW }
+  const nums = (quick: ('sla_at_risk' | 'sla_breached')[]) =>
+    applyFilters(sla, { ...emptyFilters(), quick }, ctx).map((t) => t.ticket_number)
+
+  it('SLA at risk shows tickets with a target close to its limit', () => {
+    expect(nums(['sla_at_risk'])).toEqual([2])
+  })
+  it('SLA breached shows past-due tickets without waiting for the sweep, and finished ones that missed', () => {
+    expect(nums(['sla_breached'])).toEqual([3, 4])
+  })
+  it('both chips together must both match, so nothing here', () => {
+    expect(nums(['sla_at_risk', 'sla_breached'])).toEqual([])
+  })
+  it('the chips round-trip through the URL and a saved filter', () => {
+    const f = { ...emptyFilters(), quick: ['sla_at_risk' as const, 'sla_breached' as const] }
+    const url = serializeFilters(f)
+    expect(url.get('quick')).toBe('sla_at_risk,sla_breached')
+    expect(parseFilters(url)).toEqual(f)
+    expect(filtersFromJson(filtersToJson(f))).toEqual(f)
+  })
+  it('counts as active filters', () => {
+    expect(hasActiveFilters({ ...emptyFilters(), quick: ['sla_breached'] })).toBe(true)
+    expect(countActiveFilters({ ...emptyFilters(), quick: ['sla_breached', 'sla_at_risk'] })).toBe(2)
+  })
+  it('unknown quick values are dropped', () => {
+    expect(parseFilters(params('quick=sla_nope,sla_breached')).quick).toEqual(['sla_breached'])
+  })
+})

@@ -11,6 +11,7 @@ import type { KnownLabel } from "@/hooks/use-ticket-labels";
 import type { Contact, Profile, Team, Ticket, TicketWatcher } from "@/types";
 import { TicketLabelPicker } from "./ticket-label-picker";
 import { AssigneeMenu, PriorityMenu, StatusMenu, TeamMenu, TypeMenu } from "./ticket-pickers";
+import { TicketSlaSection } from "./ticket-sla-section";
 import { PersonAvatar } from "./ticket-visuals";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -140,6 +141,8 @@ export function TicketDetailsCard({
   return (
     <div className="space-y-3">
       <StatusMenu status={ticket.status} variant="button" disabled={!canWork} onChange={(status) => onUpdate({ status })} />
+
+      <TicketSlaSection ticket={ticket} />
 
       <div className="rounded-lg border border-border bg-card">
         <h3 className="border-b border-border px-3 py-2 text-[13px] font-semibold">{t("detailsHeading")}</h3>

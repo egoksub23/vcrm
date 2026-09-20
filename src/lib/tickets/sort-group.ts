@@ -1,6 +1,7 @@
 import type { Ticket } from '@/types'
 import { TICKET_PRIORITIES, TICKET_STATUSES } from './constants'
 import { UNASSIGNED } from './filters'
+import { SLA_GROUP_ORDER, slaDueSortKey, slaGroupKey } from '@/lib/sla/display'
 
 export type SortKey =
   | 'key'
@@ -9,6 +10,7 @@ export type SortKey =
   | 'priority'
   | 'assignee'
   | 'due'
+  | 'sla'
   | 'updated'
   | 'created'
 
@@ -17,7 +19,7 @@ export interface SortSpec {
   dir: 'asc' | 'desc'
 }
 
-const SORT_KEYS: SortKey[] = ['key', 'summary', 'status', 'priority', 'assignee', 'due', 'updated', 'created']
+const SORT_KEYS: SortKey[] = ['key', 'summary', 'status', 'priority', 'assignee', 'due', 'sla', 'updated', 'created']
 
 export const DEFAULT_SORT: SortSpec = { key: 'updated', dir: 'desc' }
 
@@ -42,6 +44,8 @@ export function toggleSort(current: SortSpec, key: SortKey): SortSpec {
 
 export interface SortContext {
   assigneeName: (userId: string | null | undefined) => string
+  /** The clock for the SLA sort and group (ms). Defaults to now. */
+  now?: number
 }
 
 type SortRow = Pick<
@@ -55,6 +59,12 @@ type SortRow = Pick<
   | 'due_date'
   | 'updated_at'
   | 'created_at'
+  | 'sla_first_response_state'
+  | 'sla_first_response_due_at'
+  | 'sla_first_response_risk_at'
+  | 'sla_resolution_state'
+  | 'sla_resolution_due_at'
+  | 'sla_resolution_risk_at'
 >
 
 const text = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
@@ -83,6 +93,14 @@ export function sortTickets<T extends SortRow>(rows: T[], spec: SortSpec, ctx: S
         if (!a.due_date || !b.due_date) return a.due_date === b.due_date ? 0 : !a.due_date ? 1 : -1
         return sign * text(a.due_date, b.due_date)
       }
+      case 'sla': {
+        // Soonest due first when ascending; tickets with no live SLA always last.
+        const now = ctx.now ?? Date.now()
+        const ak = slaDueSortKey(a, now)
+        const bk = slaDueSortKey(b, now)
+        if (ak === null || bk === null) return ak === bk ? 0 : ak === null ? 1 : -1
+        return sign * (ak - bk)
+      }
       case 'created':
         return sign * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       default:
@@ -92,8 +110,8 @@ export function sortTickets<T extends SortRow>(rows: T[], spec: SortSpec, ctx: S
   return out
 }
 
-export type GroupBy = 'none' | 'assignee' | 'status' | 'priority'
-export const GROUP_BYS: GroupBy[] = ['none', 'assignee', 'status', 'priority']
+export type GroupBy = 'none' | 'assignee' | 'status' | 'priority' | 'sla'
+export const GROUP_BYS: GroupBy[] = ['none', 'assignee', 'status', 'priority', 'sla']
 
 export function parseGroupBy(raw: string | null | undefined): GroupBy {
   return GROUP_BYS.includes(raw as GroupBy) ? (raw as GroupBy) : 'none'
@@ -116,7 +134,13 @@ export function groupTickets<T extends SortRow>(
   const groups = new Map<string, T[]>()
   for (const row of rows) {
     const key =
-      by === 'status' ? row.status : by === 'priority' ? row.priority : (row.assigned_agent_id ?? UNASSIGNED)
+      by === 'status'
+        ? row.status
+        : by === 'priority'
+          ? row.priority
+          : by === 'sla'
+            ? slaGroupKey(row, ctx.now ?? Date.now())
+            : (row.assigned_agent_id ?? UNASSIGNED)
     const bucket = groups.get(key)
     if (bucket) bucket.push(row)
     else groups.set(key, [row])
@@ -125,6 +149,8 @@ export function groupTickets<T extends SortRow>(
   if (by === 'status') keys.sort((a, b) => TICKET_STATUSES.indexOf(a as never) - TICKET_STATUSES.indexOf(b as never))
   else if (by === 'priority')
     keys.sort((a, b) => TICKET_PRIORITIES.indexOf(a as never) - TICKET_PRIORITIES.indexOf(b as never))
+  else if (by === 'sla')
+    keys.sort((a, b) => SLA_GROUP_ORDER.indexOf(a as never) - SLA_GROUP_ORDER.indexOf(b as never))
   else
     keys.sort((a, b) => {
       if (a === UNASSIGNED || b === UNASSIGNED) return a === b ? 0 : a === UNASSIGNED ? 1 : -1

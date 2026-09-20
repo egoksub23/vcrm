@@ -82,6 +82,11 @@ export async function completeConnection(args: {
     connectionId = existing.id;
     const { error } = await db.from("jira_connections").update({ ...fields, webhook_ids: existing.cloud_id === site.id ? existing.webhook_ids : [], ...(existing.cloud_id === site.id ? {} : { webhook_expires_at: null, last_catchup_at: null }) }).eq("id", existing.id);
     if (error) throw new Error(`Could not update the Jira connection: ${error.message}`);
+    if (existing.cloud_id !== site.id) {
+      // Another site has other fields and projects: the old field mappings and metadata do not carry over.
+      await db.from("jira_field_mappings").delete().eq("connection_id", existing.id);
+      await db.from("jira_field_meta_cache").delete().eq("connection_id", existing.id);
+    }
     const { error: sErr } = await db
       .from("jira_connection_secrets")
       .upsert(
@@ -293,6 +298,9 @@ export async function disconnect(args: {
     await db.from("ticket_jira_links").delete().eq("connection_id", connection.id);
     await db.from("jira_sync_events").delete().eq("connection_id", connection.id);
     await db.from("jira_user_map").delete().eq("account_id", connection.account_id);
+    // Bulk batches (with their results) and the cached field metadata are cached Jira data too.
+    await db.from("jira_bulk_batches").delete().eq("connection_id", connection.id);
+    await db.from("jira_field_meta_cache").delete().eq("connection_id", connection.id);
   } else {
     await db.from("ticket_jira_links").update({ sync_state: "paused" }).eq("connection_id", connection.id).eq("sync_state", "ok");
   }

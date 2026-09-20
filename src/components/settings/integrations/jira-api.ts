@@ -5,7 +5,9 @@
 
 import { useTranslations } from "next-intl";
 
-import type { JiraConnectionRow, JiraSettings } from "@/lib/jira/types";
+import type { ChecklistStep } from "@/lib/jira/checklist";
+import type { FieldMappingRow, JiraFieldInfo } from "@/lib/jira/field-mapping";
+import type { JiraConnectionRow, JiraSettings, ReportResult } from "@/lib/jira/types";
 
 export const JIRA_API = "/api/integrations/jira";
 
@@ -73,13 +75,19 @@ const KNOWN_ERRORS = new Set([
   "internal",
 ]);
 
+/** Codes new in 0.45.0: their sentences live under Settings.jira.depth.errors. */
+const DEPTH_ERRORS = new Set(["unsupported_field", "incompatible_field", "too_many", "project_not_allowed"]);
+
 /** The translated sentence for an API error (falls back to a generic one). */
 export function useJiraErrorText(): (error: Pick<JiraApiError, "code" | "retryAfter">) => string {
   const t = useTranslations("Settings.jira.errors");
+  const td = useTranslations("Settings.jira.depth.errors");
   return (error) =>
-    KNOWN_ERRORS.has(error.code)
-      ? t(error.code, { seconds: error.retryAfter ?? 30 })
-      : t("unknown");
+    DEPTH_ERRORS.has(error.code)
+      ? td(error.code)
+      : KNOWN_ERRORS.has(error.code)
+        ? t(error.code, { seconds: error.retryAfter ?? 30 })
+        : t("unknown");
 }
 
 // ------------------------------------------------------------
@@ -92,6 +100,8 @@ export interface JiraConnectionPayload {
   connection: JiraConnectionRow | null;
   settings: JiraSettings;
   counts: { links: number; paused: number; broken: number };
+  /** 0.45.0: the first-run checklist, computed on the server. */
+  checklist?: ChecklistStep[];
 }
 
 export interface JiraProject {
@@ -157,4 +167,44 @@ export interface JiraDiagnostics {
   failures?: { linkId: string; key: string; state: string; error: string | null }[];
   events?: { id: string; level: string; kind: string; message: string; link_id: string | null; created_at: string }[];
   deadJobs?: { id: string; kind: string; attempts: number; last_error: string | null; finished_at: string | null }[];
+  /** 0.45.0 */
+  catchupStalled?: boolean;
+  catchupMinutes?: number | null;
+  report?: ReportResult | null;
+  webhookTrust?: {
+    signed: number;
+    unsigned: number;
+    rejectedUnsigned: number;
+    lastUnsignedAt: string | null;
+    since: string | null;
+    requireSigned: boolean;
+  };
+}
+
+/** POST diagnostics { action: "test_connection" }. */
+export type JiraTestResult =
+  | { ok: true; user: { displayName: string | null; accountId: string | null }; projects: { key: string; name: string }[]; hasMore: boolean }
+  | { ok: false; code: string; message: string };
+
+/** GET fields?project=KEY: the Fields tab. */
+export interface JiraFieldsData {
+  project: string;
+  issueType: JiraNamed;
+  issueTypes: JiraNamed[];
+  fields: JiraFieldInfo[];
+  cachedAt: string;
+  cached: boolean;
+  ticketFields: { id: string; label: string; field_type: "text" | "textarea" | "number" | "date" | "dropdown" | "checkbox"; options: string[] }[];
+  mappings: FieldMappingRow[];
+}
+
+export interface JiraMappingInput {
+  projectKey: string;
+  issueTypeId: string;
+  ticketFieldId: string;
+  jiraFieldId: string;
+  direction: "to_jira" | "from_jira" | "both";
+  whenMissing: "skip" | "clear" | "default";
+  defaultValue?: string | null;
+  label?: string | null;
 }

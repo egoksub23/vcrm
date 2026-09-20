@@ -34,6 +34,7 @@ import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import type { TicketRow } from "@/hooks/use-ticket-store";
 import type { Profile, TicketStatus } from "@/types";
 import { JiraKeyChips } from "./jira-key-chip";
+import { TicketSlaBadge } from "./ticket-sla-badge";
 import {
   DueChip,
   LabelLozenge,
@@ -138,6 +139,7 @@ function CardBody({
         <span className="font-mono text-[11px] text-muted-foreground">{keyText}</span>
         <PriorityIcon priority={row.priority} />
         <DueChip dueDate={row.due_date} status={row.status} />
+        <TicketSlaBadge ticket={row} compact />
         <span className="ml-auto flex items-center gap-2">
           {row.comment_count > 0 ? (
             <span

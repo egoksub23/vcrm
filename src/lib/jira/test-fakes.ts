@@ -3,16 +3,28 @@
 // client. Used only by *.test.ts files; nothing in the app imports this.
 // ============================================================
 
+import type { FieldMappingRow, VircleFieldDef } from "./field-mapping";
 import type {
+  AttachmentMapRow,
+  BulkBatchRow,
+  BulkItemRow,
   CommentMapRow,
   JiraStore,
   JobRow,
   NoteRow,
   SyncEventInput,
+  TicketAttachmentRow,
   TicketRow,
   UserMapRow,
 } from "./store";
-import { DEFAULT_JIRA_SETTINGS, type JiraConnectionRow, type JiraIssue, type JiraSettings, type TicketJiraLinkRow } from "./types";
+import {
+  DEFAULT_JIRA_SETTINGS,
+  type FieldState,
+  type JiraConnectionRow,
+  type JiraIssue,
+  type JiraSettings,
+  type TicketJiraLinkRow,
+} from "./types";
 import type { SyncContext } from "./sync";
 
 let seq = 0;
@@ -133,6 +145,15 @@ export class MemoryStore implements JiraStore {
   assigneeChanges: { ticketId: string; userId: string }[] = [];
   names: Record<string, string> = { "user-agent": "Maya", "user-admin": "Ada" };
   reauth: { id: string; reason: string }[] = [];
+  fieldMappings: FieldMappingRow[] = [];
+  fieldDefs: VircleFieldDef[] = [];
+  appliedFields: { ticketId: string; values: Record<string, unknown> }[] = [];
+  ticketAttachments: TicketAttachmentRow[] = [];
+  attachmentMaps: AttachmentMapRow[] = [];
+  bulkBatches: BulkBatchRow[] = [];
+  bulkItems: BulkItemRow[] = [];
+  stalled: { id: string; minutes: number }[] = [];
+  webhookStats: { id: string; kind: string }[] = [];
 
   async getConnection(id: string) {
     return this.connections.find((c) => c.id === id) ?? null;
@@ -262,6 +283,118 @@ export class MemoryStore implements JiraStore {
     Object.assign(this.maps.find((m) => m.id === id)!, patch);
   }
 
+  contacts: Record<string, { name: string | null; email: string | null }> = { "c-1": { name: "Casey", email: "casey@example.com" } };
+  async getContactBasics(contactId: string) {
+    return this.contacts[contactId] ?? null;
+  }
+  async listFieldMappings(connectionId: string) {
+    return this.fieldMappings.filter((m) => m.connection_id === connectionId);
+  }
+  async getFieldDefinitions(accountId: string) {
+    return this.fieldDefs.filter(() => accountId === accountId);
+  }
+  async applyTicketFields(ticketId: string, values: Record<string, unknown>) {
+    const t = this.tickets.find((x) => x.id === ticketId);
+    if (!t) return false;
+    const next = { ...(t.custom_fields ?? {}) };
+    for (const [k, v] of Object.entries(values)) {
+      if (v === null || v === undefined) delete next[k];
+      else next[k] = v;
+    }
+    t.custom_fields = next;
+    this.appliedFields.push({ ticketId, values });
+    return true;
+  }
+  async setFieldState(linkId: string, state: Record<string, FieldState>) {
+    this.links.find((l) => l.id === linkId)!.field_state = state;
+  }
+
+  async getTicketAttachment(id: string) {
+    return this.ticketAttachments.find((a) => a.id === id) ?? null;
+  }
+  async countTicketAttachments(ticketId: string) {
+    return this.ticketAttachments.filter((a) => a.ticket_id === ticketId).length;
+  }
+  async insertTicketAttachment(input: { ticketId: string; accountId: string; storagePath: string; url: string; filename: string; mimeType: string; sizeBytes: number; jiraAttachmentId: string }) {
+    const id = uid("att");
+    this.ticketAttachments.push({
+      id,
+      ticket_id: input.ticketId,
+      account_id: input.accountId,
+      storage_path: input.storagePath,
+      url: input.url,
+      filename: input.filename,
+      mime_type: input.mimeType,
+      size_bytes: input.sizeBytes,
+      source: "jira",
+      jira_attachment_id: input.jiraAttachmentId,
+    });
+    return id;
+  }
+  async deleteTicketAttachment(id: string) {
+    this.ticketAttachments = this.ticketAttachments.filter((a) => a.id !== id);
+  }
+  async listAttachmentMaps(linkId: string) {
+    return this.attachmentMaps.filter((m) => m.link_id === linkId);
+  }
+  async insertAttachmentMap(row: Omit<AttachmentMapRow, "id">) {
+    if (this.attachmentMaps.some((m) => m.link_id === row.link_id && m.jira_attachment_id === row.jira_attachment_id)) return false;
+    if (row.content_hash && row.status === "synced" && this.attachmentMaps.some((m) => m.link_id === row.link_id && m.status === "synced" && m.content_hash === row.content_hash)) return false;
+    this.attachmentMaps.push({ ...row, id: uid("amap") });
+    return true;
+  }
+
+  async createBulkBatch(input: { accountId: string; connectionId: string; kind: "create" | "link"; createdBy: string | null; targetIssueId?: string | null; targetIssueKey?: string | null; items: { ticketId: string; projectKey?: string | null; issueTypeId?: string | null; issueTypeName?: string | null; summary?: string | null }[] }) {
+    const batch: BulkBatchRow = {
+      id: uid("batch"),
+      account_id: input.accountId,
+      connection_id: input.connectionId,
+      kind: input.kind,
+      created_by: input.createdBy,
+      total: input.items.length,
+      target_issue_id: input.targetIssueId ?? null,
+      target_issue_key: input.targetIssueKey ?? null,
+      created_at: "2026-09-20T10:00:00Z",
+    };
+    const items: BulkItemRow[] = input.items.map((i) => ({
+      id: uid("bitem"),
+      batch_id: batch.id,
+      account_id: input.accountId,
+      ticket_id: i.ticketId,
+      status: "pending",
+      project_key: i.projectKey ?? null,
+      issue_type_id: i.issueTypeId ?? null,
+      issue_type_name: i.issueTypeName ?? null,
+      summary: i.summary ?? null,
+      issue_key: null,
+      code: null,
+      message: null,
+    }));
+    this.bulkBatches.push(batch);
+    this.bulkItems.push(...items);
+    return { batch, items };
+  }
+  async getBulkBatch(id: string) {
+    return this.bulkBatches.find((b) => b.id === id) ?? null;
+  }
+  async getBulkItem(id: string) {
+    return this.bulkItems.find((i) => i.id === id) ?? null;
+  }
+  async listBulkItems(batchId: string) {
+    return this.bulkItems.filter((i) => i.batch_id === batchId);
+  }
+  async updateBulkItem(id: string, patch: Partial<Pick<BulkItemRow, "status" | "issue_key" | "code" | "message">>) {
+    Object.assign(this.bulkItems.find((i) => i.id === id)!, patch);
+  }
+
+  async notifyStalled(connectionId: string, minutes: number) {
+    this.stalled.push({ id: connectionId, minutes });
+    return 1;
+  }
+  async bumpWebhookStat(connectionId: string, kind: "signed" | "unsigned" | "rejected_unsigned") {
+    this.webhookStats.push({ id: connectionId, kind });
+  }
+
   async userIdForJiraAccount(accountId: string, jiraAccountId: string) {
     return this.userMap.find((u) => u.account_id === accountId && u.jira_account_id === jiraAccountId)?.user_id ?? null;
   }
@@ -334,6 +467,12 @@ export interface FakeClientScript {
   createIssue?: (fields: Record<string, unknown>) => Promise<{ id: string; key: string } | null>;
   bulkFetch?: (ids: string[]) => Promise<JiraIssue[]>;
   searchIssues?: (a: unknown) => Promise<{ issues?: { id: string }[]; nextPageToken?: string } | null>;
+  updateIssue?: (idOrKey: string, body: unknown) => Promise<unknown>;
+  getEditMeta?: (idOrKey: string) => Promise<{ fields?: Record<string, unknown> } | null>;
+  listProjectComponents?: (project: string) => Promise<{ id: string; name: string }[] | null>;
+  getAttachmentMeta?: () => Promise<{ enabled?: boolean; uploadLimit?: number } | null>;
+  uploadAttachment?: (idOrKey: string, file: { filename: string; contentType: string; data: Uint8Array }) => Promise<{ id: string }[] | null>;
+  downloadAttachment?: (id: string, maxBytes: number) => Promise<unknown>;
 }
 
 export function fakeClient(script: FakeClientScript = {}) {
@@ -355,6 +494,12 @@ export function fakeClient(script: FakeClientScript = {}) {
     createIssue: rec("createIssue", script.createIssue as never, { id: "10099", key: "ENG-99" } as { id: string; key: string } | null),
     bulkFetch: rec("bulkFetch", script.bulkFetch as never, [] as JiraIssue[]),
     searchIssues: rec("searchIssues", script.searchIssues as never, { issues: [] as { id: string }[] } as { issues?: { id: string }[]; nextPageToken?: string } | null),
+    updateIssue: rec("updateIssue", script.updateIssue as never, null as unknown),
+    getEditMeta: rec("getEditMeta", script.getEditMeta as never, { fields: {} } as { fields?: Record<string, unknown> } | null),
+    listProjectComponents: rec("listProjectComponents", script.listProjectComponents as never, [] as { id: string; name: string }[] | null),
+    getAttachmentMeta: rec("getAttachmentMeta", script.getAttachmentMeta as never, { enabled: true, uploadLimit: 10 * 1024 * 1024 } as { enabled?: boolean; uploadLimit?: number } | null),
+    uploadAttachment: rec("uploadAttachment", script.uploadAttachment as never, [{ id: "att-99" }] as { id: string }[] | null),
+    downloadAttachment: rec("downloadAttachment", script.downloadAttachment as never, { ok: false, reason: "failed" } as unknown),
   };
   return { client: client as unknown as SyncContext["client"], calls };
 }
@@ -367,6 +512,8 @@ export function makeContext(store: MemoryStore, client: SyncContext["client"], s
     mapping: { ...DEFAULT_JIRA_SETTINGS.mapping, ...(settings.mapping ?? {}) },
     projects: { ...DEFAULT_JIRA_SETTINGS.projects, ...(settings.projects ?? {}) },
     privacy: { ...DEFAULT_JIRA_SETTINGS.privacy, ...(settings.privacy ?? {}) },
+    webhook: { ...DEFAULT_JIRA_SETTINGS.webhook, ...(settings.webhook ?? {}) },
+    project_overrides: settings.project_overrides ?? {},
   } as JiraSettings;
   return {
     store,

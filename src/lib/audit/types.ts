@@ -53,6 +53,10 @@ export const AUDIT_ENTITY_TYPES = [
   // Migration 085 (Jira link).
   "jira_connection",
   "ticket_jira_link",
+  // Migration 086 (ticket SLA).
+  "business_hours",
+  "business_hours_holiday",
+  "sla_policy",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

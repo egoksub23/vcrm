@@ -21,10 +21,10 @@ import {
 } from "./create-issue";
 import type { CreateField } from "./client";
 import { describeError, JiraNotFoundError, JiraPermissionError, JiraValidationError } from "./errors";
-import { normalizeCategory, transitionFields, type JiraTransition } from "./settings";
-import { cachePatch, syncComments, ticketUrl, type SyncContext } from "./sync";
+import { effectiveSettings, normalizeCategory, transitionFields, type JiraTransition } from "./settings";
+import { buildMappedCreateFields, type MappedCreate } from "./fields-sync";
+import { cachePatch, issueFieldList, syncComments, ticketUrl, type SyncContext } from "./sync";
 import {
-  ISSUE_FIELDS,
   MAX_LINKS_PER_TICKET,
   type JiraIssue,
   type TicketJiraLinkRow,
@@ -46,7 +46,8 @@ export class LinkError extends Error {
       | "missing_fields"
       | "jira_rejected"
       | "no_permission"
-      | "transition_unavailable",
+      | "transition_unavailable"
+      | "bulk_limit",
     message: string,
     readonly detail?: Record<string, unknown>,
   ) {
@@ -89,7 +90,7 @@ export async function linkExistingIssue(
 
   let issue: JiraIssue | null;
   try {
-    issue = await ctx.client.getIssue(ref.key, ISSUE_FIELDS);
+    issue = await ctx.client.getIssue(ref.key, await issueFieldList(ctx));
   } catch (e) {
     if (e instanceof JiraNotFoundError) throw new LinkError("not_found", `Jira could not find ${ref.key}`, { key: ref.key });
     if (e instanceof JiraPermissionError) throw new LinkError("no_permission", `The connected user cannot see ${ref.key}`, { key: ref.key });
@@ -104,6 +105,32 @@ export async function linkExistingIssue(
 
   const link = await insertLinkRow(ctx, ticket.id, issue, args.userId);
   await afterLinked(ctx, link, issue, ticket, { created: false, userId: args.userId, seedComments: true });
+  return link;
+}
+
+/**
+ * Link a ticket to an issue that was already read (the bulk "Link to Jira
+ * issue" reads it once for the whole selection). Same rules as
+ * linkExistingIssue: five links at most, the project must be allowed.
+ */
+export async function linkIssueToTicket(
+  ctx: SyncContext,
+  args: { ticketId: string; issue: JiraIssue; userId: string | null },
+): Promise<TicketJiraLinkRow> {
+  assertActive(ctx);
+  const { store } = ctx;
+  const ticket = await store.getTicket(args.ticketId);
+  if (!ticket || ticket.account_id !== ctx.connection.account_id) throw new LinkError("not_found", "Ticket not found");
+  assertProjectAllowed(ctx, args.issue.fields.project?.key);
+  const existing = await store.linksForTicket(ticket.id);
+  if (existing.length >= MAX_LINKS_PER_TICKET) {
+    throw new LinkError("link_limit", `A ticket can link at most ${MAX_LINKS_PER_TICKET} Jira issues`);
+  }
+  if (existing.some((l) => l.issue_id === args.issue.id)) {
+    throw new LinkError("already_linked", `${args.issue.key} is already linked to this ticket`);
+  }
+  const link = await insertLinkRow(ctx, ticket.id, args.issue, args.userId);
+  await afterLinked(ctx, link, args.issue, ticket, { created: false, userId: args.userId, seedComments: true });
   return link;
 }
 
@@ -209,12 +236,12 @@ export interface CreatePreviewResult {
   required: RequiredAnalysis;
 }
 
-async function planFor(
+export async function planFor(
   ctx: SyncContext,
   ticketId: string,
   choices: CreateChoices,
   customer: { name: string | null; email: string | null } | null,
-): Promise<{ plan: CreatePlan; required: RequiredAnalysis; fields: CreateField[]; ticketKey: string; ticketAccount: string }> {
+): Promise<{ plan: CreatePlan; required: RequiredAnalysis; fields: CreateField[]; ticketKey: string; ticketAccount: string; mapped: MappedCreate }> {
   const { store } = ctx;
   const ticket = await store.getTicket(ticketId);
   if (!ticket || ticket.account_id !== ctx.connection.account_id) throw new LinkError("not_found", "Ticket not found");
@@ -224,6 +251,8 @@ async function planFor(
   const fields = (meta?.fields ?? meta?.values ?? []) as CreateField[];
   const key = await store.ticketKey(ticket);
 
+  // The most specific setting wins: this project's overrides over the workspace's.
+  const eff = effectiveSettings(ctx.settings, choices.projectKey);
   const plan = buildCreatePlan({
     ticket: {
       ticket_number: ticket.ticket_number,
@@ -233,15 +262,53 @@ async function planFor(
       priority: ticket.priority as TicketPriorityValue,
     },
     customer,
-    settings: ctx.settings,
+    settings: eff,
     choices,
     ticketKey: key,
     ticketUrl: ticketUrl(ctx, ticket.id),
     createFields: fields.length ? fields : undefined,
     descriptionToPlain: (doc) => adfToPlainText(doc),
   });
+
+  // Category as a component: only when the project really has one of that name (Jira refuses unknown ones).
+  const hasField = (id: string) => fields.length === 0 || fields.some((f) => (f.key ?? f.fieldId) === id);
+  if (eff.mapping.category_component && ticket.category && hasField("components")) {
+    try {
+      const comps = (await ctx.client.listProjectComponents(choices.projectKey)) ?? [];
+      const hit = comps.find((c) => c.name.trim().toLowerCase() === ticket.category.trim().toLowerCase());
+      if (hit) {
+        plan.fields.components = [{ id: hit.id }];
+        plan.preview.component = hit.name;
+      }
+    } catch {
+      // A component is a nicety: never block the issue on it.
+    }
+  }
+
+  // Custom fields from the mappings (Settings > Jira > Fields).
+  const at = new Date((ctx.now ?? Date.now)()).toISOString();
+  const [mappings, defs] = await Promise.all([store.listFieldMappings(ctx.connection.id), store.getFieldDefinitions(ticket.account_id)]);
+  const mapped = buildMappedCreateFields({
+    mappings: mappings ?? [],
+    projectKey: choices.projectKey,
+    defs: defs ?? [],
+    customValues: ticket.custom_fields,
+    createFields: fields,
+    at,
+  });
+  for (const [id, v] of Object.entries(mapped.fields)) if (!(id in plan.fields)) plan.fields[id] = v;
+  if (mapped.extraLabels.length > 0) {
+    const labels = new Set<string>((plan.fields.labels as string[] | undefined) ?? []);
+    for (const l of mapped.extraLabels) labels.add(l);
+    if (hasField("labels")) {
+      plan.fields.labels = [...labels].slice(0, 10);
+      plan.preview.labels = plan.fields.labels as string[];
+    }
+  }
+  plan.preview.mappedFields = mapped.preview.map((p) => ({ label: p.label, jiraName: p.jiraName, display: p.display }));
+
   const filled = new Set(Object.keys(plan.fields));
-  return { plan, required: analyseRequired(fields, filled), fields, ticketKey: key, ticketAccount: ticket.account_id };
+  return { plan, required: analyseRequired(fields, filled), fields, ticketKey: key, ticketAccount: ticket.account_id, mapped };
 }
 
 /** What would be sent, and which required fields the dialog still has to ask for. */
@@ -290,7 +357,7 @@ export async function createIssueFromTicket(
   }
   if (missing.length > 0) throw new LinkError("missing_fields", "Some required fields are empty", { fields: missing });
 
-  const { plan, ticketKey } = await planFor(ctx, args.ticketId, { ...args.choices, fieldValues: values }, args.customer);
+  const { plan, ticketKey, mapped } = await planFor(ctx, args.ticketId, { ...args.choices, fieldValues: values }, args.customer);
 
   let created: { id: string; key: string } | null;
   try {
@@ -307,7 +374,7 @@ export async function createIssueFromTicket(
   // Read it back for the cache; if that fails, fall back to what we know so the link is not lost.
   let issue: JiraIssue;
   try {
-    issue = (await ctx.client.getIssue(created.id, ISSUE_FIELDS)) ?? fallbackIssue(created, plan);
+    issue = (await ctx.client.getIssue(created.id, await issueFieldList(ctx))) ?? fallbackIssue(created, plan);
   } catch {
     issue = fallbackIssue(created, plan);
   }
@@ -326,6 +393,11 @@ export async function createIssueFromTicket(
       message: `${created.key} was created but could not be linked to ${ticketKey}`,
     });
     throw e;
+  }
+  // What the mappings wrote at creation is the echo memory: the webhook that announces it is recognised.
+  if (Object.keys(mapped.state).length > 0) {
+    await store.setFieldState(link.id, mapped.state).catch(() => undefined);
+    link.field_state = mapped.state;
   }
   await afterLinked(ctx, link, issue, ticket, { created: true, userId: args.userId, seedComments: false });
   return link;

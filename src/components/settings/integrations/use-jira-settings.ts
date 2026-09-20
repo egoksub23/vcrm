@@ -14,7 +14,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { applySettingsPatch } from "@/lib/jira/settings";
-import { DEFAULT_JIRA_SETTINGS, type JiraSettings } from "@/lib/jira/types";
+import { DEFAULT_JIRA_SETTINGS, type JiraSettings, type ProjectOverride } from "@/lib/jira/types";
 
 import {
   jiraFetch,
@@ -25,9 +25,16 @@ import {
 
 /** A partial settings object: sections merge one level deep on the server. */
 export type JiraSettingsPatch = {
-  [K in keyof JiraSettings]?: JiraSettings[K] extends Record<string, unknown>
-    ? Partial<JiraSettings[K]>
-    : JiraSettings[K];
+  projects?: Partial<JiraSettings["projects"]>;
+  mapping?: Partial<JiraSettings["mapping"]>;
+  direction?: Partial<JiraSettings["direction"]>;
+  webhook?: Partial<JiraSettings["webhook"]>;
+  privacy?: Partial<JiraSettings["privacy"]>;
+  /** One project's override; null removes it. */
+  project_overrides?: Record<string, ProjectOverride | null>;
+  done_behaviour?: JiraSettings["done_behaviour"];
+  resolution?: JiraSettings["resolution"];
+  personal_data_report?: JiraSettings["personal_data_report"];
 };
 
 export interface UseJiraSettings {

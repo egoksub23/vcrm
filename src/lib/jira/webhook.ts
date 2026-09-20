@@ -63,7 +63,7 @@ export function verifyHs256Jwt(token: string, secret: string, now: number = Date
 
 export type WebhookAuth =
   | { ok: true; level: "jwt" | "token_only" }
-  | { ok: false; reason: "bad_token" | "bad_bearer" };
+  | { ok: false; reason: "bad_token" | "bad_bearer" | "unsigned" };
 
 export function authorizeWebhook(args: {
   pathToken: string;
@@ -71,12 +71,20 @@ export function authorizeWebhook(args: {
   authorization: string | null;
   clientSecret: string | null;
   verifyMode?: string | null;
+  /**
+   * "Require signed deliveries" (the connection's setting): a delivery must
+   * carry a bearer token that verifies with the app secret, or it is refused.
+   * Off by default until the owner has seen that Atlassian really signs them.
+   */
+  requireSigned?: boolean;
   now?: number;
 }): WebhookAuth {
   // Path token first, always, and without leaking which check failed.
   if (!args.expectedToken || !safeEqual(args.pathToken, args.expectedToken)) return { ok: false, reason: "bad_token" };
 
   const bearer = extractBearer(args.authorization);
+  // Strict mode never falls back to the address alone (also not with JIRA_WEBHOOK_VERIFY=path-only).
+  if (args.requireSigned && (!bearer || args.verifyMode === "path-only" || !args.clientSecret)) return { ok: false, reason: "unsigned" };
   if (!bearer) return { ok: true, level: "token_only" };
   if (args.verifyMode === "path-only") return { ok: true, level: "token_only" };
   if (!args.clientSecret) return { ok: true, level: "token_only" };

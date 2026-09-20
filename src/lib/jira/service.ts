@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { decrypt, encrypt } from "@/lib/whatsapp/encryption";
 
+import { CHAT_MEDIA_BUCKET, type AttachmentStorage } from "./attachments";
 import { JiraClient } from "./client";
 import type { CronContext, CronDeps } from "./cron";
 import { JiraConfigError } from "./errors";
@@ -22,6 +23,28 @@ import { CONNECTION_COLUMNS } from "./types";
 
 export function jiraStore(db: SupabaseClient = supabaseAdmin()): JiraStore {
   return new SupabaseJiraStore(db);
+}
+
+/** The chat-media bucket on the service role (the bucket itself is not touched by Jira). */
+export function attachmentStorage(db: SupabaseClient = supabaseAdmin()): AttachmentStorage {
+  const bucket = () => db.storage.from(CHAT_MEDIA_BUCKET);
+  return {
+    async download(path) {
+      const { data, error } = await bucket().download(path);
+      if (error || !data) return null;
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    async upload(path, data, contentType) {
+      const { error } = await bucket().upload(path, data, { contentType, cacheControl: "3600", upsert: false });
+      return { error: error?.message ?? null };
+    },
+    async remove(path) {
+      await bucket().remove([path]);
+    },
+    publicUrl(path) {
+      return bucket().getPublicUrl(path).data.publicUrl;
+    },
+  };
 }
 
 /** The token store for one connection, on the service role. */
@@ -137,7 +160,7 @@ export function cronDeps(baseUrl: string, db: SupabaseClient = supabaseAdmin()):
     readWebhookToken: (id) => readWebhookToken(db, id),
     contextFor: (connection): CronContext => {
       const client = clientForConnection(db, connection, { store });
-      return { store, client, connection, settings: normalizeSettings(connection.settings), appUrl: baseUrl };
+      return { store, client, connection, settings: normalizeSettings(connection.settings), appUrl: baseUrl, storage: attachmentStorage(db) };
     },
   };
 }

@@ -17,8 +17,11 @@
 // ============================================================
 
 import { adfToPlainText, buildVircleComment } from "./adf";
+import { unseenAttachments, type AttachmentStorage } from "./attachments";
 import type { JiraClient } from "./client";
 import { describeError, JiraNotFoundError, JiraPermissionError, JiraValidationError } from "./errors";
+import { mappedReadFields, pullFieldsIntoTicket } from "./fields-sync";
+import type { FieldMappingRow } from "./field-mapping";
 import {
   canShareNote,
   decideCommentAction,
@@ -27,7 +30,14 @@ import {
   hashText,
   isOlderEvent,
 } from "./rules";
-import { normalizeCategory, pickTransition, transitionFields, wantedJiraTarget } from "./settings";
+import {
+  directionOnAnywhere,
+  effectiveSettings,
+  normalizeCategory,
+  pickTransition,
+  transitionFields,
+  wantedJiraTarget,
+} from "./settings";
 import type { CommentMapRow, JiraStore, TicketRow } from "./store";
 import {
   ISSUE_FIELDS,
@@ -54,6 +64,12 @@ export type SyncClient = Pick<
   | "upsertRemoteLink"
   | "listCreateFields"
   | "createIssue"
+  | "updateIssue"
+  | "getEditMeta"
+  | "listProjectComponents"
+  | "getAttachmentMeta"
+  | "uploadAttachment"
+  | "downloadAttachment"
 >;
 
 export interface SyncContext {
@@ -64,6 +80,37 @@ export interface SyncContext {
   /** Origin of this deployment, for the link back to a ticket. */
   appUrl: string;
   now?: () => number;
+  /** The chat-media bucket (service role); attachments are skipped without it. */
+  storage?: AttachmentStorage;
+}
+
+/** What one sync run needs beyond the base issue fields, loaded once per context. */
+export interface SyncExtras {
+  mappings: FieldMappingRow[];
+  /** Jira field ids to ask for: the mapped ones, plus `attachment` when attachments are on anywhere. */
+  extraFields: string[];
+  attachments: boolean;
+}
+
+const extrasCache = new WeakMap<object, Promise<SyncExtras>>();
+
+export function syncExtras(ctx: SyncContext): Promise<SyncExtras> {
+  let p = extrasCache.get(ctx);
+  if (!p) {
+    p = (async () => {
+      const mappings = (await ctx.store.listFieldMappings(ctx.connection.id)) ?? [];
+      const attachments = directionOnAnywhere(ctx.settings, "attachments");
+      return { mappings, attachments, extraFields: [...mappedReadFields(mappings), ...(attachments ? ["attachment"] : [])] };
+    })();
+    extrasCache.set(ctx, p);
+  }
+  return p;
+}
+
+/** The field list of an issue read: the base fields plus what mappings and attachments need. */
+export async function issueFieldList(ctx: SyncContext): Promise<string[]> {
+  const x = await syncExtras(ctx);
+  return [...new Set<string>([...ISSUE_FIELDS, ...x.extraFields])];
 }
 
 const nowOf = (ctx: SyncContext) => (ctx.now ?? Date.now)();
@@ -144,7 +191,7 @@ export async function syncIssue(ctx: SyncContext, issueId: string, hint: SyncHin
 
   let issue: JiraIssue | null;
   try {
-    issue = await ctx.client.getIssue(issueId, ISSUE_FIELDS);
+    issue = await ctx.client.getIssue(issueId, await issueFieldList(ctx));
   } catch (e) {
     // Deleted or no longer visible: the link becomes "broken", last known data stays.
     if (e instanceof JiraNotFoundError) {
@@ -194,7 +241,9 @@ export async function applyIssueToLink(
   issue: JiraIssue,
   hint: SyncHint = {},
 ): Promise<ApplyResult> {
-  const { store, settings } = ctx;
+  const { store } = ctx;
+  // The most specific setting wins: this project's overrides over the workspace's.
+  const settings = effectiveSettings(ctx.settings, f0(issue) ?? link.project_key);
   const f = issue.fields;
   const at = iso(ctx);
 
@@ -273,6 +322,37 @@ export async function applyIssueToLink(
 
   await store.updateLink(link.id, patch);
 
+  // ----- custom fields and attachments (0.45.0) -----
+  const extras = await syncExtras(ctx);
+  if (extras.mappings.length > 0) {
+    try {
+      await pullFieldsIntoTicket(ctx, link, issue, ticket, extras.mappings);
+    } catch (e) {
+      // A field that cannot be applied never blocks status and comments; say so in Diagnostics.
+      await store.logEvent({
+        accountId: link.account_id,
+        connectionId: ctx.connection.id,
+        linkId: link.id,
+        level: "warn",
+        kind: "fields_pull_failed",
+        message: `${issue.key}: ${describeError(e)}`,
+      });
+    }
+  }
+  if (settings.direction.attachments && Array.isArray(f.attachment)) {
+    const unseen = unseenAttachments(issue, await store.listAttachmentMaps(link.id), link.created_at);
+    // The downloads run as their own job: this one stays quick.
+    if (unseen.length > 0) {
+      await store.enqueue({
+        accountId: link.account_id,
+        connectionId: ctx.connection.id,
+        kind: "pull_attachments",
+        payload: { link_id: link.id },
+        dedupeKey: `pullatt:${link.id}`,
+      });
+    }
+  }
+
   // ----- comments -----
   if (hint.comments !== false) {
     const seed = hint.seedComments ?? false;
@@ -280,6 +360,8 @@ export async function applyIssueToLink(
   }
   return result;
 }
+
+const f0 = (issue: JiraIssue): string | null => issue.fields.project?.key ?? null;
 
 async function notifyDone(ctx: SyncContext, ticket: TicketRow, key: string): Promise<void> {
   const { store } = ctx;
@@ -332,7 +414,7 @@ export async function syncComments(
       comment: c as JiraComment & { visibility?: unknown },
       text,
       mapped,
-      commentsFromJira: ctx.settings.direction.comments_from_jira,
+      commentsFromJira: effectiveSettings(ctx.settings, link.project_key).direction.comments_from_jira,
       seedOnly,
     });
     const base = {
@@ -406,17 +488,21 @@ export interface PushResult {
  * shows it).
  */
 export async function pushStatus(ctx: SyncContext, args: { ticketId: string; status: TicketStatusValue }): Promise<PushResult> {
-  const { store, settings } = ctx;
+  const { store, settings: base } = ctx;
   const out: PushResult = { links: [] };
-  if (!settings.direction.status_to_jira || ctx.connection.status !== "active") return out;
+  if (!directionOnAnywhere(base, "status_to_jira") || ctx.connection.status !== "active") return out;
 
   const ticket = await store.getTicket(args.ticketId);
   if (!ticket || ticket.status !== args.status) return out; // changed again meanwhile: a newer job follows
 
-  const target = wantedJiraTarget(settings, args.status);
-  const links = (await store.linksForTicket(ticket.id)).filter((l) => l.sync_state === "ok");
+  const target = wantedJiraTarget(base, args.status);
+  // Only the links whose project (or the workspace) has "status to Jira" on.
+  const links = (await store.linksForTicket(ticket.id)).filter(
+    (l) => l.sync_state === "ok" && effectiveSettings(base, l.project_key).direction.status_to_jira,
+  );
 
   for (const link of links) {
+    const settings = effectiveSettings(base, link.project_key);
     const at = iso(ctx);
     let last: LastPush;
     if (!target) {
@@ -511,7 +597,7 @@ export async function shareNoteToJira(
   args: { noteId: string; actorUserId: string | null; linkId?: string },
 ): Promise<ShareResult[]> {
   const { store } = ctx;
-  if (!ctx.settings.direction.comments_to_jira) {
+  if (!directionOnAnywhere(ctx.settings, "comments_to_jira")) {
     return [{ linkId: args.linkId ?? "", key: "", ok: false, code: "toggle_off" }];
   }
   const note = await store.getNote(args.noteId);
@@ -520,7 +606,10 @@ export async function shareNoteToJira(
   const ticket = await store.getTicket(note.ticket_id);
   if (!ticket || ticket.account_id !== ctx.connection.account_id) return [{ linkId: args.linkId ?? "", key: "", ok: false, code: "not_found" }];
 
-  const links = (await store.linksForTicket(ticket.id)).filter((l) => l.sync_state === "ok" && (!args.linkId || l.id === args.linkId));
+  const allLinks = (await store.linksForTicket(ticket.id)).filter((l) => l.sync_state === "ok" && (!args.linkId || l.id === args.linkId));
+  // A project that switches comments to Jira off keeps its issues out of "Share with Jira".
+  const links = allLinks.filter((l) => effectiveSettings(ctx.settings, l.project_key).direction.comments_to_jira);
+  if (allLinks.length > 0 && links.length === 0) return [{ linkId: args.linkId ?? "", key: "", ok: false, code: "toggle_off" }];
   const name = (await store.memberName(args.actorUserId ?? note.author_id ?? "")) ?? "Someone";
   const existing = await store.getMapsForNote(note.id);
   const results: ShareResult[] = [];

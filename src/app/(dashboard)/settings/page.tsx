@@ -26,6 +26,7 @@ import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab
 import { AuditLogPanel } from '@/components/settings/audit/audit-log-panel';
 import { ApprovalsPanel } from '@/components/settings/approvals/approvals-panel';
 import { IntegrationsPanel } from '@/components/settings/integrations/integrations-panel';
+import { SlaPanel } from '@/components/settings/sla/sla-panel';
 import { useApprovalsCount } from '@/hooks/use-approvals-count';
 import { badgeLabel } from '@/lib/approvals/rules';
 import { NoAccess } from '@/components/auth/no-access';
@@ -105,6 +106,7 @@ function SettingsPageInner() {
     'ticket-form': <TicketFormSettings />,
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
+    sla: <SlaPanel />,
     'status-colors': <StatusColorsTab />,
     team: <TeamSection />,
     roles: <RolesPermissionsTab />,

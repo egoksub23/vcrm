@@ -3,12 +3,14 @@ import { TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES, isDoneStatus } f
 import { dueState } from './due'
 import { ticketMatchesSearch } from './key'
 import { normalizeLabel } from './labels'
+import { matchesSlaChip } from '@/lib/sla/display'
 
 /** The "Unassigned" entry in the assignee filter. */
 export const UNASSIGNED = '__unassigned__'
 
-export type QuickFilter = 'mine' | 'unassigned' | 'overdue' | 'today'
-const QUICK_FILTERS: QuickFilter[] = ['mine', 'unassigned', 'overdue', 'today']
+/** `sla_at_risk` / `sla_breached` (migration 086) read the ticket's SLA columns. */
+export type QuickFilter = 'mine' | 'unassigned' | 'overdue' | 'today' | 'sla_at_risk' | 'sla_breached'
+const QUICK_FILTERS: QuickFilter[] = ['mine', 'unassigned', 'overdue', 'today', 'sla_at_risk', 'sla_breached']
 
 export interface TicketFilters {
   /** Search box: a key ("VIR-12"), a number, or words. */
@@ -146,6 +148,12 @@ type FilterRow = Pick<
   | 'labels'
   | 'due_date'
   | 'updated_at'
+  | 'sla_first_response_state'
+  | 'sla_first_response_due_at'
+  | 'sla_first_response_risk_at'
+  | 'sla_resolution_state'
+  | 'sla_resolution_due_at'
+  | 'sla_resolution_risk_at'
 >
 
 /** Whether one ticket passes every filter. `includeStatuses` is false on the
@@ -164,6 +172,7 @@ export function ticketMatchesFilters(
     if (chip === 'unassigned' && t.assigned_agent_id) return false
     if (chip === 'overdue' && dueState(t.due_date, now, isDoneStatus(t.status)) !== 'overdue') return false
     if (chip === 'today' && !isSameLocalDay(t.updated_at, now)) return false
+    if ((chip === 'sla_at_risk' || chip === 'sla_breached') && !matchesSlaChip(chip, t, now.getTime())) return false
   }
 
   if (f.assignees.length) {

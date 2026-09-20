@@ -107,3 +107,39 @@ describe('parseGroupBy', () => {
     expect(parseGroupBy(null)).toBe('none')
   })
 })
+
+describe('SLA sort and group (migration 086)', () => {
+  const NOW = Date.parse('2026-09-20T12:00:00Z')
+  const at = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString()
+  const sla = (id: string, over: Partial<Ticket>) => ({ ...row(id), ...over }) as ReturnType<typeof row> & Partial<Ticket>
+  const rows = [
+    sla('1', { sla_resolution_state: 'running', sla_resolution_due_at: at(300), sla_resolution_risk_at: at(200) }),
+    sla('2', { sla_first_response_state: 'running', sla_first_response_due_at: at(20), sla_first_response_risk_at: at(-1) }),
+    sla('3', {}),
+    sla('4', { sla_first_response_state: 'running', sla_first_response_due_at: at(-15), sla_first_response_risk_at: at(-60) }),
+    sla('5', { sla_resolution_state: 'paused', sla_resolution_due_at: at(10) }),
+  ]
+  const c = { ...ctx, now: NOW }
+
+  it('parses "sla" as a sort key and starts ascending (soonest first)', () => {
+    expect(parseSort('sla:asc')).toEqual({ key: 'sla', dir: 'asc' })
+    expect(toggleSort(DEFAULT_SORT, 'sla')).toEqual({ key: 'sla', dir: 'asc' })
+  })
+
+  it('sorts by the earliest live due time; tickets with no live SLA always last', () => {
+    expect(sortTickets(rows, { key: 'sla', dir: 'asc' }, c).map((r) => r.id)).toEqual(['4', '2', '1', '3', '5'])
+    // descending flips the live ones but the empty ones stay at the end
+    expect(sortTickets(rows, { key: 'sla', dir: 'desc' }, c).map((r) => r.id)).toEqual(['1', '2', '4', '3', '5'])
+  })
+
+  it('groups by SLA state: breached, at risk, on track, paused, met, no SLA', () => {
+    const groups = groupTickets(rows, 'sla', c)
+    expect(groups.map((g) => g.key)).toEqual(['breached', 'at_risk', 'on_track', 'paused', 'none'])
+    expect(groups.find((g) => g.key === 'breached')!.rows.map((r) => r.id)).toEqual(['4'])
+    expect(groups.find((g) => g.key === 'none')!.rows.map((r) => r.id)).toEqual(['3'])
+  })
+
+  it('the group by option is accepted from the URL', () => {
+    expect(parseGroupBy('sla')).toBe('sla')
+  })
+})

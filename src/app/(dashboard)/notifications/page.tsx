@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
+import { AlarmClock, AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   approval_decided: ClipboardCheck,
   jira_reauth_required: PlugZap,
   jira_issue_done: Ticket,
+  ticket_sla_at_risk: AlarmClock,
+  ticket_sla_breached: AlarmClock,
   ai_budget: Bot,
 };
 

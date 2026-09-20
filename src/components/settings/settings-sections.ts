@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Coins,
@@ -42,6 +43,7 @@ export const SETTINGS_SECTIONS = [
   'ticket-form',
   'deals',
   'response-time',
+  'sla',
   'status-colors',
   'team',
   'roles',
@@ -82,6 +84,8 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   'ticket-form': { id: 'ticket-form', label: 'Ticket form', icon: ClipboardList, group: 'workspace' },
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   'response-time': { id: 'response-time', label: 'Response time', icon: Timer, group: 'workspace' },
+  // Migration 086: Settings > SLA & business hours (sla.configure).
+  sla: { id: 'sla', label: 'SLA & business hours', icon: CalendarClock, group: 'workspace', capability: 'sla.configure' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },

@@ -84,14 +84,17 @@ export interface JiraSettings {
     status_to_jira: Partial<Record<TicketStatusValue, string>>;
     /** Add the ticket category as a label on new issues. */
     category_label: boolean;
+    /** Add the ticket category as a component (only when the project has one of that name). */
+    category_component?: boolean;
   };
-  direction: {
-    comments_to_jira: boolean;
-    comments_from_jira: boolean;
-    status_from_jira: boolean;
-    status_to_jira: boolean;
-    assignee: boolean;
+  direction: DirectionSettings;
+  /** Webhook trust (0.45.0). */
+  webhook: {
+    /** Refuse deliveries that do not carry a bearer token verified with the app secret. */
+    require_signed: boolean;
   };
+  /** Per-project overrides, keyed by the upper-case project key. The most specific setting wins. */
+  project_overrides: Record<string, ProjectOverride>;
   privacy: {
     include_customer: boolean;
     preview_before_send: boolean;
@@ -104,16 +107,54 @@ export interface JiraSettings {
   personal_data_report: boolean;
 }
 
+export interface DirectionSettings {
+  comments_to_jira: boolean;
+  comments_from_jira: boolean;
+  status_from_jira: boolean;
+  status_to_jira: boolean;
+  assignee: boolean;
+  /** Attachments both ways (opt-in). Vircle -> Jira on request, Jira -> Vircle on sync. */
+  attachments: boolean;
+  /** With attachments on: send every new ticket attachment to the linked issue on its own. */
+  attachments_auto: boolean;
+}
+
+export const DIRECTION_KEYS = [
+  "comments_to_jira",
+  "comments_from_jira",
+  "status_from_jira",
+  "status_to_jira",
+  "assignee",
+  "attachments",
+  "attachments_auto",
+] as const satisfies readonly (keyof DirectionSettings)[];
+
+/** What one project may override. An absent key inherits the workspace setting. */
+export interface ProjectOverride {
+  /** Default issue type NAME for new issues in this project. */
+  issue_type?: string;
+  /** Vircle priority -> Jira priority name; each entry beats the workspace map. */
+  priority?: Partial<Record<TicketPriorityValue, string>>;
+  category_label?: boolean;
+  category_component?: boolean;
+  /** Any of the direction toggles; the ones not listed inherit. */
+  direction?: Partial<DirectionSettings>;
+}
+
 export const DEFAULT_JIRA_SETTINGS: JiraSettings = {
   projects: { allowed: [], default_project: null, default_issue_type: null },
-  mapping: { priority: {}, status_from_jira: {}, status_to_jira: {}, category_label: true },
+  mapping: { priority: {}, status_from_jira: {}, status_to_jira: {}, category_label: true, category_component: false },
   direction: {
     comments_to_jira: true,
     comments_from_jira: true,
     status_from_jira: true,
     status_to_jira: false,
     assignee: false,
+    attachments: false,
+    attachments_auto: false,
   },
+  webhook: { require_signed: false },
+  project_overrides: {},
   privacy: { include_customer: false, preview_before_send: true },
   done_behaviour: "note",
   resolution: "Done",
@@ -144,12 +185,33 @@ export interface JiraConnectionRow {
   last_report_at: string | null;
   settings: unknown;
   rate_limit: RateLimitSnapshot | null;
+  /** 0.45.0: how deliveries arrived; { signed, unsigned, rejected_unsigned, last_unsigned_at, since }. */
+  webhook_stats?: WebhookStats | null;
+  /** 0.45.0: the last personal-data report; { at, ok, reported, erased, refreshed, error }. */
+  last_report_result?: ReportResult | null;
   created_at: string;
   updated_at: string;
 }
 
+export interface WebhookStats {
+  signed?: number;
+  unsigned?: number;
+  rejected_unsigned?: number;
+  last_unsigned_at?: string;
+  since?: string;
+}
+
+export interface ReportResult {
+  at: string;
+  ok: boolean;
+  reported?: number;
+  erased?: number;
+  refreshed?: number;
+  error?: string;
+}
+
 export const CONNECTION_COLUMNS =
-  "id, account_id, cloud_id, site_url, site_name, connected_by, jira_account_id, jira_display_name, status, status_reason, token_expires_at, webhook_ids, webhook_expires_at, webhook_checked_at, last_catchup_at, last_report_at, settings, rate_limit, created_at, updated_at";
+  "id, account_id, cloud_id, site_url, site_name, connected_by, jira_account_id, jira_display_name, status, status_reason, token_expires_at, webhook_ids, webhook_expires_at, webhook_checked_at, last_catchup_at, last_report_at, settings, rate_limit, webhook_stats, last_report_result, created_at, updated_at";
 
 export interface TicketJiraLinkRow {
   id: string;
@@ -180,8 +242,22 @@ export interface TicketJiraLinkRow {
   remote_link_id: string | null;
   linked_by: string | null;
   last_resync_at: string | null;
+  /** 0.45.0: custom-field echo memory, by field-mapping id. */
+  field_state?: Record<string, FieldState> | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * What we last saw / wrote for one mapped custom field on one link. Hashes
+ * of the normalised value (never the value itself).
+ */
+export interface FieldState {
+  /** Hash of the Vircle-side value as last pushed to, or applied from, Jira. */
+  vircle?: string;
+  /** Hash of the Jira-side value as last seen or written. */
+  jira?: string;
+  at?: string;
 }
 
 /** What Vircle last wrote to Jira, so the webhook that announces it is recognised. */
@@ -239,7 +315,23 @@ export interface JiraIssue {
     issuetype?: { id?: string; name?: string } | null;
     project?: { id?: string; key?: string; name?: string } | null;
     updated?: string;
+    /** Present only when asked for (attachments switched on). */
+    attachment?: JiraAttachmentRef[] | null;
+    /** Mapped custom fields (customfield_10042 ...) are asked for by id. */
+    [fieldId: string]: unknown;
   };
+}
+
+/** An attachment as the issue's `attachment` field lists it. */
+export interface JiraAttachmentRef {
+  id: string;
+  filename?: string;
+  mimeType?: string;
+  size?: number;
+  created?: string;
+  /** Jira's own link to the file (never fetched; shown as a link). */
+  content?: string;
+  author?: JiraUserRef;
 }
 
 export interface JiraUserRef {

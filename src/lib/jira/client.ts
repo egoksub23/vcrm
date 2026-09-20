@@ -159,6 +159,14 @@ export interface RequestOptions {
   body?: unknown;
   /** Return null instead of throwing JiraNotFoundError. */
   allow404?: boolean;
+  /** A body that is not JSON (multipart uploads). No Content-Type is set: fetch adds the boundary. */
+  rawBody?: BodyInit;
+  /** Extra request headers (X-Atlassian-Token for uploads). */
+  headers?: Record<string, string>;
+  /** "manual" hands a 3xx answer to `readResponse` instead of following it. */
+  redirect?: "manual";
+  /** Read a successful (or, with redirect: "manual", redirected) answer instead of parsing JSON. */
+  readResponse?: (res: Response) => Promise<unknown>;
 }
 
 // ------------------------------------------------------------
@@ -230,10 +238,12 @@ export class JiraClient {
           method,
           headers: {
             Authorization: `Bearer ${token}`,
-            Accept: "application/json",
+            Accept: opts.readResponse ? "*/*" : "application/json",
             ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
+            ...(opts.headers ?? {}),
           },
-          body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+          body: opts.rawBody ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
+          ...(opts.redirect ? { redirect: opts.redirect } : {}),
         });
       } catch {
         if (attempt < this.maxRetries) {
@@ -246,6 +256,9 @@ export class JiraClient {
       const snapshot = readRateLimit(res, this.now());
       if (snapshot) this.opts.onRateLimit?.(snapshot);
 
+      if (opts.readResponse && (res.ok || (opts.redirect === "manual" && res.status >= 300 && res.status < 400))) {
+        return (await opts.readResponse(res)) as T;
+      }
       if (res.ok) {
         if (res.status === 204) return null;
         const text = await res.text();
@@ -292,6 +305,8 @@ export class JiraClient {
         // no body
       }
       if (res.status === 400) throw parseValidation(data);
+      // A file the site refuses for its size is a permanent answer about that file, not an outage.
+      if (res.status === 413) throw new JiraValidationError(["The file is larger than this Jira site allows"]);
       if (res.status === 403) throw new JiraPermissionError();
       if (res.status === 404 || res.status === 410) {
         if (opts.allow404) return null;
@@ -393,6 +408,20 @@ export class JiraClient {
     });
   }
 
+  /** Change fields of an issue: only what is in `body` changes (PUT /issue). */
+  updateIssue(idOrKey: string, body: { fields?: Record<string, unknown>; update?: Record<string, unknown[]> }) {
+    return this.request("PUT", `/issue/${enc(idOrKey)}`, { body });
+  }
+
+  /** The fields this issue can be edited with right now (with their allowed values): the edit screen. */
+  getEditMeta(idOrKey: string) {
+    return this.request<{ fields?: Record<string, Omit<CreateField, "fieldId">> }>("GET", `/issue/${enc(idOrKey)}/editmeta`);
+  }
+
+  listProjectComponents(project: string) {
+    return this.request<{ id: string; name: string }[]>("GET", `/project/${enc(project)}/components`);
+  }
+
   assignIssue(idOrKey: string, accountId: string | null) {
     return this.request("PUT", `/issue/${enc(idOrKey)}/assignee`, { body: { accountId } });
   }
@@ -432,6 +461,101 @@ export class JiraClient {
     return this.request<{ comments?: JiraComment[]; total?: number }>("GET", `/issue/${enc(idOrKey)}/comment`, {
       query: { startAt: args.startAt ?? 0, maxResults: args.maxResults ?? 100, orderBy: "created", expand: "properties" },
     });
+  }
+
+  // ---------- attachments ----------
+
+  /** The site attachment settings: { enabled, uploadLimit } (bytes). */
+  getAttachmentMeta() {
+    return this.request<{ enabled?: boolean; uploadLimit?: number }>("GET", "/attachment/meta", { allow404: true });
+  }
+
+  /**
+   * Add one file to an issue: multipart/form-data, field "file", with the
+   * X-Atlassian-Token: no-check header Jira demands. Returns the created
+   * attachment(s) (Jira answers with a list).
+   */
+  uploadAttachment(idOrKey: string, file: { filename: string; contentType: string; data: Uint8Array }) {
+    const form = new FormData();
+    form.append("file", new Blob([file.data as BlobPart], { type: file.contentType }), file.filename);
+    return this.request<{ id: string; filename?: string; mimeType?: string; size?: number; content?: string }[]>(
+      "POST",
+      `/issue/${enc(idOrKey)}/attachments`,
+      { rawBody: form, headers: { "X-Atlassian-Token": "no-check" } },
+    );
+  }
+
+  /**
+   * Download an attachment through the authenticated content endpoint. Jira
+   * answers 303 with a signed link on Atlassian media host; only that redirect
+   * is followed, and only to a host on `isAllowedMediaHost`. Nothing a user
+   * typed ever becomes a URL here. The size is checked against the headers
+   * first and again while streaming, so an oversized file is never buffered.
+   */
+  async downloadAttachment(attachmentId: string, maxBytes: number): Promise<DownloadResult> {
+    if (!/^\d{1,20}$/.test(attachmentId)) return { ok: false, reason: "not_found" };
+    const fetchFn = this.fetchFn;
+    const first = await this.request<{ location: string | null; direct: Response | null }>(
+      "GET",
+      `/attachment/content/${attachmentId}`,
+      {
+        redirect: "manual",
+        allow404: true,
+        readResponse: async (res) => ({
+          location: res.status >= 300 && res.status < 400 ? res.headers.get("Location") : null,
+          direct: res.ok ? res : null,
+        }),
+      },
+    );
+    if (!first) return { ok: false, reason: "not_found" };
+
+    let res: Response;
+    if (first.direct) {
+      res = first.direct;
+    } else {
+      if (!first.location) return { ok: false, reason: "bad_redirect" };
+      let target: URL;
+      try {
+        target = new URL(first.location, "https://api.atlassian.com");
+      } catch {
+        return { ok: false, reason: "bad_redirect" };
+      }
+      if (target.protocol !== "https:" || !isAllowedMediaHost(target.hostname)) return { ok: false, reason: "bad_redirect" };
+      try {
+        // The signed link carries its own authorisation: no bearer token goes to the media host.
+        res = await fetchFn(target.toString(), { method: "GET", redirect: "manual" });
+      } catch {
+        return { ok: false, reason: "failed" };
+      }
+      if (res.status >= 300 && res.status < 400) return { ok: false, reason: "bad_redirect" };
+      if (!res.ok) return { ok: false, reason: res.status === 404 ? "not_found" : "failed" };
+    }
+    const declared = Number(res.headers.get("Content-Length"));
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      await res.body?.cancel().catch(() => undefined);
+      return { ok: false, reason: "too_large" };
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return { ok: false, reason: "failed" };
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return { ok: false, reason: "too_large" };
+      }
+      chunks.push(value);
+    }
+    const data = new Uint8Array(total);
+    let at = 0;
+    for (const c of chunks) {
+      data.set(c, at);
+      at += c.byteLength;
+    }
+    return { ok: true, data, contentType: res.headers.get("Content-Type") };
   }
 
   // ---------- back link ----------
@@ -516,6 +640,26 @@ export class JiraClient {
     const data = (await res.json().catch(() => null)) as { accounts?: { accountId: string; status: string }[] } | null;
     return data?.accounts ?? [];
   }
+}
+
+export type DownloadResult =
+  | { ok: true; data: Uint8Array; contentType: string | null }
+  | { ok: false; reason: "too_large" | "bad_redirect" | "not_found" | "failed" };
+
+/**
+ * Hosts a redirect from the attachment content endpoint may point at:
+ * Atlassian media service and the customer own <site>.atlassian.net (never any
+ * other host, whatever the redirect says).
+ */
+export function isAllowedMediaHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return (
+    h === "api.media.atlassian.com" ||
+    h === "media.atlassian.com" ||
+    h === "api.atlassian.com" ||
+    /^[a-z0-9-]+\.atlassian\.net$/.test(h) ||
+    /^[a-z0-9-]+\.media\.atlassian\.com$/.test(h)
+  );
 }
 
 export interface CreateField {

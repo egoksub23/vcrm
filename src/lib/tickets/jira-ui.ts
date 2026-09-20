@@ -110,6 +110,18 @@ export const KNOWN_ERROR_CODES = [
   "inactive",
   "not_found",
   "bad_request",
+  // 0.45.0: bulk actions and attachments
+  "bulk_limit",
+  "too_large",
+  "issue_full",
+  "mime_refused",
+  "mime_mismatch",
+  "active_content",
+  "attachments_disabled",
+  "already",
+  "duplicate",
+  "from_jira",
+  "bad_path",
 ] as const;
 
 export type JiraErrorCode = (typeof KNOWN_ERROR_CODES)[number];

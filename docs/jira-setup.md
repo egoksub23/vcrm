@@ -4,7 +4,7 @@ Vircle can create a Jira issue from a ticket, or link an existing one, and from 
 
 This page is for **you, the person who runs the Vircle server** (one-time setup), and for **each customer's Jira admin**. The design is in `Vircle-Jira-Integration-Design.docx`; the research behind it lists every source.
 
-> **Status: built, not yet proven against a live Atlassian site.** The whole integration was built and tested against mocked Atlassian responses only. Phase 1 (connect, create, link, live status card) should work as soon as the app is registered. Phase 2 (webhooks, two-way sync) is built to be safe to ship dark, but read "What is not confirmed" at the end and prove it on a second Atlassian site before you promise it to customers.
+> **Status: built, not yet proven against a live Atlassian site.** The whole integration was built and tested against mocked Atlassian responses only. Phase 1 (connect, create, link, live status card) should work as soon as the app is registered. Phase 2 (webhooks, two-way sync) is built to be safe to ship dark. Phase 3 (attachments, custom fields, per-project overrides, bulk actions; Vircle 0.45.0) is built the same way and is **off by default where it writes anything new** (attachments are opt-in; a field only flows once an admin maps it). Read "What is not confirmed" at the end and prove it on a second Atlassian site before you promise it to customers.
 
 ---
 
@@ -48,7 +48,10 @@ If `JIRA_CLIENT_ID` / `JIRA_CLIENT_SECRET` are missing, the feature stays dark: 
 
 ### 1.3 The database migration
 
-Migration `085_jira_link.sql` (after 084) creates the tables, the queue and the capabilities. It is idempotent. Apply it with your usual `supabase db push` before deploying the app.
+Two migrations, both idempotent, apply them in order with your usual `supabase db push` before deploying the app:
+
+- `085_jira_link.sql` creates the tables, the queue and the capabilities.
+- `087_jira_depth.sql` (0.45.0) adds attachments both ways (`jira_attachment_map`, `ticket_attachments.source`), custom-field mapping (`jira_field_mappings`, a metadata cache, the `field_state` echo memory), bulk actions (`jira_bulk_batches`, `jira_bulk_items`), the new queue job kinds, the `jira_sync_stalled` notification, the webhook-delivery counters and the personal-data report result. It rebuilds the notification and job-kind CHECK constraints from their **live** definitions, so it is safe whichever of 084, 085 and 086 are already applied. Its proof is `supabase/ci/verify-087-jira-depth.sql` (a rolled-back script; run it together with the migration file, see "Checking the migrations" below).
 
 ### 1.4 The scheduled job
 
@@ -66,7 +69,8 @@ What one call does, in order:
 1. **Jobs**: claims due jobs (`FOR UPDATE SKIP LOCKED`, so two callers never take the same job), runs them, retries with backoff (30 s doubling to 30 min, honouring Jira's `Retry-After`), and dead-letters a job after six attempts. Jobs come from webhooks ("sync issue X"), from ticket status changes ("move the Jira issue") and from "Share with Jira".
 2. **Catch-up**: about every 5 minutes, per connection that has live links, one JQL search (`id in (...) AND updated >= -12m`) plus one bulk read, applied exactly like a webhook would have been. This is the safety net for webhooks that never arrive.
 3. **Daily**: verifies the token still works (this also keeps the refresh token from idling out after 90 days), renews the webhook's 30-day life or re-registers it if it is missing or its project set changed, matches new members to Jira users by email, prunes old rows.
-4. **Weekly**: Atlassian's personal-data report (see "What is not confirmed", item 6).
+4. **Weekly**: Atlassian's personal-data report (see "What is not confirmed", item 6). A failed report is retried after six hours, not on every call, and Settings → Integrations → Jira → Diagnostics shows the last result with a **Send now** button.
+5. **Self-check** (0.45.0): a connection with live links that has had no successful catch-up for more than 30 minutes is flagged in Diagnostics (red banner), logged as an error event and the workspace owners and admins get one in-app notification a day (`jira_sync_stalled`). Diagnostics also computes it live when opened, so a cron line that stopped is visible even though nothing else ran.
 
 ---
 
@@ -95,6 +99,20 @@ Viewers can never be given these. Change them in Settings → Roles & permission
 - Comments go to Jira only when an agent chooses **Share with Jira** on an internal note. Customer-facing messages are never sent.
 - Content sent to Jira lands in the customer's own Atlassian data region. Vircle keeps a small cache of Jira data (issue key, status, assignee, priority, comment text that became notes) in its own database. **Disconnect** deletes the tokens and the webhooks; **Remove cached Jira data** also deletes the links, queue and diagnostics. Notes that were copied from Jira stay on the ticket as history.
 
+### First-run checklist (in the product)
+
+Settings → Integrations → Jira → **Connection** shows a five-step checklist that turns green as each step becomes true. It is the in-product version of this page, in the order to do things:
+
+| Step | Turns green when | If it stays grey |
+|---|---|---|
+| 1. App credentials are on the server | `JIRA_CLIENT_ID` and `JIRA_CLIENT_SECRET` are set | Add them to `.env.local` and redeploy (section 1.2). |
+| 2. Connected to a Jira site | A connection exists and is healthy | Press Connect Jira; if Atlassian says a site admin must approve, see section 2. |
+| 3. A project is chosen | At least one allowed project, or a default project, is set | Projects tab. |
+| 4. Webhooks are registered | Jira accepted the webhook registration | It registers after the first ticket is linked (then daily). Diagnostics → Register webhooks again shows Jira's answer. |
+| 5. The first sync has happened | A catch-up succeeded, a webhook arrived or a queued sync job finished | The cron line is not installed or the server cannot reach itself (section 1.4). |
+
+The **Test connection** button under the checklist asks Jira who Vircle is signed in as (`/myself`) and lists the projects that user can browse. If it lists none, the integration user is not a member of any project.
+
 ### What to check first when something does not work
 
 | Symptom | Likely cause |
@@ -107,6 +125,14 @@ Viewers can never be given these. Change them in Settings → Roles & permission
 | Ticket cannot move the Jira issue | No workflow transition to that status is available for the issue right now. |
 | Nothing syncs at all | Is the cron line installed? Diagnostics shows the queue, the last catch-up and dead jobs. |
 | "Not configured" on the Jira card | `JIRA_CLIENT_ID` / `JIRA_CLIENT_SECRET` are not set on the server. |
+| Diagnostics shows a red "catch-up has stalled" banner | The scheduled job is not running (cron line missing, wrong secret, server unreachable) or Jira has been failing for 30 minutes. Fix that first; nothing else syncs either. |
+| Amber note "deliveries arrived without a signed token" | Atlassian is delivering on the secret address alone. That is accepted by default. Turn on **Require signed deliveries** only after you have seen signed ones arrive (Diagnostics counts both). |
+| Every webhook is refused after turning on Require signed deliveries | Atlassian does not sign them the way the code verifies. Turn the setting off; the catch-up poll keeps working. |
+| A custom field does not reach Jira | The field is not on that issue's edit screen, the value is not one of the Jira options, or the mapping is "From Jira" only. Diagnostics events show `fields_push_failed` with Jira's reason. |
+| "Send to Jira" says the file is too large / of a type Jira cannot take | The site limit (`/attachment/meta`) or the 10 MB default was exceeded, or the file is HTML, SVG or a script. |
+| A file on the Jira issue never reaches the ticket | Attachments are off, the file is not an image or document on the allow-list (it is then listed on the card as "not copied" with a link), it is over 16 MB, or the ticket already has 20 files. |
+| Bulk "Create Jira issues" leaves tickets out | The review step says why: a required field Vircle cannot fill, a required field only a person can answer, or five links already. |
+| Bulk results stay "Waiting" | The scheduled job is not running; the request starts the work itself, but retries after a Jira rate limit need the cron. |
 
 ---
 
@@ -122,12 +148,66 @@ Viewers can never be given these. Change them in Settings → Roles & permission
 
 ---
 
+## 3b. Depth (0.45.0): attachments, custom fields, overrides, bulk
+
+### Attachments (opt-in)
+
+Settings → Integrations → Jira → **Direction & privacy → Attachments**. Off by default.
+
+- **Vircle → Jira.** With the switch on, each file in the ticket's Attachments section has **Send to Jira** (needs `jira.link` and a healthy link). **Send all new attachments** does it for every new file by itself (a database trigger queues it). The file is read on the server from Vircle's own storage (the row's path must be under `account-<id>/tickets/`; a URL is never followed), checked, and posted to `POST /rest/api/3/issue/{key}/attachments` as multipart with `X-Atlassian-Token: no-check`. Limits: the site's upload limit from `GET /attachment/meta` (10 MB when Jira does not say), 20 files per issue, a MIME sanity check (pictures, PDFs and Office files must carry their own signature; HTML, SVG and scripts are refused; text must be text), a sanitised file name. What was sent is recorded (`jira_attachment_map`: ticket file ↔ Jira attachment id, direction, content hash), which prevents sending the same file, or the same bytes under another name, twice and stops the webhook that announces the upload from coming back as a second copy.
+- **Jira → Vircle.** With the switch on, files **added to a linked issue after it was linked** are queued (as their own job, five per run) and downloaded through `GET /attachment/content/{id}`. Only Atlassian's redirect is followed, and only to `api.media.atlassian.com`, `media.atlassian.com` or `<site>.atlassian.net`, over https; the signed link is fetched without the bearer token. Up to 16 MB, checked while streaming. Only the types on the storage bucket's allow-list are stored (images and documents; octet-stream is never taken). Anything else is recorded as **skipped (type / size / ticket full)** and listed on the ticket's Jira section with a link to the file in Jira. Stored files are tagged **From Jira**, and are never sent back. Nothing Jira supplies is rendered as HTML. The bucket and its 38 allowed types are unchanged.
+- Per project: the two switches can be overridden for one project (see below).
+
+### Custom fields (Settings → Integrations → Jira → Fields)
+
+Map a ticket custom field to a Jira field of a compatible **simple** type, per project (or "every project", modelled on the default project). The Jira fields come from the project's create screen (`createmeta`), cached for 24 hours; **Refresh from Jira** reads them again.
+
+| Ticket field | Can map to |
+|---|---|
+| Text, long text | single-line text, multi-line text |
+| Number | number |
+| Date | date |
+| Dropdown | single select / radio (the option is matched **by name**, case-insensitively; a name Jira does not have is skipped, never invented) |
+| Checkbox | multi-checkbox field, or a **label** (ticked adds the label, unticked removes it, other labels are never touched) |
+
+Everything else (users, versions, components, date-time, cascading selects, multi-selects, read-only fields, custom app fields) is listed as **not supported** and cannot be mapped.
+
+Per mapping: the direction (to Jira, from Jira, both) and **what happens when the value is missing** (skip, clear the other side, or use a default).
+
+- **On create**, mapped fields are part of the issue and shown in the Create dialog's preview (a required Jira field a mapping fills is not asked for again). Bulk create uses them too.
+- **On ticket edits** ("to Jira" fields), a database trigger queues a job a few seconds later; the job reads the issue's edit screen and sends **only the fields whose value changed** in one `PUT /issue`.
+- **From Jira**, the sync worker asks for the mapped field ids with the issue and applies a value Jira changed to the ticket (as "from Jira": nothing is queued back). Values that already exist when a mapping is made are **recorded, not imported**: only later changes flow.
+- **Echo guards.** Per link and mapping Vircle remembers a hash of the value it last pushed or applied and of the value it last saw in Jira. A push of an unchanged value is skipped; a Jira value equal to what Vircle wrote (also after Jira truncated it to 255 characters) is recognised as our own echo; if both sides changed, Jira wins, like status.
+- **Rich text.** Jira long-text fields hold Atlassian Document Format. Vircle writes **plain paragraphs** and reads back **plain text**: formatting is not carried across in either direction.
+
+### Per-project overrides (Settings → Integrations → Jira → Projects)
+
+For each allowed project a row can override the default issue type, the priority map (entry by entry), whether the category becomes a label and/or a component (a component only when the project already has one of that name), and each direction switch (comments, status, assignee, attachments, send-all-new). Anything left on "inherit" follows the workspace settings. **The most specific setting wins:** project override, then workspace, then the built-in default. Stored in `jira_connections.settings.project_overrides`.
+
+### Bulk actions (tickets list)
+
+Tick up to 25 tickets; with `jira.link` and an active connection the bar offers:
+
+- **Create Jira issues**: a review step lists each ticket's proposed project, issue type and summary and which ones cannot be created (a required field Vircle cannot fill, a required field only a person can answer, five links already). Confirming queues one job per ticket.
+- **Link to Jira issue**: all selected tickets are linked to ONE issue (read once, not once per ticket). A ticket that is already linked is skipped; five links per ticket is still enforced.
+
+Both run through the same create and link code as the single buttons, so the same rules apply. They run as `bulk_item` jobs in `jira_sync_jobs`, respect the per-connection concurrency and the shared-pool brake (a rate limit puts the item back in the queue with backoff), show a progress bar and a per-ticket result, and log every success and failure in `jira_sync_events` (Diagnostics).
+
+### Checking the migrations
+
+Nothing is applied by these commands; the scripts end in a deliberate error that rolls everything back, and a message starting `ROLLBACK-OK` means every check passed:
+
+```
+cat supabase/migrations/087_jira_depth.sql supabase/ci/verify-087-jira-depth.sql > /tmp/check087.sql
+supabase db query --linked -f /tmp/check087.sql
+```
+
 ## 4. What is not confirmed (prove it on a second Atlassian site)
 
 The research separated what Atlassian documents from what it does not. Each point below says what the code assumes.
 
 1. **Webhook delivery to a site the app owner does not own.** Atlassian's notes say non-public apps only receive webhooks when the app owner registered them, and do not define "public". Vircle registers the webhook with the connecting user's token on the customer's site. *Must be tested with a second Atlassian site right after enabling sharing.* If it fails, the catch-up poll (every ~5 minutes) still finds changes; the fallback beyond that is polling only, or a small Atlassian Forge app.
-2. **The exact signing of webhooks.** Documented only as "a bearer token signed with the app's client secret". The receiver requires the random token in the URL path (constant-time compare) and, **when an `Authorization: Bearer` header is present, requires it to verify as an HS256 JWT signed with `JIRA_CLIENT_SECRET`** (a failing one is rejected and logged). When no bearer is sent it accepts the delivery on the secret address alone and logs that prominently (once a day, in Diagnostics). If real deliveries carry a bearer this code cannot verify, set `JIRA_WEBHOOK_VERIFY=path-only`. **The payload is never trusted either way**: it only names an issue, and the worker re-reads the issue from Jira.
+2. **The exact signing of webhooks.** Documented only as "a bearer token signed with the app's client secret". The receiver requires the random token in the URL path (constant-time compare) and, **when an `Authorization: Bearer` header is present, requires it to verify as an HS256 JWT signed with `JIRA_CLIENT_SECRET`** (a failing one is rejected and logged). When no bearer is sent it accepts the delivery on the secret address alone and logs that prominently (once a day, in Diagnostics). If real deliveries carry a bearer this code cannot verify, set `JIRA_WEBHOOK_VERIFY=path-only`. **The payload is never trusted either way**: it only names an issue, and the worker re-reads the issue from Jira. Since 0.45.0 every delivery is counted as *signed* or *address only* (Diagnostics → How webhooks arrive, plus an amber note in the Direction tab when unsigned ones arrive), and **Require signed deliveries** (Direction tab, per connection, off by default) refuses anything without a bearer that verifies, also when `JIRA_WEBHOOK_VERIFY=path-only` is set. Turn it on only after you have seen signed deliveries arrive.
 3. **Limiting a webhook to linked issues only.** Whether an `issue.property` JQL clause can do it is untested. Vircle registers a webhook filtered to the **projects that have linked issues** (or the allowed projects) and drops events for issues nobody linked. It re-registers daily if the project set changed.
 4. **Webhook URL rules for OAuth apps** (one URL per app? same host as the callback?). Untested; the URL includes a per-connection token. If registration is refused the error is logged in Diagnostics and the catch-up carries on.
 5. **Token lifetimes.** The access token's expiry is read from the token response (never assumed to be an hour). The refresh token is documented as rotating on every use with a 90-day inactivity limit and a 10-minute reuse leeway; a community-reported absolute limit of 365 days is unconfirmed. Any `invalid_grant` flips the connection to "reconnect needed". Rotation is single-flight (one refresh at a time per connection, across processes) and the rotated refresh token is saved in the same atomic step.
@@ -136,6 +216,9 @@ The research separated what Atlassian documents from what it does not. Each poin
 8. **Point costs and the shared quota.** The per-call cost table and how a larger allowance is granted are not public. The design keeps calls low; the headers are logged so you can see when to ask.
 9. **Granular scopes.** The classic scopes are broad (Atlassian's granular scopes are still labelled beta); the connect screen says so. They can replace the classic ones later.
 10. **JQL time zone.** The catch-up uses a relative window (`updated >= -12m`) on purpose: JQL date literals are read in the connecting user's time zone, which Vircle does not know.
+11. **Attachments.** Not proven live: the multipart upload shape (`file` part, `X-Atlassian-Token: no-check`), that `GET /attachment/content/{id}` answers with a 303 to Atlassian's media host (the code accepts that host, the site's own `atlassian.net` address and a direct 200, and refuses every other redirect), the `attachment` issue field's shape, and the meaning of `uploadLimit` from `/attachment/meta`.
+12. **Custom-field metadata.** The classification of a field from `createmeta` (`schema.type`, `schema.custom`, `allowedValues`, `operations`) and the edit-screen read used before a push (`GET /issue/{key}/editmeta`) are taken from Atlassian's documentation, not proven against a live site. A field type the code does not recognise is listed as not supported rather than guessed.
+13. **Bulk quota cost.** A bulk create is about three Jira calls per ticket (create metadata, create, read back) plus the back link. With a shared 65,000-point hourly pool that is fine for 25 tickets; the design still caps a batch at 25.
 
 ### A test plan for a second site
 

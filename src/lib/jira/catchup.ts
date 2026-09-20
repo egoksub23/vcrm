@@ -90,3 +90,36 @@ export function classifyJobError(err: unknown, attempts: number, random: () => n
   // A bug or an unexpected error: retry a few times, the queue dead-letters it.
   return { outcome: "retry", seconds: retryDelaySeconds(attempts, random) };
 }
+
+// ------------------------------------------------------------
+// The catch-up self-check
+// ------------------------------------------------------------
+
+/** A connection with live links whose catch-up has not succeeded for this long is "stalled". */
+export const CATCHUP_STALL_MINUTES = 30;
+
+export interface CatchupStall {
+  stalled: boolean;
+  /** Minutes since the last success (or since the first live link, whichever is later). */
+  minutes: number | null;
+}
+
+/**
+ * Has the catch-up stopped working? The reference is the later of the last
+ * successful catch-up and the moment the OLDEST live link appeared: a link
+ * created a minute ago cannot have missed a catch-up yet, and a connection
+ * with no live links has nothing to catch up. Pure.
+ */
+export function catchupStall(args: {
+  lastCatchupAt: string | null | undefined;
+  liveLinkCreatedAt: readonly string[];
+  now: number;
+  thresholdMinutes?: number;
+}): CatchupStall {
+  const created = args.liveLinkCreatedAt.map((t) => Date.parse(t)).filter((t) => Number.isFinite(t));
+  if (created.length === 0) return { stalled: false, minutes: null };
+  const last = args.lastCatchupAt ? Date.parse(args.lastCatchupAt) : NaN;
+  const reference = Math.max(Number.isFinite(last) ? last : 0, Math.min(...created));
+  const minutes = Math.max(0, Math.floor((args.now - reference) / 60_000));
+  return { stalled: minutes > (args.thresholdMinutes ?? CATCHUP_STALL_MINUTES), minutes };
+}

@@ -20,6 +20,7 @@ import { clientForConnection, jiraStore } from "@/lib/jira/service";
 import { disconnect } from "@/lib/jira/connection";
 import { ApiError, apiErrorResponse, jiraAppUrl } from "@/lib/jira/http";
 import { isJiraConfigured, redirectUri } from "@/lib/jira/oauth";
+import { computeChecklist } from "@/lib/jira/checklist";
 import { applySettingsPatch, changedSections, normalizeSettings } from "@/lib/jira/settings";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -39,12 +40,26 @@ export async function GET(request: Request) {
         broken: links.filter((l) => l.sync_state === "broken").length,
       };
     }
+    const configured = isJiraConfigured();
+    const settings = normalizeSettings(connection?.settings);
+
+    // The first-run checklist: has a webhook arrived, or a queued sync finished?
+    let syncEvidence = false;
+    if (connection && connection.status === "active") {
+      const db = supabaseAdmin();
+      const [hooks, jobs] = await Promise.all([
+        db.from("jira_webhook_events").select("id", { count: "exact", head: true }).eq("connection_id", connection.id),
+        db.from("jira_sync_jobs").select("id", { count: "exact", head: true }).eq("connection_id", connection.id).eq("kind", "sync_issue").eq("status", "done"),
+      ]);
+      syncEvidence = (hooks.count ?? 0) > 0 || (jobs.count ?? 0) > 0;
+    }
     return NextResponse.json({
-      configured: isJiraConfigured(),
+      configured,
       callbackUrl: redirectUri(base),
       connection,
-      settings: normalizeSettings(connection?.settings),
+      settings,
       counts,
+      checklist: computeChecklist({ configured, connection, settings, syncEvidence }),
     });
   } catch (err) {
     return apiErrorResponse(err);

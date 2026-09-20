@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
+import { useSharedNow } from "@/hooks/use-shared-now";
 import { useCapability } from "@/hooks/use-can";
 import { useTeams } from "@/hooks/use-teams";
 import { useJiraLinkChips } from "@/hooks/use-ticket-jira";
@@ -54,6 +55,7 @@ import { updateTicket, updateTickets } from "@/lib/tickets/update";
 import type { Ticket, TicketStatus } from "@/types";
 
 const VIEW_STORAGE_KEY = "wacrm:tickets:view";
+const SLA_COLUMN_STORAGE_KEY = "wacrm:tickets:sla-column";
 
 // `useSearchParams` opts the page out of static prerendering unless it
 // sits under a Suspense boundary — same reason Settings/Reports do this.
@@ -105,6 +107,27 @@ function TicketsPageInner() {
   };
   const mode: TicketViewMode = view ?? "board";
 
+  // The SLA column of the list is hideable, remembered per browser.
+  const [showSla, setShowSla] = useState(true);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem(SLA_COLUMN_STORAGE_KEY) === "off") setShowSla(false);
+    } catch {
+      // storage blocked: the column stays on
+    }
+  }, []);
+  const toggleSlaColumn = () => {
+    setShowSla((prev) => {
+      try {
+        localStorage.setItem(SLA_COLUMN_STORAGE_KEY, prev ? "off" : "on");
+      } catch {
+        // storage blocked: the choice just is not remembered
+      }
+      return !prev;
+    });
+  };
+
   // Filters, sort and grouping live in state and are mirrored into the URL
   // (`?q=&assignee=&sort=...`), so a link carries them. They are read from the
   // URL once, on load.
@@ -151,14 +174,25 @@ function TicketsPageInner() {
   }, [router, searchParams]);
 
   // ---- What is shown -------------------------------------------------------
-  const ctx = useMemo(() => ({ userId: user?.id ?? null, prefix }), [user?.id, prefix]);
+  const slaFilterOn = filters.quick.includes("sla_at_risk") || filters.quick.includes("sla_breached");
+  const slaSortOn = sort.key === "sla" || group === "sla";
+  // The SLA filters, sort and groups read the clock (30 s ticks); nothing ticks while they are off.
+  const slaNow = useSharedNow(slaFilterOn || slaSortOn);
+  // `now` only enters the context while an SLA chip is on, so the other filters do not re-run every 30 s.
+  const ctx = useMemo(
+    () => ({ userId: user?.id ?? null, prefix, ...(slaFilterOn ? { now: new Date(slaNow) } : {}) }),
+    [user?.id, prefix, slaFilterOn, slaNow],
+  );
   const filtered = useMemo(
     () => applyFilters(store.rows, filters, ctx, mode === "list"),
     [store.rows, filters, ctx, mode],
   );
   const listRows = useMemo(
-    () => (mode === "list" ? sortTickets(filtered, sort, { assigneeName: (id) => nameOf(id) }) : filtered),
-    [mode, filtered, sort, nameOf],
+    () =>
+      mode === "list"
+        ? sortTickets(filtered, sort, { assigneeName: (id) => nameOf(id), ...(slaSortOn ? { now: slaNow } : {}) })
+        : filtered,
+    [mode, filtered, sort, nameOf, slaSortOn, slaNow],
   );
   const loadedCounts = useMemo(() => {
     const counts: Record<TicketStatus, number> = { open: 0, in_progress: 0, pending: 0, resolved: 0, closed: 0 };
@@ -278,6 +312,21 @@ function TicketsPageInner() {
             })}
           </div>
           {mode === "list" ? (
+            <button
+              type="button"
+              aria-pressed={showSla}
+              onClick={toggleSlaColumn}
+              className={cn(
+                "inline-flex h-8 items-center rounded-md border px-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                showSla
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {tView("slaColumn")}
+            </button>
+          ) : null}
+          {mode === "list" ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
                 {tView("groupBy", { by: tView(`group.${group}`) })}
@@ -371,6 +420,7 @@ function TicketsPageInner() {
             loadingMore={store.loadingMore === "list"}
             onLoadMore={() => void store.loadMore()}
             jiraChips={jiraChips}
+            showSla={showSla}
           />
         )}
       </div>
@@ -386,6 +436,8 @@ function TicketsPageInner() {
           onApply={(action) => void handleBulk(action)}
           onDelete={() => void handleBulkDelete()}
           onClear={() => setSelected(new Set())}
+          jiraTickets={selectedRows.map((r) => ({ id: r.id, key: keyOf(r.ticket_number), subject: r.subject }))}
+          onJiraDone={() => void store.reload()}
         />
       ) : null}
 

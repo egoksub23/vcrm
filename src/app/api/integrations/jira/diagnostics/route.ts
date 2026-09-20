@@ -3,7 +3,10 @@
 //
 //   GET   recent sync events, queue counts and dead jobs, webhook health and
 //         expiry, last catch-up, token expiry, the last rate-limit numbers
-//   POST  { action: "register_webhooks" | "catchup_now" }
+//   POST  { action: "register_webhooks" | "catchup_now" | "test_connection"
+//                    | "send_report" }
+//         test_connection: calls /myself and lists the projects the connected
+//         user can browse; send_report: the personal-data report now.
 //
 // Needs jira.connect. Read with the service role after the capability check;
 // nothing returned contains a token or the webhook address.
@@ -13,7 +16,10 @@ import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
 import { supabaseAdmin } from "@/lib/flows/admin-client";
-import { runCatchup } from "@/lib/jira/cron";
+import { catchupStall } from "@/lib/jira/catchup";
+import { runCatchup, runWeekly } from "@/lib/jira/cron";
+import { describeError, isJiraError } from "@/lib/jira/errors";
+import { normalizeSettings } from "@/lib/jira/settings";
 import { ensureWebhooks } from "@/lib/jira/connection";
 import { ApiError, apiErrorResponse, jiraAppUrl, loadJiraContext } from "@/lib/jira/http";
 import { cronDeps, jiraStore, readWebhookToken } from "@/lib/jira/service";
@@ -57,7 +63,24 @@ export async function GET() {
     ]);
 
     const ids = Array.isArray(connection.webhook_ids) ? connection.webhook_ids.length : 0;
+    const stall = catchupStall({
+      lastCatchupAt: connection.last_catchup_at,
+      liveLinkCreatedAt: links.filter((l) => l.sync_state === "ok").map((l) => l.created_at),
+      now: Date.now(),
+    });
+    const stats = connection.webhook_stats ?? {};
     return NextResponse.json({
+      catchupStalled: stall.stalled,
+      catchupMinutes: stall.minutes,
+      report: connection.last_report_result ?? null,
+      webhookTrust: {
+        signed: stats.signed ?? 0,
+        unsigned: stats.unsigned ?? 0,
+        rejectedUnsigned: stats.rejected_unsigned ?? 0,
+        lastUnsignedAt: stats.last_unsigned_at ?? null,
+        since: stats.since ?? null,
+        requireSigned: normalizeSettings(connection.settings).webhook.require_signed,
+      },
       connection: { status: connection.status, statusReason: connection.status_reason, siteName: connection.site_name },
       tokenExpiresAt: connection.token_expires_at,
       lastCatchupAt: connection.last_catchup_at,
@@ -108,6 +131,33 @@ export async function POST(request: Request) {
       // Forced: ignore the 5-minute spacing.
       const result = await runCatchup(deps, { ...j.connection, last_catchup_at: null });
       return NextResponse.json({ catchup: result });
+    }
+    if (body?.action === "test_connection") {
+      // Proves the sign-in works and shows what the connected user can browse (the project picker's source).
+      try {
+        const [me, projects] = await Promise.all([j.client.getMyself(), j.client.listProjects({ maxResults: 50 })]);
+        return NextResponse.json({
+          test: {
+            ok: true,
+            user: { displayName: me?.displayName ?? null, accountId: me?.accountId ?? null },
+            projects: (projects?.values ?? []).map((p) => ({ key: p.key, name: p.name })),
+            hasMore: projects?.isLast === false,
+          },
+        });
+      } catch (e) {
+        if (!isJiraError(e)) throw e;
+        return NextResponse.json({ test: { ok: false, code: e.code, message: describeError(e) } });
+      }
+    }
+    if (body?.action === "send_report") {
+      const deps = cronDeps(jiraAppUrl(request), j.db);
+      try {
+        const r = await runWeekly(deps, j.connection, { force: true });
+        return NextResponse.json({ report: r.result ?? null });
+      } catch (e) {
+        // The failure is stored on the connection too (Diagnostics shows it); the answer says why.
+        return NextResponse.json({ report: { ok: false, at: new Date().toISOString(), error: describeError(e) } });
+      }
     }
     throw new ApiError(400, "bad_request", "Unknown action");
   } catch (err) {

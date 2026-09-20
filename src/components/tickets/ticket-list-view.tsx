@@ -12,10 +12,12 @@ import { UNASSIGNED } from "@/lib/tickets/filters";
 import type { JiraChip } from "@/lib/tickets/jira-ui";
 import { groupTickets, type GroupBy, type SortKey, type SortSpec } from "@/lib/tickets/sort-group";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { useSharedNow } from "@/hooks/use-shared-now";
 import type { TicketRow } from "@/hooks/use-ticket-store";
 import type { Profile, Ticket } from "@/types";
 import { JiraKeyChips } from "./jira-key-chip";
 import { AssigneeMenu, PriorityMenu, StatusMenu } from "./ticket-pickers";
+import { TicketSlaBadge } from "./ticket-sla-badge";
 import { DueChip, LabelLozenge, PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 
 interface TicketListViewProps {
@@ -38,6 +40,8 @@ interface TicketListViewProps {
   onLoadMore: () => void;
   /** Linked Jira issue keys per ticket id (optional: rows show up to two next to the summary). */
   jiraChips?: Record<string, JiraChip[]>;
+  /** The SLA column (migration 086); hideable from the page. Default on. */
+  showSla?: boolean;
 }
 
 const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
@@ -48,6 +52,7 @@ const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
   { key: "assignee", label: "assignee", className: "w-44" },
   { key: null, label: "labels", className: "w-40" },
   { key: "due", label: "due", className: "w-24" },
+  { key: "sla", label: "sla", className: "w-36" },
   { key: "updated", label: "updated", className: "w-32 text-right" },
 ];
 
@@ -68,14 +73,18 @@ export function TicketListView({
   loadingMore,
   onLoadMore,
   jiraChips,
+  showSla = true,
 }: TicketListViewProps) {
   const t = useTranslations("Tickets.list");
   const tCommon = useTranslations("Tickets.common");
+  const tSla = useTranslations("Tickets.sla");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const now = useSharedNow(groupBy === "sla");
+  const columns = useMemo(() => (showSla ? COLUMNS : COLUMNS.filter((c) => c.key !== "sla")), [showSla]);
 
   const groups = useMemo(
-    () => (groupBy === "none" ? null : groupTickets(rows, groupBy, { assigneeName: (id) => nameOf(id) })),
-    [rows, groupBy, nameOf],
+    () => (groupBy === "none" ? null : groupTickets(rows, groupBy, { assigneeName: (id) => nameOf(id), now })),
+    [rows, groupBy, nameOf, now],
   );
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -159,6 +168,11 @@ export function TicketListView({
         <TableCell className="py-1.5">
           <DueChip dueDate={row.due_date} status={row.status} />
         </TableCell>
+        {showSla ? (
+          <TableCell className="py-1.5">
+            <TicketSlaBadge ticket={row} />
+          </TableCell>
+        ) : null}
         <TableCell className="py-1.5 pr-3 text-right text-xs text-muted-foreground">
           {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
         </TableCell>
@@ -169,6 +183,7 @@ export function TicketListView({
   const groupLabel = (key: string) => {
     if (groupBy === "status") return <StatusLozenge status={key as never} />;
     if (groupBy === "priority") return <PriorityIcon priority={key as never} withLabel />;
+    if (groupBy === "sla") return <span>{tSla(`state.${key}` as never)}</span>;
     if (key === UNASSIGNED) {
       return (
         <>
@@ -201,7 +216,7 @@ export function TicketListView({
               />
             </TableHead>
             <TableHead className="w-8 pr-0" aria-label={tCommon("typeColumn")} />
-            {COLUMNS.map((c) => {
+            {columns.map((c) => {
               const active = c.key !== null && sort.key === c.key;
               const Icon = !active ? ChevronsUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
               return (
@@ -237,7 +252,7 @@ export function TicketListView({
                 return (
                   <Fragment key={g.key}>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableCell colSpan={COLUMNS.length + 2} className="py-1.5 pl-3">
+                      <TableCell colSpan={columns.length + 2} className="py-1.5 pl-3">
                         <button
                           type="button"
                           onClick={() => toggleGroup(g.key)}

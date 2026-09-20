@@ -14,6 +14,7 @@
 
 import { checkRateLimit } from "@/lib/rate-limit";
 
+import { normalizeSettings } from "./settings";
 import type { JiraStore } from "./store";
 import type { JiraConnectionRow } from "./types";
 import {
@@ -74,14 +75,22 @@ export async function handleWebhook(
     authorization: req.authorization,
     clientSecret: req.clientSecret,
     verifyMode: req.verifyMode,
+    requireSigned: normalizeSettings(connection.settings).webhook.require_signed,
     now,
   });
   if (!auth.ok) {
+    if (auth.reason === "unsigned") {
+      // "Require signed deliveries" is on and this one carried no verifiable bearer: refused, and counted.
+      await deps.store.bumpWebhookStat(connection.id, "rejected_unsigned");
+      await noteOnce(deps.store, connection, "webhook_unsigned_rejected", "warn", "A webhook was refused because \"Require signed deliveries\" is on and it carried no bearer token that verifies with the app secret. If real deliveries are unsigned, turn that setting off (Settings > Integrations > Jira > Direction).", now);
+    }
     if (auth.reason === "bad_bearer") {
       await noteOnce(deps.store, connection, "webhook_bearer_rejected", "warn", "A webhook was rejected: its signed bearer token did not verify with the app secret. If Jira really sends these, set JIRA_WEBHOOK_VERIFY=path-only (see docs/jira-setup.md).", now);
     }
     return { status: 401, body: { error: "unauthorized" } };
   }
+  // Which mode real deliveries use: the owner reads it in Diagnostics.
+  await deps.store.bumpWebhookStat(connection.id, auth.level === "jwt" ? "signed" : "unsigned");
   if (auth.level === "token_only") {
     await noteOnce(deps.store, connection, "webhook_token_only", "info", "Webhooks are accepted on the secret address alone: no signed bearer token came with them. The payload is never trusted; the issue is re-read from Jira.", now);
   }

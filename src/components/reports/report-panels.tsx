@@ -1,7 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MessageCircle, CheckCircle2, Clock, Timer, Send, UserPlus, Users2, Trophy, Radio, TrendingUp, Ticket as TicketIcon } from "lucide-react";
+import { MessageCircle, CheckCircle2, Clock, Timer, Send, UserPlus, Users2, Trophy, Radio, TrendingUp, Ticket as TicketIcon, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { useAccountMembers } from "@/hooks/use-account-members";
+import { formatDuration } from "@/lib/sla/display";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { BarChart } from "@/components/tremor/bar-chart";
 import type { DateRange } from "@/lib/reports/date-utils";
@@ -17,8 +20,12 @@ import {
   loadLifecycleReport,
   loadBroadcastsReport,
   loadTicketsReport,
+  loadTicketSlaReport,
+  slaCompliancePct,
   LIFECYCLE_STAGES,
   type OverviewMetric,
+  type SlaBreakdownRow,
+  type SlaCounts,
   type TicketBreakdownRow,
 } from "@/lib/reports/queries";
 import { useReportData, formatMinutes, formatPercent } from "./report-hooks";
@@ -657,6 +664,179 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
           </tbody>
         </table>
       </div>
+
+      <TicketSlaReportSection accountId={accountId} range={range} />
+    </div>
+  );
+}
+
+const pctText = (pct: number | null): string => (pct === null ? "—" : `${Math.round(pct)}%`);
+
+/** "8 met · 2 breached · 3 running": the counts behind one compliance figure. */
+function slaSubtitle(t: ReturnType<typeof useTranslations>, c: SlaCounts): string {
+  return t("sla.counts", { met: c.met, breached: c.breached, running: c.running });
+}
+
+/** Met % for one breakdown row, both targets side by side. */
+function SlaBreakdownTable({
+  title,
+  rows,
+  labelFor,
+  t,
+}: {
+  title: string;
+  rows: SlaBreakdownRow[];
+  labelFor: (row: SlaBreakdownRow) => string;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <p className="px-4 pt-4 text-sm font-medium text-foreground">{title}</p>
+      <table className="mt-2 w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="px-4 py-2">{t("dimension")}</th>
+            <th className="px-4 py-2 text-right">{t("sla.firstResponseMet")}</th>
+            <th className="px-4 py-2 text-right">{t("sla.resolutionMet")}</th>
+            <th className="px-4 py-2 text-right">{t("sla.breachedCount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                {t("noBreakdownData")}
+              </td>
+            </tr>
+          ) : (
+            rows.map((r) => (
+              <tr key={r.key} className="border-b border-border last:border-0">
+                <td className="px-4 py-2.5 font-medium text-foreground">{labelFor(r)}</td>
+                <td className="px-4 py-2.5 text-right text-foreground" title={slaSubtitle(t, r.firstResponse)}>
+                  {pctText(slaCompliancePct(r.firstResponse))}
+                </td>
+                <td className="px-4 py-2.5 text-right text-foreground" title={slaSubtitle(t, r.resolution)}>
+                  {pctText(slaCompliancePct(r.resolution))}
+                </td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">
+                  {r.firstResponse.breached + r.resolution.breached}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * SLA compliance (migration 086): first-response and resolution met %, by
+ * priority and by team, and the tickets that missed a target, worst first, each
+ * linking to the ticket. Aggregated by the database (`ticket_sla_report`).
+ * Tickets with no policy are not part of it.
+ */
+function TicketSlaReportSection({ accountId, range }: PanelProps) {
+  const t = useTranslations("Reports.tickets");
+  const tPri = useTranslations("Tickets.detail.priority");
+  const { nameOf } = useAccountMembers();
+  const { data, loading, error } = useReportData(loadTicketSlaReport, accountId, range);
+
+  if (error) return <ErrorState message={error} />;
+  if (loading || !data) return <EmptyState label={t("loading")} />;
+
+  const anyData =
+    data.firstResponse.met +
+      data.firstResponse.breached +
+      data.firstResponse.running +
+      data.resolution.met +
+      data.resolution.breached +
+      data.resolution.running >
+    0;
+
+  return (
+    <div className="space-y-4" data-testid="ticket-sla-report">
+      <div>
+        <h3 className="text-base font-semibold text-foreground">{t("sla.title")}</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t("sla.hint")}</p>
+      </div>
+      {!anyData ? (
+        <div className="rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+          {t("sla.none")}
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MetricCard
+              title={t("sla.firstResponseMet")}
+              value={pctText(slaCompliancePct(data.firstResponse))}
+              icon={ShieldCheck}
+              subtitle={slaSubtitle(t, data.firstResponse)}
+            />
+            <MetricCard
+              title={t("sla.resolutionMet")}
+              value={pctText(slaCompliancePct(data.resolution))}
+              icon={ShieldCheck}
+              subtitle={slaSubtitle(t, data.resolution)}
+            />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SlaBreakdownTable
+              title={t("sla.byPriority")}
+              rows={data.byPriority}
+              labelFor={(r) => tPri(r.key as never)}
+              t={t}
+            />
+            <SlaBreakdownTable
+              title={t("sla.byTeam")}
+              rows={data.byTeam}
+              labelFor={(r) => r.label ?? (r.key === "" ? t("noTeam") : t("unknownTeam"))}
+              t={t}
+            />
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("sla.breachedTitle")}</p>
+            <table className="mt-2 w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-2">{t("sla.colTicket")}</th>
+                  <th className="px-4 py-2">{t("sla.colSubject")}</th>
+                  <th className="px-4 py-2">{t("sla.colAssignee")}</th>
+                  <th className="px-4 py-2">{t("sla.colTarget")}</th>
+                  <th className="px-4 py-2 text-right">{t("sla.colOverdue")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.breached.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                      {t("sla.noBreaches")}
+                    </td>
+                  </tr>
+                ) : (
+                  data.breached.map((b) => (
+                    <tr key={`${b.ticketId}-${b.target}`} className="border-b border-border last:border-0">
+                      <td className="px-4 py-2.5 font-mono text-xs">
+                        <Link href={`/tickets?t=${b.ticketId}`} className="text-primary hover:underline">
+                          #{b.ticketNumber}
+                        </Link>
+                      </td>
+                      <td className="max-w-64 truncate px-4 py-2.5 text-foreground">{b.subject}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        {b.assigneeId ? nameOf(b.assigneeId) : t("sla.unassigned")}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{t(`sla.target.${b.target}`)}</td>
+                      <td className="px-4 py-2.5 text-right text-red-600 dark:text-red-400">
+                        {formatDuration(b.overdueSeconds)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

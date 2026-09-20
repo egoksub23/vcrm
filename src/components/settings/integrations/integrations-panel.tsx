@@ -20,8 +20,10 @@ import { JiraConnectionCard } from "./jira-connection-card";
 import { JiraSitePicker } from "./jira-site-picker";
 import { LoadProblem } from "./jira-form-parts";
 import {
+  ChecklistContainer,
   DiagnosticsTabContainer,
   DirectionTabContainer,
+  FieldsTabContainer,
   MappingTabContainer,
   PeopleTabContainer,
   ProjectsTabContainer,
@@ -29,9 +31,9 @@ import {
 import { useJiraQuery } from "./use-jira-query";
 import { useJiraSettings } from "./use-jira-settings";
 
-type JiraTab = "connection" | "projects" | "mapping" | "direction" | "people" | "diagnostics";
+type JiraTab = "connection" | "projects" | "mapping" | "fields" | "direction" | "people" | "diagnostics";
 
-const TABS: readonly JiraTab[] = ["connection", "projects", "mapping", "direction", "people", "diagnostics"];
+const TABS: readonly JiraTab[] = ["connection", "projects", "mapping", "fields", "direction", "people", "diagnostics"];
 
 /** The reasons the OAuth callback can send back (?reason=). */
 const CONNECT_REASONS = new Set([
@@ -162,12 +164,20 @@ export function IntegrationsPanel() {
                 }}
                 onDisconnect={jira.disconnect}
               />
+              {connected ? (
+                <div className="mt-4">
+                  <ChecklistContainer jira={jira} />
+                </div>
+              ) : null}
             </TabsContent>
             <TabsContent value="projects">
               <ProjectsTabContainer jira={jira} />
             </TabsContent>
             <TabsContent value="mapping">
               <MappingTabContainer jira={jira} />
+            </TabsContent>
+            <TabsContent value="fields">
+              <FieldsTabContainer jira={jira} />
             </TabsContent>
             <TabsContent value="direction">
               <DirectionTabContainer jira={jira} />

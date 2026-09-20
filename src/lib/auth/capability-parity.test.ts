@@ -264,6 +264,14 @@ export const DB_TIER_ROWS: readonly Row[] = [
   row("integrations/jira (connect, settings, sites, diagnostics)", "route", "admin", "jira.connect"),
   row("integrations/jira (create, link, unlink, transition, sync)", "route", "agent", "jira.link"),
   row("integrations/jira (share with Jira)", "route", "agent", "jira.share-comments"),
+  // Migration 086 (ticket SLA): new, no legacy floor. The three config tables'
+  // write policies call has_capability(); every /api/account/sla route calls
+  // requireCapability (sla-routes.test.ts proves it route by route). Reading is
+  // for every member. Owner + Admin by default; a Viewer can never hold it.
+  ...["business_hours_schedules", "business_hours_holidays", "ticket_sla_policies"].map((t) =>
+    row(t, "insert/update/delete", "admin", "sla.configure"),
+  ),
+  row("account/sla (schedules, policies, reorder, apply)", "route", "admin", "sla.configure"),
   ...["api_keys", "webhook_endpoints"].map((t) =>
     row(t, "insert/update/delete", "admin", "api.manage"),
   ),
@@ -584,7 +592,8 @@ describe("route handlers use capabilities, not role floors", () => {
         r.key.startsWith("account/capabilities") ||
         r.key.startsWith("account/audit") ||
         r.key.startsWith("account/approvals") ||
-        r.key.startsWith("integrations/jira")
+        r.key.startsWith("integrations/jira") ||
+        r.key.startsWith("account/sla")
       ) {
         continue;
       }

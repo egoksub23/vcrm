@@ -235,6 +235,21 @@ export function TicketDetail({
     return true;
   };
 
+  // "Send to Jira" on a file (0.45.0): needs jira.link, attachments switched on and a healthy link.
+  const canLinkJira = useCapability("jira.link");
+  const [sendingFile, setSendingFile] = useState<string | null>(null);
+  const sendFileToJira = async (attachmentId: string) => {
+    setSendingFile(attachmentId);
+    const r = await jira.sendAttachment(attachmentId);
+    setSendingFile(null);
+    if (!r.ok) {
+      toast.error(loose(tJira)(`errors.${errorKeyOf(r.code)}`, { seconds: retrySeconds(r.retryAfterSeconds) }));
+      return;
+    }
+    const failed = (r.data.results ?? []).find((x) => !x.ok);
+    if (failed) toast.error(loose(tJira)(`errors.${errorKeyOf(failed.code)}`, { seconds: 30 }));
+    else toast.success(tJira("attachments.sentToast"));
+  };
   const [contactOpen, setContactOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -360,6 +375,11 @@ export function TicketDetail({
               canRemove={canRemoveAttachment}
               onAddFiles={(files) => void detail.addFiles(files)}
               onRemove={(a) => void detail.removeAttachment(a)}
+              jira={
+                jira.connected && jira.attachmentsEnabled
+                  ? { canSend: canLinkJira && jira.hasOkLink, sentIds: jira.sentAttachmentIds, busyId: sendingFile, onSend: (a) => void sendFileToJira(a.id) }
+                  : undefined
+              }
             />
             <TicketJiraSection ticketId={ticket.id} jira={jira} />
             <TicketLinksSection

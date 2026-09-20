@@ -170,6 +170,10 @@ export interface CreatePlan {
     includesCustomer: boolean;
     /** Field id -> the value the agent chose. */
     extraFields: Record<string, unknown>;
+    /** Custom fields the mappings fill from the ticket (Settings > Jira > Fields). */
+    mappedFields: { label: string; jiraName: string; display: string }[];
+    /** The category as a Jira component, when that mapping is on and the project has one of that name. */
+    component: string | null;
   };
 }
 
@@ -241,6 +245,8 @@ export function buildCreatePlan(args: {
       assigneeAccountId: choices.assigneeAccountId ?? null,
       includesCustomer: includeCustomer,
       extraFields: choices.fieldValues ?? {},
+      mappedFields: [],
+      component: null,
     },
   };
 }

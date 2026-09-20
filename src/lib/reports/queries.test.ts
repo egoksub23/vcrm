@@ -12,6 +12,8 @@ import {
   loadLifecycleReport,
   loadBroadcastsReport,
   loadTicketsReport,
+  loadTicketSlaReport,
+  slaCompliancePct,
 } from './queries'
 import type { DateRange } from './date-utils'
 
@@ -427,5 +429,83 @@ describe('loadTicketsReport', () => {
     expect(report.openNow).toBe(0)
     expect(report.avgFirstResponseMinutes.current).toBe(0)
     expect(report.byAgent).toEqual([])
+  })
+})
+
+describe('loadTicketSlaReport', () => {
+  /** Fake client whose only job is `rpc`. */
+  function rpcDb(result: { data?: unknown; error?: unknown }, calls: { name: string; args: unknown }[] = []): SupabaseClient {
+    return {
+      rpc(name: string, args: unknown) {
+        calls.push({ name, args })
+        return Promise.resolve({ data: result.data ?? null, error: result.error ?? null })
+      },
+    } as unknown as SupabaseClient
+  }
+
+  it('asks the database to aggregate: one rpc with the account and the half-open range', async () => {
+    const calls: { name: string; args: unknown }[] = []
+    await loadTicketSlaReport(rpcDb({ data: {} }, calls), 'acct-1', RANGE)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].name).toBe('ticket_sla_report')
+    const args = calls[0].args as { p_account: string; p_from: string; p_to: string; p_limit: number }
+    expect(args.p_account).toBe('acct-1')
+    expect(new Date(args.p_from).getTime()).toBe(RANGE.from.getTime())
+    // the end of the last day is exclusive: the range covers the whole of 2026-09-17
+    expect(new Date(args.p_to).getTime()).toBe(new Date('2026-09-18T00:00:00').getTime())
+    expect(args.p_limit).toBe(25)
+  })
+
+  it('reads counts, breakdowns and the drill-down list', async () => {
+    const report = await loadTicketSlaReport(
+      rpcDb({
+        data: {
+          firstResponse: { met: 8, breached: 2, running: 3 },
+          resolution: { met: '5', breached: 5, running: 0 },
+          byPriority: [
+            { key: 'urgent', firstResponse: { met: 1, breached: 1, running: 0 }, resolution: { met: 1, breached: 0, running: 1 } },
+          ],
+          byTeam: [
+            { key: 'tm1', label: 'Payments', firstResponse: { met: 4, breached: 0, running: 0 }, resolution: { met: 2, breached: 2, running: 0 } },
+            { key: '', label: null, firstResponse: { met: 1, breached: 0, running: 0 }, resolution: { met: 0, breached: 0, running: 0 } },
+          ],
+          breached: [
+            { ticketId: 't1', ticketNumber: 12, subject: 'Refund', assigneeId: 'u1', target: 'resolution', dueAt: '2026-09-15T10:00:00Z', overdueSeconds: 5400 },
+            { ticketId: 't2', ticketNumber: 13, subject: 'Login', assigneeId: null, target: 'first_response', dueAt: '2026-09-15T11:00:00Z', overdueSeconds: '600' },
+          ],
+        },
+      }),
+      'acct-1',
+      RANGE,
+    )
+    expect(report.firstResponse).toEqual({ met: 8, breached: 2, running: 3 })
+    expect(report.resolution).toEqual({ met: 5, breached: 5, running: 0 })
+    expect(report.byPriority[0].key).toBe('urgent')
+    expect(report.byTeam.map((r) => r.label)).toEqual(['Payments', null])
+    expect(report.breached).toEqual([
+      { ticketId: 't1', ticketNumber: 12, subject: 'Refund', assigneeId: 'u1', target: 'resolution', dueAt: '2026-09-15T10:00:00Z', overdueSeconds: 5400 },
+      { ticketId: 't2', ticketNumber: 13, subject: 'Login', assigneeId: null, target: 'first_response', dueAt: '2026-09-15T11:00:00Z', overdueSeconds: 600 },
+    ])
+  })
+
+  it('an empty answer is all zeros and empty lists', async () => {
+    const report = await loadTicketSlaReport(rpcDb({ data: null }), 'acct-1', RANGE)
+    expect(report).toEqual({
+      firstResponse: { met: 0, breached: 0, running: 0 },
+      resolution: { met: 0, breached: 0, running: 0 },
+      byPriority: [],
+      byTeam: [],
+      breached: [],
+    })
+  })
+
+  it('throws the database error so the panel can show it', async () => {
+    await expect(loadTicketSlaReport(rpcDb({ error: new Error('boom') }), 'acct-1', RANGE)).rejects.toThrow('boom')
+  })
+
+  it('compliance is met over met + breached; nothing settled is null', () => {
+    expect(slaCompliancePct({ met: 8, breached: 2, running: 9 })).toBe(80)
+    expect(slaCompliancePct({ met: 0, breached: 4, running: 0 })).toBe(0)
+    expect(slaCompliancePct({ met: 0, breached: 0, running: 5 })).toBeNull()
   })
 })

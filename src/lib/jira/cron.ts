@@ -17,21 +17,25 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { pullAttachments, sendTicketAttachment } from "./attachments";
 import {
   buildCatchupJql,
+  catchupStall,
   catchupWindowMinutes,
   chunkIds,
   classifyJobError,
   retryDelaySeconds,
 } from "./catchup";
+import { processBulkItem } from "./bulk";
+import { pushFieldChanges } from "./fields-sync";
 import type { JiraClient } from "./client";
 import { ensureWebhooks, webhookRenewalDue } from "./connection";
 import { describeError, JiraAuthError, JiraRateLimitError } from "./errors";
 import { normalizeSettings } from "./settings";
 import type { JiraStore, JobRow } from "./store";
-import { applyIssueToLinks, editSharedNote, pushStatus, shareNoteToJira, syncIssue, type SyncContext } from "./sync";
+import { applyIssueToLinks, editSharedNote, issueFieldList, pushStatus, shareNoteToJira, syncIssue, type SyncContext } from "./sync";
 import { autoMatchMembers } from "./users";
-import { ISSUE_FIELDS, type JiraConnectionRow, type TicketStatusValue } from "./types";
+import type { JiraConnectionRow, ReportResult, TicketStatusValue } from "./types";
 
 /** Minimum time between catch-ups of one connection. */
 export const CATCHUP_INTERVAL_MS = 5 * 60_000;
@@ -57,7 +61,7 @@ export interface CronDeps {
 
 export interface CronReport {
   jobs: { claimed: number; done: number; retried: number; dead: number };
-  catchup: { connections: number; issues: number; failed: number };
+  catchup: { connections: number; issues: number; failed: number; stalled: number };
   daily: { connections: number; webhooks: string[]; matched: number };
   weekly: { reported: number; failed: number };
   pruned: number;
@@ -94,6 +98,61 @@ export async function processJob(ctx: CronContext, job: Pick<JobRow, "kind" | "p
     }
     case "edit_comment": {
       if (typeof p.ticket_comment_id === "string") await editSharedNote(ctx, p.ticket_comment_id);
+      return;
+    }
+    case "push_fields": {
+      if (typeof p.ticket_id === "string") await pushFieldChanges(ctx, { ticketId: p.ticket_id });
+      return;
+    }
+    case "push_attachment": {
+      if (typeof p.attachment_id !== "string") return;
+      if (!ctx.storage) throw new Error("attachments need the storage client");
+      const results = await sendTicketAttachment(
+        { store: ctx.store, client: ctx.client, storage: ctx.storage, connection: ctx.connection, settings: ctx.settings, now: ctx.now },
+        { attachmentId: p.attachment_id, linkId: typeof p.link_id === "string" ? p.link_id : undefined, auto: p.auto === true },
+      );
+      // What the queue must not retry (a file that is too big, a switched-off project) is recorded, not thrown.
+      for (const r of results.filter((x) => !x.ok)) {
+        await ctx.store.logEvent({
+          accountId: ctx.connection.account_id,
+          connectionId: ctx.connection.id,
+          linkId: r.linkId || null,
+          level: "info",
+          kind: "attachment_not_sent",
+          message: `${r.key || "attachment"}: ${r.code}`,
+        });
+      }
+      return;
+    }
+    case "pull_attachments": {
+      if (typeof p.link_id !== "string") return;
+      if (!ctx.storage) throw new Error("attachments need the storage client");
+      const link = await ctx.store.getLink(p.link_id);
+      if (!link || link.sync_state === "paused") return;
+      const issue = await ctx.client.getIssue(link.issue_id, await issueFieldList(ctx));
+      if (!issue) return;
+      const r = await pullAttachments(
+        { store: ctx.store, client: ctx.client, storage: ctx.storage, connection: ctx.connection, settings: ctx.settings, now: ctx.now },
+        link,
+        issue,
+      );
+      // More new files than one run takes: a follow-up job continues.
+      if (r.more) {
+        await ctx.store.enqueue({
+          accountId: link.account_id,
+          connectionId: ctx.connection.id,
+          kind: "pull_attachments",
+          payload: { link_id: link.id },
+          dedupeKey: `pullatt:${link.id}`,
+          delaySeconds: 5,
+        });
+      }
+      return;
+    }
+    case "bulk_item": {
+      if (typeof p.batch_id === "string" && typeof p.item_id === "string") {
+        await processBulkItem(ctx, { batchId: p.batch_id, itemId: p.item_id, userId: typeof p.user_id === "string" ? p.user_id : null });
+      }
       return;
     }
   }
@@ -195,7 +254,7 @@ export async function runCatchup(
 
   let issues = 0;
   if (changed.size > 0) {
-    const fetched = await ctx.client.bulkFetch([...changed], ISSUE_FIELDS);
+    const fetched = await ctx.client.bulkFetch([...changed], await issueFieldList(ctx));
     const byIssue = new Map<string, typeof links>();
     for (const l of links) byIssue.set(l.issue_id, [...(byIssue.get(l.issue_id) ?? []), l]);
     for (const issue of fetched) {
@@ -290,28 +349,79 @@ export async function applyReportResults(
   return { erased, refreshed };
 }
 
+/** After a failed report the next automatic try waits this long (it used to retry on every cron call). */
+export const REPORT_RETRY_MS = 6 * 3_600_000;
+
 export async function runWeekly(
   deps: CronDeps,
   connection: JiraConnectionRow,
-): Promise<{ ran: boolean; reported: number }> {
+  opts: { force?: boolean } = {},
+): Promise<{ ran: boolean; reported: number; result?: ReportResult }> {
   const now = (deps.now ?? Date.now)();
   const settings = normalizeSettings(connection.settings);
-  if (!settings.personal_data_report) return { ran: false, reported: 0 };
-  const last = connection.last_report_at ? Date.parse(connection.last_report_at) : 0;
-  if (Number.isFinite(last) && now - last < REPORT_INTERVAL_MS) return { ran: false, reported: 0 };
-
-  const ids = await collectAccountIds(deps.db, connection);
-  const ctx = deps.contextFor(connection);
-  const updatedAt = new Date(now).toISOString();
-  let reported = 0;
-  for (let i = 0; i < ids.length; i += 90) {
-    const batch = ids.slice(i, i + 90).map((accountId) => ({ accountId, updatedAt }));
-    const res = await ctx.client.reportAccounts(batch);
-    reported += batch.length;
-    await applyReportResults(deps.db, connection, res);
+  if (!opts.force) {
+    if (!settings.personal_data_report) return { ran: false, reported: 0 };
+    const last = connection.last_report_at ? Date.parse(connection.last_report_at) : 0;
+    if (Number.isFinite(last) && now - last < REPORT_INTERVAL_MS) return { ran: false, reported: 0 };
+    // A report that failed is retried after a few hours, not on every call.
+    const failed = connection.last_report_result;
+    if (failed && !failed.ok && now - Date.parse(failed.at) < REPORT_RETRY_MS) return { ran: false, reported: 0 };
   }
-  await deps.store.updateConnection(connection.id, { last_report_at: updatedAt });
-  return { ran: true, reported };
+
+  const updatedAt = new Date(now).toISOString();
+  const ctx = deps.contextFor(connection);
+  let reported = 0;
+  let erased = 0;
+  let refreshed = 0;
+  try {
+    const ids = await collectAccountIds(deps.db, connection);
+    for (let i = 0; i < ids.length; i += 90) {
+      const batch = ids.slice(i, i + 90).map((accountId) => ({ accountId, updatedAt }));
+      const res = await ctx.client.reportAccounts(batch);
+      reported += batch.length;
+      const applied = await applyReportResults(deps.db, connection, res);
+      erased += applied.erased;
+      refreshed += applied.refreshed;
+    }
+  } catch (e) {
+    const result: ReportResult = { at: updatedAt, ok: false, reported, erased, refreshed, error: describeError(e).slice(0, 200) };
+    await deps.store.updateConnection(connection.id, { last_report_result: result });
+    throw Object.assign(e instanceof Error ? e : new Error(String(e)), { reportResult: result });
+  }
+  const result: ReportResult = { at: updatedAt, ok: true, reported, erased, refreshed };
+  await deps.store.updateConnection(connection.id, { last_report_at: updatedAt, last_report_result: result });
+  return { ran: true, reported, result };
+}
+
+// ------------------------------------------------------------
+// The catch-up self-check
+// ------------------------------------------------------------
+
+/**
+ * A connection with live links whose catch-up has not succeeded for over 30
+ * minutes: say so in Diagnostics and tell the workspace owners (once a day).
+ * The cron endpoint itself may be what stopped, so Diagnostics also computes
+ * this live when it is opened.
+ */
+export async function checkCatchupStall(
+  deps: CronDeps,
+  connection: JiraConnectionRow,
+): Promise<{ stalled: boolean; minutes: number | null; notified: number }> {
+  const now = (deps.now ?? Date.now)();
+  const links = await deps.store.linksForConnection(connection.id, ["ok"]);
+  const stall = catchupStall({ lastCatchupAt: connection.last_catchup_at, liveLinkCreatedAt: links.map((l) => l.created_at), now });
+  if (!stall.stalled) return { stalled: false, minutes: stall.minutes, notified: 0 };
+  const notified = await deps.store.notifyStalled(connection.id, stall.minutes ?? 0);
+  if (notified > 0) {
+    await deps.store.logEvent({
+      accountId: connection.account_id,
+      connectionId: connection.id,
+      level: "error",
+      kind: "catchup_stalled",
+      message: `No successful catch-up for ${stall.minutes} minutes while ${links.length} link${links.length === 1 ? " is" : "s are"} live. Is the cron line installed? See docs/jira-setup.md.`,
+    });
+  }
+  return { stalled: true, minutes: stall.minutes, notified };
 }
 
 // ------------------------------------------------------------
@@ -324,7 +434,7 @@ export async function runCron(deps: CronDeps): Promise<CronReport> {
   const deadline = started + (deps.budgetMs ?? 50_000);
   const report: CronReport = {
     jobs: { claimed: 0, done: 0, retried: 0, dead: 0 },
-    catchup: { connections: 0, issues: 0, failed: 0 },
+    catchup: { connections: 0, issues: 0, failed: 0, stalled: 0 },
     daily: { connections: 0, webhooks: [], matched: 0 },
     weekly: { reported: 0, failed: 0 },
     pruned: 0,
@@ -359,6 +469,12 @@ export async function runCron(deps: CronDeps): Promise<CronReport> {
         report.catchup.connections += 1;
         report.catchup.issues += r.issues;
       }
+    });
+    await guard("stall", async () => {
+      // Read it again: the catch-up above may just have succeeded.
+      const fresh = (await deps.store.getConnection(connection.id)) ?? connection;
+      const r = await checkCatchupStall(deps, fresh);
+      if (r.stalled) report.catchup.stalled += 1;
     });
     await guard("daily", async () => {
       const r = await runDaily(deps, connection);

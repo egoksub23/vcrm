@@ -2715,7 +2715,8 @@
       "roles": "Roles & permissions",
       "audit": "Audit log",
       "approvals": "Approvals",
-      "integrations": "Integrations"
+      "integrations": "Integrations",
+      "sla": "SLA & business hours"
     },
     "groups": {
       "account": "Account",
@@ -3250,6 +3251,241 @@
       }
     },
     "jira": {
+      "checklist": {
+        "title": "First-run checklist",
+        "description": "Each step turns green as it happens. If one stays grey, that is where to look.",
+        "progress": "{done} of {total} done",
+        "allDone": "Everything is set up.",
+        "doneSr": "(done)",
+        "todoSr": "(not done yet)",
+        "steps": {
+          "credentials": {
+            "label": "Vircle app credentials are on the server",
+            "hint": "The server owner adds JIRA_CLIENT_ID and JIRA_CLIENT_SECRET (see docs/jira-setup.md).",
+            "doneHint": "The Jira app id and secret are set."
+          },
+          "connected": {
+            "label": "Connected to a Jira site",
+            "hint": "Press Connect Jira and sign in as the person or integration user Vircle should act as.",
+            "doneHint": "The connection is active."
+          },
+          "project": {
+            "label": "A project is chosen",
+            "hint": "On the Projects tab, choose the projects tickets may link to and a default project.",
+            "doneHint": "Tickets can link to the chosen projects."
+          },
+          "webhook": {
+            "label": "Jira webhooks are registered",
+            "hint": "They register after the first ticket is linked. Diagnostics can register them again.",
+            "doneHint": "Jira will tell Vircle about changes as they happen."
+          },
+          "sync": {
+            "label": "The first sync has happened",
+            "hint": "Needs the scheduled job (cron) to run. Link a ticket, change the issue in Jira, and wait a few minutes.",
+            "doneHint": "Vircle has read linked issues from Jira."
+          }
+        },
+        "test": {
+          "button": "Test connection",
+          "running": "Testing…",
+          "hint": "Asks Jira who Vircle is signed in as and lists the projects that user can browse.",
+          "ok": "Connected as {name}.",
+          "unknownUser": "the connected user",
+          "noProjects": "That user cannot browse any project yet. Add them to a project in Jira.",
+          "projects": "{count, plural, one {It can browse # project.} other {It can browse # projects.}}",
+          "more": "Showing the first {count}. More exist.",
+          "failed": "The test failed."
+        }
+      },
+      "fields": {
+        "scope": {
+          "title": "Custom field mapping",
+          "description": "Copy a ticket custom field to a Jira field of the same kind, and back. Choose a project first: Jira fields differ per project and issue type.",
+          "note": "Only simple types can be mapped: text, number, date, choice and checkbox. Anything else is listed as not supported."
+        },
+        "noProjects": "Choose the projects tickets may link to first (Projects tab), then map their fields here.",
+        "project": "Project",
+        "chooseProject": "Choose a project",
+        "issueType": "Issue type",
+        "refresh": "Refresh from Jira",
+        "cachedAt": "Field list from Jira {when}. Refresh to read it again.",
+        "liveNow": "Field list read from Jira just now.",
+        "refreshed": "Fields refreshed from Jira.",
+        "saved": "Field mapping saved.",
+        "saveFailed": "Could not save the mapping.",
+        "removed": "Field mapping removed.",
+        "removeFailed": "Could not remove the mapping.",
+        "everyProject": "Every project",
+        "directions": {
+          "to_jira": "To Jira",
+          "from_jira": "From Jira",
+          "both": "Both ways"
+        },
+        "missing": {
+          "skip": "Skip when empty",
+          "clear": "Clear when empty",
+          "default": "Use a default"
+        },
+        "ticketTypes": {
+          "text": "Text",
+          "textarea": "Long text",
+          "number": "Number",
+          "date": "Date",
+          "dropdown": "Dropdown",
+          "checkbox": "Checkbox"
+        },
+        "kinds": {
+          "text": "Text (single line)",
+          "textarea": "Text (multi line)",
+          "number": "Number",
+          "date": "Date",
+          "select": "Single choice",
+          "multicheckbox": "Checkboxes",
+          "labels": "Labels"
+        },
+        "mappings": {
+          "title": "Mapped fields",
+          "description": "What is copied for this project. Changes take effect on the next ticket edit or sync.",
+          "empty": "No fields are mapped for this project yet.",
+          "archivedField": "(removed ticket field)",
+          "notOnScreen": "Not on this create screen",
+          "remove": "Remove the mapping to {name}"
+        },
+        "add": {
+          "title": "Add a mapping",
+          "description": "Pick a ticket field, then a Jira field it can be copied to.",
+          "noTicketFields": "There are no ticket custom fields yet. An admin can add them in Settings > Tickets.",
+          "allMapped": "Every ticket field is already mapped for this project.",
+          "ticketField": "Ticket field",
+          "pickTicketField": "Choose a ticket field",
+          "jiraField": "Jira field",
+          "pickJiraField": "Choose a Jira field",
+          "noCompatible": "No Jira field of a matching type on this screen",
+          "compatibleWith": "Works with: {kinds}",
+          "direction": "Direction",
+          "whenMissing": "When the value is missing",
+          "whenMissingHint": {
+            "skip": "Nothing is sent and nothing is cleared.",
+            "clear": "The other side is emptied too.",
+            "default": "The default below is used instead."
+          },
+          "defaultValue": "Default value",
+          "defaultPlaceholder": "For example: Unknown",
+          "label": "Label to use",
+          "labelHint": "Ticked adds this label to the issue, unticked removes it. Other labels are never touched.",
+          "everyProject": "Use this for every project (the fields of {project} are the model). A project mapping still wins.",
+          "submit": "Add mapping"
+        },
+        "jiraFields": {
+          "title": "Fields on this Jira screen",
+          "description": "What Jira offers for this project and issue type.",
+          "name": "Field",
+          "type": "Type",
+          "status": "Status",
+          "supported": "Can be mapped",
+          "notSupported": "Not supported",
+          "reasons": {
+            "type": "A type Vircle cannot fill yet.",
+            "readonly": "Jira does not let apps set it.",
+            "handled": "Vircle fills this one itself."
+          }
+        },
+        "notes": {
+          "title": "How it behaves",
+          "adf": "Rich text: Jira long-text fields use Atlassian Document Format. Vircle writes plain paragraphs and reads back plain text. Formatting is not carried across.",
+          "firstSync": "Values that already exist are recorded, not imported: only later changes flow. A new issue gets the mapped values when it is created.",
+          "jiraWins": "If both sides changed a field, Jira wins, like status. Your own changes coming back from Jira are recognised and ignored.",
+          "checkbox": "A checkbox can map to a checkbox field or to a label. With a label, ticked adds it and unticked removes it."
+        }
+      },
+      "overrides": {
+        "title": "Per-project overrides",
+        "description": "Give one project its own default issue type, priority map, category handling or direction switches. Anything left on inherit follows the workspace settings above.",
+        "noProjects": "Choose the allowed projects above first. Each shows here with its own overrides.",
+        "note": "The most specific setting wins: the project override, then the workspace setting.",
+        "noneSet": "Follows the workspace settings",
+        "summary": "{count, plural, one {# setting overridden} other {# settings overridden}}",
+        "overridden": "{count, plural, one {# override} other {# overrides}}",
+        "issueType": "Default issue type",
+        "loadingTypes": "Loading issue types…",
+        "inheritValue": "Inherit ({value})",
+        "none": "none",
+        "inherit": "Inherit ({value})",
+        "on": "On",
+        "off": "Off",
+        "category": {
+          "category_label": "Category as a label",
+          "category_component": "Category as a component"
+        },
+        "priority": "Priority map",
+        "priorityHint": "Which Jira priority each Vircle priority becomes in this project.",
+        "priorities": {
+          "urgent": "Urgent",
+          "high": "High",
+          "normal": "Normal",
+          "low": "Low"
+        },
+        "direction": "What flows",
+        "reset": "Remove all overrides for {project}"
+      },
+      "depth": {
+        "flow": {
+          "attachmentsTitle": "Attachments",
+          "attachmentsDescription": "Files on a ticket and on its linked Jira issue. Off unless you switch it on.",
+          "attachmentsLimits": "Up to 10 MB per file to Jira (or the limit the Jira site reports) and 20 files per issue. From Jira, up to 16 MB, images and documents only. Other files stay a link in Jira.",
+          "attachments": {
+            "label": "Attachments both ways",
+            "hint": "Agents can send a ticket file to the linked issue, and new files on the issue are copied to the ticket."
+          },
+          "attachments_auto": {
+            "label": "Send all new attachments",
+            "hint": "Every file added to a linked ticket goes to Jira by itself. Needs attachments switched on."
+          }
+        },
+        "webhook": {
+          "title": "Webhook trust",
+          "description": "Jira tells Vircle about changes through a secret web address. Atlassian may also sign each delivery.",
+          "unsignedNote": "{unsigned, plural, one {# delivery arrived} other {# deliveries arrived}} without a signed bearer token ({signed} signed). Until real deliveries are proven to be signed, the secret address is what protects this. Nothing in a delivery is trusted: the issue is always read again from Jira.",
+          "requireSigned": {
+            "label": "Require signed deliveries",
+            "hint": "Refuse any delivery that does not carry a bearer token verified with the app secret.",
+            "warning": "Leave this off until Diagnostics shows signed deliveries arriving. Turning it on early can stop all webhooks; the catch-up poll still works."
+          }
+        },
+        "trust": {
+          "title": "How webhooks arrive",
+          "description": "Counts of deliveries by how they were authenticated.",
+          "unsignedNote": "{count, plural, one {# delivery arrived} other {# deliveries arrived}} with no bearer token, on the secret address alone. That is the accepted default, but it means Atlassian may not sign them. Prove this on a real site before turning on Require signed deliveries.",
+          "signed": "Signed",
+          "unsigned": "Address only",
+          "rejected": "Refused (unsigned)",
+          "strictOn": "Require signed deliveries is ON: unsigned deliveries are refused.",
+          "strictOff": "Require signed deliveries is off: the secret address alone is accepted.",
+          "sinceLabel": "Counted since"
+        },
+        "report": {
+          "title": "Personal-data report",
+          "description": "Atlassian requires apps that keep Atlassian user data to report the account ids they hold every seven days.",
+          "ok": "Sent",
+          "failed": "Failed",
+          "at": "Last attempt",
+          "counts": "{reported} accounts reported, {erased} erased, {refreshed} refreshed",
+          "never": "No report has been sent yet.",
+          "sendNow": "Send now",
+          "sent": "Personal-data report sent.",
+          "notSent": "The report was not accepted."
+        },
+        "stalled": {
+          "title": "The catch-up has stalled",
+          "body": "No successful catch-up for about {minutes} minutes while tickets are linked. Check that the scheduled job is installed and running (see docs/jira-setup.md). The workspace owners have been notified."
+        },
+        "errors": {
+          "unsupported_field": "Vircle cannot map that type of Jira field.",
+          "incompatible_field": "Those two fields have different types.",
+          "too_many": "That is the maximum number of field mappings.",
+          "project_not_allowed": "That project is not in the allowed list."
+        }
+      },
       "title": "Integrations",
       "description": "Connect Vircle to the tools your team already works in. Jira Cloud links tickets to Jira issues.",
       "jira": {
@@ -3259,6 +3495,7 @@
         "needsReconnect": "Needs reconnect"
       },
       "tabs": {
+        "fields": "Fields",
         "connection": "Connection",
         "projects": "Projects",
         "mapping": "Mapping",
@@ -3720,6 +3957,193 @@
           }
         }
       }
+    },
+    "sla": {
+      "title": "SLA & business hours",
+      "description": "Set when your team is working and how quickly tickets must get a first response and be resolved. Targets count business hours only.",
+      "loadFailed": "Could not load the SLA settings. Try again.",
+      "tabs": {
+        "hours": "Business hours",
+        "policies": "SLA policies"
+      },
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "web_widget": "Web chat",
+        "messenger": "Messenger",
+        "instagram": "Instagram",
+        "email": "Email",
+        "gmail": "Gmail"
+      },
+      "errors": {
+        "invalid_timezone": "That time zone is not valid. Pick one from the list.",
+        "invalid_weekly": "The weekly hours are not valid.",
+        "overlap": "Two time slots on the same day overlap. Change one of them.",
+        "too_many_slots": "A day can have at most 4 time slots.",
+        "bad_time": "A time is not valid. Use hours and minutes, like 09:00.",
+        "end_before_start": "A time slot must end after it starts. To stay open until midnight, end it at 00:00.",
+        "no_open_day": "Open at least one day of the week.",
+        "invalid_name": "Enter a name of up to 80 characters.",
+        "invalid_targets": "Set at least one target, as a whole number of minutes between 1 and 525600.",
+        "targets_order": "The resolution target must be longer than the first response target.",
+        "invalid_conditions": "One of the conditions is not valid.",
+        "invalid_percent": "The at-risk percentage must be between 50 and 95.",
+        "schedule_in_use": "A policy still uses this schedule. Move or delete those policies first.",
+        "schedule_missing": "That schedule no longer exists. Pick another one.",
+        "default_required": "One schedule must always be the default. Make another schedule the default instead.",
+        "duplicate_holiday": "That date is already in the holiday list.",
+        "invalid_date": "Enter a valid date.",
+        "policy_limit": "You can have up to 50 policies.",
+        "not_found": "That item no longer exists.",
+        "forbidden": "You do not have permission to change SLA settings.",
+        "failed": "Something went wrong. Try again."
+      },
+      "hours": {
+        "intro": "A schedule says when your team works: days, time slots, holidays and a time zone. Policies count their targets only inside these hours.",
+        "new": "New schedule",
+        "emptyTitle": "No business hours yet",
+        "emptyHint": "Without a schedule, SLA targets count around the clock (all day, every day). Add one to count only working hours.",
+        "default": "Default",
+        "makeDefaultButton": "Make default",
+        "makeDefault": "Make this the default schedule",
+        "isDefaultHint": "This is the default schedule. It is pre-selected when you create a policy.",
+        "defaultSet": "{name} is now the default schedule",
+        "edit": "Edit",
+        "deleteAria": "Delete {name}",
+        "deleteTitle": "Delete {name}?",
+        "deleteHint": "The schedule and its holidays are removed. A schedule that a policy uses cannot be deleted.",
+        "delete": "Delete",
+        "deleted": "Schedule deleted",
+        "holidayCount": "{count, plural, one {# holiday} other {# holidays}}",
+        "policyCount": "{count, plural, one {used by # policy} other {used by # policies}}",
+        "newTitle": "New business hours",
+        "editTitle": "Edit business hours",
+        "editorHint": "Pick the time zone, then set the hours for each day.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Support hours",
+        "timezone": "Time zone",
+        "timezonePlaceholder": "Choose a time zone",
+        "timezoneSearch": "Search time zones",
+        "timezoneNone": "No time zone matches.",
+        "weekly": "Weekly hours",
+        "weeklyHint": "A time slot cannot cross midnight. For a night shift add two slots: the evening, then the morning of the next day.",
+        "presetMonFri": "Load Mon-Fri 09:00-18:00",
+        "closed": "Closed",
+        "toggleDay": "Open on {day}",
+        "slotStart": "{day}, slot {n} starts",
+        "slotEnd": "{day}, slot {n} ends",
+        "removeSlot": "Remove slot {n} on {day}",
+        "addSlot": "Add time slot",
+        "maxSlots": "Up to {count} time slots a day",
+        "copyHours": "Copy hours to other days",
+        "copyFrom": "Copy the hours of {day} to:",
+        "copyWeekdays": "Mon-Fri",
+        "copyWeekend": "Weekend",
+        "copyAll": "All days",
+        "copyApply": "Copy",
+        "holidays": "Holidays",
+        "holidaysHint": "A holiday closes the whole day. Targets do not count on that day.",
+        "noHolidays": "No holidays added.",
+        "holidayDate": "Date",
+        "holidayName": "Name (optional)",
+        "holidayNamePlaceholder": "e.g. National Day",
+        "addHoliday": "Add holiday",
+        "removeHoliday": "Remove {name}",
+        "cancel": "Cancel",
+        "save": "Save changes",
+        "create": "Create schedule",
+        "saved": "Business hours saved"
+      },
+      "policies": {
+        "intro": "A policy sets the first-response and resolution targets for the tickets it matches. The first active policy that matches a ticket applies. A ticket that matches no policy has no SLA.",
+        "new": "New policy",
+        "applyButton": "Apply to open tickets",
+        "emptyTitle": "No SLA policies yet",
+        "emptyHint": "Create a policy to give tickets a first-response and a resolution target. Until then no ticket has an SLA.",
+        "orderHint": "Policies are checked from the top. Drag a policy to change its order.",
+        "dragToReorder": "Drag to reorder {name}",
+        "inactive": "Inactive",
+        "matchesAll": "Matches every ticket",
+        "targetFirst": "First response {time}",
+        "targetResolution": "Resolution {time}",
+        "summarySchedule": "Hours: {name}",
+        "summaryAllHours": "All day, every day",
+        "summaryPauses": "Pauses while pending",
+        "summaryKeepsRunning": "Keeps running while pending",
+        "summaryAtRisk": "At risk at {percent}%",
+        "unknownTeam": "A removed team",
+        "edit": "Edit",
+        "deleteAria": "Delete {name}",
+        "activeAria": "Policy {name} is active",
+        "deleteTitle": "Delete {name}?",
+        "deleteHint": "Tickets stop counting against this policy. A ticket that already met or missed its target keeps that result.",
+        "delete": "Delete",
+        "deleted": "Policy deleted",
+        "any": "Any",
+        "labelsAny": "Any of these",
+        "newTitle": "New SLA policy",
+        "editTitle": "Edit SLA policy",
+        "editorHint": "Choose which tickets the policy applies to, set the targets, and pick the hours they are counted in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Urgent tickets",
+        "active": "Active",
+        "appliesTo": "Applies to",
+        "appliesHint": "Leave a group empty to match any value. Every group you fill in must match.",
+        "priority": "Priority",
+        "type": "Type",
+        "channel": "Channel",
+        "team": "Team",
+        "labels": "Labels",
+        "labelPlaceholder": "Add a label",
+        "removeLabel": "Remove label {label}",
+        "firstResponse": "First response",
+        "firstResponseHint": "Time until the first note from a teammate.",
+        "resolution": "Resolution",
+        "resolutionHint": "Time until the ticket is resolved. Must be longer than the first response.",
+        "targetOn": "Use the {target} target",
+        "unit": "Unit",
+        "units": {
+          "minutes": "minutes",
+          "hours": "hours",
+          "days": "days",
+          "short": {
+            "minutes": "{value, plural, one {# minute} other {# minutes}}",
+            "hours": "{value, plural, one {# hour} other {# hours}}",
+            "days": "{value, plural, one {# day} other {# days}}"
+          }
+        },
+        "schedule": "Hours",
+        "allHours": "All day, every day (24/7)",
+        "scheduleHint": "Targets count only inside these hours.",
+        "noSchedulesHint": "No business hours yet. Add them on the Business hours tab to count working hours only.",
+        "atRisk": "At risk after",
+        "atRiskHint": "A ticket is marked at risk once this share of a target is used up ({min} to {max}).",
+        "pausePending": "Pause while the ticket is pending",
+        "pausePendingHint": "Pending means waiting on the customer. The clock stops and continues when the ticket moves on.",
+        "previewTitle": "Preview",
+        "previewScheduled": "Example: a ticket with priority {priority} created {created} in {zone}",
+        "previewAllHours": "Example: a ticket with priority {priority} created now",
+        "previewBoth": "is due to be answered by {first} and resolved by {resolution}.",
+        "previewFirstOnly": "is due to be answered by {first}.",
+        "previewResolutionOnly": "is due to be resolved by {resolution}.",
+        "previewClosed": "The hours are closed at that moment, so the clock starts at the next opening.",
+        "previewNone": "Set at least one valid target to see an example.",
+        "cancel": "Cancel",
+        "save": "Save changes",
+        "create": "Create policy",
+        "saved": "Policy saved",
+        "apply": {
+          "title": "Apply to open tickets",
+          "hint": "Give the open, in-progress and pending tickets that have no SLA the first policy that matches them. Targets are counted from when each ticket was created.",
+          "counting": "Counting the tickets",
+          "none": "No open ticket without an SLA matches a policy. Nothing to apply.",
+          "willGet": "{count, plural, one {# ticket will get an SLA.} other {# tickets will get an SLA.}}",
+          "overdue": "{count, plural, one {# of them is already overdue and will show as breached.} other {# of them are already overdue and will show as breached.}}",
+          "truncated": "Only the oldest 5000 tickets are handled at a time. Run this again for the rest.",
+          "confirm": "{count, plural, one {Apply to # ticket} other {Apply to # tickets}}",
+          "cancel": "Cancel",
+          "done": "{count, plural, one {SLA applied to # ticket} other {SLA applied to # tickets}}"
+        }
+      }
     }
   },
   "SignupPage": {
@@ -4006,8 +4430,10 @@
         "none": "None",
         "assignee": "Assignee",
         "status": "Status",
-        "priority": "Priority"
-      }
+        "priority": "Priority",
+        "sla": "SLA"
+      },
+      "slaColumn": "SLA column"
     },
     "board": {
       "dropHere": "Drop tickets here",
@@ -4032,7 +4458,9 @@
         "mine": "My tickets",
         "unassigned": "Unassigned",
         "overdue": "Overdue",
-        "today": "Updated today"
+        "today": "Updated today",
+        "sla_at_risk": "SLA at risk",
+        "sla_breached": "SLA breached"
       },
       "assignee": "Assignee",
       "type": "Type",
@@ -4178,7 +4606,8 @@
         "status": "Status",
         "priority": "Priority",
         "assignee": "Assignee",
-        "updated": "Updated"
+        "updated": "Updated",
+        "sla": "SLA"
       },
       "status": {
         "open": "Open",
@@ -4387,6 +4816,46 @@
         "account": "Account",
         "other": "Other"
       }
+    },
+    "sla": {
+      "badgeLabel": "SLA",
+      "badge": {
+        "dueIn": "Due in {time}",
+        "dueInShort": "{time} left",
+        "atRisk": "At risk · {time} left",
+        "atRiskShort": "At risk · {time}",
+        "overdue": "Overdue {time}",
+        "paused": "Paused",
+        "met": "Met"
+      },
+      "target": {
+        "first_response": "First response",
+        "resolution": "Resolution"
+      },
+      "state": {
+        "none": "No SLA",
+        "on_track": "On track",
+        "at_risk": "At risk",
+        "breached": "Breached",
+        "paused": "Paused",
+        "met": "Met"
+      },
+      "tooltip": {
+        "due": "Due {when}",
+        "inZone": "{when} in {zone}",
+        "pausedWhilePending": "Paused while the ticket is pending",
+        "policy": "Policy: {name}",
+        "policyRemoved": "The policy was removed",
+        "hours": "Hours: {name} ({zone})",
+        "hours247": "Hours: all day, every day",
+        "business": "counted in business hours"
+      },
+      "detail": {
+        "heading": "SLA",
+        "dueOn": "Due {when}",
+        "respondedAt": "Answered {when}",
+        "hours": "Business hours: {name} ({zone})"
+      }
     }
   },
   "Reports": {
@@ -4518,7 +4987,30 @@
       "chartTitle": "Opened vs resolved, per day",
       "agent": "Agent",
       "ticketsResolved": "Tickets resolved",
-      "noData": "No tickets resolved in this range"
+      "noData": "No tickets resolved in this range",
+      "sla": {
+        "title": "SLA compliance",
+        "hint": "Tickets created in this period that have an SLA policy. Compliance is met divided by met plus breached; tickets still on the clock are not counted for or against it.",
+        "none": "No ticket in this period has an SLA yet.",
+        "counts": "{met} met · {breached} breached · {running} still running",
+        "firstResponseMet": "First response met",
+        "resolutionMet": "Resolution met",
+        "byPriority": "SLA by priority",
+        "byTeam": "SLA by team",
+        "breachedCount": "Breached",
+        "breachedTitle": "Tickets that missed a target",
+        "colTicket": "Ticket",
+        "colSubject": "Subject",
+        "colAssignee": "Assignee",
+        "colTarget": "Target",
+        "colOverdue": "Overdue by",
+        "noBreaches": "No ticket missed a target in this period.",
+        "unassigned": "Unassigned",
+        "target": {
+          "first_response": "First response",
+          "resolution": "Resolution"
+        }
+      }
     }
   },
   "Interactive": {
@@ -5234,6 +5726,10 @@
       "jira_share_comments": {
         "label": "Share notes with Jira",
         "description": "Send an internal note to the linked Jira issue with “Share with Jira”. Customer messages are never sent."
+      },
+      "sla_configure": {
+        "label": "Configure SLA and business hours",
+        "description": "Open Settings → SLA & business hours to edit business-hour schedules and holidays and to create, order and edit ticket SLA policies. Everyone can see the SLA state on a ticket."
       }
     },
     "group": {
@@ -5436,7 +5932,10 @@
       "api_key": "API key",
       "webhook": "Webhook",
       "jira_connection": "Jira connection",
-      "ticket_jira_link": "Jira link"
+      "ticket_jira_link": "Jira link",
+      "business_hours": "Business hours",
+      "business_hours_holiday": "Holiday",
+      "sla_policy": "SLA policy"
     },
     "roleNames": {
       "owner": "Owner",
@@ -5519,7 +6018,17 @@
       "primary_color": "color",
       "avatar_url": "avatar",
       "position": "position",
-      "allowed_origins": "allowed sites"
+      "allowed_origins": "allowed sites",
+      "timezone": "time zone",
+      "is_default": "default schedule",
+      "weekly": "weekly hours",
+      "holiday_date": "date",
+      "first_response_minutes": "first response target",
+      "resolution_minutes": "resolution target",
+      "schedule_id": "hours",
+      "pause_while_pending": "pause while pending",
+      "at_risk_percent": "at-risk percentage",
+      "conditions": "conditions"
     },
     "activity": {
       "button": "Activity",
@@ -5619,6 +6128,95 @@
     }
   },
   "Jira": {
+    "bulk": {
+      "createButton": "Create Jira issues",
+      "linkButton": "Link to Jira issue",
+      "tooMany": "Select at most {max} tickets for this action.",
+      "cancel": "Cancel",
+      "close": "Close",
+      "closeBackground": "Close (keeps running)",
+      "create": {
+        "title": "{count, plural, one {Create a Jira issue} other {Create # Jira issues}}",
+        "description": "One issue per ticket. Review what will be created first; nothing is sent until you confirm.",
+        "project": "Project",
+        "issueType": "Issue type",
+        "reviewHeading": "Review",
+        "reviewHint": "The project, type and summary each issue gets. Tickets that cannot be created are left out.",
+        "loading": "Checking the tickets…",
+        "willCreate": "Will be created",
+        "cannot": "Cannot be created",
+        "counts": "{create, plural, one {# issue will be created} other {# issues will be created}}, {blocked} left out.",
+        "confirm": "{count, plural, one {Create # issue} other {Create # issues}}",
+        "starting": "Starting…"
+      },
+      "reasons": {
+        "link_limit": "This ticket already has the maximum number of linked issues.",
+        "unsupported_fields": "Jira requires fields Vircle cannot fill: {fields}. Create it in Jira instead.",
+        "required_fields": "Jira requires values for: {fields}. Create this one by itself so you can fill them in.",
+        "not_found": "This ticket was not found."
+      },
+      "link": {
+        "title": "{count, plural, one {Link a ticket to a Jira issue} other {Link # tickets to a Jira issue}}",
+        "description": "All the selected tickets are linked to the same issue.",
+        "reference": "Jira issue",
+        "placeholder": "ENG-482 or a link to the issue",
+        "hint": "Paste an issue key or its address from Jira.",
+        "ticketsHeading": "Selected tickets",
+        "limit": "A ticket links at most 5 issues. Tickets that are already linked to this issue are skipped.",
+        "confirm": "{count, plural, one {Link # ticket} other {Link # tickets}}",
+        "target": "Linking to {key}",
+        "starting": "Starting…"
+      },
+      "progress": {
+        "finished": "Finished",
+        "running": "{done} of {total} done",
+        "summary": "{done} succeeded, {failed} failed, {skipped} skipped.",
+        "background": "This runs in the background. You can close this window; the results stay on each ticket.",
+        "toast": "Jira: {done} done, {failed} failed, {skipped} skipped.",
+        "status": {
+          "pending": "Waiting",
+          "running": "Working",
+          "done": "Done",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        }
+      }
+    },
+    "attachments": {
+      "send": "Send to Jira",
+      "sendNamed": "Send {name} to Jira",
+      "sent": "In Jira",
+      "sentHint": "Already sent to the linked Jira issue",
+      "fromJira": "From Jira",
+      "fromJiraHint": "This file was copied from the linked Jira issue",
+      "sentToast": "Sent to Jira."
+    },
+    "depth": {
+      "syncState": {
+        "ok": "Synced",
+        "okWhen": "Synced {when}",
+        "paused": "Paused",
+        "broken": "Not reachable"
+      },
+      "compact": {
+        "toggle": "Show or hide {key}"
+      },
+      "skipped": {
+        "title": "{count, plural, one {# file from Jira was not copied} other {# files from Jira were not copied}}",
+        "unnamed": "(unnamed file)",
+        "open": "Open in Jira",
+        "reason": {
+          "skipped_type": "type not supported",
+          "skipped_size": "too large",
+          "skipped_cap": "ticket has 20 files",
+          "failed": "could not be copied"
+        }
+      },
+      "preview": {
+        "mappedHeading": "Custom fields from the ticket",
+        "component": "Component:"
+      }
+    },
     "common": {
       "cancel": "Cancel"
     },
@@ -5760,6 +6358,17 @@
       "queued": "Jira is busy. The note will be shared shortly."
     },
     "errors": {
+      "bulk_limit": "You can select at most 25 tickets for this action.",
+      "too_large": "That file is larger than Jira allows.",
+      "issue_full": "That Jira issue already has the maximum of 20 files from Vircle.",
+      "mime_refused": "That type of file cannot be sent to Jira.",
+      "mime_mismatch": "The file does not match its type, so it was not sent.",
+      "active_content": "That file looks like a web page or script, so it was not sent.",
+      "attachments_disabled": "Attachments are switched off on that Jira site.",
+      "already": "That file was already sent to Jira.",
+      "duplicate": "The same file is already on the Jira issue.",
+      "from_jira": "That file came from Jira, so it is not sent back.",
+      "bad_path": "That file is not stored where Vircle can send it from.",
       "reauth_required": "Jira needs to be reconnected. Ask a workspace admin to reconnect it in Settings > Integrations.",
       "no_connection": "Jira is not connected for this workspace.",
       "jira_not_configured": "Jira is not set up on this server yet.",

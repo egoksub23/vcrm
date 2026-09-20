@@ -6,7 +6,7 @@
 // Presentational; a manual Refresh, no polling.
 
 import type { ReactNode } from "react";
-import { Loader2, RefreshCw, Webhook } from "lucide-react";
+import { Loader2, RefreshCw, Send, TriangleAlert, Webhook } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,12 @@ export interface JiraDiagnosticsTabProps {
   error: string | null;
   refreshing: boolean;
   /** The repair currently running. */
-  action: "webhooks" | "catchup" | null;
+  action: "webhooks" | "catchup" | "report" | null;
   onRefresh: () => void;
   onRegisterWebhooks: () => void;
   onCatchup: () => void;
+  /** "Send now" for the personal-data report (jira.connect). */
+  onSendReport?: () => void;
   /** Read one issue again now (allowed once per 30 seconds per link). */
   onResync?: (linkId: string) => void;
   /** The link being resynced, if any. */
@@ -42,6 +44,7 @@ export function JiraDiagnosticsTab({
   onRefresh,
   onRegisterWebhooks,
   onCatchup,
+  onSendReport,
   onResync,
   resyncing = null,
 }: JiraDiagnosticsTabProps) {
@@ -70,6 +73,7 @@ export function JiraDiagnosticsTab({
           action={action}
           onRegisterWebhooks={onRegisterWebhooks}
           onCatchup={onCatchup}
+          onSendReport={onSendReport}
           onResync={onResync}
           resyncing={resyncing}
         />
@@ -85,6 +89,7 @@ function DiagnosticsBody({
   action,
   onRegisterWebhooks,
   onCatchup,
+  onSendReport,
   onResync,
   resyncing,
 }: {
@@ -92,10 +97,14 @@ function DiagnosticsBody({
   action: JiraDiagnosticsTabProps["action"];
   onRegisterWebhooks: () => void;
   onCatchup: () => void;
+  onSendReport?: () => void;
   onResync?: (linkId: string) => void;
   resyncing: string | null;
 }) {
   const t = useTranslations("Settings.jira.diagnostics");
+  const td = useTranslations("Settings.jira.depth");
+  const trust = data.webhookTrust;
+  const report = data.report ?? null;
   const conn = data.connection!;
   const needsReconnect = conn.status !== "active";
   const hook = data.webhook;
@@ -107,6 +116,16 @@ function DiagnosticsBody({
 
   return (
     <>
+      {data.catchupStalled ? (
+        <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-sm text-red-800 dark:text-red-200">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-medium">{td("stalled.title")}</p>
+            <p className="mt-0.5 text-xs">{td("stalled.body", { minutes: data.catchupMinutes ?? 30 })}</p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Tile label={t("health.connection")}>
           <SettingsChip variant={needsReconnect ? "warn" : "ok"}>
@@ -156,6 +175,54 @@ function DiagnosticsBody({
             {t("catchupNow")}
           </Button>
         </div>
+      </JiraCard>
+
+      <JiraCard title={td("trust.title")} description={td("trust.description")}>
+        {trust && trust.unsigned > 0 ? (
+          <p role="status" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            {td("trust.unsignedNote", { count: trust.unsigned })}
+          </p>
+        ) : null}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <Count label={td("trust.signed")} value={trust?.signed ?? 0} />
+          <Count label={td("trust.unsigned")} value={trust?.unsigned ?? 0} bad={(trust?.unsigned ?? 0) > 0} />
+          <Count label={td("trust.rejected")} value={trust?.rejectedUnsigned ?? 0} bad={(trust?.rejectedUnsigned ?? 0) > 0} />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {trust?.requireSigned ? td("trust.strictOn") : td("trust.strictOff")}
+          {trust?.since ? (
+            <>
+              {" "}
+              {td("trust.sinceLabel")} <When iso={trust.since} empty="" />
+            </>
+          ) : null}
+        </p>
+      </JiraCard>
+
+      <JiraCard title={td("report.title")} description={td("report.description")}>
+        {report ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <SettingsChip variant={report.ok ? "ok" : "warn"}>{td(report.ok ? "report.ok" : "report.failed")}</SettingsChip>
+            <span className="text-muted-foreground">
+              {td("report.at")} <When iso={report.at} empty={t("never")} />
+            </span>
+            {report.ok ? (
+              <span className="text-xs text-muted-foreground">{td("report.counts", { reported: report.reported ?? 0, erased: report.erased ?? 0, refreshed: report.refreshed ?? 0 })}</span>
+            ) : (
+              <span className="min-w-0 text-xs break-words text-muted-foreground">{report.error}</span>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{td("report.never")}</p>
+        )}
+        {onSendReport ? (
+          <div className="mt-3">
+            <Button variant="outline" size="sm" onClick={onSendReport} disabled={action !== null || needsReconnect}>
+              {action === "report" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {td("report.sendNow")}
+            </Button>
+          </div>
+        ) : null}
       </JiraCard>
 
       <div className="grid gap-4 lg:grid-cols-2">

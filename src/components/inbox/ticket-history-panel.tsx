@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
 import { STATUS_DOT } from "@/components/tickets/ticket-visuals";
+import { TicketSlaBadge } from "@/components/tickets/ticket-sla-badge";
 import type { Ticket, TicketPriority } from "@/types";
 
 type Row = Pick<
@@ -27,6 +28,13 @@ type Row = Pick<
   | "conversation_id"
   | "created_at"
   | "updated_at"
+  | "sla_policy_id"
+  | "sla_first_response_due_at"
+  | "sla_first_response_risk_at"
+  | "sla_first_response_state"
+  | "sla_resolution_due_at"
+  | "sla_resolution_risk_at"
+  | "sla_resolution_state"
 >;
 
 type Filter = "all" | "active" | "done";
@@ -66,7 +74,9 @@ export function TicketHistoryPanel({
     if (!contactId) return;
     const { data, error } = await createClient()
       .from("tickets")
-      .select("id, ticket_number, subject, status, priority, category, conversation_id, created_at, updated_at")
+      .select(
+        "id, ticket_number, subject, status, priority, category, conversation_id, created_at, updated_at, sla_policy_id, sla_first_response_due_at, sla_first_response_risk_at, sla_first_response_state, sla_resolution_due_at, sla_resolution_risk_at, sla_resolution_state",
+      )
       .eq("contact_id", contactId)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -186,6 +196,7 @@ export function TicketHistoryPanel({
                       <span className={PRIORITY_TEXT[r.priority]}>{tt(`priority.${r.priority}`)}</span>
                     ) : null}
                     <span>{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
+                    <TicketSlaBadge ticket={r} compact />
                     {conversationId && r.conversation_id === conversationId ? (
                       <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                         {t("thisChat")}

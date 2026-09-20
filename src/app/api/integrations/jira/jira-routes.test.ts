@@ -42,6 +42,10 @@ import { POST as sharePOST } from "./comments/share/route";
 import { GET as usersGET, PUT as usersPUT, POST as usersPOST } from "./users/route";
 import { GET as userSearchGET } from "./users/search/route";
 import { GET as diagGET, POST as diagPOST } from "./diagnostics/route";
+import { POST as attachSendPOST } from "./attachments/send/route";
+import { GET as fieldsGET } from "./fields/route";
+import { PUT as fieldMapPUT, DELETE as fieldMapDELETE } from "./field-mappings/route";
+import { GET as bulkGET, POST as bulkPOST } from "./bulk/route";
 import { __resetRateLimitForTests } from "@/lib/rate-limit";
 import { CONNECTION_COLUMNS } from "@/lib/jira/types";
 
@@ -81,6 +85,13 @@ const CASES: Case[] = [
   { name: "GET users/search", cap: "jira.link", call: () => userSearchGET(url("/users/search?q=ab")) },
   { name: "GET diagnostics", cap: "jira.connect", call: () => diagGET() },
   { name: "POST diagnostics", cap: "jira.connect", call: () => diagPOST(url("/diagnostics")) },
+  // 0.45.0
+  { name: "POST attachments/send", cap: "jira.link", call: () => attachSendPOST(url("/attachments/send")) },
+  { name: "GET fields", cap: "jira.connect", call: () => fieldsGET(url("/fields?project=ENG")) },
+  { name: "PUT field-mappings", cap: "jira.connect", call: () => fieldMapPUT(url("/field-mappings")) },
+  { name: "DELETE field-mappings", cap: "jira.connect", call: () => fieldMapDELETE(url("/field-mappings?id=x")) },
+  { name: "GET bulk", cap: "jira.link", call: () => bulkGET(url("/bulk?batch=x")) },
+  { name: "POST bulk", cap: "jira.link", call: () => bulkPOST(url("/bulk")) },
 ];
 
 beforeEach(() => {

@@ -4,11 +4,14 @@ import Link from "next/link";
 import {
   BookOpen,
   Boxes,
+  CalendarClock,
+  CalendarOff,
   KeyRound,
   Link2,
   Mail,
   MessageSquare,
   PlugZap,
+  ScrollText,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -123,6 +126,9 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   webhook: Webhook,
   jira_connection: PlugZap,
   ticket_jira_link: Link2,
+  business_hours: CalendarClock,
+  business_hours_holiday: CalendarOff,
+  sla_policy: ScrollText,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

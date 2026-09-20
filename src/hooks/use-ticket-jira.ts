@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
-import { normalizeSettings } from "@/lib/jira/settings";
+import { directionOnAnywhere, normalizeSettings } from "@/lib/jira/settings";
 import {
   MAX_LINKS_PER_TICKET,
   type JiraSettings,
@@ -138,9 +138,28 @@ export interface JiraCreatePreview {
     /** Whether the customer's name and email are part of what is sent. */
     includesCustomer: boolean;
     extraFields: Record<string, unknown>;
+    /** 0.45.0: custom fields the mappings fill from the ticket, and the category as a component. */
+    mappedFields?: { label: string; jiraName: string; display: string }[];
+    component?: string | null;
   };
   required: { ask: JiraRequiredField[]; unsupported: string[] };
   previewRequired: boolean;
+}
+
+export interface SkippedJiraFile {
+  id: string;
+  filename: string | null;
+  status: "skipped_type" | "skipped_size" | "skipped_cap" | "failed";
+  jiraUrl: string | null;
+}
+
+interface AttachmentMapRowLite {
+  id: string;
+  ticket_attachment_id: string | null;
+  direction: "to_jira" | "from_jira";
+  status: string;
+  filename: string | null;
+  jira_url: string | null;
 }
 
 /** Thin, typed wrappers over the routes. None of them throws. */
@@ -163,6 +182,8 @@ export const jiraApi = {
     jiraRequest<{ users: JiraUserHit[] }>(`users/search?q=${encodeURIComponent(q)}${project ? `&project=${encodeURIComponent(project)}` : ""}`),
   previewCreate: (ticketId: string, choices: JiraCreateChoices) =>
     jiraRequest<JiraCreatePreview>("create", { method: "POST", body: { ticketId, preview: true, choices } }),
+  sendAttachment: (attachmentId: string, linkId?: string) =>
+    jiraRequest<{ results: JiraShareResult[] }>("attachments/send", { method: "POST", body: linkId ? { attachmentId, linkId } : { attachmentId } }),
   createIssue: (ticketId: string, choices: JiraCreateChoices, fieldValues: Record<string, unknown>) =>
     jiraRequest<{ link: TicketJiraLinkRow }>("create", { method: "POST", body: { ticketId, choices, fieldValues } }),
   linkIssue: (ticketId: string, reference: string) =>
@@ -205,6 +226,13 @@ export interface TicketJira {
   atLimit: boolean;
   /** Ids of this ticket's notes that were already posted to Jira. */
   sharedNoteIds: Set<string>;
+  /** Attachments are switched on (Settings > Jira > Direction), for the workspace or any project. */
+  attachmentsEnabled: boolean;
+  /** Ids of this ticket's attachments already sent to a linked issue. */
+  sentAttachmentIds: Set<string>;
+  /** Files on the linked issues that were not copied (type, size), with a link to Jira. */
+  skippedFiles: SkippedJiraFile[];
+  sendAttachment: (attachmentId: string) => Promise<JiraApiResult<{ results: JiraShareResult[] }>>;
   reload: () => Promise<void>;
   syncNow: (linkId: string) => Promise<JiraApiResult<{ ok: boolean; broken: string | null }>>;
   unlink: (linkId: string) => Promise<JiraApiResult<{ ok: boolean }>>;
@@ -225,6 +253,7 @@ export function useTicketJira(ticketId: string | null): TicketJira {
   const [links, setLinks] = useState<TicketJiraLinkRow[]>([]);
   const [connection, setConnection] = useState<JiraConnectionSummary | null>(null);
   const [sharedNoteIds, setSharedNoteIds] = useState<Set<string>>(() => new Set());
+  const [attachmentMaps, setAttachmentMaps] = useState<AttachmentMapRowLite[]>([]);
 
   const idRef = useRef(ticketId);
   useEffect(() => {
@@ -247,7 +276,13 @@ export function useTicketJira(ticketId: string | null): TicketJira {
         : null;
     }
     let shared = new Set<string>();
+    let maps: AttachmentMapRowLite[] = [];
     if (rows.length > 0) {
+      const attRes = await supabase
+        .from("jira_attachment_map")
+        .select("id, ticket_attachment_id, direction, status, filename, jira_url")
+        .in("link_id", rows.map((r) => r.id));
+      maps = (attRes.data as AttachmentMapRowLite[] | null) ?? [];
       const mapRes = await supabase
         .from("jira_comment_map")
         .select("ticket_comment_id")
@@ -259,6 +294,7 @@ export function useTicketJira(ticketId: string | null): TicketJira {
     if (idRef.current !== id) return;
     setLinks(rows);
     setSharedNoteIds(shared);
+    setAttachmentMaps(maps);
     if (conn !== undefined) setConnection(conn);
     setLoadedId(id);
   }, []);
@@ -303,6 +339,7 @@ export function useTicketJira(ticketId: string | null): TicketJira {
   const transition = useCallback((linkId: string, transitionId: string) => afterWrite(jiraApi.transition(linkId, transitionId)), [afterWrite]);
   const commentInJira = useCallback((linkId: string, text: string) => afterWrite(jiraApi.commentInJira(linkId, text)), [afterWrite]);
   const shareNote = useCallback((noteId: string, linkId?: string) => afterWrite(jiraApi.shareNote(noteId, linkId)), [afterWrite]);
+  const sendAttachment = useCallback((attachmentId: string) => afterWrite(jiraApi.sendAttachment(attachmentId)), [afterWrite]);
   const listTransitions = useCallback((linkId: string) => jiraApi.listTransitions(linkId), []);
 
   const loading = !!ticketId && loadedId !== ticketId;
@@ -320,6 +357,12 @@ export function useTicketJira(ticketId: string | null): TicketJira {
       hasOkLink: links.some((l) => l.sync_state === "ok"),
       atLimit: links.length >= MAX_LINKS_PER_TICKET,
       sharedNoteIds,
+      attachmentsEnabled: connection ? directionOnAnywhere(connection.settings, "attachments") : false,
+      sentAttachmentIds: new Set(attachmentMaps.filter((m) => m.direction === "to_jira" && m.status === "synced" && m.ticket_attachment_id).map((m) => m.ticket_attachment_id as string)),
+      skippedFiles: attachmentMaps
+        .filter((m) => m.direction === "from_jira" && (m.status === "skipped_type" || m.status === "skipped_size" || m.status === "skipped_cap" || m.status === "failed"))
+        .map((m) => ({ id: m.id, filename: m.filename, status: m.status as SkippedJiraFile["status"], jiraUrl: m.jira_url })),
+      sendAttachment,
       reload,
       syncNow,
       unlink,
@@ -328,7 +371,7 @@ export function useTicketJira(ticketId: string | null): TicketJira {
       commentInJira,
       shareNote,
     }),
-    [loading, links, connection, connected, needsReconnect, sharedNoteIds, reload, syncNow, unlink, listTransitions, transition, commentInJira, shareNote],
+    [loading, links, connection, connected, needsReconnect, sharedNoteIds, attachmentMaps, sendAttachment, reload, syncNow, unlink, listTransitions, transition, commentInJira, shareNote],
   );
 }
 

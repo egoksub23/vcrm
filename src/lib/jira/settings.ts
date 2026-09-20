@@ -8,9 +8,12 @@
 
 import {
   DEFAULT_JIRA_SETTINGS,
+  DIRECTION_KEYS,
   TICKET_PRIORITIES,
   TICKET_STATUSES,
+  type DirectionSettings,
   type JiraSettings,
+  type ProjectOverride,
   type JiraStatusCategory,
   type TicketPriorityValue,
   type TicketStatusValue,
@@ -37,6 +40,50 @@ export function isProjectKey(v: unknown): v is string {
 }
 
 const MAX_OVERRIDES = 60;
+const MAX_PROJECT_OVERRIDES = 100;
+
+function normalizePriorityMap(raw: unknown): Partial<Record<TicketPriorityValue, string>> {
+  const out: Partial<Record<TicketPriorityValue, string>> = {};
+  if (isRecord(raw)) {
+    for (const p of TICKET_PRIORITIES) {
+      const n = name(raw[p]);
+      if (n) out[p] = n;
+    }
+  }
+  return out;
+}
+
+/** One project's override: unknown keys dropped, empty overrides removed (null = "no override"). */
+export function normalizeProjectOverride(raw: unknown): ProjectOverride | null {
+  if (!isRecord(raw)) return null;
+  const out: ProjectOverride = {};
+  const issueType = name(raw.issue_type);
+  if (issueType) out.issue_type = issueType;
+  const priority = normalizePriorityMap(raw.priority);
+  if (Object.keys(priority).length > 0) out.priority = priority;
+  if (typeof raw.category_label === "boolean") out.category_label = raw.category_label;
+  if (typeof raw.category_component === "boolean") out.category_component = raw.category_component;
+  if (isRecord(raw.direction)) {
+    const direction: Partial<DirectionSettings> = {};
+    for (const k of DIRECTION_KEYS) {
+      const v = raw.direction[k];
+      if (typeof v === "boolean") direction[k] = v;
+    }
+    if (Object.keys(direction).length > 0) out.direction = direction;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function normalizeProjectOverrides(raw: unknown): Record<string, ProjectOverride> {
+  const out: Record<string, ProjectOverride> = {};
+  if (!isRecord(raw)) return out;
+  for (const [k, v] of Object.entries(raw).slice(0, MAX_PROJECT_OVERRIDES)) {
+    if (!isProjectKey(k)) continue;
+    const o = normalizeProjectOverride(v);
+    if (o) out[k.toUpperCase()] = o;
+  }
+  return out;
+}
 
 export function normalizeSettings(raw: unknown): JiraSettings {
   const d = DEFAULT_JIRA_SETTINGS;
@@ -45,6 +92,7 @@ export function normalizeSettings(raw: unknown): JiraSettings {
   const mapping = isRecord(r.mapping) ? r.mapping : {};
   const direction = isRecord(r.direction) ? r.direction : {};
   const privacy = isRecord(r.privacy) ? r.privacy : {};
+  const webhook = isRecord(r.webhook) ? r.webhook : {};
 
   const allowed = Array.isArray(projects.allowed)
     ? [...new Set(projects.allowed.filter(isProjectKey).map((k) => k.toUpperCase()))].slice(0, 100)
@@ -53,13 +101,7 @@ export function normalizeSettings(raw: unknown): JiraSettings {
   // The default has to be one of the allowed projects (an empty list allows every project).
   if (defaultProject && allowed.length > 0 && !allowed.includes(defaultProject)) defaultProject = null;
 
-  const priority: JiraSettings["mapping"]["priority"] = {};
-  if (isRecord(mapping.priority)) {
-    for (const p of TICKET_PRIORITIES) {
-      const n = name(mapping.priority[p]);
-      if (n) priority[p] = n;
-    }
-  }
+  const priority = normalizePriorityMap(mapping.priority);
 
   const statusFrom: Record<string, TicketStatusValue> = {};
   if (isRecord(mapping.status_from_jira)) {
@@ -90,6 +132,7 @@ export function normalizeSettings(raw: unknown): JiraSettings {
       status_from_jira: statusFrom,
       status_to_jira: statusTo,
       category_label: bool(mapping.category_label, d.mapping.category_label),
+      category_component: bool(mapping.category_component, d.mapping.category_component ?? false),
     },
     direction: {
       comments_to_jira: bool(direction.comments_to_jira, d.direction.comments_to_jira),
@@ -97,7 +140,11 @@ export function normalizeSettings(raw: unknown): JiraSettings {
       status_from_jira: bool(direction.status_from_jira, d.direction.status_from_jira),
       status_to_jira: bool(direction.status_to_jira, d.direction.status_to_jira),
       assignee: bool(direction.assignee, d.direction.assignee),
+      attachments: bool(direction.attachments, d.direction.attachments),
+      attachments_auto: bool(direction.attachments_auto, d.direction.attachments_auto),
     },
+    webhook: { require_signed: bool(webhook.require_signed, d.webhook.require_signed) },
+    project_overrides: normalizeProjectOverrides(r.project_overrides),
     privacy: {
       include_customer: bool(privacy.include_customer, d.privacy.include_customer),
       preview_before_send: bool(privacy.preview_before_send, d.privacy.preview_before_send),
@@ -111,7 +158,7 @@ export function normalizeSettings(raw: unknown): JiraSettings {
 /** Which top-level sections differ (for the audit log: names only, never values). */
 export function changedSections(a: JiraSettings, b: JiraSettings): string[] {
   const out: string[] = [];
-  for (const k of ["projects", "mapping", "direction", "privacy"] as const) {
+  for (const k of ["projects", "mapping", "direction", "privacy", "webhook", "project_overrides"] as const) {
     if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) out.push(k);
   }
   for (const k of ["done_behaviour", "resolution", "personal_data_report"] as const) {
@@ -191,6 +238,48 @@ export function wantedJiraTarget(settings: JiraSettings, status: TicketStatusVal
 
 export function priorityNameFor(settings: JiraSettings, priority: TicketPriorityValue): string | null {
   return settings.mapping.priority[priority] ?? null;
+}
+
+// ------------------------------------------------------------
+// Per-project overrides: the most specific setting wins
+// ------------------------------------------------------------
+
+/**
+ * The settings that apply to ONE project: the workspace settings with that
+ * project's overrides laid over them. Resolution order, most specific first:
+ * project override, then workspace setting, then the built-in default.
+ * Priority maps merge entry by entry; each direction toggle inherits unless
+ * the project sets it. A null / unknown project returns the workspace
+ * settings unchanged.
+ */
+export function effectiveSettings(settings: JiraSettings, projectKey: string | null | undefined): JiraSettings {
+  const o = projectKey ? settings.project_overrides[projectKey.toUpperCase()] : undefined;
+  if (!o) return settings;
+  return {
+    ...settings,
+    projects: { ...settings.projects, default_issue_type: o.issue_type ?? settings.projects.default_issue_type },
+    mapping: {
+      ...settings.mapping,
+      priority: { ...settings.mapping.priority, ...(o.priority ?? {}) },
+      category_label: o.category_label ?? settings.mapping.category_label,
+      category_component: o.category_component ?? settings.mapping.category_component ?? false,
+    },
+    direction: { ...settings.direction, ...(o.direction ?? {}) },
+  };
+}
+
+/** Attachments really flow only when the toggle is on; "send all new" needs it too. */
+export function attachmentsEnabled(settings: JiraSettings): boolean {
+  return settings.direction.attachments;
+}
+export function attachmentsAutoSend(settings: JiraSettings): boolean {
+  return settings.direction.attachments && settings.direction.attachments_auto;
+}
+
+/** Is any workspace or project setting switching `key` on? (What the SQL triggers also ask.) */
+export function directionOnAnywhere(settings: JiraSettings, key: keyof DirectionSettings): boolean {
+  if (settings.direction[key]) return true;
+  return Object.values(settings.project_overrides).some((o) => o.direction?.[key] === true);
 }
 
 // ------------------------------------------------------------

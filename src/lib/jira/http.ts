@@ -16,7 +16,7 @@ import { isJiraError, JiraError, JiraRateLimitError, JiraValidationError } from 
 import { isJiraConfigured } from "./oauth";
 import { LinkError } from "./links";
 import { normalizeSettings } from "./settings";
-import { clientForConnection, jiraStore } from "./service";
+import { attachmentStorage, clientForConnection, jiraStore } from "./service";
 import type { JiraStore } from "./store";
 import type { SyncContext } from "./sync";
 import type { JiraConnectionRow } from "./types";
@@ -47,6 +47,7 @@ const LINK_STATUS: Record<LinkError["code"], number> = {
   jira_rejected: 422,
   no_permission: 403,
   transition_unavailable: 409,
+  bulk_limit: 422,
 };
 
 /** Any error a Jira route can throw -> the response. */
@@ -136,6 +137,7 @@ export async function loadJiraContext(
     connection,
     settings: normalizeSettings(connection.settings),
     appUrl: jiraAppUrl(request),
+    storage: attachmentStorage(db),
   };
   return { db, store, connection, client, sync };
 }

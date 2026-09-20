@@ -92,6 +92,10 @@ export function entityHref(
       return "/settings?tab=channels";
     case "jira_connection":
       return "/settings?tab=integrations";
+    case "business_hours":
+    case "business_hours_holiday":
+    case "sla_policy":
+      return "/settings?tab=sla";
     case "api_key":
     case "webhook":
       return "/settings?tab=api";

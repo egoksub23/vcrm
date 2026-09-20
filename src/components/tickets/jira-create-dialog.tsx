@@ -194,6 +194,7 @@ export function JiraCreateForm(props: JiraCreateFormProps) {
     onCancel,
   } = props;
   const t = useTranslations("Jira.create");
+  const tDepth = useTranslations("Jira.depth");
   const ids = { project: useId(), type: useId(), priority: useId(), labels: useId(), assignee: useId() };
 
   const set = (patch: Partial<JiraCreateChoiceState>) => onChoicesChange({ ...choices, ...patch });
@@ -321,6 +322,23 @@ export function JiraCreateForm(props: JiraCreateFormProps) {
                   {p.assigneeAccountId ? (choices.assignee?.displayName ?? p.assigneeAccountId) : t("unassigned")}
                 </dd>
               </dl>
+              {p.component ? (
+                <p className="text-xs text-foreground">
+                  <span className="text-muted-foreground">{tDepth("preview.component")}</span> {p.component}
+                </p>
+              ) : null}
+              {(p.mappedFields ?? []).length > 0 ? (
+                <div className="space-y-1" aria-label={tDepth("preview.mappedHeading")}>
+                  <p className="text-xs font-medium text-foreground">{tDepth("preview.mappedHeading")}</p>
+                  <ul className="space-y-0.5 text-xs">
+                    {(p.mappedFields ?? []).map((m) => (
+                      <li key={`${m.label}:${m.jiraName}`} className="break-words">
+                        <span className="text-muted-foreground">{m.label}</span> <span className="text-muted-foreground">→ {m.jiraName}:</span> <span className="text-foreground">{m.display || "—"}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {choices.assignee && !p.assigneeAccountId ? <p className="text-[11px] text-muted-foreground">{t("assigneeIgnored")}</p> : null}
               <p
                 data-includes-customer={p.includesCustomer ? "yes" : "no"}
@@ -410,6 +428,7 @@ function JiraCreateContainer({
   siteUrl,
   defaultProject,
   defaultIssueType,
+  issueTypeOverrides,
   onCreated,
   onCancel,
 }: {
@@ -417,6 +436,8 @@ function JiraCreateContainer({
   siteUrl?: string | null;
   defaultProject?: string | null;
   defaultIssueType?: string | null;
+  /** Per-project default issue type (Settings > Jira > Projects), by upper-case project key. */
+  issueTypeOverrides?: Record<string, string>;
   onCreated: (link: TicketJiraLinkRow) => void;
   onCancel: () => void;
 }) {
@@ -452,6 +473,8 @@ function JiraCreateContainer({
 
   // Issue types of the chosen project.
   const projectKey = choices.projectKey;
+  // The most specific default wins: the project own override, then the workspace one.
+  const projectDefaultType = issueTypeOverrides?.[projectKey.toUpperCase()] ?? defaultIssueType ?? null;
   useEffect(() => {
     if (!projectKey) return;
     let cancelled = false;
@@ -460,8 +483,8 @@ function JiraCreateContainer({
       setTypes({ key: projectKey, result: r });
       if (!r.ok) return;
       const list = r.data.issueTypes;
-      const wanted = defaultIssueType
-        ? list.find((i) => i.id === defaultIssueType || i.name.toLowerCase() === defaultIssueType.toLowerCase())
+      const wanted = projectDefaultType
+        ? list.find((i) => i.id === projectDefaultType || i.name.toLowerCase() === projectDefaultType.toLowerCase())
         : undefined;
       const pick = wanted ?? (list.length === 1 ? list[0] : undefined);
       if (pick) setChoices((c) => (c.projectKey === projectKey && !c.issueTypeId ? { ...c, issueTypeId: pick.id } : c));
@@ -469,7 +492,7 @@ function JiraCreateContainer({
     return () => {
       cancelled = true;
     };
-  }, [projectKey, defaultIssueType]);
+  }, [projectKey, projectDefaultType]);
 
   const issueTypes = useMemo(() => (types && types.key === projectKey && types.result.ok ? types.result.data.issueTypes : []), [types, projectKey]);
   const issueTypesLoading = !!projectKey && !(types && types.key === projectKey);
@@ -553,6 +576,7 @@ export function JiraCreateDialog({
   siteUrl,
   defaultProject,
   defaultIssueType,
+  issueTypeOverrides,
   onCreated,
 }: {
   open: boolean;
@@ -561,6 +585,7 @@ export function JiraCreateDialog({
   siteUrl?: string | null;
   defaultProject?: string | null;
   defaultIssueType?: string | null;
+  issueTypeOverrides?: Record<string, string>;
   onCreated: (link: TicketJiraLinkRow) => void;
 }) {
   const t = useTranslations("Jira.create");
@@ -576,6 +601,7 @@ export function JiraCreateDialog({
           siteUrl={siteUrl}
           defaultProject={defaultProject}
           defaultIssueType={defaultIssueType}
+          issueTypeOverrides={issueTypeOverrides}
           onCreated={onCreated}
           onCancel={() => onOpenChange(false)}
         />

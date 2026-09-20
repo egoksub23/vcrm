@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/tickets/constants";
 import { normalizeLabel, suggestLabels } from "@/lib/tickets/labels";
+import { JiraBulkActions, type BulkTicket } from "./jira-bulk-dialogs";
 import type { BulkAction } from "@/lib/tickets/patch";
 import type { Profile, Team } from "@/types";
 import { PersonAvatar, PriorityIcon, StatusLozenge } from "./ticket-visuals";
@@ -57,6 +58,8 @@ export function TicketBulkBar({
   onApply,
   onDelete,
   onClear,
+  jiraTickets,
+  onJiraDone,
 }: {
   count: number;
   members: Profile[];
@@ -67,6 +70,9 @@ export function TicketBulkBar({
   onApply: (action: BulkAction) => void;
   onDelete: () => void;
   onClear: () => void;
+  /** The selected tickets, for "Create Jira issues" / "Link to Jira issue" (shown with jira.link and a connection). */
+  jiraTickets?: BulkTicket[];
+  onJiraDone?: () => void;
 }) {
   const t = useTranslations("Tickets.bulk");
   const tCommon = useTranslations("Tickets.common");
@@ -170,6 +176,8 @@ export function TicketBulkBar({
           </div>
         </PopoverContent>
       </Popover>
+
+      {jiraTickets && jiraTickets.length > 0 ? <JiraBulkActions tickets={jiraTickets} onDone={onJiraDone} /> : null}
 
       {canDelete ? (
         <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)} disabled={busy}>

@@ -7,7 +7,8 @@
 // overrides in `role_capabilities`, migration 079).
 //
 // The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082,
-// + the approvals capabilities in 084, + the Jira ones in 085)
+// + the approvals capabilities in 084, + the Jira ones in 085, + `sla.configure`
+// in 086)
 // (`capability_catalogue` + `role_capability_defaults`); a test
 // (`capabilities-sql.test.ts`) fails if the two disagree, and
 // `capability-parity.test.ts` proves the defaults equal the role
@@ -157,6 +158,10 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("tickets.work", "tickets", AGENT_UP, "agent"),
   def("tickets.delete", "tickets", ADMIN_UP, "admin"),
   def("tickets.configure-form", "tickets", ADMIN_UP, "admin"),
+  // Migration 086: business-hour schedules and SLA policies. The three config
+  // tables' write policies call has_capability(), the routes call
+  // requireCapability. Reading the SLA state on a ticket is for every member.
+  def("sla.configure", "tickets", ADMIN_UP, "agent", "database"),
 
   // ---- Tags, labels, snippets ----
   // Migration 084: the write policies of `tags` and `quick_replies` call
@@ -222,6 +227,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "tickets.work"
   | "tickets.delete"
   | "tickets.configure-form"
+  | "sla.configure"
   | "tags.manage"
   | "snippets.manage"
   | "tags.propose"
