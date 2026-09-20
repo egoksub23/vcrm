@@ -16,7 +16,6 @@ import {
   Video,
   FileText,
   Mic,
-  Square,
   X,
   Loader2,
   Sparkles,
@@ -80,6 +79,15 @@ import { ImagePrepareError, prepareImageForUpload } from "@/lib/media/prepare-im
 import { KnowledgePanel } from "./knowledge-panel";
 import { FileChip, KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
 import { PastedImageChip } from "./pasted-image-chip";
+import { RecordingBar } from "./recording-bar";
+import {
+  activeMicrophoneId,
+  listMicrophones,
+  openMicrophone,
+  readSavedMicrophone,
+  saveMicrophone,
+  type MicrophoneOption,
+} from "@/lib/media/microphone";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
 import type { Editor } from "@tiptap/react";
@@ -497,6 +505,13 @@ export function MessageComposer({
   const recorderRef = useRef<import("opus-recorder").default | null>(null);
   const cancelledRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The microphone stream and audio graph are opened here (not by the
+  // recorder) so the agent can pick the input and see a live level.
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
+  const [micDevices, setMicDevices] = useState<MicrophoneOption[]>([]);
+  const [micDeviceId, setMicDeviceId] = useState<string | null>(null);
 
   // Viewers (read-only role) can browse the inbox but never send.
   // For solo users this is always true — single-owner accounts pass
@@ -514,6 +529,16 @@ export function MessageComposer({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  // Turns the microphone off (the browser's recording indicator goes away).
+  const releaseMic = useCallback(() => {
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
+    micStreamRef.current = null;
+    const ctx = audioCtxRef.current;
+    audioCtxRef.current = null;
+    void ctx?.close().catch(() => {});
+    setMicAnalyser(null);
   }, []);
 
   // Pasted images the agent never sent are the agent's own uploads: switching
@@ -539,11 +564,11 @@ export function MessageComposer({
     return () => {
       clearTimer();
       cancelledRef.current = true;
-      // stop() releases the mic stream + audio context inside opus-recorder.
       void recorderRef.current?.stop().catch(() => {});
+      releaseMic();
       removeStaged(draftRef.current?.path);
     };
-  }, [clearTimer, removeStaged]);
+  }, [clearTimer, releaseMic, removeStaged]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -1141,52 +1166,100 @@ export function MessageComposer({
     [removeStaged, t],
   );
 
-  const startRecording = useCallback(async () => {
-    if (inputsDisabled || busy || recording) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof AudioContext === "undefined") {
-      toast.error(t("recordingUnsupported"));
-      return;
-    }
-    try {
-      // Lazy-load the encoder (≈400 KB worker) only when the user records,
-      // keeping it out of the main bundle.
-      const { default: Recorder } = await import("opus-recorder");
-      const recorder = new Recorder({
-        encoderPath: OPUS_ENCODER_PATH,
-        numberOfChannels: 1,
-        encoderApplication: 2048, // VOIP — tuned for speech
-        encoderSampleRate: 48000,
-        streamPages: false, // one callback with the complete file on stop
-      });
-      cancelledRef.current = false;
-      recorder.ondataavailable = (bytes) => {
-        if (cancelledRef.current) return;
-        void finalizeRecording(bytes);
-      };
-      recorderRef.current = recorder;
-      await recorder.start();
-      setRecording(true);
-      setRecordSeconds(0);
-      timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
-    } catch {
-      void recorderRef.current?.stop().catch(() => {});
-      recorderRef.current = null;
-      toast.error(t("microphoneDenied"));
-    }
-  }, [inputsDisabled, busy, recording, finalizeRecording, t]);
+  // `micId` is a device picked in the recording bar; otherwise the last
+  // remembered choice, otherwise the browser default.
+  const startRecording = useCallback(
+    async (micId?: string) => {
+      if (inputsDisabled || busy) return;
+      if (!navigator.mediaDevices?.getUserMedia || typeof AudioContext === "undefined") {
+        toast.error(t("recordingUnsupported"));
+        return;
+      }
+      try {
+        const stream = await openMicrophone(micId ?? readSavedMicrophone());
+        micStreamRef.current = stream;
+        // If the device is unplugged mid-take, say so instead of sending silence.
+        stream.getAudioTracks()[0]?.addEventListener("ended", () => {
+          if (micStreamRef.current !== stream) return;
+          toast.error(t("microphoneLost"));
+          cancelledRef.current = true;
+          clearTimer();
+          setRecording(false);
+          void recorderRef.current?.stop().catch(() => {});
+          releaseMic();
+        });
+        // Labels are only readable now that access has been granted.
+        setMicDevices(await listMicrophones().catch(() => []));
+        setMicDeviceId(activeMicrophoneId(stream));
+
+        const ctx = new AudioContext();
+        audioCtxRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        source.connect(analyser);
+        setMicAnalyser(analyser);
+
+        // Lazy-load the encoder (≈400 KB worker) only when the user records,
+        // keeping it out of the main bundle.
+        const { default: Recorder } = await import("opus-recorder");
+        const recorder = new Recorder({
+          encoderPath: OPUS_ENCODER_PATH,
+          numberOfChannels: 1,
+          encoderApplication: 2048, // VOIP — tuned for speech
+          encoderSampleRate: 48000,
+          streamPages: false, // one callback with the complete file on stop
+          sourceNode: source, // our own stream, so the chosen microphone is used
+        });
+        cancelledRef.current = false;
+        recorder.ondataavailable = (bytes) => {
+          if (cancelledRef.current) return;
+          void finalizeRecording(bytes);
+        };
+        recorderRef.current = recorder;
+        await recorder.start();
+        setRecording(true);
+        setRecordSeconds(0);
+        timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
+      } catch {
+        void recorderRef.current?.stop().catch(() => {});
+        recorderRef.current = null;
+        releaseMic();
+        toast.error(t("microphoneDenied"));
+      }
+    },
+    [inputsDisabled, busy, finalizeRecording, clearTimer, releaseMic, t],
+  );
 
   const stopRecording = useCallback(() => {
     clearTimer();
     setRecording(false);
-    void recorderRef.current?.stop().catch(() => {});
-  }, [clearTimer]);
+    // Turn the mic off once the encoder has flushed the take.
+    void (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve()).finally(releaseMic);
+  }, [clearTimer, releaseMic]);
 
   const cancelRecording = useCallback(() => {
     cancelledRef.current = true;
     clearTimer();
     setRecording(false);
-    void recorderRef.current?.stop().catch(() => {});
-  }, [clearTimer]);
+    void (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve()).finally(releaseMic);
+  }, [clearTimer, releaseMic]);
+
+  // Picking another microphone restarts the take on it (the abandoned take is
+  // discarded) and remembers the choice for next time.
+  const switchMicrophone = useCallback(
+    async (id: string) => {
+      if (!id || id === micDeviceId) return;
+      saveMicrophone(id);
+      cancelledRef.current = true;
+      clearTimer();
+      setRecording(false);
+      await (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve());
+      releaseMic();
+      await startRecording(id);
+    },
+    [micDeviceId, clearTimer, releaseMic, startRecording],
+  );
 
   // Auto-stop at the cap so a forgotten recording can't blow the
   // upload size limit.
@@ -1596,27 +1669,17 @@ export function MessageComposer({
         />
       ) : recording ? (
         // Recording bar — replaces the composer while the mic is live.
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-muted px-4 py-2.5">
-          <span className="flex h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-red-500" />
-          <span className="flex-1 text-sm text-foreground">
-            {t("recording", { current: formatDuration(recordSeconds), max: formatDuration(MAX_RECORDING_SECONDS) })}
-          </span>
-          <button
-            type="button"
-            onClick={cancelRecording}
-            className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-card hover:text-foreground"
-          >
-            {t("cancel")}
-          </button>
-          <Button
-            size="sm"
-            onClick={stopRecording}
-            className="h-9 w-9 shrink-0 bg-primary p-0 hover:bg-primary/90"
-            title={t("stopAndAttach")}
-          >
-            <Square className="h-4 w-4" />
-          </Button>
-        </div>
+        <RecordingBar
+          analyser={micAnalyser}
+          elapsed={formatDuration(recordSeconds)}
+          max={formatDuration(MAX_RECORDING_SECONDS)}
+          seconds={recordSeconds}
+          devices={micDevices}
+          deviceId={micDeviceId}
+          onSwitchDevice={(id) => void switchMicrophone(id)}
+          onCancel={cancelRecording}
+          onStop={stopRecording}
+        />
       ) : (
         <div className="relative flex items-end gap-2">
           {!isComment && (

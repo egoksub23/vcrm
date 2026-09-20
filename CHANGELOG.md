@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.38.1] — 2026-09-20
+
+- **Voice notes: choose the microphone.** Recording used whichever input the browser had as its default, which on a desk with several monitors (or a headset and a webcam) is often a device that hears nothing, so the note came out silent. The recording bar now has a **Microphone** menu, a live **level meter**, and a **“No sound detected”** warning after two seconds of silence. Pick another microphone and the take restarts on it. The choice is remembered on that computer. If the microphone is unplugged mid-take, the recording is discarded with a message instead of sending silence.
+
 ## [0.38.0] — 2026-09-20 — **migration required: 080**
 
 - **Paste an image straight into a knowledge article.** Copy a slide, a screenshot
