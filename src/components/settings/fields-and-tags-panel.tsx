@@ -1,7 +1,5 @@
 'use client';
 
-import { useCapability } from '@/hooks/use-can';
-
 import { useTranslations } from 'next-intl';
 
 import { CustomFieldsSettings } from './custom-fields-settings';
@@ -16,7 +14,6 @@ import { SettingsPanelHead } from './settings-panel-head';
  */
 export function FieldsAndTagsPanel() {
   const t = useTranslations('Settings.tagsAndFields');
-  const canManageFields = useCapability('settings.workspace');
 
   return (
     <section className="max-w-3xl animate-in fade-in-50 space-y-4 duration-200">
@@ -24,7 +21,8 @@ export function FieldsAndTagsPanel() {
         title={t('title')}
         description={t('description')}
       />
-      {canManageFields ? <CustomFieldsSettings /> : null}
+      {/* Always shown; the panel disables its own controls without settings.workspace. */}
+      <CustomFieldsSettings />
     </section>
   );
 }

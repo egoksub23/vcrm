@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/use-auth";
+import { useCapability } from "@/hooks/use-can";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 
 // ------------------------------------------------------------
 // Account AI status is the same for every conversation, so cache it per
@@ -80,6 +82,8 @@ export function AiThreadBanner({
 }: AiThreadBannerProps) {
   const t = useTranslations("Inbox.aiBanner");
   const { accountId } = useAuth();
+  // Taking over from / handing back to the bot is ai.use (the autoreply route checks it).
+  const canUseAi = useCapability("ai.use");
   const [autoReplyOn, setAutoReplyOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   // Optimistic local mirror of the pause flag so the banner flips
@@ -99,6 +103,7 @@ export function AiThreadBanner({
 
   const toggle = useCallback(
     async (paused: boolean) => {
+      if (!canUseAi) return;
       setBusy(true);
       try {
         const res = await fetch(`/api/ai/autoreply/${conversationId}`, {
@@ -131,7 +136,7 @@ export function AiThreadBanner({
         setBusy(false);
       }
     },
-    [conversationId, currentUserId, onChange, t],
+    [canUseAi, conversationId, currentUserId, onChange, t],
   );
 
   // Account has no auto-reply → nothing to show. (Still loading → nothing.)
@@ -149,7 +154,7 @@ export function AiThreadBanner({
             </p>
           )}
         </div>
-        <BannerButton onClick={() => toggle(false)} busy={busy} icon={Undo2}>
+        <BannerButton onClick={() => toggle(false)} busy={busy} locked={!canUseAi} icon={Undo2}>
           {t("resume")}
         </BannerButton>
       </Banner>
@@ -168,7 +173,7 @@ export function AiThreadBanner({
           {t("activeText")}
         </span>
       </div>
-      <BannerButton onClick={() => toggle(true)} busy={busy} icon={Hand}>
+      <BannerButton onClick={() => toggle(true)} busy={busy} locked={!canUseAi} icon={Hand}>
         {t("takeOver")}
       </BannerButton>
     </Banner>
@@ -199,11 +204,14 @@ function Banner({
 function BannerButton({
   onClick,
   busy,
+  locked = false,
   icon: Icon,
   children,
 }: {
   onClick: () => void;
   busy: boolean;
+  /** Role lacks ai.use: disabled with the read-only hint. */
+  locked?: boolean;
   icon: typeof Hand;
   children: React.ReactNode;
 }) {
@@ -211,7 +219,8 @@ function BannerButton({
     <button
       type="button"
       onClick={onClick}
-      disabled={busy}
+      disabled={busy || locked}
+      title={locked ? readOnlyTitle("use AI") : undefined}
       className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
     >
       {busy ? (

@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button";
+import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import {
   useFlowEditor,
@@ -58,6 +60,9 @@ export function EditorHeader() {
     setStatus,
     deleteFlow,
   } = useFlowEditor();
+  // Renaming, saving, activating and deleting a flow: flows.manage. Without it the
+  // editor is read-only.
+  const canManage = useCapability("flows.manage");
 
   return (
     <div className="flex flex-col gap-1.5 px-6 pt-5">
@@ -78,6 +83,8 @@ export function EditorHeader() {
         <input
           value={state.name}
           onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
+          disabled={!canManage}
+          title={canManage ? undefined : readOnlyTitle("manage flows")}
           placeholder={t("namePlaceholder")}
           spellCheck={false}
           aria-label={t("namePlaceholder")}
@@ -108,19 +115,23 @@ export function EditorHeader() {
               {flow.execution_count}
             </span>
           </Button>
-          <Button
+          <GatedButton
             variant="ghost"
             size="sm"
+            canAct={canManage}
+            gateReason="manage flows"
             onClick={() => void deleteFlow()}
             className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
           >
             <Trash2 className="h-3.5 w-3.5" />
             {t("delete")}
-          </Button>
+          </GatedButton>
           {state.status === "active" ? (
-            <Button
+            <GatedButton
               variant="outline"
               size="sm"
+              canAct={canManage}
+              gateReason="manage flows"
               onClick={() => void setStatus("draft")}
               disabled={activating}
             >
@@ -130,11 +141,13 @@ export function EditorHeader() {
                 <PauseCircle className="h-3.5 w-3.5" />
               )}
               {t("pause")}
-            </Button>
+            </GatedButton>
           ) : (
-            <Button
+            <GatedButton
               variant="outline"
               size="sm"
+              canAct={canManage}
+              gateReason="manage flows"
               onClick={() => void setStatus("active")}
               disabled={activating || !canActivate}
               title={
@@ -147,16 +160,22 @@ export function EditorHeader() {
                 <PlayCircle className="h-3.5 w-3.5" />
               )}
               {t("activate")}
-            </Button>
+            </GatedButton>
           )}
-          <Button onClick={() => void save()} disabled={saving} size="sm">
+          <GatedButton
+            onClick={() => void save()}
+            canAct={canManage}
+            gateReason="manage flows"
+            disabled={saving}
+            size="sm"
+          >
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Save className="h-3.5 w-3.5" />
             )}
             {t("save")}
-          </Button>
+          </GatedButton>
         </div>
       </div>
 
@@ -166,6 +185,7 @@ export function EditorHeader() {
         onChange={(e) =>
           setState((s) => ({ ...s, description: e.target.value }))
         }
+        disabled={!canManage}
         placeholder={t("descriptionPlaceholder")}
         aria-label={t("descriptionLabel")}
         className="w-full max-w-[78ch] rounded-md border border-transparent bg-transparent px-2 py-1 text-[13px] text-muted-foreground outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-muted/50 focus:border-primary focus:bg-transparent focus:text-foreground"

@@ -19,9 +19,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
+import { useCapability } from '@/hooks/use-can';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RequireCapability } from '@/components/auth/require-capability';
 import type { Team } from '@/types';
 import { SettingsPanelHead } from '../settings-panel-head';
 import {
@@ -38,6 +38,8 @@ export function TeamSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roster = useTeamRoster();
+  const canInvite = useCapability('members.invite');
+  const canManageTeams = useCapability('teams.manage');
 
   const view = resolveTeamView(searchParams.get('tab'), searchParams.get('view'));
 
@@ -64,19 +66,19 @@ export function TeamSection() {
         description={t('description')}
         action={
           view === 'members' ? (
-            <RequireCapability cap="members.invite">
-              <Button onClick={() => setInviteOpen(true)}>
-                <Plus className="size-4" />
-                {t('inviteMember')}
-              </Button>
-            </RequireCapability>
+            <GatedButton
+              canAct={canInvite}
+              gateReason="invite members"
+              onClick={() => setInviteOpen(true)}
+            >
+              <Plus className="size-4" />
+              {t('inviteMember')}
+            </GatedButton>
           ) : (
-            <RequireCapability cap="teams.manage">
-              <Button onClick={openCreateTeam}>
-                <Plus className="size-4" />
-                {t('createTeam')}
-              </Button>
-            </RequireCapability>
+            <GatedButton canAct={canManageTeams} gateReason="manage teams" onClick={openCreateTeam}>
+              <Plus className="size-4" />
+              {t('createTeam')}
+            </GatedButton>
           )
         }
         className="mb-0"

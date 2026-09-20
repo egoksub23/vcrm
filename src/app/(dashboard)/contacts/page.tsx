@@ -55,7 +55,7 @@ import { ContactDetailView } from '@/components/contacts/contact-detail-view';
 import { ImportModal } from '@/components/contacts/import-modal';
 import { CustomFieldsManager } from '@/components/contacts/custom-fields-manager';
 import { useCapability } from '@/hooks/use-can';
-import { GatedButton } from '@/components/ui/gated-button';
+import { GatedButton, readOnlyTitle } from '@/components/ui/gated-button';
 import { useTranslations } from 'next-intl';
 
 const PAGE_SIZE = 25;
@@ -351,16 +351,16 @@ export default function ContactsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canManageFields && (
-            <Button
-              variant="outline"
-              onClick={() => setCustomFieldsOpen(true)}
-              className="border-border text-muted-foreground hover:bg-muted"
-            >
-              <SlidersHorizontal className="size-4" />
-              {t('customFieldsBtn')}
-            </Button>
-          )}
+          <GatedButton
+            variant="outline"
+            canAct={canManageFields}
+            gateReason="edit custom fields"
+            onClick={() => setCustomFieldsOpen(true)}
+            className="border-border text-muted-foreground hover:bg-muted"
+          >
+            <SlidersHorizontal className="size-4" />
+            {t('customFieldsBtn')}
+          </GatedButton>
           <GatedButton
             variant="outline"
             canAct={canEdit}
@@ -664,6 +664,8 @@ export default function ContactsPage() {
                         className="bg-popover border-border"
                       >
                         <DropdownMenuItem
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : readOnlyTitle('edit contacts')}
                           onClick={(e) => {
                             e.stopPropagation();
                             openEditForm(contact);
@@ -676,6 +678,8 @@ export default function ContactsPage() {
                         <DropdownMenuSeparator className="bg-border" />
                         <DropdownMenuItem
                           variant="destructive"
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : readOnlyTitle('delete contacts')}
                           onClick={(e) => {
                             e.stopPropagation();
                             confirmDelete(contact);
@@ -761,13 +765,11 @@ export default function ContactsPage() {
         onImported={fetchContacts}
       />
 
-      {/* Custom Fields Manager (admin+) */}
-      {canManageFields && (
-        <CustomFieldsManager
-          open={customFieldsOpen}
-          onOpenChange={setCustomFieldsOpen}
-        />
-      )}
+      {/* Custom Fields Manager (settings.workspace; the panel disables itself otherwise) */}
+      <CustomFieldsManager
+        open={customFieldsOpen}
+        onOpenChange={setCustomFieldsOpen}
+      />
 
       {/* Delete Confirmation */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

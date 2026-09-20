@@ -7,6 +7,7 @@ import { format, formatDistance } from "date-fns";
 import { AlertTriangle, ChevronDown, ExternalLink, Loader2, MessageSquarePlus, RefreshCw, Unlink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { JiraApiResult, JiraShareResult, JiraTransition } from "@/hooks/use-ticket-jira";
 import type { TicketJiraLinkRow } from "@/lib/jira/types";
@@ -308,9 +309,9 @@ export function TicketJiraCard({
 
       {composing ? (
         <div className="space-y-2">
-          <textarea
+          <EmojiTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onValueChange={setDraft}
             rows={3}
             maxLength={20000}
             autoFocus

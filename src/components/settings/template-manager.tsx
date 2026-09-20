@@ -24,7 +24,9 @@ import {
   type MediaHeaderKind,
 } from '@/lib/whatsapp/media-header-types';
 import { useAuth } from '@/hooks/use-auth';
+import { useCapability } from '@/hooks/use-can';
 import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -133,6 +135,9 @@ export function TemplateManager() {
   const t = useTranslations('Settings.templates');
   const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
+  // Templates live on the WhatsApp channel; the API routes need channels.manage.
+  const canManage = useCapability('channels.manage');
+  const gateReason = 'manage message templates';
 
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -524,19 +529,21 @@ export function TemplateManager() {
         description={t('description')}
         action={
           <div className="flex items-center gap-2">
-            <Button
+            <GatedButton
               variant="outline"
+              canAct={canManage}
+              gateReason={gateReason}
               onClick={handleSyncFromMeta}
               disabled={syncing}
               title={t('syncTitle')}
             >
               <RefreshCw className={`size-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? t('syncing') : t('syncFromMeta')}
-            </Button>
-            <Button onClick={openCreate}>
+            </GatedButton>
+            <GatedButton canAct={canManage} gateReason={gateReason} onClick={openCreate}>
               <Plus className="size-4" />
               {t('newTemplate')}
-            </Button>
+            </GatedButton>
           </div>
         }
       />
@@ -608,9 +615,11 @@ export function TemplateManager() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
                     {statusKey === 'APPROVED' && (
-                      <Button
+                      <GatedButton
                         variant="ghost"
                         size="sm"
+                        canAct={canManage}
+                        gateReason={gateReason}
                         onClick={() => openEdit(template)}
                         title={t('editTitle')}
                         aria-label={t('editLabel')}
@@ -618,12 +627,14 @@ export function TemplateManager() {
                       >
                         <Pencil className="size-3.5" />
                         {t('edit')}
-                      </Button>
+                      </GatedButton>
                     )}
                     {(statusKey === 'REJECTED' || statusKey === 'PAUSED') && (
-                      <Button
+                      <GatedButton
                         variant="ghost"
                         size="sm"
+                        canAct={canManage}
+                        gateReason={gateReason}
                         onClick={() => openEdit(template)}
                         title={t('resubmitTitle')}
                         aria-label={t('resubmitLabel')}
@@ -631,11 +642,13 @@ export function TemplateManager() {
                       >
                         <RotateCcw className="size-3.5" />
                         {t('resubmit')}
-                      </Button>
+                      </GatedButton>
                     )}
-                    <Button
+                    <GatedButton
                       variant="ghost"
                       size="icon"
+                      canAct={canManage}
+                      gateReason={gateReason}
                       onClick={() => setTemplateToDelete(template)}
                       disabled={deletingId === template.id}
                       aria-label={
@@ -655,7 +668,7 @@ export function TemplateManager() {
                       ) : (
                         <Trash2 className="size-4" />
                       )}
-                    </Button>
+                    </GatedButton>
                   </div>
                 </CardContent>
               </Card>

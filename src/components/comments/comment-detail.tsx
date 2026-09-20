@@ -29,6 +29,7 @@ import {
   type CommentRow,
 } from "@/lib/comments/types";
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 
 import { PROVIDER_ICONS, PROVIDER_NAMES } from "./provider-icons";
 
@@ -352,9 +353,10 @@ export function CommentDetail({
 
           {modeAllowed ? (
             <div className="flex gap-2">
-              <textarea
+              <EmojiTextarea
+                containerClassName="flex-1"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onValueChange={setText}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -365,7 +367,7 @@ export function CommentDetail({
                 rows={3}
                 placeholder={mode === "reply" ? t("replyPlaceholder") : t("privatePlaceholder")}
                 aria-label={mode === "reply" ? t("replyPublic") : t("replyPrivate")}
-                className="min-h-[4.5rem] flex-1 resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="min-h-[4.5rem] resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
               <div className="flex flex-col justify-between">
                 <Button onClick={() => void send()} disabled={!text.trim() || !!busy} size="sm">

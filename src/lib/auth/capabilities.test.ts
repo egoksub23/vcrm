@@ -5,6 +5,7 @@ import {
   CAPABILITY_GROUPS,
   DEFAULT_CAPABILITIES,
   LEGACY_CAN_ACTIONS,
+  MENU_CAPABILITIES,
   PRESETS,
   canEditRole,
   canGrant,
@@ -67,6 +68,8 @@ describe("catalogue", () => {
   });
 
   it("marks the database-enforced capabilities honestly", () => {
+    // Migration 088 (phase 5): every capability that guards data in a table is
+    // database-enforced. The rest are app-tier for a stated reason (below).
     const db = CAPABILITIES.filter((c) => c.enforcedBy === "database").map(
       (c) => c.key,
     );
@@ -76,17 +79,85 @@ describe("catalogue", () => {
         "api.manage",
         "approvals.review",
         "audit.view",
+        "automations.manage",
+        "broadcasts.send",
         "channels.manage",
+        "comments.delete",
+        "comments.moderate",
+        "contacts.edit",
+        "conversations.manage",
+        "deals.manage",
+        "flows.manage",
+        "inbox.shared-views",
+        "knowledge.draft",
+        "knowledge.manage",
+        "knowledge.publish",
         "members.change-role",
+        "members.invite",
         "members.remove",
+        "messages.send",
+        "pipelines.configure",
         "roles.manage",
+        "settings.workspace",
         "sla.configure",
         "snippets.manage",
         "snippets.propose",
         "tags.manage",
         "tags.propose",
+        "teams.manage",
+        "tickets.configure-form",
+        "tickets.delete",
+        "tickets.work",
       ].sort(),
     );
+  });
+
+  it("keeps only the capabilities with no table to guard on the app tier", () => {
+    const app = CAPABILITIES.filter((c) => c.enforcedBy === "app").map(
+      (c) => c.key,
+    );
+    expect(app.sort()).toEqual(
+      [
+        // menus and reports show or hide pages; the data behind them is
+        // protected by the action capabilities and the read policies
+        ...MENU_CAPABILITIES,
+        "reports.view",
+        // the action is a call to the AI provider, made by the server
+        "ai.use",
+        // a service-role function, no client path
+        "contacts.merge",
+        // server-side routes; the Jira tables have no client write policy
+        "jira.connect",
+        "jira.link",
+        "jira.share-comments",
+      ].sort(),
+    );
+  });
+
+  it("lets every table-guarding write capability be granted down to Agent, never to Viewer", () => {
+    // Migration 088: the policies test the capability, not a role floor, so an
+    // Agent can be given pipelines.configure, settings.workspace, ...
+    for (const key of [
+      "pipelines.configure",
+      "settings.workspace",
+      "tags.manage",
+      "tickets.delete",
+      "tickets.configure-form",
+      "knowledge.publish",
+      "knowledge.manage",
+      "inbox.shared-views",
+      "members.invite",
+      "teams.manage",
+    ]) {
+      expect(roleCanBeGranted("agent", key), key).toBe(true);
+      expect(roleCanBeGranted("viewer", key), key).toBe(false);
+    }
+    // Changing or removing a member needs the Admin rank inside the database
+    // function itself, so those (and roles.manage) stay Admin-and-up.
+    for (const key of ["members.change-role", "members.remove", "roles.manage"]) {
+      expect(roleCanBeGranted("agent", key), key).toBe(false);
+      expect(roleCanBeGranted("admin", key), key).toBe(true);
+    }
   });
 
   it("derives i18n ids without dots or dashes", () => {
@@ -148,8 +219,10 @@ describe("resolveCapabilities", () => {
     });
     expect(viewer.has("messages.send")).toBe(false);
     expect(viewer.has("channels.manage")).toBe(false);
-    const agent = resolveCapabilities("agent", { "tags.manage": true });
-    expect(agent.has("tags.manage")).toBe(false);
+    const agent = resolveCapabilities("agent", { "members.change-role": true });
+    expect(agent.has("members.change-role")).toBe(false);
+    // below the OLD floor but grantable since migration 088
+    expect(resolveCapabilities("agent", { "tags.manage": true }).has("tags.manage")).toBe(true);
   });
 
   it("lets a viewer be granted a read-only capability and denied a default one", () => {
@@ -204,7 +277,8 @@ describe("editing rules", () => {
   it("knows which roles a capability can be granted to", () => {
     expect(roleCanBeGranted("agent", "channels.manage")).toBe(true);
     expect(roleCanBeGranted("viewer", "channels.manage")).toBe(false);
-    expect(roleCanBeGranted("agent", "tags.manage")).toBe(false);
+    expect(roleCanBeGranted("agent", "tags.manage")).toBe(true);
+    expect(roleCanBeGranted("agent", "members.change-role")).toBe(false);
     expect(roleCanBeGranted("viewer", "menu.reports")).toBe(true);
     expect(roleCanBeGranted("owner", "nope")).toBe(false);
   });
@@ -219,8 +293,12 @@ describe("editing rules", () => {
       switchBlockReason({ ...base, targetRole: "owner", cap: "menu.inbox", wantGranted: false }),
     ).toBe("role-not-editable");
     expect(
-      switchBlockReason({ ...base, targetRole: "agent", cap: "tags.manage", wantGranted: true }),
+      switchBlockReason({ ...base, targetRole: "agent", cap: "members.change-role", wantGranted: true }),
     ).toBe("below-min-role");
+    // below the OLD floor but grantable since migration 088
+    expect(
+      switchBlockReason({ ...base, targetRole: "agent", cap: "tags.manage", wantGranted: true }),
+    ).toBeNull();
     expect(
       switchBlockReason({
         ...base,

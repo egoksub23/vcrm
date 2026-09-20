@@ -104,8 +104,9 @@ export function chipState(
   const status = row.approval_status ?? "approved";
   if (status === "pending") return "pending";
   if (status === "rejected") return "rejected";
-  if (row.pending_edit && row.edit_status === "pending") return "pending_changes";
-  if (row.pending_edit && row.edit_status === "rejected") return "changes_rejected";
+  // The proposed values are no longer on the row (migration 088); the state alone says so.
+  if (row.edit_status === "pending") return "pending_changes";
+  if (row.edit_status === "rejected") return "changes_rejected";
   return null;
 }
 
@@ -120,7 +121,7 @@ export function stripPendingEdit<T extends ApprovalColumns>(
   viewerId: string | null | undefined,
   canReview: boolean,
 ): T {
-  if (!row.pending_edit) return row;
+  if (!row.pending_edit && !row.edit_status) return row;
   if (canReview || (!!viewerId && row.proposed_by === viewerId)) return row;
   return { ...row, pending_edit: null, edit_status: null };
 }

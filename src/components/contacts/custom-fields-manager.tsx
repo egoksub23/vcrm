@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { useCapability } from '@/hooks/use-can';
 import { toast } from 'sonner';
 import type { CustomField } from '@/types';
 import {
@@ -12,7 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { GatedButton, readOnlyTitle } from '@/components/ui/gated-button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -58,6 +59,9 @@ export function CustomFieldsPanel() {
   const t = useTranslations('Contacts.customFields');
   const supabase = createClient();
   const { user, accountId } = useAuth();
+  // The catalogue is workspace configuration: settings.workspace.
+  const canManage = useCapability('settings.workspace');
+  const gateReason = 'edit custom fields';
 
   const [fields, setFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +100,7 @@ export function CustomFieldsPanel() {
 
   async function handleCreate() {
     const name = newName.trim();
-    if (!name) return;
+    if (!canManage || !name) return;
     if (!accountId || !user) {
       toast.error(t('toastNoAccount'));
       return;
@@ -131,7 +135,7 @@ export function CustomFieldsPanel() {
     nextName: string
   ): Promise<boolean> {
     const name = nextName.trim();
-    if (!name || name === field.field_name) return true;
+    if (!canManage || !name || name === field.field_name) return true;
     if (isDuplicate(name, field.id)) {
       toast.error(t('toastDuplicate', { name }));
       return false;
@@ -151,6 +155,7 @@ export function CustomFieldsPanel() {
   }
 
   async function handleDelete(field: CustomField) {
+    if (!canManage) return;
     if (
       !window.confirm(
         t('deleteConfirm', { name: field.field_name })
@@ -186,9 +191,13 @@ export function CustomFieldsPanel() {
             }
           }}
           placeholder={t('fieldName')}
+          disabled={!canManage}
+          title={canManage ? undefined : readOnlyTitle(gateReason)}
           className="bg-muted text-foreground"
         />
-        <Button
+        <GatedButton
+          canAct={canManage}
+          gateReason={gateReason}
           onClick={handleCreate}
           disabled={creating || !newName.trim()}
           className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
@@ -199,7 +208,7 @@ export function CustomFieldsPanel() {
             <Plus className="size-4" />
           )}
           {t('addField')}
-        </Button>
+        </GatedButton>
       </div>
 
       {/* List */}
@@ -220,6 +229,7 @@ export function CustomFieldsPanel() {
                 key={field.id}
                 field={field}
                 busy={busyId === field.id}
+                canManage={canManage}
                 onRename={handleRename}
                 onDelete={handleDelete}
               />
@@ -236,11 +246,13 @@ export function CustomFieldsPanel() {
 function FieldRow({
   field,
   busy,
+  canManage,
   onRename,
   onDelete,
 }: {
   field: CustomField;
   busy: boolean;
+  canManage: boolean;
   onRename: (field: CustomField, name: string) => Promise<boolean>;
   onDelete: (field: CustomField) => void;
 }) {
@@ -260,7 +272,7 @@ function FieldRow({
     <li className="flex items-center gap-2 px-3 py-2">
       <Input
         value={name}
-        disabled={busy}
+        disabled={busy || !canManage}
         onChange={(e) => setName(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -269,9 +281,11 @@ function FieldRow({
         aria-label={t('renameAria', { name: field.field_name })}
         className="focus:border-primary h-8 border-transparent bg-transparent text-foreground hover:border-border"
       />
-      <Button
+      <GatedButton
         variant="ghost"
         size="icon-sm"
+        canAct={canManage}
+        gateReason="edit custom fields"
         disabled={busy}
         onClick={() => onDelete(field)}
         title={t('deleteTitle')}
@@ -282,7 +296,7 @@ function FieldRow({
         ) : (
           <Trash2 className="size-4" />
         )}
-      </Button>
+      </GatedButton>
     </li>
   );
 }

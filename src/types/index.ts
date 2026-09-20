@@ -181,8 +181,10 @@ export interface Tag {
   /**
    * Propose and approve (migration 084). Undefined = approved. A tag that is
    * not approved is only ever seen by its proposer and by reviewers, and is
-   * never applied; `pending_edit` holds a proposed replacement for the live
-   * values (only the proposer and reviewers receive it).
+   * never applied. A proposed replacement for the live values is NOT on the
+   * row (migration 088 moved it to `approval_pending_edits`, readable by the
+   * proposer and reviewers only); `edit_status` says one exists.
+   * `pending_edit` is never populated any more.
    */
   approval_status?: 'approved' | 'pending' | 'rejected';
   proposed_by?: string | null;

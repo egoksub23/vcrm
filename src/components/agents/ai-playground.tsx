@@ -5,7 +5,9 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { Bot, RotateCcw, Send, Loader2, UserCircle2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { GatedButton, readOnlyTitle } from '@/components/ui/gated-button';
 import { Button } from '@/components/ui/button';
+import { useCapability } from '@/hooks/use-can';
 
 interface Turn {
   role: 'user' | 'assistant';
@@ -16,6 +18,8 @@ interface Turn {
 
 export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
   const t = useTranslations('Agents.playground');
+  // Chatting with the assistant calls the playground route: ai.use.
+  const canUseAi = useCapability('ai.use');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -27,7 +31,7 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
 
   const send = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!canUseAi || !text || sending) return;
 
     const next: Turn[] = [...turns, { role: 'user', content: text }];
     setTurns(next);
@@ -177,12 +181,16 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={!canUseAi}
+          title={canUseAi ? undefined : readOnlyTitle('use AI')}
           placeholder={t('placeholder')}
           rows={1}
           className="flex-1 resize-none rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
         />
-        <Button
+        <GatedButton
           size="sm"
+          canAct={canUseAi}
+          gateReason="use AI"
           onClick={send}
           disabled={!input.trim() || sending}
           className="h-9 w-9 shrink-0 p-0"
@@ -192,7 +200,7 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
           ) : (
             <Send className="h-4 w-4" />
           )}
-        </Button>
+        </GatedButton>
       </div>
     </div>
   );

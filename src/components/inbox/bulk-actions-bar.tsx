@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Lock, Mail, MailOpen, UserPlus, UserX } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useCapability } from "@/hooks/use-can";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import {
   bulkAssign,
   bulkClose,
@@ -52,6 +54,9 @@ export function BulkActionsBar({
 }: BulkActionsBarProps) {
   const t = useTranslations("Inbox.conversationList.bulk");
   const tList = useTranslations("Inbox.conversationList");
+  // Assign, close and mark read/unread on a selection: conversations.manage.
+  const canManage = useCapability("conversations.manage");
+  const gateHint = canManage ? undefined : readOnlyTitle("manage conversations");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [busy, setBusy] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -156,7 +161,7 @@ export function BulkActionsBar({
 
       <div className="flex flex-wrap items-center gap-1">
         <DropdownMenu>
-          <DropdownMenuTrigger disabled={busy} className={iconBtn} title={t("assign")}>
+          <DropdownMenuTrigger disabled={busy || !canManage} className={iconBtn} title={gateHint ?? t("assign")}>
             <UserPlus className="h-3.5 w-3.5" />
             {t("assign")}
           </DropdownMenuTrigger>
@@ -182,18 +187,18 @@ export function BulkActionsBar({
 
         {labelControl}
 
-        <button type="button" disabled={busy} onClick={() => void handleRead(true)} className={iconBtn} title={t("markRead")}>
+        <button type="button" disabled={busy || !canManage} onClick={() => void handleRead(true)} className={iconBtn} title={gateHint ?? t("markRead")}>
           <MailOpen className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={busy} onClick={() => void handleRead(false)} className={iconBtn} title={t("markUnread")}>
+        <button type="button" disabled={busy || !canManage} onClick={() => void handleRead(false)} className={iconBtn} title={gateHint ?? t("markUnread")}>
           <Mail className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || !canManage}
           onClick={() => setCloseOpen(true)}
           className={`${iconBtn} ml-auto text-destructive`}
-          title={t("close")}
+          title={gateHint ?? t("close")}
         >
           <Lock className="h-3.5 w-3.5" />
           {t("close")}

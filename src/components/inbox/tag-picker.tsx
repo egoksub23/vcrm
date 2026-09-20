@@ -18,6 +18,7 @@ export function TagPicker({
   selectedIds,
   onToggle,
   disabled,
+  disabledReason,
   addLabel,
   searchPlaceholder,
   emptyLabel,
@@ -27,6 +28,8 @@ export function TagPicker({
   selectedIds: Set<string>;
   onToggle: (tag: Tag) => void | Promise<void>;
   disabled?: boolean;
+  /** Tooltip shown instead of `addLabel` while disabled (e.g. the read-only role hint). */
+  disabledReason?: string;
   addLabel: string;
   searchPlaceholder: string;
   /** Shown when there is nothing to pick at all (nothing created yet). */
@@ -42,7 +45,7 @@ export function TagPicker({
       <PopoverTrigger
         disabled={disabled}
         aria-label={addLabel}
-        title={addLabel}
+        title={disabled && disabledReason ? disabledReason : addLabel}
         className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-50"
       >
         <Plus className="size-3" />

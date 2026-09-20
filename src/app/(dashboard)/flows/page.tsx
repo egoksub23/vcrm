@@ -235,6 +235,7 @@ export default function FlowsPage() {
             <FlowCard
               key={flow.id}
               flow={flow}
+              canManage={canCreate}
               onEdit={() => router.push(`/flows/${flow.id}`)}
               onDelete={() => handleDelete(flow)}
               t={t}
@@ -269,7 +270,7 @@ export default function FlowsPage() {
                       key={template.slug}
                       type="button"
                       onClick={() => handleUseTemplate(template.slug)}
-                      disabled={creating}
+                      disabled={creating || !canCreate}
                       className="flex flex-col gap-2.5 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:opacity-50"
                     >
                       <Icon className="h-5 w-5 text-primary" />
@@ -358,11 +359,14 @@ function EmptyState({
 
 function FlowCard({
   flow,
+  canManage,
   onEdit,
   onDelete,
   t,
 }: {
   flow: FlowRow;
+  /** flows.manage: without it Delete is disabled (Edit opens the read-only editor). */
+  canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
   t: ReturnType<typeof useTranslations>;
@@ -411,15 +415,17 @@ function FlowCard({
           <Pencil className="h-3.5 w-3.5" />
           {t("edit")}
         </Button>
-        <Button
+        <GatedButton
           variant="ghost"
           size="sm"
+          canAct={canManage}
+          gateReason="manage flows"
           onClick={onDelete}
           className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
         >
           <Trash2 className="h-3.5 w-3.5" />
           {t("delete")}
-        </Button>
+        </GatedButton>
       </div>
     </div>
   );

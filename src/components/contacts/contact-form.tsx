@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { useCapability } from '@/hooks/use-can';
 import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { toast } from 'sonner';
 import type { Contact, Tag, ContactTag, LifecycleStage } from '@/types';
@@ -49,6 +50,8 @@ export function ContactForm({
   const t = useTranslations('Contacts.form');
   const supabase = createClient();
   const { accountId } = useAuth();
+  // Reached only from gated entry points; the submit button repeats the check (contacts.edit).
+  const canEdit = useCapability('contacts.edit');
   const isEdit = !!contact;
 
   const [name, setName] = useState('');
@@ -130,6 +133,7 @@ export function ContactForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!phone.trim()) {
       toast.error(t('phoneRequired'));
@@ -401,7 +405,7 @@ export function ContactForm({
             </Button>
             <Button
               type="submit"
-              disabled={saving || checkingDup || (!isEdit && !!dupMatch?.exact)}
+              disabled={!canEdit || saving || checkingDup || (!isEdit && !!dupMatch?.exact)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {saving && <Loader2 className="size-4 animate-spin" />}

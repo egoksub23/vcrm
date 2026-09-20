@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import {
   Dialog,
   DialogContent,
@@ -63,9 +64,9 @@ export function HandoffNoteDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <textarea
+        <EmojiTextarea
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onValueChange={setNote}
           maxLength={NOTE_MAX_LEN}
           rows={4}
           placeholder={t("notePlaceholder")}

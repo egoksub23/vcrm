@@ -7,6 +7,7 @@ import { ChevronDown, FileUp, Globe, ListChecks, PenLine, Plus, type LucideIcon 
 
 import type { KnowledgeCollection } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
+import { readOnlyTitle } from '@/components/ui/gated-button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { FileImportDialog } from './file-import-dialog';
@@ -20,9 +21,12 @@ type ImportKind = 'qa' | 'file' | 'url';
 export function AddContentMenu({
   collections,
   onImported,
+  disabled = false,
 }: {
   collections: KnowledgeCollection[];
   onImported: () => void;
+  /** knowledge.draft missing: the button stays but is disabled. */
+  disabled?: boolean;
 }) {
   const t = useTranslations('Knowledge.addContent');
   const router = useRouter();
@@ -48,7 +52,11 @@ export function AddContentMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button size="sm" />}>
+        <DropdownMenuTrigger
+          render={
+            <Button size="sm" disabled={disabled} title={disabled ? readOnlyTitle('add knowledge content') : undefined} />
+          }
+        >
           <Plus className="mr-1.5 h-4 w-4" /> {t('button')}
           <ChevronDown className="ml-1 h-3.5 w-3.5" />
         </DropdownMenuTrigger>

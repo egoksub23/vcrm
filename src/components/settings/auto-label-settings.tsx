@@ -24,8 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
+import { useCapability } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
 import { createClient } from "@/lib/supabase/client";
 import { matchAutoLabelRules, type AutoLabelRule } from "@/lib/conversations/auto-label-match";
@@ -59,6 +61,9 @@ const EMPTY: Draft = {
 export function AutoLabelSettings() {
   const t = useTranslations("Settings.autoLabels");
   const { accountId } = useAuth();
+  // Auto-label rules are label management: tags.manage. Everyone else sees them read-only.
+  const canManage = useCapability("tags.manage");
+  const gateReason = "manage auto-label rules";
   // `tags` resolves ids on saved rules; only conversation labels can be
   // picked for a new one (migration 068).
   const { tags, conversationLabels } = useTags();
@@ -108,7 +113,7 @@ export function AutoLabelSettings() {
     });
 
   const handleSave = async () => {
-    if (!draft || !accountId || !canSave) return;
+    if (!canManage || !draft || !accountId || !canSave) return;
     setSaving(true);
     const supabase = createClient();
     const payload = {
@@ -131,6 +136,7 @@ export function AutoLabelSettings() {
   };
 
   const toggleActive = async (r: AutoLabelRule & { is_active?: boolean }) => {
+    if (!canManage) return;
     const { error } = await createClient()
       .from("auto_label_rules")
       .update({ is_active: !(r.is_active ?? true) })
@@ -140,6 +146,7 @@ export function AutoLabelSettings() {
   };
 
   const handleDelete = async (r: AutoLabelRule) => {
+    if (!canManage) return;
     if (!window.confirm(t("deleteConfirm"))) return;
     const { error } = await createClient().from("auto_label_rules").delete().eq("id", r.id);
     if (error) toast.error(t("saveFailed"));
@@ -147,7 +154,7 @@ export function AutoLabelSettings() {
   };
 
   const handleAiToggle = async (next: boolean) => {
-    if (!accountId) return;
+    if (!canManage || !accountId) return;
     setAiEnabled(next);
     const { error } = await createClient()
       .from("accounts")
@@ -176,14 +183,15 @@ export function AutoLabelSettings() {
         <CardDescription className="text-muted-foreground">{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {loading ? (
-          <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            {t("loading")}
-          </div>
-        ) : (
-          <>
-            {rules.length === 0 ? (
+        {/* The rules list waits for its data; the controls below are always drawn
+            (disabled until loaded, or for a role without tags.manage). */}
+        <>
+            {loading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                {t("loading")}
+              </div>
+            ) : rules.length === 0 ? (
               <p className="rounded-md border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
                 {t("empty")}
               </p>
@@ -221,23 +229,38 @@ export function AutoLabelSettings() {
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        <Switch
-                          checked={active}
-                          onCheckedChange={() => void toggleActive(r)}
-                          aria-label={t("toggleRule")}
-                        />
-                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(r)} title={t("edit")}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
+                        <span
+                          className={canManage ? "inline-flex" : "inline-flex cursor-not-allowed"}
+                          title={canManage ? undefined : readOnlyTitle(gateReason)}
+                        >
+                          <Switch
+                            checked={active}
+                            onCheckedChange={() => void toggleActive(r)}
+                            disabled={!canManage}
+                            aria-label={t("toggleRule")}
+                          />
+                        </span>
+                        <GatedButton
                           variant="ghost"
                           size="icon-sm"
+                          canAct={canManage}
+                          gateReason={gateReason}
+                          onClick={() => openEdit(r)}
+                          title={t("edit")}
+                        >
+                          <Pencil className="size-4" />
+                        </GatedButton>
+                        <GatedButton
+                          variant="ghost"
+                          size="icon-sm"
+                          canAct={canManage}
+                          gateReason={gateReason}
                           onClick={() => void handleDelete(r)}
                           title={t("delete")}
                           className="text-muted-foreground hover:text-red-400"
                         >
                           <Trash2 className="size-4" />
-                        </Button>
+                        </GatedButton>
                       </div>
                     </li>
                   );
@@ -245,10 +268,16 @@ export function AutoLabelSettings() {
               </ul>
             )}
 
-            <Button variant="outline" onClick={() => setDraft({ ...EMPTY })} disabled={conversationLabels.length === 0}>
+            <GatedButton
+              variant="outline"
+              canAct={canManage}
+              gateReason={gateReason}
+              onClick={() => setDraft({ ...EMPTY })}
+              disabled={conversationLabels.length === 0}
+            >
               <Plus className="size-4" />
               {t("addRule")}
-            </Button>
+            </GatedButton>
             {conversationLabels.length === 0 && <p className="text-xs text-muted-foreground">{t("needLabels")}</p>}
 
             <div className="space-y-1.5 border-t border-border pt-4">
@@ -273,11 +302,17 @@ export function AutoLabelSettings() {
             </div>
 
             <div className="flex items-start gap-3 border-t border-border pt-4">
-              <Switch
-                checked={aiEnabled}
-                onCheckedChange={(v) => void handleAiToggle(v)}
-                aria-label={t("aiToggle")}
-              />
+              <span
+                className={canManage ? "inline-flex" : "inline-flex cursor-not-allowed"}
+                title={canManage ? undefined : readOnlyTitle(gateReason)}
+              >
+                <Switch
+                  checked={aiEnabled}
+                  onCheckedChange={(v) => void handleAiToggle(v)}
+                  disabled={!canManage || loading}
+                  aria-label={t("aiToggle")}
+                />
+              </span>
               <div className="space-y-0.5">
                 <p className="text-sm font-medium text-foreground">{t("aiToggle")}</p>
                 <p className="text-xs text-muted-foreground">{t("aiHint")}</p>
@@ -286,8 +321,7 @@ export function AutoLabelSettings() {
                 )}
               </div>
             </div>
-          </>
-        )}
+        </>
       </CardContent>
 
       <Dialog open={draft !== null} onOpenChange={(o) => !o && setDraft(null)}>

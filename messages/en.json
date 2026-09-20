@@ -306,7 +306,8 @@
       "templates": "Templates",
       "readOnlyPlaceholder": "Read-only — viewers can browse but not reply",
       "sessionExpiredPlaceholder": "Session expired - use a template",
-      "typeMessagePlaceholder": "Type a message... (Shift+Enter for new line)",
+      "typeMessagePlaceholder": "Type a message... (Shift+Enter for new line, : for emoji)",
+      "typeEmailPlaceholder": "Type a message... (Shift+Enter for new line)",
       "readOnlyTitle": "Read-only — your role can't send messages",
       "recording": "Recording… {current} / {max}",
       "cancel": "Cancel",
@@ -5449,6 +5450,36 @@
       "showAsRows": "Show translations as rows"
     }
   },
+  "Emoji": {
+    "add": "Add emoji",
+    "search": "Search emoji",
+    "frequentlyUsed": "Frequently used",
+    "noResults": "No emoji found",
+    "loading": "Loading emoji…",
+    "loadFailed": "Could not load emoji. Close and try again.",
+    "suggestions": "Emoji suggestions",
+    "categories": "Emoji categories",
+    "skinTone": "Skin tone",
+    "tones": {
+      "0": "Default",
+      "1": "Light skin tone",
+      "2": "Medium-light skin tone",
+      "3": "Medium skin tone",
+      "4": "Medium-dark skin tone",
+      "5": "Dark skin tone"
+    },
+    "groups": {
+      "smileys": "Smileys & emotion",
+      "people": "People & body",
+      "animals": "Animals & nature",
+      "food": "Food & drink",
+      "travel": "Travel & places",
+      "activities": "Activities",
+      "objects": "Objects",
+      "symbols": "Symbols",
+      "flags": "Flags"
+    }
+  },
   "Comments": {
     "loadFailed": "Could not load comments",
     "actionFailed": "That did not go through",
@@ -5793,7 +5824,7 @@
         "owner-locked": "The Owner always has full access and cannot be edited.",
         "role-not-editable": "You can only edit roles below your own, so this role is read-only for you.",
         "editor-lacks": "You cannot give a capability you do not have yourself.",
-        "below-min-role": "The {role} role cannot be given this yet: the database still restricts it to {min} and above.",
+        "below-min-role": "The {role} role cannot be given this permission: it needs the {min} role or higher.",
         "unknown": "This capability is not recognised, so it cannot be changed."
       },
       "changed": "Changed",
@@ -5821,9 +5852,9 @@
       "database": "Database + App",
       "app": "App",
       "databaseTooltip": "Enforced by the screens and API routes, and also by the database itself, so it holds even if someone calls the database with their own login.",
-      "appTooltip": "Enforced by the screens and API routes. The underlying table is still written under the older role rule in some places, so a determined person with their own login could get around it until those tables move over.",
+      "appTooltip": "Enforced by the screens and API routes, because there is no table for the database to guard. Menus and reports only show or hide pages (the data behind them is protected by the action permissions), and a few actions run on the server.",
       "databaseLegend": "Enforced by the app and by the database itself. It cannot be bypassed by calling the database directly.",
-      "appLegend": "Enforced by the screens and API routes. In some places the underlying table is still written under the older rule, so the database alone would not stop it yet."
+      "appLegend": "Enforced by the screens and API routes. It shows or hides a page, or controls an action the server performs, so there is no table for the database to guard."
     },
     "role": {
       "owner": {

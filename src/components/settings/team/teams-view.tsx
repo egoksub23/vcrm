@@ -30,6 +30,7 @@ import {
   AvatarImage,
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -39,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { RequireCapability } from '@/components/auth/require-capability';
+import { useCapability } from '@/hooks/use-can';
 import { membersOfTeam } from '@/lib/teams/members';
 import type { Team } from '@/types';
 import { initialOf } from './member-parts';
@@ -65,6 +66,7 @@ export function TeamsView({
 }) {
   const t = useTranslations('Settings.team.teams');
   const { teams, members, loading, reload } = roster;
+  const canManageTeams = useCapability('teams.manage');
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Team | null>(null);
@@ -154,28 +156,30 @@ export function TeamsView({
                         </span>
                       ) : null}
                     </button>
-                    <RequireCapability cap="teams.manage">
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEdit(team)}
-                          aria-label={t('editAria', { name: team.name })}
-                          className="border-border text-muted-foreground hover:bg-muted"
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleting(team)}
-                          aria-label={t('deleteAria', { name: team.name })}
-                          className="border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-200"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <GatedButton
+                        variant="outline"
+                        size="sm"
+                        canAct={canManageTeams}
+                        gateReason="manage teams"
+                        onClick={() => onEdit(team)}
+                        aria-label={t('editAria', { name: team.name })}
+                        className="border-border text-muted-foreground hover:bg-muted"
+                      >
+                        <Pencil className="size-3.5" />
+                      </GatedButton>
+                      <GatedButton
+                        variant="outline"
+                        size="sm"
+                        canAct={canManageTeams}
+                        gateReason="manage teams"
+                        onClick={() => setDeleting(team)}
+                        aria-label={t('deleteAria', { name: team.name })}
+                        className="border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-200"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </GatedButton>
                       </div>
-                    </RequireCapability>
                   </div>
 
                   <div className="flex min-h-8 items-center">

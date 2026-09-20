@@ -9,6 +9,18 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.47.0] — 2026-09-21
+
+- **Emoji everywhere you type.** The chat box has a smiley button that opens a picker with categories, search, a Frequently used row and skin tones. It appears for every channel, in internal comments, in the email editor toolbar, in the Comments inbox reply and private-message boxes, in ticket comments and descriptions, contact notes, the close-conversation and hand-off notes, snippets and the knowledge article editor. **Type `:` and two letters** (for example `:smi`) for suggestions; Enter or Tab inserts, and `:smile:` turns into the emoji when you type the closing colon. It does not trigger for times like 10:30 or links. The emoji list is bundled with the app and only loads when you first open the picker, so nothing is fetched from the internet and the inbox is not slower.
+
+## [0.46.0] — 2026-09-21 — **migrations required: 088 and 089**
+
+- **Every role switch is now enforced by the database.** Until now only some capabilities (channels, AI, API keys, tags, snippets and a few more) were enforced by the database; the rest were enforced by the screens and API only. About 100 database rules on 38 tables now follow the capability switches, so switching something off in Settings → Roles & permissions holds even for someone calling the database with their own login. Defaults are unchanged for all four roles. **You can now also give a role a capability below its old minimum**, for example let Agents configure pipelines. Viewers still cannot hold any write capability and the Owner cannot be locked out. Speed on busy tables was measured and is the same as before (see `docs/access-control-enforcement.md`). Menus, reports and the AI, merge-contacts and Jira switches stay enforced by the app and its API, as explained in the doc and on the screen.
+- **Proposed edits are now private.** The values an agent proposes for an existing tag, label or snippet are kept in their own table that only the proposer and reviewers can read; before, any member could read them with a direct database call.
+- **Fewer buttons that do nothing.** Buttons that a role cannot use are now disabled with an “Ask an admin” hint across settings, contacts, deals, pipelines, the inbox, broadcasts, automations, flows, knowledge and AI screens.
+- **Security tidy-up (089):** four internal database helpers that were callable by anyone are now limited to the server.
+- The AI auto-reply take-over now also needs the *Manage conversations* capability, because it assigns the conversation.
+
 ## [0.45.0] — 2026-09-20 — **migration required: 087**
 
 - **Jira link, more depth.** **Attachments both ways** (off by default): send a ticket's files to the linked Jira issue, one at a time or all new ones, and bring new Jira attachments onto the ticket, tagged “From Jira”. Only the file types the workspace already accepts are imported; anything else is shown as skipped with a link to Jira. **Custom-field mapping** (Settings → Integrations → Jira → Fields): map ticket fields (text, number, date, dropdown, checkbox) to Jira fields, per project and per direction; mapped fields show in the create-issue preview. **Per-project overrides** for issue type, priority map, category mapping and which directions sync. **Bulk actions** on the ticket list: create Jira issues for up to 25 selected tickets after a review step, or link all selected tickets to one issue.

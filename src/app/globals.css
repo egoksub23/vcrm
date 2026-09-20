@@ -244,6 +244,11 @@ html[data-mode="dark"] {
   }
   html {
     @apply font-sans;
+    /* Colour emoji fonts after the text font, so chat bubbles, comments, notes and
+       the emoji picker draw emoji the same way on every OS. Inter has no emoji, so
+       the text metrics do not change: only glyphs Inter lacks reach this list. */
+    font-family:
+      var(--font-sans), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
   }
 }
 

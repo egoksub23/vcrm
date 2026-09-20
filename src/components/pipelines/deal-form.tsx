@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +59,9 @@ export function DealForm({
   const { accountId, defaultCurrency, currencies } = useAuth();
   // The "link to conversation" chip opens the Inbox: only with menu.inbox.
   const canOpenInbox = useCapability("menu.inbox");
+  // Creating, editing, closing and deleting deals: deals.manage.
+  const canManageDeals = useCapability("deals.manage");
+  const readOnlyHint = canManageDeals ? undefined : readOnlyTitle("manage deals");
 
   const [title, setTitle] = useState("");
   const [value, setValue] = useState("");
@@ -154,6 +158,7 @@ export function DealForm({
   }, [open, contactId, supabase]);
 
   async function handleSave() {
+    if (!canManageDeals) return;
     if (!title.trim() || !contactId || !stageId) {
       toast.error(t("toastRequired"));
       return;
@@ -233,7 +238,7 @@ export function DealForm({
   }
 
   async function handleDelete() {
-    if (!deal) return;
+    if (!canManageDeals || !deal) return;
     setDeleting(true);
     const { error } = await supabase.from("deals").delete().eq("id", deal.id);
     setDeleting(false);
@@ -260,7 +265,12 @@ export function DealForm({
             </SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* A disabled fieldset disables every input inside without a per-field prop. */}
+          <fieldset
+            disabled={!canManageDeals}
+            title={readOnlyHint}
+            className="m-0 min-w-0 flex-1 space-y-4 overflow-y-auto border-0 p-4"
+          >
             <div className="grid gap-2">
               <Label className="text-muted-foreground">{t("title")}</Label>
               <Input
@@ -389,7 +399,7 @@ export function DealForm({
                   <Button
                     type="button"
                     onClick={() => handleStatusChange("won")}
-                    disabled={!!statusAction || deal.status === "won"}
+                    disabled={!canManageDeals || !!statusAction || deal.status === "won"}
                     className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {statusAction === "won" ? (
@@ -404,7 +414,7 @@ export function DealForm({
                   <Button
                     type="button"
                     onClick={() => handleStatusChange("lost")}
-                    disabled={!!statusAction || deal.status === "lost"}
+                    disabled={!canManageDeals || !!statusAction || deal.status === "lost"}
                     className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {statusAction === "lost" ? (
@@ -422,7 +432,7 @@ export function DealForm({
                     type="button"
                     variant="ghost"
                     onClick={() => handleStatusChange("open")}
-                    disabled={!!statusAction}
+                    disabled={!canManageDeals || !!statusAction}
                     className="w-full text-muted-foreground hover:text-foreground"
                   >
                     {t("reopenDeal")}
@@ -430,9 +440,9 @@ export function DealForm({
                 )}
               </div>
             )}
-          </div>
+          </fieldset>
 
-          <div className="border-t border-border/50 bg-popover/80 p-4">
+          <div className="border-t border-border/50 bg-popover/80 p-4" title={readOnlyHint}>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -443,7 +453,7 @@ export function DealForm({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={saving || !title.trim() || !contactId || !stageId}
+                disabled={!canManageDeals || saving || !title.trim() || !contactId || !stageId}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {saving ? t("saving") : deal ? t("saveChanges") : t("createDeal")}
@@ -477,7 +487,8 @@ export function DealForm({
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(true)}
-                  className="mt-3 flex w-full items-center justify-center gap-1 text-xs text-red-400 hover:text-red-300"
+                  disabled={!canManageDeals}
+                  className="disabled:cursor-not-allowed disabled:opacity-50 mt-3 flex w-full items-center justify-center gap-1 text-xs text-red-400 hover:text-red-300"
                 >
                   <Trash2 className="h-3 w-3" />
                   {t("deleteDeal")}

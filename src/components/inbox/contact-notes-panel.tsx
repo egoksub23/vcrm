@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import type { ContactNote } from "@/types";
 
 /** A note longer than this (or with more lines) is folded until expanded. */
@@ -146,9 +147,10 @@ export function ContactNotesPanel({ contactId }: { contactId: string | null }) {
 
       {contactId && canWrite ? (
         <div className="flex gap-2 border-b border-border p-2">
-          <textarea
+          <EmojiTextarea
+            containerClassName="min-w-0 flex-1"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onValueChange={setDraft}
             onKeyDown={(e) => {
               // Ctrl/Cmd+Enter adds, so Enter alone still makes a new line.
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -159,7 +161,7 @@ export function ContactNotesPanel({ contactId }: { contactId: string | null }) {
             maxLength={NOTE_MAX_CHARS}
             placeholder={t("addNotePlaceholder")}
             rows={2}
-            className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
+            className="resize-none rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
           />
           <Button
             size="sm"
@@ -291,10 +293,10 @@ function NoteItem({
 
       {editing ? (
         <div className="mt-2 space-y-1.5">
-          <textarea
+          <EmojiTextarea
             autoFocus
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onValueChange={setDraft}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();

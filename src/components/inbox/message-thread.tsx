@@ -65,6 +65,7 @@ import { ArticleDialog } from "@/components/knowledge/article-dialog";
 import { buildKnowledgeQuery } from "@/lib/inbox/kb-agent";
 import type { ArticleDraftSeed } from "@/lib/knowledge-types";
 import { useCapability } from "@/hooks/use-can";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import { MediaLightbox } from "./media-lightbox";
 import { collectMediaGallery } from "@/lib/media/gallery";
 import {
@@ -231,6 +232,11 @@ export function MessageThread({
   const tQuote = useTranslations("Inbox.replyQuote");
 
   const { user, slaResponseMinutes } = useAuth();
+  // Priority, status, assignee, team and labels are conversation work
+  // (conversations.manage); raising a ticket from the chat is tickets.work.
+  const canManageConv = useCapability("conversations.manage");
+  const canWorkTickets = useCapability("tickets.work");
+  const convHint = canManageConv ? undefined : readOnlyTitle("manage conversations");
   // `now` (a ticking clock, re-derived every RE_DERIVE_MS) already
   // exists on usePresence for staleness checks — reused here for the
   // aging-response indicator instead of a second interval.
@@ -1527,8 +1533,9 @@ export function MessageThread({
           <button
             type="button"
             onClick={() => setRaiseTicketOpen(true)}
-            title={t("raiseTicket")}
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            disabled={!canWorkTickets}
+            title={canWorkTickets ? t("raiseTicket") : readOnlyTitle("raise tickets")}
+            className="inline-flex disabled:cursor-not-allowed disabled:opacity-50 h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <TicketIcon className="h-3 w-3" />
             <span className="hidden sm:inline">{t("raiseTicket")}</span>
@@ -1538,8 +1545,10 @@ export function MessageThread({
               step (migration 047) sets the same column. */}
           <DropdownMenu>
             <DropdownMenuTrigger
+              disabled={!canManageConv}
+              title={convHint}
               className={cn(
-                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
                 currentPriority?.color ?? "text-muted-foreground"
               )}
             >
@@ -1565,8 +1574,11 @@ export function MessageThread({
 
           {/* Status dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+            <DropdownMenuTrigger
+                disabled={!canManageConv}
+                title={convHint}
+                className={cn(
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
                   currentStatus?.color ?? "text-muted-foreground"
                 )}>
                 {currentStatus ? t(`status${currentStatus.label}`) : t("status")}
@@ -1591,8 +1603,10 @@ export function MessageThread({
           {/* Assign dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger
+              disabled={!canManageConv}
+              title={convHint}
               className={cn(
-                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
                 assignedAgentId ? "text-primary" : "text-muted-foreground"
               )}
             >
@@ -1661,8 +1675,10 @@ export function MessageThread({
               agent assignment above. */}
           <DropdownMenu>
             <DropdownMenuTrigger
+              disabled={!canManageConv}
+              title={convHint}
               className={cn(
-                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
                 assignedTeamId ? "text-primary" : "text-muted-foreground"
               )}
             >
@@ -1728,8 +1744,10 @@ export function MessageThread({
           {allTags.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
+                disabled={!canManageConv}
+                title={convHint}
                 className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
                   activeLabels.length > 0 ? "text-primary" : "text-muted-foreground"
                 )}
               >

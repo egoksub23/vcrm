@@ -50,6 +50,14 @@ import type { ComponentProps, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/**
+ * The tooltip GatedButton shows, for controls that are not a Button
+ * (switches, inputs, menu items): `title={canAct ? undefined : readOnlyTitle("edit tags")}`.
+ */
+export function readOnlyTitle(gateReason: string): string {
+  return `Read-only — your role can't ${gateReason}`;
+}
+
 interface GatedButtonProps extends Omit<ComponentProps<typeof Button>, "title"> {
   /** False → button is disabled and the wrapper span shows the
    *  "Read-only" tooltip. Defaults to `true` so a `<GatedButton>`
@@ -76,7 +84,7 @@ export function GatedButton({
 }: GatedButtonProps) {
   const effectivelyDisabled = disabled || !canAct;
   const tooltip = !canAct && gateReason
-    ? `Read-only — your role can't ${gateReason}`
+    ? readOnlyTitle(gateReason)
     : title;
 
   return (

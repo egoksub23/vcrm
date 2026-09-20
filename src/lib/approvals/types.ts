@@ -16,7 +16,7 @@ export type ApprovalTypeFilter = "tag" | "label" | "snippet" | "article";
 /** Row state of a tag or snippet (the `approval_status` column). */
 export type ApprovalStatus = "approved" | "pending" | "rejected";
 
-/** State of `pending_edit` on a live row. */
+/** State of a pending edit on a live row (the values themselves are in approval_pending_edits since migration 088). */
 export type EditStatus = "pending" | "rejected";
 
 /** "new" = a creation waiting for a decision, "edit" = a change to a live item. */

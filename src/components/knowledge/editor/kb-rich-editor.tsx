@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { KB_CAPTION_MAX_CHARS } from "@/lib/knowledge-types";
 import { droppedImages, pastedImages } from "@/lib/media/clipboard-images";
 import { InlineImage } from "@/lib/tiptap/inline-image";
+import { EmojiPicker } from "@/components/emoji/emoji-picker";
+import { insertEmojiInEditor } from "@/lib/emoji/insert";
 import { normalizeLinkUrl } from "./kb-editor-utils";
 
 interface KbRichEditorProps {
@@ -262,6 +264,12 @@ export function KbRichEditor({
         <ToolbarButton label={t("link")} disabled={off} active={editor.isActive("link")} onClick={setLink}>
           <LinkIcon className="h-3.5 w-3.5" />
         </ToolbarButton>
+        <EmojiPicker
+          disabled={off}
+          onPick={(emoji) => insertEmojiInEditor(editor, emoji)}
+          returnFocusTo={() => editor.view.dom as HTMLElement}
+          className="h-7 w-7"
+        />
         {onImageFiles && (
           <>
             <ToolbarButton label={t("insertImage")} disabled={off} onClick={() => fileInputRef.current?.click()}>

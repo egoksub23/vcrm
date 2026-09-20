@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import { isContactTag, isConversationLabel } from '@/lib/tags/scope';
 import { tagsToCsv, type TagKind } from '@/lib/tags/tag-csv';
 import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
 import {
   Dialog,
   DialogContent,
@@ -75,7 +76,6 @@ export function TagCatalogPanel({
   const canEdit = useCapability('tags.manage');
   const canPropose = useCapability('tags.propose');
   const canReview = useCapability('approvals.review');
-  const canAudit = useCapability('audit.view');
   const canCreate = canEdit || canPropose;
 
   const [loading, setLoading] = useState(true);
@@ -199,12 +199,15 @@ export function TagCatalogPanel({
       <SettingsPanelHead title={t(`${kind}.title`)} description={t(`${kind}.description`)} />
 
       <div className="flex flex-wrap items-center gap-2">
-        {canCreate ? (
-          <Button size="sm" onClick={() => setEditing({ tag: null, key: Date.now() })}>
-            <Plus className="size-4" />
-            {t(`${kind}.createButton`)}
-          </Button>
-        ) : null}
+        <GatedButton
+          size="sm"
+          canAct={canCreate}
+          gateReason={kind === 'tag' ? 'create tags' : 'create labels'}
+          onClick={() => setEditing({ tag: null, key: Date.now() })}
+        >
+          <Plus className="size-4" />
+          {t(`${kind}.createButton`)}
+        </GatedButton>
         <div className="relative min-w-[200px] max-w-xs flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -225,12 +228,16 @@ export function TagCatalogPanel({
             <Download className="size-4" />
             {t('exportCsv')}
           </Button>
-          {canEdit ? (
-            <Button variant="outline" size="sm" onClick={() => setImportKey(Date.now())}>
-              <Upload className="size-4" />
-              {t('importCsv')}
-            </Button>
-          ) : null}
+          <GatedButton
+            variant="outline"
+            size="sm"
+            canAct={canEdit}
+            gateReason={kind === 'tag' ? 'import tags' : 'import labels'}
+            onClick={() => setImportKey(Date.now())}
+          >
+            <Upload className="size-4" />
+            {t('importCsv')}
+          </GatedButton>
         </div>
       </div>
 
@@ -252,9 +259,7 @@ export function TagCatalogPanel({
                 <TableHead>{t('columns.inUse')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdBy')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('columns.createdOn')}</TableHead>
-                {canEdit || canPropose || canAudit ? (
-                  <TableHead className="w-32 text-right">{t('columns.actions')}</TableHead>
-                ) : null}
+                <TableHead className="w-32 text-right">{t('columns.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -300,8 +305,7 @@ export function TagCatalogPanel({
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
                     {format(new Date(tag.created_at), 'MMM d, yyyy')}
                   </TableCell>
-                  {canEdit || canPropose || canAudit ? (
-                    <TableCell className="text-right whitespace-nowrap">
+                  <TableCell className="text-right whitespace-nowrap">
                       {isUsable(tag) ? (
                         <ActivityButton
                           compact
@@ -384,9 +388,30 @@ export function TagCatalogPanel({
                             </Button>
                           ) : null}
                         </>
-                      ) : null}
-                    </TableCell>
-                  ) : null}
+                      ) : (
+                        // Neither tags.manage nor tags.propose: keep the controls, disabled.
+                        <>
+                          <GatedButton
+                            variant="ghost"
+                            size="icon-sm"
+                            canAct={false}
+                            gateReason={kind === 'tag' ? 'manage tags' : 'manage labels'}
+                            aria-label={t('editAria', { name: tag.name })}
+                          >
+                            <Pencil className="size-4" />
+                          </GatedButton>
+                          <GatedButton
+                            variant="ghost"
+                            size="icon-sm"
+                            canAct={false}
+                            gateReason={kind === 'tag' ? 'manage tags' : 'manage labels'}
+                            aria-label={t('deleteAria', { name: tag.name })}
+                          >
+                            <Trash2 className="size-4" />
+                          </GatedButton>
+                        </>
+                      )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

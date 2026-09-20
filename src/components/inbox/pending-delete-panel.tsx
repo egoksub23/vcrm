@@ -18,6 +18,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button";
+import { useCapability } from "@/hooks/use-can";
 import { Loader2, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -54,6 +56,8 @@ interface PendingDeletePanelProps {
  */
 export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDeletePanelProps) {
   const t = useTranslations("Inbox.pendingDelete");
+  // Restoring or permanently deleting a message is message deletion: messages.send.
+  const canDelete = useCapability("messages.send");
   const [rows, setRows] = useState<PendingDeleteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -84,6 +88,7 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
 
   const restore = useCallback(
     async (id: string) => {
+      if (!canDelete) return;
       setBusyId(id);
       const supabase = createClient();
       const { error } = await supabase
@@ -99,11 +104,12 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
       }
       setBusyId(null);
     },
-    [onChanged, t],
+    [canDelete, onChanged, t],
   );
 
   const deleteOne = useCallback(
     async (id: string) => {
+      if (!canDelete) return;
       setBusyId(id);
       const supabase = createClient();
       const { error } = await supabase.from("messages").delete().eq("id", id);
@@ -116,10 +122,11 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
       }
       setBusyId(null);
     },
-    [onChanged, t],
+    [canDelete, onChanged, t],
   );
 
   const emptyTrash = useCallback(async () => {
+    if (!canDelete) return;
     setEmptying(true);
     const supabase = createClient();
     const { error } = await supabase.from("messages").delete().eq("pending_delete", true);
@@ -132,7 +139,7 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     }
     setEmptying(false);
     setEmptyConfirmOpen(false);
-  }, [onChanged, t]);
+  }, [canDelete, onChanged, t]);
 
   return (
     <>
@@ -179,26 +186,30 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
                       {row.content_text || t("noPreview")}
                     </p>
                     <div className="mt-2 flex justify-end gap-2">
-                      <Button
+                      <GatedButton
                         size="sm"
                         variant="outline"
+                        canAct={canDelete}
+                        gateReason="restore or delete messages"
                         disabled={busy}
                         onClick={() => void restore(row.id)}
                         className="h-7 text-xs"
                       >
                         <RotateCcw className="size-3" />
                         {t("restore")}
-                      </Button>
-                      <Button
+                      </GatedButton>
+                      <GatedButton
                         size="sm"
                         variant="destructive"
+                        canAct={canDelete}
+                        gateReason="restore or delete messages"
                         disabled={busy}
                         onClick={() => void deleteOne(row.id)}
                         className="h-7 text-xs"
                       >
                         <Trash2 className="size-3" />
                         {t("deletePermanently")}
-                      </Button>
+                      </GatedButton>
                     </div>
                   </div>
                 );
@@ -207,11 +218,14 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
           </div>
 
           {rows.length > 0 && (
-            <div className="border-t border-border/50 p-3">
+            <div
+              className="border-t border-border/50 p-3"
+              title={canDelete ? undefined : readOnlyTitle("restore or delete messages")}
+            >
               <Button
                 variant="destructive"
                 className="w-full"
-                disabled={emptying}
+                disabled={!canDelete || emptying}
                 onClick={() => setEmptyConfirmOpen(true)}
               >
                 {emptying ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}

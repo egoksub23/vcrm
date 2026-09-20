@@ -1,7 +1,7 @@
 -- ============================================================
 -- Verification for migration 084 (propose and approve).
 --
--- Run against a database that already has 084 applied:
+-- Run against a database that already has 084 applied (with or without 088):
 --   supabase db query --linked -f supabase/ci/verify-084-approvals.sql
 --
 -- Everything happens inside one DO block that ends with
@@ -67,6 +67,25 @@ BEGIN
       PERFORM set_config('request.jwt.claims', '', true);
       PERFORM set_config('request.jwt.claim.sub', '', true);
       RETURN res;
+    END $b$;
+  $f$;
+
+  -- The proposed values of a live row: the pending_edit column until migration 088,
+  -- the approval_pending_edits side table since (088 hides them from other members).
+  EXECUTE $f$
+    CREATE FUNCTION pg_temp.pending_of(p_kind TEXT, p_id UUID) RETURNS JSONB
+    LANGUAGE plpgsql AS $b$
+    DECLARE r JSONB;
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND column_name = 'pending_edit'
+                    AND table_name = CASE p_kind WHEN 'tag' THEN 'tags' ELSE 'quick_replies' END) THEN
+        EXECUTE format('SELECT pending_edit FROM %I WHERE id = $1',
+                       CASE p_kind WHEN 'tag' THEN 'tags' ELSE 'quick_replies' END) INTO r USING p_id;
+      ELSE
+        SELECT patch INTO r FROM approval_pending_edits WHERE entity_type = p_kind AND entity_id = p_id;
+      END IF;
+      RETURN r;
     END $b$;
   $f$;
 
@@ -342,7 +361,7 @@ BEGIN
   res := pg_temp.run(agent_a, format(
     $q$SELECT propose_tag_edit(%L, '{"name": "Wholesale plus", "color": "#0000ff"}'::jsonb)::text$q$, tag1));
   IF res LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL propose_tag_edit: %', res; END IF;
-  SELECT name, color, approval_status, pending_edit, edit_status, proposed_by INTO rec FROM tags WHERE id = tag1;
+  SELECT name, color, approval_status, pg_temp.pending_of('tag', id) AS pending_edit, edit_status, proposed_by INTO rec FROM tags WHERE id = tag1;
   IF rec.name <> 'Wholesale' OR rec.color <> '#ff8800' OR rec.approval_status <> 'approved'
      OR rec.edit_status <> 'pending' OR rec.proposed_by <> agent_a
      OR rec.pending_edit ->> 'name' <> 'Wholesale plus' THEN
@@ -370,7 +389,7 @@ BEGIN
   res := pg_temp.run(admin_a, format(
     $q$SELECT decide_proposal('tag', %L, 'approve', NULL, '{"name": "Wholesale pro"}'::jsonb)::text$q$, tag1));
   IF res LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL edit then approve: %', res; END IF;
-  SELECT name, color, pending_edit, edit_status, decided_by INTO rec FROM tags WHERE id = tag1;
+  SELECT name, color, pg_temp.pending_of('tag', id) AS pending_edit, edit_status, decided_by INTO rec FROM tags WHERE id = tag1;
   IF rec.name <> 'Wholesale pro' OR rec.color <> '#0000ff' OR rec.pending_edit IS NOT NULL
      OR rec.edit_status IS NOT NULL OR rec.decided_by <> admin_a THEN
     RAISE EXCEPTION 'FAIL approved edit must copy the values onto the live row';
@@ -383,7 +402,7 @@ BEGIN
   PERFORM pg_temp.run(agent_a, format($q$SELECT propose_tag_edit(%L, '{"color": "#123123"}'::jsonb)::text$q$, tag1));
   res := pg_temp.run(admin_a, format('SELECT decide_proposal(''tag'', %L, ''reject'', ''Keep the blue'')::text', tag1));
   IF res LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL reject edit: %', res; END IF;
-  SELECT color, edit_status, decision_note, pending_edit INTO rec FROM tags WHERE id = tag1;
+  SELECT color, edit_status, decision_note, pg_temp.pending_of('tag', id) AS pending_edit INTO rec FROM tags WHERE id = tag1;
   IF rec.color <> '#0000ff' OR rec.edit_status <> 'rejected' OR rec.decision_note <> 'Keep the blue'
      OR rec.pending_edit IS NULL THEN
     RAISE EXCEPTION 'FAIL rejected edit row';
@@ -393,7 +412,7 @@ BEGIN
   END IF;
   res := pg_temp.run(agent_a, format('SELECT withdraw_proposal(''tag'', %L)::text', tag1));
   IF res LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL dismiss rejected edit: %', res; END IF;
-  SELECT pending_edit, edit_status, decision_note INTO rec FROM tags WHERE id = tag1;
+  SELECT pg_temp.pending_of('tag', id) AS pending_edit, edit_status, decision_note INTO rec FROM tags WHERE id = tag1;
   IF rec.pending_edit IS NOT NULL OR rec.edit_status IS NOT NULL OR rec.decision_note IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL dismissed edit must clear';
   END IF;
@@ -470,7 +489,7 @@ BEGIN
   res := pg_temp.run(agent_a, format(
     $q$SELECT propose_snippet_edit(%L, '{"title": "Hours v2", "content_text": "We open at 10"}'::jsonb)::text$q$, snip1));
   IF (res::jsonb) ->> 'mode' <> 'proposed' THEN RAISE EXCEPTION 'FAIL snippet edit proposal: %', res; END IF;
-  SELECT title, content_text, pending_edit ->> 'title' AS pt INTO rec FROM quick_replies WHERE id = snip1;
+  SELECT title, content_text, pg_temp.pending_of('snippet', id) ->> 'title' AS pt INTO rec FROM quick_replies WHERE id = snip1;
   IF rec.title <> 'Hours' OR rec.content_text <> 'We open at 9' OR rec.pt <> 'Hours v2' THEN
     RAISE EXCEPTION 'FAIL snippet live values changed by an edit proposal';
   END IF;
@@ -479,7 +498,7 @@ BEGIN
   END IF;
   res := pg_temp.run(owner_a, format('SELECT decide_proposal(''snippet'', %L, ''approve'')::text', snip1));
   IF res LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL approve snippet edit: %', res; END IF;
-  SELECT title, content_text, pending_edit, edit_status INTO rec FROM quick_replies WHERE id = snip1;
+  SELECT title, content_text, pg_temp.pending_of('snippet', id) AS pending_edit, edit_status INTO rec FROM quick_replies WHERE id = snip1;
   IF rec.title <> 'Hours v2' OR rec.content_text <> 'We open at 10' OR rec.pending_edit IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL approved snippet edit values';
   END IF;

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
+import { GatedButton, readOnlyTitle } from '@/components/ui/gated-button';
+import { useCapability } from '@/hooks/use-can';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -47,6 +49,8 @@ export function Step4ScheduleSend({
   progress,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
+  // Sending or saving a broadcast is broadcasts.send (the wizard is normally reached from a gated button).
+  const canSend = useCapability('broadcasts.send');
   const [showConfirm, setShowConfirm] = useState(false);
   const [estimatedReach, setEstimatedReach] = useState<number>(0);
   const [loadingReach, setLoadingReach] = useState(true);
@@ -176,22 +180,25 @@ export function Step4ScheduleSend({
 
         <div className="flex items-center gap-2">
           {onSaveDraft && (
-            <Button
+            <GatedButton
               variant="outline"
+              canAct={canSend}
+              gateReason="send broadcasts"
               onClick={onSaveDraft}
               disabled={!name.trim() || isProcessing}
               className="border-border text-muted-foreground hover:bg-muted disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               {t('scheduleSend.saveDraft')}
-            </Button>
+            </GatedButton>
           )}
 
           <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
           <DialogTrigger
             render={
               <Button
-                disabled={!name.trim() || isProcessing}
+                disabled={!canSend || !name.trim() || isProcessing}
+                title={canSend ? undefined : readOnlyTitle('send broadcasts')}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               />
             }

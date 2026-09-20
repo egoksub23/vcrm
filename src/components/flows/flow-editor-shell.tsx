@@ -25,6 +25,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useCapability } from "@/hooks/use-can";
 import { GitFork, List } from "lucide-react";
 
 import { FlowBuilder } from "./flow-builder";
@@ -61,6 +62,8 @@ interface Props {
 
 export function FlowEditorShell({ initialFlow, initialNodes }: Props) {
   const t = useTranslations("Flows.builder");
+  // flows.manage: without it the list-view forms are disabled (the header disables save).
+  const canManage = useCapability("flows.manage");
 
   // Read the persisted choice in the useState initializer. Safe even
   // though this is a client component because the parent page only
@@ -144,9 +147,12 @@ export function FlowEditorShell({ initialFlow, initialNodes }: Props) {
           {effectiveView === "canvas" ? (
             <FlowCanvas />
           ) : (
-            <div className="absolute inset-0 overflow-y-auto">
+            <fieldset
+              disabled={!canManage}
+              className="absolute inset-0 m-0 min-w-0 overflow-y-auto border-0 p-0"
+            >
               <FlowBuilder />
-            </div>
+            </fieldset>
           )}
         </div>
 

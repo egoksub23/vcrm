@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import { BookPlus, CornerUpLeft, Copy, SmilePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCapability } from "@/hooks/use-can";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import {
   Popover,
   PopoverContent,
@@ -51,6 +53,10 @@ export function MessageActions({
   children,
 }: MessageActionsProps) {
   const t = useTranslations("Inbox.actions");
+  // Reacting, replying (quoting) and deleting a message act on the chat: messages.send.
+  // Copy and add-to-knowledge (its own capability, gated by the caller) stay available.
+  const canSend = useCapability("messages.send");
+  const sendHint = canSend ? undefined : readOnlyTitle("send messages");
 
   // Touch devices have no hover. Long-press fires `contextmenu`; we capture
   // it, suppress the native menu, and pin the toolbar open until the user
@@ -132,7 +138,9 @@ export function MessageActions({
       >
         <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
           <PopoverTrigger
-            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground"
+            disabled={!canSend}
+            title={sendHint}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={t("react")}
           >
             <SmilePlus className="h-3.5 w-3.5" />
@@ -157,7 +165,9 @@ export function MessageActions({
         <button
           type="button"
           onClick={handleReply}
-          className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground"
+          disabled={!canSend}
+          title={sendHint}
+          className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={t("reply")}
         >
           <CornerUpLeft className="h-3.5 w-3.5" />
@@ -185,9 +195,10 @@ export function MessageActions({
           <button
             type="button"
             onClick={handleTrash}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-red-500/10 hover:text-red-500"
+            disabled={!canSend}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-red-500/10 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={t("moveToTrash")}
-            title={t("moveToTrash")}
+            title={canSend ? t("moveToTrash") : sendHint}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

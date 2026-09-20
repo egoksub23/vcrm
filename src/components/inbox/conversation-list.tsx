@@ -10,6 +10,7 @@ import {
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { useAuth, useCapability } from "@/hooks/use-auth";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import { useNow } from "@/hooks/use-now";
 import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
@@ -214,6 +215,9 @@ export function ConversationList({
   const { views, loading: viewsLoading, refetch: refetchViews } = useInboxViews();
   // Shared (team-wide) views: inbox.shared-views (admin+ by default).
   const canSaveShared = useCapability("inbox.shared-views");
+  // Personal views, bulk label/assign/close: conversations.manage.
+  const canManageConv = useCapability("conversations.manage");
+  const canSaveView = canManageConv || canSaveShared;
   const [showSaveViewForm, setShowSaveViewForm] = useState(false);
   const [saveViewName, setSaveViewName] = useState("");
   const [saveViewShared, setSaveViewShared] = useState(false);
@@ -251,7 +255,7 @@ export function ConversationList({
 
   const handleSaveView = useCallback(async () => {
     const name = saveViewName.trim();
-    if (!name) return;
+    if (!name || !canSaveView) return;
     setSavingView(true);
     try {
       await createInboxView({
@@ -281,6 +285,7 @@ export function ConversationList({
   }, [
     saveViewName,
     saveViewShared,
+    canSaveView,
     filter,
     selectedTagIds,
     selectedCompany,
@@ -511,7 +516,7 @@ export function ConversationList({
 
   const handleBulkApplyLabel = useCallback(
     async (tag: Tag) => {
-      if (selectedIds.size === 0) return;
+      if (!canManageConv || selectedIds.size === 0) return;
       setApplyingLabelId(tag.id);
       const targetIds = Array.from(selectedIds);
       const results = await Promise.allSettled(
@@ -539,7 +544,7 @@ export function ConversationList({
         );
       }
     },
-    [selectedIds, conversations, onLabelsChange, t]
+    [canManageConv, selectedIds, conversations, onLabelsChange, t]
   );
 
   const handleSearchChange = useCallback(
@@ -620,7 +625,8 @@ export function ConversationList({
                     {(view.owner_id === user?.id || (view.owner_id === null && canSaveShared)) && (
                       <button
                         onClick={(e) => handleDeleteView(view, e)}
-                        className="ml-2 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 hover:text-red-500 group-hover:opacity-100"
+                        disabled={view.owner_id === null ? !canSaveShared : !canManageConv}
+                        className="ml-2 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 hover:text-red-500 group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
                         title={t("deleteView")}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -652,7 +658,7 @@ export function ConversationList({
                     )}
                     <button
                       onClick={handleSaveView}
-                      disabled={savingView || !saveViewName.trim()}
+                      disabled={!canSaveView || savingView || !saveViewName.trim()}
                       className="w-full rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                     >
                       {t("save")}
@@ -664,7 +670,9 @@ export function ConversationList({
                       e.stopPropagation();
                       setShowSaveViewForm(true);
                     }}
-                    className="w-full rounded-md px-2 py-1 text-left text-xs text-primary hover:bg-muted"
+                    disabled={!canSaveView}
+                    title={canSaveView ? undefined : readOnlyTitle("save inbox views")}
+                    className="w-full rounded-md px-2 py-1 text-left text-xs text-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {t("saveCurrentView")}
                   </button>
@@ -1142,7 +1150,8 @@ export function ConversationList({
           labelControl={
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  disabled={applyingLabelId !== null}
+                  disabled={!canManageConv || applyingLabelId !== null}
+                  title={canManageConv ? undefined : readOnlyTitle("manage conversations")}
                   className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-foreground hover:bg-muted disabled:opacity-60"
                 >
                   <TagIcon className="h-3 w-3" />

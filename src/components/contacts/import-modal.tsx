@@ -130,6 +130,8 @@ export function ImportModal({
   const supabase = createClient();
   const { accountId } = useAuth();
   const canCreateTags = useCapability('tags.manage');
+  // Reached only from a gated entry point; the import button repeats the check.
+  const canImport = useCapability('contacts.edit');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -211,6 +213,7 @@ export function ImportModal({
   }
 
   async function handleImport() {
+    if (!canImport) return;
     if (parsedRows.length === 0) return;
     setImporting(true);
 
@@ -676,7 +679,7 @@ export function ImportModal({
           {!result && (
             <Button
               type="button"
-              disabled={parsedRows.length === 0 || importing}
+              disabled={!canImport || parsedRows.length === 0 || importing}
               onClick={handleImport}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >

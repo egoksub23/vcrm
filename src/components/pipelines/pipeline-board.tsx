@@ -16,9 +16,9 @@ import {
 } from "@dnd-kit/core";
 import type { Deal, PipelineStage } from "@/types";
 import { DealCard } from "./deal-card";
-import { Button } from "@/components/ui/button";
+import { GatedButton } from "@/components/ui/gated-button";
 import { Plus } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
 
@@ -38,6 +38,8 @@ export function PipelineBoard({
   onEditDeal,
 }: PipelineBoardProps) {
   const { defaultCurrency } = useAuth();
+  // Moving and adding deals is deals.manage; without it cards open read-only and cannot be dragged.
+  const canManageDeals = useCapability("deals.manage");
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
 
   const sortedStages = useMemo(
@@ -68,13 +70,14 @@ export function PipelineBoard({
     : null;
 
   function handleDragStart(event: DragStartEvent) {
+    if (!canManageDeals) return;
     setActiveDealId(String(event.active.id));
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveDealId(null);
     const { active, over } = event;
-    if (!over) return;
+    if (!canManageDeals || !over) return;
     const dealId = String(active.id);
     const targetStageId = String(over.id);
 
@@ -117,6 +120,7 @@ export function PipelineBoard({
               deals={stageDeals}
               totalValue={totalValue}
               currency={defaultCurrency}
+              canManageDeals={canManageDeals}
               onAddDeal={onAddDeal}
               onEditDeal={onEditDeal}
             />
@@ -191,6 +195,7 @@ function StageColumn({
   deals,
   totalValue,
   currency,
+  canManageDeals,
   onAddDeal,
   onEditDeal,
 }: {
@@ -198,6 +203,7 @@ function StageColumn({
   deals: Deal[];
   totalValue: number;
   currency: string;
+  canManageDeals: boolean;
   onAddDeal: (stageId: string) => void;
   onEditDeal: (deal: Deal) => void;
 }) {
@@ -247,21 +253,24 @@ function StageColumn({
               key={deal.id}
               deal={deal}
               stage={stage}
+              canDrag={canManageDeals}
               onEdit={onEditDeal}
             />
           ))
         )}
       </div>
 
-      <Button
+      <GatedButton
         variant="ghost"
         size="sm"
+        canAct={canManageDeals}
+        gateReason="create deals"
         onClick={() => onAddDeal(stage.id)}
         className="mt-3 w-full justify-start border border-dashed border-border bg-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
       >
         <Plus className="mr-1 h-3 w-3" />
         {t("addDeal")}
-      </Button>
+      </GatedButton>
     </div>
   );
 }
@@ -269,14 +278,17 @@ function StageColumn({
 function DraggableDealCard({
   deal,
   stage,
+  canDrag,
   onEdit,
 }: {
   deal: Deal;
   stage: PipelineStage;
+  canDrag: boolean;
   onEdit: (deal: Deal) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: deal.id,
+    disabled: !canDrag,
   });
 
   return (

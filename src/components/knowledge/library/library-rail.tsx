@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { readOnlyTitle } from '@/components/ui/gated-button';
 import type { KnowledgeCollection } from '@/lib/knowledge-types';
 
 import { collectionView, safeHexColor, type LibraryCounts, type LibraryView } from './library-helpers';
@@ -107,17 +108,16 @@ export function LibraryRail({ view, onView, counts, collections, openGaps, canMa
             <option value="insights">{t('rail.insights')}</option>
           </optgroup>
         </select>
-        {canManageCollections && (
-          <button
-            type="button"
-            onClick={onManageCollections}
-            className="shrink-0 rounded-md border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={t('rail.manage')}
-            title={t('rail.manage')}
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onManageCollections}
+          disabled={!canManageCollections}
+          className="shrink-0 rounded-md border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={t('rail.manage')}
+          title={canManageCollections ? t('rail.manage') : readOnlyTitle('manage collections')}
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Tablet and up: the rail. */}
@@ -136,17 +136,16 @@ export function LibraryRail({ view, onView, counts, collections, openGaps, canMa
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t('rail.collections')}
           </h2>
-          {canManageCollections && (
-            <button
-              type="button"
-              onClick={onManageCollections}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label={t('rail.manage')}
-              title={t('rail.manage')}
-            >
-              <Settings2 className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onManageCollections}
+            disabled={!canManageCollections}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={t('rail.manage')}
+            title={canManageCollections ? t('rail.manage') : readOnlyTitle('manage collections')}
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+          </button>
         </div>
         <div className="mt-1 grid gap-0.5">
           {collections.length === 0 ? (

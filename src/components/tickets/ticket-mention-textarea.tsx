@@ -1,7 +1,9 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef, useState, type KeyboardEvent } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 
+import { EmojiPicker } from "@/components/emoji/emoji-picker";
+import { useEmojiShortcut } from "@/components/emoji/use-emoji-shortcut";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/types";
 import { PersonAvatar } from "./ticket-visuals";
@@ -56,8 +58,13 @@ export const MentionTextarea = forwardRef<
   const [query, setQuery] = useState<string | null>(null);
   useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }));
 
-  const handleChange = (next: string) => {
-    onValueChange(next);
+  // Emoji: the smiley button and the ":" shortcut (the newest trigger wins: an
+  // open @mention list and an open ":" list can never both match the same caret).
+  const emoji = useEmojiShortcut({ fieldRef: textareaRef, value, onValueChange, enabled: !disabled });
+
+  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    emoji.handleChange(e);
+    const next = e.target.value;
     const caret = textareaRef.current?.selectionStart ?? next.length;
     const match = next.slice(0, caret).match(/(?:^|\s)@(\w*)$/);
     setQuery(match ? match[1] : null);
@@ -82,6 +89,7 @@ export const MentionTextarea = forwardRef<
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (emoji.handleKeyDown(e)) return;
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       onSubmit?.();
@@ -116,11 +124,14 @@ export const MentionTextarea = forwardRef<
           ))}
         </div>
       ) : null}
+      {emoji.suggestions}
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => handleChange(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onSelect={emoji.handleSelect}
+        onBlur={emoji.handleBlur}
         onFocus={onFocus}
         placeholder={placeholder}
         rows={rows}
@@ -130,7 +141,14 @@ export const MentionTextarea = forwardRef<
         className={cn(
           "w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary/50 disabled:opacity-60",
           className,
+          "pr-9",
         )}
+      />
+      <EmojiPicker
+        disabled={disabled}
+        onPick={emoji.insertEmoji}
+        returnFocusTo={() => textareaRef.current}
+        className="absolute right-1 top-1 h-7 w-7"
       />
     </div>
   );

@@ -28,7 +28,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GatedButton } from "@/components/ui/gated-button";
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +90,8 @@ import {
 } from "@/lib/media/microphone";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
+import { EmojiPicker } from "@/components/emoji/emoji-picker";
+import { useEmojiShortcut } from "@/components/emoji/use-emoji-shortcut";
 import type { Editor } from "@tiptap/react";
 import { escapeHtml } from "@/lib/email/build-quote-html";
 
@@ -519,6 +521,10 @@ export function MessageComposer({
   // For solo users this is always true — single-owner accounts pass
   // every capability — so the disabled branch is a no-op there.
   const canSend = useCapability("messages.send");
+  // Internal comments (notes) are conversation work, not a customer message: conversations.manage.
+  const canComment = useCapability("conversations.manage");
+  // "Draft with AI" calls the AI draft route: ai.use.
+  const canUseAi = useCapability("ai.use");
   // Saving a snippet: snippets.manage (goes live) or snippets.propose (waits
   // for a reviewer, migration 084).
   const canManageSnippets = useCapability("snippets.manage");
@@ -526,7 +532,8 @@ export function MessageComposer({
   const tApprovals = useTranslations("Approvals");
   // Source chips open the Knowledge page: only link them with menu.knowledge.
   const canOpenKnowledge = useCapability("menu.knowledge");
-  const readOnly = !canSend;
+  const readOnly = isComment ? !canComment : !canSend;
+  const sendGateReason = isComment ? "add internal notes" : "send messages";
   // Media (like free-form text) is only allowed inside the 24h window.
   const inputsDisabled = readOnly || sessionExpired;
 
@@ -647,6 +654,19 @@ export function MessageComposer({
     return () => document.removeEventListener("keydown", onKey);
   }, [kbSlashOpen, text]);
 
+  // Emoji: the ":" shortcut and the smiley button. The box is disabled exactly
+  // when it already was (read-only role, expired session outside a comment);
+  // the /kb list owns Enter while it is open, so ":" stays quiet then. An email
+  // reply is a Tiptap editor, so it only gets the button.
+  const emojiFieldDisabled = (!isComment && sessionExpired) || readOnly;
+  const emoji = useEmojiShortcut({
+    fieldRef: textareaRef,
+    value: text,
+    onValueChange: setText,
+    enabled: !emojiFieldDisabled && !isEmailChannel && !kbSlashOpen,
+    onAfter: adjustHeight,
+  });
+
   // Sends the text, then each staged knowledge base file as its own message,
   // in that order. Files a channel cannot carry go as link lines in the text
   // instead, so none is ever dropped. If the text fails, the files stay
@@ -757,6 +777,8 @@ export function MessageComposer({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // The ":emoji" list, while open, owns Up/Down/Enter/Tab/Escape.
+      if (emoji.handleKeyDown(e)) return;
       // While the mention dropdown is open, Enter/Tab picks the top
       // match instead of sending — standard autocomplete behavior.
       if (mentionQuery !== null && mentionMatches.length > 0 && (e.key === "Enter" || e.key === "Tab")) {
@@ -781,15 +803,15 @@ export function MessageComposer({
         handleSend();
       }
     },
-    [handleSend, mentionQuery, mentionMatches, insertMention, kbSlashOpen, kbSlash.results, insertKnowledge]
+    [emoji, handleSend, mentionQuery, mentionMatches, insertMention, kbSlashOpen, kbSlash.results, insertKnowledge]
   );
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setText(e.target.value);
+      emoji.handleChange(e);
       adjustHeight();
     },
-    [adjustHeight]
+    [emoji, adjustHeight]
   );
 
   // Ask the AI assistant for a suggested reply and drop it into the
@@ -1477,13 +1499,15 @@ export function MessageComposer({
           separate dialog. Hidden once a media draft or a live recording
           takes over the composer — those are always customer-facing
           sends. */}
-      {!draft && !recording && !readOnly && (
+      {!draft && !recording && (canSend || canComment) && (
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
             <button
               type="button"
               onClick={() => switchMode("message")}
+              disabled={!canSend}
               className={cn(
+                "disabled:cursor-not-allowed disabled:opacity-50",
                 "rounded-md px-2.5 py-1 font-medium transition-colors",
                 mode === "message" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
@@ -1493,7 +1517,10 @@ export function MessageComposer({
             <button
               type="button"
               onClick={() => switchMode("comment")}
+              disabled={!canComment}
+              title={canComment ? undefined : readOnlyTitle("add internal notes")}
               className={cn(
+                "disabled:cursor-not-allowed disabled:opacity-50",
                 "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors",
                 isComment
                   ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
@@ -1743,7 +1770,7 @@ export function MessageComposer({
                   variant="ghost"
                   size="sm"
                   canAct={!readOnly}
-                  gateReason="send messages"
+                  gateReason={sendGateReason}
                   disabled={inputsDisabled}
                   title={readOnly ? undefined : t("interactiveMessage")}
                   className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
@@ -1758,7 +1785,7 @@ export function MessageComposer({
                   variant="ghost"
                   size="sm"
                   canAct={!readOnly}
-                  gateReason="send messages"
+                  gateReason={sendGateReason}
                   title={readOnly ? undefined : t("sendTemplate")}
                   className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
                   onClick={onOpenTemplates}
@@ -1770,8 +1797,8 @@ export function MessageComposer({
               <GatedButton
                 variant="ghost"
                 size="sm"
-                canAct={!readOnly}
-                gateReason="send messages"
+                canAct={!readOnly && canUseAi}
+                gateReason={readOnly ? sendGateReason : "use AI"}
                 disabled={drafting}
                 title={readOnly ? undefined : t("draftWithAI")}
                 className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
@@ -1791,13 +1818,22 @@ export function MessageComposer({
               variant="ghost"
               size="sm"
               canAct={!readOnly}
-              gateReason="send messages"
+              gateReason={sendGateReason}
               title={readOnly ? undefined : t("mentionSomeone")}
               className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
               onClick={openMentionPicker}
             >
               <AtSign className="h-4 w-4" />
             </GatedButton>
+          )}
+
+          {/* Emoji button. An email reply has its own in the editor toolbar. */}
+          {!isEmailChannel && (
+            <EmojiPicker
+              disabled={emojiFieldDisabled}
+              onPick={emoji.insertEmoji}
+              returnFocusTo={() => textareaRef.current}
+            />
           )}
 
           <div className="relative flex-1">
@@ -1822,16 +1858,18 @@ export function MessageComposer({
                 ))}
               </div>
             )}
+            {emoji.suggestions}
             {isEmailChannel ? (
               <RichTextEditor
                 key={conversationId}
+                emojiPicker
                 onChangeHtml={handleEmailChange}
                 onEditorReady={(editor) => {
                   emailEditorRef.current = editor;
                 }}
                 // A pasted picture becomes an attachment chip, not part of the text.
                 onImageFiles={inputsDisabled ? undefined : (files) => void stagePastedImages(files)}
-                placeholder={sessionExpired ? t("sessionExpiredPlaceholder") : t("typeMessagePlaceholder")}
+                placeholder={sessionExpired ? t("sessionExpiredPlaceholder") : t("typeEmailPlaceholder")}
                 disabled={sessionExpired || readOnly}
               />
             ) : (
@@ -1840,6 +1878,8 @@ export function MessageComposer({
                 value={text}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
+                onSelect={emoji.handleSelect}
+                onBlur={emoji.handleBlur}
                 placeholder={
                   readOnly
                     ? t("readOnlyPlaceholder")
@@ -1869,7 +1909,7 @@ export function MessageComposer({
           <GatedButton
             size="sm"
             canAct={!readOnly}
-            gateReason="send messages"
+            gateReason={sendGateReason}
             disabled={
               (!text.trim() && (isComment || kbFiles.length === 0)) ||
               (!isComment && sessionExpired) ||

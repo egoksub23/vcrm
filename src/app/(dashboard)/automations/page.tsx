@@ -23,7 +23,7 @@ import { useCapability } from "@/hooks/use-can"
 import { useTranslations } from "next-intl"
 import type { Automation } from "@/types"
 import { Button } from "@/components/ui/button"
-import { GatedButton } from "@/components/ui/gated-button"
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button"
 import { Switch } from "@/components/ui/switch"
 import {
   DropdownMenu,
@@ -189,7 +189,9 @@ export default function AutomationsPage() {
                 <button
                   key={slug}
                   onClick={() => startFromTemplate(slug)}
-                  className="group flex flex-col items-start rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-card/80"
+                  disabled={!canCreate}
+                  title={canCreate ? undefined : readOnlyTitle("create automations")}
+                  className="group flex flex-col items-start rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-card/80 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">
                     <Icon className="h-5 w-5" />
@@ -219,6 +221,7 @@ export default function AutomationsPage() {
             <AutomationCard
               key={a.id}
               automation={a}
+              canManage={canCreate}
               onToggle={(next) => toggleActive(a, next)}
               onEdit={() => router.push(`/automations/${a.id}/edit`)}
               onDuplicate={() => duplicate(a)}
@@ -263,6 +266,7 @@ export default function AutomationsPage() {
 
 function AutomationCard({
   automation,
+  canManage,
   onToggle,
   onEdit,
   onDuplicate,
@@ -271,6 +275,8 @@ function AutomationCard({
   t,
 }: {
   automation: Automation
+  /** automations.manage: without it the switch, duplicate and delete are disabled. */
+  canManage: boolean
   onToggle: (next: boolean) => void
   onEdit: () => void
   onDuplicate: () => void
@@ -333,11 +339,17 @@ function AutomationCard({
         </button>
 
         <div className="flex items-center gap-3">
-          <Switch
-            checked={automation.is_active}
-            onCheckedChange={(v) => onToggle(!!v)}
-            aria-label={automation.is_active ? t("deactivate") : t("activate")}
-          />
+          <span
+            className={canManage ? "inline-flex" : "inline-flex cursor-not-allowed"}
+            title={canManage ? undefined : readOnlyTitle("manage automations")}
+          >
+            <Switch
+              checked={automation.is_active}
+              onCheckedChange={(v) => onToggle(!!v)}
+              disabled={!canManage}
+              aria-label={automation.is_active ? t("deactivate") : t("activate")}
+            />
+          </span>
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -351,7 +363,11 @@ function AutomationCard({
                 <Pencil className="h-4 w-4" />
                 {t("edit")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate}>
+              <DropdownMenuItem
+                onClick={onDuplicate}
+                disabled={!canManage}
+                title={canManage ? undefined : readOnlyTitle("manage automations")}
+              >
                 <Copy className="h-4 w-4" />
                 {t("duplicate")}
               </DropdownMenuItem>
@@ -360,7 +376,12 @@ function AutomationCard({
                 {t("viewLogs")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={onDelete}
+                disabled={!canManage}
+                title={canManage ? undefined : readOnlyTitle("manage automations")}
+              >
                 <Trash2 className="h-4 w-4" />
                 {t("delete")}
               </DropdownMenuItem>

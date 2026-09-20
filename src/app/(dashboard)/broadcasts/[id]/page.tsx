@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Broadcast, BroadcastRecipient, RecipientStatus } from '@/types';
 import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
+import { useCapability } from '@/hooks/use-can';
 import {
   Table,
   TableBody,
@@ -147,6 +149,8 @@ function downloadBlob(filename: string, content: string) {
 export default function BroadcastDetailPage() {
   const params = useParams();
   const router = useRouter();
+  // Resuming, retrying and deleting a broadcast are sending work: broadcasts.send.
+  const canSend = useCapability('broadcasts.send');
   const t = useTranslations('Broadcasts.detail');
   const tStatus = useTranslations('Broadcasts.status');
   const broadcastId = params.id as string;
@@ -238,6 +242,7 @@ export default function BroadcastDetailPage() {
    * failed recipients.
    */
   async function handleResume(scope: 'pending' | 'failed') {
+    if (!canSend) return;
     setResumingScope(scope);
     try {
       const res = await fetch(`/api/whatsapp/broadcast/${broadcastId}/resume`, {
@@ -279,6 +284,7 @@ export default function BroadcastDetailPage() {
   }
 
   async function handleDelete() {
+    if (!canSend) return;
     setDeleting(true);
     const supabase = createClient();
     // broadcast_recipients cascades on broadcasts.id (migration 001), so a
@@ -391,9 +397,11 @@ export default function BroadcastDetailPage() {
             </Button>
           </div>
         ) : (
-          <Button
+          <GatedButton
             variant="outline"
             size="sm"
+            canAct={canSend}
+            gateReason="delete broadcasts"
             disabled={broadcast.status === 'sending'}
             onClick={() => setConfirmDelete(true)}
             title={
@@ -405,7 +413,7 @@ export default function BroadcastDetailPage() {
           >
             <Trash2 className="h-3.5 w-3.5" />
             {t('delete')}
-          </Button>
+          </GatedButton>
         )}
       </div>
 
@@ -425,8 +433,10 @@ export default function BroadcastDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {pendingCount > 0 && (
-              <Button
+              <GatedButton
                 size="sm"
+                canAct={canSend}
+                gateReason="resume broadcasts"
                 onClick={() => handleResume('pending')}
                 disabled={resumingScope !== null}
               >
@@ -436,12 +446,14 @@ export default function BroadcastDetailPage() {
                   <PlayCircle className="h-3.5 w-3.5" />
                 )}
                 {t('resumePending', { count: pendingCount })}
-              </Button>
+              </GatedButton>
             )}
             {retryableCount > 0 && (
-              <Button
+              <GatedButton
                 variant="outline"
                 size="sm"
+                canAct={canSend}
+                gateReason="resume broadcasts"
                 onClick={() => handleResume('failed')}
                 disabled={resumingScope !== null}
                 className="border-border text-muted-foreground hover:bg-muted"
@@ -452,7 +464,7 @@ export default function BroadcastDetailPage() {
                   <RotateCcw className="h-3.5 w-3.5" />
                 )}
                 {t('retryFailed', { count: retryableCount })}
-              </Button>
+              </GatedButton>
             )}
           </div>
         </div>

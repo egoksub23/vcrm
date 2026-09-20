@@ -26,6 +26,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { readOnlyTitle } from "@/components/ui/gated-button";
+import { useCapability } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -71,6 +73,9 @@ export function PipelineSettings({
 }: PipelineSettingsProps) {
   const t = useTranslations("Pipelines.settings");
   const supabase = createClient();
+  // Pipelines and their stages are configuration: pipelines.configure.
+  const canConfigure = useCapability("pipelines.configure");
+  const readOnlyHint = canConfigure ? undefined : readOnlyTitle("configure pipelines");
 
   const [name, setName] = useState(pipeline.name);
   const [localStages, setLocalStages] = useState<PipelineStage[]>(stages);
@@ -105,6 +110,7 @@ export function PipelineSettings({
   }
 
   async function handleSave() {
+    if (!canConfigure) return;
     setSaving(true);
 
     // One upsert for all stages — batches N stage writes into a single
@@ -141,7 +147,7 @@ export function PipelineSettings({
 
   async function handleAddStage() {
     const trimmed = newStageName.trim();
-    if (!trimmed) return;
+    if (!canConfigure || !trimmed) return;
     const { data, error } = await supabase
       .from("pipeline_stages")
       .insert({
@@ -162,6 +168,7 @@ export function PipelineSettings({
   }
 
   async function handleRemoveStage(stageId: string) {
+    if (!canConfigure) return;
     // Refuse to delete if deals still reference the stage (FK would fail).
     const { count } = await supabase
       .from("deals")
@@ -183,6 +190,7 @@ export function PipelineSettings({
   }
 
   async function handleDeletePipeline() {
+    if (!canConfigure) return;
     setDeleting(true);
     // ON DELETE CASCADE handles deals + stages.
     const { error } = await supabase
@@ -229,7 +237,7 @@ export function PipelineSettings({
               </Button>
               <Button
                 onClick={handleDeletePipeline}
-                disabled={deleting}
+                disabled={!canConfigure || deleting}
                 className="bg-red-600 text-white hover:bg-red-700"
               >
                 {deleting ? t("deleting") : t("deletePipelineBtn")}
@@ -238,7 +246,12 @@ export function PipelineSettings({
           </div>
         ) : (
           <>
-            <div className="grid gap-4 py-2">
+            {/* A disabled fieldset disables the name, stage rows and buttons inside it. */}
+            <fieldset
+              disabled={!canConfigure}
+              title={readOnlyHint}
+              className="m-0 grid min-w-0 gap-4 border-0 p-0 py-2"
+            >
               <div className="grid gap-2">
                 <Label className="text-muted-foreground">{t("pipelineName")}</Label>
                 <Input
@@ -316,7 +329,7 @@ export function PipelineSettings({
                     variant="outline"
                     size="sm"
                     onClick={handleAddStage}
-                    disabled={!newStageName.trim()}
+                    disabled={!canConfigure || !newStageName.trim()}
                     className="shrink-0 border-border bg-transparent text-muted-foreground hover:bg-muted"
                   >
                     <Plus className="mr-1 h-3 w-3" />
@@ -328,16 +341,18 @@ export function PipelineSettings({
               <Button
                 variant="outline"
                 onClick={onCreateNewPipeline}
+                disabled={!canConfigure}
                 className="w-full border-border bg-transparent text-muted-foreground hover:bg-muted"
               >
                 <Plus className="mr-1 h-3 w-3" />
                 {t("createNewPipeline")}
               </Button>
-            </div>
+            </fieldset>
 
-            <DialogFooter className="border-border bg-popover/50">
+            <DialogFooter className="border-border bg-popover/50" title={readOnlyHint}>
               <Button
                 onClick={() => setShowDeleteConfirm(true)}
+                disabled={!canConfigure}
                 className="mr-auto bg-red-600 text-white hover:bg-red-700"
               >
                 {t("deletePipeline")}
@@ -351,7 +366,7 @@ export function PipelineSettings({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={saving || !name.trim()}
+                disabled={!canConfigure || saving || !name.trim()}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {saving ? t("saving") : t("saveChanges")}

@@ -14,6 +14,7 @@ import { KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } from '@/lib/ai/know
 import { canTranslateArticle } from '@/lib/knowledge/translate';
 import type { KnowledgeCollection, KnowledgeDocSummary, KnowledgeLibraryResponse } from '@/lib/knowledge-types';
 import { Button } from '@/components/ui/button';
+import { GatedButton } from '@/components/ui/gated-button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 
@@ -274,13 +275,19 @@ export function KnowledgeLibrary() {
           >
             {searchMode === 'meaning' ? t('searchModeMeaning') : t('searchModeKeyword')}
           </span>
-          {canManageKb && docs.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => void reindex()} disabled={reindexing} title={t('reindexHint')}>
-              {reindexing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
-              {t('reindex')}
-            </Button>
-          )}
-          {canWrite && <AddContentMenu collections={collections} onImported={() => void load()} />}
+          <GatedButton
+            variant="outline"
+            size="sm"
+            canAct={canManageKb}
+            gateReason="reindex the knowledge base"
+            onClick={() => void reindex()}
+            disabled={reindexing || docs.length === 0}
+            title={t('reindexHint')}
+          >
+            {reindexing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
+            {t('reindex')}
+          </GatedButton>
+          <AddContentMenu collections={collections} onImported={() => void load()} disabled={!canWrite} />
         </div>
       </div>
 
@@ -368,11 +375,9 @@ export function KnowledgeLibrary() {
                     <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-3 text-sm font-medium text-foreground">{t('emptyTitle')}</p>
                     <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{t('emptyBody')}</p>
-                    {canWrite && (
-                      <div className="mt-4 flex justify-center">
-                        <AddContentMenu collections={collections} onImported={() => void load()} />
-                      </div>
-                    )}
+                    <div className="mt-4 flex justify-center">
+                      <AddContentMenu collections={collections} onImported={() => void load()} disabled={!canWrite} />
+                    </div>
                   </div>
                 ) : shown.length === 0 ? (
                   <p className="py-10 text-center text-sm text-muted-foreground">{tl('noMatches')}</p>

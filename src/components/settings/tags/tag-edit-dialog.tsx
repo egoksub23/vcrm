@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { useCapability } from '@/hooks/use-can';
 import { notifyApprovalsChanged } from '@/hooks/use-approvals-count';
 import { proposeTag, proposeTagEdit } from '@/lib/approvals/client';
 import { buildEditPatch, mergePendingEdit, writeMode } from '@/lib/approvals/rules';
+import { usePendingEdit } from '@/lib/approvals/use-pending-edit';
 import { createClient } from '@/lib/supabase/client';
 import {
   DEFAULT_TAG_COLOR,
@@ -76,10 +77,14 @@ export function TagEditDialog({
 
   // What the form starts from: the live tag, or (for its proposer) the live
   // tag with their own pending edit laid over it.
-  const source: Tag | null =
-    tag && tag.pending_edit && tag.proposed_by === user?.id && mode === 'propose'
-      ? mergePendingEdit(tag, tag.pending_edit as Partial<Tag>)
-      : tag;
+  // The proposed values live in approval_pending_edits (migration 088): only
+  // the proposer (and reviewers) can read them, so they are fetched separately.
+  const pendingPatch = usePendingEdit(
+    'tag',
+    tag?.id,
+    !!tag && !!tag.edit_status && tag.proposed_by === user?.id && mode === 'propose',
+  );
+  const source: Tag | null = tag && pendingPatch ? mergePendingEdit(tag, pendingPatch as Partial<Tag>) : tag;
 
   const other = otherKind(kind);
   const [name, setName] = useState(source?.name ?? '');
@@ -87,6 +92,17 @@ export function TagEditDialog({
   const [color, setColor] = useState((source?.color ?? DEFAULT_TAG_COLOR).toLowerCase());
   const [alsoOther, setAlsoOther] = useState(source ? source[flagFor(other)] !== false : false);
   const [saving, setSaving] = useState(false);
+
+  // Reseed the form once the proposer's own pending values have loaded.
+  useEffect(() => {
+    if (!tag || !pendingPatch) return;
+    const merged = mergePendingEdit(tag, pendingPatch as Partial<Tag>);
+    setName(merged.name ?? '');
+    setDescription(merged.description ?? '');
+    setColor((merged.color ?? DEFAULT_TAG_COLOR).toLowerCase());
+    setAlsoOther(merged[flagFor(other)] !== false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPatch]);
 
   const trimmed = name.trim();
   const duplicate = trimmed !== '' && takenNames.has(trimmed.toLowerCase());

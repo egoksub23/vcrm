@@ -61,7 +61,8 @@ export async function GET() {
       },
       tags: {
         needsApproval: !roleHasCapability("agent", overrides, "tags.manage"),
-        // tags.manage needs the Admin role, so an Agent can never hold it.
+        // Since migration 088 an Agent can be given tags.manage (the policies test the
+        // capability), so this is only locked if that ever changes again.
         locked: !roleCanBeGranted("agent", "tags.manage"),
       },
       canEdit:

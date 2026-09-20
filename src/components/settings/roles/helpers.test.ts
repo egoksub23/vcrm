@@ -173,13 +173,14 @@ describe("rowBlockReason", () => {
   });
 
   it("refuses turning on something below the minimum role", () => {
-    // inbox.shared-views needs admin; viewers/agents cannot get it.
+    // members.change-role needs the admin rank inside the database function (the
+    // table-guarding capabilities such as inbox.shared-views are grantable to Agents since 088).
     expect(
       rowBlockReason({
         editorRole: "owner",
         editorCaps: ownerCaps,
         targetRole: "agent",
-        cap: "inbox.shared-views",
+        cap: "members.change-role",
         on: false,
         saved: agentDefault(),
       }),

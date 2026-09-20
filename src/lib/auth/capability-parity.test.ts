@@ -128,7 +128,7 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("ai/routing", "PUT", "admin", "ai.configure"),
   row("ai/test", "POST", "admin", "ai.configure"),
   row("ai/usage", "GET", "admin", "ai.configure"),
-  row("ai/autoreply/[conversationId]", "POST", "agent", "ai.use"),
+  row("ai/autoreply/[conversationId]", "POST", "agent", ["ai.use", "conversations.manage"], "the assignment and pause flags are conversations.manage in the database (088)"),
   row("ai/closing-note", "POST", "agent", "ai.use"),
   row("ai/draft", "POST", "agent", "ai.use"),
   row("ai/playground", "POST", "agent", "ai.use"),
@@ -295,21 +295,24 @@ export const DB_TIER_WRITE_TABLES: readonly [string, string][] = [
 ];
 
 // ------------------------------------------------------------
-// 3. Tables that STAY on is_account_member(account_id, '<floor>') until
-//    a later phase. Listed with the capability the app now uses for the
-//    same action, so a default that drifts away from the RLS floor fails.
-//    (Removing a capability blocks the app and the API, not a person
-//    calling the database with their own token -- see EnforcedBy.)
+// 3. Migration 088 (phase 5): every other table that guards data moved from
+//    is_account_member(account_id, '<floor>') to the capability. Each row
+//    records the OLD floor and the capability now required, so a default that
+//    drifts away from the old floor fails; a test below parses 088 and fails
+//    if a (table, capability) pair listed here is not what the policies use.
 // ------------------------------------------------------------
-export const MEMBER_TIER_ROWS: readonly Row[] = [
+export const PHASE5_ROWS: readonly Row[] = [
   ...["contacts", "contact_notes", "contact_tags", "contact_custom_values"].map((t) =>
     row(t, "insert/update/delete", "agent", "contacts.edit"),
   ),
-  ...["conversations", "conversation_labels"].map((t) =>
-    row(t, "insert/update/delete", "agent", "conversations.manage"),
-  ),
-  row("messages", "insert/update/delete", "agent", "messages.send"),
-  row("comments", "insert/update/delete", "agent", "comments.moderate"),
+  row("conversation_labels", "insert/update/delete", "agent", "conversations.manage"),
+  row("conversations", "insert/update", "agent", ["conversations.manage", "messages.send"], "a sender creates and bumps a conversation; the guard trigger limits it to activity columns"),
+  row("conversations", "delete", "agent", "conversations.manage"),
+  row("messages", "insert/update/delete (replies)", "agent", "messages.send"),
+  row("messages", "insert/update/delete (internal notes)", "agent", "conversations.manage"),
+  row("message_reactions", "insert/update/delete", "agent", "messages.send"),
+  row("comments", "update", "agent", "comments.moderate"),
+  row("comments", "update (status deleted)", "admin", "comments.delete"),
   row("deals", "insert/update/delete", "agent", "deals.manage"),
   ...["pipelines", "pipeline_stages"].map((t) =>
     row(t, "insert/update/delete", "admin", "pipelines.configure"),
@@ -320,21 +323,34 @@ export const MEMBER_TIER_ROWS: readonly Row[] = [
   ...["automations", "automation_steps"].map((t) =>
     row(t, "insert/update/delete", "agent", "automations.manage"),
   ),
-  ...["flows", "flow_nodes"].map((t) =>
-    row(t, "insert/update/delete", "agent", "flows.manage"),
-  ),
+  ...["flows", "flow_nodes"].map((t) => row(t, "insert/update/delete", "agent", "flows.manage")),
   row("tickets", "insert/update", "agent", "tickets.work"),
-  row("ticket_comments", "insert", "agent", "tickets.work"),
+  ...["ticket_comments", "ticket_links", "ticket_watchers", "ticket_attachments"].map((t) =>
+    row(t, "insert/update/delete", "agent", "tickets.work"),
+  ),
   row("tickets", "delete", "admin", "tickets.delete"),
-  row("ticket_custom_fields", "insert/update/delete", "admin", "tickets.configure-form"),
+  row("ticket_field_definitions", "insert/update/delete", "admin", "tickets.configure-form"),
+  row("accounts", "update (ticket_key_prefix)", "admin", "tickets.configure-form"),
+  row("accounts", "update (auto_label_ai_enabled)", "admin", "tags.manage"),
+  row("auto_label_rules", "insert/update/delete", "admin", "tags.manage"),
+  row("custom_fields", "insert/update/delete", "admin", "settings.workspace"),
+  row("accounts", "update (name, currency, SLA target, colours)", "admin", "settings.workspace"),
+  row("inbox_views", "insert (personal)", "agent", "conversations.manage"),
   row("inbox_views", "insert/update/delete (shared, owner_id null)", "admin", "inbox.shared-views"),
   row("teams", "insert/update/delete", "admin", "teams.manage"),
-  row("team_members", "insert/delete", "admin", "teams.manage"),
-  row("accounts", "update", "admin", "settings.workspace"),
+  row("team_members", "insert/update/delete", "admin", "teams.manage"),
+  row("account_invitations", "select/insert/update/delete", "admin", "members.invite"),
   row("ai_knowledge_documents", "insert/update/delete (own drafts)", "agent", "knowledge.draft"),
   row("ai_knowledge_documents", "insert/update/delete (any, published)", "admin", "knowledge.publish"),
-  row("knowledge_gaps", "update", "agent", "knowledge.draft"),
+  row("knowledge_attachments", "insert/update/delete", "agent", ["knowledge.draft", "knowledge.publish"]),
+  row("knowledge_gaps", "update", "agent", ["knowledge.draft", "knowledge.publish"]),
+  row("knowledge_sources", "insert/update", "agent", ["knowledge.draft", "knowledge.publish"]),
+  row("knowledge_sources", "delete", "admin", ["knowledge.publish", "knowledge.manage"]),
+  row("ai_knowledge_chunks", "insert/update/delete", "admin", ["knowledge.publish", "knowledge.manage"]),
   row("knowledge_collections", "insert/update/delete", "admin", "knowledge.manage"),
+  row("ai_knowledge_citations", "insert", "agent", "ai.use"),
+  row("next_ticket_number()", "rpc", "agent", "tickets.work"),
+  row("close_conversation_with_note() / reopen_conversation()", "rpc", "agent", "conversations.manage"),
 ];
 
 // ------------------------------------------------------------
@@ -409,7 +425,7 @@ function checkTable(name: string, rows: readonly Row[]) {
 describe("capability defaults reproduce the pre-079 role floors", () => {
   checkTable("API routes", ROUTE_ROWS);
   checkTable("database tier (RLS on has_capability)", DB_TIER_ROWS);
-  checkTable("tables that stay on is_account_member", MEMBER_TIER_ROWS);
+  checkTable("migration 088 (phase 5) database tier", PHASE5_ROWS);
   checkTable("legacy useCan actions", LEGACY_ROWS);
 
   describe("deliberately tightened routes", () => {
@@ -434,7 +450,7 @@ describe("capability defaults reproduce the pre-079 role floors", () => {
 
 describe("the catalogue and the tables agree", () => {
   const covered = new Set<string>();
-  for (const r of [...ROUTE_ROWS, ...TIGHTENED_ROWS, ...DB_TIER_ROWS, ...MEMBER_TIER_ROWS, ...LEGACY_ROWS]) {
+  for (const r of [...ROUTE_ROWS, ...TIGHTENED_ROWS, ...DB_TIER_ROWS, ...PHASE5_ROWS, ...LEGACY_ROWS]) {
     for (const c of capsOf(r)) covered.add(c);
   }
 
@@ -518,6 +534,80 @@ describe("migration 084 database tier", () => {
       expect(match!.capability).toBe(cap);
       expect(match!.floor).toBe(floor);
     }
+  });
+});
+
+describe("migration 088 database tier", () => {
+  const migration = readMigration("088_access_control_phase5.sql");
+
+  /** The CREATE POLICY statements of one table, as text. */
+  const policiesOf = (table: string): string =>
+    [...migration.matchAll(new RegExp(`CREATE POLICY \\w+ ON public\\.${table}\\b[\\s\\S]*?;\\n`, "g"))]
+      .map((m) => m[0])
+      .join("\n");
+
+  const TABLE_ROWS = PHASE5_ROWS.filter((r) => /^[a-z_]+$/.test(r.where));
+
+  it("has a policy for every table listed here, using each listed capability", () => {
+    for (const r of TABLE_ROWS) {
+      const text = policiesOf(r.where);
+      expect(text.length, `${r.where}: no policy in 088`).toBeGreaterThan(0);
+      for (const c of capsOf(r)) {
+        expect(text, `${r.where} ${r.method} should use ${c}`).toContain(`capability_account_ids('${c}')`);
+      }
+    }
+  });
+
+  it("uses only known capabilities in its policies and functions", () => {
+    const code = migration.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    const found = [...code.matchAll(/(?:capability_account_ids|has_capability)\((?:[^,()]+,\s*)?'([a-z][a-z0-9.-]*)'\)/g)];
+    expect(found.length).toBeGreaterThan(50);
+    for (const m of found) expect(isCapabilityKey(m[1]), m[1]).toBe(true);
+  });
+
+  it("never evaluates has_capability() per row in a write policy (uses the once-per-statement helper)", () => {
+    const policies = [...migration.matchAll(/CREATE POLICY[\s\S]*?;\n/g)].map((m) => m[0]);
+    expect(policies.length).toBeGreaterThan(100);
+    for (const p of policies) {
+      if (p.includes("approval_pending_edits_select")) continue; // a low-volume SELECT
+      expect(p.slice(0, 80)).not.toMatch(/\bhas_capability\(/);
+    }
+  });
+
+  it("leaves a role floor only where the docs allow it", () => {
+    const doc = readFileSync(join(process.cwd(), "docs", "access-control-enforcement.md"), "utf8");
+    const block = doc.slice(doc.indexOf("<!-- allow-list:begin -->"), doc.indexOf("<!-- allow-list:end -->"));
+    const documented = [...block.matchAll(/`([a-z_]+)\.([a-z_]+)`/g)].map((m) => `${m[1]}.${m[2]}`).sort();
+    const found = new Set<string>();
+    for (const m of migration.matchAll(/CREATE POLICY (\w+) ON public\.(\w+)[\s\S]*?;\n/g)) {
+      if (/is_account_member\(account_id, 'admin'::account_role_enum\)/.test(m[0])) found.add(`${m[2]}.${m[1]}`);
+    }
+    expect(found.size).toBeGreaterThan(0);
+    expect([...found].sort()).toEqual(documented);
+    const verify = readFileSync(join(process.cwd(), "supabase", "ci", "verify-088-access-phase5.sql"), "utf8");
+    for (const d of documented) {
+      const [t, p] = d.split(".");
+      expect(verify, `${d} must be in the verify allow-list`).toContain(`('${t}', '${p}')`);
+    }
+  });
+
+  it("flips the tier and grant floor of exactly what the TS catalogue marks database", () => {
+    const flipped = [...migration.matchAll(/\('([a-z.-]+)', 'agent', 'database'\)/g)].map((m) => m[1]);
+    expect(flipped.length).toBeGreaterThan(15);
+    for (const k of flipped) {
+      const c = CAPABILITIES.find((x) => x.key === k)!;
+      expect(c.enforcedBy, k).toBe("database");
+      expect(c.minGrantRole, k).toBe("agent");
+    }
+  });
+
+  it("hides pending_edit: the column is dropped and the side table has no client write", () => {
+    expect(migration).toContain("DROP COLUMN IF EXISTS pending_edit");
+    expect(migration).toContain("CREATE TABLE IF NOT EXISTS public.approval_pending_edits");
+    expect(migration).toMatch(/REVOKE ALL ON public\.approval_pending_edits FROM PUBLIC, anon, authenticated;\s+GRANT SELECT ON/);
+    const sel = migration.slice(migration.indexOf("CREATE POLICY approval_pending_edits_select"));
+    expect(sel.slice(0, 300)).toContain("approvals.review");
+    expect(sel.slice(0, 300)).toContain("proposed_by = auth.uid()");
   });
 });
 
@@ -624,4 +714,60 @@ describe("route handlers use capabilities, not role floors", () => {
     }
     expect(problems).toEqual([]);
   });
+});
+
+// ------------------------------------------------------------
+// No route may use a weaker check than the table it writes with the user's
+// own database session. Each entry: the route, the table it writes through
+// `ctx.supabase` / `supabase` (RLS applies) and the capabilities the table's
+// policy accepts for that write. The route must ask for one of them (a weaker
+// route check would let a person reach a write the database then refuses).
+// ------------------------------------------------------------
+const ROUTE_TABLE_WRITES: readonly { route: string; table: string; needs: readonly string[] }[] = [
+  { route: "account", table: "accounts", needs: ["settings.workspace"] },
+  { route: "account/invitations", table: "account_invitations", needs: ["members.invite"] },
+  { route: "account/invitations/[id]", table: "account_invitations", needs: ["members.invite"] },
+  { route: "account/teams", table: "teams", needs: ["teams.manage"] },
+  { route: "account/teams/[id]", table: "teams", needs: ["teams.manage"] },
+  { route: "account/teams/[id]/members", table: "team_members", needs: ["teams.manage"] },
+  { route: "account/teams/[id]/members/[userId]", table: "team_members", needs: ["teams.manage"] },
+  { route: "account/api-keys", table: "api_keys", needs: ["api.manage"] },
+  { route: "ai/config", table: "ai_configs", needs: ["ai.configure"] },
+  { route: "ai/connections", table: "ai_connections", needs: ["ai.configure"] },
+  { route: "ai/routing", table: "ai_task_routing", needs: ["ai.configure"] },
+  { route: "ai/autoreply/[conversationId]", table: "conversations", needs: ["conversations.manage"] },
+  { route: "comments/[id]", table: "comments", needs: ["comments.moderate"] },
+  { route: "knowledge/collections", table: "knowledge_collections", needs: ["knowledge.manage"] },
+  { route: "knowledge/collections/[id]", table: "knowledge_collections", needs: ["knowledge.manage"] },
+  { route: "knowledge/gaps/[id]", table: "knowledge_gaps", needs: ["knowledge.draft", "knowledge.publish"] },
+  { route: "knowledge", table: "ai_knowledge_documents", needs: ["knowledge.draft", "knowledge.publish"] },
+  { route: "knowledge/[id]", table: "ai_knowledge_documents", needs: ["knowledge.draft", "knowledge.publish"] },
+  { route: "knowledge/[id]/resync", table: "knowledge_sources", needs: ["knowledge.draft", "knowledge.publish"] },
+  { route: "whatsapp/react", table: "message_reactions", needs: ["messages.send"] },
+  { route: "whatsapp/send", table: "conversations", needs: ["messages.send", "conversations.manage"] },
+  { route: "whatsapp/config", table: "whatsapp_config", needs: ["channels.manage"] },
+  { route: "whatsapp/templates/[id]", table: "message_templates", needs: ["channels.manage"] },
+  { route: "quick-replies", table: "quick_replies", needs: ["snippets.manage", "snippets.propose"] },
+];
+
+describe("routes are never weaker than the table policy behind them", () => {
+  const routeCaps = (key: string): Set<string> => {
+    const set = new Set<string>();
+    for (const r of [...ROUTE_ROWS, ...TIGHTENED_ROWS]) {
+      if (r.where === key) for (const c of capsOf(r)) set.add(c);
+    }
+    return set;
+  };
+
+  for (const w of ROUTE_TABLE_WRITES) {
+    it(`${w.route} -> ${w.table}`, () => {
+      const caps = routeCaps(w.route);
+      expect(caps.size, `${w.route} is missing from the route table`).toBeGreaterThan(0);
+      const ok = new Set(w.needs);
+      expect(
+        [...caps].some((c) => ok.has(c)),
+        `${w.route} asks for ${[...caps]} but ${w.table} needs ${w.needs}`,
+      ).toBe(true);
+    });
+  }
 });

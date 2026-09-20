@@ -82,13 +82,16 @@ BEGIN
   --    plus audit.view, added by migration 082, plus approvals.review,
   --    snippets.propose and tags.propose, added by migration 084)
   -- ---------------------------------------------------------
-  IF (SELECT count(*) FROM capability_catalogue) <> 48 THEN
+  -- (sizes are no longer hard-coded: later migrations keep adding capabilities; the TS
+  -- catalogue test pins the exact sets. Here: at least the 48 of 084, Owner and Admin
+  -- hold everything, Agent and Viewer hold something.)
+  IF (SELECT count(*) FROM capability_catalogue) < 48 THEN
     RAISE EXCEPTION 'FAIL catalogue size %', (SELECT count(*) FROM capability_catalogue);
   END IF;
-  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> 48
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> 48
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')  <> 29
-  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'viewer') <> 14 THEN
+  IF (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')  <> (SELECT count(*) FROM capability_catalogue)
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')  <> (SELECT count(*) FROM capability_catalogue)
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')  < 29
+  OR (SELECT count(*) FROM role_capability_defaults WHERE role = 'viewer') < 14 THEN
     RAISE EXCEPTION 'FAIL default set sizes';
   END IF;
   n := n + 1;
@@ -133,10 +136,10 @@ BEGIN
     RAISE EXCEPTION 'FAIL cross-account has_capability must be false';
   END IF;
   -- capabilities_for_current_user sizes
-  IF pg_temp.run(owner_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '48'
-  OR pg_temp.run(admin_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '48'
-  OR pg_temp.run(agent_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '29'
-  OR pg_temp.run(viewer_a, format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> '14' THEN
+  IF pg_temp.run(owner_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> (SELECT count(*) FROM role_capability_defaults WHERE role = 'owner')::text
+  OR pg_temp.run(admin_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> (SELECT count(*) FROM role_capability_defaults WHERE role = 'admin')::text
+  OR pg_temp.run(agent_a,  format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> (SELECT count(*) FROM role_capability_defaults WHERE role = 'agent')::text
+  OR pg_temp.run(viewer_a, format('SELECT cardinality(capabilities_for_current_user(%L))::text', a)) <> (SELECT count(*) FROM role_capability_defaults WHERE role = 'viewer')::text THEN
     RAISE EXCEPTION 'FAIL capabilities_for_current_user sizes';
   END IF;
   n := n + 1;
@@ -288,10 +291,12 @@ BEGIN
        NOT LIKE 'ERR 22023:%' THEN
     RAISE EXCEPTION 'FAIL viewer must not be granted channels.manage';
   END IF;
-  -- agent cannot be granted a capability below the database floor (tags are admin-only in RLS)
-  IF pg_temp.run(owner_a, format('SELECT set_role_capabilities(%L, %L, %L)::text', a, 'agent', '{"tags.manage": true}'))
+  -- agent cannot be granted a capability below its grant floor (changing a member role needs the
+  -- admin rank inside set_member_role, so members.change-role stays 'admin' even after migration
+  -- 088, which lowered the floor of the table-guarded capabilities such as tags.manage to 'agent')
+  IF pg_temp.run(owner_a, format('SELECT set_role_capabilities(%L, %L, %L)::text', a, 'agent', '{"members.change-role": true}'))
        NOT LIKE 'ERR 22023:%' THEN
-    RAISE EXCEPTION 'FAIL agent must not be granted tags.manage (below min_grant_role)';
+    RAISE EXCEPTION 'FAIL agent must not be granted members.change-role (below min_grant_role)';
   END IF;
   -- but a viewer may be granted a READ capability that is off
   PERFORM pg_temp.run(owner_a, format('SELECT set_role_capabilities(%L, %L, %L)::text', a, 'viewer', '{"menu.reports": null}'));

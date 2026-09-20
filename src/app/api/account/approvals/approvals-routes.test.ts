@@ -305,13 +305,13 @@ describe("POST /api/account/approvals/withdraw", () => {
 });
 
 describe("GET/PATCH /api/account/approvals/settings", () => {
-  it("shows snippets as direct by default and tags as always reviewed", async () => {
+  it("shows snippets as direct by default and tags as reviewed (an Agent can be given tags.manage since migration 088, so the tags line is no longer locked)", async () => {
     const db = makeClient(() => ({ data: null, error: null }), { role_capabilities: [] });
     h.requireAnyCapability.mockResolvedValue(ctx(db.client));
     const res = await getSettings();
     expect(await res.json()).toEqual({
       snippets: { needsApproval: false },
-      tags: { needsApproval: true, locked: true },
+      tags: { needsApproval: true, locked: false },
       canEdit: true,
     });
   });

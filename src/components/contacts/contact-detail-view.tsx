@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { useAuth } from '@/hooks/use-auth';
+import { useCapability } from '@/hooks/use-can';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import type { Contact, Tag, ContactTag, ContactNote, CustomField, ContactCustomValue, Deal, MessageTemplate } from '@/types';
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { GatedButton, readOnlyTitle } from '@/components/ui/gated-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,6 +74,13 @@ export function ContactDetailView({
   const t = useTranslations('Contacts.detailView');
   const supabase = createClient();
   const { accountId, defaultCurrency } = useAuth();
+  // Edits, tags, notes and custom values: contacts.edit. Sending a template is a
+  // message (messages.send); raising a ticket is tickets.work; merging is contacts.merge.
+  const canEdit = useCapability('contacts.edit');
+  const canSend = useCapability('messages.send');
+  const canWorkTickets = useCapability('tickets.work');
+  const canMerge = useCapability('contacts.merge');
+  const editHint = canEdit ? undefined : readOnlyTitle('edit contacts');
 
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(false);
@@ -221,7 +230,7 @@ export function ContactDetailView({
   }
 
   async function saveDetails() {
-    if (!contactId || !editPhone.trim()) {
+    if (!canEdit || !contactId || !editPhone.trim()) {
       toast.error(t('toastPhoneRequired'));
       return;
     }
@@ -263,7 +272,7 @@ export function ContactDetailView({
   }
 
   async function confirmMerge() {
-    if (!contactId || !mergeCandidate) return;
+    if (!canMerge || !contactId || !mergeCandidate) return;
     setMerging(true);
     try {
       await mergeContacts(contactId, mergeCandidate.id);
@@ -283,7 +292,7 @@ export function ContactDetailView({
   }
 
   async function toggleTag(tagId: string) {
-    if (!contactId) return;
+    if (!canEdit || !contactId) return;
     setSavingTags(true);
 
     const isSelected = contactTagIds.includes(tagId);
@@ -304,7 +313,7 @@ export function ContactDetailView({
   }
 
   async function addNote() {
-    if (!contactId || !newNote.trim()) return;
+    if (!canEdit || !contactId || !newNote.trim()) return;
     setSavingNote(true);
 
     const {
@@ -335,6 +344,7 @@ export function ContactDetailView({
   }
 
   async function deleteNote(noteId: string) {
+    if (!canEdit) return;
     const { error } = await supabase
       .from('contact_notes')
       .delete()
@@ -349,7 +359,7 @@ export function ContactDetailView({
   }
 
   async function saveCustomFields() {
-    if (!contactId) return;
+    if (!canEdit || !contactId) return;
     setSavingCustom(true);
 
     try {
@@ -490,8 +500,10 @@ export function ContactDetailView({
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button
+                <GatedButton
                   size="sm"
+                  canAct={canSend}
+                  gateReason="send messages"
                   onClick={() => setTemplatePickerOpen(true)}
                   disabled={sendingTemplate}
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -502,16 +514,18 @@ export function ContactDetailView({
                     <LayoutTemplate className="size-4" />
                   )}
                   {t('sendTemplateBtn')}
-                </Button>
-                <Button
+                </GatedButton>
+                <GatedButton
                   size="sm"
                   variant="outline"
+                  canAct={canWorkTickets}
+                  gateReason="raise tickets"
                   onClick={() => setRaiseTicketOpen(true)}
                   className="border-border text-foreground hover:bg-muted"
                 >
                   <TicketIcon className="size-4" />
                   {t('newTicketBtn')}
-                </Button>
+                </GatedButton>
               </div>
             </SheetHeader>
 
@@ -558,6 +572,8 @@ export function ContactDetailView({
                     <Input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
+                      disabled={!canEdit}
+                      title={editHint}
                       className="bg-muted border-border text-foreground h-8 text-sm"
                     />
                   </div>
@@ -568,6 +584,8 @@ export function ContactDetailView({
                     <Input
                       value={editPhone}
                       onChange={(e) => setEditPhone(e.target.value)}
+                      disabled={!canEdit}
+                      title={editHint}
                       className="bg-muted border-border text-foreground h-8 text-sm"
                     />
                   </div>
@@ -576,6 +594,8 @@ export function ContactDetailView({
                     <Input
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
+                      disabled={!canEdit}
+                      title={editHint}
                       className="bg-muted border-border text-foreground h-8 text-sm"
                     />
                   </div>
@@ -584,11 +604,15 @@ export function ContactDetailView({
                     <Input
                       value={editCompany}
                       onChange={(e) => setEditCompany(e.target.value)}
+                      disabled={!canEdit}
+                      title={editHint}
                       className="bg-muted border-border text-foreground h-8 text-sm"
                     />
                   </div>
-                  <Button
+                  <GatedButton
                     onClick={saveDetails}
+                    canAct={canEdit}
+                    gateReason="edit contacts"
                     disabled={savingDetails}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground w-full"
                     size="sm"
@@ -599,7 +623,7 @@ export function ContactDetailView({
                       <Save className="size-3.5" />
                     )}
                     {t('saveChangesBtn')}
-                  </Button>
+                  </GatedButton>
                 </div>
               </TabsContent>
 
@@ -621,7 +645,8 @@ export function ContactDetailView({
                           <button
                             key={tag.id}
                             onClick={() => toggleTag(tag.id)}
-                            disabled={savingTags}
+                            disabled={!canEdit || savingTags}
+                            title={editHint}
                             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                               selected
                                 ? 'ring-2 ring-primary ring-offset-1 ring-offset-border'
@@ -648,11 +673,15 @@ export function ContactDetailView({
                   <Textarea
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
+                    disabled={!canEdit}
+                    title={editHint}
                     placeholder={t('notesTab.placeholder')}
                     className="bg-muted border-border text-foreground placeholder:text-muted-foreground min-h-[60px] text-sm resize-none"
                   />
-                  <Button
+                  <GatedButton
                     onClick={addNote}
+                    canAct={canEdit}
+                    gateReason="edit contacts"
                     disabled={!newNote.trim() || savingNote}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     size="sm"
@@ -663,7 +692,7 @@ export function ContactDetailView({
                       <Plus className="size-3.5" />
                     )}
                     {t('notesTab.save')}
-                  </Button>
+                  </GatedButton>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2">
@@ -687,7 +716,9 @@ export function ContactDetailView({
                           </p>
                           <button
                             onClick={() => deleteNote(note.id)}
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition-all cursor-pointer shrink-0"
+                            disabled={!canEdit}
+                            title={editHint}
+                            className="disabled:cursor-not-allowed opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition-all cursor-pointer shrink-0"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
@@ -733,12 +764,16 @@ export function ContactDetailView({
                             }))
                           }
                           placeholder={t('enterCustomField', { name: field.field_name })}
+                          disabled={!canEdit}
+                          title={editHint}
                           className="bg-muted border-border text-foreground h-8 text-sm placeholder:text-muted-foreground"
                         />
                       </div>
                     ))}
-                    <Button
+                    <GatedButton
                       onClick={saveCustomFields}
+                      canAct={canEdit}
+                      gateReason="edit contacts"
                       disabled={savingCustom}
                       className="bg-primary hover:bg-primary/90 text-primary-foreground w-full"
                       size="sm"
@@ -749,7 +784,7 @@ export function ContactDetailView({
                         <Save className="size-3.5" />
                       )}
                       {t('saveCustomFieldsBtn')}
-                    </Button>
+                    </GatedButton>
                   </div>
                 )}
               </TabsContent>
@@ -841,8 +876,10 @@ export function ContactDetailView({
           >
             {t('mergePrompt.cancel')}
           </Button>
-          <Button
+          <GatedButton
             onClick={confirmMerge}
+            canAct={canMerge}
+            gateReason="merge contacts"
             disabled={merging}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
@@ -854,7 +891,7 @@ export function ContactDetailView({
             ) : (
               t('mergePrompt.confirm')
             )}
-          </Button>
+          </GatedButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

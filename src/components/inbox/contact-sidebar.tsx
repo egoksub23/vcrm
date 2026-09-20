@@ -18,6 +18,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { readOnlyTitle } from "@/components/ui/gated-button";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { ConversationSessionLog } from "./conversation-session-log";
@@ -65,6 +66,8 @@ export function ContactSidebar({
   // at a time — `busy` ignores a second click while one is in flight.
   const [busy, setBusy] = useState(false);
   const canEdit = useCapability("contacts.edit");
+  // Conversation labels are conversation work, not contact data: conversations.manage.
+  const canManageConv = useCapability("conversations.manage");
   // The link goes to Settings, which also needs menu.settings.
   const canOpenSettings = useCapability("menu.settings");
   const canManageFields = useCapability("settings.workspace") && canOpenSettings;
@@ -275,18 +278,17 @@ export function ContactSidebar({
             <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <TagIcon className="h-3 w-3" />
               <span className="flex-1">{tSidebar("tags")}</span>
-              {canEdit ? (
-                <TagPicker
-                  options={tagOptions}
-                  selectedIds={new Set(tags.map((t) => t.id))}
-                  onToggle={handleToggleTag}
-                  disabled={busy}
-                  addLabel={tSidebar("addTag")}
-                  searchPlaceholder={tSidebar("searchTags")}
-                  emptyLabel={tSidebar("noTagsDefined")}
-                  noMatchesLabel={tSidebar("noMatches")}
-                />
-              ) : null}
+              <TagPicker
+                options={tagOptions}
+                selectedIds={new Set(tags.map((t) => t.id))}
+                onToggle={handleToggleTag}
+                disabled={busy || !canEdit}
+                disabledReason={canEdit ? undefined : readOnlyTitle("edit contacts")}
+                addLabel={tSidebar("addTag")}
+                searchPlaceholder={tSidebar("searchTags")}
+                emptyLabel={tSidebar("noTagsDefined")}
+                noMatchesLabel={tSidebar("noMatches")}
+              />
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
               {tags.length === 0 ? (
@@ -313,18 +315,17 @@ export function ContactSidebar({
                 <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <Bookmark className="h-3 w-3" />
                   <span className="flex-1">{tSidebar("labels")}</span>
-                  {canEdit ? (
-                    <TagPicker
-                      options={labelOptions}
-                      selectedIds={new Set(labels.map((l) => l.id))}
-                      onToggle={handleToggleLabel}
-                      disabled={busy}
-                      addLabel={tSidebar("addLabel")}
-                      searchPlaceholder={tSidebar("searchLabels")}
-                      emptyLabel={tSidebar("noLabelsDefined")}
-                      noMatchesLabel={tSidebar("noMatches")}
-                    />
-                  ) : null}
+                  <TagPicker
+                    options={labelOptions}
+                    selectedIds={new Set(labels.map((l) => l.id))}
+                    onToggle={handleToggleLabel}
+                    disabled={busy || !canManageConv}
+                    disabledReason={canManageConv ? undefined : readOnlyTitle("manage conversations")}
+                    addLabel={tSidebar("addLabel")}
+                    searchPlaceholder={tSidebar("searchLabels")}
+                    emptyLabel={tSidebar("noLabelsDefined")}
+                    noMatchesLabel={tSidebar("noMatches")}
+                  />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {labels.length === 0 ? (
@@ -335,7 +336,7 @@ export function ContactSidebar({
                         key={label.id}
                         tag={label}
                         kind="label"
-                        onRemove={canEdit ? () => handleToggleLabel(label) : undefined}
+                        onRemove={canManageConv ? () => handleToggleLabel(label) : undefined}
                         removeLabel={tSidebar("removeLabel", { name: label.name })}
                       />
                     ))

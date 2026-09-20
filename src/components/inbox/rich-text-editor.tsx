@@ -21,6 +21,8 @@ import {
 import { cn } from "@/lib/utils";
 import { pastedImages } from "@/lib/media/clipboard-images";
 import { InlineImage } from "@/lib/tiptap/inline-image";
+import { EmojiPicker } from "@/components/emoji/emoji-picker";
+import { insertEmojiInEditor } from "@/lib/emoji/insert";
 
 /** Small fixed palette rather than a full color picker — keeps the
  *  toolbar simple; covers the common "make this stand out" cases. */
@@ -48,6 +50,8 @@ interface RichTextEditorProps {
    *  stages it as an attachment chip; it is not put into the text. Leave out
    *  to let the editor paste as usual. */
   onImageFiles?: (files: File[]) => void;
+  /** Show the emoji picker button in the toolbar (inserts at the cursor). */
+  emojiPicker?: boolean;
 }
 
 function ToolbarButton({
@@ -87,6 +91,7 @@ export function RichTextEditor({
   disabled,
   onEditorReady,
   onImageFiles,
+  emojiPicker,
 }: RichTextEditorProps) {
   const onImageFilesRef = useRef(onImageFiles);
   useEffect(() => {
@@ -209,6 +214,15 @@ export function RichTextEditor({
         <ToolbarButton label="Insert link" active={editor.isActive("link")} onClick={setLink}>
           <LinkIcon className="h-3.5 w-3.5" />
         </ToolbarButton>
+
+        {emojiPicker && (
+          <EmojiPicker
+            disabled={disabled}
+            onPick={(emoji) => insertEmojiInEditor(editor, emoji)}
+            returnFocusTo={() => editor.view.dom as HTMLElement}
+            className="h-7 w-7"
+          />
+        )}
 
         <div className="mx-1 h-4 w-px bg-border" />
 

@@ -8,7 +8,8 @@
 //
 // The catalogue is mirrored in SQL by migration 079 (+ `audit.view` in 082,
 // + the approvals capabilities in 084, + the Jira ones in 085, + `sla.configure`
-// in 086)
+// in 086; migration 088 flips the tier and lowers the grant floor of every
+// capability that guards a table)
 // (`capability_catalogue` + `role_capability_defaults`); a test
 // (`capabilities-sql.test.ts`) fails if the two disagree, and
 // `capability-parity.test.ts` proves the defaults equal the role
@@ -19,19 +20,27 @@
 // `capabilityI18nId`).
 //
 // Enforcement tiers (be honest, the screen shows them):
-//   - 'database': the rule also lives in Postgres (RLS policy or a
-//     SECURITY DEFINER RPC calls `has_capability()`), so it cannot be
-//     bypassed by calling the database with the user's own login.
+//   - 'database': the rule also lives in Postgres (an RLS policy or a
+//     SECURITY DEFINER RPC calls `has_capability()` /
+//     `capability_account_ids()`), so it cannot be bypassed by calling the
+//     database with the user's own login. Since migration 088 this is every
+//     capability that guards data in a table.
 //   - 'app': enforced by API routes (`requireCapability`) and by the
-//     screens. The underlying table may still be written straight
-//     from the browser under the OLD role floor in RLS, so removing
-//     the capability blocks the app and the API but not a determined
-//     person with their own token. Phase 5 moves those tables over.
+//     screens only, because there is no table for the database to guard:
+//     menus and `reports.view` (they show or hide pages; the data behind them
+//     is protected by the action capabilities and the read policies),
+//     `ai.use` (the action is a call to the AI provider, made by the server),
+//     `contacts.merge` (a service-role function, no client path) and the
+//     `jira.*` capabilities (server-side only, the Jira tables have no client
+//     write policy).
 //
 // `minGrantRole` is the lowest role that can technically be given the
-// capability today: below the database's current floor a switch would
-// appear to work in the app but the database would still refuse it.
-// The database function `set_role_capabilities` enforces the same
+// capability: a viewer never holds a write capability, and below the
+// database's own rank checks (member and role changes need the admin rank
+// inside the RPC) a switch would appear to work while the database still
+// refused it. Since 088 the write capabilities guarding tables are
+// grantable down to Agent (the policies test the capability, not a role
+// floor). The database function `set_role_capabilities` enforces the same
 // value (column `capability_catalogue.min_grant_role`).
 // ============================================================
 
@@ -133,31 +142,34 @@ export const MENU_CAPABILITIES = [
  *   - `ai.use` covers the Translate job; `ai.configure` its routing.
  */
 export const CAPABILITIES: readonly CapabilityDef[] = [
+  // Migration 088 (phase 5): every capability below that guards data is
+  // 'database' tier and grantable down to Agent; the parity table in
+  // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
   ...MENU_CAPABILITIES.map((k) => menu(k.slice("menu.".length))),
 
   // ---- Inbox ----
-  def("messages.send", "inbox", AGENT_UP, "agent"),
-  def("conversations.manage", "inbox", AGENT_UP, "agent"),
-  def("comments.moderate", "inbox", AGENT_UP, "agent"),
-  def("comments.delete", "inbox", ADMIN_UP, "agent"),
-  def("inbox.shared-views", "inbox", ADMIN_UP, "admin"),
+  def("messages.send", "inbox", AGENT_UP, "agent", "database"),
+  def("conversations.manage", "inbox", AGENT_UP, "agent", "database"),
+  def("comments.moderate", "inbox", AGENT_UP, "agent", "database"),
+  def("comments.delete", "inbox", ADMIN_UP, "agent", "database"),
+  def("inbox.shared-views", "inbox", ADMIN_UP, "agent", "database"),
 
   // ---- Contacts and sales ----
-  def("contacts.edit", "contacts", AGENT_UP, "agent"),
+  def("contacts.edit", "contacts", AGENT_UP, "agent", "database"),
   def("contacts.merge", "contacts", AGENT_UP, "agent"),
-  def("deals.manage", "contacts", AGENT_UP, "agent"),
-  def("pipelines.configure", "contacts", ADMIN_UP, "admin"),
-  def("broadcasts.send", "contacts", AGENT_UP, "agent"),
+  def("deals.manage", "contacts", AGENT_UP, "agent", "database"),
+  def("pipelines.configure", "contacts", ADMIN_UP, "agent", "database"),
+  def("broadcasts.send", "contacts", AGENT_UP, "agent", "database"),
 
   // ---- Automation ----
-  def("automations.manage", "automation", AGENT_UP, "agent"),
-  def("flows.manage", "automation", AGENT_UP, "agent"),
+  def("automations.manage", "automation", AGENT_UP, "agent", "database"),
+  def("flows.manage", "automation", AGENT_UP, "agent", "database"),
 
   // ---- Tickets ----
-  def("tickets.work", "tickets", AGENT_UP, "agent"),
-  def("tickets.delete", "tickets", ADMIN_UP, "admin"),
-  def("tickets.configure-form", "tickets", ADMIN_UP, "admin"),
+  def("tickets.work", "tickets", AGENT_UP, "agent", "database"),
+  def("tickets.delete", "tickets", ADMIN_UP, "agent", "database"),
+  def("tickets.configure-form", "tickets", ADMIN_UP, "agent", "database"),
   // Migration 086: business-hour schedules and SLA policies. The three config
   // tables' write policies call has_capability(), the routes call
   // requireCapability. Reading the SLA state on a ticket is for every member.
@@ -166,7 +178,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // ---- Tags, labels, snippets ----
   // Migration 084: the write policies of `tags` and `quick_replies` call
   // has_capability(), so a review step cannot be bypassed from the browser.
-  def("tags.manage", "tags", ADMIN_UP, "admin", "database"),
+  def("tags.manage", "tags", ADMIN_UP, "agent", "database"),
   def("snippets.manage", "tags", AGENT_UP, "agent", "database"),
   // Propose and approve (migration 084). Without the direct `manage`
   // capability a change is recorded as pending; without either it is denied.
@@ -174,9 +186,9 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("snippets.propose", "tags", AGENT_UP, "agent", "database"),
 
   // ---- Knowledge ----
-  def("knowledge.draft", "knowledge", AGENT_UP, "agent"),
-  def("knowledge.publish", "knowledge", ADMIN_UP, "admin"),
-  def("knowledge.manage", "knowledge", ADMIN_UP, "admin"),
+  def("knowledge.draft", "knowledge", AGENT_UP, "agent", "database"),
+  def("knowledge.publish", "knowledge", ADMIN_UP, "agent", "database"),
+  def("knowledge.manage", "knowledge", ADMIN_UP, "agent", "database"),
 
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
@@ -194,7 +206,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("jira.share-comments", "channels", AGENT_UP, "agent"),
 
   // ---- Workspace ----
-  def("settings.workspace", "workspace", ADMIN_UP, "admin"),
+  def("settings.workspace", "workspace", ADMIN_UP, "agent", "database"),
   def("reports.view", "workspace", ALL, "viewer", "app", true),
   // Migration 082: the audit log's RLS policy and its SECURITY DEFINER
   // readers call has_capability(..., 'audit.view').
@@ -204,10 +216,10 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("approvals.review", "workspace", ADMIN_UP, "agent", "database"),
 
   // ---- People ----
-  def("members.invite", "people", ADMIN_UP, "admin"),
+  def("members.invite", "people", ADMIN_UP, "agent", "database"),
   def("members.change-role", "people", ADMIN_UP, "admin", "database"),
   def("members.remove", "people", ADMIN_UP, "admin", "database"),
-  def("teams.manage", "people", ADMIN_UP, "admin"),
+  def("teams.manage", "people", ADMIN_UP, "agent", "database"),
   def("roles.manage", "people", ADMIN_UP, "admin", "database"),
 ];
 

@@ -7,8 +7,9 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { GatedButton } from "@/components/ui/gated-button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import {
   Dialog,
   DialogContent,
@@ -111,12 +112,20 @@ export function QuickRepliesManager() {
     people.get(qr.created_by ?? qr.user_id) ?? "";
 
   const openCreate = () => setDraft(emptyDraft());
-  const openEdit = (row: QuickReply) => {
+  const openEdit = async (row: QuickReply) => {
     // A proposer who reopens their own pending edit sees their proposed values.
-    const qr =
-      row.pending_edit && row.proposed_by === user?.id && !canManage
-        ? mergePendingEdit(row, row.pending_edit as Partial<QuickReply>)
-        : row;
+    // They live in approval_pending_edits (migration 088), readable only by the
+    // proposer and reviewers, so they are fetched when the editor opens.
+    let qr = row;
+    if (row.edit_status && row.proposed_by === user?.id && !canManage) {
+      const { data } = await createClient()
+        .from("approval_pending_edits")
+        .select("patch")
+        .eq("entity_type", "snippet")
+        .eq("entity_id", row.id)
+        .maybeSingle();
+      if (data?.patch) qr = mergePendingEdit(row, data.patch as Partial<QuickReply>);
+    }
     setDraft({
       id: qr.id,
       title: qr.title,
@@ -202,12 +211,10 @@ export function QuickRepliesManager() {
         title="Quick replies"
         description="Reusable snippets — plain text or a saved interactive message — that agents can insert from the inbox composer."
         action={
-          canWrite ? (
-            <Button onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" />
-              New quick reply
-            </Button>
-          ) : undefined
+          <GatedButton canAct={canWrite} gateReason="manage quick replies" onClick={openCreate}>
+            <Plus className="mr-1 h-4 w-4" />
+            New quick reply
+          </GatedButton>
         }
       />
 
@@ -314,7 +321,23 @@ export function QuickRepliesManager() {
                     </Button>
                   ) : null}
                 </div>
-              ) : null}
+              ) : (
+                // No snippets.manage / snippets.propose: keep the controls, disabled.
+                <div className="flex shrink-0 gap-1">
+                  <GatedButton variant="ghost" size="icon-sm" canAct={false} gateReason="manage quick replies">
+                    <Pencil className="h-4 w-4" />
+                  </GatedButton>
+                  <GatedButton
+                    variant="ghost"
+                    size="icon-sm"
+                    canAct={false}
+                    gateReason="manage quick replies"
+                    className="text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </GatedButton>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -349,9 +372,10 @@ export function QuickRepliesManager() {
                 />
               </div>
               {draft.kind === "text" ? (
-                <Textarea
+                <EmojiTextarea
+                  ui
                   value={draft.content_text}
-                  onChange={(e) => setDraft({ ...draft, content_text: e.target.value })}
+                  onValueChange={(v) => setDraft({ ...draft, content_text: v })}
                   placeholder="The message text to insert"
                   className="min-h-28 bg-muted text-foreground"
                 />

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { assertCapability, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
 /**
- * POST /api/ai/autoreply/[conversationId]  (agent+)
+ * POST /api/ai/autoreply/[conversationId]  (ai.use + conversations.manage)
  *
  * Toggle the AI auto-reply bot for one conversation from the inbox — the
  * "Take over" / "Resume AI" banner.
@@ -26,7 +26,12 @@ type Params = { params: Promise<{ conversationId: string }> }
  */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const { supabase, accountId, userId } = await requireCapability('ai.use')
+    const ctx = await requireCapability('ai.use')
+    // Taking over or handing back changes the conversation's assignment and
+    // pause flags, which the database only lets a `conversations.manage`
+    // holder do (migration 088): refuse cleanly here instead of a 500.
+    assertCapability(ctx, 'conversations.manage')
+    const { supabase, accountId, userId } = ctx
 
     // Reuse the send bucket: this is a cheap per-user inbox action and
     // toggling it in a tight loop has no legitimate use.

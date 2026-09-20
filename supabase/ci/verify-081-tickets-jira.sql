@@ -273,8 +273,11 @@ BEGIN
   -- ---------------------------------------------------------
   -- t2 was inserted in this transaction, so plant a stale timestamp first
   -- (bypassing the trigger), then change only the rank.
+  -- 086's ticket_sla_state also protects updated_at, so it is switched off too
   ALTER TABLE tickets DISABLE TRIGGER set_updated_at;
+  ALTER TABLE tickets DISABLE TRIGGER USER;
   UPDATE tickets SET updated_at = old_ts WHERE id = t2;
+  ALTER TABLE tickets ENABLE TRIGGER USER;
   ALTER TABLE tickets ENABLE TRIGGER set_updated_at;
   UPDATE tickets SET board_rank = 3 WHERE id = t2;
   IF (SELECT updated_at FROM tickets WHERE id = t2) <> old_ts THEN

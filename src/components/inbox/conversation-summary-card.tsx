@@ -5,6 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, Copy, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 
+import { readOnlyTitle } from "@/components/ui/gated-button";
+import { useCapability } from "@/hooks/use-can";
+
 /**
  * "Summarise this conversation" for the contact column: one click asks the
  * summary job for a few lines on who the customer is, what they want, what
@@ -15,11 +18,15 @@ import { Check, Copy, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 export function ConversationSummaryCard({ conversationId }: { conversationId: string }) {
   const t = useTranslations("Inbox.summary");
   const locale = useLocale();
+  // Asking the AI for a summary is ai.use.
+  const canUseAi = useCapability("ai.use");
+  const aiHint = canUseAi ? undefined : readOnlyTitle("use AI");
   const [summary, setSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function run() {
+    if (!canUseAi) return;
     setBusy(true);
     try {
       const res = await fetch("/api/ai/summary", {
@@ -64,8 +71,9 @@ export function ConversationSummaryCard({ conversationId }: { conversationId: st
       <button
         type="button"
         onClick={() => void run()}
-        disabled={busy}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-60"
+        disabled={!canUseAi || busy}
+        title={aiHint}
+        className="mt-4 flex disabled:cursor-not-allowed w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-primary" />}
         {busy ? t("working") : t("button")}
@@ -78,7 +86,7 @@ export function ConversationSummaryCard({ conversationId }: { conversationId: st
       <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <Sparkles className="h-3 w-3 text-primary" />
         <span className="flex-1">{t("title")}</span>
-        <button type="button" onClick={() => void run()} disabled={busy} className="rounded p-1 hover:bg-muted hover:text-foreground" aria-label={t("refresh")} title={t("refresh")}>
+        <button type="button" onClick={() => void run()} disabled={!canUseAi || busy} className="rounded p-1 hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50" aria-label={t("refresh")} title={aiHint ?? t("refresh")}>
           {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
         </button>
         <button type="button" onClick={() => void copy()} className="rounded p-1 hover:bg-muted hover:text-foreground" aria-label={t("copy")} title={t("copy")}>

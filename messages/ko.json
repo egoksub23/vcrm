@@ -306,7 +306,8 @@
       "templates": "템플릿",
       "readOnlyPlaceholder": "읽기 전용 — 뷰어는 열람만 가능하고 답장할 수 없습니다",
       "sessionExpiredPlaceholder": "세션 만료 - 템플릿을 사용하세요",
-      "typeMessagePlaceholder": "메시지를 입력하세요... (줄바꿈은 Shift+Enter)",
+      "typeMessagePlaceholder": "메시지를 입력하세요... (줄바꿈은 Shift+Enter, 이모지는 :)",
+      "typeEmailPlaceholder": "메시지를 입력하세요... (줄바꿈은 Shift+Enter)",
       "readOnlyTitle": "읽기 전용 — 현재 역할로는 메시지를 보낼 수 없습니다",
       "recording": "녹음 중… {current} / {max}",
       "cancel": "취소",
@@ -5449,6 +5450,36 @@
       "showAsRows": "번역을 행으로 표시"
     }
   },
+  "Emoji": {
+    "add": "이모지 추가",
+    "search": "이모지 검색",
+    "frequentlyUsed": "자주 사용",
+    "noResults": "이모지를 찾을 수 없습니다",
+    "loading": "이모지를 불러오는 중…",
+    "loadFailed": "이모지를 불러오지 못했습니다. 닫고 다시 시도해 주세요.",
+    "suggestions": "이모지 추천",
+    "categories": "이모지 카테고리",
+    "skinTone": "피부톤",
+    "tones": {
+      "0": "기본",
+      "1": "밝은 피부톤",
+      "2": "약간 밝은 피부톤",
+      "3": "중간 피부톤",
+      "4": "약간 어두운 피부톤",
+      "5": "어두운 피부톤"
+    },
+    "groups": {
+      "smileys": "표정 및 감정",
+      "people": "사람 및 신체",
+      "animals": "동물 및 자연",
+      "food": "음식 및 음료",
+      "travel": "여행 및 장소",
+      "activities": "활동",
+      "objects": "사물",
+      "symbols": "기호",
+      "flags": "깃발"
+    }
+  },
   "Comments": {
     "loadFailed": "댓글을 불러오지 못했습니다",
     "actionFailed": "처리하지 못했습니다",
@@ -5793,7 +5824,7 @@
         "owner-locked": "소유자는 항상 모든 권한을 가지며 편집할 수 없습니다.",
         "role-not-editable": "본인보다 낮은 역할만 편집할 수 있으므로 이 역할은 읽기 전용입니다.",
         "editor-lacks": "본인이 가지고 있지 않은 권한은 부여할 수 없습니다.",
-        "below-min-role": "{role} 역할에는 아직 이 권한을 부여할 수 없습니다. 데이터베이스가 아직 {min} 이상으로 제한하고 있습니다.",
+        "below-min-role": "{role} 역할에는 이 권한을 부여할 수 없습니다. {min} 이상의 역할이 필요합니다.",
         "unknown": "인식할 수 없는 권한이라 변경할 수 없습니다."
       },
       "changed": "변경됨",
@@ -5821,9 +5852,9 @@
       "database": "데이터베이스 + 앱",
       "app": "앱",
       "databaseTooltip": "화면과 API 경로에서 적용되며 데이터베이스 자체에서도 적용되므로, 누군가 자신의 로그인으로 데이터베이스를 직접 호출해도 유지됩니다.",
-      "appTooltip": "화면과 API 경로에서 적용됩니다. 일부 기본 테이블은 아직 이전 역할 규칙으로 기록되므로, 해당 테이블이 이전되기 전에는 마음먹은 사람이 자신의 로그인으로 우회할 수 있습니다.",
+      "appTooltip": "화면과 API 경로에서 적용됩니다. 데이터베이스가 보호할 테이블이 없기 때문입니다. 메뉴와 보고서는 페이지를 보이거나 숨길 뿐이며(그 뒤의 데이터는 작업 권한이 보호합니다), 일부 작업은 서버에서 실행됩니다.",
       "databaseLegend": "앱과 데이터베이스 자체에서 적용됩니다. 데이터베이스를 직접 호출해도 우회할 수 없습니다.",
-      "appLegend": "화면과 API 경로에서 적용됩니다. 일부 기본 테이블은 아직 이전 규칙으로 기록되므로 데이터베이스만으로는 아직 막지 못합니다."
+      "appLegend": "화면과 API 경로에서 적용됩니다. 페이지를 보이거나 숨기거나 서버가 수행하는 작업을 제어하므로 데이터베이스가 보호할 테이블이 없습니다."
     },
     "role": {
       "owner": {

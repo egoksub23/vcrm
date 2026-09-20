@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { FileText, Loader2, Paperclip, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -446,10 +447,10 @@ export function CreateTicketDialog({
             <Label htmlFor="ticket-description" className="text-foreground">
               {t("descriptionLabel")}
             </Label>
-            <textarea
+            <EmojiTextarea
               id="ticket-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onValueChange={setDescription}
               placeholder={t("descriptionPlaceholder")}
               rows={4}
               disabled={busy}

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Link2, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
 import {
   Dialog,
   DialogContent,
@@ -130,9 +131,9 @@ function DescriptionSection({
       <h3 className="text-[13px] font-semibold text-foreground">{t("descriptionHeading")}</h3>
       {editing ? (
         <div className="space-y-2">
-          <textarea
+          <EmojiTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onValueChange={setDraft}
             rows={6}
             autoFocus
             aria-label={t("descriptionHeading")}

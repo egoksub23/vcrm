@@ -39,6 +39,8 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { GatedButton, readOnlyTitle } from "@/components/ui/gated-button"
+import { useCapability } from "@/hooks/use-can"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -782,6 +784,9 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
   const router = useRouter()
   const t = useTranslations("Automations.builder")
   const isEditing = !!initial.id
+  // Building, saving and activating automations: automations.manage. Without it the
+  // editor opens read-only (steps can still be expanded to inspect).
+  const canManage = useCapability("automations.manage")
   const [state, setState] = useState<BuilderInitial>(initial)
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -816,6 +821,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
   }
 
   async function save() {
+    if (!canManage) return
     setSaving(true)
     try {
       const payload = {
@@ -881,25 +887,34 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         <input
           value={state.name}
           onChange={(e) => patchTop("name", e.target.value)}
+          disabled={!canManage}
           placeholder={t("untitled")}
           className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:bg-muted focus:outline-none sm:text-base"
         />
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="hidden sm:inline">{t("active")}</span>
-          <Switch
-            checked={state.is_active}
-            onCheckedChange={(v) => patchTop("is_active", !!v)}
-            aria-label={t("activeAria")}
-          />
+          <span
+            className={canManage ? "inline-flex" : "inline-flex cursor-not-allowed"}
+            title={canManage ? undefined : readOnlyTitle("manage automations")}
+          >
+            <Switch
+              checked={state.is_active}
+              onCheckedChange={(v) => patchTop("is_active", !!v)}
+              disabled={!canManage}
+              aria-label={t("activeAria")}
+            />
+          </span>
         </div>
-        <Button
+        <GatedButton
           onClick={save}
+          canAct={canManage}
+          gateReason="manage automations"
           disabled={saving}
           className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {isEditing ? t("save") : t("saveDraft")}
-        </Button>
+        </GatedButton>
       </header>
 
       {/* Canvas */}
@@ -912,12 +927,14 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
               config={state.trigger_config}
               onTypeChange={(tVal) => patchTop("trigger_type", tVal)}
               onConfigChange={(c) => patchTop("trigger_config", c)}
+              disabled={!canManage}
               t={t}
             />
             <StepList
               steps={state.steps}
               basePath={[]}
               scope={{ kind: "root" }}
+              canEdit={canManage}
               expandedId={expandedId}
               setExpandedId={setExpandedId}
               updateStep={updateStep}
@@ -941,12 +958,15 @@ function TriggerCard({
   config,
   onTypeChange,
   onConfigChange,
+  disabled = false,
   t,
 }: {
   type: AutomationTriggerType
   config: Record<string, unknown>
   onTypeChange: (t: AutomationTriggerType) => void
   onConfigChange: (c: Record<string, unknown>) => void
+  /** Read-only role: the trigger config is shown but not editable. */
+  disabled?: boolean
   t: ReturnType<typeof useTranslations>
 }) {
   const [open, setOpen] = useState(false)
@@ -974,7 +994,10 @@ function TriggerCard({
           />
         </button>
         {open && (
-          <div className="space-y-3 border-t border-border px-4 py-3">
+          <fieldset
+            disabled={disabled}
+            className="m-0 block min-w-0 space-y-3 border-x-0 border-b-0 border-t border-border px-4 py-3"
+          >
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 {t("triggerType")}
@@ -1046,7 +1069,7 @@ function TriggerCard({
                 </p>
               </div>
             )}
-          </div>
+          </fieldset>
         )}
       </div>
     </div>
@@ -1203,6 +1226,8 @@ interface StepListProps {
   basePath: StepPath
   /** Which bucket this list reads and writes. */
   scope: ParentScope
+  /** automations.manage: false disables the step editors, add, move and delete. */
+  canEdit: boolean
   expandedId: string | null
   setExpandedId: (id: string | null) => void
   updateStep: (path: StepPath, updater: (s: BuilderStep) => BuilderStep) => void
@@ -1216,7 +1241,7 @@ function StepList(props: StepListProps) {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <AddButton onPick={(t) => props.addStepAt(scope, 0, t)} />
+      <AddButton disabled={!props.canEdit} onPick={(t) => props.addStepAt(scope, 0, t)} />
       {steps.map((step, idx) => (
         <StepRenderer
           key={step.cid}
@@ -1302,16 +1327,18 @@ function StepRenderer({
           </button>
           {expanded && (
             <div className="border-t border-border px-4 py-3">
-              <StepEditor
-                step={step}
-                onChange={(next) => props.updateStep(path, () => next)}
-              />
+              <fieldset disabled={!props.canEdit} className="contents">
+                <StepEditor
+                  step={step}
+                  onChange={(next) => props.updateStep(path, () => next)}
+                />
+              </fieldset>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    disabled={index === 0}
+                    disabled={!props.canEdit || index === 0}
                     aria-label={t("moveUp")}
                     onClick={() => props.moveStepAt(path, -1)}
                   >
@@ -1320,7 +1347,7 @@ function StepRenderer({
                   <Button
                     variant="ghost"
                     size="icon"
-                    disabled={index === total - 1}
+                    disabled={!props.canEdit || index === total - 1}
                     aria-label={t("moveDown")}
                     onClick={() => props.moveStepAt(path, 1)}
                   >
@@ -1330,6 +1357,7 @@ function StepRenderer({
                 <Button
                   variant="destructive"
                   size="sm"
+                  disabled={!props.canEdit}
                   onClick={() => props.deleteStepAt(path)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -1349,7 +1377,7 @@ function StepRenderer({
           ConditionBranches), so it has no linear "continue" path — adding
           the trailing connector here would produce a spurious third output. */}
       {!isCondition && (
-        <AddButton onPick={(t) => props.addStepAt(scope, index + 1, t)} />
+        <AddButton disabled={!props.canEdit} onPick={(t) => props.addStepAt(scope, index + 1, t)} />
       )}
     </>
   )
@@ -1412,14 +1440,22 @@ function BranchColumn({
   )
 }
 
-function AddButton({ onPick }: { onPick: (t: AutomationStepType) => void }) {
+function AddButton({
+  onPick,
+  disabled = false,
+}: {
+  onPick: (t: AutomationStepType) => void
+  disabled?: boolean
+}) {
   const t = useTranslations("Automations.builder")
   return (
     <div className="relative flex flex-col items-center">
       <div className="h-4 w-[2px] bg-border" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary data-[popup-open]:border-primary data-[popup-open]:bg-primary/20 data-[popup-open]:text-primary"
+          disabled={disabled}
+          title={disabled ? readOnlyTitle("manage automations") : undefined}
+          className="flex disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary data-[popup-open]:border-primary data-[popup-open]:bg-primary/20 data-[popup-open]:text-primary"
           aria-label={t("addStep")}
         >
           <Plus className="h-4 w-4" />
