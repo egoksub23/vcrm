@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
-import { indexArticle } from '@/lib/knowledge/articles'
+import { indexArticle, loadAttachments } from '@/lib/knowledge/articles'
+import { kbImagePolicy } from '@/lib/knowledge/inline-images'
+import { kbHtmlToPlainText, sanitizeKbHtml } from '@/lib/knowledge-format'
 
 type Params = { params: Promise<{ id: string; versionId: string }> }
 
@@ -10,7 +12,9 @@ type Params = { params: Promise<{ id: string; versionId: string }> }
  * author of the draft)
  *
  * Puts an earlier version's title and text back. That is an ordinary edit, so
- * it is snapshotted too and can itself be undone.
+ * it is snapshotted too and can itself be undone. An image the old text showed
+ * comes back only while its file is still one of the article's attachments;
+ * otherwise it would be a broken picture.
  */
 export async function POST(_request: Request, { params }: Params) {
   try {
@@ -44,12 +48,23 @@ export async function POST(_request: Request, { params }: Params) {
       .maybeSingle()
     if (!version) return NextResponse.json({ error: 'Version not found' }, { status: 404 })
 
+    let content = version.content as string
+    let contentHtml = version.content_html as string | null
+    if (contentHtml && /<img\b/i.test(contentHtml)) {
+      const own = (await loadAttachments(supabase, accountId, [id])).get(id) ?? []
+      contentHtml = sanitizeKbHtml(contentHtml, {
+        images: kbImagePolicy(accountId),
+        onlyImageUrls: new Set(own.filter((a) => a.inline).map((a) => a.url)),
+      })
+      content = kbHtmlToPlainText(contentHtml) || content
+    }
+
     const { data: updated, error } = await supabase
       .from('ai_knowledge_documents')
       .update({
         title: version.title,
-        content: version.content,
-        content_html: version.content_html,
+        content,
+        content_html: contentHtml,
         updated_by: userId,
       })
       .eq('account_id', accountId)

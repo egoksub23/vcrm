@@ -1,6 +1,8 @@
 import type { KbLanguage } from '@/lib/ai/knowledge-query'
 import { KB_LANGUAGES } from '@/lib/ai/knowledge-query'
 import { KB_KINDS, type KbKind, type KbStatus } from '@/lib/ai/knowledge-doc'
+import { listKbImages } from '@/lib/knowledge-format'
+import { orderForDocument } from '@/lib/knowledge/inline-images'
 import {
   KB_ATTACHMENT_MAX_BYTES,
   KB_MAX_ATTACHMENTS,
@@ -69,21 +71,60 @@ export interface AttachmentRow {
   send_with_ai: boolean
   status: 'uploading' | 'ready' | 'error'
   error?: string
+  /** An image shown inside the article body (an <img> in the text). */
+  inline?: boolean
+  /** The image's caption (the editor keeps the text's `alt` in step with it). */
+  caption?: string | null
+  /** A local picture shown while an in-article image uploads. Never sent. */
+  preview?: string
 }
 
-/** The rows to send on save: only files that finished uploading. */
-export function stagedAttachments(rows: AttachmentRow[]): StagedKnowledgeAttachment[] {
-  return rows
-    .filter((r) => r.status === 'ready')
-    .map((r) => ({
-      ...(r.id ? { id: r.id } : {}),
-      file_name: r.file_name,
-      mime_type: r.mime_type || 'application/octet-stream',
-      size_bytes: r.size_bytes,
-      url: r.url,
-      storage_path: r.storage_path,
-      send_with_ai: r.send_with_ai,
-    }))
+/** The images of the article body, in document order. */
+function bodyImages(html: string) {
+  return listKbImages(html)
+}
+
+/** Inline images the body no longer shows (the person deleted the image in the
+ *  text). They are dropped from the list on save, which removes the file. */
+export function inlineRowsMissingFromHtml(rows: AttachmentRow[], html: string): AttachmentRow[] {
+  const shown = new Set(bodyImages(html).map((i) => i.src))
+  return rows.filter((r) => r.inline && r.status === 'ready' && !shown.has(r.url))
+}
+
+/**
+ * The rows to send on save: only files that finished uploading. Given the
+ * article's `html`, an inline image the text no longer shows is left out (so
+ * it is removed), each shown one takes its caption from the text's `alt`, and
+ * the list is put in document order: inline images as they appear, then the
+ * other files. That order is the order they are sent in.
+ */
+export function stagedAttachments(rows: AttachmentRow[], html?: string): StagedKnowledgeAttachment[] {
+  let list = rows.filter((r) => r.status === 'ready')
+  if (html !== undefined) {
+    const images = bodyImages(html)
+    const gone = new Set(inlineRowsMissingFromHtml(list, html).map((r) => r.key))
+    const altOf = new Map<string, string>()
+    for (const img of images) if (!altOf.has(img.src)) altOf.set(img.src, img.alt)
+    list = list
+      .filter((r) => !gone.has(r.key))
+      .map((r) => (r.inline && altOf.has(r.url) ? { ...r, caption: altOf.get(r.url) || null } : r))
+    list = orderForDocument(
+      list,
+      images.map((i) => i.src),
+      (r) => r.url,
+    )
+  }
+  return list.map((r) => ({
+    ...(r.id ? { id: r.id } : {}),
+    file_name: r.file_name,
+    mime_type: r.mime_type || 'application/octet-stream',
+    size_bytes: r.size_bytes,
+    url: r.url,
+    storage_path: r.storage_path,
+    send_with_ai: r.send_with_ai,
+    ...(r.inline !== undefined ? { inline: r.inline } : {}),
+    ...(r.caption !== undefined ? { caption: r.caption } : {}),
+  }))
 }
 
 /** Uploads that were never saved, so they can be deleted when the editor
@@ -167,7 +208,7 @@ export function buildSavePayload(i: SavePayloadInput): Record<string, unknown> {
     use_in_ai: i.useInAi,
     collection_id: i.collectionId,
     review_by: i.reviewBy || null,
-    attachments: stagedAttachments(i.attachments),
+    attachments: stagedAttachments(i.attachments, i.html),
   }
   if (i.status) body.status = i.status
   if (i.sourceConversationId) body.source_conversation_id = i.sourceConversationId

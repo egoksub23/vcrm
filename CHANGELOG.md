@@ -9,6 +9,23 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.38.0] — 2026-09-20 — **migration required: 080**
+
+- **Paste an image straight into a knowledge article.** Copy a slide, a screenshot
+  or any image and press Ctrl+V in the article editor (or drop image files in). It
+  appears in the text at the cursor, uploads in the background, and is scaled down
+  first if it is large. No more saving each screenshot as a file and uploading it.
+  There is also an **Insert image** button, and you can give any image a caption.
+- **Images travel with the answer.** Each pasted image is also an attachment, so
+  when an agent inserts the article, or the AI answers from it, the images go out
+  in the order they appear, each with its caption. Email replies keep them inline.
+  Channels that cannot carry an image get a link instead.
+- **Paste an image into a chat message.** In the agent's message box, paste or drop
+  an image and it appears as a small chip with a thumbnail; the text goes first and
+  then each image. Remove a chip and the unsent upload is deleted.
+- Images are kept safe: only this workspace's own uploaded images are allowed in
+  an article, and anything else is dropped.
+
 ## [0.37.0] — 2026-09-20 — **migration required: 079**
 
 - **Roles & permissions.** A new Settings screen where an Owner or Admin adds or

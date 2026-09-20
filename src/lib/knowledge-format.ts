@@ -30,7 +30,20 @@ interface TextNode {
 interface BreakNode {
   tag: 'br'
 }
-type Node = ElementNode | TextNode | BreakNode
+/** An inline image. `src` is only ever a URL the caller's policy accepted
+ *  (see `KbImagePolicy`); `alt` is plain text. */
+interface ImageNode {
+  tag: 'img'
+  src: string
+  alt: string
+  width?: number
+  height?: number
+}
+type Node = ElementNode | TextNode | BreakNode | ImageNode
+
+/** Decides what an `<img src>` may be: returns the value to keep, or null to
+ *  drop the image. `null` (no rule at all) drops every image. */
+type ImageRule = ((rawSrc: string) => string | null) | null
 
 const INLINE = new Set<Tag>(['strong', 'em', 'u', 's', 'a'])
 const TEXT_BLOCKS = new Set<Tag>(['p', 'h2', 'h3'])
@@ -87,6 +100,9 @@ const DROP_WITH_CONTENT = new Set([
 
 const SAFE_HREF = /^(https?:|mailto:|tel:)/i
 const MAX_HREF_CHARS = 2000
+/** Longest image caption / alt text kept (matches Meta's caption limit). */
+export const MAX_IMAGE_ALT_CHARS = 1024
+const MAX_IMAGE_DIMENSION = 20000
 /** Deeper nesting is not something an editor produces; capping it keeps the
  *  recursive walks below safe from a hostile <blockquote> x 100000. */
 const MAX_DEPTH = 40
@@ -281,7 +297,109 @@ function safeHref(raw: string | undefined): string | null {
   return cleaned.replace(/ /g, '%20')
 }
 
-function parse(html: string): Node[] {
+// ------------------------------------------------------------
+// Images
+//
+// An article may hold `<img>` only when its `src` is a file this account
+// uploaded to its own folder of the public chat-media bucket. Nothing else is
+// ever let through: not a data: URL, not another host, another account's
+// folder, another bucket, a query string, an encoded or `..` path.
+// ------------------------------------------------------------
+
+/** Where an account's article images may live. `publicBaseUrl` is the
+ *  project's Supabase URL (e.g. `https://abc.supabase.co`). */
+export interface KbImagePolicy {
+  accountId: string
+  publicBaseUrl: string
+}
+
+const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** One or more path segments of plain file-name characters (no dot-leading
+ *  segment, so no "..", no "%", "?", "#", "\\", "@", ":" or spaces). */
+const IMAGE_PATH = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/
+const MAX_IMAGE_PATH_CHARS = 300
+const MAX_IMAGE_SRC_CHARS = 2000
+
+/** The URL every article image of this account starts with, or null when the
+ *  policy is unusable (a bad account id, or a base that is neither https nor
+ *  a local development server). */
+export function kbImageUrlPrefix(policy: KbImagePolicy | null | undefined): string | null {
+  if (!policy || !ACCOUNT_ID.test(policy.accountId)) return null
+  let url: URL
+  try {
+    url = new URL(policy.publicBaseUrl)
+  } catch {
+    return null
+  }
+  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) return null
+  if (url.username || url.password) return null
+  return `${url.origin}/storage/v1/object/public/chat-media/account-${policy.accountId}/`
+}
+
+/** The public URL of an object path in this account's folder (what the
+ *  storage API returns for it), or null when the path is not an own-folder
+ *  path of plain characters. */
+export function kbImageUrlForPath(policy: KbImagePolicy | null | undefined, storagePath: string): string | null {
+  const prefix = kbImageUrlPrefix(policy)
+  if (!prefix || !policy) return null
+  const own = `account-${policy.accountId}/`
+  if (!storagePath.startsWith(own)) return null
+  const rest = storagePath.slice(own.length)
+  if (!isPlainImagePath(rest)) return null
+  return `${prefix}${rest}`
+}
+
+function isPlainImagePath(rest: string): boolean {
+  return rest.length > 0 && rest.length <= MAX_IMAGE_PATH_CHARS && !rest.includes('..') && IMAGE_PATH.test(rest)
+}
+
+/** The image `src` to keep, or null. The value must already be exactly the
+ *  canonical public URL: nothing is cleaned up on the way (a stray space,
+ *  control character or encoded dot is a rejection, not a repair). */
+export function safeImageSrc(raw: string | undefined, policy: KbImagePolicy | null | undefined): string | null {
+  if (!raw) return null
+  const prefix = kbImageUrlPrefix(policy)
+  if (!prefix) return null
+  const src = decodeEntities(raw)
+  if (src.length > MAX_IMAGE_SRC_CHARS || !src.startsWith(prefix)) return null
+  return isPlainImagePath(src.slice(prefix.length)) ? src : null
+}
+
+/** A rule that keeps an image only when it is this account's own file (and,
+ *  when `onlyUrls` is given, one of those files). */
+function imageRuleFor(
+  policy: KbImagePolicy | null | undefined,
+  onlyUrls?: ReadonlySet<string>,
+): ImageRule {
+  if (!kbImageUrlPrefix(policy)) return null
+  return (raw) => {
+    const src = safeImageSrc(raw, policy)
+    return src !== null && (!onlyUrls || onlyUrls.has(src)) ? src : null
+  }
+}
+
+/** Accepts every image and keeps the (decoded) src as written. Used only to
+ *  READ text out of trusted-shape HTML (alt text, the list of image URLs),
+ *  never to produce HTML: the trees built with it are not serialised. */
+const READ_ONLY_IMAGES: ImageRule = (raw) => decodeEntities(raw)
+
+function cleanAlt(raw: string | undefined): string {
+  if (!raw) return ''
+  return decodeEntities(raw)
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_IMAGE_ALT_CHARS)
+}
+
+function cleanDimension(raw: string | undefined): number | undefined {
+  if (!raw || !/^\d{1,5}$/.test(raw.trim())) return undefined
+  const n = parseInt(raw.trim(), 10)
+  return n >= 1 && n <= MAX_IMAGE_DIMENSION ? n : undefined
+}
+
+function parse(html: string, imageRule: ImageRule = null): Node[] {
   const root: ElementNode = { tag: 'p', children: [] }
   const stack: ElementNode[] = []
   const top = (): ElementNode | null => (stack.length ? stack[stack.length - 1] : null)
@@ -347,6 +465,19 @@ function parse(html: string): Node[] {
       container().push({ tag: 'br' })
       continue
     }
+    if (tok.name === 'img') {
+      // Only an image the caller's rule accepts; everything else vanishes.
+      const src = imageRule ? imageRule(tok.attrs.src ?? '') : null
+      if (src === null) continue
+      ensureInlineHost()
+      const node: ImageNode = { tag: 'img', src, alt: cleanAlt(tok.attrs.alt) }
+      const width = cleanDimension(tok.attrs.width)
+      const height = cleanDimension(tok.attrs.height)
+      if (width !== undefined) node.width = width
+      if (height !== undefined) node.height = height
+      container().push(node)
+      continue
+    }
     const tag = TAG_ALIASES[tok.name]
     if (!tag || tooDeep()) continue
 
@@ -410,7 +541,7 @@ const BLOCKS = new Set<Tag>(['p', 'h2', 'h3', 'ul', 'ol', 'blockquote'])
 function prune(nodes: Node[]): Node[] {
   const out: Node[] = []
   for (const node of nodes) {
-    if (node.tag === '#text' || node.tag === 'br') {
+    if (node.tag === '#text' || node.tag === 'br' || node.tag === 'img') {
       out.push(node)
       continue
     }
@@ -432,7 +563,10 @@ function serialize(nodes: Node[]): string {
   for (const node of nodes) {
     if (node.tag === '#text') out += escapeText(node.text)
     else if (node.tag === 'br') out += '<br>'
-    else if (node.tag === 'a') {
+    else if (node.tag === 'img') {
+      const size = `${node.width ? ` width="${node.width}"` : ''}${node.height ? ` height="${node.height}"` : ''}`
+      out += `<img src="${escapeAttr(node.src)}" alt="${escapeAttr(node.alt)}"${size}>`
+    } else if (node.tag === 'a') {
       out += `<a href="${escapeAttr(node.href ?? '')}" target="_blank" rel="noopener noreferrer nofollow">${serialize(node.children)}</a>`
     } else out += `<${node.tag}>${serialize(node.children)}</${node.tag}>`
   }
@@ -441,14 +575,53 @@ function serialize(nodes: Node[]): string {
 
 /**
  * Reduce any HTML to the tags an article may use: p, br, strong, em, u, s,
- * h2, h3, ul, ol, li, blockquote and a (http, https, mailto and tel links
- * only). Everything else — scripts, styles, event handlers, every other
- * attribute, `javascript:` links — is removed; malformed markup comes out
- * well formed. Idempotent.
+ * h2, h3, ul, ol, li, blockquote, a (http, https, mailto and tel links only)
+ * and, only when `images` says where this account's files live, `img` (see
+ * `KbImagePolicy`: the src must be the account's own public chat-media file;
+ * only `src`, a text `alt` and numeric `width` / `height` survive).
+ * Everything else — scripts, styles, event handlers, every other attribute,
+ * `javascript:` links, data: images — is removed; malformed markup comes out
+ * well formed. Without `images` every image is dropped. Idempotent.
  */
-export function sanitizeKbHtml(html: string | null | undefined): string {
+export function sanitizeKbHtml(
+  html: string | null | undefined,
+  options?: {
+    images?: KbImagePolicy | null
+    /** Keep only these image URLs (of those the policy accepts). */
+    onlyImageUrls?: ReadonlySet<string>
+  },
+): string {
   if (!html) return ''
-  return serialize(parse(html))
+  return serialize(parse(html, imageRuleFor(options?.images, options?.onlyImageUrls)))
+}
+
+export interface KbImageRef {
+  src: string
+  alt: string
+}
+
+/**
+ * The images of an article's HTML in document order. With `images` the list
+ * holds only the images the sanitiser would keep. Without it every `<img>` is
+ * listed with its src as written: use that only to match against URLs you
+ * already trust (the editor does, to find its own uploads), never to decide
+ * what is safe to show.
+ */
+export function listKbImages(
+  html: string | null | undefined,
+  options?: { images?: KbImagePolicy | null },
+): KbImageRef[] {
+  if (!html) return []
+  const rule = options && 'images' in options ? imageRuleFor(options.images) : READ_ONLY_IMAGES
+  const out: KbImageRef[] = []
+  const walk = (nodes: Node[]) => {
+    for (const node of nodes) {
+      if (node.tag === 'img') out.push({ src: node.src, alt: node.alt })
+      else if (node.tag !== '#text' && node.tag !== 'br') walk(node.children)
+    }
+  }
+  walk(parse(html, rule))
+  return out
 }
 
 // ------------------------------------------------------------
@@ -462,9 +635,15 @@ interface Style {
   strike: string
   bullet: string
   quote: string
+  /** Show an image as "[image: caption]" (its caption / alt text, and nothing
+   *  for an image without one). false = images are left out entirely: chat
+   *  messages carry them as separate media messages, in order. */
+  images: boolean
 }
-const PLAIN_STYLE: Style = { bold: '', italic: '', strike: '', bullet: '- ', quote: '' }
-const WHATSAPP_STYLE: Style = { bold: '*', italic: '_', strike: '~', bullet: '• ', quote: '> ' }
+const PLAIN_STYLE: Style = { bold: '', italic: '', strike: '', bullet: '- ', quote: '', images: true }
+/** Plain text for a chat message or an email's text fallback: no images. */
+const CHANNEL_PLAIN_STYLE: Style = { ...PLAIN_STYLE, images: false }
+const WHATSAPP_STYLE: Style = { bold: '*', italic: '_', strike: '~', bullet: '• ', quote: '> ', images: false }
 
 /** Wrap in a marker, keeping any edge whitespace outside it (a marker that
  *  touches a space does not format in WhatsApp). */
@@ -488,7 +667,9 @@ function renderInline(nodes: Node[], style: Style): string {
   for (const node of nodes) {
     if (node.tag === '#text') out += collapse(node.text)
     else if (node.tag === 'br') out += '\n'
-    else if (node.tag === 'strong') out += wrap(renderInline(node.children, style), style.bold)
+    else if (node.tag === 'img') {
+      if (style.images && node.alt) out += `[image: ${node.alt}]`
+    } else if (node.tag === 'strong') out += wrap(renderInline(node.children, style), style.bold)
     else if (node.tag === 'em') out += wrap(renderInline(node.children, style), style.italic)
     else if (node.tag === 's') out += wrap(renderInline(node.children, style), style.strike)
     else if (node.tag === 'u') out += renderInline(node.children, style)
@@ -602,14 +783,17 @@ function renderBlocks(nodes: Node[], style: Style): string[] {
 }
 
 function renderTree(html: string, style: Style): string {
-  return renderBlocks(parse(html), style).join('\n\n')
+  // Images are only read for their caption here (and only when the style shows
+  // them): this tree is never turned back into HTML.
+  return renderBlocks(parse(html, style.images ? READ_ONLY_IMAGES : null), style).join('\n\n')
 }
 
 /**
  * The plain text of an article's rich body — what search indexes and the AI
  * reads. Paragraphs are separated by a blank line, list items start with
  * "- " (numbered lists keep their numbers), headings are lines of their own,
- * links read "text (url)" and entities are decoded.
+ * links read "text (url)", an image with a caption reads "[image: caption]"
+ * (one without is left out) and entities are decoded.
  */
 export function kbHtmlToPlainText(html: string | null | undefined): string {
   if (!html) return ''
@@ -624,6 +808,9 @@ export function kbHtmlToPlainText(html: string | null | undefined): string {
  *  - email / Gmail: plain text too — the rich version goes in `contentHtml`,
  *    this is its plain-text fallback
  *
+ * Images are left out of all of them: chat channels send each image as its own
+ * media message after the text, and an email keeps them inline in its HTML.
+ *
  * An older article with no rich body (`html` null) is returned as its plain
  * text unchanged.
  */
@@ -633,7 +820,7 @@ export function kbHtmlToChannelText(
   channel: ChannelType,
 ): string {
   if (!html) return plain
-  return renderTree(html, channel === 'whatsapp' ? WHATSAPP_STYLE : PLAIN_STYLE)
+  return renderTree(html, channel === 'whatsapp' ? WHATSAPP_STYLE : CHANNEL_PLAIN_STYLE)
 }
 
 /**

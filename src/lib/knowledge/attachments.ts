@@ -14,6 +14,13 @@ import { loadEffectiveAttachments } from './translations'
 // cannot carry a file gets it as a link line in text instead; a file is never
 // silently dropped. Nothing here throws into the reply path: failures are
 // logged and counted.
+//
+// An article's inline images are attachments like any other: they go out in
+// document order (an article's files are stored in that order) with their
+// caption as the media caption. Here the reply's text was written by the AI,
+// so the article's own HTML is not part of it and an inline image is sent as
+// a file on email too; only an agent inserting the article into an email
+// keeps the images inline (see the composer).
 // ============================================================
 
 export type MediaMessageType = 'image' | 'video' | 'audio' | 'document'
@@ -59,9 +66,12 @@ export function planDelivery(
   }
 }
 
-/** One text message listing files as "name: url" lines. */
-export function buildLinkText(files: Pick<KnowledgeAttachment, 'file_name' | 'url'>[]): string {
-  return files.map((f) => `${f.file_name}: ${f.url}`).join('\n')
+/** One text message listing files as "name: url" lines. An image with a
+ *  caption is listed by that caption (its file name is a generated one). */
+export function buildLinkText(
+  files: (Pick<KnowledgeAttachment, 'file_name' | 'url'> & { caption?: string | null })[],
+): string {
+  return files.map((f) => `${f.caption?.trim() || f.file_name}: ${f.url}`).join('\n')
 }
 
 /**
@@ -180,6 +190,10 @@ export async function sendKnowledgeAttachments(
           messageType: plan.messageType,
           mediaUrl: file.url,
           filename: file.file_name,
+          // An image's caption goes out as the media caption (chat channels).
+          ...(plan.messageType === 'image' && file.caption?.trim()
+            ? { contentText: file.caption.trim().slice(0, 1024) }
+            : {}),
           channelOverride: channel,
           senderType,
           aiGenerated,

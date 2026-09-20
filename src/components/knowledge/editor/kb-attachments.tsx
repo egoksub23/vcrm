@@ -18,7 +18,9 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { listKbImages } from "@/lib/knowledge-format";
 import { KB_MAX_ATTACHMENTS } from "@/lib/knowledge-types";
+import { orderForDocument } from "@/lib/knowledge/inline-images";
 import { deleteAccountMedia, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -44,11 +46,12 @@ const ICONS: Record<Exclude<FileVisual, "image">, { Icon: typeof FileIcon; tone:
 
 function Thumb({ row }: { row: AttachmentRow }) {
   const visual = fileVisual(row.mime_type, row.file_name);
-  if (visual === "image" && row.url) {
+  const src = row.url || row.preview;
+  if (visual === "image" && src) {
     return (
       // A small preview of a public storage URL: next/image adds nothing here.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={row.url} alt="" className="h-10 w-10 shrink-0 rounded-md border border-border object-cover" />
+      <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md border border-border object-cover" />
     );
   }
   const { Icon, tone } = ICONS[visual === "image" ? "other" : visual];
@@ -69,11 +72,18 @@ function Thumb({ row }: { row: AttachmentRow }) {
  */
 export function KbAttachments({
   rows,
+  html,
   onChange,
+  onRemoveRow,
   disabled,
 }: {
   rows: AttachmentRow[];
+  /** The article text: an in-article image is listed in the order it appears
+   *  there (the order it is sent in) and marked when the text no longer shows it. */
+  html: string;
   onChange: (update: (prev: AttachmentRow[]) => AttachmentRow[]) => void;
+  /** Called before a row is removed, so an image can leave the text too. */
+  onRemoveRow?: (row: AttachmentRow) => void;
   disabled?: boolean;
 }) {
   const t = useTranslations("Knowledge.editor");
@@ -121,7 +131,12 @@ export function KbAttachments({
     }
   }
 
+  const bodySrcs = listKbImages(html).map((i) => i.src);
+  const shown = new Set(bodySrcs);
+  const ordered = orderForDocument(rows, bodySrcs, (r) => r.url);
+
   function remove(row: AttachmentRow) {
+    onRemoveRow?.(row);
     onChange((prev) => prev.filter((r) => r.key !== row.key));
     // A file nobody saved would otherwise sit in the public bucket forever.
     for (const u of unsavedUploads([row])) void deleteAccountMedia("chat-media", u.storage_path).catch(() => {});
@@ -141,6 +156,7 @@ export function KbAttachments({
         </h3>
       </div>
       <p className="text-xs text-muted-foreground">{t("attachmentsHint")}</p>
+      <p className="text-xs text-muted-foreground">{t("attachmentsHintInline")}</p>
 
       <div
         onDragOver={(e) => {
@@ -186,12 +202,25 @@ export function KbAttachments({
 
       {rows.length > 0 && (
         <ul className="space-y-2">
-          {rows.map((row) => (
+          {ordered.map((row) => (
             <li key={row.key} className="flex items-center gap-3 rounded-lg border border-border p-2">
               <Thumb row={row} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground" title={row.file_name}>
-                  {row.file_name}
+                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground" title={row.file_name}>
+                  <span className="truncate">{row.file_name}</span>
+                  {row.inline && (
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                        row.status === "ready" && !shown.has(row.url)
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                          : "bg-primary/10 text-primary",
+                      )}
+                      title={row.status === "ready" && !shown.has(row.url) ? t("notInArticleHint") : t("inArticleHint")}
+                    >
+                      {row.status === "ready" && !shown.has(row.url) ? t("notInArticle") : t("inArticle")}
+                    </span>
+                  )}
                 </p>
                 {row.status === "uploading" ? (
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">

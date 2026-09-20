@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { parseDocInput, type DocFields } from '@/lib/ai/knowledge-doc'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadAttachments, removeStoredFiles, syncAttachments } from '@/lib/knowledge/articles'
+import { kbImagePolicy, reconcileInlineImages } from '@/lib/knowledge/inline-images'
 import { buildTranslationInfos, isTranslationOutOfDate, textUnchanged } from '@/lib/knowledge/translate'
 import { keepTranslationsCurrent, loadBaseOf, loadTranslationsOf } from '@/lib/knowledge/translations'
 import type { KnowledgeArticle, KnowledgeAttachment, KnowledgeTranslationBase, KnowledgeTranslationInfo, StagedKnowledgeAttachment } from '@/lib/knowledge-types'
@@ -116,9 +117,10 @@ export async function PATCH(request: Request, { params }: Params) {
       staged = a.items
     }
 
+    const images = kbImagePolicy(accountId)
     let fields: DocFields = {}
     if (Object.keys(articleBody).length > 0 || staged === null) {
-      const parsed = parseDocInput(articleBody, { partial: true })
+      const parsed = parseDocInput(articleBody, { partial: true, images })
       if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
       fields = parsed.fields
     }
@@ -146,6 +148,46 @@ export async function PATCH(request: Request, { params }: Params) {
       if (fields.status === 'published') {
         return NextResponse.json({ error: 'Only an admin can publish an article.' }, { status: 403 })
       }
+    }
+
+    // New rich text: its images and the attachment list must agree. The list is
+    // the one sent, or the stored one when none was sent, and ends up in
+    // document order (the order the files are sent in). Rows the client did not
+    // say anything about keep their stored inline flag and caption.
+    if (typeof fields.content_html === 'string') {
+      const own = (await loadAttachments(supabase, accountId, [id])).get(id) ?? []
+      const byId = new Map(own.map((a) => [a.id, a]))
+      const items: StagedKnowledgeAttachment[] =
+        staged?.map((item) => {
+          const stored = item.id ? byId.get(item.id) : undefined
+          return stored
+            ? { ...item, inline: item.inline ?? stored.inline, caption: item.caption === undefined ? stored.caption : item.caption }
+            : item
+        }) ??
+        own.map((a) => ({
+          id: a.id,
+          file_name: a.file_name,
+          mime_type: a.mime_type,
+          size_bytes: a.size_bytes,
+          url: a.url,
+          storage_path: a.storage_path,
+          send_with_ai: a.send_with_ai,
+          inline: a.inline,
+          caption: a.caption,
+        }))
+      // A translation may show its base article's images (it uses the base's
+      // files until it has its own).
+      const baseImages = current.translation_of
+        ? ((await loadAttachments(supabase, accountId, [current.translation_of as string])).get(current.translation_of as string) ?? [])
+        : []
+      const checked = reconcileInlineImages({
+        html: fields.content_html,
+        items,
+        policy: images,
+        extraUrls: baseImages.filter((a) => a.inline).map((a) => a.url),
+      })
+      if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 })
+      staged = checked.items
     }
 
     type Saved = { id: string; title: string; content: string; status: 'draft' | 'published'; updated_at?: string }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Editor } from "@tiptap/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, History, Loader2 } from "lucide-react";
@@ -15,6 +16,7 @@ import { MAX_CONTENT_CHARS, MAX_TITLE_CHARS, type KbKind, type KbStatus } from "
 import { canTranslateArticle } from "@/lib/knowledge/translate";
 import type { ArticleDraftSeed, KnowledgeArticle, KnowledgeCollection } from "@/lib/knowledge-types";
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
+import { removeImagesBySrc } from "@/lib/tiptap/inline-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { KbAttachments } from "./kb-attachments";
 import {
   buildSavePayload,
+  inlineRowsMissingFromHtml,
   plainTextToEditorHtml,
   unsavedUploads,
   unwrapList,
@@ -31,6 +34,7 @@ import {
 import { KbHistory } from "./kb-history";
 import { KbRichEditor } from "./kb-rich-editor";
 import { KbTestBox } from "./kb-test-box";
+import { useKbInlineImages } from "./use-kb-inline-images";
 import { KbInheritedFiles, KbLanguageChip, KbTranslationBanners, KbTranslationsCard } from "./kb-translations";
 
 const selectClass =
@@ -69,6 +73,8 @@ function toRows(article: KnowledgeArticle | null): AttachmentRow[] {
     url: a.url,
     storage_path: a.storage_path,
     send_with_ai: a.send_with_ai,
+    inline: a.inline,
+    caption: a.caption,
     status: "ready" as const,
   }));
 }
@@ -142,6 +148,9 @@ export function KbEditorForm({
   // Files uploaded but never saved are removed if the editor goes away.
   const rowsRef = useRef(rows);
   const savedRef = useRef(false);
+  // Pasted / dropped images go into the text through the live editor.
+  const editorRef = useRef<Editor | null>(null);
+  const addImages = useKbInlineImages({ editorRef, rowsRef, setRows, disabled: readOnly || busy });
   useEffect(() => {
     rowsRef.current = rows;
   }, [rows]);
@@ -242,6 +251,11 @@ export function KbEditorForm({
       if (!res.ok) {
         toast.error(data.error ?? td("saveFailed"));
         return;
+      }
+      // Images deleted from the text were left out of the list, which removed
+      // them on the server; an upload that was never saved has to go too.
+      for (const u of unsavedUploads(inlineRowsMissingFromHtml(rows, html))) {
+        void deleteAccountMedia("chat-media", u.storage_path).catch(() => {});
       }
       const saved: KbStatus = data.status ?? (isAdmin ? target : "draft");
       if (data.warning) toast.warning(data.warning);
@@ -398,6 +412,10 @@ export function KbEditorForm({
               initialHtml={initialHtml}
               placeholder={isQa ? td("answerPlaceholder") : td("contentPlaceholder")}
               disabled={readOnly || busy}
+              onImageFiles={readOnly ? undefined : (files, pos) => void addImages(files, pos)}
+              onEditorReady={(editor) => {
+                editorRef.current = editor;
+              }}
               onChange={(h, tx) => {
                 setHtml(h);
                 setText(tx);
@@ -421,6 +439,11 @@ export function KbEditorForm({
 
           <KbAttachments
             rows={rows}
+            html={html}
+            onRemoveRow={(row) => {
+              // Removing an in-article image from the list takes it out of the text.
+              if (row.inline && row.url && editorRef.current) removeImagesBySrc(editorRef.current, row.url);
+            }}
             onChange={(update) => {
               setRows(update);
               touch();

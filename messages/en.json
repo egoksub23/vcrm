@@ -3547,7 +3547,18 @@
       "testBelowCutoff": "below cut-off",
       "testModeMeaning": "Searching by meaning",
       "testModeKeyword": "Searching by keyword",
-      "testCutoff": "cut-off {note}"
+      "testCutoff": "cut-off {note}",
+      "insertImage": "Insert image",
+      "imageCaption": "Image caption",
+      "imageCaptionPlaceholder": "Optional: shown to customers with the image",
+      "inArticle": "In article",
+      "inArticleHint": "This picture is shown inside the article text and is sent with it.",
+      "notInArticle": "Removed from text",
+      "notInArticleHint": "The picture is no longer in the article text, so it is removed when you save.",
+      "imageUnsupported": "Only PNG, JPEG, WebP and GIF pictures can be added to an article.",
+      "imageTooLarge": "This picture is still over {max} after shrinking it. Use a smaller picture.",
+      "imageUnreadable": "This picture could not be read. Try copying it again or save it as a PNG.",
+      "attachmentsHintInline": "Pictures pasted or dropped into the text are listed here too, marked In article. They are sent after the text, in the order they appear in it."
     },
     "library": {
       "rail": {
@@ -3698,7 +3709,16 @@
       "willAttach": "Will attach:",
       "fromKnowledge": "From knowledge base:",
       "removeFile": "Remove {name} from this reply",
-      "linkFallback": "This channel cannot carry files, so a link to each file is added to the message instead."
+      "linkFallback": "This channel cannot carry files, so a link to each file is added to the message instead.",
+      "pastedImage": "Pasted image",
+      "pasteUploading": "Uploading...",
+      "removePastedImage": "Remove this pasted image",
+      "pasteUnsupported": "Only pictures can be pasted or dropped here. Use the paperclip for other files.",
+      "pasteTooLarge": "This picture is still over {max} MB after shrinking it. Use a smaller picture.",
+      "pasteUnreadable": "This picture could not be read. Try copying it again or save it as a PNG.",
+      "pasteFailed": "The picture could not be uploaded.",
+      "dropNotImage": "Only pictures can be dropped here. Use the paperclip for other files.",
+      "articleImage": "Article picture:"
     },
     "translations": {
       "title": "Translations",

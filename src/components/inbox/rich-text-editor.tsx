@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -19,6 +19,8 @@ import {
   Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pastedImages } from "@/lib/media/clipboard-images";
+import { InlineImage } from "@/lib/tiptap/inline-image";
 
 /** Small fixed palette rather than a full color picker — keeps the
  *  toolbar simple; covers the common "make this stand out" cases. */
@@ -42,6 +44,10 @@ interface RichTextEditorProps {
    *  simpler than round-tripping content back down as a controlled
    *  prop, which fights Tiptap's own internal state. */
   onEditorReady?: (editor: Editor | null) => void;
+  /** A picture pasted into the reply (a screenshot, "Copy image"). The parent
+   *  stages it as an attachment chip; it is not put into the text. Leave out
+   *  to let the editor paste as usual. */
+  onImageFiles?: (files: File[]) => void;
 }
 
 function ToolbarButton({
@@ -80,7 +86,12 @@ export function RichTextEditor({
   placeholder,
   disabled,
   onEditorReady,
+  onImageFiles,
 }: RichTextEditorProps) {
+  const onImageFilesRef = useRef(onImageFiles);
+  useEffect(() => {
+    onImageFilesRef.current = onImageFiles;
+  }, [onImageFiles]);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -93,10 +104,22 @@ export function RichTextEditor({
       Link.configure({ openOnClick: false, autolink: true }),
       TextStyle,
       Color,
+      // Pictures of a knowledge base article inserted into the reply keep their
+      // place in the text; only this project's own uploaded files are accepted.
+      InlineImage,
       Placeholder.configure({ placeholder: placeholder ?? "" }),
     ],
     editorProps: {
       attributes: { class: "rte-content" },
+      handlePaste: (_view, event) => {
+        const cb = onImageFilesRef.current;
+        if (!cb) return false;
+        const files = pastedImages(event.clipboardData?.files, event.clipboardData?.getData("text/plain"));
+        if (files.length === 0) return false;
+        event.preventDefault();
+        cb(files);
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
       onChangeHtml(editor.getHTML(), editor.getText());

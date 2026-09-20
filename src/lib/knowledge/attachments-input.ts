@@ -1,5 +1,6 @@
 import {
   KB_ATTACHMENT_MAX_BYTES,
+  KB_CAPTION_MAX_CHARS,
   KB_MAX_ATTACHMENTS,
   attachmentKindFor,
   type KbAttachmentKind,
@@ -43,12 +44,23 @@ export function maxBytesFor(kind: KbAttachmentKind): number {
   return kind === 'image' ? KB_ATTACHMENT_MAX_BYTES.image : KB_ATTACHMENT_MAX_BYTES.other
 }
 
+/** A caption as stored: one line of plain text, or null when blank. */
+export function cleanCaption(raw: string): string | null {
+  const c = raw
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, KB_CAPTION_MAX_CHARS)
+  return c || null
+}
+
 /**
  * Parse the `attachments` array from a request body. An entry with an `id`
  * is an existing attachment being kept (only its `send_with_ai` may change);
  * an entry without one is a new upload and is validated in full: its object
  * path must be under `account-<accountId>/`, its size within the cap for its
- * kind, and the list within `KB_MAX_ATTACHMENTS`.
+ * kind, and the list within `KB_MAX_ATTACHMENTS`. Both may carry `inline`
+ * (an image shown inside the article) and a `caption`.
  */
 export function parseStagedAttachments(value: unknown, accountId: string): ParsedAttachments {
   if (!Array.isArray(value)) return { ok: false, error: 'attachments must be a list' }
@@ -67,6 +79,17 @@ export function parseStagedAttachments(value: unknown, accountId: string): Parse
     const sendWithAi = e.send_with_ai === undefined ? true : e.send_with_ai
     if (typeof sendWithAi !== 'boolean') return { ok: false, error: 'send_with_ai must be true or false' }
 
+    const inline = e.inline === undefined || e.inline === null ? false : e.inline
+    if (typeof inline !== 'boolean') return { ok: false, error: 'inline must be true or false' }
+    let caption: string | null = null
+    if (e.caption !== undefined && e.caption !== null) {
+      if (typeof e.caption !== 'string') return { ok: false, error: 'caption must be text' }
+      if (e.caption.length > KB_CAPTION_MAX_CHARS * 2) {
+        return { ok: false, error: `A caption is limited to ${KB_CAPTION_MAX_CHARS} characters.` }
+      }
+      caption = cleanCaption(e.caption)
+    }
+
     if (e.id !== undefined && e.id !== null) {
       if (typeof e.id !== 'string' || !UUID.test(e.id)) return { ok: false, error: 'Attachment id is not valid.' }
       if (seenIds.has(e.id)) return { ok: false, error: 'An attachment is listed twice.' }
@@ -79,6 +102,9 @@ export function parseStagedAttachments(value: unknown, accountId: string): Parse
         url: typeof e.url === 'string' ? e.url : '',
         storage_path: typeof e.storage_path === 'string' ? e.storage_path : '',
         send_with_ai: sendWithAi,
+        // Left out = leave the stored value alone.
+        ...(e.inline === undefined ? {} : { inline }),
+        ...(e.caption === undefined ? {} : { caption }),
       })
       continue
     }
@@ -120,6 +146,8 @@ export function parseStagedAttachments(value: unknown, accountId: string): Parse
       url,
       storage_path: path,
       send_with_ai: sendWithAi,
+      inline,
+      caption,
     })
   }
   return { ok: true, items }
@@ -127,7 +155,14 @@ export function parseStagedAttachments(value: unknown, accountId: string): Parse
 
 export interface AttachmentPlan {
   /** Existing rows to keep, with their new order and switch. */
-  keep: { id: string; position: number; send_with_ai: boolean }[]
+  keep: {
+    id: string
+    position: number
+    send_with_ai: boolean
+    /** undefined = not sent, leave the stored value. */
+    inline?: boolean
+    caption?: string | null
+  }[]
   /** New rows to insert, with their order. */
   add: (StagedKnowledgeAttachment & { position: number })[]
   /** Existing rows that are no longer listed. */
@@ -153,7 +188,13 @@ export function planAttachmentChanges(
         return
       }
       listed.add(item.id)
-      plan.keep.push({ id: item.id, position, send_with_ai: item.send_with_ai })
+      plan.keep.push({
+        id: item.id,
+        position,
+        send_with_ai: item.send_with_ai,
+        ...(item.inline === undefined ? {} : { inline: item.inline }),
+        ...(item.caption === undefined ? {} : { caption: item.caption }),
+      })
     } else {
       plan.add.push({ ...item, position })
     }

@@ -60,14 +60,14 @@ describe('KbAttachments', () => {
     status: 'ready' as const,
   }
   it('lists a file with its size and the per-file AI switch', () => {
-    const html = render(<KbAttachments rows={[file]} onChange={() => {}} />)
+    const html = render(<KbAttachments rows={[file]} html="" onChange={() => {}} />)
     expect(html).toContain('deck.pptx')
     expect(html).toContain('2 KB')
     expect(html).toContain('Send with AI answers')
   })
   it('shows the error of a failed upload instead of the switch', () => {
     const html = render(
-      <KbAttachments rows={[{ ...file, status: 'error', error: 'mime type not supported' }]} onChange={() => {}} />,
+      <KbAttachments rows={[{ ...file, status: 'error', error: 'mime type not supported' }]} html="" onChange={() => {}} />,
     )
     expect(html).toContain('mime type not supported')
     expect(html).not.toContain('Send with AI answers')

@@ -7,7 +7,8 @@ import type { KbLanguage } from '@/lib/ai/knowledge-query'
 import type { KbKind, KbStatus } from '@/lib/ai/knowledge-doc'
 import { plainTextToKbHtml } from '@/lib/knowledge-format'
 import type { TranslateLanguageResult, TranslateResponse } from '@/lib/knowledge-types'
-import { indexArticle } from './articles'
+import { indexArticle, loadAttachments } from './articles'
+import { kbImagePolicy } from './inline-images'
 import {
   buildTranslatePrompt,
   buildTranslateUserMessage,
@@ -180,13 +181,22 @@ export async function handleTranslate(
       return requestError('too_long', 'This article is too long to translate in one go. Split it into shorter articles.')
     }
 
+    // A translation keeps the base article's images (same files, so they are
+    // not copied): the model is told to leave each src alone and anything else
+    // is dropped by the sanitiser.
+    const baseFiles = (await loadAttachments(db, accountId, [base.id])).get(base.id) ?? []
+    const imageOptions = {
+      images: kbImagePolicy(accountId),
+      onlyImageUrls: new Set(baseFiles.filter((a) => a.inline).map((a) => a.url)),
+    }
+
     let stopped: InternalResult | null = null
     for (const language of todo) {
       if (stopped) {
         results.push({ ...stopped, language })
         continue
       }
-      const r = await translateOne(ctx, config, base, html, language, existing.get(language) ?? null)
+      const r = await translateOne(ctx, config, base, html, language, existing.get(language) ?? null, imageOptions)
       results.push(r)
       // The budget is used up for every remaining language too.
       if (!r.ok && r.code === 'budget_exceeded') stopped = r
@@ -216,6 +226,7 @@ async function translateOne(
   html: string,
   language: KbLanguage,
   existing: ExistingRow | null,
+  imageOptions: Parameters<typeof parseTranslation>[1],
 ): Promise<InternalResult> {
   const { db, admin, accountId, userId } = ctx
 
@@ -248,7 +259,7 @@ async function translateOne(
     return fail(language, 'ai_error', 'The AI request failed.', 502)
   }
 
-  const parsed = parseTranslation(text)
+  const parsed = parseTranslation(text, imageOptions)
   if (!parsed.ok) return fail(language, parsed.code, parsed.message)
 
   if (existing) {

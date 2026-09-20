@@ -75,8 +75,11 @@ import {
   type StagedKbFile,
 } from "@/lib/inbox/kb-agent";
 import { onKbDraft, onKbInsert } from "@/lib/inbox/kb-bus";
+import { dragHasFiles, droppedImages, pastedImages } from "@/lib/media/clipboard-images";
+import { ImagePrepareError, prepareImageForUpload } from "@/lib/media/prepare-image";
 import { KnowledgePanel } from "./knowledge-panel";
 import { FileChip, KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
+import { PastedImageChip } from "./pasted-image-chip";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
 import type { Editor } from "@tiptap/react";
@@ -308,6 +311,14 @@ export function MessageComposer({
     [conversationId],
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const kbRef = useRef(kb);
+  useEffect(() => {
+    kbRef.current = kb;
+  }, [kb]);
+  const conversationIdRef = useRef(conversationId);
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   // ---- Message vs. Comment vs. Snippets mode --------------------------
   const [mode, setMode] = useState<ComposerMode>("message");
@@ -505,6 +516,22 @@ export function MessageComposer({
     }
   }, []);
 
+  // Pasted images the agent never sent are the agent's own uploads: switching
+  // to another conversation or leaving the page deletes them (an article's
+  // files are shared with the article and are never deleted here).
+  useEffect(() => {
+    const cid = conversationId;
+    return () => {
+      const cur = kbRef.current;
+      if (cur.cid !== cid) return;
+      for (const f of cur.files) {
+        if (f.origin !== "paste") continue;
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+        removeStaged(f.storagePath);
+      }
+    };
+  }, [conversationId, removeStaged]);
+
   // Tear down any live recording + timer on unmount so a mid-record
   // navigation doesn't leak the mic, and GC a staged-but-unsent
   // attachment so it doesn't orphan in the bucket.
@@ -538,6 +565,10 @@ export function MessageComposer({
       const emailish = channel === "email" || channel === "gmail";
       const editor = emailEditorRef.current;
       switchMode("message");
+      // An email reply keeps the article's pictures inside the text, so they
+      // are not staged again as attachments; every other channel gets the text
+      // and then each picture as its own message, in order.
+      const inlineInText = emailish && mode !== "comment" && !!editor;
       if (emailish && mode !== "comment" && editor) {
         // Email keeps the article's formatting: its HTML goes into the editor.
         const html = r.body_html || plainTextToKbHtml(r.body);
@@ -559,7 +590,7 @@ export function MessageComposer({
         });
       }
       updateKb((cur) => ({
-        files: stageKbFiles(cur.files, r.attachments ?? [], "kb"),
+        files: stageKbFiles(cur.files, r.attachments ?? [], "kb", { skipInline: inlineInText }),
         sources: replace ? NO_SOURCES : cur.sources,
       }));
     },
@@ -618,6 +649,11 @@ export function MessageComposer({
                 mediaUrl: file.url,
                 path: file.storagePath,
                 filename: plan.kind === "document" ? file.fileName : undefined,
+                // An article image's caption goes out as the media caption.
+                caption: plan.kind === "image" ? file.caption?.trim() || undefined : undefined,
+                // The object stays put on a failed send: the chip goes back to
+                // staging and is retried (a pasted image is deleted only when its
+                // chip is discarded).
                 keepObject: true,
               },
               opts.channel,
@@ -642,6 +678,8 @@ export function MessageComposer({
     // Comments bypass the 24h WhatsApp session window entirely — they
     // never leave the account, so there's nothing for that window to gate.
     if ((!trimmed && files.length === 0) || sending || (!isComment && sessionExpired)) return;
+    // A pasted image that is still uploading has no link to send yet.
+    if (files.some((f) => f.uploading)) return;
 
     setSending(true);
     try {
@@ -940,6 +978,139 @@ export function MessageComposer({
     [stageUpload],
   );
 
+  // ---- Pasted / dropped images ------------------------------------------
+
+  // Takes a picture off the clipboard (or a drop) into the same chips as an
+  // article's files: a thumbnail above the box, uploaded to chat-media (the
+  // flat folder, not the article's kb/ one) after being shrunk, and sent as its
+  // own image message after the text. Several stack in the order pasted.
+  const explainPasteError = useCallback(
+    (err: unknown): string => {
+      if (err instanceof ImagePrepareError) {
+        if (err.code === "unsupported") return tk("pasteUnsupported");
+        if (err.code === "tooLarge") {
+          return tk("pasteTooLarge", { max: Math.round((err.maxBytes ?? MEDIA_MAX_BYTES_BY_KIND.image) / 1024 / 1024) });
+        }
+        return tk("pasteUnreadable");
+      }
+      return err instanceof Error && err.message ? err.message : tk("pasteFailed");
+    },
+    [tk],
+  );
+
+  const stagePastedImages = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0 || inputsDisabled || isComment) return;
+      const cid = conversationId;
+      const items = files.map((file) => ({
+        file,
+        key: `paste-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        preview: URL.createObjectURL(file),
+      }));
+      const chips: StagedKbFile[] = items.map((i) => ({
+        key: i.key,
+        fileName: tk("pastedImage"),
+        mimeType: i.file.type || "image/png",
+        sizeBytes: i.file.size,
+        url: "",
+        storagePath: "",
+        kind: "image",
+        origin: "paste",
+        uploading: true,
+        previewUrl: i.preview,
+      }));
+      updateKb((cur) => ({ ...cur, files: [...cur.files, ...chips] }));
+
+      const patchChip = (key: string, fields: Partial<StagedKbFile>) =>
+        setKb((prev) =>
+          prev.cid !== cid ? prev : { ...prev, files: prev.files.map((f) => (f.key === key ? { ...f, ...fields } : f)) },
+        );
+      const dropChip = (key: string) =>
+        setKb((prev) => (prev.cid !== cid ? prev : { ...prev, files: prev.files.filter((f) => f.key !== key) }));
+
+      // One after the other so the chips stay in the order they were pasted.
+      for (const { file, key, preview } of items) {
+        try {
+          const prepared = await prepareImageForUpload(file, { maxBytes: MEDIA_MAX_BYTES_BY_KIND.image });
+          const { publicUrl, path } = await uploadAccountMedia(CHAT_MEDIA_BUCKET, prepared);
+          const stillWanted =
+            conversationIdRef.current === cid && kbRef.current.files.some((f) => f.key === key);
+          if (!stillWanted) {
+            // The chip was discarded, or the agent moved to another chat, while it uploaded.
+            removeStaged(path);
+            continue;
+          }
+          patchChip(key, {
+            url: publicUrl,
+            storagePath: path,
+            fileName: prepared.name,
+            mimeType: prepared.type,
+            sizeBytes: prepared.size,
+            uploading: false,
+            previewUrl: undefined,
+          });
+        } catch (err) {
+          dropChip(key);
+          toast.error(explainPasteError(err));
+        } finally {
+          URL.revokeObjectURL(preview);
+        }
+      }
+    },
+    [inputsDisabled, isComment, conversationId, tk, updateKb, removeStaged, explainPasteError],
+  );
+
+  // Discarding a chip: a pasted image is the agent's own upload and is deleted
+  // (best-effort); an article's file is shared with the article and stays.
+  const discardKbFile = useCallback(
+    (f: StagedKbFile) => {
+      if (f.origin === "paste") {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+        removeStaged(f.storagePath);
+      }
+      updateKb((cur) => ({ ...cur, files: cur.files.filter((x) => x.key !== f.key) }));
+    },
+    [removeStaged, updateKb],
+  );
+
+  // A paste anywhere in the composer that carries a picture and no text. The
+  // email editor handles its own paste (below), so it is skipped here.
+  const handleComposerPaste = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      if (inputsDisabled || isComment || isPicker) return;
+      if ((e.target as HTMLElement).closest?.('[contenteditable="true"]')) return;
+      const images = pastedImages(e.clipboardData?.files, e.clipboardData?.getData("text/plain"));
+      if (images.length === 0) return;
+      e.preventDefault();
+      void stagePastedImages(images);
+    },
+    [inputsDisabled, isComment, isPicker, stagePastedImages],
+  );
+  const handleComposerDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (inputsDisabled || isComment || isPicker || !dragHasFiles(e.dataTransfer?.types)) return;
+      // Allow the drop (the browser would otherwise open the picture).
+      e.preventDefault();
+    },
+    [inputsDisabled, isComment, isPicker],
+  );
+  const handleComposerDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (inputsDisabled || isComment || isPicker) return;
+      // Any dropped file is ours to take (otherwise the browser would open it
+      // in place of the inbox); only pictures are staged.
+      if (!dragHasFiles(e.dataTransfer?.types)) return;
+      e.preventDefault();
+      const images = droppedImages(e.dataTransfer?.files);
+      if (images.length === 0) {
+        if ((e.dataTransfer?.files.length ?? 0) > 0) toast.error(tk("dropNotImage"));
+        return;
+      }
+      void stagePastedImages(images);
+    },
+    [inputsDisabled, isComment, isPicker, stagePastedImages, tk],
+  );
+
   // ---- Voice recording (client-side Ogg/Opus, no server transcode) ---
 
   // The encoded Ogg/Opus file from opus-recorder → upload as an audio
@@ -1088,7 +1259,13 @@ export function MessageComposer({
   // ---- Render --------------------------------------------------------
 
   return (
-    <div ref={composerRef} className="relative border-t border-border bg-card p-3.5">
+    <div
+      ref={composerRef}
+      className="relative border-t border-border bg-card p-3.5"
+      onPaste={handleComposerPaste}
+      onDragOver={handleComposerDragOver}
+      onDrop={handleComposerDrop}
+    >
       {/* Snippets / Knowledge: a panel that slides UP from the reply box
           (over the chat) instead of replacing the textarea and pushing the
           composer taller. Closes on Escape, a click outside, or picking. */}
@@ -1377,15 +1554,28 @@ export function MessageComposer({
           )}
           {kbFiles.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              {kbFiles.map((f) => (
-                <FileChip
-                  key={f.key}
-                  file={{ file_name: f.fileName, kind: f.kind, size_bytes: f.sizeBytes }}
-                  prefix={f.origin === "ai" ? tk("willAttach") : tk("fromKnowledge")}
-                  onRemove={() => updateKb((cur) => ({ ...cur, files: cur.files.filter((x) => x.key !== f.key) }))}
-                  removeLabel={tk("removeFile", { name: f.fileName })}
-                />
-              ))}
+              {kbFiles.map((f) =>
+                f.origin === "paste" ? (
+                  <PastedImageChip
+                    key={f.key}
+                    src={f.previewUrl || f.url}
+                    label={tk("pastedImage")}
+                    sizeBytes={f.sizeBytes}
+                    uploading={!!f.uploading}
+                    uploadingLabel={tk("pasteUploading")}
+                    onRemove={() => discardKbFile(f)}
+                    removeLabel={tk("removePastedImage")}
+                  />
+                ) : (
+                  <FileChip
+                    key={f.key}
+                    file={{ file_name: f.fileName, kind: f.kind, size_bytes: f.sizeBytes }}
+                    prefix={f.origin === "ai" ? tk("willAttach") : f.inline ? tk("articleImage") : tk("fromKnowledge")}
+                    onRemove={() => discardKbFile(f)}
+                    removeLabel={tk("removeFile", { name: f.fileName })}
+                  />
+                ),
+              )}
             </div>
           )}
           {kbFiles.some((f) => planKbFile(selectedChannel, f).mode === "link") && (
@@ -1570,6 +1760,8 @@ export function MessageComposer({
                 onEditorReady={(editor) => {
                   emailEditorRef.current = editor;
                 }}
+                // A pasted picture becomes an attachment chip, not part of the text.
+                onImageFiles={inputsDisabled ? undefined : (files) => void stagePastedImages(files)}
                 placeholder={sessionExpired ? t("sessionExpiredPlaceholder") : t("typeMessagePlaceholder")}
                 disabled={sessionExpired || readOnly}
               />
@@ -1609,7 +1801,12 @@ export function MessageComposer({
             size="sm"
             canAct={!readOnly}
             gateReason="send messages"
-            disabled={(!text.trim() && (isComment || kbFiles.length === 0)) || (!isComment && sessionExpired) || sending}
+            disabled={
+              (!text.trim() && (isComment || kbFiles.length === 0)) ||
+              (!isComment && sessionExpired) ||
+              sending ||
+              (!isComment && kbFiles.some((f) => f.uploading))
+            }
             onClick={handleSend}
             className={cn(
               "h-9 w-9 shrink-0 p-0 disabled:opacity-40",

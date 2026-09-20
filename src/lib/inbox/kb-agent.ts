@@ -50,24 +50,39 @@ export interface StagedKbFile {
   /** Object path in the chat-media bucket (for the send payload only). */
   storagePath: string;
   kind: KbAttachmentKind;
-  /** "kb" = the agent inserted an article; "ai" = the AI draft cited it. */
-  origin: "kb" | "ai";
+  /** "kb" = the agent inserted an article; "ai" = the AI draft cited it;
+   *  "paste" = the agent pasted or dropped an image into the reply box (its
+   *  object is the agent's own, so removing the chip deletes it). */
+  origin: "kb" | "ai" | "paste";
+  /** An image's caption: the media caption when it is sent. */
+  caption?: string | null;
+  /** true = shown inside the article text (only ever set for an article's
+   *  own images). */
+  inline?: boolean;
+  /** Still uploading: no `url` yet, and the message cannot be sent. */
+  uploading?: boolean;
+  /** A local picture to show while it uploads. */
+  previewUrl?: string;
 }
 
 /** Adds an article's files to what is already staged, skipping any file
  *  that is already there (same URL), and keeping the order they were added. */
 export function stageKbFiles(
   current: StagedKbFile[],
-  attachments: Pick<
+  attachments: (Pick<
     KnowledgeAttachment,
     "id" | "file_name" | "mime_type" | "size_bytes" | "url" | "storage_path" | "kind"
-  >[],
+  > &
+    Partial<Pick<KnowledgeAttachment, "inline" | "caption">>)[],
   origin: StagedKbFile["origin"],
+  opts: { skipInline?: boolean } = {},
 ): StagedKbFile[] {
   const seen = new Set(current.map((f) => f.url));
   const next = [...current];
   for (const a of attachments) {
     if (!a.url || seen.has(a.url)) continue;
+    // An email keeps an article's images inside its text: not attached again.
+    if (opts.skipInline && a.inline) continue;
     seen.add(a.url);
     next.push({
       key: a.id || a.url,
@@ -78,6 +93,8 @@ export function stageKbFiles(
       storagePath: a.storage_path ?? "",
       kind: a.kind,
       origin,
+      caption: a.caption ?? null,
+      inline: a.inline === true,
     });
   }
   return next;
@@ -122,13 +139,14 @@ export function planKbFile(
   }
 }
 
-/** Appends "name: url" lines for files that cannot travel as media. */
+/** Appends "name: url" lines for files that cannot travel as media (an image
+ *  with a caption is named by it). */
 export function appendLinkLines(
   text: string,
-  files: Pick<StagedKbFile, "fileName" | "url">[],
+  files: Pick<StagedKbFile, "fileName" | "url" | "caption">[],
 ): string {
   if (files.length === 0) return text;
-  const lines = files.map((f) => `${f.fileName}: ${f.url}`).join("\n");
+  const lines = files.map((f) => `${f.caption?.trim() || f.fileName}: ${f.url}`).join("\n");
   const base = text.trimEnd();
   return base ? `${base}\n\n${lines}` : lines;
 }

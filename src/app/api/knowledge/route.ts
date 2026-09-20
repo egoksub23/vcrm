@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { parseDocInput } from '@/lib/ai/knowledge-doc'
 import { parseStagedAttachments } from '@/lib/knowledge/attachments-input'
 import { indexArticle, loadCollections, syncAttachments } from '@/lib/knowledge/articles'
+import { kbImagePolicy, reconcileInlineImages } from '@/lib/knowledge/inline-images'
 import { groupTranslationsByBase } from '@/lib/knowledge/translate'
 import type {
   KnowledgeDocSummary,
@@ -161,7 +162,8 @@ export async function GET() {
  * an agent writes reaches the AI (or other agents' search) unreviewed.
  *
  * Body: title, `content_html` (rich text; the plain `content` is derived
- * from it on the server) or `content`, collection_id, attachments, kind,
+ * from it on the server) or `content`, collection_id, attachments (a file
+ * with `inline: true` is an image shown in the text; `caption` is its caption), kind,
  * language, use_in_ai, review_by, status, source_conversation_id.
  */
 export async function POST(request: Request) {
@@ -171,7 +173,8 @@ export async function POST(request: Request) {
     if (!limit.success) return rateLimitResponse(limit)
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
-    const parsed = parseDocInput(body, { partial: false })
+    const images = kbImagePolicy(accountId)
+    const parsed = parseDocInput(body, { partial: false, images })
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
     let attachments = null
@@ -182,6 +185,17 @@ export async function POST(request: Request) {
       if (attachments.some((x) => x.id)) {
         return NextResponse.json({ error: 'A new article cannot have existing attachments.' }, { status: 400 })
       }
+    }
+    // The images in the text and the attachment list must agree (and the list
+    // is put in document order: that is the order they are sent in).
+    if (parsed.fields.content_html) {
+      const checked = reconcileInlineImages({
+        html: parsed.fields.content_html,
+        items: attachments ?? [],
+        policy: images,
+      })
+      if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 })
+      attachments = checked.items
     }
 
     const isAdmin = capabilities.has('knowledge.publish')

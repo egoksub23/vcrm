@@ -29,10 +29,12 @@ export interface AttachmentRow {
   public_url: string
   send_with_ai: boolean
   position: number
+  inline: boolean | null
+  caption: string | null
 }
 
 export const ATTACHMENT_COLUMNS =
-  'id, document_id, file_name, mime_type, size_bytes, kind, storage_path, public_url, send_with_ai, position'
+  'id, document_id, file_name, mime_type, size_bytes, kind, storage_path, public_url, send_with_ai, position, inline, caption'
 
 const KINDS: KbAttachmentKind[] = ['image', 'video', 'audio', 'document']
 
@@ -50,6 +52,8 @@ export function toAttachment(row: AttachmentRow): KnowledgeAttachment {
     storage_path: row.storage_path,
     send_with_ai: row.send_with_ai,
     position: row.position,
+    inline: row.inline === true,
+    caption: row.caption ?? null,
   }
 }
 
@@ -112,14 +116,15 @@ export async function syncAttachments(
 ): Promise<SyncResult> {
   const { data: existing, error: loadErr } = await db
     .from('knowledge_attachments')
-    .select('id, storage_path')
+    .select('id, storage_path, kind')
     .eq('account_id', accountId)
     .eq('document_id', documentId)
   if (loadErr) {
     console.error('[knowledge] attachment sync load failed:', loadErr)
     return { ok: false, error: 'Failed to save the attachments', status: 500 }
   }
-  const rows = (existing ?? []) as { id: string; storage_path: string }[]
+  const rows = (existing ?? []) as { id: string; storage_path: string; kind: string }[]
+  const kindById = new Map(rows.map((r) => [r.id, r.kind]))
   const plan = planAttachmentChanges(rows.map((r) => r.id), staged)
   if (plan.unknownIds.length > 0) {
     return { ok: false, error: 'An attachment in the list does not belong to this article.', status: 400 }
@@ -139,6 +144,9 @@ export async function syncAttachments(
         public_url: db.storage.from(KB_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
         send_with_ai: a.send_with_ai,
         position: a.position,
+        // Only an image can be shown inside the article.
+        inline: !!a.inline && attachmentKindFor(a.mime_type) === 'image',
+        caption: a.caption ?? null,
         created_by: userId,
       })),
     )
@@ -151,7 +159,12 @@ export async function syncAttachments(
   for (const k of plan.keep) {
     const { error } = await db
       .from('knowledge_attachments')
-      .update({ send_with_ai: k.send_with_ai, position: k.position })
+      .update({
+        send_with_ai: k.send_with_ai,
+        position: k.position,
+        ...(k.inline === undefined ? {} : { inline: k.inline && kindById.get(k.id) === 'image' }),
+        ...(k.caption === undefined ? {} : { caption: k.caption }),
+      })
       .eq('account_id', accountId)
       .eq('id', k.id)
     if (error) {

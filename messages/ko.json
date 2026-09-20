@@ -3547,7 +3547,18 @@
       "testBelowCutoff": "기준 미달",
       "testModeMeaning": "의미 검색 중",
       "testModeKeyword": "키워드 검색 중",
-      "testCutoff": "기준 {note}"
+      "testCutoff": "기준 {note}",
+      "insertImage": "이미지 삽입",
+      "imageCaption": "이미지 설명",
+      "imageCaptionPlaceholder": "선택 사항: 이미지와 함께 고객에게 표시됩니다",
+      "inArticle": "문서에 포함됨",
+      "inArticleHint": "이 이미지는 문서 본문 안에 표시되며 문서와 함께 전송됩니다.",
+      "notInArticle": "본문에서 삭제됨",
+      "notInArticleHint": "이 이미지는 더 이상 문서 본문에 없으므로 저장하면 제거됩니다.",
+      "imageUnsupported": "문서에는 PNG, JPEG, WebP, GIF 이미지만 추가할 수 있습니다.",
+      "imageTooLarge": "이 이미지는 크기를 줄여도 {max}를 초과합니다. 더 작은 이미지를 사용해 주세요.",
+      "imageUnreadable": "이 이미지를 읽을 수 없습니다. 다시 복사하거나 PNG로 저장해 보세요.",
+      "attachmentsHintInline": "본문에 붙여넣거나 끌어다 놓은 이미지도 여기에 '문서에 포함됨'으로 표시됩니다. 이 이미지는 본문 뒤에, 본문에 나타나는 순서대로 전송됩니다."
     },
     "library": {
       "rail": {
@@ -3698,7 +3709,16 @@
       "willAttach": "첨부될 파일:",
       "fromKnowledge": "지식 베이스에서:",
       "removeFile": "이 답변에서 {name} 제거",
-      "linkFallback": "이 채널은 파일을 보낼 수 없어 각 파일의 링크가 메시지에 대신 추가됩니다."
+      "linkFallback": "이 채널은 파일을 보낼 수 없어 각 파일의 링크가 메시지에 대신 추가됩니다.",
+      "pastedImage": "붙여넣은 이미지",
+      "pasteUploading": "업로드 중…",
+      "removePastedImage": "붙여넣은 이 이미지 제거",
+      "pasteUnsupported": "이미지만 붙여넣거나 끌어다 놓을 수 있습니다. 다른 파일은 클립 아이콘을 사용하세요.",
+      "pasteTooLarge": "이 이미지는 크기를 줄여도 {max}MB를 초과합니다. 더 작은 이미지를 사용해 주세요.",
+      "pasteUnreadable": "이 이미지를 읽을 수 없습니다. 다시 복사하거나 PNG로 저장해 보세요.",
+      "pasteFailed": "이미지를 업로드하지 못했습니다.",
+      "dropNotImage": "이미지만 끌어다 놓을 수 있습니다. 다른 파일은 클립 아이콘을 사용하세요.",
+      "articleImage": "문서 이미지:"
     },
     "translations": {
       "title": "번역",

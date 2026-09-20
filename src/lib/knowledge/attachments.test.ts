@@ -18,6 +18,8 @@ const att = (over: Partial<KnowledgeAttachment> = {}): KnowledgeAttachment => ({
   storage_path: 'account-x/kb/menu.pdf',
   send_with_ai: true,
   position: 0,
+  inline: false,
+  caption: null,
   ...over,
 })
 

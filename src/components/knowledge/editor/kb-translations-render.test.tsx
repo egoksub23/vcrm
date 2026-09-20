@@ -198,6 +198,8 @@ describe('inherited files and the language chip', () => {
     storage_path: 'account-a/kb/menu.pdf',
     send_with_ai: true,
     position: 0,
+    inline: false,
+    caption: null,
   }
 
   it('lists the base files read-only with where they come from', () => {

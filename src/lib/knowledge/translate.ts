@@ -1,6 +1,6 @@
 import { KB_LANGUAGES, type KbLanguage } from '@/lib/ai/knowledge-query'
 import { MAX_CONTENT_CHARS, MAX_HTML_CHARS, MAX_TITLE_CHARS, type KbStatus } from '@/lib/ai/knowledge-doc'
-import { kbHtmlToPlainText, sanitizeKbHtml } from '@/lib/knowledge-format'
+import { kbHtmlToPlainText, sanitizeKbHtml, type KbImagePolicy } from '@/lib/knowledge-format'
 import type { KnowledgeTranslationInfo } from '@/lib/knowledge-types'
 
 // ============================================================
@@ -55,7 +55,7 @@ export function buildTranslatePrompt(args: { from: KbLanguage; to: KbLanguage })
     [
       'Rules:',
       '- Translate faithfully and completely. Do not add, remove, summarise or explain anything, and add no commentary, notes or headings of your own.',
-      '- Keep the HTML structure exactly: the same tags in the same order and nesting. Translate only the text between tags (and link labels). Never change an href.',
+      '- Keep the HTML structure exactly: the same tags in the same order and nesting. Translate only the text between tags (and link labels). Never change an href or an image src (translate an image alt).',
       '- Keep exactly as written: numbers, prices, currency codes and symbols, product names, brand names, code, URLs, email addresses and phone numbers.',
       `- Use natural, polite wording a business would use with its customers in ${to}.`,
     ].join('\n'),
@@ -100,7 +100,12 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
  * article (so scripts, styles, event handlers and odd links are gone), and
  * the plain text search and the AI read is derived from the cleaned result.
  */
-export function parseTranslation(text: string): TranslationParse {
+export function parseTranslation(
+  text: string,
+  // Which images the translation may keep: the base article's own (images are
+  // dropped when this is left out).
+  imageOptions?: { images?: KbImagePolicy | null; onlyImageUrls?: ReadonlySet<string> },
+): TranslationParse {
   const raw = (text ?? '').trim()
   if (!raw) return BAD('The AI returned nothing.')
   const json = extractJsonObject(raw)
@@ -116,7 +121,7 @@ export function parseTranslation(text: string): TranslationParse {
   if (html.length > MAX_HTML_CHARS) {
     return { ok: false, code: 'too_long', message: 'The translation is too long to save.' }
   }
-  const contentHtml = sanitizeKbHtml(html)
+  const contentHtml = sanitizeKbHtml(html, imageOptions)
   const content = kbHtmlToPlainText(contentHtml)
   if (!content.trim()) return BAD('The AI returned no usable text.')
   if (content.length > MAX_CONTENT_CHARS) {

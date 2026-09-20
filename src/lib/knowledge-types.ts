@@ -35,11 +35,18 @@ export interface KnowledgeAttachment {
   /** When the AI answers from this article, send this file with the reply. */
   send_with_ai: boolean
   position: number
+  /** true = an image shown inside the article body (an `<img>` in its HTML),
+   *  not only listed under it. Inline images are always images. */
+  inline: boolean
+  /** Optional caption: the media caption on chat channels and the `alt` text
+   *  in the article HTML. Null when there is none. */
+  caption: string | null
 }
 
 /** An attachment as the editor sends it on save. `id` present = keep it
- *  (its `send_with_ai` may change); absent = a newly uploaded file. Any
- *  existing attachment missing from the list is removed. */
+ *  (its `send_with_ai`, `inline` and `caption` may change); absent = a newly
+ *  uploaded file. Any existing attachment missing from the list is removed.
+ *  The list's order is the sending order. */
 export interface StagedKnowledgeAttachment {
   id?: string
   file_name: string
@@ -48,7 +55,14 @@ export interface StagedKnowledgeAttachment {
   url: string
   storage_path: string
   send_with_ai: boolean
+  /** Shown inside the article body. Defaults to false. */
+  inline?: boolean
+  caption?: string | null
 }
+
+/** The longest caption a media message may carry (Meta's limit) and so the
+ *  longest an image caption / alt text may be. */
+export const KB_CAPTION_MAX_CHARS = 1024
 
 /** One translation of a base article, as listed on the base (library row,
  *  editor card). `out_of_date` = the base changed after it was translated. */

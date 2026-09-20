@@ -1,5 +1,5 @@
 import { KB_LANGUAGES, type KbLanguage } from './knowledge-query'
-import { kbHtmlToPlainText, sanitizeKbHtml } from '../knowledge-format'
+import { kbHtmlToPlainText, sanitizeKbHtml, type KbImagePolicy } from '../knowledge-format'
 
 // ============================================================
 // Validation for knowledge-base article input (create / update).
@@ -42,9 +42,14 @@ const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T =>
 /**
  * Parse a request body into the fields to write. With `partial` set
  * (update) every field is optional but must be valid when present; for a
- * create, title and content are required.
+ * create, title and content are required. `images` says where this
+ * account's article images may live (see `KbImagePolicy`); without it every
+ * `<img>` in the rich text is removed.
  */
-export function parseDocInput(body: unknown, opts: { partial: boolean }): ParsedDoc {
+export function parseDocInput(
+  body: unknown,
+  opts: { partial: boolean; images?: KbImagePolicy | null },
+): ParsedDoc {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
   const fields: DocFields = {}
 
@@ -67,7 +72,7 @@ export function parseDocInput(body: unknown, opts: { partial: boolean }): Parsed
       // Sanitise on the server whatever the editor sent, and derive the
       // plain text search and the AI read from the result — a client's own
       // `content` is ignored when it sends rich text.
-      const html = sanitizeKbHtml(b.content_html)
+      const html = sanitizeKbHtml(b.content_html, { images: opts.images })
       const plain = kbHtmlToPlainText(html)
       if (!plain.trim()) return { ok: false, error: 'content cannot be empty' }
       if (plain.length > MAX_CONTENT_CHARS) {

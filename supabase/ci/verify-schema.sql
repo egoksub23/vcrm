@@ -94,6 +94,15 @@ BEGIN
     RAISE EXCEPTION 'the channel/AI/API-key policies do not use has_capability — migration 079 did not apply';
   END IF;
 
+  -- Inline images in knowledge articles (080).
+  IF (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'knowledge_attachments'
+      AND column_name IN ('inline', 'caption')
+  ) < 2 THEN
+    RAISE EXCEPTION 'knowledge_attachments.inline / caption are missing — migration 080 did not apply';
+  END IF;
+
   RAISE NOTICE 'schema verification passed';
 END
 $$;
