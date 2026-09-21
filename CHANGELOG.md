@@ -9,6 +9,11 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.51.1] — 2026-09-21
+
+- **Ticket comments: a picked @mention now shows as a coloured box while you type** (people in blue, teams in purple, the same colours as a posted comment), so you can see it has been tagged.
+- **Ticket comments: pick from the @ list with the keyboard.** Use the up and down arrows to move, and **Enter** or **Tab** to pick the highlighted person or team. The highlighted row is shaded. **Ctrl+Enter** still posts the comment.
+
 ## [0.51.0] — 2026-09-21 — **migrations required: 093, 094 and 095** (apply in that order)
 
 - **Ticket @mentions of teams, and “needs your response”.** In ticket comments the @ list now shows People and Teams. Mentioning a team includes all its members (fixed at the moment you post) and adds them as watchers; members without ticket access are skipped and you are told how many. A comment can be **Needs a response** (the default when it names someone) or **FYI only**. Anyone with an open request sees a round **bubble on the Tickets menu** with the number of tickets waiting on them, a **Mentioned me** quick filter, a **Waiting on you** chip on cards and rows, and a banner inside the ticket with **Mark as done** and a link to the comment. A request closes when they reply on the ticket, click Mark as done, the requester deletes the comment or cancels, or the ticket is resolved or closed. Requesters see who is still pending and can nudge (once an hour) or cancel. The notification bell links to the comment. (Migration 095.)
