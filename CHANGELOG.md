@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.50.1] — 2026-09-21
+
+- **Fixed: the chat header was cramped on laptop screens.** With the contact panel open, the customer's name was squeezed out and the badges, timer and the Status, Assign and Priority buttons overlapped each other. The header now wraps onto a second row when there is not enough width.
+- **User Guide screenshots.** 29 of the 35 planned screenshots are added. The rest follow after this release.
+- No migration.
+
 ## [0.50.0] — 2026-09-21
 
 - **User Guide, inside the CRM.** A new **User Guide** item in the sidebar (every role) opens a searchable manual written for agents: getting started, the Inbox (replying, assigning, closing, notes, tags, views, AI help, web chat, social comments), contacts, the Knowledge base, Tickets (including the Jira link), notifications, approvals, reports, troubleshooting and a What's new page. It has a section tree, an “On this page” outline, previous and next links, search (press **Ctrl+K** or **/**), callouts and click-to-zoom pictures. Pages are Markdown files in `content/help/`, see `docs/user-guide.md`. Screenshots are added separately; until then a plain placeholder shows.
