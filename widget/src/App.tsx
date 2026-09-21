@@ -1,391 +1,874 @@
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
-import { supabase, startSession, sendWidgetMessage, fetchMessageHistory } from './api'
-import type { Branding, VerifiedIdentity, WidgetMessage } from './api'
+import {
+  ApiError,
+  fetchMessages,
+  sendEnquiry,
+  sendReceipt,
+  sendWidgetMessage,
+  sessionNeedsIdentity,
+  startSession,
+  supabase,
+  uploadMedia,
+  type Claim,
+  type EnquiryInput,
+  type SessionResponse,
+  type StartSessionOptions,
+} from './api'
+import { makeTranslator, type Translate } from './i18n'
+import { canRecordVoice } from './recorder'
+import type { VoiceResult } from './recorder-strategy'
+import { isReturning, markReturning, readLastSeen, writeLastSeen } from './storage'
+import {
+  DEFAULT_LIMITS,
+  type Branding,
+  type IdentityInfo,
+  type IdentityInput,
+  type Locale,
+  type LocalMessage,
+  type MediaKind,
+  type WidgetLimits,
+} from './types'
+import {
+  findUnread,
+  formatBytes,
+  groupMessages,
+  guessMime,
+  isTemp,
+  mergeMessages,
+  receiptTargets,
+  TEMP_PREFIX,
+  toWidgetMessage,
+  validateFile,
+  type UnreadMarker,
+} from './util'
+import { Bubble } from './ui/Bubble'
+import { Composer } from './ui/Composer'
+import { ChoiceScreen, ClaimForm, EnquiryForm } from './ui/Gate'
+import { ArrowDownIcon, BackIcon, CloseIcon, LauncherIcon } from './ui/icons'
+import { Lightbox, MediaPreview, type StagedFile } from './ui/Overlays'
 
-interface LocalMessage extends WidgetMessage {
-  pending?: boolean
-  failed?: boolean
-}
-
-const LAUNCHER_ICON = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path
-      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-  </svg>
-)
-const CLOSE_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-    <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-  </svg>
-)
-const SEND_ICON = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-  </svg>
-)
+type Screen = 'boot' | 'error' | 'choice' | 'claim' | 'enquiry' | 'chat'
+type Banner = { kind: 'error' | 'info'; text: string }
 
 interface AppProps {
   widgetToken: string
+  locale: Locale
   autoOpen?: boolean
-  /** Synchronous handoff from the loader's own data-* attrs — set when
-   *  the host app already knew the user before injecting the widget
-   *  script. A present `.phone` skips the identity gate entirely. */
-  initialIdentity?: VerifiedIdentity
-  /** Registers the callback main.tsx's window.VircleWidget.identify()
-   *  invokes for an ASYNC handoff (host auth finishes after mount). */
-  onIdentifyReady?: (cb: (identity: VerifiedIdentity) => void) => void
+  /** Synchronous handoff from the loader's own data-* attrs (token or legacy phone/email). */
+  initialIdentity?: IdentityInput
+  /** Registers the callback main.tsx's window.VircleWidget.identify() invokes for an
+   *  ASYNC handoff (the host's own sign-in finishes after this widget mounted). */
+  onIdentifyReady?: (cb: (identity: IdentityInput) => void) => void
 }
 
-export function App({ widgetToken, autoOpen = false, initialIdentity, onIdentifyReady }: AppProps) {
+let tempCounter = 0
+function newTempId(): string {
+  tempCounter += 1
+  return `${TEMP_PREFIX}${Date.now().toString(36)}-${tempCounter}`
+}
+
+function errorText(err: unknown, t: Translate, limits: WidgetLimits): string {
+  if (err instanceof ApiError) {
+    switch (err.code) {
+      case 'rate_limited':
+        return t('rateLimited')
+      case 'network':
+        return t('networkError')
+      case 'invalid_claim':
+        return t('errClaim')
+      case 'file_too_large':
+        return t('fileTooLarge', { max: formatBytes(limits.maxFileBytes) })
+      case 'file_type_not_allowed':
+        return t('fileTypeNotAllowed')
+      default:
+        return t('genericError')
+    }
+  }
+  return t('genericError')
+}
+
+function extensionFor(mime: string): string {
+  if (mime === 'audio/ogg') return 'ogg'
+  if (mime === 'audio/mp4') return 'm4a'
+  if (mime === 'audio/aac') return 'aac'
+  return 'audio'
+}
+
+export function App({ widgetToken, locale, autoOpen = false, initialIdentity, onIdentifyReady }: AppProps) {
+  const t = useMemo(() => makeTranslator(locale), [locale])
+
   const [open, setOpen] = useState(autoOpen)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [screen, setScreen] = useState<Screen>('boot')
+  const [busy, setBusy] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [bootError, setBootError] = useState<string | null>(null)
+  const [banner, setBanner] = useState<Banner | null>(null)
   const [branding, setBranding] = useState<Branding | null>(null)
+  const [limits, setLimits] = useState<WidgetLimits>(DEFAULT_LIMITS)
+  const [identity, setIdentity] = useState<IdentityInfo | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<LocalMessage[]>([])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
-  // null = not determined yet (still bootstrapping); true = this browser
-  // is unidentified and the identity prompt must show; false = resolved
-  // (guest or identified), normal composer shows.
-  const [needsPhone, setNeedsPhone] = useState<boolean | null>(null)
-  // 'ask' = "are you already a Vircle user?" yes/no; 'phone' = the
-  // phone-entry form (after "yes", or answering a prior needsPhone).
-  const [identityStage, setIdentityStage] = useState<'ask' | 'phone'>('ask')
-  const [isGuest, setIsGuest] = useState(false)
-  // Whether the "link your account" phone input is expanded — separate
-  // from `linking` (the in-flight request state) so a failed attempt
-  // leaves the form open with the typed number and the error visible,
-  // instead of collapsing back to the toggle button.
-  const [linkFormOpen, setLinkFormOpen] = useState(false)
-  const [linking, setLinking] = useState(false)
-  const [phoneInput, setPhoneInput] = useState('')
-  const [nameInput, setNameInput] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [historyReady, setHistoryReady] = useState(false)
+  const [live, setLive] = useState(true)
+  const [staged, setStaged] = useState<StagedFile | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null)
+  const [unread, setUnread] = useState<UnreadMarker | null>(null)
+  const [lastSeen, setLastSeen] = useState<string | null>(null)
+  const [atBottom, setAtBottom] = useState(true)
+  const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
+  const [isMobile, setIsMobile] = useState(false)
+  const [viewport, setViewport] = useState<{ height: string; top: string } | null>(null)
+  const [initialScroll, setInitialScroll] = useState(0)
+  const [canRecord, setCanRecord] = useState(() => canRecordVoice(DEFAULT_LIMITS.allowedMimeTypes))
+
   const bootstrapped = useRef(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const convRef = useRef<string | null>(null)
+  const messagesRef = useRef<LocalMessage[]>([])
+  const hasMoreRef = useRef(false)
+  const loadingOlderRef = useRef(false)
+  const lastSeenRef = useRef<string | null>(null)
+  const stickRef = useRef(true)
+  const anchorRef = useRef<{ height: number; top: number } | null>(null)
+  const snapshotDone = useRef(false)
+  const everSubscribed = useRef(false)
+  const reported = useRef(new Map<string, 'delivered' | 'read'>())
+  const identityRef = useRef<IdentityInput>({ ...initialIdentity })
+  const identityLevelRef = useRef<string | null>(null)
+  const limitsRef = useRef(limits)
+  limitsRef.current = limits
+  messagesRef.current = messages
+  hasMoreRef.current = hasMore
+  identityLevelRef.current = identity?.level ?? null
 
-  // Fetches history + opens the Realtime subscription for `id`, tearing
-  // down any previous subscription first — reused not just by the
-  // initial bootstrap but by every later re-identify (self-service
-  // link, a late identify() call), where the conversationId can change
-  // out from under an already-open chat if the visitor's guest history
-  // gets merged into an existing contact's thread.
-  const connectConversation = useCallback(async (id: string) => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current)
-      channelRef.current = null
+  // ---------- conversation connection ----------
+
+  const refreshLatest = useCallback(async () => {
+    const id = convRef.current
+    if (!id) return
+    try {
+      const { rows } = await fetchMessages(id)
+      if (convRef.current === id) setMessages((prev) => mergeMessages(prev, rows))
+    } catch {
+      /* the next reconnect / visibility change retries */
     }
-    setConversationId(id)
-    const history = await fetchMessageHistory(id)
-    setMessages(history)
-
-    const channel = supabase
-      .channel(`widget-messages-${id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-        (payload) => {
-          const row = payload.new as WidgetMessage & { is_internal?: boolean; sender_type: string }
-          // Our own sends are already rendered optimistically below —
-          // only agent/bot replies need to be appended from Realtime.
-          // is_internal is also excluded server-side by RLS (migration
-          // 046), this is belt-and-braces.
-          if (row.sender_type === 'customer' || row.is_internal) return
-          setMessages((prev) => [...prev, row])
-        },
-      )
-      .subscribe()
-    channelRef.current = channel
   }, [])
 
-  // Shared by every path that resolves (or re-resolves) identity:
-  // initial bootstrap, the "yes" phone-gate submit, "no"/skip, a
-  // mid-session "link your account", and an async identify() handoff.
-  // Reconnects only when the conversationId actually changed (a guest
-  // merge can land on a different, pre-existing conversation).
-  const applyIdentity = useCallback(
-    async (opts: Parameters<typeof startSession>[1]) => {
-      const session = await startSession(widgetToken, opts)
-      setBranding(session.branding)
-      if (session.needsPhone) return session
-      setNeedsPhone(false)
-      setIsGuest(session.isGuest)
-      if (session.conversationId !== conversationId) {
-        await connectConversation(session.conversationId)
+  // Fetches the newest page + opens the Realtime subscription for `id`,
+  // tearing down any previous one first — reused by the initial
+  // bootstrap and by every later re-identify, where the conversationId
+  // can change out from under an open chat if a guest thread is merged
+  // into an existing contact's.
+  const connectConversation = useCallback(async (id: string) => {
+    if (channelRef.current) {
+      void supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+    convRef.current = id
+    everSubscribed.current = false
+    reported.current = new Map()
+    snapshotDone.current = false
+    setConversationId(id)
+    setHistoryReady(false)
+    setUnread(null)
+    setMessages([])
+    lastSeenRef.current = readLastSeen(id)
+    setLastSeen(lastSeenRef.current)
+
+    const { rows, hasMore: more } = await fetchMessages(id)
+    if (convRef.current !== id) return
+    setMessages(rows)
+    setHasMore(more)
+    setHistoryReady(true)
+
+    const filter = `conversation_id=eq.${id}`
+    const channel = supabase
+      .channel(`widget-messages-${id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
+        const row = toWidgetMessage(payload.new as Record<string, unknown>)
+        // is_internal is also excluded server-side by RLS (migration 046) — belt and braces.
+        if (row.is_internal) return
+        setMessages((prev) => {
+          if (row.sender_type === 'customer') {
+            // The visitor's own sends are rendered optimistically and reconciled
+            // from the /message response; only adopt one that this browser is
+            // not in the middle of sending (e.g. sent from another tab).
+            if (prev.some((m) => m.id === row.id)) return mergeMessages(prev, [row])
+            if (prev.some((m) => isTemp(m) && m.pending)) return prev
+          }
+          return mergeMessages(prev, [row])
+        })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (payload) => {
+        const row = toWidgetMessage(payload.new as Record<string, unknown>)
+        if (row.is_internal) return
+        // Animates the ticks; mergeMessages never lets a status go backwards.
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? mergeMessages(prev, [row]) : prev))
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setLive(true)
+          // Anything sent while the socket was down is fetched now.
+          if (everSubscribed.current) void refreshLatest()
+          everSubscribed.current = true
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setLive(false)
+        }
+      })
+    channelRef.current = channel
+  }, [refreshLatest])
+
+  // Shared by every path that resolves (or re-resolves) identity.
+  // Returns true when the visitor ended up in a conversation.
+  const applySession = useCallback(
+    async (res: SessionResponse, announce = false): Promise<boolean> => {
+      setBranding(res.branding)
+      if (res.limits) {
+        setLimits(res.limits)
+        setCanRecord(canRecordVoice(res.limits.allowedMimeTypes))
       }
-      return session
+      if (res.identity) setIdentity(res.identity)
+      if (res.identityError) {
+        // The token was rejected; the visitor simply continues unidentified. Tell the
+        // host page (its dev console / analytics) so a bad integration is visible.
+        console.warn(`[vircle-widget] identity token rejected: ${res.identityError}`)
+        window.dispatchEvent(new CustomEvent('vircle-widget:identity-error', { detail: { code: res.identityError } }))
+      }
+      if (sessionNeedsIdentity(res) || !res.conversationId) {
+        setScreen('choice')
+        return false
+      }
+      if (res.conversationId !== convRef.current) await connectConversation(res.conversationId)
+      setScreen('chat')
+      markReturning(widgetToken)
+      if (announce && res.claimFound !== undefined) {
+        const name = res.identity?.displayName
+        setBanner({
+          kind: 'info',
+          text: res.claimFound
+            ? name
+              ? t('welcomeBack', { name })
+              : t('welcomeBackNoName')
+            : t('welcomeNew'),
+        })
+      }
+      return true
     },
-    [widgetToken, conversationId, connectConversation],
+    [connectConversation, t, widgetToken],
   )
 
   const bootstrap = useCallback(async () => {
     if (bootstrapped.current) return
     bootstrapped.current = true
-    setLoading(true)
-    setError(null)
+    setBootError(null)
     try {
-      const hasVerified = !!initialIdentity?.phone
-      const session = await applyIdentity(hasVerified ? { verifiedIdentity: initialIdentity } : {})
-      if (session.needsPhone) setNeedsPhone(true)
+      const idn = identityRef.current
+      const opts: StartSessionOptions = { locale }
+      if (idn.token) opts.identityToken = idn.token
+      else if (idn.phone || idn.email) opts.claim = { phone: idn.phone, email: idn.email, name: idn.name }
+      await applySession(await startSession(widgetToken, opts))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
       bootstrapped.current = false
-    } finally {
-      setLoading(false)
+      setBootError(errorText(err, t, limitsRef.current))
+      setScreen('error')
     }
-  }, [initialIdentity, applyIdentity])
+  }, [applySession, locale, t, widgetToken])
 
-  const handleStartChat = useCallback(async () => {
-    const phone = phoneInput.trim()
-    if (!phone || loading) return
-    setLoading(true)
-    setError(null)
-    try {
-      const session = await applyIdentity({ visitorPhone: phone, visitorName: nameInput.trim() || undefined })
-      if (session.needsPhone) setError('Enter a valid phone number')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }, [phoneInput, nameInput, loading, applyIdentity])
-
-  const handleDecline = useCallback(async () => {
-    if (loading) return
-    setLoading(true)
-    setError(null)
-    try {
-      await applyIdentity({ skipIdentity: true, visitorName: nameInput.trim() || undefined })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }, [loading, nameInput, applyIdentity])
-
-  // "Link your account" — a guest visitor identifying themselves after
-  // already chatting a while, not at the initial gate. Reuses the same
-  // applyIdentity path; the backend does the guest -> known-contact
-  // merge (migration 054) and applyIdentity's conversationId check
-  // handles reconnecting to the (possibly different) merged thread.
-  const handleLinkAccount = useCallback(async () => {
-    const phone = phoneInput.trim()
-    if (!phone || linking) return
-    setLinking(true)
-    setError(null)
-    try {
-      await applyIdentity({ visitorPhone: phone })
-      setPhoneInput('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLinking(false)
-    }
-  }, [phoneInput, linking, applyIdentity])
-
+  // Open the chat -> bootstrap. A browser that has chatted before also connects quietly
+  // on page load, so the launcher can show an unread badge for replies that arrived
+  // while the visitor was away.
   useEffect(() => {
-    if (open) bootstrap()
-  }, [open, bootstrap])
+    if (open || isReturning(widgetToken)) void bootstrap()
+  }, [open, bootstrap, widgetToken])
 
-  // Async handoff — a host app whose own sign-in finishes after this
-  // widget already mounted (and possibly already started a guest
-  // session) calls window.VircleWidget.identify(...), which main.tsx
-  // routes here.
+  const runIdentity = useCallback(
+    async (opts: StartSessionOptions) => {
+      try {
+        await applySession(await startSession(widgetToken, { locale, ...opts }))
+      } catch (err) {
+        setBanner({ kind: 'error', text: errorText(err, t, limitsRef.current) })
+      }
+    },
+    [applySession, locale, t, widgetToken],
+  )
+
+  // Late handoff from window.VircleWidget.identify(...).
   useEffect(() => {
-    onIdentifyReady?.((identity) => {
-      if (!identity.phone) return
-      applyIdentity({ verifiedIdentity: identity }).catch((err) =>
-        setError(err instanceof Error ? err.message : 'Something went wrong'),
-      )
+    onIdentifyReady?.((next) => {
+      identityRef.current = { ...identityRef.current, ...next }
+      if (!bootstrapped.current) return // picked up by bootstrap()
+      if (next.token) {
+        void runIdentity({ identityToken: next.token })
+      } else if ((next.phone || next.email) && identityLevelRef.current !== 'verified') {
+        void runIdentity({ claim: { phone: next.phone, email: next.email, name: next.name } })
+      }
     })
-  }, [onIdentifyReady, applyIdentity])
+  }, [onIdentifyReady, runIdentity])
 
-  useEffect(() => {
-    return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
+  // ---------- form handlers ----------
+
+  const handleClaim = useCallback(
+    async (claim: Claim) => {
+      setBusy(true)
+      setFormError(null)
+      try {
+        const res = await startSession(widgetToken, { claim, locale })
+        const ok = await applySession(res, true)
+        if (!ok) setFormError(t('errClaim'))
+      } catch (err) {
+        setFormError(errorText(err, t, limitsRef.current))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [applySession, locale, t, widgetToken],
+  )
+
+  const handleEnquiry = useCallback(
+    async (input: Omit<EnquiryInput, 'locale'>) => {
+      setBusy(true)
+      setFormError(null)
+      try {
+        const res = await sendEnquiry(widgetToken, { ...input, locale })
+        const ok = await applySession(res)
+        if (ok) setBanner({ kind: 'info', text: t('enquirySent') })
+        else setFormError(t('genericError'))
+      } catch (err) {
+        setFormError(errorText(err, t, limitsRef.current))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [applySession, locale, t, widgetToken],
+  )
+
+  const handleGuest = useCallback(async () => {
+    setBusy(true)
+    try {
+      await applySession(await startSession(widgetToken, { skipIdentity: true, locale }))
+    } catch (err) {
+      setBanner({ kind: 'error', text: errorText(err, t, limitsRef.current) })
+    } finally {
+      setBusy(false)
     }
+  }, [applySession, locale, t, widgetToken])
+
+  // ---------- sending ----------
+
+  const performSend = useCallback(
+    async (draft: LocalMessage) => {
+      const convId = convRef.current
+      if (!convId) return
+      setMessages((prev) => prev.map((m) => (m.id === draft.id ? { ...m, pending: true, failed: false } : m)))
+      try {
+        let media
+        const file = draft.retry?.file
+        if (file) {
+          const kind = draft.retry?.kind ?? 'document'
+          const mime = guessMime(file)
+          const path = await uploadMedia(convId, file, { fileName: file.name, mimeType: mime, kind })
+          media = {
+            path,
+            mimeType: mime,
+            fileName: file.name,
+            sizeBytes: file.size,
+            kind,
+            durationSeconds: draft.retry?.durationSeconds,
+          }
+        }
+        const sent = await sendWidgetMessage(convId, {
+          text: draft.retry?.text || undefined,
+          media,
+          clientMessageId: draft.id,
+        })
+        if (convRef.current !== convId) return
+        const settled: LocalMessage = {
+          ...draft,
+          id: sent.id,
+          created_at: sent.created_at,
+          status: sent.status,
+          pending: false,
+          failed: false,
+          retry: undefined,
+        }
+        setMessages((prev) => mergeMessages(prev.filter((m) => m.id !== draft.id), [settled]))
+      } catch (err) {
+        setMessages((prev) => prev.map((m) => (m.id === draft.id ? { ...m, pending: false, failed: true } : m)))
+        if (err instanceof ApiError && ['rate_limited', 'file_too_large', 'file_type_not_allowed', 'network'].includes(err.code ?? '')) {
+          setBanner({ kind: 'error', text: errorText(err, t, limitsRef.current) })
+        }
+      }
+    },
+    [t],
+  )
+
+  const enqueue = useCallback(
+    (draft: Omit<LocalMessage, 'id' | 'sender_type' | 'created_at' | 'pending'>) => {
+      const msg: LocalMessage = {
+        ...draft,
+        id: newTempId(),
+        sender_type: 'customer',
+        created_at: new Date().toISOString(),
+        status: 'sent',
+        pending: true,
+      }
+      stickRef.current = true
+      setMessages((prev) => [...prev, msg])
+      void performSend(msg)
+    },
+    [performSend],
+  )
+
+  const sendText = useCallback(
+    (text: string) => enqueue({ content_text: text, content_type: 'text', retry: { text } }),
+    [enqueue],
+  )
+
+  const sendFile = useCallback(
+    (file: File, kind: MediaKind, caption: string, url: string, durationSeconds?: number) =>
+      enqueue({
+        content_text: caption || null,
+        content_type: kind,
+        localUrl: url,
+        localFileName: file.name,
+        localSizeBytes: file.size,
+        localDurationSeconds: durationSeconds ?? null,
+        retry: { text: caption || undefined, file, kind, durationSeconds },
+      }),
+    [enqueue],
+  )
+
+  const handleFileChosen = useCallback(
+    (file: File) => {
+      const check = validateFile(file, limitsRef.current)
+      if (!check.ok) {
+        setBanner({
+          kind: 'error',
+          text:
+            check.reason === 'too_large'
+              ? t('fileTooLarge', { max: formatBytes(limitsRef.current.maxFileBytes) })
+              : t('fileTypeNotAllowed'),
+        })
+        return
+      }
+      setStaged({ file, kind: check.kind, mime: check.mime, url: URL.createObjectURL(file) })
+    },
+    [t],
+  )
+
+  const confirmStaged = useCallback(
+    (caption: string) => {
+      if (!staged) return
+      // The preview's blob URL becomes the bubble's until the server row arrives.
+      sendFile(staged.file, staged.kind, caption, staged.url)
+      setStaged(null)
+    },
+    [staged, sendFile],
+  )
+
+  const cancelStaged = useCallback(() => {
+    setStaged((s) => {
+      if (s) URL.revokeObjectURL(s.url)
+      return null
+    })
   }, [])
 
-  useEffect(() => {
-    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight })
-  }, [messages, loading])
+  const handleVoice = useCallback(
+    (result: VoiceResult) => {
+      const file = new File([result.blob], `voice-${Date.now()}.${extensionFor(result.mimeType)}`, {
+        type: result.mimeType,
+      })
+      const seconds = Math.max(1, Math.round(result.durationSeconds))
+      sendFile(file, 'audio', '', URL.createObjectURL(file), seconds)
+    },
+    [sendFile],
+  )
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim()
-    if (!text || !conversationId || sending) return
-    const tempId = `temp-${Date.now()}`
-    setMessages((prev) => [
-      ...prev,
-      { id: tempId, sender_type: 'customer', content_text: text, created_at: new Date().toISOString(), pending: true },
-    ])
-    setInput('')
-    setSending(true)
+  const retry = useCallback(
+    (m: LocalMessage) => {
+      if (m.failed) void performSend(m)
+    },
+    [performSend],
+  )
+
+  // ---------- history pagination ----------
+
+  const loadOlder = useCallback(async () => {
+    const id = convRef.current
+    if (!id || loadingOlderRef.current || !hasMoreRef.current) return
+    const oldest = messagesRef.current.find((m) => !isTemp(m))
+    if (!oldest) return
+    loadingOlderRef.current = true
+    setLoadingOlder(true)
     try {
-      await sendWidgetMessage(conversationId, text)
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false } : m)))
+      const { rows, hasMore: more } = await fetchMessages(id, oldest.created_at)
+      if (convRef.current !== id) return
+      const el = bodyRef.current
+      anchorRef.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null
+      setMessages((prev) => mergeMessages(prev, rows))
+      setHasMore(more)
     } catch {
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)))
+      setBanner({ kind: 'error', text: t('networkError') })
     } finally {
-      setSending(false)
+      loadingOlderRef.current = false
+      setLoadingOlder(false)
     }
-  }, [input, conversationId, sending])
+  }, [t])
+
+  // ---------- scrolling ----------
+
+  const onScroll = useCallback(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const away = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickRef.current = away < 80
+    setAtBottom(away < 80)
+    if (el.scrollTop < 60) void loadOlder()
+  }, [loadOlder])
+
+  // A photo/video finishing its load makes its bubble taller — stay at the bottom if we were.
+  const keepPinned = useCallback(() => {
+    const el = bodyRef.current
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight
+  }, [])
+
+  const scrollToBottom = useCallback(() => {
+    const el = bodyRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight })
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    if (anchorRef.current) {
+      // Older messages were prepended: keep what the visitor was reading in place.
+      el.scrollTop = el.scrollHeight - anchorRef.current.height + anchorRef.current.top
+      anchorRef.current = null
+      return
+    }
+    if (stickRef.current) el.scrollTop = el.scrollHeight
+  }, [messages, screen, staged, banner])
+
+  // First time the panel shows a loaded conversation: freeze the unread marker
+  // (relative to what the visitor had seen before), then jump to it.
+  useLayoutEffect(() => {
+    if (!open || !historyReady || screen !== 'chat' || snapshotDone.current) return
+    snapshotDone.current = true
+    setUnread(findUnread(messagesRef.current, lastSeenRef.current))
+    setInitialScroll((n) => n + 1)
+  }, [open, historyReady, screen])
+
+  useLayoutEffect(() => {
+    if (initialScroll === 0) return
+    const el = bodyRef.current
+    if (!el) return
+    const marker = el.querySelector('.wcw-unread') as HTMLElement | null
+    if (marker) {
+      stickRef.current = false
+      // Position of the marker inside the scroller (offsetTop would be relative to the panel).
+      const offset = marker.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
+      el.scrollTop = Math.max(0, offset - 48)
+    } else {
+      stickRef.current = true
+      el.scrollTop = el.scrollHeight
+    }
+  }, [initialScroll])
+
+  useEffect(() => {
+    if (!open) {
+      snapshotDone.current = false
+      setUnread(null)
+      setLightbox(null)
+    }
+  }, [open])
+
+  // Anything on screen counts as seen: remembered per conversation so the next
+  // visit can mark what arrived in between.
+  useEffect(() => {
+    const id = convRef.current
+    if (!id || !open || !visible || !historyReady) return
+    let newest = lastSeenRef.current
+    for (const m of messages) {
+      if (isTemp(m)) continue
+      if (!newest || Date.parse(m.created_at) > Date.parse(newest)) newest = m.created_at
+    }
+    if (newest && newest !== lastSeenRef.current) {
+      lastSeenRef.current = newest
+      writeLastSeen(id, newest)
+      setLastSeen(newest)
+    }
+  }, [messages, open, visible, historyReady])
+
+  const badgeCount = !open ? (findUnread(messages, lastSeen)?.count ?? 0) : 0
+
+  // ---------- receipts: delivered as soon as received, read once displayed ----------
+
+  useEffect(() => {
+    const id = conversationId
+    if (!id || !historyReady) return
+    const report = (target: 'delivered' | 'read') => {
+      const ids = receiptTargets(messages, reported.current, target)
+      if (ids.length === 0) return
+      for (const mid of ids) reported.current.set(mid, target)
+      void sendReceipt(id, ids, target).then((ok) => {
+        if (!ok) for (const mid of ids) if (reported.current.get(mid) === target) reported.current.delete(mid)
+      })
+    }
+    if (open && visible && screen === 'chat') report('read')
+    else report('delivered')
+  }, [messages, conversationId, historyReady, open, visible, screen])
+
+  // ---------- environment ----------
+
+  useEffect(() => {
+    const onVis = () => {
+      const now = document.visibilityState !== 'hidden'
+      setVisible(now)
+      if (now) void refreshLatest()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [refreshLatest])
+
+  useEffect(() => {
+    let mq: MediaQueryList
+    try {
+      mq = window.matchMedia('(max-width: 600px)')
+    } catch {
+      return
+    }
+    const update = () => setIsMobile(mq.matches)
+    update()
+    mq.addEventListener?.('change', update)
+    return () => mq.removeEventListener?.('change', update)
+  }, [])
+
+  // On phones the panel is full screen; follow the visual viewport so the
+  // on-screen keyboard does not cover the composer.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!open || !isMobile || !vv) {
+      setViewport(null)
+      return
+    }
+    const update = () => setViewport({ height: `${vv.height}px`, top: `${vv.offsetTop}px` })
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [open, isMobile])
+
+  useEffect(() => {
+    if (!banner || banner.kind === 'error') return
+    const id = window.setTimeout(() => setBanner(null), 7000)
+    return () => window.clearTimeout(id)
+  }, [banner])
+
+  useEffect(
+    () => () => {
+      if (channelRef.current) void supabase.removeChannel(channelRef.current)
+      for (const m of messagesRef.current) if (m.localUrl) URL.revokeObjectURL(m.localUrl)
+    },
+    [],
+  )
+
+  // ---------- render ----------
 
   const position = branding?.position ?? 'right'
   const primaryColor = branding?.primaryColor ?? '#3b82f6'
+  const showBack = screen === 'claim' || screen === 'enquiry'
+  const items = useMemo(
+    () => groupMessages(messages, { locale, now: new Date(), t, unread }),
+    [messages, locale, t, unread],
+  )
+  const panelStyle =
+    isMobile && viewport ? ({ height: viewport.height, top: viewport.top } as Record<string, string>) : undefined
+
+  const goBack = () => {
+    setFormError(null)
+    setScreen(conversationId ? 'chat' : 'choice')
+  }
 
   return (
-    <div class="wcw-root" style={{ '--wcw-primary': primaryColor } as Record<string, string>}>
+    <div
+      class="wcw-root"
+      lang={locale}
+      style={{ '--wcw-primary': primaryColor } as Record<string, string>}
+    >
       {open && (
-        <div class={`wcw-panel wcw-${position}`}>
+        <div class={`wcw-panel wcw-${position}${isMobile ? ' wcw-mobile' : ''}`} style={panelStyle}>
           <div class="wcw-header">
+            {showBack && (
+              <button type="button" class="wcw-close" aria-label={t('back')} onClick={goBack}>
+                <BackIcon />
+              </button>
+            )}
             <div class="wcw-header-avatar">
-              {branding?.avatarUrl ? <img src={branding.avatarUrl} alt="" /> : (branding?.name ?? 'C').charAt(0).toUpperCase()}
+              {branding?.avatarUrl ? (
+                <img src={branding.avatarUrl} alt="" />
+              ) : (
+                (branding?.name ?? 'C').charAt(0).toUpperCase()
+              )}
             </div>
-            <div class="wcw-header-title">{branding?.name ?? 'Chat'}</div>
-            <button type="button" class="wcw-close" aria-label="Close chat" onClick={() => setOpen(false)}>
-              {CLOSE_ICON}
+            <div class="wcw-header-text">
+              <div class="wcw-header-title">{branding?.name ?? 'Chat'}</div>
+              {screen === 'chat' && !live && <div class="wcw-header-sub">{t('reconnecting')}</div>}
+            </div>
+            <button type="button" class="wcw-close" aria-label={t('closeChat')} onClick={() => setOpen(false)}>
+              <CloseIcon />
             </button>
           </div>
 
-          {error && <div class="wcw-error">{error}</div>}
+          {banner && (
+            <div
+              class={`wcw-banner wcw-banner-${banner.kind}`}
+              role={banner.kind === 'error' ? 'alert' : 'status'}
+              onClick={() => setBanner(null)}
+            >
+              {banner.text}
+            </div>
+          )}
 
-          <div class="wcw-body" ref={bodyRef}>
-            {branding?.welcomeMessage && <div class="wcw-welcome">{branding.welcomeMessage}</div>}
-            {loading && messages.length === 0 && <div class="wcw-empty">Connecting…</div>}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                class={`wcw-bubble wcw-${m.sender_type === 'customer' ? 'customer' : 'agent'}${m.pending ? ' wcw-pending' : ''}${m.failed ? ' wcw-failed' : ''}`}
-              >
-                {m.content_text}
+          <div class={`wcw-body${screen === 'chat' ? ' wcw-body-chat' : ''}`} ref={bodyRef} onScroll={onScroll}>
+            {screen === 'boot' && <div class="wcw-empty">{t('loadingChat')}</div>}
+
+            {screen === 'error' && (
+              <div class="wcw-empty">
+                <p>{bootError}</p>
+                <button
+                  type="button"
+                  class="wcw-primary"
+                  onClick={() => {
+                    setScreen('boot')
+                    void bootstrap()
+                  }}
+                >
+                  {t('retry')}
+                </button>
               </div>
-            ))}
+            )}
+
+            {screen === 'choice' && (
+              <>
+                {branding?.welcomeMessage && <div class="wcw-welcome">{branding.welcomeMessage}</div>}
+                <ChoiceScreen
+                  t={t}
+                  busy={busy}
+                  onExisting={() => {
+                    setFormError(null)
+                    setScreen('claim')
+                  }}
+                  onEnquiry={() => {
+                    setFormError(null)
+                    setScreen('enquiry')
+                  }}
+                  onGuest={() => void handleGuest()}
+                />
+              </>
+            )}
+
+            {screen === 'claim' && <ClaimForm t={t} busy={busy} error={formError} onSubmit={handleClaim} />}
+            {screen === 'enquiry' && <EnquiryForm t={t} busy={busy} error={formError} onSubmit={handleEnquiry} />}
+
+            {screen === 'chat' && (
+              <>
+                {hasMore && (
+                  <button type="button" class="wcw-linkbtn wcw-earlier" onClick={() => void loadOlder()} disabled={loadingOlder}>
+                    {loadingOlder ? t('loadingEarlier') : t('loadEarlier')}
+                  </button>
+                )}
+                {!hasMore && branding?.welcomeMessage && <div class="wcw-welcome">{branding.welcomeMessage}</div>}
+                {historyReady && messages.length === 0 && <div class="wcw-empty wcw-empty-inline">{t('emptyChat')}</div>}
+                {items.map((item) => {
+                  if (item.type === 'day') {
+                    return (
+                      <div key={item.key} class="wcw-day">
+                        <span>{item.label}</span>
+                      </div>
+                    )
+                  }
+                  if (item.type === 'unread') {
+                    return (
+                      <div key={item.key} class="wcw-unread">
+                        <span>{item.count === 1 ? t('unreadOne') : t('unreadMany', { n: item.count })}</span>
+                      </div>
+                    )
+                  }
+                  return (
+                    <Bubble
+                      key={item.key}
+                      m={item.message}
+                      locale={locale}
+                      t={t}
+                      onRetry={retry}
+                      onOpenImage={(src, name) => setLightbox({ src, name })}
+                      onMediaLoad={keepPinned}
+                    />
+                  )
+                })}
+              </>
+            )}
           </div>
 
-          {needsPhone === true && identityStage === 'ask' && (
-            <div class="wcw-gate">
-              <p class="wcw-gate-hint">Are you already a Vircle user?</p>
-              <div class="wcw-gate-row">
-                <button
-                  type="button"
-                  class="wcw-gate-submit"
-                  disabled={loading}
-                  onClick={() => setIdentityStage('phone')}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  class="wcw-gate-secondary"
-                  disabled={loading}
-                  onClick={handleDecline}
-                >
-                  {loading ? 'Starting…' : "No, I'm just browsing"}
-                </button>
-              </div>
-            </div>
+          {screen === 'chat' && !atBottom && (
+            <button type="button" class="wcw-jump" onClick={scrollToBottom} aria-label="↓">
+              <ArrowDownIcon />
+            </button>
           )}
 
-          {needsPhone === true && identityStage === 'phone' && (
-            <div class="wcw-gate">
-              <p class="wcw-gate-hint">Enter your Vircle phone number to continue</p>
-              <input
-                type="tel"
-                inputMode="tel"
-                placeholder="Phone number, e.g. 601234455678"
-                value={phoneInput}
-                disabled={loading}
-                onInput={(e) => setPhoneInput((e.target as HTMLInputElement).value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleStartChat()}
-              />
-              <input
-                type="text"
-                placeholder="Your name (optional)"
-                value={nameInput}
-                disabled={loading}
-                onInput={(e) => setNameInput((e.target as HTMLInputElement).value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleStartChat()}
-              />
-              <button
-                type="button"
-                class="wcw-gate-submit"
-                disabled={!phoneInput.trim() || loading}
-                onClick={handleStartChat}
-              >
-                {loading ? 'Starting…' : 'Start chat'}
-              </button>
-            </div>
-          )}
-
-          {needsPhone === false && isGuest && (
+          {screen === 'chat' && identity?.level === 'guest' && (
             <div class="wcw-link-account">
-              {linkFormOpen ? (
-                <>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="Your phone number"
-                    value={phoneInput}
-                    disabled={linking}
-                    onInput={(e) => setPhoneInput((e.target as HTMLInputElement).value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleLinkAccount()}
-                  />
-                  <button type="button" disabled={!phoneInput.trim() || linking} onClick={handleLinkAccount}>
-                    {linking ? 'Linking…' : 'Link'}
-                  </button>
-                </>
-              ) : (
-                <button type="button" class="wcw-link-account-toggle" onClick={() => setLinkFormOpen(true)}>
-                  Already a Vircle user? Link your account
-                </button>
-              )}
-            </div>
-          )}
-
-          {needsPhone === false && (
-            <div class="wcw-composer">
-              <textarea
-                class="wcw-input"
-                placeholder="Type a message…"
-                value={input}
-                onInput={(e) => setInput((e.target as HTMLTextAreaElement).value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
-                  }
-                }}
-                rows={1}
-              />
               <button
                 type="button"
-                class="wcw-send"
-                disabled={!input.trim() || sending || !conversationId}
-                onClick={handleSend}
-                aria-label="Send"
+                class="wcw-linkbtn"
+                onClick={() => {
+                  setFormError(null)
+                  setScreen('claim')
+                }}
               >
-                {SEND_ICON}
+                {t('linkAccount')}
               </button>
             </div>
           )}
+
+          {screen === 'chat' && (
+            <Composer
+              t={t}
+              limits={limits}
+              disabled={!conversationId}
+              canRecord={canRecord}
+              onSendText={sendText}
+              onFileChosen={handleFileChosen}
+              onSendVoice={handleVoice}
+              onError={(text) => setBanner({ kind: 'error', text })}
+            />
+          )}
+
+          {staged && <MediaPreview staged={staged} t={t} onSend={confirmStaged} onCancel={cancelStaged} />}
+          {lightbox && <Lightbox src={lightbox.src} name={lightbox.name} t={t} onClose={() => setLightbox(null)} />}
         </div>
       )}
 
       <button
         type="button"
-        class={`wcw-launcher wcw-${position}`}
-        aria-label={open ? 'Close chat' : 'Open chat'}
+        class={`wcw-launcher wcw-${position}${open && isMobile ? ' wcw-hidden' : ''}`}
+        aria-label={open ? t('closeChat') : t('openChat')}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? CLOSE_ICON : LAUNCHER_ICON}
+        {open ? <CloseIcon size={22} /> : <LauncherIcon />}
+        {!open && badgeCount > 0 && (
+          <span class="wcw-badge" aria-label={String(badgeCount)}>
+            {badgeCount > 9 ? '9+' : badgeCount}
+          </span>
+        )}
       </button>
     </div>
   )

@@ -182,6 +182,28 @@ export const RATE_LIMITS = {
    *  visitor (their anon auth.uid()). Same budget as an authenticated
    *  agent's `send` bucket — a live visitor typing should never hit it. */
   widgetMessage: { limit: 60, windowMs: 60_000 },
+  /** Typed identity claims on `/api/widget/session` ("I am an existing
+   *  user"), keyed per visitor uid. Each claim can reveal, through
+   *  `claimFound`, whether a phone/email belongs to a contact, so it is
+   *  the enumeration surface: 5 per 10 minutes is far above what a
+   *  person typing their own details needs. A valid signed token is a
+   *  proof, not a probe, so it never spends this budget. */
+  widgetIdentity: { limit: 5, windowMs: 10 * 60_000 },
+  /** The same claims, keyed per widget_token + origin: a script that
+   *  mints a fresh anonymous visitor per attempt still hits this. */
+  widgetIdentityOrigin: { limit: 30, windowMs: 10 * 60_000 },
+  /** The same claims, keyed per client IP (first x-forwarded-for hop). */
+  widgetIdentityIp: { limit: 20, windowMs: 10 * 60_000 },
+  /** Upload tokens for widget attachments (`/api/widget/upload-url`),
+   *  per visitor. */
+  widgetUpload: { limit: 20, windowMs: 10 * 60_000 },
+  /** Delivery/read receipts (`/api/widget/receipt`), per visitor. The
+   *  widget batches, so this is generous. */
+  widgetReceipt: { limit: 120, windowMs: 60_000 },
+  /** Enquiry form submissions (`/api/widget/enquiry`), per visitor. */
+  widgetEnquiry: { limit: 5, windowMs: 60 * 60_000 },
+  /** Enquiry form submissions, per widget_token + origin. */
+  widgetEnquiryOrigin: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

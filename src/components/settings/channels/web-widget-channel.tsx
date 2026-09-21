@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { InAppIdentityCard, VerificationModeCard } from './web-widget-identity';
 import type { WebWidgetConfig } from '@/types';
 
 const PRESET_COLORS = [
@@ -49,6 +50,7 @@ export function WebWidgetChannel() {
   const [enabled, setEnabled] = useState(true);
   const [allowedOrigins, setAllowedOrigins] = useState<string[]>([]);
   const [originInput, setOriginInput] = useState('');
+  const [verificationMode, setVerificationMode] = useState<NonNullable<WebWidgetConfig['verification_mode']>>('none');
 
   const applyConfig = useCallback((c: WebWidgetConfig | null) => {
     setConfig(c);
@@ -59,6 +61,7 @@ export function WebWidgetChannel() {
     setPosition(c.position);
     setEnabled(c.enabled);
     setAllowedOrigins(c.allowed_origins);
+    setVerificationMode(c.verification_mode ?? 'none');
   }, []);
 
   const fetchConfig = useCallback(async () => {
@@ -118,6 +121,8 @@ export function WebWidgetChannel() {
           position,
           enabled,
           allowed_origins: allowedOrigins,
+          // Only implemented modes are ever sent; a stored "coming soon" value is left as is.
+          ...(verificationMode === 'none' ? { verification_mode: 'none' } : {}),
         }),
       });
       const data = await res.json();
@@ -335,6 +340,19 @@ export function WebWidgetChannel() {
           )}
         </CardContent>
       </Card>
+
+      <VerificationModeCard
+        value={verificationMode}
+        onChange={setVerificationMode}
+        canManage={canManageChannels}
+      />
+
+      <InAppIdentityCard
+        config={config}
+        origin={widgetOrigin()}
+        canManage={canManageChannels}
+        onConfigChange={(patch) => setConfig((prev) => (prev ? { ...prev, ...patch } : prev))}
+      />
 
       {canManageChannels ? (
         <div className="flex justify-end">

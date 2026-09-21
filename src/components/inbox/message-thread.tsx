@@ -90,6 +90,7 @@ import {
 } from "@/lib/inbox/session-markers";
 import { SessionEventMarker } from "./session-event-marker";
 import { AiThreadBanner } from "./ai-thread-banner";
+import { WidgetDuplicateBar, WidgetIdentityBadges, useWidgetIdentity } from "./widget-identity";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
@@ -562,6 +563,15 @@ export function MessageThread({
     if (conversation) set.add(conversation.last_channel_type);
     return Array.from(set);
   }, [messages, conversation]);
+
+  // Web Widget v2: for a contact that has used the web widget, show whether
+  // the visitor's identity was verified by the host app or only claimed,
+  // and any "possible duplicate" the widget recorded (no automatic merge).
+  const hasWidgetChannel = availableChannels.includes("web_widget");
+  const { identity: widgetIdentity, reload: reloadWidgetIdentity } = useWidgetIdentity(
+    contact?.id,
+    hasWidgetChannel,
+  );
 
   // Resolves true once the send went through, false when it failed (the
   // failed bubble and toast are already shown). The composer waits on this
@@ -1379,6 +1389,7 @@ export function MessageThread({
             <p className="truncate text-xs text-muted-foreground">
               {contactHandle(contact)}
             </p>
+            <WidgetIdentityBadges identity={widgetIdentity} className="mt-0.5" />
             {/* Colour-coded tags (contact) and labels (conversation) —
                 the same chips the list rows show. */}
             {(contact?.tags?.length ?? 0) + activeLabels.length > 0 && (
@@ -1785,6 +1796,14 @@ export function MessageThread({
           )}
         </div>
       </div>
+
+      <WidgetDuplicateBar
+        identity={widgetIdentity}
+        onResolved={() => {
+          void reloadWidgetIdentity();
+          onRefresh?.();
+        }}
+      />
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">

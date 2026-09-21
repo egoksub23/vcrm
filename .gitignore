@@ -24,6 +24,8 @@
 # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY at build time — regenerated on every
 # deploy, never committed)
 /public/widget/loader.js
+/public/widget/recorder.js
+/public/widget/emoji.js
 
 # misc
 .DS_Store

@@ -6,14 +6,17 @@
 //   <script src="https://<host>/widget/loader.js"
 //           data-widget-token="wt_..." async></script>
 //
-// An optional `data-open="true"` attribute starts the panel already
-// open instead of collapsed to the launcher bubble — used by the
-// Settings → Channels → Web Widget "Test chat" link
-// (src/app/widget-preview/page.tsx) so clicking it drops the tester
-// straight into a live conversation rather than requiring an extra
-// click on a page that has nothing else on it.
+// Optional attributes on that tag:
+//   data-open="true"            start with the panel open (Settings -> Web Widget "Test chat").
+//   data-lang="en|ms|zh"        widget language; else <html lang>, else the browser language.
+//   data-identity-token="..."   in-app identity signed by YOUR backend (verified — see
+//                               docs/web-chat-widget.md). Also settable later with
+//                               window.VircleWidget.identify({ token }).
+//   data-user-phone / data-user-email / data-user-wallet-id / data-user-name
+//                               LEGACY unsigned hints. Still accepted, but the server now
+//                               treats them as an UNVERIFIED claim.
 //
-// Reads its own <script> tag's data attribute (must happen here, at
+// Reads its own <script> tag's data attributes (must happen here, at
 // synchronous top-level module-evaluation time — see the comment in
 // api.ts on why `document.currentScript` can't be read lazily), mounts
 // a Shadow DOM container so none of the host page's CSS can leak in or
@@ -21,8 +24,9 @@
 // ============================================================
 import { render } from 'preact'
 import { App } from './App'
+import { resolveLocale } from './i18n'
 import { WIDGET_CSS } from './styles'
-import type { VerifiedIdentity } from './api'
+import type { IdentityInput } from './types'
 
 declare global {
   interface Window {
@@ -34,18 +38,22 @@ declare global {
      * identify() once its own auth resolves). If identify() is called
      * before the widget has mounted its listener, the call is queued
      * and delivered as soon as it's ready — no race on load order.
+     *
+     * `{ token }` is the signed in-app identity (verified). `{ phone,
+     * email, name }` still work but count as an unverified claim.
      */
-    VircleWidget?: { identify: (identity: VerifiedIdentity) => void }
+    VircleWidget?: { identify: (identity: IdentityInput) => void }
   }
 }
 
-let identifyListener: ((identity: VerifiedIdentity) => void) | null = null
-let queuedIdentify: VerifiedIdentity | null = null
+let identifyListener: ((identity: IdentityInput) => void) | null = null
+let queuedIdentify: IdentityInput | null = null
 
 window.VircleWidget = {
-  identify(identity: VerifiedIdentity) {
+  identify(identity: IdentityInput) {
+    if (!identity || typeof identity !== 'object') return
     if (identifyListener) identifyListener(identity)
-    else queuedIdentify = identity
+    else queuedIdentify = { ...queuedIdentify, ...identity }
   },
 }
 
@@ -77,21 +85,30 @@ function mount() {
   shadow.appendChild(mountPoint)
 
   const autoOpen = loaderScript?.dataset.open === 'true'
+  const locale = resolveLocale(
+    loaderScript?.dataset.lang,
+    document.documentElement.lang,
+    navigator.languages?.length ? navigator.languages : [navigator.language],
+  )
 
   // Optional synchronous handoff (the loader tag's own data-* attrs) —
   // the common shape when the host already knows the user BEFORE it
   // injects this script (it finished its own login, then set these
   // when appending the tag). The async window.VircleWidget.identify()
   // path above covers the case where that isn't possible.
-  const initialIdentity: VerifiedIdentity = {
-    phone: loaderScript?.dataset.userPhone || undefined,
-    walletId: loaderScript?.dataset.userWalletId || undefined,
-    email: loaderScript?.dataset.userEmail || undefined,
+  const ds = loaderScript?.dataset
+  const initialIdentity: IdentityInput = {
+    token: ds?.identityToken || undefined,
+    phone: ds?.userPhone || undefined,
+    email: ds?.userEmail || undefined,
+    walletId: ds?.userWalletId || undefined,
+    name: ds?.userName || undefined,
   }
 
   render(
     <App
       widgetToken={widgetToken}
+      locale={locale}
       autoOpen={autoOpen}
       initialIdentity={initialIdentity}
       onIdentifyReady={(cb) => {

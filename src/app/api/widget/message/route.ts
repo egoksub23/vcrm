@@ -1,219 +1,160 @@
 // ============================================================
 // POST /api/widget/message
 //
-// Where a widget visitor's outbound text lands. Public, CORS-enabled,
-// verified via the same anonymous-auth bearer JWT as
-// POST /api/widget/session. Deliberately NOT a direct client insert
-// into `messages` (even though RLS would allow the visitor to read
-// their own conversation) — this route is the one synchronous place
-// that also runs most of the inbound fan-out every WhatsApp message
-// already gets (automations, AI auto-reply, outbound webhooks — see
-// the Flows note below for the one deliberate exception), so a widget
-// message plugs into that machinery unchanged instead of needing a
-// parallel Postgres-trigger-based dispatch path.
+// Where a widget visitor's outbound text / attachment lands. Public,
+// CORS-enabled, verified via the same anonymous-auth bearer JWT as
+// POST /api/widget/session. Deliberately NOT a direct client insert into
+// `messages`: this route is the one synchronous place that also runs the
+// inbound fan-out every WhatsApp message gets (automations, AI auto-reply,
+// outbound webhooks; src/lib/widget/inbound.ts).
+//
+// Request:  { conversationId, text?, media?, clientMessageId? }
+//           (at least one of text / media; text is the caption for media)
+// Response: { message: { id, created_at, status } }   (+ legacy success/messageId)
+//
+// Attachments are uploaded by the widget straight to Storage with the
+// signed token from /api/widget/upload-url. Here the object is re-checked
+// against what Storage really holds; a mismatch deletes it.
 // ============================================================
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
-import { reopenClosedConversation } from '@/lib/conversations/reopen'
-import { runAutomationsForTrigger } from '@/lib/automations/engine'
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
-import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
-import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors'
+import { RATE_LIMITS } from '@/lib/rate-limit'
+import { corsPreflight, withCors } from '@/lib/widget/cors'
+import {
+  checkStoredObject,
+  parseDeclaredMedia,
+  WIDGET_MEDIA_BUCKET,
+} from '@/lib/widget/media'
+import {
+  insertWidgetCustomerMessage,
+  isFirstCustomerMessage,
+  runWidgetInboundFanout,
+  type InboundMedia,
+} from '@/lib/widget/inbound'
+import { authenticateVisitorRequest, loadOwnedConversation, widgetError } from '@/lib/widget/visitor-auth'
 
 const TEXT_MAX_LEN = 4000
+const CAPTION_MAX_LEN = 1024
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
 }
 
 export async function POST(request: Request) {
-  const requestOrigin = request.headers.get('origin')
-  const admin = supabaseAdmin()
-
-  const authHeader = request.headers.get('authorization') ?? ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    return NextResponse.json({ error: 'Missing Authorization bearer token' }, { status: 401 })
-  }
-
-  const anonClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-  const { data: userData, error: userError } = await anonClient.auth.getUser(token)
-  if (userError || !userData.user) {
-    return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 })
-  }
-  const visitorId = userData.user.id
-
-  const { data: visitor, error: visitorError } = await admin
-    .from('widget_visitors')
-    .select('account_id, contact_id, widget_config_id')
-    .eq('id', visitorId)
-    .maybeSingle()
-
-  if (visitorError) {
-    console.error('[widget/message] visitor lookup error:', visitorError)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-  if (!visitor) {
-    return NextResponse.json({ error: 'No active widget session for this visitor' }, { status: 401 })
-  }
-
-  const { data: config } = await admin
-    .from('web_widget_config')
-    .select('allowed_origins, enabled')
-    .eq('id', visitor.widget_config_id)
-    .maybeSingle()
-
-  const corsOrigin = resolveCorsOrigin(requestOrigin, config?.allowed_origins ?? [])
-  if (!corsOrigin) {
-    return NextResponse.json({ error: 'Origin not allowed for this widget' }, { status: 403 })
-  }
-  if (!config?.enabled) {
-    return withCors(NextResponse.json({ error: 'Widget is disabled' }, { status: 403 }), corsOrigin)
-  }
-
-  const limit = checkRateLimit(`widget:message:${visitorId}`, RATE_LIMITS.widgetMessage)
-  if (!limit.success) return withCors(rateLimitResponse(limit), corsOrigin)
+  const auth = await authenticateVisitorRequest(request, {
+    logTag: 'widget/message',
+    rate: { key: 'widget:message:{visitor}', options: RATE_LIMITS.widgetMessage },
+  })
+  if (!auth.ok) return auth.response
+  const { ctx } = auth
+  const { admin, corsOrigin, accountId, contactId, visitorId } = ctx
 
   const body = (await request.json().catch(() => null)) as
-    | { conversationId?: unknown; text?: unknown }
+    | { conversationId?: unknown; text?: unknown; media?: unknown; clientMessageId?: unknown }
     | null
   const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : ''
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
+  const hasMedia = body?.media !== undefined && body?.media !== null
 
-  if (!conversationId) {
-    return withCors(NextResponse.json({ error: 'conversationId is required' }, { status: 400 }), corsOrigin)
-  }
-  if (!text) {
-    return withCors(NextResponse.json({ error: 'text is required' }, { status: 400 }), corsOrigin)
-  }
-  if (text.length > TEXT_MAX_LEN) {
-    return withCors(
-      NextResponse.json({ error: `text exceeds the ${TEXT_MAX_LEN}-character limit` }, { status: 400 }),
+  if (!conversationId) return widgetError(400, 'conversationId is required', 'bad_request', corsOrigin)
+  if (!text && !hasMedia) return widgetError(400, 'text or media is required', 'bad_request', corsOrigin)
+  if (text.length > (hasMedia ? CAPTION_MAX_LEN : TEXT_MAX_LEN)) {
+    return widgetError(
+      400,
+      `text exceeds the ${hasMedia ? CAPTION_MAX_LEN : TEXT_MAX_LEN}-character limit`,
+      'bad_request',
       corsOrigin,
     )
   }
 
-  // The conversation must belong to THIS visitor's own contact — a
-  // visitor can't guess another conversation's UUID and post into it.
-  // Ownership is purely the contact_id chain now (migration 048 merged
-  // per-channel conversations into one per contact) — a merged
-  // conversation may have originated on WhatsApp, so there's no
-  // channel_type left to filter by.
-  const { data: conversation, error: convError } = await admin
-    .from('conversations')
-    .select('id, account_id, contact_id, status')
-    .eq('id', conversationId)
-    .eq('account_id', visitor.account_id)
-    .eq('contact_id', visitor.contact_id)
-    .maybeSingle()
-
-  if (convError) {
-    console.error('[widget/message] conversation lookup error:', convError)
-    return withCors(NextResponse.json({ error: 'Internal server error' }, { status: 500 }), corsOrigin)
+  let conversation
+  try {
+    conversation = await loadOwnedConversation(ctx, conversationId)
+  } catch (err) {
+    console.error('[widget/message] conversation lookup error:', err)
+    return widgetError(500, 'Internal server error', undefined, corsOrigin)
   }
-  if (!conversation) {
-    return withCors(NextResponse.json({ error: 'Conversation not found' }, { status: 404 }), corsOrigin)
-  }
+  if (!conversation) return widgetError(404, 'Conversation not found', 'not_found', corsOrigin)
 
-  const accountId = visitor.account_id
-  const contactId = visitor.contact_id
+  // ---- attachment: re-validate what was declared against Storage ----
+  let media: InboundMedia | null = null
+  if (hasMedia) {
+    const declared = parseDeclaredMedia(body!.media, accountId, conversationId)
+    if (!declared.ok) {
+      // A declared object that fails the rules still gets removed when it sits
+      // under this conversation's prefix.
+      const rawPath = (body!.media as { path?: unknown })?.path
+      if (
+        typeof rawPath === 'string' &&
+        (declared.status === 413 || declared.status === 415) &&
+        rawPath.startsWith(`account-${accountId}/widget/${conversationId}/`) &&
+        !rawPath.includes('..')
+      ) {
+        await admin.storage.from(WIDGET_MEDIA_BUCKET).remove([rawPath]).catch(() => undefined)
+      }
+      return widgetError(declared.status, declared.error, declared.code, corsOrigin)
+    }
+    const m = declared.media
 
-  // First-message check BEFORE the insert, same approach as the
-  // WhatsApp webhook (src/app/api/whatsapp/webhook/route.ts).
-  const { count: priorCustomerMsgCount } = await admin
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('conversation_id', conversationId)
-    .eq('sender_type', 'customer')
-  const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
-
-  const { data: insertedMessage, error: msgError } = await admin
-    .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_type: 'customer',
-      content_type: 'text',
-      content_text: text,
-      channel_type: 'web_widget',
-      status: 'delivered',
+    const { data: info, error: infoError } = await admin.storage.from(WIDGET_MEDIA_BUCKET).info(m.path)
+    if (infoError || !info) {
+      return widgetError(400, 'The uploaded file could not be found', 'bad_request', corsOrigin)
+    }
+    const stored = checkStoredObject(m, {
+      size: info.size ?? null,
+      contentType: info.contentType ?? (info as { content_type?: string }).content_type ?? null,
     })
-    .select('id')
-    .single()
+    if (!stored.ok) {
+      await admin.storage.from(WIDGET_MEDIA_BUCKET).remove([m.path]).catch(() => undefined)
+      return widgetError(stored.status, stored.error, stored.code, corsOrigin)
+    }
 
-  if (msgError || !insertedMessage) {
-    console.error('[widget/message] insert error:', msgError)
-    return withCors(NextResponse.json({ error: 'Failed to send message' }, { status: 500 }), corsOrigin)
+    const { data: pub } = admin.storage.from(WIDGET_MEDIA_BUCKET).getPublicUrl(m.path)
+    media = { url: pub.publicUrl, kind: m.kind, mimeType: m.mimeType }
   }
-
-  await admin.rpc('bump_conversation_on_inbound', {
-    p_conversation_id: conversationId,
-    p_last_message_text: text,
-    p_channel_type: 'web_widget',
-  })
-
-  await reopenClosedConversation(admin, conversation)
-  await admin
-    .from('widget_visitors')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('id', visitorId)
 
   let ownerUserId: string
   try {
     ownerUserId = await resolveAuditUserId(admin, accountId)
   } catch (err) {
-    if (err instanceof ContactError) {
-      return withCors(NextResponse.json({ error: err.message }, { status: err.status }), corsOrigin)
-    }
+    if (err instanceof ContactError) return widgetError(err.status, err.message, undefined, corsOrigin)
     throw err
   }
 
-  // Flows (the visual IVR/menu builder) are not dispatched for widget
-  // conversations in this pass: its send nodes call Meta directly
-  // (src/lib/flows/meta-send.ts) rather than going through the
-  // channel-aware sendMessageToConversation core, so a Flow with an
-  // interactive-button/list node would error against a widget contact
-  // that has no phone number. Plain Automations remain available (its
-  // `send_message` step is channel-aware; `send_buttons`/`send_list`/
-  // `send_template` steps are explicitly guarded to WhatsApp-only —
-  // see assertWhatsappChannel in src/lib/automations/engine.ts).
-  const flowConsumed = false
+  // First-message check BEFORE the insert, same as the WhatsApp webhook.
+  const isFirstInboundMessage = await isFirstCustomerMessage(admin, conversationId)
 
-  const automationTriggers: ('first_inbound_message' | 'new_message_received' | 'keyword_match')[] = []
-  if (!flowConsumed) automationTriggers.push('new_message_received', 'keyword_match')
-  if (isFirstInboundMessage) automationTriggers.unshift('first_inbound_message')
+  const inserted = await insertWidgetCustomerMessage(admin, {
+    conversationId,
+    text,
+    media,
+    clientMessageId: body?.clientMessageId,
+  })
+  if (!inserted) return widgetError(500, 'Failed to send message', undefined, corsOrigin)
 
-  for (const triggerType of automationTriggers) {
-    await runAutomationsForTrigger({
+  // A retried send (same clientMessageId) must not fire the fan-out twice.
+  if (!inserted.duplicate) {
+    await runWidgetInboundFanout(admin, {
       accountId,
-      triggerType,
       contactId,
-      context: { message_text: text, conversation_id: conversationId },
-    }).catch((err) => console.error('[widget/message] automations dispatch failed:', err))
-  }
-
-  if (!flowConsumed && text) {
-    await dispatchInboundToAiReply({
-      accountId,
-      conversationId,
-      contactId,
-      configOwnerUserId: ownerUserId,
-      inboundMessageId: insertedMessage.id,
+      conversation,
+      ownerUserId,
+      messageId: inserted.id,
+      text,
+      media,
+      isFirstInboundMessage,
+      visitorId,
     })
   }
 
-  await dispatchWebhookEvent(admin, accountId, 'message.received', {
-    conversation_id: conversationId,
-    contact_id: contactId,
-    content_type: 'text',
-    text,
-  })
-
-  return withCors(NextResponse.json({ success: true, messageId: insertedMessage.id }), corsOrigin)
+  return withCors(
+    NextResponse.json({
+      message: { id: inserted.id, created_at: inserted.created_at, status: inserted.status },
+      // Legacy shape, read by old cached loaders.
+      success: true,
+      messageId: inserted.id,
+    }),
+    corsOrigin,
+  )
 }

@@ -285,12 +285,13 @@ export function MessageComposer({
     setSelectedChannel(ch);
   }, []);
 
-  // Media attach works on every channel except the web widget (no media
-  // pipeline there yet — fast-follow). Templates and interactive
-  // buttons/lists are Meta concepts with no Messenger/Instagram
-  // equivalent (different quick-reply shape, no pre-approved template
-  // system at all) — WhatsApp-only until that's built out separately.
-  const supportsMedia = selectedChannel !== "web_widget";
+  // Media attach works on every channel, the web widget included (Web
+  // Widget v2: photos, video, voice notes and files reach the visitor as
+  // ordinary message rows). Templates and interactive buttons/lists are
+  // Meta concepts with no Messenger/Instagram/widget equivalent (different
+  // quick-reply shape, no pre-approved template system at all) —
+  // WhatsApp-only until that's built out separately.
+  const supportsMedia = true;
   const supportsTemplatesAndInteractive = selectedChannel === "whatsapp";
 
   const [text, setText] = useState("");
@@ -1718,10 +1719,9 @@ export function MessageComposer({
           {!isComment && (
             <>
               {/* Attach menu — photo / video / document / voice. Every
-                  channel except the web widget supports media; it has no
-                  media pipeline yet (fast-follow), so the whole menu is
-                  gated on that rather than offered and failing
-                  server-side. */}
+                  channel supports media now (the web widget since Web
+                  Widget v2); `supportsMedia` stays the one switch to turn
+                  the menu off for a future channel that cannot. */}
               {supportsMedia && (
                 <DropdownMenu>
                   <DropdownMenuTrigger

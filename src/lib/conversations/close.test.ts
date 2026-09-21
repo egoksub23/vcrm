@@ -149,9 +149,9 @@ describe('outbound AI messages cannot re-trigger automations', () => {
     }
   })
 
-  it('new_message_received is only dispatched from the inbound webhooks and widget routes', () => {
+  it('new_message_received is only dispatched from the inbound webhooks and the widget inbound fan-out', () => {
     // The senders above are the only outbound path an AI reply uses; inbound routes are the dispatchers.
-    for (const file of ['src/app/api/whatsapp/webhook/route.ts', 'src/app/api/widget/message/route.ts']) {
+    for (const file of ['src/app/api/whatsapp/webhook/route.ts', 'src/lib/widget/inbound.ts']) {
       expect(read(file)).toMatch(/runAutomationsForTrigger/)
     }
   })

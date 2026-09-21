@@ -9,6 +9,16 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.49.0] — 2026-09-21 — **migration required: 092**
+
+- **Web widget v2.** The chat widget now looks and behaves like WhatsApp: bubbles, sent / delivered / read ticks, times and day dividers, an emoji picker, voice notes, image and video previews, file chips, a full-screen view on phones, and an unread marker when agents replied while the visitor was away. Visitors can send text, voice, emoji, images, video and files, and agents can send the same back from the Inbox. Files are up to 16 MB, voice notes up to 5 minutes. The widget speaks English, Bahasa Melayu and Mandarin, taken from the page or `data-lang`.
+- **In-app identity is now signed.** Settings → Channels → Web Widget has an **In-app identity** card: generate a secret once, then have your app's server sign the phone, email or wallet id (Node, PHP and Python snippets included) and pass it as `data-identity-token` or `VircleWidget.identify({ token })`. Unsigned values no longer count as verified, which closes the hole where anyone with the public widget key could claim any phone number.
+- **Matching and merging.** Visitors are matched by phone and by email. A **verified** identity that matches two contacts (one by phone, one by email) merges them automatically into one contact and one chat history. An **unverified** claim never merges: agents see a **Possible duplicate** bar with Merge and Dismiss. Inbox badges: *Verified in-app*, *Unverified web claim*, *Possible duplicate*.
+- **Unidentified visitors** choose between “I'm an existing user” (enter the registered phone or email; not found creates a contact tagged *Claims existing user*) and “I'm enquiring” (a short form: name, phone or email, I am a parent / school / merchant / other, message, consent). Enquiries become leads tagged *Web enquiry* and go through your existing routing.
+- **Web verification is off for now** (accepted risk: anyone who types a customer's phone or email sees that chat). The setting is built as a switch (none / code by email / code by WhatsApp); only none is live. Identity attempts are rate limited.
+- **Migration required: 092** (`supabase/migrations/092_widget_v2.sql`) adds the verification switch and encrypted secret, identity level on visitors, merge suggestions, enquiries and read-tick handling. Apply it before deploying, then run `npm run build:widget` (part of `npm run build`).
+- Host apps that embed the widget in a WebView must allow the microphone for voice notes. See `docs/web-chat-widget.md`.
+
 ## [0.48.0] — 2026-09-21 — **migrations required: 090 and 091 (091 is optional)**
 
 - **AI inside automations.** A new **AI** group in the automation editor's Add step menu:

@@ -654,7 +654,7 @@ describe('sendMessageToConversation — web_widget channel', () => {
     expect(second.whatsappMessageId).toBe('');
   });
 
-  it('rejects any non-text message_type for a widget conversation', async () => {
+  it('rejects templates and interactive messages for a widget conversation', async () => {
     const captured: CapturedWrites = {};
     await expect(
       sendMessageToConversation(
@@ -662,8 +662,43 @@ describe('sendMessageToConversation — web_widget channel', () => {
         'acct-1',
         { conversationId: 'cv-1', messageType: 'template', templateName: 'order_update' }
       )
-    ).rejects.toThrow(/Only text messages are supported/);
+    ).rejects.toThrow(/Only text and media messages are supported/);
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'web_widget'),
+        'acct-1',
+        {
+          conversationId: 'cv-1',
+          messageType: 'interactive',
+          interactivePayload: { kind: 'buttons', body: 'Pick one', buttons: [{ id: 'a', title: 'A' }] },
+        }
+      )
+    ).rejects.toThrow(/Only text and media messages are supported/);
   });
+
+  it.each(['image', 'video', 'audio', 'document'] as const)(
+    'persists a %s message for a widget conversation without contacting Meta',
+    async (kind) => {
+      const captured: CapturedWrites = {};
+      const result = await sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'web_widget'),
+        'acct-1',
+        {
+          conversationId: 'cv-1',
+          messageType: kind,
+          mediaUrl: 'https://example.test/storage/v1/object/public/chat-media/account-1/file.bin',
+          contentText: 'a caption',
+          filename: 'file.bin',
+        }
+      );
+      expect(result.whatsappMessageId).toBe('');
+      expect(captured.message?.content_type).toBe(kind);
+      expect(captured.message?.media_url).toContain('/chat-media/');
+      expect(captured.message?.channel_type).toBe('web_widget');
+      expect(captured.message?.status).toBe('sent');
+      expect(captured.message?.message_id).toBeNull();
+    }
+  );
 });
 
 // ============================================================

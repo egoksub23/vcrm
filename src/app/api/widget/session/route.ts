@@ -1,196 +1,117 @@
 // ============================================================
 // POST /api/widget/session
 //
-// First call the embedded widget bundle makes on load. It has
-// already called `supabase.auth.signInAnonymously()` itself (using
-// the public anon key) and sends that session's access token as a
-// bearer credential — this route verifies it, then resolves the
-// `contacts` / `conversations` rows for that visitor and hands back
-// the conversation to subscribe to.
+// First call the embedded widget bundle makes on load. It has already
+// called `supabase.auth.signInAnonymously()` itself and sends that
+// session's access token as a bearer credential; this route verifies it,
+// resolves the `contacts` / `conversations` rows for the visitor, and
+// hands back the conversation to subscribe to.
 //
-// Three ways a visitor's identity can arrive (migration 054):
+// Identity (Web Widget v2, migration 092). Three levels, stored per
+// browser on `widget_visitors.identity_level`:
 //
-//   1. `verifiedIdentity: { phone, walletId?, email? }` — the embed is
-//      running inside Vircle's own app/WebView, which already has a
-//      signed-in, verified user and hands their identity straight to
-//      the widget at init (loader `data-user-*` attributes, or an
-//      async `window.VircleWidget.identify()` call). This is TRUSTED —
-//      no gate is ever shown, the visitor never has to type anything.
-//      A malformed phone here is a host-integration bug, not a user
-//      mistake, so it's logged and the visitor silently falls through
-//      to the normal self-service flow rather than erroring in front
-//      of a real customer.
-//   2. `visitorPhone` — self-service: the visitor typed their own
-//      phone into the widget's gate, in response to `needsPhone: true`
-//      from a prior call with neither `verifiedIdentity` nor
-//      `skipIdentity` set. Unverified — same accepted trade-off as
-//      before (see below).
-//   3. `skipIdentity: true` — the visitor answered "no" (or skipped)
-//      the "are you already a Vircle user?" prompt. Starts a plain
-//      anonymous guest contact (`phone: ''`, keyed only by
-//      `widget_visitor_id`), same as the original migration-046
-//      behaviour before the phone gate existed.
+//   guest     nothing offered; an anonymous contact keyed by the browser.
+//   claimed   the visitor TYPED a phone/email ("I'm an existing user").
+//             Unverified. Matches CRM contacts, but never auto-merges two
+//             real contacts: a phone->A / email->B split records a
+//             "Possible duplicate" suggestion for agents instead.
+//   verified  the host app's own backend SIGNED an identity token with the
+//             workspace secret. The only level that merges automatically.
 //
-// Phone-first identity, not anonymous-auth-first: a resolved phone
-// (case 1 or 2) is looked up against existing contacts in the account
-// (`findExistingContact`, the same trunk-prefix-tolerant match every
-// other phone-identified path in the app uses) so a visitor who has
-// already messaged this business on WhatsApp lands on that SAME
-// contact record — one unified history, even though the WhatsApp and
-// widget conversations stay two separate `conversations` rows... no,
-// actually one merged conversation (migration 048). A returning
-// visitor on the SAME browser skips all of this: `widget_visitors`
-// (keyed by their anonymous auth uid) already points at a resolved
-// contact from last time.
+// A returning browser resumes its stored level; a later token/claim can
+// upgrade guest -> claimed -> verified. A GUEST contact is always folded
+// into the contact the visitor identifies as (merge_widget_guest_contact),
+// verified or not. Web verification (email/WhatsApp code) is a switch that
+// is stored but not implemented yet: `verification.mode` is reported as-is.
 //
-// Self-service linking, mid-session: a browser already bound to a
-// GUEST contact (empty phone) that now supplies a phone (either case
-// 1 or 2, arriving late — the visitor clicked "link your account" after
-// chatting a while, or a host app's async identify() call landed after
-// the widget already mounted) gets its guest history folded into the
-// phone-matched contact via `merge_widget_guest_contact` (migration
-// 054) — the widget then has to swap its active conversation and
-// refetch history, since the id it already has can change.
+// LEGACY request fields (`visitorPhone`, `verifiedIdentity`) from old
+// cached loaders are still understood, as unverified claims. See
+// src/lib/widget/session-request.ts.
 //
-// This is intentionally unverified for cases 2/3 — there's no OTP. A
-// self-service visitor who types someone else's real phone number
-// lands their chat on that person's contact record. That's a real,
-// accepted trade-off (the same one every "enter your number to chat"
-// widget makes without a verification step) rather than an oversight:
-// the widget itself never exposes anything beyond its own conversation
-// thread even when merged onto an existing contact — RLS scopes by
-// `contact_id` / `conversation_id`, not "everything this contact ever
-// said" — so the only real exposure is on the business side (an agent
-// could be talking to someone who isn't actually who the contact
-// record says). Case 1 (verifiedIdentity) doesn't carry this risk to
-// begin with — the host app already verified the phone belongs to its
-// signed-in user before ever calling the widget.
-//
-// Public, unauthenticated (any origin can call it, subject to the
-// account's own `allowed_origins` allow-list) and CORS-enabled —
-// unlike every other route in the app, which is either a dashboard
-// session (cookies) or a bearer API key (`/api/v1/*`).
+// Public, CORS-enabled; the account's `allowed_origins` is the origin
+// allow-list. Never reveals WHICH identifier matched or whether a contact
+// exists, except through the boolean `claimFound`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
-import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors'
-import { resolveOrCreateContactByPhone, findOrCreatePrimaryConversation } from '@/lib/widget/session-identity'
-
-const NAME_MAX_LEN = 120
-const WALLET_ID_MAX_LEN = 128
-const EMAIL_MAX_LEN = 254
+import { findOrCreatePrimaryConversation } from '@/lib/widget/session-identity'
+import {
+  createSupabaseIdentityStore,
+  maxLevel,
+  resolveIdentityContact,
+  type IdentityLevel,
+  type IdentitySource,
+} from '@/lib/widget/identity-resolve'
+import { verifyIdentityToken, type IdentityPayload } from '@/lib/widget/identity-token'
+import { decryptIdentitySecret } from '@/lib/widget/identity-secret'
+import { claimMatchesContact, meaningfulName, parseSessionBody } from '@/lib/widget/session-request'
+import { needsIdentityBody, sessionBody } from '@/lib/widget/session-response'
+import { applyContactTagByName, WIDGET_TAG_CLAIMS_EXISTING } from '@/lib/widget/tags'
+import {
+  bearerToken,
+  verifyVisitorJwt,
+  widgetError,
+  widgetRateLimited,
+} from '@/lib/widget/visitor-auth'
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
 }
 
+function clientIp(request: Request): string {
+  const fwd = request.headers.get('x-forwarded-for') ?? ''
+  return fwd.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+}
+
 export async function POST(request: Request) {
   const requestOrigin = request.headers.get('origin')
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        widgetToken?: unknown
-        visitorName?: unknown
-        visitorPhone?: unknown
-        skipIdentity?: unknown
-        verifiedIdentity?: { phone?: unknown; walletId?: unknown; email?: unknown }
-      }
-    | null
-  const widgetToken = typeof body?.widgetToken === 'string' ? body.widgetToken : ''
-  if (!widgetToken) {
-    return NextResponse.json({ error: 'widgetToken is required' }, { status: 400 })
-  }
+  const parsed = parseSessionBody(await request.json().catch(() => null))
+  if (!parsed.ok) return widgetError(parsed.status, parsed.error, parsed.code)
+  const { widgetToken, visitorName, identityToken, claim, skipIdentity } = parsed.value
 
   const admin = supabaseAdmin()
 
   const { data: config, error: configError } = await admin
     .from('web_widget_config')
-    .select('id, account_id, enabled, allowed_origins, name, welcome_message, primary_color, avatar_url, position')
+    .select(
+      'id, account_id, enabled, allowed_origins, name, welcome_message, primary_color, avatar_url, position, verification_mode, identity_secret_enc',
+    )
     .eq('widget_token', widgetToken)
     .maybeSingle()
 
   if (configError) {
     console.error('[widget/session] config lookup error:', configError)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return widgetError(500, 'Internal server error')
   }
-  if (!config || !config.enabled) {
-    return NextResponse.json({ error: 'Widget not found or disabled' }, { status: 404 })
-  }
+  if (!config || !config.enabled) return widgetError(404, 'Widget not found or disabled', 'not_found')
 
   const corsOrigin = resolveCorsOrigin(requestOrigin, config.allowed_origins ?? [])
-  if (!corsOrigin) {
-    return NextResponse.json({ error: 'Origin not allowed for this widget' }, { status: 403 })
-  }
+  if (!corsOrigin) return widgetError(403, 'Origin not allowed for this widget')
 
   const limit = checkRateLimit(`widget:session:${widgetToken}:${requestOrigin ?? 'unknown'}`, RATE_LIMITS.widgetSession)
-  if (!limit.success) return withCors(rateLimitResponse(limit), corsOrigin)
+  if (!limit.success) return widgetRateLimited(limit, corsOrigin)
 
-  // Verify the visitor's anonymous-auth JWT server-side. A plain anon
-  // client (not the service role) doing `.auth.getUser(token)` calls
-  // GoTrue's /user endpoint, which validates the token's signature and
-  // expiry and returns the auth.users row it belongs to — exactly what
-  // `supabase.auth.getUser()` does for a cookie session, just handed a
-  // token explicitly instead of reading it from cookies.
-  const authHeader = request.headers.get('authorization') ?? ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    return withCors(
-      NextResponse.json({ error: 'Missing Authorization bearer token' }, { status: 401 }),
-      corsOrigin,
-    )
-  }
+  const jwt = bearerToken(request)
+  if (!jwt) return widgetError(401, 'Missing Authorization bearer token', undefined, corsOrigin)
+  const visitorId = await verifyVisitorJwt(jwt)
+  if (!visitorId) return widgetError(401, 'Invalid or expired session', undefined, corsOrigin)
 
-  const anonClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-  const { data: userData, error: userError } = await anonClient.auth.getUser(token)
-  if (userError || !userData.user) {
-    return withCors(NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 }), corsOrigin)
-  }
-  const visitorId = userData.user.id
-
-  const visitorName =
-    typeof body?.visitorName === 'string' ? body.visitorName.trim().slice(0, NAME_MAX_LEN) : ''
-  const rawSelfPhone = typeof body?.visitorPhone === 'string' ? body.visitorPhone.trim() : ''
-  const skipIdentity = body?.skipIdentity === true
-
-  // verifiedIdentity — trusted, host-app-supplied. A bad phone shape
-  // here is logged and dropped rather than erroring (see file header).
-  const rawVerifiedPhone =
-    typeof body?.verifiedIdentity?.phone === 'string' ? body.verifiedIdentity.phone.trim() : ''
-  let verifiedPhone: string | null = null
-  if (rawVerifiedPhone) {
-    const sanitized = sanitizePhoneForMeta(rawVerifiedPhone)
-    if (isValidE164(sanitized)) {
-      verifiedPhone = sanitized
-    } else {
-      console.warn('[widget/session] verifiedIdentity.phone is not a valid phone number, ignoring', {
-        widgetToken,
-      })
-    }
-  }
-  const walletId =
-    typeof body?.verifiedIdentity?.walletId === 'string'
-      ? body.verifiedIdentity.walletId.trim().slice(0, WALLET_ID_MAX_LEN)
-      : ''
-  const verifiedEmail =
-    typeof body?.verifiedIdentity?.email === 'string'
-      ? body.verifiedIdentity.email.trim().slice(0, EMAIL_MAX_LEN)
-      : ''
-
-  const brandingPayload = {
-    name: config.name,
-    welcomeMessage: config.welcome_message,
-    primaryColor: config.primary_color,
-    avatarUrl: config.avatar_url,
-    position: config.position,
+  // ---- signed token ----------------------------------------------
+  let tokenPayload: IdentityPayload | null = null
+  let identityError: 'bad_identity_token' | 'expired_identity_token' | undefined
+  if (identityToken) {
+    const secret = decryptIdentitySecret(config.identity_secret_enc as string | null)
+    const result = secret
+      ? verifyIdentityToken(identityToken, secret)
+      : ({ ok: false, error: 'bad_identity_token' } as const)
+    if (result.ok) tokenPayload = result.payload
+    else identityError = result.error
   }
 
   try {
@@ -198,137 +119,152 @@ export async function POST(request: Request) {
     try {
       ownerUserId = await resolveAuditUserId(admin, config.account_id)
     } catch (err) {
-      if (err instanceof ContactError) {
-        return withCors(NextResponse.json({ error: err.message }, { status: err.status }), corsOrigin)
-      }
+      if (err instanceof ContactError) return widgetError(err.status, err.message, undefined, corsOrigin)
       throw err
     }
 
-    // ---- validate a self-service typed phone up front (unchanged
-    // error contract: a bad typed phone is a 400, not a silent fall-
-    // through — only the TRUSTED verifiedIdentity path gets that). --
-    let selfPhone: string | null = null
-    if (!verifiedPhone && rawSelfPhone) {
-      const sanitized = sanitizePhoneForMeta(rawSelfPhone)
-      if (!isValidE164(sanitized)) {
-        return withCors(
-          NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 }),
-          corsOrigin,
-        )
-      }
-      selfPhone = sanitized
-    }
-    const incomingPhone = verifiedPhone ?? selfPhone
-
-    // ---- fast path: this browser already has a resolved contact --
     const { data: knownVisitor } = await admin
       .from('widget_visitors')
-      .select('contact_id')
+      .select('contact_id, identity_level, identity_source, identity_verified_at')
       .eq('id', visitorId)
       .maybeSingle()
 
-    let contactId: string
-    let contactCreated = false
-
+    type ContactRow = { id: string; name: string | null; phone: string | null; email: string | null }
+    let currentContact: ContactRow | null = null
     if (knownVisitor) {
-      contactId = knownVisitor.contact_id
-      await admin
-        .from('widget_visitors')
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq('id', visitorId)
+      const { data } = await admin
+        .from('contacts')
+        .select('id, name, phone, email')
+        .eq('id', knownVisitor.contact_id)
+        .maybeSingle()
+      currentContact = data as ContactRow | null
+    }
+    const knownLevel = ((knownVisitor?.identity_level as IdentityLevel | undefined) ?? 'guest') as IdentityLevel
 
-      // Self-service linking / a late verifiedIdentity handoff — only
-      // meaningful if this visitor is CURRENTLY a guest (empty phone).
-      // An already-identified visitor's identity never changes here.
-      if (incomingPhone) {
-        const { data: currentContact } = await admin
-          .from('contacts')
-          .select('phone')
-          .eq('id', contactId)
-          .maybeSingle()
-
-        if (currentContact && !currentContact.phone) {
-          const { contactId: targetContactId } = await resolveOrCreateContactByPhone(
-            admin,
-            config.account_id,
-            ownerUserId,
-            incomingPhone,
-            { name: visitorName, walletId, email: verifiedEmail },
-          )
-
-          if (targetContactId !== contactId) {
-            const { error: mergeErr } = await admin.rpc('merge_widget_guest_contact', {
-              p_account_id: config.account_id,
-              p_guest_contact_id: contactId,
-              p_target_contact_id: targetContactId,
-            })
-            if (mergeErr) {
-              // Don't fail the whole session over a merge hiccup — the
-              // visitor keeps chatting as a guest and can try linking
-              // again later.
-              console.error('[widget/session] guest merge failed:', mergeErr)
-            } else {
-              // Falls through to the common find-or-create /
-              // widget_visitors upsert / response below, same as every
-              // other path — `findOrCreatePrimaryConversation` just
-              // finds the conversation the merge RPC already produced.
-              contactId = targetContactId
-              await admin
-                .from('widget_visitors')
-                .update({ contact_id: contactId })
-                .eq('id', visitorId)
-            }
-          }
+    // ---- what is being offered this call? -------------------------
+    // A valid token always wins. A typed claim is ignored for a browser
+    // that is already verified (its identity is fixed), and skipped when
+    // it merely repeats the contact the visitor is already on.
+    type Offer = { mode: 'verified' | 'claimed'; phone: string | null; email: string | null; walletId: string | null; name: string | null }
+    let offer: Offer | null = null
+    if (tokenPayload) {
+      const same =
+        knownLevel === 'verified' &&
+        currentContact &&
+        claimMatchesContact(currentContact, { phone: tokenPayload.phone ?? null, email: tokenPayload.email ?? null })
+      if (!same) {
+        offer = {
+          mode: 'verified',
+          phone: tokenPayload.phone ?? null,
+          email: tokenPayload.email ?? null,
+          walletId: tokenPayload.walletId ?? null,
+          name: tokenPayload.name ?? null,
         }
       }
-    } else if (incomingPhone) {
-      const result = await resolveOrCreateContactByPhone(
-        admin,
-        config.account_id,
+    } else if (claim && knownLevel !== 'verified') {
+      const same = knownVisitor && knownLevel !== 'guest' && currentContact && claimMatchesContact(currentContact, claim)
+      if (!same) offer = { mode: 'claimed', phone: claim.phone, email: claim.email, walletId: null, name: claim.name }
+    }
+
+    // Typed claims are the enumeration surface: rate-limit them.
+    if (offer?.mode === 'claimed') {
+      const checks = [
+        checkRateLimit(`widget:identity:${visitorId}`, RATE_LIMITS.widgetIdentity),
+        checkRateLimit(`widget:identity:o:${widgetToken}:${requestOrigin ?? 'unknown'}`, RATE_LIMITS.widgetIdentityOrigin),
+        checkRateLimit(`widget:identity:ip:${clientIp(request)}`, RATE_LIMITS.widgetIdentityIp),
+      ]
+      const blocked = checks.find((c) => !c.success)
+      if (blocked) return widgetRateLimited(blocked, corsOrigin)
+    }
+
+    const store = createSupabaseIdentityStore(admin)
+    let contactId: string | null = currentContact?.id ?? null
+    let contactCreated = false
+    let level: IdentityLevel = knownLevel
+    let source: IdentitySource | null = (knownVisitor?.identity_source as IdentitySource | null) ?? null
+    let verifiedAt: string | null = (knownVisitor?.identity_verified_at as string | null) ?? null
+    let claimFound: boolean | undefined
+
+    if (offer) {
+      const result = await resolveIdentityContact(store, {
+        accountId: config.account_id,
         ownerUserId,
-        incomingPhone,
-        { name: visitorName, walletId, email: verifiedEmail },
-      )
+        identity: { phone: offer.phone, email: offer.email, walletId: offer.walletId, name: offer.name },
+        verified: offer.mode === 'verified',
+      })
+
+      if (offer.mode === 'claimed') {
+        claimFound = result.matched
+        if (result.created) {
+          await applyContactTagByName(admin, {
+            accountId: config.account_id,
+            ownerUserId,
+            contactId: result.contactId,
+            name: WIDGET_TAG_CLAIMS_EXISTING,
+          })
+        }
+      }
+
+      // Fold the visitor's own GUEST contact into the contact they
+      // identified as (automatic, verified or not). A claimed/verified
+      // browser switching identity just rebinds; it never auto-merges the
+      // contact it was on.
+      if (contactId && contactId !== result.contactId && knownLevel === 'guest') {
+        const { error: mergeErr } = await admin.rpc('merge_widget_guest_contact', {
+          p_account_id: config.account_id,
+          p_guest_contact_id: contactId,
+          p_target_contact_id: result.contactId,
+        })
+        if (mergeErr) console.error('[widget/session] guest merge failed:', mergeErr)
+      }
+
       contactId = result.contactId
       contactCreated = result.created
-    } else if (skipIdentity) {
-      const { data: created, error: createErr } = await admin
-        .from('contacts')
-        .insert({
-          account_id: config.account_id,
-          user_id: ownerUserId,
-          phone: '',
-          widget_visitor_id: visitorId,
-          name: visitorName || 'Website visitor',
-        })
-        .select('id')
-        .single()
-      if (createErr || !created) {
-        console.error('[widget/session] guest contact create error:', createErr)
-        return withCors(NextResponse.json({ error: 'Failed to start session' }, { status: 500 }), corsOrigin)
+      if (offer.mode === 'verified') {
+        level = 'verified'
+        source = 'signed_app'
+        verifiedAt = new Date().toISOString()
+      } else {
+        level = maxLevel(knownLevel, 'claimed')
+        source = source ?? 'typed'
       }
-      contactId = created.id
-      contactCreated = true
-    } else {
-      // Brand-new browser, no identity offered yet — the widget shows
-      // "are you already a Vircle user?" (yes -> phone gate, no ->
-      // calls back with skipIdentity) instead of a blocking phone form.
-      return withCors(NextResponse.json({ needsPhone: true, branding: brandingPayload }), corsOrigin)
+    } else if (!knownVisitor) {
+      if (skipIdentity) {
+        const { data: created, error: createErr } = await admin
+          .from('contacts')
+          .insert({
+            account_id: config.account_id,
+            user_id: ownerUserId,
+            phone: '',
+            widget_visitor_id: visitorId,
+            name: visitorName || 'Website visitor',
+          })
+          .select('id')
+          .single()
+        if (createErr || !created) {
+          console.error('[widget/session] guest contact create error:', createErr)
+          return widgetError(500, 'Failed to start session', undefined, corsOrigin)
+        }
+        contactId = created.id as string
+        contactCreated = true
+        level = 'guest'
+      } else {
+        // Brand-new browser, nothing offered: the widget shows the
+        // existing-user vs enquiry choice.
+        return withCors(NextResponse.json(needsIdentityBody(config, identityError)), corsOrigin)
+      }
     }
+
+    if (!contactId) return widgetError(500, 'Failed to resolve contact', undefined, corsOrigin)
 
     const conversationId = await findOrCreatePrimaryConversation(admin, config.account_id, ownerUserId, contactId)
 
-    // Computed fresh from the resolved contact's actual phone rather
-    // than tracked ad hoc through the branches above — a RETURNING
-    // guest visitor (fast path, no identity offered this call) must
-    // still report isGuest: true so the widget keeps showing its
-    // "link your account" affordance.
-    const { data: finalContact } = await admin.from('contacts').select('phone').eq('id', contactId).maybeSingle()
-    const isGuest = !finalContact?.phone
+    const { data: finalContact } = await admin
+      .from('contacts')
+      .select('name, phone, email')
+      .eq('id', contactId)
+      .maybeSingle()
 
-    // Binds this browser to the resolved contact (new-visitor path) or
-    // just refreshes last_seen_at (fast-path — already bound). One
-    // upsert covers both since the row shape is identical either way.
     await admin.from('widget_visitors').upsert(
       {
         id: visitorId,
@@ -336,6 +272,9 @@ export async function POST(request: Request) {
         contact_id: contactId,
         widget_config_id: config.id,
         last_seen_at: new Date().toISOString(),
+        identity_level: level,
+        identity_source: source,
+        identity_verified_at: verifiedAt,
       },
       { onConflict: 'id' },
     )
@@ -349,12 +288,31 @@ export async function POST(request: Request) {
       }).catch((err) => console.error('[widget/session] new_contact_created dispatch failed:', err))
     }
 
+    // A name is only echoed back for a VERIFIED identity, or when the visitor
+    // typed it themselves in this very request. An unverified claim must not
+    // be able to read a real contact's name out of the CRM.
+    const displayName =
+      level === 'verified'
+        ? meaningfulName(finalContact?.name)
+        : meaningfulName(offer?.name ?? visitorName)
+
     return withCors(
-      NextResponse.json({ conversationId, needsPhone: false, isGuest, branding: brandingPayload }),
+      NextResponse.json(
+        sessionBody({
+          config,
+          conversationId,
+          level,
+          hasPhone: !!finalContact?.phone,
+          hasEmail: !!finalContact?.email,
+          displayName,
+          identityError,
+          claimFound,
+        }),
+      ),
       corsOrigin,
     )
   } catch (err) {
     console.error('[widget/session] unexpected error:', err)
-    return withCors(NextResponse.json({ error: 'Internal server error' }, { status: 500 }), corsOrigin)
+    return widgetError(500, 'Internal server error', undefined, corsOrigin)
   }
 }

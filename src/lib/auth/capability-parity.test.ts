@@ -79,6 +79,9 @@ const CHANNELS_ADMIN: [string, string[]][] = [
   ["account/channels/tiktok", ["DELETE"]],
   ["account/channels/tiktok/webhook", ["POST"]],
   ["account/channels/web-widget", ["PUT"]],
+  // Web Widget v2: the in-app identity secret and the admin-only test token.
+  ["account/channels/web-widget/identity-secret", ["POST", "DELETE"]],
+  ["account/channels/web-widget/identity-token", ["POST"]],
   ["comments/test", ["POST", "DELETE"]],
   ["whatsapp/templates/submit", ["POST"]],
   ["whatsapp/templates/sync", ["POST"]],
@@ -182,6 +185,8 @@ export const ROUTE_ROWS: readonly Row[] = [
 
   // ---- contacts / broadcasts ----
   row("contacts/merge", "POST", "agent", "contacts.merge"),
+  // Web Widget v2: resolving a "possible duplicate" the widget recorded.
+  row("contacts/merge-suggestions/[id]", "POST", "agent", "contacts.merge"),
   row("contacts/[id]/tags", "POST", "agent", "contacts.edit"),
   row("contacts/[id]/tags", "DELETE", "agent", "contacts.edit"),
   row("whatsapp/broadcast", "POST", "agent", "broadcasts.send"),

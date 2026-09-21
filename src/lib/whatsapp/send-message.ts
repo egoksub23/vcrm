@@ -297,15 +297,17 @@ export async function sendMessageToConversation(
 
   // Web-widget conversations never go anywhere near Meta — persisting
   // the `messages` row *is* the delivery (the widget's own Realtime
-  // subscription picks it up). Only plain text is meaningful there;
-  // templates/interactive/media are Meta concepts the widget composer
-  // never even offers, but guard server-side too since this function is
-  // also the automation engine's send path.
+  // subscription picks it up). Text and media (image / video / audio /
+  // document) are delivered that way; templates and interactive messages
+  // are Meta concepts with no widget equivalent, so they stay blocked (this
+  // function is also the automation engine's send path, hence the
+  // server-side guard). The visitor's widget confirms delivery / reading
+  // through POST /api/widget/receipt.
   const isWidgetConversation = channel === 'web_widget';
-  if (isWidgetConversation && messageType !== 'text') {
+  if (isWidgetConversation && messageType !== 'text' && !isMediaKind) {
     throw new SendMessageError(
       'bad_request',
-      'Only text messages are supported on the web-chat channel',
+      'Only text and media messages are supported on the web-chat channel',
       400
     );
   }

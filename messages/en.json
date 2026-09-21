@@ -625,6 +625,25 @@
       "copy": "Copy",
       "hide": "Hide",
       "disclaimer": "Written by AI from the recent messages. Check it before relying on it. Not saved."
+    },
+    "widgetIdentity": {
+      "verified": "Verified in-app",
+      "verifiedHint": "Your own app signed in this customer, so the identity is proven.",
+      "claimed": "Unverified web claim",
+      "claimedHint": "The visitor typed this phone or email. Nothing proves it belongs to them.",
+      "duplicate": "Possible duplicate",
+      "duplicateHint": "This visitor also matches another contact. It was not merged automatically.",
+      "duplicateBody": "may be the same person as {contact}.",
+      "unnamed": "Unnamed contact",
+      "merge": "Merge",
+      "dismiss": "Dismiss",
+      "merged": "Contacts merged",
+      "dismissed": "Suggestion dismissed",
+      "failed": "Something went wrong. Try again.",
+      "confirmTitle": "Merge these contacts?",
+      "confirmBody": "{contact} will be merged into this contact: conversations, notes, tags and deals move here, and the other contact is deleted. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Merge contacts"
     }
   },
   "Contacts": {
@@ -2620,7 +2639,65 @@
         "snippetCopied": "Embed code copied to clipboard",
         "copyFailed": "Failed to copy",
         "testChat": "Test chat",
-        "testChatHint": "Opens a popup with the real widget, already connected — chat with it yourself. Messages you send land in your Inbox like any other conversation."
+        "testChatHint": "Opens a popup with the real widget, already connected — chat with it yourself. Messages you send land in your Inbox like any other conversation.",
+        "verification": {
+          "title": "Web verification",
+          "description": "How a visitor’s typed identity could be confirmed on the web. An identity signed by your own app is always treated as verified, whatever this is set to.",
+          "comingSoon": "Coming soon",
+          "modes": {
+            "none": {
+              "label": "No verification",
+              "hint": "A phone number or email a visitor types is shown to agents as unverified. Two different contacts are never merged automatically; agents get a possible-duplicate suggestion instead."
+            },
+            "email_code": {
+              "label": "Email code",
+              "hint": "Confirm the visitor with a code sent to their email."
+            },
+            "whatsapp_code": {
+              "label": "WhatsApp code",
+              "hint": "Confirm the visitor with a code sent to their WhatsApp."
+            }
+          }
+        },
+        "identity": {
+          "title": "In-app identity",
+          "description": "Let your own app tell the widget who is signed in. Your server signs a short token with a secret only you hold; the widget then treats that visitor as verified and skips every question.",
+          "saveFirst": "Save your widget settings once before generating a secret.",
+          "active": "Active",
+          "noSecret": "No secret yet. In-app identity is off.",
+          "rotatedAt": "Created or rotated {date}",
+          "generate": "Generate secret",
+          "rotate": "Rotate",
+          "remove": "Turn off",
+          "generateFailed": "Could not generate the secret",
+          "removeFailed": "Could not remove the secret",
+          "removed": "In-app identity turned off",
+          "revealedTitle": "Copy your secret now",
+          "revealedHint": "This is the only time it is shown. Store it on your server (for example in an environment variable). If you lose it, rotate to get a new one.",
+          "hideSecret": "Hide",
+          "signTitle": "Sign a token on your server",
+          "signHint": "Call this when you render a page for a signed-in user. The token is valid for 10 minutes. Include at least a phone (with country code), an email or a wallet ID.",
+          "lang": {
+            "node": "Node.js",
+            "php": "PHP",
+            "python": "Python"
+          },
+          "embedTitle": "Put the token in the embed",
+          "embedHint": "Render the token into the script tag with the data-identity-token attribute.",
+          "lateHint": "If the user signs in after the page loaded, hand the token over later:",
+          "securityTitle": "Keep in mind",
+          "security1": "The secret never goes in a web page or a mobile app. Only your server signs tokens.",
+          "security2": "Anyone who has the secret can act as any of your customers in chat. Rotate it if it may have leaked.",
+          "security3": "Typed phone numbers and emails are never treated as verified, so they cannot reveal or merge a real customer.",
+          "security4": "Rotating the secret makes every token signed with the old one stop working straight away.",
+          "rotateTitle": "Rotate the secret?",
+          "rotateBody": "Tokens signed with the current secret stop working immediately. Update your server with the new secret right after.",
+          "rotateConfirm": "Rotate secret",
+          "removeTitle": "Turn off in-app identity?",
+          "removeBody": "The secret is erased. Visitors from your app go back to being anonymous until you generate a new one.",
+          "removeConfirm": "Turn off",
+          "cancel": "Cancel"
+        }
       },
       "messenger": {
         "title": "Messenger",

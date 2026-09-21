@@ -20,6 +20,14 @@ const WELCOME_MAX_LEN = 300
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const MAX_ORIGINS = 20
 
+// Never selects identity_secret_enc: the settings screen only needs to know
+// THAT a secret exists (last4 is set together with it), not its ciphertext.
+const WIDGET_CONFIG_COLUMNS =
+  'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, verification_mode, identity_secret_last4, identity_secret_rotated_at, created_at, updated_at'
+
+/** Verification modes that actually work today. The others are stored-only ("coming soon"). */
+const IMPLEMENTED_VERIFICATION_MODES = ['none'] as const
+
 function generateWidgetToken(): string {
   return `wt_${randomBytes(24).toString('base64url')}`
 }
@@ -31,7 +39,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from('web_widget_config')
       .select(
-        'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, created_at, updated_at',
+        WIDGET_CONFIG_COLUMNS,
       )
       .eq('account_id', ctx.accountId)
       .maybeSingle()
@@ -63,6 +71,7 @@ export async function PUT(request: Request) {
           position?: unknown
           allowed_origins?: unknown
           enabled?: unknown
+          verification_mode?: unknown
         }
       | null
 
@@ -120,6 +129,21 @@ export async function PUT(request: Request) {
 
     const enabled = body.enabled !== false
 
+    // Optional: absent keeps the stored value. Only implemented modes may be chosen.
+    let verificationMode: string | undefined
+    if (body.verification_mode !== undefined) {
+      if (
+        typeof body.verification_mode !== 'string' ||
+        !(IMPLEMENTED_VERIFICATION_MODES as readonly string[]).includes(body.verification_mode)
+      ) {
+        return NextResponse.json(
+          { error: 'That verification mode is not available yet', code: 'bad_request' },
+          { status: 400 },
+        )
+      }
+      verificationMode = body.verification_mode
+    }
+
     const { data: existing } = await ctx.supabase
       .from('web_widget_config')
       .select('id, widget_token')
@@ -134,6 +158,7 @@ export async function PUT(request: Request) {
       position,
       allowed_origins: allowedOrigins,
       enabled,
+      ...(verificationMode ? { verification_mode: verificationMode } : {}),
       updated_at: new Date().toISOString(),
     }
 
@@ -143,7 +168,7 @@ export async function PUT(request: Request) {
         .update(row)
         .eq('account_id', ctx.accountId)
         .select(
-          'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, created_at, updated_at',
+          WIDGET_CONFIG_COLUMNS,
         )
         .single()
 
@@ -163,7 +188,7 @@ export async function PUT(request: Request) {
         ...row,
       })
       .select(
-        'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, created_at, updated_at',
+        WIDGET_CONFIG_COLUMNS,
       )
       .single()
 

@@ -9,7 +9,10 @@ same AI auto-reply as WhatsApp conversations do. Introduced in
 migration 046; see `supabase/migrations/046_channels.sql` for the
 original schema and RLS, and migration 048
 (`supabase/migrations/048_merge_channel_conversations.sql`) for the
-omnichannel merge described below.
+omnichannel merge described below. **Web Widget v2** (migration 092,
+`supabase/migrations/092_widget_v2.sql`) added identity levels, signed
+in-app identity, possible-duplicate suggestions, an enquiry form, files
+and voice notes, read receipts, and English / Bahasa Melayu / Mandarin.
 
 ## What lives where
 
@@ -18,8 +21,12 @@ omnichannel merge described below.
 | Widget name, welcome message, color, position, allowed origins, enabled toggle | `web_widget_config` (one row per account) | per account |
 | `widget_token` (public, non-secret — embedded in the `<script>` tag) | `web_widget_config.widget_token`, generated once on first save | per account |
 | A visitor's browser session | Supabase **anonymous auth** (`auth.users`, `is_anonymous = true`) | per browser/device |
-| A visitor's *identity* — who they actually are | The phone number they type into the pre-chat gate, matched against existing `contacts` | per phone number, not per browser |
-| The browser ↔ contact binding (skips the gate on return visits) | `widget_visitors` (row per anonymous auth uid → `contact_id`) | per browser/device |
+| How a visitor's typed identity would be confirmed on the web | `web_widget_config.verification_mode` (`none` live; `email_code`, `whatsapp_code` stored, "coming soon") | per account |
+| The in-app identity secret (signs tokens for your signed-in users) | `web_widget_config.identity_secret_enc` (AES-256-GCM ciphertext; only the last four characters are readable, `identity_secret_last4`) | per account |
+| A visitor's *identity* — who they actually are | A signed in-app token (verified), or a phone/email they typed (claimed), matched against existing `contacts` | per phone/email, not per browser |
+| The browser ↔ contact binding and its identity level (skips the first screen on return visits) | `widget_visitors` (row per anonymous auth uid → `contact_id`, with `identity_level`, `identity_source`, `identity_verified_at`) | per browser/device |
+| Unverified claims that matched two contacts | `contact_merge_suggestions` (agents Merge or Dismiss) | per account |
+| Enquiry form submissions | `widget_enquiries` (with `consent_at`) | per account |
 | A visitor's conversation | The contact's single `conversations` row (migration 048 — shared with WhatsApp, not a separate widget-only row) | per contact |
 | Which channel a given message came in/went out on | `messages.channel_type`, per message | per message |
 | The conversation's most recent channel (drives UI badges + reply routing) | `conversations.last_channel_type` | per conversation |
@@ -60,13 +67,19 @@ any account member can view). Fields:
 - **Primary color** — the launcher button, header background, and the
   visitor's own message bubbles.
 - **Position** — bottom-left or bottom-right.
-- **Allowed origins** — a CORS allow-list for the two public API
-  routes the widget calls (`/api/widget/session`,
-  `/api/widget/message`). Enter full origins (`https://example.com`),
+- **Allowed origins** — a CORS allow-list for the public API routes
+  the widget calls (`/api/widget/session`, `/message`, `/upload-url`,
+  `/receipt`, `/enquiry`). Enter full origins (`https://example.com`),
   not paths. **Leave empty to allow any origin** — the visible,
   copy-pasted `widget_token` is the actual embedding boundary for most
   setups, same as other chat-widget products; only set this if you
   specifically want to pin the widget to known domains.
+
+- **Web verification** — `none` today (see "Visitor identity"); the
+  code-based modes are shown as "coming soon".
+- **In-app identity** — generate or rotate the secret your own server
+  signs identity tokens with, and copy ready-made Node / PHP / Python
+  snippets (see "Visitor identity").
 
 Saving for the first time generates the account's `widget_token` and
 reveals the embed snippet. That token never changes on later saves —
@@ -82,7 +95,10 @@ bubble to appear:
 <script src="https://<your-host>/widget/loader.js" data-widget-token="wt_..." async></script>
 ```
 
-That's the whole integration — no other markup, no CSS to load. The
+Optional attributes on that tag: `data-identity-token` (an in-app
+identity signed by your server, see "Visitor identity"), `data-lang`
+(`en`, `ms` or `zh`) and `data-open="true"`. That's the whole
+integration — no other markup, no CSS to load. The
 widget mounts itself inside a Shadow DOM, so it can't collide with
 your page's styles and your page's styles can't leak into it. It
 works the same way inside a mobile app's WebView, since a WebView is
@@ -101,6 +117,15 @@ real visitor gets — the popup just auto-opens the panel
 (`/widget-preview`, `data-open="true"`) instead of requiring a click
 on the launcher bubble.
 
+The test page also has a **Simulate an in-app user** box: enter a phone
+and/or email and it asks the dashboard (an admin-only route,
+`POST /api/account/channels/web-widget/identity-token`, signed with your
+real in-app identity secret) for a signed token and hands it to the
+widget with `window.VircleWidget.identify({ token })`, exactly as a host
+app's backend would. Use it to see the **Verified in-app** badge in the
+Inbox. It needs the secret to have been generated first, and you must be
+signed in as someone who can manage channels in the same browser.
+
 ## How it works, briefly
 
 - **Reads** (message history, live updates) go straight from the
@@ -116,10 +141,13 @@ on the launcher bubble.
   the identical fan-out a WhatsApp inbound message gets from the
   webhook route. This is the one deliberate exception to "reads and
   writes both go direct."
-- Both public routes (`/api/widget/session`, `/api/widget/message`)
-  verify the visitor's Supabase JWT server-side and are rate-limited
-  (`RATE_LIMITS.widgetSession`, `RATE_LIMITS.widgetMessage` in
-  `src/lib/rate-limit.ts`).
+- The public routes (`/api/widget/session`, `/message`, `/upload-url`,
+  `/receipt`, `/enquiry`) verify the visitor's Supabase JWT server-side
+  and are rate-limited (`RATE_LIMITS.widgetSession`, `widgetMessage`,
+  `widgetIdentity*`, `widgetUpload`, `widgetReceipt`, `widgetEnquiry*` in
+  `src/lib/rate-limit.ts`). `/session` and `/message` answers changed in
+  v2 (see "Visitor identity" and "Messages, media, voice notes and
+  ticks"); old cached loaders keep working through legacy fields.
 - A widget visitor is a real `contacts` row and a real `conversations`
   row — the *same* conversation as their WhatsApp thread if they've
   messaged this business there too (migration 048 merges by contact,
@@ -132,107 +160,314 @@ on the launcher bubble.
 
 ## Visitor identity
 
-A first-time visitor's identity can arrive three ways (migration 054):
+Web Widget v2 (migration 092) replaced the old "verified vs
+self-service" split with three explicit **identity levels**, stored per
+browser on `widget_visitors.identity_level` and shown to agents as a
+badge in the Inbox thread header:
 
-1. **Verified, from the host app** — an in-app/WebView embed that
-   already has a signed-in, verified user hands the widget their phone
-   (and optionally a wallet ID and email) at init. No gate is ever
-   shown; the composer appears immediately. Two ways to pass it:
-   - **Synchronous** — `data-user-phone` / `data-user-wallet-id` /
-     `data-user-email` attributes on the loader `<script>` tag, for a
-     host that already knows the user before it injects the widget:
+| Level | How a visitor gets it | Agent badge | May it auto-merge two real contacts? |
+| --- | --- | --- | --- |
+| `guest` | Chose to stay anonymous (or is on the enquiry flow before submitting) | none | n/a |
+| `claimed` | **Typed** a phone number and/or email ("I am already a user"), or filled the enquiry form | **Unverified web claim** | **No** |
+| `verified` | The host app's own backend **signed** an identity token with the workspace secret | **Verified in-app** | Yes |
+
+A returning browser resumes its stored level and can only move up
+(`guest` to `claimed` to `verified`), never down. There is no verification
+step for typed identities on the web today (see "Security notes"), so
+**only a signed token proves anything.**
+
+### The first screen
+
+A brand-new browser with nothing offered gets `needsIdentity: true` from
+`POST /api/widget/session` and the widget shows a choice:
+
+1. **I am already a user** asks for a phone number and/or email (a `claim`).
+2. **I have an enquiry** shows the enquiry form (below).
+3. **Just chat** (guest) starts an anonymous conversation.
+
+A host app that signs its users in never sees this screen: it hands the
+widget a signed token (below) and the composer opens straight away.
+
+### In-app identity (signed token)
+
+For a mobile app WebView, or any site with its own login. The host's
+**server** signs a short token for the signed-in user with the workspace's
+secret, and puts it in the embed tag or hands it over later.
+
+1. **Generate the secret**: Settings, Channels, Web Widget, *In-app
+   identity*, **Generate secret**. It is shown **once** (copy it now); it
+   is stored encrypted (AES-256-GCM, the same helper the WhatsApp, Gmail
+   and Jira connections use) with only its last four characters readable.
+   **Rotate** replaces it and immediately invalidates every token signed
+   with the old one; **Turn off** erases it. Both are audited by column
+   name only, never by value.
+2. **Sign a token on your server** (snippets for Node, PHP and Python are in
+   the settings card, and below). Format:
+
+   ```
+   token   = base64url(payloadJson) + "." + base64url(HMAC_SHA256(secret, base64url(payloadJson)))
+   payload = { "phone"?, "email"?, "walletId"?, "name"?, "iat": <unix seconds> }
+   ```
+
+   At least one of `phone` (E.164), `email` or `walletId` is required. The
+   server accepts `iat` up to **10 minutes old** and up to **60 seconds in
+   the future** (clock skew); anything else is `expired_identity_token`. The
+   signature is compared in constant time before the payload is trusted at
+   all. A token that verifies makes the visitor `verified` (source
+   `signed_app`); one that does not is reported as `identityError`
+   (`bad_identity_token` | `expired_identity_token`) in a normal 200 and the
+   visitor simply continues unidentified.
+
+   ```js
+   // Node.js
+   import crypto from 'node:crypto'
+   const SECRET = process.env.VIRCLE_WIDGET_SECRET   // server only, never in a page or app
+
+   export function widgetIdentityToken(user) {
+     const payload = { phone: user.phone, email: user.email, walletId: user.walletId,
+                       name: user.name, iat: Math.floor(Date.now() / 1000) }
+     const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
+     const sig = crypto.createHmac('sha256', SECRET).update(body).digest('base64url')
+     return body + '.' + sig
+   }
+   ```
+
+   The PHP and Python versions are in the settings card (they live in
+   `src/lib/widget/snippets.ts`; the Node one is run by a unit test against
+   the real verifier, so this page cannot drift from the code).
+3. **Give the token to the widget**, either way:
+   - **In the embed tag** (the host already knows the user when it renders
+     the page):
      ```html
      <script src="https://<your-host>/widget/loader.js"
              data-widget-token="wt_..."
-             data-user-phone="+60123980112"
-             data-user-wallet-id="wallet_abc"
-             data-user-email="jane@example.com"
+             data-identity-token="TOKEN_SIGNED_BY_YOUR_SERVER"
              async></script>
      ```
-   - **Async** — `window.VircleWidget.identify({ phone, walletId, email })`,
-     for a host whose own sign-in finishes *after* the script has
-     already loaded and the widget has possibly already started an
-     anonymous or guest session. Safe to call at any point — if the
-     widget hasn't mounted its listener yet, the call is queued and
-     delivered as soon as it has. A visitor already chatting as a guest
-     gets their history folded into the now-identified contact (see
-     "self-service linking" below); an anonymous/unstarted session just
-     resolves straight to the identified contact.
-   All three fields are **optional** and independent of each other —
-   only `phone` drives identity resolution; `walletId`/`email` are
-   informational, stored on the contact (`wallet_id` is new, `email`
-   already existed) but never used for matching. Passing none of them
-   falls through to case 2 below exactly as if this were a plain web
-   embed.
-2. **Self-service** — right after the welcome message, a visitor with
-   no verified identity is asked *"Are you already a Vircle user?"*.
-   **Yes** reveals a phone (and optional name) field; submitting it
-   works exactly like case 1 except unverified — see the trust-model
-   note below. **No** (or ignoring the prompt) starts a plain anonymous
-   guest session — `phone: ''`, keyed only by `widget_visitor_id` — and
-   the composer appears immediately either way.
-3. **Guest, later linking** — a visitor chatting as a guest (case 2's
-   "No") can identify themselves at any point via the composer's
-   "Already a Vircle user? Link your account" prompt. Their guest
-   session's history (messages, any labels/notes/deals an agent
-   happened to attach while they were still anonymous) gets folded
-   into the phone-matched contact by `merge_widget_guest_contact`
-   (migration 054) — the same repoint-then-delete shape migration 048
-   uses for its own conversation merges, just generalized into a
-   callable function since this has to run at arbitrary request time,
-   not once during a migration window. The widget swaps to the merged
-   conversation and refetches history automatically; nothing is lost.
+   - **Later**, when the host's own sign-in finishes after the script
+     loaded (safe at any time; if the widget has not mounted yet the call is
+     queued):
+     ```js
+     window.VircleWidget.identify({ token: tokenFromYourServer })
+     ```
 
-Phone-first identity either way: whatever phone is resolved (verified
-or self-service) is looked up against the account's existing contacts
-(the same fuzzy, trunk-prefix-tolerant match every other phone-
-identified path in the app uses) — if it matches someone who has
-already messaged this business on WhatsApp, the widget attaches to
-that **same contact record — and the same conversation**. There's no
-separate widget-only thread: it's one merged conversation with the
-customer's full history in it regardless of which channel each
-message came in on (migration 048). If it's a new number, a new
-contact — and a new conversation — is created from it.
+If the server rejects a token the widget logs a console warning and
+dispatches a window event the host can listen for:
 
-A returning visitor on the **same browser** skips straight to their
-resolved contact — `widget_visitors` already remembers which contact
-this browser belongs to from last time, so identity (verified,
-self-service, or guest) is only ever resolved once per device.
+```js
+window.addEventListener('vircle-widget:identity-error', (e) => {
+  console.warn('Widget identity rejected:', e.detail.code)  // 'bad_identity_token' | 'expired_identity_token'
+})
+```
 
-**Case 1 (verified) is trusted; cases 2 and 3 are intentionally
-unverified — there's no OTP.** A self-service visitor who types a real
-customer's phone number lands their chat on that customer's contact
-record — and, since the merge, on their actual conversation history
-too, not just a fresh empty thread. The widget still doesn't leak
-anything beyond that one conversation: RLS scopes a visitor to their
-contact's conversation specifically, never the contact's tags, deals,
-or notes — that data stays dashboard-only. But because the merged
-conversation can include past WhatsApp messages, the accepted risk is
-a little larger than before: someone typing a real customer's number
-now sees that customer's past conversation content through the widget,
-not just an empty chat. That's the trade-off explicitly chosen here in
-exchange for one unified thread — worth keeping in mind for any
-account expecting to receive sensitive content (payment details,
-account changes) over either channel. OTP verification on the
-self-service phone claim is a real, flagged hardening follow-up, not
-silently skipped — it just isn't built yet. Case 1 doesn't carry this
-risk to begin with: the host app already verified the phone belongs to
-its signed-in user before ever calling the widget.
+The other loader inputs: `data-lang="en|ms|zh"` (else the page's
+`<html lang>`, else the browser language), `data-user-name` (a display-name
+hint), and `data-open="true"` (start with the panel open; used by Test
+chat). The **legacy** `data-user-phone`, `data-user-email`,
+`data-user-wallet-id` and `identify({ phone, email, name })` still work so
+existing embeds do not break, but they are unsigned, so the server treats
+them as an **unverified claim**. The widget does not send a wallet id as a
+claim; a wallet id is only accepted inside a signed token.
+
+### Matching a typed or signed identity to a contact
+
+A claim, a token or the enquiry form is matched against **CRM contacts
+only**: by phone (the same trunk-prefix-tolerant match every other
+phone-identified path uses) and by email (case-insensitive exact). A signed
+token may also carry a `walletId`, matched exactly when nothing else did.
+
+| Phone match | Email match | Verified (signed token) | Unverified (typed / form) |
+| --- | --- | --- | --- |
+| none | none | create a contact | create a contact (a claim also tags it **Claims existing user**) |
+| A | none | use A | use A |
+| none | B | use B | use B |
+| A | A | use A | use A |
+| A | B (different) | **merge B into A**, use A | use A and record a **Possible duplicate** suggestion (A, B); **never merges** |
+
+The response's `claimFound` is `true` when an existing contact matched
+(so the widget can say "Welcome back" instead of "Welcome"); it is the only
+thing that ever reveals whether a contact exists. The response never says
+which identifier matched, and `identity.displayName` is only ever the
+contact's real name for a **verified** identity (for a typed claim it is
+just the name the visitor typed in that same request), so a stranger who
+types someone's phone number cannot read their name back out of the CRM.
+Email, phone, wallet id and name are backfilled **only where empty**, and
+for an unverified claim only the name is (a typed claim cannot plant its
+own phone, email or wallet id on somebody's contact).
+
+A visitor's own **guest** contact is always folded into the contact they
+identify as (verified or not) with `merge_widget_guest_contact`
+(migration 054): messages, labels, notes and deals move over and the widget
+swaps to the merged conversation. Only two REAL contacts need the
+"verified" rule above.
+
+Typed claims are rate limited (`RATE_LIMITS.widgetIdentity`, 5 per 10
+minutes per visitor, plus per widget token + origin and per IP) because each
+one can answer `claimFound`. A valid signed token is a proof, not a probe,
+so it never spends that budget. Over the limit is a `429` with
+`code: 'rate_limited'` and `Retry-After`.
+
+### Possible duplicates (agents)
+
+When an unverified claim matches two contacts the visitor is attached to the
+phone match and a row goes into `contact_merge_suggestions` (unique per pair,
+so a dismissed pair is never suggested again). The Inbox thread shows a
+**Possible duplicate** badge and an amber bar naming the other contact with
+**Merge** and **Dismiss**. Merge calls the same `merge_contacts` function and
+needs the same capability (`contacts.merge`) as the manual contact merge;
+Dismiss needs it too. Both go through
+`POST /api/contacts/merge-suggestions/[id]` (`{ action: 'merge' | 'dismiss' }`);
+the table has no client write policy. The badges come from
+`GET /api/contacts/[id]/widget-identity`.
+
+### Web verification switch
+
+Settings shows **Web verification**: `none` (live), `email_code` and
+`whatsapp_code` (stored, shown as "coming soon"). It is `verification_mode`
+on `web_widget_config` and is reported to the widget as
+`verification: { mode }`. Only `none` is implemented, and the API refuses to
+switch to the others. To turn verification on later: implement the code
+challenge for the chosen mode in `/api/widget/session` (send a code, accept
+it, then set `identity_level = 'verified'`, `identity_source = 'code'`) and
+add it to the implemented list in `src/app/api/account/channels/web-widget/route.ts`.
+Nothing else needs to change: the merge rule already keys on the level.
+
+### Enquiry form
+
+`POST /api/widget/enquiry` saves the widget's enquiry form: **name**;
+**phone or email** (at least one); **I am a** `parent | school | merchant |
+other`; **message** (1 to 2000 characters); and a **consent** tick (must be
+`true`). It:
+
+- matches or creates the contact with the same **unverified** rules as a
+  claim (a verified browser keeps its verified contact);
+- makes a new contact a **lead** (`lifecycle_stage = 'lead'`) and tags the
+  contact **Web enquiry** and **Enquiry: <role>**;
+- records a `widget_enquiries` row (with `consent_at`);
+- inserts the first customer message (`[Web enquiry - Parent]` and the text)
+  and fires the **same fan-out as `/api/widget/message`**: `new_contact_created`
+  for a new contact, `first_inbound_message` / `new_message_received` /
+  `keyword_match` automations, AI reply and outbound webhooks. The existing
+  routing (automations and assignment rules) therefore applies unchanged.
+- answers with the same body as `/api/widget/session` (`identity.level` is
+  `claimed`, `claimFound` says whether it matched).
+
+It is rate limited (5 per hour per visitor, and per widget token + origin).
+
+## Messages, media, voice notes and ticks
+
+The panel is a WhatsApp-style chat: bubbles, timestamps with day dividers,
+an emoji picker, image and video previews, file chips, a voice-note
+recorder, and full screen on phones. Not yet built (later): typing
+indicator, reply-to, reactions, link previews.
+
+### Sending files and voice notes
+
+Attachments never pass through the app server as bytes:
+
+1. `POST /api/widget/upload-url` with `{ conversationId, fileName, mimeType,
+   sizeBytes, kind }` answers `{ bucket: 'chat-media', path, token }`, a
+   Supabase Storage **signed upload token** for exactly one object at
+   `account-<accountId>/widget/<conversationId>/<uuid>-<safe file name>`. It
+   is only issued when the visitor owns the conversation, the type is in the
+   allow-list, the size is within the limit and `kind` matches the type
+   (20 tokens per 10 minutes per visitor).
+2. The widget uploads to Storage with
+   `supabase.storage.from('chat-media').uploadToSignedUrl(path, token, blob, { contentType })`.
+3. `POST /api/widget/message` with `{ conversationId, text?, media?,
+   clientMessageId? }` where `media = { path, mimeType, fileName, sizeBytes,
+   kind, durationSeconds? }`. The server **re-validates** the object: the
+   path must be under this conversation's prefix, the object must exist in
+   `chat-media`, and its real size and content type (read from Storage, not
+   trusted from the request) must match what was declared and be within the
+   rules. On a mismatch it **deletes the object** and answers `413` or `415`.
+   `text` is the caption. The answer is `{ message: { id, created_at,
+   status } }`, `status` starting as `sent`. Sending the same
+   `clientMessageId` again returns the original message and fires nothing a
+   second time, so a retry after a lost response is safe.
+
+Limits (reported to the widget as `limits` by `/session` and `/enquiry`):
+**16 MB per file**, **voice notes up to 5 minutes**, video up to 16 MB, and
+the **same MIME allow-list as the `chat-media` bucket** (migration 023:
+PNG, JPEG, WebP, MP4, 3GPP, PDF, Word, Excel, PowerPoint, plain text, and
+Ogg, MPEG, AAC, MP4 and AMR audio). The bucket settings are not changed by
+the widget; a unit test compares the widget's list with migration 023.
+Error codes: `file_too_large` (413), `file_type_not_allowed` (415),
+`bad_request` (400), `not_found` (404), `rate_limited` (429).
+
+The message is stored as a normal `messages` row (`sender_type =
+'customer'`, `channel_type = 'web_widget'`, `content_type` text | image |
+video | audio | document, `media_url` the public `chat-media` URL) and then
+gets the same fan-out as before (automations, AI reply, webhooks). Agents
+reply with media the same way as on any channel: the Inbox composer's attach
+menu (photo, video, document, voice note) is now available on web-widget
+conversations too. Templates and interactive buttons/lists stay
+WhatsApp-only.
+
+### Sent, delivered, read
+
+Agent to visitor: the widget reports what it received and displayed with
+`POST /api/widget/receipt` `{ conversationId, messageIds, status:
+'delivered' | 'read' }`, and the Inbox shows the usual ticks. Only agent or
+bot messages, sent on the widget, in the visitor's own conversation, and not
+internal comments, can change; **a status only moves forward** (a late
+`delivered` never downgrades `read`).
+
+Visitor to agent: a customer message starts `sent`; when an agent opens the
+conversation (the Inbox resets `unread_count` to 0) a database trigger
+(migration 092) flips the visitor's web-widget messages in it to `read`, and
+the widget, which subscribes to Realtime UPDATEs on its own messages,
+animates the ticks. (Bulk "mark as read" flips them too. "Delivered" is not
+tracked for visitor messages.)
+
+### Agent replies after the visitor left
+
+An agent reply to a visitor who has left the page stays in the widget only:
+it is not forwarded by email or WhatsApp. It appears, with an unread marker,
+the next time that browser opens the widget.
+
+### Languages
+
+The widget speaks English, Bahasa Melayu (`ms`) and Mandarin (`zh`), chosen
+from `data-lang`, the page's `<html lang>`, then the browser language. The
+locale is also sent to `/session` and `/enquiry`.
+
+### Host requirements for voice notes
+
+The recorder is loaded lazily (`recorder.js`, like the emoji picker's
+`emoji.js`) from the **API origin**, never from a CDN. To record, the widget
+needs microphone access:
+
+- **Iframe hosts**: the embedding `<iframe>` needs `allow="microphone"`.
+- **Android WebView**: declare `RECORD_AUDIO` and grant the WebView's
+  permission request (`WebChromeClient.onPermissionRequest`) once the user has
+  allowed it.
+- **iOS WKWebView**: add `NSMicrophoneUsageDescription` to `Info.plist`.
+- **Strict CSP hosts**: the recorder encodes in a Web Worker started from a
+  blob, so allow `worker-src blob:`, plus the API origin in `script-src` /
+  `connect-src` / `img-src` (Storage media) as for the loader itself.
+
+Where the microphone is unavailable or refused, the widget hides the
+record button; files and text still work.
 
 ## What's channel-specific
 
 Since a merged conversation can span both channels, "channel-specific"
 now means "gated on `conversations.last_channel_type`" rather than a
 fixed per-conversation property. The composer hides these whenever the
-conversation's most recent message came in via the widget, and the
+conversation's most recent message came in via the widget (media attach
+is no longer one of them: photos, video, voice notes and files work on the
+widget since v2), and the
 server rejects them too if something tries anyway
 (`sendMessageToConversation` in `src/lib/whatsapp/send-message.ts`, and
 `assertWhatsappChannel` in `src/lib/automations/engine.ts`) — the same
 guard re-evaluates on the customer's very next message, so these
 affordances come back the moment they message in on WhatsApp again:
 
-- Message templates, interactive buttons/lists, and media attach —
-  all Meta-specific concepts with no widget equivalent yet.
+- Message templates and interactive buttons/lists — Meta-specific
+  concepts with no widget equivalent yet. (Text and media messages are
+  delivered on the widget by persisting the message row; the visitor's
+  widget shows it live and reports delivered / read.)
 - The visual **Flow builder** doesn't run for widget conversations —
   its send nodes call Meta's API directly rather than going through
   the channel-aware send core, so a Flow with an interactive node
@@ -254,6 +489,60 @@ true`), a `condition` step checking that field, and a `set_priority`
 step (added alongside this channel; see
 `supabase/migrations/047_conversation_priority.sql`) setting `urgent`.
 Works the same for WhatsApp and widget conversations.
+
+## Security notes
+
+- **No verification on the web (accepted risk).** A visitor who types a real
+  customer's phone or email lands on that customer's contact record and, since
+  the conversation is one merged thread (migration 048), can see that
+  customer's past messages through the widget. That is the trade-off chosen
+  for one unified thread with no OTP. What v2 changes is that this is now
+  visible and contained: the visitor is labelled **Unverified web claim**;
+  a typed claim never auto-merges two real contacts and never plants its own
+  phone, email or wallet id on a contact; the response reveals a contact's
+  name only for a verified identity; and claims are rate limited. RLS still
+  scopes a visitor to their contact's conversation only, never tags, deals or
+  notes. If an account expects sensitive content (payments, account changes)
+  over the widget, do not rely on typed identity: use in-app identity, or turn
+  on code verification when it ships (see "Web verification switch").
+- **The identity secret** signs tokens for **any** customer, so treat it like
+  an API key: server side only, in an environment variable, never in a page or
+  app bundle. Rotate it if it may have leaked (every old token stops working at
+  once). It is stored encrypted at rest; the settings screen only ever holds
+  its last four characters.
+- **Tokens are short-lived, not one-time.** A token is valid for 10 minutes
+  from its `iat`; someone who copies it from the page source inside that window
+  can reuse it. Mint one per page render, never cache it long, and do not put it
+  in a URL.
+- Signature verification is constant time and happens before the payload is
+  read; an expired token from the wrong secret is reported as a bad token, not
+  as expired.
+- **Uploads are scoped and re-checked.** A signed upload token is for one path
+  under the visitor's own conversation; the message route re-reads the stored
+  object's real size and type and deletes a mismatch.
+- The public widget routes are `/api/widget/session`, `/message`,
+  `/upload-url`, `/receipt` and `/enquiry`. All are CORS-enabled and checked
+  against the account's `allowed_origins`; all except `/session` and
+  `/enquiry` need the visitor's anonymous-auth JWT plus an existing
+  `widget_visitors` row (those two verify the JWT and create it). Error shape:
+  `{ error, code? }`.
+
+## Migration 092
+
+Apply `supabase/migrations/092_widget_v2.sql` **before** deploying the code
+that reads it: `web_widget_config` gains `verification_mode` and the encrypted
+`identity_secret_*` columns, `widget_visitors` gains `identity_level` /
+`identity_source` / `identity_verified_at` (existing browsers with a phone
+become `claimed`), and new tables `contact_merge_suggestions` and
+`widget_enquiries` (read by account members, written only by the API), a
+`lower(email)` index on contacts, the read-ticks trigger on
+`conversations.unread_count`, and the audit trigger on the widget config now
+also names `verification_mode` and `identity_secret_enc` (by name, never
+value). It does not touch the `chat-media` bucket. It is additive and
+idempotent; `supabase/ci/verify-092-widget-v2.sql` (run with the migration
+ahead of it in one file; it ends in a deliberate `ROLLBACK-OK` error) proves
+the constraints, the suggestion uniqueness, RLS and grants, the read ticks,
+that secrets are audited by name only, and that the guest merge still works.
 
 ## Local development
 
@@ -294,6 +583,27 @@ editing anything under `widget/src/`, then hard-refresh the test page.
   edited; `conversations_widget_visitor_select` and
   `messages_widget_visitor_select` are what let the visitor read back
   the same rows the dashboard sees.
+- **`identityError: bad_identity_token` in the console / the
+  `vircle-widget:identity-error` event** — the token was not signed with
+  the workspace's CURRENT secret (rotated since?), is malformed, or has no
+  phone / email / wallet id. `expired_identity_token` means its `iat` is
+  more than 10 minutes old (or more than 60 seconds ahead of the CRM's
+  clock): mint a fresh token per page render and check the server clocks.
+- **A visitor shows "Unverified web claim" although they are signed in to
+  your app** — the token did not reach the widget (or was rejected, see
+  above); a phone number in the legacy `data-user-phone` attribute is only
+  ever a claim.
+- **`429` with `code: rate_limited` on `/session`** — more than 5 typed
+  claims in 10 minutes from one visitor (or the per-origin / per-IP
+  budget). Signed tokens never count. Honour `Retry-After`.
+- **Attachments fail with 413 / 415** — over 16 MB, or a type outside the
+  `chat-media` allow-list (for example GIF, SVG, HTML, WebM). Voice notes
+  are recorded as Ogg/Opus for that reason.
+- **The voice button is missing** — the page cannot use the microphone (no
+  HTTPS, iframe without `allow="microphone"`, or a WebView without the
+  permission). See "Host requirements for voice notes".
+- **Checking the schema** — `supabase migration list` should show 092;
+  the verify script is `supabase/ci/verify-092-widget-v2.sql`.
 - **A reply from the dashboard doesn't show up live in the widget**
   — check the browser console for a Realtime `CHANNEL_ERROR`/`TIMED_OUT`
   on the `widget-messages-<id>` channel; this usually means the

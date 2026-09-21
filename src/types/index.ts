@@ -749,6 +749,13 @@ export interface WebWidgetConfig {
    *  array means unrestricted — any origin may embed. */
   allowed_origins: string[];
   enabled: boolean;
+  /** How a web visitor's claimed identity gets confirmed (migration 092).
+   *  Only 'none' is implemented; the others are stored but "coming soon". */
+  verification_mode?: 'none' | 'email_code' | 'whatsapp_code';
+  /** Last four characters of the in-app identity secret, or null when none
+   *  has been generated. The secret itself is never sent to the client. */
+  identity_secret_last4?: string | null;
+  identity_secret_rotated_at?: string | null;
   created_at: string;
   updated_at: string;
 }
