@@ -2,7 +2,7 @@
 title: Keyboard shortcuts
 description: The keys that work in the reply box, notes, the photo viewer and other places.
 order: 4
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 
 Vircle CRM has a small set of keyboard shortcuts. They save the most time when you reply to customers. There are no shortcuts to jump between pages or to assign or close a chat, so you use the mouse for those.
@@ -57,6 +57,7 @@ After you attach a file, type a caption and press <kbd>Enter</kbd> to send the f
 | **Contact fields** in the right column (name, phone, email and so on) | <kbd>Enter</kbd> or <kbd>Esc</kbd> | Saves, or cancels the change. |
 | Public comment replies (Comments tab) | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Sends the reply. |
 | Ticket comments | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Saves the comment. |
+| Ticket comments, after typing <kbd>@</kbd> | <kbd>↑</kbd> <kbd>↓</kbd>, then <kbd>Enter</kbd> or <kbd>Tab</kbd> | Moves through the list of people and teams, then picks the highlighted one. <kbd>Esc</kbd> closes the list. |
 
 ## Photos and videos
 

@@ -2,7 +2,7 @@
 title: Work a ticket
 description: Assign, comment, change the status, say how it was resolved, follow the SLA timers and watch a ticket.
 order: 3
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 
 This page shows what to do after you open a ticket: take it, talk about it with your team, move it forward and close it.
@@ -50,7 +50,7 @@ Once the ticket is Resolved or Closed, the **Details** card on the right shows t
 ## Comments and @mentions
 
 1. Under **Activity**, click **Add a comment…**.
-2. Type your comment. Type `@` and a name to mention a teammate. Choose them from the short list. The list shows **People** first and **Teams** below, with the number of members in each team.
+2. Type your comment. Type `@` and a name to mention a teammate. Choose them from the short list, either by clicking, or with the keyboard: the <kbd>↑</kbd> and <kbd>↓</kbd> keys move the shaded row, and <kbd>Enter</kbd> or <kbd>Tab</kbd> picks it. The list shows **People** first and **Teams** below, with the number of members in each team. Once picked, the name gets a coloured box (blue for a person, purple for a team), so you can see the mention has been made. A name that is only half typed has no box.
 3. Choose what the mention asks for. As soon as your comment mentions someone, two buttons appear: **Needs a response** (the default) and **FYI only**.
 4. Click **Save**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac).
 

@@ -2,10 +2,39 @@
 title: What's new
 description: The changes in each release that you will notice when you work, newest first.
 order: 2
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
+
+## 0.52.0 · 22 September 2026
+
+- **A resolution is required when you resolve or close a ticket.** A small box asks how it was resolved (for example Fixed, Duplicate or Answered) and lets you add a note. If you cancel, the ticket stays where it was. You can change the resolution later with **Change resolution**. Your admin manages the list in Settings, and can switch the rule off.
+- **The ticket list can show a Resolution column and filter by resolution.** Reports, Tickets shows how many tickets were resolved each way.
+
+See [Work a ticket](/help/tickets/work-a-ticket) and [Tickets overview](/help/tickets/tickets-overview).
+
+## 0.51.1 · 21 September 2026
+
+- **In a ticket comment, a picked @mention gets a coloured box** (blue for a person, purple for a team), so you can see it has been tagged.
+- **Pick from the @ list with the keyboard.** Use <kbd>↑</kbd> and <kbd>↓</kbd>, then <kbd>Enter</kbd> or <kbd>Tab</kbd>.
+
+## 0.51.0 · 21 September 2026
+
+- **Ask a whole team, and see what is waiting on you.** In a ticket comment you can now @mention a team as well as a person, and choose **Needs a response** or **FYI only**. If someone is waiting on you, the **Tickets** menu shows a round number, the **Mentioned me** filter lists those tickets, and each shows a **Waiting on you** chip. Reply, or click **Mark as done**, and it clears.
+- **A message that could not be sent stays in the chat.** It shows a red **Not sent** message with the reason in plain words, and buttons to **Resend** or **Delete**. Before, it just disappeared.
+- **Contacts can be exported.** Use **Export** next to **Import** to download a CSV.
+- **Saving a phone number another contact already has** now tells you who has it, and offers **Merge these contacts** if you are allowed to merge.
+- **Fixes:** the page title at the top said "Dashboard" on Tickets, Knowledge, AI Agents and Reports. The bulk **Apply label** offered contact tags as well as conversation labels.
+
+See [Reply to customers](/help/inbox/reply-to-customers), [Work a ticket](/help/tickets/work-a-ticket) and [Import and export](/help/contacts/import-and-export).
+
+## 0.50.x · 21 September 2026
+
+- **Web chat: replies now reach the visitor live.** A fault had stopped the visitor's chat from showing your replies and its own history until they reloaded. That is fixed.
+- **The chat header no longer overlaps on laptop screens.** The name, badges and the Status, Assign and Priority buttons now wrap onto a second row.
+- **A conversation is no longer locked after 24 hours on chats that are not WhatsApp.** Only WhatsApp has the 24-hour rule and templates.
+- **A new User Guide** in the sidebar.
 
 ## 0.49.0 · 21 September 2026
 
