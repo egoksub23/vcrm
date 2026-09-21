@@ -4,6 +4,7 @@
 // MediaRecorder where that already yields an allowed audio type.
 // ============================================================
 import { loadRecorderChunk } from './lazy'
+import { activeMicrophoneId, createLevelMonitor, openMicrophone, type LevelMonitor } from './mic'
 import {
   planStrategies,
   startWithFallback,
@@ -42,10 +43,31 @@ export function canRecordVoice(allowedMimes: string[]): boolean {
   return planStrategies(detectRecorderEnv(), allowedMimes).length > 0
 }
 
-async function startMediaRecorder(mime: string): Promise<VoiceHandle> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-  const release = () => stream.getTracks().forEach((t) => t.stop())
+async function startMediaRecorder(mime: string, deviceId: string | null): Promise<VoiceHandle> {
+  const stream = await openMicrophone(deviceId)
+  let monitor: LevelMonitor | null = null
+  let ctx: AudioContext | null = null
+  const release = () => {
+    monitor?.stop()
+    void ctx?.close().catch(() => {})
+    stream.getTracks().forEach((t) => t.stop())
+  }
   try {
+    // A level meter + silence detection where the browser has Web Audio (else recording still works).
+    try {
+      const Ctx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (Ctx) {
+        ctx = new Ctx()
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 512
+        ctx.createMediaStreamSource(stream).connect(analyser)
+        monitor = createLevelMonitor(analyser)
+      }
+    } catch {
+      monitor = null
+    }
     const recorder = new MediaRecorder(stream, { mimeType: mime })
     const chunks: Blob[] = []
     recorder.ondataavailable = (e) => {
@@ -55,6 +77,9 @@ async function startMediaRecorder(mime: string): Promise<VoiceHandle> {
     let cancelled = false
     recorder.start(1000)
     return {
+      deviceId: activeMicrophoneId(stream),
+      getLevel: monitor ? () => monitor!.getLevel() : undefined,
+      getSignal: monitor ? () => ({ maxPeak: monitor!.getMaxPeak(), showHint: monitor!.showHint() }) : undefined,
       stop: () =>
         new Promise<VoiceResult>((resolve, reject) => {
           recorder.onstop = () => {
@@ -94,16 +119,17 @@ async function startMediaRecorder(mime: string): Promise<VoiceHandle> {
 }
 
 /**
- * Start a voice note. Rejects with VoiceError: 'unsupported' (offer no
+ * Start a voice note on `deviceId` (the remembered microphone; null = the
+ * browser default, and a device that has gone falls back to it). Rejects with VoiceError: 'unsupported' (offer no
  * mic), 'denied' (permission refused), or 'failed'.
  */
-export function startVoiceRecording(allowedMimes: string[]): Promise<VoiceHandle> {
+export function startVoiceRecording(allowedMimes: string[], deviceId: string | null = null): Promise<VoiceHandle> {
   const plans = planStrategies(detectRecorderEnv(), allowedMimes)
   return startWithFallback(plans, async (plan: Strategy) => {
     if (plan.kind === 'opus') {
       const chunk = await loadRecorderChunk()
-      return chunk.startOpus()
+      return chunk.startOpus(deviceId)
     }
-    return startMediaRecorder(plan.mime)
+    return startMediaRecorder(plan.mime, deviceId)
   })
 }

@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.50.2] — 2026-09-21 — **migration required: 093**
+
+- **Fixed: the web widget could not read its own chat.** Live replies never arrived, and after a reload the history came back empty (the widget looked like a new session). Cause: the database rule that lets a visitor read their own messages looked the visitor up in a table that no visitor could read. Migration 093 lets a visitor read only their own row. Apply it, then reload the widget.
+- **Voice notes from the widget: choose the microphone.** The widget used the browser's default input, which on a PC with several monitors or headsets can be a silent device. Now a level meter shows while recording, a warning appears if nothing is heard for about 2 seconds with a **Change microphone** button, the chosen microphone is remembered, and an all-silent recording asks before it sends.
+- **The widget no longer goes blank.** A message that cannot be displayed shows a placeholder with a download link instead of blanking the chat, a failed history load shows a message with **Try again**, requests time out instead of loading forever, and the chat quietly checks for missed messages.
+
 ## [0.50.1] — 2026-09-21
 
 - **Fixed: the chat header was cramped on laptop screens.** With the contact panel open, the customer's name was squeezed out and the badges, timer and the Status, Assign and Priority buttons overlapped each other. The header now wraps onto a second row when there is not enough width.

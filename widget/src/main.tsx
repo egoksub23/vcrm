@@ -24,9 +24,10 @@
 // ============================================================
 import { render } from 'preact'
 import { App } from './App'
-import { resolveLocale } from './i18n'
+import { makeTranslator, resolveLocale } from './i18n'
 import { WIDGET_CSS } from './styles'
 import type { IdentityInput } from './types'
+import { Guard } from './ui/Guard'
 
 declare global {
   interface Window {
@@ -105,20 +106,45 @@ function mount() {
     name: ds?.userName || undefined,
   }
 
+  const t = makeTranslator(locale)
+  // If anything in the chat ever throws while rendering, show a message with a retry
+  // (which mounts the app afresh and reloads the history) instead of a blank widget.
   render(
-    <App
-      widgetToken={widgetToken}
-      locale={locale}
-      autoOpen={autoOpen}
-      initialIdentity={initialIdentity}
-      onIdentifyReady={(cb) => {
-        identifyListener = cb
-        if (queuedIdentify) {
-          cb(queuedIdentify)
-          queuedIdentify = null
-        }
-      }}
-    />,
+    <Guard
+      fallback={(reset) => (
+        <div class="wcw-root" lang={locale}>
+          <div class="wcw-panel wcw-right">
+            <div class="wcw-header">
+              <div class="wcw-header-text">
+                <div class="wcw-header-title">Chat</div>
+              </div>
+            </div>
+            <div class="wcw-body">
+              <div class="wcw-empty" role="alert">
+                <p>{t('chatCrashed')}</p>
+                <button type="button" class="wcw-primary" onClick={reset}>
+                  {t('retry')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    >
+      <App
+        widgetToken={widgetToken}
+        locale={locale}
+        autoOpen={autoOpen}
+        initialIdentity={initialIdentity}
+        onIdentifyReady={(cb) => {
+          identifyListener = cb
+          if (queuedIdentify) {
+            cb(queuedIdentify)
+            queuedIdentify = null
+          }
+        }}
+      />
+    </Guard>,
     mountPoint,
   )
 }

@@ -85,6 +85,10 @@ export interface VoiceHandle {
   cancel(): void
   /** Live input level 0..1 when the strategy can measure it. */
   getLevel?: () => number
+  /** Silence detection (only when the strategy can measure the input). */
+  getSignal?: () => { maxPeak: number; showHint: boolean }
+  /** The input device actually in use (deviceId), when the browser reports it. */
+  deviceId?: string | null
 }
 
 /**

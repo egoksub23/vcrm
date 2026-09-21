@@ -347,15 +347,77 @@ export function groupMessages(
 }
 
 /** Keep only the columns the widget renders (Realtime payloads carry the whole row). */
-export function toWidgetMessage(raw: Record<string, unknown>): WidgetMessage {
+export function toWidgetMessage(raw: Record<string, unknown> | null | undefined): WidgetMessage | null {
+  // A row without an id or a parseable timestamp cannot be placed in the list: skip it
+  // rather than let it poison the merge / grouping for every other message.
+  if (!raw || typeof raw !== 'object') return null
+  if (typeof raw.id !== 'string' || !raw.id) return null
+  const created = raw.created_at
+  if (typeof created !== 'string' || Number.isNaN(Date.parse(created))) return null
+  const str = (v: unknown): string | null => (typeof v === 'string' ? v : null)
   return {
-    id: String(raw.id),
-    sender_type: raw.sender_type as WidgetMessage['sender_type'],
-    content_text: (raw.content_text as string | null | undefined) ?? null,
-    content_type: (raw.content_type as string | null | undefined) ?? null,
-    media_url: (raw.media_url as string | null | undefined) ?? null,
-    status: (raw.status as string | null | undefined) ?? null,
-    created_at: String(raw.created_at),
-    is_internal: (raw.is_internal as boolean | null | undefined) ?? null,
+    id: raw.id,
+    sender_type: (str(raw.sender_type) ?? 'agent') as WidgetMessage['sender_type'],
+    content_text: str(raw.content_text),
+    content_type: str(raw.content_type),
+    media_url: str(raw.media_url),
+    status: str(raw.status),
+    created_at: created,
+    is_internal: typeof raw.is_internal === 'boolean' ? raw.is_internal : null,
   }
+}
+
+/** Rows from a query/Realtime batch, minus any that cannot be rendered. */
+export function toWidgetMessages(rows: unknown): WidgetMessage[] {
+  if (!Array.isArray(rows)) return []
+  const out: WidgetMessage[] = []
+  for (const r of rows) {
+    const m = toWidgetMessage(r as Record<string, unknown>)
+    if (m) out.push(m)
+  }
+  return out
+}
+
+/**
+ * groupMessages that can never throw: if the day-divider / unread logic hits
+ * something unexpected, the chat still shows its messages (without dividers)
+ * instead of going blank.
+ */
+export function safeGroupMessages(
+  messages: LocalMessage[],
+  opts: { locale: Locale; now: Date; t: Translate; unread?: UnreadMarker | null },
+): ListItem[] {
+  try {
+    return groupMessages(messages, opts)
+  } catch {
+    return messages.map((message) => ({ type: 'message' as const, key: message.id, message }))
+  }
+}
+
+/**
+ * Whether a conversation still needs its history fetched + live channel opened.
+ * `connectedId` is only ever set once BOTH succeeded, so a failed first attempt
+ * is retried by the next session response instead of being skipped (which used
+ * to leave the chat empty, with no live updates and no receipts).
+ */
+export function needsConnect(sessionConversationId: string, connectedId: string | null): boolean {
+  return sessionConversationId !== connectedId
+}
+
+/**
+ * True when history came back EMPTY although this browser has shown messages in
+ * this conversation before (its last-seen marker is set). That is a failed or
+ * blocked read, not a new conversation, and must be surfaced.
+ */
+export function historyLooksMissing(rowCount: number, lastSeenIso: string | null): boolean {
+  return rowCount === 0 && !!lastSeenIso
+}
+
+/**
+ * Safety-net poll for messages Realtime missed. Slow while the socket is up,
+ * fast while it is down; none when the panel is closed or the tab is hidden.
+ */
+export function pollDelayMs(state: { open: boolean; visible: boolean; live: boolean }): number | null {
+  if (!state.open || !state.visible) return null
+  return state.live ? 30_000 : 8_000
 }

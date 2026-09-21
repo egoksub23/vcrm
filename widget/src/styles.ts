@@ -171,6 +171,12 @@ export const WIDGET_CSS = `
 }
 .wcw-empty p { margin: 0; }
 .wcw-empty-inline { margin: 12px auto; padding: 8px; }
+.wcw-history-error {
+  align-self: center; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin: 8px 0; padding: 8px 12px; border-radius: 10px; font-size: 12.5px;
+  color: #991b1b; background: #fee2e2;
+}
+.wcw-history-error .wcw-linkbtn { color: #991b1b; font-weight: 600; text-decoration: underline; }
 
 .wcw-day, .wcw-unread {
   align-self: center;
@@ -382,6 +388,21 @@ export const WIDGET_CSS = `
 .wcw-rec-bars i { display: block; width: 3px; height: 6px; border-radius: 2px; background: #cfd4d8; transition: height 0.1s, background 0.1s; }
 .wcw-rec-bars i.wcw-on { height: 16px; background: var(--wcw-primary); }
 @keyframes wcw-pulse { 50% { opacity: 0.3; } }
+.wcw-mic-hint {
+  padding: 8px 12px 0; font-size: 12.5px; color: #92400e; background: #fffbeb;
+  border-top: 1px solid #fde68a; display: flex; flex-direction: column; gap: 4px;
+}
+.wcw-mic-actions { display: flex; gap: 12px; flex-wrap: wrap; padding-bottom: 6px; }
+.wcw-mic-actions .wcw-linkbtn { padding: 2px 0; }
+.wcw-strong { font-weight: 600; }
+.wcw-mic-list { display: flex; flex-direction: column; max-height: 132px; overflow-y: auto; padding-bottom: 6px; }
+.wcw-mic-opt {
+  text-align: left; border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px;
+  color: var(--wcw-text); padding: 6px 8px; border-radius: 8px; overflow-wrap: anywhere;
+}
+.wcw-mic-opt:hover { background: rgba(11,20,26,0.06); }
+.wcw-mic-opt.wcw-on { font-weight: 600; background: var(--wcw-me); }
+.wcw-mic-none { color: #54656f; padding: 4px 8px; }
 
 /* ---------- emoji ---------- */
 .wcw-emoji {

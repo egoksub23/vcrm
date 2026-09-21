@@ -12,19 +12,22 @@
 // ============================================================
 import Recorder from 'opus-recorder'
 
+import { activeMicrophoneId, createLevelMonitor, openMicrophone } from './mic'
 import type { VoiceHandle, VoiceResult } from './recorder-strategy'
 
 declare const __OPUS_WORKER_SOURCE__: string
 
-async function startOpus(): Promise<VoiceHandle> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+async function startOpus(deviceId: string | null = null): Promise<VoiceHandle> {
+  const stream = await openMicrophone(deviceId)
   const Ctx =
     window.AudioContext ??
     (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
   const ctx = new Ctx()
   let workerUrl: string | null = null
+  let monitor: ReturnType<typeof createLevelMonitor> | null = null
 
   const release = () => {
+    monitor?.stop()
     stream.getTracks().forEach((t) => t.stop())
     void ctx.close().catch(() => {})
     if (workerUrl) URL.revokeObjectURL(workerUrl)
@@ -36,7 +39,7 @@ async function startOpus(): Promise<VoiceHandle> {
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 512
     source.connect(analyser)
-    const buffer = new Uint8Array(analyser.fftSize)
+    monitor = createLevelMonitor(analyser)
 
     workerUrl = URL.createObjectURL(
       new Blob([__OPUS_WORKER_SOURCE__], { type: 'application/javascript' }),
@@ -61,15 +64,9 @@ async function startOpus(): Promise<VoiceHandle> {
     await recorder.start()
 
     return {
-      getLevel: () => {
-        analyser.getByteTimeDomainData(buffer)
-        let peak = 0
-        for (let i = 0; i < buffer.length; i++) {
-          const dev = Math.abs(buffer[i] - 128) / 128
-          if (dev > peak) peak = dev
-        }
-        return Math.min(1, peak * 2)
-      },
+      deviceId: activeMicrophoneId(stream),
+      getLevel: () => monitor?.getLevel() ?? 0,
+      getSignal: () => ({ maxPeak: monitor?.getMaxPeak() ?? 0, showHint: monitor?.showHint() ?? false }),
       stop: async (): Promise<VoiceResult> => {
         try {
           await recorder.stop()

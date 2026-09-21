@@ -33,11 +33,14 @@ import {
 import {
   findUnread,
   formatBytes,
-  groupMessages,
   guessMime,
+  historyLooksMissing,
   isTemp,
   mergeMessages,
+  needsConnect,
+  pollDelayMs,
   receiptTargets,
+  safeGroupMessages,
   TEMP_PREFIX,
   toWidgetMessage,
   validateFile,
@@ -113,6 +116,8 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [historyReady, setHistoryReady] = useState(false)
+  // The earlier messages could not be loaded (fetch failed, or came back empty for a returning visitor).
+  const [historyError, setHistoryError] = useState(false)
   const [live, setLive] = useState(true)
   const [staged, setStaged] = useState<StagedFile | null>(null)
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null)
@@ -129,6 +134,8 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
   const channelRef = useRef<RealtimeChannel | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const convRef = useRef<string | null>(null)
+  // Set only once history was attempted AND the live channel is open; see needsConnect().
+  const connectedRef = useRef<string | null>(null)
   const messagesRef = useRef<LocalMessage[]>([])
   const hasMoreRef = useRef(false)
   const loadingOlderRef = useRef(false)
@@ -153,9 +160,27 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
     if (!id) return
     try {
       const { rows } = await fetchMessages(id)
-      if (convRef.current === id) setMessages((prev) => mergeMessages(prev, rows))
+      if (convRef.current !== id) return
+      setMessages((prev) => mergeMessages(prev, rows))
+      if (rows.length > 0) setHistoryError(false)
     } catch {
-      /* the next reconnect / visibility change retries */
+      /* the next poll / reconnect / visibility change retries */
+    }
+  }, [])
+
+  // The Try again button under a failed history load: fetches the newest page again.
+  const retryHistory = useCallback(async () => {
+    const id = convRef.current
+    if (!id) return
+    setHistoryError(false)
+    try {
+      const { rows, hasMore: more } = await fetchMessages(id)
+      if (convRef.current !== id) return
+      setMessages((prev) => mergeMessages(prev, rows))
+      setHasMore((prev) => prev || more)
+      setHistoryError(historyLooksMissing(rows.length, lastSeenRef.current))
+    } catch {
+      if (convRef.current === id) setHistoryError(true)
     }
   }, [])
 
@@ -170,57 +195,73 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       channelRef.current = null
     }
     convRef.current = id
+    connectedRef.current = null
     everSubscribed.current = false
     reported.current = new Map()
     snapshotDone.current = false
     setConversationId(id)
     setHistoryReady(false)
+    setHistoryError(false)
     setUnread(null)
     setMessages([])
     lastSeenRef.current = readLastSeen(id)
     setLastSeen(lastSeenRef.current)
 
-    const { rows, hasMore: more } = await fetchMessages(id)
-    if (convRef.current !== id) return
-    setMessages(rows)
-    setHasMore(more)
-    setHistoryReady(true)
-
+    // Live channel first, then history: a message sent in between is merged, never lost.
     const filter = `conversation_id=eq.${id}`
-    const channel = supabase
-      .channel(`widget-messages-${id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
-        const row = toWidgetMessage(payload.new as Record<string, unknown>)
-        // is_internal is also excluded server-side by RLS (migration 046) — belt and braces.
-        if (row.is_internal) return
-        setMessages((prev) => {
-          if (row.sender_type === 'customer') {
-            // The visitor's own sends are rendered optimistically and reconciled
-            // from the /message response; only adopt one that this browser is
-            // not in the middle of sending (e.g. sent from another tab).
-            if (prev.some((m) => m.id === row.id)) return mergeMessages(prev, [row])
-            if (prev.some((m) => isTemp(m) && m.pending)) return prev
-          }
-          return mergeMessages(prev, [row])
+    try {
+      const channel = supabase
+        .channel(`widget-messages-${id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
+          const row = toWidgetMessage(payload.new as Record<string, unknown>)
+          // is_internal is also excluded server-side by RLS (migration 046) - belt and braces.
+          if (!row || row.is_internal) return
+          setMessages((prev) => {
+            if (row.sender_type === 'customer') {
+              // The visitor's own sends are rendered optimistically and reconciled
+              // from the /message response; only adopt one that this browser is
+              // not in the middle of sending (e.g. sent from another tab).
+              if (prev.some((m) => m.id === row.id)) return mergeMessages(prev, [row])
+              if (prev.some((m) => isTemp(m) && m.pending)) return prev
+            }
+            return mergeMessages(prev, [row])
+          })
         })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (payload) => {
-        const row = toWidgetMessage(payload.new as Record<string, unknown>)
-        if (row.is_internal) return
-        // Animates the ticks; mergeMessages never lets a status go backwards.
-        setMessages((prev) => (prev.some((m) => m.id === row.id) ? mergeMessages(prev, [row]) : prev))
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setLive(true)
-          // Anything sent while the socket was down is fetched now.
-          if (everSubscribed.current) void refreshLatest()
-          everSubscribed.current = true
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          setLive(false)
-        }
-      })
-    channelRef.current = channel
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (payload) => {
+          const row = toWidgetMessage(payload.new as Record<string, unknown>)
+          if (!row || row.is_internal) return
+          // Animates the ticks; mergeMessages never lets a status go backwards.
+          setMessages((prev) => (prev.some((m) => m.id === row.id) ? mergeMessages(prev, [row]) : prev))
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setLive(true)
+            // Anything sent while the socket was down is fetched now.
+            if (everSubscribed.current) void refreshLatest()
+            everSubscribed.current = true
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            setLive(false)
+          }
+        })
+      channelRef.current = channel
+    } catch {
+      setLive(false) // the poll below still keeps the chat current
+    }
+
+    try {
+      const { rows, hasMore: more } = await fetchMessages(id)
+      if (convRef.current !== id) return
+      setMessages((prev) => mergeMessages(prev, rows))
+      setHasMore(more)
+      setHistoryError(historyLooksMissing(rows.length, lastSeenRef.current))
+    } catch {
+      // Never throw out of here: the chat opens anyway, with an error and a retry
+      // under it, instead of a blank or "new" looking conversation.
+      if (convRef.current !== id) return
+      setHistoryError(true)
+    }
+    setHistoryReady(true)
+    connectedRef.current = id
   }, [refreshLatest])
 
   // Shared by every path that resolves (or re-resolves) identity.
@@ -243,7 +284,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
         setScreen('choice')
         return false
       }
-      if (res.conversationId !== convRef.current) await connectConversation(res.conversationId)
+      if (needsConnect(res.conversationId, connectedRef.current)) await connectConversation(res.conversationId)
       setScreen('chat')
       markReturning(widgetToken)
       if (announce && res.claimFound !== undefined) {
@@ -625,6 +666,20 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
 
   // ---------- environment ----------
 
+  // Safety net under Realtime: a quiet poll for anything a dropped or stale socket missed.
+  useEffect(() => {
+    const delay = pollDelayMs({ open, visible, live })
+    if (delay === null || screen !== 'chat') return
+    const id = window.setInterval(() => void refreshLatest(), delay)
+    return () => window.clearInterval(id)
+  }, [open, visible, live, screen, refreshLatest])
+
+  useEffect(() => {
+    const onOnline = () => void refreshLatest()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [refreshLatest])
+
   useEffect(() => {
     const onVis = () => {
       const now = document.visibilityState !== 'hidden'
@@ -686,7 +741,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
   const primaryColor = branding?.primaryColor ?? '#3b82f6'
   const showBack = screen === 'claim' || screen === 'enquiry'
   const items = useMemo(
-    () => groupMessages(messages, { locale, now: new Date(), t, unread }),
+    () => safeGroupMessages(messages, { locale, now: new Date(), t, unread }),
     [messages, locale, t, unread],
   )
   const panelStyle =
@@ -786,7 +841,17 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
                   </button>
                 )}
                 {!hasMore && branding?.welcomeMessage && <div class="wcw-welcome">{branding.welcomeMessage}</div>}
-                {historyReady && messages.length === 0 && <div class="wcw-empty wcw-empty-inline">{t('emptyChat')}</div>}
+                {historyError && (
+                  <div class="wcw-history-error" role="alert">
+                    <span>{t('historyFailed')}</span>
+                    <button type="button" class="wcw-linkbtn" onClick={() => void retryHistory()}>
+                      {t('retry')}
+                    </button>
+                  </div>
+                )}
+                {historyReady && !historyError && messages.length === 0 && (
+                  <div class="wcw-empty wcw-empty-inline">{t('emptyChat')}</div>
+                )}
                 {items.map((item) => {
                   if (item.type === 'day') {
                     return (

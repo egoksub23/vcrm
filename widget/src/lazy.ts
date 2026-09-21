@@ -15,8 +15,8 @@ export interface EmojiPayload {
 }
 
 export interface RecorderChunk {
-  /** Start an in-browser Ogg/Opus recording (asks for the microphone). */
-  startOpus(): Promise<VoiceHandle>
+  /** Start an in-browser Ogg/Opus recording (asks for the microphone; null = browser default). */
+  startOpus(deviceId?: string | null): Promise<VoiceHandle>
 }
 
 interface LazyRegistry {

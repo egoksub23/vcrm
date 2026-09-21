@@ -18,6 +18,7 @@
 // ============================================================
 import { createClient } from '@supabase/supabase-js'
 
+import { toWidgetMessages } from './util'
 import type {
   Branding,
   IdentityInfo,
@@ -80,6 +81,26 @@ export class ApiError extends Error {
   }
 }
 
+/** Longest any single widget request may hang before it counts as a network failure. */
+export const REQUEST_TIMEOUT_MS = 20_000
+
+/** Rejects (as a network ApiError) if `p` has not settled in time, so a stalled request can never leave "Loading…" up forever. */
+export function withTimeout<T>(p: PromiseLike<T>, ms: number = REQUEST_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ApiError('Request timed out', 0, 'network')), ms)
+    Promise.resolve(p).then(
+      (v) => {
+        clearTimeout(timer)
+        resolve(v)
+      },
+      (e) => {
+        clearTimeout(timer)
+        reject(e)
+      },
+    )
+  })
+}
+
 async function currentAccessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession()
   if (data.session?.access_token) return data.session.access_token
@@ -91,17 +112,24 @@ async function currentAccessToken(): Promise<string> {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const token = await currentAccessToken()
+  const token = await withTimeout(currentAccessToken())
   let res: Response
   try {
-    res = await fetch(`${API_ORIGIN}${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    })
+    const controller = typeof AbortController === 'function' ? new AbortController() : null
+    const timer = setTimeout(() => controller?.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      res = await fetch(`${API_ORIGIN}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller?.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
   } catch {
     throw new ApiError('Network error', 0, 'network')
   }
@@ -211,9 +239,17 @@ export async function fetchMessages(
     .order('created_at', { ascending: false })
     .limit(HISTORY_PAGE_SIZE)
   if (before) q = q.lt('created_at', before)
-  const { data, error } = await q
+  let result
+  try {
+    result = await withTimeout(q)
+  } catch (err) {
+    if (err instanceof ApiError) throw err
+    throw new ApiError('Network error', 0, 'network')
+  }
+  const { data, error } = result
   if (error) throw new ApiError(error.message, 500, 'history')
-  const rows = ((data ?? []) as unknown as WidgetMessage[]).filter((m) => !m.is_internal).reverse()
+  // Rows the widget cannot place (no id / bad timestamp) are dropped, not rendered.
+  const rows = toWidgetMessages(data).filter((m) => !m.is_internal).reverse()
   return { rows, hasMore: (data ?? []).length >= HISTORY_PAGE_SIZE }
 }
 

@@ -11,6 +11,7 @@ import {
   tickState,
   type TickState,
 } from '../util'
+import { Guard } from './Guard'
 import {
   ClockTick,
   DoubleTick,
@@ -165,7 +166,7 @@ interface BubbleProps {
   onMediaLoad?: () => void
 }
 
-function BubbleImpl({ m, locale, t, onRetry, onOpenImage, onMediaLoad }: BubbleProps) {
+export function BubbleImpl({ m, locale, t, onRetry, onOpenImage, onMediaLoad }: BubbleProps) {
   const mine = m.sender_type === 'customer'
   const src = m.localUrl || m.media_url || ''
   const type = m.content_type || 'text'
@@ -246,4 +247,33 @@ function BubbleImpl({ m, locale, t, onRetry, onOpenImage, onMediaLoad }: BubbleP
   )
 }
 
-export const Bubble = BubbleImpl
+/** What a message shows when it could not be rendered: never blank, still offers its file. */
+export function MessageFallback({ m, t }: { m: LocalMessage; t: Translate }) {
+  const mine = m.sender_type === 'customer'
+  const href = m.media_url && /^https?:\/\//i.test(m.media_url) ? m.media_url : null
+  return (
+    <div class={`wcw-row wcw-row-${mine ? 'me' : 'them'}`}>
+      <div class={`wcw-bubble wcw-${mine ? 'customer' : 'agent'}`}>
+        <div class="wcw-text">{t('messageUnavailable')}</div>
+        {href && (
+          <a class="wcw-link" href={href} target="_blank" rel="noopener noreferrer nofollow">
+            {t('download')}
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** One bad message degrades to MessageFallback; it can never blank the whole chat. */
+export function Bubble(props: BubbleProps) {
+  const m = props.m
+  return (
+    <Guard
+      resetKey={`${m.id}|${m.status ?? ''}|${m.content_type ?? ''}|${m.media_url ?? ''}`}
+      fallback={() => <MessageFallback m={m} t={props.t} />}
+    >
+      <BubbleImpl {...props} />
+    </Guard>
+  )
+}

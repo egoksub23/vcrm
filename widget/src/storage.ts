@@ -25,3 +25,7 @@ export const markReturning = (widgetToken: string): void => set(`vcw:returning:$
 /** created_at of the newest message this visitor has had on screen, per conversation. */
 export const readLastSeen = (conversationId: string): string | null => get(`vcw:seen:${conversationId}`)
 export const writeLastSeen = (conversationId: string, iso: string): void => set(`vcw:seen:${conversationId}`, iso)
+
+/** The microphone this browser last used for a voice note (a deviceId), if any. */
+export const readSavedMic = (): string | null => get('vcw:micId')
+export const writeSavedMic = (deviceId: string): void => set('vcw:micId', deviceId)
