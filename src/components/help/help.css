@@ -1,0 +1,402 @@
+/*
+ * User Guide (/help) article styles. Plain CSS on the app's design tokens
+ * (--foreground, --border, --card, --primary ...), so light/dark mode and the
+ * accent colour follow the rest of the CRM with no extra dark rules.
+ * The article HTML is produced by src/lib/help/markdown.ts; the class names
+ * here (help-*) are that file's output contract.
+ */
+
+.help-prose {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.help-prose > :first-child {
+  margin-top: 0;
+}
+
+.help-prose p {
+  margin: 0.85rem 0;
+}
+
+.help-prose h2,
+.help-prose h3,
+.help-prose h4 {
+  position: relative;
+  scroll-margin-top: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.help-prose h2 {
+  margin: 2.25rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.35rem;
+}
+
+.help-prose h3 {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.help-prose h4 {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+/* "#" link that appears when hovering a heading. */
+.help-anchor {
+  margin-left: 0.5rem;
+  color: var(--muted-foreground);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.help-prose h2:hover .help-anchor,
+.help-prose h3:hover .help-anchor,
+.help-anchor:focus-visible {
+  opacity: 1;
+}
+
+.help-prose a:not(.help-anchor) {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.help-prose a:not(.help-anchor):hover {
+  text-decoration-thickness: 2px;
+}
+
+.help-prose strong {
+  font-weight: 600;
+}
+
+.help-prose ul,
+.help-prose ol:not(.help-steps) {
+  margin: 0.85rem 0;
+  padding-left: 1.4rem;
+}
+
+.help-prose ul {
+  list-style: disc;
+}
+
+.help-prose ol:not(.help-steps) {
+  list-style: decimal;
+}
+
+.help-prose li {
+  margin: 0.3rem 0;
+}
+
+.help-prose li > p {
+  margin: 0.35rem 0;
+}
+
+/* Task lists (GFM): no bullet, checkbox sits in the margin. */
+.help-prose li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.1rem;
+}
+
+.help-prose li > input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: var(--primary);
+}
+
+/* Numbered lists are steps. */
+.help-steps {
+  counter-reset: help-step;
+  margin: 1.1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-steps > li {
+  counter-increment: help-step;
+  position: relative;
+  margin: 0.85rem 0;
+  padding-left: 2.6rem;
+  min-height: 1.85rem;
+}
+
+.help-steps > li::before {
+  content: counter(help-step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: var(--primary-soft-2);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.help-prose hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.help-prose blockquote {
+  margin: 1.1rem 0;
+  padding: 0.1rem 1rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.help-prose code {
+  padding: 0.12rem 0.35rem;
+  border-radius: 0.35rem;
+  background: var(--muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+
+.help-prose kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 0.375rem;
+  background: var(--card);
+  color: var(--foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8em;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.help-prose mark {
+  padding: 0 0.15rem;
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, oklch(0.85 0.17 95) 45%, transparent);
+  color: inherit;
+}
+
+.help-prose details {
+  margin: 1rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--card);
+}
+
+.help-prose summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Callouts: > [!NOTE] / [!TIP] / [!WARNING] / [!IMPORTANT] */
+.help-callout {
+  --help-callout: oklch(0.62 0.16 250);
+  margin: 1.25rem 0;
+  padding: 0.8rem 1rem 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--help-callout) 35%, var(--border));
+  border-left: 4px solid var(--help-callout);
+  border-radius: 0.6rem;
+  background: color-mix(in oklab, var(--help-callout) 9%, var(--card));
+}
+
+.help-callout[data-callout="tip"] {
+  --help-callout: oklch(0.64 0.16 155);
+}
+
+.help-callout[data-callout="warning"] {
+  --help-callout: oklch(0.72 0.16 75);
+}
+
+.help-callout[data-callout="important"] {
+  --help-callout: oklch(0.6 0.2 25);
+}
+
+.help-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: color-mix(in oklab, var(--help-callout) 72%, var(--foreground));
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.help-callout-title svg {
+  flex-shrink: 0;
+}
+
+.help-callout-body > :first-child {
+  margin-top: 0.4rem;
+}
+
+.help-callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Tables scroll sideways instead of breaking the page on small screens. */
+.help-table-wrap {
+  margin: 1.1rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+
+.help-table-wrap table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.help-table-wrap th,
+.help-table-wrap td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.help-table-wrap th {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.help-table-wrap tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Code blocks with a copy button. */
+.help-code {
+  position: relative;
+  margin: 1.1rem 0;
+}
+
+.help-code pre {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--card);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.help-code pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.help-copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.help-code:hover .help-copy,
+.help-copy:focus-visible,
+.help-copy[data-copied] {
+  opacity: 1;
+}
+
+.help-copy:hover {
+  color: var(--foreground);
+}
+
+/* Screenshots: responsive, click to zoom, alt text as caption. */
+.help-figure {
+  display: block;
+  margin: 1.25rem 0;
+}
+
+.help-zoom {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--card);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.help-zoom:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.help-zoom img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.help-caption {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.help-missing-box {
+  display: flex;
+  min-height: 9rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.6rem;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.help-missing-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid currentColor;
+  border-radius: 0.35rem;
+  opacity: 0.5;
+}
+
+.help-missing-note {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  overflow-wrap: anywhere;
+}
+
+/* Highlight of the searched word in results. */
+.help-hit {
+  padding: 0 0.1rem;
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
+  color: inherit;
+}

@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.50.0] — 2026-09-21
+
+- **User Guide, inside the CRM.** A new **User Guide** item in the sidebar (every role) opens a searchable manual written for agents: getting started, the Inbox (replying, assigning, closing, notes, tags, views, AI help, web chat, social comments), contacts, the Knowledge base, Tickets (including the Jira link), notifications, approvals, reports, troubleshooting and a What's new page. It has a section tree, an “On this page” outline, previous and next links, search (press **Ctrl+K** or **/**), callouts and click-to-zoom pictures. Pages are Markdown files in `content/help/`, see `docs/user-guide.md`. Screenshots are added separately; until then a plain placeholder shows.
+- **Fixed: the 24-hour reply lock applied to every channel.** Only WhatsApp has a 24-hour window and templates. Email, web chat, Messenger and Instagram conversations were also locked with “Session expired - use a template” when the customer's last message was more than a day old. The lock and the timer badge now apply to WhatsApp only.
+- No migration. Self-hosters: the Docker image now includes `content/`, rebuild as usual.
+
 ## [0.49.0] — 2026-09-21 — **migration required: 092**
 
 - **Web widget v2.** The chat widget now looks and behaves like WhatsApp: bubbles, sent / delivered / read ticks, times and day dividers, an emoji picker, voice notes, image and video previews, file chips, a full-screen view on phones, and an unread marker when agents replied while the visitor was away. Visitors can send text, voice, emoji, images, video and files, and agents can send the same back from the Inbox. Files are up to 16 MB, voice notes up to 5 minutes. The widget speaks English, Bahasa Melayu and Mandarin, taken from the page or `data-lang`.

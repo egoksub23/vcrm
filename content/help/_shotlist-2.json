@@ -1,0 +1,98 @@
+[
+  {
+    "file": "contacts-overview-01-list.png",
+    "page": "contacts/contacts-overview",
+    "route": "/contacts",
+    "capture": "The Contacts page with the list showing at least five contacts, the search box and the Filter by tags button visible, and the Custom fields, Import and Add Contact buttons at the top right. No search text, no tag filter, no rows ticked. Nothing to click or type."
+  },
+  {
+    "file": "contacts-overview-02-profile.png",
+    "page": "contacts/contacts-overview",
+    "route": "/contacts",
+    "capture": "On the Contacts page click one contact row so the profile panel opens on the right. Show the header (name, phone, email, company, Send template and New Ticket buttons) and the Details tab selected with its four fields. Do NOT click Save Changes, Send template or New Ticket, and do not edit any field. Close the panel with Esc afterwards."
+  },
+  {
+    "file": "import-and-export-01-dialog.png",
+    "page": "contacts/import-and-export",
+    "route": "/contacts",
+    "capture": "On the Contacts page click Import so the Import Contacts window opens. Capture it before any file is chosen (the dashed box that says Click to choose a CSV file, and the description of the phone, name, email, company and tags columns). Do NOT choose a file. Click Cancel to close."
+  },
+  {
+    "file": "pipelines-and-deals-01-board.png",
+    "page": "contacts/pipelines-and-deals",
+    "route": "/pipelines",
+    "capture": "The Pipelines page with one pipeline selected, the six summary tiles (Total Deals to Lost This Month) at the top, and the stage columns with several deal cards. The pipeline name button and the Add Pipeline and Add Deal buttons are visible at the top. Do not drag any card and do not open a deal."
+  },
+  {
+    "file": "knowledge-overview-01-library.png",
+    "page": "knowledge/knowledge-overview",
+    "route": "/knowledge",
+    "capture": "The Knowledge page with All articles selected in the left rail, the four tiles, the search box, the Language filter and the article table with several rows (a mix of Published and Draft if available). The Add content button is visible at the top right. Do not click Reindex or any row action."
+  },
+  {
+    "file": "use-articles-in-chat-01-tab.png",
+    "page": "knowledge/use-articles-in-chat",
+    "route": "/inbox",
+    "capture": "In the Inbox open one existing chat that has some customer messages. In the right-hand column click the Knowledge tab (next to Contact) so the search box and the Suggested for this chat list are visible with at least one article card. Do NOT click Insert, Draft with AI or Open. Do not type in the reply box."
+  },
+  {
+    "file": "use-articles-in-chat-02-composer.png",
+    "page": "knowledge/use-articles-in-chat",
+    "route": "/inbox",
+    "capture": "In the Inbox with a chat open, click the Knowledge button in the row above the reply box (Message, Comment, Snippets, Knowledge) so the panel slides up over the chat with the search box and article results. Do NOT click Insert, Draft with AI or Add, and do not type. Press Esc to close the panel afterwards."
+  },
+  {
+    "file": "write-and-edit-articles-01-editor.png",
+    "page": "knowledge/write-and-edit-articles",
+    "route": "/knowledge/new",
+    "capture": "The empty New article editor page: the Article / Question & answer switch, the Title box, the formatting toolbar and the content area on the left, and the settings column on the right (Collection, Let the AI use this article, Language, Review by, Test it box). Leave everything empty. Do NOT click Save draft or Publish. Leave the page with the Knowledge base back link."
+  },
+  {
+    "file": "translations-01-card.png",
+    "page": "knowledge/translations",
+    "route": "/knowledge",
+    "capture": "On the Knowledge page click the title of any published article to open its editor page, then scroll the right-hand column until the Translations card is visible with one row per other language. Capture the card and the area around it. Do NOT click Translate with AI, Re-translate or Translate to all. Do not change anything in the article."
+  },
+  {
+    "file": "tickets-overview-01-board.png",
+    "page": "tickets/tickets-overview",
+    "route": "/tickets",
+    "capture": "The Tickets page in Board view (click Board if the List view is showing), with no filters active: the Board and List switch, the filter bar, the New Ticket button and the columns Open, In progress, Pending and Resolved with several cards, and the folded Closed strip at the right. Do not drag any card."
+  },
+  {
+    "file": "tickets-overview-02-list.png",
+    "page": "tickets/tickets-overview",
+    "route": "/tickets",
+    "capture": "The Tickets page in List view (click List; the choice is remembered, so click Board again afterwards), no filters active, no rows ticked: the columns Key, Summary, Status, Priority, Assignee, Labels, Due, SLA and Updated with several rows, and the Group and SLA column buttons at the top. Do not change any value in a row."
+  },
+  {
+    "file": "create-a-ticket-01-dialog.png",
+    "page": "tickets/create-a-ticket",
+    "route": "/tickets",
+    "capture": "On the Tickets page click New Ticket so the New Ticket window opens. Capture it with all fields empty: Type, Contact search, Summary, Description, Assignee, Team, Priority, Labels, Due date, Attachments and the Create another checkbox with the Create Ticket button. Do NOT type anything and do NOT click Create Ticket. Click Cancel to close."
+  },
+  {
+    "file": "work-a-ticket-01-detail.png",
+    "page": "tickets/work-a-ticket",
+    "route": "/tickets",
+    "capture": "On the Tickets page click one ticket (one with a few comments or history lines, and an SLA box if any ticket has one) so the ticket window opens. Show the summary, description and Activity on the left, and the status button, SLA box (if present) and Details card on the right. Do NOT change any field, add a comment, or click Watch. Close the window with Esc."
+  },
+  {
+    "file": "notifications-01-page.png",
+    "page": "working-together/notifications",
+    "route": "/notifications",
+    "capture": "The Notifications page with a list of notifications, ideally with at least one unread (highlighted with a dot) and the Mark all as read button at the top right. Do NOT click any notification and do NOT click Mark all as read."
+  },
+  {
+    "file": "broadcasts-01-list.png",
+    "page": "working-together/broadcasts",
+    "route": "/broadcasts",
+    "capture": "The Broadcasts page with the table (Name, Template, Recipients, Delivery, Read, Status, Date) showing several broadcasts, and the New Broadcast button at the top right. Do not click New Broadcast or open any broadcast."
+  },
+  {
+    "file": "reports-01-tickets.png",
+    "page": "working-together/reports",
+    "route": "/reports?tab=tickets",
+    "capture": "The Reports page with the Tickets tab selected and the date range set to Last 30 days (use the range button at the top right), showing the summary tiles, the Open backlog by age and, further down, the SLA compliance section if it is visible in one tall capture. Only change the date range picker, which is not saved. Set it back to Last 7 days afterwards."
+  }
+]

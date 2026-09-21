@@ -1,0 +1,116 @@
+[
+  {
+    "file": "welcome-01-account-menu.png",
+    "page": "getting-started/welcome",
+    "route": "/dashboard",
+    "capture": "Dashboard page. Click the avatar/name button at the top right of the header to open the account menu. Capture the open menu (name and email, Profile, Settings, Sign out), cropped to the top-right area. Do not click any menu item; press Esc afterwards. Nothing to type."
+  },
+  {
+    "file": "screen-tour-01-sidebar.png",
+    "page": "getting-started/screen-tour",
+    "route": "/dashboard",
+    "capture": "Dashboard page with the sidebar pinned open (wide). Crop to the whole left sidebar from the logo and Vircle CRM title down to the user block at the bottom, so every item Dashboard to Settings and User Guide is visible. Nothing to click or type."
+  },
+  {
+    "file": "screen-tour-02-dashboard.png",
+    "page": "getting-started/screen-tour",
+    "route": "/dashboard",
+    "capture": "Dashboard page, scrolled to the top, capturing the four metric cards, the quick action buttons and at least the top of the Conversations Over Time chart. Do not click anything. If a full-height capture is possible, include Pipeline Value, Average First Response Time and Recent Activity below."
+  },
+  {
+    "file": "inbox-overview-01-layout.png",
+    "page": "inbox/inbox-overview",
+    "route": "/inbox",
+    "capture": "Inbox with the Chats tab selected. One conversation open (click a row in the list), so the list is on the left, the message thread in the middle and the Contact tab of the right-hand column visible. Use a window at least 1440 px wide. Do not type or send anything."
+  },
+  {
+    "file": "inbox-overview-02-filters.png",
+    "page": "inbox/inbox-overview",
+    "route": "/inbox",
+    "capture": "Inbox, Chats tab. Crop tightly to the top of the conversation list column: the three tabs (Chats, Emails, Comments with their number bubbles), the Search conversations box, and the row of filter buttons (All drop-down, Views bookmark, channel drop-down, priority flag, sort, select and bin icons). No filter applied. Nothing to click."
+  },
+  {
+    "file": "inbox-overview-03-right-column.png",
+    "page": "inbox/inbox-overview",
+    "route": "/inbox",
+    "capture": "Inbox with any conversation open. Crop to the right-hand column on its Contact tab showing the Summarise this conversation button, Contact fields, Tags, Conversation labels, Deals and Session log (scroll the column if needed, or take two crops stitched top to bottom). Do not click the summary button and do not edit any field."
+  },
+  {
+    "file": "reply-to-customers-01-composer.png",
+    "page": "inbox/reply-to-customers",
+    "route": "/inbox",
+    "capture": "Inbox, Chats tab, open a WhatsApp conversation whose 24-hour timer has not expired if possible. Crop to the bottom of the thread: the Message / Comment / Snippets / Knowledge tabs above the reply box, and the row with the paperclip, interactive, template, sparkle and smiley buttons, the empty reply box and the send button. Type nothing and send nothing."
+  },
+  {
+    "file": "assign-and-transfer-01-assign-menu.png",
+    "page": "inbox/assign-and-transfer",
+    "route": "/inbox",
+    "capture": "Inbox with any conversation open. Click the Assign button in the chat header to open the teammate list (online dots visible). Crop to the header and the open menu. Do NOT click a teammate name. Press Esc to close the menu afterwards."
+  },
+  {
+    "file": "assign-and-transfer-02-handoff-dialog.png",
+    "page": "inbox/assign-and-transfer",
+    "route": "/inbox",
+    "capture": "Inbox with a test conversation open. Click Assign in the chat header, click a teammate name so the box titled 'Assign to <name>' opens. Capture the box with its empty note field. Then click Cancel. Do NOT type a note and do NOT press Assign (nothing may be assigned)."
+  },
+  {
+    "file": "close-and-reopen-01-close-dialog.png",
+    "page": "inbox/close-and-reopen",
+    "route": "/inbox",
+    "capture": "Inbox with a test conversation open. Click the Status button in the chat header, choose Closed so the 'Close conversation' box opens. Capture the box (with the AI draft note if it appears). Then click Cancel. Do NOT press Close. The conversation must stay open."
+  },
+  {
+    "file": "notes-and-mentions-01-comment-mode.png",
+    "page": "inbox/notes-and-mentions",
+    "route": "/inbox",
+    "capture": "Inbox with any conversation open. Click the Comment tab above the reply box so the box turns amber and shows the hint that comments are visible to the team only. Crop to the bottom of the thread including the tabs, the @ button and the amber hint. Type nothing and send nothing. Click the Message tab again afterwards."
+  },
+  {
+    "file": "tags-labels-priority-01-tags-and-labels.png",
+    "page": "inbox/tags-labels-priority",
+    "route": "/inbox",
+    "capture": "Inbox with a conversation open whose contact has at least one tag and that has at least one conversation label. Crop to the right-hand column on the Contact tab, showing the Tags section and the Conversation labels section with their coloured chips and plus buttons. Do not click the plus buttons or remove anything."
+  },
+  {
+    "file": "tags-labels-priority-02-priority-menu.png",
+    "page": "inbox/tags-labels-priority",
+    "route": "/inbox",
+    "capture": "Inbox with any conversation open. Click the flag Priority button in the chat header to open the menu with Urgent, High, Normal and Low. Crop to the header and open menu. Do NOT choose an option. Press Esc to close."
+  },
+  {
+    "file": "views-and-bulk-actions-01-views-menu.png",
+    "page": "inbox/views-and-bulk-actions",
+    "route": "/inbox",
+    "capture": "Inbox, Chats tab. Click the bookmark (Views) button in the filter row to open its menu, showing any saved views and the '+ Save current filters as a view' link. Crop to the top of the list column and the open menu. Do not save, apply or delete any view. Press Esc to close."
+  },
+  {
+    "file": "views-and-bulk-actions-02-bulk-bar.png",
+    "page": "inbox/views-and-bulk-actions",
+    "route": "/inbox",
+    "capture": "Inbox, Chats tab. Click the checklist (Select conversations for a bulk action) button in the filter row, then tick two conversations so the bulk bar shows '2 selected' with Assign, Apply label, mark read, mark unread and Close. Crop to the top of the list column. Do NOT click any action button. Click the checklist button again to leave selection mode."
+  },
+  {
+    "file": "ai-assistance-01-summary-button.png",
+    "page": "inbox/ai-assistance",
+    "route": "/inbox",
+    "capture": "Inbox with any conversation open. Crop to the top of the right-hand column's Contact tab showing the dashed 'Summarise this conversation' button under the contact's name. Do NOT click it (it would call the AI)."
+  },
+  {
+    "file": "web-chat-conversations-01-badges.png",
+    "page": "inbox/web-chat-conversations",
+    "route": "/inbox",
+    "capture": "Inbox, Chats tab, channel filter set to Web Widget. Open a web chat whose header shows an identity badge (Verified in-app, Unverified web claim or Possible duplicate); if a chat with the amber Possible duplicate bar exists, prefer it. Crop to the chat header and the bar below it. Do NOT press Merge or Dismiss. If no web chat with a badge exists, skip this shot."
+  },
+  {
+    "file": "social-comments-01-list.png",
+    "page": "inbox/social-comments",
+    "route": "/inbox",
+    "capture": "Inbox with the Comments tab selected and the To do pill selected. Crop to the left column: the three tabs, the search box with the refresh button, the To do / Handled / Spam / All pills, the source icons and several comment rows. Do not click the refresh button and do not open a comment."
+  },
+  {
+    "file": "social-comments-02-detail.png",
+    "page": "inbox/social-comments",
+    "route": "/inbox",
+    "capture": "Inbox, Comments tab. Click one comment (a Sample comment is fine) so it opens on the right, showing the post card, the thread, the Reply publicly and Private message tabs and the Hide button. Do not type in the reply box and do not click Send, Hide, Delete, Mark resolved or Spam."
+  }
+]

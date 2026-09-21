@@ -314,10 +314,14 @@ export function MessageThread({
   const sessionInfo = useMemo(() => {
     if (!messages.length) return { expired: false, remaining: "" };
 
-    // Find last customer message
+    // The 24-hour window is a WhatsApp rule: only the customer's last
+    // WhatsApp message counts (older rows default to whatsapp).
     const lastCustomerMsg = [...messages]
       .reverse()
-      .find((m) => m.sender_type === "customer");
+      .find(
+        (m) =>
+          m.sender_type === "customer" && (m.channel_type ?? "whatsapp") === "whatsapp",
+      );
 
     if (!lastCustomerMsg) return { expired: true, remaining: tTimer("noCustomerMessages") };
 
@@ -1405,6 +1409,7 @@ export function MessageThread({
           </div>
           {/* Session timer badge — hidden on the narrowest phones so
               the name + back arrow keep their room. */}
+          {conversation?.last_channel_type === "whatsapp" && (
           <Badge
             variant="outline"
             className={cn(
@@ -1415,6 +1420,7 @@ export function MessageThread({
             <Clock className="h-3 w-3" />
             {sessionInfo.remaining}
           </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

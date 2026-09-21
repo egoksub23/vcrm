@@ -49,6 +49,8 @@ RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
+# User Guide pages (Markdown) are read from disk at runtime by /help.
+COPY --from=builder --chown=nextjs:nextjs /app/content ./content
 
 USER nextjs
 EXPOSE 3000

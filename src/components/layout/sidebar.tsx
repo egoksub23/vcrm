@@ -13,6 +13,7 @@ import {
   BarChart3,
   Bell,
   Bot,
+  BookMarked,
   BookOpen,
   ChevronsLeft,
   ChevronsRight,
@@ -118,7 +119,10 @@ const navItems: NavItem[] = [
   { href: "/reports", labelKey: "reports", icon: BarChart3, capability: "menu.reports" },
 ];
 
+// The User Guide is open to every signed-in role, so it carries no capability
+// (and no database capability exists for it).
 const bottomNavItems: NavItem[] = [
+  { href: "/help", labelKey: "userGuide", icon: BookMarked },
   { href: "/settings", labelKey: "settings", icon: Settings, capability: "menu.settings" },
 ];
 

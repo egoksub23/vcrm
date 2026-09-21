@@ -74,6 +74,16 @@ const nextConfig: NextConfig = {
   // out of the bundle avoids bundler trouble with their internal requires.
   serverExternalPackages: ["mammoth", "unpdf"],
 
+  // The in-CRM User Guide (/help) reads Markdown from content/help at request
+  // time, and checks public/help/img for screenshots. Neither is imported, so
+  // the standalone tracer cannot see them: list them so they are copied into
+  // .next/standalone. (The Dockerfile also copies content/ explicitly.)
+  outputFileTracingIncludes: {
+    "/help": ["./content/help/**/*", "./public/help/**/*"],
+    "/help/[...slug]": ["./content/help/**/*", "./public/help/**/*"],
+    "/help/search-index.json": ["./content/help/**/*"],
+  },
+
   /**
    * Cross-origin dev access (Next.js 16).
    *

@@ -231,7 +231,7 @@ export function MessageComposer({
   conversationId,
   channelType,
   availableChannels,
-  sessionExpired,
+  sessionExpired: whatsappSessionExpired,
   onSend,
   onSendMedia,
   onSendInteractive,
@@ -269,6 +269,9 @@ export function MessageComposer({
   //    threads, so an incoming message never clobbers an intentional
   //    pick mid-reply.
   const [selectedChannel, setSelectedChannel] = useState<ChannelType>(channelType);
+  // The 24-hour customer-service window is a WhatsApp rule. Email, web chat,
+  // Messenger and Instagram have no template fallback, so never lock them.
+  const sessionExpired = whatsappSessionExpired && selectedChannel === "whatsapp";
   const manualChannelPickRef = useRef(false);
   useEffect(() => {
     manualChannelPickRef.current = false;
