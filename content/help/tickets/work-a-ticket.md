@@ -1,6 +1,6 @@
 ---
 title: Work a ticket
-description: Assign, comment, change the status, follow the SLA timers and watch a ticket.
+description: Assign, comment, change the status, say how it was resolved, follow the SLA timers and watch a ticket.
 order: 3
 updated: 2026-09-21
 ---
@@ -24,11 +24,28 @@ Everything on the right saves as soon as you change it.
 3. Set the **Priority** and the **Type**.
 4. Add **Labels**. A ticket can have up to 10 labels.
 5. Set a **Due date**. Click the cross next to it to clear it.
-6. Click the status button at the top of the right column, which shows the current status. Under **Transition to**, choose the next status.
+6. Click the status button at the top of the right column, which shows the current status. Under **Transition to**, choose the next status. If you choose **Resolved** or **Closed**, the app asks how the ticket was resolved. See the next part.
 
 To change the summary or description, click it, type, and save. Click **Open conversation**, if you see it, to go to the chat the ticket came from. Click the customer's name to open their profile.
 
 The person you assign the ticket to gets a notification, unless you assigned it to yourself.
+
+## Resolve or close a ticket
+
+When you move a ticket to **Resolved** or **Closed**, a small window asks **How was this resolved?**
+
+1. Choose a **Resolution** from the list, for example **Fixed**, **Answered / information given**, **Duplicate**, **Cannot reproduce**, **Won't fix** or **Customer did not respond**. Your admin can change this list.
+2. Type a **Note** if the next person should know something. It is optional and can be up to 2000 characters.
+3. Click **Move to Resolved** (or **Move to Closed**).
+
+The ticket only moves after you click that button. If you click **Cancel** or close the window, nothing changes and the ticket stays where it was. On the board, the card goes back to its column.
+
+Once the ticket is Resolved or Closed, the **Details** card on the right shows the **Resolution** and your note. Click **Change resolution** to pick another one later. Every change is written in the **History** tab, for example "Ada resolved this ticket as Fixed".
+
+- If you re-open the ticket, the old resolution is kept in the history, and the app asks again when you resolve it a second time. The earlier choice is already selected, so you only confirm it or change it.
+- Changes that the system makes on its own do not ask anyone. When Jira marks the linked issue as Done, the ticket gets the matching resolution, or **Resolved in Jira** if there is no match. A ticket closed by an automation gets **Closed automatically**.
+- If your admin turned the requirement off, the window does not appear. You can still set a resolution later with **Change resolution**.
+- If you see "A resolution is needed to resolve or close a ticket", choose one and try again.
 
 ## Comments and @mentions
 
@@ -74,7 +91,7 @@ The ticket shows **You are waiting on** with a line for each person still pendin
 
 ## The activity timeline
 
-The **History** tab lists every change: who changed the status, priority, type, assignee, team, due date, labels, summary, description, links and attachments, and when. You do not need to write these down. Look at the timeline before you ask "who changed this?".
+The **History** tab lists every change: who changed the status, the resolution, priority, type, assignee, team, due date, labels, summary, description, links and attachments, and when. You do not need to write these down. Look at the timeline before you ask "who changed this?".
 
 ## Link related tickets
 
@@ -115,7 +132,7 @@ Only people with permission see **Delete ticket** in the three-dot menu. By defa
 
 ## Tips
 
-- Add a comment when you change the status. Say why.
+- Add a comment when you change the status. Say why. For Resolved and Closed, write it in the resolution note.
 - Use **@** to pull in the person who can help. Use **@** with a team when you do not know who is free.
 - Pick **FYI only** when you do not need an answer, so your teammates' bubbles stay meaningful.
 - Set the ticket to **Pending** when you wait for the customer, and back to **In progress** when they reply.
@@ -126,6 +143,7 @@ Only people with permission see **Delete ticket** in the three-dot menu. By defa
 - Mentioning a team with **Needs a response** for something that is only news. Every member then waits on it. Choose **FYI only**.
 - Expecting a chat reply to stop the First response timer. Write a comment on the ticket.
 - Leaving a ticket unassigned.
+- Choosing **Fixed** when the customer simply did not answer. Pick the resolution that says what really happened, because the report counts them.
 
 ## Related pages
 

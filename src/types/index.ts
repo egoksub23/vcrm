@@ -435,6 +435,11 @@ export interface Ticket {
   labels?: string[];
   /** Migration 081. Position on the board: higher is nearer the top. */
   board_rank?: number;
+  /** Migration 096. How the ticket was resolved (a ticket_resolutions row).
+   *  Kept when the ticket is re-opened; shown only while it is Resolved or Closed. */
+  resolution_id?: string | null;
+  /** Migration 096. Optional free text with the resolution, at most 2000 characters. */
+  resolution_note?: string | null;
   created_at: string;
   updated_at: string;
   // Migration 086 (ticket SLA). Written only by the database; see src/lib/sla.
@@ -468,6 +473,21 @@ export type TicketCustomValue = string | number | boolean;
 export type TicketCustomValues = Record<string, TicketCustomValue>;
 
 /** One field on the account's customizable ticket form (migration 066). */
+/** Migration 096: one entry of the account's catalogue of ticket resolutions. */
+export interface TicketResolution {
+  id: string;
+  account_id: string;
+  name: string;
+  position: number;
+  /** false = archived: not offered for new resolutions, still names old ones. */
+  is_active: boolean;
+  /** "Resolved in Jira" / "Closed automatically": used by the database, cannot be archived. */
+  is_system: boolean;
+  system_key: 'resolved_in_jira' | 'closed_automatically' | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TicketFieldDefinition {
   id: string;
   account_id: string;
@@ -545,7 +565,12 @@ export type TicketActivityEventType =
   // (or a count for comment_deleted).
   | 'mention_requested'
   | 'mention_done'
-  | 'mention_cancelled';
+  | 'mention_cancelled'
+  // Migration 096. resolved_as: to_value = the resolution's name, detail = the
+  // note. resolution_changed: from_value / to_value = names (from empty when
+  // there was none), detail = the note. No actor for the system and for Jira.
+  | 'resolved_as'
+  | 'resolution_changed';
 
 export interface TicketActivity {
   id: string;

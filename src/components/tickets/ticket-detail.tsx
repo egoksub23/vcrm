@@ -34,15 +34,18 @@ import { useTicketDetail } from "@/hooks/use-ticket-detail";
 import { useTicketJira } from "@/hooks/use-ticket-jira";
 import { errorKeyOf, loose, retrySeconds } from "@/lib/tickets/jira-ui";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
+import { useTicketResolutions } from "@/hooks/use-ticket-resolutions";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
 import { pastedImages } from "@/lib/media/clipboard-images";
+import { needsResolutionPrompt, resolutionName, withResolution } from "@/lib/tickets/resolution";
 import type { Ticket, TicketAttachment, TicketMention } from "@/types";
 import { TicketActivitySection } from "./ticket-activity";
 import { TicketAttachmentsSection } from "./ticket-attachments";
 import { CustomFieldsSection } from "./ticket-custom-fields";
 import { TicketDetailsCard } from "./ticket-details-card";
 import { TicketMentionBanner, type MentionRowAction } from "./ticket-mention-banner";
+import { useResolutionPrompt } from "./ticket-resolution-dialog";
 import { TicketJiraSection } from "./ticket-jira-section";
 import { TicketLinksSection } from "./ticket-links";
 import { TypeIcon } from "./ticket-visuals";
@@ -230,6 +233,38 @@ export function TicketDetail({
     },
   });
   const { ticket } = detail;
+
+  // Resolutions (migration 096): moving to Resolved or Closed asks how it was resolved, and the
+  // Details card can change the resolution later. Cancelling the dialog leaves the ticket alone.
+  const { byId: resolutionsById } = useTicketResolutions();
+  const { ask: askResolution, dialog: resolutionDialog } = useResolutionPrompt();
+  const updateWithResolution = async (patch: Partial<Ticket>) => {
+    const current = detail.ticket;
+    if (current && patch.status && needsResolutionPrompt(current.status, patch.status, current.resolution_id)) {
+      const answer = await askResolution({
+        status: patch.status,
+        count: 1,
+        initial: { resolutionId: current.resolution_id ?? null, note: current.resolution_note ?? null },
+      });
+      if (answer.kind === "cancel") return;
+      patch = withResolution(patch, answer.kind === "chosen" ? answer.choice : null);
+    }
+    await detail.update(patch);
+  };
+  const editResolution = async () => {
+    const current = detail.ticket;
+    if (!current) return;
+    const answer = await askResolution({
+      mode: "edit",
+      count: 1,
+      initial: { resolutionId: current.resolution_id ?? null, note: current.resolution_note ?? null },
+    });
+    if (answer.kind !== "chosen") return;
+    await detail.update({
+      resolution_id: answer.choice.resolutionId,
+      resolution_note: answer.choice.note?.trim() ? answer.choice.note.trim() : null,
+    });
+  };
 
   // Jira: cached link rows for the section and the "Share with Jira" action of the notes.
   const jira = useTicketJira(ticketId);
@@ -495,13 +530,17 @@ export function TicketDetail({
               knownLabels={knownLabels}
               canWork={canWork}
               currentUserId={user?.id ?? null}
-              onUpdate={(patch) => void detail.update(patch)}
+              onUpdate={(patch) => void updateWithResolution(patch)}
               onToggleWatch={() => void detail.toggleWatch()}
               onViewContact={() => setContactOpen(true)}
+              resolutionName={resolutionName(resolutionsById, ticket.resolution_id)}
+              onEditResolution={() => void editResolution()}
             />
           </aside>
         </div>
       </div>
+
+      {resolutionDialog}
 
       <ContactDetailView
         open={contactOpen}

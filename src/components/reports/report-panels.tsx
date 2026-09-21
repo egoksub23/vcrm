@@ -27,6 +27,7 @@ import {
   type SlaBreakdownRow,
   type SlaCounts,
   type TicketBreakdownRow,
+  type TicketResolutionRow,
 } from "@/lib/reports/queries";
 import { useReportData, formatMinutes, formatPercent } from "./report-hooks";
 
@@ -532,6 +533,50 @@ function TicketBreakdownTable({
   );
 }
 
+/** "Resolved by resolution" (migration 096): tickets resolved or closed in the period, by how. */
+export function ResolutionBreakdownTable({
+  rows,
+  t,
+}: {
+  rows: TicketResolutionRow[];
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card" data-testid="tickets-by-resolution">
+      <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("byResolution")}</p>
+      <p className="px-4 pt-0.5 text-xs text-muted-foreground">{t("byResolutionHint")}</p>
+      <table className="mt-2 w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="px-4 py-2">{t("colResolution")}</th>
+            <th className="px-4 py-2 text-right">{t("colResolved")}</th>
+            <th className="px-4 py-2 text-right">{t("colShare")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                {t("noBreakdownData")}
+              </td>
+            </tr>
+          ) : (
+            rows.map((r) => (
+              <tr key={r.key} className="border-b border-border last:border-0">
+                <td className="px-4 py-2.5 font-medium text-foreground">
+                  {r.key === "" ? t("noResolution") : (r.label ?? t("unknownResolution"))}
+                </td>
+                <td className="px-4 py-2.5 text-right text-foreground">{r.resolved}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{Math.round(r.sharePct)}%</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function TicketsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.tickets");
   const tShared = useTranslations("Reports");
@@ -630,6 +675,7 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
         labelFor={(r) => r.label ?? (r.key === "" ? t("noTeam") : t("unknownTeam"))}
         t={t}
       />
+      <ResolutionBreakdownTable rows={data.byResolution} t={t} />
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("byAgent")}</p>

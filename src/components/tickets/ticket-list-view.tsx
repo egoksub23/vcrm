@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { UNASSIGNED } from "@/lib/tickets/filters";
 import type { JiraChip } from "@/lib/tickets/jira-ui";
+import { showsResolution } from "@/lib/tickets/resolution";
 import { groupTickets, type GroupBy, type SortKey, type SortSpec } from "@/lib/tickets/sort-group";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { useSharedNow } from "@/hooks/use-shared-now";
@@ -45,6 +46,10 @@ interface TicketListViewProps {
   waiting?: Record<string, TicketMention>;
   /** The SLA column (migration 086); hideable from the page. Default on. */
   showSla?: boolean;
+  /** The Resolution column (migration 096); off unless the page turns it on. */
+  showResolution?: boolean;
+  /** A resolution's name by id (archived ones included). */
+  resolutionName?: (id: string) => string | null;
 }
 
 const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
@@ -54,6 +59,7 @@ const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
   { key: "priority", label: "priority", className: "w-28" },
   { key: "assignee", label: "assignee", className: "w-44" },
   { key: null, label: "labels", className: "w-40" },
+  { key: null, label: "resolution", className: "w-40" },
   { key: "due", label: "due", className: "w-24" },
   { key: "sla", label: "sla", className: "w-36" },
   { key: "updated", label: "updated", className: "w-32 text-right" },
@@ -78,13 +84,18 @@ export function TicketListView({
   jiraChips,
   waiting,
   showSla = true,
+  showResolution = false,
+  resolutionName,
 }: TicketListViewProps) {
   const t = useTranslations("Tickets.list");
   const tCommon = useTranslations("Tickets.common");
   const tSla = useTranslations("Tickets.sla");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const now = useSharedNow(groupBy === "sla");
-  const columns = useMemo(() => (showSla ? COLUMNS : COLUMNS.filter((c) => c.key !== "sla")), [showSla]);
+  const columns = useMemo(
+    () => COLUMNS.filter((c) => (c.key !== "sla" || showSla) && (c.label !== "resolution" || showResolution)),
+    [showSla, showResolution],
+  );
 
   const groups = useMemo(
     () => (groupBy === "none" ? null : groupTickets(rows, groupBy, { assigneeName: (id) => nameOf(id), now })),
@@ -170,6 +181,17 @@ export function TicketListView({
             ) : null}
           </div>
         </TableCell>
+        {showResolution ? (
+          <TableCell className="max-w-40 py-1.5">
+            {showsResolution(row) && row.resolution_id ? (
+              <span className="block truncate" title={row.resolution_note ?? undefined}>
+                {resolutionName?.(row.resolution_id) ?? "—"}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </TableCell>
+        ) : null}
         <TableCell className="py-1.5">
           <DueChip dueDate={row.due_date} status={row.status} />
         </TableCell>

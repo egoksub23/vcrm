@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.52.0] — 2026-09-22 — **migration required: 096**
+
+- **A resolution is now required when a ticket is resolved or closed.** Moving a ticket to Resolved or Closed (from the ticket window, by dragging on the board, from the list, or in bulk) opens a small box asking for a **Resolution** and an optional note. Cancelling leaves the ticket where it was, and a dragged card snaps back. The ticket's Details show the resolution and note, the history says “resolved as …”, and it can be changed later with **Change resolution**.
+- **Admins manage the list.** Settings, Ticket form now has a **Resolutions** list (defaults: Fixed, Answered / information given, Duplicate, Cannot reproduce, Won't fix, Customer did not respond, Resolved in Jira, Closed automatically) that can be renamed, reordered, added to and archived, plus a **Require a resolution** switch (on by default). Changes are in the audit log.
+- **List and reports.** The ticket list has an optional Resolution column and a Resolution filter (saved filters too), and Reports, Tickets has a **Resolved by resolution** breakdown. Older tickets show as “No resolution recorded”.
+- **Automatic changes are never blocked.** Automations, Jira and system changes set “Closed automatically” or “Resolved in Jira”. A Jira issue marked Done takes the matching Vircle resolution when the names match.
+- The database enforces the rule, so no screen or import path can skip it.
+
 ## [0.51.1] — 2026-09-21
 
 - **Ticket comments: a picked @mention now shows as a coloured box while you type** (people in blue, teams in purple, the same colours as a posted comment), so you can see it has been tagged.

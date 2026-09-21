@@ -12,7 +12,7 @@ import { linkRowFor, type LinkGroupKey } from "@/lib/tickets/links";
 import { buildTicketPatch } from "@/lib/tickets/patch";
 import { postTicketCommentRequest } from "@/lib/tickets/mention-actions";
 import type { MentionKind } from "@/lib/tickets/mentions";
-import { updateTicket } from "@/lib/tickets/update";
+import { updateTicketResult } from "@/lib/tickets/update";
 import { ImagePrepareError } from "@/lib/media/prepare-image";
 import type {
   Contact,
@@ -55,6 +55,7 @@ export function useTicketDetail(
   const tLinks = useTranslations("Tickets.links");
   const tAtt = useTranslations("Tickets.attachments");
   const tMention = useTranslations("Tickets.detail.mention");
+  const tResolution = useTranslations("Tickets.resolution");
   const { user } = useAuth();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -198,17 +199,24 @@ export function useTicketDetail(
       const full = buildTicketPatch(patch);
       setTicket({ ...current, ...full });
       setSaving(true);
-      const written = await updateTicket(current.id, full);
+      const result = await updateTicketResult(current.id, full);
       setSaving(false);
-      if (!written) {
+      if (!result.ok) {
         setTicket((prev) => (prev && prev.id === current.id ? current : prev));
-        toast.error(t("updateFailed"));
+        // Migration 096: the workspace needs a resolution to resolve or close a ticket.
+        toast.error(
+          result.code === "resolution_required"
+            ? tResolution("required")
+            : result.code === "resolution_invalid"
+              ? tResolution("invalid")
+              : t("updateFailed"),
+        );
         return false;
       }
       onChanged?.(current.id, full);
       return true;
     },
-    [onChanged, t],
+    [onChanged, t, tResolution],
   );
 
   /**

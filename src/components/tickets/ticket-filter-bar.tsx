@@ -13,13 +13,15 @@ import {
 import { cn } from "@/lib/utils";
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/tickets/constants";
 import {
+  NO_RESOLUTION,
   UNASSIGNED,
   countActiveFilters,
   emptyFilters,
   type QuickFilter,
   type TicketFilters,
 } from "@/lib/tickets/filters";
-import type { Profile, Team } from "@/types";
+import { activeResolutions } from "@/lib/tickets/resolution";
+import type { Profile, Team, TicketResolution } from "@/types";
 import { PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 import { SavedFiltersMenu } from "./ticket-saved-filters";
 
@@ -92,6 +94,7 @@ export function TicketFilterBar({
   teams,
   knownLabels,
   mentionedCount = 0,
+  resolutions = [],
 }: {
   filters: TicketFilters;
   onChange: (next: TicketFilters) => void;
@@ -101,6 +104,8 @@ export function TicketFilterBar({
   knownLabels: string[];
   /** Tickets waiting on the signed-in person (migration 095), shown on the "Mentioned me" chip. */
   mentionedCount?: number;
+  /** The account's ticket resolutions (migration 096); the Resolution filter shows once there are any. */
+  resolutions?: TicketResolution[];
 }) {
   const t = useTranslations("Tickets.filters");
   const tCommon = useTranslations("Tickets.common");
@@ -225,6 +230,21 @@ export function TicketFilterBar({
           selected={filters.teams}
           onChange={(next) => set({ teams: next })}
           options={teams.map((tm) => ({ value: tm.id, label: <span className="truncate">{tm.name}</span> }))}
+        />
+      ) : null}
+      {resolutions.length > 0 ? (
+        <MultiFilter
+          label={t("resolution")}
+          selected={filters.resolutions}
+          onChange={(next) => set({ resolutions: next })}
+          options={[
+            { value: NO_RESOLUTION, label: <span className="truncate">{t("noResolution")}</span> },
+            // Archived ones stay listed only while a filter still uses them.
+            ...[
+              ...activeResolutions(resolutions),
+              ...resolutions.filter((r) => !r.is_active && filters.resolutions.includes(r.id)),
+            ].map((r) => ({ value: r.id, label: <span className="truncate">{r.name}</span> })),
+          ]}
         />
       ) : null}
       {listView ? (

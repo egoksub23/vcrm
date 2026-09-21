@@ -52,7 +52,7 @@ The Jira key also shows as a small chip on board cards and list rows.
 
 ## Live status and notes
 
-When someone changes the status in Jira, the ticket can follow. You see a line in the activity such as "Jira moved this from … to … (KEY)". Your admin chooses how Jira statuses map to ticket statuses. When an issue is Done in Jira, the person who owns the ticket gets a notification and a note.
+When someone changes the status in Jira, the ticket can follow. You see a line in the activity such as "Jira moved this from … to … (KEY)". Your admin chooses how Jira statuses map to ticket statuses. When an issue is Done in Jira, the person who owns the ticket gets a notification and a note. If your admin lets Jira resolve tickets, the ticket also gets a resolution without asking anyone: the Jira resolution when its name matches one of your workspace's resolutions (for example **Duplicate**), and **Resolved in Jira** when it does not.
 
 Jira comments appear on the ticket as internal notes with the tag **Jira · name**. To send one of your own notes to Jira, click **Share with Jira** on the note. It then shows **Shared with Jira**. This button appears only when your admin allows sharing notes.
 

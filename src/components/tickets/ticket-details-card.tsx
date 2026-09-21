@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { format, formatDistanceToNow } from "date-fns";
 import { Eye, EyeOff, MessageSquare, User, X } from "lucide-react";
 
+import { isDoneStatus } from "@/lib/tickets/constants";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import type { KnownLabel } from "@/hooks/use-ticket-labels";
 import type { Contact, Profile, Team, Ticket, TicketWatcher } from "@/types";
@@ -119,6 +120,8 @@ export function TicketDetailsCard({
   onUpdate,
   onToggleWatch,
   onViewContact,
+  resolutionName = null,
+  onEditResolution,
 }: {
   ticket: Ticket;
   contact: Contact | null;
@@ -132,8 +135,13 @@ export function TicketDetailsCard({
   onUpdate: (patch: Partial<Ticket>) => void;
   onToggleWatch: () => void;
   onViewContact: () => void;
+  /** Migration 096: the name of the ticket's resolution (shown while it is Resolved or Closed). */
+  resolutionName?: string | null;
+  /** Opens the "change the resolution" dialog; without it the resolution is read-only. */
+  onEditResolution?: () => void;
 }) {
   const t = useTranslations("Tickets.detail");
+  const tRes = useTranslations("Tickets.resolution");
   const tCommon = useTranslations("Tickets.common");
   const reporter = members.find((m) => m.user_id === ticket.created_by);
   const shownWatchers = watchers.slice(0, 6);
@@ -147,6 +155,27 @@ export function TicketDetailsCard({
       <div className="rounded-lg border border-border bg-card">
         <h3 className="border-b border-border px-3 py-2 text-[13px] font-semibold">{t("detailsHeading")}</h3>
         <dl className="divide-y divide-border/60 px-3 py-1">
+          {isDoneStatus(ticket.status) ? (
+            <Row label={tRes("detailLabel")}>
+              <div className="flex flex-col items-start gap-0.5" data-testid="ticket-resolution">
+                {resolutionName ? (
+                  <span className="font-medium">{resolutionName}</span>
+                ) : (
+                  <span className="text-muted-foreground">{tRes("none")}</span>
+                )}
+                {ticket.resolution_note ? (
+                  <p className="text-xs whitespace-pre-wrap text-muted-foreground" aria-label={tRes("noteHeading")}>
+                    {ticket.resolution_note}
+                  </p>
+                ) : null}
+                {canWork && onEditResolution ? (
+                  <button type="button" onClick={onEditResolution} className="text-xs text-primary hover:underline">
+                    {tRes("change")}
+                  </button>
+                ) : null}
+              </div>
+            </Row>
+          ) : null}
           <Row label={t("assignee")}>
             <div className="flex flex-col items-start gap-0.5">
               <AssigneeMenu

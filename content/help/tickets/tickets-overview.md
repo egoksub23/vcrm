@@ -22,10 +22,14 @@ Here is a common way to use them.
 | **Open** | Nobody has started yet. |
 | **In progress** | Someone is working on it now. |
 | **Pending** | You are waiting for something, such as a reply from the customer. |
-| **Resolved** | The problem is fixed. |
-| **Closed** | The ticket is finished. |
+| **Resolved** | The problem is fixed. The app asks how it was resolved. |
+| **Closed** | The ticket is finished. The app asks how it was resolved. |
 
 If your workspace uses an SLA (a promised response time), the clock usually stops counting while a ticket is Pending. See [Work a ticket](/help/tickets/work-a-ticket).
+
+### Say how it was resolved
+
+Whenever you move a ticket to **Resolved** or **Closed**, on the board, in the list or in the ticket itself, a small window asks **How was this resolved?** Choose a **Resolution**, add a note if you want, and confirm. If you cancel, the ticket does not move. Your workspace has a list of resolutions such as Fixed, Duplicate and Cannot reproduce. An admin can rename them, add more and switch the question off in **Settings**, **Ticket form**. Automatic changes, for example from Jira, never ask.
 
 ## Board view
 
@@ -35,29 +39,30 @@ A card shows the summary, the customer, up to three labels, the ticket type, the
 
 ![The tickets board with a column for each status and a card for each ticket.](/help/img/tickets-overview-01-board.png)
 
-To change a status, drag a card to another column. To change the order inside a column, drag it up or down. It saves when you drop it. If it fails, the card goes back and you see "Could not move the ticket". Each column loads its first 100 tickets. Click **Show more** for the rest.
+To change a status, drag a card to another column. To change the order inside a column, drag it up or down. It saves when you drop it. If you drop a card into **Resolved** or **Closed**, the resolution window opens first. Cancel it and the card goes back to where it was. If it fails, the card goes back and you see "Could not move the ticket". Each column loads its first 100 tickets. Click **Show more** for the rest.
 
 To use the keyboard, press <kbd>Space</kbd> to pick a card up, the arrow keys to move it, <kbd>Space</kbd> to drop it and <kbd>Esc</kbd> to cancel. Press <kbd>Enter</kbd> to open a ticket.
 
 ## List view
 
-The list has the columns Key, Summary, Status, Priority, Assignee, Labels, Due, SLA and Updated. You can:
+The list has the columns Key, Summary, Status, Priority, Assignee, Labels, Due, SLA and Updated. You can also add a **Resolution** column. You can:
 
 - click a column heading to sort
 - change the status, priority or assignee right inside a row
 - click **Group** to group rows by None, Assignee, Status, Priority or SLA
 - click **SLA column** to show or hide the SLA column
+- click **Resolution column** to show or hide how finished tickets were resolved (it is hidden at first)
 - click **Load more** at the bottom for older tickets. The list starts with the 200 most recently updated tickets.
 
 ![The tickets list with sortable columns and the filter bar above it.](/help/img/tickets-overview-02-list.png)
 
-To change many tickets at once, tick their rows. A bar appears with **Change status**, **Assign to**, **Priority**, **Set team** and **Add label**. **Delete** is on the bar only for people who may delete tickets. Click **Clear** to unselect.
+To change many tickets at once, tick their rows. A bar appears with **Change status**, **Assign to**, **Priority**, **Set team** and **Add label**. If you choose **Resolved** or **Closed** for several tickets, the resolution window opens once and your choice applies to all of them. **Delete** is on the bar only for people who may delete tickets. Click **Clear** to unselect.
 
 ## Find tickets
 
 1. Type in **Search key or text**. You can type a key such as VIR-12, a number, or words.
-2. Click the quick buttons: **My tickets**, **Unassigned**, **Overdue**, **Updated today**, **SLA at risk** and **SLA breached**.
-3. Use the menus for Assignee, Type, Priority, Label, Team and, in the list, Status.
+2. Click the quick buttons: **My tickets**, **Mentioned me**, **Unassigned**, **Overdue**, **Updated today**, **SLA at risk** and **SLA breached**.
+3. Use the menus for Assignee, Type, Priority, Label, Team, Resolution and, in the list, Status. In the **Resolution** menu, **No resolution** finds tickets that were finished without one, and every ticket that is still open.
 4. Click **Clear filters** to start again.
 
 To keep a set of filters, click **Saved filters**, then **Save current filters**. Give it a name. You can tick **Share with everyone in this workspace** so teammates can use it too.
@@ -68,7 +73,7 @@ A due date is amber on the day it is due and red once it is overdue.
 
 ## Who can do what
 
-By default an Agent can raise, edit and move tickets. Only admins can delete tickets by default. A Viewer can look at tickets but the controls are switched off, and the **New Ticket** button says "You have read-only access to tickets". See [Roles and permissions](/help/getting-started/roles-and-permissions).
+By default an Agent can raise, edit and move tickets. Only admins can delete tickets by default. The list of resolutions and the switch that makes a resolution required are in **Settings**, **Ticket form**, and admins can change them by default. A Viewer can look at tickets but the controls are switched off, and the **New Ticket** button says "You have read-only access to tickets". See [Roles and permissions](/help/getting-started/roles-and-permissions).
 
 ## Tips
 
@@ -79,7 +84,12 @@ By default an Agent can raise, edit and move tickets. Only admins can delete tic
 ## Common mistakes
 
 - Looking for a finished ticket on the board. Closed tickets are in the folded column.
+- Moving a ticket to Resolved and wondering why the card came back. You cancelled the resolution window.
 - Forgetting that a filter is still on. The **Clear filters** button shows whenever a filter is active.
+
+## See how tickets were resolved
+
+Open **Reports**, then **Tickets**. **Resolved by resolution** shows how many tickets were resolved or closed in the date range with each resolution, and each one's share. Tickets finished before resolutions existed show as **No resolution recorded**.
 
 ## Related pages
 

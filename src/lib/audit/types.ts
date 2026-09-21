@@ -57,6 +57,9 @@ export const AUDIT_ENTITY_TYPES = [
   "business_hours",
   "business_hours_holiday",
   "sla_policy",
+  // Migration 096 (ticket resolutions): the catalogue, and the "require a resolution" switch.
+  "ticket_resolution",
+  "ticket_settings",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

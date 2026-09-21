@@ -4650,6 +4650,36 @@
           "done": "티켓 {count}개에 SLA를 적용했습니다"
         }
       }
+    },
+    "ticketResolutions": {
+      "title": "해결 유형",
+      "description": "티켓을 해결하거나 종료할 때 상담원이 고르는 선택지입니다. 이름을 바꾸고, 순서를 정하고, 직접 추가하거나 사용하지 않는 항목은 보관하세요.",
+      "requireTitle": "해결 유형 필수",
+      "requireHint": "켜면 상담원이 티켓을 해결됨 또는 종료로 옮길 때 해결 유형을 반드시 선택해야 합니다. 자동 변경(Jira, 자동화)은 막지 않으며 “Jira에서 해결됨” 또는 “자동 종료”를 사용합니다.",
+      "requireSaved": "저장했습니다",
+      "requireSaveFailed": "이 설정을 저장하지 못했습니다",
+      "addResolution": "해결 유형 추가",
+      "adminOnly": "관리자만 해결 유형을 변경할 수 있습니다.",
+      "loading": "해결 유형을 불러오는 중…",
+      "empty": "아직 해결 유형이 없습니다.",
+      "systemChip": "자동 사용",
+      "systemHint": "시스템이 자동으로 사용하는 항목입니다. 이름과 순서는 바꿀 수 있지만 보관할 수는 없습니다.",
+      "archivedHeading": "보관됨",
+      "archivedHint": "보관한 해결 유형은 더 이상 표시되지 않으며, 이미 사용 중인 티켓에는 그대로 남습니다.",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "edit": "이름 변경",
+      "archive": "보관",
+      "restore": "복원",
+      "addTitle": "해결 유형 추가",
+      "editTitle": "해결 유형 이름 변경",
+      "dialogDesc": "상담원이 알아볼 수 있는 짧은 이름입니다. 예: “해결됨”, “중복”.",
+      "nameLabel": "이름",
+      "namePlaceholder": "예: 우회 방법 안내",
+      "save": "저장",
+      "cancel": "취소",
+      "saveFailed": "해결 유형을 저장하지 못했습니다",
+      "duplicate": "“{name}” 해결 유형이 이미 있습니다."
     }
   },
   "SignupPage": {
@@ -4945,7 +4975,8 @@
         "priority": "우선순위",
         "sla": "SLA"
       },
-      "slaColumn": "SLA 열"
+      "slaColumn": "SLA 열",
+      "resolutionColumn": "해결 유형 열"
     },
     "board": {
       "dropHere": "여기에 티켓을 놓으세요",
@@ -4982,7 +5013,9 @@
       "team": "팀",
       "status": "상태",
       "noLabels": "아직 사용 중인 라벨이 없습니다",
-      "clear": "필터 지우기"
+      "clear": "필터 지우기",
+      "resolution": "해결 유형",
+      "noResolution": "해결 유형 없음"
     },
     "saved": {
       "title": "저장된 필터",
@@ -5120,7 +5153,8 @@
         "priority": "우선순위",
         "assignee": "담당자",
         "updated": "수정됨",
-        "sla": "SLA"
+        "sla": "SLA",
+        "resolution": "해결 유형"
       },
       "status": {
         "open": "열림",
@@ -5339,7 +5373,12 @@
         "mentionClosedWithTicket": "티켓과 함께 응답 요청 {count}건을 종료했습니다",
         "mentionCommentDeleted": "코멘트를 삭제하여 응답 요청 {count}건을 취소했습니다",
         "mentionCancelled": "{name}님에 대한 응답 요청을 취소했습니다",
-        "waitingOn": "{names}님의 응답을 기다리는 중"
+        "waitingOn": "{names}님의 응답을 기다리는 중",
+        "resolvedAs": "이 티켓을 {resolution}(으)로 해결했습니다",
+        "resolvedAsSystem": "이 티켓이 {resolution}(으)로 해결되었습니다",
+        "resolutionSet": "해결 유형을 {to}(으)로 설정했습니다",
+        "resolutionChanged": "해결 유형을 {from}에서 {to}(으)로 변경했습니다",
+        "resolutionNoteChanged": "해결 메모를 수정했습니다"
       },
       "status": {
         "open": "열림",
@@ -5402,6 +5441,32 @@
         "respondedAt": "응답 {when}",
         "hours": "업무 시간: {name} ({zone})"
       }
+    },
+    "resolution": {
+      "title": "{count, plural, one {이 티켓은} other {이 티켓 #개는}} 어떻게 해결되었나요?",
+      "description": "{count, plural, one {티켓을} other {티켓들을}} {status}(으)로 이동하기 전에 해결 유형을 선택하세요.",
+      "editTitle": "해결 유형 변경",
+      "editDescription": "변경 내용은 티켓 기록에 남습니다.",
+      "resolutionLabel": "해결 유형",
+      "placeholder": "해결 유형 선택",
+      "noteLabel": "메모 (선택)",
+      "notePlaceholder": "다음 담당자가 알아야 할 내용",
+      "noteCount": "{count} / {max}",
+      "confirm": "{status}(으)로 이동",
+      "save": "저장",
+      "cancel": "취소",
+      "empty": "사용할 수 있는 해결 유형이 없습니다. 관리자에게 설정의 티켓 양식에서 추가해 달라고 요청하세요.",
+      "problem": {
+        "choose": "계속하려면 해결 유형을 선택하세요.",
+        "unavailable": "이 해결 유형은 더 이상 사용할 수 없습니다. 다른 항목을 선택하세요.",
+        "noteTooLong": "메모가 너무 깁니다."
+      },
+      "required": "티켓을 해결하거나 종료하려면 해결 유형이 필요합니다. 하나를 선택한 후 다시 시도하세요.",
+      "invalid": "이 해결 유형은 더 이상 사용할 수 없습니다. 다른 항목을 선택한 후 다시 시도하세요.",
+      "detailLabel": "해결 유형",
+      "none": "기록된 해결 유형 없음",
+      "change": "해결 유형 변경",
+      "noteHeading": "해결 메모"
     }
   },
   "Reports": {
@@ -5556,7 +5621,13 @@
           "first_response": "첫 응답",
           "resolution": "해결"
         }
-      }
+      },
+      "byResolution": "해결 유형별 해결 건수",
+      "byResolutionHint": "선택한 기간에 해결되거나 종료된 티켓을 해결 방법별로 나눈 표입니다.",
+      "colResolution": "해결 유형",
+      "colShare": "비율",
+      "noResolution": "기록된 해결 유형 없음",
+      "unknownResolution": "삭제된 해결 유형"
     }
   },
   "Interactive": {
@@ -6209,7 +6280,7 @@
       },
       "tickets_configure_form": {
         "label": "티켓 양식 편집",
-        "description": "티켓 양식의 커스텀 필드를 변경합니다."
+        "description": "티켓 양식의 커스텀 필드, 티켓 키 접두사, 해결 유형 목록을 변경합니다."
       },
       "tags_manage": {
         "label": "태그 및 라벨 관리",
@@ -6511,7 +6582,9 @@
       "ticket_jira_link": "Jira 링크",
       "business_hours": "업무 시간",
       "business_hours_holiday": "휴일",
-      "sla_policy": "SLA 정책"
+      "sla_policy": "SLA 정책",
+      "ticket_resolution": "티켓 해결 유형",
+      "ticket_settings": "티켓 설정"
     },
     "roleNames": {
       "owner": "소유자",
@@ -6604,7 +6677,8 @@
       "schedule_id": "근무 시간",
       "pause_while_pending": "보류 중 일시 정지",
       "at_risk_percent": "위험 기준 비율",
-      "conditions": "조건"
+      "conditions": "조건",
+      "require_ticket_resolution": "해결 유형 필수"
     },
     "activity": {
       "button": "활동",

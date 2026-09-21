@@ -429,12 +429,52 @@ describe('loadTicketsReport', () => {
     ])
   })
 
+  it('breaks resolved tickets down by resolution with counts and shares, for the period only', async () => {
+    const db = fakeDb({
+      tickets: [
+        { created_at: CUR_DAY_1, resolved_at: CUR_DAY_2, closed_at: null, status: 'resolved', resolution_id: 'r-fixed' },
+        { created_at: CUR_DAY_1, resolved_at: CUR_DAY_2, closed_at: null, status: 'resolved', resolution_id: 'r-fixed' },
+        { created_at: CUR_DAY_1, resolved_at: null, closed_at: CUR_DAY_2, status: 'closed', resolution_id: 'r-dup' },
+        // resolved before the recorded resolutions existed: no resolution
+        { created_at: CUR_DAY_1, resolved_at: CUR_DAY_2, closed_at: null, status: 'resolved', resolution_id: null },
+        // resolved in the previous period: not counted in this one
+        { created_at: PREV_DAY, resolved_at: PREV_DAY, closed_at: null, status: 'resolved', resolution_id: 'r-dup' },
+        // still open: never counted
+        { created_at: CUR_DAY_1, resolved_at: null, closed_at: null, status: 'open', resolution_id: 'r-fixed' },
+      ],
+      ticket_resolutions: [
+        { id: 'r-fixed', name: 'Fixed' },
+        { id: 'r-dup', name: 'Duplicate' },
+      ],
+    })
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.byResolution.map((r) => [r.key, r.label, r.resolved])).toEqual([
+      ['r-fixed', 'Fixed', 2],
+      ['r-dup', 'Duplicate', 1],
+      ['', null, 1],
+    ])
+    expect(report.byResolution.map((r) => Math.round(r.sharePct))).toEqual([50, 25, 25])
+    expect(report.byResolution.reduce((n, r) => n + r.resolved, 0)).toBe(report.resolved.current)
+  })
+
+  it('keeps the name of an archived resolution and lists an unknown id without a name', async () => {
+    const db = fakeDb({
+      tickets: [
+        { created_at: CUR_DAY_1, resolved_at: CUR_DAY_2, closed_at: null, status: 'resolved', resolution_id: 'gone' },
+      ],
+      ticket_resolutions: [],
+    })
+    const report = await loadTicketsReport(db, 'acct-1', RANGE)
+    expect(report.byResolution).toEqual([{ key: 'gone', label: null, resolved: 1, sharePct: 100 }])
+  })
+
   it('returns null rates and zeroes on an empty account', async () => {
     const report = await loadTicketsReport(fakeDb({ tickets: [] }), 'acct-1', RANGE)
     expect(report.resolvedWithin24hPct).toBeNull()
     expect(report.openNow).toBe(0)
     expect(report.avgFirstResponseMinutes.current).toBe(0)
     expect(report.byAgent).toEqual([])
+    expect(report.byResolution).toEqual([])
   })
 })
 

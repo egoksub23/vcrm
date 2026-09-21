@@ -70,6 +70,44 @@ describe("syncIssue: Jira to Vircle", () => {
     expect(store.notifications).toEqual([]);
   });
 
+  it("a ticket Jira resolves takes the Jira resolution when it matches the catalogue by name", async () => {
+    const { store, ctx } = setup({ getIssue: async () => issue({ status: done, resolution: "Duplicate" }) }, { done_behaviour: "resolve" });
+    store.resolutions.push({ id: "res-fixed", name: "Fixed", is_active: true }, { id: "res-dup", name: "Duplicate", is_active: true });
+    await syncIssue(ctx, "10001", { comments: false });
+    expect(store.appliedStatuses).toEqual([{ ticketId: "t-1", status: "resolved", key: "ENG-1", resolutionId: "res-dup" }]);
+  });
+
+  it("without a match (or with Jira's generic Done) no resolution is passed, so the database uses Resolved in Jira", async () => {
+    const generic = setup({ getIssue: async () => issue({ status: done, resolution: "Done" }) }, { done_behaviour: "resolve" });
+    generic.store.resolutions.push({ id: "res-fixed", name: "Fixed", is_active: true });
+    await syncIssue(generic.ctx, "10001", { comments: false });
+    expect(generic.store.appliedStatuses[0].resolutionId).toBeNull();
+
+    const none = setup({ getIssue: async () => issue({ status: done, resolution: null }) }, { done_behaviour: "resolve" });
+    await syncIssue(none.ctx, "10001", { comments: false });
+    expect(none.store.appliedStatuses[0].resolutionId).toBeNull();
+  });
+
+  it("an archived catalogue entry is not used, and a failed catalogue lookup does not hold the status back", async () => {
+    const archived = setup({ getIssue: async () => issue({ status: done, resolution: "Fixed" }) }, { done_behaviour: "resolve" });
+    archived.store.resolutions.push({ id: "res-old", name: "Fixed", is_active: false });
+    await syncIssue(archived.ctx, "10001", { comments: false });
+    expect(archived.store.appliedStatuses[0].resolutionId).toBeNull();
+
+    const broken = setup({ getIssue: async () => issue({ status: done, resolution: "Fixed" }) }, { done_behaviour: "resolve" });
+    broken.store.failResolutionLookup = true;
+    await syncIssue(broken.ctx, "10001", { comments: false });
+    expect(broken.store.tickets[0].status).toBe("resolved");
+    expect(broken.store.appliedStatuses[0].resolutionId).toBeNull();
+  });
+
+  it("a move to an active status never looks up or passes a resolution", async () => {
+    const { store, ctx } = setup({ getIssue: async () => issue({ status: inProgress, resolution: "Fixed" }) });
+    store.resolutions.push({ id: "res-fixed", name: "Fixed", is_active: true });
+    await syncIssue(ctx, "10001", { comments: false });
+    expect(store.appliedStatuses[0]).toMatchObject({ status: "in_progress", resolutionId: null });
+  });
+
   it("uses an admin's per-status override over the category", async () => {
     const { store, ctx } = setup(
       { getIssue: async () => issue({ status: { id: "5", name: "Waiting for customer", category: "indeterminate" } }) },

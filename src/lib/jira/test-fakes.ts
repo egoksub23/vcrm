@@ -109,7 +109,7 @@ export function ticketRow(over: Partial<TicketRow> = {}): TicketRow {
   };
 }
 
-export function issue(over: { id?: string; key?: string; status?: { id: string; name: string; category: string }; updated?: string; assignee?: { accountId: string; displayName: string } | null } = {}): JiraIssue {
+export function issue(over: { id?: string; key?: string; status?: { id: string; name: string; category: string }; updated?: string; assignee?: { accountId: string; displayName: string } | null; resolution?: string | null } = {}): JiraIssue {
   const st = over.status ?? { id: "1", name: "To Do", category: "new" };
   return {
     id: over.id ?? "10001",
@@ -120,7 +120,7 @@ export function issue(over: { id?: string; key?: string; status?: { id: string; 
       assignee: over.assignee === undefined ? null : over.assignee,
       reporter: { accountId: "acct-bot", displayName: "Vircle Integration" },
       priority: { id: "2", name: "High" },
-      resolution: null,
+      resolution: over.resolution ? { id: "10000", name: over.resolution } : null,
       issuetype: { id: "10004", name: "Bug" },
       project: { id: "10000", key: "ENG", name: "Engineering" },
       updated: over.updated ?? "2026-09-20T10:00:00.000+0000",
@@ -141,7 +141,9 @@ export class MemoryStore implements JiraStore {
   activity: { ticketId: string; eventType: string; toValue?: string | null; detail?: string | null; actorId?: string | null }[] = [];
   notifications: { type: string; ticketId: string; body: string }[] = [];
   audits: { action: string; entityType: string; label: string; summary?: Record<string, unknown> | null }[] = [];
-  appliedStatuses: { ticketId: string; status: string; key: string }[] = [];
+  appliedStatuses: { ticketId: string; status: string; key: string; resolutionId?: string | null }[] = [];
+  resolutions: { id: string; name: string; is_active: boolean }[] = [];
+  failResolutionLookup = false;
   assigneeChanges: { ticketId: string; userId: string }[] = [];
   names: Record<string, string> = { "user-agent": "Maya", "user-admin": "Ada" };
   reauth: { id: string; reason: string }[] = [];
@@ -209,12 +211,16 @@ export class MemoryStore implements JiraStore {
   async ticketKey(ticket: Pick<TicketRow, "ticket_number">) {
     return `VIR-${ticket.ticket_number}`;
   }
-  async applyTicketStatus(ticketId: string, status: string, key: string) {
+  async applyTicketStatus(ticketId: string, status: string, key: string, resolutionId?: string | null) {
     const t = this.tickets.find((x) => x.id === ticketId);
     if (!t || t.status === status) return false;
     t.status = status;
-    this.appliedStatuses.push({ ticketId, status, key });
+    this.appliedStatuses.push({ ticketId, status, key, resolutionId: resolutionId ?? null });
     return true;
+  }
+  async listResolutions() {
+    if (this.failResolutionLookup) throw new Error("catalogue unavailable");
+    return this.resolutions;
   }
   async setTicketAssignee(ticketId: string, userId: string) {
     this.tickets.find((t) => t.id === ticketId)!.assigned_agent_id = userId;

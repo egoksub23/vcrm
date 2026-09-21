@@ -1,5 +1,7 @@
 import type { Ticket, TicketPriority, TicketStatus } from '@/types'
+import { isDoneStatus } from './constants'
 import { MAX_LABELS, normalizeLabel } from './labels'
+import { withResolution, type ResolutionChoice } from './resolution'
 
 /**
  * The columns a status change writes: resolving stamps resolved_at, closing
@@ -41,7 +43,8 @@ export function buildTicketPatch(patch: Partial<Ticket>, now: Date = new Date())
 // ---- Bulk edits -----------------------------------------------------------
 
 export type BulkAction =
-  | { kind: 'status'; status: TicketStatus }
+  /** `resolution`: what the person chose when the status is Resolved or Closed (migration 096). */
+  | { kind: 'status'; status: TicketStatus; resolution?: ResolutionChoice | null }
   | { kind: 'assignee'; userId: string | null }
   | { kind: 'priority'; priority: TicketPriority }
   | { kind: 'team'; teamId: string | null }
@@ -63,7 +66,7 @@ export interface BulkPlan {
 type BulkRow = Pick<
   Ticket,
   'id' | 'status' | 'priority' | 'assigned_agent_id' | 'assigned_team_id' | 'labels'
->
+> & { resolution_id?: string | null }
 
 /**
  * What to write for a bulk edit: one update per field for all rows, except
@@ -108,6 +111,22 @@ export function buildBulkUpdates(
     else ids.push(row.id)
   }
   if (ids.length === 0) return { updates: [], skipped, changed: 0 }
+
+  // Moving to Resolved or Closed: the chosen resolution goes to every ticket
+  // except one that is already done and has its own (Resolved -> Closed keeps it).
+  if (action.kind === 'status' && action.resolution && isDoneStatus(action.status)) {
+    const keep = new Set(
+      rows.filter((r) => ids.includes(r.id) && isDoneStatus(r.status) && r.resolution_id).map((r) => r.id),
+    )
+    const own = ids.filter((id) => keep.has(id))
+    const chosen = ids.filter((id) => !keep.has(id))
+    const updates: BulkUpdate[] = []
+    if (chosen.length > 0) {
+      updates.push({ ids: chosen, patch: buildTicketPatch(withResolution({ status: action.status }, action.resolution), now) })
+    }
+    if (own.length > 0) updates.push({ ids: own, patch: buildTicketPatch({ status: action.status }, now) })
+    return { updates, skipped, changed: ids.length }
+  }
 
   let patch: Partial<Ticket>
   switch (action.kind) {

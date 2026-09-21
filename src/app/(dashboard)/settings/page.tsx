@@ -17,6 +17,7 @@ import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel'
 import { TagsSettings } from '@/components/settings/tags/tags-settings';
 import { ConversationLabelsSettings } from '@/components/settings/tags/conversation-labels-settings';
 import { TicketFormSettings } from '@/components/settings/ticket-form-settings';
+import { TicketResolutionsSettings } from '@/components/settings/ticket-resolutions-settings';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
 import { StatusColorsTab } from '@/components/settings/status-colors-tab';
@@ -103,7 +104,12 @@ function SettingsPageInner() {
     tags: <TagsSettings />,
     labels: <ConversationLabelsSettings />,
     fields: <FieldsAndTagsPanel />,
-    'ticket-form': <TicketFormSettings />,
+    'ticket-form': (
+      <div className="space-y-10">
+        <TicketFormSettings />
+        <TicketResolutionsSettings />
+      </div>
+    ),
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
     sla: <SlaPanel />,

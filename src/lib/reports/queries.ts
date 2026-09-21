@@ -784,6 +784,17 @@ export interface TicketBreakdownRow {
   avgResolutionMinutes: number | null
 }
 
+/** One row of "Resolved by resolution" (migration 096). */
+export interface TicketResolutionRow {
+  /** The resolution id; '' = tickets resolved with no resolution recorded (before resolutions existed, or the workspace does not require one). */
+  key: string
+  /** Its name (archived ones keep theirs); null for '' and for an id that no longer exists. */
+  label: string | null
+  resolved: number
+  /** Share of the tickets resolved in the period, 0 to 100. */
+  sharePct: number
+}
+
 export interface TicketAging {
   under1d: number
   d1to3: number
@@ -809,6 +820,8 @@ export interface TicketsReport {
   byCategory: TicketBreakdownRow[]
   byPriority: TicketBreakdownRow[]
   byTeam: TicketBreakdownRow[]
+  /** Tickets resolved or closed in the period, by how they were resolved. */
+  byResolution: TicketResolutionRow[]
 }
 
 const PRIORITY_ORDER = ['urgent', 'high', 'normal', 'low']
@@ -822,7 +835,7 @@ export async function loadTicketsReport(
   const spanStart = prev.from.toISOString()
   const spanEnd = exclusiveEnd(range.to).toISOString()
 
-  const [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes] =
+  const [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes, resolutionsRes] =
     await Promise.all([
       db
         .from('tickets')
@@ -836,7 +849,7 @@ export async function loadTicketsReport(
       db
         .from('tickets')
         .select(
-          'created_at, resolved_at, closed_at, assigned_agent_id, assigned_team_id, category, priority, status',
+          'created_at, resolved_at, closed_at, assigned_agent_id, assigned_team_id, category, priority, status, resolution_id',
         )
         .eq('account_id', accountId)
         .in('status', ['resolved', 'closed'])
@@ -859,8 +872,9 @@ export async function loadTicketsReport(
         .order('created_at', { ascending: true }),
       db.from('profiles').select('user_id, full_name').eq('account_id', accountId),
       db.from('teams').select('id, name').eq('account_id', accountId),
+      db.from('ticket_resolutions').select('id, name').eq('account_id', accountId),
     ])
-  for (const res of [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes]) {
+  for (const res of [openedRes, resolvedRes, openNowRes, commentsRes, profilesRes, teamsRes, resolutionsRes]) {
     if (res.error) throw res.error
   }
 
@@ -886,6 +900,7 @@ export async function loadTicketsReport(
     category: string | null
     priority: string | null
     status: string
+    resolution_id?: string | null
   }
   const resolvedRows = ((resolvedRes.data ?? []) as ResolvedRow[])
     .map((r) => ({ ...r, finishedAt: r.resolved_at ?? r.closed_at }))
@@ -911,6 +926,7 @@ export async function loadTicketsReport(
   const cat = new Map<string, Acc>()
   const pri = new Map<string, Acc>()
   const team = new Map<string, Acc>()
+  const byResolutionCount = new Map<string, number>()
   const acc = (m: Map<string, Acc>, k: string) => {
     let a = m.get(k)
     if (!a) m.set(k, (a = newAcc()))
@@ -930,6 +946,7 @@ export async function loadTicketsReport(
     if (resolvedByDay.has(key)) {
       resolvedByDay.set(key, (resolvedByDay.get(key) ?? 0) + 1)
       resolvedCurrentCount += 1
+      byResolutionCount.set(r.resolution_id ?? '', (byResolutionCount.get(r.resolution_id ?? '') ?? 0) + 1)
       if (diffMin >= 0) {
         resolvedDurationsByDay.get(key)!.push(diffMin)
         if (diffMin <= 24 * 60) resolvedWithin24h += 1
@@ -1050,7 +1067,32 @@ export async function loadTicketsReport(
       (a, b) => PRIORITY_ORDER.indexOf(a.key) - PRIORITY_ORDER.indexOf(b.key),
     ),
     byTeam: rows(team, (k) => (k === '' ? null : (teamNames.get(k) ?? null))).sort(byOpenedDesc),
+    byResolution: resolutionRows(
+      byResolutionCount,
+      new Map(((resolutionsRes.data ?? []) as { id: string; name: string }[]).map((r) => [r.id, r.name])),
+    ),
   }
+}
+
+/**
+ * "Resolved by resolution": the tickets resolved in the period grouped by how
+ * they were resolved, most first, with each one's share of the total. Tickets
+ * with no resolution recorded are one row (key '') at the end.
+ */
+export function resolutionRows(
+  counts: ReadonlyMap<string, number>,
+  names: ReadonlyMap<string, string>,
+): TicketResolutionRow[] {
+  const total = [...counts.values()].reduce((a, b) => a + b, 0)
+  if (total === 0) return []
+  return [...counts.entries()]
+    .map(([key, resolved]) => ({
+      key,
+      label: key === '' ? null : (names.get(key) ?? null),
+      resolved,
+      sharePct: (resolved / total) * 100,
+    }))
+    .sort((a, b) => Number(a.key === '') - Number(b.key === '') || b.resolved - a.resolved || (a.label ?? '').localeCompare(b.label ?? ''))
 }
 
 // --- Tickets report: SLA compliance (migration 086) --------------------------------

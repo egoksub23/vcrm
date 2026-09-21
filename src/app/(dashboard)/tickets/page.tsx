@@ -24,6 +24,7 @@ import { useTeams } from "@/hooks/use-teams";
 import { useJiraLinkChips } from "@/hooks/use-ticket-jira";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
+import { useTicketResolutions } from "@/hooks/use-ticket-resolutions";
 import { useTicketStore, type TicketViewMode } from "@/hooks/use-ticket-store";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { TicketBoard, type BoardMove } from "@/components/tickets/ticket-board";
@@ -31,6 +32,7 @@ import { TicketBulkBar } from "@/components/tickets/ticket-bulk-bar";
 import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
 import { TicketFilterBar } from "@/components/tickets/ticket-filter-bar";
 import { TicketListView } from "@/components/tickets/ticket-list-view";
+import { useResolutionPrompt } from "@/components/tickets/ticket-resolution-dialog";
 import {
   applyFilters,
   hasActiveFilters,
@@ -40,6 +42,12 @@ import {
   type TicketFilters,
 } from "@/lib/tickets/filters";
 import { buildBulkUpdates, buildTicketPatch, type BulkAction } from "@/lib/tickets/patch";
+import {
+  anyNeedsResolutionPrompt,
+  needsResolutionPrompt,
+  withResolution,
+  type ResolutionChoice,
+} from "@/lib/tickets/resolution";
 import {
   DEFAULT_SORT,
   GROUP_BYS,
@@ -52,11 +60,12 @@ import {
   type SortKey,
   type SortSpec,
 } from "@/lib/tickets/sort-group";
-import { updateTicket, updateTickets } from "@/lib/tickets/update";
+import { updateTicketResult, updateTicketsResult, type UpdateResult } from "@/lib/tickets/update";
 import type { Ticket, TicketStatus } from "@/types";
 
 const VIEW_STORAGE_KEY = "wacrm:tickets:view";
 const SLA_COLUMN_STORAGE_KEY = "wacrm:tickets:sla-column";
+const RESOLUTION_COLUMN_STORAGE_KEY = "wacrm:tickets:resolution-column";
 
 // `useSearchParams` opts the page out of static prerendering unless it
 // sits under a Suspense boundary — same reason Settings/Reports do this.
@@ -72,6 +81,7 @@ function TicketsPageInner() {
   const t = useTranslations("Tickets.list");
   const tView = useTranslations("Tickets.view");
   const tBulk = useTranslations("Tickets.bulk");
+  const tResolution = useTranslations("Tickets.resolution");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -81,6 +91,21 @@ function TicketsPageInner() {
   const { labels: knownLabels, reload: reloadLabels } = useTicketLabels();
   const canWork = useCapability("tickets.work");
   const canDelete = useCapability("tickets.delete");
+
+  // Resolutions (migration 096): moving tickets to Resolved or Closed asks how they were
+  // resolved (one dialog, also for a bulk change); cancelling leaves them where they were.
+  const { resolutions, byId: resolutionsById } = useTicketResolutions();
+  const { ask: askResolution, dialog: resolutionDialog } = useResolutionPrompt();
+  const resolutionName = useCallback((id: string) => resolutionsById.get(id)?.name ?? null, [resolutionsById]);
+  /** The message for a failed write: the resolution reasons are spelled out, anything else is `fallback`. */
+  const failureText = (result: UpdateResult, fallback: string) =>
+    result.ok
+      ? fallback
+      : result.code === "resolution_required"
+        ? tResolution("required")
+        : result.code === "resolution_invalid"
+          ? tResolution("invalid")
+          : fallback;
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -123,6 +148,26 @@ function TicketsPageInner() {
       // storage blocked: the column stays on
     }
   }, []);
+  // The Resolution column of the list is optional, off by default, remembered per browser.
+  const [showResolution, setShowResolution] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem(RESOLUTION_COLUMN_STORAGE_KEY) === "on") setShowResolution(true);
+    } catch {
+      // storage blocked: the column stays off
+    }
+  }, []);
+  const toggleResolutionColumn = () => {
+    setShowResolution((prev) => {
+      try {
+        localStorage.setItem(RESOLUTION_COLUMN_STORAGE_KEY, prev ? "off" : "on");
+      } catch {
+        // storage blocked: the choice just is not remembered
+      }
+      return !prev;
+    });
+  };
   const toggleSlaColumn = () => {
     setShowSla((prev) => {
       try {
@@ -225,12 +270,23 @@ function TicketsPageInner() {
   // ---- Edits -----------------------------------------------------------------
   /** One ticket, optimistic: an inline edit in the list. */
   const handlePatch = async (id: string, patch: Partial<Ticket>) => {
-    const full = buildTicketPatch(patch);
+    let next = patch;
+    const row = store.rows.find((r) => r.id === id);
+    if (row && patch.status && needsResolutionPrompt(row.status, patch.status, row.resolution_id)) {
+      const answer = await askResolution({
+        status: patch.status,
+        count: 1,
+        initial: { resolutionId: row.resolution_id ?? null, note: row.resolution_note ?? null },
+      });
+      if (answer.kind === "cancel") return; // nothing was changed: the row keeps its status
+      next = withResolution(patch, answer.kind === "chosen" ? answer.choice : null);
+    }
+    const full = buildTicketPatch(next);
     const undo = store.applyPatch([id], full);
-    const written = await updateTicket(id, full);
-    if (!written) {
+    const result = await updateTicketResult(id, full);
+    if (!result.ok) {
       undo();
-      toast.error(t("updateFailed"));
+      toast.error(failureText(result, t("updateFailed")));
     } else if (patch.labels) {
       void reloadLabels();
     }
@@ -242,45 +298,77 @@ function TicketsPageInner() {
     const row = store.rows.find((r) => r.id === move.id);
     if (!row) return;
     const rankOf = (id: string) => move.rebalance?.find((r) => r.id === id)?.rank;
-    const patch: Partial<Ticket> = buildTicketPatch({
-      ...(move.status !== row.status ? { status: move.status } : {}),
-      board_rank: rankOf(move.id) ?? move.rank,
-    });
+    // Dropped into Resolved or Closed: ask first. Nothing has been applied yet, so cancelling
+    // leaves the card exactly where it was (the board snaps it back).
+    let choice: ResolutionChoice | null = null;
+    if (move.status !== row.status && needsResolutionPrompt(row.status, move.status, row.resolution_id)) {
+      const answer = await askResolution({
+        status: move.status,
+        count: 1,
+        initial: { resolutionId: row.resolution_id ?? null, note: row.resolution_note ?? null },
+      });
+      if (answer.kind === "cancel") return;
+      if (answer.kind === "chosen") choice = answer.choice;
+    }
+    const patch: Partial<Ticket> = buildTicketPatch(
+      withResolution(
+        {
+          ...(move.status !== row.status ? { status: move.status } : {}),
+          board_rank: rankOf(move.id) ?? move.rank,
+        },
+        choice,
+      ),
+    );
     const undos = [store.applyPatch([move.id], patch)];
-    const writes = [updateTicket(move.id, patch)];
+    const writes = [updateTicketResult(move.id, patch)];
     for (const other of move.rebalance ?? []) {
       if (other.id === move.id) continue;
       undos.push(store.applyPatch([other.id], { board_rank: other.rank }));
-      writes.push(updateTicket(other.id, { board_rank: other.rank }));
+      writes.push(updateTicketResult(other.id, { board_rank: other.rank }));
     }
     const results = await Promise.all(writes);
-    if (results.some((r) => r === null)) {
+    const failed = results.find((r) => !r.ok);
+    if (failed) {
       for (const undo of undos) undo();
-      toast.error(t("moveFailed"));
+      toast.error(failureText(failed, t("moveFailed")));
     }
   };
 
-  const handleBulk = async (action: BulkAction) => {
+  const handleBulk = async (requested: BulkAction) => {
+    // Moving to Resolved or Closed: one dialog for every selected ticket that needs it.
+    let action = requested;
+    if (requested.kind === "status" && anyNeedsResolutionPrompt(selectedRows, requested.status)) {
+      const answer = await askResolution({
+        status: requested.status,
+        count: Math.max(1, selectedRows.filter((r) => r.status !== requested.status).length),
+      });
+      if (answer.kind === "cancel") return;
+      if (answer.kind === "chosen") action = { ...requested, resolution: answer.choice };
+    }
     const plan = buildBulkUpdates(action, selectedRows);
     if (plan.changed === 0) {
       toast.info(tBulk("nothingToChange"));
       return;
     }
     setBulkBusy(true);
+    const failures: UpdateResult[] = [];
     // One update per field (labels: per distinct result), each for all its ids.
     const outcomes = await Promise.all(
       plan.updates.map(async (u) => {
         const undo = store.applyPatch(u.ids, u.patch);
-        const written = await updateTickets(u.ids, u.patch);
-        if (!written) undo();
-        return written ? u.ids.length : 0;
+        const result = await updateTicketsResult(u.ids, u.patch);
+        if (!result.ok) {
+          undo();
+          failures.push(result);
+        }
+        return result.ok ? u.ids.length : 0;
       }),
     );
     setBulkBusy(false);
     const done = outcomes.reduce((n, c) => n + c, 0);
     if (done === plan.changed) toast.success(tBulk("done", { count: done }));
     else if (done > 0) toast.warning(tBulk("partial", { done, total: plan.changed }));
-    else toast.error(tBulk("failed"));
+    else toast.error(failures.length > 0 ? failureText(failures[0], tBulk("failed")) : tBulk("failed"));
     if (action.kind === "label") void reloadLabels();
   };
 
@@ -345,6 +433,21 @@ function TicketsPageInner() {
             </button>
           ) : null}
           {mode === "list" ? (
+            <button
+              type="button"
+              aria-pressed={showResolution}
+              onClick={toggleResolutionColumn}
+              className={cn(
+                "inline-flex h-8 items-center rounded-md border px-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                showResolution
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {tView("resolutionColumn")}
+            </button>
+          ) : null}
+          {mode === "list" ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
                 {tView("groupBy", { by: tView(`group.${group}`) })}
@@ -375,6 +478,7 @@ function TicketsPageInner() {
           teams={teams}
           knownLabels={knownLabels.map((k) => k.label)}
           mentionedCount={myMentions.count}
+          resolutions={resolutions}
         />
       </div>
 
@@ -442,6 +546,8 @@ function TicketsPageInner() {
             jiraChips={jiraChips}
             waiting={waiting}
             showSla={showSla}
+            showResolution={showResolution}
+            resolutionName={resolutionName}
           />
         )}
       </div>
@@ -461,6 +567,8 @@ function TicketsPageInner() {
           onJiraDone={() => void store.reload()}
         />
       ) : null}
+
+      {resolutionDialog}
 
       <CreateTicketDialog
         open={createOpen}

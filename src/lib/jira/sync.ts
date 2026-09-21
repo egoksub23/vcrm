@@ -38,6 +38,7 @@ import {
   transitionFields,
   wantedJiraTarget,
 } from "./settings";
+import { mapJiraResolution } from "./resolution";
 import type { CommentMapRow, JiraStore, TicketRow } from "./store";
 import {
   ISSUE_FIELDS,
@@ -294,7 +295,18 @@ export async function applyIssueToLink(
   });
 
   if (decision.apply) {
-    const changed = await store.applyTicketStatus(ticket.id, decision.apply, issue.key);
+    // A ticket Jira finishes needs a resolution (migration 096): the Jira one when it matches an
+    // entry of the catalogue by name, else the database uses "Resolved in Jira". A failed lookup
+    // must never hold the status back.
+    let resolutionId: string | null = null;
+    if (decision.apply === "resolved" || decision.apply === "closed") {
+      try {
+        resolutionId = mapJiraResolution(f.resolution?.name, await store.listResolutions(link.account_id));
+      } catch {
+        resolutionId = null;
+      }
+    }
+    const changed = await store.applyTicketStatus(ticket.id, decision.apply, issue.key, resolutionId);
     if (changed) {
       result.statusApplied = { ticketId: ticket.id, status: decision.apply };
       await store.logEvent({

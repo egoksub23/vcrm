@@ -8,6 +8,7 @@ import {
   CalendarOff,
   KeyRound,
   Link2,
+  ListChecks,
   Mail,
   MessageSquare,
   PlugZap,
@@ -129,6 +130,8 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   business_hours: CalendarClock,
   business_hours_holiday: CalendarOff,
   sla_policy: ScrollText,
+  ticket_resolution: ListChecks,
+  ticket_settings: ListChecks,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

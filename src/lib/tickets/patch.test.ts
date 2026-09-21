@@ -48,6 +48,7 @@ describe('buildBulkUpdates', () => {
       assigned_agent_id: string | null
       assigned_team_id: string | null
       labels: string[]
+      resolution_id: string | null
     }> = {},
   ) => ({
     id,
@@ -56,7 +57,40 @@ describe('buildBulkUpdates', () => {
     assigned_agent_id: null,
     assigned_team_id: null,
     labels: [] as string[],
+    resolution_id: null as string | null,
     ...over,
+  })
+
+  it('a status move to Resolved carries the chosen resolution and its note to every row', () => {
+    const plan = buildBulkUpdates(
+      { kind: 'status', status: 'resolved', resolution: { resolutionId: 'r1', note: '  Sorted  ' } },
+      [row('1'), row('2', { status: 'pending' })],
+      now,
+    )
+    expect(plan.updates).toEqual([
+      { ids: ['1', '2'], patch: { status: 'resolved', resolved_at: STAMP, resolution_id: 'r1', resolution_note: 'Sorted' } },
+    ])
+    expect(plan.changed).toBe(2)
+  })
+  it('Resolved -> Closed keeps the resolution a ticket already has; the others get the chosen one', () => {
+    const plan = buildBulkUpdates(
+      { kind: 'status', status: 'closed', resolution: { resolutionId: 'r9', note: null } },
+      [row('1', { status: 'resolved', resolution_id: 'r1' }), row('2', { status: 'resolved' }), row('3')],
+      now,
+    )
+    expect(plan.updates).toEqual([
+      { ids: ['2', '3'], patch: { status: 'closed', closed_at: STAMP, resolution_id: 'r9', resolution_note: null } },
+      { ids: ['1'], patch: { status: 'closed', closed_at: STAMP } },
+    ])
+    expect(plan.changed).toBe(3)
+  })
+  it('a resolution is never sent for a move to an active status', () => {
+    const plan = buildBulkUpdates(
+      { kind: 'status', status: 'open', resolution: { resolutionId: 'r1', note: null } },
+      [row('1', { status: 'resolved', resolution_id: 'r1' })],
+      now,
+    )
+    expect(plan.updates).toEqual([{ ids: ['1'], patch: { status: 'open', resolved_at: null, closed_at: null } }])
   })
 
   it('one update per field, skipping rows that already have the value', () => {

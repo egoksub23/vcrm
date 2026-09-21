@@ -8,6 +8,9 @@ import { matchesSlaChip } from '@/lib/sla/display'
 /** The "Unassigned" entry in the assignee filter. */
 export const UNASSIGNED = '__unassigned__'
 
+/** The "No resolution" entry in the resolution filter. */
+export const NO_RESOLUTION = '__none__'
+
 /** `sla_at_risk` / `sla_breached` (migration 086) read the ticket's SLA columns;
  *  `mentioned` (migration 095) keeps the tickets where someone asked the signed-in
  *  person for a response and it is still open (`FilterContext.mentionedTicketIds`). */
@@ -28,14 +31,17 @@ export interface TicketFilters {
   teams: string[]
   /** List view only; the board always shows every column. */
   statuses: TicketStatus[]
+  /** Resolution ids (migration 096), or NO_RESOLUTION. Any of them matches; a ticket that is
+   *  not Resolved or Closed has no resolution to show, so it matches only NO_RESOLUTION. */
+  resolutions: string[]
 }
 
 export function emptyFilters(): TicketFilters {
-  return { q: '', quick: [], assignees: [], types: [], priorities: [], labels: [], teams: [], statuses: [] }
+  return { q: '', quick: [], assignees: [], types: [], priorities: [], labels: [], teams: [], statuses: [], resolutions: [] }
 }
 
 /** The URL parameters that carry filters (everything else in the query is left alone). */
-export const FILTER_PARAMS = ['q', 'quick', 'assignee', 'type', 'priority', 'label', 'team', 'status'] as const
+export const FILTER_PARAMS = ['q', 'quick', 'assignee', 'type', 'priority', 'label', 'team', 'status', 'resolution'] as const
 
 export function hasActiveFilters(f: TicketFilters, includeStatuses = true): boolean {
   return (
@@ -46,6 +52,7 @@ export function hasActiveFilters(f: TicketFilters, includeStatuses = true): bool
     f.priorities.length > 0 ||
     f.labels.length > 0 ||
     f.teams.length > 0 ||
+    f.resolutions.length > 0 ||
     (includeStatuses && f.statuses.length > 0)
   )
 }
@@ -60,6 +67,7 @@ export function countActiveFilters(f: TicketFilters, includeStatuses = true): nu
     (f.priorities.length ? 1 : 0) +
     (f.labels.length ? 1 : 0) +
     (f.teams.length ? 1 : 0) +
+    (f.resolutions.length ? 1 : 0) +
     (includeStatuses && f.statuses.length ? 1 : 0)
   )
 }
@@ -85,6 +93,7 @@ export function parseFilters(params: { get(name: string): string | null }): Tick
     labels: [...new Set(list(params.get('label')).map(normalizeLabel).filter(Boolean))],
     teams: list(params.get('team')),
     statuses: only(params.get('status'), TICKET_STATUSES),
+    resolutions: list(params.get('resolution')).slice(0, 50),
   }
 }
 
@@ -103,6 +112,7 @@ export function serializeFilters(f: TicketFilters, base?: URLSearchParams): URLS
   set('label', f.labels)
   set('team', f.teams)
   set('status', f.statuses)
+  set('resolution', f.resolutions)
   return out
 }
 
@@ -150,6 +160,7 @@ type FilterRow = Pick<
   | 'assigned_agent_id'
   | 'assigned_team_id'
   | 'labels'
+  | 'resolution_id'
   | 'due_date'
   | 'updated_at'
   | 'sla_first_response_state'
@@ -189,6 +200,11 @@ export function ticketMatchesFilters(
   if (f.labels.length && !(t.labels ?? []).some((l) => f.labels.includes(l))) return false
   if (f.teams.length && !(t.assigned_team_id && f.teams.includes(t.assigned_team_id))) return false
   if (includeStatuses && f.statuses.length && !f.statuses.includes(t.status)) return false
+  if (f.resolutions.length) {
+    // Only a ticket that is Resolved or Closed shows a resolution (a re-opened one keeps its old one, hidden).
+    const shown = isDoneStatus(t.status) ? (t.resolution_id ?? NO_RESOLUTION) : NO_RESOLUTION
+    if (!f.resolutions.includes(shown)) return false
+  }
   return true
 }
 

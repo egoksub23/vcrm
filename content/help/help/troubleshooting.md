@@ -120,6 +120,12 @@ See [Inbox overview](/help/inbox/inbox-overview).
 
 **Fix:** Ask your admin about the role. Or fill in the marked fields. See [Create a ticket](/help/tickets/create-a-ticket).
 
+### A ticket will not move to Resolved or Closed
+
+**Why:** Your workspace needs a resolution when a ticket is resolved or closed. You cancelled the "How was this resolved?" window, or the message says "A resolution is needed to resolve or close a ticket". The window also cannot be confirmed when the list of resolutions is empty.
+
+**Fix:** Move the ticket again and choose a **Resolution**. If the list is empty, ask your admin to add resolutions in **Settings**, **Ticket form**. See [Work a ticket](/help/tickets/work-a-ticket).
+
 ### A ticket has no SLA badge
 
 **Why:** No SLA rule matches this ticket. That is normal.

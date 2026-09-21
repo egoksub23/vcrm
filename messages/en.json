@@ -4650,6 +4650,36 @@
           "done": "{count, plural, one {SLA applied to # ticket} other {SLA applied to # tickets}}"
         }
       }
+    },
+    "ticketResolutions": {
+      "title": "Resolutions",
+      "description": "The choices an agent picks from when resolving or closing a ticket. Rename them, reorder them, add your own, or archive the ones you do not use.",
+      "requireTitle": "Require a resolution",
+      "requireHint": "When on, an agent must choose a resolution to move a ticket to Resolved or Closed. Automatic changes (Jira, automations) are never blocked: they use “Resolved in Jira” or “Closed automatically”.",
+      "requireSaved": "Saved",
+      "requireSaveFailed": "Could not save this setting",
+      "addResolution": "Add resolution",
+      "adminOnly": "Only admins can change the resolutions.",
+      "loading": "Loading resolutions…",
+      "empty": "No resolutions yet.",
+      "systemChip": "Used automatically",
+      "systemHint": "The system uses this one on its own. You can rename or move it, but not archive it.",
+      "archivedHeading": "Archived",
+      "archivedHint": "Archived resolutions are not offered any more; tickets that already have one keep it.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "edit": "Rename",
+      "archive": "Archive",
+      "restore": "Restore",
+      "addTitle": "Add a resolution",
+      "editTitle": "Rename the resolution",
+      "dialogDesc": "A short name an agent recognises, for example “Fixed” or “Duplicate”.",
+      "nameLabel": "Name",
+      "namePlaceholder": "For example: Workaround given",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveFailed": "Could not save the resolution",
+      "duplicate": "There is already a resolution called “{name}”."
     }
   },
   "SignupPage": {
@@ -4945,7 +4975,8 @@
         "priority": "Priority",
         "sla": "SLA"
       },
-      "slaColumn": "SLA column"
+      "slaColumn": "SLA column",
+      "resolutionColumn": "Resolution column"
     },
     "board": {
       "dropHere": "Drop tickets here",
@@ -4982,7 +5013,9 @@
       "team": "Team",
       "status": "Status",
       "noLabels": "No labels in use yet",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "resolution": "Resolution",
+      "noResolution": "No resolution"
     },
     "saved": {
       "title": "Saved filters",
@@ -5120,7 +5153,8 @@
         "priority": "Priority",
         "assignee": "Assignee",
         "updated": "Updated",
-        "sla": "SLA"
+        "sla": "SLA",
+        "resolution": "Resolution"
       },
       "status": {
         "open": "Open",
@@ -5339,7 +5373,12 @@
         "mentionClosedWithTicket": "closed {count, plural, =1 {1 response request} other {# response requests}} along with the ticket",
         "mentionCommentDeleted": "cancelled {count, plural, =1 {1 response request} other {# response requests}} by deleting the comment",
         "mentionCancelled": "cancelled the request for {name}'s response",
-        "waitingOn": "Waiting on {names}"
+        "waitingOn": "Waiting on {names}",
+        "resolvedAs": "resolved this ticket as {resolution}",
+        "resolvedAsSystem": "This ticket was resolved as {resolution}",
+        "resolutionSet": "set the resolution to {to}",
+        "resolutionChanged": "changed the resolution from {from} to {to}",
+        "resolutionNoteChanged": "updated the resolution note"
       },
       "status": {
         "open": "Open",
@@ -5402,6 +5441,32 @@
         "respondedAt": "Answered {when}",
         "hours": "Business hours: {name} ({zone})"
       }
+    },
+    "resolution": {
+      "title": "How {count, plural, one {was this ticket} other {were these # tickets}} resolved?",
+      "description": "Choose a resolution before {count, plural, one {the ticket moves} other {the tickets move}} to {status}.",
+      "editTitle": "Change the resolution",
+      "editDescription": "The change is recorded in the ticket history.",
+      "resolutionLabel": "Resolution",
+      "placeholder": "Choose a resolution",
+      "noteLabel": "Note (optional)",
+      "notePlaceholder": "Anything the next person should know",
+      "noteCount": "{count} / {max}",
+      "confirm": "Move to {status}",
+      "save": "Save",
+      "cancel": "Cancel",
+      "empty": "No resolutions are available. Ask an admin to add one in Settings, Ticket form.",
+      "problem": {
+        "choose": "Choose a resolution to continue.",
+        "unavailable": "That resolution is no longer available. Choose another one.",
+        "noteTooLong": "The note is too long."
+      },
+      "required": "A resolution is needed to resolve or close a ticket. Choose one and try again.",
+      "invalid": "That resolution is no longer available. Choose another one and try again.",
+      "detailLabel": "Resolution",
+      "none": "No resolution recorded",
+      "change": "Change resolution",
+      "noteHeading": "Resolution note"
     }
   },
   "Reports": {
@@ -5556,7 +5621,13 @@
           "first_response": "First response",
           "resolution": "Resolution"
         }
-      }
+      },
+      "byResolution": "Resolved by resolution",
+      "byResolutionHint": "Tickets resolved or closed in the date range, by how they were resolved.",
+      "colResolution": "Resolution",
+      "colShare": "Share",
+      "noResolution": "No resolution recorded",
+      "unknownResolution": "Removed resolution"
     }
   },
   "Interactive": {
@@ -6209,7 +6280,7 @@
       },
       "tickets_configure_form": {
         "label": "Edit the ticket form",
-        "description": "Change the custom fields on the ticket form."
+        "description": "Change the custom fields on the ticket form, the ticket key prefix and the resolution choices."
       },
       "tags_manage": {
         "label": "Manage tags and labels",
@@ -6511,7 +6582,9 @@
       "ticket_jira_link": "Jira link",
       "business_hours": "Business hours",
       "business_hours_holiday": "Holiday",
-      "sla_policy": "SLA policy"
+      "sla_policy": "SLA policy",
+      "ticket_resolution": "Ticket resolution",
+      "ticket_settings": "Ticket settings"
     },
     "roleNames": {
       "owner": "Owner",
@@ -6604,7 +6677,8 @@
       "schedule_id": "hours",
       "pause_while_pending": "pause while pending",
       "at_risk_percent": "at-risk percentage",
-      "conditions": "conditions"
+      "conditions": "conditions",
+      "require_ticket_resolution": "resolution required"
     },
     "activity": {
       "button": "Activity",

@@ -261,6 +261,14 @@ export function TicketActivitySection({
         return tAct("jiraStatusSynced", { from: status(a.from_value), to: status(a.to_value), key: a.detail ?? "" });
       case "jira_status_pushed":
         return tAct("jiraStatusPushed", { key: a.detail ?? "", status: a.to_value ?? "—" });
+      case "resolved_as":
+        return a.actor_id
+          ? tAct("resolvedAs", { resolution: a.to_value ?? "—" })
+          : tAct("resolvedAsSystem", { resolution: a.to_value ?? "—" });
+      case "resolution_changed":
+        if (!a.from_value) return tAct("resolutionSet", { to: a.to_value ?? "—" });
+        if (a.from_value === a.to_value) return tAct("resolutionNoteChanged");
+        return tAct("resolutionChanged", { from: a.from_value, to: a.to_value ?? "—" });
       case "mention_requested":
         return a.to_value
           ? tAct("mentionRequested", { name: nameOf(a.to_value) })
@@ -570,6 +578,11 @@ export function TicketActivitySection({
                 <span className="ml-2" title={format(new Date(item.event.created_at), "PPpp")}>
                   {relative(item.event.created_at)}
                 </span>
+                {(item.event.event_type === "resolved_as" || item.event.event_type === "resolution_changed") && item.event.detail ? (
+                  <p className="mt-0.5 break-words whitespace-pre-wrap italic" data-testid="resolution-note">
+                    {item.event.detail}
+                  </p>
+                ) : null}
               </div>
             </li>
           ),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Ticket } from '@/types'
 import {
+  NO_RESOLUTION,
   UNASSIGNED,
   applyFilters,
   countActiveFilters,
@@ -25,6 +26,7 @@ describe('parseFilters / serializeFilters', () => {
       labels: ['vip', 'two words'],
       teams: ['t1'],
       statuses: ['open', 'in_progress'] as const,
+      resolutions: ['r1', NO_RESOLUTION],
     }
     const url = serializeFilters({ ...f, quick: [...f.quick], types: [...f.types], priorities: [...f.priorities], statuses: [...f.statuses] })
     const back = parseFilters(url)
@@ -56,8 +58,9 @@ describe('parseFilters / serializeFilters', () => {
 
 describe('saved filter JSON', () => {
   it('stores and restores the same filters', () => {
-    const f = { ...emptyFilters(), q: 'x', quick: ['today' as const], teams: ['t9'] }
+    const f = { ...emptyFilters(), q: 'x', quick: ['today' as const], teams: ['t9'], resolutions: ['r1', NO_RESOLUTION] }
     expect(filtersFromJson(filtersToJson(f))).toEqual(f)
+    expect(filtersToJson(f).resolution).toBe('r1,__none__')
   })
   it('ignores junk', () => {
     expect(filtersFromJson(null)).toEqual(emptyFilters())
@@ -75,6 +78,11 @@ describe('hasActiveFilters / countActiveFilters', () => {
     expect(hasActiveFilters(f, true)).toBe(true)
     expect(hasActiveFilters(f, false)).toBe(false)
     expect(countActiveFilters(f, false)).toBe(0)
+  })
+  it('counts the resolution filter once and it applies on the board too', () => {
+    const f = { ...emptyFilters(), resolutions: ['r1', 'r2'] }
+    expect(hasActiveFilters(f, false)).toBe(true)
+    expect(countActiveFilters(f, false)).toBe(1)
   })
   it('counts each dropdown once and each chip', () => {
     expect(
@@ -136,6 +144,24 @@ describe('applyFilters', () => {
     expect(nums({ labels: ['vip', 'x'] })).toEqual([1])
     expect(nums({ teams: ['sales'] })).toEqual([3])
     expect(nums({ statuses: ['resolved'] })).toEqual([4])
+  })
+  it('resolution filter: by resolution, and "No resolution" also covers tickets that are not done', () => {
+    const withRes = [
+      t({ ticket_number: 1, status: 'resolved', resolution_id: 'r1' }),
+      t({ ticket_number: 2, status: 'closed', resolution_id: 'r2' }),
+      t({ ticket_number: 3, status: 'closed', resolution_id: null }),
+      t({ ticket_number: 4, status: 'open', resolution_id: 'r1' }), // re-opened: the old resolution is kept but not shown
+    ]
+    const pick = (resolutions: string[]) =>
+      applyFilters(withRes, { ...emptyFilters(), resolutions }, ctx).map((r) => r.ticket_number)
+    expect(pick(['r1'])).toEqual([1])
+    expect(pick(['r1', 'r2'])).toEqual([1, 2])
+    expect(pick([NO_RESOLUTION])).toEqual([3, 4])
+    expect(pick([])).toEqual([1, 2, 3, 4])
+  })
+  it('the resolution filter also applies on the board', () => {
+    const f = { ...emptyFilters(), resolutions: ['r1'] }
+    expect(applyFilters([t({ status: 'resolved', resolution_id: 'r1' }), t({ status: 'resolved', resolution_id: 'r2' })], f, ctx, false)).toHaveLength(1)
   })
   it('the board ignores the status filter', () => {
     const f = { ...emptyFilters(), statuses: ['resolved' as const] }

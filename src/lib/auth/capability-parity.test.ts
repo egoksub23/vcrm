@@ -374,6 +374,17 @@ export const PHASE5_ROWS: readonly Row[] = [
 // ------------------------------------------------------------
 // 4. Legacy `useCan` actions (src/lib/auth/roles.ts predicates).
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// 3b. Migration 096 (ticket resolutions). No route was added: the catalogue and
+//     the "require a resolution" switch are written from Settings straight to
+//     the tables, under RLS, by the same capability that owns the ticket form.
+//     The old floor is what the ticket form's own tables already had (admin).
+// ------------------------------------------------------------
+export const RESOLUTION_ROWS: readonly Row[] = [
+  row("ticket_resolutions", "insert/update", "admin", "tickets.configure-form", "no delete policy: a resolution is archived"),
+  row("accounts", "update (require_ticket_resolution)", "admin", "tickets.configure-form", "the accounts guard owns the column with the ticket key prefix"),
+];
+
 export const LEGACY_ROWS: readonly Row[] = [
   row("useCan", "manage-members", "admin", LEGACY_CAN_ACTIONS["manage-members"]!, "canManageMembers"),
   row("useCan", "edit-settings", "admin", LEGACY_CAN_ACTIONS["edit-settings"]!, "canEditSettings"),
@@ -444,6 +455,7 @@ describe("capability defaults reproduce the pre-079 role floors", () => {
   checkTable("API routes", ROUTE_ROWS);
   checkTable("database tier (RLS on has_capability)", DB_TIER_ROWS);
   checkTable("migration 088 (phase 5) database tier", PHASE5_ROWS);
+  checkTable("migration 096 (ticket resolutions) database tier", RESOLUTION_ROWS);
   checkTable("legacy useCan actions", LEGACY_ROWS);
 
   describe("deliberately tightened routes", () => {
@@ -468,7 +480,7 @@ describe("capability defaults reproduce the pre-079 role floors", () => {
 
 describe("the catalogue and the tables agree", () => {
   const covered = new Set<string>();
-  for (const r of [...ROUTE_ROWS, ...TIGHTENED_ROWS, ...DB_TIER_ROWS, ...PHASE5_ROWS, ...LEGACY_ROWS]) {
+  for (const r of [...ROUTE_ROWS, ...TIGHTENED_ROWS, ...DB_TIER_ROWS, ...PHASE5_ROWS, ...RESOLUTION_ROWS, ...LEGACY_ROWS]) {
     for (const c of capsOf(r)) covered.add(c);
   }
 
@@ -552,6 +564,38 @@ describe("migration 084 database tier", () => {
       expect(match!.capability).toBe(cap);
       expect(match!.floor).toBe(floor);
     }
+  });
+});
+
+describe("migration 096 database tier", () => {
+  const migration = readMigration("096_ticket_resolutions.sql");
+  const code = migration.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+
+  it("writes to the catalogue need tickets.configure-form, through the once-per-statement helper", () => {
+    const policies = [...code.matchAll(/CREATE POLICY (\w+) ON public\.ticket_resolutions\b[\s\S]*?;\n/g)].map((m) => m[0]);
+    expect(policies.map((p) => p.match(/CREATE POLICY (\w+)/)![1]).sort()).toEqual([
+      "ticket_resolutions_insert",
+      "ticket_resolutions_select",
+      "ticket_resolutions_update",
+    ]);
+    for (const p of policies.filter((x) => !x.includes("_select"))) {
+      expect(p).toContain("capability_account_ids('tickets.configure-form')");
+      expect(p.slice(0, 80)).not.toMatch(/\bhas_capability\(/);
+    }
+  });
+
+  it("the accounts guard hands require_ticket_resolution to tickets.configure-form, next to the key prefix", () => {
+    const guard = code.slice(code.indexOf("accounts_capability_guard()"));
+    expect(guard).toMatch(/v_prefix := NEW\.ticket_key_prefix IS DISTINCT FROM OLD\.ticket_key_prefix\s+OR NEW\.require_ticket_resolution IS DISTINCT FROM OLD\.require_ticket_resolution/);
+    expect(guard).toContain("has_capability(OLD.id, 'settings.workspace')");
+    expect(guard).toContain("has_capability(OLD.id, 'tickets.configure-form')");
+    expect(guard).toContain("has_capability(OLD.id, 'tags.manage')");
+  });
+
+  it("uses only known capabilities", () => {
+    const found = [...code.matchAll(/(?:capability_account_ids|has_capability)\((?:[^,()]+,\s*)?'([a-z][a-z0-9.-]*)'\)/g)];
+    expect(found.length).toBeGreaterThan(3);
+    for (const m of found) expect(isCapabilityKey(m[1]), m[1]).toBe(true);
   });
 });
 

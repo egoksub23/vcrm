@@ -183,7 +183,10 @@ export interface JiraStore {
   // tickets and notes
   getTicket(id: string): Promise<TicketRow | null>;
   ticketKey(ticket: Pick<TicketRow, "account_id" | "ticket_number">): Promise<string>;
-  applyTicketStatus(ticketId: string, status: string, issueKey: string): Promise<boolean>;
+  /** `resolutionId`: the catalogue resolution chosen for what Jira reported (migration 096); the database falls back to "Resolved in Jira". */
+  applyTicketStatus(ticketId: string, status: string, issueKey: string, resolutionId?: string | null): Promise<boolean>;
+  /** The account's ticket resolutions (migration 096), archived ones included. */
+  listResolutions(accountId: string): Promise<{ id: string; name: string; is_active: boolean }[]>;
   setTicketAssignee(ticketId: string, userId: string): Promise<void>;
   insertNote(input: { ticketId: string; accountId: string; body: string; jiraAuthor: string; jiraCommentId: string | null }): Promise<string>;
   getNote(id: string): Promise<NoteRow | null>;
@@ -384,14 +387,24 @@ export class SupabaseJiraStore implements JiraStore {
     return `${prefix}-${ticket.ticket_number}`;
   }
 
-  async applyTicketStatus(ticketId: string, status: string, issueKey: string) {
+  async applyTicketStatus(ticketId: string, status: string, issueKey: string, resolutionId?: string | null) {
     const { data, error } = await this.db.rpc("jira_apply_ticket_status", {
       p_ticket_id: ticketId,
       p_status: status,
       p_issue_key: issueKey,
+      p_resolution_id: resolutionId ?? null,
     });
     if (error) fail("applyTicketStatus", error);
     return data === true;
+  }
+
+  async listResolutions(accountId: string) {
+    const { data, error } = await this.db
+      .from("ticket_resolutions")
+      .select("id, name, is_active")
+      .eq("account_id", accountId);
+    if (error) fail("listResolutions", error);
+    return (data ?? []) as { id: string; name: string; is_active: boolean }[];
   }
 
   async setTicketAssignee(ticketId: string, userId: string) {

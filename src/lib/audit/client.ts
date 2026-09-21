@@ -96,6 +96,9 @@ export function entityHref(
     case "business_hours_holiday":
     case "sla_policy":
       return "/settings?tab=sla";
+    case "ticket_resolution":
+    case "ticket_settings":
+      return "/settings?tab=ticket-form";
     case "api_key":
     case "webhook":
       return "/settings?tab=api";
