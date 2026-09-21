@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { useApprovalsCount } from "@/hooks/use-approvals-count";
+import { useMyTicketMentions } from "@/hooks/use-my-ticket-mentions";
+import { TicketsWaitingBadge } from "@/components/tickets/tickets-waiting-badge";
 import { badgeLabel } from "@/lib/approvals/rules";
 import {
   BarChart3,
@@ -174,6 +176,9 @@ export function Sidebar({
   const unreadNotifications = useUnreadNotifications();
   // Proposals waiting for a decision (0 unless the person can review them).
   const { count: pendingApprovals } = useApprovalsCount();
+  // Tickets where someone asked this person for a response and it is still open
+  // (migration 095). Nothing is fetched for a role that cannot open Tickets.
+  const { count: ticketsWaiting } = useMyTicketMentions(!capabilitiesLoading && hasCap("menu.tickets"));
 
   // Only matters at lg+ — mobile always shows the full drawer regardless
   // of `pinned`. Tracked via matchMedia rather than a CSS-only approach
@@ -326,6 +331,11 @@ export function Sidebar({
               const showNotificationBadge =
                 item.href === "/notifications" && unreadNotifications > 0;
 
+              // Same round bubble for the Tickets item: how many tickets wait on
+              // this person's response. Visible on the page too (it clears when
+              // they answer, not when they look).
+              const showTicketsBadge = item.href === "/tickets" && ticketsWaiting > 0;
+
               return (
                 <li key={item.href}>
                   <Link
@@ -371,6 +381,7 @@ export function Sidebar({
                         {unreadNotifications > 9 ? "9+" : unreadNotifications}
                       </span>
                     )}
+                    {showTicketsBadge && <TicketsWaitingBadge count={ticketsWaiting} />}
                   </Link>
                 </li>
               );

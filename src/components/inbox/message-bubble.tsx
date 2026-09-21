@@ -31,6 +31,7 @@ import { EmailHtmlView } from "./email-html-view";
 import { useTranslations } from "next-intl";
 import { useCapability } from "@/hooks/use-auth";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { FailedMessageNotice } from "./failed-message-notice";
 import { parseAiSourcesNote } from "@/lib/inbox/kb-agent";
 
 interface MessageBubbleProps {
@@ -61,6 +62,13 @@ interface MessageBubbleProps {
    *  message in this thread — it defaults expanded; every earlier one
    *  defaults collapsed to a one-line preview (EmailBodyContent). */
   isLatestEmail?: boolean;
+  /** Sends a failed outbound message again. Only passed for a saved
+   *  failed row; a bubble that was never saved has nothing to resend. */
+  onResend?: () => void;
+  /** Removes a failed outbound message from the chat. */
+  onDeleteFailed?: () => void;
+  /** A resend of this message is in flight. */
+  resending?: boolean;
 }
 
 /**
@@ -332,6 +340,9 @@ export function MessageBubble({
   authorLabel,
   senderLabel,
   isLatestEmail = false,
+  onResend,
+  onDeleteFailed,
+  resending = false,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
   // Reuses the same channel labels the thread header's badge already
@@ -344,6 +355,7 @@ export function MessageBubble({
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
   const failure = isAgent ? failureReason(message) : null;
+  const notSent = isAgent && message.status === "failed";
 
   // Internal comments are deliberately NOT a left/right chat bubble —
   // that shape reads as "part of the WhatsApp conversation," which is
@@ -418,7 +430,10 @@ export function MessageBubble({
     const accentColor = isAgent ? "var(--primary)" : "#2f6fed";
     return (
       <div
-        className="w-full overflow-hidden rounded-lg border border-border bg-card"
+        className={cn(
+          "w-full overflow-hidden rounded-lg border bg-card",
+          notSent ? "border-red-500/50" : "border-border",
+        )}
         style={{ borderLeft: `3px solid ${accentColor}` }}
       >
         <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
@@ -448,13 +463,14 @@ export function MessageBubble({
         <div className="px-3 py-2">
           <EmailBodyContent message={message} t={t} isLatestEmail={isLatestEmail} />
         </div>
-        {failure && (
-          <p
-            className="border-t border-border/60 px-3 py-1 text-[10px] leading-tight text-muted-foreground"
-            title={failure}
-          >
-            {t("notDelivered")}: {failure}
-          </p>
+        {notSent && (
+          <FailedMessageNotice
+            message={message}
+            onResend={onResend}
+            onDelete={onDeleteFailed}
+            resending={resending}
+            wide
+          />
         )}
         {reactions && reactions.length > 0 && onToggleReaction && (
           <div className="border-t border-border/60 px-3 py-1.5">
@@ -489,6 +505,7 @@ export function MessageBubble({
           isAgent
             ? "rounded-br-md bg-primary text-primary-foreground"
             : "rounded-bl-md bg-muted text-foreground",
+          notSent && "ring-2 ring-red-500/60",
         )}
       >
         {reply && (
@@ -556,13 +573,13 @@ export function MessageBubble({
           {isAgent && <StatusIcon status={message.status} title={failure} />}
         </div>
       </div>
-      {failure && (
-        <p
-          className="mt-0.5 px-1 text-[10px] leading-tight text-muted-foreground"
-          title={failure}
-        >
-          {t("notDelivered")}: {failure}
-        </p>
+      {notSent && (
+        <FailedMessageNotice
+          message={message}
+          onResend={onResend}
+          onDelete={onDeleteFailed}
+          resending={resending}
+        />
       )}
       {reactions && reactions.length > 0 && onToggleReaction && (
         <MessageReactions

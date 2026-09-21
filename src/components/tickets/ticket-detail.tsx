@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -27,6 +27,9 @@ import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTeams } from "@/hooks/use-teams";
+import { useTeamMemberCounts } from "@/hooks/use-team-member-counts";
+import { useTicketMentions } from "@/hooks/use-ticket-mentions";
+import { mentionActionRequest } from "@/lib/tickets/mention-actions";
 import { useTicketDetail } from "@/hooks/use-ticket-detail";
 import { useTicketJira } from "@/hooks/use-ticket-jira";
 import { errorKeyOf, loose, retrySeconds } from "@/lib/tickets/jira-ui";
@@ -34,11 +37,12 @@ import { useTicketFields } from "@/hooks/use-ticket-fields";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
 import { pastedImages } from "@/lib/media/clipboard-images";
-import type { Ticket, TicketAttachment } from "@/types";
+import type { Ticket, TicketAttachment, TicketMention } from "@/types";
 import { TicketActivitySection } from "./ticket-activity";
 import { TicketAttachmentsSection } from "./ticket-attachments";
 import { CustomFieldsSection } from "./ticket-custom-fields";
 import { TicketDetailsCard } from "./ticket-details-card";
+import { TicketMentionBanner, type MentionRowAction } from "./ticket-mention-banner";
 import { TicketJiraSection } from "./ticket-jira-section";
 import { TicketLinksSection } from "./ticket-links";
 import { TypeIcon } from "./ticket-visuals";
@@ -208,6 +212,16 @@ export function TicketDetail({
   const { labels: knownLabels } = useTicketLabels();
   const { fields: fieldDefs } = useTicketFields(true);
 
+  // @team picker and "needs a response" requests (migration 095).
+  const tMention = useTranslations("Tickets.detail.mention");
+  const teamCounts = useTeamMemberCounts();
+  const teamOptions = useMemo(
+    () => teams.map((tm) => ({ id: tm.id, name: tm.name, memberCount: teamCounts[tm.id] ?? 0 })),
+    [teams, teamCounts],
+  );
+  const mentionRequests = useTicketMentions(ticketId);
+  const { reload: reloadMentions } = mentionRequests;
+
   const detail = useTicketDetail(ticketId, {
     onChanged,
     onDeleted: (id) => {
@@ -251,6 +265,46 @@ export function TicketDetail({
     if (failed) toast.error(loose(tJira)(`errors.${errorKeyOf(failed.code)}`, { seconds: 30 }));
     else toast.success(tJira("attachments.sentToast"));
   };
+  const jumpToComment = (commentId: string) => {
+    const el = document.getElementById(`comment-${commentId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("bg-primary/5");
+    window.setTimeout(() => el.classList.remove("bg-primary/5"), 2500);
+  };
+  const handleMentionAction = async (m: TicketMention, action: MentionRowAction): Promise<boolean> => {
+    const r = await mentionActionRequest(m.ticket_id, m.id, action);
+    if (!r.ok) {
+      toast.error(r.error || tMention("actionFailed"));
+      await reloadMentions();
+      return false;
+    }
+    toast.success(tMention(action === "done" ? "markedDone" : action === "cancel" ? "requestCancelled" : "nudged"));
+    await reloadMentions();
+    return true;
+  };
+
+  // A link from a notification (?c=<comment id>) lands on the comment it is about.
+  const commentCount = detail.comments.length;
+  const jumpedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (detail.loading || commentCount === 0) return;
+    let target: string | null = null;
+    try {
+      target = new URLSearchParams(window.location.search).get("c");
+    } catch {
+      return;
+    }
+    // Once per link: a comment arriving later must not pull the page back.
+    const key = target ? `${ticketId}:${target}` : null;
+    if (!target || jumpedRef.current === key) return;
+    const timer = window.setTimeout(() => {
+      jumpedRef.current = key;
+      jumpToComment(target as string);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [detail.loading, commentCount, ticketId]);
+
   const [contactOpen, setContactOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -357,6 +411,15 @@ export function TicketDetail({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="grid gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-6">
+            <TicketMentionBanner
+              requests={mentionRequests.requests}
+              currentUserId={user?.id ?? null}
+              members={members}
+              teams={teams}
+              canWork={canWork}
+              onAction={handleMentionAction}
+              onJump={jumpToComment}
+            />
             <InlineSummary
               key={`${ticket.id}:${ticket.subject}`}
               value={ticket.subject}
@@ -413,6 +476,8 @@ export function TicketDetail({
               onAddComment={detail.addComment}
               onEditComment={detail.editComment}
               onDeleteComment={detail.deleteComment}
+              teamOptions={teamOptions}
+              openRequests={mentionRequests.requests}
               canShareToJira={canShareJira}
               jiraSharedNoteIds={jira.sharedNoteIds}
               onShareToJira={shareNoteToJira}

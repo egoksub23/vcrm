@@ -37,6 +37,12 @@ function fakeDb(tables: Record<string, unknown[]>): SupabaseClient {
         eq: () => builder,
         gte: () => builder,
         lt: () => builder,
+        // `.neq(column, value)` really filters: the message queries use it to
+        // leave out messages that failed to send.
+        neq: (column: string, value: unknown) => {
+          rows = rows.filter((r) => (r as Record<string, unknown>)[column] !== value)
+          return builder
+        },
         // Only `.not(column, 'is', null)` is used by the real queries,
         // so that's the only shape this fake implements.
         not: (column: string) => {

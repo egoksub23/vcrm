@@ -247,6 +247,32 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
     if (!known) setTotals((prev) => ({ ...prev, [row.status]: prev[row.status] + 1 }));
   }, []);
 
+  /**
+   * Make sure these tickets are among the rows (the "Mentioned me" filter must
+   * show every ticket waiting on the person, not only the ones a page happened
+   * to load). One query for the ones that are missing.
+   */
+  const ensureLoaded = useCallback(async (ids: string[]) => {
+    const have = new Set(rowsRef.current.map((r) => r.id));
+    const missing = ids.filter((id) => !have.has(id)).slice(0, 200);
+    if (missing.length === 0) return;
+    const { data, error: err } = await createClient().from("tickets").select(SELECT).in("id", missing);
+    if (err) {
+      console.error("[useTicketStore] ensureLoaded failed:", err);
+      return;
+    }
+    const known = new Set(rowsRef.current.map((r) => r.id));
+    const incoming = ((data ?? []) as unknown as RawTicket[]).map(normalize).filter((r) => !known.has(r.id));
+    if (incoming.length === 0) return;
+    rowsRef.current = mergeById(rowsRef.current, incoming);
+    setRows((prev) => mergeById(prev, incoming));
+    setTotals((prev) => {
+      const next = { ...prev };
+      for (const r of incoming) next[r.status] += 1;
+      return next;
+    });
+  }, []);
+
   /** Re-read one ticket (after its comment count changed, or right after it was created). */
   const refreshOne = useCallback(
     async (id: string) => {
@@ -336,5 +362,6 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
     removeRows,
     upsertRow,
     refreshOne,
+    ensureLoaded,
   };
 }

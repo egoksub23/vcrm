@@ -306,8 +306,12 @@ function InboxPageInner() {
         // Internal comments are deliberately excluded: the sidebar
         // preview and unread badge are customer-facing context ("what
         // did they last say, is there something new to read"), and a
-        // teammate's internal comment isn't that.
-        if (!newMsg.is_internal) {
+        // teammate's internal comment isn't that. So is an outbound
+        // message that failed to send: it never reached the customer, so it
+        // must not become the "last message" or bump the unread badge.
+        const isFailedOutbound =
+          newMsg.status === "failed" && newMsg.sender_type !== "customer";
+        if (!newMsg.is_internal && !isFailedOutbound) {
           if (knownConvIdsRef.current.has(newMsg.conversation_id)) {
             setConversations((prev) =>
               prev.map((c) =>
@@ -340,6 +344,15 @@ function InboxPageInner() {
         setMessages((prev) =>
           prev.map((m) => (m.id === newMsg.id ? { ...m, ...newMsg } : m))
         );
+      }
+
+      if (event.eventType === "DELETE") {
+        // A failed message removed by a resend (or cleared from the Pending
+        // Delete panel). Realtime only sends the primary key here.
+        const removedId = event.old?.id;
+        if (removedId) {
+          setMessages((prev) => prev.filter((m) => m.id !== removedId));
+        }
       }
     },
     [activeConversation, hydrateConversation]

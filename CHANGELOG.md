@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.51.0] — 2026-09-21 — **migrations required: 093, 094 and 095** (apply in that order)
+
+- **Ticket @mentions of teams, and “needs your response”.** In ticket comments the @ list now shows People and Teams. Mentioning a team includes all its members (fixed at the moment you post) and adds them as watchers; members without ticket access are skipped and you are told how many. A comment can be **Needs a response** (the default when it names someone) or **FYI only**. Anyone with an open request sees a round **bubble on the Tickets menu** with the number of tickets waiting on them, a **Mentioned me** quick filter, a **Waiting on you** chip on cards and rows, and a banner inside the ticket with **Mark as done** and a link to the comment. A request closes when they reply on the ticket, click Mark as done, the requester deletes the comment or cancels, or the ticket is resolved or closed. Requesters see who is still pending and can nudge (once an hour) or cancel. The notification bell links to the comment. (Migration 095.)
+- **Failed sends stay in the chat, with the reason and a Resend button.** If a message cannot be sent (for example WhatsApp #131030, a number that is not on your test number's allowed list, or a closed 24-hour window) it now stays in the conversation as a red **Not sent** message with a plain-English reason, the raw provider code in a popover, and **Resend** and **Delete**. Resend checks the 24-hour rule first and opens Templates when needed, and a double click sends once. Failed messages no longer count in reports or in the AI's view of the chat. (Migration 094.)
+- **Fixed: the web widget could not read its own chat.** Live replies never arrived and history was empty after a reload. (Migration 093.)
+- **Contacts: Export.** A new **Export** button next to Import downloads a CSV (phone, name, email, company, tags, created) that Import can read back, honouring the search and tag filter, with protection against spreadsheet formulas.
+- **Contacts: duplicate phone numbers.** Saving a phone that another contact already has now names that contact and, for people who can merge, offers **Merge these contacts**. The Add Contact text now says only the phone number is required.
+- **Fixed:** the top bar said “Dashboard” on Tickets, Knowledge, AI Agents, Flows and Reports; and the bulk **Apply label** listed contact tags as well as conversation labels (the server now refuses a contact-only tag as a label).
+
 ## [0.50.2] — 2026-09-21 — **migration required: 093**
 
 - **Fixed: the web widget could not read its own chat.** Live replies never arrived, and after a reload the history came back empty (the widget looked like a new session). Cause: the database rule that lets a visitor read their own messages looked the visitor up in a table that no visitor could read. Migration 093 lets a visitor read only their own row. Apply it, then reload the widget.

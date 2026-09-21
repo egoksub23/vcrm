@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { format, formatDistanceToNow } from "date-fns";
-import { ArrowDownUp, Loader2 } from "lucide-react";
+import { ArrowDownUp, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { endOfDueDay } from "@/lib/tickets/due";
+import { defaultsToResponse, mentionTokensFor, segmentBody, type MentionKind } from "@/lib/tickets/mentions";
 import type { LinkedTicket } from "@/hooks/use-ticket-detail";
 import type {
   Profile,
@@ -16,8 +17,9 @@ import type {
   TicketActivity,
   TicketComment,
   TicketFieldDefinition,
+  TicketMention,
 } from "@/types";
-import { MentionTextarea } from "./ticket-mention-textarea";
+import { MentionTextarea, type MentionTeam } from "./ticket-mention-textarea";
 import { PersonAvatar } from "./ticket-visuals";
 
 type Tab = "all" | "comments" | "history";
@@ -29,6 +31,54 @@ type Item =
 const splitLabels = (v: string | null | undefined) => (v ? v.split(",").filter(Boolean) : []);
 
 const NO_NOTES: ReadonlySet<string> = new Set();
+const NO_REQUESTS: TicketMention[] = [];
+const NO_TEAMS: MentionTeam[] = [];
+
+/** What onAddComment is told besides the text and the people. */
+export interface CommentOptions {
+  teams: string[];
+  kind: MentionKind;
+}
+
+/** A comment's text with its @people and @teams drawn as chips. */
+function CommentBody({
+  comment,
+  nameOfUser,
+  nameOfTeam,
+  muted,
+}: {
+  comment: TicketComment;
+  nameOfUser: (id: string) => string | null;
+  nameOfTeam: (id: string) => string | null;
+  muted: boolean;
+}) {
+  const segments = useMemo(
+    () => segmentBody(comment.body, mentionTokensFor(comment, nameOfUser, nameOfTeam)),
+    [comment, nameOfUser, nameOfTeam],
+  );
+  return (
+    <p className={`mt-0.5 text-[13px] leading-relaxed whitespace-pre-wrap ${muted ? "text-muted-foreground" : "text-foreground"}`}>
+      {segments.map((seg, i) =>
+        seg.kind === "text" ? (
+          <span key={i}>{seg.text}</span>
+        ) : seg.kind === "team" ? (
+          <span
+            key={i}
+            data-mention="team"
+            className="inline-flex items-center gap-0.5 rounded bg-violet-500/15 px-1 font-medium text-violet-700 dark:text-violet-300"
+          >
+            <Users className="size-3" aria-hidden />
+            {seg.text}
+          </span>
+        ) : (
+          <span key={i} data-mention="person" className="rounded bg-primary/10 px-1 font-medium text-primary">
+            {seg.text}
+          </span>
+        ),
+      )}
+    </p>
+  );
+}
 
 function relative(iso: string) {
   return formatDistanceToNow(new Date(iso), { addSuffix: true });
@@ -53,6 +103,8 @@ export function TicketActivitySection({
   onAddComment,
   onEditComment,
   onDeleteComment,
+  teamOptions = NO_TEAMS,
+  openRequests = NO_REQUESTS,
   canShareToJira = false,
   jiraSharedNoteIds = NO_NOTES,
   onShareToJira,
@@ -66,9 +118,13 @@ export function TicketActivitySection({
   keyOf: (n: number) => string;
   canWork: boolean;
   currentUserId: string | null;
-  onAddComment: (body: string, mentions: string[]) => Promise<boolean>;
+  onAddComment: (body: string, mentions: string[], options?: CommentOptions) => Promise<boolean>;
   onEditComment: (id: string, body: string) => Promise<boolean>;
   onDeleteComment: (id: string) => Promise<boolean>;
+  /** Teams the @ list offers, with their member counts (migration 095). */
+  teamOptions?: MentionTeam[];
+  /** The open "needs a response" requests on this ticket: each comment shows who it is still waiting on. */
+  openRequests?: TicketMention[];
   /**
    * "Share with Jira" on notes written here: true only when the caller may, the
    * workspace lets notes go to Jira, Jira is connected and a link is healthy.
@@ -91,6 +147,9 @@ export function TicketActivitySection({
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState("");
   const [mentioned, setMentioned] = useState<Set<string>>(new Set());
+  const [mentionedTeams, setMentionedTeams] = useState<Set<string>>(new Set());
+  // null until the person touches the toggle: it then follows "does the comment name anyone".
+  const [needsResponse, setNeedsResponse] = useState<boolean | null>(null);
   const [posting, setPosting] = useState(false);
 
   // Editing one
@@ -129,6 +188,8 @@ export function TicketActivitySection({
 
   const nameOf = (id: string | null | undefined) => members.find((m) => m.user_id === id)?.full_name ?? tCommon("unknownPerson");
   const teamName = (id: string | null | undefined) => teams.find((tm) => tm.id === id)?.name ?? tCommon("noTeam");
+  const nameOfUserOrNull = useCallback((id: string) => members.find((m) => m.user_id === id)?.full_name ?? null, [members]);
+  const nameOfTeamOrNull = useCallback((id: string) => teams.find((tm) => tm.id === id)?.name ?? null, [teams]);
   const status = (v: string | null | undefined) => (v ? tCommon(`status.${v}` as never) : "—");
   const priority = (v: string | null | undefined) => (v ? tCommon(`priority.${v}` as never) : "—");
   const type = (v: string | null | undefined) => (v ? tCommon(`type.${v}` as never) : "—");
@@ -200,6 +261,16 @@ export function TicketActivitySection({
         return tAct("jiraStatusSynced", { from: status(a.from_value), to: status(a.to_value), key: a.detail ?? "" });
       case "jira_status_pushed":
         return tAct("jiraStatusPushed", { key: a.detail ?? "", status: a.to_value ?? "—" });
+      case "mention_requested":
+        return a.to_value
+          ? tAct("mentionRequested", { name: nameOf(a.to_value) })
+          : tAct("mentionRequestedTeam", { team: teamName(a.from_value) });
+      case "mention_done":
+        if (a.from_value === "ticket_closed") return tAct("mentionClosedWithTicket", { count: Number(a.detail) || 1 });
+        return a.from_value === "replied" ? tAct("mentionReplied") : tAct("mentionMarkedDone");
+      case "mention_cancelled":
+        if (a.from_value === "comment_deleted") return tAct("mentionCommentDeleted", { count: Number(a.detail) || 1 });
+        return tAct("mentionCancelled", { name: nameOf(a.to_value) });
       default:
         return a.event_type;
     }
@@ -218,15 +289,27 @@ export function TicketActivitySection({
     setExpanded(false);
     setDraft("");
     setMentioned(new Set());
+    setMentionedTeams(new Set());
+    setNeedsResponse(null);
   };
+
+  // Only people and teams whose @name is still in the text count.
+  const liveMentions = [...mentioned].filter((id) => draft.includes(`@${nameOf(id)}`));
+  const liveTeams = [...mentionedTeams].filter((id) => {
+    const name = teams.find((tm) => tm.id === id)?.name;
+    return !!name && draft.includes(`@${name}`);
+  });
+  const hasMentions = liveMentions.length + liveTeams.length > 0;
+  const responseOn = needsResponse ?? defaultsToResponse(liveMentions.length + liveTeams.length);
 
   const submitNew = async () => {
     const body = draft.trim();
     if (!body || posting) return;
     setPosting(true);
-    // Only people whose @name is still in the text are notified.
-    const ids = [...mentioned].filter((id) => body.includes(`@${nameOf(id)}`));
-    const ok = await onAddComment(body, ids);
+    const ok = await onAddComment(body, liveMentions, {
+      teams: liveTeams,
+      kind: hasMentions && responseOn ? "response" : "fyi",
+    });
     setPosting(false);
     if (ok) cancelNew();
   };
@@ -240,6 +323,17 @@ export function TicketActivitySection({
   };
 
   const showBox = tab !== "history";
+
+  // Who a comment is still waiting on (people with an open request from it).
+  const waitingByComment = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const r of openRequests) {
+      if (!r.comment_id || r.status !== "open") continue;
+      map.set(r.comment_id, [...(map.get(r.comment_id) ?? []), r.mentioned_user_id]);
+    }
+    return map;
+  }, [openRequests]);
+  const waitingOn = (commentId: string) => waitingByComment.get(commentId) ?? [];
 
   // Notes that came from Jira belong to a Jira person: no Edit / Delete, never shared back.
   const canEditNote = (c: TicketComment) => canWork && !!currentUserId && c.source !== "jira" && c.author_id === currentUserId;
@@ -285,7 +379,9 @@ export function TicketActivitySection({
                   value={draft}
                   onValueChange={setDraft}
                   onMention={(id) => setMentioned((prev) => new Set(prev).add(id))}
+                  onMentionTeam={(id) => setMentionedTeams((prev) => new Set(prev).add(id))}
                   members={members}
+                  teams={teamOptions}
                   placeholder={t("commentPlaceholder")}
                   aria-label={t("commentLabel")}
                   rows={3}
@@ -294,7 +390,7 @@ export function TicketActivitySection({
                   onSubmit={() => void submitNew()}
                   onCancel={cancelNew}
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" onClick={() => void submitNew()} disabled={posting || !draft.trim()}>
                     {posting ? <Loader2 className="size-3.5 animate-spin" /> : null}
                     {t("save")}
@@ -302,6 +398,28 @@ export function TicketActivitySection({
                   <Button size="sm" variant="ghost" onClick={cancelNew} disabled={posting}>
                     {t("cancel")}
                   </Button>
+                  {hasMentions ? (
+                    <div
+                      role="group"
+                      aria-label={t("mention.toggleLabel")}
+                      className="flex rounded-md border border-border bg-muted/40 p-0.5 text-[11px] font-medium"
+                    >
+                      {([true, false] as const).map((on) => (
+                        <button
+                          key={String(on)}
+                          type="button"
+                          aria-pressed={responseOn === on}
+                          disabled={posting}
+                          onClick={() => setNeedsResponse(on)}
+                          className={`rounded px-2 py-1 transition-colors ${
+                            responseOn === on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {on ? t("mention.needsResponse") : t("mention.fyiOnly")}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <span className="ml-auto text-[11px] text-muted-foreground">{t("commentHint")}</span>
                 </div>
               </>
@@ -324,7 +442,7 @@ export function TicketActivitySection({
         {items.length === 0 ? <li className="text-xs text-muted-foreground">{t("noActivity")}</li> : null}
         {items.map((item) =>
           item.kind === "comment" ? (
-            <li key={item.id} className="flex gap-2.5">
+            <li key={item.id} id={`comment-${item.id}`} className="flex scroll-mt-20 gap-2.5">
               <PersonAvatar
                 name={item.comment.source === "jira" ? (item.comment.jira_author ?? tAct("jiraUnknownAuthor")) : nameOf(item.comment.author_id)}
                 avatarUrl={item.comment.source === "jira" ? null : members.find((m) => m.user_id === item.comment.author_id)?.avatar_url}
@@ -373,11 +491,17 @@ export function TicketActivitySection({
                   </div>
                 ) : (
                   <>
-                    <p
-                      className={`mt-0.5 text-[13px] leading-relaxed whitespace-pre-wrap ${item.comment.deleted_in_jira ? "text-muted-foreground" : "text-foreground"}`}
-                    >
-                      {item.comment.body}
-                    </p>
+                    <CommentBody
+                      comment={item.comment}
+                      nameOfUser={nameOfUserOrNull}
+                      nameOfTeam={nameOfTeamOrNull}
+                      muted={!!item.comment.deleted_in_jira}
+                    />
+                    {waitingOn(item.comment.id).length > 0 ? (
+                      <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400" data-waiting-on="yes">
+                        {tAct("waitingOn", { names: waitingOn(item.comment.id).map((n) => nameOf(n)).join(", ") })}
+                      </p>
+                    ) : null}
                     {canEditNote(item.comment) || canShareNote(item.comment) || isSharedNote(item.comment) ? (
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                         {canShareNote(item.comment) ? (

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { isConversationLabel } from '@/lib/tags/scope';
+
 export class ConversationLabelWriteError extends Error {
   readonly status: number;
 
@@ -100,6 +102,45 @@ export async function removeConversationLabel(
   if (error) {
     throw new ConversationLabelWriteError(
       `Failed to remove conversation label: ${error.message}`
+    );
+  }
+}
+
+/**
+ * Manual (UI/API) guard: a conversation label must be a tag that is turned on
+ * for conversations (migration 068 `for_conversations`). A contact-only tag is
+ * rejected with a 400. It is intentionally NOT part of the shared write path,
+ * so removing a label that was attached before this rule existed still works
+ * and automation steps keep their current behaviour. A missing, deleted or
+ * unapproved tag is left to `addConversationLabelIfAbsent`, which answers 404.
+ */
+export async function assertTagIsConversationLabel(
+  db: SupabaseClient,
+  input: { accountId: string; tagId: string }
+): Promise<void> {
+  const { data, error } = await db
+    .from('tags')
+    .select('id, for_conversations')
+    .eq('id', input.tagId)
+    .eq('account_id', input.accountId)
+    .is('deleted_at', null)
+    .eq('approval_status', 'approved')
+    .maybeSingle();
+
+  if (error) {
+    throw new ConversationLabelWriteError('Could not verify the tag scope');
+  }
+  if (
+    data &&
+    !isConversationLabel({
+      for_conversations:
+        (data as { for_conversations?: boolean | null }).for_conversations ??
+        undefined,
+    })
+  ) {
+    throw new ConversationLabelWriteError(
+      'This tag is for contacts only. Turn on "Conversations" for it in Settings > Tags, or pick a conversation label.',
+      400
     );
   }
 }

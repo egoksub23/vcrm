@@ -23,7 +23,7 @@ import type { Profile, Team } from "@/types";
 import { PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 import { SavedFiltersMenu } from "./ticket-saved-filters";
 
-const QUICK: QuickFilter[] = ["mine", "unassigned", "overdue", "today", "sla_at_risk", "sla_breached"];
+const QUICK: QuickFilter[] = ["mine", "mentioned", "unassigned", "overdue", "today", "sla_at_risk", "sla_breached"];
 
 /** A dropdown of checkable options; several can be on, and the trigger says how many. */
 function MultiFilter({
@@ -91,6 +91,7 @@ export function TicketFilterBar({
   members,
   teams,
   knownLabels,
+  mentionedCount = 0,
 }: {
   filters: TicketFilters;
   onChange: (next: TicketFilters) => void;
@@ -98,6 +99,8 @@ export function TicketFilterBar({
   members: Profile[];
   teams: Team[];
   knownLabels: string[];
+  /** Tickets waiting on the signed-in person (migration 095), shown on the "Mentioned me" chip. */
+  mentionedCount?: number;
 }) {
   const t = useTranslations("Tickets.filters");
   const tCommon = useTranslations("Tickets.common");
@@ -164,6 +167,9 @@ export function TicketFilterBar({
               )}
             >
               {t(`quick.${chip}`)}
+              {chip === "mentioned" && mentionedCount > 0 ? (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">{mentionedCount > 9 ? "9+" : mentionedCount}</span>
+              ) : null}
             </button>
           );
         })}

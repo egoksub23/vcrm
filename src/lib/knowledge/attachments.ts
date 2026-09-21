@@ -105,6 +105,8 @@ async function alreadySent(db: SupabaseClient, conversationId: string, urls: str
       .eq('conversation_id', conversationId)
       .in('sender_type', ['agent', 'bot'])
       .eq('is_internal', false)
+      // A file whose send failed still has to go out next time.
+      .neq('status', 'failed')
       .order('created_at', { ascending: false })
       .limit(300)
     for (const row of (data ?? []) as { media_url: string | null; content_text: string | null }[]) {

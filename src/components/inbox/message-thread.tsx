@@ -61,6 +61,9 @@ import { postComment } from "@/lib/conversations/comment-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
+import { useFailureText } from "./failure-text";
+import type { SendFailureBody } from "./send-failure";
+import { failedMessagePatch, sendFailureToastValues } from "./send-failure";
 import { ArticleDialog } from "@/components/knowledge/article-dialog";
 import { buildKnowledgeQuery } from "@/lib/inbox/kb-agent";
 import type { ArticleDraftSeed } from "@/lib/knowledge-types";
@@ -231,6 +234,8 @@ export function MessageThread({
   const t = useTranslations("Inbox.messageThread");
   const tTimer = useTranslations("Inbox.sessionTimer");
   const tQuote = useTranslations("Inbox.replyQuote");
+  const tFailure = useTranslations("Inbox.failure");
+  const failureText = useFailureText();
 
   const { user, slaResponseMinutes } = useAuth();
   // Priority, status, assignee, team and labels are conversation work
@@ -577,6 +582,37 @@ export function MessageThread({
     hasWidgetChannel,
   );
 
+  // A send the channel rejected is saved by the server as a failed message;
+  // the response names it. Point the optimistic bubble at that saved row (same
+  // id, so the realtime insert does not add a second one) and carry the
+  // reason, so Resend and the details popover work straight away.
+  const markSendFailed = useCallback(
+    (tempId: string, body: SendFailureBody | null | undefined) => {
+      onUpdateMessage(tempId, failedMessagePatch(body));
+    },
+    [onUpdateMessage],
+  );
+
+  // Toast for a rejected send: the friendly reason when the server gave one,
+  // otherwise the raw sentence the old code showed.
+  const notifySendFailure = useCallback(
+    (
+      body: SendFailureBody | null | undefined,
+      rawReason: string,
+      channel: ChannelType | undefined,
+      fallbackKey: "sendFailed" | "sendTemplateFailed" = "sendFailed",
+    ) => {
+      const values = sendFailureToastValues(body);
+      if (values) {
+        const text = failureText({ ...values, channel });
+        toast.error(tFailure("toastFailed", { title: text.title, action: text.action }));
+        return;
+      }
+      toast.error(t(fallbackKey, { reason: rawReason }));
+    },
+    [failureText, tFailure, t],
+  );
+
   // Resolves true once the send went through, false when it failed (the
   // failed bubble and toast are already shown). The composer waits on this
   // so a knowledge base file never goes out ahead of, or after a failed,
@@ -646,9 +682,9 @@ export function MessageThread({
         if (!res.ok) {
           const reason = payload?.error || `HTTP ${res.status}`;
           console.error("Failed to send message:", reason);
-          toast.error(t("sendFailed", { reason }));
+          notifySendFailure(payload, reason, effectiveChannel);
           // Mark the optimistic bubble as failed so the user sees what happened
-          onUpdateMessage(tempId, { status: "failed" });
+          markSendFailed(tempId, payload);
           return false;
         }
 
@@ -665,7 +701,7 @@ export function MessageThread({
         return false;
       }
     },
-    [conversation, contact, messages, onNewMessage, onUpdateMessage, t]
+    [conversation, contact, messages, onNewMessage, onUpdateMessage, t, notifySendFailure, markSendFailed]
   );
 
   // Shared by the composer's "Comment" mode and the handoff-note dialog —
@@ -763,12 +799,14 @@ export function MessageThread({
         if (!res.ok) {
           const reason = data?.error || `HTTP ${res.status}`;
           console.error("Failed to send media:", reason);
-          toast.error(t("sendFailed", { reason }));
-          onUpdateMessage(tempId, { status: "failed" });
+          notifySendFailure(data, reason, channel ?? conversation.last_channel_type);
+          markSendFailed(tempId, data);
           // The upload never reached the recipient — GC the orphaned
           // object rather than leaving it in the public bucket forever.
           // A knowledge base file is shared with its article, so it stays.
-          if (!payload.keepObject) {
+          // When the server saved the message as a failed bubble, that row
+          // (and its Resend) still points at the file: keep it.
+          if (!payload.keepObject && !data?.failed_message_id) {
             void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
           }
           return false;
@@ -787,7 +825,7 @@ export function MessageThread({
         return false;
       }
     },
-    [conversation, onNewMessage, onUpdateMessage, t],
+    [conversation, onNewMessage, onUpdateMessage, t, notifySendFailure, markSendFailed],
   );
 
   const handleSendInteractive = useCallback(
@@ -829,8 +867,8 @@ export function MessageThread({
         if (!res.ok) {
           const reason = data?.error || `HTTP ${res.status}`;
           console.error("Failed to send interactive message:", reason);
-          toast.error(t("sendFailed", { reason }));
-          onUpdateMessage(tempId, { status: "failed" });
+          notifySendFailure(data, reason, channel ?? conversation.last_channel_type);
+          markSendFailed(tempId, data);
           return;
         }
 
@@ -842,7 +880,7 @@ export function MessageThread({
         onUpdateMessage(tempId, { status: "failed" });
       }
     },
-    [conversation, onNewMessage, onUpdateMessage, t],
+    [conversation, onNewMessage, onUpdateMessage, t, notifySendFailure, markSendFailed],
   );
 
   const sessionEventsConversationId = conversation?.id ?? null;
@@ -1022,8 +1060,8 @@ export function MessageThread({
         if (!res.ok) {
           const reason = payload?.error || `HTTP ${res.status}`;
           console.error("Failed to send template:", reason);
-          toast.error(t("sendTemplateFailed", { reason }));
-          onUpdateMessage(tempId, { status: "failed" });
+          notifySendFailure(payload, reason, conversation.last_channel_type, "sendTemplateFailed");
+          markSendFailed(tempId, payload);
           return;
         }
 
@@ -1035,7 +1073,7 @@ export function MessageThread({
         onUpdateMessage(tempId, { status: "failed" });
       }
     },
-    [conversation, onNewMessage, onUpdateMessage, t],
+    [conversation, onNewMessage, onUpdateMessage, t, notifySendFailure, markSendFailed],
   );
 
   // Build a quick id → Message map so reply quotes can be rendered without
@@ -1206,6 +1244,109 @@ export function MessageThread({
       toast.success(t("movedToTrash"));
     },
     [onUpdateMessage, t],
+  );
+
+  // "Delete" on a failed bubble. A saved failed message goes through the same
+  // Move to Trash flag as any message; one that never reached the server (a
+  // network error) only exists in this browser, so it is just hidden.
+  const handleDiscardFailed = useCallback(
+    async (message: Message) => {
+      if (message.id.startsWith("temp-")) {
+        onUpdateMessage(message.id, { pending_delete: true });
+        return;
+      }
+      await handleMoveToTrash(message.id);
+    },
+    [handleMoveToTrash, onUpdateMessage],
+  );
+
+  // Ids with a resend in flight. The ref answers a second click in the same
+  // tick (state would not have updated yet); the state drives the spinner. The
+  // server also claims the row, so two tabs cannot both resend it.
+  const resendingRef = useRef<Set<string>>(new Set());
+  const [resendingIds, setResendingIds] = useState<Set<string>>(() => new Set());
+
+  const handleResend = useCallback(
+    async (message: Message) => {
+      if (!conversation || message.id.startsWith("temp-")) return;
+      if (resendingRef.current.has(message.id)) return;
+
+      // On WhatsApp only a template can reopen a closed 24-hour window: do
+      // not retry blindly, send the agent to Templates instead. (The server
+      // checks this too.)
+      if (
+        message.channel_type === "whatsapp" &&
+        message.content_type !== "template" &&
+        sessionInfo.expired
+      ) {
+        toast.error(tFailure("windowClosed"));
+        handleOpenTemplates();
+        return;
+      }
+
+      resendingRef.current.add(message.id);
+      setResendingIds(new Set(resendingRef.current));
+      try {
+        const res = await fetch(`/api/messages/${message.id}/resend`, { method: "POST" });
+        const body = (await res.json().catch(() => ({}))) as SendFailureBody & {
+          message_id?: string;
+        };
+
+        if (res.ok) {
+          // The failed bubble is gone; the new one arrives through realtime.
+          // Add it here as well in case realtime is behind (same id, so the
+          // insert event is ignored when it lands).
+          onUpdateMessage(message.id, { pending_delete: true });
+          if (body.message_id) {
+            onNewMessage({
+              ...message,
+              id: body.message_id,
+              status: "sent",
+              created_at: new Date().toISOString(),
+              error_code: null,
+              error_title: null,
+              error_details: null,
+              pending_delete: false,
+            });
+          }
+          toast.success(tFailure("resent"));
+          return;
+        }
+
+        if (body.code === "window_closed") {
+          toast.error(tFailure("windowClosed"));
+          handleOpenTemplates();
+          return;
+        }
+        if (body.code === "in_progress") {
+          toast.message(tFailure("resendBusy"));
+          return;
+        }
+        if (body.failure) {
+          onUpdateMessage(message.id, failedMessagePatch(body));
+        }
+        notifySendFailure(body, body.error || `HTTP ${res.status}`, message.channel_type);
+      } catch (err) {
+        console.error("Failed to resend message:", err);
+        toast.error(
+          tFailure("resendFailed", {
+            reason: err instanceof Error ? err.message : "network error",
+          }),
+        );
+      } finally {
+        resendingRef.current.delete(message.id);
+        setResendingIds(new Set(resendingRef.current));
+      }
+    },
+    [
+      conversation,
+      sessionInfo.expired,
+      tFailure,
+      handleOpenTemplates,
+      onUpdateMessage,
+      onNewMessage,
+      notifySendFailure,
+    ],
   );
 
   const handleAssignChange = useCallback(
@@ -1942,6 +2083,15 @@ export function MessageThread({
                           onOpenMedia={handleMediaChange}
                           senderLabel={senderLabel}
                           isLatestEmail={msg.id === latestEmailMessageId}
+                          onResend={
+                            msg.status === "failed" && !msg.id.startsWith("temp-")
+                              ? () => void handleResend(msg)
+                              : undefined
+                          }
+                          onDeleteFailed={
+                            msg.status === "failed" ? () => void handleDiscardFailed(msg) : undefined
+                          }
+                          resending={resendingIds.has(msg.id)}
                         />
                       </MessageActions>
                     );

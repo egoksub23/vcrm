@@ -1122,3 +1122,342 @@ describe('sendMessageToConversation — gmail channel', () => {
     expect(db.__configUpdates.gmail_config).toMatchObject({ needs_reauth: true });
   });
 });
+
+// ============================================================
+// A send the channel rejects is kept as a failed message (batch 2).
+// ============================================================
+describe('sendMessageToConversation — failed sends are saved with the reason', () => {
+  async function metaErr(code: number, message: string, details?: string) {
+    const { MetaApiError } = await import('@/lib/meta/errors');
+    return new MetaApiError(message, { code, httpStatus: 400, details });
+  }
+
+  it('WhatsApp: saves the message as failed with code, title and details, then still throws', async () => {
+    const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(
+      await metaErr(131047, '(#131047) Re-engagement message', 'More than 24 hours have passed')
+    );
+    const captured: CapturedWrites = {};
+
+    const err = await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'hello there',
+      senderUserId: 'agent-1',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('meta_error');
+    expect(err.status).toBe(502);
+    expect(err.message).toMatch(/Meta API error/);
+    expect(err.failedMessageId).toBe('msg-1');
+    expect(err.failure).toEqual({
+      code: 131047,
+      title: 'Re-engagement message',
+      details: 'More than 24 hours have passed',
+    });
+
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      message_id: null,
+      sender_type: 'agent',
+      sender_id: 'agent-1',
+      content_type: 'text',
+      content_text: 'hello there',
+      channel_type: 'whatsapp',
+      error_code: 131047,
+      error_title: 'Re-engagement message',
+      error_details: 'More than 24 hours have passed',
+    });
+  });
+
+  it('does not touch the conversation preview, unread or awaiting-response flag', async () => {
+    const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(await metaErr(131030, 'Not allowed'));
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'x',
+    }).catch(() => undefined);
+    expect(captured.message?.status).toBe('failed');
+    expect(captured.conversation).toBeUndefined();
+  });
+
+  it('keeps the media url and caption on a failed media send', async () => {
+    const { sendMediaMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendMediaMessage).mockRejectedValueOnce(await metaErr(131053, 'Media upload error'));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'document',
+        mediaUrl: 'https://cdn/x/report.pdf',
+        contentText: 'The report',
+        filename: 'report.pdf',
+      })
+    ).rejects.toBeInstanceOf(SendMessageError);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      content_type: 'document',
+      media_url: 'https://cdn/x/report.pdf',
+      content_text: 'The report',
+      send_payload: { filename: 'report.pdf' },
+    });
+  });
+
+  it('keeps the template name, substituted body, language and params so a resend can rebuild it', async () => {
+    sendTemplateMessage.mockRejectedValueOnce(await metaErr(132001, 'Template does not exist'));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(sendPathDb([TEMPLATE_ROW], captured), 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'template',
+        templateName: 'order_update',
+        templateLanguage: 'en',
+        templateParams: ['A123', 'Friday'],
+      })
+    ).rejects.toBeInstanceOf(SendMessageError);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      content_type: 'template',
+      template_name: 'order_update',
+      content_text: 'Your order A123 ships on Friday',
+      send_payload: { template_language: 'en', template_params: ['A123', 'Friday'] },
+    });
+  });
+
+  it('Messenger: saves the failure on the messenger channel and still flips needs_reauth on 190', async () => {
+    sendMessengerText.mockRejectedValueOnce(await metaErr(190, 'Token expired'));
+    const captured: CapturedWrites = {};
+    const db = sendPathDb(
+      [],
+      captured,
+      { id: 'ct-1', phone: '', messenger_psid: 'psid-1' },
+      'messenger'
+    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'hi',
+      })
+    ).rejects.toThrow(/Messenger API error/);
+
+    expect(db.__configUpdates.messenger_config).toMatchObject({ needs_reauth: true });
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      channel_type: 'messenger',
+      message_id: null,
+      error_code: 190,
+    });
+  });
+
+  it('Instagram: saves the failure', async () => {
+    sendInstagramText.mockRejectedValueOnce(await metaErr(10, 'Outside of allowed window'));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', instagram_igsid: 'ig-1' }, 'instagram'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Instagram API error/);
+    expect(captured.message).toMatchObject({ status: 'failed', channel_type: 'instagram', error_code: 10 });
+  });
+
+  it('Email (Microsoft 365): an auth failure is stored as code 401', async () => {
+    const { GraphApiError } = await import('@/lib/ms365/errors');
+    sendNewMail.mockRejectedValueOnce(new GraphApiError('Token expired', { httpStatus: 401 }));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi', contentHtml: '<p>hi</p>' }
+      )
+    ).rejects.toThrow(/Email send error/);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      channel_type: 'email',
+      error_code: 401,
+      content_html: '<p>hi</p>',
+    });
+  });
+
+  it('Gmail: saves the failure', async () => {
+    const { GmailApiError } = await import('@/lib/gmail/errors');
+    sendNewGmailMock.mockRejectedValueOnce(new GmailApiError('Quota exceeded', { httpStatus: 429 }));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/Gmail send error/);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      channel_type: 'gmail',
+      error_code: null,
+      error_title: 'Quota exceeded',
+    });
+  });
+
+  it('bot sends (automation, AI) keep their sender type and AI flag on the failed row', async () => {
+    const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(await metaErr(131056, 'Pair rate limit'));
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'auto',
+        senderType: 'bot',
+        aiGenerated: true,
+        senderUserId: 'agent-1',
+      })
+    ).rejects.toBeInstanceOf(SendMessageError);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      sender_type: 'bot',
+      sender_id: null,
+      ai_generated: true,
+    });
+  });
+
+  it('persistFailedAttempt: false (used by Resend) saves nothing and reports no failed id', async () => {
+    const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(await metaErr(131047, 'window'));
+    const captured: CapturedWrites = {};
+    const err = await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'x',
+      persistFailedAttempt: false,
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.failedMessageId).toBeNull();
+    expect(err.failure?.code).toBe(131047);
+    expect(captured.message).toBeUndefined();
+  });
+
+  it('does NOT save a ghost row for errors that happen before anything is sent', async () => {
+    const captured: CapturedWrites = {};
+    // No Messenger identity on the contact.
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '' }, 'messenger'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/no Messenger identity/);
+    // Channel not connected.
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'p' }, 'messenger', {
+          messengerConfig: null,
+        }),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toThrow(/not connected/);
+    // Invalid phone number on WhatsApp.
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: 'abc' }),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }
+      )
+    ).rejects.toBeInstanceOf(SendMessageError);
+    // A template on a channel that has none.
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'p' }, 'messenger'),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'template', templateName: 'x' }
+      )
+    ).rejects.toThrow(/Only text and media/);
+    expect(captured.message).toBeUndefined();
+  });
+
+  it('a failure while saving the failed row does not hide the real error', async () => {
+    const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(await metaErr(190, 'Token expired'));
+    const captured: CapturedWrites = {};
+    const inner = sendPathDb([], captured);
+    const db = {
+      from(table: string) {
+        const b = (inner as unknown as { from: (t: string) => Record<string, unknown> }).from(table);
+        if (table === 'messages') {
+          b.insert = () => ({
+            select: () => ({ single: async () => ({ data: null, error: { message: 'db is down' } }) }),
+          });
+        }
+        return b;
+      },
+    } as unknown as SupabaseClient;
+
+    const err = await sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'x',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('meta_error');
+    expect(err.failedMessageId).toBeNull();
+    expect(err.failure?.code).toBe(190);
+  });
+
+  it('a database without migration 094 still saves a template send (retries without send_payload)', async () => {
+    const inserts: Record<string, unknown>[] = [];
+    const captured: CapturedWrites = {};
+    const inner = sendPathDb([TEMPLATE_ROW], captured);
+    const db = {
+      from(table: string) {
+        const b = (inner as unknown as { from: (t: string) => Record<string, unknown> }).from(table);
+        if (table === 'messages') {
+          b.insert = (row: Record<string, unknown>) => {
+            inserts.push(row);
+            const first = inserts.length === 1;
+            return {
+              select: () => ({
+                single: async () =>
+                  first
+                    ? { data: null, error: { message: 'column "send_payload" of relation "messages" does not exist' } }
+                    : { data: { id: 'msg-2' }, error: null },
+              }),
+            };
+          };
+        }
+        return b;
+      },
+    } as unknown as SupabaseClient;
+
+    const result = await sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'template',
+      templateName: 'order_update',
+      templateLanguage: 'en',
+      templateParams: ['A123', 'Friday'],
+    });
+    expect(result.messageId).toBe('msg-2');
+    expect(inserts).toHaveLength(2);
+    expect('send_payload' in inserts[0]).toBe(true);
+    expect('send_payload' in inserts[1]).toBe(false);
+    expect(inserts[1].status).toBe('sent');
+  });
+
+  it('a plain text send never writes send_payload', async () => {
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'hello',
+    });
+    expect(captured.message).toBeDefined();
+    expect('send_payload' in (captured.message as object)).toBe(false);
+    expect(captured.message?.status).toBe('sent');
+  });
+});

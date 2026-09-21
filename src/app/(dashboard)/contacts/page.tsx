@@ -39,6 +39,7 @@ import {
   Search,
   Plus,
   Upload,
+  Download,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -86,6 +87,7 @@ export default function ContactsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailContactId, setDetailContactId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
@@ -326,6 +328,40 @@ export default function ContactsPage() {
   );
   const hasActiveFilters = search.trim().length > 0 || selectedTagIds.length > 0;
 
+  // Export = every contact matching the current search and tag filter, not
+  // just the visible page. The server streams it in pages (no 1,000-row cap).
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      const term = search.trim();
+      if (term) params.set('q', term);
+      if (selectedTagIds.length > 0) params.set('tag_ids', selectedTagIds.join(','));
+      const qs = params.toString();
+      const res = await fetch(`/api/contacts/export${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const disposition = res.headers.get('content-disposition') ?? '';
+      const filename =
+        /filename="([^"]+)"/.exec(disposition)?.[1] ??
+        `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('toastExported'));
+    } catch {
+      toast.error(t('toastExportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function toggleTagFilter(tagId: string) {
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
@@ -370,6 +406,22 @@ export default function ContactsPage() {
           >
             <Upload className="size-4" />
             {t('importBtn')}
+          </GatedButton>
+          <GatedButton
+            variant="outline"
+            canAct={canEdit}
+            gateReason="export contacts"
+            onClick={handleExport}
+            disabled={exporting}
+            title={t('exportTitle')}
+            className="border-border text-muted-foreground hover:bg-muted"
+          >
+            {exporting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {exporting ? t('exporting') : t('exportBtn')}
           </GatedButton>
           <GatedButton
             canAct={canEdit}

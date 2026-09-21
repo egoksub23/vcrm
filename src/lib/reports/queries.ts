@@ -148,6 +148,8 @@ export async function loadResponsesReport(
   const { data, error } = await db
     .from('messages')
     .select('conversation_id, sender_type, created_at')
+    // A message that failed to send never reached the customer: it is not a reply.
+    .neq('status', 'failed')
     .gte('created_at', spanStart)
     .lt('created_at', spanEnd)
     .order('conversation_id', { ascending: true })
@@ -281,6 +283,7 @@ export async function loadMessagesReport(
   const { data, error } = await db
     .from('messages')
     .select('created_at, sender_type')
+    .neq('status', 'failed')
     .gte('created_at', spanStart)
     .lt('created_at', spanEnd)
   if (error) throw error
@@ -437,6 +440,7 @@ async function loadAgentStats(
     db
       .from('messages')
       .select('conversation_id, sender_type, sender_id, created_at')
+      .neq('status', 'failed')
       .gte('created_at', spanStart)
       .lt('created_at', spanEnd)
       .order('conversation_id', { ascending: true })

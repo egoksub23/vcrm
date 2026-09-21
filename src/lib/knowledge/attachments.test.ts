@@ -65,7 +65,7 @@ function fakeDb(opts: { sentRows?: { media_url: string | null; content_text: str
   const calls: { table: string }[] = []
   const chain = (table: string, result: unknown) => {
     const c: Record<string, unknown> = {}
-    for (const m of ['select', 'eq', 'in', 'order', 'limit', 'not']) c[m] = () => c
+    for (const m of ['select', 'eq', 'neq', 'in', 'order', 'limit', 'not']) c[m] = () => c
     c.maybeSingle = () => Promise.resolve({ data: result, error: null })
     c.then = (resolve: (v: unknown) => unknown) => resolve({ data: result, error: null })
     calls.push({ table })

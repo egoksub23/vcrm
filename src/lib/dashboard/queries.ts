@@ -66,11 +66,13 @@ export async function loadMetrics(db: DB): Promise<MetricsBundle> {
       .from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('sender_type', 'agent')
+      .neq('status', 'failed')
       .gte('created_at', todayStart),
     db
       .from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('sender_type', 'agent')
+      .neq('status', 'failed')
       .gte('created_at', yesterdayStart)
       .lt('created_at', todayStart),
   ])
@@ -109,6 +111,7 @@ export async function loadConversationsSeries(
   const { data, error } = await db
     .from('messages')
     .select('created_at, sender_type')
+    .neq('status', 'failed')
     .gte('created_at', start)
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -179,6 +182,7 @@ export async function loadResponseTime(db: DB): Promise<ResponseTimeSummary> {
   const { data, error } = await db
     .from('messages')
     .select('conversation_id, sender_type, created_at')
+    .neq('status', 'failed')
     .gte('created_at', fourteenDaysAgo)
     .order('conversation_id', { ascending: true })
     .order('created_at', { ascending: true })

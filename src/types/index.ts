@@ -375,6 +375,8 @@ export interface Notification {
   contact_id?: string;
   /** Migration 063. Set on ticket_assigned / ticket_mention notifications. */
   ticket_id?: string;
+  /** Migration 095. The ticket comment a ticket_mention notification is about. */
+  comment_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;
@@ -489,8 +491,11 @@ export interface TicketComment {
   account_id: string;
   author_id?: string | null;
   body: string;
-  /** Array of mentioned user_ids — same shape as messages.mentions. */
+  /** Array of mentioned user_ids — same shape as messages.mentions. Includes the
+   *  members a mentioned team expanded to (migration 095). */
   mentions: string[];
+  /** Migration 095: ids of the teams @mentioned in the comment (display only). */
+  mention_teams?: string[];
   created_at: string;
   /** Migration 081: set by the DB when the body is edited. */
   edited_at?: string | null;
@@ -531,7 +536,16 @@ export type TicketActivityEventType =
   | 'jira_linked'
   | 'jira_unlinked'
   | 'jira_status_synced'
-  | 'jira_status_pushed';
+  | 'jira_status_pushed'
+  // Migration 095 (ticket mentions). requested: to_value = the person (empty for a
+  // request to a team), from_value = the team id, detail = the comment id. done:
+  // to_value = the person, from_value = replied | marked_done | ticket_closed,
+  // detail = the comment id (or a count for ticket_closed). cancelled: to_value =
+  // the person, from_value = cancelled | comment_deleted, detail = the comment id
+  // (or a count for comment_deleted).
+  | 'mention_requested'
+  | 'mention_done'
+  | 'mention_cancelled';
 
 export interface TicketActivity {
   id: string;
@@ -546,6 +560,29 @@ export interface TicketActivity {
   /** Migration 085: extra context, the Jira issue key for the jira_* events. */
   detail?: string | null;
   created_at: string;
+}
+
+/** Migration 095: a person asked (by @mention) to respond on a ticket. */
+export type TicketMentionStatus = 'open' | 'done' | 'cancelled';
+export type TicketMentionReason = 'replied' | 'marked_done' | 'ticket_closed' | 'cancelled';
+
+export interface TicketMention {
+  id: string;
+  account_id: string;
+  ticket_id: string;
+  /** The comment that asked; null once that comment was deleted. */
+  comment_id: string | null;
+  mentioned_user_id: string;
+  requested_by: string | null;
+  /** Set when the request came through an @team. */
+  via_team_id: string | null;
+  kind: 'response' | 'fyi';
+  status: TicketMentionStatus;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolved_reason: TicketMentionReason | null;
+  nudged_at: string | null;
 }
 
 /** Migration 081: people following a ticket. Creator and assignee are added by the DB. */

@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { mergeContacts } from '@/lib/contacts/merge-api';
 
 interface ContactFormProps {
   open: boolean;
@@ -52,6 +53,8 @@ export function ContactForm({
   const { accountId } = useAuth();
   // Reached only from gated entry points; the submit button repeats the check (contacts.edit).
   const canEdit = useCapability('contacts.edit');
+  // Merging two contacts is its own capability (POST /api/contacts/merge).
+  const canMerge = useCapability('contacts.merge');
   const isEdit = !!contact;
 
   const [name, setName] = useState('');
@@ -69,6 +72,9 @@ export function ContactForm({
     { contact: ExistingContact; exact: boolean } | null
   >(null);
   const [checkingDup, setCheckingDup] = useState(false);
+  // Edit only: the merge confirmation step inside the duplicate notice.
+  const [confirmingMerge, setConfirmingMerge] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -83,22 +89,24 @@ export function ContactForm({
       setLifecycleStage(contact?.lifecycle_stage ?? 'lead');
       setSelectedTagIds(contactTags.map((ct) => ct.tag_id));
       setDupMatch(null);
+      setConfirmingMerge(false);
       fetchTags();
     }
   }, [open, contact]);
 
-  // Look up an existing contact with this number (new contacts only).
+  // Look up an existing contact with this number. For an edit, the contact
+  // being edited is excluded and an unchanged phone is not checked.
   // Runs on blur so we don't query on every keystroke.
   async function checkDuplicate() {
-    if (isEdit || !accountId) return;
+    if (!accountId) return;
     const value = phone.trim();
-    if (!value) {
+    if (!value || (isEdit && value === contact?.phone)) {
       setDupMatch(null);
       return;
     }
     setCheckingDup(true);
     try {
-      const existing = await findExistingContact(supabase, accountId, value);
+      const existing = await findExistingContact(supabase, accountId, value, contact?.id);
       setDupMatch(
         existing
           ? { contact: existing, exact: isExactMatch(existing, value) }
@@ -140,10 +148,11 @@ export function ContactForm({
       return;
     }
 
-    // Hard-block an exact duplicate on create (the DB unique index is
-    // the real backstop; this avoids a round-trip + a raw error toast).
-    if (!isEdit && dupMatch?.exact) {
-      toast.error(t('toastConflict'));
+    // Hard-block an exact duplicate, on create and on a phone edit (the DB
+    // unique index is the real backstop; this avoids a round-trip + a raw
+    // error toast).
+    if (dupMatch?.exact) {
+      toast.error(t('toastConflictNamed', { name: dupMatch.contact.name || dupMatch.contact.phone }));
       return;
     }
 
@@ -217,14 +226,14 @@ export function ContactForm({
       // normalizes equal). Surface it as the friendly duplicate notice
       // and, for new contacts, point the user at the existing record.
       if (isUniqueViolation(err)) {
-        toast.error(t('toastConflict'));
-        if (!isEdit && accountId) {
-          const existing = await findExistingContact(
-            supabase,
-            accountId,
-            phone.trim(),
-          );
-          if (existing) setDupMatch({ contact: existing, exact: true });
+        const existing = accountId
+          ? await findExistingContact(supabase, accountId, phone.trim(), contact?.id)
+          : null;
+        if (existing) {
+          setDupMatch({ contact: existing, exact: true });
+          toast.error(t('toastConflictNamed', { name: existing.name || existing.phone }));
+        } else {
+          toast.error(t('toastConflict'));
         }
         return;
       }
@@ -232,6 +241,25 @@ export function ContactForm({
       toast.error(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Edit only: fold the contact that owns the typed number into this one.
+  // The number itself is saved afterwards with the normal Update button.
+  async function handleMerge() {
+    if (!canMerge || !contact || !dupMatch) return;
+    setMerging(true);
+    try {
+      await mergeContacts(contact.id, dupMatch.contact.id);
+      toast.success(t('toastMerged'));
+      setDupMatch(null);
+      setConfirmingMerge(false);
+      onSaved();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'unknown error';
+      toast.error(t('toastMergeFailed', { reason }));
+    } finally {
+      setMerging(false);
     }
   }
 
@@ -290,9 +318,58 @@ export function ContactForm({
                 <div className="space-y-1">
                   <p>
                     {dupMatch.exact
-                      ? t('dupExact')
+                      ? t('dupExactNamed', {
+                          name: dupMatch.contact.name || dupMatch.contact.phone,
+                        })
                       : t('dupSimilar')}
                   </p>
+                  {isEdit && dupMatch.exact && (
+                    canMerge ? (
+                      confirmingMerge ? (
+                        <div className="space-y-2">
+                          <p>
+                            {t('mergeConfirmText', {
+                              name: dupMatch.contact.name || dupMatch.contact.phone,
+                            })}
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={handleMerge}
+                              disabled={merging}
+                            >
+                              {merging && <Loader2 className="size-3.5 animate-spin" />}
+                              {merging ? t('merging') : t('mergeConfirmBtn')}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setConfirmingMerge(false)}
+                              disabled={merging}
+                              className="border-border text-muted-foreground hover:bg-muted"
+                            >
+                              {t('mergeKeepBtn')}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setConfirmingMerge(true)}
+                          className="border-border text-foreground hover:bg-muted"
+                        >
+                          {t('mergeContactsBtn')}
+                        </Button>
+                      )
+                    ) : (
+                      <p>{t('mergeAskColleague')}</p>
+                    )
+                  )}
                   {onViewExisting && (
                     <button
                       type="button"
@@ -405,7 +482,7 @@ export function ContactForm({
             </Button>
             <Button
               type="submit"
-              disabled={!canEdit || saving || checkingDup || (!isEdit && !!dupMatch?.exact)}
+              disabled={!canEdit || saving || checkingDup || merging || !!dupMatch?.exact}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {saving && <Loader2 className="size-4 animate-spin" />}

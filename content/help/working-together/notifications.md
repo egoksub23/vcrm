@@ -29,7 +29,8 @@ New notifications appear without you refreshing the page.
 | A teammate assigns you a chat ("New conversation assigned") | The chat |
 | A teammate @mentions you in an internal comment in a chat ("You were mentioned") | The chat |
 | A teammate assigns you a ticket ("New ticket assigned") | The ticket |
-| A teammate @mentions you in a ticket comment | The ticket |
+| A teammate @mentions you, or a team you are in, in a ticket comment | The ticket, at that comment |
+| A teammate nudges you because they still wait for your response on a ticket | The ticket, at that comment |
 | Something changes on a ticket you watch: the status, the assignee, or a new comment | The ticket |
 | A ticket's first response or resolution time is at risk or breached | The ticket |
 | A customer has waited too long for a reply ("Response time exceeded"). It goes to the assigned agent, or to the admins if nobody is assigned. | The chat |
@@ -37,7 +38,13 @@ New notifications appear without you refreshing the page.
 | A reviewer decides something you proposed | The page where you proposed it |
 | You are a reviewer and someone proposed something | The Approvals page |
 
+A ticket notification about a mention is marked as read for you when the request is closed: you replied, you clicked **Mark as done**, the person withdrew it, or the ticket was resolved.
+
 You are never notified about something you did yourself. If you assign a chat or a ticket to yourself, you get no notification.
+
+## The bubble on Tickets
+
+Separate from the bell, the **Tickets** item in the sidebar has a round number too. It counts the tickets where a teammate asked you for a response, by @mentioning you or your team, and it is still open. It shows **9+** above nine and is hidden at zero. It is there as soon as you sign in and updates on its own. On the Tickets page, **Mentioned me** lists those tickets. See [Work a ticket](/help/tickets/work-a-ticket) for how a request is closed.
 
 ## Alerts in your browser
 

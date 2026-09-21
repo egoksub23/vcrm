@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { approvalNotificationHref, isApprovalNotification } from "@/lib/approvals/notifications";
+import { ticketNotificationHref } from "@/lib/notifications/ticket-link";
 
 // Icon per notification type — a one-line add per new type.
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
@@ -133,7 +134,7 @@ export default function NotificationsPage() {
       } else if (n.type === "jira_reauth_required") {
         router.push("/settings?tab=integrations");
       } else if (n.ticket_id) {
-        router.push(`/tickets?t=${n.ticket_id}`);
+        router.push(ticketNotificationHref(n));
       } else if (n.type === "ai_budget") {
         router.push("/agents");
       } else if (n.conversation_id) {

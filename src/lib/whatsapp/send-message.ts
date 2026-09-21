@@ -60,6 +60,7 @@ import {
   getThreadingInfo as getGmailThreadingInfo,
 } from '@/lib/gmail/gmail-api';
 import { GmailApiError } from '@/lib/gmail/errors';
+import { failureFromError, type StoredFailure } from '@/lib/messages/failure-reason';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -77,11 +78,24 @@ export const VALID_MESSAGE_TYPES = [
 export class SendMessageError extends Error {
   readonly code: string;
   readonly status: number;
-  constructor(code: string, message: string, status: number) {
+  /** The provider's reason (code / title / details) when the failure came
+   *  back from the channel itself — not set for validation or config errors. */
+  readonly failure: StoredFailure | null;
+  /** Our `messages.id` of the `failed` row saved for this attempt, so the
+   *  caller can point the agent at it. Null when nothing was persisted. */
+  readonly failedMessageId: string | null;
+  constructor(
+    code: string,
+    message: string,
+    status: number,
+    extra?: { failure?: StoredFailure | null; failedMessageId?: string | null }
+  ) {
     super(message);
     this.name = 'SendMessageError';
     this.code = code;
     this.status = status;
+    this.failure = extra?.failure ?? null;
+    this.failedMessageId = extra?.failedMessageId ?? null;
   }
 }
 
@@ -136,6 +150,11 @@ export interface SendMessageParams {
    *  attribute bot volume to a human. The dashboard composer passes the
    *  signed-in user; nothing else does. */
   senderUserId?: string | null;
+  /** When the channel itself rejects the send, save the message as a
+   *  `failed` row (with the reason) so it shows in the chat and can be
+   *  resent. Default true. The resend route turns it off: it already owns
+   *  the failed row and updates that one instead of adding a second. */
+  persistFailedAttempt?: boolean;
 }
 
 export interface SendMessageResult {
@@ -254,6 +273,7 @@ export async function sendMessageToConversation(
     senderType = 'agent',
     aiGenerated = false,
     senderUserId = null,
+    persistFailedAttempt = true,
   } = params;
 
   if (!conversationId) {
@@ -448,6 +468,115 @@ export async function sendMessageToConversation(
     sendLanguage = resolved.language;
   }
 
+  // What we store for this message — the same row whether the send goes
+  // through (status 'sent') or the channel rejects it (status 'failed').
+  //
+  // Interactive messages persist the body as content_text (so the
+  // conversation-list preview reads sensibly) plus the full structured
+  // payload so the thread can re-render the buttons / rows.
+  //
+  // Templates persist the *substituted* body. The composer pre-renders
+  // and posts it as contentText; every other caller (the public API,
+  // most importantly) sends none, and storing null there left the
+  // Inbox rendering an empty bubble — issue #483.
+  const persistedText =
+    messageType === 'interactive'
+      ? interactivePayload!.body
+      : messageType === 'template'
+        ? templateContentText(
+            templateRow,
+            templateBodyParams(templateParams, templateMessageParams),
+            contentText
+          )
+        : (contentText ?? null);
+
+  // What a resend needs that the columns above do not carry: the template
+  // language and parameters, and a document's file name. Only stored when
+  // there is something to store, so a plain text send never depends on the
+  // column (migration 094) existing yet.
+  const sendPayload: Record<string, unknown> = {};
+  if (messageType === 'template') {
+    if (templateLanguage) sendPayload.template_language = templateLanguage;
+    if (templateParams && templateParams.length) sendPayload.template_params = templateParams;
+    if (templateMessageParams) sendPayload.template_message_params = templateMessageParams;
+  }
+  if (filename) sendPayload.filename = filename;
+
+  const baseRow: Record<string, unknown> = {
+    conversation_id: conversationId,
+    sender_type: senderType,
+    sender_id: senderType === 'agent' ? senderUserId : null,
+    content_type: messageType,
+    content_text: persistedText,
+    // Only ever set for Email(MS365)/Gmail sends from the WYSIWYG
+    // composer; every other channel/caller leaves this null, and
+    // MessageBubble only renders the rich view when it's present.
+    content_html: contentHtml || null,
+    media_url: mediaUrl || null,
+    template_name: templateName || null,
+    interactive_payload:
+      messageType === 'interactive' ? interactivePayload : null,
+    channel_type: channel,
+    ai_generated: aiGenerated,
+    reply_to_message_id: replyToMessageId || null,
+    ...(Object.keys(sendPayload).length ? { send_payload: sendPayload } : {}),
+  };
+
+  // Insert a `messages` row. If the database has not had migration 094 yet,
+  // retry without `send_payload` rather than losing the message.
+  const insertMessageRow = async (row: Record<string, unknown>) => {
+    const first = await db.from('messages').insert(row).select().single();
+    if (
+      first.error &&
+      'send_payload' in row &&
+      /send_payload/i.test(first.error.message ?? '')
+    ) {
+      const { send_payload: _dropped, ...rest } = row;
+      void _dropped;
+      return db.from('messages').insert(rest).select().single();
+    }
+    return first;
+  };
+
+  // The channel rejected the send. Save what the agent tried to send as a
+  // `failed` bubble carrying the reason, so it stays in the chat and can be
+  // resent, then raise the error the caller already expected. Nothing here
+  // touches the conversation's preview, unread count or awaiting-response
+  // flag: a message that did not go out must not read as a reply.
+  const failSend = async (
+    cause: unknown,
+    message: string
+  ): Promise<never> => {
+    const failure = failureFromError(cause);
+    let failedMessageId: string | null = null;
+    if (persistFailedAttempt) {
+      try {
+        const { data: failedRow, error: failedErr } = await insertMessageRow({
+          ...baseRow,
+          message_id: null,
+          status: 'failed',
+          error_code: failure.code,
+          error_title: failure.title,
+          error_details: failure.details,
+        });
+        if (failedErr) {
+          console.error('[send-message] could not save the failed message:', failedErr.message);
+        } else {
+          failedMessageId = (failedRow as { id: string } | null)?.id ?? null;
+        }
+      } catch (saveErr) {
+        console.error(
+          '[send-message] could not save the failed message:',
+          saveErr instanceof Error ? saveErr.message : saveErr
+        );
+      }
+    }
+    throw new SendMessageError('meta_error', message, 502, {
+      failure,
+      failedMessageId,
+    });
+  };
+
   // Send via Meta — retry across phone-number variants if Meta rejects
   // with "recipient not in allowed list"; persist a working variant
   // back to the contact so the next send goes straight through. Skipped
@@ -553,7 +682,7 @@ export async function sendMessageToConversation(
       const message =
         err instanceof Error ? err.message : 'Unknown Meta API error';
       console.error('[send-message] Meta send failed for all variants:', message);
-      throw new SendMessageError('meta_error', `Meta API error: ${message}`, 502);
+      return failSend(err, `Meta API error: ${message}`);
     }
 
     if (hasValidPhone && workingPhone !== sanitizedPhone) {
@@ -608,7 +737,7 @@ export async function sendMessageToConversation(
       }
       const message = err instanceof Error ? err.message : 'Unknown Messenger API error';
       console.error('[send-message] Messenger send failed:', message);
-      throw new SendMessageError('meta_error', `Messenger API error: ${message}`, 502);
+      return failSend(err, `Messenger API error: ${message}`);
     }
   }
 
@@ -653,7 +782,7 @@ export async function sendMessageToConversation(
       }
       const message = err instanceof Error ? err.message : 'Unknown Instagram API error';
       console.error('[send-message] Instagram send failed:', message);
-      throw new SendMessageError('meta_error', `Instagram API error: ${message}`, 502);
+      return failSend(err, `Instagram API error: ${message}`);
     }
   }
 
@@ -737,7 +866,7 @@ export async function sendMessageToConversation(
       }
       const message = err instanceof Error ? err.message : 'Unknown Microsoft Graph error';
       console.error('[send-message] Email send failed:', message);
-      throw new SendMessageError('meta_error', `Email send error: ${message}`, 502);
+      return failSend(err, `Email send error: ${message}`);
     }
   }
 
@@ -829,61 +958,24 @@ export async function sendMessageToConversation(
       }
       const message = err instanceof Error ? err.message : 'Unknown Gmail API error';
       console.error('[send-message] Gmail send failed:', message);
-      throw new SendMessageError('meta_error', `Gmail send error: ${message}`, 502);
+      return failSend(err, `Gmail send error: ${message}`);
     }
   }
 
   // Persist the sent message. Field names MUST match the messages
-  // schema (see 001_initial_schema.sql).
-  // Interactive messages persist the body as content_text (so the
-  // conversation-list preview reads sensibly) plus the full structured
-  // payload so the thread can re-render the buttons / rows.
-  //
-  // Templates persist the *substituted* body. The composer pre-renders
-  // and posts it as contentText; every other caller (the public API,
-  // most importantly) sends none, and storing null there left the
-  // Inbox rendering an empty bubble — issue #483.
-  const persistedText =
-    messageType === 'interactive'
-      ? interactivePayload!.body
-      : messageType === 'template'
-        ? templateContentText(
-            templateRow,
-            templateBodyParams(templateParams, templateMessageParams),
-            contentText
-          )
-        : (contentText ?? null);
-
-  const { data: messageRecord, error: msgError } = await db
-    .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_type: senderType,
-      sender_id: senderType === 'agent' ? senderUserId : null,
-      content_type: messageType,
-      content_text: persistedText,
-      // Only ever set for Email(MS365)/Gmail sends from the WYSIWYG
-      // composer; every other channel/caller leaves this null, and
-      // MessageBubble only renders the rich view when it's present.
-      content_html: contentHtml || null,
-      media_url: mediaUrl || null,
-      template_name: templateName || null,
-      interactive_payload:
-        messageType === 'interactive' ? interactivePayload : null,
-      channel_type: channel,
-      ai_generated: aiGenerated,
-      // A widget send never gets a Meta wamid, so `waMessageId` stays ''.
-      // Persist NULL there instead of '' — the unique index on
-      // (conversation_id, message_id) (migration 037) treats NULLs as
-      // distinct but not repeated empty strings, so a literal '' would
-      // make every widget conversation's SECOND agent reply fail with a
-      // unique violation.
-      message_id: waMessageId || null,
-      status: 'sent',
-      reply_to_message_id: replyToMessageId || null,
-    })
-    .select()
-    .single();
+  // schema (see 001_initial_schema.sql). The shared columns are built
+  // above (`baseRow`) so a failed attempt stores exactly the same row.
+  const { data: messageRecord, error: msgError } = await insertMessageRow({
+    ...baseRow,
+    // A widget send never gets a Meta wamid, so `waMessageId` stays ''.
+    // Persist NULL there instead of '' — the unique index on
+    // (conversation_id, message_id) (migration 037) treats NULLs as
+    // distinct but not repeated empty strings, so a literal '' would
+    // make every widget conversation's SECOND agent reply fail with a
+    // unique violation.
+    message_id: waMessageId || null,
+    status: 'sent',
+  });
 
   if (msgError) {
     console.error('[send-message] error inserting sent message:', msgError);

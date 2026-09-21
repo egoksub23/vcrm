@@ -33,10 +33,44 @@ The person you assign the ticket to gets a notification, unless you assigned it 
 ## Comments and @mentions
 
 1. Under **Activity**, click **Add a comment…**.
-2. Type your comment. Type `@` and a name to mention a teammate. Choose them from the short list.
-3. Click **Save**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac).
+2. Type your comment. Type `@` and a name to mention a teammate. Choose them from the short list. The list shows **People** first and **Teams** below, with the number of members in each team.
+3. Choose what the mention asks for. As soon as your comment mentions someone, two buttons appear: **Needs a response** (the default) and **FYI only**.
+4. Click **Save**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac).
 
 A mentioned teammate gets a notification. Comments are for your team. The app does not send them to the customer. You can **Edit** or **Delete** your own comments. Use the tabs **All**, **Comments** and **History** to filter the timeline, and switch between **Newest first** and **Oldest first**.
+
+### Mention a whole team
+
+Choose a team, for example **@Support Team**, to ask everyone in it at once. The app looks at the team's members at the moment you save and asks each of them, except you. The comment shows the team name as a purple chip. Everyone reached also starts watching the ticket, so they can follow it and act on it.
+
+- If someone in the team cannot open Tickets, they are skipped and you see a note such as "2 members were skipped: no ticket access".
+- People who join the team later are not added to a comment that is already written.
+- If you name a person and also their team, that person is asked once.
+
+### Needs a response, or FYI only
+
+**Needs a response** means "please answer on this ticket". Each person you asked is waiting on the ticket until one of these happens:
+
+- They write a comment on the ticket. That answers the request.
+- They click **Mark as done** on the ticket, when a reply is not needed.
+- The ticket is set to Resolved or Closed. All open requests on it are then closed.
+- You delete your comment, or click **Cancel request**. The request is withdrawn.
+
+**FYI only** just tells them. Nothing waits on them, and no bubble appears for them.
+
+Each request is written in the **History** tab, for example "Ada asked Bo for a response". A request to a team is one line, not one line per member. If you asked a ticket that is already Resolved or Closed, no response is requested, because nothing would close it.
+
+### When someone asks for your response
+
+A round number on **Tickets** in the sidebar counts the tickets that are waiting on you. It shows **9+** when there are more than nine and disappears when you have none. It is there when you sign in, and it updates on its own.
+
+- On the Tickets page, click **Mentioned me** to see exactly those tickets. On the board and in the list, each of them shows a **Waiting on you** chip. Point at the chip to see who asked and how long ago.
+- When you open the ticket, a yellow bar at the top says who asked, for example "Bo Chen asked for your response (via @Support Team)". Click **Go to comment** to jump to it, or **Mark as done**.
+- The notification in your bell takes you to the comment, and it is marked as read when the request is closed.
+
+### When you are waiting on someone
+
+The ticket shows **You are waiting on** with a line for each person still pending. Click **Nudge** to send them a reminder. You can nudge the same person once an hour. Click **Cancel request** to withdraw it. Under your comment, a small line says who it is still waiting on.
 
 ## The activity timeline
 
@@ -82,12 +116,14 @@ Only people with permission see **Delete ticket** in the three-dot menu. By defa
 ## Tips
 
 - Add a comment when you change the status. Say why.
-- Use **@** to pull in the person who can help.
+- Use **@** to pull in the person who can help. Use **@** with a team when you do not know who is free.
+- Pick **FYI only** when you do not need an answer, so your teammates' bubbles stay meaningful.
 - Set the ticket to **Pending** when you wait for the customer, and back to **In progress** when they reply.
 
 ## Common mistakes
 
 - Replying to the customer in a ticket comment. Reply in the chat. Ticket comments are internal.
+- Mentioning a team with **Needs a response** for something that is only news. Every member then waits on it. Choose **FYI only**.
 - Expecting a chat reply to stop the First response timer. Write a comment on the ticket.
 - Leaving a ticket unassigned.
 

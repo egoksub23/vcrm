@@ -14,8 +14,9 @@ import { groupTickets, type GroupBy, type SortKey, type SortSpec } from "@/lib/t
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { useSharedNow } from "@/hooks/use-shared-now";
 import type { TicketRow } from "@/hooks/use-ticket-store";
-import type { Profile, Ticket } from "@/types";
+import type { Profile, Ticket, TicketMention } from "@/types";
 import { JiraKeyChips } from "./jira-key-chip";
+import { WaitingOnYouChip } from "./ticket-waiting-chip";
 import { AssigneeMenu, PriorityMenu, StatusMenu } from "./ticket-pickers";
 import { TicketSlaBadge } from "./ticket-sla-badge";
 import { DueChip, LabelLozenge, PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
@@ -40,6 +41,8 @@ interface TicketListViewProps {
   onLoadMore: () => void;
   /** Linked Jira issue keys per ticket id (optional: rows show up to two next to the summary). */
   jiraChips?: Record<string, JiraChip[]>;
+  /** The oldest open "needs your response" request per ticket id (migration 095). */
+  waiting?: Record<string, TicketMention>;
   /** The SLA column (migration 086); hideable from the page. Default on. */
   showSla?: boolean;
 }
@@ -73,6 +76,7 @@ export function TicketListView({
   loadingMore,
   onLoadMore,
   jiraChips,
+  waiting,
   showSla = true,
 }: TicketListViewProps) {
   const t = useTranslations("Tickets.list");
@@ -133,6 +137,7 @@ export function TicketListView({
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium text-foreground">{row.subject}</span>
             <JiraKeyChips chips={jiraChips?.[row.id]} className="shrink-0" />
+            {waiting?.[row.id] ? <WaitingOnYouChip request={waiting[row.id]} members={members} detail className="shrink" /> : null}
           </div>
           {customer ? <div className="truncate text-[11px] text-muted-foreground">{customer}</div> : null}
         </TableCell>

@@ -59,8 +59,13 @@ export async function findExistingContact(
 
   if (error || !data) return null;
 
+  // Prefer an exact (same digits) match over a trunk-variant one: the form
+  // hard-blocks exact matches, so that is the contact the user must hear about.
+  const candidates = data as ExistingContact[];
   return (
-    (data as ExistingContact[]).find((c) => phonesMatch(c.phone, phone)) ?? null
+    candidates.find((c) => normalizeKey(c.phone) === normalized) ??
+    candidates.find((c) => phonesMatch(c.phone, phone)) ??
+    null
   );
 }
 

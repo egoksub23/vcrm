@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
+import { useMyTicketMentions } from "@/hooks/use-my-ticket-mentions";
 import { useSharedNow } from "@/hooks/use-shared-now";
 import { useCapability } from "@/hooks/use-can";
 import { useTeams } from "@/hooks/use-teams";
@@ -83,6 +84,11 @@ function TicketsPageInner() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Requests that wait on this person (migration 095): the "Mentioned me" filter and the "Waiting on you" chips.
+  const myMentions = useMyTicketMentions();
+  const mentionedTicketIds = myMentions.ticketIds;
+  const waiting = useMemo(() => Object.fromEntries(myMentions.byTicket), [myMentions.byTicket]);
+
   // Board or list, remembered per browser. Until it is known nothing loads,
   // so a list user does not pay for a board fetch first.
   const [view, setView] = useState<TicketViewMode | null>(null);
@@ -147,6 +153,13 @@ function TicketsPageInner() {
   }, [filters, sort, group, searchParams, router]);
 
   const store = useTicketStore(mode, view !== null);
+
+  // "Mentioned me" must list every waiting ticket, loaded page or not.
+  const mentionedOn = filters.quick.includes("mentioned");
+  const { ensureLoaded, loading: mentionStoreLoading } = store;
+  useEffect(() => {
+    if (mentionedOn && !mentionStoreLoading && mentionedTicketIds.size > 0) void ensureLoaded([...mentionedTicketIds]);
+  }, [mentionedOn, mentionStoreLoading, mentionedTicketIds, ensureLoaded]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -180,8 +193,13 @@ function TicketsPageInner() {
   const slaNow = useSharedNow(slaFilterOn || slaSortOn);
   // `now` only enters the context while an SLA chip is on, so the other filters do not re-run every 30 s.
   const ctx = useMemo(
-    () => ({ userId: user?.id ?? null, prefix, ...(slaFilterOn ? { now: new Date(slaNow) } : {}) }),
-    [user?.id, prefix, slaFilterOn, slaNow],
+    () => ({
+      userId: user?.id ?? null,
+      prefix,
+      mentionedTicketIds,
+      ...(slaFilterOn ? { now: new Date(slaNow) } : {}),
+    }),
+    [user?.id, prefix, mentionedTicketIds, slaFilterOn, slaNow],
   );
   const filtered = useMemo(
     () => applyFilters(store.rows, filters, ctx, mode === "list"),
@@ -356,6 +374,7 @@ function TicketsPageInner() {
           members={members}
           teams={teams}
           knownLabels={knownLabels.map((k) => k.label)}
+          mentionedCount={myMentions.count}
         />
       </div>
 
@@ -391,6 +410,7 @@ function TicketsPageInner() {
             closedOpen={closedOpen}
             onClosedOpenChange={setClosedOpen}
             jiraChips={jiraChips}
+            waiting={waiting}
           />
         ) : listRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
@@ -420,6 +440,7 @@ function TicketsPageInner() {
             loadingMore={store.loadingMore === "list"}
             onLoadMore={() => void store.loadMore()}
             jiraChips={jiraChips}
+            waiting={waiting}
             showSla={showSla}
           />
         )}

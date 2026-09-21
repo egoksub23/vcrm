@@ -8,9 +8,11 @@ import { matchesSlaChip } from '@/lib/sla/display'
 /** The "Unassigned" entry in the assignee filter. */
 export const UNASSIGNED = '__unassigned__'
 
-/** `sla_at_risk` / `sla_breached` (migration 086) read the ticket's SLA columns. */
-export type QuickFilter = 'mine' | 'unassigned' | 'overdue' | 'today' | 'sla_at_risk' | 'sla_breached'
-const QUICK_FILTERS: QuickFilter[] = ['mine', 'unassigned', 'overdue', 'today', 'sla_at_risk', 'sla_breached']
+/** `sla_at_risk` / `sla_breached` (migration 086) read the ticket's SLA columns;
+ *  `mentioned` (migration 095) keeps the tickets where someone asked the signed-in
+ *  person for a response and it is still open (`FilterContext.mentionedTicketIds`). */
+export type QuickFilter = 'mine' | 'mentioned' | 'unassigned' | 'overdue' | 'today' | 'sla_at_risk' | 'sla_breached'
+export const QUICK_FILTERS: QuickFilter[] = ['mine', 'mentioned', 'unassigned', 'overdue', 'today', 'sla_at_risk', 'sla_breached']
 
 export interface TicketFilters {
   /** Search box: a key ("VIR-12"), a number, or words. */
@@ -122,6 +124,8 @@ export function filtersFromJson(json: unknown): TicketFilters {
 export interface FilterContext {
   /** The signed-in user, for "My tickets". */
   userId: string | null
+  /** Tickets with an open "needs your response" request on the signed-in user (migration 095). */
+  mentionedTicketIds?: ReadonlySet<string>
   prefix: string | null
   now?: Date
 }
@@ -154,7 +158,7 @@ type FilterRow = Pick<
   | 'sla_resolution_state'
   | 'sla_resolution_due_at'
   | 'sla_resolution_risk_at'
->
+> & { id?: string }
 
 /** Whether one ticket passes every filter. `includeStatuses` is false on the
  *  board, which always shows every column. */
@@ -169,6 +173,7 @@ export function ticketMatchesFilters(
 
   for (const chip of f.quick) {
     if (chip === 'mine' && !(ctx.userId && t.assigned_agent_id === ctx.userId)) return false
+    if (chip === 'mentioned' && !(t.id !== undefined && ctx.mentionedTicketIds?.has(t.id))) return false
     if (chip === 'unassigned' && t.assigned_agent_id) return false
     if (chip === 'overdue' && dueState(t.due_date, now, isDoneStatus(t.status)) !== 'overdue') return false
     if (chip === 'today' && !isSameLocalDay(t.updated_at, now)) return false

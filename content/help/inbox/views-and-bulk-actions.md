@@ -67,7 +67,7 @@ To leave selection mode without doing anything, press the checklist button again
 | Action | What it does |
 |---|---|
 | **Assign** | Choose a teammate, or **Unassign**. All the selected chats go to that person, and they get an alert for each chat. There is no hand-over note box. |
-| **Apply label** | Choose a label. It is added to every selected chat. The list shows your workspace's tags and labels together, so choose a label (a topic), not a tag (a type of customer). |
+| **Apply label** | Choose a label. It is added to every selected chat. The list shows only labels (topics). Tags, which describe a type of customer, are not offered here, and the app refuses to attach one to a chat. |
 | **Mark as read** (open envelope) | Clears the unread number. |
 | **Mark as unread** (closed envelope) | Puts an unread mark back. |
 | **Close** | Opens **Close N conversations**. |

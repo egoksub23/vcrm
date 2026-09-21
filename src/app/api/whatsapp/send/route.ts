@@ -11,6 +11,7 @@ import {
   validateSendMessageParams,
   SendMessageError,
 } from '@/lib/whatsapp/send-message'
+import { sendErrorBody } from '@/lib/messages/send-error-body'
 
 // The dashboard's outbound-send endpoint. It owns auth, per-user rate
 // limiting, and the two ways the UI targets a thread — an existing
@@ -179,10 +180,11 @@ export async function POST(request: Request) {
       })
     } catch (err) {
       if (err instanceof SendMessageError) {
-        return NextResponse.json(
-          { error: err.message },
-          { status: err.status }
-        )
+        // A channel rejection is saved as a failed bubble in the chat; the
+        // body says which one and why, so the inbox can show the reason.
+        return NextResponse.json(sendErrorBody(err, channel_override), {
+          status: err.status,
+        })
       }
       throw err
     }

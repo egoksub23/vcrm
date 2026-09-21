@@ -1159,10 +1159,10 @@ export function ConversationList({
                   <ChevronDown className="h-3 w-3" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="max-h-64 w-56 border-border bg-popover">
-                  {tags.length === 0 ? (
+                  {conversationLabels.length === 0 ? (
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("noLabelsAvailable")}</div>
                   ) : (
-                    tags.map((tag) => (
+                    conversationLabels.map((tag) => (
                       <DropdownMenuItem
                         key={tag.id}
                         onClick={() => handleBulkApplyLabel(tag)}

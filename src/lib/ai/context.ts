@@ -53,6 +53,8 @@ export async function buildConversationContext(
     // Internal notes (teammate comments, the "AI answered from" note) are not
     // part of the conversation with the customer.
     .eq('is_internal', false)
+    // A reply that failed to send was never seen by the customer.
+    .neq('status', 'failed')
     .order('created_at', { ascending: false })
     .limit(limit)
 

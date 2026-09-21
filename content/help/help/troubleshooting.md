@@ -21,11 +21,11 @@ Find your problem by the words you see on screen. If the fix does not work, tell
 
 **Fix:** Ask your admin. See [Roles and permissions](/help/getting-started/roles-and-permissions).
 
-### A message shows "Not delivered", or an error says "Failed to send"
+### A message shows "Not sent"
 
-**Why:** The channel refused the message. The reason is written after "Failed to send:".
+**Why:** The channel refused the message, or Meta accepted it and then could not deliver it. Vircle CRM keeps the message in the chat with a red **Not sent** panel. The panel says why in plain words and what to do. Press the small **i** button to see the provider's own message and error code.
 
-**Fix:** Read the reason. If it is about the 24-hour session, use a template. If it says a channel such as WhatsApp is not connected, tell your admin. Send again after the fix. If the same reason keeps coming back, send your admin the exact words.
+**Fix:** Do what the panel says. For example, send a template when the 24-hour window has closed, ask your admin to reconnect the channel when the connection has expired, or wait a moment when it says you are sending too fast. Then press **Resend** on the message. It sends the same thing again and replaces the red message, so the customer never gets two. If the 24-hour window has closed, **Resend** opens the templates instead of trying again. Press **Delete** to remove a message you no longer want to send. If the same reason keeps coming back, send your admin the exact words and the error code. See [Reply to customers](/help/inbox/reply-to-customers).
 
 ### My voice note is silent, or the microphone does not work
 
@@ -98,7 +98,7 @@ See [Inbox overview](/help/inbox/inbox-overview).
 
 **Why:** One phone number can belong to only one contact. In the Inbox you may see "Another contact already uses this number.", or "Use 7–15 digits, with an optional + at the start."
 
-**Fix:** Search for the number on the Contacts page. If it belongs to a duplicate, see [Merge duplicates](/help/contacts/merge-duplicates).
+**Fix:** When you edit a contact, the message names the other contact that has the number. Otherwise, search for the number on the Contacts page. If it belongs to a duplicate, see [Merge duplicates](/help/contacts/merge-duplicates).
 
 ### The import says "No valid rows found"
 

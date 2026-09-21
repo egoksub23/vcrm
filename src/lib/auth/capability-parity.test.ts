@@ -167,6 +167,10 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("comments/[id]/action", "POST", "agent", "comments.moderate"),
   row("comments/[id]/action", "POST (action=delete)", "admin", "comments.delete", "was role !== admin/owner"),
   row("conversations/[id]/comments", "POST", "agent", "conversations.manage"),
+  // Ticket mentions (migration 095): a comment with @people / @teams, and Cancel / Nudge on a request.
+  // (Mark as done needs only membership: the person asked closes their own request.)
+  row("tickets/[id]/comments", "POST", "agent", "tickets.work"),
+  row("tickets/[id]/mentions/[mentionId]", "PATCH (action=cancel|nudge)", "agent", "tickets.work"),
   row("conversations/[id]/labels", "POST", "agent", "conversations.manage"),
   row("conversations/[id]/labels", "DELETE", "agent", "conversations.manage"),
   row("inbox-views", "POST", "agent", "conversations.manage", "personal view"),
@@ -182,11 +186,14 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("quick-replies/[id]", "DELETE", "agent", "snippets.manage"),
   row("whatsapp/send", "POST", "agent", "messages.send"),
   row("whatsapp/react", "POST", "agent", "messages.send"),
+  // Resend of a failed message: the same gate as sending it in the first place.
+  row("messages/[id]/resend", "POST", "agent", "messages.send"),
 
   // ---- contacts / broadcasts ----
   row("contacts/merge", "POST", "agent", "contacts.merge"),
   // Web Widget v2: resolving a "possible duplicate" the widget recorded.
   row("contacts/merge-suggestions/[id]", "POST", "agent", "contacts.merge"),
+  row("contacts/export", "GET", "agent", "contacts.edit"),
   row("contacts/[id]/tags", "POST", "agent", "contacts.edit"),
   row("contacts/[id]/tags", "DELETE", "agent", "contacts.edit"),
   row("whatsapp/broadcast", "POST", "agent", "broadcasts.send"),

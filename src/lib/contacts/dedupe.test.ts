@@ -91,6 +91,31 @@ describe("findExistingContact", () => {
     expect(hit).toBeNull();
   });
 
+  it("prefers the exact match over a trunk-variant one", async () => {
+    const db = stubDb([
+      { id: "fuzzy", phone: "37063949836" },
+      { id: "exact", phone: "+370 063 949 836" },
+    ]);
+    const hit = await findExistingContact(db, "acct", "370063949836");
+    expect(hit?.id).toBe("exact");
+  });
+
+  it("skips the contact being edited when excludeContactId is given", async () => {
+    const rows = [{ id: "c1", phone: "15551234567" }];
+    const builder: Record<string, unknown> = {
+      select: () => builder,
+      eq: () => builder,
+      like: () => builder,
+      neq: (_col: string, id: string) => {
+        expect(id).toBe("self");
+        return Promise.resolve({ data: rows, error: null });
+      },
+    };
+    const db = { from: () => builder } as unknown as SupabaseClient;
+    const hit = await findExistingContact(db, "acct", "+1 555 123 4567", "self");
+    expect(hit?.id).toBe("c1");
+  });
+
   it("returns null for an empty phone without querying", async () => {
     const db = stubDb([{ id: "c1", phone: "15551234567" }]);
     expect(await findExistingContact(db, "acct", "   ")).toBeNull();

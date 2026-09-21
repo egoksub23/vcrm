@@ -47,7 +47,12 @@ Where both contacts have a value, your contact keeps its own.
 
 ## When the phone number is refused
 
-One phone number can belong to only one contact. If the app refuses to save a number, another contact probably has it already. Search for the number on the Contacts page, open that contact and decide which one to keep. If the two really are one person, ask your admin for help joining them.
+One phone number can belong to only one contact. If you change a contact's phone to a number another contact already has, the app does not save it. It names the other contact instead, in a window called **This number belongs to another contact** (or a red notice in the **Edit Contact** window).
+
+- If you have the "Merge contacts" permission, click **Merge and save number** in that window, or **Merge these contacts** in the Edit window and then **Merge** to confirm. The other contact's history moves into the one you are editing, the other contact is deleted, and your number is saved. In the Edit window, click **Update** afterwards to save the number.
+- If you do not have the permission, ask a colleague who does, or use a different number.
+
+If the two are not the same person, click **Keep separate** and choose another number.
 
 ## Who can merge
 

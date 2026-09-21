@@ -50,14 +50,14 @@ The notes on this tab are the same notes you see as **Session notes** beside a c
 ## Add a contact
 
 1. Click **Add Contact**.
-2. Type the **Name**.
+2. Type the **Name**. It is optional. Only the phone number is required.
 3. Type the **Phone Number**, including the country code (for example +60 for Malaysia). The phone number is marked with a red star. The app will not save the contact without it.
 4. Add the email and company if you know them.
 5. Choose the **Lifecycle stage**. New contacts start as Lead.
 6. Click the tags that apply.
 7. Click **Create**.
 
-When you leave the phone box, the app checks for the same number. A red notice, "A contact with this phone number already exists.", stops you from creating a copy. Click **View** in that notice to open the existing contact. An amber notice, "A contact with a very similar number already exists.", is a warning. Check it before you go on.
+When you leave the phone box, the app checks for the same number. A red notice, for example "Jane Doe already has this phone number.", names the contact that owns it and stops you from creating a copy. Click **View** in that notice to open the existing contact. An amber notice, "A contact with a very similar number already exists.", is a warning. Check it before you go on.
 
 ## Delete a contact
 
@@ -68,7 +68,7 @@ Click the three dots at the end of a row, then **Delete**. You can also tick sev
 
 ## Who can do what
 
-By default an Agent can add, edit, import and delete contacts. The **Custom fields** button on this page is for admins only. A Viewer can read contacts but cannot change them. If a button is greyed out, hover over it to read why, and see [Roles and permissions](/help/getting-started/roles-and-permissions).
+By default an Agent can add, edit, import, export and delete contacts. The **Custom fields** button on this page is for admins only. A Viewer can read contacts but cannot change them. If a button is greyed out, hover over it to read why, and see [Roles and permissions](/help/getting-started/roles-and-permissions).
 
 ## Tips
 
@@ -85,5 +85,5 @@ By default an Agent can add, edit, import and delete contacts. The **Custom fiel
 ## Related pages
 
 - [Merge duplicates](/help/contacts/merge-duplicates)
-- [Import contacts](/help/contacts/import-and-export)
+- [Import and export contacts](/help/contacts/import-and-export)
 - [Pipelines and deals](/help/contacts/pipelines-and-deals)

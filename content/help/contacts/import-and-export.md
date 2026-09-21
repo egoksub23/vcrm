@@ -1,6 +1,6 @@
 ---
 title: Import and export contacts
-description: Bring many contacts in from a CSV file, and what to do about errors.
+description: Bring many contacts in from a CSV file, save your contacts as a CSV file, and what to do about errors.
 order: 3
 updated: 2026-09-21
 ---
@@ -55,10 +55,19 @@ Only tags that are already approved can be used. A tag that is still waiting for
 
 ## Export
 
-The Contacts page has no export button. If you need a full list of contacts, ask your admin.
+To save your contacts as a file:
+
+1. Click **Contacts** in the sidebar.
+2. If you only want some contacts, type in the search box or choose tags with **Filter by tags**. The file follows what you have set, and it holds every match, not just the 25 on the page.
+3. Click **Export**.
+4. Wait a moment. A file called `contacts-` and the date, ending in `.csv`, is saved by your browser.
+
+The file has the columns `phone`, `name`, `email`, `company` and `tags`, and a `created_at` column with the date the contact was added. Tag names are separated by a semicolon and a space. Custom fields, notes and deals are not in the file.
+
+Because the first five columns are the ones Import reads, you can import an exported file into another workspace. Some cells start with an apostrophe, for example `'+44 7911 123456`. That keeps a spreadsheet from treating the cell as a formula, and Import removes it again.
 
 > [!NOTE]
-> The only related export is **Export CSV** on the page of a single broadcast. It saves the recipients of that broadcast. See [Broadcasts](/help/working-together/broadcasts).
+> A different export is **Export CSV** on the page of a single broadcast. It saves the recipients of that broadcast. See [Broadcasts](/help/working-together/broadcasts).
 
 ## Tips
 
@@ -73,9 +82,9 @@ The Contacts page has no export button. If you need a full list of contacts, ask
 - Several tags in one cell without quotes when you separate them with commas.
 - Expecting an import to update existing contacts. It only adds new ones.
 
-## Who can import
+## Who can import and export
 
-By default Agents can import contacts. If **Import** is greyed out, ask your admin. See [Roles and permissions](/help/getting-started/roles-and-permissions).
+By default Agents can import and export contacts. Both buttons use the same permission. If **Import** or **Export** is greyed out, ask your admin. See [Roles and permissions](/help/getting-started/roles-and-permissions).
 
 ## Related pages
 

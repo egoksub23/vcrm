@@ -12,7 +12,11 @@ import {
   TemplatePicker,
   type TemplateSendValues,
 } from '@/components/inbox/template-picker';
-import { findExistingContact, type ExistingContact } from '@/lib/contacts/dedupe';
+import {
+  findExistingContact,
+  isUniqueViolation,
+  type ExistingContact,
+} from '@/lib/contacts/dedupe';
 import { mergeContacts } from '@/lib/contacts/merge-api';
 import {
   Sheet,
@@ -106,6 +110,10 @@ export function ContactDetailView({
   // confirms before any conversations/deals/tags move.
   const [mergeCandidate, setMergeCandidate] = useState<ExistingContact | null>(null);
   const [merging, setMerging] = useState(false);
+  // The typed phone is exactly another contact's number, so the save was
+  // refused (DB unique index, migration 022). Names that contact and, for
+  // someone with contacts.merge, offers to merge and then save the number.
+  const [duplicateConflict, setDuplicateConflict] = useState<ExistingContact | null>(null);
 
   // Tags tab
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -251,7 +259,18 @@ export function ContactDetailView({
       .eq('id', contactId);
 
     if (error) {
-      toast.error(t('toastUpdateFailed'));
+      if (isUniqueViolation(error) && accountId) {
+        // Another contact already owns this exact number: say which one
+        // instead of a generic failure.
+        const other = await findExistingContact(supabase, accountId, nextPhone, contactId);
+        if (other) {
+          setDuplicateConflict(other);
+        } else {
+          toast.error(t('duplicatePhone.toastConflictGeneric'));
+        }
+      } else {
+        toast.error(t('toastUpdateFailed'));
+      }
     } else {
       toast.success(t('toastUpdated'));
       fetchContact();
@@ -283,6 +302,27 @@ export function ContactDetailView({
       fetchNotes();
       fetchTags();
       onUpdated();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'unknown error';
+      toast.error(t('mergePrompt.toastFailed', { reason }));
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  // Merge the contact that owns the typed number into this one, then save
+  // the number (merging deletes the other contact, which frees the number).
+  async function confirmMergeAndSave() {
+    if (!canMerge || !contactId || !duplicateConflict) return;
+    setMerging(true);
+    try {
+      await mergeContacts(contactId, duplicateConflict.id);
+      toast.success(t('mergePrompt.toastMerged'));
+      setDuplicateConflict(null);
+      fetchDeals();
+      fetchNotes();
+      fetchTags();
+      await saveDetails();
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'unknown error';
       toast.error(t('mergePrompt.toastFailed', { reason }));
@@ -892,6 +932,53 @@ export function ContactDetailView({
               t('mergePrompt.confirm')
             )}
           </GatedButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog
+      open={!!duplicateConflict}
+      onOpenChange={(open) => !open && !merging && setDuplicateConflict(null)}
+    >
+      <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-popover-foreground">
+            <AlertTriangle className="size-4 text-amber-500" />
+            {t('duplicatePhone.title')}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            {t(
+              canMerge ? 'duplicatePhone.description' : 'duplicatePhone.descriptionNoMerge',
+              {
+                name: duplicateConflict?.name || t('mergePrompt.unnamed'),
+                phone: duplicateConflict?.phone ?? '',
+              },
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setDuplicateConflict(null)}
+            disabled={merging}
+          >
+            {canMerge ? t('mergePrompt.cancel') : t('duplicatePhone.close')}
+          </Button>
+          {canMerge && (
+            <Button
+              onClick={confirmMergeAndSave}
+              disabled={merging}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {merging ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  {t('mergePrompt.merging')}
+                </>
+              ) : (
+                t('duplicatePhone.mergeAndSave')
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

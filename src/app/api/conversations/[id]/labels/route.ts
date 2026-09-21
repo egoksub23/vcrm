@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import {
   ConversationLabelWriteError,
+  assertTagIsConversationLabel,
   removeConversationLabel,
 } from '@/lib/conversations/label-write';
 import { addConversationLabelAndDispatch } from '@/lib/conversations/label-events';
@@ -33,6 +34,12 @@ export async function POST(
     if (!tagId) {
       return NextResponse.json({ error: 'tag_id required' }, { status: 400 });
     }
+
+    // Only conversation labels can be attached here; a contact-only tag is a 400.
+    await assertTagIsConversationLabel(ctx.supabase, {
+      accountId: ctx.accountId,
+      tagId,
+    });
 
     const { added } = await addConversationLabelAndDispatch({
       db: ctx.supabase,

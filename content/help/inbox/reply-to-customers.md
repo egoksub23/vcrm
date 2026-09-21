@@ -29,7 +29,7 @@ Your message appears at once with a small clock. The clock changes as it moves o
 | One grey tick | Sent |
 | Two grey ticks | Delivered |
 | Two blue ticks | Read |
-| Red cross | Not delivered |
+| Red cross | Not sent. See "If a message did not send" below |
 
 ## Add an emoji
 
@@ -88,17 +88,29 @@ If the list says "No approved templates", ask your admin. Templates are approved
 
 ## If a message did not send
 
-A red pop-up message says "Failed to send:" and a reason. The bubble shows a red cross. If a reason is known it appears under the message as "Not delivered: ...".
+When WhatsApp, Messenger, Instagram or your email connection refuses a message, it does not disappear. It stays in the chat with a red outline and a red **Not sent** panel under it. A pop-up also tells you what happened. The panel says why in plain words and what to do. Press the small **i** button for the provider's own message and error code. The same panel appears if Meta accepts a message and then fails to deliver it a moment later.
+
+The panel has two buttons:
+
+- **Resend** sends the same message again, on the same channel. Text, files, templates and buttons or lists are all resent. When it works, the red message is replaced by the new one, so the customer does not get it twice. If it fails again, the red message stays and shows the new reason. Press it once: a second click while it is sending does nothing.
+- **Delete** moves the red message to the trash, like **Move to trash** in the message toolbar. You can restore it from the **Pending Delete** bin.
+
+You need the same permission as for sending a message. Without it, both buttons are greyed out.
 
 Common reasons:
 
-- **The 24-hour window has closed.** Send a template.
-- **"WhatsApp not configured".** The channel is not connected. Ask your admin.
-- **"Contact has no phone number or WhatsApp user ID"**, **"Invalid phone number format"** or **"Contact has no email address".** Fix the contact's details in the right-hand column, then send again.
+- **The 24-hour window has closed.** Send a template. **Resend** does not try again on WhatsApp in this case. It tells you and opens the template list.
+- **This number is not on your WhatsApp test number's allowed list.** Add the number in Meta, or use a production number.
+- **The connection has expired.** Ask your admin to reconnect the channel in **Settings**, then **Channels**.
+- **Sending too fast.** Wait a moment, then press **Resend**.
+- **"WhatsApp not configured".** The channel is not connected. Ask your admin. No red message is kept for this one, because nothing was sent.
+- **"Contact has no phone number or WhatsApp user ID"**, **"Invalid phone number format"** or **"Contact has no email address".** Fix the contact's details in the right-hand column, then send again. No red message is kept for these either.
 - **A file is too big.** The message shows the size and the limit.
 - **"Caption exceeds the 1024-character limit".** Shorten the caption.
 
-There is no resend button. Point at the message, press **Copy text**, and send it again once the cause is fixed. If a template fails with "Template row is malformed locally", tell your admin.
+A reason Vircle CRM does not know shows Meta's own words and the error code. Give both to your admin. If a template fails with "Template row is malformed locally", tell your admin.
+
+A red message you never see a **Resend** button on (for example after your internet dropped while sending) can only be deleted. Type it again.
 
 ## Tips
 

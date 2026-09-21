@@ -10,6 +10,8 @@ import { attachFileToTicket, removeTicketAttachment } from "@/lib/tickets/attach
 import { TICKET_MAX_ATTACHMENTS, checkTicketFile, formatBytes } from "@/lib/tickets/attachments";
 import { linkRowFor, type LinkGroupKey } from "@/lib/tickets/links";
 import { buildTicketPatch } from "@/lib/tickets/patch";
+import { postTicketCommentRequest } from "@/lib/tickets/mention-actions";
+import type { MentionKind } from "@/lib/tickets/mentions";
 import { updateTicket } from "@/lib/tickets/update";
 import { ImagePrepareError } from "@/lib/media/prepare-image";
 import type {
@@ -52,6 +54,7 @@ export function useTicketDetail(
   const t = useTranslations("Tickets.detail");
   const tLinks = useTranslations("Tickets.links");
   const tAtt = useTranslations("Tickets.attachments");
+  const tMention = useTranslations("Tickets.detail.mention");
   const { user } = useAuth();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -208,31 +211,35 @@ export function useTicketDetail(
     [onChanged, t],
   );
 
+  /**
+   * Post a comment through the server (migration 095): it expands @teams into
+   * their members, makes them watchers and, for "needs a response", records who
+   * has to answer. `options` is left out for a plain comment.
+   */
   const addComment = useCallback(
-    async (body: string, mentions: string[]): Promise<boolean> => {
+    async (body: string, mentions: string[], options?: { teams?: string[]; kind?: MentionKind }): Promise<boolean> => {
       const current = ticketRef.current;
       const text = body.trim();
       if (!current || !text) return false;
-      const { data, error } = await createClient()
-        .from("ticket_comments")
-        .insert({
-          ticket_id: current.id,
-          account_id: current.account_id,
-          author_id: user?.id ?? null,
-          body: text,
-          mentions,
-        })
-        .select("*")
-        .single();
-      if (error || !data) {
-        toast.error(t("commentFailed"));
+      const result = await postTicketCommentRequest(current.id, {
+        body: text,
+        mentions,
+        teams: options?.teams ?? [],
+        kind: options?.kind ?? "response",
+      });
+      if (!result.ok) {
+        toast.error(result.error || t("commentFailed"));
         return false;
       }
-      setComments((prev) => (prev.some((c) => c.id === (data as TicketComment).id) ? prev : [...prev, data as TicketComment]));
+      const { comment, skippedNoAccess, warnings } = result.data;
+      setComments((prev) => (prev.some((c) => c.id === comment.id) ? prev : [...prev, comment]));
       onChanged?.(current.id);
+      if (skippedNoAccess > 0) toast.info(tMention("skippedNoAccess", { count: skippedNoAccess }));
+      if (warnings.includes("requests_failed")) toast.error(tMention("requestsFailed"));
+      else if (warnings.includes("ticket_closed")) toast.info(tMention("ticketClosedNoRequests"));
       return true;
     },
-    [user?.id, onChanged, t],
+    [onChanged, t, tMention],
   );
 
   const editComment = useCallback(

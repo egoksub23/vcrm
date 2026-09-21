@@ -18,25 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/layout/mode-toggle";
 
-const pageTitles: Record<string, string> = {
-  "/dashboard": "dashboard",
-  "/inbox": "inbox",
-  "/notifications": "notifications",
-  "/contacts": "contacts",
-  "/pipelines": "pipelines",
-  "/broadcasts": "broadcasts",
-  "/automations": "automations",
-  "/settings": "settings",
-  "/help": "userGuide",
-};
-
-function getPageTitleKey(pathname: string): string {
-  if (pageTitles[pathname]) return pageTitles[pathname];
-  const match = Object.entries(pageTitles).find(([path]) =>
-    pathname.startsWith(path),
-  );
-  return match ? match[1] : "dashboard";
-}
+import { getPageTitleKey } from "@/lib/layout/page-title";
 
 interface HeaderProps {
   /** Wired to the shell's drawer state. Used only on mobile — the

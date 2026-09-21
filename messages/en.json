@@ -32,6 +32,7 @@
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
     "unreadNotifications": "{count} unread {count, plural, =1 {notification} other {notifications}}",
+    "ticketsWaiting": "{count, plural, =1 {1 ticket is} other {# tickets are}} waiting for your response",
     "roleOwner": "Owner",
     "roleAdmin": "Admin",
     "roleAgent": "Agent",
@@ -58,6 +59,11 @@
     "automations": "Automations",
     "settings": "Settings",
     "userGuide": "User Guide",
+    "tickets": "Tickets",
+    "flows": "Flows",
+    "knowledge": "Knowledge",
+    "aiAgents": "AI Agents",
+    "reports": "Reports",
     "openMenu": "Open menu",
     "openAccountMenu": "Open account menu",
     "defaultUser": "User",
@@ -688,6 +694,90 @@
       "confirmBody": "{contact} will be merged into this contact: conversations, notes, tags and deals move here, and the other contact is deleted. This cannot be undone.",
       "cancel": "Cancel",
       "confirm": "Merge contacts"
+    },
+    "failure": {
+      "notSent": "Not sent",
+      "noReason": "This message could not be sent and no reason was reported.",
+      "resend": "Resend",
+      "resending": "Resending...",
+      "delete": "Delete",
+      "details": "Why it failed",
+      "detailsHeading": "Details",
+      "channel": "Channel",
+      "code": "Error code",
+      "providerMessage": "Message from the provider",
+      "providerDetails": "More detail",
+      "toastFailed": "Not sent. {title} {action}",
+      "windowClosed": "The 24-hour window has closed. Choose a template to continue the conversation.",
+      "resent": "Message resent",
+      "resendBusy": "This message is already being resent.",
+      "resendFailed": "Resend failed: {reason}",
+      "kinds": {
+        "allowlist": {
+          "title": "This number is not on your WhatsApp test number's allowed list.",
+          "action": "Add it in Meta, or use a production number."
+        },
+        "window_closed": {
+          "title": "The 24-hour window has closed.",
+          "action": "Send an approved template to start the conversation again."
+        },
+        "window_closed_social": {
+          "title": "The messaging window for this customer has closed.",
+          "action": "Wait for the customer to message you again, then reply."
+        },
+        "undeliverable": {
+          "title": "WhatsApp could not deliver this message.",
+          "action": "The number may not be on WhatsApp, or the customer has not accepted WhatsApp's latest terms. Check the number and try again."
+        },
+        "auth": {
+          "title": "The connection has expired.",
+          "action": "Ask an admin to reconnect the channel in Settings, Channels."
+        },
+        "rate_limit": {
+          "title": "Sending too fast.",
+          "action": "Wait a moment and try again."
+        },
+        "permission": {
+          "title": "This channel is missing a permission.",
+          "action": "Ask an admin to check the app permissions in Meta, then reconnect the channel."
+        },
+        "same_number": {
+          "title": "The recipient is the same as the sender.",
+          "action": "Check the contact's number. It cannot be your own business number."
+        },
+        "temporary": {
+          "title": "A temporary problem on the channel provider's side.",
+          "action": "Try again in a minute."
+        },
+        "marketing_limit": {
+          "title": "Meta limited marketing messages to this customer.",
+          "action": "Wait before trying again, or send a utility template instead."
+        },
+        "template": {
+          "title": "The template could not be sent.",
+          "action": "Check the template name, language and parameters in Templates, then resend."
+        },
+        "media": {
+          "title": "The attachment could not be sent.",
+          "action": "Check the file type and size, then send it again."
+        },
+        "account_restricted": {
+          "title": "The WhatsApp account has a restriction.",
+          "action": "Ask an admin to check the account status and payment method in Meta."
+        },
+        "recipient_unavailable": {
+          "title": "This customer cannot receive messages right now.",
+          "action": "Try again later."
+        },
+        "invalid_request": {
+          "title": "Meta rejected this message.",
+          "action": "Check the content and try again."
+        },
+        "unknown": {
+          "title": "The message could not be sent.",
+          "action": "Try again. If it keeps failing, ask your admin and quote the code."
+        }
+      }
     }
   },
   "Contacts": {
@@ -698,6 +788,11 @@
       "customFieldsBtn": "Custom fields",
       "selectAllOnPage": "Select all contacts on this page",
       "importBtn": "Import",
+      "exportBtn": "Export",
+      "exporting": "Exporting...",
+      "exportTitle": "Download the contacts you can see as a CSV file. Your current search and tag filter are applied.",
+      "toastExported": "Contacts exported",
+      "toastExportFailed": "Could not export contacts. Try again in a moment.",
       "addContactBtn": "Add Contact",
       "searchPlaceholder": "Search by name, phone, or email...",
       "filterByTags": "Filter by tags",
@@ -737,7 +832,7 @@
     },
     "form": {
       "addTitle": "Add Contact",
-      "addDesc": "Create a new contact. Name is required.",
+      "addDesc": "Create a new contact. Only the phone number is required.",
       "editTitle": "Edit Contact",
       "editDesc": "Update contact details and tags.",
       "nameLabel": "Name",
@@ -771,6 +866,16 @@
       "viewExisting": "View {name}",
       "dupExact": "A contact with this phone number already exists.",
       "dupSimilar": "A contact with a very similar number already exists.",
+      "dupExactNamed": "{name} already has this phone number.",
+      "toastConflictNamed": "{name} already has this phone number",
+      "mergeContactsBtn": "Merge these contacts",
+      "mergeAskColleague": "Merging needs the Merge contacts permission. Ask a colleague who can merge, or use a different number.",
+      "mergeConfirmText": "This moves all chats, deals, tags and notes from {name} into this contact and then deletes {name}. It cannot be undone.",
+      "mergeConfirmBtn": "Merge",
+      "mergeKeepBtn": "Keep separate",
+      "merging": "Merging...",
+      "toastMerged": "Contacts merged. Press Update to save the new number.",
+      "toastMergeFailed": "Failed to merge contacts: {reason}",
       "loadingTags": "Loading tags...",
       "noTagsAvailable": "No tags available. Create tags in Settings.",
       "phoneRequired": "Phone number is required"
@@ -846,6 +951,14 @@
         "merging": "Merging...",
         "toastMerged": "Contacts merged",
         "toastFailed": "Failed to merge contacts: {reason}"
+      },
+      "duplicatePhone": {
+        "title": "This number belongs to another contact",
+        "description": "{name} ({phone}) already has this phone number, so it cannot be saved on this contact. If they are the same person, merge them: all chats, deals, tags and notes move into this contact and the number is then saved.",
+        "descriptionNoMerge": "{name} ({phone}) already has this phone number, so it cannot be saved on this contact. Merging needs the Merge contacts permission: ask a colleague who can merge, or use a different number.",
+        "close": "Close",
+        "mergeAndSave": "Merge and save number",
+        "toastConflictGeneric": "Another contact already has this phone number"
       }
     },
     "importModal": {
@@ -4855,6 +4968,7 @@
       "quickLabel": "Quick filters",
       "quick": {
         "mine": "My tickets",
+        "mentioned": "Mentioned me",
         "unassigned": "Unassigned",
         "overdue": "Overdue",
         "today": "Updated today",
@@ -5092,6 +5206,31 @@
       "addComment": "Add a comment…",
       "commentLabel": "Comment",
       "commentHint": "Ctrl+Enter to save",
+      "mention": {
+        "people": "People",
+        "teams": "Teams",
+        "memberCount": "{count, plural, =1 {1 member} other {# members}}",
+        "toggleLabel": "What this mention asks for",
+        "needsResponse": "Needs a response",
+        "fyiOnly": "FYI only",
+        "someone": "Someone",
+        "askedYou": "{name} asked for your response",
+        "askedYouVia": "{name} asked for your response (via @{team})",
+        "jumpToComment": "Go to comment",
+        "markDone": "Mark as done",
+        "youAreWaitingOn": "You are waiting on {count, plural, =1 {1 person} other {# people}}",
+        "nudge": "Nudge",
+        "cancelRequest": "Cancel request",
+        "markedDone": "Marked as done",
+        "requestCancelled": "Request cancelled",
+        "nudged": "Reminder sent",
+        "actionFailed": "That did not work. Please try again.",
+        "skippedNoAccess": "{count, plural, =1 {1 member was skipped: no ticket access} other {# members were skipped: no ticket access}}",
+        "requestsFailed": "The comment was posted, but the response requests could not be saved. Ask them again.",
+        "ticketClosedNoRequests": "This ticket is already resolved or closed, so no response was requested.",
+        "waitingOnYou": "Waiting on you",
+        "chipTitle": "Asked by {name} {ago}"
+      },
       "save": "Save",
       "cancel": "Cancel",
       "noActivity": "No activity yet",
@@ -5192,7 +5331,15 @@
         "jiraDeleted": "deleted in Jira",
         "shareWithJira": "Share with Jira",
         "sharingWithJira": "Sharing…",
-        "sharedWithJira": "Shared with Jira"
+        "sharedWithJira": "Shared with Jira",
+        "mentionRequested": "asked {name} for a response",
+        "mentionRequestedTeam": "asked @{team} for a response",
+        "mentionReplied": "replied to a request for a response",
+        "mentionMarkedDone": "marked a request for a response as done",
+        "mentionClosedWithTicket": "closed {count, plural, =1 {1 response request} other {# response requests}} along with the ticket",
+        "mentionCommentDeleted": "cancelled {count, plural, =1 {1 response request} other {# response requests}} by deleting the comment",
+        "mentionCancelled": "cancelled the request for {name}'s response",
+        "waitingOn": "Waiting on {names}"
       },
       "status": {
         "open": "Open",

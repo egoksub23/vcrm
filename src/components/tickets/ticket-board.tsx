@@ -32,8 +32,9 @@ import type { JiraChip } from "@/lib/tickets/jira-ui";
 import { compareByRank, planDrop, rebalanceRanks } from "@/lib/tickets/rank";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import type { TicketRow } from "@/hooks/use-ticket-store";
-import type { Profile, TicketStatus } from "@/types";
+import type { Profile, TicketMention, TicketStatus } from "@/types";
 import { JiraKeyChips } from "./jira-key-chip";
+import { WaitingOnYouChip } from "./ticket-waiting-chip";
 import { TicketSlaBadge } from "./ticket-sla-badge";
 import {
   DueChip,
@@ -77,6 +78,8 @@ interface TicketBoardProps {
   onClosedOpenChange: (open: boolean) => void;
   /** Linked Jira issue keys per ticket id (optional: cards show up to two). */
   jiraChips?: Record<string, JiraChip[]>;
+  /** The oldest open "needs your response" request per ticket id (migration 095). */
+  waiting?: Record<string, TicketMention>;
 }
 
 const columnId = (s: TicketStatus) => `col:${s}`;
@@ -98,12 +101,14 @@ function CardBody({
   members,
   overlay = false,
   jiraChips,
+  waiting,
 }: {
   row: TicketRow;
   keyText: string;
   members: Profile[];
   overlay?: boolean;
   jiraChips?: JiraChip[];
+  waiting?: TicketMention;
 }) {
   const t = useTranslations("Tickets.board");
   const assignee = members.find((m) => m.user_id === row.assigned_agent_id);
@@ -119,6 +124,11 @@ function CardBody({
     >
       <p className="line-clamp-2 leading-snug font-medium text-foreground">{row.subject}</p>
       {customer ? <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{customer}</p> : null}
+      {waiting ? (
+        <div className="mt-1.5">
+          <WaitingOnYouChip request={waiting} members={members} />
+        </div>
+      ) : null}
       {shownLabels.length > 0 ? (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {shownLabels.map((l) => (
@@ -166,6 +176,7 @@ function SortableCard({
   canWork,
   onOpen,
   jiraChips,
+  waiting,
 }: {
   row: TicketRow;
   keyText: string;
@@ -173,6 +184,7 @@ function SortableCard({
   canWork: boolean;
   onOpen: (id: string) => void;
   jiraChips?: JiraChip[];
+  waiting?: TicketMention;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
@@ -198,7 +210,7 @@ function SortableCard({
         isDragging && "opacity-40",
       )}
     >
-      <CardBody row={row} keyText={keyText} members={members} jiraChips={jiraChips} />
+      <CardBody row={row} keyText={keyText} members={members} jiraChips={jiraChips} waiting={waiting} />
     </div>
   );
 }
@@ -220,6 +232,7 @@ function Column({
   onShowMore,
   onCollapse,
   jiraChips,
+  waiting,
 }: {
   status: TicketStatus;
   ids: string[];
@@ -235,6 +248,7 @@ function Column({
   onShowMore: () => void;
   onCollapse?: () => void;
   jiraChips?: Record<string, JiraChip[]>;
+  waiting?: Record<string, TicketMention>;
 }) {
   const t = useTranslations("Tickets.board");
   const tStatus = useTranslations("Tickets.common.status");
@@ -279,6 +293,7 @@ function Column({
                 canWork={canWork}
                 onOpen={onOpen}
                 jiraChips={jiraChips?.[id]}
+                waiting={waiting?.[id]}
               />
             ) : null;
           })}
@@ -323,6 +338,7 @@ export function TicketBoard({
   closedOpen,
   onClosedOpenChange,
   jiraChips,
+  waiting,
 }: TicketBoardProps) {
   const t = useTranslations("Tickets.board");
   const tStatus = useTranslations("Tickets.common.status");
@@ -450,6 +466,7 @@ export function TicketBoard({
         onShowMore={() => onShowMore(status)}
         onCollapse={onCollapse}
         jiraChips={jiraChips}
+        waiting={waiting}
       />
     );
   };
@@ -491,7 +508,7 @@ export function TicketBoard({
         )}
       </div>
       <DragOverlay>
-        {activeRow ? <CardBody row={activeRow} keyText={keyOf(activeRow.ticket_number)} members={members} overlay jiraChips={jiraChips?.[activeRow.id]} /> : null}
+        {activeRow ? <CardBody row={activeRow} keyText={keyOf(activeRow.ticket_number)} members={members} overlay jiraChips={jiraChips?.[activeRow.id]} waiting={waiting?.[activeRow.id]} /> : null}
       </DragOverlay>
     </DndContext>
   );

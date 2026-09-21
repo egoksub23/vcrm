@@ -210,3 +210,44 @@ describe('SLA quick chips (migration 086)', () => {
     expect(parseFilters(params('quick=sla_nope,sla_breached')).quick).toEqual(['sla_breached'])
   })
 })
+
+describe('the Mentioned me chip (migration 095)', () => {
+  const row = (id: string, n: number) =>
+    ({
+      id,
+      ticket_number: n,
+      subject: `S${n}`,
+      description: null,
+      status: 'open',
+      priority: 'normal',
+      category: 'general',
+      assigned_agent_id: null,
+      assigned_team_id: null,
+      labels: [],
+      due_date: null,
+      updated_at: '2026-09-01T00:00:00Z',
+    }) as unknown as Ticket
+  const rows = [row('a', 1), row('b', 2), row('c', 3)]
+  const on = { ...emptyFilters(), quick: ['mentioned' as const] }
+
+  it('keeps exactly the tickets that wait on the person', () => {
+    const ctx = { userId: 'me', prefix: 'VIR', mentionedTicketIds: new Set(['a', 'c']) }
+    expect(applyFilters(rows, on, ctx).map((r) => r.ticket_number)).toEqual([1, 3])
+  })
+
+  it('shows nothing when nothing waits, or when the list is not known yet', () => {
+    expect(applyFilters(rows, on, { userId: 'me', prefix: 'VIR', mentionedTicketIds: new Set() })).toEqual([])
+    expect(applyFilters(rows, on, { userId: 'me', prefix: 'VIR' })).toEqual([])
+  })
+
+  it('does nothing while the chip is off', () => {
+    const ctx = { userId: 'me', prefix: 'VIR', mentionedTicketIds: new Set(['a']) }
+    expect(applyFilters(rows, emptyFilters(), ctx)).toHaveLength(3)
+  })
+
+  it('travels in the URL and in a saved filter', () => {
+    expect(serializeFilters(on).get('quick')).toBe('mentioned')
+    expect(parseFilters(params('quick=mentioned')).quick).toEqual(['mentioned'])
+    expect(filtersFromJson(filtersToJson(on))).toEqual(on)
+  })
+})
