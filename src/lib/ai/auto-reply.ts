@@ -5,7 +5,7 @@ import { logKnowledgeGap, logKnowledgeUse, searchKnowledge } from './knowledge'
 import { normalizeLanguage } from './knowledge-query'
 import { citedDocumentIds, extractCitations } from './citations'
 import { generateReply } from './generate'
-import { buildSystemPrompt } from './defaults'
+import { buildSystemPromptParts } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { AiError } from './types'
@@ -137,7 +137,9 @@ export async function dispatchInboundToAiReply(
     const { excerpts: knowledge, documents: excerptDocs } = groupHitsByArticle(hits)
     void logKnowledgeUse(db, { accountId, conversationId, mode: 'auto_reply', hits })
 
-    const systemPrompt = buildSystemPrompt({
+    // Stable prefix (business context + rules) first, per-question knowledge
+    // after it: lets Anthropic cache the prefix (see buildSystemPromptParts).
+    const prompt = buildSystemPromptParts({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
@@ -146,7 +148,8 @@ export async function dispatchInboundToAiReply(
 
     const { text: rawText, handoff, usage } = await generateReply({
       config,
-      systemPrompt,
+      systemPrompt: prompt.stable,
+      systemPromptTail: prompt.variable,
       messages,
       guard: { db, accountId },
     })
@@ -277,7 +280,7 @@ async function showTypingIndicator(
  * After an AI text reply: send the cited articles' files (those switched on
  * for AI answers) and leave the internal "AI answered from" note. Never throws.
  */
-async function sendSourcesAfterReply(
+export async function sendSourcesAfterReply(
   db: ReturnType<typeof supabaseAdmin>,
   accountId: string,
   conversationId: string,

@@ -10,7 +10,14 @@ import { daysAgoStart, lastNDayKeys, localDayKey } from '@/lib/dashboard/date-ut
 const MAX_ROWS = 10_000
 const DEFAULT_WINDOW_DAYS = 30
 
-type UsageMode = 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate'
+type UsageMode =
+  | 'auto_reply'
+  | 'draft'
+  | 'auto_label'
+  | 'closing_note'
+  | 'summary'
+  | 'translate'
+  | 'automation'
 
 interface UsageRow {
   created_at: string
@@ -21,6 +28,8 @@ interface UsageRow {
   prompt_tokens: number
   completion_tokens: number
   total_tokens: number
+  /** Migration 091; absent (undefined) on a database that does not have it yet. */
+  cache_read_tokens?: number | null
 }
 
 /**
@@ -54,15 +63,20 @@ export async function GET(request: Request) {
     // chart (see lib/dashboard/date-utils).
     const since = daysAgoStart(days - 1)
 
-    const { data, error } = await supabase
-      .from('ai_usage_log')
-      .select(
-        'created_at, mode, connection_id, provider, model, prompt_tokens, completion_tokens, total_tokens',
-      )
-      .eq('account_id', accountId)
-      .gte('created_at', since.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(MAX_ROWS + 1)
+    const baseColumns =
+      'created_at, mode, connection_id, provider, model, prompt_tokens, completion_tokens, total_tokens'
+    const fetchRows = (columns: string) =>
+      supabase
+        .from('ai_usage_log')
+        .select(columns)
+        .eq('account_id', accountId)
+        .gte('created_at', since.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(MAX_ROWS + 1)
+    // The cache column arrives with migration 091: until it is applied,
+    // fall back to the columns that always exist rather than failing the page.
+    let { data, error } = await fetchRows(`${baseColumns}, cache_read_tokens`)
+    if (error) ({ data, error } = await fetchRows(baseColumns))
 
     if (error) {
       console.error('[ai/usage GET] fetch error:', error)
@@ -72,7 +86,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const all = (data ?? []) as UsageRow[]
+    const all = (data ?? []) as unknown as UsageRow[]
     const truncated = all.length > MAX_ROWS
     const rows = truncated ? all.slice(0, MAX_ROWS) : all
 
@@ -80,6 +94,7 @@ export async function GET(request: Request) {
     let promptTokens = 0
     let completionTokens = 0
     let totalTokens = 0
+    let cacheReadTokens = 0
 
     // Per-mode + per-model tallies.
     const byMode: Record<UsageMode, { calls: number; tokens: number }> = {
@@ -89,6 +104,7 @@ export async function GET(request: Request) {
       closing_note: { calls: 0, tokens: 0 },
       summary: { calls: 0, tokens: 0 },
       translate: { calls: 0, tokens: 0 },
+      automation: { calls: 0, tokens: 0 },
     }
     // Per connection: null id = the default connection.
     const connMap = new Map<string, { id: string | null; calls: number; tokens: number }>()
@@ -109,6 +125,7 @@ export async function GET(request: Request) {
       promptTokens += r.prompt_tokens
       completionTokens += r.completion_tokens
       totalTokens += r.total_tokens
+      cacheReadTokens += r.cache_read_tokens ?? 0
 
       // `mode` is DB-CHECK-constrained to the values above.
       if (byMode[r.mode]) {
@@ -157,6 +174,7 @@ export async function GET(request: Request) {
         prompt_tokens: promptTokens,
         completion_tokens: completionTokens,
         total_tokens: totalTokens,
+        cache_read_tokens: cacheReadTokens,
       },
       by_mode: byMode,
       by_model: byModel,

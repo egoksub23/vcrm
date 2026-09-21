@@ -1,13 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Conversation } from '@/types'
+import { closeConversationsWithNote } from '@/lib/conversations/session-log-api'
 
 /**
  * Bulk inbox actions (multi-select → assign / close / mark read / mark
  * unread). Each goes through the same write paths the single-conversation
  * controls use — a plain RLS-scoped UPDATE (whose triggers log the
  * session event and send the assignment notification per row) or the
- * `close_conversation_with_note` RPC — so a bulk action leaves exactly the
- * audit trail N single actions would.
+ * `close_conversation_with_note` RPC (run by the server) — so a bulk action
+ * leaves exactly the audit trail N single actions would.
  */
 
 export interface BulkResult {
@@ -49,28 +50,26 @@ export async function bulkMarkUnread(db: SupabaseClient, convs: ConvRef[]): Prom
 }
 
 /**
- * Close every not-yet-closed conversation with one shared note. Uses the
- * per-conversation RPC (the closure-note rule lives in the database), so
- * one failure doesn't stop the rest.
+ * Close every not-yet-closed conversation with one shared note. The server
+ * runs the per-conversation `close_conversation_with_note` RPC (the
+ * closure-note rule lives in the database) and dispatches the
+ * `conversation_closed` automations once per conversation, so one failure
+ * doesn't stop the rest.
  */
 export async function bulkClose(
-  db: SupabaseClient,
   convs: ConvRef[],
   note: string,
+  close: (
+    ids: string[],
+    note: string,
+  ) => Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> = closeConversationsWithNote,
 ): Promise<BulkResult> {
   const ids = convs.filter((c) => c.status !== 'closed').map((c) => c.id)
-  const results = await Promise.allSettled(
-    ids.map((id) =>
-      db
-        .rpc('close_conversation_with_note', { p_conversation_id: id, p_note: note })
-        .then(({ error }) => {
-          if (error) throw error
-        }),
-    ),
-  )
-  const succeeded: string[] = []
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') succeeded.push(ids[i])
-  })
-  return { succeeded, failed: ids.length - succeeded.length }
+  if (ids.length === 0) return { succeeded: [], failed: 0 }
+  try {
+    const res = await close(ids, note)
+    return { succeeded: res.succeeded, failed: res.failed.length }
+  } catch {
+    return { succeeded: [], failed: ids.length }
+  }
 }

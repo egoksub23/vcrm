@@ -9,7 +9,12 @@ export interface ProviderArgs {
   /** Set for OpenAI-compatible providers; the adapter falls back to OpenAI's URL when absent. */
   baseUrl?: string | null
   model: string
+  /** The STABLE part of the system prompt (scaffold + business context + rules). */
   systemPrompt: string
+  /** The part that changes per question (retrieved knowledge excerpts). Sent
+   *  after `systemPrompt`; the model sees `systemPrompt + "\n\n" + tail`. Kept
+   *  separate so Anthropic can cache the stable prefix. */
+  systemPromptTail?: string | null
   messages: ChatMessage[]
   timeoutMs: number
   /** Cap on the reply length; the default suits a chat reply, a job that
@@ -28,6 +33,10 @@ export function normalizeUsage(raw: {
   prompt?: unknown
   completion?: unknown
   total?: unknown
+  /** Informational subsets, already inside prompt / completion (see AiUsage). */
+  cacheRead?: unknown
+  cacheWrite?: unknown
+  reasoning?: unknown
 }): AiUsage | null {
   const num = (v: unknown): number =>
     typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0
@@ -38,7 +47,23 @@ export function normalizeUsage(raw: {
   if (promptTokens === 0 && completionTokens === 0 && totalTokens === 0) {
     return null
   }
-  return { promptTokens, completionTokens, totalTokens }
+  const cacheReadTokens = num(raw.cacheRead)
+  const cacheWriteTokens = num(raw.cacheWrite)
+  const reasoningTokens = num(raw.reasoning)
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+  }
+}
+
+/** The system prompt as one string, exactly as a provider without block
+ *  support (OpenAI) should see it. */
+export function joinSystemPrompt(stable: string, tail?: string | null): string {
+  return tail && tail.trim() ? `${stable}\n\n${tail}` : stable
 }
 
 /** Map a fetch rejection (timeout / DNS / offline) to a typed AiError. */

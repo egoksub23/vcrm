@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './admin-client'
+import { hasBranches } from './step-kinds'
 
 // ------------------------------------------------------------
 // Builder payload → flat rows for automation_steps.
@@ -74,7 +75,8 @@ export async function insertSteps(
         step_config: s.step_config ?? {},
         position: idx,
       })
-      if (s.step_type === 'condition' && s.branches) {
+      // Condition and AI reply carry yes/no columns of children.
+      if (hasBranches(s.step_type) && s.branches) {
         if (s.branches.yes) walk(s.branches.yes, id, 'yes')
         if (s.branches.no) walk(s.branches.no, id, 'no')
       }

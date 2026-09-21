@@ -10,13 +10,24 @@ export type TemplateSlug =
   | 'out_of_office'
   | 'lead_qualifier'
   | 'follow_up_reminder'
+  // AI quick-starts (docs/automation-ai.md). Ids are stable: they are in the
+  // `?template=` link and the API's `template` field.
+  | 'ai_first_response'
+  | 'ai_classify_route'
+  | 'ai_close_summary_ticket'
 
 export interface TemplateStepSeed {
   step_type: AutomationStepType
   step_config: AutomationStepConfig
   branch?: 'yes' | 'no' | null
-  /** Index (within this seed list) of the Condition parent, if nested. */
+  /** Index (within this seed list) of the Condition / AI reply parent, if nested. */
   parent_index?: number | null
+  /**
+   * Text the builder localises when it starts from this template: config key
+   * -> key under `Automations.templates.<slug>.seed` in the message catalogue.
+   * `step_config` keeps an English default, which is what the API path stores.
+   */
+  i18n?: Record<string, string>
 }
 
 export interface AutomationTemplateDefinition {
@@ -123,6 +134,92 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
             "Just circling back — did you have any other questions for us? Happy to help!",
         },
       },
+    ],
+  },
+  // 1. The AI answers the customer's first message from the knowledge base; if
+  //    it cannot, a person takes over. Fires once per contact (first message),
+  //    so a hand-off is not repeated on every later message.
+  ai_first_response: {
+    slug: 'ai_first_response',
+    name: 'AI first response, then hand off',
+    description: 'The AI answers the first message from your knowledge base. If it cannot, the conversation goes to a team.',
+    trigger_type: 'first_inbound_message',
+    trigger_config: {},
+    steps: [
+      {
+        step_type: 'ai_reply',
+        step_config: {
+          mode: 'send',
+          language: 'match',
+          instructions: 'Be friendly and concise. Do not promise refunds, prices or delivery dates.',
+          on_failure: 'skip',
+        },
+        i18n: { instructions: 'aiReplyInstructions' },
+      },
+      // "Couldn't answer" column: hand off and mark it. Pick the team and label.
+      { step_type: 'assign_to_team', step_config: { team_id: '', mode: 'round_robin' }, parent_index: 0, branch: 'no' },
+      { step_type: 'add_conversation_label', step_config: { tag_id: '' }, parent_index: 0, branch: 'no' },
+    ],
+  },
+  // 2. Classify the first message (topic and sentiment), apply the label named
+  //    like the topic, and route it.
+  ai_classify_route: {
+    slug: 'ai_classify_route',
+    name: 'Classify and route',
+    description: 'The AI reads the first message for its topic and mood, labels the conversation and routes it to a team.',
+    trigger_type: 'first_inbound_message',
+    trigger_config: {},
+    steps: [
+      {
+        step_type: 'ai_extract',
+        step_config: {
+          fields: [
+            {
+              key: 'topic',
+              description: "What the customer's message is mainly about",
+              type: 'choice',
+              choices: ['billing', 'shipping', 'technical', 'other'],
+              // Applies the existing label with the same name as the answer.
+              target: { kind: 'label' },
+            },
+            {
+              key: 'sentiment',
+              description: "The customer's overall mood in their messages",
+              type: 'choice',
+              choices: ['positive', 'neutral', 'negative'],
+              target: null,
+            },
+          ],
+          on_failure: 'skip',
+        },
+      },
+      { step_type: 'add_conversation_label', step_config: { tag_id: '' } },
+      { step_type: 'assign_to_team', step_config: { team_id: '', mode: 'least_loaded' } },
+    ],
+  },
+  // 3. When a conversation is closed: summarise it, note it, and open a ticket
+  //    written by the AI (skipped if one is already open for the conversation).
+  ai_close_summary_ticket: {
+    slug: 'ai_close_summary_ticket',
+    name: 'Close, summarise and open a ticket',
+    description: 'When a conversation is closed, the AI summarises it and opens a ticket for the follow-up.',
+    trigger_type: 'conversation_closed',
+    trigger_config: {},
+    steps: [
+      { step_type: 'ai_summarize', step_config: { save_to: 'summary', post_note: true, on_failure: 'skip' } },
+      {
+        step_type: 'create_ticket',
+        step_config: {
+          category: 'general',
+          priority: 'normal',
+          subject: 'Follow-up: {{ contact.name }}',
+          description: '{{ vars.summary }}',
+          ai_write: true,
+          skip_if_open: true,
+        },
+        i18n: { subject: 'ticketSubject' },
+      },
+      { step_type: 'add_conversation_label', step_config: { tag_id: '' } },
     ],
   },
 }

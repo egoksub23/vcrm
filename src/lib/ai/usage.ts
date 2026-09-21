@@ -6,7 +6,7 @@ export interface LogAiUsageArgs {
   /** Null for a draft not tied to one thread, or when the row was
    *  deleted between generation and logging. */
   conversationId: string | null
-  mode: 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate'
+  mode: 'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate' | 'automation'
   /** The additional connection that served the call (null = default). */
   connectionId?: string | null
   provider: AiProvider
@@ -34,7 +34,7 @@ export async function logAiUsage(
 ): Promise<void> {
   if (!args.usage) return
   try {
-    const { error } = await db.from('ai_usage_log').insert({
+    const row = {
       account_id: args.accountId,
       conversation_id: args.conversationId,
       mode: args.mode,
@@ -44,7 +44,21 @@ export async function logAiUsage(
       prompt_tokens: args.usage.promptTokens,
       completion_tokens: args.usage.completionTokens,
       total_tokens: args.usage.totalTokens,
-    })
+    }
+    // Prompt-cache numbers (migration 091) are subsets of prompt_tokens, kept
+    // for the report only; the budget sums total_tokens, which already
+    // includes every cached token. Sent only when there is something to say.
+    const { cacheReadTokens, cacheWriteTokens } = args.usage
+    const withCache =
+      cacheReadTokens || cacheWriteTokens
+        ? { ...row, cache_read_tokens: cacheReadTokens ?? 0, cache_write_tokens: cacheWriteTokens ?? 0 }
+        : row
+    let { error } = await db.from('ai_usage_log').insert(withCache)
+    // Before 091 is applied the cache columns do not exist: log the row
+    // without them rather than losing the usage (and the budget count).
+    if (error && withCache !== row) {
+      ;({ error } = await db.from('ai_usage_log').insert(row))
+    }
     if (error) {
       console.error('[ai usage] log insert failed:', error)
     }

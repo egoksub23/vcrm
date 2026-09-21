@@ -16,6 +16,9 @@ import {
   Users,
   PhoneCall,
   Loader2,
+  Sparkles,
+  Route,
+  TicketCheck,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -49,6 +52,9 @@ const TEMPLATE_ORDER: TemplateSlug[] = [
   "out_of_office",
   "lead_qualifier",
   "follow_up_reminder",
+  "ai_first_response",
+  "ai_classify_route",
+  "ai_close_summary_ticket",
 ]
 
 const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
@@ -56,12 +62,16 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   out_of_office: Clock,
   lead_qualifier: Users,
   follow_up_reminder: PhoneCall,
+  ai_first_response: Sparkles,
+  ai_classify_route: Route,
+  ai_close_summary_ticket: TicketCheck,
 }
 
 export default function AutomationsPage() {
   const router = useRouter()
   const canCreate = useCapability("automations.manage")
   const t = useTranslations("Automations.list")
+  const tTemplates = useTranslations("Automations.templates")
   const [automations, setAutomations] = useState<Automation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Automation | null>(null)
@@ -101,7 +111,9 @@ export default function AutomationsPage() {
         prev?.map((x) => (x.id === a.id ? { ...x, is_active: !next } : x)) ?? prev,
       )
       const body = await res.json().catch(() => ({}))
-      toast.error(body?.error ?? t("toasts.updateError"))
+      // The first concrete problem (e.g. "this automation uses AI, but AI is not
+      // set up") is clearer than the generic "cannot keep active" line.
+      toast.error(body?.issues?.[0]?.message ?? body?.error ?? t("toasts.updateError"))
       return
     }
     toast.success(next ? t("toasts.activated") : t("toasts.paused"))
@@ -183,7 +195,14 @@ export default function AutomationsPage() {
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("templatesTitle")}</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             {TEMPLATE_ORDER.map((slug) => {
-              const t = AUTOMATION_TEMPLATES[slug]
+              const def = AUTOMATION_TEMPLATES[slug]
+              // Localised name and description; the definition's English is the fallback.
+              const t = {
+                name: tTemplates.has(`${slug}.name`) ? tTemplates(`${slug}.name`) : def.name,
+                description: tTemplates.has(`${slug}.description`)
+                  ? tTemplates(`${slug}.description`)
+                  : def.description,
+              }
               const Icon = TEMPLATE_ICON[slug]
               return (
                 <button

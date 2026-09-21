@@ -38,6 +38,9 @@ export const TRIGGER_META: Record<AutomationTriggerType, TriggerMeta> = {
   interactive_reply: {
     pillClass: 'border-pink-500/30 bg-pink-500/10 text-pink-300',
   },
+  conversation_closed: {
+    pillClass: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+  },
 }
 
 export function isKnownTrigger(t: string): t is AutomationTriggerType {

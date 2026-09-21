@@ -32,9 +32,11 @@ interface UsageResponse {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    /** Input tokens served from the provider's prompt cache (already inside prompt/total). */
+    cache_read_tokens?: number;
   };
   by_mode: Record<
-    'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate',
+    'auto_reply' | 'draft' | 'auto_label' | 'closing_note' | 'summary' | 'translate' | 'automation',
     { calls: number; tokens: number }
   >;
   by_connection: { id: string | null; name: string | null; calls: number; tokens: number }[];
@@ -162,6 +164,11 @@ export function AiUsageCard() {
                 icon={PencilLine}
               />
             </div>
+            {(data.totals.cache_read_tokens ?? 0) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t('cachedTokens', { count: formatCompactNumber(data.totals.cache_read_tokens ?? 0) })}
+              </p>
+            )}
 
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">
@@ -183,7 +190,7 @@ export function AiUsageCard() {
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">{t('byJob')}</p>
                 <ul className="divide-y divide-border rounded-md border border-border">
-                  {(['auto_reply', 'draft', 'auto_label', 'closing_note', 'summary', 'translate'] as const)
+                  {(['auto_reply', 'draft', 'auto_label', 'closing_note', 'summary', 'translate', 'automation'] as const)
                     .filter((k) => data.by_mode[k].calls > 0)
                     .map((k) => (
                       <li key={k} className="flex items-center justify-between px-3 py-2 text-sm">

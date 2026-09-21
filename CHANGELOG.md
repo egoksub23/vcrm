@@ -9,6 +9,19 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.48.0] — 2026-09-21 — **migrations required: 090 and 091 (091 is optional)**
+
+- **AI inside automations.** A new **AI** group in the automation editor's Add step menu:
+  - **AI reply:** writes an answer from the knowledge base and your business context, and either sends it or saves it as a draft note for an agent. It has two outcomes, *Answered* and *Couldn't answer*, so the flow can hand off to a person.
+  - **Ask AI (yes/no):** a new kind of Condition. Ask a plain-language question about the conversation, for example “Is the customer asking for a refund?”. An unclear answer counts as No.
+  - **AI classify and extract:** pull fields out of the chat (topic, sentiment, order number, name) into variables, contact fields, or existing labels and tags. Values that fail the check are left empty.
+  - **AI summarise** and **AI translate** into a variable or an internal note.
+- **Test this step.** Every AI step has a Test button that runs it against a conversation you pick and shows the result and the tokens used, without sending anything or changing any data.
+- **New trigger “Conversation closed” and a new step “Create ticket”** (with an option for the AI to write the subject and description). Three ready-made templates: AI first response then hand-off, Classify and route, and Close, summarise and open a ticket.
+- **Safety and cost:** AI steps use their own routing row in AI Agents → Connections, count against the monthly budget, are limited to 5 per run, treat customer text as data and not instructions, and cannot be activated while AI is not set up.
+- **Fixed:** the automation editor's back arrow and name box were hidden behind the sidebar.
+- **Cheaper, more reliable AI providers.** OpenAI's gpt-5 family and o-series models now get a low reasoning setting, so they no longer spend tokens and time on hidden reasoning or return an empty reply. Claude models use prompt caching for the repeated part of the prompt when it is long enough (Haiku 4.5 needs 4,096 tokens; a shorter prompt is not cached). AI Agents → Usage shows “Cached input tokens” once migration 091 is applied.
+
 ## [0.47.0] — 2026-09-21
 
 - **Emoji everywhere you type.** The chat box has a smiley button that opens a picker with categories, search, a Frequently used row and skin tones. It appears for every channel, in internal comments, in the email editor toolbar, in the Comments inbox reply and private-message boxes, in ticket comments and descriptions, contact notes, the close-conversation and hand-off notes, snippets and the knowledge article editor. **Type `:` and two letters** (for example `:smi`) for suggestions; Enter or Tab inserts, and `:smile:` turns into the emoji when you type the closing colon. It does not trigger for times like 10:30 or links. The emoji list is bundled with the app and only loads when you first open the picker, so nothing is fetched from the internet and the inbox is not slower.

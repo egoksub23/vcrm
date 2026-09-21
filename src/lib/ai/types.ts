@@ -61,6 +61,14 @@ export interface AiUsage {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  /** Anthropic prompt caching: input tokens served from the cache / written to it.
+   *  Both are ALREADY inside `promptTokens` (and so in `totalTokens` and the
+   *  monthly budget); they are informational, never added on top. Omitted when 0. */
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  /** OpenAI reasoning models: hidden reasoning tokens. Already inside
+   *  `completionTokens` (billed as output); informational only. Omitted when 0. */
+  reasoningTokens?: number
 }
 
 /** Raw text + usage a provider adapter returns before handoff parsing. */

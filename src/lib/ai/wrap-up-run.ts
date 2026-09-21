@@ -3,7 +3,7 @@ import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { generateReply } from './generate'
 import { logAiUsage } from './usage'
-import { AiError, type AiConfig } from './types'
+import { AiError, type AiConfig, type ChatMessage } from './types'
 import { languageName } from '@/lib/contacts/locale-options'
 import type { AiTask } from './tasks'
 
@@ -20,6 +20,11 @@ const TRANSCRIPT_MESSAGES = 40
 export function outputLanguage(locale: unknown): string {
   const code = typeof locale === 'string' && SUPPORTED_LOCALES.includes(locale) ? locale : 'en'
   return languageName(code, 'en')
+}
+
+/** The chat as `Customer: ...` / `Agent: ...` lines, oldest first. */
+export function formatTranscript(messages: ChatMessage[]): string {
+  return messages.map((m) => `${m.role === 'user' ? 'Customer' : 'Agent'}: ${m.content}`).join('\n')
 }
 
 export async function runWrapUpJob(args: {
@@ -60,9 +65,7 @@ export async function runWrapUpJob(args: {
     throw new AiError('There is nothing in this conversation to work from yet.', { code: 'no_messages', status: 400 })
   }
 
-  const transcript = messages
-    .map((m) => `${m.role === 'user' ? 'Customer' : 'Agent'}: ${m.content}`)
-    .join('\n')
+  const transcript = formatTranscript(messages)
 
   const { text, usage } = await generateReply({
     config,

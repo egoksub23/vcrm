@@ -33,6 +33,56 @@ describe('logAiUsage', () => {
     })
   })
 
+  it('stores prompt-cache numbers when there are any', async () => {
+    const { db, insert } = fakeDb()
+    await logAiUsage(db, {
+      accountId: 'acct-1',
+      conversationId: null,
+      mode: 'draft',
+      provider: 'anthropic',
+      model: 'claude-x',
+      usage: { promptTokens: 5000, completionTokens: 10, totalTokens: 5010, cacheReadTokens: 4000 },
+    })
+    expect(insert).toHaveBeenCalledTimes(1)
+    expect(insert.mock.calls[0][0]).toMatchObject({
+      total_tokens: 5010,
+      cache_read_tokens: 4000,
+      cache_write_tokens: 0,
+    })
+  })
+
+  it('does not send the cache columns when nothing was cached', async () => {
+    const { db, insert } = fakeDb()
+    await logAiUsage(db, {
+      accountId: 'acct-1',
+      conversationId: null,
+      mode: 'draft',
+      provider: 'openai',
+      model: 'gpt-x',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2, reasoningTokens: 1 },
+    })
+    expect(insert.mock.calls[0][0]).not.toHaveProperty('cache_read_tokens')
+  })
+
+  it('logs the row without the cache columns when the database does not have them yet', async () => {
+    const insert = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: 'column "cache_read_tokens" does not exist' } })
+      .mockResolvedValueOnce({ error: null })
+    const db = { from: vi.fn(() => ({ insert })) } as unknown as SupabaseClient
+    await logAiUsage(db, {
+      accountId: 'acct-1',
+      conversationId: null,
+      mode: 'draft',
+      provider: 'anthropic',
+      model: 'claude-x',
+      usage: { promptTokens: 5000, completionTokens: 10, totalTokens: 5010, cacheReadTokens: 4000 },
+    })
+    expect(insert).toHaveBeenCalledTimes(2)
+    expect(insert.mock.calls[1][0]).not.toHaveProperty('cache_read_tokens')
+    expect(insert.mock.calls[1][0]).toMatchObject({ total_tokens: 5010 })
+  })
+
   it('is a no-op when the provider reported no usage', async () => {
     const { db, from } = fakeDb()
     await logAiUsage(db, {

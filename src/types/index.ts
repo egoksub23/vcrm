@@ -1029,7 +1029,10 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** A conversation was closed (by an agent, in bulk, or by an automation).
+   *  Dispatched from one server-side place: `closeConversation`. */
+  | 'conversation_closed';
 
 export type AutomationStepType =
   | 'send_message'
@@ -1049,7 +1052,14 @@ export type AutomationStepType =
   | 'send_webhook'
   | 'close_conversation'
   | 'set_priority'
-  | 'set_lifecycle_stage';
+  | 'set_lifecycle_stage'
+  // AI steps (docs/automation-ai.md). "Ask AI (yes/no)" is not a step of its
+  // own: it is the `ai_question` subject of a `condition`.
+  | 'ai_reply'
+  | 'ai_extract'
+  | 'ai_summarize'
+  | 'ai_translate'
+  | 'create_ticket';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -1172,14 +1182,107 @@ export type ConditionSubject =
   | 'contact_field'
   | 'tag_presence'
   | 'message_content'
-  | 'time_of_day';
+  | 'time_of_day'
+  /** Ask AI (yes/no): the operand is a plain-language question about the
+   *  conversation. `unsure` and any failure go to the "No" branch. */
+  | 'ai_question';
 
 export interface ConditionStepConfig {
   subject: ConditionSubject;
-  /** e.g. field name, tag id, substring, or "HH:mm-HH:mm" depending on subject */
+  /** e.g. field name, tag id, substring, or "HH:mm-HH:mm" depending on subject.
+   *  For `ai_question`: the question. */
   operand?: string;
   /** For contact_field equals / message_content contains — comparison value */
   value?: string;
+  /** `ai_question`: how many of the latest messages the model reads (1 to 30, default 10). */
+  ai_messages?: number;
+  /** `ai_question`: what a failure does. `no` (default) takes the "No" branch. */
+  on_failure?: 'no' | 'stop';
+}
+
+/** What an AI step does when the model call fails (or the budget is used up). */
+export type AiOnFailure = 'stop' | 'skip' | 'fallback';
+
+export interface AiReplyStepConfig {
+  /** `send` (default) sends it to the customer; `draft` leaves an internal note. */
+  mode?: 'send' | 'draft';
+  /** Extra instructions: tone, what not to promise. Supports variables. */
+  instructions?: string;
+  /** `match` (default) answers in the customer's language; otherwise a language code. */
+  language?: string;
+  /** Answer even when a human agent is assigned to the conversation. */
+  even_if_assigned?: boolean;
+  on_failure?: AiOnFailure;
+  /** Sent instead when the AI fails and `on_failure` is `fallback`. */
+  fallback_text?: string;
+  /** Variable that receives the text of the answer (default `ai_reply`). */
+  save_to?: string;
+}
+
+export type AiFieldType = 'text' | 'number' | 'date' | 'boolean' | 'choice';
+
+export type AiFieldTarget =
+  | { kind: 'contact_field'; field: 'name' | 'email' | 'company' }
+  | { kind: 'custom_field'; custom_field_id: string }
+  | { kind: 'label' }
+  | { kind: 'tag' };
+
+export interface AiExtractField {
+  /** Becomes `vars.<key>`. Lower-case letters, digits and underscores. */
+  key: string;
+  description: string;
+  type: AiFieldType;
+  /** For `choice`: up to 12 allowed values. */
+  choices?: string[];
+  /** Optional extra place to save the value, besides `vars.<key>`. */
+  target?: AiFieldTarget | null;
+}
+
+export interface AiExtractStepConfig {
+  fields: AiExtractField[];
+  /** Which preset the fields started from (the builder only). */
+  preset?: 'sentiment' | 'topic' | null;
+  /** Let extracted values replace a contact field that already has one. */
+  overwrite?: boolean;
+  instructions?: string;
+  /** How many of the latest messages the model reads (1 to 30, default 10). */
+  ai_messages?: number;
+  on_failure?: AiOnFailure;
+}
+
+export interface AiSummarizeStepConfig {
+  /** Variable that receives the summary (default `summary`). */
+  save_to?: string;
+  /** Also leave the summary as an internal note on the conversation. */
+  post_note?: boolean;
+  /** Language code; empty = the workspace language. */
+  language?: string;
+  on_failure?: AiOnFailure;
+}
+
+export interface AiTranslateStepConfig {
+  /** Text to translate; empty = the customer's last message. Supports variables. */
+  source?: string;
+  /** Target language code (e.g. `en`, `ko`, `ms`). */
+  target_language: string;
+  /** Variable that receives the translation (default `translation`). */
+  save_to?: string;
+  on_failure?: AiOnFailure;
+}
+
+export interface CreateTicketStepConfig {
+  category?: TicketCategory;
+  priority?: TicketPriority;
+  assigned_agent_id?: string | null;
+  assigned_team_id?: string | null;
+  /** Supports variables. */
+  subject: string;
+  /** Supports variables. */
+  description?: string;
+  /** Let the AI write the subject and description from the conversation. */
+  ai_write?: boolean;
+  /** Do nothing if this conversation already has an open ticket (default true). */
+  skip_if_open?: boolean;
 }
 
 export interface SendWebhookStepConfig {
@@ -1211,6 +1314,11 @@ export type AutomationStepConfig =
   | WaitStepConfig
   | ConditionStepConfig
   | SendWebhookStepConfig
+  | AiReplyStepConfig
+  | AiExtractStepConfig
+  | AiSummarizeStepConfig
+  | AiTranslateStepConfig
+  | CreateTicketStepConfig
   | Record<string, never>
   | Record<string, unknown>;
 
@@ -1250,6 +1358,12 @@ export interface AutomationLogStepResult {
   step_type: AutomationStepType;
   status: 'success' | 'skipped' | 'failed';
   detail?: string;
+  /** AI steps: what the step decided (`answered`, `yes`, `extracted`, `failed` ...). */
+  outcome?: string;
+  /** AI steps: tokens the call used. */
+  tokens?: number;
+  /** AI steps: the model output, cut to 500 characters. Never the prompt. */
+  output?: string;
 }
 
 export interface AutomationLog {

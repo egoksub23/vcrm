@@ -5,7 +5,7 @@ import { loadAiConfig } from '@/lib/ai/config'
 import { searchKnowledge } from '@/lib/ai/knowledge'
 import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
-import { buildSystemPrompt } from '@/lib/ai/defaults'
+import { buildSystemPromptParts } from '@/lib/ai/defaults'
 import { extractCitations } from '@/lib/ai/citations'
 import { groupHitsByArticle } from '@/lib/knowledge/excerpts'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
@@ -80,13 +80,18 @@ export async function POST(request: Request) {
       k: 5,
     })
     const { excerpts: knowledge } = groupHitsByArticle(hits)
-    const systemPrompt = buildSystemPrompt({
+    const prompt = buildSystemPromptParts({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
     })
 
-    const { text: rawText, handoff } = await generateReply({ config, systemPrompt, messages })
+    const { text: rawText, handoff } = await generateReply({
+      config,
+      systemPrompt: prompt.stable,
+      systemPromptTail: prompt.variable,
+      messages,
+    })
     return NextResponse.json({ reply: extractCitations(rawText, knowledge.length).text, handoff })
   } catch (err) {
     if (err instanceof AiError) {

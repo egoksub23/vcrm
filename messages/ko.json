@@ -1222,6 +1222,21 @@
         "partial": "부분 성공",
         "failed": "실패"
       },
+      "outcomes": {
+        "answered": "답변함",
+        "couldnt_answer": "답변하지 못함",
+        "yes": "예",
+        "no": "아니요",
+        "unsure": "확실하지 않음",
+        "extracted": "추출함",
+        "summarised": "요약함",
+        "translated": "번역함",
+        "skipped": "건너뜀",
+        "failed": "실패",
+        "created": "티켓 생성됨",
+        "created_with_ai": "티켓 생성됨 (AI 작성)"
+      },
+      "tokens": "토큰 {count}개",
       "back": "뒤로",
       "backAria": "뒤로"
     },
@@ -1231,6 +1246,42 @@
       "minutesAgo": "{n}분 전",
       "hoursAgo": "{n}시간 전",
       "daysAgo": "{n}일 전"
+    },
+    "templates": {
+      "welcome_message": {
+        "name": "환영 메시지",
+        "description": "처음 연락한 고객에게 인사말로 자동 답장합니다."
+      },
+      "out_of_office": {
+        "name": "부재중 안내",
+        "description": "근무 시간 외에 자동으로 답장해 아무도 기다리지 않게 합니다."
+      },
+      "lead_qualifier": {
+        "name": "리드 선별",
+        "description": "문의 리드를 걸러내기 위해 선별 질문을 합니다."
+      },
+      "follow_up_reminder": {
+        "name": "후속 알림",
+        "description": "24시간 안에 답이 없는 연락처에게 알림을 보냅니다."
+      },
+      "ai_first_response": {
+        "name": "AI 첫 응답 후 인계",
+        "description": "AI가 지식 베이스로 첫 메시지에 답합니다. 답할 수 없으면 대화가 팀으로 넘어갑니다.",
+        "seed": {
+          "aiReplyInstructions": "친절하고 간결하게 답하세요. 환불, 가격, 배송일을 약속하지 마세요."
+        }
+      },
+      "ai_classify_route": {
+        "name": "분류 후 배정",
+        "description": "AI가 첫 메시지의 주제와 분위기를 읽어 대화에 라벨을 붙이고 팀에 배정합니다."
+      },
+      "ai_close_summary_ticket": {
+        "name": "종료, 요약 후 티켓 생성",
+        "description": "대화가 종료되면 AI가 요약하고 후속 조치용 티켓을 만듭니다.",
+        "seed": {
+          "ticketSubject": "후속 조치: {{ contact.name }}"
+        }
+      }
     },
     "builder": {
       "steps": {
@@ -1251,7 +1302,13 @@
         "send_webhook": "웹훅 보내기",
         "close_conversation": "대화 닫기",
         "set_priority": "우선순위 설정",
-        "set_lifecycle_stage": "생애주기 단계 설정"
+        "set_lifecycle_stage": "생애주기 단계 설정",
+        "create_ticket": "티켓 생성",
+        "ai_reply": "AI 답변",
+        "ai_extract": "AI 분류 및 추출",
+        "ai_summarize": "AI 요약",
+        "ai_translate": "AI 번역",
+        "ai_question": "AI에게 묻기 (예/아니요)"
       },
       "triggers": {
         "new_message_received": {
@@ -1285,6 +1342,10 @@
         "conversation_label_added": {
           "label": "대화 라벨 추가됨",
           "hint": "대화에 라벨이 적용되었을 때"
+        },
+        "conversation_closed": {
+          "label": "대화 종료됨",
+          "hint": "상담원이나 자동화가 대화를 종료했을 때"
         },
         "time_based": {
           "label": "시간 기반",
@@ -1357,7 +1418,12 @@
       },
       "branches": {
         "yes": "예",
-        "no": "아니요"
+        "no": "아니요",
+        "answered": "답변함",
+        "couldnt": "답변하지 못함"
+      },
+      "groups": {
+        "ai": "AI"
       },
       "addStep": "단계 추가",
       "moveUp": "위로 이동",
@@ -1365,7 +1431,211 @@
       "kindCondition": "조건",
       "kindWait": "대기",
       "kindAction": "액션",
+      "kindAi": "AI",
       "delete": "삭제",
+      "ai": {
+        "summary": {
+          "replySend": "AI 답변: 고객에게 보내기",
+          "replyDraft": "AI 답변: 내부 초안 메모로 저장",
+          "extract": "AI 추출: {keys}",
+          "extractEmpty": "AI 추출: 필드를 추가하세요",
+          "summarize": "AI 요약을 변수에 저장",
+          "summarizeNote": "AI 요약: 변수와 내부 메모",
+          "translate": "AI 번역: {language}",
+          "translateEmpty": "AI 번역: 언어를 선택하세요",
+          "ticket": "티켓: {subject}",
+          "ticketEmpty": "티켓: 제목을 입력하세요",
+          "ask": "AI에게 묻기: {question}",
+          "askEmpty": "AI에게 묻기: 질문을 입력하세요"
+        },
+        "tokensHint": "이 단계는 월간 예산의 AI 토큰을 사용합니다.",
+        "privacyTitle": "고객 메시지가 AI 제공업체로 전송됩니다",
+        "privacyText": "AI 단계는 AI 에이전트에서 설정한 제공업체로 대화 내용을 보냅니다. 고객 텍스트는 신뢰할 수 없는 입력으로 취급되며, AI는 그 안의 지시를 무시하도록 안내받습니다.",
+        "notConfigured": "AI가 설정되지 않았거나, 꺼져 있거나, 자동화 작업이 꺼져 있습니다. 이 자동화를 초안으로 저장할 수 있지만, AI가 준비될 때까지 활성화할 수 없습니다.",
+        "noticeRequired": "AI 단계를 실행하려면 AI 호스트의 고객 데이터 안내를 먼저 확인해야 합니다. 초안으로 저장할 수 있지만 아직 활성화할 수 없습니다.",
+        "setupLink": "AI 에이전트 > 설정 열기",
+        "tooMany": "이 자동화에는 AI 단계가 {count}개 있습니다. 최대 {max}개까지 허용되므로 일부를 제거하기 전에는 활성화할 수 없습니다.",
+        "insertVariable": "변수 삽입",
+        "variableGroups": {
+          "trigger": "트리거에서",
+          "contact": "연락처",
+          "step": "이전 단계에서"
+        },
+        "onFailure": {
+          "label": "AI 호출이 실패하면",
+          "stop": "이 자동화 중지",
+          "skip": "이 단계를 건너뛰고 계속",
+          "fallback": "대체 문구를 보내고 계속",
+          "no": "아니요 분기로 이동",
+          "fallbackText": "대체 문구",
+          "fallbackHint": "AI에 연결할 수 없을 때 고객에게 보냅니다. 이후 흐름은 답변하지 못함 열에서 계속됩니다.",
+          "fallbackPlaceholder": "메시지 감사합니다. 담당자가 곧 연락드리겠습니다."
+        },
+        "messagesCount": "AI가 읽는 메시지 수",
+        "messagesCountHint": "대화의 최근 메시지, {min}개에서 {max}개까지.",
+        "saveTo": "결과를 저장할 변수",
+        "saveToHint": "이후 단계에서 vars.{key}로 사용할 수 있습니다.",
+        "reply": {
+          "mode": "답변 처리 방법",
+          "modeSend": "고객에게 보내기",
+          "modeDraft": "상담원용 내부 초안 메모로 저장",
+          "instructions": "추가 지침",
+          "instructionsPlaceholder": "친절하고 간결하게 답하세요. 환불이나 배송일을 약속하지 마세요.",
+          "instructionsHint": "어조와 약속하지 말아야 할 내용. 답변은 지식 베이스와 비즈니스 컨텍스트에서 가져옵니다.",
+          "language": "언어",
+          "languageMatch": "고객 언어에 맞춤",
+          "evenIfAssigned": "상담원이 배정되어 있어도 답변",
+          "evenIfAssignedHint": "기본값은 꺼짐입니다. 사람이 대화를 맡고 있거나 AI 인수 후에는 AI가 보내지 않습니다.",
+          "branchesHint": "답변함은 왼쪽 열에서 계속됩니다. 답변하지 못함(관련 지식 없음, 인계 신호 또는 AI 실패)은 오른쪽 열에서 계속됩니다."
+        },
+        "ask": {
+          "question": "대화에 대한 질문",
+          "questionPlaceholder": "고객이 환불을 요청하고 있나요?",
+          "unsureHint": "AI는 예, 아니요 또는 확실하지 않음으로 답합니다. 확실하지 않음과 모든 실패는 아니요 분기로 이동합니다."
+        },
+        "extract": {
+          "presets": "프리셋",
+          "presetSentiment": "감정",
+          "presetTopic": "주제",
+          "presetSentimentDescription": "대화에서 고객의 전반적인 기분",
+          "presetTopicDescription": "대화가 주로 다루는 내용",
+          "key": "키",
+          "type": "유형",
+          "types": {
+            "text": "텍스트",
+            "number": "숫자",
+            "date": "날짜",
+            "boolean": "예 / 아니요",
+            "choice": "선택지"
+          },
+          "description": "찾을 내용",
+          "descriptionPlaceholder": "고객이 언급한 주문 번호",
+          "choices": "선택지",
+          "choicesHint": "쉼표로 구분하며 최대 {max}개.",
+          "target": "추가 저장 위치",
+          "targets": {
+            "vars": "변수에만 저장",
+            "name": "연락처 이름",
+            "email": "연락처 이메일",
+            "company": "연락처 회사",
+            "custom": "연락처 사용자 정의 필드",
+            "label": "이 이름의 대화 라벨 적용",
+            "tag": "이 이름의 연락처 태그 추가"
+          },
+          "customField": "사용자 정의 필드",
+          "existingOnly": "같은 이름의 기존 라벨이나 태그만 사용합니다. 새로 만들지 않습니다.",
+          "removeField": "필드 제거",
+          "addField": "필드 추가",
+          "fieldsLimit": "최대 {max}개 필드. 유형에 맞지 않는 값은 비워 두며 저장하지 않습니다.",
+          "overwrite": "기존 값 덮어쓰기",
+          "overwriteHint": "기본값은 꺼짐입니다. 이미 값이 있는 연락처 필드는 유지됩니다.",
+          "instructions": "추가 안내",
+          "instructionsPlaceholder": "고객이 마음을 바꾸면 최신 메시지를 우선하세요."
+        },
+        "summarize": {
+          "hint": "받은편지함에서 쓰는 것과 같은 요약으로 대화를 요약합니다.",
+          "postNote": "요약을 내부 메모로도 남기기",
+          "language": "언어",
+          "languageDefault": "워크스페이스 언어"
+        },
+        "translate": {
+          "source": "번역할 텍스트",
+          "sourcePlaceholder": "비워 두면 고객의 마지막 메시지를 사용합니다",
+          "sourceHint": "이전 단계의 출력 같은 변수를 사용할 수 있습니다.",
+          "target": "번역할 언어",
+          "targetPlaceholder": "언어 선택"
+        },
+        "ticket": {
+          "type": "유형",
+          "priority": "우선순위",
+          "team": "팀 (선택)",
+          "agent": "담당자 (선택)",
+          "subject": "제목",
+          "subjectPlaceholder": "고객 후속 조치",
+          "subjectFallbackHint": "AI가 티켓을 작성하지 못하면 사용됩니다.",
+          "description": "설명",
+          "descriptionPlaceholder": "고객에게 필요한 것",
+          "aiWrite": "AI가 대화를 바탕으로 제목과 설명을 작성",
+          "aiWriteHint": "AI 토큰을 사용합니다. AI가 실패하면 위의 텍스트가 대신 사용됩니다.",
+          "skipIfOpen": "이 대화에 이미 열린 티켓이 있으면 건너뛰기"
+        },
+        "test": {
+          "button": "이 단계 테스트",
+          "needsAiUse": "테스트하려면 AI 사용 권한이 필요합니다.",
+          "intro": "선택한 대화에서 이 단계를 실행하고 어떤 일이 일어날지 보여 줍니다. 아무것도 보내거나 저장하지 않습니다. 실제 AI 토큰을 사용합니다.",
+          "pickConversation": "테스트할 대화",
+          "searchPlaceholder": "이름, 전화번호 또는 메시지로 검색",
+          "loading": "불러오는 중",
+          "noConversations": "대화를 찾을 수 없습니다.",
+          "unknownContact": "알 수 없는 연락처",
+          "samples": "이전 단계 변수의 샘플 값",
+          "run": "테스트 실행",
+          "running": "실행 중",
+          "outcomes": {
+            "answered": "답변함",
+            "couldnt_answer": "답변하지 못함",
+            "yes": "예",
+            "no": "아니요",
+            "unsure": "확실하지 않음",
+            "extracted": "추출함",
+            "summarised": "요약함",
+            "translated": "번역함",
+            "skipped": "건너뜀",
+            "failed": "실패",
+            "created": "티켓을 생성함"
+          },
+          "branchAnswered": "답변함",
+          "branchCouldnt": "답변하지 못함",
+          "branchYes": "예",
+          "branchNo": "아니요",
+          "goesTo": "이어지는 분기: {branch}",
+          "tokens": "토큰 {count}개",
+          "reason": "이유",
+          "why": "사유",
+          "reasons": {
+            "ai_paused": "이 대화에서 AI가 일시 중지되어 있습니다",
+            "agent_assigned": "상담원이 배정되어 있습니다",
+            "nothing_to_reply_to": "고객의 메시지에 이미 답변했습니다",
+            "no_knowledge": "관련 지식과 비즈니스 컨텍스트가 없습니다",
+            "handoff": "AI가 사람의 인수를 요청했습니다",
+            "empty": "AI가 아무것도 반환하지 않았습니다",
+            "no_messages": "대화에 아직 텍스트가 없습니다",
+            "open_ticket_exists": "이미 열린 티켓이 있습니다",
+            "sent": "고객에게 전송됩니다",
+            "draft_note": "내부 초안 메모로 저장됩니다"
+          },
+          "ticketSkipped": "이 대화에 이미 열린 티켓이 있어 새로 만들지 않습니다.",
+          "wouldDo": "다음을 수행합니다",
+          "would": {
+            "send_reply": "이 답변을 고객에게 보냅니다",
+            "internal_note": "내부 메모를 남깁니다",
+            "contact_field": "{text}을(를) 연락처의 {name}(으)로 저장합니다",
+            "custom_field": "{text}을(를) 연락처 사용자 정의 필드에 저장합니다",
+            "label": "{name} 라벨을 적용합니다",
+            "tag": "{name} 연락처 태그를 추가합니다",
+            "create_ticket": "{text} 제목의 티켓을 생성합니다"
+          },
+          "nothingChanged": "아무것도 보내거나 저장하지 않았습니다.",
+          "errors": {
+            "generic": "테스트를 실행하지 못했습니다.",
+            "not_testable": "이 단계는 테스트할 수 없습니다.",
+            "conversation_required": "테스트할 대화를 선택하세요.",
+            "not_found": "해당 대화를 찾을 수 없습니다.",
+            "ai_not_configured": "AI가 설정되지 않았거나, 꺼져 있거나, AI 에이전트 > 연결에서 자동화 작업이 꺼져 있습니다.",
+            "notice_required": "먼저 AI 에이전트 > 설정에서 고객 데이터 안내를 확인하세요.",
+            "budget_exceeded": "월간 AI 토큰 예산을 모두 사용했습니다.",
+            "rate_limited": "지금은 AI 호출이 너무 많습니다. 잠시 후 다시 시도하세요.",
+            "timeout": "AI 제공업체의 응답이 너무 오래 걸렸습니다.",
+            "ai_error": "AI 제공업체에서 오류가 반환되었습니다.",
+            "bad_output": "AI가 이 단계에서 읽을 수 없는 형식으로 답했습니다.",
+            "step_limit": "자동화 한 번에 AI 단계는 최대 5개까지 실행됩니다.",
+            "no_conversation": "이 단계에는 대화가 필요합니다.",
+            "no_messages": "이 대화에는 아직 작업할 내용이 없습니다.",
+            "invalid_config": "이 단계가 아직 올바르게 채워지지 않았습니다.",
+            "test_failed": "테스트를 실행하지 못했습니다."
+          }
+        }
+      },
       "config": {
         "messageText": "메시지 텍스트",
         "placeholderMessageText": "안녕하세요! 문의해주셔서 감사합니다…",
@@ -1395,7 +1665,8 @@
           "tag_presence": "태그 존재 여부",
           "contact_field": "연락처 필드",
           "message_content": "메시지 내용",
-          "time_of_day": "시간대"
+          "time_of_day": "시간대",
+          "ai_question": "AI에게 묻기 (예/아니요)"
         },
         "operandLabel": "피연산자",
         "placeholderTime": "HH:mm-HH:mm",
@@ -4254,6 +4525,7 @@
       "emptyHint": "어시스턴트가 초안을 작성하고 자동 응답하면 채워집니다.",
       "totalTokens": "총 토큰",
       "llmCalls": "LLM 호출",
+      "cachedTokens": "캐시된 입력 토큰: {count}",
       "autoReply": "자동 응답",
       "drafts": "초안",
       "tokens": "토큰",
@@ -4269,7 +4541,8 @@
         "auto_label": "자동 라벨",
         "closing_note": "종료 메모",
         "summary": "요약",
-        "translate": "번역"
+        "translate": "번역",
+        "automation": "자동화 단계"
       },
       "defaultConnection": "기본 연결",
       "deletedConnection": "삭제된 연결"
@@ -4341,6 +4614,10 @@
         "translate": {
           "name": "문서 번역",
           "desc": "AI로 번역을 선택하면 지식 베이스 문서를 다른 언어로 번역합니다."
+        },
+        "automation": {
+          "name": "자동화",
+          "desc": "자동화 안의 단계."
         }
       },
       "modelSameAsConnection": "연결의 모델 사용",

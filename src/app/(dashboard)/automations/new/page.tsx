@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 
 import {
   AutomationBuilder,
@@ -9,6 +10,7 @@ import {
   type BuilderStep,
 } from "@/components/automations/automation-builder"
 import { AUTOMATION_TEMPLATES, type TemplateSlug } from "@/lib/automations/templates"
+import { hasBranches } from "@/lib/automations/step-kinds"
 import type { AutomationStepType, AutomationTriggerType } from "@/types"
 
 // `useSearchParams` requires a Suspense boundary or the production build
@@ -25,6 +27,7 @@ export default function NewAutomationPage() {
 function NewAutomationPageInner() {
   const params = useSearchParams()
   const template = params.get("template") as TemplateSlug | null
+  const tTemplates = useTranslations("Automations.templates")
 
   const initial: BuilderInitial = useMemo(() => {
     if (template && AUTOMATION_TEMPLATES[template]) {
@@ -33,14 +36,26 @@ function NewAutomationPageInner() {
         t.steps.map((seed, idx) => ({
           index: idx,
           step_type: seed.step_type,
-          step_config: seed.step_config as Record<string, unknown>,
+          // Seeds keep an English default; the catalogue's text replaces it in the
+          // user's language where the template names one (seed.i18n).
+          step_config: {
+            ...(seed.step_config as Record<string, unknown>),
+            ...Object.fromEntries(
+              Object.entries(seed.i18n ?? {})
+                .filter(([, key]) => tTemplates.has(`${template}.seed.${key}`))
+                // raw(): a seed may hold {{ vars.x }} placeholders, which are not ICU.
+                .map(([field, key]) => [field, String(tTemplates.raw(`${template}.seed.${key}`))]),
+            ),
+          },
           branch: seed.branch ?? null,
           parent_index: seed.parent_index ?? null,
         })),
       )
       return {
-        name: t.name,
-        description: t.description,
+        name: tTemplates.has(`${template}.name`) ? tTemplates(`${template}.name`) : t.name,
+        description: tTemplates.has(`${template}.description`)
+          ? tTemplates(`${template}.description`)
+          : t.description,
         trigger_type: t.trigger_type,
         trigger_config: t.trigger_config as Record<string, unknown>,
         is_active: false,
@@ -55,7 +70,7 @@ function NewAutomationPageInner() {
       is_active: false,
       steps: [],
     }
-  }, [template])
+  }, [template, tTemplates])
 
   return <AutomationBuilder initial={initial} />
 }
@@ -84,8 +99,7 @@ function expandFromSeeds(rows: SeedRow[]): BuilderStep[] {
     cid: uid(),
     step_type: r.step_type,
     step_config: r.step_config,
-    branches:
-      r.step_type === "condition" ? { yes: [], no: [] } : undefined,
+    branches: hasBranches(r.step_type) ? { yes: [], no: [] } : undefined,
   }))
   const roots: BuilderStep[] = []
   rows.forEach((r, i) => {

@@ -127,7 +127,7 @@ export function BulkActionsBar({
 
   const handleClose = (note: string) =>
     run(async () => {
-      const res = await bulkClose(createClient(), selected, note);
+      const res = await bulkClose(selected, note);
       setCloseOpen(false);
       finish(
         res,

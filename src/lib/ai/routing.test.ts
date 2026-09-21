@@ -87,7 +87,7 @@ describe('loadAiConfig with a task', () => {
 describe('fillRouting', () => {
   it('returns every job, defaulting the ones with no row', () => {
     const r = fillRouting([{ task: 'summary', connection_id: 'c', model_override: 'm', enabled: false }])
-    expect(r.map((x) => x.task)).toEqual(['draft', 'auto_reply', 'auto_label', 'closing_note', 'summary', 'translate'])
+    expect(r.map((x) => x.task)).toEqual(['draft', 'auto_reply', 'auto_label', 'closing_note', 'summary', 'translate', 'automation'])
     expect(r.find((x) => x.task === 'summary')).toEqual({ task: 'summary', connectionId: 'c', modelOverride: 'm', enabled: false })
     expect(r.find((x) => x.task === 'draft')).toEqual({ task: 'draft', connectionId: null, modelOverride: null, enabled: true })
   })

@@ -1222,6 +1222,21 @@
         "partial": "partial",
         "failed": "failed"
       },
+      "outcomes": {
+        "answered": "answered",
+        "couldnt_answer": "couldn't answer",
+        "yes": "yes",
+        "no": "no",
+        "unsure": "unsure",
+        "extracted": "extracted",
+        "summarised": "summarised",
+        "translated": "translated",
+        "skipped": "skipped",
+        "failed": "failed",
+        "created": "ticket created",
+        "created_with_ai": "ticket created (AI text)"
+      },
+      "tokens": "{count, plural, =1 {# token} other {# tokens}}",
       "back": "Back",
       "backAria": "Back"
     },
@@ -1231,6 +1246,42 @@
       "minutesAgo": "{n}m ago",
       "hoursAgo": "{n}h ago",
       "daysAgo": "{n}d ago"
+    },
+    "templates": {
+      "welcome_message": {
+        "name": "Welcome Message",
+        "description": "Auto-reply to first-time contacts with a greeting."
+      },
+      "out_of_office": {
+        "name": "Out of Office",
+        "description": "Auto-reply during off-hours so nobody is left waiting."
+      },
+      "lead_qualifier": {
+        "name": "Lead Qualifier",
+        "description": "Ask qualification questions to filter inbound leads."
+      },
+      "follow_up_reminder": {
+        "name": "Follow-up Reminder",
+        "description": "Send a nudge if a contact has not replied within 24 hours."
+      },
+      "ai_first_response": {
+        "name": "AI first response, then hand off",
+        "description": "The AI answers the first message from your knowledge base. If it cannot, the conversation goes to a team.",
+        "seed": {
+          "aiReplyInstructions": "Be friendly and concise. Do not promise refunds, prices or delivery dates."
+        }
+      },
+      "ai_classify_route": {
+        "name": "Classify and route",
+        "description": "The AI reads the first message for its topic and mood, labels the conversation and routes it to a team."
+      },
+      "ai_close_summary_ticket": {
+        "name": "Close, summarise and open a ticket",
+        "description": "When a conversation is closed, the AI summarises it and opens a ticket for the follow-up.",
+        "seed": {
+          "ticketSubject": "Follow-up: {{ contact.name }}"
+        }
+      }
     },
     "builder": {
       "steps": {
@@ -1251,7 +1302,13 @@
         "send_webhook": "Send Webhook",
         "close_conversation": "Close Conversation",
         "set_priority": "Set Priority",
-        "set_lifecycle_stage": "Set Lifecycle Stage"
+        "set_lifecycle_stage": "Set Lifecycle Stage",
+        "create_ticket": "Create Ticket",
+        "ai_reply": "AI reply",
+        "ai_extract": "AI classify and extract",
+        "ai_summarize": "AI summarise",
+        "ai_translate": "AI translate",
+        "ai_question": "Ask AI (yes/no)"
       },
       "triggers": {
         "new_message_received": {
@@ -1285,6 +1342,10 @@
         "conversation_label_added": {
           "label": "Conversation Label Added",
           "hint": "When a label is applied to a conversation"
+        },
+        "conversation_closed": {
+          "label": "Conversation Closed",
+          "hint": "When a conversation is closed, by an agent or by an automation"
         },
         "time_based": {
           "label": "Time-Based",
@@ -1357,7 +1418,12 @@
       },
       "branches": {
         "yes": "Yes",
-        "no": "No"
+        "no": "No",
+        "answered": "Answered",
+        "couldnt": "Couldn't answer"
+      },
+      "groups": {
+        "ai": "AI"
       },
       "addStep": "Add step",
       "moveUp": "Move up",
@@ -1365,7 +1431,211 @@
       "kindCondition": "Condition",
       "kindWait": "Wait",
       "kindAction": "Action",
+      "kindAi": "AI",
       "delete": "Delete",
+      "ai": {
+        "summary": {
+          "replySend": "AI reply: send to customer",
+          "replyDraft": "AI reply: save as internal draft note",
+          "extract": "AI extract: {keys}",
+          "extractEmpty": "AI extract: add fields",
+          "summarize": "AI summary into a variable",
+          "summarizeNote": "AI summary: variable and internal note",
+          "translate": "AI translate to {language}",
+          "translateEmpty": "AI translate: pick a language",
+          "ticket": "Ticket: {subject}",
+          "ticketEmpty": "Ticket: add a subject",
+          "ask": "Ask AI: {question}",
+          "askEmpty": "Ask AI: write a question"
+        },
+        "tokensHint": "This step uses AI tokens from your monthly budget.",
+        "privacyTitle": "Customer messages are sent to your AI provider",
+        "privacyText": "AI steps send the conversation text to the provider you set up in AI Agents. Customer text is treated as untrusted: the AI is told to ignore any instructions inside it.",
+        "notConfigured": "AI is not set up, is switched off, or the Automations job is off. You can save this automation as a draft, but you cannot activate it until AI is ready.",
+        "noticeRequired": "Your AI host needs the customer-data notice confirmed before AI steps can run. You can save this as a draft, but you cannot activate it yet.",
+        "setupLink": "Open AI Agents > Setup",
+        "tooMany": "This automation has {count} AI steps. The most allowed is {max}, so it cannot be activated until you remove some.",
+        "insertVariable": "Insert variable",
+        "variableGroups": {
+          "trigger": "From the trigger",
+          "contact": "Contact",
+          "step": "From earlier steps"
+        },
+        "onFailure": {
+          "label": "If the AI call fails",
+          "stop": "Stop this automation",
+          "skip": "Skip this step and continue",
+          "fallback": "Send fallback text and continue",
+          "no": "Take the No branch",
+          "fallbackText": "Fallback text",
+          "fallbackHint": "Sent to the customer if the AI cannot be reached. Then the flow continues down the Couldn't answer column.",
+          "fallbackPlaceholder": "Thanks for your message. A team member will get back to you soon."
+        },
+        "messagesCount": "Messages the AI reads",
+        "messagesCountHint": "The latest messages of the conversation, from {min} to {max}.",
+        "saveTo": "Save the result in",
+        "saveToHint": "Later steps can use it as vars.{key}.",
+        "reply": {
+          "mode": "What to do with the answer",
+          "modeSend": "Send it to the customer",
+          "modeDraft": "Save it as an internal draft note for the agent",
+          "instructions": "Extra instructions",
+          "instructionsPlaceholder": "Be friendly and brief. Do not promise refunds or delivery dates.",
+          "instructionsHint": "Tone and what not to promise. The answer comes from your knowledge base and business context.",
+          "language": "Language",
+          "languageMatch": "Match the customer",
+          "evenIfAssigned": "Even if an agent is assigned",
+          "evenIfAssignedHint": "Off by default: the AI never sends while a person owns the conversation, or after AI take over.",
+          "branchesHint": "Answered continues in the left column. Couldn't answer (no matching knowledge, a hand-off signal, or an AI failure) continues in the right column."
+        },
+        "ask": {
+          "question": "Question about the conversation",
+          "questionPlaceholder": "Is the customer asking for a refund?",
+          "unsureHint": "The AI answers yes, no or unsure. Unsure, and any failure, follow the No branch."
+        },
+        "extract": {
+          "presets": "Presets",
+          "presetSentiment": "Sentiment",
+          "presetTopic": "Topic",
+          "presetSentimentDescription": "The customer's overall mood in the conversation",
+          "presetTopicDescription": "What the conversation is mainly about",
+          "key": "Key",
+          "type": "Type",
+          "types": {
+            "text": "Text",
+            "number": "Number",
+            "date": "Date",
+            "boolean": "Yes / no",
+            "choice": "Choice"
+          },
+          "description": "What to look for",
+          "descriptionPlaceholder": "The order number the customer mentions",
+          "choices": "Choices",
+          "choicesHint": "Separate with commas, up to {max}.",
+          "target": "Also save to",
+          "targets": {
+            "vars": "Only the variable",
+            "name": "Contact name",
+            "email": "Contact email",
+            "company": "Contact company",
+            "custom": "A custom contact field",
+            "label": "Apply the conversation label with this name",
+            "tag": "Add the contact tag with this name"
+          },
+          "customField": "Custom field",
+          "existingOnly": "Only an existing label or tag with the same name is used. Nothing is ever created.",
+          "removeField": "Remove field",
+          "addField": "Add field",
+          "fieldsLimit": "Up to {max} fields. Values that do not fit their type are left empty and never saved.",
+          "overwrite": "Overwrite existing values",
+          "overwriteHint": "Off by default: a contact field that already has a value keeps it.",
+          "instructions": "Extra guidance",
+          "instructionsPlaceholder": "Prefer the newest message if the customer changes their mind."
+        },
+        "summarize": {
+          "hint": "Summarises the conversation with the same summary the inbox uses.",
+          "postNote": "Also leave the summary as an internal note",
+          "language": "Language",
+          "languageDefault": "Workspace language"
+        },
+        "translate": {
+          "source": "Text to translate",
+          "sourcePlaceholder": "Leave empty to use the customer's last message",
+          "sourceHint": "You can use variables, for example the output of an earlier step.",
+          "target": "Translate into",
+          "targetPlaceholder": "Choose a language"
+        },
+        "ticket": {
+          "type": "Type",
+          "priority": "Priority",
+          "team": "Team (optional)",
+          "agent": "Assignee (optional)",
+          "subject": "Subject",
+          "subjectPlaceholder": "Follow-up for the customer",
+          "subjectFallbackHint": "Used if the AI cannot write the ticket.",
+          "description": "Description",
+          "descriptionPlaceholder": "What the customer needs",
+          "aiWrite": "Let AI write the subject and description from the conversation",
+          "aiWriteHint": "Uses AI tokens. If the AI fails, the text above is used instead.",
+          "skipIfOpen": "Skip if a ticket is already open for this conversation"
+        },
+        "test": {
+          "button": "Test this step",
+          "needsAiUse": "Testing needs the permission to use AI.",
+          "intro": "Runs this step on a conversation you pick and shows what it would do. Nothing is sent or saved. It uses real AI tokens.",
+          "pickConversation": "Conversation to test with",
+          "searchPlaceholder": "Search by name, phone or message",
+          "loading": "Loading",
+          "noConversations": "No conversations found.",
+          "unknownContact": "Unknown contact",
+          "samples": "Sample values for variables from earlier steps",
+          "run": "Run test",
+          "running": "Running",
+          "outcomes": {
+            "answered": "Answered",
+            "couldnt_answer": "Couldn't answer",
+            "yes": "Yes",
+            "no": "No",
+            "unsure": "Unsure",
+            "extracted": "Extracted",
+            "summarised": "Summarised",
+            "translated": "Translated",
+            "skipped": "Skipped",
+            "failed": "Failed",
+            "created": "Would create a ticket"
+          },
+          "branchAnswered": "Answered",
+          "branchCouldnt": "Couldn't answer",
+          "branchYes": "Yes",
+          "branchNo": "No",
+          "goesTo": "Continues down: {branch}",
+          "tokens": "{count, plural, =1 {# token} other {# tokens}}",
+          "reason": "Reason",
+          "why": "Why",
+          "reasons": {
+            "ai_paused": "AI is paused on this conversation",
+            "agent_assigned": "an agent is assigned",
+            "nothing_to_reply_to": "the customer's message has already been answered",
+            "no_knowledge": "no matching knowledge and no business context",
+            "handoff": "the AI asked for a person to take over",
+            "empty": "the AI returned nothing",
+            "no_messages": "the conversation has no text yet",
+            "open_ticket_exists": "an open ticket already exists",
+            "sent": "would be sent to the customer",
+            "draft_note": "would be saved as an internal draft note"
+          },
+          "ticketSkipped": "A ticket is already open for this conversation, so none would be created.",
+          "wouldDo": "It would",
+          "would": {
+            "send_reply": "send this reply to the customer",
+            "internal_note": "leave an internal note",
+            "contact_field": "save {text} as the contact's {name}",
+            "custom_field": "save {text} in a custom contact field",
+            "label": "apply the label {name}",
+            "tag": "add the contact tag {name}",
+            "create_ticket": "create a ticket titled {text}"
+          },
+          "nothingChanged": "Nothing was sent or saved.",
+          "errors": {
+            "generic": "The test could not run.",
+            "not_testable": "This step cannot be tested.",
+            "conversation_required": "Pick a conversation to test with.",
+            "not_found": "That conversation was not found.",
+            "ai_not_configured": "AI is not set up, is switched off, or the Automations job is off in AI Agents > Connections.",
+            "notice_required": "Confirm the customer-data notice in AI Agents > Setup first.",
+            "budget_exceeded": "The monthly AI token budget is used up.",
+            "rate_limited": "Too many AI calls right now. Try again in a minute.",
+            "timeout": "The AI provider took too long to answer.",
+            "ai_error": "The AI provider returned an error.",
+            "bad_output": "The AI answered in a format this step cannot read.",
+            "step_limit": "An automation runs at most 5 AI steps.",
+            "no_conversation": "This step needs a conversation.",
+            "no_messages": "There is nothing in this conversation to work from yet.",
+            "invalid_config": "This step is not filled in correctly yet.",
+            "test_failed": "The test could not run."
+          }
+        }
+      },
       "config": {
         "messageText": "Message text",
         "placeholderMessageText": "Hi! Thanks for reaching out…",
@@ -1395,7 +1665,8 @@
           "tag_presence": "Tag presence",
           "contact_field": "Contact field",
           "message_content": "Message content",
-          "time_of_day": "Time of day"
+          "time_of_day": "Time of day",
+          "ai_question": "Ask AI (yes/no)"
         },
         "operandLabel": "Operand",
         "placeholderTime": "HH:mm-HH:mm",
@@ -4254,6 +4525,7 @@
       "emptyHint": "This fills in as the assistant drafts and auto-replies.",
       "totalTokens": "Total tokens",
       "llmCalls": "LLM calls",
+      "cachedTokens": "Cached input tokens: {count}",
       "autoReply": "Auto-reply",
       "drafts": "Drafts",
       "tokens": "Tokens",
@@ -4269,7 +4541,8 @@
         "auto_label": "Auto-labels",
         "closing_note": "Closing notes",
         "summary": "Summaries",
-        "translate": "Translations"
+        "translate": "Translations",
+        "automation": "Automation steps"
       },
       "defaultConnection": "Default connection",
       "deletedConnection": "Deleted connection"
@@ -4341,6 +4614,10 @@
         "translate": {
           "name": "Article translations",
           "desc": "Translates a knowledge base article into another language when you choose Translate with AI."
+        },
+        "automation": {
+          "name": "Automations",
+          "desc": "Steps inside automations."
         }
       },
       "modelSameAsConnection": "Same as the connection",

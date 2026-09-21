@@ -140,6 +140,12 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("automations/[id]", "DELETE", "agent", "automations.manage"),
   row("automations/[id]/duplicate", "POST", "agent", "automations.manage"),
   row("automations/engine", "POST", "agent", "automations.manage"),
+  // AI in automations (0.48.0). Building needs automations.manage; a test spends AI tokens, so it needs ai.use as well.
+  row("automations/test-ai-step", "POST", "agent", ["automations.manage", "ai.use"], "new: a dry run of one AI step"),
+  row("automations/test-ai-step/conversations", "GET", "agent", ["automations.manage", "ai.use"], "new: the Test panel's conversation picker"),
+  row("automations/ai-status", "GET", "viewer", "menu.automations", "new: whether AI steps can run"),
+  // Closing was a direct database call from the browser (the function checks conversations.manage); it now goes through the server so conversation_closed is dispatched once.
+  row("conversations/close", "POST", "agent", "conversations.manage", "the database function still enforces it too"),
   row("flows", "POST", "agent", "flows.manage"),
   row("flows/[id]", "PUT", "agent", "flows.manage"),
   row("flows/[id]", "DELETE", "agent", "flows.manage"),

@@ -4,6 +4,7 @@ import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { getTemplate } from '@/lib/automations/templates'
 import { insertSteps, type BuilderStepInput } from '@/lib/automations/steps-tree'
+import { aiSetupForActivation } from '@/lib/automations/ai/activation'
 import {
   validateStepsForActivation,
   validateTriggerForActivation,
@@ -93,11 +94,12 @@ export async function POST(request: Request) {
   // (is_active=false) are allowed to be incomplete so users can save
   // progress mid-build.
   if (is_active) {
+    const stepsToCheck = (effectiveSteps ?? []) as unknown as { step_type: string; step_config: Record<string, unknown> }[]
+    // AI steps need AI set up before the automation can go live.
+    const aiSetup = await aiSetupForActivation(supabaseAdmin(), accountId, stepsToCheck)
     const issues = [
       ...validateTriggerForActivation(effectiveTriggerType, effectiveTriggerConfig ?? {}),
-      ...validateStepsForActivation(
-        (effectiveSteps ?? []) as unknown as { step_type: string; step_config: Record<string, unknown> }[],
-      ),
+      ...validateStepsForActivation(stepsToCheck, { aiSetup }),
     ]
     if (issues.length > 0) {
       return NextResponse.json(

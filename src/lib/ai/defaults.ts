@@ -53,7 +53,12 @@ export function aiContextMessageLimit(): number {
  * the user typed. Auto-reply mode additionally teaches the handoff
  * protocol.
  */
-export function buildSystemPrompt(args: {
+export function buildSystemPrompt(args: SystemPromptArgs): string {
+  const { stable, variable } = buildSystemPromptParts(args)
+  return variable ? stable + '\n\n' + variable : stable
+}
+
+export interface SystemPromptArgs {
   userPrompt: string | null
   mode: 'draft' | 'auto_reply'
   /** Knowledge-base excerpts retrieved for the current question. */
@@ -61,7 +66,19 @@ export function buildSystemPrompt(args: {
   /** The contact's preferred conversation language (ISO code) when an
    *  agent has set one — takes precedence over matching their last message. */
   preferredLanguage?: string | null
-}): string {
+}
+
+/**
+ * The same prompt as `buildSystemPrompt`, split at the point where it starts
+ * to change per question:
+ *   stable   = scaffold, guidelines, language preference, auto-reply rules and
+ *              the workspace's business context: identical from one customer
+ *              question to the next, so it can be cached (Anthropic prompt
+ *              caching) and always comes first;
+ *   variable = the retrieved knowledge excerpts ('' when there are none).
+ * Joined with a blank line, they are exactly `buildSystemPrompt`'s output.
+ */
+export function buildSystemPromptParts(args: SystemPromptArgs): { stable: string; variable: string } {
   const { userPrompt, mode, knowledge, preferredLanguage } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
@@ -90,12 +107,15 @@ export function buildSystemPrompt(args: {
     parts.push(`Business context and instructions:\n${userPrompt.trim()}`)
   }
 
+  const stable = parts.join('\n\n')
+  let variable = ''
+
   if (knowledge && knowledge.length > 0) {
     const fallback =
       mode === 'auto_reply'
         ? `if they don't cover the question, do not guess — reply with exactly ${HANDOFF_SENTINEL} so a human can help`
         : "if they don't cover the question, don't guess — say you'll check and follow up"
-    parts.push(
+    variable =
       'Knowledge base — excerpts from the business\'s own documentation, retrieved for this question. ' +
         `Prefer these for any specifics (prices, policies, facts); ${fallback}. ` +
         "The excerpts may be in English, Bahasa Melayu or Chinese: answer in the customer's language, translating as needed, and keep names, numbers and prices exactly as written. " +
@@ -104,9 +124,8 @@ export function buildSystemPrompt(args: {
         'Files attached to those articles (documents, images, price lists) are sent to the customer automatically right after your reply: do not paste links or URLs to files, and never say you cannot send files.' +
         `\n\n${knowledge
           .map((k, i) => `[${i + 1}] ${k}`)
-          .join('\n\n---\n\n')}`,
-    )
+          .join('\n\n---\n\n')}`
   }
 
-  return parts.join('\n\n')
+  return { stable, variable }
 }

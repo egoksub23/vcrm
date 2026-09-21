@@ -4,23 +4,18 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
-  Check,
   Loader2,
-  X,
   ChevronDown,
   ChevronRight,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 import { createClient } from "@/lib/supabase/client"
-import type {
-  Automation,
-  AutomationLog,
-  AutomationLogStepResult,
-} from "@/types"
+import type { Automation, AutomationLog } from "@/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { formatRelative } from "@/lib/automations/trigger-meta"
+import { StepRow } from "@/components/automations/log-step-row"
 
 export default function AutomationLogsPage({
   params,
@@ -183,26 +178,5 @@ function StatusBadge({ status, t }: { status: AutomationLog["status"], t: Return
     >
       {t(`status.${status}`)}
     </span>
-  )
-}
-
-function StepRow({ result }: { result: AutomationLogStepResult }) {
-  const ok = result.status === "success"
-  return (
-    <li className="flex items-start gap-2 text-xs">
-      <span
-        className={cn(
-          "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full",
-          ok ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400",
-        )}
-        aria-hidden
-      >
-        {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-      </span>
-      <span className="text-muted-foreground">{result.step_type}</span>
-      {result.detail && (
-        <span className="truncate text-muted-foreground">— {result.detail}</span>
-      )}
-    </li>
   )
 }

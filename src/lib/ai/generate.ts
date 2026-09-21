@@ -15,6 +15,11 @@ export interface GenerateArgs {
   config: AiConfig
   /** Fully-built system prompt (see `buildSystemPrompt`). */
   systemPrompt: string
+  /** Optional per-question part of the prompt (retrieved knowledge excerpts),
+   *  appended after `systemPrompt` (see `buildSystemPromptParts`). Passing it
+   *  separately lets Anthropic cache the stable prefix. The model reads
+   *  `systemPrompt + blank line + systemPromptTail`, same as one joined string. */
+  systemPromptTail?: string | null
   /** Recent conversation turns, oldest first. */
   messages: ChatMessage[]
   /** When given, the account's monthly token budget is checked first (and
@@ -32,7 +37,7 @@ export interface GenerateArgs {
  * of the raw text. Throws `AiError` on any provider/network failure.
  */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
-  const { config, systemPrompt, messages, guard } = args
+  const { config, systemPrompt, systemPromptTail, messages, guard } = args
   if (guard) await ensureWithinBudget(guard.db, guard.accountId, config)
   const timeoutMs = args.timeoutMs ?? aiRequestTimeoutMs()
   const providerArgs = {
@@ -40,6 +45,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     baseUrl: config.baseUrl,
     model: config.model,
     systemPrompt,
+    systemPromptTail,
     messages,
     timeoutMs,
     maxOutputTokens: args.maxOutputTokens,

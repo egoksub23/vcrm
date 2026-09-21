@@ -21,8 +21,17 @@ import type {
   AssignToTeamStepConfig,
   SetPriorityStepConfig,
   SetLifecycleStageStepConfig,
+  CreateTicketStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
+import { closeConversation, chainOf } from '@/lib/conversations/close'
+import { isAiStepType } from './step-kinds'
+import { createAiCaller } from './ai/caller'
+import { executeAiStep, describeResult, type PlannedStepType } from './ai/run'
+import { applyEffects } from './ai/apply'
+import { planCreateTicket, applyCreateTicket } from './ai/create-ticket'
+import { AI_LOG_OUTPUT_CHARS, type AiStepResult, type AiStepRuntime } from './ai/types'
+import { clip } from './ai/parsers'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import {
   addConversationLabelIfAbsent,
@@ -56,6 +65,8 @@ export interface AutomationContext {
   agent_id?: string
   /** Button / list-row id the customer tapped, for interactive_reply. */
   interactive_reply_id?: string
+  /** The closing note, for conversation_closed. */
+  closure_note?: string
 }
 
 export interface DispatchInput {
@@ -142,8 +153,16 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
     }
     if (!automations || automations.length === 0) return
 
+    // Loop guard: an automation that led to this dispatch (it closed the
+    // conversation that fired conversation_closed, say) never runs again for it.
+    const chain = chainOf(input.context?.vars)
+
     for (const automation of automations as Automation[]) {
       if (!triggerMatches(automation, input.context)) continue
+      if (chain.includes(automation.id)) {
+        console.warn('[automations] skipping an automation already in this run chain', automation.id)
+        continue
+      }
       try {
         await executeAutomation(automation, input)
       } catch (err) {
@@ -342,6 +361,30 @@ async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
     }
 
     try {
+      // AI steps. Ask AI (a Condition whose subject is `ai_question`) and AI
+      // reply branch like a condition: yes/no columns, or Answered / Couldn't
+      // answer. The other AI steps run straight through.
+      const aiKind = aiPlannedType(step)
+      if (aiKind) {
+        const ai = await runAiForEngine(step, aiKind, args)
+        results.push(ai.entry)
+        if (ai.stop) {
+          status = 'failed'
+          errorMessage = ai.entry.detail ?? 'AI step failed'
+          break
+        }
+        if (ai.branch) {
+          await executeStepsFrom({
+            ...args,
+            parentStepId: step.id,
+            branch: ai.branch,
+            startPosition: 0,
+            logId: args.logId,
+          })
+        }
+        continue
+      }
+
       if (step.step_type === 'condition') {
         const cfg = step.step_config as ConditionStepConfig
         const taken = await evaluateCondition(cfg, args)
@@ -363,12 +406,12 @@ async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
         continue
       }
 
-      const detail = await runStep(step, args)
+      const out = await runStep(step, args)
       results.push({
         step_id: step.id,
         step_type: step.step_type,
         status: 'success',
-        detail,
+        ...(typeof out === 'string' ? { detail: out } : out),
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -392,7 +435,10 @@ async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
   }
 }
 
-async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string> {
+/** What a step reports: a detail line, or (AI steps, Create ticket) more. */
+type StepOutput = string | Pick<AutomationLogStepResult, 'detail' | 'status' | 'outcome' | 'tokens' | 'output'>
+
+async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOutput> {
   const db = supabaseAdmin()
 
   switch (step.step_type) {
@@ -791,13 +837,48 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       // Goes through the same RPC the UI's Close action uses (migration
       // 065) rather than a raw UPDATE, so automation-driven closes get a
       // conversation_events row too — a close with no session-log entry
-      // would be a silent gap in the timeline.
-      const { error } = await db.rpc('close_conversation_with_note', {
-        p_conversation_id: conversationId,
-        p_note: `Closed automatically by automation "${args.automation.name}"`,
+      // would be a silent gap in the timeline. `closeConversation` wraps that
+      // RPC and is also the one place `conversation_closed` is dispatched;
+      // this automation is put in the run chain so it cannot re-trigger itself.
+      await closeConversation({
+        rpcClient: db,
+        admin: db,
+        accountId: args.automation.account_id,
+        conversationId,
+        note: `Closed automatically by automation "${args.automation.name}"`,
+        closedBy: { type: 'automation', automationId: args.automation.id, automationName: args.automation.name },
+        contactId: args.contactId,
+        chain: chainOf(args.context.vars),
       })
-      if (error) throw error
       return 'conversation closed'
+    }
+
+    case 'create_ticket': {
+      const cfg = step.step_config as unknown as CreateTicketStepConfig
+      if (!cfg.subject?.trim() && !cfg.ai_write) throw new Error('create_ticket needs a subject')
+      const rt = await buildAiRuntime(args, false)
+      const plan = await planCreateTicket(cfg, rt)
+      if (plan.varsPatch && Object.keys(plan.varsPatch).length > 0) {
+        args.context.vars = { ...(args.context.vars ?? {}), ...plan.varsPatch }
+      }
+      const extra = plan.notes.length > 0 ? `; ${plan.notes.join('; ')}` : ''
+      if (plan.skip === 'open_ticket_exists') {
+        return {
+          status: 'skipped',
+          outcome: 'skipped',
+          tokens: plan.tokens,
+          detail: `skipped: an open ticket already exists for this conversation (#${plan.existing?.number})${extra}`,
+        }
+      }
+      const ticket = await applyCreateTicket(plan, rt, args.automation.name)
+      args.context.vars = { ...(args.context.vars ?? {}), ticket_key: ticket.key, ticket_id: ticket.id }
+      return {
+        status: 'success',
+        outcome: plan.usedAi ? 'created_with_ai' : 'created',
+        tokens: plan.tokens,
+        output: clip(plan.subject, AI_LOG_OUTPUT_CHARS),
+        detail: `ticket ${ticket.key} created${plan.usedAi ? ' (text written by AI)' : ''}${extra}`,
+      }
     }
 
     case 'set_priority': {
@@ -829,6 +910,115 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
     default:
       return `unknown step: ${step.step_type}`
   }
+}
+
+// ------------------------------------------------------------
+// AI steps
+//
+// The model work (and the decision what to write) lives in ./ai/run, shared
+// with the builder's Test panel; this side owns the writes. `executeAiStep`
+// returns a plan; here it is applied (send the reply, save contact fields,
+// apply labels ...) and its variables are merged into the run.
+// ------------------------------------------------------------
+
+/** The AI planner type for a step, or null when it is not an AI step. */
+function aiPlannedType(step: AutomationStep): PlannedStepType | null {
+  if (isAiStepType(step.step_type)) return step.step_type
+  if (step.step_type === 'condition' && (step.step_config as ConditionStepConfig).subject === 'ai_question') {
+    return 'ai_question'
+  }
+  return null
+}
+
+/** The conversation for a step that can live without one (AI steps report their own error). */
+async function resolveConversationIdOrNull(args: ExecuteArgs): Promise<string | null> {
+  try {
+    return await resolveConversationId(args)
+  } catch {
+    return null
+  }
+}
+
+async function buildAiRuntime(args: ExecuteArgs, dryRun: boolean): Promise<AiStepRuntime> {
+  const db = supabaseAdmin()
+  const conversationId = await resolveConversationIdOrNull(args)
+  const vars = { ...(args.context.vars ?? {}) }
+  return {
+    db,
+    ai: createAiCaller({ db, accountId: args.automation.account_id, conversationId, logUsage: true }),
+    accountId: args.automation.account_id,
+    automation: { id: args.automation.id, name: args.automation.name },
+    conversationId,
+    contactId: args.contactId,
+    messageText: args.context.message_text,
+    vars,
+    closureNote: args.context.closure_note ?? (typeof vars.closure_note === 'string' ? vars.closure_note : undefined),
+    dryRun,
+  }
+}
+
+interface AiEngineOutcome {
+  entry: AutomationLogStepResult
+  branch: 'yes' | 'no' | null
+  stop: boolean
+}
+
+async function runAiForEngine(
+  step: AutomationStep,
+  kind: PlannedStepType,
+  args: ExecuteArgs,
+): Promise<AiEngineOutcome> {
+  const db = supabaseAdmin()
+  const rt = await buildAiRuntime(args, false)
+  const res: AiStepResult = await executeAiStep(kind, step.step_config as Record<string, unknown>, rt)
+
+  // Variables first: the step counter and anything the step produced.
+  args.context.vars = { ...(args.context.vars ?? {}), ...res.varsPatch }
+
+  let applied: string[] = []
+  if (!res.stop && res.effects.length > 0) {
+    applied = await applyEffects(res.effects, {
+      db,
+      accountId: args.automation.account_id,
+      conversationId: rt.conversationId,
+      contactId: args.contactId,
+      // An AI-applied label / tag behaves exactly like the Add label / Add tag
+      // steps, chained triggers and their depth cap included.
+      applyLabel: async (tagId) =>
+        stepText(
+          await runStep(
+            { ...step, step_type: 'add_conversation_label', step_config: { tag_id: tagId } } as AutomationStep,
+            args,
+          ),
+        ),
+      applyTag: async (tagId) =>
+        stepText(
+          await runStep({ ...step, step_type: 'add_tag', step_config: { tag_id: tagId } } as AutomationStep, args),
+        ),
+    })
+  }
+
+  const parts = [describeResult(res), ...res.notes, ...applied]
+  if (res.branch) parts.push(`branch=${res.branch}`)
+  const failedButContinued = !!res.failure && !res.stop
+  return {
+    entry: {
+      step_id: step.id,
+      step_type: step.step_type,
+      status: res.stop ? 'failed' : failedButContinued ? 'skipped' : 'success',
+      detail: parts.join('; '),
+      outcome: res.failure ? 'failed' : res.outcome,
+      tokens: res.tokens,
+      // The output only, cut short. The prompt is never logged.
+      output: res.text ? clip(res.text, AI_LOG_OUTPUT_CHARS) : undefined,
+    },
+    branch: res.branch,
+    stop: !!res.stop,
+  }
+}
+
+function stepText(out: StepOutput): string {
+  return typeof out === 'string' ? out : (out.detail ?? '')
 }
 
 // ------------------------------------------------------------
@@ -1008,6 +1198,8 @@ function interpolate(s: string, args: ExecuteArgs): string {
     const [ns, prop] = String(key).split('.')
     if (ns === 'message' && prop === 'text') return String(args.context.message_text ?? '')
     if (ns === 'vars' && prop) return String(args.context.vars?.[prop] ?? '')
+    // conversation_closed: the note the conversation was closed with.
+    if (ns === 'closure' && prop === 'note') return String(args.context.closure_note ?? '')
     return ''
   })
 }

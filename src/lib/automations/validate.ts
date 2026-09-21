@@ -1,5 +1,8 @@
 import type { AutomationTriggerType } from '@/types'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
+import { MAX_AI_STEPS_PER_RUN, countAiSteps, hasBranches } from './step-kinds'
+import { checkExtractFields } from './ai/parsers'
+import { AI_MESSAGES_MAX, AI_MESSAGES_MIN } from './ai/types'
 
 // ------------------------------------------------------------
 // Pre-flight config validation for automations about to be activated.
@@ -27,7 +30,18 @@ interface StepLike {
   branches?: { yes?: StepLike[]; no?: StepLike[] }
 }
 
-export function validateStepsForActivation(steps: StepLike[]): ValidationIssue[] {
+export interface ActivationOptions {
+  /** Whether AI steps can run for this account right now (AI set up, switched
+   *  on, the Automations job on, privacy notice confirmed). Only consulted when
+   *  the automation has an AI step. Omitted = not checked (the caller has not
+   *  looked). The routes look it up only for automations that use AI. */
+  aiSetup?: { ok: boolean; message?: string }
+}
+
+export function validateStepsForActivation(
+  steps: StepLike[],
+  opts: ActivationOptions = {},
+): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   if (!Array.isArray(steps) || steps.length === 0) {
     issues.push({
@@ -37,14 +51,37 @@ export function validateStepsForActivation(steps: StepLike[]): ValidationIssue[]
     return issues
   }
   walk(steps, '', issues)
+
+  // AI guardrails: a cap on AI steps, and AI has to be usable before an
+  // automation with AI steps goes live. Saving a draft is always allowed.
+  const aiCount = countAiSteps(steps)
+  if (aiCount > MAX_AI_STEPS_PER_RUN) {
+    issues.push({
+      path: 'steps',
+      message: `an automation can have at most ${MAX_AI_STEPS_PER_RUN} AI steps (this one has ${aiCount})`,
+    })
+  }
+  if (aiCount > 0 && opts.aiSetup && !opts.aiSetup.ok) {
+    issues.push({
+      path: 'steps.ai',
+      message:
+        opts.aiSetup.message ??
+        'this automation uses AI, but AI is not set up. Set it up in AI Agents > Setup, or remove the AI steps.',
+    })
+  }
   return issues
+}
+
+/** Whether any step in the tree calls the AI (so the caller knows to look up AI setup). */
+export function stepsUseAi(steps: StepLike[] | undefined): boolean {
+  return Array.isArray(steps) && countAiSteps(steps) > 0
 }
 
 function walk(steps: StepLike[], prefix: string, issues: ValidationIssue[]): void {
   steps.forEach((s, i) => {
     const path = `${prefix}steps[${i}]`
     validateOne(s, path, issues)
-    if (s.step_type === 'condition' && s.branches) {
+    if (hasBranches(s.step_type) && s.branches) {
       if (s.branches.yes) walk(s.branches.yes, `${path}.yes.`, issues)
       if (s.branches.no) walk(s.branches.no, `${path}.no.`, issues)
     }
@@ -136,7 +173,57 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.subject`, message: 'condition subject is required' })
       }
       if (!nonEmpty(c.operand)) {
-        issues.push({ path: `${path}.operand`, message: 'condition operand is required' })
+        issues.push({
+          path: `${path}.operand`,
+          message: c.subject === 'ai_question' ? 'the question for Ask AI is required' : 'condition operand is required',
+        })
+      }
+      if (c.subject === 'ai_question') {
+        checkMessagesCount(c.ai_messages, `${path}.ai_messages`, issues)
+        if (c.on_failure !== undefined && c.on_failure !== 'no' && c.on_failure !== 'stop') {
+          issues.push({ path: `${path}.on_failure`, message: 'on failure must be "no" or "stop"' })
+        }
+      }
+      break
+    case 'ai_reply':
+      if (c.mode !== undefined && c.mode !== 'send' && c.mode !== 'draft') {
+        issues.push({ path: `${path}.mode`, message: 'AI reply mode must be "send" or "draft"' })
+      }
+      checkOnFailure(c.on_failure, ['stop', 'skip', 'fallback'], path, issues)
+      if (c.on_failure === 'fallback' && !nonEmpty(c.fallback_text)) {
+        issues.push({ path: `${path}.fallback_text`, message: 'fallback text is required when on failure uses the fallback' })
+      }
+      break
+    case 'ai_extract':
+      for (const f of checkExtractFields(c.fields)) {
+        issues.push({ path: `${path}.fields${f.key ? `.${f.key}` : ''}`, message: f.message })
+      }
+      checkMessagesCount(c.ai_messages, `${path}.ai_messages`, issues)
+      checkOnFailure(c.on_failure, ['stop', 'skip'], path, issues)
+      break
+    case 'ai_summarize':
+      checkOnFailure(c.on_failure, ['stop', 'skip'], path, issues)
+      break
+    case 'ai_translate':
+      if (!nonEmpty(c.target_language)) {
+        issues.push({ path: `${path}.target_language`, message: 'a language to translate into is required' })
+      }
+      checkOnFailure(c.on_failure, ['stop', 'skip'], path, issues)
+      break
+    case 'create_ticket':
+      // With "Let AI write it" the templated subject is only the fallback, but
+      // it must still exist: a failed AI call has to produce a ticket anyway.
+      if (!nonEmpty(c.subject)) {
+        issues.push({ path: `${path}.subject`, message: 'ticket subject is required' })
+      }
+      if (
+        c.category !== undefined &&
+        !['general', 'billing', 'technical', 'feature_request', 'bug', 'account', 'other'].includes(c.category as string)
+      ) {
+        issues.push({ path: `${path}.category`, message: 'a valid ticket type is required' })
+      }
+      if (c.priority !== undefined && !['urgent', 'high', 'normal', 'low'].includes(c.priority as string)) {
+        issues.push({ path: `${path}.priority`, message: 'a valid priority is required' })
       }
       break
     case 'send_webhook':
@@ -213,6 +300,8 @@ export function validateTriggerForActivation(
     if (!nonEmpty(cfg.tag_id)) {
       issues.push({ path: 'trigger.tag_id', message: 'tag is required' })
     }
+  } else if (triggerType === 'conversation_closed') {
+    // No configuration: it fires whenever a conversation is closed.
   } else if (triggerType === 'interactive_reply') {
     const ids = cfg.reply_ids
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -229,6 +318,22 @@ export function validateTriggerForActivation(
   }
 
   return issues
+}
+
+function checkOnFailure(v: unknown, allowed: string[], path: string, issues: ValidationIssue[]): void {
+  if (v !== undefined && !allowed.includes(v as string)) {
+    issues.push({ path: `${path}.on_failure`, message: `on failure must be one of: ${allowed.join(', ')}` })
+  }
+}
+
+function checkMessagesCount(v: unknown, path: string, issues: ValidationIssue[]): void {
+  if (v === undefined) return
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < AI_MESSAGES_MIN || v > AI_MESSAGES_MAX) {
+    issues.push({
+      path,
+      message: `messages to read must be a whole number from ${AI_MESSAGES_MIN} to ${AI_MESSAGES_MAX}`,
+    })
+  }
 }
 
 function nonEmpty(v: unknown): boolean {

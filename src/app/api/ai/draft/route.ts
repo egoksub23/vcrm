@@ -10,7 +10,7 @@ import { buildSources, groupHitsByArticle } from '@/lib/knowledge/excerpts'
 import { loadSendableAttachments } from '@/lib/knowledge/attachments'
 import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
-import { buildSystemPrompt } from '@/lib/ai/defaults'
+import { buildSystemPromptParts } from '@/lib/ai/defaults'
 import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError } from '@/lib/ai/types'
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     const { excerpts: knowledge, documents: excerptDocs } = groupHitsByArticle(hits)
     void logKnowledgeUse(supabase, { accountId, conversationId, mode: 'draft', hits })
 
-    const systemPrompt = buildSystemPrompt({
+    const prompt = buildSystemPromptParts({
       userPrompt: config.systemPrompt,
       mode: 'draft',
       knowledge,
@@ -118,7 +118,8 @@ export async function POST(request: Request) {
 
     const { text: rawText, usage } = await generateReply({
       config,
-      systemPrompt,
+      systemPrompt: prompt.stable,
+      systemPromptTail: prompt.variable,
       messages,
       guard: { db: supabaseAdmin(), accountId },
     })

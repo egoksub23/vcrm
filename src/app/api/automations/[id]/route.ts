@@ -11,6 +11,7 @@ import {
   validateStepsForActivation,
   validateTriggerForActivation,
 } from '@/lib/automations/validate'
+import { aiSetupForActivation } from '@/lib/automations/ai/activation'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -59,8 +60,9 @@ export async function PATCH(
   // Editing an automation is a write — the RLS automations_update policy
   // requires `agent`, but this route mutates via the service-role client
   // which bypasses RLS, so enforce the role here.
+  let accountId: string
   try {
-    await requireCapability('automations.manage')
+    ;({ accountId } = await requireCapability('automations.manage'))
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -107,9 +109,11 @@ export async function PATCH(
     const mergedSteps = Array.isArray(body.steps)
       ? (body.steps as { step_type: string; step_config: Record<string, unknown> }[])
       : await loadStepsTree(id)
+    // AI steps need AI set up before the automation can stay (or go) live.
+    const aiSetup = await aiSetupForActivation(admin, accountId, mergedSteps)
     const issues = [
       ...validateTriggerForActivation(mergedTriggerType, mergedTriggerConfig),
-      ...validateStepsForActivation(mergedSteps),
+      ...validateStepsForActivation(mergedSteps, { aiSetup }),
     ]
     if (issues.length > 0) {
       return NextResponse.json(

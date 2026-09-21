@@ -175,8 +175,10 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
       expect.objectContaining({ audience: 'ai' }),
     )
     expect(h.logKnowledgeUse).toHaveBeenCalled()
-    const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
-    expect(systemPrompt).toContain('Returns accepted within 30 days.')
+    // Knowledge excerpts travel in the per-question tail, after the stable prefix.
+    const call = h.generateReply.mock.calls[0][0]
+    expect(call.systemPromptTail as string).toContain('Returns accepted within 30 days.')
+    expect(call.systemPrompt as string).not.toContain('Returns accepted within 30 days.')
   })
 
   it("answers in the contact's preferred language when one is set", async () => {
@@ -375,7 +377,7 @@ describe('dispatchInboundToAiReply — citations, files and the sources note', (
     h.generateReply.mockResolvedValue({ text: 'Refunds take 14 days [1]. We open at 9 [2].', handoff: false })
     await dispatchInboundToAiReply(ARGS)
 
-    const prompt = h.generateReply.mock.calls[0][0].systemPrompt as string
+    const prompt = h.generateReply.mock.calls[0][0].systemPromptTail as string
     expect(prompt).toContain('[1] Refunds\n\nWithin 14 days.\n\nKeep the receipt.')
     expect(prompt).toContain('[2] Hours\n\nNine to six.')
     expect(prompt).not.toContain('[3]')

@@ -36,6 +36,8 @@ import {
   List,
   Flag,
   Milestone,
+  Sparkles,
+  TicketPlus,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -47,7 +49,10 @@ import { Switch } from "@/components/ui/switch"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type {
@@ -77,6 +82,19 @@ import {
   type ParentScope,
   type StepPath,
 } from "@/lib/automations/builder-tree"
+import { hasBranches, usesAi } from "@/lib/automations/step-kinds"
+import {
+  AiFlowProvider,
+  AiReplyEditor,
+  AiExtractEditor,
+  AiSummarizeEditor,
+  AiTranslateEditor,
+  AiStatusProvider,
+  AskAiFields,
+  CreateTicketEditor,
+  TestStepPanel,
+  type AiEditorSlots,
+} from "./ai-steps"
 import { cn } from "@/lib/utils"
 
 // ------------------------------------------------------------
@@ -131,7 +149,16 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   close_conversation: { label: "close_conversation", icon: CircleSlash, border: "border-l-primary" },
   set_priority: { label: "set_priority", icon: Flag, border: "border-l-primary" },
   set_lifecycle_stage: { label: "set_lifecycle_stage", icon: Milestone, border: "border-l-primary" },
+  create_ticket: { label: "create_ticket", icon: TicketPlus, border: "border-l-primary" },
+  // AI steps: a sparkle icon and a violet accent so they read as one family.
+  ai_reply: { label: "ai_reply", icon: Sparkles, border: "border-l-violet-500" },
+  ai_extract: { label: "ai_extract", icon: Sparkles, border: "border-l-violet-500" },
+  ai_summarize: { label: "ai_summarize", icon: Sparkles, border: "border-l-violet-500" },
+  ai_translate: { label: "ai_translate", icon: Sparkles, border: "border-l-violet-500" },
 }
+
+/** The AI group of the "Add step" menu. Ask AI is not here: it is a subject of Condition. */
+const AI_ADDABLE_STEPS: AutomationStepType[] = ["ai_reply", "ai_extract", "ai_summarize", "ai_translate"]
 
 const ADDABLE_STEPS: AutomationStepType[] = [
   "send_message",
@@ -146,6 +173,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "assign_to_team",
   "update_contact_field",
   "create_deal",
+  "create_ticket",
   "wait",
   "condition",
   "send_webhook",
@@ -163,6 +191,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "conversation_assigned" },
   { value: "tag_added" },
   { value: "conversation_label_added" },
+  { value: "conversation_closed" },
   { value: "time_based" },
 ]
 
@@ -222,6 +251,16 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { priority: "high" }
     case "set_lifecycle_stage":
       return { stage: "active" }
+    case "create_ticket":
+      return { category: "general", priority: "normal", subject: "", description: "", skip_if_open: true }
+    case "ai_reply":
+      return { mode: "send", language: "match", instructions: "", on_failure: "skip" }
+    case "ai_extract":
+      return { fields: [], on_failure: "stop" }
+    case "ai_summarize":
+      return { save_to: "summary", post_note: false, on_failure: "stop" }
+    case "ai_translate":
+      return { source: "", target_language: "", save_to: "translation", on_failure: "stop" }
     default:
       return {}
   }
@@ -801,12 +840,17 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
     setState((s) => ({ ...s, steps: mapAtPath(s.steps, path, updater) }))
   }
 
-  function addStepAt(parent: ParentScope, index: number, type: AutomationStepType) {
+  function addStepAt(
+    parent: ParentScope,
+    index: number,
+    type: AutomationStepType,
+    preset?: Record<string, unknown>,
+  ) {
     const node: BuilderStep = {
       cid: cid(),
       step_type: type,
-      step_config: blankConfig(type),
-      branches: type === "condition" ? { yes: [], no: [] } : undefined,
+      step_config: { ...blankConfig(type), ...(preset ?? {}) },
+      branches: hasBranches(type) ? { yes: [], no: [] } : undefined,
     }
     setState((s) => ({ ...s, steps: insertAt(s.steps, parent, index, node) }))
     setExpandedId(node.cid)
@@ -871,7 +915,9 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background">
+    // z-[45]: above the sidebar (z-40, always an overlay) so the back arrow and
+    // the name box are not hidden under it, below dialogs and popovers (z-50).
+    <div className="fixed inset-0 z-[45] flex flex-col bg-background">
       {/* Top bar. At sub-sm widths the "Active" label is hidden and the
           switch moves to the right of the save button, so the name input
           gets maximum width. */}
@@ -922,26 +968,30 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle,var(--border)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
         <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-4 py-10">
           <ResourcesProvider>
-            <TriggerCard
-              type={state.trigger_type}
-              config={state.trigger_config}
-              onTypeChange={(tVal) => patchTop("trigger_type", tVal)}
-              onConfigChange={(c) => patchTop("trigger_config", c)}
-              disabled={!canManage}
-              t={t}
-            />
-            <StepList
-              steps={state.steps}
-              basePath={[]}
-              scope={{ kind: "root" }}
-              canEdit={canManage}
-              expandedId={expandedId}
-              setExpandedId={setExpandedId}
-              updateStep={updateStep}
-              addStepAt={addStepAt}
-              deleteStepAt={deleteStepAt}
-              moveStepAt={moveStepAt}
-            />
+            <AiStatusProvider>
+              <AiFlowProvider value={{ steps: state.steps, triggerType: state.trigger_type }}>
+                <TriggerCard
+                  type={state.trigger_type}
+                  config={state.trigger_config}
+                  onTypeChange={(tVal) => patchTop("trigger_type", tVal)}
+                  onConfigChange={(c) => patchTop("trigger_config", c)}
+                  disabled={!canManage}
+                  t={t}
+                />
+                <StepList
+                  steps={state.steps}
+                  basePath={[]}
+                  scope={{ kind: "root" }}
+                  canEdit={canManage}
+                  expandedId={expandedId}
+                  setExpandedId={setExpandedId}
+                  updateStep={updateStep}
+                  addStepAt={addStepAt}
+                  deleteStepAt={deleteStepAt}
+                  moveStepAt={moveStepAt}
+                />
+              </AiFlowProvider>
+            </AiStatusProvider>
           </ResourcesProvider>
         </div>
       </div>
@@ -1231,7 +1281,12 @@ interface StepListProps {
   expandedId: string | null
   setExpandedId: (id: string | null) => void
   updateStep: (path: StepPath, updater: (s: BuilderStep) => BuilderStep) => void
-  addStepAt: (parent: ParentScope, index: number, type: AutomationStepType) => void
+  addStepAt: (
+    parent: ParentScope,
+    index: number,
+    type: AutomationStepType,
+    preset?: Record<string, unknown>,
+  ) => void
   deleteStepAt: (path: StepPath) => void
   moveStepAt: (path: StepPath, direction: -1 | 1) => void
 }
@@ -1241,7 +1296,7 @@ function StepList(props: StepListProps) {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <AddButton disabled={!props.canEdit} onPick={(t) => props.addStepAt(scope, 0, t)} />
+      <AddButton disabled={!props.canEdit} onPick={(t, preset) => props.addStepAt(scope, 0, t, preset)} />
       {steps.map((step, idx) => (
         <StepRenderer
           key={step.cid}
@@ -1274,9 +1329,14 @@ function StepRenderer({
   const t = useTranslations("Automations.builder")
   const path = childPath(basePath, scope, index)
   const meta = STEP_META[step.step_type]
-  const Icon = meta.icon
+  // Ask AI is a Condition, but it reads as an AI step: sparkle icon.
+  const Icon =
+    step.step_type === "condition" && step.step_config.subject === "ai_question" ? Sparkles : meta.icon
   const expanded = props.expandedId === step.cid
-  const isCondition = step.step_type === "condition"
+  // A condition and an AI reply both branch into two columns (yes / no, or
+  // Answered / Couldn't answer), so both get the wide card and no trailing "+".
+  const isCondition = hasBranches(step.step_type)
+  const isAi = usesAi(step) || step.step_type === "create_ticket"
   const nested = basePath.length > 0
   // Card widths on mobile fill the full canvas column (max-w-2xl px-4
   // still keeps them reasonable). On sm+ fixed widths come back so the
@@ -1316,10 +1376,20 @@ function StepRenderer({
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                {isCondition ? t("kindCondition") : step.step_type === "wait" ? t("kindWait") : t("kindAction")}
+                {step.step_type === "condition" && !isAi
+                  ? t("kindCondition")
+                  : step.step_type === "wait"
+                    ? t("kindWait")
+                    : usesAi(step)
+                      ? t("kindAi")
+                      : t("kindAction")}
               </div>
-              <div className="truncate text-sm font-medium text-foreground">{t(`steps.${meta.label}`)}</div>
-              <div className="truncate text-[11px] text-muted-foreground">{previewFor(step)}</div>
+              <div className="truncate text-sm font-medium text-foreground">
+                {step.step_type === "condition" && step.step_config.subject === "ai_question"
+                  ? t("steps.ai_question")
+                  : t(`steps.${meta.label}`)}
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground">{previewFor(step, t)}</div>
             </div>
             <ChevronDown
               className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")}
@@ -1332,6 +1402,9 @@ function StepRenderer({
                   step={step}
                   onChange={(next) => props.updateStep(path, () => next)}
                 />
+                {isAi && (
+                  <TestStepPanel stepType={step.step_type} config={step.step_config} />
+                )}
               </fieldset>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
                 <div className="flex gap-1">
@@ -1377,7 +1450,7 @@ function StepRenderer({
           ConditionBranches), so it has no linear "continue" path — adding
           the trailing connector here would produce a spurious third output. */}
       {!isCondition && (
-        <AddButton disabled={!props.canEdit} onPick={(t) => props.addStepAt(scope, index + 1, t)} />
+        <AddButton disabled={!props.canEdit} onPick={(t, preset) => props.addStepAt(scope, index + 1, t, preset)} />
       )}
     </>
   )
@@ -1395,6 +1468,8 @@ function ConditionBranches({
   const t = useTranslations("Automations.builder")
   const yes = step.branches?.yes ?? []
   const no = step.branches?.no ?? []
+  // AI reply's two columns are its outcomes, not a yes/no question.
+  const isAiReply = step.step_type === "ai_reply"
   return (
     // Stack Yes/No vertically until THIS CARD is wide enough for two
     // columns. A viewport breakpoint can't tell: a condition nested in
@@ -1402,7 +1477,7 @@ function ConditionBranches({
     // it anyway, leaving two columns too narrow to render a step in.
     <div className="@container mt-3 w-full">
       <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2">
-        <BranchColumn label={t("branches.yes")} color="text-primary">
+        <BranchColumn label={t(isAiReply ? "branches.answered" : "branches.yes")} color="text-primary">
           <StepList
             {...props}
             steps={yes}
@@ -1410,7 +1485,7 @@ function ConditionBranches({
             scope={{ kind: "branch", parentCid: step.cid, branch: "yes" }}
           />
         </BranchColumn>
-        <BranchColumn label={t("branches.no")} color="text-rose-400">
+        <BranchColumn label={t(isAiReply ? "branches.couldnt" : "branches.no")} color="text-rose-400">
           <StepList
             {...props}
             steps={no}
@@ -1444,7 +1519,8 @@ function AddButton({
   onPick,
   disabled = false,
 }: {
-  onPick: (t: AutomationStepType) => void
+  /** `preset` is merged over the step's blank config ("Ask AI" is a Condition with subject ai_question). */
+  onPick: (t: AutomationStepType, preset?: Record<string, unknown>) => void
   disabled?: boolean
 }) {
   const t = useTranslations("Automations.builder")
@@ -1473,6 +1549,29 @@ function AddButton({
               </DropdownMenuItem>
             )
           })}
+          <DropdownMenuSeparator />
+          {/* A Group is required around a Label (base-ui throws without one).
+              "Ask AI (yes/no)" is a subject of the Condition step, so it is
+              found under Condition rather than here. */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-violet-400">
+              <Sparkles className="h-3 w-3" aria-hidden />
+              {t("groups.ai")}
+            </DropdownMenuLabel>
+            {AI_ADDABLE_STEPS.map((tp) => {
+              const Icon = STEP_META[tp].icon
+              return (
+                <DropdownMenuItem key={tp} onClick={() => onPick(tp)}>
+                  <Icon className="h-4 w-4 text-violet-400" />
+                  {t(`steps.${STEP_META[tp].label}`)}
+                </DropdownMenuItem>
+              )
+            })}
+            <DropdownMenuItem onClick={() => onPick("condition", { subject: "ai_question" })}>
+              <Sparkles className="h-4 w-4 text-violet-400" />
+              {t("steps.ai_question")}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="h-4 w-[2px] bg-border" aria-hidden />
@@ -1492,11 +1591,25 @@ function StepEditor({
   onChange: (s: BuilderStep) => void
 }) {
   const t = useTranslations("Automations.builder")
+  const { customFields } = useResources()
   const cfg = step.step_config
   const set = (patch: Record<string, unknown>) =>
     onChange({ ...step, step_config: { ...cfg, ...patch } })
+  // The shared pickers the AI editors reuse (team, agent, custom fields).
+  const aiSlots: AiEditorSlots = { TeamSelect, AgentSelect, customFields, tBuilder: t }
+  const aiProps = { cid: step.cid, config: cfg, set, slots: aiSlots }
 
   switch (step.step_type) {
+    case "ai_reply":
+      return <AiReplyEditor {...aiProps} />
+    case "ai_extract":
+      return <AiExtractEditor {...aiProps} />
+    case "ai_summarize":
+      return <AiSummarizeEditor {...aiProps} />
+    case "ai_translate":
+      return <AiTranslateEditor {...aiProps} />
+    case "create_ticket":
+      return <CreateTicketEditor {...aiProps} />
     case "send_message":
       return (
         <FieldBlock label={t("config.messageText")}>
@@ -1696,8 +1809,11 @@ function StepEditor({
               <option value="contact_field">{t("config.subjects.contact_field")}</option>
               <option value="message_content">{t("config.subjects.message_content")}</option>
               <option value="time_of_day">{t("config.subjects.time_of_day")}</option>
+              <option value="ai_question">{t("config.subjects.ai_question")}</option>
             </select>
           </FieldBlock>
+          {cfg.subject === "ai_question" && <AskAiFields {...aiProps} />}
+          {cfg.subject !== "ai_question" && (
           <FieldBlock label={t("config.operandLabel")}>
             <Input
               placeholder={
@@ -1714,6 +1830,7 @@ function StepEditor({
               className="bg-muted text-foreground"
             />
           </FieldBlock>
+          )}
           {(cfg.subject === "contact_field" || cfg.subject === "message_content") && (
             <FieldBlock label={t("config.valueLabel")}>
               <Input
@@ -1825,8 +1942,37 @@ function OnlineOnlyCheckbox({
   )
 }
 
-function previewFor(step: BuilderStep): string {
+function previewFor(step: BuilderStep, t: ReturnType<typeof useTranslations>): string {
+  const c = step.step_config
   switch (step.step_type) {
+    // AI steps and Create ticket: a one-line summary of what they do, e.g.
+    // "AI reply: send to customer", "Ask AI: Is the customer asking for a refund?".
+    case "ai_reply":
+      return t((c.mode as string) === "draft" ? "ai.summary.replyDraft" : "ai.summary.replySend")
+    case "ai_extract": {
+      const keys = (Array.isArray(c.fields) ? (c.fields as { key?: string }[]) : [])
+        .map((f) => f.key)
+        .filter(Boolean)
+        .join(", ")
+      return keys ? t("ai.summary.extract", { keys }) : t("ai.summary.extractEmpty")
+    }
+    case "ai_summarize":
+      return t((c.post_note as boolean) ? "ai.summary.summarizeNote" : "ai.summary.summarize")
+    case "ai_translate":
+      return (c.target_language as string)
+        ? t("ai.summary.translate", { language: c.target_language as string })
+        : t("ai.summary.translateEmpty")
+    case "create_ticket":
+      return (c.subject as string)
+        ? t("ai.summary.ticket", { subject: c.subject as string })
+        : t("ai.summary.ticketEmpty")
+    case "condition":
+      if (c.subject === "ai_question") {
+        return (c.operand as string)
+          ? t("ai.summary.ask", { question: c.operand as string })
+          : t("ai.summary.askEmpty")
+      }
+      return `when ${c.subject ?? "?"}`
     case "send_message":
       return (step.step_config.text as string) || "no text yet"
     case "send_buttons":
@@ -1836,8 +1982,6 @@ function previewFor(step: BuilderStep): string {
       return (step.step_config.template_name as string) || "pick a template"
     case "wait":
       return `${step.step_config.amount ?? "?"} ${step.step_config.unit ?? ""}`
-    case "condition":
-      return `when ${step.step_config.subject ?? "?"}`
     case "send_webhook":
       return (step.step_config.url as string) || "no url"
     default:
@@ -1882,7 +2026,7 @@ export function fromServerSteps(nodes: ServerStepNode[]): BuilderStep[] {
     step_type: n.step_type as AutomationStepType,
     step_config: n.step_config ?? {},
     branches:
-      n.step_type === "condition"
+      hasBranches(n.step_type)
         ? {
             yes: fromServerSteps(n.branches?.yes ?? []),
             no: fromServerSteps(n.branches?.no ?? []),

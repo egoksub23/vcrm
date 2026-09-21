@@ -24,9 +24,14 @@ export default function AgentsPage() {
     let cancelled = false;
     (async () => {
       try {
+        // A link can name the tab (the automation builder sends people to
+        // `?tab=setup` when its AI steps need AI set up).
+        const wanted = new URLSearchParams(window.location.search).get('tab');
         const res = await fetch('/api/ai/config');
         const data = await res.json().catch(() => ({}));
-        if (!cancelled) setTab(data?.configured ? 'playground' : 'setup');
+        if (cancelled) return;
+        if (wanted === 'setup' || wanted === 'connections' || wanted === 'usage') setTab(wanted);
+        else setTab(data?.configured ? 'playground' : 'setup');
       } catch {
         if (!cancelled) setTab('setup');
       } finally {

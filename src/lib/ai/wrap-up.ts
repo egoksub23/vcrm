@@ -92,3 +92,39 @@ export function cleanSummary(text: string): string | null {
   const s = text.trim()
   return s ? s.slice(0, SUMMARY_MAX_CHARS) : null
 }
+
+// ------------------------------------------------------------
+// The ticket an automation opens from a conversation ("Let AI write the
+// subject and description"). Same pipeline as the closing note: the same
+// untrusted-conversation rule and the same JSON reader.
+// ------------------------------------------------------------
+
+export const TICKET_SUBJECT_MAX_CHARS = 120
+export const TICKET_DESCRIPTION_MAX_CHARS = 2000
+
+export function buildTicketDraftPrompt(args: { language: string }): string {
+  return [
+    'You write a support ticket for a customer conversation so that whoever picks it up understands it without reading the chat.',
+    `Write in ${args.language}. The subject is one short line (at most 12 words) naming the problem or request. The description is two to six short sentences or lines: what the customer wants, what has been answered or done, and what is still open. Use only what is in the conversation. Never invent facts, names, numbers or promises.`,
+    'Reply with JSON only, no other text: {"subject":"...","description":"..."}',
+    UNTRUSTED,
+  ].join('\n\n')
+}
+
+export interface TicketDraft {
+  subject: string
+  description: string
+}
+
+/** Read the model's ticket text. Null when there is no usable subject. */
+export function parseTicketDraft(text: string): TicketDraft | null {
+  const json = extractJson(text.trim())
+  if (!json) return null
+  const subject = typeof json.subject === 'string' ? json.subject.replace(/\s+/g, ' ').trim() : ''
+  const description = typeof json.description === 'string' ? json.description.trim() : ''
+  if (!subject) return null
+  return {
+    subject: subject.slice(0, TICKET_SUBJECT_MAX_CHARS),
+    description: description.slice(0, TICKET_DESCRIPTION_MAX_CHARS),
+  }
+}

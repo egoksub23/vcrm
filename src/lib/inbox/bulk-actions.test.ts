@@ -78,23 +78,45 @@ describe('bulkMarkRead / bulkMarkUnread', () => {
 })
 
 describe('bulkClose', () => {
-  it('closes only open/pending conversations, each through the note RPC', async () => {
-    const { db, rpcs } = fakeDb()
+  const closer = (failIds: string[] = []) => {
+    const calls: { ids: string[]; note: string }[] = []
+    const close = async (ids: string[], note: string) => {
+      calls.push({ ids, note })
+      return {
+        succeeded: ids.filter((i) => !failIds.includes(i)),
+        failed: ids.filter((i) => failIds.includes(i)).map((id) => ({ id, error: 'nope' })),
+      }
+    }
+    return { close, calls }
+  }
+
+  it('closes only open/pending conversations, in one server call with the shared note', async () => {
+    const { close, calls } = closer()
     const res = await bulkClose(
-      db,
       [conv('a', 'open', 0), conv('b', 'closed', 0), conv('c', 'pending', 0)],
       'Outage resolved',
+      close,
     )
     expect(res).toEqual({ succeeded: ['a', 'c'], failed: 0 })
-    expect(rpcs).toEqual([
-      { fn: 'close_conversation_with_note', args: { p_conversation_id: 'a', p_note: 'Outage resolved' } },
-      { fn: 'close_conversation_with_note', args: { p_conversation_id: 'c', p_note: 'Outage resolved' } },
-    ])
+    expect(calls).toEqual([{ ids: ['a', 'c'], note: 'Outage resolved' }])
   })
 
   it('keeps going past a failure and reports it', async () => {
-    const { db } = fakeDb({ failRpcFor: ['b'] })
-    const res = await bulkClose(db, [conv('a', 'open', 0), conv('b', 'open', 0), conv('c', 'open', 0)], 'x')
+    const { close } = closer(['b'])
+    const res = await bulkClose([conv('a', 'open', 0), conv('b', 'open', 0), conv('c', 'open', 0)], 'x', close)
     expect(res).toEqual({ succeeded: ['a', 'c'], failed: 1 })
+  })
+
+  it('reports every conversation as failed when the request itself fails', async () => {
+    const res = await bulkClose([conv('a', 'open', 0), conv('b', 'open', 0)], 'x', async () => {
+      throw new Error('network')
+    })
+    expect(res).toEqual({ succeeded: [], failed: 2 })
+  })
+
+  it('does nothing when everything is already closed', async () => {
+    const { close, calls } = closer()
+    expect(await bulkClose([conv('a', 'closed', 0)], 'x', close)).toEqual({ succeeded: [], failed: 0 })
+    expect(calls).toHaveLength(0)
   })
 })
