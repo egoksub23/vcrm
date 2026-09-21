@@ -94,5 +94,35 @@
     "page": "working-together/reports",
     "route": "/reports?tab=tickets",
     "capture": "The Reports page with the Tickets tab selected and the date range set to Last 30 days (use the range button at the top right), showing the summary tiles, the Open backlog by age and, further down, the SLA compliance section if it is visible in one tall capture. Only change the date range picker, which is not saved. Set it back to Last 7 days afterwards."
+  },
+  {
+    "file": "work-a-ticket-02-resolution-dialog.png",
+    "page": "tickets/work-a-ticket",
+    "route": "/tickets",
+    "capture": "Open a ticket, click the status button, choose Resolved so 'How was this ticket resolved?' opens. Capture the box with nothing chosen, then press Escape. Never choose a resolution or click Move to Resolved."
+  },
+  {
+    "file": "work-a-ticket-03-resolution-list.png",
+    "page": "tickets/work-a-ticket",
+    "route": "/tickets",
+    "capture": "Same box with the Resolution list opened, showing the eight default resolutions. Escape to close, nothing chosen."
+  },
+  {
+    "file": "work-a-ticket-04-mention-list.png",
+    "page": "tickets/work-a-ticket",
+    "route": "/tickets",
+    "capture": "In an open ticket, click Add a comment and type a single @ to show People and Teams. Then delete the @ and click Cancel. Never click Save."
+  },
+  {
+    "file": "work-a-ticket-05-mention-chip.png",
+    "page": "tickets/work-a-ticket",
+    "route": "/tickets",
+    "capture": "In the comment box type @Vic, press Enter to pick the person, then type a sentence, so the name shows in a coloured box and the Needs a response / FYI only buttons show. Select all, delete, click Cancel. Never click Save."
+  },
+  {
+    "file": "import-and-export-02-export-button.png",
+    "page": "contacts/import-and-export",
+    "route": "/contacts",
+    "capture": "Contacts page, crop to the buttons at the top right (Custom fields, Import, Export, Add Contact). Nothing to click."
   }
 ]

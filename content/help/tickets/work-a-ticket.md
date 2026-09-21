@@ -34,9 +34,13 @@ The person you assign the ticket to gets a notification, unless you assigned it 
 
 When you move a ticket to **Resolved** or **Closed**, a small window asks **How was this resolved?**
 
+![The window that asks how a ticket was resolved, with a Resolution list and an optional note.](/help/img/work-a-ticket-02-resolution-dialog.png)
+
 1. Choose a **Resolution** from the list, for example **Fixed**, **Answered / information given**, **Duplicate**, **Cannot reproduce**, **Won't fix** or **Customer did not respond**. Your admin can change this list.
 2. Type a **Note** if the next person should know something. It is optional and can be up to 2000 characters.
 3. Click **Move to Resolved** (or **Move to Closed**).
+
+![The Resolution list opened, showing Fixed, Answered / information given, Duplicate, Cannot reproduce, Won't fix, Customer did not respond, Resolved in Jira and Closed automatically.](/help/img/work-a-ticket-03-resolution-list.png)
 
 The ticket only moves after you click that button. If you click **Cancel** or close the window, nothing changes and the ticket stays where it was. On the board, the card goes back to its column.
 
@@ -51,8 +55,12 @@ Once the ticket is Resolved or Closed, the **Details** card on the right shows t
 
 1. Under **Activity**, click **Add a comment…**.
 2. Type your comment. Type `@` and a name to mention a teammate. Choose them from the short list, either by clicking, or with the keyboard: the <kbd>↑</kbd> and <kbd>↓</kbd> keys move the shaded row, and <kbd>Enter</kbd> or <kbd>Tab</kbd> picks it. The list shows **People** first and **Teams** below, with the number of members in each team. Once picked, the name gets a coloured box (blue for a person, purple for a team), so you can see the mention has been made. A name that is only half typed has no box.
+![Typing @ in a ticket comment shows a list with People first and Teams below, with the number of members in each team.](/help/img/work-a-ticket-04-mention-list.png)
+
 3. Choose what the mention asks for. As soon as your comment mentions someone, two buttons appear: **Needs a response** (the default) and **FYI only**.
 4. Click **Save**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac).
+
+![A comment with the picked name in a coloured box, and the Needs a response and FYI only buttons below it.](/help/img/work-a-ticket-05-mention-chip.png)
 
 A mentioned teammate gets a notification. Comments are for your team. The app does not send them to the customer. You can **Edit** or **Delete** your own comments. Use the tabs **All**, **Comments** and **History** to filter the timeline, and switch between **Newest first** and **Oldest first**.
 

@@ -60,6 +60,8 @@ To save your contacts as a file:
 1. Click **Contacts** in the sidebar.
 2. If you only want some contacts, type in the search box or choose tags with **Filter by tags**. The file follows what you have set, and it holds every match, not just the 25 on the page.
 3. Click **Export**.
+
+![The Custom fields, Import, Export and Add Contact buttons at the top right of the Contacts page.](/help/img/import-and-export-02-export-button.png)
 4. Wait a moment. A file called `contacts-` and the date, ending in `.csv`, is saved by your browser.
 
 The file has the columns `phone`, `name`, `email`, `company` and `tags`, and a `created_at` column with the date the contact was added. Tag names are separated by a semicolon and a space. Custom fields, notes and deals are not in the file.
