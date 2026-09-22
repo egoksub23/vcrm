@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.52.2] — 2026-09-22
+
+- **Fixed: an AI auto-reply could answer an old, already-stale question along with the new one.** If a customer's earlier message had gone unanswered and they later sent a photo or voice note (which the AI never saw) before asking something new, the AI could see the two questions as adjacent and answer both — reviving a question the customer may no longer need answered. The AI now sees every message in the conversation, including photos, voice notes and files it can't read the content of, and is told to reply only to the customer's latest message. This applies everywhere the AI drafts or auto-sends a reply: WhatsApp, Messenger, Instagram, email, Gmail, the web widget, and the "AI reply" step in automations.
+
 ## [0.52.1] — 2026-09-22
 
 - **Fixed: User Guide tables split single words across two lines** (for example "Comments" showing as "Commen" / "ts") whenever the first column was narrow. A word now only breaks if it truly cannot fit on its own line; a long sentence still wraps normally at spaces.

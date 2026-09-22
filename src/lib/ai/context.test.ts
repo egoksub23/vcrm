@@ -40,16 +40,73 @@ describe('buildConversationContext', () => {
     expect(out).toEqual([{ role: 'assistant', content: 'auto reply' }])
   })
 
-  it('drops empty / whitespace-only messages', async () => {
+  it('drops an empty / whitespace-only text message with no recognised media type', async () => {
     const out = await buildConversationContext(
       fakeDb([
-        { sender_type: 'customer', content_text: '   ' },
-        { sender_type: 'customer', content_text: null },
-        { sender_type: 'customer', content_text: 'real' },
+        { sender_type: 'customer', content_text: '   ', content_type: 'text' },
+        { sender_type: 'customer', content_text: null, content_type: 'text' },
+        { sender_type: 'customer', content_text: 'real', content_type: 'text' },
       ]),
       'conv-1',
     )
     expect(out).toEqual([{ role: 'user', content: 'real' }])
+  })
+
+  it('represents a captionless media message as a placeholder instead of dropping it', async () => {
+    // fakeDb (like the real query) is fed newest-first; the function reverses it.
+    const out = await buildConversationContext(
+      fakeDb([
+        { sender_type: 'customer', content_text: null, content_type: 'location' },
+        { sender_type: 'agent', content_text: null, content_type: 'document' },
+        { sender_type: 'customer', content_text: null, content_type: 'audio' },
+        { sender_type: 'customer', content_text: null, content_type: 'video' },
+        { sender_type: 'customer', content_text: null, content_type: 'image' },
+      ]),
+      'conv-1',
+    )
+    expect(out).toEqual([
+      { role: 'user', content: '[Photo]' },
+      { role: 'user', content: '[Video]' },
+      { role: 'user', content: '[Voice message]' },
+      { role: 'assistant', content: '[Document]' },
+      { role: 'user', content: '[Location]' },
+    ])
+  })
+
+  it('uses a media message\'s caption when it has one, instead of the placeholder', async () => {
+    const out = await buildConversationContext(
+      fakeDb([{ sender_type: 'customer', content_text: 'here is the receipt', content_type: 'image' }]),
+      'conv-1',
+    )
+    expect(out).toEqual([{ role: 'user', content: 'here is the receipt' }])
+  })
+
+  it('regression: keeps an earlier unanswered customer turn visible instead of silently merging it into the latest one', async () => {
+    // The reported bug: a customer asked to reset a password, got no reply,
+    // then sent a photo and a voice note (previously dropped from context
+    // entirely, closing the gap), then asked an unrelated new question. The
+    // auto-reply answered BOTH questions as if they were one, because the
+    // dropped media made the two questions look adjacent. They must now
+    // both appear, in order, as two separate, clearly turns apart.
+    // fakeDb (like the real query) is fed newest-first; the function reverses it.
+    const out = await buildConversationContext(
+      fakeDb([
+        { sender_type: 'customer', content_text: 'Hi, how to withdraw money from child account', content_type: 'text' },
+        { sender_type: 'customer', content_text: null, content_type: 'audio' }, // a voice note
+        { sender_type: 'agent', content_text: null, content_type: 'image' }, // an unrelated broadcast/marketing image
+        { sender_type: 'customer', content_text: "hi, can you reset my daughter's login password?", content_type: 'text' },
+      ]),
+      'conv-1',
+    )
+    expect(out).toEqual([
+      { role: 'user', content: "hi, can you reset my daughter's login password?" },
+      { role: 'assistant', content: '[Photo]' },
+      { role: 'user', content: '[Voice message]' },
+      { role: 'user', content: 'Hi, how to withdraw money from child account' },
+    ])
+    // The model is left able to see there were two turns in between — it is
+    // the system prompt (see defaults.test.ts) that now tells it to answer
+    // only this last one.
   })
 })
 

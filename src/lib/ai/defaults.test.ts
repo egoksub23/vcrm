@@ -21,6 +21,21 @@ describe('buildSystemPrompt preferred language', () => {
   })
 })
 
+describe('buildSystemPrompt scopes the reply to the latest message', () => {
+  it('tells the model to answer only the most recent message and check in on an unanswered earlier one instead of answering it too', () => {
+    const p = buildSystemPrompt({ userPrompt: null, mode: 'auto_reply', preferredLanguage: null })
+    expect(p).toContain('most recent message')
+    expect(p).toContain('do not answer it now as well')
+  })
+
+  it('explains that a [Photo] / [Voice message] placeholder is still a real turn, not a gap', () => {
+    const p = buildSystemPrompt({ userPrompt: null, mode: 'draft', preferredLanguage: null })
+    expect(p).toContain('[Photo]')
+    expect(p).toContain('[Voice message]')
+    expect(p).toContain('not a gap')
+  })
+})
+
 describe('buildSystemPrompt knowledge excerpts', () => {
   const args = { userPrompt: null, knowledge: ['Refunds\n\nWithin 14 days.', 'Hours\n\nNine to six.'] }
 
