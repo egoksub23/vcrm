@@ -5713,6 +5713,8 @@
       "descriptionAgent": "Your article is saved as a draft. An admin reviews and publishes it before anyone can search it.",
       "kindArticle": "Article",
       "kindQa": "Question & answer",
+      "kindArticleHint": "A guide with steps or sections, for something with more than one fact to cover.",
+      "kindQaHint": "One question and its direct answer, in the customer's own words. Switch to Article if it grows past that.",
       "titleLabel": "Title",
       "titlePlaceholder": "e.g. Refund and cancellation policy",
       "question": "Question",
@@ -5902,8 +5904,17 @@
     },
     "addContent": {
       "button": "Add content",
-      "write": "Write an article",
-      "writeHint": "Type or paste. Best for policies and how-tos.",
+      "writeGroupLabel": "Write directly",
+      "writeGroupTip": "Pick by shape, not topic: Article for a guide with steps or more than one fact, Q&A for one question with one direct answer.",
+      "importGroupLabel": "Bring content in",
+      "article": {
+        "menu": "Article",
+        "hint": "A written page with steps or sections. Best for policies, how-tos and anything with more than one fact."
+      },
+      "qaSingle": {
+        "menu": "Q&A",
+        "hint": "One question and its direct answer, the way a customer would type it. The AI matches these closely."
+      },
       "language": "Language",
       "collection": "Collection",
       "noCollection": "No collection",
@@ -5913,10 +5924,10 @@
       "draftsNotice": "Imports always land as drafts. Nothing goes live until an admin publishes it.",
       "failed": "The import did not go through",
       "qa": {
-        "menu": "Add Q&A pairs",
-        "hint": "Paste or upload a CSV of questions and answers.",
-        "title": "Add Q&A pairs",
-        "description": "Each pair becomes one draft article: the question is the title and the answer is the body.",
+        "menu": "Bulk import Q&A (CSV)",
+        "hint": "Paste or upload a CSV of many questions and answers at once.",
+        "title": "Bulk import Q&A",
+        "description": "Each pair becomes its own draft article: the question is the title and the answer is the body. For a single Q&A, use Q&A in the Add content menu instead.",
         "placeholder": "Can I get a refund after 30 days? | Yes, for yearly plans we refund the unused full months.\nDo you support LINE? | Not yet. WhatsApp, Messenger, Instagram and email are supported.",
         "pasteLabel": "Paste one Question | Answer pair per line",
         "uploadCsv": "Upload a CSV",

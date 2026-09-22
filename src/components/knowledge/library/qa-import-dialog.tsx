@@ -31,7 +31,7 @@ interface CsvState {
   skipped: number;
 }
 
-/** "Add Q&A pairs": paste "Question | Answer" lines or upload a CSV, look at
+/** "Bulk import Q&A": paste "Question | Answer" lines or upload a CSV, look at
  *  the preview, and create one draft per pair. */
 export function QaImportDialog({
   open,

@@ -1,7 +1,7 @@
 import { parseCsv } from '@/lib/csv'
 
 // ============================================================
-// Reading Q&A pairs from pasted text or a CSV, for the "Add Q&A pairs"
+// Reading Q&A pairs from pasted text or a CSV, for the "Bulk import Q&A"
 // import. Pure, so the dialog stays thin and the rules are testable. The
 // server validates again; this only decides what is worth sending.
 // ============================================================

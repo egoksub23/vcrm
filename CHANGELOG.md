@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.53.0] — 2026-09-23
+
+- **Knowledge base: Article and Q&A are now direct choices in "+ Add content".** Previously the menu's only way to write something by hand was "Write an article", with Q&A only reachable by opening the article editor and switching a tab, or by using the "Add Q&A pairs" entry — which was actually a bulk CSV importer, not a way to add one Q&A. The menu is now split into "Write directly" (Article, Q&A) and "Bring content in" (bulk Q&A import, file upload, web page import), each with a one-line hint, plus a short tip on how to choose between Article and Q&A. The bulk CSV importer is relabelled "Bulk import Q&A (CSV)" so it's no longer mistaken for the single-item option. The editor itself also gained a short caption under its Article/Q&A toggle when writing something new, repeating the same guidance at the point of writing.
+
 ## [0.52.2] — 2026-09-22
 
 - **Fixed: an AI auto-reply could answer an old, already-stale question along with the new one.** If a customer's earlier message had gone unanswered and they later sent a photo or voice note (which the AI never saw) before asking something new, the AI could see the two questions as adjacent and answer both — reviving a question the customer may no longer need answered. The AI now sees every message in the conversation, including photos, voice notes and files it can't read the content of, and is told to reply only to the customer's latest message. This applies everywhere the AI drafts or auto-sends a reply: WhatsApp, Messenger, Instagram, email, Gmail, the web widget, and the "AI reply" step in automations.

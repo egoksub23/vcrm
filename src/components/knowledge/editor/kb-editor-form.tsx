@@ -387,6 +387,7 @@ export function KbEditorForm({
               </button>
             ))}
           </div>
+          {!article && <p className="text-xs text-muted-foreground">{td(isQa ? "kindQaHint" : "kindArticleHint")}</p>}
 
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
