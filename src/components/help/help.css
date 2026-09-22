@@ -10,7 +10,11 @@
   color: var(--foreground);
   font-size: 0.95rem;
   line-height: 1.7;
-  overflow-wrap: anywhere;
+  /* `break-word` only breaks a word when it truly has no room (a long link,
+     for example); unlike `anywhere`, it is exempt from min-content sizing, so
+     it never makes a table column narrow enough to split an ordinary word
+     like "Comments" across two lines. See .help-table-wrap below. */
+  overflow-wrap: break-word;
 }
 
 .help-prose > :first-child {
@@ -267,6 +271,13 @@
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
+  /* Belt and braces on top of .help-prose's overflow-wrap: a single word
+     (a column label like "Comments", a key name) never splits across two
+     lines; only a genuinely unbreakable token (a long link with no spaces)
+     is allowed to break, and only at the very edge of the cell. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .help-table-wrap th {

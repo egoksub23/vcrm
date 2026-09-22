@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.52.1] — 2026-09-22
+
+- **Fixed: User Guide tables split single words across two lines** (for example "Comments" showing as "Commen" / "ts") whenever the first column was narrow. A word now only breaks if it truly cannot fit on its own line; a long sentence still wraps normally at spaces.
+
 ## [0.52.0] — 2026-09-22 — **migration required: 096**
 
 - **A resolution is now required when a ticket is resolved or closed.** Moving a ticket to Resolved or Closed (from the ticket window, by dragging on the board, from the list, or in bulk) opens a small box asking for a **Resolution** and an optional note. Cancelling leaves the ticket where it was, and a dragged card snaps back. The ticket's Details show the resolution and note, the history says “resolved as …”, and it can be changed later with **Change resolution**.
