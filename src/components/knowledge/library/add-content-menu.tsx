@@ -11,6 +11,7 @@ import { readOnlyTitle } from '@/components/ui/gated-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -74,30 +75,37 @@ export function AddContentMenu({
           <ChevronDown className="ml-1 h-3.5 w-3.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-2rem)]">
-          <DropdownMenuLabel>{t('writeGroupLabel')}</DropdownMenuLabel>
-          {writeItems.map((it) => (
-            <DropdownMenuItem key={it.id} onClick={() => pick(it.id)} className="items-start gap-2.5 py-2">
-              <it.icon className="mt-0.5 h-4 w-4 text-primary" />
-              <span className="grid gap-0.5">
-                <span className="font-medium">{it.label}</span>
-                <span className="text-xs text-muted-foreground">{it.hint}</span>
-              </span>
-            </DropdownMenuItem>
-          ))}
-          <p className="px-2 pt-0.5 pb-1.5 text-[11px] leading-snug text-muted-foreground">{t('writeGroupTip')}</p>
+          {/* DropdownMenuLabel is base-ui's Menu.GroupLabel, which throws at
+              render without a DropdownMenuGroup (Menu.Group) ancestor — see
+              dropdown-menu-group-label.test.tsx (issue #336). */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>{t('writeGroupLabel')}</DropdownMenuLabel>
+            {writeItems.map((it) => (
+              <DropdownMenuItem key={it.id} onClick={() => pick(it.id)} className="items-start gap-2.5 py-2">
+                <it.icon className="mt-0.5 h-4 w-4 text-primary" />
+                <span className="grid gap-0.5">
+                  <span className="font-medium">{it.label}</span>
+                  <span className="text-xs text-muted-foreground">{it.hint}</span>
+                </span>
+              </DropdownMenuItem>
+            ))}
+            <p className="px-2 pt-0.5 pb-1.5 text-[11px] leading-snug text-muted-foreground">{t('writeGroupTip')}</p>
+          </DropdownMenuGroup>
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuLabel>{t('importGroupLabel')}</DropdownMenuLabel>
-          {importItems.map((it) => (
-            <DropdownMenuItem key={it.id} onClick={() => pick(it.id)} className="items-start gap-2.5 py-2">
-              <it.icon className="mt-0.5 h-4 w-4 text-primary" />
-              <span className="grid gap-0.5">
-                <span className="font-medium">{it.label}</span>
-                <span className="text-xs text-muted-foreground">{it.hint}</span>
-              </span>
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>{t('importGroupLabel')}</DropdownMenuLabel>
+            {importItems.map((it) => (
+              <DropdownMenuItem key={it.id} onClick={() => pick(it.id)} className="items-start gap-2.5 py-2">
+                <it.icon className="mt-0.5 h-4 w-4 text-primary" />
+                <span className="grid gap-0.5">
+                  <span className="font-medium">{it.label}</span>
+                  <span className="text-xs text-muted-foreground">{it.hint}</span>
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
