@@ -46,6 +46,7 @@
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
     "knowledge": "Knowledge",
+    "sembang": "Sembang",
     "userGuide": "User Guide",
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval"
   },
@@ -62,6 +63,7 @@
     "tickets": "Tickets",
     "flows": "Flows",
     "knowledge": "Knowledge",
+    "sembang": "Sembang",
     "aiAgents": "AI Agents",
     "reports": "Reports",
     "openMenu": "Open menu",
@@ -889,9 +891,9 @@
         "custom": "Custom Fields",
         "deals": "Deals",
         "tags": "Tags",
-      "noTags": "No tags",
-      "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+        "noTags": "No tags",
+        "noDeals": "No deals",
+        "addNotePlaceholder": "Add a note..."
       },
       "actions": {
         "edit": "Edit",
@@ -2542,13 +2544,11 @@
       "deleteLocallyAria": "Delete template locally",
       "deleteMetaLocallyTitle": "Delete from Meta and locally",
       "deleteLocallyTitle": "Delete locally",
-      
       "dialogEditTitle": "Edit Message Template",
       "dialogNewTitle": "New Message Template",
       "dialogEditDesc": "Save your changes to re-submit to Meta. Status will flip back to PENDING during review.",
       "dialogNewDesc": "Build a template and submit it to Meta for approval. Once approved, you can use it in broadcasts and the inbox.",
       "authWarning": "AUTHENTICATION templates have a fixed body + OTP button shape that needs a different builder. Create them in Meta WhatsApp Manager for now and use <bold>Sync from Meta</bold> to bring them in.",
-      
       "templateName": "Template Name",
       "namePlaceholder": "e.g. order_confirmation",
       "nameFixed": "Name is fixed once a template exists on Meta — create a new template to change it.",
@@ -2557,7 +2557,6 @@
       "language": "Language",
       "langFixed": "Language is fixed once a template exists on Meta.",
       "langHint": "Must match the exact code on Meta — <code>en_US</code> and <code>en</code> are distinct.",
-      
       "header": "Header",
       "headerNone": "None",
       "headerText": "Text",
@@ -2567,7 +2566,6 @@
       "headerTextPlaceholder": "Header text (max 60 chars, optional {{1}})",
       "headerSampleAria": "Sample value for header variable",
       "headerSamplePlaceholder": "Sample value for {{1}} (required for Meta review)",
-      
       "uploadImage": "Upload image",
       "uploadVideo": "Upload video",
       "uploadDocument": "Upload document",
@@ -2579,17 +2577,14 @@
       "mediaHint": "Upload a file or paste a public HTTPS link — we upload it to Meta for review automatically.",
       "videoHint": " MP4 or 3GPP, ≤16 MB, ≤60 seconds recommended.",
       "documentHint": " PDF, Word, PowerPoint, Excel or text, ≤100 MB via link (≤16 MB when uploaded here).",
-      
       "bodyText": "Body Text",
       "bodyPlaceholder": "Hello {{1}}, your order {{2}} is confirmed.",
       "bodyHint": "Use {{1}}, {{2}} for variables (must be contiguous starting at {{1}}).",
       "sampleValues": "Sample values (Meta uses these to review your template)",
       "sampleAria": "Sample value for body variable {var}",
       "samplePlaceholder": "Sample for {var}",
-      
       "footer": "Footer (optional)",
       "footerPlaceholder": "Optional footer text (max 60 chars)",
-      
       "buttons": "Buttons (optional)",
       "addButton": "Add Button",
       "buttonsLimit": "Up to {max} buttons. QUICK_REPLY buttons must come before URL / phone / copy-code buttons.",
@@ -2602,19 +2597,16 @@
       "urlSamplePlaceholder": "Example value for {{1}} (required when URL has a variable)",
       "phonePlaceholder": "+15551234567",
       "codePlaceholder": "Example code (e.g. SUMMER20)",
-      
       "cancel": "Cancel",
       "saving": "Saving…",
       "submitting": "Submitting…",
       "saveResubmit": "Save & Resubmit",
       "submitApproval": "Submit for Approval",
-      
       "deleteDialogTitle": "Delete template?",
       "deleteMetaDesc": "\"{name}\" will be deleted from Meta and from wacrm. Active broadcasts using this template will start failing on their next send. This can't be undone.",
       "deleteLocalDesc": "\"{name}\" will be deleted from wacrm. It was never submitted to Meta, so no remote cleanup is needed.",
       "deleting": "Deleting…",
       "delete": "Delete",
-      
       "toastLoadFailed": "Failed to load templates",
       "toastSubmitFailed": "Failed to submit",
       "toastSubmitEditSuccess": "Edit submitted — Meta typically reviews within 24 hours.",
@@ -3263,7 +3255,6 @@
       "profileSaved": "Profile saved",
       "emailChangeFailed": "Email change failed: {message}",
       "profileSavedEmailCheck": "Profile saved — check your email to confirm the address change",
-      
       "passwordTitle": "Password",
       "passwordDesc": "Use at least {min} characters. You will stay signed in on this device after changing it.",
       "currentPassword": "Current password",
@@ -3277,7 +3268,6 @@
       "currentPasswordIncorrect": "Current password is incorrect",
       "passwordUpdateFailed": "Password update failed: {message}",
       "passwordUpdated": "Password updated",
-      
       "sessionsTitle": "Active sessions",
       "sessionsDesc": "Sign out of every device where you're logged in — including this one. Useful if you lost a laptop or shared your password.",
       "signOutAll": "Sign out of all devices",
@@ -5597,7 +5587,12 @@
       "noTeam": "No team",
       "unknownTeam": "Deleted team",
       "agentOpenNow": "Open now",
-      "aging": { "under1d": "Under 1 day", "d1to3": "1–3 days", "d3to7": "3–7 days", "over7d": "7+ days" },
+      "aging": {
+        "under1d": "Under 1 day",
+        "d1to3": "1–3 days",
+        "d3to7": "3–7 days",
+        "over7d": "7+ days"
+      },
       "opened": "Tickets opened",
       "resolved": "Tickets resolved",
       "avgResolution": "Avg. resolution time",
@@ -6226,6 +6221,10 @@
       "menu_knowledge": {
         "label": "Menu: Knowledge",
         "description": "Show Knowledge in the sidebar and allow opening its page."
+      },
+      "menu_sembang": {
+        "label": "Menu: Sembang",
+        "description": "Show Sembang (internal team chat) in the sidebar and allow opening its page and channels. Default: Owner and Admin only — grant it down to Agent to extend access."
       },
       "menu_agents": {
         "label": "Menu: AI Agents",
@@ -7063,6 +7062,86 @@
       "not_found": "That was not found. It may have been removed.",
       "bad_request": "Something in the request was not valid.",
       "generic": "Something went wrong. Try again."
+    }
+  },
+  "Sembang": {
+    "page": {
+      "emptyTitle": "No channels yet",
+      "emptyHintCreate": "Create one to get started.",
+      "emptyHintAskAdmin": "Ask an admin to add you to a channel."
+    },
+    "channelList": {
+      "title": "Sembang",
+      "searchAriaLabel": "Search channels",
+      "createAriaLabel": "Create a channel",
+      "searchPlaceholder": "Search channels…",
+      "loadFailed": "Could not load channels",
+      "noMatches": "No channels match your search.",
+      "noChannels": "No channels yet.",
+      "noMessagesYet": "No messages yet",
+      "unreadAriaLabel": "{count, plural, =1 {# unread message} other {# unread messages}}",
+      "directMessagesComingSoon": "Direct messages — coming soon"
+    },
+    "createDialog": {
+      "title": "Create a channel",
+      "description": "Channels are where your team talks. Make it easy to find by naming it around a topic.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. product-launch",
+      "topicLabel": "Description (optional)",
+      "topicPlaceholder": "What's this channel about?",
+      "visibilityLabel": "Visibility",
+      "publicTitle": "Public",
+      "publicDescription": "Anyone with Sembang access can find and join it",
+      "privateTitle": "Private",
+      "privateDescription": "Invite-only. Only members and moderators can see it",
+      "inviteLabel": "Invite people",
+      "noOtherMembers": "No other members to invite yet.",
+      "moderatorNote": "You'll automatically become this channel's <strong>moderator</strong> — able to remove messages and manage private membership.",
+      "cancel": "Cancel",
+      "create": "Create channel",
+      "createFailed": "Could not create the channel. Try again."
+    },
+    "thread": {
+      "selectChannel": "Select a channel",
+      "selectChannelHint": "Choose a channel from the list, or create a new one.",
+      "backAriaLabel": "Back to channels",
+      "noTopic": "No topic set",
+      "membersButton": "{count, plural, =1 {# member} other {# members}}",
+      "channelLoadFailed": "You don't have access to this channel, or it could not be loaded.",
+      "loadEarlier": "Load earlier messages",
+      "loadFailed": "Could not load messages",
+      "noMessages": "No messages yet. Say hello!",
+      "unknownAuthor": "Unknown",
+      "messageRemoved": "Message removed by a moderator",
+      "removeMessage": "Remove",
+      "joinChannel": "Join channel",
+      "joinFailed": "Could not join the channel. Try again.",
+      "sendFailed": "Could not send the message. Try again.",
+      "removeMessageFailed": "Could not remove the message. Try again."
+    },
+    "composer": {
+      "fileTooLarge": "That file is over the {max} MB limit.",
+      "uploadFailed": "Upload failed. Try again.",
+      "removeAttachmentAriaLabel": "Remove {filename}",
+      "attachAriaLabel": "Attach a file",
+      "inputAriaLabel": "Message",
+      "placeholder": "Message #{channel}",
+      "sendAriaLabel": "Send message"
+    },
+    "membersPanel": {
+      "title": "Members",
+      "youTag": "(you)",
+      "removeAriaLabel": "Remove {name}",
+      "moderatorsSection": "{count, plural, =1 {Moderator} other {Moderators}}",
+      "membersSection": "{count, plural, =1 {Member} other {Members}}",
+      "noOtherMembers": "No other members yet.",
+      "addPeople": "Add people",
+      "cancel": "Cancel",
+      "addSelected": "{count, plural, =0 {Add} =1 {Add # person} other {Add # people}}",
+      "addFailed": "Could not add people. Try again.",
+      "removeFailed": "Could not remove them. Try again.",
+      "privateAddCaption": "Only moderators and admins can add people to this private channel.",
+      "addPartialFailed": "{count, plural, =1 {Could not add 1 of them. Try again.} other {Could not add # of them. Try again.}}"
     }
   }
 }

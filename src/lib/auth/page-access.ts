@@ -34,6 +34,7 @@ export const PAGE_ACCESS: readonly PageAccessEntry[] = [
   { prefix: "/automations", cap: "menu.automations", labelKey: "automations" },
   { prefix: "/flows", cap: "menu.flows", labelKey: "flows" },
   { prefix: "/knowledge", cap: "menu.knowledge", labelKey: "knowledge" },
+  { prefix: "/sembang", cap: "menu.sembang", labelKey: "sembang" },
   { prefix: "/agents", cap: "menu.agents", labelKey: "aiAgents" },
   { prefix: "/reports", cap: "menu.reports", labelKey: "reports" },
   { prefix: "/settings", cap: "menu.settings", labelKey: "settings" },

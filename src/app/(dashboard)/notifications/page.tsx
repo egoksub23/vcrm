@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { AlarmClock, AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
+import { AlarmClock, AtSign, Bell, Bot, CheckCheck, ClipboardCheck, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   ticket_sla_at_risk: AlarmClock,
   ticket_sla_breached: AlarmClock,
   ai_budget: Bot,
+  sembang_mention: Hash,
 };
 
 export default function NotificationsPage() {
@@ -137,6 +138,8 @@ export default function NotificationsPage() {
         router.push(ticketNotificationHref(n));
       } else if (n.type === "ai_budget") {
         router.push("/agents");
+      } else if (n.sembang_channel_id) {
+        router.push(`/sembang?c=${n.sembang_channel_id}`);
       } else if (n.conversation_id) {
         router.push(`/inbox?c=${n.conversation_id}`);
       }

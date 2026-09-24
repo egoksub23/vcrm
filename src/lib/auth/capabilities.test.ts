@@ -95,6 +95,9 @@ describe("catalogue", () => {
         "members.change-role",
         "members.invite",
         "members.remove",
+        // Sembang (menu.sembang) is the one "menu" capability that is also
+        // a real table guard — see the comment above its def() call.
+        "menu.sembang",
         "messages.send",
         "pipelines.configure",
         "roles.manage",
@@ -119,8 +122,10 @@ describe("catalogue", () => {
     expect(app.sort()).toEqual(
       [
         // menus and reports show or hide pages; the data behind them is
-        // protected by the action capabilities and the read policies
-        ...MENU_CAPABILITIES,
+        // protected by the action capabilities and the read policies.
+        // menu.sembang is the deliberate exception (it IS a table guard,
+        // see the previous test) so it's excluded here.
+        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang"),
         "reports.view",
         // the action is a call to the AI provider, made by the server
         "ai.use",

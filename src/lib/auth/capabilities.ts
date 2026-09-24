@@ -124,6 +124,14 @@ export const MENU_CAPABILITIES = [
   "menu.agents",
   "menu.reports",
   "menu.settings",
+  // Not a real "menu" in the sense every other entry here is (see the
+  // special-cased def() for it below, not the menu() helper) — it stays
+  // in this array only so the CapabilityKey union and the PAGE_ACCESS
+  // parity test pick it up the same way every menu item's page route
+  // does. Sembang is deliberately account-membership-is-not-enough, so
+  // its capability has to be a real 'database' tier gate, unlike every
+  // other menu capability (see the comment above the CAPABILITIES array).
+  "menu.sembang",
 ] as const;
 
 /**
@@ -146,7 +154,23 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // 'database' tier and grantable down to Agent; the parity table in
   // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
-  ...MENU_CAPABILITIES.map((k) => menu(k.slice("menu.".length))),
+  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang").map((k) =>
+    menu(k.slice("menu.".length)),
+  ),
+  // Sembang (internal team chat) is the one "menu" capability that is
+  // ALSO a real database-tier gate: the requirement is "admin + whoever
+  // an admin has explicitly given access to", and plain account
+  // membership (what every other menu.* capability relies on for its
+  // RLS, since the data behind it has its own action capability) is not
+  // enough on its own — a Sembang channel's own membership table only
+  // decides which CHANNELS a person with access can see, not whether
+  // they have Sembang access at all. So this key is checked via
+  // has_capability() directly inside every sembang_* table's RLS
+  // (migration 098), not just at the app/route layer. Default grant is
+  // owner+admin; an admin can grant it down to Agent from the existing
+  // Permissions screen — that IS the "given access" mechanism, no new
+  // per-user grant table needed.
+  def("menu.sembang", "menus", ADMIN_UP, "agent", "database"),
 
   // ---- Inbox ----
   def("messages.send", "inbox", AGENT_UP, "agent", "database"),

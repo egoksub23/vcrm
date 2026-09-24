@@ -416,6 +416,12 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   // database function set_role_capabilities and the /api/account/roles
   // routes; there was no earlier floor to preserve.
   "roles.manage",
+  // Migration 098: Sembang is a brand new feature, not a converted
+  // pre-existing route/policy, so there is no earlier floor to preserve
+  // either. It IS database-tier-enforced (has_capability() inside every
+  // sembang_* table's RLS, see capabilities.ts's comment on its def()) —
+  // just with no "before" state for this fixture to compare against.
+  "menu.sembang",
 ]);
 
 // ============================================================
@@ -738,14 +744,17 @@ describe("route handlers use capabilities, not role floors", () => {
     const problems: string[] = [];
     for (const r of ROUTES) {
       // New with this feature, no legacy floor to compare against (the
-      // audit routes, migration 082, are new as well).
+      // audit routes, migration 082, are new as well). Sembang (migration
+      // 098) is a brand new feature end to end, same reasoning as
+      // menu.sembang's UI_ONLY_ALLOW_LIST entry above.
       if (
         r.key.startsWith("account/roles") ||
         r.key.startsWith("account/capabilities") ||
         r.key.startsWith("account/audit") ||
         r.key.startsWith("account/approvals") ||
         r.key.startsWith("integrations/jira") ||
-        r.key.startsWith("account/sla")
+        r.key.startsWith("account/sla") ||
+        r.key.startsWith("sembang/")
       ) {
         continue;
       }

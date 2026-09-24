@@ -23,6 +23,7 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   MessageSquare,
   Radio,
   Settings,
@@ -117,6 +118,7 @@ const navItems: NavItem[] = [
   { href: "/automations", labelKey: "automations", icon: Zap, capability: "menu.automations" },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true, capability: "menu.flows" },
   { href: "/knowledge", labelKey: "knowledge", icon: BookOpen, capability: "menu.knowledge" },
+  { href: "/sembang", labelKey: "sembang", icon: MessageCircle, beta: true, capability: "menu.sembang" },
   { href: "/agents", labelKey: "aiAgents", icon: Bot, capability: "menu.agents" },
   { href: "/reports", labelKey: "reports", icon: BarChart3, capability: "menu.reports" },
 ];

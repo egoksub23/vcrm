@@ -363,7 +363,9 @@ export type NotificationType =
   | 'ticket_sla_at_risk'
   | 'ticket_sla_breached'
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
-  | 'ai_budget';
+  | 'ai_budget'
+  /** Migration 098: an @mention in a Sembang channel message. */
+  | 'sembang_mention';
 
 export interface Notification {
   id: string;
@@ -377,6 +379,9 @@ export interface Notification {
   ticket_id?: string;
   /** Migration 095. The ticket comment a ticket_mention notification is about. */
   comment_id?: string;
+  /** Migration 098. Set on sembang_mention notifications. */
+  sembang_channel_id?: string;
+  sembang_message_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;
@@ -1487,3 +1492,89 @@ export interface QuickReply {
   pending_edit?: Record<string, unknown> | null;
   edit_status?: 'pending' | 'rejected' | null;
 }
+
+// ============================================================
+// Sembang — internal team chat (migration 098)
+//
+// Walled off from the customer-facing Inbox: channels (public/private),
+// membership with a moderator role (creator auto-promoted by a DB
+// trigger), plain-text messages with @mentions, file attachments in a
+// private bucket. See supabase/ci/drafts/098_sembang_p0.sql for the
+// underlying tables/RLS/RPCs. The shapes below are the camelCased JSON
+// the API routes under src/app/api/sembang/ return.
+// ============================================================
+
+export type SembangMemberRole = 'member' | 'moderator';
+
+/** A channel row, as returned by the channel-detail / create routes. */
+export interface SembangChannel {
+  id: string;
+  accountId: string;
+  name: string;
+  topic: string | null;
+  isPrivate: boolean;
+  createdBy: string;
+  createdAt: string;
+  archivedAt?: string | null;
+  /** The caller's membership role — null for a public channel they can
+   *  see but haven't joined yet. */
+  memberRole: SembangMemberRole | null;
+}
+
+/**
+ * One row of `list_sembang_channels_for_current_user` — the sidebar's
+ * channel list (GET /api/sembang/channels), already unread-counted.
+ */
+export interface SembangChannelSummary {
+  id: string;
+  name: string;
+  topic: string | null;
+  isPrivate: boolean;
+  createdBy: string;
+  createdAt: string;
+  memberRole: SembangMemberRole;
+  lastReadAt: string;
+  unreadCount: number;
+  lastMessageBody: string | null;
+  lastMessageAt: string | null;
+  lastMessageAuthorId: string | null;
+}
+
+/** A file attached to a Sembang message. `url` is a short-lived signed
+ *  URL the GET messages route resolves server-side (the bucket is private). */
+export interface SembangAttachment {
+  id: string;
+  messageId: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string | null;
+  url: string;
+  createdAt: string;
+}
+
+export interface SembangMessage {
+  id: string;
+  channelId: string;
+  accountId: string;
+  authorId: string;
+  body: string;
+  /** Plain array of mentioned user-id strings (not objects). */
+  mentions: string[];
+  deletedAt: string | null;
+  deletedBy: string | null;
+  createdAt: string;
+  /** Joined from `profiles`; null if the author's profile was removed. */
+  author: { id: string; fullName: string; avatarUrl: string | null } | null;
+  attachments: SembangAttachment[];
+}
+
+/** A channel member row, joined with `profiles` (GET .../members). */
+export interface SembangMember {
+  userId: string;
+  role: SembangMemberRole;
+  joinedAt: string;
+  lastReadAt: string;
+  fullName: string;
+  avatarUrl: string | null;
+}
+

@@ -10,7 +10,8 @@ import { ACCOUNT_ROLES } from "./roles";
 // same way (082 adds `audit.view`, 084 adds the approvals capabilities and
 // moves tags.manage / snippets.manage to the database tier, 085 adds the three
 // Jira capabilities, 086 adds sla.configure, 088 flips 21 capabilities to the
-// database tier and lowers their grant floor to agent). This test parses the seeds out of the
+// database tier and lowers their grant floor to agent, 098 adds
+// menu.sembang). This test parses the seeds out of the
 // migration text and fails if the SQL mirror and the TS source of truth
 // ever disagree (someone edited one without the other). Migrations that
 // add capabilities are listed in order.
@@ -22,6 +23,7 @@ const migrationFiles = [
   "085_jira_link.sql",
   "086_ticket_sla.sql",
   "088_access_control_phase5.sql",
+  "098_sembang_p0.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));
