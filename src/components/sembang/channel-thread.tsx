@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import {
   Archive,
   ArrowLeft,
+  Bell,
+  BellOff,
   Check,
   CheckSquare,
   Hash,
@@ -113,7 +115,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const [creatingTask, setCreatingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
-  const [threadParent, setThreadParent] = useState<SembangMessage | null>(null);
+  // Only `.id` is ever read from the open thread's parent (ThreadPanel
+  // fetches the full parent + replies itself from `parentMessageId`), so
+  // this holds just the id rather than a full `SembangMessage` — which
+  // lets the "↪ replied to a thread" context line (migration 101) open a
+  // thread it only has a `parentPreview.id` for, without needing a full
+  // message object to satisfy the state's type.
+  const [threadParentId, setThreadParentId] = useState<string | null>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,6 +134,9 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   // ---- P2: DM header label / archive channel ----------------------------
   const [archiving, setArchiving] = useState(false);
+
+  // ---- P3: mute toggle ----------------------------------------------------
+  const [muting, setMuting] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
@@ -163,7 +174,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   useEffect(() => {
     setEditingTopic(false);
-    setThreadParent(null);
+    setThreadParentId(null);
     setSearchOpen(false);
   }, [channelId]);
 
@@ -412,6 +423,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
       mentions: string[],
       attachments: PendingSembangAttachment[],
       parentMessageId?: string,
+      alsoInChannel?: boolean,
     ): Promise<boolean> => {
       if (!channelId) return false;
       try {
@@ -423,6 +435,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             mentions,
             attachments: attachments.length > 0 ? attachments : undefined,
             parentMessageId,
+            alsoInChannel,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -681,7 +694,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   // ---- Thread -----------------------------------------------------------
   const handleOpenThread = useCallback((message: SembangMessage) => {
-    setThreadParent(message);
+    setThreadParentId(message.id);
+  }, []);
+
+  // Migration 101 — the "↪ replied to a thread" context line on a reply
+  // mixed into the main timeline via `alsoInChannel` opens the thread for
+  // its PARENT (`message.parentPreview.id`), not the reply's own id.
+  const handleOpenParentThread = useCallback((parentMessageId: string) => {
+    setThreadParentId(parentMessageId);
   }, []);
 
   const handleReplyPosted = useCallback((parentId: string, reply: SembangMessage) => {
@@ -830,6 +850,32 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
       setArchiving(false);
     }
   }, [channelId, channel, archiving, t, onChannelArchived]);
+
+  // ---- Migration 101: mute toggle (both channels and DMs — muting a
+  // noisy DM makes just as much sense as muting a noisy channel, so this
+  // is NOT gated on `!isDm` the way Archive is). Same optimistic-flip/
+  // revert-on-failure shape as `handleToggleStar` above; `set_sembang_
+  // channel_muted` is a self-scoped RPC, so this needs no extra guard
+  // beyond "we have a channel and aren't already mid-toggle." -----------
+  const handleToggleMute = useCallback(async () => {
+    if (!channelId || !channel || muting) return;
+    const nextMuted = !channel.muted;
+    setChannel((prev) => (prev ? { ...prev, muted: nextMuted } : prev));
+    setMuting(true);
+    try {
+      const res = await fetch(`/api/sembang/channels/${channelId}/mute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ muted: nextMuted }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      setChannel((prev) => (prev ? { ...prev, muted: !nextMuted } : prev));
+      toast.error(nextMuted ? t("muteFailed") : t("unmuteFailed"));
+    } finally {
+      setMuting(false);
+    }
+  }, [channelId, channel, muting, t]);
 
   const canManageMembers = channel?.memberRole === "moderator" || hasMinRole(accountRole ?? "viewer", "admin");
   const canRemoveMessages = canManageMembers;
@@ -1019,11 +1065,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                 {t("membersButton", { count: members?.length ?? 0 })}
               </Button>
             )}
-            {/* Archive is channel-only, not built for DMs this pass — a
-                DM's `archived_at` is shared between both participants, so
-                one person archiving it would hide it for the other too
-                (migration 100, frontend item 3/7). */}
-            {!channel.isDm && canManageMembers && (
+            {/* Mute (migration 101) is available to any member of either a
+                channel or a DM. Archive stays channel-only, not built for
+                DMs this pass — a DM's `archived_at` is shared between both
+                participants, so one person archiving it would hide it for
+                the other too (migration 100, frontend item 3/7) — and
+                stays gated on `canManageMembers`, unlike Mute. Both live in
+                this one kebab menu rather than a second menu. */}
+            {isMember && (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={t("moreActions")}
@@ -1033,10 +1082,16 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                   <MoreHorizontal className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52 border-border bg-popover">
-                  <DropdownMenuItem variant="destructive" onClick={handleArchiveChannel} disabled={archiving}>
-                    <Archive className="h-3.5 w-3.5" />
-                    {t("archiveChannel")}
+                  <DropdownMenuItem onClick={handleToggleMute} disabled={muting}>
+                    {channel.muted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                    {channel.muted ? t("unmuteChannel") : t("muteChannel")}
                   </DropdownMenuItem>
+                  {!channel.isDm && canManageMembers && (
+                    <DropdownMenuItem variant="destructive" onClick={handleArchiveChannel} disabled={archiving}>
+                      <Archive className="h-3.5 w-3.5" />
+                      {t("archiveChannel")}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -1086,6 +1141,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                 canRemoveOthers={canRemoveMessages}
                 onReplyInThread={handleOpenThread}
                 onOpenThread={handleOpenThread}
+                onOpenParentThread={handleOpenParentThread}
                 onReact={handleReact}
                 onTogglePin={handleTogglePin}
                 onToggleStar={handleToggleStar}
@@ -1123,13 +1179,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             />
           )}
           <ThreadPanel
-            open={!!threadParent}
+            open={!!threadParentId}
             onOpenChange={(open) => {
-              if (!open) setThreadParent(null);
+              if (!open) setThreadParentId(null);
             }}
             channelId={channel.id}
             channelName={channelDisplayName}
-            parentMessageId={threadParent?.id ?? null}
+            parentMessageId={threadParentId}
             currentUserId={user?.id}
             peopleNames={peopleNames}
             canRemoveMessages={canRemoveMessages}

@@ -2,13 +2,15 @@
 // /api/sembang/channels/[id]/messages
 //
 //   GET  — most recent 50 (default) non-deleted, TOP-LEVEL messages
-//          (`parent_message_id IS NULL` — replies only show up inside
-//          their thread, via .../messages/[messageId]/replies) before an
+//          (`parent_message_id IS NULL`) PLUS a reply flagged
+//          `also_in_channel = true` (migration 101's "Also send to
+//          #channel" — replies otherwise only show up inside their
+//          thread, via .../messages/[messageId]/replies) before an
 //          optional `?before=<ISO timestamp>` cursor, each hydrated with
-//          its author's profile, attachments, reactions, and (top-level
-//          only) a replyCount/lastReplyAt thread summary. Returned
-//          ascending by `created_at` (oldest first) so the client can
-//          just append.
+//          its author's profile, attachments, reactions, parentPreview
+//          (for the also-in-channel replies), and (top-level only) a
+//          replyCount/lastReplyAt thread summary. Returned ascending by
+//          `created_at` (oldest first) so the client can just append.
 //
 //          `?q=<text>` switches this into a search: ignores
 //          `before`/pagination and returns up to 50 non-deleted messages
@@ -23,8 +25,11 @@
 //          an optional `parentMessageId` to post as a thread reply — the
 //          migration 099 trigger validates it's a real top-level message
 //          in the same channel and we surface a friendly 400 if it
-//          isn't. Inserts any attachment rows against the new message
-//          id, then returns it hydrated the same shape as GET.
+//          isn't. Also accepts an optional `alsoInChannel` (migration
+//          101), only meaningful with `parentMessageId` — silently
+//          dropped otherwise rather than letting the DB trigger reject
+//          the whole insert. Inserts any attachment rows against the new
+//          message id, then returns it hydrated the same shape as GET.
 //
 // Both return SembangMessage (camelCase, nested `author`/`attachments`/
 // `reactions` — see @/types, the frontend's own type for this exact
@@ -78,7 +83,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .select('*')
       .eq('channel_id', channelId)
       .is('deleted_at', null)
-      .is('parent_message_id', null)
+      // Migration 101. Top-level messages, PLUS a reply explicitly flagged
+      // "also send to #channel" — still a reply (keeps its own
+      // `parentMessageId`/`parentPreview`, gets no `replyCount` of its
+      // own below), just also rendered inline in the main timeline.
+      .or('parent_message_id.is.null,also_in_channel.eq.true')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -117,6 +126,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       mentions?: unknown
       attachments?: unknown
       parentMessageId?: unknown
+      alsoInChannel?: unknown
     } | null
 
     const messageBody = typeof payload?.body === 'string' ? payload.body.trim() : ''
@@ -132,6 +142,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       : []
 
     const parentMessageId = typeof payload?.parentMessageId === 'string' ? payload.parentMessageId : null
+
+    // Migration 101. Only meaningful for a reply — the DB trigger rejects
+    // a top-level message with this set (`sembang_also_in_channel_requires_a_reply`),
+    // but a client sending it without `parentMessageId` is a harmless
+    // mistake to silently correct, not a 400.
+    const alsoInChannel = parentMessageId !== null && payload?.alsoInChannel === true
 
     const attachmentInputs = Array.isArray(payload?.attachments)
       ? payload.attachments.filter(
@@ -153,6 +169,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         body: messageBody,
         mentions,
         parent_message_id: parentMessageId,
+        also_in_channel: alsoInChannel,
       })
       .select('*')
       .single()

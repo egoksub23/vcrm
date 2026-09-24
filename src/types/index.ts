@@ -1530,6 +1530,10 @@ export interface SembangChannel {
   /** The caller's membership role — null for a public channel they can
    *  see but haven't joined yet. Never null for a DM (fixed membership). */
   memberRole: SembangMemberRole | null;
+  /** Migration 101. The CALLER's own mute state for this channel —
+   *  personal, not a channel-wide setting. False for a channel the
+   *  caller can see but hasn't joined (no membership row to read). */
+  muted: boolean;
 }
 
 /**
@@ -1556,6 +1560,8 @@ export interface SembangChannelSummary {
    *  without a second fetch. Null (not empty array) for a real channel. */
   dmParticipantNames: string[] | null;
   dmParticipantAvatarUrls: (string | null)[] | null;
+  /** Migration 101. The caller's own mute state — see `SembangChannel.muted`. */
+  muted: boolean;
 }
 
 /** A file attached to a Sembang message. `url` is a short-lived signed
@@ -1613,6 +1619,17 @@ export interface SembangMessage {
    */
   replyCount?: number;
   lastReplyAt?: string | null;
+  /** Migration 101. Only meaningful when `parentMessageId` is set — a
+   *  reply the author chose to also post into the main channel
+   *  timeline (Slack's "Also send to #channel"), immutable after
+   *  creation. False for a normal thread-only reply. */
+  alsoInChannel: boolean;
+  /** Migration 101. Populated whenever `parentMessageId` is set, so a
+   *  reply rendered in the main timeline (because `alsoInChannel`) can
+   *  show "replied to a thread: <snippet>" without a second fetch.
+   *  Null for a top-level message; also null if the parent itself was
+   *  deleted/not found. */
+  parentPreview?: { id: string; body: string; authorName: string } | null;
 }
 
 /** A channel member row, joined with `profiles` (GET .../members). */
@@ -1693,5 +1710,50 @@ export interface SembangSearchResult {
     isDm: boolean;
     dmParticipantNames: string[] | null;
   };
+}
+
+// ------------------------------------------------------------
+// Sembang P3 — global threads view, member directory, browse public
+// channels, per-channel/DM mute, "also send to #channel" (migration 101)
+// ------------------------------------------------------------
+
+/**
+ * GET /api/sembang/threads — one row of "every thread you're in"
+ * (you started it, replied to it, or were @mentioned in it), across
+ * every channel/DM. `message` is always the THREAD-STARTING top-level
+ * message (with `replyCount`/`lastReplyAt` populated), same channel-
+ * context shape as search/starred.
+ */
+export interface SembangThreadSummary {
+  message: SembangMessage;
+  channel: {
+    id: string;
+    name: string | null;
+    isDm: boolean;
+    dmParticipantNames: string[] | null;
+  };
+}
+
+/**
+ * GET /api/sembang/directory — one row of everyone in the account who
+ * currently holds the `menu.sembang` capability (not just people who
+ * happen to share a channel with the caller).
+ */
+export interface SembangDirectoryMember {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  accountRole: string;
+}
+
+/**
+ * GET /api/sembang/channels/browse — a public, non-DM channel the
+ * caller can see but hasn't joined yet.
+ */
+export interface SembangBrowseChannel {
+  id: string;
+  name: string;
+  topic: string | null;
+  memberCount: number;
 }
 

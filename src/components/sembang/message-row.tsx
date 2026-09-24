@@ -13,7 +13,18 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { FileText, Loader2, MessageSquareText, Pencil, Pin, PinOff, PlusCircle, Star, Trash2 } from "lucide-react";
+import {
+  CornerUpRight,
+  FileText,
+  Loader2,
+  MessageSquareText,
+  Pencil,
+  Pin,
+  PinOff,
+  PlusCircle,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { EmojiPicker } from "@/components/emoji/emoji-picker";
@@ -25,6 +36,12 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Snippet length for the "replied to a thread" context line — same idea
+ *  as channel-thread.tsx's `handleAddToTask` title truncation. */
+function truncateSnippet(body: string, max = 60): string {
+  return body.length > max ? `${body.slice(0, max)}…` : body;
 }
 
 function ReactionRow({
@@ -71,6 +88,14 @@ export interface MessageRowProps {
   disableThreadAffordances?: boolean;
   onReplyInThread?: (message: SembangMessage) => void;
   onOpenThread?: (message: SembangMessage) => void;
+  /** Migration 101. Set only from the main channel list (never from an
+   *  already-open thread panel's own reply list) — fired when the "↪
+   *  replied to a thread" context line is clicked, to open the thread for
+   *  the reply's PARENT (`message.parentPreview.id`), not the reply's own
+   *  id. Only rendered when `message.parentPreview` is set — i.e. this row
+   *  is a reply that was mixed into the main timeline via
+   *  `alsoInChannel`. */
+  onOpenParentThread?: (parentMessageId: string) => void;
   onReact: (messageId: string, emoji: string) => void;
   onTogglePin: (message: SembangMessage, pinned: boolean) => void;
   /** Migration 100. Same fire-and-forget shape as `onTogglePin` —
@@ -93,6 +118,7 @@ export function MessageRow({
   disableThreadAffordances,
   onReplyInThread,
   onOpenThread,
+  onOpenParentThread,
   onReact,
   onTogglePin,
   onToggleStar,
@@ -135,6 +161,21 @@ export function MessageRow({
     <div className="group flex gap-2.5 px-3 py-1.5 hover:bg-muted/30 sm:px-4">
       <PersonAvatar name={message.author?.fullName} avatarUrl={message.author?.avatarUrl} size="md" className="mt-0.5" />
       <div className="min-w-0 flex-1">
+        {message.parentPreview && onOpenParentThread && (
+          <button
+            type="button"
+            onClick={() => onOpenParentThread(message.parentPreview!.id)}
+            className="mb-0.5 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+          >
+            <CornerUpRight className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {t("repliedToThread", {
+                author: message.parentPreview.authorName,
+                snippet: truncateSnippet(message.parentPreview.body),
+              })}
+            </span>
+          </button>
+        )}
         <div className="flex items-baseline gap-2">
           <span className="truncate text-sm font-semibold text-foreground">
             {message.author?.fullName ?? t("unknownAuthor")}

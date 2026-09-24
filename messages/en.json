@@ -7070,7 +7070,9 @@
       "emptyHintCreate": "Create one to get started.",
       "emptyHintAskAdmin": "Ask an admin to add you to a channel.",
       "searchAriaLabel": "Search messages",
-      "starredAriaLabel": "Starred messages"
+      "starredAriaLabel": "Starred messages",
+      "threadsAriaLabel": "Threads",
+      "directoryAriaLabel": "Member directory"
     },
     "channelList": {
       "title": "Sembang",
@@ -7087,7 +7089,9 @@
       "newMessage": "New message",
       "noDirectMessages": "No direct messages yet.",
       "directMessageFallback": "Direct message",
-      "archivedChannelsLink": "Archived channels"
+      "archivedChannelsLink": "Archived channels",
+      "browseChannelsLink": "Browse channels",
+      "mutedTooltip": "Muted"
     },
     "createDialog": {
       "title": "Create a channel",
@@ -7165,7 +7169,12 @@
       "star": "Star",
       "unstar": "Unstar",
       "starFailed": "Could not star the message. Try again.",
-      "unstarFailed": "Could not unstar the message. Try again."
+      "unstarFailed": "Could not unstar the message. Try again.",
+      "muteChannel": "Mute channel",
+      "unmuteChannel": "Unmute channel",
+      "muteFailed": "Could not mute the channel. Try again.",
+      "unmuteFailed": "Could not unmute the channel. Try again.",
+      "repliedToThread": "replied to a thread: {author}: {snippet}"
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",
@@ -7175,7 +7184,11 @@
       "codeBlockAriaLabel": "Insert code block",
       "inputAriaLabel": "Message",
       "placeholder": "Message #{channel}",
-      "sendAriaLabel": "Send message"
+      "sendAriaLabel": "Send message",
+      "boldAriaLabel": "Bold",
+      "italicAriaLabel": "Italic",
+      "listAriaLabel": "Bulleted list",
+      "alsoInChannelLabel": "Also send to #{channel}"
     },
     "membersPanel": {
       "title": "Members",
@@ -7248,6 +7261,30 @@
       "loadFailed": "Could not load archived channels.",
       "unarchive": "Unarchive",
       "unarchiveFailed": "Could not unarchive the channel. Try again."
+    },
+    "threadsPanel": {
+      "title": "Threads",
+      "loadFailed": "Could not load threads.",
+      "empty": "No threads yet.",
+      "unknownAuthor": "Unknown",
+      "directMessage": "Direct message",
+      "replyCount": "{count, plural, =1 {# reply} other {# replies}}"
+    },
+    "memberDirectoryDialog": {
+      "title": "Member directory",
+      "description": "Everyone in your account with access to Sembang.",
+      "loadFailed": "Could not load the directory.",
+      "empty": "No one has access yet."
+    },
+    "browseChannelsDialog": {
+      "title": "Browse channels",
+      "description": "Public channels you haven't joined yet.",
+      "loadFailed": "Could not load channels.",
+      "empty": "No public channels to browse.",
+      "noTopic": "No topic",
+      "memberCount": "{count, plural, =1 {# member} other {# members}}",
+      "join": "Join",
+      "joinFailed": "Could not join the channel. Try again."
     }
   }
 }

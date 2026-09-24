@@ -16,6 +16,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import type { SembangChannel, SembangMemberRole } from '@/types'
 
+interface MemberRoleAndMute {
+  role: SembangMemberRole | null
+  muted: boolean
+}
+
 const TOPIC_MAX = 2000
 
 interface ChannelRow {
@@ -35,17 +40,23 @@ async function resolveMemberRole(
   supabase: SupabaseClient,
   channelId: string,
   userId: string,
-): Promise<SembangMemberRole | null> {
+): Promise<MemberRoleAndMute> {
   const { data } = await supabase
     .from('sembang_channel_members')
-    .select('role')
+    .select('role, muted')
     .eq('channel_id', channelId)
     .eq('user_id', userId)
     .maybeSingle()
-  return (data?.role as SembangMemberRole | undefined) ?? null
+  return {
+    role: (data?.role as SembangMemberRole | undefined) ?? null,
+    // No membership row (caller can see a public channel but hasn't
+    // joined it) has no `muted` state to read — false, same as
+    // `memberRole: null` in that case.
+    muted: data?.muted ?? false,
+  }
 }
 
-function toChannel(row: ChannelRow, memberRole: SembangMemberRole | null): SembangChannel {
+function toChannel(row: ChannelRow, member: MemberRoleAndMute): SembangChannel {
   return {
     id: row.id,
     accountId: row.account_id,
@@ -56,7 +67,8 @@ function toChannel(row: ChannelRow, memberRole: SembangMemberRole | null): Semba
     createdBy: row.created_by,
     createdAt: row.created_at,
     archivedAt: row.archived_at,
-    memberRole,
+    memberRole: member.role,
+    muted: member.muted,
   }
 }
 
@@ -79,9 +91,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
     }
 
-    const memberRole = await resolveMemberRole(ctx.supabase, channelId, ctx.userId)
+    const member = await resolveMemberRole(ctx.supabase, channelId, ctx.userId)
 
-    return NextResponse.json({ channel: toChannel(row as ChannelRow, memberRole) })
+    return NextResponse.json({ channel: toChannel(row as ChannelRow, member) })
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -143,9 +155,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       )
     }
 
-    const memberRole = await resolveMemberRole(ctx.supabase, channelId, ctx.userId)
+    const member = await resolveMemberRole(ctx.supabase, channelId, ctx.userId)
 
-    return NextResponse.json({ channel: toChannel(row as ChannelRow, memberRole) })
+    return NextResponse.json({ channel: toChannel(row as ChannelRow, member) })
   } catch (err) {
     return toErrorResponse(err)
   }

@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.60.0] — 2026-09-25 — **migration required (101)**
+
+- **Sembang P3: global Threads view, per-channel/DM mute, a member directory, "browse public channels," and "Also send to #channel."** Prompted by the owner comparing Sembang's thread panel directly against a live Slack workspace — confirmed the existing right-side thread Sheet already matched Slack's own behavior, but Slack's reply composer also has an "Also send to #channel" option Sembang didn't.
+  - **Threads you're in** — a global view of every thread you started, replied to, or were `@mentioned` in, across every channel and DM at once (not just the one you have open).
+  - **Mute a channel or DM** — stops all Sembang notifications from it (mentions included — a deliberate simplification over a separate "mute except mentions" toggle nobody asked for yet). Credentials/history are untouched; unmuting resumes notifications instantly.
+  - **Member directory** — browse everyone in the account who currently has Sembang access, not just people who already share a channel with you.
+  - **Browse public channels** — the one gap flagged back in P0: channels used to only appear once you were invited. Now there's a real discovery list with a one-click Join (reuses the existing self-join permission, no new backend join endpoint needed).
+  - **"Also send to #channel"** — a thread reply can also post into the main channel timeline, shown there as "↪ replied to a thread: ...", matching Slack's own reply composer. Set once at send time, immutable after.
+  - **Composer formatting** — Bold/Italic/List toolbar buttons insert markdown-lite syntax at the cursor (the existing code-fence button wrapped the whole draft instead of the cursor position, since the shared `MentionTextareaHandle` only exposed `focus()` — extended additively, Tickets' use of the same component is unaffected). The composer already had a working emoji picker from day one (in the corner of the text box) — no duplicate was added.
+  - Migration 101 adds `muted` to `sembang_channel_members` (a new self-scoped `set_sembang_channel_muted` RPC, since this table has never had a client UPDATE policy) and `also_in_channel` to `sembang_messages` (reply-only, immutable after insert), and widens `list_sembang_channels_for_current_user` to report each channel's mute state.
+
 ## [0.59.0] — 2026-09-24 — **migration required (100)**
 
 - **Sembang P2: direct messages, cross-conversation search, starred messages, and an archive-channel UI.** Prompted by comparing Sembang directly against a live, high-traffic Slack workspace — see the requirements doc's "Screenshot gap review" section for the full tiered (P2/P3/P4) list this came out of.

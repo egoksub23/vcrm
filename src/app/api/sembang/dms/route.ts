@@ -200,7 +200,7 @@ export async function POST(request: Request) {
 
     const { data: memberRow } = await ctx.supabase
       .from('sembang_channel_members')
-      .select('role')
+      .select('role, muted')
       .eq('channel_id', channelRow.id)
       .eq('user_id', ctx.userId)
       .maybeSingle()
@@ -216,6 +216,9 @@ export async function POST(request: Request) {
       createdAt: channelRow.created_at,
       archivedAt: channelRow.archived_at,
       memberRole: (memberRow?.role as SembangChannel['memberRole']) ?? 'moderator',
+      // Re-opening an existing DM (idempotent path) can have a real
+      // prior mute state; a brand-new one is never muted.
+      muted: memberRow?.muted ?? false,
     }
 
     return NextResponse.json({ channel }, { status: created ? 201 : 200 })

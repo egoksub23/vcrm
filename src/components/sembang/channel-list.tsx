@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, Hash, Lock, Plus, Search } from "lucide-react";
+import { Archive, BellOff, Compass, Hash, Lock, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ interface ChannelListProps {
   /** Migration 100 — opens ArchivedChannelsDialog. Channels only; DMs
    *  aren't archivable (see channel-thread.tsx). */
   onArchivedClick: () => void;
+  /** Migration 101 — opens BrowseChannelsDialog. */
+  onBrowseClick: () => void;
   loadError?: boolean;
 }
 
@@ -43,6 +45,7 @@ export function ChannelList({
   onCreateClick,
   onNewDmClick,
   onArchivedClick,
+  onBrowseClick,
   loadError,
 }: ChannelListProps) {
   const t = useTranslations("Sembang.channelList");
@@ -110,6 +113,11 @@ export function ChannelList({
             {c.lastMessageBody || t("noMessagesYet")}
           </p>
         </div>
+        {c.muted && (
+          <span title={t("mutedTooltip")} className="shrink-0">
+            <BellOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          </span>
+        )}
         {isUnread && (
           <span
             aria-label={t("unreadAriaLabel", { count: c.unreadCount })}
@@ -194,6 +202,16 @@ export function ChannelList({
             >
               <Archive className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("archivedChannelsLink")}
+            </button>
+            {/* Migration 101 — BrowseChannelsDialog entry point, same
+                visual treatment as the Archived channels row above. */}
+            <button
+              type="button"
+              onClick={onBrowseClick}
+              className="flex items-center gap-2 border-b border-border px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Compass className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {t("browseChannelsLink")}
             </button>
 
             {/* Direct messages section */}

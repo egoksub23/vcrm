@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Hash, Search as SearchIcon, Star } from "lucide-react";
+import { Hash, MessageSquareText, Search as SearchIcon, Star, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
@@ -13,6 +13,9 @@ import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
 import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
 import { StarredPanel } from "@/components/sembang/starred-panel";
 import { SearchDialog } from "@/components/sembang/search-dialog";
+import { ThreadsPanel } from "@/components/sembang/threads-panel";
+import { MemberDirectoryDialog } from "@/components/sembang/member-directory-dialog";
+import { BrowseChannelsDialog } from "@/components/sembang/browse-channels-dialog";
 import { useSembangSidebarRealtime } from "@/hooks/use-sembang-realtime";
 import { useAuth } from "@/hooks/use-auth";
 import { hasMinRole } from "@/lib/auth/roles";
@@ -49,6 +52,11 @@ function SembangPageInner() {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // ---- Migration 101: global threads, member directory, browse channels --
+  const [threadsOpen, setThreadsOpen] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
 
   const autoSelectedForDeepLinkRef = useRef<string | null>(null);
 
@@ -151,6 +159,18 @@ function SembangPageInner() {
     void fetchChannels();
   }, [fetchChannels]);
 
+  // Migration 101 — BrowseChannelsDialog just joined a public channel:
+  // select it and refetch the sidebar list so it appears there (the
+  // dialog itself already dropped it from its own local list).
+  const handleChannelJoined = useCallback(
+    (channelId: string) => {
+      setActiveChannelId(channelId);
+      setBrowseOpen(false);
+      void fetchChannels();
+    },
+    [fetchChannels],
+  );
+
   const hasActiveChannel = !!activeChannelId;
   const hasChannels = (channels?.length ?? 0) > 0;
 
@@ -178,6 +198,26 @@ function SembangPageInner() {
         >
           <Star className="h-4 w-4" />
         </Button>
+        {/* Migration 101 — global "Threads you're in" and member directory,
+            same header-bar pattern as the P2 Search/Starred buttons. */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("threadsAriaLabel")}
+          title={t("threadsAriaLabel")}
+          onClick={() => setThreadsOpen(true)}
+        >
+          <MessageSquareText className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("directoryAriaLabel")}
+          title={t("directoryAriaLabel")}
+          onClick={() => setDirectoryOpen(true)}
+        >
+          <Users2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -197,6 +237,7 @@ function SembangPageInner() {
             onCreateClick={() => setCreateOpen(true)}
             onNewDmClick={() => setNewDmOpen(true)}
             onArchivedClick={() => setArchivedOpen(true)}
+            onBrowseClick={() => setBrowseOpen(true)}
             loadError={loadError}
           />
         </div>
@@ -239,6 +280,9 @@ function SembangPageInner() {
       />
       <StarredPanel open={starredOpen} onOpenChange={setStarredOpen} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <ThreadsPanel open={threadsOpen} onOpenChange={setThreadsOpen} />
+      <MemberDirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />
+      <BrowseChannelsDialog open={browseOpen} onOpenChange={setBrowseOpen} onJoined={handleChannelJoined} />
     </div>
   );
 }

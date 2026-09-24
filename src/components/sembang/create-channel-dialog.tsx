@@ -95,6 +95,10 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         createdBy: created.createdBy,
         createdAt: created.createdAt,
         memberRole: "moderator",
+        // Migration 101 — a freshly created channel is never muted; there's
+        // no membership row to read a mute state from yet at this point,
+        // so this is the one correct value to synthesize locally.
+        muted: false,
         lastReadAt: created.createdAt,
         unreadCount: 0,
         lastMessageBody: null,

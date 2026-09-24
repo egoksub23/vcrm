@@ -39,6 +39,8 @@ interface ChannelSummaryRow {
   is_dm: boolean
   dm_participant_names: string[] | null
   dm_participant_avatar_urls: (string | null)[] | null
+  // Migration 101.
+  muted: boolean
 }
 
 export async function GET() {
@@ -70,6 +72,7 @@ export async function GET() {
       isDm: row.is_dm,
       dmParticipantNames: row.dm_participant_names,
       dmParticipantAvatarUrls: row.dm_participant_avatar_urls,
+      muted: row.muted,
     }))
 
     return NextResponse.json({ channels })
@@ -177,6 +180,8 @@ export async function POST(request: Request) {
       // The DB trigger (`sembang_add_creator_as_moderator`) always makes
       // the creator a moderator, synchronously within the same insert.
       memberRole: 'moderator',
+      // A freshly created channel is never muted.
+      muted: false,
     }
 
     return NextResponse.json({ channel }, { status: 201 })

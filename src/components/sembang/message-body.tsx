@@ -13,6 +13,7 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
 import { highlightMentions } from "@/lib/tickets/mention-highlight";
 import { parseCodeBlocks } from "@/lib/sembang/parse-code-blocks";
+import { parseInlineFormatting, type FormatSegment } from "@/lib/sembang/parse-inline-formatting";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -44,6 +45,52 @@ function CodeBlock({ content, lang }: { content: string; lang?: string }) {
   );
 }
 
+/** Runs `highlightMentions` on one format segment's plain text and wraps the
+ *  resulting mention-chip spans in whatever element that segment's own
+ *  formatting calls for (`<span>`/`<strong>`/`<em>`, or a `<ul>` of `<li>`s
+ *  for a "list" segment — see `parseInlineFormatting`). */
+function FormatSegmentView({
+  segment,
+  peopleNames,
+  keyPrefix,
+}: {
+  segment: FormatSegment;
+  peopleNames: string[];
+  keyPrefix: string;
+}) {
+  const renderMentions = (text: string, keyBase: string) =>
+    highlightMentions(text, peopleNames, []).map((s, j) =>
+      s.kind === "text" ? (
+        <span key={`${keyBase}-${j}`}>{s.text}</span>
+      ) : (
+        <span key={`${keyBase}-${j}`} className="rounded-sm bg-primary/15 px-0.5">
+          {s.text}
+        </span>
+      ),
+    );
+
+  if (segment.type === "list") {
+    return (
+      <ul key={keyPrefix} className="my-1 list-disc pl-5">
+        {segment.items.map((item, i) => (
+          <li key={i}>{renderMentions(item, `${keyPrefix}-${i}`)}</li>
+        ))}
+      </ul>
+    );
+  }
+  if (segment.type === "bold") {
+    return (
+      <strong key={keyPrefix} className="font-semibold">
+        {renderMentions(segment.text, keyPrefix)}
+      </strong>
+    );
+  }
+  if (segment.type === "italic") {
+    return <em key={keyPrefix}>{renderMentions(segment.text, keyPrefix)}</em>;
+  }
+  return <span key={keyPrefix}>{renderMentions(segment.text, keyPrefix)}</span>;
+}
+
 export function MessageBody({ body, peopleNames }: { body: string; peopleNames: string[] }) {
   const segments = parseCodeBlocks(body);
   return (
@@ -52,15 +99,9 @@ export function MessageBody({ body, peopleNames }: { body: string; peopleNames: 
         seg.type === "code" ? (
           <CodeBlock key={i} content={seg.content} lang={seg.lang} />
         ) : (
-          highlightMentions(seg.content, peopleNames, []).map((s, j) =>
-            s.kind === "text" ? (
-              <span key={`${i}-${j}`}>{s.text}</span>
-            ) : (
-              <span key={`${i}-${j}`} className="rounded-sm bg-primary/15 px-0.5">
-                {s.text}
-              </span>
-            ),
-          )
+          parseInlineFormatting(seg.content).map((fseg, j) => (
+            <FormatSegmentView key={`${i}-${j}`} segment={fseg} peopleNames={peopleNames} keyPrefix={`${i}-${j}`} />
+          ))
         ),
       )}
     </div>

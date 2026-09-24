@@ -6,6 +6,7 @@ import { Users } from "lucide-react";
 
 import { EmojiPicker } from "@/components/emoji/emoji-picker";
 import { useEmojiShortcut } from "@/components/emoji/use-emoji-shortcut";
+import { spliceText } from "@/lib/emoji/insert";
 import { highlightMentions } from "@/lib/tickets/mention-highlight";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/types";
@@ -13,6 +14,21 @@ import { PersonAvatar } from "./ticket-visuals";
 
 export interface MentionTextareaHandle {
   focus: () => void;
+  /**
+   * Sembang P3 (rich-text-lite composer toolbar) — strictly additive, do
+   * not change `focus()`'s existing behavior/signature above; Tickets
+   * depends on it. Wraps the current selection in `before`/`after`
+   * (e.g. bold/italic markdown-lite syntax) at the cursor. When nothing
+   * is selected, inserts `before + placeholder + after` instead and
+   * selects the placeholder text, mirroring how lightweight markdown
+   * toolbars behave (so the person can immediately type over it).
+   */
+  wrapSelection: (before: string, after: string, placeholder?: string) => void;
+  /**
+   * Sembang P3. Prefixes the CURRENT line (the one the caret is on)
+   * with `prefix` — used for the list toolbar button's `- ` prefix.
+   */
+  insertLinePrefix: (prefix: string) => void;
 }
 
 /** A team the @ list offers (only teams with someone in them are worth mentioning). */
@@ -75,7 +91,44 @@ export const MentionTextarea = forwardRef<
   // Which row of the open @ list Enter / Tab will pick (arrow keys move it).
   const [activeIndex, setActiveIndex] = useState(0);
   const overlayRef = useRef<HTMLDivElement>(null);
-  useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }));
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+    wrapSelection: (before: string, after: string, placeholder = "") => {
+      const el = textareaRef.current;
+      const start = el?.selectionStart ?? value.length;
+      const end = el?.selectionEnd ?? start;
+      const hasSelection = end > start;
+      const inner = hasSelection ? value.slice(start, end) : placeholder;
+      const res = spliceText(value, start, end, `${before}${inner}${after}`);
+      if (!res) return;
+      onValueChange(res.value);
+      requestAnimationFrame(() => {
+        if (!el) return;
+        el.focus();
+        if (hasSelection) {
+          el.setSelectionRange(res.caret, res.caret);
+        } else {
+          // Nothing was selected — select the placeholder so typing
+          // immediately replaces it, same UX as most lightweight
+          // markdown toolbars.
+          const selStart = start + before.length;
+          el.setSelectionRange(selStart, selStart + inner.length);
+        }
+      });
+    },
+    insertLinePrefix: (prefix: string) => {
+      const el = textareaRef.current;
+      const caret = el?.selectionStart ?? value.length;
+      const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+      const res = spliceText(value, lineStart, lineStart, prefix);
+      if (!res) return;
+      onValueChange(res.value);
+      requestAnimationFrame(() => {
+        el?.focus();
+        el?.setSelectionRange(res.caret, res.caret);
+      });
+    },
+  }));
 
   // Emoji: the smiley button and the ":" shortcut (the newest trigger wins: an
   // open @mention list and an open ":" list can never both match the same caret).

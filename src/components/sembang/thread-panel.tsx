@@ -148,6 +148,7 @@ export function ThreadPanel({
       mentions: string[],
       attachments: PendingSembangAttachment[],
       replyToId?: string,
+      alsoInChannel?: boolean,
     ): Promise<boolean> => {
       if (!channelId || !replyToId) return false;
       try {
@@ -159,6 +160,7 @@ export function ThreadPanel({
             mentions,
             attachments: attachments.length > 0 ? attachments : undefined,
             parentMessageId: replyToId,
+            alsoInChannel,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -290,6 +292,7 @@ export function ThreadPanel({
                   channelName={channelName}
                   onSend={handleSendReply}
                   parentMessageId={parentMessageId}
+                  showAlsoInChannelOption
                 />
               )}
             </>
