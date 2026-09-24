@@ -1641,7 +1641,7 @@ export function MessageThread({
                 className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground"
                 title={t(`channel.${conversation.last_channel_type}`)}
               >
-                <ChannelIcon className="h-3 w-3" />
+                <ChannelIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">
                   {t(`channel.${conversation.last_channel_type}`)}
                 </span>

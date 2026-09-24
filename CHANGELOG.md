@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.54.0] — 2026-09-24
+
+- **Inbox: a new message now moves its conversation to the top of the list.** Previously the list was only sorted once (on load); a realtime update from a new inbound message updated a conversation's preview text and unread count in place but never repositioned it, so a reply to a conversation buried further down could go unnoticed. The default "recent" sort now always re-derives order from the latest message time, the same way the existing "priority" sort already does — so this self-heals regardless of how or when an update lands. (The numeric unread-count badge — e.g. "3" for three new messages — already existed and was already accurate; it's just far more visible now that the conversation actually surfaces.)
+- **Inbox: ownership filter is now tabs.** The old single "All ▾" dropdown (mixing ownership and status together) is now three direct tabs — **All / Mine / Unassigned** — plus an **Others** tab that opens the remaining status filters (Unread, Open, Pending, Closed) in a dropdown.
+- **Inbox: the message composer is taller at rest.** The text box used to start at a single cramped line and only grow once typed text wrapped; it now rests at a comfortable ~2 lines and grows further while typing, up to ~6 lines before scrolling internally (previously capped around 4).
+- **Inbox: channel icons are bigger.** The small per-conversation channel logo (WhatsApp / web widget / Messenger / Instagram / email) in the conversation list and the thread header is now noticeably larger and easier to read at a glance.
+
 ## [0.53.1] — 2026-09-23
 
 - **Fixed: the Knowledge base "+ Add content" button crashed the whole page.** 0.53.0's menu restructure added two labelled groups ("Write directly" / "Bring content in") but the group labels weren't wrapped in a `DropdownMenuGroup`, and the underlying menu library throws when a group label is rendered without one — so clicking "Add content" crashed the entire Knowledge base page for every user (reported live in production). Fixed by wrapping each group correctly; added a regression test pinning the exact shape that failed.

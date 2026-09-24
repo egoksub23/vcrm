@@ -198,6 +198,7 @@
       "filterAll": "All",
       "filterMine": "Mine",
       "filterUnassigned": "Unassigned",
+      "filterOthers": "Others",
       "filterUnread": "Unread",
       "filterOpen": "Open",
       "filterPending": "Pending",

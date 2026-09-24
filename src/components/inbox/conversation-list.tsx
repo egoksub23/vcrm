@@ -134,6 +134,17 @@ export function ConversationList({
     { label: t("filterClosed"), value: "closed" },
   ], [t]);
 
+  // The ownership row is All / Mine / Unassigned as direct tabs, plus an
+  // "Others" tab that opens the remaining status-based options in a
+  // dropdown — same seven values as FILTER_OPTIONS, just split into what
+  // deserves a one-click tab versus what's rare enough to stay tucked
+  // away. Replaces the single flat "All ▾" dropdown that used to hold
+  // all seven undifferentiated.
+  const OTHER_FILTER_OPTIONS = useMemo(
+    () => FILTER_OPTIONS.filter((o) => o.value === "unread" || o.value === "open" || o.value === "pending" || o.value === "closed"),
+    [FILTER_OPTIONS],
+  );
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [loading, setLoading] = useState(true);
@@ -462,6 +473,19 @@ export function ConversationList({
       result = [...result].sort(
         (a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority],
       );
+    } else {
+      // "recent" — always re-derive order from last_message_at instead of
+      // trusting `conversations`' incoming order. That order is only ever
+      // correct right after the initial fetch (a real ORDER BY); a
+      // realtime patch — a new inbound message, any conversation-row
+      // update — updates a row's fields in place via .map() and never
+      // moves it, so without this a conversation with brand-new activity
+      // could sit wherever it happened to be instead of jumping to the
+      // top, and an agent scanning from the top could miss it entirely.
+      result = [...result].sort((a, b) => {
+        const at = (c: Conversation) => (c.last_message_at ? new Date(c.last_message_at).getTime() : 0);
+        return at(b) - at(a);
+      });
     }
 
     return result;
@@ -562,6 +586,7 @@ export function ConversationList({
   );
 
   const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
+  const isOtherFilter = filter === "unread" || filter === "open" || filter === "pending" || filter === "closed";
 
   return (
     <>
@@ -585,6 +610,55 @@ export function ConversationList({
             placeholder={t("searchPlaceholder")}
             className="border-border bg-muted pl-9 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50"
           />
+        </div>
+
+        {/* Ownership tabs — All / Mine / Unassigned as one-click tabs, plus
+            an "Others" tab holding the remaining status filters (Unread,
+            Open, Pending, Closed) in a dropdown. Replaces the old single
+            "All ▾" dropdown that flattened all seven options together. */}
+        <div className="flex items-center gap-4 text-xs font-medium">
+          {(["all", "mine", "unassigned"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setFilter(v)}
+              className={cn(
+                "border-b-2 pb-1 pt-0.5 transition-colors",
+                filter === v
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {v === "all" ? t("filterAll") : v === "mine" ? t("filterMine") : t("filterUnassigned")}
+            </button>
+          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex items-center gap-0.5 border-b-2 pb-1 pt-0.5 transition-colors",
+                isOtherFilter
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {isOtherFilter ? activeFilter?.label : t("filterOthers")}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="border-border bg-popover">
+              {OTHER_FILTER_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setFilter(opt.value)}
+                  className={cn(
+                    "text-sm",
+                    filter === opt.value ? "text-primary" : "text-popover-foreground"
+                  )}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
@@ -678,32 +752,6 @@ export function ConversationList({
                   </button>
                 )}
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
-                {activeFilter?.label ?? t("filterAll")}
-                <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="border-border bg-popover"
-            >
-              {FILTER_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setFilter(opt.value)}
-                  className={cn(
-                    "text-sm",
-                    filter === opt.value
-                      ? "text-primary"
-                      : "text-popover-foreground"
-                  )}
-                >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -1347,7 +1395,7 @@ function ConversationItem({
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
             <ChannelIcon
-              className="h-3 w-3 shrink-0 text-muted-foreground"
+              className="h-4 w-4 shrink-0 text-muted-foreground"
               aria-label={t(`channel.${conversation.last_channel_type}`)}
             />
             {conversation.priority !== "normal" && (

@@ -591,8 +591,11 @@ export function MessageComposer({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    // Max 4 lines (~96px)
-    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+    // Resting height (the textarea's own min-h-16 below) already shows
+    // ~2 lines instead of one cramped-looking line; this only needs to
+    // grow past that while typing, up to ~6 lines (~140px) before the
+    // textarea's own scrollbar takes over.
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 64), 140)}px`;
   }, []);
 
   // ---- Knowledge base: insert an article, and the /kb picker ----------
@@ -1899,7 +1902,10 @@ export function MessageComposer({
                 // The placeholder text also surfaces the read-only state.
                 title={readOnly ? t("readOnlyTitle") : undefined}
                 className={cn(
-                  "w-full resize-none rounded-xl border px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors",
+                  // min-h-16 (64px) gives a resting height of ~2 visible
+                  // lines instead of one cramped line — adjustHeight()
+                  // grows it further from there while typing.
+                  "min-h-16 w-full resize-none rounded-xl border px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors",
                   isComment
                     ? "border-amber-500/40 bg-amber-500/5 focus:border-amber-500/70"
                     : "border-border bg-muted focus:border-primary/50",

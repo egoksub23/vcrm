@@ -198,6 +198,7 @@
       "filterAll": "전체",
       "filterMine": "내 대화",
       "filterUnassigned": "미배정",
+      "filterOthers": "기타",
       "filterUnread": "읽지 않음",
       "filterOpen": "열림",
       "filterPending": "대기 중",
