@@ -1,7 +1,8 @@
 // ============================================================
 // /api/account/channels/instagram
 //   GET — connection status. PUT — set webhook verify token (admin+,
-//   write-only). DELETE — disconnect (admin+).
+//   write-only). PATCH — pause/resume, { enabled } (migration 097,
+//   admin+, leaves the token untouched). DELETE — disconnect (admin+).
 // Same shape as the Messenger route, plus ig_username.
 // ============================================================
 import { NextResponse } from 'next/server'
@@ -16,7 +17,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from('instagram_config')
-      .select('ig_username, connected_at, needs_reauth, status, comments_enabled_at')
+      .select('ig_username, connected_at, needs_reauth, status, comments_enabled_at, enabled')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -33,6 +34,7 @@ export async function GET() {
           needs_reauth: data.needs_reauth,
           status: data.status,
           comments_enabled_at: data.comments_enabled_at,
+          enabled: data.enabled,
         }
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 
@@ -82,6 +84,30 @@ export async function DELETE() {
     }
 
     return NextResponse.json({ disconnected: true })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const ctx = await requireCapability('channels.manage')
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+    if (typeof body?.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    }
+
+    const { error } = await ctx.supabase
+      .from('instagram_config')
+      .update({ enabled: body.enabled })
+      .eq('account_id', ctx.accountId)
+
+    if (error) {
+      console.error('[PATCH /api/account/channels/instagram] update error:', error)
+      return NextResponse.json({ error: 'Failed to update Instagram' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, enabled: body.enabled })
   } catch (err) {
     return toErrorResponse(err)
   }

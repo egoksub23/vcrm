@@ -3,10 +3,12 @@
 //
 //   GET    — connection status. Any member can read. Never returns
 //            the token, only { connected, page_name, connected_at,
-//            needs_reauth, status }.
+//            needs_reauth, status, enabled }.
 //   PUT    — set the webhook verify token. Admin+. Write-only, same as
 //            WhatsApp's verify_token (src/app/api/whatsapp/config/route.ts)
 //            — GET never echoes it back.
+//   PATCH  — pause/resume (migration 097), { enabled }. Admin+. Leaves
+//            the saved token/credentials untouched — distinct from DELETE.
 //   DELETE — disconnect. Admin+.
 // ============================================================
 import { NextResponse } from 'next/server'
@@ -21,7 +23,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from('messenger_config')
-      .select('page_name, connected_at, needs_reauth, status, comments_enabled_at')
+      .select('page_name, connected_at, needs_reauth, status, comments_enabled_at, enabled')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -38,6 +40,7 @@ export async function GET() {
           needs_reauth: data.needs_reauth,
           status: data.status,
           comments_enabled_at: data.comments_enabled_at,
+          enabled: data.enabled,
         }
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 
@@ -87,6 +90,30 @@ export async function DELETE() {
     }
 
     return NextResponse.json({ disconnected: true })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const ctx = await requireCapability('channels.manage')
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+    if (typeof body?.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    }
+
+    const { error } = await ctx.supabase
+      .from('messenger_config')
+      .update({ enabled: body.enabled })
+      .eq('account_id', ctx.accountId)
+
+    if (error) {
+      console.error('[PATCH /api/account/channels/messenger] update error:', error)
+      return NextResponse.json({ error: 'Failed to update Messenger' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, enabled: body.enabled })
   } catch (err) {
     return toErrorResponse(err)
   }

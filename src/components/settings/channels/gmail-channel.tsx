@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import type { GmailConnectionStatus } from '@/types';
 
 const BASE = '/api/account/channels/gmail';
@@ -113,7 +114,21 @@ export function GmailChannel() {
 
   return (
     <div>
-      <SettingsPanelHead title={t('title')} description={t('description')} />
+      <SettingsPanelHead
+        title={t('title')}
+        description={t('description')}
+        action={
+          status?.connected ? (
+            <ChannelEnabledSwitch
+              enabled={status.enabled ?? true}
+              onChange={(next) => setStatus((prev) => (prev ? { ...prev, enabled: next } : prev))}
+              patchUrl={BASE}
+              disabled={!canManageChannels}
+              idPrefix="gmail"
+            />
+          ) : undefined
+        }
+      />
 
       {status?.needs_reauth ? (
         <Card className="mb-6 border-amber-500/30 bg-amber-500/10">

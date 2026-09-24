@@ -41,10 +41,11 @@ export interface TikTokAccess {
 export async function getTikTokAccess(db: SupabaseClient, accountId: string): Promise<TikTokAccess | null> {
   const { data: cfg } = await db
     .from('tiktok_config')
-    .select('open_id, access_token, refresh_token, access_expires_at, refresh_expires_at, needs_reauth, status')
+    .select('open_id, access_token, refresh_token, access_expires_at, refresh_expires_at, needs_reauth, status, enabled')
     .eq('account_id', accountId)
     .maybeSingle()
-  if (!cfg || cfg.status !== 'connected') return null
+  // `enabled` (migration 097) is a manual pause, independent of `status`.
+  if (!cfg || cfg.status !== 'connected' || !cfg.enabled) return null
   if (cfg.needs_reauth) throw new TikTokReauthRequired()
 
   const openId = cfg.open_id as string
@@ -198,6 +199,8 @@ export async function applyTikTokCommentEvent(db: SupabaseClient, event: TikTokC
     .select('account_id')
     .eq('open_id', event.userOpenId)
     .eq('status', 'connected')
+    // Manually paused (migration 097) — ack the webhook, drop the event.
+    .eq('enabled', true)
     .maybeSingle()
   if (!cfg) return
   const accountId = cfg.account_id as string

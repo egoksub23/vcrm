@@ -10,6 +10,7 @@ import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import type { EmailConnectionStatus } from '@/types';
 
 const BASE = '/api/account/channels/email';
@@ -103,7 +104,21 @@ export function EmailChannel() {
 
   return (
     <div>
-      <SettingsPanelHead title={t('title')} description={t('description')} />
+      <SettingsPanelHead
+        title={t('title')}
+        description={t('description')}
+        action={
+          status?.connected ? (
+            <ChannelEnabledSwitch
+              enabled={status.enabled ?? true}
+              onChange={(next) => setStatus((prev) => (prev ? { ...prev, enabled: next } : prev))}
+              patchUrl={BASE}
+              disabled={!canManageChannels}
+              idPrefix="email"
+            />
+          ) : undefined
+        }
+      />
 
       {status?.needs_reauth ? (
         <Card className="mb-6 border-amber-500/30 bg-amber-500/10">

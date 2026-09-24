@@ -2769,6 +2769,11 @@
       "comingSoonBadge": "출시 예정",
       "comingSoonTitle": "{channel} 채널은 곧 제공됩니다",
       "comingSoonDescription": "이 채널은 아직 사용할 수 없습니다. WhatsApp과 웹 위젯은 지금 바로 사용할 수 있습니다.",
+      "enabled": "사용",
+      "disabled": "사용 안 함",
+      "channelEnabled": "채널 사용 설정됨",
+      "channelDisabled": "채널이 꺼져 있습니다 — 다시 켤 때까지 메시지를 주고받지 않습니다",
+      "channelToggleFailed": "변경하지 못했습니다. 다시 시도해 주세요.",
       "webWidget": {
         "title": "웹 위젯",
         "description": "웹사이트나 앱에 삽입할 수 있는 채팅 위젯 — WhatsApp이 아닌 무료 수신 채널입니다.",

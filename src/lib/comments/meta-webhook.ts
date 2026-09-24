@@ -68,6 +68,8 @@ async function processFacebook(db: SupabaseClient, entry: MetaEntryWithChanges) 
     .select('account_id, page_id, page_access_token, comments_enabled_at')
     .eq('page_id', entry.id)
     .eq('status', 'connected')
+    // Manually paused (migration 097) — same pause as the DM webhook.
+    .eq('enabled', true)
     .maybeSingle()
   if (!cfg) return
   const accountId = cfg.account_id as string
@@ -141,6 +143,8 @@ async function processInstagram(db: SupabaseClient, entry: MetaEntryWithChanges)
     .select('account_id, ig_business_account_id, page_access_token')
     .or(`ig_business_account_id.eq.${entry.id},page_id.eq.${entry.id}`)
     .eq('status', 'connected')
+    // Manually paused (migration 097) — same pause as the DM webhook.
+    .eq('enabled', true)
     .maybeSingle()
   if (!cfg) return
   const accountId = cfg.account_id as string

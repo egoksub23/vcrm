@@ -13,8 +13,8 @@ import { hasCommentChanges, processMetaCommentChanges } from './meta-webhook'
 const ACCT = 'acct-1'
 const seed = () =>
   makeFakeDb({
-    messenger_config: [{ account_id: ACCT, page_id: 'PAGE', page_access_token: 'enc-fb', status: 'connected' }],
-    instagram_config: [{ account_id: ACCT, page_id: 'PAGE', ig_business_account_id: 'IG', page_access_token: 'enc-ig', status: 'connected' }],
+    messenger_config: [{ account_id: ACCT, page_id: 'PAGE', page_access_token: 'enc-fb', status: 'connected', enabled: true }],
+    instagram_config: [{ account_id: ACCT, page_id: 'PAGE', ig_business_account_id: 'IG', page_access_token: 'enc-ig', status: 'connected', enabled: true }],
   })
 
 const fbEntry = (value: Record<string, unknown>, time = 1758300000) => ({

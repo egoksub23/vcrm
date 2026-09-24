@@ -124,6 +124,12 @@ async function processNotification(emailAddress: string, token: string) {
     console.warn('[gmail webhook] token mismatch for:', emailAddress)
     return
   }
+  // Manually paused (migration 097) — ack Pub/Sub so it doesn't retry,
+  // but don't fetch or store the message. The watch/token stay intact
+  // for when the channel is re-enabled.
+  // === false, not falsy — undefined (a row read before this column
+  // existed) means "not yet backfilled", not "paused".
+  if (config.enabled === false) return
 
   let accessToken: string
   try {

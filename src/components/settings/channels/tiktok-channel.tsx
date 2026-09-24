@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { ChannelEnabledSwitch } from './channel-enabled-switch';
 
 interface TikTokStatus {
   app_configured: boolean;
@@ -24,6 +25,8 @@ interface TikTokStatus {
   last_synced_at: string | null;
   redirect_uri: string;
   webhook_url: string;
+  /** Manual pause switch, independent of `status` (migration 097). */
+  enabled?: boolean;
 }
 
 function CopyField({ label, value, copiedMsg }: { label: string; value: string; copiedMsg: string }) {
@@ -169,7 +172,21 @@ export function TikTokChannel() {
 
   return (
     <div>
-      <SettingsPanelHead title={t('title')} description={t('description')} />
+      <SettingsPanelHead
+        title={t('title')}
+        description={t('description')}
+        action={
+          status?.connected ? (
+            <ChannelEnabledSwitch
+              enabled={status.enabled ?? true}
+              onChange={(next) => setStatus((prev) => (prev ? { ...prev, enabled: next } : prev))}
+              patchUrl="/api/account/channels/tiktok"
+              disabled={!canManageChannels}
+              idPrefix="tiktok"
+            />
+          ) : undefined
+        }
+      />
 
       {status && !status.app_configured ? (
         <Card className="mb-6 border-amber-500/30 bg-amber-500/10">

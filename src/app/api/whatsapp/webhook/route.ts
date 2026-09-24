@@ -340,6 +340,13 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
 
       const config = configRows[0]
 
+      // Manually paused (migration 097) — ack Meta so it doesn't retry,
+      // but don't store or process the message. The token/credentials
+      // stay intact for when the channel is re-enabled.
+      // === false, not falsy — undefined (a row read before this column
+      // existed) means "not yet backfilled", not "paused".
+      if (config.enabled === false) continue
+
       const decryptedAccessToken = decrypt(config.access_token)
 
       for (let i = 0; i < value.messages.length; i++) {

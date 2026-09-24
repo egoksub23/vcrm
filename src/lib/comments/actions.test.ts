@@ -47,8 +47,8 @@ const CTX = { accountId: ACCT, userId: 'agent-1' }
 function setup(opts: { provider?: 'facebook' | 'instagram' | 'tiktok'; comment?: Record<string, unknown>; isTest?: boolean } = {}) {
   const provider = opts.provider ?? 'facebook'
   const f = makeFakeDb({
-    messenger_config: [{ account_id: ACCT, page_id: 'PAGE', page_access_token: 'enc-fb', connected_by_user_id: 'owner-1', status: 'connected' }],
-    instagram_config: [{ account_id: ACCT, page_id: 'PAGE', ig_business_account_id: 'IG', page_access_token: 'enc-ig', connected_by_user_id: 'owner-1', status: 'connected' }],
+    messenger_config: [{ account_id: ACCT, page_id: 'PAGE', page_access_token: 'enc-fb', connected_by_user_id: 'owner-1', status: 'connected', enabled: true }],
+    instagram_config: [{ account_id: ACCT, page_id: 'PAGE', ig_business_account_id: 'IG', page_access_token: 'enc-ig', connected_by_user_id: 'owner-1', status: 'connected', enabled: true }],
     comment_posts: [{ id: 'post-1', account_id: ACCT, provider, channel_ref_id: 'ref', external_post_id: 'ext-post-1', source: 'organic' }],
     comments: [{
       id: 'c-1', account_id: ACCT, post_id: 'post-1', provider, external_comment_id: 'ext-c1', parent_comment_id: null,

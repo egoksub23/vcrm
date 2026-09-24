@@ -123,7 +123,7 @@ export async function GET() {
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
-      .select('phone_number_id, waba_id, access_token, status')
+      .select('phone_number_id, waba_id, access_token, status, enabled')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -224,6 +224,7 @@ export async function GET() {
       connected: true,
       phone_info: phoneInfo,
       waba_subscription: wabaSubscription,
+      enabled: config.enabled,
     })
   } catch (error) {
     console.error('Error in WhatsApp config GET:', error)
@@ -634,6 +635,60 @@ export async function DELETE() {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error in WhatsApp config DELETE:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
+ * Pause/resume WhatsApp (migration 097) without touching the saved
+ * phone_number_id/access_token — the "disable without disconnecting"
+ * toggle. Distinct from DELETE (which destroys the whole connection)
+ * and from POST (which re-registers credentials with Meta).
+ */
+export async function PATCH(request: Request) {
+  try {
+    try {
+      await requireCapability('channels.manage')
+    } catch (err) {
+      return toErrorResponse(err)
+    }
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const accountId = await resolveAccountId(supabase, user.id)
+    if (!accountId) {
+      return NextResponse.json(
+        { error: 'Your profile is not linked to an account.' },
+        { status: 403 },
+      )
+    }
+
+    const body = await request.json().catch(() => ({}))
+    if (typeof body.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    }
+
+    const { error: updateError } = await supabase
+      .from('whatsapp_config')
+      .update({ enabled: body.enabled })
+      .eq('account_id', accountId)
+
+    if (updateError) {
+      console.error('Error updating whatsapp_config.enabled:', updateError)
+      return NextResponse.json({ error: 'Failed to update configuration' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, enabled: body.enabled })
+  } catch (error) {
+    console.error('Error in WhatsApp config PATCH:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

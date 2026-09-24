@@ -3,7 +3,10 @@
 //
 //   GET    — connection status. Any member can read. Never returns
 //            tokens, only { connected, mailbox_address, connected_at,
-//            needs_reauth, status }.
+//            needs_reauth, status, enabled }.
+//   PATCH  — pause/resume, { enabled } (migration 097). Admin+. Leaves
+//            the saved token/subscription untouched — distinct from
+//            DELETE.
 //   DELETE — disconnect. Admin+. Best-effort deletes the Graph
 //            subscription too, so Microsoft stops billing/tracking a
 //            notification target that no longer has anywhere to go.
@@ -22,7 +25,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from('email_config')
-      .select('mailbox_address, connected_at, needs_reauth, status')
+      .select('mailbox_address, connected_at, needs_reauth, status, enabled')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -38,6 +41,7 @@ export async function GET() {
           connected_at: data.connected_at,
           needs_reauth: data.needs_reauth,
           status: data.status,
+          enabled: data.enabled,
         }
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 
@@ -84,6 +88,30 @@ export async function DELETE() {
     }
 
     return NextResponse.json({ disconnected: true })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const ctx = await requireCapability('channels.manage')
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+    if (typeof body?.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    }
+
+    const { error } = await ctx.supabase
+      .from('email_config')
+      .update({ enabled: body.enabled })
+      .eq('account_id', ctx.accountId)
+
+    if (error) {
+      console.error('[PATCH /api/account/channels/email] update error:', error)
+      return NextResponse.json({ error: 'Failed to update Email' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, enabled: body.enabled })
   } catch (err) {
     return toErrorResponse(err)
   }

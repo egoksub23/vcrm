@@ -72,7 +72,15 @@ async function loadMetaCreds(db: SupabaseClient, accountId: string, provider: 'f
     provider === 'facebook'
       ? 'page_id, page_access_token, connected_by_user_id'
       : 'page_id, ig_business_account_id, page_access_token, connected_by_user_id'
-  const { data } = await db.from(table).select(cols).eq('account_id', accountId).eq('status', 'connected').maybeSingle()
+  const { data } = await db
+    .from(table)
+    .select(cols)
+    .eq('account_id', accountId)
+    .eq('status', 'connected')
+    // Manually paused (migration 097) — comment actions blocked the same
+    // way an outbound message send is.
+    .eq('enabled', true)
+    .maybeSingle()
   if (!data) return null
   const row = data as unknown as Record<string, string>
   return {

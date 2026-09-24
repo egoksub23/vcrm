@@ -194,6 +194,14 @@ async function processWebhook(body: { entry?: InstagramWebhookEntry[] }) {
     }
 
     const config = configRows[0]
+
+    // Manually paused (migration 097) — ack the webhook so Meta doesn't
+    // retry, but don't store or process the message. The token stays
+    // intact for when the channel is re-enabled.
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (config.enabled === false) continue
+
     const pageAccessToken = decrypt(config.page_access_token)
 
     for (const event of entry.messaging) {

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
 import { CommentsChannelCard } from './comments-channel-card';
+import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import type { MetaChannelConnectionStatus } from '@/types';
 
 interface MetaPage {
@@ -205,7 +206,21 @@ export function MetaChannelPanel({
 
   return (
     <div>
-      <SettingsPanelHead title={t('title')} description={t('description')} />
+      <SettingsPanelHead
+        title={t('title')}
+        description={t('description')}
+        action={
+          status?.connected ? (
+            <ChannelEnabledSwitch
+              enabled={status.enabled ?? true}
+              onChange={(next) => setStatus((prev) => (prev ? { ...prev, enabled: next } : prev))}
+              patchUrl={base}
+              disabled={!canManageChannels}
+              idPrefix={channel}
+            />
+          ) : undefined
+        }
+      />
 
       {pagePicker ? (
         <Card className="mb-6">

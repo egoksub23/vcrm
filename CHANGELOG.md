@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.56.0] — 2026-09-24 — **migration required (097)**
+
+- **Every channel can now be paused without disconnecting it.** WhatsApp, Web Widget, Messenger, Instagram, Email (Microsoft 365), Gmail and TikTok comments each get a new "Enabled" switch in Settings → Channels, next to the existing connection status. Turning it off stops new inbound messages from being stored (webhooks still ack the platform, so nothing retries forever) and blocks outbound sends with a clear "currently disabled" error — but leaves the saved token/credentials completely untouched, so turning it back on resumes instantly with no reconnection or re-authorization needed. Previously the only way to pause a channel was to disconnect it, which deleted the saved credentials and meant a full reconnect (a fresh OAuth flow or re-entering WhatsApp's phone/token/PIN) to resume.
+  - This closes a real gap on the Web Widget too: agents could previously still reply into a disabled widget's conversation even though visitors were already blocked from sending — both directions are now consistently blocked.
+  - Migration 097 adds a plain `enabled` boolean (default `true`, so every existing connected channel keeps working unchanged) to `whatsapp_config`, `messenger_config`, `instagram_config`, `email_config`, `gmail_config` and `tiktok_config`. `web_widget_config` already had this column since migration 046.
+
 ## [0.55.0] — 2026-09-24
 
 - **Inbox: claim on open.** The first agent to open a still-live, unassigned conversation is now automatically assigned it — no more two agents replying to the same customer because neither realized it was unowned. It fires only for conversations with no agent yet and not already closed, and only for agents who can already manage conversations (same `conversations.manage` capability the manual assign control already requires). The underlying write is a single conditional `UPDATE ... WHERE assigned_agent_id IS NULL`, the same race-safe pattern already used for round-robin assignment — if two agents open it at the same instant, only the first one's write actually lands.

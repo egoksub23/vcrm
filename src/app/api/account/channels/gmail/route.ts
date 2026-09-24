@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await ctx.supabase
       .from('gmail_config')
-      .select('email_address, connected_at, needs_reauth, status, watch_expiration, pubsub_verify_token')
+      .select('email_address, connected_at, needs_reauth, status, watch_expiration, pubsub_verify_token, enabled')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
           status: data.status,
           pubsub_configured: !!data.watch_expiration,
           push_endpoint_url: `${getOAuthBaseUrl(request)}/api/gmail/webhook?token=${data.pubsub_verify_token}`,
+          enabled: data.enabled,
         }
       : { connected: false, needs_reauth: false, status: 'disconnected', pubsub_configured: false, push_endpoint_url: null }
 
@@ -84,6 +85,30 @@ export async function DELETE() {
     }
 
     return NextResponse.json({ disconnected: true })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const ctx = await requireCapability('channels.manage')
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+    if (typeof body?.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    }
+
+    const { error } = await ctx.supabase
+      .from('gmail_config')
+      .update({ enabled: body.enabled })
+      .eq('account_id', ctx.accountId)
+
+    if (error) {
+      console.error('[PATCH /api/account/channels/gmail] update error:', error)
+      return NextResponse.json({ error: 'Failed to update Gmail' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, enabled: body.enabled })
   } catch (err) {
     return toErrorResponse(err)
   }

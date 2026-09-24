@@ -2769,6 +2769,11 @@
       "comingSoonBadge": "Soon",
       "comingSoonTitle": "{channel} is coming soon",
       "comingSoonDescription": "This channel isn't available yet. WhatsApp and the Web Widget are ready to use today.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "channelEnabled": "Channel enabled",
+      "channelDisabled": "Channel disabled — no new messages will be received or sent until you turn it back on",
+      "channelToggleFailed": "Could not update. Try again.",
       "webWidget": {
         "title": "Web Widget",
         "description": "An embeddable chat widget for your website or app — a free, non-WhatsApp inbound channel.",

@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { SettingsPanelHead } from '../settings-panel-head';
+import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import {
   Accordion,
   AccordionItem,
@@ -114,6 +115,7 @@ export function WhatsAppConfig() {
   // a viewer's toggle would match zero rows and appear to work.
   const [mirrorMedia, setMirrorMedia] = useState(true);
   const [savingMirror, setSavingMirror] = useState(false);
+  const [channelEnabled, setChannelEnabled] = useState(true);
 
   // True once /register has succeeded on Meta's side (timestamp set
   // in the row). When false, the saved config is metadata-only and
@@ -169,6 +171,9 @@ export function WhatsAppConfig() {
         // Undefined on a row read before migration 039 — treat that as
         // on, matching the webhook's own default.
         setMirrorMedia(data.mirror_inbound_media !== false);
+        // Undefined on a row read before migration 097 — treat that as
+        // on too, matching the column's own default.
+        setChannelEnabled(data.enabled !== false);
       } else {
         setConfig(null);
         setPhoneNumberId('');
@@ -178,6 +183,7 @@ export function WhatsAppConfig() {
         setPin('');
         setTokenEdited(false);
         setMirrorMedia(true);
+        setChannelEnabled(true);
       }
       // Clear any stale probe result when reloading the row.
       setRegistrationProbe(null);
@@ -530,6 +536,17 @@ export function WhatsAppConfig() {
       <SettingsPanelHead
         title={t("title")}
         description={t("description")}
+        action={
+          config ? (
+            <ChannelEnabledSwitch
+              enabled={channelEnabled}
+              onChange={setChannelEnabled}
+              patchUrl="/api/whatsapp/config"
+              disabled={!canManageChannels}
+              idPrefix="whatsapp"
+            />
+          ) : undefined
+        }
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       {/* Main config form */}

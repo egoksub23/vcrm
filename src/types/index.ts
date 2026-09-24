@@ -793,6 +793,8 @@ export interface WhatsAppConfig {
    * inbound attachments expire. Migration 039.
    */
   mirror_inbound_media?: boolean;
+  /** Manual pause switch, independent of `status` (migration 097). */
+  enabled?: boolean;
 }
 
 export interface WebWidgetConfig {
@@ -832,6 +834,9 @@ export interface MetaChannelConnectionStatus {
   status: 'connected' | 'disconnected' | 'error';
   /** Set once the Page is subscribed to comment events (migration 074). */
   comments_enabled_at?: string | null;
+  /** Manual pause switch, independent of `status` (migration 097). Absent
+   *  (not just `false`) when there's no config row to read it from. */
+  enabled?: boolean;
 }
 
 export type MessengerConnectionStatus = MetaChannelConnectionStatus;
@@ -850,6 +855,8 @@ export interface EmailConnectionStatus {
   connected_at?: string | null;
   needs_reauth: boolean;
   status: 'connected' | 'disconnected' | 'error';
+  /** Manual pause switch, independent of `status` (migration 097). */
+  enabled?: boolean;
 }
 
 /** Gmail channel connection status — migration 058. Unlike every other
@@ -866,6 +873,8 @@ export interface GmailConnectionStatus {
   status: 'connected' | 'disconnected' | 'error';
   pubsub_configured: boolean;
   push_endpoint_url: string | null;
+  /** Manual pause switch, independent of `status` (migration 097). */
+  enabled?: boolean;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

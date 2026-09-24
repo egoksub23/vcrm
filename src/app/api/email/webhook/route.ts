@@ -125,6 +125,13 @@ async function processNotifications(body: { value?: GraphNotification[] }) {
       continue
     }
 
+    // Manually paused (migration 097) — ack Graph so it doesn't retry,
+    // but don't fetch or store the message. The subscription/token stay
+    // intact for when the channel is re-enabled.
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (config.enabled === false) continue
+
     await processMessage(config, notification.resourceData.id)
   }
 }

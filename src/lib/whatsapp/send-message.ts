@@ -331,6 +331,31 @@ export async function sendMessageToConversation(
       400
     );
   }
+  // A disabled widget (migration 097) blocks an agent's reply too — the
+  // visitor-side session/message routes already refuse a disabled
+  // widget's own visitors (src/lib/widget/visitor-auth.ts); this closes
+  // the matching gap on the agent's outbound side.
+  if (isWidgetConversation) {
+    const { data: widgetCfg, error: widgetCfgError } = await db
+      .from('web_widget_config')
+      .select('enabled')
+      .eq('account_id', accountId)
+      .maybeSingle();
+    if (widgetCfgError || !widgetCfg) {
+      throw new SendMessageError(
+        'web_widget_not_configured',
+        'The web widget is not configured. Set it up in Settings → Channels first.',
+        400
+      );
+    }
+    if (!widgetCfg.enabled) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'The web widget is currently disabled. Enable it in Settings → Channels to send messages.',
+        400
+      );
+    }
+  }
 
   // Messenger/Instagram/Email/Gmail support text + media, but none of
   // them have anything resembling WhatsApp's pre-approved HSM template
@@ -393,6 +418,15 @@ export async function sendMessageToConversation(
       throw new SendMessageError(
         'whatsapp_not_configured',
         'WhatsApp not configured. Please set up your WhatsApp integration first.',
+        400
+      );
+    }
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (configRow.enabled === false) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'WhatsApp is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
     }
@@ -704,13 +738,22 @@ export async function sendMessageToConversation(
     }
     const { data: cfg, error: cfgError } = await db
       .from('messenger_config')
-      .select('id, page_id, page_access_token')
+      .select('id, page_id, page_access_token, enabled')
       .eq('account_id', accountId)
       .single();
     if (cfgError || !cfg) {
       throw new SendMessageError(
         'messenger_not_configured',
         'Messenger is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (cfg.enabled === false) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'Messenger is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
     }
@@ -749,13 +792,22 @@ export async function sendMessageToConversation(
     }
     const { data: cfg, error: cfgError } = await db
       .from('instagram_config')
-      .select('id, ig_business_account_id, page_access_token')
+      .select('id, ig_business_account_id, page_access_token, enabled')
       .eq('account_id', accountId)
       .single();
     if (cfgError || !cfg) {
       throw new SendMessageError(
         'instagram_not_configured',
         'Instagram is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (cfg.enabled === false) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'Instagram is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
     }
@@ -805,6 +857,15 @@ export async function sendMessageToConversation(
       throw new SendMessageError(
         'email_not_configured',
         'Email is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (cfg.enabled === false) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'Email is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
     }
@@ -889,6 +950,15 @@ export async function sendMessageToConversation(
       throw new SendMessageError(
         'gmail_not_configured',
         'Gmail is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    // === false, not falsy — undefined (a row read before this column
+    // existed) means "not yet backfilled", not "paused".
+    if (cfg.enabled === false) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'Gmail is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
     }

@@ -275,6 +275,11 @@ function sendPathDb(
     emailLastInboundMessageId?: string | null;
     gmailConfig?: Record<string, unknown> | null;
     gmailLastInboundMessageId?: string | null;
+    /** whatsapp_config row — override to test e.g. `enabled: false`. */
+    whatsappConfig?: Record<string, unknown> | null;
+    /** web_widget_config row — override to test e.g. `enabled: false`.
+     *  Only queried for a web_widget conversation (migration 097). */
+    webWidgetConfig?: Record<string, unknown> | null;
   } = {},
 ): SupabaseClient {
   const conversation = {
@@ -282,28 +287,31 @@ function sendPathDb(
     contact,
     last_channel_type: channelType,
   };
-  const config = {
-    id: 'cfg-1',
-    phone_number_id: 'pn-1',
-    access_token: 'token',
-  };
+  const config =
+    'whatsappConfig' in configOverrides
+      ? configOverrides.whatsappConfig
+      : { id: 'cfg-1', phone_number_id: 'pn-1', access_token: 'token', enabled: true };
+  const webWidgetConfig =
+    'webWidgetConfig' in configOverrides
+      ? configOverrides.webWidgetConfig
+      : { id: 'wc-1', enabled: true };
   const messengerConfig =
     'messengerConfig' in configOverrides
       ? configOverrides.messengerConfig
-      : { id: 'mc-1', page_id: 'page-1', page_access_token: 'page-token' };
+      : { id: 'mc-1', page_id: 'page-1', page_access_token: 'page-token', enabled: true };
   const instagramConfig =
     'instagramConfig' in configOverrides
       ? configOverrides.instagramConfig
-      : { id: 'ic-1', ig_business_account_id: 'ig-1', page_access_token: 'page-token' };
+      : { id: 'ic-1', ig_business_account_id: 'ig-1', page_access_token: 'page-token', enabled: true };
   const emailConfig =
     'emailConfig' in configOverrides
       ? configOverrides.emailConfig
-      : { id: 'ec-1', mailbox_address: 'agent@company.com' };
+      : { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: true };
   const emailLastInboundMessageId = configOverrides.emailLastInboundMessageId ?? null;
   const gmailConfig =
     'gmailConfig' in configOverrides
       ? configOverrides.gmailConfig
-      : { id: 'gc-1', email_address: 'agent@gmail.com' };
+      : { id: 'gc-1', email_address: 'agent@gmail.com', enabled: true };
   const gmailLastInboundMessageId = configOverrides.gmailLastInboundMessageId ?? null;
   const configUpdates: Record<string, Record<string, unknown>> = {};
 
@@ -340,6 +348,9 @@ function sendPathDb(
             return lastInboundId
               ? { data: { message_id: lastInboundId }, error: null }
               : { data: null, error: null };
+          }
+          if (table === 'web_widget_config') {
+            return { data: webWidgetConfig, error: null };
           }
           return { data: null, error: null };
         },
@@ -1459,5 +1470,87 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
     expect(captured.message).toBeDefined();
     expect('send_payload' in (captured.message as object)).toBe(false);
     expect(captured.message?.status).toBe('sent');
+  });
+});
+
+// ============================================================
+// "Disable without disconnecting" (migration 097) — a channel with
+// enabled: false blocks outbound sends with a clear, dedicated error
+// while leaving its saved credentials untouched. One regression per
+// channel, mirroring each channel's own "not configured" test above
+// but with a config ROW present and enabled: false, rather than no
+// config row at all.
+// ============================================================
+describe('sendMessageToConversation — disabled channel (migration 097)', () => {
+  it('blocks a WhatsApp send when whatsapp_config.enabled is false', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, undefined, 'whatsapp', {
+      whatsappConfig: { id: 'cfg-1', phone_number_id: 'pn-1', access_token: 'token', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/WhatsApp is currently disabled/);
+    await sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }).catch(
+      (e: SendMessageError) => {
+        expect(e.code).toBe('channel_disabled');
+        expect(e.status).toBe(400);
+      }
+    );
+    expect(captured.message).toBeUndefined();
+  });
+
+  it('blocks a web widget send when web_widget_config.enabled is false — closes the agent-side outbound gap', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', widget_visitor_id: 'v-1' }, 'web_widget', {
+      webWidgetConfig: { id: 'wc-1', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/web widget is currently disabled/);
+    expect(captured.message).toBeUndefined();
+  });
+
+  it('blocks a Messenger send when messenger_config.enabled is false', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', messenger_psid: 'psid-1' }, 'messenger', {
+      messengerConfig: { id: 'mc-1', page_id: 'page-1', page_access_token: 'page-token', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/Messenger is currently disabled/);
+    expect(sendMessengerText).not.toHaveBeenCalled();
+  });
+
+  it('blocks an Instagram send when instagram_config.enabled is false', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', instagram_igsid: 'igsid-1' }, 'instagram', {
+      instagramConfig: { id: 'ic-1', ig_business_account_id: 'ig-1', page_access_token: 'page-token', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/Instagram is currently disabled/);
+    expect(sendInstagramText).not.toHaveBeenCalled();
+  });
+
+  it('blocks an Email send when email_config.enabled is false', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email', {
+      emailConfig: { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/Email is currently disabled/);
+    expect(sendNewMail).not.toHaveBeenCalled();
+  });
+
+  it('blocks a Gmail send when gmail_config.enabled is false', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail', {
+      gmailConfig: { id: 'gc-1', email_address: 'agent@gmail.com', enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/Gmail is currently disabled/);
+    expect(sendNewGmailMock).not.toHaveBeenCalled();
   });
 });
