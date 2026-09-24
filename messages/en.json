@@ -7117,13 +7117,45 @@
       "joinChannel": "Join channel",
       "joinFailed": "Could not join the channel. Try again.",
       "sendFailed": "Could not send the message. Try again.",
-      "removeMessageFailed": "Could not remove the message. Try again."
+      "removeMessageFailed": "Could not remove the message. Try again.",
+      "edited": "(edited)",
+      "replyInThread": "Reply in thread",
+      "replyCount": "{count, plural, =1 {# reply} other {# replies}}",
+      "lastReply": "last reply {time}",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinFailed": "Could not pin the message. Try again.",
+      "unpinFailed": "Could not unpin the message. Try again.",
+      "addToTasks": "Add to tasks",
+      "addedToTasks": "Added to tasks",
+      "addToTasksFailed": "Could not add to tasks. Try again.",
+      "edit": "Edit",
+      "editSave": "Save",
+      "editCancel": "Cancel",
+      "editFailed": "Could not save the edit. Try again.",
+      "deleteOwn": "Delete",
+      "reactFailed": "Could not react. Try again.",
+      "reactedByCount": "{count, plural, =1 {1 reaction} other {# reactions}}",
+      "pinnedButton": "Pinned · {count}",
+      "tasksButton": "Tasks · {count} open",
+      "startMeeting": "Start a meeting",
+      "meetingMessage": "Meeting started: {url}",
+      "searchAriaLabel": "Search messages",
+      "searchPlaceholder": "Search messages…",
+      "searchNoResults": "No matches",
+      "searchFailed": "Search failed. Try again.",
+      "editTopicAriaLabel": "Edit topic",
+      "topicPlaceholder": "Add a topic…",
+      "topicSave": "Save topic",
+      "topicCancel": "Cancel editing topic",
+      "topicSaveFailed": "Could not update the topic. Try again."
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",
       "uploadFailed": "Upload failed. Try again.",
       "removeAttachmentAriaLabel": "Remove {filename}",
       "attachAriaLabel": "Attach a file",
+      "codeBlockAriaLabel": "Insert code block",
       "inputAriaLabel": "Message",
       "placeholder": "Message #{channel}",
       "sendAriaLabel": "Send message"
@@ -7142,6 +7174,32 @@
       "removeFailed": "Could not remove them. Try again.",
       "privateAddCaption": "Only moderators and admins can add people to this private channel.",
       "addPartialFailed": "{count, plural, =1 {Could not add 1 of them. Try again.} other {Could not add # of them. Try again.}}"
+    },
+    "threadPanel": {
+      "title": "Thread",
+      "loadFailed": "Could not load this thread.",
+      "noReplies": "No replies yet. Start the conversation."
+    },
+    "pinsPanel": {
+      "title": "Pinned messages",
+      "empty": "No pinned messages yet.",
+      "unknownAuthor": "Unknown",
+      "pinnedBy": "Pinned by {name}",
+      "unpin": "Unpin"
+    },
+    "tasksPanel": {
+      "title": "Tasks",
+      "addPlaceholder": "Add a task…",
+      "addTask": "Add task",
+      "openSection": "Open · {count}",
+      "doneSection": "Completed · {count}",
+      "noOpenTasks": "No open tasks.",
+      "due": "Due {date}",
+      "deleteTask": "Delete task",
+      "footerNote": "Tasks stay inside Sembang for now — turning one into a Ticket is on the roadmap.",
+      "createFailed": "Could not add the task. Try again.",
+      "updateFailed": "Could not update the task. Try again.",
+      "deleteFailed": "Could not delete the task. Try again."
     }
   }
 }

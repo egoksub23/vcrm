@@ -1,34 +1,66 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  FileText,
+  Check,
+  CheckSquare,
   Hash,
   Loader2,
   Lock,
+  Pencil,
+  Pin,
+  Search as SearchIcon,
   Users,
+  Video,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PersonAvatar } from "@/components/tickets/ticket-visuals";
-import { highlightMentions } from "@/lib/tickets/mention-highlight";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { hasMinRole } from "@/lib/auth/roles";
+import { cn } from "@/lib/utils";
 import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
 import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
 import { MembersPanel } from "./members-panel";
-import type { SembangChannel, SembangMember, SembangMessage } from "@/types";
+import { MessageRow } from "./message-row";
+import { ThreadPanel } from "./thread-panel";
+import { PinsPanel } from "./pins-panel";
+import { TasksPanel } from "./tasks-panel";
+import type {
+  SembangChannel,
+  SembangMember,
+  SembangMessage,
+  SembangPin,
+  SembangReactionSummary,
+  SembangTask,
+  SembangTaskStatus,
+} from "@/types";
 
 const MESSAGES_PAGE_SIZE = 50;
+const MEETING_URL = "https://meet.google.com/new";
+const SEARCH_DEBOUNCE_MS = 300;
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/** Bolds the first case-insensitive match of `query` inside `text` — used
+ *  for the search popover's result snippets (server does no ranking or
+ *  highlighting, per SPEC-P1.md's frontend item 8). */
+function boldMatch(text: string, query: string): ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <strong className="font-semibold text-foreground">{text.slice(idx, idx + q.length)}</strong>
+      {text.slice(idx + q.length)}
+    </>
+  );
 }
 
 interface ChannelThreadProps {
@@ -43,6 +75,7 @@ interface ChannelThreadProps {
 
 export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThreadProps) {
   const t = useTranslations("Sembang.thread");
+  const tTasksPanel = useTranslations("Sembang.tasksPanel");
   const { user, accountRole } = useAuth();
   const { members: accountMembers } = useAccountMembers();
 
@@ -56,6 +89,27 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
   const [members, setMembers] = useState<SembangMember[] | null>(null);
   const [membersPanelOpen, setMembersPanelOpen] = useState(false);
   const [joining, setJoining] = useState(false);
+
+  // ---- P1: pins / tasks / thread / search / topic editing --------------
+  const [pins, setPins] = useState<SembangPin[] | null>(null);
+  const [pinsPanelOpen, setPinsPanelOpen] = useState(false);
+  const [unpinningId, setUnpinningId] = useState<string | null>(null);
+
+  const [tasks, setTasks] = useState<SembangTask[] | null>(null);
+  const [tasksPanelOpen, setTasksPanelOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+
+  const [threadParent, setThreadParent] = useState<SembangMessage | null>(null);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SembangMessage[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [topicDraft, setTopicDraft] = useState("");
+  const [savingTopic, setSavingTopic] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
@@ -91,6 +145,12 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
     };
   }, [channelId]);
 
+  useEffect(() => {
+    setEditingTopic(false);
+    setThreadParent(null);
+    setSearchOpen(false);
+  }, [channelId]);
+
   // ---- Members -----------------------------------------------------------
   const fetchMembers = useCallback(async () => {
     if (!channelId) return;
@@ -107,6 +167,38 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
     setMembers(null);
     void fetchMembers();
   }, [fetchMembers]);
+
+  // ---- Pins / tasks --------------------------------------------------------
+  const fetchPins = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const res = await fetch(`/api/sembang/channels/${channelId}/pins`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setPins((data.pins as SembangPin[]) ?? []);
+    } catch {
+      // Best-effort — the Pinned button/panel just stays at its last value.
+    }
+  }, [channelId]);
+
+  const fetchTasks = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const res = await fetch(`/api/sembang/channels/${channelId}/tasks`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setTasks((data.tasks as SembangTask[]) ?? []);
+    } catch {
+      // Best-effort — the Tasks button/panel just stays at its last value.
+    }
+  }, [channelId]);
+
+  useEffect(() => {
+    setPins(null);
+    setTasks(null);
+    void fetchPins();
+    void fetchTasks();
+  }, [fetchPins, fetchTasks]);
+
+  const pinnedMessageIds = useMemo(() => new Set((pins ?? []).map((p) => p.messageId)), [pins]);
 
   // ---- Messages -----------------------------------------------------------
   const fetchMessages = useCallback(
@@ -186,12 +278,29 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // ---- Realtime: new messages / soft-deletes in this channel -----------
+  // ---- Realtime: messages (+ replies), reactions, pins, tasks ------------
   useSembangChannelRealtime({
     channelId,
     onMessageEvent: (event) => {
       if (event.eventType === "INSERT") {
         const row = event.new;
+        if (row.parent_message_id) {
+          // A reply to a top-level message — replies never show inline
+          // (see the backend's `.is('parent_message_id', null)` filter),
+          // so just keep the "N replies" affordance live. Our own reply is
+          // bumped by `handleReplyPosted` instead, mirroring the existing
+          // "skip self-authored inserts" convention below (the realtime
+          // payload has no author/reactions join to render with either way).
+          if (row.author_id === user?.id) return;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === row.parent_message_id
+                ? { ...m, replyCount: (m.replyCount ?? 0) + 1, lastReplyAt: row.created_at }
+                : m,
+            ),
+          );
+          return;
+        }
         // Our own sends are appended straight from the POST response;
         // only refetch for messages that arrived from someone else (the
         // realtime payload has no author/attachments join to render with).
@@ -203,10 +312,35 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
         const row = event.new;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === row.id ? { ...m, deletedAt: row.deleted_at, deletedBy: row.deleted_by } : m,
+            m.id === row.id
+              ? {
+                  ...m,
+                  body: row.body,
+                  editedAt: row.edited_at ?? m.editedAt,
+                  deletedAt: row.deleted_at,
+                  deletedBy: row.deleted_by,
+                }
+              : m,
           ),
         );
       }
+    },
+    onReactionEvent: (event) => {
+      const row = event.eventType === "DELETE" ? event.old : event.new;
+      const messageId = row?.message_id;
+      const actorId = row?.user_id;
+      if (!messageId || actorId === user?.id) return; // our own toggle already patched local state
+      if (messages.some((m) => m.id === messageId)) {
+        void fetchMessages()
+          .then(mergeMessages)
+          .catch(() => {});
+      }
+    },
+    onPinEvent: () => {
+      void fetchPins();
+    },
+    onTaskEvent: () => {
+      void fetchTasks();
     },
   });
 
@@ -255,9 +389,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
     }
   }, [channelId, user?.id, joining, t, fetchMembers]);
 
-  // ---- Send / remove message ---------------------------------------------
+  // ---- Send / edit / remove message ---------------------------------------
   const handleSendMessage = useCallback(
-    async (body: string, mentions: string[], attachments: PendingSembangAttachment[]): Promise<boolean> => {
+    async (
+      body: string,
+      mentions: string[],
+      attachments: PendingSembangAttachment[],
+      parentMessageId?: string,
+    ): Promise<boolean> => {
       if (!channelId) return false;
       try {
         const res = await fetch(`/api/sembang/channels/${channelId}/messages`, {
@@ -267,6 +406,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
             body,
             mentions,
             attachments: attachments.length > 0 ? attachments : undefined,
+            parentMessageId,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -289,37 +429,325 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
     [channelId, t, fetchMessages, mergeMessages],
   );
 
-  const handleRemoveMessage = useCallback(
-    async (messageId: string) => {
-      if (!channelId) return;
+  /** action: 'edit' — author-only, PATCH .../messages/[id]. Resolves to the
+   *  updated message on success so callers (this list, and thread-panel.tsx
+   *  for the same message shown in an open thread) can patch local state. */
+  const handleEditMessage = useCallback(
+    async (messageId: string, body: string): Promise<SembangMessage | null> => {
+      if (!channelId) return null;
       try {
         const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}`, {
           method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "edit", body }),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          toast.error(data?.error || t("removeMessageFailed"));
-          return;
+          toast.error(data?.error || t("editFailed"));
+          return null;
         }
+        const updated = data.message as SembangMessage | undefined;
+        if (updated) setMessages((prev) => prev.map((m) => (m.id === messageId ? updated : m)));
+        return updated ?? null;
+      } catch {
+        toast.error(t("editFailed"));
+        return null;
+      }
+    },
+    [channelId, t],
+  );
+
+  /** action: 'remove' — soft-delete. Works for either the author deleting
+   *  their own message or a moderator/admin removing someone else's; RLS
+   *  (migration 099) sorts out which policy applied, this just attempts the
+   *  PATCH and surfaces a 403 if neither matched. */
+  const handleRemoveMessage = useCallback(
+    async (messageId: string): Promise<SembangMessage | null> => {
+      if (!channelId) return null;
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "remove" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || t("removeMessageFailed"));
+          return null;
+        }
+        const updated = data.message as SembangMessage | undefined;
+        if (updated) {
+          setMessages((prev) => prev.map((m) => (m.id === messageId ? updated : m)));
+          return updated;
+        }
+        // Fallback for a route that doesn't echo the message back.
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === messageId
-              ? { ...m, deletedAt: new Date().toISOString(), deletedBy: user?.id ?? null }
-              : m,
+            m.id === messageId ? { ...m, deletedAt: new Date().toISOString(), deletedBy: user?.id ?? null } : m,
           ),
         );
+        return null;
       } catch {
         toast.error(t("removeMessageFailed"));
+        return null;
       }
     },
     [channelId, t, user?.id],
   );
+
+  // ---- Reactions -----------------------------------------------------------
+  const handleReact = useCallback(
+    async (messageId: string, emoji: string): Promise<SembangReactionSummary[] | null> => {
+      if (!channelId) return null;
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}/reactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emoji }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || t("reactFailed"));
+          return null;
+        }
+        const reactions = (data.reactions as SembangReactionSummary[]) ?? [];
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+        return reactions;
+      } catch {
+        toast.error(t("reactFailed"));
+        return null;
+      }
+    },
+    [channelId, t],
+  );
+
+  // ---- Pins -----------------------------------------------------------
+  const handleTogglePin = useCallback(
+    async (message: SembangMessage, pinned: boolean) => {
+      if (!channelId) return;
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${message.id}/pin`, {
+          method: pinned ? "DELETE" : "POST",
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data?.error || (pinned ? t("unpinFailed") : t("pinFailed")));
+          return;
+        }
+        void fetchPins();
+      } catch {
+        toast.error(pinned ? t("unpinFailed") : t("pinFailed"));
+      }
+    },
+    [channelId, t, fetchPins],
+  );
+
+  const handleUnpinFromPanel = useCallback(
+    async (messageId: string) => {
+      if (!channelId || unpinningId) return;
+      setUnpinningId(messageId);
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}/pin`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data?.error || t("unpinFailed"));
+          return;
+        }
+        setPins((prev) => (prev ?? []).filter((p) => p.messageId !== messageId));
+      } catch {
+        toast.error(t("unpinFailed"));
+      } finally {
+        setUnpinningId(null);
+      }
+    },
+    [channelId, unpinningId, t],
+  );
+
+  // ---- Tasks -----------------------------------------------------------
+  const handleAddToTask = useCallback(
+    async (message: SembangMessage) => {
+      if (!channelId) return;
+      const title = message.body.length > 80 ? `${message.body.slice(0, 80)}…` : message.body;
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, messageId: message.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || t("addToTasksFailed"));
+          return;
+        }
+        const task = data.task as SembangTask | undefined;
+        if (task) setTasks((prev) => [...(prev ?? []), task]);
+        setTasksPanelOpen(true);
+        toast.success(t("addedToTasks"));
+      } catch {
+        toast.error(t("addToTasksFailed"));
+      }
+    },
+    [channelId, t],
+  );
+
+  const handleCreateTask = useCallback(
+    async (title: string) => {
+      if (!channelId) return;
+      setCreatingTask(true);
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || tTasksPanel("createFailed"));
+          return;
+        }
+        const task = data.task as SembangTask | undefined;
+        if (task) setTasks((prev) => [...(prev ?? []), task]);
+      } catch {
+        toast.error(tTasksPanel("createFailed"));
+      } finally {
+        setCreatingTask(false);
+      }
+    },
+    [channelId, tTasksPanel],
+  );
+
+  const handleToggleTaskStatus = useCallback(
+    async (task: SembangTask) => {
+      if (!channelId) return;
+      const nextStatus: SembangTaskStatus = task.status === "open" ? "done" : "open";
+      // Optimistic: flip immediately, revert on failure.
+      setTasks((prev) => (prev ?? []).map((tk) => (tk.id === task.id ? { ...tk, status: nextStatus } : tk)));
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/tasks/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "failed");
+        const updated = data.task as SembangTask | undefined;
+        if (updated) setTasks((prev) => (prev ?? []).map((tk) => (tk.id === task.id ? updated : tk)));
+      } catch {
+        setTasks((prev) => (prev ?? []).map((tk) => (tk.id === task.id ? task : tk)));
+        toast.error(tTasksPanel("updateFailed"));
+      }
+    },
+    [channelId, tTasksPanel],
+  );
+
+  const handleDeleteTask = useCallback(
+    async (taskId: string) => {
+      if (!channelId || deletingTaskId) return;
+      setDeletingTaskId(taskId);
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/tasks/${taskId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data?.error || tTasksPanel("deleteFailed"));
+          return;
+        }
+        setTasks((prev) => (prev ?? []).filter((tk) => tk.id !== taskId));
+      } catch {
+        toast.error(tTasksPanel("deleteFailed"));
+      } finally {
+        setDeletingTaskId(null);
+      }
+    },
+    [channelId, deletingTaskId, tTasksPanel],
+  );
+
+  // ---- Thread -----------------------------------------------------------
+  const handleOpenThread = useCallback((message: SembangMessage) => {
+    setThreadParent(message);
+  }, []);
+
+  const handleReplyPosted = useCallback((parentId: string, reply: SembangMessage) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === parentId ? { ...m, replyCount: (m.replyCount ?? 0) + 1, lastReplyAt: reply.createdAt } : m,
+      ),
+    );
+  }, []);
+
+  // ---- Meeting quick link -------------------------------------------------
+  const handleStartMeeting = useCallback(async () => {
+    await handleSendMessage(t("meetingMessage", { url: MEETING_URL }), [], []);
+  }, [handleSendMessage, t]);
+
+  // ---- Search (within this channel) ---------------------------------------
+  useEffect(() => {
+    if (!searchOpen) {
+      setSearchQuery("");
+      setSearchResults(null);
+      setSearching(false);
+    }
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen || !channelId) return;
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const id = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/sembang/channels/${channelId}/messages?q=${encodeURIComponent(q)}`,
+          { cache: "no-store" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "search failed");
+        setSearchResults((data.messages as SembangMessage[]) ?? []);
+      } catch {
+        toast.error(t("searchFailed"));
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchOpen, channelId, searchQuery, t]);
+
+  // ---- Topic editing ---------------------------------------------------
+  const handleTopicSave = useCallback(async () => {
+    if (!channelId || savingTopic) return;
+    setSavingTopic(true);
+    try {
+      const res = await fetch(`/api/sembang/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: topicDraft }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || t("topicSaveFailed"));
+        return;
+      }
+      setChannel(data.channel as SembangChannel);
+      setEditingTopic(false);
+    } catch {
+      toast.error(t("topicSaveFailed"));
+    } finally {
+      setSavingTopic(false);
+    }
+  }, [channelId, savingTopic, topicDraft, t]);
 
   const peopleNames = useMemo(() => accountMembers.map((m) => m.full_name), [accountMembers]);
 
   const canManageMembers = channel?.memberRole === "moderator" || hasMinRole(accountRole ?? "viewer", "admin");
   const canRemoveMessages = canManageMembers;
   const isMember = !!channel?.memberRole;
+  const openTaskCount = (tasks ?? []).filter((tk) => tk.status === "open").length;
 
   // ---- Empty state: no channel selected ----------------------------------
   if (!channelId) {
@@ -356,14 +784,140 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
           )}
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{channel?.name ?? "…"}</p>
-            <p className="truncate text-xs text-muted-foreground">{channel?.topic || t("noTopic")}</p>
+            {editingTopic ? (
+              <div className="mt-0.5 flex items-center gap-1">
+                <Input
+                  autoFocus
+                  value={topicDraft}
+                  onChange={(e) => setTopicDraft(e.target.value)}
+                  placeholder={t("topicPlaceholder")}
+                  aria-label={t("editTopicAriaLabel")}
+                  className="h-6 text-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void handleTopicSave();
+                    } else if (e.key === "Escape") {
+                      setEditingTopic(false);
+                    }
+                  }}
+                />
+                <Button size="icon-xs" onClick={handleTopicSave} disabled={savingTopic} aria-label={t("topicSave")}>
+                  {savingTopic ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                </Button>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={() => setEditingTopic(false)}
+                  aria-label={t("topicCancel")}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={
+                  canManageMembers
+                    ? () => {
+                        setTopicDraft(channel?.topic ?? "");
+                        setEditingTopic(true);
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "group/topic flex min-w-0 items-center gap-1 text-left",
+                  canManageMembers ? "cursor-pointer" : "cursor-default",
+                )}
+              >
+                <span className="truncate text-xs text-muted-foreground">{channel?.topic || t("noTopic")}</span>
+                {canManageMembers && (
+                  <Pencil
+                    className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover/topic:opacity-100"
+                    aria-hidden
+                  />
+                )}
+              </button>
+            )}
           </div>
         </div>
         {channel && (
-          <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
-            <Users className="h-4 w-4" />
-            {t("membersButton", { count: members?.length ?? 0 })}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setPinsPanelOpen(true)}>
+              <Pin className="h-4 w-4" />
+              {t("pinnedButton", { count: pins?.length ?? 0 })}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setTasksPanelOpen(true)}>
+              <CheckSquare className="h-4 w-4" />
+              {t("tasksButton", { count: openTaskCount })}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label={t("startMeeting")}
+              title={t("startMeeting")}
+              onClick={handleStartMeeting}
+            >
+              <Video className="h-4 w-4" />
+            </Button>
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger
+                aria-label={t("searchAriaLabel")}
+                title={t("searchAriaLabel")}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
+              >
+                <SearchIcon className="h-4 w-4" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 gap-2 p-2.5">
+                <Input
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t("searchPlaceholder")}
+                  aria-label={t("searchPlaceholder")}
+                  className="h-8"
+                />
+                <div className="max-h-72 overflow-y-auto">
+                  {searching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    </div>
+                  ) : searchResults === null ? null : searchResults.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">{t("searchNoResults")}</p>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      {searchResults.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          // Jumping to the message in its full history is
+                          // deferred past P1 (SPEC-P1.md's frontend item
+                          // 8) — closing the popover is the whole
+                          // interaction for now.
+                          onClick={() => setSearchOpen(false)}
+                          className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-xs font-semibold text-foreground">
+                              {m.author?.fullName ?? t("unknownAuthor")}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                              {format(new Date(m.createdAt), "MMM d, HH:mm")}
+                            </span>
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground">{boldMatch(m.body, searchQuery)}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
+              <Users className="h-4 w-4" />
+              {t("membersButton", { count: members?.length ?? 0 })}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -399,70 +953,23 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
               <p className="text-sm text-muted-foreground">{t("noMessages")}</p>
             </div>
           ) : (
-            messages.map((m) => {
-              const isDeleted = !!m.deletedAt;
-              return (
-                <div
-                  key={m.id}
-                  className="group flex gap-2.5 px-3 py-1.5 hover:bg-muted/30 sm:px-4"
-                >
-                  <PersonAvatar name={m.author?.fullName} avatarUrl={m.author?.avatarUrl} size="md" className="mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="truncate text-sm font-semibold text-foreground">
-                        {m.author?.fullName ?? t("unknownAuthor")}
-                      </span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {format(new Date(m.createdAt), "HH:mm")}
-                      </span>
-                    </div>
-                    {isDeleted ? (
-                      <p className="text-sm text-muted-foreground italic">{t("messageRemoved")}</p>
-                    ) : (
-                      <>
-                        <p className="text-sm whitespace-pre-wrap break-words text-foreground">
-                          {highlightMentions(m.body, peopleNames, []).map((seg, i) =>
-                            seg.kind === "text" ? (
-                              <span key={i}>{seg.text}</span>
-                            ) : (
-                              <span key={i} className="rounded-sm bg-primary/15 px-0.5">
-                                {seg.text}
-                              </span>
-                            ),
-                          )}
-                        </p>
-                        {m.attachments.length > 0 && (
-                          <div className="mt-1 flex flex-col gap-1">
-                            {m.attachments.map((a) => (
-                              <a
-                                key={a.id}
-                                href={a.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex w-fit items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted"
-                              >
-                                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                                <span className="max-w-56 truncate">{a.filename}</span>
-                                <span className="text-muted-foreground">{formatBytes(a.sizeBytes)}</span>
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isDeleted && canRemoveMessages && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMessage(m.id)}
-                      className="shrink-0 self-start text-xs text-destructive opacity-0 group-hover:opacity-100 hover:underline"
-                    >
-                      {t("removeMessage")}
-                    </button>
-                  )}
-                </div>
-              );
-            })
+            messages.map((m) => (
+              <MessageRow
+                key={m.id}
+                message={m}
+                currentUserId={user?.id}
+                peopleNames={peopleNames}
+                isPinned={pinnedMessageIds.has(m.id)}
+                canRemoveOthers={canRemoveMessages}
+                onReplyInThread={handleOpenThread}
+                onOpenThread={handleOpenThread}
+                onReact={handleReact}
+                onTogglePin={handleTogglePin}
+                onEdit={handleEditMessage}
+                onRemove={handleRemoveMessage}
+                onAddToTask={handleAddToTask}
+              />
+            ))
           )}
         </div>
       )}
@@ -479,15 +986,54 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
       ) : null}
 
       {channel && (
-        <MembersPanel
-          open={membersPanelOpen}
-          onOpenChange={setMembersPanelOpen}
-          channelId={channel.id}
-          isPrivate={channel.isPrivate}
-          canManage={canManageMembers}
-          members={members}
-          onMembersChange={setMembers}
-        />
+        <>
+          <MembersPanel
+            open={membersPanelOpen}
+            onOpenChange={setMembersPanelOpen}
+            channelId={channel.id}
+            isPrivate={channel.isPrivate}
+            canManage={canManageMembers}
+            members={members}
+            onMembersChange={setMembers}
+          />
+          <ThreadPanel
+            open={!!threadParent}
+            onOpenChange={(open) => {
+              if (!open) setThreadParent(null);
+            }}
+            channelId={channel.id}
+            channelName={channel.name}
+            parentMessageId={threadParent?.id ?? null}
+            currentUserId={user?.id}
+            peopleNames={peopleNames}
+            canRemoveMessages={canRemoveMessages}
+            pinnedMessageIds={pinnedMessageIds}
+            onReact={handleReact}
+            onTogglePin={handleTogglePin}
+            onEditMessage={handleEditMessage}
+            onRemoveMessage={handleRemoveMessage}
+            onAddToTask={handleAddToTask}
+            onReplyPosted={handleReplyPosted}
+          />
+          <PinsPanel
+            open={pinsPanelOpen}
+            onOpenChange={setPinsPanelOpen}
+            pins={pins}
+            peopleNames={peopleNames}
+            onUnpin={handleUnpinFromPanel}
+            unpinningId={unpinningId}
+          />
+          <TasksPanel
+            open={tasksPanelOpen}
+            onOpenChange={setTasksPanelOpen}
+            tasks={tasks}
+            onCreate={handleCreateTask}
+            onToggleStatus={handleToggleTaskStatus}
+            onDelete={handleDeleteTask}
+            creating={creatingTask}
+            deletingId={deletingTaskId}
+          />
+        </>
       )}
     </div>
   );

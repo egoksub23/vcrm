@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.58.0] — 2026-09-24 — **migration required (099)**
+
+- **Sembang P1: threads, reactions, pins, edit/delete your own message, code blocks, and a task list.** Builds on 0.57.0's P0 channels/moderation/mentions.
+  - **Threaded replies** — flat, one level (no threads-on-threads, same as Slack). A top-level message shows a "N replies" affordance that opens a thread panel.
+  - **Emoji reactions** — click-to-toggle pills under a message, reusing the existing emoji picker (no new picker/library).
+  - **Pinned messages** — any channel member can pin; unpinning is the pinner, a moderator, or an admin. A "Pinned · N" panel in the channel header.
+  - **Edit / delete your own message** — alongside the existing moderator "Remove" from P0. An edited message shows a small "(edited)" marker.
+  - **Code blocks with syntax highlighting** — fenced ` ```lang ` blocks in a message body render highlighted (new `highlight.js` dependency, Sembang-only — no other editor in the app changed).
+  - **Per-channel task list** — a standalone todo list (open/done, assignee, due date), optionally created from a message; deliberately has no link to the Tickets module (per the requirements doc's decision — "turning a task into a Ticket" stays on the roadmap). Assigning a task to someone else notifies them.
+  - **"Start a meeting"** — posts a fresh `meet.google.com/new` link to the channel (no calendar integration — that's still roadmap).
+  - **Search** within the open channel's message history.
+  - **Channel topic editing** from the header (the P0 API route already supported it; P1 adds the UI).
+  - Migration 099 adds `parent_message_id`/`edited_at` to `sembang_messages`, `sembang_reactions`, `sembang_pins`, `sembang_tasks`, a `sembang_task_assigned` notification type, and the RLS/triggers backing all of the above — including a server-side immutability guard on both `sembang_messages` and `sembang_tasks` so an edit can never rewrite a message's channel/author/creation-time, and a trigger that stamps task completion from the real actor rather than trusting whatever the client sends.
+
 ## [0.57.0] — 2026-09-24 — **migration required (098)**
 
 - **Sembang: internal team chat (P0).** A new, separate "Sembang" menu item — Slack-style channels for internal engineering/team coordination, deliberately walled off from the customer-facing Inbox (its own tables, no foreign keys into `conversations`/`messages`/`tickets`). Public or private channels, @mentions with notifications, file attachments, and per-channel unread counts, on the same mobile list/thread collapse pattern as the Inbox. Any member with Sembang access can create a channel; the creator automatically becomes its **moderator** (can remove messages, and — for private channels — add members); account admins can see and moderate every channel regardless of membership.

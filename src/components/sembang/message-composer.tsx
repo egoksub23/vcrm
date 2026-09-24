@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Paperclip, Send, X } from "lucide-react";
+import { Code2, Loader2, Paperclip, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MentionTextarea, type MentionTextareaHandle } from "@/components/tickets/ticket-mention-textarea";
@@ -23,8 +23,13 @@ interface MessageComposerProps {
     body: string,
     mentions: string[],
     attachments: PendingSembangAttachment[],
+    parentMessageId?: string,
   ) => Promise<boolean> | boolean;
   disabled?: boolean;
+  /** Migration 099. Set when this composer posts thread replies instead of
+   *  top-level channel messages (thread-panel.tsx) — threaded through to
+   *  every `onSend` call so one handler can serve both cases. */
+  parentMessageId?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -36,7 +41,13 @@ function formatBytes(bytes: number): string {
 /** Wraps `MentionTextarea` with an attach-file button and a send button.
  *  Auto-grow behavior mirrors the Inbox composer's `min-h-16` convention
  *  (adjustHeight: grow from ~2 lines up to ~6 before scrolling). */
-export function MessageComposer({ channelId, channelName, onSend, disabled }: MessageComposerProps) {
+export function MessageComposer({
+  channelId,
+  channelName,
+  onSend,
+  disabled,
+  parentMessageId,
+}: MessageComposerProps) {
   const t = useTranslations("Sembang.composer");
   const { members } = useAccountMembers();
 
@@ -99,7 +110,7 @@ export function MessageComposer({ channelId, channelName, onSend, disabled }: Me
     if ((!trimmed && attachments.length === 0) || sending || uploading) return;
     setSending(true);
     try {
-      const ok = await onSend(trimmed, Array.from(mentionedIds), attachments);
+      const ok = await onSend(trimmed, Array.from(mentionedIds), attachments, parentMessageId);
       if (ok !== false) {
         setText("");
         setMentionedIds(new Set());
@@ -108,7 +119,17 @@ export function MessageComposer({ channelId, channelName, onSend, disabled }: Me
     } finally {
       setSending(false);
     }
-  }, [text, attachments, mentionedIds, sending, uploading, onSend]);
+  }, [text, attachments, mentionedIds, sending, uploading, onSend, parentMessageId]);
+
+  // Code-block button: `MentionTextareaHandle` only exposes `focus()`, not
+  // a cursor/selection API, so this wraps the whole current draft in a
+  // fence rather than inserting at the caret — see SPEC-P1.md's frontend
+  // item 5 ("don't block on making this pixel-perfect"). A manually-typed
+  // fence still renders correctly either way.
+  const handleInsertCodeFence = useCallback(() => {
+    setText((prev) => (prev.trim() ? "```\n" + prev + "\n```" : "```\n\n```"));
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
 
   return (
     <div className="border-t border-border bg-card p-3.5">
@@ -153,6 +174,18 @@ export function MessageComposer({ channelId, channelName, onSend, disabled }: Me
           className="mb-0.5 shrink-0"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t("codeBlockAriaLabel")}
+          title={t("codeBlockAriaLabel")}
+          onClick={handleInsertCodeFence}
+          disabled={disabled}
+          className="mb-0.5 shrink-0"
+        >
+          <Code2 className="h-4 w-4" />
         </Button>
 
         <div className="min-w-0 flex-1">

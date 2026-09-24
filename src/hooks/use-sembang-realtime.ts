@@ -29,9 +29,49 @@ export interface SembangMessageRow {
   author_id: string;
   body: string;
   mentions: string[];
+  // Migration 099 columns.
+  parent_message_id?: string | null;
+  edited_at?: string | null;
   deleted_at: string | null;
   deleted_by: string | null;
   created_at: string;
+}
+
+/** Migration 099. No `channel_id` column on this table — a reaction row
+ *  only carries `message_id`, so this event can't be filtered server-side
+ *  to one open channel/thread; callers check `message_id` against their
+ *  own locally-loaded messages before acting on it. */
+export interface SembangReactionRow {
+  message_id: string;
+  account_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
+
+/** Migration 099. */
+export interface SembangPinRow {
+  channel_id: string;
+  message_id: string;
+  account_id: string;
+  pinned_by: string;
+  pinned_at: string;
+}
+
+/** Migration 099. */
+export interface SembangTaskRow {
+  id: string;
+  channel_id: string;
+  account_id: string;
+  message_id: string | null;
+  title: string;
+  assignee_id: string | null;
+  status: "open" | "done";
+  due_at: string | null;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+  completed_by: string | null;
 }
 
 export interface SembangChannelRow {
@@ -58,20 +98,44 @@ interface UseSembangChannelRealtimeOptions {
   /** null/undefined disables the subscription (no thread open yet). */
   channelId: string | null | undefined;
   onMessageEvent?: (event: RealtimeEvent<SembangMessageRow>) => void;
+  /** Migration 099. Unfiltered (see `SembangReactionRow`'s doc comment) —
+   *  fires for every reaction change the caller's RLS lets them see, not
+   *  just this channel's. */
+  onReactionEvent?: (event: RealtimeEvent<SembangReactionRow>) => void;
+  /** Migration 099. Filtered to this channel. */
+  onPinEvent?: (event: RealtimeEvent<SembangPinRow>) => void;
+  /** Migration 099. Filtered to this channel. */
+  onTaskEvent?: (event: RealtimeEvent<SembangTaskRow>) => void;
   enabled?: boolean;
+  /** Distinguishes a second subscription to the same channel's messages
+   *  (e.g. thread-panel.tsx alongside channel-thread.tsx) so both can be
+   *  open at once without fighting over one realtime channel name. */
+  topicSuffix?: string;
 }
 
-/** Realtime for the open channel's message list. */
+/** Realtime for the open channel's message list (plus, since migration 099,
+ *  its reactions/pins/tasks) — one hook, several `postgres_changes`
+ *  subscriptions on the same realtime channel object. */
 export function useSembangChannelRealtime({
   channelId,
   onMessageEvent,
+  onReactionEvent,
+  onPinEvent,
+  onTaskEvent,
   enabled = true,
+  topicSuffix,
 }: UseSembangChannelRealtimeOptions): { isConnected: boolean } {
   const [isConnected, setIsConnected] = useState(false);
 
   const onMessageRef = useRef(onMessageEvent);
+  const onReactionRef = useRef(onReactionEvent);
+  const onPinRef = useRef(onPinEvent);
+  const onTaskRef = useRef(onTaskEvent);
   useEffect(() => {
     onMessageRef.current = onMessageEvent;
+    onReactionRef.current = onReactionEvent;
+    onPinRef.current = onPinEvent;
+    onTaskRef.current = onTaskEvent;
   });
 
   useEffect(() => {
@@ -79,7 +143,7 @@ export function useSembangChannelRealtime({
 
     const supabase = createClient();
     const channel = supabase
-      .channel(`sembang-messages-${channelId}`)
+      .channel(`sembang-messages-${channelId}${topicSuffix ? `-${topicSuffix}` : ""}`)
       .on(
         "postgres_changes",
         {
@@ -96,13 +160,46 @@ export function useSembangChannelRealtime({
           });
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sembang_reactions" },
+        (payload) => {
+          onReactionRef.current?.({
+            eventType: payload.eventType as RealtimeEvent<SembangReactionRow>["eventType"],
+            new: payload.new as SembangReactionRow,
+            old: payload.old as Partial<SembangReactionRow>,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sembang_pins", filter: `channel_id=eq.${channelId}` },
+        (payload) => {
+          onPinRef.current?.({
+            eventType: payload.eventType as RealtimeEvent<SembangPinRow>["eventType"],
+            new: payload.new as SembangPinRow,
+            old: payload.old as Partial<SembangPinRow>,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sembang_tasks", filter: `channel_id=eq.${channelId}` },
+        (payload) => {
+          onTaskRef.current?.({
+            eventType: payload.eventType as RealtimeEvent<SembangTaskRow>["eventType"],
+            new: payload.new as SembangTaskRow,
+            old: payload.old as Partial<SembangTaskRow>,
+          });
+        },
+      )
       .subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
 
     return () => {
       supabase.removeChannel(channel);
       setIsConnected(false);
     };
-  }, [channelId, enabled]);
+  }, [channelId, enabled, topicSuffix]);
 
   return { isConnected };
 }

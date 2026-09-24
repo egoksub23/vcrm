@@ -365,7 +365,9 @@ export type NotificationType =
   /** Monthly AI token budget reached 80% / 100% (migration 075). */
   | 'ai_budget'
   /** Migration 098: an @mention in a Sembang channel message. */
-  | 'sembang_mention';
+  | 'sembang_mention'
+  /** Migration 099: assigned a Sembang task (not fired for self-assignment). */
+  | 'sembang_task_assigned';
 
 export interface Notification {
   id: string;
@@ -382,6 +384,8 @@ export interface Notification {
   /** Migration 098. Set on sembang_mention notifications. */
   sembang_channel_id?: string;
   sembang_message_id?: string;
+  /** Migration 099. Set on sembang_task_assigned notifications. */
+  sembang_task_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;
@@ -1552,6 +1556,16 @@ export interface SembangAttachment {
   createdAt: string;
 }
 
+/** One emoji's aggregated reactions on a message — the shape the
+ *  message list/thread routes group `sembang_reactions` rows into. */
+export interface SembangReactionSummary {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  /** Convenience — `userIds.includes(caller.id)`, precomputed server-side. */
+  reactedByMe: boolean;
+}
+
 export interface SembangMessage {
   id: string;
   channelId: string;
@@ -1560,12 +1574,28 @@ export interface SembangMessage {
   body: string;
   /** Plain array of mentioned user-id strings (not objects). */
   mentions: string[];
+  /** Migration 099. Set only on a top-level message that is itself a
+   *  thread reply's parent — threads are flat, one level, so a reply's
+   *  own `parentMessageId` never points at another reply. */
+  parentMessageId: string | null;
+  /** Migration 099. Set once the author edits the body. */
+  editedAt: string | null;
   deletedAt: string | null;
   deletedBy: string | null;
   createdAt: string;
   /** Joined from `profiles`; null if the author's profile was removed. */
   author: { id: string; fullName: string; avatarUrl: string | null } | null;
   attachments: SembangAttachment[];
+  /** Migration 099. Empty array when the message has none. */
+  reactions: SembangReactionSummary[];
+  /**
+   * Migration 099. Only populated on TOP-LEVEL messages (parentMessageId
+   * null) by the channel message list — a reply row leaves these
+   * undefined rather than computing them for something that can't itself
+   * have replies (threads are flat).
+   */
+  replyCount?: number;
+  lastReplyAt?: string | null;
 }
 
 /** A channel member row, joined with `profiles` (GET .../members). */
@@ -1576,5 +1606,40 @@ export interface SembangMember {
   lastReadAt: string;
   fullName: string;
   avatarUrl: string | null;
+}
+
+/** Migration 099. One pinned message (GET .../pins), hydrated with the
+ *  full message the same way the channel message list is. */
+export interface SembangPin {
+  channelId: string;
+  messageId: string;
+  pinnedBy: string;
+  pinnedByName: string;
+  pinnedAt: string;
+  message: SembangMessage;
+}
+
+export type SembangTaskStatus = 'open' | 'done';
+
+/** Migration 099. A standalone, per-channel checklist item — no FK into
+ *  the Tickets module (see the requirements doc's decision). */
+export interface SembangTask {
+  id: string;
+  channelId: string;
+  accountId: string;
+  /** The message this task was created from, if any. */
+  messageId: string | null;
+  title: string;
+  assigneeId: string | null;
+  assignee: { id: string; fullName: string; avatarUrl: string | null } | null;
+  status: SembangTaskStatus;
+  dueAt: string | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  /** Server-stamped on the actor's own UPDATE — never client-supplied
+   *  (see the sembang_tasks_guard() trigger in migration 099). */
+  completedAt: string | null;
+  completedBy: string | null;
 }
 
