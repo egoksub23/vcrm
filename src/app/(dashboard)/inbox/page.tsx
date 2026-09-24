@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
+import { claimConversation } from "@/lib/inbox/claim-conversation";
+import { useAuth, useCapability } from "@/hooks/use-auth";
 
 // Remembers the agent's show/hide choice for the desktop contact panel
 // across reloads and sessions (device-scoped, like the theme prefs).
@@ -49,6 +51,9 @@ function InboxPageInner() {
    * automatically instead of showing the empty center panel.
    */
   const deepLinkConvId = searchParams.get("c");
+
+  const { user } = useAuth();
+  const canClaimConversations = useCapability("conversations.manage");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] =
@@ -569,8 +574,26 @@ function InboxPageInner() {
       // back in the same thread, and so copy-paste links work. Use
       // replace() to avoid polluting browser history with every click.
       router.replace(`/inbox?c=${conv.id}`, { scroll: false });
+
+      // Claim on open: the first agent to open a still-live, unassigned
+      // conversation is assigned it, so it doesn't sit unowned while
+      // several agents are looking at the unassigned queue. Fire-and-
+      // forget — opening the conversation never waits on this round-trip.
+      // claimConversation()'s conditional UPDATE is itself race-safe, so
+      // no coordination is needed even if two agents open it at once.
+      if (user && canClaimConversations && !conv.assigned_agent_id && conv.status !== "closed") {
+        void claimConversation(conv.id, user.id).then((claimed) => {
+          if (!claimed) return;
+          setConversations((prev) =>
+            prev.map((c) => (c.id === conv.id ? { ...c, assigned_agent_id: user.id } : c)),
+          );
+          setActiveConversation((prev) =>
+            prev && prev.id === conv.id ? { ...prev, assigned_agent_id: user.id } : prev,
+          );
+        });
+      }
     },
-    [activeConversation?.id, router]
+    [activeConversation?.id, router, user, canClaimConversations]
   );
 
   // Mobile "back" — deselect the conversation so the list pane comes

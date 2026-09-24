@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.55.0] — 2026-09-24
+
+- **Inbox: claim on open.** The first agent to open a still-live, unassigned conversation is now automatically assigned it — no more two agents replying to the same customer because neither realized it was unowned. It fires only for conversations with no agent yet and not already closed, and only for agents who can already manage conversations (same `conversations.manage` capability the manual assign control already requires). The underlying write is a single conditional `UPDATE ... WHERE assigned_agent_id IS NULL`, the same race-safe pattern already used for round-robin assignment — if two agents open it at the same instant, only the first one's write actually lands.
+
 ## [0.54.0] — 2026-09-24
 
 - **Inbox: a new message now moves its conversation to the top of the list.** Previously the list was only sorted once (on load); a realtime update from a new inbound message updated a conversation's preview text and unread count in place but never repositioned it, so a reply to a conversation buried further down could go unnoticed. The default "recent" sort now always re-derives order from the latest message time, the same way the existing "priority" sort already does — so this self-heals regardless of how or when an update lands. (The numeric unread-count badge — e.g. "3" for three new messages — already existed and was already accurate; it's just far more visible now that the conversation actually surfaces.)
