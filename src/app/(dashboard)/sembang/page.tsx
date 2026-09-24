@@ -3,11 +3,16 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Hash } from "lucide-react";
+import { Hash, Search as SearchIcon, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
 import { ChannelThread } from "@/components/sembang/channel-thread";
 import { CreateChannelDialog } from "@/components/sembang/create-channel-dialog";
+import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
+import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
+import { StarredPanel } from "@/components/sembang/starred-panel";
+import { SearchDialog } from "@/components/sembang/search-dialog";
 import { useSembangSidebarRealtime } from "@/hooks/use-sembang-realtime";
 import { useAuth } from "@/hooks/use-auth";
 import { hasMinRole } from "@/lib/auth/roles";
@@ -38,6 +43,12 @@ function SembangPageInner() {
   const [loadError, setLoadError] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // ---- Migration 100: DMs, archive, search, starred ----------------------
+  const [newDmOpen, setNewDmOpen] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [starredOpen, setStarredOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const autoSelectedForDeepLinkRef = useRef<string | null>(null);
 
@@ -117,11 +128,58 @@ function SembangPageInner() {
     setCreateOpen(false);
   }, []);
 
+  // POST /api/sembang/dms only returns a `SembangChannel` (no
+  // `dmParticipantNames`/`unreadCount`/etc. — those are summary-row-only
+  // fields from the list RPC), so unlike handleChannelCreated above this
+  // can't build a summary row locally; it selects the DM right away and
+  // refetches the sidebar list to pick up its real summary row.
+  const handleDmCreated = useCallback(
+    (channelId: string) => {
+      setActiveChannelId(channelId);
+      setNewDmOpen(false);
+      void fetchChannels();
+    },
+    [fetchChannels],
+  );
+
+  const handleChannelArchived = useCallback((channelId: string) => {
+    setChannels((prev) => prev?.filter((c) => c.id !== channelId) ?? prev);
+    setActiveChannelId((prev) => (prev === channelId ? null : prev));
+  }, []);
+
+  const handleChannelUnarchived = useCallback(() => {
+    void fetchChannels();
+  }, [fetchChannels]);
+
   const hasActiveChannel = !!activeChannelId;
   const hasChannels = (channels?.length ?? 0) > 0;
 
   return (
     <div className="-m-4 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden sm:-m-6">
+      {/* Migration 100 — global entry points that span every channel/DM at
+          once, so they live above the two-pane layout rather than inside
+          either pane. */}
+      <div className="flex shrink-0 items-center justify-end gap-1 border-b border-border bg-card px-3 py-1.5">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("searchAriaLabel")}
+          title={t("searchAriaLabel")}
+          onClick={() => setSearchOpen(true)}
+        >
+          <SearchIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("starredAriaLabel")}
+          title={t("starredAriaLabel")}
+          onClick={() => setStarredOpen(true)}
+        >
+          <Star className="h-4 w-4" />
+        </Button>
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: channel list. Hidden on mobile when a channel is
             selected so the thread can occupy the full width, same
@@ -137,6 +195,8 @@ function SembangPageInner() {
             activeChannelId={activeChannelId}
             onSelect={handleSelect}
             onCreateClick={() => setCreateOpen(true)}
+            onNewDmClick={() => setNewDmOpen(true)}
+            onArchivedClick={() => setArchivedOpen(true)}
             loadError={loadError}
           />
         </div>
@@ -160,12 +220,25 @@ function SembangPageInner() {
               </p>
             </div>
           ) : (
-            <ChannelThread channelId={activeChannelId} onBack={handleBack} onChannelRead={handleChannelRead} />
+            <ChannelThread
+              channelId={activeChannelId}
+              onBack={handleBack}
+              onChannelRead={handleChannelRead}
+              onChannelArchived={handleChannelArchived}
+            />
           )}
         </div>
       </div>
 
       <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleChannelCreated} />
+      <NewDmDialog open={newDmOpen} onOpenChange={setNewDmOpen} onCreated={handleDmCreated} />
+      <ArchivedChannelsDialog
+        open={archivedOpen}
+        onOpenChange={setArchivedOpen}
+        onUnarchived={handleChannelUnarchived}
+      />
+      <StarredPanel open={starredOpen} onOpenChange={setStarredOpen} />
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

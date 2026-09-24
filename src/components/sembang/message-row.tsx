@@ -13,7 +13,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { FileText, Loader2, MessageSquareText, Pencil, Pin, PinOff, PlusCircle, Trash2 } from "lucide-react";
+import { FileText, Loader2, MessageSquareText, Pencil, Pin, PinOff, PlusCircle, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { EmojiPicker } from "@/components/emoji/emoji-picker";
@@ -73,6 +73,10 @@ export interface MessageRowProps {
   onOpenThread?: (message: SembangMessage) => void;
   onReact: (messageId: string, emoji: string) => void;
   onTogglePin: (message: SembangMessage, pinned: boolean) => void;
+  /** Migration 100. Same fire-and-forget shape as `onTogglePin` —
+   *  `starredByMe` lives on the message itself, so the caller flips it
+   *  optimistically and reverts on failure. */
+  onToggleStar: (message: SembangMessage, starred: boolean) => void;
   /** Resolves to the updated message on success, null on failure — lets the
    *  row itself decide whether to leave edit mode. */
   onEdit: (messageId: string, body: string) => Promise<SembangMessage | null>;
@@ -91,6 +95,7 @@ export function MessageRow({
   onOpenThread,
   onReact,
   onTogglePin,
+  onToggleStar,
   onEdit,
   onRemove,
   onAddToTask,
@@ -232,6 +237,20 @@ export function MessageRow({
             onClick={() => onTogglePin(message, isPinned)}
           >
             {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={message.starredByMe ? t("unstar") : t("star")}
+            title={message.starredByMe ? t("unstar") : t("star")}
+            onClick={() => onToggleStar(message, message.starredByMe)}
+          >
+            <Star
+              className={cn(
+                "h-3.5 w-3.5",
+                message.starredByMe && "fill-current text-amber-500",
+              )}
+            />
           </Button>
           {onAddToTask && (
             <Button

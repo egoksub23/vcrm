@@ -88,6 +88,7 @@ export async function hydrateMessages(
     { data: attachmentRows },
     { data: reactionRows },
     { data: replyRows },
+    { data: starRows },
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, full_name, avatar_url').in('user_id', authorIds),
     supabase.from('sembang_attachments').select('*').in('message_id', messageIds),
@@ -99,6 +100,10 @@ export async function hydrateMessages(
           .in('parent_message_id', topLevelIds)
           .is('deleted_at', null)
       : Promise.resolve({ data: [] as { parent_message_id: string; created_at: string }[] }),
+    // Migration 100. Personal — only the caller's own stars, turned into a
+    // Set below (same pattern as `reactedByMe`, just pre-filtered to one
+    // user rather than grouped across all of them).
+    supabase.from('sembang_stars').select('message_id').eq('user_id', callerUserId).in('message_id', messageIds),
   ])
 
   const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
@@ -149,6 +154,8 @@ export async function hydrateMessages(
     reactionsByMessage.set(r.message_id, list)
   }
 
+  const starredIds = new Set<string>((starRows ?? []).map((s) => s.message_id as string))
+
   // Grouped in application code, not SQL — one flat query, then
   // aggregated the same way reactions are, above.
   const threadSummaryByParent = new Map<string, { count: number; lastReplyAt: string }>()
@@ -176,6 +183,7 @@ export async function hydrateMessages(
       parentMessageId: row.parent_message_id ?? null,
       editedAt: row.edited_at ?? null,
       reactions: groupReactions(reactionsByMessage.get(row.id) ?? [], callerUserId),
+      starredByMe: starredIds.has(row.id),
       deletedAt: row.deleted_at,
       deletedBy: row.deleted_by,
       createdAt: row.created_at,

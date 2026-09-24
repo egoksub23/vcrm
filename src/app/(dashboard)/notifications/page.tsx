@@ -31,6 +31,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   ai_budget: Bot,
   sembang_mention: Hash,
   sembang_task_assigned: CheckSquare,
+  sembang_dm_message: MessageSquare,
 };
 
 export default function NotificationsPage() {

@@ -7068,7 +7068,9 @@
     "page": {
       "emptyTitle": "No channels yet",
       "emptyHintCreate": "Create one to get started.",
-      "emptyHintAskAdmin": "Ask an admin to add you to a channel."
+      "emptyHintAskAdmin": "Ask an admin to add you to a channel.",
+      "searchAriaLabel": "Search messages",
+      "starredAriaLabel": "Starred messages"
     },
     "channelList": {
       "title": "Sembang",
@@ -7080,7 +7082,12 @@
       "noChannels": "No channels yet.",
       "noMessagesYet": "No messages yet",
       "unreadAriaLabel": "{count, plural, =1 {# unread message} other {# unread messages}}",
-      "directMessagesComingSoon": "Direct messages — coming soon"
+      "channelsSectionTitle": "Channels",
+      "dmSectionTitle": "Direct Messages",
+      "newMessage": "New message",
+      "noDirectMessages": "No direct messages yet.",
+      "directMessageFallback": "Direct message",
+      "archivedChannelsLink": "Archived channels"
     },
     "createDialog": {
       "title": "Create a channel",
@@ -7148,7 +7155,17 @@
       "topicPlaceholder": "Add a topic…",
       "topicSave": "Save topic",
       "topicCancel": "Cancel editing topic",
-      "topicSaveFailed": "Could not update the topic. Try again."
+      "topicSaveFailed": "Could not update the topic. Try again.",
+      "directMessageFallback": "Direct message",
+      "moreActions": "More actions",
+      "archiveChannel": "Archive channel",
+      "archiveConfirm": "Archive #{name}? Members will no longer see it in their channel list. You can unarchive it later from Archived channels.",
+      "archived": "Channel archived",
+      "archiveFailed": "Could not archive the channel. Try again.",
+      "star": "Star",
+      "unstar": "Unstar",
+      "starFailed": "Could not star the message. Try again.",
+      "unstarFailed": "Could not unstar the message. Try again."
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",
@@ -7200,6 +7217,37 @@
       "createFailed": "Could not add the task. Try again.",
       "updateFailed": "Could not update the task. Try again.",
       "deleteFailed": "Could not delete the task. Try again."
+    },
+    "newDmDialog": {
+      "title": "New message",
+      "description": "Pick who you want to message. Selecting more than one person starts a group DM.",
+      "noOtherMembers": "No other members to message yet.",
+      "cancel": "Cancel",
+      "start": "Start",
+      "createFailed": "Could not start the conversation. Try again."
+    },
+    "starredPanel": {
+      "title": "Starred messages",
+      "empty": "No starred messages yet.",
+      "loadFailed": "Could not load starred messages.",
+      "unknownAuthor": "Unknown",
+      "directMessage": "Direct message"
+    },
+    "searchDialog": {
+      "title": "Search messages",
+      "placeholder": "Search all channels and messages…",
+      "tooShort": "Keep typing… (2+ characters)",
+      "noResults": "No matches",
+      "unknownAuthor": "Unknown",
+      "directMessage": "Direct message"
+    },
+    "archivedChannelsDialog": {
+      "title": "Archived channels",
+      "description": "Channels your team has archived. Unarchive one to bring it back to the channel list.",
+      "empty": "No archived channels.",
+      "loadFailed": "Could not load archived channels.",
+      "unarchive": "Unarchive",
+      "unarchiveFailed": "Could not unarchive the channel. Try again."
     }
   }
 }

@@ -21,9 +21,11 @@ const TOPIC_MAX = 2000
 interface ChannelRow {
   id: string
   account_id: string
-  name: string
+  name: string | null
   topic: string | null
   is_private: boolean
+  // Migration 100.
+  is_dm: boolean
   created_by: string
   created_at: string
   archived_at: string | null
@@ -50,6 +52,7 @@ function toChannel(row: ChannelRow, memberRole: SembangMemberRole | null): Semba
     name: row.name,
     topic: row.topic,
     isPrivate: row.is_private,
+    isDm: row.is_dm,
     createdBy: row.created_by,
     createdAt: row.created_at,
     archivedAt: row.archived_at,

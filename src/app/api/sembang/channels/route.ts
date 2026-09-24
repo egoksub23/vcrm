@@ -24,7 +24,7 @@ const TOPIC_MAX = 2000
 
 interface ChannelSummaryRow {
   id: string
-  name: string
+  name: string | null
   topic: string | null
   is_private: boolean
   created_by: string
@@ -35,6 +35,10 @@ interface ChannelSummaryRow {
   last_message_body: string | null
   last_message_at: string | null
   last_message_author_id: string | null
+  // Migration 100.
+  is_dm: boolean
+  dm_participant_names: string[] | null
+  dm_participant_avatar_urls: (string | null)[] | null
 }
 
 export async function GET() {
@@ -63,6 +67,9 @@ export async function GET() {
       lastMessageBody: row.last_message_body,
       lastMessageAt: row.last_message_at,
       lastMessageAuthorId: row.last_message_author_id,
+      isDm: row.is_dm,
+      dmParticipantNames: row.dm_participant_names,
+      dmParticipantAvatarUrls: row.dm_participant_avatar_urls,
     }))
 
     return NextResponse.json({ channels })
@@ -163,6 +170,7 @@ export async function POST(request: Request) {
       name: row.name,
       topic: row.topic,
       isPrivate: row.is_private,
+      isDm: false,
       createdBy: row.created_by,
       createdAt: row.created_at,
       archivedAt: row.archived_at,

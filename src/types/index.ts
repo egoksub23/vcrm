@@ -367,7 +367,10 @@ export type NotificationType =
   /** Migration 098: an @mention in a Sembang channel message. */
   | 'sembang_mention'
   /** Migration 099: assigned a Sembang task (not fired for self-assignment). */
-  | 'sembang_task_assigned';
+  | 'sembang_task_assigned'
+  /** Migration 100: every Sembang DM message, not just @mentions — skipped
+   *  when the same message also fires a sembang_mention for that recipient. */
+  | 'sembang_dm_message';
 
 export interface Notification {
   id: string;
@@ -1514,14 +1517,18 @@ export type SembangMemberRole = 'member' | 'moderator';
 export interface SembangChannel {
   id: string;
   accountId: string;
-  name: string;
+  /** Null for a DM (`isDm: true`) — DMs show participant names instead. */
+  name: string | null;
   topic: string | null;
   isPrivate: boolean;
+  /** Migration 100. A DM is a `sembang_channels` row with `isDm: true` —
+   *  same messages/reactions/pins/tasks tables, no parallel schema. */
+  isDm: boolean;
   createdBy: string;
   createdAt: string;
   archivedAt?: string | null;
   /** The caller's membership role — null for a public channel they can
-   *  see but haven't joined yet. */
+   *  see but haven't joined yet. Never null for a DM (fixed membership). */
   memberRole: SembangMemberRole | null;
 }
 
@@ -1531,9 +1538,11 @@ export interface SembangChannel {
  */
 export interface SembangChannelSummary {
   id: string;
-  name: string;
+  name: string | null;
   topic: string | null;
   isPrivate: boolean;
+  /** Migration 100. See `SembangChannel.isDm`. */
+  isDm: boolean;
   createdBy: string;
   createdAt: string;
   memberRole: SembangMemberRole;
@@ -1542,6 +1551,11 @@ export interface SembangChannelSummary {
   lastMessageBody: string | null;
   lastMessageAt: string | null;
   lastMessageAuthorId: string | null;
+  /** Migration 100. Only populated when `isDm` is true — the OTHER
+   *  participant(s), for rendering a DM row's display name/avatars
+   *  without a second fetch. Null (not empty array) for a real channel. */
+  dmParticipantNames: string[] | null;
+  dmParticipantAvatarUrls: (string | null)[] | null;
 }
 
 /** A file attached to a Sembang message. `url` is a short-lived signed
@@ -1588,6 +1602,9 @@ export interface SembangMessage {
   attachments: SembangAttachment[];
   /** Migration 099. Empty array when the message has none. */
   reactions: SembangReactionSummary[];
+  /** Migration 100. Personal — whether the CALLER has starred this
+   *  message, precomputed server-side (same shape as `reactedByMe`). */
+  starredByMe: boolean;
   /**
    * Migration 099. Only populated on TOP-LEVEL messages (parentMessageId
    * null) by the channel message list — a reply row leaves these
@@ -1641,5 +1658,40 @@ export interface SembangTask {
    *  (see the sembang_tasks_guard() trigger in migration 099). */
   completedAt: string | null;
   completedBy: string | null;
+}
+
+// ------------------------------------------------------------
+// Sembang P2 — direct messages, cross-conversation search, starred
+// messages (migration 100)
+// ------------------------------------------------------------
+
+/**
+ * GET /api/sembang/stars — one row of the caller's personal starred-
+ * message list, hydrated with enough channel context to render without
+ * a second fetch (the Starred view spans every channel/DM at once).
+ */
+export interface SembangStarredMessage {
+  message: SembangMessage;
+  starredAt: string;
+  channel: {
+    id: string;
+    name: string | null;
+    isDm: boolean;
+    dmParticipantNames: string[] | null;
+  };
+}
+
+/**
+ * GET /api/sembang/search — one row of a cross-channel/DM message
+ * search result, same channel-context shape as `SembangStarredMessage`.
+ */
+export interface SembangSearchResult {
+  message: SembangMessage;
+  channel: {
+    id: string;
+    name: string | null;
+    isDm: boolean;
+    dmParticipantNames: string[] | null;
+  };
 }
 

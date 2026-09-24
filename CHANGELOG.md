@@ -9,6 +9,16 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.59.0] — 2026-09-24 — **migration required (100)**
+
+- **Sembang P2: direct messages, cross-conversation search, starred messages, and an archive-channel UI.** Prompted by comparing Sembang directly against a live, high-traffic Slack workspace — see the requirements doc's "Screenshot gap review" section for the full tiered (P2/P3/P4) list this came out of.
+  - **Direct messages** — 1:1 and small group DMs. Not a new data model: a DM is a `sembang_channels` row with `is_dm = true`, so it gets threads, reactions, pins, tasks, attachments and realtime for free from the existing P0/P1 tables. Starting a DM with someone you already message reopens the same conversation (idempotent, keyed on the sorted participant set) rather than creating a duplicate. One deliberate behavior change scoped to DMs only: a DM's creator (auto-"moderator" the same way a channel's creator is) can no longer remove the *other* participant's messages — a real DM shouldn't let one side unilaterally delete the other's messages the way a channel moderator legitimately can; account admins can still moderate a DM, same as every other Sembang surface.
+  - **Search across every channel and DM** you're a member of, not just the one you have open.
+  - **Starred messages** — a personal "save for later" list, separate from Pins (which are shared and channel-level); only visible to the person who starred it.
+  - **Archive a channel** from the UI — the API has supported this since P0, but P0/P1 never built the frontend control. Includes an "Archived channels" view to unarchive one later.
+  - Every DM message now notifies the other participant(s) directly, not just an `@mention` the way a busy shared channel needs — a plain DM reply has no reason to require an explicit mention to surface a notification. A message that happens to also `@mention` the recipient sends exactly one notification, not two.
+  - Migration 100 adds `is_dm`/`dm_key` to `sembang_channels` (with a partial unique index deduping DMs by participant set), a new `sembang_stars` table, a `sembang_dm_message` notification type, and widens `list_sembang_channels_for_current_user` to return DM participant names/avatars for the sidebar.
+
 ## [0.58.0] — 2026-09-24 — **migration required (099)**
 
 - **Sembang P1: threads, reactions, pins, edit/delete your own message, code blocks, and a task list.** Builds on 0.57.0's P0 channels/moderation/mentions.

@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
+  Archive,
   ArrowLeft,
   Check,
   CheckSquare,
   Hash,
   Loader2,
   Lock,
+  MoreHorizontal,
   Pencil,
   Pin,
   Search as SearchIcon,
@@ -21,6 +23,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { hasMinRole } from "@/lib/auth/roles";
@@ -71,9 +80,13 @@ interface ChannelThreadProps {
   /** Fired once the channel is marked read server-side, so the page can
    *  optimistically zero the sidebar's unread badge. */
   onChannelRead?: (channelId: string) => void;
+  /** Migration 100. Fired once "Archive channel" succeeds — the page
+   *  drops the channel from the sidebar list and clears the selection
+   *  (same shape as an existing "channel no longer accessible" path). */
+  onChannelArchived?: (channelId: string) => void;
 }
 
-export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThreadProps) {
+export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchived }: ChannelThreadProps) {
   const t = useTranslations("Sembang.thread");
   const tTasksPanel = useTranslations("Sembang.tasksPanel");
   const { user, accountRole } = useAuth();
@@ -110,6 +123,9 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
   const [editingTopic, setEditingTopic] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [savingTopic, setSavingTopic] = useState(false);
+
+  // ---- P2: DM header label / archive channel ----------------------------
+  const [archiving, setArchiving] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
@@ -744,6 +760,77 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
 
   const peopleNames = useMemo(() => accountMembers.map((m) => m.full_name), [accountMembers]);
 
+  // ---- Migration 100: DM header label -------------------------------
+  // `SembangChannel` (GET .../channels/[id]) doesn't carry
+  // `dmParticipantNames` — only `SembangChannelSummary` (the sidebar RPC)
+  // does. `members` is already fetched for every channel regardless of
+  // type, so the DM header derives its label from that instead of
+  // threading the summary row's fields down from page.tsx.
+  const dmOtherMembers = useMemo(
+    () => (members ?? []).filter((m) => m.userId !== user?.id),
+    [members, user?.id],
+  );
+  // Header title AND the composer's "Message #<name>" placeholder both need
+  // a non-null string — `SembangChannel.name` is nullable for a DM
+  // (migration 100), so this is the one place that resolves it either way.
+  const channelDisplayName = channel?.isDm
+    ? dmOtherMembers.map((m) => m.fullName).join(", ") || t("directMessageFallback")
+    : (channel?.name ?? "");
+
+  // ---- Migration 100: star toggle ----------------------------------------
+  const handleToggleStar = useCallback(
+    (message: SembangMessage, starred: boolean) => {
+      if (!channelId) return;
+      const nextStarred = !starred;
+      // Optimistic — `starredByMe` lives on the message itself (not a
+      // separately fetched list like pins), so flip it locally right away
+      // and revert on failure; same idea as handleToggleTaskStatus above.
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? { ...m, starredByMe: nextStarred } : m)),
+      );
+      (async () => {
+        try {
+          const res = await fetch(
+            `/api/sembang/channels/${channelId}/messages/${message.id}/star`,
+            { method: starred ? "DELETE" : "POST" },
+          );
+          if (!res.ok) throw new Error("failed");
+        } catch {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === message.id ? { ...m, starredByMe: starred } : m)),
+          );
+          toast.error(starred ? t("unstarFailed") : t("starFailed"));
+        }
+      })();
+    },
+    [channelId, t],
+  );
+
+  // ---- Migration 100: archive channel (channels only, not DMs) ----------
+  const handleArchiveChannel = useCallback(async () => {
+    if (!channelId || !channel || archiving) return;
+    if (!window.confirm(t("archiveConfirm", { name: channel.name ?? "" }))) return;
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/sembang/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || t("archiveFailed"));
+        return;
+      }
+      toast.success(t("archived"));
+      onChannelArchived?.(channelId);
+    } catch {
+      toast.error(t("archiveFailed"));
+    } finally {
+      setArchiving(false);
+    }
+  }, [channelId, channel, archiving, t, onChannelArchived]);
+
   const canManageMembers = channel?.memberRole === "moderator" || hasMinRole(accountRole ?? "viewer", "admin");
   const canRemoveMessages = canManageMembers;
   const isMember = !!channel?.memberRole;
@@ -777,14 +864,24 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          {channel?.isPrivate ? (
+          {channel?.isDm ? (
+            <PersonAvatar
+              name={dmOtherMembers[0]?.fullName}
+              avatarUrl={dmOtherMembers[0]?.avatarUrl}
+              size="sm"
+            />
+          ) : channel?.isPrivate ? (
             <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           ) : (
             <Hash className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{channel?.name ?? "…"}</p>
-            {editingTopic ? (
+            <p className="truncate text-sm font-semibold text-foreground">
+              {channel ? channelDisplayName : "…"}
+            </p>
+            {/* DM membership is fixed at creation — no topic to show/edit
+                (migration 100, frontend item 3). */}
+            {channel?.isDm ? null : editingTopic ? (
               <div className="mt-0.5 flex items-center gap-1">
                 <Input
                   autoFocus
@@ -913,10 +1010,36 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
                 </div>
               </PopoverContent>
             </Popover>
-            <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
-              <Users className="h-4 w-4" />
-              {t("membersButton", { count: members?.length ?? 0 })}
-            </Button>
+            {/* DM participants are fixed at creation — no manage controls
+                needed, so the whole button is hidden rather than shown
+                read-only (migration 100, frontend item 3). */}
+            {!channel.isDm && (
+              <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
+                <Users className="h-4 w-4" />
+                {t("membersButton", { count: members?.length ?? 0 })}
+              </Button>
+            )}
+            {/* Archive is channel-only, not built for DMs this pass — a
+                DM's `archived_at` is shared between both participants, so
+                one person archiving it would hide it for the other too
+                (migration 100, frontend item 3/7). */}
+            {!channel.isDm && canManageMembers && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={t("moreActions")}
+                  title={t("moreActions")}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52 border-border bg-popover">
+                  <DropdownMenuItem variant="destructive" onClick={handleArchiveChannel} disabled={archiving}>
+                    <Archive className="h-3.5 w-3.5" />
+                    {t("archiveChannel")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         )}
       </div>
@@ -965,6 +1088,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
                 onOpenThread={handleOpenThread}
                 onReact={handleReact}
                 onTogglePin={handleTogglePin}
+                onToggleStar={handleToggleStar}
                 onEdit={handleEditMessage}
                 onRemove={handleRemoveMessage}
                 onAddToTask={handleAddToTask}
@@ -975,8 +1099,8 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
       )}
 
       {channel && isMember ? (
-        <MessageComposer channelId={channel.id} channelName={channel.name} onSend={handleSendMessage} />
-      ) : channel && !channel.isPrivate ? (
+        <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} />
+      ) : channel && !channel.isPrivate && !channel.isDm ? (
         <div className="border-t border-border bg-card p-3.5 text-center">
           <Button onClick={handleJoin} disabled={joining}>
             {joining && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -987,22 +1111,24 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
 
       {channel && (
         <>
-          <MembersPanel
-            open={membersPanelOpen}
-            onOpenChange={setMembersPanelOpen}
-            channelId={channel.id}
-            isPrivate={channel.isPrivate}
-            canManage={canManageMembers}
-            members={members}
-            onMembersChange={setMembers}
-          />
+          {!channel.isDm && (
+            <MembersPanel
+              open={membersPanelOpen}
+              onOpenChange={setMembersPanelOpen}
+              channelId={channel.id}
+              isPrivate={channel.isPrivate}
+              canManage={canManageMembers}
+              members={members}
+              onMembersChange={setMembers}
+            />
+          )}
           <ThreadPanel
             open={!!threadParent}
             onOpenChange={(open) => {
               if (!open) setThreadParent(null);
             }}
             channelId={channel.id}
-            channelName={channel.name}
+            channelName={channelDisplayName}
             parentMessageId={threadParent?.id ?? null}
             currentUserId={user?.id}
             peopleNames={peopleNames}
@@ -1010,6 +1136,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead }: ChannelThrea
             pinnedMessageIds={pinnedMessageIds}
             onReact={handleReact}
             onTogglePin={handleTogglePin}
+            onToggleStar={handleToggleStar}
             onEditMessage={handleEditMessage}
             onRemoveMessage={handleRemoveMessage}
             onAddToTask={handleAddToTask}

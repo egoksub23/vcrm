@@ -38,6 +38,13 @@ interface ThreadPanelProps {
   pinnedMessageIds: Set<string>;
   onReact: (messageId: string, emoji: string) => Promise<SembangReactionSummary[] | null>;
   onTogglePin: (message: SembangMessage, pinned: boolean) => void;
+  /** Migration 100. Unlike `onTogglePin` (whose pinned/unpinned state is
+   *  derived from a `pinnedMessageIds` prop shared with the caller),
+   *  `starredByMe` lives on the message object itself — this panel holds
+   *  its own `parent`/`replies` copies fetched separately from the main
+   *  list, so the wrapper below (mirroring `handleReact`) patches both
+   *  local trees after calling through to the caller's handler. */
+  onToggleStar: (message: SembangMessage, starred: boolean) => void;
   onEditMessage: (messageId: string, body: string) => Promise<SembangMessage | null>;
   onRemoveMessage: (messageId: string) => Promise<SembangMessage | null>;
   onAddToTask: (message: SembangMessage) => void;
@@ -60,6 +67,7 @@ export function ThreadPanel({
   pinnedMessageIds,
   onReact,
   onTogglePin,
+  onToggleStar,
   onEditMessage,
   onRemoveMessage,
   onAddToTask,
@@ -182,6 +190,18 @@ export function ThreadPanel({
     [onReact],
   );
 
+  const handleToggleStar = useCallback(
+    (message: SembangMessage, starred: boolean) => {
+      onToggleStar(message, starred);
+      const nextStarred = !starred;
+      setParent((p) => (p && p.id === message.id ? { ...p, starredByMe: nextStarred } : p));
+      setReplies((prev) =>
+        prev.map((r) => (r.id === message.id ? { ...r, starredByMe: nextStarred } : r)),
+      );
+    },
+    [onToggleStar],
+  );
+
   const handleEdit = useCallback(
     async (messageId: string, body: string): Promise<SembangMessage | null> => {
       const updated = await onEditMessage(messageId, body);
@@ -233,6 +253,7 @@ export function ThreadPanel({
                       disableThreadAffordances
                       onReact={handleReact}
                       onTogglePin={onTogglePin}
+                      onToggleStar={handleToggleStar}
                       onEdit={handleEdit}
                       onRemove={handleRemove}
                       onAddToTask={onAddToTask}
@@ -253,6 +274,7 @@ export function ThreadPanel({
                         canRemoveOthers={canRemoveMessages}
                         onReact={handleReact}
                         onTogglePin={onTogglePin}
+                        onToggleStar={handleToggleStar}
                         onEdit={handleEdit}
                         onRemove={handleRemove}
                         onAddToTask={onAddToTask}

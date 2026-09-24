@@ -91,6 +91,7 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         name: created.name,
         topic: created.topic,
         isPrivate: created.isPrivate,
+        isDm: false,
         createdBy: created.createdBy,
         createdAt: created.createdAt,
         memberRole: "moderator",
@@ -99,6 +100,8 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         lastMessageBody: null,
         lastMessageAt: null,
         lastMessageAuthorId: null,
+        dmParticipantNames: null,
+        dmParticipantAvatarUrls: null,
       });
       reset();
     } catch {
