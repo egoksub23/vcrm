@@ -227,7 +227,7 @@ export function ThreadPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[440px]">
+      <SheetContent className="sm:max-w-[560px] xl:max-w-[680px]">
         <SheetHeader>
           <SheetTitle>{t("title")}</SheetTitle>
         </SheetHeader>
