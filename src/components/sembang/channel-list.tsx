@@ -109,9 +109,6 @@ export function ChannelList({
           >
             {label}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {c.lastMessageBody || t("noMessagesYet")}
-          </p>
         </div>
         {c.muted && (
           <span title={t("mutedTooltip")} className="shrink-0">

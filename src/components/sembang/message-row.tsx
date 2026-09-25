@@ -241,7 +241,7 @@ export function MessageRow({
               <button
                 type="button"
                 onClick={() => onOpenThread?.(message)}
-                className="mt-1 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                className="-ml-2 mt-1.5 flex items-center gap-1 rounded-md bg-primary/5 px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
               >
                 <MessageSquareText className="h-3 w-3" aria-hidden />
                 {t("replyCount", { count: message.replyCount ?? 0 })}
@@ -257,7 +257,7 @@ export function MessageRow({
       </div>
 
       {!isDeleted && !editing && (
-        <div className="flex shrink-0 items-start gap-0.5 self-start opacity-0 group-hover:opacity-100">
+        <div className="flex shrink-0 items-start gap-0.5 self-start">
           {showThread && onReplyInThread && (
             <Button
               variant="ghost"

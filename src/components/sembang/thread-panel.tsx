@@ -227,7 +227,10 @@ export function ThreadPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[560px] xl:max-w-[680px]">
+      <SheetContent
+        className="sm:max-w-[640px] xl:max-w-[780px]"
+        overlayClassName="bg-transparent backdrop-blur-none"
+      >
         <SheetHeader>
           <SheetTitle>{t("title")}</SheetTitle>
         </SheetHeader>

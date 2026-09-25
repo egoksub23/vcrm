@@ -296,13 +296,11 @@ export function MessageComposer({
             // MentionTextarea's ref only exposes `focus()`. Resting height
             // (~2 lines) and the growth cap mirror the Inbox composer's
             // min-h-16 / ~140px constants. The thread-reply instance
-            // (showAlsoInChannelOption is only ever true there) rests a
-            // little taller — a cramped one-line box read as "too small"
-            // next to Slack's own reply composer, which the narrow thread
-            // panel it lives in made more noticeable.
+            // (showAlsoInChannelOption is only ever true there) rests
+            // noticeably taller, matching Slack's own reply composer.
             className={
               showAlsoInChannelOption
-                ? "field-sizing-content min-h-24 max-h-48 resize-none overflow-y-auto"
+                ? "field-sizing-content min-h-32 max-h-64 resize-none overflow-y-auto"
                 : "field-sizing-content min-h-16 max-h-36 resize-none overflow-y-auto"
             }
           />

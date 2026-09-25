@@ -41,14 +41,20 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  overlayClassName,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  /** Overrides the backdrop's dim/blur for this one Sheet instance (e.g. a
+   *  wide panel meant to sit alongside the page rather than cover it) —
+   *  the Backdrop element itself still renders, so click-outside-to-close
+   *  keeps working, it just becomes visually transparent. */
+  overlayClassName?: string
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <SheetPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}
