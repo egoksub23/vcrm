@@ -7178,7 +7178,8 @@
       "unmuteChannel": "Unmute channel",
       "muteFailed": "Could not mute the channel. Try again.",
       "unmuteFailed": "Could not unmute the channel. Try again.",
-      "repliedToThread": "replied to a thread: {author}: {snippet}"
+      "repliedToThread": "replied to a thread: {author}: {snippet}",
+      "voiceMessage": "Voice message"
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",
@@ -7192,7 +7193,18 @@
       "boldAriaLabel": "Bold",
       "italicAriaLabel": "Italic",
       "listAriaLabel": "Bulleted list",
-      "alsoInChannelLabel": "Also send to #{channel}"
+      "alsoInChannelLabel": "Also send to #{channel}",
+      "micAriaLabel": "Record a voice message",
+      "recording": "Recording… {current} / {max}",
+      "stopAndAttach": "Stop and attach",
+      "cancel": "Cancel",
+      "recordingTooLong": "Recording is too long (over 16 MB).",
+      "recordingUnsupported": "Voice recording isn't supported in this browser.",
+      "microphoneDenied": "Microphone access denied or unavailable.",
+      "microphoneLost": "The microphone was disconnected. The recording was discarded.",
+      "microphone": "Microphone",
+      "micLevel": "Microphone level",
+      "noSoundDetected": "No sound detected. Pick a different microphone below."
     },
     "membersPanel": {
       "title": "Members",

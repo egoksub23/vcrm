@@ -218,22 +218,26 @@ export function MessageRow({
           </div>
         ) : (
           <>
-            <MessageBody body={message.body} peopleNames={peopleNames} />
+            {message.body && <MessageBody body={message.body} peopleNames={peopleNames} />}
             {message.attachments.length > 0 && (
               <div className="mt-1 flex flex-col gap-1">
-                {message.attachments.map((a) => (
-                  <a
-                    key={a.id}
-                    href={a.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex w-fit items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted"
-                  >
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="max-w-56 truncate">{a.filename}</span>
-                    <span className="text-muted-foreground">{formatBytes(a.sizeBytes)}</span>
-                  </a>
-                ))}
+                {message.attachments.map((a) =>
+                  a.mimeType?.startsWith("audio/") ? (
+                    <audio key={a.id} src={a.url} controls className="h-10 max-w-72" />
+                  ) : (
+                    <a
+                      key={a.id}
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex w-fit items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="max-w-56 truncate">{a.filename}</span>
+                      <span className="text-muted-foreground">{formatBytes(a.sizeBytes)}</span>
+                    </a>
+                  ),
+                )}
               </div>
             )}
             <ReactionRow reactions={message.reactions} onReact={(emoji) => onReact(message.id, emoji)} />

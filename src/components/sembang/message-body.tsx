@@ -11,9 +11,12 @@
 
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
+import { Mic, Paperclip } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { highlightMentions } from "@/lib/tickets/mention-highlight";
 import { parseCodeBlocks } from "@/lib/sembang/parse-code-blocks";
 import { parseInlineFormatting, type FormatSegment } from "@/lib/sembang/parse-inline-formatting";
+import type { SembangAttachment } from "@/types";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -104,6 +107,37 @@ export function MessageBody({ body, peopleNames }: { body: string; peopleNames: 
           ))
         ),
       )}
+    </div>
+  );
+}
+
+/** `MessageBody`, plus a fallback for an attachment-only message (a voice
+ *  note has no caption, same as WhatsApp's) — every list that previews a
+ *  message body (starred/pinned/threads/mentions, and the message row
+ *  itself) needs this same fallback, so it lives in one place rather than
+ *  four near-identical copies of "body is empty, what do I show instead". */
+export function MessagePreview({
+  body,
+  attachments,
+  peopleNames,
+}: {
+  body: string;
+  attachments: Pick<SembangAttachment, "filename" | "mimeType">[];
+  peopleNames: string[];
+}) {
+  const t = useTranslations("Sembang.thread");
+  if (body) return <MessageBody body={body} peopleNames={peopleNames} />;
+  const first = attachments[0];
+  if (!first) return null;
+  const isVoice = first.mimeType?.startsWith("audio/") ?? false;
+  return (
+    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+      {isVoice ? (
+        <Mic className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      ) : (
+        <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{isVoice ? t("voiceMessage") : first.filename}</span>
     </div>
   );
 }

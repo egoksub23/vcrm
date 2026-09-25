@@ -7178,7 +7178,8 @@
       "unmuteChannel": "채널 음소거 해제",
       "muteFailed": "채널을 음소거하지 못했습니다. 다시 시도하세요.",
       "unmuteFailed": "채널 음소거를 해제하지 못했습니다. 다시 시도하세요.",
-      "repliedToThread": "스레드에 답장함: {author}: {snippet}"
+      "repliedToThread": "스레드에 답장함: {author}: {snippet}",
+      "voiceMessage": "음성 메시지"
     },
     "composer": {
       "fileTooLarge": "파일이 {max}MB 제한을 초과했습니다.",
@@ -7192,7 +7193,18 @@
       "boldAriaLabel": "굵게",
       "italicAriaLabel": "기울임꼴",
       "listAriaLabel": "글머리 기호 목록",
-      "alsoInChannelLabel": "#{channel}에도 보내기"
+      "alsoInChannelLabel": "#{channel}에도 보내기",
+      "micAriaLabel": "음성 메시지 녹음",
+      "recording": "녹음 중… {current} / {max}",
+      "stopAndAttach": "중지하고 첨부",
+      "cancel": "취소",
+      "recordingTooLong": "녹음이 너무 깁니다 (16MB 초과).",
+      "recordingUnsupported": "이 브라우저에서는 음성 녹음을 지원하지 않습니다.",
+      "microphoneDenied": "마이크 접근이 거부되었거나 사용할 수 없습니다.",
+      "microphoneLost": "마이크 연결이 끊어졌습니다. 녹음이 삭제되었습니다.",
+      "microphone": "마이크",
+      "micLevel": "마이크 입력 수준",
+      "noSoundDetected": "소리가 감지되지 않습니다. 아래에서 다른 마이크를 선택하세요."
     },
     "membersPanel": {
       "title": "멤버",

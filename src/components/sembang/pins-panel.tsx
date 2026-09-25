@@ -12,7 +12,7 @@ import { Loader2, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
-import { MessageBody } from "./message-body";
+import { MessagePreview } from "./message-body";
 import type { SembangPin } from "@/types";
 
 interface PinsPanelProps {
@@ -55,7 +55,11 @@ export function PinsPanel({ open, onOpenChange, pins, peopleNames, onUnpin, unpi
                         {format(new Date(p.message.createdAt), "MMM d, HH:mm")}
                       </span>
                     </div>
-                    <MessageBody body={p.message.body} peopleNames={peopleNames} />
+                    <MessagePreview
+                      body={p.message.body}
+                      attachments={p.message.attachments}
+                      peopleNames={peopleNames}
+                    />
                   </div>
                 </div>
                 <div className="mt-1.5 flex items-center justify-between gap-2">

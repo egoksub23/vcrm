@@ -35,7 +35,7 @@ import { AtSign, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { ThreadPanel } from "./thread-panel";
-import { MessageBody } from "./message-body";
+import { MessagePreview } from "./message-body";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountMembers } from "@/hooks/use-account-members";
@@ -230,7 +230,11 @@ export function MentionsColumn({ onCleared }: MentionsColumnProps) {
                             {format(new Date(r.message.createdAt), "MMM d, HH:mm")}
                           </span>
                         </div>
-                        <MessageBody body={r.message.body} peopleNames={peopleNames} />
+                        <MessagePreview
+                          body={r.message.body}
+                          attachments={r.message.attachments}
+                          peopleNames={peopleNames}
+                        />
                       </div>
                     </div>
                   ) : (

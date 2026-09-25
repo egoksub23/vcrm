@@ -80,14 +80,7 @@ import { KnowledgePanel } from "./knowledge-panel";
 import { FileChip, KnowledgeCard, useKnowledgeSearch } from "./knowledge-shared";
 import { PastedImageChip } from "./pasted-image-chip";
 import { RecordingBar } from "./recording-bar";
-import {
-  activeMicrophoneId,
-  listMicrophones,
-  openMicrophone,
-  readSavedMicrophone,
-  saveMicrophone,
-  type MicrophoneOption,
-} from "@/lib/media/microphone";
+import { useVoiceRecorder } from "@/lib/media/use-voice-recorder";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { RichTextEditor } from "./rich-text-editor";
 import { EmojiPicker } from "@/components/emoji/emoji-picker";
@@ -221,11 +214,6 @@ function formatDuration(seconds: number): string {
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
-
-/** Worker that encodes mic input to Ogg/Opus entirely in the browser
- *  (vendored from opus-recorder into /public). Recording client-side in a
- *  Meta-accepted format means no server ffmpeg / transcode step. */
-const OPUS_ENCODER_PATH = "/opus/encoderWorker.min.js";
 
 export function MessageComposer({
   conversationId,
@@ -506,21 +494,6 @@ export function MessageComposer({
     void deleteAccountMedia(CHAT_MEDIA_BUCKET, path).catch(() => {});
   }, []);
 
-  // Voice recording state. The recorder encodes Ogg/Opus in-browser
-  // (opus-recorder) so there's no server-side transcode.
-  const [recording, setRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
-  const recorderRef = useRef<import("opus-recorder").default | null>(null);
-  const cancelledRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // The microphone stream and audio graph are opened here (not by the
-  // recorder) so the agent can pick the input and see a live level.
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
-  const [micDevices, setMicDevices] = useState<MicrophoneOption[]>([]);
-  const [micDeviceId, setMicDeviceId] = useState<string | null>(null);
-
   // Viewers (read-only role) can browse the inbox but never send.
   // For solo users this is always true — single-owner accounts pass
   // every capability — so the disabled branch is a no-op there.
@@ -541,23 +514,6 @@ export function MessageComposer({
   // Media (like free-form text) is only allowed inside the 24h window.
   const inputsDisabled = readOnly || sessionExpired;
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  // Turns the microphone off (the browser's recording indicator goes away).
-  const releaseMic = useCallback(() => {
-    micStreamRef.current?.getTracks().forEach((track) => track.stop());
-    micStreamRef.current = null;
-    const ctx = audioCtxRef.current;
-    audioCtxRef.current = null;
-    void ctx?.close().catch(() => {});
-    setMicAnalyser(null);
-  }, []);
-
   // Pasted images the agent never sent are the agent's own uploads: switching
   // to another conversation or leaving the page deletes them (an article's
   // files are shared with the article and are never deleted here).
@@ -574,18 +530,13 @@ export function MessageComposer({
     };
   }, [conversationId, removeStaged]);
 
-  // Tear down any live recording + timer on unmount so a mid-record
-  // navigation doesn't leak the mic, and GC a staged-but-unsent
-  // attachment so it doesn't orphan in the bucket.
+  // GC a staged-but-unsent attachment on unmount so it doesn't orphan in
+  // the bucket. (Live-recording teardown is handled by useVoiceRecorder.)
   useEffect(() => {
     return () => {
-      clearTimer();
-      cancelledRef.current = true;
-      void recorderRef.current?.stop().catch(() => {});
-      releaseMic();
       removeStaged(draftRef.current?.path);
     };
-  }, [clearTimer, releaseMic, removeStaged]);
+  }, [removeStaged]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -1172,21 +1123,24 @@ export function MessageComposer({
   );
 
   // ---- Voice recording (client-side Ogg/Opus, no server transcode) ---
-
-  // The encoded Ogg/Opus file from opus-recorder → upload as an audio
-  // draft. WhatsApp renders Ogg/Opus as a playable voice note.
-  const finalizeRecording = useCallback(
-    async (bytes: Uint8Array) => {
-      // Uint8Array is a valid BlobPart at runtime; the cast sidesteps the
-      // lib.dom ArrayBufferLike-vs-ArrayBuffer generic mismatch.
-      const file = new File([bytes as unknown as BlobPart], `voice-${Date.now()}.ogg`, {
-        type: "audio/ogg",
-      });
-      if (file.size === 0) return; // cancelled / empty take
-      if (file.size > MEDIA_MAX_BYTES_BY_KIND.audio) {
-        toast.error(t("recordingTooLong"));
-        return;
-      }
+  // The encode/mic state machine itself lives in useVoiceRecorder, shared
+  // with Sembang's composer; this just wires the finalized file into the
+  // Inbox media-draft slot the same way any other attach does.
+  const {
+    recording,
+    recordSeconds,
+    micAnalyser,
+    micDevices,
+    micDeviceId,
+    start: startRecording,
+    stop: stopRecording,
+    cancel: cancelRecording,
+    switchDevice: switchMicrophone,
+  } = useVoiceRecorder({
+    disabled: inputsDisabled || busy,
+    maxSeconds: MAX_RECORDING_SECONDS,
+    maxBytes: MEDIA_MAX_BYTES_BY_KIND.audio,
+    onRecorded: async (file) => {
       setBusy(true);
       try {
         const { publicUrl, path } = await uploadAccountMedia(CHAT_MEDIA_BUCKET, file);
@@ -1198,111 +1152,13 @@ export function MessageComposer({
         setBusy(false);
       }
     },
-    [removeStaged, t],
-  );
-
-  // `micId` is a device picked in the recording bar; otherwise the last
-  // remembered choice, otherwise the browser default.
-  const startRecording = useCallback(
-    async (micId?: string) => {
-      if (inputsDisabled || busy) return;
-      if (!navigator.mediaDevices?.getUserMedia || typeof AudioContext === "undefined") {
-        toast.error(t("recordingUnsupported"));
-        return;
-      }
-      try {
-        const stream = await openMicrophone(micId ?? readSavedMicrophone());
-        micStreamRef.current = stream;
-        // If the device is unplugged mid-take, say so instead of sending silence.
-        stream.getAudioTracks()[0]?.addEventListener("ended", () => {
-          if (micStreamRef.current !== stream) return;
-          toast.error(t("microphoneLost"));
-          cancelledRef.current = true;
-          clearTimer();
-          setRecording(false);
-          void recorderRef.current?.stop().catch(() => {});
-          releaseMic();
-        });
-        // Labels are only readable now that access has been granted.
-        setMicDevices(await listMicrophones().catch(() => []));
-        setMicDeviceId(activeMicrophoneId(stream));
-
-        const ctx = new AudioContext();
-        audioCtxRef.current = ctx;
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024;
-        source.connect(analyser);
-        setMicAnalyser(analyser);
-
-        // Lazy-load the encoder (≈400 KB worker) only when the user records,
-        // keeping it out of the main bundle.
-        const { default: Recorder } = await import("opus-recorder");
-        const recorder = new Recorder({
-          encoderPath: OPUS_ENCODER_PATH,
-          numberOfChannels: 1,
-          encoderApplication: 2048, // VOIP — tuned for speech
-          encoderSampleRate: 48000,
-          streamPages: false, // one callback with the complete file on stop
-          sourceNode: source, // our own stream, so the chosen microphone is used
-        });
-        cancelledRef.current = false;
-        recorder.ondataavailable = (bytes) => {
-          if (cancelledRef.current) return;
-          void finalizeRecording(bytes);
-        };
-        recorderRef.current = recorder;
-        await recorder.start();
-        setRecording(true);
-        setRecordSeconds(0);
-        timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
-      } catch {
-        void recorderRef.current?.stop().catch(() => {});
-        recorderRef.current = null;
-        releaseMic();
-        toast.error(t("microphoneDenied"));
-      }
+    onError: (kind) => {
+      if (kind === "tooLong") toast.error(t("recordingTooLong"));
+      else if (kind === "unsupported") toast.error(t("recordingUnsupported"));
+      else if (kind === "lost") toast.error(t("microphoneLost"));
+      else toast.error(t("microphoneDenied"));
     },
-    [inputsDisabled, busy, finalizeRecording, clearTimer, releaseMic, t],
-  );
-
-  const stopRecording = useCallback(() => {
-    clearTimer();
-    setRecording(false);
-    // Turn the mic off once the encoder has flushed the take.
-    void (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve()).finally(releaseMic);
-  }, [clearTimer, releaseMic]);
-
-  const cancelRecording = useCallback(() => {
-    cancelledRef.current = true;
-    clearTimer();
-    setRecording(false);
-    void (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve()).finally(releaseMic);
-  }, [clearTimer, releaseMic]);
-
-  // Picking another microphone restarts the take on it (the abandoned take is
-  // discarded) and remembers the choice for next time.
-  const switchMicrophone = useCallback(
-    async (id: string) => {
-      if (!id || id === micDeviceId) return;
-      saveMicrophone(id);
-      cancelledRef.current = true;
-      clearTimer();
-      setRecording(false);
-      await (recorderRef.current?.stop().catch(() => {}) ?? Promise.resolve());
-      releaseMic();
-      await startRecording(id);
-    },
-    [micDeviceId, clearTimer, releaseMic, startRecording],
-  );
-
-  // Auto-stop at the cap so a forgotten recording can't blow the
-  // upload size limit.
-  useEffect(() => {
-    if (recording && recordSeconds >= MAX_RECORDING_SECONDS) {
-      stopRecording();
-    }
-  }, [recording, recordSeconds, stopRecording]);
+  });
 
   // ---- Draft send / discard -----------------------------------------
 
@@ -1719,6 +1575,7 @@ export function MessageComposer({
           onSwitchDevice={(id) => void switchMicrophone(id)}
           onCancel={cancelRecording}
           onStop={stopRecording}
+          t={t}
         />
       ) : (
         <div className="relative flex items-end gap-2">

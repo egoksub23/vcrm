@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Bold, Code2, Italic, List, Loader2, Paperclip, Send, X } from "lucide-react";
+import { Bold, Code2, Italic, List, Loader2, Mic, Paperclip, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,6 +10,17 @@ import { MentionTextarea, type MentionTextareaHandle } from "@/components/ticket
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { SEMBANG_MAX_BYTES, uploadSembangFile } from "@/lib/storage/upload-sembang-file";
 import { readChannelDraft, readThreadDraft, writeChannelDraft, writeThreadDraft } from "@/lib/sembang/draft-storage";
+import { RecordingBar } from "@/components/inbox/recording-bar";
+import { useVoiceRecorder } from "@/lib/media/use-voice-recorder";
+
+/** Hard cap on a single voice recording — mirrors the Inbox composer's cap. */
+const MAX_RECORDING_SECONDS = 5 * 60;
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 export interface PendingSembangAttachment {
   storagePath: string;
@@ -145,6 +156,52 @@ export function MessageComposer({
     setAttachments((prev) => prev.filter((a) => a.storagePath !== path));
   }, []);
 
+  // Voice recording — same encode/mic state machine the Inbox composer
+  // uses (src/lib/media/use-voice-recorder.ts), uploaded through the same
+  // uploadSembangFile() helper any other attachment goes through. Stopping
+  // attaches the take rather than sending it immediately, so it can be
+  // reviewed/removed like any other attachment before Send.
+  const {
+    recording,
+    recordSeconds,
+    micAnalyser,
+    micDevices,
+    micDeviceId,
+    start: startRecording,
+    stop: stopRecording,
+    cancel: cancelRecording,
+    switchDevice: switchMicrophone,
+  } = useVoiceRecorder({
+    disabled: disabled || uploading || sending,
+    maxSeconds: MAX_RECORDING_SECONDS,
+    maxBytes: SEMBANG_MAX_BYTES,
+    onRecorded: async (file) => {
+      setUploading(true);
+      try {
+        const uploaded = await uploadSembangFile(channelId, file);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            storagePath: uploaded.path,
+            filename: uploaded.filename,
+            sizeBytes: uploaded.sizeBytes,
+            mimeType: uploaded.mimeType,
+          },
+        ]);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("uploadFailed"));
+      } finally {
+        setUploading(false);
+      }
+    },
+    onError: (kind) => {
+      if (kind === "tooLong") toast.error(t("recordingTooLong"));
+      else if (kind === "unsupported") toast.error(t("recordingUnsupported"));
+      else if (kind === "lost") toast.error(t("microphoneLost"));
+      else toast.error(t("microphoneDenied"));
+    },
+  });
+
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if ((!trimmed && attachments.length === 0) || sending || uploading) return;
@@ -251,13 +308,28 @@ export function MessageComposer({
         disabled={disabled || uploading}
       />
 
-      {/* The thread-reply composer (showAlsoInChannelOption is only ever
+      {recording ? (
+        // Recording bar — replaces the composer while the mic is live.
+        <RecordingBar
+          analyser={micAnalyser}
+          elapsed={formatDuration(recordSeconds)}
+          max={formatDuration(MAX_RECORDING_SECONDS)}
+          seconds={recordSeconds}
+          devices={micDevices}
+          deviceId={micDeviceId}
+          onSwitchDevice={(id) => void switchMicrophone(id)}
+          onCancel={cancelRecording}
+          onStop={stopRecording}
+          t={t}
+        />
+      ) : (
+      /* The thread-reply composer (showAlsoInChannelOption is only ever
           true there) gets a taller layout: the formatting toolbar sits
           above a full-width textarea instead of squeezed into the same
           row, and Send moves to its own row below — there's real column
           width to spend here, unlike the main channel composer's
-          space-constrained single-row layout, which is left unchanged. */}
-      {showAlsoInChannelOption ? (
+          space-constrained single-row layout, which is left unchanged. */
+      showAlsoInChannelOption ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Button
@@ -269,6 +341,17 @@ export function MessageComposer({
               disabled={disabled || uploading}
             >
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("micAriaLabel")}
+              title={t("micAriaLabel")}
+              onClick={() => void startRecording()}
+              disabled={disabled || uploading || sending}
+            >
+              <Mic className="h-4 w-4" />
             </Button>
             <Button
               type="button"
@@ -359,6 +442,18 @@ export function MessageComposer({
             type="button"
             variant="ghost"
             size="icon"
+            aria-label={t("micAriaLabel")}
+            title={t("micAriaLabel")}
+            onClick={() => void startRecording()}
+            disabled={disabled || uploading || sending}
+            className="mb-0.5 shrink-0"
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             aria-label={t("boldAriaLabel")}
             title={t("boldAriaLabel")}
             onClick={handleBold}
@@ -437,7 +532,7 @@ export function MessageComposer({
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-      )}
+      ))}
     </div>
   );
 }

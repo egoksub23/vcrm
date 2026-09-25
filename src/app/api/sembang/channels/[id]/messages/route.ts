@@ -130,9 +130,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     } | null
 
     const messageBody = typeof payload?.body === 'string' ? payload.body.trim() : ''
-    if (!messageBody || messageBody.length > BODY_MAX) {
+
+    const attachmentInputs = Array.isArray(payload?.attachments)
+      ? payload.attachments.filter(
+          (a): a is { storagePath: string; filename: string; sizeBytes: number; mimeType?: string } =>
+            !!a &&
+            typeof a === 'object' &&
+            typeof (a as Record<string, unknown>).storagePath === 'string' &&
+            typeof (a as Record<string, unknown>).filename === 'string' &&
+            typeof (a as Record<string, unknown>).sizeBytes === 'number',
+        )
+      : []
+
+    // A message needs text or at least one attachment (e.g. a voice note,
+    // which has no caption) — never neither.
+    if ((!messageBody && attachmentInputs.length === 0) || messageBody.length > BODY_MAX) {
       return NextResponse.json(
-        { error: `Message must be between 1 and ${BODY_MAX} characters` },
+        { error: `Message must be between 0 and ${BODY_MAX} characters, or include an attachment` },
         { status: 400 },
       )
     }
@@ -148,17 +162,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // but a client sending it without `parentMessageId` is a harmless
     // mistake to silently correct, not a 400.
     const alsoInChannel = parentMessageId !== null && payload?.alsoInChannel === true
-
-    const attachmentInputs = Array.isArray(payload?.attachments)
-      ? payload.attachments.filter(
-          (a): a is { storagePath: string; filename: string; sizeBytes: number; mimeType?: string } =>
-            !!a &&
-            typeof a === 'object' &&
-            typeof (a as Record<string, unknown>).storagePath === 'string' &&
-            typeof (a as Record<string, unknown>).filename === 'string' &&
-            typeof (a as Record<string, unknown>).sizeBytes === 'number',
-        )
-      : []
 
     const { data: row, error } = await ctx.supabase
       .from('sembang_messages')

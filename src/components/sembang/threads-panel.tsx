@@ -15,7 +15,7 @@ import { Loader2, MessageSquareText } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { useAccountMembers } from "@/hooks/use-account-members";
-import { MessageBody } from "./message-body";
+import { MessagePreview } from "./message-body";
 import type { SembangThreadSummary } from "@/types";
 
 interface ThreadsPanelProps {
@@ -102,7 +102,11 @@ export function ThreadsPanel({ open, onOpenChange }: ThreadsPanelProps) {
                         {format(new Date(r.message.createdAt), "MMM d, HH:mm")}
                       </span>
                     </div>
-                    <MessageBody body={r.message.body} peopleNames={peopleNames} />
+                    <MessagePreview
+                      body={r.message.body}
+                      attachments={r.message.attachments}
+                      peopleNames={peopleNames}
+                    />
                   </div>
                 </div>
                 <div className="mt-1.5 flex items-center justify-between gap-2">

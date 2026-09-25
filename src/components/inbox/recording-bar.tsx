@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Square, TriangleAlert } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   readPeakLevel,
@@ -23,6 +22,9 @@ interface RecordingBarProps {
   onSwitchDevice: (id: string) => void;
   onCancel: () => void;
   onStop: () => void;
+  /** Caller's own translator — Inbox and Sembang each keep their own copy
+   *  of these strings under their own i18n namespace. */
+  t: (key: string, values?: Record<string, string | number>) => string;
 }
 
 // Replaces the composer while the mic is live. The level meter is polled here
@@ -37,8 +39,8 @@ export function RecordingBar({
   onSwitchDevice,
   onCancel,
   onStop,
+  t,
 }: RecordingBarProps) {
-  const t = useTranslations("Inbox.composer");
   const [level, setLevel] = useState(0);
   const [heardSound, setHeardSound] = useState(false);
   const heardRef = useRef(false);
