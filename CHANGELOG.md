@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.61.3] — 2026-09-25
+
+- **Sembang moved below Settings in the sidebar.** Previously sat in the main nav list alongside customer/business-facing tools (Inbox, Contacts, Pipelines, Tickets, etc.); now lives in the bottom nav group with Help and Settings, after Settings. Purely a placement change — no functional change — to visually separate internal team chat from the CRM's external/customer-facing tools.
+
 ## [0.61.2] — 2026-09-25
 
 - **Thread-reply composer: formatting toolbar moved above the textarea, full column width.** The thread column's new width (0.61.1) exposed the composer's old single-row layout (attach/bold/italic/list/code icons + textarea + send all squeezed into one row) as cramped and misaligned — the textarea never used the extra width. The thread-reply composer now stacks: toolbar row on top, a full-width textarea below it, Send on its own row underneath. The main channel composer (bottom of the channel view, not the thread) is unchanged — it stays in the original single-row layout, which fits its available width fine.

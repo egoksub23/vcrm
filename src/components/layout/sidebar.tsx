@@ -118,16 +118,19 @@ const navItems: NavItem[] = [
   { href: "/automations", labelKey: "automations", icon: Zap, capability: "menu.automations" },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true, capability: "menu.flows" },
   { href: "/knowledge", labelKey: "knowledge", icon: BookOpen, capability: "menu.knowledge" },
-  { href: "/sembang", labelKey: "sembang", icon: MessageCircle, beta: true, capability: "menu.sembang" },
   { href: "/agents", labelKey: "aiAgents", icon: Bot, capability: "menu.agents" },
   { href: "/reports", labelKey: "reports", icon: BarChart3, capability: "menu.reports" },
 ];
 
 // The User Guide is open to every signed-in role, so it carries no capability
-// (and no database capability exists for it).
+// (and no database capability exists for it). Sembang lives here too, below
+// Settings — it's internal team chat, not a customer/business-facing tool
+// like the items above the divider, so it's deliberately set apart from them
+// rather than mixed into the same list.
 const bottomNavItems: NavItem[] = [
   { href: "/help", labelKey: "userGuide", icon: BookMarked },
   { href: "/settings", labelKey: "settings", icon: Settings, capability: "menu.settings" },
+  { href: "/sembang", labelKey: "sembang", icon: MessageCircle, beta: true, capability: "menu.sembang" },
 ];
 
 interface SidebarProps {
