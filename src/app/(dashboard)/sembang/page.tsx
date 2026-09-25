@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Hash, MessageSquareText, PenLine, Search as SearchIcon, Star, Users2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
@@ -185,6 +186,30 @@ function SembangPageInner() {
     setActiveChannelId((prev) => (prev === channelId ? null : prev));
   }, []);
 
+  // The sidebar's "X" on a DM row (migration 106) — hides that DM from
+  // the caller's own sidebar until a new message arrives or they re-open
+  // it. Also closes it if it's the one currently open: leaving it open
+  // would otherwise immediately re-mark-read (message-list-growth effect
+  // in channel-thread.tsx) and undo the hide right away.
+  const handleHideDm = useCallback(
+    async (channelId: string) => {
+      setChannels((prev) => prev?.filter((c) => c.id !== channelId) ?? prev);
+      setActiveChannelId((prev) => (prev === channelId ? null : prev));
+      try {
+        const res = await fetch(`/api/sembang/channels/${channelId}/hide`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hidden: true }),
+        });
+        if (!res.ok) throw new Error("failed");
+      } catch {
+        toast.error(t("hideDmFailed"));
+        void fetchChannels();
+      }
+    },
+    [fetchChannels, t],
+  );
+
   const handleChannelUnarchived = useCallback(() => {
     void fetchChannels();
   }, [fetchChannels]);
@@ -285,6 +310,7 @@ function SembangPageInner() {
             mentionsActive={mentionsViewActive}
             unreadMentionsTotal={totalUnreadMentions}
             onSelectMentions={handleSelectMentions}
+            onHideDm={handleHideDm}
           />
         </div>
 

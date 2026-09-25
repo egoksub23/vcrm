@@ -7073,7 +7073,8 @@
       "starredAriaLabel": "Starred messages",
       "threadsAriaLabel": "Threads",
       "directoryAriaLabel": "Member directory",
-      "draftsAriaLabel": "Drafts"
+      "draftsAriaLabel": "Drafts",
+      "hideDmFailed": "Failed to remove — try again."
     },
     "channelList": {
       "title": "Sembang",
@@ -7094,7 +7095,8 @@
       "browseChannelsLink": "Browse channels",
       "mutedTooltip": "Muted",
       "unreadMentionsTooltip": "{count, plural, =1 {# unread mention} other {# unread mentions}}",
-      "mentionsNavLabel": "Mentions"
+      "mentionsNavLabel": "Mentions",
+      "removeDmAriaLabel": "Remove {name} from the sidebar"
     },
     "createDialog": {
       "title": "Create a channel",

@@ -7073,7 +7073,8 @@
       "starredAriaLabel": "별표 표시된 메시지",
       "threadsAriaLabel": "스레드",
       "directoryAriaLabel": "멤버 디렉터리",
-      "draftsAriaLabel": "임시 보관함"
+      "draftsAriaLabel": "임시 보관함",
+      "hideDmFailed": "제거하지 못했습니다. 다시 시도해 주세요."
     },
     "channelList": {
       "title": "Sembang",
@@ -7094,7 +7095,8 @@
       "browseChannelsLink": "채널 둘러보기",
       "mutedTooltip": "음소거됨",
       "unreadMentionsTooltip": "읽지 않은 멘션 {count}개",
-      "mentionsNavLabel": "멘션"
+      "mentionsNavLabel": "멘션",
+      "removeDmAriaLabel": "사이드바에서 {name} 제거"
     },
     "createDialog": {
       "title": "채널 만들기",

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, AtSign, BellOff, Compass, Hash, Lock, Plus, Search } from "lucide-react";
+import { Archive, AtSign, BellOff, Compass, Hash, Lock, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,9 @@ interface ChannelListProps {
   mentionsActive: boolean;
   unreadMentionsTotal: number;
   onSelectMentions: () => void;
+  /** Migration 106 — the "X" on a DM row. Hides that DM from this user's
+   *  own sidebar (it reappears on a new message, or when re-opened). */
+  onHideDm: (channelId: string) => void;
 }
 
 /** A DM row's display label — the other participant(s)' names, joined.
@@ -58,6 +61,7 @@ export function ChannelList({
   mentionsActive,
   unreadMentionsTotal,
   onSelectMentions,
+  onHideDm,
 }: ChannelListProps) {
   const t = useTranslations("Sembang.channelList");
   const [query, setQuery] = useState("");
@@ -91,60 +95,80 @@ export function ChannelList({
     const isUnread = c.unreadCount > 0;
     const label = c.isDm ? dmLabel(c, t("directMessageFallback")) : (c.name ?? "");
     return (
-      <button
+      <div
         key={c.id}
-        type="button"
-        onClick={() => onSelect(c)}
         className={cn(
-          "flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted",
+          "group/row flex items-center transition-colors hover:bg-muted",
           isActive && "bg-muted",
         )}
       >
-        {c.isDm ? (
-          <PersonAvatar
-            name={c.dmParticipantNames?.[0]}
-            avatarUrl={c.dmParticipantAvatarUrls?.[0] ?? null}
-            size="sm"
-          />
-        ) : c.isPrivate ? (
-          <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        ) : (
-          <Hash className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        )}
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "truncate text-sm text-foreground",
-              isUnread && "font-semibold",
-            )}
+        <button
+          type="button"
+          onClick={() => onSelect(c)}
+          className={cn("flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3 text-left", c.isDm ? "pr-1" : "pr-3")}
+        >
+          {c.isDm ? (
+            <PersonAvatar
+              name={c.dmParticipantNames?.[0]}
+              avatarUrl={c.dmParticipantAvatarUrls?.[0] ?? null}
+              size="sm"
+            />
+          ) : c.isPrivate ? (
+            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          ) : (
+            <Hash className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          )}
+          <div className="min-w-0 flex-1">
+            <p
+              className={cn(
+                "truncate text-sm text-foreground",
+                isUnread && "font-semibold",
+              )}
+            >
+              {label}
+            </p>
+          </div>
+          {c.muted && (
+            <span title={t("mutedTooltip")} className="shrink-0">
+              <BellOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+            </span>
+          )}
+          {c.unreadMentionCount > 0 && (
+            <span
+              title={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
+              aria-label={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
+              className="flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
+            >
+              <AtSign className="h-3 w-3" aria-hidden />
+              {c.unreadMentionCount > 99 ? "99+" : c.unreadMentionCount}
+            </span>
+          )}
+          {isUnread && (
+            <span
+              aria-label={t("unreadAriaLabel", { count: c.unreadCount })}
+              className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
+            >
+              {c.unreadCount > 99 ? "99+" : c.unreadCount}
+            </span>
+          )}
+        </button>
+        {/* Migration 106 — only DMs can be removed from the sidebar this
+            way; a regular channel is left/archived instead, not hidden. */}
+        {c.isDm && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onHideDm(c.id);
+            }}
+            aria-label={t("removeDmAriaLabel", { name: label })}
+            title={t("removeDmAriaLabel", { name: label })}
+            className="mr-1.5 shrink-0 rounded-md p-1 text-muted-foreground opacity-0 hover:bg-card hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100"
           >
-            {label}
-          </p>
-        </div>
-        {c.muted && (
-          <span title={t("mutedTooltip")} className="shrink-0">
-            <BellOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-          </span>
+            <X className="h-3.5 w-3.5" />
+          </button>
         )}
-        {c.unreadMentionCount > 0 && (
-          <span
-            title={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
-            aria-label={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
-            className="flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
-          >
-            <AtSign className="h-3 w-3" aria-hidden />
-            {c.unreadMentionCount > 99 ? "99+" : c.unreadMentionCount}
-          </span>
-        )}
-        {isUnread && (
-          <span
-            aria-label={t("unreadAriaLabel", { count: c.unreadCount })}
-            className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
-          >
-            {c.unreadCount > 99 ? "99+" : c.unreadCount}
-          </span>
-        )}
-      </button>
+      </div>
     );
   };
 
