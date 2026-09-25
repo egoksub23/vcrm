@@ -7073,7 +7073,8 @@
       "starredAriaLabel": "별표 표시된 메시지",
       "threadsAriaLabel": "스레드",
       "directoryAriaLabel": "멤버 디렉터리",
-      "mentionsAriaLabel": "멘션"
+      "mentionsAriaLabel": "멘션",
+      "draftsAriaLabel": "임시 보관함"
     },
     "channelList": {
       "title": "Sembang",
@@ -7151,6 +7152,7 @@
       "reactedByCount": "반응 {count}개",
       "pinnedButton": "고정됨 · {count}",
       "tasksButton": "작업 · {count}개 진행 중",
+      "resourcesAriaLabel": "파일, 링크 및 북마크",
       "startMeeting": "회의 시작",
       "meetingMessage": "회의가 시작되었습니다: {url}",
       "searchAriaLabel": "메시지 검색",
@@ -7237,6 +7239,27 @@
       "viewTicket": "티켓 보기",
       "ticketDescriptionPrefill": "#{channel} 채널의 Sembang 작업에서 생성됨.",
       "linkTicketFailed": "티켓은 생성되었지만 이 작업에 다시 연결하지 못했습니다."
+    },
+    "resourcesPanel": {
+      "title": "파일, 링크 및 북마크",
+      "filesTab": "파일",
+      "linksTab": "링크",
+      "bookmarksTab": "북마크",
+      "noFiles": "이 채널에 아직 공유된 파일이 없습니다.",
+      "noLinks": "이 채널에 아직 공유된 링크가 없습니다.",
+      "noBookmarks": "아직 북마크가 없습니다.",
+      "bookmarkUrlPlaceholder": "https://…",
+      "bookmarkTitlePlaceholder": "라벨 (선택 사항)",
+      "addBookmark": "북마크 추가",
+      "addBookmarkFailed": "북마크를 추가하지 못했습니다. 다시 시도하세요.",
+      "removeBookmark": "북마크 삭제",
+      "removeBookmarkFailed": "북마크를 삭제하지 못했습니다. 다시 시도하세요.",
+      "addedBy": "{name}님이 추가함"
+    },
+    "draftsPanel": {
+      "title": "임시 보관함",
+      "empty": "저장된 임시 글이 없습니다.",
+      "directMessageFallback": "다이렉트 메시지"
     },
     "newDmDialog": {
       "title": "새 메시지",

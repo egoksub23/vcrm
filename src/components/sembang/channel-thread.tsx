@@ -15,6 +15,7 @@ import {
   Loader2,
   Lock,
   MoreHorizontal,
+  Paperclip,
   Pencil,
   Pin,
   Search as SearchIcon,
@@ -43,6 +44,7 @@ import { MessageRow } from "./message-row";
 import { ThreadPanel } from "./thread-panel";
 import { PinsPanel } from "./pins-panel";
 import { TasksPanel } from "./tasks-panel";
+import { ChannelResourcesPanel } from "./channel-resources-panel";
 import type {
   SembangChannel,
   SembangMember,
@@ -114,6 +116,10 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const [tasksPanelOpen, setTasksPanelOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+
+  // ---- P4: Files/Links/Bookmarks — self-fetched inside the panel, this
+  // component only owns whether it's open. -------------------------------
+  const [resourcesPanelOpen, setResourcesPanelOpen] = useState(false);
 
   // Only `.id` is ever read from the open thread's parent (ThreadPanel
   // fetches the full parent + replies itself from `parentMessageId`), so
@@ -1013,6 +1019,15 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
               <Button
                 variant="outline"
                 size="icon-sm"
+                aria-label={t("resourcesAriaLabel")}
+                title={t("resourcesAriaLabel")}
+                onClick={() => setResourcesPanelOpen(true)}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
                 aria-label={t("startMeeting")}
                 title={t("startMeeting")}
                 onClick={handleStartMeeting}
@@ -1241,6 +1256,11 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             onTicketLinked={handleTicketLinked}
             creating={creatingTask}
             deletingId={deletingTaskId}
+          />
+          <ChannelResourcesPanel
+            open={resourcesPanelOpen}
+            onOpenChange={setResourcesPanelOpen}
+            channelId={channel.id}
           />
         </>
       )}

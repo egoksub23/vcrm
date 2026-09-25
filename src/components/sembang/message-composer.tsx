@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MentionTextarea, type MentionTextareaHandle } from "@/components/tickets/ticket-mention-textarea";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { SEMBANG_MAX_BYTES, uploadSembangFile } from "@/lib/storage/upload-sembang-file";
+import { readChannelDraft, readThreadDraft, writeChannelDraft, writeThreadDraft } from "@/lib/sembang/draft-storage";
 
 export interface PendingSembangAttachment {
   storagePath: string;
@@ -73,14 +74,38 @@ export function MessageComposer({
   const textareaRef = useRef<MentionTextareaHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset the draft when switching channels — a half-typed message in one
-  // channel shouldn't bleed into another.
+  // Clear the composer when switching channels — a half-typed message in
+  // one channel shouldn't bleed into another. Runs before the draft
+  // restore below (declaration order — React fires effects in order),
+  // so a saved draft for the NEW channel isn't wiped out by this clear.
   useEffect(() => {
     setText("");
     setMentionedIds(new Set());
     setAttachments([]);
     setAlsoInChannel(false);
   }, [channelId]);
+
+  // Restore a saved draft for this channel (or this thread, if
+  // `parentMessageId` is set) right after the clear above. Mentions/
+  // attachments/alsoInChannel are deliberately NOT restored — only the
+  // plain text is persisted (keeping this a "don't lose what I typed"
+  // safety net, not a full compose-state snapshot).
+  useEffect(() => {
+    const saved = parentMessageId ? readThreadDraft(parentMessageId) : readChannelDraft(channelId);
+    if (saved) setText(saved);
+  }, [channelId, parentMessageId]);
+
+  // Debounced save — every keystroke would be wasteful, and immediate
+  // per-keystroke writes to localStorage can visibly jank on low-end
+  // devices. 400ms mirrors the search debounce already used elsewhere
+  // in Sembang (channel-thread.tsx's SEARCH_DEBOUNCE_MS).
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      if (parentMessageId) writeThreadDraft(parentMessageId, text);
+      else writeChannelDraft(channelId, text);
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [text, channelId, parentMessageId]);
 
   const handlePickFile = useCallback(() => {
     fileInputRef.current?.click();
@@ -137,6 +162,13 @@ export function MessageComposer({
         setMentionedIds(new Set());
         setAttachments([]);
         setAlsoInChannel(false);
+        // Clear the saved draft immediately rather than waiting on the
+        // debounced save effect above — a fast send-then-navigate could
+        // otherwise leave a stale "already sent" draft behind (the
+        // debounce's pending timeout gets cancelled by the channel/
+        // thread switch before it ever fires).
+        if (parentMessageId) writeThreadDraft(parentMessageId, "");
+        else writeChannelDraft(channelId, "");
       }
     } finally {
       setSending(false);
@@ -148,6 +180,7 @@ export function MessageComposer({
     sending,
     uploading,
     onSend,
+    channelId,
     parentMessageId,
     showAlsoInChannelOption,
     alsoInChannel,

@@ -11,11 +11,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { SembangAttachment, SembangMessage, SembangReactionSummary } from '@/types'
-
-/** Matches `SEMBANG_SIGNED_URL_TTL_SECONDS` in `@/lib/storage/upload-sembang-file`
- *  (kept as a plain literal here rather than imported — that module pulls
- *  in the browser Supabase client and must stay client-only). */
-const SIGNED_URL_TTL_SECONDS = 60 * 60
+import { resolveAttachmentUrls } from './resolve-attachment-urls'
 
 export interface SembangMessageRow {
   id: string
@@ -181,20 +177,7 @@ export async function hydrateMessages(
   // fetch (object went missing, etc.) does not fail the whole request —
   // the attachment just renders with an empty url.
   const allAttachments = Array.from(attachmentsByMessage.values()).flat()
-  await Promise.all(
-    allAttachments.map(async (a) => {
-      const path = pathById.get(a.id)
-      if (!path) return
-      const { data, error } = await supabase.storage
-        .from('sembang-files')
-        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
-      if (error) {
-        console.error('[hydrateMessages] createSignedUrl error:', error)
-        return
-      }
-      a.url = data?.signedUrl ?? ''
-    }),
-  )
+  await resolveAttachmentUrls(supabase, allAttachments, pathById)
 
   const reactionsByMessage = new Map<string, ReactionRow[]>()
   for (const r of (reactionRows ?? []) as ReactionRow[]) {

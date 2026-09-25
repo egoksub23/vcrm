@@ -1691,6 +1691,52 @@ export interface SembangTask {
 }
 
 // ------------------------------------------------------------
+// Sembang P4 — Files, Links, Bookmarks (migration 104)
+// ------------------------------------------------------------
+
+/** One attachment, from GET .../channels/[id]/files — every file ever
+ *  sent in the channel, most recent first. Same shape as
+ *  `SembangAttachment` plus who sent it, since the Files list isn't
+ *  scoped to one message the way a rendered message row is. */
+export interface SembangFileItem {
+  id: string;
+  messageId: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string | null;
+  url: string;
+  createdAt: string;
+  authorId: string;
+  authorName: string;
+}
+
+/** One URL found in a channel's messages, from GET .../channels/[id]/links.
+ *  No unfurl/preview — just the raw URL plus where it came from. A
+ *  message with three links in its body produces three `SembangLinkItem`
+ *  rows (one per URL), all sharing the same `messageId`. */
+export interface SembangLinkItem {
+  url: string;
+  messageId: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+}
+
+/** Migration 104. A channel-level curated bookmark — distinct from a
+ *  personal Star (private, migration 100) and from a Pin (pins a
+ *  specific MESSAGE, migration 099). Any member adds one; the adder, a
+ *  moderator, or an admin can remove it. */
+export interface SembangBookmark {
+  id: string;
+  channelId: string;
+  url: string;
+  title: string | null;
+  addedBy: string;
+  addedByName: string;
+  addedAt: string;
+}
+
+// ------------------------------------------------------------
 // Sembang P2 — direct messages, cross-conversation search, starred
 // messages (migration 100)
 // ------------------------------------------------------------

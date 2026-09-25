@@ -7073,7 +7073,8 @@
       "starredAriaLabel": "Starred messages",
       "threadsAriaLabel": "Threads",
       "directoryAriaLabel": "Member directory",
-      "mentionsAriaLabel": "Mentions"
+      "mentionsAriaLabel": "Mentions",
+      "draftsAriaLabel": "Drafts"
     },
     "channelList": {
       "title": "Sembang",
@@ -7151,6 +7152,7 @@
       "reactedByCount": "{count, plural, =1 {1 reaction} other {# reactions}}",
       "pinnedButton": "Pinned · {count}",
       "tasksButton": "Tasks · {count} open",
+      "resourcesAriaLabel": "Files, links and bookmarks",
       "startMeeting": "Start a meeting",
       "meetingMessage": "Meeting started: {url}",
       "searchAriaLabel": "Search messages",
@@ -7237,6 +7239,27 @@
       "viewTicket": "View Ticket",
       "ticketDescriptionPrefill": "Created from a Sembang task in #{channel}.",
       "linkTicketFailed": "The ticket was created, but could not be linked back to this task."
+    },
+    "resourcesPanel": {
+      "title": "Files, links & bookmarks",
+      "filesTab": "Files",
+      "linksTab": "Links",
+      "bookmarksTab": "Bookmarks",
+      "noFiles": "No files shared in this channel yet.",
+      "noLinks": "No links shared in this channel yet.",
+      "noBookmarks": "No bookmarks yet.",
+      "bookmarkUrlPlaceholder": "https://…",
+      "bookmarkTitlePlaceholder": "Label (optional)",
+      "addBookmark": "Add bookmark",
+      "addBookmarkFailed": "Could not add the bookmark. Try again.",
+      "removeBookmark": "Remove bookmark",
+      "removeBookmarkFailed": "Could not remove the bookmark. Try again.",
+      "addedBy": "Added by {name}"
+    },
+    "draftsPanel": {
+      "title": "Drafts",
+      "empty": "No unsent drafts.",
+      "directMessageFallback": "Direct message"
     },
     "newDmDialog": {
       "title": "New message",

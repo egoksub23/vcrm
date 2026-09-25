@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.63.0] — 2026-09-25 — **migration required (104)**
+
+- **Sembang P4: Files, Links, Bookmarks tabs, and Drafts.** The second confirmed P4 group, scoped down to these four (link unfurling/preview cards and voice messages, the other two items in the original P4 grouping, are not part of this pass — no preview generation or audio capture was built).
+  - **Files** — a new per-channel tab listing every attachment ever sent, most recent first. Pure reuse of the existing `sembang_attachments` data; no new table.
+  - **Links** — a new tab listing every http(s) URL found in the channel's messages, with who posted it and when. No unfurling or preview cards — just the raw links, extracted with a new regex helper (no such helper existed in the codebase before). No new table.
+  - **Bookmarks** — a new, genuinely shared per-channel list of curated URLs (Slack's channel-bookmarks bar), distinct from the existing personal Stars (private) and message Pins (pins a specific message, not an arbitrary link). Migration 104 adds `sembang_bookmarks`, modeled directly on the existing `sembang_pins` table and RLS shape: any member adds one, the adder/a moderator/an admin can remove it, a CHECK constraint rejects anything that isn't a plain `http(s)://` URL.
+  - **Drafts** — the composer now auto-saves what you're typing (debounced) to the browser's local storage, per channel or per thread, and restores it the next time you open that channel or thread. Client-only, no server round-trip, no cross-device sync — a new global "Drafts" button lists every channel with an unsent draft in this browser.
+
 ## [0.62.0] — 2026-09-25 — **migration required (103)**
 
 - **Sembang P4: "Create a real Ticket from a task."** The first of three confirmed P4 items — reuses the existing Ticket creation form as-is (prefilled with the task's title and assignee) rather than a new form, so a Sembang task keeps everything Tickets already has: contact routing, priority, labels, attachments, custom fields. Since a Sembang task has no customer contact, the dialog's existing "pick a contact" flow is what resolves that — no schema change to `tickets` was needed or made (`contact_id` stays `NOT NULL`, unchanged). A task can only ever be linked to one ticket, and only a ticket inside the same account (both enforced by extending the existing `sembang_tasks_guard()` trigger) — once linked, the task's "Create Ticket" button becomes "View VIR-N" instead. Migration 103 adds the one nullable, write-once `sembang_tasks.ticket_id` column — the single deliberate exception to Sembang's "no FK into customer-facing tables" rule, called out explicitly in the requirements doc. Creating a ticket still requires agent role or higher (unchanged Tickets RLS); the button is hidden below that role rather than surfacing a failed insert.

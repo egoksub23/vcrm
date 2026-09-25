@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AtSign, Hash, MessageSquareText, Search as SearchIcon, Star, Users2 } from "lucide-react";
+import { AtSign, Hash, MessageSquareText, PenLine, Search as SearchIcon, Star, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
@@ -13,6 +13,7 @@ import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
 import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
 import { StarredPanel } from "@/components/sembang/starred-panel";
 import { MentionsPanel } from "@/components/sembang/mentions-panel";
+import { DraftsPanel } from "@/components/sembang/drafts-panel";
 import { SearchDialog } from "@/components/sembang/search-dialog";
 import { ThreadsPanel } from "@/components/sembang/threads-panel";
 import { MemberDirectoryDialog } from "@/components/sembang/member-directory-dialog";
@@ -59,6 +60,9 @@ function SembangPageInner() {
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
+
+  // ---- P4: global Drafts (client-only, no migration) ---------------------
+  const [draftsOpen, setDraftsOpen] = useState(false);
 
   const autoSelectedForDeepLinkRef = useRef<string | null>(null);
 
@@ -120,6 +124,19 @@ function SembangPageInner() {
       prev?.map((c) => (c.id === channel.id && c.unreadCount > 0 ? { ...c, unreadCount: 0 } : c)) ?? prev,
     );
   }, []);
+
+  // Drafts panel only knows the channel id (it reads channel names off
+  // its own `channels` prop for display, not a full summary row) — looks
+  // it up and delegates to handleSelect above; falls back to setting the
+  // id directly if the channel has since dropped out of the loaded list.
+  const handleSelectChannelId = useCallback(
+    (channelId: string) => {
+      const channel = channels?.find((c) => c.id === channelId);
+      if (channel) handleSelect(channel);
+      else setActiveChannelId(channelId);
+    },
+    [channels, handleSelect],
+  );
 
   const handleChannelRead = useCallback((channelId: string) => {
     setChannels((prev) =>
@@ -236,6 +253,15 @@ function SembangPageInner() {
         >
           <Users2 className="h-4 w-4" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("draftsAriaLabel")}
+          title={t("draftsAriaLabel")}
+          onClick={() => setDraftsOpen(true)}
+        >
+          <PenLine className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -302,6 +328,7 @@ function SembangPageInner() {
       <ThreadsPanel open={threadsOpen} onOpenChange={setThreadsOpen} />
       <MemberDirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />
       <BrowseChannelsDialog open={browseOpen} onOpenChange={setBrowseOpen} onJoined={handleChannelJoined} />
+      <DraftsPanel open={draftsOpen} onOpenChange={setDraftsOpen} channels={channels} onSelectChannel={handleSelectChannelId} />
     </div>
   );
 }
