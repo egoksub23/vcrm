@@ -27,7 +27,7 @@
     "file": "inbox-overview-02-filters.png",
     "page": "inbox/inbox-overview",
     "route": "/inbox",
-    "capture": "Inbox, Chats tab. Crop tightly to the top of the conversation list column: the three tabs (Chats, Emails, Comments with their number bubbles), the Search conversations box, and the row of filter buttons (All drop-down, Views bookmark, channel drop-down, priority flag, sort, select and bin icons). No filter applied. Nothing to click."
+    "capture": "Inbox, Chats tab. Crop tightly to the top of the conversation list column: the three tabs (Chats, Emails, Comments with their number bubbles), the Search conversations box, the ownership tabs row (All, Mine, Unassigned, Others), and the row of filter buttons (Views bookmark, channel drop-down, priority flag, sort, select and bin icons). No filter applied. Nothing to click. NOTE (2026-09-25): this replaces an older screenshot that showed a single 'All' drop-down — the ownership filter is now one-click tabs, re-capture to match."
   },
   {
     "file": "inbox-overview-03-right-column.png",

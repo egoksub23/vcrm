@@ -2,7 +2,7 @@
 title: Write and edit articles
 description: Write a clear article, add pictures and files, test it and bring in content from other places.
 order: 3
-updated: 2026-09-21
+updated: 2026-09-25
 ---
 
 A good article lets a teammate, or the AI, answer a customer correctly without asking anyone. This page is for people who are allowed to write articles.
@@ -13,8 +13,8 @@ By default an Agent can write articles and edit their own drafts. When you save,
 
 ## Write an article
 
-1. Click **Knowledge**, then **Add content**, then **Write an article**. You can also start from a chat message. See [Use articles in a chat](/help/knowledge/use-articles-in-chat).
-2. At the top of the editor, choose **Article** for free text, or **Question & answer**.
+1. Click **Knowledge**, then **Add content**. Under **Write directly**, click **Article** or **Q&A** — either opens the editor with that kind already selected. You can also start from a chat message. See [Use articles in a chat](/help/knowledge/use-articles-in-chat).
+2. If you want to switch kind after opening, the toggle at the top of the editor still lets you choose **Article** for free text, or **Question & answer**.
 3. Type the **Title**. For a question and answer, type the **Question**.
 4. Write the **Content**, or the **Answer**. Write it the way you would explain it to a customer. Include the exact prices, dates and steps.
 5. In the settings column, choose a **Collection**, and check the **Language**.
@@ -46,9 +46,9 @@ Click **Edit history**. You see earlier saved versions. Click **Restore** on the
 
 ## Bring content in
 
-Click **Add content** on the library page for three more choices. Everything you import lands as a draft, and nothing goes live until an admin publishes it.
+Click **Add content** on the library page. Under **Bring content in** you have three more choices. Everything you import lands as a draft, and nothing goes live until an admin publishes it.
 
-- **Add Q&A pairs**: paste one `Question | Answer` per line, or click **Upload a CSV** with columns named `question` and `answer`. Up to 200 pairs are imported at a time.
+- **Bulk import Q&A (CSV)**: paste one `Question | Answer` per line, or click **Upload a CSV** with columns named `question` and `answer`. Up to 200 pairs are imported at a time.
 - **Upload a file**: text, Markdown, CSV, Word or PDF, up to 10 MB each. A long document is split into several draft articles, up to 20.
 - **Import a web page**: paste the address of a public page that starts with `http://` or `https://`. The article keeps a link to the source. Later, use **Re-sync from source** in the article's menu to pull in the newest version.
 

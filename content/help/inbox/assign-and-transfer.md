@@ -2,7 +2,7 @@
 title: Assign and hand over
 description: Find your own chats and unassigned chats, give a chat to a teammate or a team, leave a hand-over note, and see who gets notified.
 order: 3
-updated: 2026-09-21
+updated: 2026-09-25
 ---
 
 Every chat can have one owner (a person) and one team. This page shows how to take a chat, give it to someone else, and make sure they know.
@@ -13,12 +13,16 @@ You need to be allowed to manage conversations. If not, the **Assign**, **Team**
 
 ## Find your chats and the queue
 
-Use the first drop-down above the conversation list.
+Use the ownership tabs above the conversation list.
 
 - **Mine** shows the chats assigned to you.
 - **Unassigned** shows chats that have no person assigned **and** are still Open. A chat that is Pending or Closed and has no owner does not appear here.
 
 Your admin may also have rules that assign new chats automatically.
+
+## Opening an unassigned chat claims it
+
+If a chat in **Unassigned** has nobody assigned, simply opening it assigns it to you — the first agent to open it gets it. This stops two people from working the same chat by accident. If you open a chat and see you are suddenly its owner, that is why; use **Unassign** if you opened it by mistake.
 
 ## Take a chat yourself
 
@@ -76,6 +80,7 @@ If your workspace uses the AI auto-reply and nobody owns the chat, a bar above t
 ## Common mistakes
 
 - **Looking for a chat in Unassigned after it went to Pending.** Only chats that are Open and have no owner appear there.
+- **Being surprised you now own a chat you only opened to look at.** Opening an unassigned chat claims it automatically. Use **Unassign** to give it back.
 - **Writing the hand-over note in the reply box.** That would go to the customer. Use the note box that opens after you pick a teammate, or the **Comment** tab.
 - **Assigning to a team and thinking a person will be told.** Assigning to a team does not alert anyone.
 

@@ -2,7 +2,7 @@
 title: The Inbox at a glance
 description: The Chats, Emails and Comments tabs, the conversation list, the open chat and the right-hand column.
 order: 1
-updated: 2026-09-21
+updated: 2026-09-25
 ---
 
 The Inbox is where you read and answer customers. This page shows what is on the screen. Later pages show how to do each task.
@@ -45,7 +45,7 @@ Each row is one customer. From left to right you can see:
 - A small **team dot** and a **status dot** (Open, Pending or Closed). Point at a dot to see its name.
 - Coloured **tags and labels**. Up to three show, then "+2" and so on. See [Tags, labels and priority](/help/inbox/tags-labels-priority).
 
-The list updates on its own. If you think something is missing, press the refresh button in the chat header.
+The list updates on its own, and a conversation jumps to the top of the list the moment a new message arrives on it — you do not need to refresh to see it move. If you think something is missing, press the refresh button in the chat header.
 
 ## Search and filters
 
@@ -55,7 +55,7 @@ Under the search box are the filters:
 
 ![The top of the conversation list: the three tabs, the search box and the row of filter buttons](/help/img/inbox-overview-02-filters.png)
 
-- The first drop-down: **All**, **Mine**, **Unassigned**, **Unread**, **Open**, **Pending** or **Closed**.
+- The ownership tabs: **All**, **Mine** and **Unassigned** are one click each. **Others** opens a drop-down for **Unread**, **Open**, **Pending** and **Closed**.
 - **Tags**, **Labels**, **Company** and **Team** drop-downs. Each only appears when your workspace has something to choose.
 - A channel drop-down, such as **All chat channels**. You can tick more than one channel.
 - The flag button filters by priority.

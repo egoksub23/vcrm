@@ -2,10 +2,35 @@
 title: What's new
 description: The changes in each release that you will notice when you work, newest first.
 order: 2
-updated: 2026-09-22
+updated: 2026-09-25
 ---
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
+
+## 0.57.0 to 0.60.0 · 24 to 25 September 2026 — Sembang, your team's own chat
+
+- **Sembang: a whole new chat, separate from the Inbox.** Channels (public or private), direct messages, @mentions, file attachments, reactions, threads, pins, a per-channel task list, code blocks with formatting, cross-conversation search, starred messages, mute and a member directory. It is switched off by default — only Owners and Admins see it until your admin turns it on for your role. See [Sembang at a glance](/help/sembang/sembang-overview) and the rest of the new **Sembang** section.
+- Highlights across the four releases that built it: threads with an **Also send to #channel** option, direct messages that reopen instead of duplicating when you message the same person twice, a **Browse channels** screen for finding public channels you have not joined, a **Threads** view of everything you are part of across the whole workspace, and a Bold/Italic/List toolbar in the message box.
+- See [Sembang at a glance](/help/sembang/sembang-overview), [Messaging and threads](/help/sembang/messaging-and-threads), [Direct messages](/help/sembang/direct-messages), [Tasks and meetings](/help/sembang/tasks-and-meetings) and [Search, tasks and notifications](/help/sembang/search-notifications-and-access).
+
+## 0.56.0 · 24 September 2026
+
+- **Admins can pause a channel without disconnecting it.** Not something most agents will touch directly, but if a channel you use suddenly stops receiving or sending, ask your admin whether it has been paused in Settings, Channels.
+
+## 0.54.0 and 0.55.0 · 24 September 2026
+
+- **A chat jumps to the top of the list the instant a new message arrives.** You no longer need to refresh to notice it.
+- **The ownership filter is now one-click tabs:** **All**, **Mine** and **Unassigned**, plus an **Others** menu for Unread, Open, Pending and Closed.
+- **Opening an unassigned chat claims it for you**, so two people cannot work the same chat by accident. See [Assign and hand over](/help/inbox/assign-and-transfer).
+- **A taller message box** and **bigger channel icons** in the conversation list and chat header.
+
+See [The Inbox at a glance](/help/inbox/inbox-overview) and [Assign and hand over](/help/inbox/assign-and-transfer).
+
+## 0.53.0 · 23 September 2026
+
+- **The Knowledge base's Add content menu is clearer.** **Write directly** now offers **Article** and **Q&A** as two direct choices. **Bring content in** holds the bulk CSV import (now labelled **Bulk import Q&A (CSV)**), file upload and web page import.
+
+See [Write and edit articles](/help/knowledge/write-and-edit-articles).
 
 ## 0.52.0 · 22 September 2026
 

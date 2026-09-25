@@ -1,0 +1,44 @@
+[
+  {
+    "file": "sembang-overview-01-layout.png",
+    "page": "sembang/sembang-overview",
+    "route": "/sembang",
+    "capture": "Sembang with a channel open. The channel list is on the left (a few channels and a DM or two visible, one with an unread badge), the open channel's messages and reply box on the right. Use a window at least 1440 px wide. Do not type or send anything."
+  },
+  {
+    "file": "sembang-overview-02-browse.png",
+    "page": "sembang/sembang-overview",
+    "route": "/sembang",
+    "capture": "Sembang, channel list, click 'Browse channels' at the bottom of the channel list. Capture the open Browse channels dialog showing at least two public channels not yet joined, each with its topic, member count and a Join button. Do not click Join."
+  },
+  {
+    "file": "messaging-and-threads-01-composer.png",
+    "page": "sembang/messaging-and-threads",
+    "route": "/sembang",
+    "capture": "Sembang, any open channel. Crop tightly to the message composer at the bottom: the formatting toolbar (Bold, Italic, list, code-fence buttons), the text input with some placeholder or sample text, the attach button and the send button. Nothing to send."
+  },
+  {
+    "file": "messaging-and-threads-02-thread.png",
+    "page": "sembang/messaging-and-threads",
+    "route": "/sembang",
+    "capture": "Sembang, an open channel with a message that has replies. Click 'N replies' to open the thread panel on the right. Capture the whole screen: the channel on the left/middle, the thread panel (original message plus replies, and the 'Also send to #channel' checkbox near its reply box) on the right. Do not send a reply."
+  },
+  {
+    "file": "direct-messages-01-new-dm.png",
+    "page": "sembang/direct-messages",
+    "route": "/sembang",
+    "capture": "Sembang, channel list, click 'New message'. Capture the open New message dialog with the list of people to pick from, at least one selected. Do not click Start."
+  },
+  {
+    "file": "tasks-and-meetings-01-panel.png",
+    "page": "sembang/tasks-and-meetings",
+    "route": "/sembang",
+    "capture": "Sembang, an open channel, click 'Tasks · N open' in the header. Capture the open Tasks panel: the 'Add a task…' box, an Open section with at least one task (showing an assignee and/or due date if possible), and a Completed section. Do not add or complete a task."
+  },
+  {
+    "file": "search-notifications-and-access-01-search.png",
+    "page": "sembang/search-notifications-and-access",
+    "route": "/sembang",
+    "capture": "Sembang, click the search icon at the top of the page and type a word that matches messages in more than one channel. Capture the open Search dialog with at least two results from different channels/DMs, each showing a snippet and which conversation it is from."
+  }
+]
