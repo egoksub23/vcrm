@@ -7072,7 +7072,8 @@
       "searchAriaLabel": "Search messages",
       "starredAriaLabel": "Starred messages",
       "threadsAriaLabel": "Threads",
-      "directoryAriaLabel": "Member directory"
+      "directoryAriaLabel": "Member directory",
+      "mentionsAriaLabel": "Mentions"
     },
     "channelList": {
       "title": "Sembang",
@@ -7091,7 +7092,8 @@
       "directMessageFallback": "Direct message",
       "archivedChannelsLink": "Archived channels",
       "browseChannelsLink": "Browse channels",
-      "mutedTooltip": "Muted"
+      "mutedTooltip": "Muted",
+      "unreadMentionsTooltip": "{count, plural, =1 {# unread mention} other {# unread mentions}}"
     },
     "createDialog": {
       "title": "Create a channel",
@@ -7245,6 +7247,15 @@
       "loadFailed": "Could not load starred messages.",
       "unknownAuthor": "Unknown",
       "directMessage": "Direct message"
+    },
+    "mentionsPanel": {
+      "title": "Mentions",
+      "empty": "You're all caught up — no unread mentions.",
+      "loadFailed": "Could not load mentions.",
+      "unknownAuthor": "Unknown",
+      "directMessage": "Direct message",
+      "messageRemoved": "This message is no longer available.",
+      "markDone": "Mark as done"
     },
     "searchDialog": {
       "title": "Search messages",

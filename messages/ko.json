@@ -7072,7 +7072,8 @@
       "searchAriaLabel": "메시지 검색",
       "starredAriaLabel": "별표 표시된 메시지",
       "threadsAriaLabel": "스레드",
-      "directoryAriaLabel": "멤버 디렉터리"
+      "directoryAriaLabel": "멤버 디렉터리",
+      "mentionsAriaLabel": "멘션"
     },
     "channelList": {
       "title": "Sembang",
@@ -7091,7 +7092,8 @@
       "directMessageFallback": "다이렉트 메시지",
       "archivedChannelsLink": "보관된 채널",
       "browseChannelsLink": "채널 둘러보기",
-      "mutedTooltip": "음소거됨"
+      "mutedTooltip": "음소거됨",
+      "unreadMentionsTooltip": "읽지 않은 멘션 {count}개"
     },
     "createDialog": {
       "title": "채널 만들기",
@@ -7245,6 +7247,15 @@
       "loadFailed": "별표 표시된 메시지를 불러오지 못했습니다.",
       "unknownAuthor": "알 수 없음",
       "directMessage": "다이렉트 메시지"
+    },
+    "mentionsPanel": {
+      "title": "멘션",
+      "empty": "읽지 않은 멘션이 없습니다.",
+      "loadFailed": "멘션을 불러오지 못했습니다.",
+      "unknownAuthor": "알 수 없음",
+      "directMessage": "다이렉트 메시지",
+      "messageRemoved": "이 메시지는 더 이상 사용할 수 없습니다.",
+      "markDone": "완료로 표시"
     },
     "searchDialog": {
       "title": "메시지 검색",

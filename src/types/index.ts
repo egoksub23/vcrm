@@ -1562,6 +1562,12 @@ export interface SembangChannelSummary {
   dmParticipantAvatarUrls: (string | null)[] | null;
   /** Migration 101. The caller's own mute state — see `SembangChannel.muted`. */
   muted: boolean;
+  /** Unread `sembang_mention`/`sembang_dm_message` notifications for this
+   *  channel — a subset of `unreadCount` (every unread message counts
+   *  toward `unreadCount`, only ones that @mentioned the caller or were a
+   *  DM count here too). Task-assignment notifications are excluded —
+   *  those already have their own per-channel Tasks affordance. */
+  unreadMentionCount: number;
 }
 
 /** A file attached to a Sembang message. `url` is a short-lived signed
@@ -1755,5 +1761,25 @@ export interface SembangBrowseChannel {
   name: string;
   topic: string | null;
   memberCount: number;
+}
+
+/**
+ * GET /api/sembang/mentions — one unread `sembang_mention`/
+ * `sembang_dm_message` notification, hydrated with the message and
+ * channel context (same shape as search/starred/threads). `notificationId`
+ * is what the "mark as done" action updates — a direct client-side
+ * `notifications.read_at` write, same mechanism the Notifications page
+ * already uses.
+ */
+export interface SembangMentionItem {
+  notificationId: string;
+  createdAt: string;
+  message: SembangMessage | null;
+  channel: {
+    id: string;
+    name: string | null;
+    isDm: boolean;
+    dmParticipantNames: string[] | null;
+  };
 }
 

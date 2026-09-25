@@ -41,6 +41,8 @@ interface ChannelSummaryRow {
   dm_participant_avatar_urls: (string | null)[] | null
   // Migration 101.
   muted: boolean
+  // Sembang mentions.
+  unread_mention_count: number
 }
 
 export async function GET() {
@@ -73,6 +75,7 @@ export async function GET() {
       dmParticipantNames: row.dm_participant_names,
       dmParticipantAvatarUrls: row.dm_participant_avatar_urls,
       muted: row.muted,
+      unreadMentionCount: Number(row.unread_mention_count) || 0,
     }))
 
     return NextResponse.json({ channels })

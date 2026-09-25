@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Hash, MessageSquareText, Search as SearchIcon, Star, Users2 } from "lucide-react";
+import { AtSign, Hash, MessageSquareText, Search as SearchIcon, Star, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
@@ -12,6 +12,7 @@ import { CreateChannelDialog } from "@/components/sembang/create-channel-dialog"
 import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
 import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
 import { StarredPanel } from "@/components/sembang/starred-panel";
+import { MentionsPanel } from "@/components/sembang/mentions-panel";
 import { SearchDialog } from "@/components/sembang/search-dialog";
 import { ThreadsPanel } from "@/components/sembang/threads-panel";
 import { MemberDirectoryDialog } from "@/components/sembang/member-directory-dialog";
@@ -52,6 +53,7 @@ function SembangPageInner() {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mentionsOpen, setMentionsOpen] = useState(false);
 
   // ---- Migration 101: global threads, member directory, browse channels --
   const [threadsOpen, setThreadsOpen] = useState(false);
@@ -173,6 +175,7 @@ function SembangPageInner() {
 
   const hasActiveChannel = !!activeChannelId;
   const hasChannels = (channels?.length ?? 0) > 0;
+  const totalUnreadMentions = (channels ?? []).reduce((sum, c) => sum + c.unreadMentionCount, 0);
 
   return (
     <div className="-m-4 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden sm:-m-6">
@@ -197,6 +200,21 @@ function SembangPageInner() {
           onClick={() => setStarredOpen(true)}
         >
           <Star className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="relative"
+          aria-label={t("mentionsAriaLabel")}
+          title={t("mentionsAriaLabel")}
+          onClick={() => setMentionsOpen(true)}
+        >
+          <AtSign className="h-4 w-4" />
+          {totalUnreadMentions > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-0.5 text-[9px] font-semibold text-white">
+              {totalUnreadMentions > 99 ? "99+" : totalUnreadMentions}
+            </span>
+          )}
         </Button>
         {/* Migration 101 — global "Threads you're in" and member directory,
             same header-bar pattern as the P2 Search/Starred buttons. */}
@@ -279,6 +297,7 @@ function SembangPageInner() {
         onUnarchived={handleChannelUnarchived}
       />
       <StarredPanel open={starredOpen} onOpenChange={setStarredOpen} />
+      <MentionsPanel open={mentionsOpen} onOpenChange={setMentionsOpen} onCleared={fetchChannels} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
       <ThreadsPanel open={threadsOpen} onOpenChange={setThreadsOpen} />
       <MemberDirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />

@@ -9,6 +9,11 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.61.0] — 2026-09-25 — **migration required (102)**
+
+- **Sembang thread panel and message-list polish.** Follow-up on the P3 thread work after direct owner review against a live Slack workspace: the Sheet no longer dims/blurs the page behind it, widened again (now 640px, 780px at xl — roughly 30% wider than P3 shipped with), and the thread-reply composer rests noticeably taller. Message actions (reply, pin, star, edit, delete) are now always visible on every message instead of only on hover, and the "N replies" line under a threaded message is now a padded, tinted, clearly-clickable row instead of a bare underlined link.
+- **A per-channel/DM unread-mentions badge, plus a global "Mentions" view.** The channel list no longer shows a last-message snippet (just the unread count) and now also shows a separate "@" badge for unread mentions and DM messages specifically — so you can tell "3 unread" apart from "1 of those is directed at me." A new Mentions button (next to Search/Starred/Threads/Directory) lists every unread mention/DM across the whole workspace at once, with a one-click "Mark as done." Migration 102 adds `unread_mention_count` to `list_sembang_channels_for_current_user`, computed from the existing `sembang_mention`/`sembang_dm_message` notifications — no new table.
+
 ## [0.60.0] — 2026-09-25 — **migration required (101)**
 
 - **Sembang P3: global Threads view, per-channel/DM mute, a member directory, "browse public channels," and "Also send to #channel."** Prompted by the owner comparing Sembang's thread panel directly against a live Slack workspace — confirmed the existing right-side thread Sheet already matched Slack's own behavior, but Slack's reply composer also has an "Also send to #channel" option Sembang didn't.

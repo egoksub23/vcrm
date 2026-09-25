@@ -106,6 +106,8 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         lastMessageAuthorId: null,
         dmParticipantNames: null,
         dmParticipantAvatarUrls: null,
+        // A freshly created channel has no notifications against it yet.
+        unreadMentionCount: 0,
       });
       reset();
     } catch {

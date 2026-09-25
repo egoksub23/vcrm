@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, BellOff, Compass, Hash, Lock, Plus, Search } from "lucide-react";
+import { Archive, AtSign, BellOff, Compass, Hash, Lock, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +113,16 @@ export function ChannelList({
         {c.muted && (
           <span title={t("mutedTooltip")} className="shrink-0">
             <BellOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          </span>
+        )}
+        {c.unreadMentionCount > 0 && (
+          <span
+            title={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
+            aria-label={t("unreadMentionsTooltip", { count: c.unreadMentionCount })}
+            className="flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
+          >
+            <AtSign className="h-3 w-3" aria-hidden />
+            {c.unreadMentionCount > 99 ? "99+" : c.unreadMentionCount}
           </span>
         )}
         {isUnread && (
