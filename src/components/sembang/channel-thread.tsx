@@ -896,274 +896,307 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-b border-border bg-card px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {onBack && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="lg:hidden"
-              onClick={onBack}
-              aria-label={t("backAriaLabel")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
-          {channel?.isDm ? (
-            <PersonAvatar
-              name={dmOtherMembers[0]?.fullName}
-              avatarUrl={dmOtherMembers[0]?.avatarUrl}
-              size="sm"
-            />
-          ) : channel?.isPrivate ? (
-            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          ) : (
-            <Hash className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {channel ? channelDisplayName : "…"}
-            </p>
-            {/* DM membership is fixed at creation — no topic to show/edit
-                (migration 100, frontend item 3). */}
-            {channel?.isDm ? null : editingTopic ? (
-              <div className="mt-0.5 flex items-center gap-1">
-                <Input
-                  autoFocus
-                  value={topicDraft}
-                  onChange={(e) => setTopicDraft(e.target.value)}
-                  placeholder={t("topicPlaceholder")}
-                  aria-label={t("editTopicAriaLabel")}
-                  className="h-6 text-xs"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void handleTopicSave();
-                    } else if (e.key === "Escape") {
-                      setEditingTopic(false);
-                    }
-                  }}
-                />
-                <Button size="icon-xs" onClick={handleTopicSave} disabled={savingTopic} aria-label={t("topicSave")}>
-                  {savingTopic ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => setEditingTopic(false)}
-                  aria-label={t("topicCancel")}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={
-                  canManageMembers
-                    ? () => {
-                        setTopicDraft(channel?.topic ?? "");
-                        setEditingTopic(true);
-                      }
-                    : undefined
-                }
-                className={cn(
-                  "group/topic flex min-w-0 items-center gap-1 text-left",
-                  canManageMembers ? "cursor-pointer" : "cursor-default",
-                )}
+    <div className="flex min-w-0 flex-1 overflow-hidden">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col bg-background",
+          threadParentId ? "hidden sm:flex" : "flex",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-b border-border bg-card px-3 py-3 sm:px-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="lg:hidden"
+                onClick={onBack}
+                aria-label={t("backAriaLabel")}
               >
-                <span className="truncate text-xs text-muted-foreground">{channel?.topic || t("noTopic")}</span>
-                {canManageMembers && (
-                  <Pencil
-                    className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover/topic:opacity-100"
-                    aria-hidden
-                  />
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-        {channel && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={() => setPinsPanelOpen(true)}>
-              <Pin className="h-4 w-4" />
-              {t("pinnedButton", { count: pins?.length ?? 0 })}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setTasksPanelOpen(true)}>
-              <CheckSquare className="h-4 w-4" />
-              {t("tasksButton", { count: openTaskCount })}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label={t("startMeeting")}
-              title={t("startMeeting")}
-              onClick={handleStartMeeting}
-            >
-              <Video className="h-4 w-4" />
-            </Button>
-            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-              <PopoverTrigger
-                aria-label={t("searchAriaLabel")}
-                title={t("searchAriaLabel")}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
-              >
-                <SearchIcon className="h-4 w-4" />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 gap-2 p-2.5">
-                <Input
-                  autoFocus
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t("searchPlaceholder")}
-                  aria-label={t("searchPlaceholder")}
-                  className="h-8"
-                />
-                <div className="max-h-72 overflow-y-auto">
-                  {searching ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    </div>
-                  ) : searchResults === null ? null : searchResults.length === 0 ? (
-                    <p className="py-4 text-center text-xs text-muted-foreground">{t("searchNoResults")}</p>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      {searchResults.map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          // Jumping to the message in its full history is
-                          // deferred past P1 (SPEC-P1.md's frontend item
-                          // 8) — closing the popover is the whole
-                          // interaction for now.
-                          onClick={() => setSearchOpen(false)}
-                          className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
-                        >
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-xs font-semibold text-foreground">
-                              {m.author?.fullName ?? t("unknownAuthor")}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
-                              {format(new Date(m.createdAt), "MMM d, HH:mm")}
-                            </span>
-                          </div>
-                          <p className="truncate text-xs text-muted-foreground">{boldMatch(m.body, searchQuery)}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-            {/* DM participants are fixed at creation — no manage controls
-                needed, so the whole button is hidden rather than shown
-                read-only (migration 100, frontend item 3). */}
-            {!channel.isDm && (
-              <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
-                <Users className="h-4 w-4" />
-                {t("membersButton", { count: members?.length ?? 0 })}
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            {/* Mute (migration 101) is available to any member of either a
-                channel or a DM. Archive stays channel-only, not built for
-                DMs this pass — a DM's `archived_at` is shared between both
-                participants, so one person archiving it would hide it for
-                the other too (migration 100, frontend item 3/7) — and
-                stays gated on `canManageMembers`, unlike Mute. Both live in
-                this one kebab menu rather than a second menu. */}
-            {isMember && (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label={t("moreActions")}
-                  title={t("moreActions")}
+            {channel?.isDm ? (
+              <PersonAvatar
+                name={dmOtherMembers[0]?.fullName}
+                avatarUrl={dmOtherMembers[0]?.avatarUrl}
+                size="sm"
+              />
+            ) : channel?.isPrivate ? (
+              <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <Hash className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {channel ? channelDisplayName : "…"}
+              </p>
+              {/* DM membership is fixed at creation — no topic to show/edit
+                  (migration 100, frontend item 3). */}
+              {channel?.isDm ? null : editingTopic ? (
+                <div className="mt-0.5 flex items-center gap-1">
+                  <Input
+                    autoFocus
+                    value={topicDraft}
+                    onChange={(e) => setTopicDraft(e.target.value)}
+                    placeholder={t("topicPlaceholder")}
+                    aria-label={t("editTopicAriaLabel")}
+                    className="h-6 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleTopicSave();
+                      } else if (e.key === "Escape") {
+                        setEditingTopic(false);
+                      }
+                    }}
+                  />
+                  <Button size="icon-xs" onClick={handleTopicSave} disabled={savingTopic} aria-label={t("topicSave")}>
+                    {savingTopic ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                  </Button>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={() => setEditingTopic(false)}
+                    aria-label={t("topicCancel")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={
+                    canManageMembers
+                      ? () => {
+                          setTopicDraft(channel?.topic ?? "");
+                          setEditingTopic(true);
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    "group/topic flex min-w-0 items-center gap-1 text-left",
+                    canManageMembers ? "cursor-pointer" : "cursor-default",
+                  )}
+                >
+                  <span className="truncate text-xs text-muted-foreground">{channel?.topic || t("noTopic")}</span>
+                  {canManageMembers && (
+                    <Pencil
+                      className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover/topic:opacity-100"
+                      aria-hidden
+                    />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          {channel && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => setPinsPanelOpen(true)}>
+                <Pin className="h-4 w-4" />
+                {t("pinnedButton", { count: pins?.length ?? 0 })}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTasksPanelOpen(true)}>
+                <CheckSquare className="h-4 w-4" />
+                {t("tasksButton", { count: openTaskCount })}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label={t("startMeeting")}
+                title={t("startMeeting")}
+                onClick={handleStartMeeting}
+              >
+                <Video className="h-4 w-4" />
+              </Button>
+              <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                <PopoverTrigger
+                  aria-label={t("searchAriaLabel")}
+                  title={t("searchAriaLabel")}
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 border-border bg-popover">
-                  <DropdownMenuItem onClick={handleToggleMute} disabled={muting}>
-                    {channel.muted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-                    {channel.muted ? t("unmuteChannel") : t("muteChannel")}
-                  </DropdownMenuItem>
-                  {!channel.isDm && canManageMembers && (
-                    <DropdownMenuItem variant="destructive" onClick={handleArchiveChannel} disabled={archiving}>
-                      <Archive className="h-3.5 w-3.5" />
-                      {t("archiveChannel")}
+                  <SearchIcon className="h-4 w-4" />
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 gap-2 p-2.5">
+                  <Input
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("searchPlaceholder")}
+                    aria-label={t("searchPlaceholder")}
+                    className="h-8"
+                  />
+                  <div className="max-h-72 overflow-y-auto">
+                    {searching ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      </div>
+                    ) : searchResults === null ? null : searchResults.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-muted-foreground">{t("searchNoResults")}</p>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {searchResults.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            // Jumping to the message in its full history is
+                            // deferred past P1 (SPEC-P1.md's frontend item
+                            // 8) — closing the popover is the whole
+                            // interaction for now.
+                            onClick={() => setSearchOpen(false)}
+                            className="rounded-md px-2 py-1.5 text-left hover:bg-muted"
+                          >
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-xs font-semibold text-foreground">
+                                {m.author?.fullName ?? t("unknownAuthor")}
+                              </span>
+                              <span className="shrink-0 text-[10px] text-muted-foreground">
+                                {format(new Date(m.createdAt), "MMM d, HH:mm")}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs text-muted-foreground">{boldMatch(m.body, searchQuery)}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {/* DM participants are fixed at creation — no manage controls
+                  needed, so the whole button is hidden rather than shown
+                  read-only (migration 100, frontend item 3). */}
+              {!channel.isDm && (
+                <Button variant="outline" size="sm" onClick={() => setMembersPanelOpen(true)}>
+                  <Users className="h-4 w-4" />
+                  {t("membersButton", { count: members?.length ?? 0 })}
+                </Button>
+              )}
+              {/* Mute (migration 101) is available to any member of either a
+                  channel or a DM. Archive stays channel-only, not built for
+                  DMs this pass — a DM's `archived_at` is shared between both
+                  participants, so one person archiving it would hide it for
+                  the other too (migration 100, frontend item 3/7) — and
+                  stays gated on `canManageMembers`, unlike Mute. Both live in
+                  this one kebab menu rather than a second menu. */}
+              {isMember && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label={t("moreActions")}
+                    title={t("moreActions")}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52 border-border bg-popover">
+                    <DropdownMenuItem onClick={handleToggleMute} disabled={muting}>
+                      {channel.muted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                      {channel.muted ? t("unmuteChannel") : t("muteChannel")}
                     </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {!channel.isDm && canManageMembers && (
+                      <DropdownMenuItem variant="destructive" onClick={handleArchiveChannel} disabled={archiving}>
+                        <Archive className="h-3.5 w-3.5" />
+                        {t("archiveChannel")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          )}
+        </div>
+
+        {channelError ? (
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <p className="text-sm text-destructive">{t("channelLoadFailed")}</p>
+          </div>
+        ) : !channel ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
+            {hasMoreEarlier && (
+              <div className="flex justify-center py-2">
+                <Button variant="outline" size="sm" onClick={handleLoadEarlier} disabled={loadingEarlier}>
+                  {loadingEarlier && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {t("loadEarlier")}
+                </Button>
+              </div>
+            )}
+
+            {messagesLoading && messages.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : messagesError && messages.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-sm text-destructive">{t("loadFailed")}</p>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-sm text-muted-foreground">{t("noMessages")}</p>
+              </div>
+            ) : (
+              messages.map((m) => (
+                <MessageRow
+                  key={m.id}
+                  message={m}
+                  currentUserId={user?.id}
+                  peopleNames={peopleNames}
+                  isPinned={pinnedMessageIds.has(m.id)}
+                  canRemoveOthers={canRemoveMessages}
+                  onReplyInThread={handleOpenThread}
+                  onOpenThread={handleOpenThread}
+                  onOpenParentThread={handleOpenParentThread}
+                  onReact={handleReact}
+                  onTogglePin={handleTogglePin}
+                  onToggleStar={handleToggleStar}
+                  onEdit={handleEditMessage}
+                  onRemove={handleRemoveMessage}
+                  onAddToTask={handleAddToTask}
+                />
+              ))
             )}
           </div>
         )}
+
+        {channel && isMember ? (
+          <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} />
+        ) : channel && !channel.isPrivate && !channel.isDm ? (
+          <div className="border-t border-border bg-card p-3.5 text-center">
+            <Button onClick={handleJoin} disabled={joining}>
+              {joining && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("joinChannel")}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {channelError ? (
-        <div className="flex flex-1 flex-col items-center justify-center">
-          <p className="text-sm text-destructive">{t("channelLoadFailed")}</p>
-        </div>
-      ) : !channel ? (
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
-          {hasMoreEarlier && (
-            <div className="flex justify-center py-2">
-              <Button variant="outline" size="sm" onClick={handleLoadEarlier} disabled={loadingEarlier}>
-                {loadingEarlier && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t("loadEarlier")}
-              </Button>
-            </div>
-          )}
-
-          {messagesLoading && messages.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : messagesError && messages.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-destructive">{t("loadFailed")}</p>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-muted-foreground">{t("noMessages")}</p>
-            </div>
-          ) : (
-            messages.map((m) => (
-              <MessageRow
-                key={m.id}
-                message={m}
-                currentUserId={user?.id}
-                peopleNames={peopleNames}
-                isPinned={pinnedMessageIds.has(m.id)}
-                canRemoveOthers={canRemoveMessages}
-                onReplyInThread={handleOpenThread}
-                onOpenThread={handleOpenThread}
-                onOpenParentThread={handleOpenParentThread}
-                onReact={handleReact}
-                onTogglePin={handleTogglePin}
-                onToggleStar={handleToggleStar}
-                onEdit={handleEditMessage}
-                onRemove={handleRemoveMessage}
-                onAddToTask={handleAddToTask}
-              />
-            ))
-          )}
-        </div>
+      {/* Thread column — a flex sibling of the channel content above, not a
+          Sheet, so it sits alongside the messages/composer like Slack's
+          thread pane rather than floating over them. */}
+      {channel && (
+        <ThreadPanel
+          open={!!threadParentId}
+          onOpenChange={(open) => {
+            if (!open) setThreadParentId(null);
+          }}
+          channelId={channel.id}
+          channelName={channelDisplayName}
+          parentMessageId={threadParentId}
+          currentUserId={user?.id}
+          peopleNames={peopleNames}
+          canRemoveMessages={canRemoveMessages}
+          pinnedMessageIds={pinnedMessageIds}
+          onReact={handleReact}
+          onTogglePin={handleTogglePin}
+          onToggleStar={handleToggleStar}
+          onEditMessage={handleEditMessage}
+          onRemoveMessage={handleRemoveMessage}
+          onAddToTask={handleAddToTask}
+          onReplyPosted={handleReplyPosted}
+        />
       )}
-
-      {channel && isMember ? (
-        <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} />
-      ) : channel && !channel.isPrivate && !channel.isDm ? (
-        <div className="border-t border-border bg-card p-3.5 text-center">
-          <Button onClick={handleJoin} disabled={joining}>
-            {joining && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("joinChannel")}
-          </Button>
-        </div>
-      ) : null}
 
       {channel && (
         <>
@@ -1178,26 +1211,6 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
               onMembersChange={setMembers}
             />
           )}
-          <ThreadPanel
-            open={!!threadParentId}
-            onOpenChange={(open) => {
-              if (!open) setThreadParentId(null);
-            }}
-            channelId={channel.id}
-            channelName={channelDisplayName}
-            parentMessageId={threadParentId}
-            currentUserId={user?.id}
-            peopleNames={peopleNames}
-            canRemoveMessages={canRemoveMessages}
-            pinnedMessageIds={pinnedMessageIds}
-            onReact={handleReact}
-            onTogglePin={handleTogglePin}
-            onToggleStar={handleToggleStar}
-            onEditMessage={handleEditMessage}
-            onRemoveMessage={handleRemoveMessage}
-            onAddToTask={handleAddToTask}
-            onReplyPosted={handleReplyPosted}
-          />
           <PinsPanel
             open={pinsPanelOpen}
             onOpenChange={setPinsPanelOpen}

@@ -7209,6 +7209,7 @@
     },
     "threadPanel": {
       "title": "Thread",
+      "closeAriaLabel": "Close thread",
       "loadFailed": "Could not load this thread.",
       "noReplies": "No replies yet. Start the conversation."
     },

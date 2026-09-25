@@ -7209,6 +7209,7 @@
     },
     "threadPanel": {
       "title": "스레드",
+      "closeAriaLabel": "스레드 닫기",
       "loadFailed": "스레드를 불러오지 못했습니다.",
       "noReplies": "아직 답글이 없습니다. 대화를 시작해 보세요."
     },

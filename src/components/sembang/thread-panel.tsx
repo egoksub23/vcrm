@@ -1,6 +1,9 @@
 "use client";
 
-// Right-side thread Sheet — mirrors members-panel.tsx's Sheet pattern.
+// Thread column — a real sibling pane next to the channel view (Slack's
+// layout), NOT a Sheet/dialog: no portal, no backdrop, nothing floats over
+// the rest of the app. Renders `null` while closed; channel-thread.tsx lays
+// it out as a `shrink-0` flex sibling alongside the main channel column.
 // Shows the parent message pinned at the top (bordered/dim background),
 // the flat list of replies below it, then a MessageComposer that posts
 // with `parentMessageId` set. Owns its own fetch of
@@ -17,9 +20,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
 import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
 import { MessageRow } from "./message-row";
@@ -225,37 +229,70 @@ export function ThreadPanel({
     [onRemoveMessage],
   );
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        className="sm:max-w-[640px] xl:max-w-[780px]"
-        overlayClassName="bg-transparent backdrop-blur-none"
-      >
-        <SheetHeader>
-          <SheetTitle>{t("title")}</SheetTitle>
-        </SheetHeader>
+  if (!open) return null;
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          {loading && !parent ? (
-            <div className="flex flex-1 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-1 items-center justify-center px-4">
-              <p className="text-sm text-destructive">{t("loadFailed")}</p>
-            </div>
-          ) : (
-            <>
-              <div className="flex-1 overflow-y-auto">
-                {parent && (
-                  <div className="mx-3 mt-1 mb-2 rounded-lg border border-border bg-muted/30">
+  return (
+    <div
+      className={cn(
+        "flex h-full min-h-0 w-full shrink-0 flex-col border-border bg-background",
+        "border-l sm:w-[460px] lg:w-[540px] xl:w-[620px]",
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="font-heading text-base font-medium text-foreground">{t("title")}</h2>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("closeAriaLabel")}
+          title={t("closeAriaLabel")}
+          onClick={() => onOpenChange(false)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        {loading && !parent ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-1 items-center justify-center px-4">
+            <p className="text-sm text-destructive">{t("loadFailed")}</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto">
+              {parent && (
+                <div className="mx-3 mt-1 mb-2 rounded-lg border border-border bg-muted/30">
+                  <MessageRow
+                    message={parent}
+                    currentUserId={currentUserId}
+                    peopleNames={peopleNames}
+                    isPinned={pinnedMessageIds.has(parent.id)}
+                    canRemoveOthers={canRemoveMessages}
+                    disableThreadAffordances
+                    onReact={handleReact}
+                    onTogglePin={onTogglePin}
+                    onToggleStar={handleToggleStar}
+                    onEdit={handleEdit}
+                    onRemove={handleRemove}
+                    onAddToTask={onAddToTask}
+                  />
+                </div>
+              )}
+              <div className="border-t border-border pt-1">
+                {replies.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t("noReplies")}</p>
+                ) : (
+                  replies.map((reply) => (
                     <MessageRow
-                      message={parent}
+                      key={reply.id}
+                      message={reply}
                       currentUserId={currentUserId}
                       peopleNames={peopleNames}
-                      isPinned={pinnedMessageIds.has(parent.id)}
+                      isPinned={pinnedMessageIds.has(reply.id)}
                       canRemoveOthers={canRemoveMessages}
-                      disableThreadAffordances
                       onReact={handleReact}
                       onTogglePin={onTogglePin}
                       onToggleStar={handleToggleStar}
@@ -263,45 +300,23 @@ export function ThreadPanel({
                       onRemove={handleRemove}
                       onAddToTask={onAddToTask}
                     />
-                  </div>
+                  ))
                 )}
-                <div className="border-t border-border pt-1">
-                  {replies.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t("noReplies")}</p>
-                  ) : (
-                    replies.map((reply) => (
-                      <MessageRow
-                        key={reply.id}
-                        message={reply}
-                        currentUserId={currentUserId}
-                        peopleNames={peopleNames}
-                        isPinned={pinnedMessageIds.has(reply.id)}
-                        canRemoveOthers={canRemoveMessages}
-                        onReact={handleReact}
-                        onTogglePin={onTogglePin}
-                        onToggleStar={handleToggleStar}
-                        onEdit={handleEdit}
-                        onRemove={handleRemove}
-                        onAddToTask={onAddToTask}
-                      />
-                    ))
-                  )}
-                </div>
               </div>
+            </div>
 
-              {parentMessageId && (
-                <MessageComposer
-                  channelId={channelId}
-                  channelName={channelName}
-                  onSend={handleSendReply}
-                  parentMessageId={parentMessageId}
-                  showAlsoInChannelOption
-                />
-              )}
-            </>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+            {parentMessageId && (
+              <MessageComposer
+                channelId={channelId}
+                channelName={channelName}
+                onSend={handleSendReply}
+                parentMessageId={parentMessageId}
+                showAlsoInChannelOption
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
