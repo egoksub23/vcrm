@@ -3,16 +3,16 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AtSign, Hash, MessageSquareText, PenLine, Search as SearchIcon, Star, Users2 } from "lucide-react";
+import { Hash, MessageSquareText, PenLine, Search as SearchIcon, Star, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
 import { ChannelThread } from "@/components/sembang/channel-thread";
+import { MentionsColumn } from "@/components/sembang/mentions-column";
 import { CreateChannelDialog } from "@/components/sembang/create-channel-dialog";
 import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
 import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
 import { StarredPanel } from "@/components/sembang/starred-panel";
-import { MentionsPanel } from "@/components/sembang/mentions-panel";
 import { DraftsPanel } from "@/components/sembang/drafts-panel";
 import { SearchDialog } from "@/components/sembang/search-dialog";
 import { ThreadsPanel } from "@/components/sembang/threads-panel";
@@ -47,6 +47,10 @@ function SembangPageInner() {
   const [channels, setChannels] = useState<SembangChannelSummary[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  // P4 — the sidebar's persistent "Mentions" entry (replaces the old
+  // header-icon Sheet). Mutually exclusive with `activeChannelId`:
+  // selecting one always clears the other.
+  const [mentionsViewActive, setMentionsViewActive] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   // ---- Migration 100: DMs, archive, search, starred ----------------------
@@ -54,7 +58,6 @@ function SembangPageInner() {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [mentionsOpen, setMentionsOpen] = useState(false);
 
   // ---- Migration 101: global threads, member directory, browse channels --
   const [threadsOpen, setThreadsOpen] = useState(false);
@@ -112,10 +115,12 @@ function SembangPageInner() {
     if (!deepLinkChannelId) return;
     if (autoSelectedForDeepLinkRef.current === deepLinkChannelId) return;
     autoSelectedForDeepLinkRef.current = deepLinkChannelId;
+    setMentionsViewActive(false);
     setActiveChannelId(deepLinkChannelId);
   }, [deepLinkChannelId]);
 
   const handleSelect = useCallback((channel: SembangChannelSummary) => {
+    setMentionsViewActive(false);
     setActiveChannelId(channel.id);
     // Optimistic — ChannelThread calls the mark-read route itself and
     // reports back via onChannelRead; this just clears the badge
@@ -123,6 +128,11 @@ function SembangPageInner() {
     setChannels((prev) =>
       prev?.map((c) => (c.id === channel.id && c.unreadCount > 0 ? { ...c, unreadCount: 0 } : c)) ?? prev,
     );
+  }, []);
+
+  const handleSelectMentions = useCallback(() => {
+    setActiveChannelId(null);
+    setMentionsViewActive(true);
   }, []);
 
   // Drafts panel only knows the channel id (it reads channel names off
@@ -146,6 +156,7 @@ function SembangPageInner() {
 
   // Mobile "back" — deselect the channel so the list pane comes back.
   const handleBack = useCallback(() => {
+    setMentionsViewActive(false);
     setActiveChannelId(null);
   }, []);
 
@@ -191,6 +202,9 @@ function SembangPageInner() {
   );
 
   const hasActiveChannel = !!activeChannelId;
+  // Mentions view collapses the sidebar on mobile the same way a real
+  // channel selection does — it occupies the same "detail pane" slot.
+  const hasActiveDetail = hasActiveChannel || mentionsViewActive;
   const hasChannels = (channels?.length ?? 0) > 0;
   const totalUnreadMentions = (channels ?? []).reduce((sum, c) => sum + c.unreadMentionCount, 0);
 
@@ -217,21 +231,6 @@ function SembangPageInner() {
           onClick={() => setStarredOpen(true)}
         >
           <Star className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="relative"
-          aria-label={t("mentionsAriaLabel")}
-          title={t("mentionsAriaLabel")}
-          onClick={() => setMentionsOpen(true)}
-        >
-          <AtSign className="h-4 w-4" />
-          {totalUnreadMentions > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-0.5 text-[9px] font-semibold text-white">
-              {totalUnreadMentions > 99 ? "99+" : totalUnreadMentions}
-            </span>
-          )}
         </Button>
         {/* Migration 101 — global "Threads you're in" and member directory,
             same header-bar pattern as the P2 Search/Starred buttons. */}
@@ -271,7 +270,7 @@ function SembangPageInner() {
         <div
           className={cn(
             "flex h-full flex-1 lg:flex-none",
-            hasActiveChannel ? "hidden lg:flex" : "flex",
+            hasActiveDetail ? "hidden lg:flex" : "flex",
           )}
         >
           <ChannelList
@@ -283,18 +282,24 @@ function SembangPageInner() {
             onArchivedClick={() => setArchivedOpen(true)}
             onBrowseClick={() => setBrowseOpen(true)}
             loadError={loadError}
+            mentionsActive={mentionsViewActive}
+            unreadMentionsTotal={totalUnreadMentions}
+            onSelectMentions={handleSelectMentions}
           />
         </div>
 
-        {/* Right panel: channel thread, or an empty state when nothing is
-            selected yet / the account has no channels at all. */}
+        {/* Right panel: mentions view, channel thread, or an empty state
+            when nothing is selected yet / the account has no channels
+            at all. */}
         <div
           className={cn(
             "flex h-full min-w-0 flex-1 lg:flex",
-            hasActiveChannel ? "flex" : "hidden lg:flex",
+            hasActiveDetail ? "flex" : "hidden lg:flex",
           )}
         >
-          {channels !== null && !hasChannels && !activeChannelId ? (
+          {mentionsViewActive ? (
+            <MentionsColumn onCleared={fetchChannels} />
+          ) : channels !== null && !hasChannels && !activeChannelId ? (
             <div className="flex flex-1 flex-col items-center justify-center bg-background">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                 <Hash className="h-8 w-8 text-muted-foreground" />
@@ -323,7 +328,6 @@ function SembangPageInner() {
         onUnarchived={handleChannelUnarchived}
       />
       <StarredPanel open={starredOpen} onOpenChange={setStarredOpen} />
-      <MentionsPanel open={mentionsOpen} onOpenChange={setMentionsOpen} onCleared={fetchChannels} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
       <ThreadsPanel open={threadsOpen} onOpenChange={setThreadsOpen} />
       <MemberDirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />

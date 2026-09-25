@@ -23,6 +23,14 @@ interface ChannelListProps {
   /** Migration 101 — opens BrowseChannelsDialog. */
   onBrowseClick: () => void;
   loadError?: boolean;
+  /** P4 — the sidebar's persistent "Mentions" entry, replacing the old
+   *  header-icon Sheet (it kept getting missed sitting among five other
+   *  look-alike icon buttons). Pinned above the Channels section, same
+   *  triage-view-outranks-browsing ordering Slack uses for its own
+   *  Threads/Mentions entries. */
+  mentionsActive: boolean;
+  unreadMentionsTotal: number;
+  onSelectMentions: () => void;
 }
 
 /** A DM row's display label — the other participant(s)' names, joined.
@@ -47,6 +55,9 @@ export function ChannelList({
   onArchivedClick,
   onBrowseClick,
   loadError,
+  mentionsActive,
+  unreadMentionsTotal,
+  onSelectMentions,
 }: ChannelListProps) {
   const t = useTranslations("Sembang.channelList");
   const [query, setQuery] = useState("");
@@ -173,6 +184,28 @@ export function ChannelList({
           />
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={onSelectMentions}
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted",
+          mentionsActive && "bg-muted",
+        )}
+      >
+        <AtSign className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <p className={cn("flex-1 truncate text-sm text-foreground", unreadMentionsTotal > 0 && "font-semibold")}>
+          {t("mentionsNavLabel")}
+        </p>
+        {unreadMentionsTotal > 0 && (
+          <span
+            aria-label={t("unreadMentionsTooltip", { count: unreadMentionsTotal })}
+            className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
+          >
+            {unreadMentionsTotal > 99 ? "99+" : unreadMentionsTotal}
+          </span>
+        )}
+      </button>
 
       {/* `min-h-0` is load-bearing — a flex child defaults to
           min-height:auto, so without it this grows to fit every channel

@@ -45,6 +45,14 @@ import { ThreadPanel } from "./thread-panel";
 import { PinsPanel } from "./pins-panel";
 import { TasksPanel } from "./tasks-panel";
 import { ChannelResourcesPanel } from "./channel-resources-panel";
+import {
+  addMessageToTask,
+  editMessage,
+  reactToMessage,
+  removeMessage,
+  toggleMessagePin,
+  toggleMessageStar,
+} from "@/lib/sembang/message-actions";
 import type {
   SembangChannel,
   SembangMember,
@@ -470,24 +478,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleEditMessage = useCallback(
     async (messageId: string, body: string): Promise<SembangMessage | null> => {
       if (!channelId) return null;
-      try {
-        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "edit", body }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error(data?.error || t("editFailed"));
-          return null;
-        }
-        const updated = data.message as SembangMessage | undefined;
-        if (updated) setMessages((prev) => prev.map((m) => (m.id === messageId ? updated : m)));
-        return updated ?? null;
-      } catch {
-        toast.error(t("editFailed"));
+      const result = await editMessage(channelId, messageId, body);
+      if (!result.ok) {
+        toast.error(result.error || t("editFailed"));
         return null;
       }
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? result.message : m)));
+      return result.message;
     },
     [channelId, t],
   );
@@ -499,33 +496,22 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleRemoveMessage = useCallback(
     async (messageId: string): Promise<SembangMessage | null> => {
       if (!channelId) return null;
-      try {
-        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "remove" }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error(data?.error || t("removeMessageFailed"));
-          return null;
-        }
-        const updated = data.message as SembangMessage | undefined;
-        if (updated) {
-          setMessages((prev) => prev.map((m) => (m.id === messageId ? updated : m)));
-          return updated;
-        }
-        // Fallback for a route that doesn't echo the message back.
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId ? { ...m, deletedAt: new Date().toISOString(), deletedBy: user?.id ?? null } : m,
-          ),
-        );
-        return null;
-      } catch {
-        toast.error(t("removeMessageFailed"));
+      const result = await removeMessage(channelId, messageId);
+      if (!result.ok) {
+        toast.error(result.error || t("removeMessageFailed"));
         return null;
       }
+      if (result.message) {
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? result.message! : m)));
+        return result.message;
+      }
+      // Fallback for a route that doesn't echo the message back.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, deletedAt: new Date().toISOString(), deletedBy: user?.id ?? null } : m,
+        ),
+      );
+      return null;
     },
     [channelId, t, user?.id],
   );
@@ -534,24 +520,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleReact = useCallback(
     async (messageId: string, emoji: string): Promise<SembangReactionSummary[] | null> => {
       if (!channelId) return null;
-      try {
-        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${messageId}/reactions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emoji }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error(data?.error || t("reactFailed"));
-          return null;
-        }
-        const reactions = (data.reactions as SembangReactionSummary[]) ?? [];
-        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
-        return reactions;
-      } catch {
-        toast.error(t("reactFailed"));
+      const result = await reactToMessage(channelId, messageId, emoji);
+      if (!result.ok) {
+        toast.error(result.error || t("reactFailed"));
         return null;
       }
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: result.reactions } : m)));
+      return result.reactions;
     },
     [channelId, t],
   );
@@ -560,19 +535,12 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleTogglePin = useCallback(
     async (message: SembangMessage, pinned: boolean) => {
       if (!channelId) return;
-      try {
-        const res = await fetch(`/api/sembang/channels/${channelId}/messages/${message.id}/pin`, {
-          method: pinned ? "DELETE" : "POST",
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          toast.error(data?.error || (pinned ? t("unpinFailed") : t("pinFailed")));
-          return;
-        }
-        void fetchPins();
-      } catch {
-        toast.error(pinned ? t("unpinFailed") : t("pinFailed"));
+      const result = await toggleMessagePin(channelId, message.id, pinned);
+      if (!result.ok) {
+        toast.error(result.error || (pinned ? t("unpinFailed") : t("pinFailed")));
+        return;
       }
+      void fetchPins();
     },
     [channelId, t, fetchPins],
   );
@@ -604,25 +572,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleAddToTask = useCallback(
     async (message: SembangMessage) => {
       if (!channelId) return;
-      const title = message.body.length > 80 ? `${message.body.slice(0, 80)}…` : message.body;
-      try {
-        const res = await fetch(`/api/sembang/channels/${channelId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, messageId: message.id }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error(data?.error || t("addToTasksFailed"));
-          return;
-        }
-        const task = data.task as SembangTask | undefined;
-        if (task) setTasks((prev) => [...(prev ?? []), task]);
-        setTasksPanelOpen(true);
-        toast.success(t("addedToTasks"));
-      } catch {
-        toast.error(t("addToTasksFailed"));
+      const result = await addMessageToTask(channelId, message);
+      if (!result.ok) {
+        toast.error(result.error || t("addToTasksFailed"));
+        return;
       }
+      if (result.task) setTasks((prev) => [...(prev ?? []), result.task!]);
+      setTasksPanelOpen(true);
+      toast.success(t("addedToTasks"));
     },
     [channelId, t],
   );
@@ -824,20 +781,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
       setMessages((prev) =>
         prev.map((m) => (m.id === message.id ? { ...m, starredByMe: nextStarred } : m)),
       );
-      (async () => {
-        try {
-          const res = await fetch(
-            `/api/sembang/channels/${channelId}/messages/${message.id}/star`,
-            { method: starred ? "DELETE" : "POST" },
-          );
-          if (!res.ok) throw new Error("failed");
-        } catch {
+      void toggleMessageStar(channelId, message.id, starred).then((result) => {
+        if (!result.ok) {
           setMessages((prev) =>
             prev.map((m) => (m.id === message.id ? { ...m, starredByMe: starred } : m)),
           );
           toast.error(starred ? t("unstarFailed") : t("starFailed"));
         }
-      })();
+      });
     },
     [channelId, t],
   );

@@ -1,6 +1,6 @@
 {
   "name": "wacrm",
-  "version": "0.63.0",
+  "version": "0.63.1",
   "private": true,
   "description": "Self-hostable CRM template for WhatsApp built on Next.js and Supabase — shared inbox, contacts, sales pipelines, broadcasts, and no-code automations.",
   "license": "MIT",

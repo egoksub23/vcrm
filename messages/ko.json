@@ -7073,7 +7073,6 @@
       "starredAriaLabel": "별표 표시된 메시지",
       "threadsAriaLabel": "스레드",
       "directoryAriaLabel": "멤버 디렉터리",
-      "mentionsAriaLabel": "멘션",
       "draftsAriaLabel": "임시 보관함"
     },
     "channelList": {
@@ -7094,7 +7093,8 @@
       "archivedChannelsLink": "보관된 채널",
       "browseChannelsLink": "채널 둘러보기",
       "mutedTooltip": "음소거됨",
-      "unreadMentionsTooltip": "읽지 않은 멘션 {count}개"
+      "unreadMentionsTooltip": "읽지 않은 멘션 {count}개",
+      "mentionsNavLabel": "멘션"
     },
     "createDialog": {
       "title": "채널 만들기",
@@ -7283,7 +7283,8 @@
       "unknownAuthor": "알 수 없음",
       "directMessage": "다이렉트 메시지",
       "messageRemoved": "이 메시지는 더 이상 사용할 수 없습니다.",
-      "markDone": "완료로 표시"
+      "markDone": "완료로 표시",
+      "selectMentionHint": "멘션을 선택하면 스레드를 열어 답장할 수 있습니다."
     },
     "searchDialog": {
       "title": "메시지 검색",

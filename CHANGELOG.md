@@ -9,6 +9,11 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.63.1] — 2026-09-25
+
+- **Mentions moved into the sidebar, as a persistent category above Channels.** The old header icon (one of six look-alike icon buttons) kept getting missed, especially since a mention can be either actionable or just an FYI. Mentions is now a permanent sidebar entry with its own unread badge, ranked above Channels/DMs since it's a triage view, not something you browse. Clicking it lists every unread mention/DM across the whole workspace in the middle column; clicking one of those opens its thread in the right column to reply, without losing the list — several mentions can be worked through in a row. "Mark as done" is unchanged. The old header `@` icon and its Sheet panel are retired.
+- Extracted `src/lib/sembang/message-actions.ts` — the six per-message mutations (react, pin, star, edit, remove, add-to-task) used to live only inside the per-channel thread view; the new cross-channel Mentions view needed the same calls parametrized by whichever channel a clicked mention belongs to, so they're now shared pure API wrappers instead of being duplicated.
+
 ## [0.63.0] — 2026-09-25 — **migration required (104)**
 
 - **Sembang P4: Files, Links, Bookmarks tabs, and Drafts.** The second confirmed P4 group, scoped down to these four (link unfurling/preview cards and voice messages, the other two items in the original P4 grouping, are not part of this pass — no preview generation or audio capture was built).

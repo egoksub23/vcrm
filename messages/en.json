@@ -7073,7 +7073,6 @@
       "starredAriaLabel": "Starred messages",
       "threadsAriaLabel": "Threads",
       "directoryAriaLabel": "Member directory",
-      "mentionsAriaLabel": "Mentions",
       "draftsAriaLabel": "Drafts"
     },
     "channelList": {
@@ -7094,7 +7093,8 @@
       "archivedChannelsLink": "Archived channels",
       "browseChannelsLink": "Browse channels",
       "mutedTooltip": "Muted",
-      "unreadMentionsTooltip": "{count, plural, =1 {# unread mention} other {# unread mentions}}"
+      "unreadMentionsTooltip": "{count, plural, =1 {# unread mention} other {# unread mentions}}",
+      "mentionsNavLabel": "Mentions"
     },
     "createDialog": {
       "title": "Create a channel",
@@ -7283,7 +7283,8 @@
       "unknownAuthor": "Unknown",
       "directMessage": "Direct message",
       "messageRemoved": "This message is no longer available.",
-      "markDone": "Mark as done"
+      "markDone": "Mark as done",
+      "selectMentionHint": "Select a mention to open its thread and reply."
     },
     "searchDialog": {
       "title": "Search messages",
