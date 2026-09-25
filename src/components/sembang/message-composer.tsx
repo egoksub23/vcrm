@@ -210,75 +210,79 @@ export function MessageComposer({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleFileChange}
-          disabled={disabled || uploading}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("attachAriaLabel")}
-          onClick={handlePickFile}
-          disabled={disabled || uploading}
-          className="mb-0.5 shrink-0"
-        >
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("boldAriaLabel")}
-          title={t("boldAriaLabel")}
-          onClick={handleBold}
-          disabled={disabled}
-          className="mb-0.5 shrink-0"
-        >
-          <Bold className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("italicAriaLabel")}
-          title={t("italicAriaLabel")}
-          onClick={handleItalic}
-          disabled={disabled}
-          className="mb-0.5 shrink-0"
-        >
-          <Italic className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("listAriaLabel")}
-          title={t("listAriaLabel")}
-          onClick={handleList}
-          disabled={disabled}
-          className="mb-0.5 shrink-0"
-        >
-          <List className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("codeBlockAriaLabel")}
-          title={t("codeBlockAriaLabel")}
-          onClick={handleInsertCodeFence}
-          disabled={disabled}
-          className="mb-0.5 shrink-0"
-        >
-          <Code2 className="h-4 w-4" />
-        </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={disabled || uploading}
+      />
 
-        <div className="min-w-0 flex-1">
+      {/* The thread-reply composer (showAlsoInChannelOption is only ever
+          true there) gets a taller layout: the formatting toolbar sits
+          above a full-width textarea instead of squeezed into the same
+          row, and Send moves to its own row below — there's real column
+          width to spend here, unlike the main channel composer's
+          space-constrained single-row layout, which is left unchanged. */}
+      {showAlsoInChannelOption ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("attachAriaLabel")}
+              onClick={handlePickFile}
+              disabled={disabled || uploading}
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("boldAriaLabel")}
+              title={t("boldAriaLabel")}
+              onClick={handleBold}
+              disabled={disabled}
+            >
+              <Bold className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("italicAriaLabel")}
+              title={t("italicAriaLabel")}
+              onClick={handleItalic}
+              disabled={disabled}
+            >
+              <Italic className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("listAriaLabel")}
+              title={t("listAriaLabel")}
+              onClick={handleList}
+              disabled={disabled}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("codeBlockAriaLabel")}
+              title={t("codeBlockAriaLabel")}
+              onClick={handleInsertCodeFence}
+              disabled={disabled}
+            >
+              <Code2 className="h-4 w-4" />
+            </Button>
+          </div>
+
           <MentionTextarea
             ref={textareaRef}
             value={text}
@@ -290,33 +294,117 @@ export function MessageComposer({
             disabled={disabled}
             onSubmit={handleSend}
             aria-label={t("inputAriaLabel")}
-            // Auto-grow via CSS `field-sizing: content` — the same
-            // mechanism the house Textarea component uses — rather than a
-            // second, JS-driven adjustHeight() reimplementation, since
-            // MentionTextarea's ref only exposes `focus()`. Resting height
-            // (~2 lines) and the growth cap mirror the Inbox composer's
-            // min-h-16 / ~140px constants. The thread-reply instance
-            // (showAlsoInChannelOption is only ever true there) rests
-            // noticeably taller, matching Slack's own reply composer.
-            className={
-              showAlsoInChannelOption
-                ? "field-sizing-content min-h-32 max-h-64 resize-none overflow-y-auto"
-                : "field-sizing-content min-h-16 max-h-36 resize-none overflow-y-auto"
-            }
+            className="field-sizing-content min-h-32 max-h-64 w-full resize-none overflow-y-auto"
           />
-        </div>
 
-        <Button
-          type="button"
-          size="icon"
-          aria-label={t("sendAriaLabel")}
-          onClick={handleSend}
-          disabled={disabled || sending || uploading || (!text.trim() && attachments.length === 0)}
-          className="mb-0.5 shrink-0"
-        >
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
-      </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="icon"
+              aria-label={t("sendAriaLabel")}
+              onClick={handleSend}
+              disabled={disabled || sending || uploading || (!text.trim() && attachments.length === 0)}
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("attachAriaLabel")}
+            onClick={handlePickFile}
+            disabled={disabled || uploading}
+            className="mb-0.5 shrink-0"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("boldAriaLabel")}
+            title={t("boldAriaLabel")}
+            onClick={handleBold}
+            disabled={disabled}
+            className="mb-0.5 shrink-0"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("italicAriaLabel")}
+            title={t("italicAriaLabel")}
+            onClick={handleItalic}
+            disabled={disabled}
+            className="mb-0.5 shrink-0"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("listAriaLabel")}
+            title={t("listAriaLabel")}
+            onClick={handleList}
+            disabled={disabled}
+            className="mb-0.5 shrink-0"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("codeBlockAriaLabel")}
+            title={t("codeBlockAriaLabel")}
+            onClick={handleInsertCodeFence}
+            disabled={disabled}
+            className="mb-0.5 shrink-0"
+          >
+            <Code2 className="h-4 w-4" />
+          </Button>
+
+          <div className="min-w-0 flex-1">
+            <MentionTextarea
+              ref={textareaRef}
+              value={text}
+              onValueChange={setText}
+              onMention={(userId) => setMentionedIds((prev) => new Set(prev).add(userId))}
+              members={members}
+              placeholder={t("placeholder", { channel: channelName })}
+              rows={1}
+              disabled={disabled}
+              onSubmit={handleSend}
+              aria-label={t("inputAriaLabel")}
+              // Auto-grow via CSS `field-sizing: content` — the same
+              // mechanism the house Textarea component uses — rather than a
+              // second, JS-driven adjustHeight() reimplementation, since
+              // MentionTextarea's ref only exposes `focus()`. Resting height
+              // (~2 lines) and the growth cap mirror the Inbox composer's
+              // min-h-16 / ~140px constants.
+              className="field-sizing-content min-h-16 max-h-36 resize-none overflow-y-auto"
+            />
+          </div>
+
+          <Button
+            type="button"
+            size="icon"
+            aria-label={t("sendAriaLabel")}
+            onClick={handleSend}
+            disabled={disabled || sending || uploading || (!text.trim() && attachments.length === 0)}
+            className="mb-0.5 shrink-0"
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

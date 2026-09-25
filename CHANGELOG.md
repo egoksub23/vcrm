@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.61.2] — 2026-09-25
+
+- **Thread-reply composer: formatting toolbar moved above the textarea, full column width.** The thread column's new width (0.61.1) exposed the composer's old single-row layout (attach/bold/italic/list/code icons + textarea + send all squeezed into one row) as cramped and misaligned — the textarea never used the extra width. The thread-reply composer now stacks: toolbar row on top, a full-width textarea below it, Send on its own row underneath. The main channel composer (bottom of the channel view, not the thread) is unchanged — it stays in the original single-row layout, which fits its available width fine.
+
 ## [0.61.1] — 2026-09-25
 
 - **Thread panel rebuilt as a real third column, not a Sheet.** 0.61.0's "no dim/blur, wider panel" fix didn't actually take effect in production: the panel's width override and the overlay's transparent/no-blur override both lost to the base `Sheet` component's own classes on CSS specificity (a `data-[side=right]:sm:max-w-sm` beats a plain `sm:max-w-[640px]`; a plain `backdrop-blur-none` doesn't cancel a `supports-backdrop-filter:` variant), which is why the panel kept showing up narrow and the page behind it kept blurring even after that release. Rather than patch the specificity bug, replaced the whole approach: the thread now renders as a genuine sibling column next to the channel view — like Slack — instead of a portaled dialog. No backdrop, no dim, no blur, no "floating popup with an X"; the channel list, the open channel, and the open thread are three real columns sharing the screen, and the reply composer gets real width to work with as a result (460px at sm, up to 620px at xl) instead of being squeezed inside a modal.
