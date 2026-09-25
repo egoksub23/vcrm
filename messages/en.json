@@ -7229,10 +7229,14 @@
       "noOpenTasks": "No open tasks.",
       "due": "Due {date}",
       "deleteTask": "Delete task",
-      "footerNote": "Tasks stay inside Sembang for now — turning one into a Ticket is on the roadmap.",
+      "footerNote": "Tasks stay inside Sembang — use the ticket icon on a task to raise it as a real Ticket.",
       "createFailed": "Could not add the task. Try again.",
       "updateFailed": "Could not update the task. Try again.",
-      "deleteFailed": "Could not delete the task. Try again."
+      "deleteFailed": "Could not delete the task. Try again.",
+      "createTicket": "Create Ticket",
+      "viewTicket": "View Ticket",
+      "ticketDescriptionPrefill": "Created from a Sembang task in #{channel}.",
+      "linkTicketFailed": "The ticket was created, but could not be linked back to this task."
     },
     "newDmDialog": {
       "title": "New message",

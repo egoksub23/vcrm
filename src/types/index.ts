@@ -1661,8 +1661,9 @@ export interface SembangPin {
 
 export type SembangTaskStatus = 'open' | 'done';
 
-/** Migration 099. A standalone, per-channel checklist item — no FK into
- *  the Tickets module (see the requirements doc's decision). */
+/** Migration 099. A standalone, per-channel checklist item. Migration 103
+ *  adds the one deliberate, write-once link into the Tickets module
+ *  (`ticketId`) — see the requirements doc's decision. */
 export interface SembangTask {
   id: string;
   channelId: string;
@@ -1681,6 +1682,12 @@ export interface SembangTask {
    *  (see the sembang_tasks_guard() trigger in migration 099). */
   completedAt: string | null;
   completedBy: string | null;
+  /** Migration 103 — the one deliberate exception to "no FK into
+   *  Tickets": set once a real Ticket has been created from this task,
+   *  write-once (see sembang_tasks_guard()). */
+  ticketId: string | null;
+  /** For display ("View VIR-12") — null until `ticketId` is set. */
+  ticketNumber: number | null;
 }
 
 // ------------------------------------------------------------

@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.62.0] — 2026-09-25 — **migration required (103)**
+
+- **Sembang P4: "Create a real Ticket from a task."** The first of three confirmed P4 items — reuses the existing Ticket creation form as-is (prefilled with the task's title and assignee) rather than a new form, so a Sembang task keeps everything Tickets already has: contact routing, priority, labels, attachments, custom fields. Since a Sembang task has no customer contact, the dialog's existing "pick a contact" flow is what resolves that — no schema change to `tickets` was needed or made (`contact_id` stays `NOT NULL`, unchanged). A task can only ever be linked to one ticket, and only a ticket inside the same account (both enforced by extending the existing `sembang_tasks_guard()` trigger) — once linked, the task's "Create Ticket" button becomes "View VIR-N" instead. Migration 103 adds the one nullable, write-once `sembang_tasks.ticket_id` column — the single deliberate exception to Sembang's "no FK into customer-facing tables" rule, called out explicitly in the requirements doc. Creating a ticket still requires agent role or higher (unchanged Tickets RLS); the button is hidden below that role rather than surfacing a failed insert.
+
 ## [0.61.3] — 2026-09-25
 
 - **Sembang moved below Settings in the sidebar.** Previously sat in the main nav list alongside customer/business-facing tools (Inbox, Contacts, Pipelines, Tickets, etc.); now lives in the bottom nav group with Help and Settings, after Settings. Purely a placement change — no functional change — to visually separate internal team chat from the CRM's external/customer-facing tools.

@@ -7229,10 +7229,14 @@
       "noOpenTasks": "진행 중인 작업이 없습니다.",
       "due": "마감 {date}",
       "deleteTask": "작업 삭제",
-      "footerNote": "작업은 당분간 Sembang 안에만 머무릅니다 — 티켓으로 전환하는 기능은 로드맵에 있습니다.",
+      "footerNote": "작업은 Sembang 안에 남아 있습니다 — 작업의 티켓 아이콘을 눌러 실제 티켓으로 만들 수 있습니다.",
       "createFailed": "작업을 추가하지 못했습니다. 다시 시도하세요.",
       "updateFailed": "작업을 업데이트하지 못했습니다. 다시 시도하세요.",
-      "deleteFailed": "작업을 삭제하지 못했습니다. 다시 시도하세요."
+      "deleteFailed": "작업을 삭제하지 못했습니다. 다시 시도하세요.",
+      "createTicket": "티켓 생성",
+      "viewTicket": "티켓 보기",
+      "ticketDescriptionPrefill": "#{channel} 채널의 Sembang 작업에서 생성됨.",
+      "linkTicketFailed": "티켓은 생성되었지만 이 작업에 다시 연결하지 못했습니다."
     },
     "newDmDialog": {
       "title": "새 메시지",

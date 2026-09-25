@@ -692,6 +692,16 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     [channelId, deletingTaskId, tTasksPanel],
   );
 
+  // ---- Migration 103: task -> ticket bridge -----------------------------
+  // TasksPanel already did the PATCH itself (it owns the CreateTicketDialog
+  // and needs the response to show a friendly error); this just patches
+  // local state once that PATCH has already succeeded.
+  const handleTicketLinked = useCallback((taskId: string, ticketId: string, ticketNumber: number) => {
+    setTasks((prev) =>
+      (prev ?? []).map((tk) => (tk.id === taskId ? { ...tk, ticketId, ticketNumber } : tk)),
+    );
+  }, []);
+
   // ---- Thread -----------------------------------------------------------
   const handleOpenThread = useCallback((message: SembangMessage) => {
     setThreadParentId(message.id);
@@ -1222,10 +1232,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           <TasksPanel
             open={tasksPanelOpen}
             onOpenChange={setTasksPanelOpen}
+            channelId={channel.id}
+            channelName={channelDisplayName}
             tasks={tasks}
             onCreate={handleCreateTask}
             onToggleStatus={handleToggleTaskStatus}
             onDelete={handleDeleteTask}
+            onTicketLinked={handleTicketLinked}
             creating={creatingTask}
             deletingId={deletingTaskId}
           />

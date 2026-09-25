@@ -80,6 +80,14 @@ interface CreateTicketDialogProps {
    *  Left unset for the "+ New Ticket" entry point on the Contact
    *  profile, matching klink.cloud's own flow. */
   conversationId?: string | null;
+  /** Pre-fills Summary/Description/Assignee when opened from another
+   *  source that already knows them (e.g. the Sembang task-to-ticket
+   *  bridge). Re-applied every time the dialog opens, since the dialog
+   *  itself stays mounted across opens/closes. Left unset for every
+   *  other entry point, which keeps today's blank-form behavior. */
+  initialSubject?: string;
+  initialDescription?: string;
+  initialAssigneeId?: string | null;
   onCreated?: (ticket: Ticket) => void;
   /** The "Open" button on the created toast. Without it the button goes to
    *  /tickets?t=<id>. */
@@ -101,6 +109,9 @@ export function CreateTicketDialog({
   onOpenChange,
   contactId,
   conversationId,
+  initialSubject,
+  initialDescription,
+  initialAssigneeId,
   onCreated,
   onOpenCreated,
 }: CreateTicketDialogProps) {
@@ -127,6 +138,18 @@ export function CreateTicketDialog({
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
+
+  // Seed from the caller's initial* props whenever the dialog opens (it
+  // stays mounted across open/close, so this can't just be a useState
+  // initializer). Every entry point except the Sembang bridge leaves
+  // these unset, so this is a no-op there — same blank form as today.
+  useEffect(() => {
+    if (!open) return;
+    if (initialSubject !== undefined) setSubject(initialSubject);
+    if (initialDescription !== undefined) setDescription(initialDescription);
+    if (initialAssigneeId !== undefined) setAssignee(initialAssigneeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Admin-defined form fields (migration 066). Only fetched while the
   // dialog is open; the visible set follows the selected type.

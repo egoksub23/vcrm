@@ -1,12 +1,16 @@
 // ============================================================
 // /api/sembang/channels/[id]/tasks/[taskId]
 //
-//   PATCH  — body is a partial `{ title?, assigneeId?, dueAt?, status? }`.
-//            `completedAt`/`completedBy` are never accepted from the
-//            client, even if present in the body — the migration 099
-//            trigger (`sembang_tasks_guard()`) stamps those itself from
-//            the real actor when `status` flips. Returns the updated
-//            task, hydrated.
+//   PATCH  — body is a partial `{ title?, assigneeId?, dueAt?, status?,
+//            ticketId? }`. `completedAt`/`completedBy` are never accepted
+//            from the client, even if present in the body — the migration
+//            099 trigger (`sembang_tasks_guard()`) stamps those itself
+//            from the real actor when `status` flips. `ticketId`
+//            (migration 103) is write-once and same-account-only, also
+//            enforced by that trigger — a second attempt to set it, or a
+//            cross-account ticket id, comes back as a 409 here rather
+//            than bubbling up the trigger's raw exception. Returns the
+//            updated task, hydrated.
 //   DELETE — RLS (`sembang_tasks_delete`) restricts this to the
 //            creator, a moderator, or an admin — a 0-row delete is a
 //            normal 403.
@@ -31,6 +35,7 @@ export async function PATCH(
       assigneeId?: unknown
       dueAt?: unknown
       status?: unknown
+      ticketId?: unknown
     } | null
 
     // completedAt/completedBy are intentionally never read from `body`
@@ -81,6 +86,13 @@ export async function PATCH(
       update.status = body.status
     }
 
+    if (body?.ticketId !== undefined) {
+      if (typeof body.ticketId !== 'string' || !body.ticketId) {
+        return NextResponse.json({ error: 'ticketId must be a non-empty string' }, { status: 400 })
+      }
+      update.ticket_id = body.ticketId
+    }
+
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
@@ -94,6 +106,16 @@ export async function PATCH(
       .maybeSingle()
 
     if (error) {
+      // sembang_tasks_guard() (migration 103) rejects a second attempt to
+      // set ticket_id, or one pointing at a ticket outside this account —
+      // both surface here as a plain-message P0001 exception, not a
+      // distinct SQLSTATE, so they're matched by message text.
+      if (error.message?.includes('sembang_task_ticket_id_immutable_once_set')) {
+        return NextResponse.json({ error: 'This task is already linked to a ticket' }, { status: 409 })
+      }
+      if (error.message?.includes('sembang_task_ticket_id_cross_account_or_missing')) {
+        return NextResponse.json({ error: 'That ticket could not be linked' }, { status: 400 })
+      }
       console.error('[PATCH /api/sembang/channels/[id]/tasks/[taskId]] update error:', error)
       return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
     }

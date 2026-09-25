@@ -20,6 +20,8 @@ export interface SembangTaskRow {
   created_at: string
   completed_at: string | null
   completed_by: string | null
+  /** Migration 103. Nullable, write-once — see sembang_tasks_guard(). */
+  ticket_id: string | null
 }
 
 export async function hydrateTasks(
@@ -39,6 +41,16 @@ export async function hydrateTasks(
 
   const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
   for (const p of profileRows ?? []) profileByUser.set(p.user_id, p)
+
+  const ticketIds = Array.from(new Set(rows.map((r) => r.ticket_id).filter((v): v is string => !!v)))
+  const ticketNumberById = new Map<string, number>()
+  if (ticketIds.length > 0) {
+    const { data: ticketRows } = await supabase
+      .from('tickets')
+      .select('id, ticket_number')
+      .in('id', ticketIds)
+    for (const t of ticketRows ?? []) ticketNumberById.set(t.id, t.ticket_number)
+  }
 
   return rows.map((row) => {
     const assigneeProfile = row.assignee_id ? profileByUser.get(row.assignee_id) : undefined
@@ -64,6 +76,8 @@ export async function hydrateTasks(
       createdAt: row.created_at,
       completedAt: row.completed_at,
       completedBy: row.completed_by,
+      ticketId: row.ticket_id,
+      ticketNumber: row.ticket_id ? (ticketNumberById.get(row.ticket_id) ?? null) : null,
     }
   })
 }
