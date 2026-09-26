@@ -22,6 +22,7 @@ import {
   Pin,
   PinOff,
   PlusCircle,
+  Reply,
   Star,
   Trash2,
 } from "lucide-react";
@@ -88,6 +89,12 @@ export interface MessageRowProps {
   disableThreadAffordances?: boolean;
   onReplyInThread?: (message: SembangMessage) => void;
   onOpenThread?: (message: SembangMessage) => void;
+  /** Inserts a quoted one-line excerpt of this specific message into the
+   *  composer, so a reply within a (flat) thread can make clear which
+   *  earlier response it's answering — thread-panel.tsx's own affordance,
+   *  wired to `MessageComposerHandle.insertQuote`. Shown on every message
+   *  (unlike `onReplyInThread`, which is top-level-only). */
+  onQuoteReply?: (message: SembangMessage) => void;
   /** Migration 101. Set only from the main channel list (never from an
    *  already-open thread panel's own reply list) — fired when the "↪
    *  replied to a thread" context line is clicked, to open the thread for
@@ -119,6 +126,7 @@ export function MessageRow({
   onReplyInThread,
   onOpenThread,
   onOpenParentThread,
+  onQuoteReply,
   onReact,
   onTogglePin,
   onToggleStar,
@@ -302,6 +310,17 @@ export function MessageRow({
               onClick={() => onReplyInThread(message)}
             >
               <MessageSquareText className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {onQuoteReply && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("quoteReply")}
+              title={t("quoteReply")}
+              onClick={() => onQuoteReply(message)}
+            >
+              <Reply className="h-3.5 w-3.5" />
             </Button>
           )}
           <EmojiPicker onPick={(emoji) => onReact(message.id, emoji)} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />

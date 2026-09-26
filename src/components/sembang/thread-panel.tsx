@@ -18,14 +18,14 @@
 // callbacks that resolve to the updated message/reactions, which this
 // panel then patches into its own `parent`/`replies` state.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
-import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
+import { MessageComposer, type MessageComposerHandle, type PendingSembangAttachment } from "./message-composer";
 import { MessageRow } from "./message-row";
 import type { SembangMessage, SembangReactionSummary } from "@/types";
 
@@ -84,6 +84,7 @@ export function ThreadPanel({
   const [replies, setReplies] = useState<SembangMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const composerRef = useRef<MessageComposerHandle>(null);
 
   const fetchReplies = useCallback(async () => {
     if (!channelId || !parentMessageId) return;
@@ -219,6 +220,19 @@ export function ThreadPanel({
     [onEditMessage],
   );
 
+  const handleQuoteReply = useCallback(
+    (message: SembangMessage) => {
+      // A voice note / file-only message has no body (same fallback
+      // MessagePreview uses elsewhere) — the quote still needs SOME text.
+      const first = message.attachments[0];
+      const body =
+        message.body ||
+        (first ? (first.mimeType?.startsWith("audio/") ? tThread("voiceMessage") : first.filename) : "");
+      composerRef.current?.insertQuote(message.author?.fullName ?? tThread("unknownAuthor"), body);
+    },
+    [tThread],
+  );
+
   const handleRemove = useCallback(
     async (messageId: string) => {
       const updated = await onRemoveMessage(messageId);
@@ -272,6 +286,7 @@ export function ThreadPanel({
                     isPinned={pinnedMessageIds.has(parent.id)}
                     canRemoveOthers={canRemoveMessages}
                     disableThreadAffordances
+                    onQuoteReply={handleQuoteReply}
                     onReact={handleReact}
                     onTogglePin={onTogglePin}
                     onToggleStar={handleToggleStar}
@@ -293,6 +308,7 @@ export function ThreadPanel({
                       peopleNames={peopleNames}
                       isPinned={pinnedMessageIds.has(reply.id)}
                       canRemoveOthers={canRemoveMessages}
+                      onQuoteReply={handleQuoteReply}
                       onReact={handleReact}
                       onTogglePin={onTogglePin}
                       onToggleStar={handleToggleStar}
@@ -307,6 +323,7 @@ export function ThreadPanel({
 
             {parentMessageId && (
               <MessageComposer
+                ref={composerRef}
                 channelId={channelId}
                 channelName={channelName}
                 onSend={handleSendReply}

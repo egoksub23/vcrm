@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Bold, Code2, Italic, List, Loader2, Mic, Paperclip, Send, X } from "lucide-react";
 import { toast } from "sonner";
@@ -56,23 +56,36 @@ interface MessageComposerProps {
   showAlsoInChannelOption?: boolean;
 }
 
+/** Imperative handle so a caller (thread-panel.tsx's "quote reply" icon on
+ *  a specific reply) can push text into the composer without lifting its
+ *  internal draft state — same reasoning as `MentionTextareaHandle`. */
+export interface MessageComposerHandle {
+  /** Prepends a quoted excerpt of `body` (italic, one line, truncated) as
+   *  its own line above whatever the visitor has already typed, and
+   *  focuses the textarea at the end. Repeated clicks on different
+   *  messages stack — each is its own quote line, most recent last. */
+  insertQuote: (authorName: string, body: string) => void;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const QUOTE_SNIPPET_MAX = 120;
+
 /** Wraps `MentionTextarea` with an attach-file button and a send button.
  *  Auto-grow behavior mirrors the Inbox composer's `min-h-16` convention
  *  (adjustHeight: grow from ~2 lines up to ~6 before scrolling). */
-export function MessageComposer({
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({
   channelId,
   channelName,
   onSend,
   disabled,
   parentMessageId,
   showAlsoInChannelOption,
-}: MessageComposerProps) {
+}, ref) {
   const t = useTranslations("Sembang.composer");
   const { members } = useAccountMembers();
 
@@ -269,6 +282,15 @@ export function MessageComposer({
     textareaRef.current?.insertLinePrefix("- ");
   }, []);
 
+  const insertQuote = useCallback((authorName: string, body: string) => {
+    const snippet = body.length > QUOTE_SNIPPET_MAX ? `${body.slice(0, QUOTE_SNIPPET_MAX)}…` : body;
+    const quoteLine = `_${t("quoteReplyLine", { author: authorName, snippet })}_`;
+    setText((prev) => (prev ? `${quoteLine}\n${prev}` : `${quoteLine}\n`));
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [t]);
+
+  useImperativeHandle(ref, () => ({ insertQuote }), [insertQuote]);
+
   return (
     <div className="border-t border-border bg-card p-3.5">
       {showAlsoInChannelOption && (
@@ -323,13 +345,12 @@ export function MessageComposer({
           t={t}
         />
       ) : (
-      /* The thread-reply composer (showAlsoInChannelOption is only ever
-          true there) gets a taller layout: the formatting toolbar sits
-          above a full-width textarea instead of squeezed into the same
-          row, and Send moves to its own row below — there's real column
-          width to spend here, unlike the main channel composer's
-          space-constrained single-row layout, which is left unchanged. */
-      showAlsoInChannelOption ? (
+        // Toolbar row on top, full-width textarea below, Send on its own
+        // row underneath — one layout for both the main channel composer
+        // and the thread-reply composer, so they share the same height
+        // and UX feel (previously the thread composer alone used this
+        // stacked layout; the main composer's own single-row variant was
+        // retired in favor of this one).
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Button
@@ -425,114 +446,7 @@ export function MessageComposer({
             </Button>
           </div>
         </div>
-      ) : (
-        <div className="flex items-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("attachAriaLabel")}
-            onClick={handlePickFile}
-            disabled={disabled || uploading}
-            className="mb-0.5 shrink-0"
-          >
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("micAriaLabel")}
-            title={t("micAriaLabel")}
-            onClick={() => void startRecording()}
-            disabled={disabled || uploading || sending}
-            className="mb-0.5 shrink-0"
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("boldAriaLabel")}
-            title={t("boldAriaLabel")}
-            onClick={handleBold}
-            disabled={disabled}
-            className="mb-0.5 shrink-0"
-          >
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("italicAriaLabel")}
-            title={t("italicAriaLabel")}
-            onClick={handleItalic}
-            disabled={disabled}
-            className="mb-0.5 shrink-0"
-          >
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("listAriaLabel")}
-            title={t("listAriaLabel")}
-            onClick={handleList}
-            disabled={disabled}
-            className="mb-0.5 shrink-0"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("codeBlockAriaLabel")}
-            title={t("codeBlockAriaLabel")}
-            onClick={handleInsertCodeFence}
-            disabled={disabled}
-            className="mb-0.5 shrink-0"
-          >
-            <Code2 className="h-4 w-4" />
-          </Button>
-
-          <div className="min-w-0 flex-1">
-            <MentionTextarea
-              ref={textareaRef}
-              value={text}
-              onValueChange={setText}
-              onMention={(userId) => setMentionedIds((prev) => new Set(prev).add(userId))}
-              members={members}
-              placeholder={t("placeholder", { channel: channelName })}
-              rows={1}
-              disabled={disabled}
-              onSubmit={handleSend}
-              aria-label={t("inputAriaLabel")}
-              // Auto-grow via CSS `field-sizing: content` — the same
-              // mechanism the house Textarea component uses — rather than a
-              // second, JS-driven adjustHeight() reimplementation, since
-              // MentionTextarea's ref only exposes `focus()`. Resting height
-              // (~2 lines) and the growth cap mirror the Inbox composer's
-              // min-h-16 / ~140px constants.
-              className="field-sizing-content min-h-16 max-h-36 resize-none overflow-y-auto"
-            />
-          </div>
-
-          <Button
-            type="button"
-            size="icon"
-            aria-label={t("sendAriaLabel")}
-            onClick={handleSend}
-            disabled={disabled || sending || uploading || (!text.trim() && attachments.length === 0)}
-            className="mb-0.5 shrink-0"
-          >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-      ))}
+      )}
     </div>
   );
-}
+});

@@ -9,6 +9,11 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.66.1] — 2026-09-26
+
+- **Sembang: the main channel composer now matches the thread-reply composer's layout** — same stacked toolbar-row/full-width-textarea/Send-row-below shape, same height (`min-h-32`/`max-h-64`), retiring the main composer's older single-row layout so both feel like the same control.
+- **Sembang: quote-and-reply inside a thread.** Every message in an open thread panel (the parent and every reply — threads are a flat list, so there was previously no way to say which earlier response a new reply was actually answering) now has a Reply icon that inserts a one-line italic quote of that message ("Replying to X: \"...\"") at the top of the composer, then focuses it so typing continues right after. `MessageComposer` exposes this via a new imperative `insertQuote()` handle rather than lifting its draft state.
+
 ## [0.66.0] — 2026-09-26 — **migration required (110)**
 
 - **Web Widget: real email-code verification for "I am already a user," and a "you have a new reply" email for a visitor who has left.** Two pieces toward WhatsApp-level parity for the widget ahead of an Ionic app rollout (logged-in users there already work today via the existing signed in-app identity token — no new code needed for that half).
