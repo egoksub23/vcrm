@@ -2,18 +2,18 @@
 // Web Widget v2 — the 200 body shared by POST /api/widget/session and
 // POST /api/widget/enquiry (the contract says they answer identically).
 // ============================================================
-import { widgetLimits } from '@/lib/widget/media'
-import type { IdentityLevel } from '@/lib/widget/identity-resolve'
+import { widgetLimits } from '@/lib/widget/media';
+import type { IdentityLevel } from '@/lib/widget/identity-resolve';
 
-export type VerificationMode = 'none' | 'email_code' | 'whatsapp_code'
+export type VerificationMode = 'none' | 'email_code' | 'whatsapp_code';
 
 export interface WidgetConfigRow {
-  name: string
-  welcome_message: string
-  primary_color: string
-  avatar_url: string | null
-  position: string
-  verification_mode?: string | null
+  name: string;
+  welcome_message: string;
+  primary_color: string;
+  avatar_url: string | null;
+  position: string;
+  verification_mode?: string | null;
 }
 
 export function brandingOf(config: WidgetConfigRow) {
@@ -23,16 +23,21 @@ export function brandingOf(config: WidgetConfigRow) {
     primaryColor: config.primary_color,
     avatarUrl: config.avatar_url,
     position: config.position,
-  }
+  };
 }
 
-export function verificationOf(config: WidgetConfigRow): { mode: VerificationMode } {
-  const m = config.verification_mode
-  return { mode: m === 'email_code' || m === 'whatsapp_code' ? m : 'none' }
+export function verificationOf(config: WidgetConfigRow): {
+  mode: VerificationMode;
+} {
+  const m = config.verification_mode;
+  return { mode: m === 'email_code' || m === 'whatsapp_code' ? m : 'none' };
 }
 
 /** The "brand-new browser, nothing offered" answer. */
-export function needsIdentityBody(config: WidgetConfigRow, identityError?: string) {
+export function needsIdentityBody(
+  config: WidgetConfigRow,
+  identityError?: string
+) {
   return {
     needsIdentity: true,
     needsPhone: true,
@@ -40,18 +45,38 @@ export function needsIdentityBody(config: WidgetConfigRow, identityError?: strin
     branding: brandingOf(config),
     verification: verificationOf(config),
     limits: widgetLimits(),
-  }
+  };
+}
+
+/** A typed claim matched a registered contact with an email on file
+ *  (migration 110): a code was just sent there, and the widget shows
+ *  the code-entry screen instead of a chat. `needsIdentity` stays true
+ *  (the visitor still has no conversation) so any old cached loader
+ *  falls back to its normal "nothing offered" handling instead of
+ *  breaking on an unrecognised shape. */
+export function needsVerificationBody(
+  config: WidgetConfigRow,
+  maskedEmail: string
+) {
+  return {
+    needsIdentity: true,
+    needsPhone: true,
+    needsVerification: true,
+    branding: brandingOf(config),
+    verification: { ...verificationOf(config), maskedEmail },
+    limits: widgetLimits(),
+  };
 }
 
 export function sessionBody(args: {
-  config: WidgetConfigRow
-  conversationId: string
-  level: IdentityLevel
-  hasPhone: boolean
-  hasEmail: boolean
-  displayName: string | null
-  identityError?: string
-  claimFound?: boolean
+  config: WidgetConfigRow;
+  conversationId: string;
+  level: IdentityLevel;
+  hasPhone: boolean;
+  hasEmail: boolean;
+  displayName: string | null;
+  identityError?: string;
+  claimFound?: boolean;
 }) {
   return {
     needsIdentity: false,
@@ -69,5 +94,5 @@ export function sessionBody(args: {
     branding: brandingOf(args.config),
     verification: verificationOf(args.config),
     limits: widgetLimits(),
-  }
+  };
 }

@@ -61,6 +61,7 @@ import {
 } from '@/lib/gmail/gmail-api';
 import { GmailApiError } from '@/lib/gmail/errors';
 import { failureFromError, type StoredFailure } from '@/lib/messages/failure-reason';
+import { notifyWidgetVisitorOfReply } from '@/lib/widget/notify-reply';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -1075,6 +1076,19 @@ export async function sendMessageToConversation(
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);
+
+  // Best-effort "you have a new reply" email for a widget visitor who
+  // has probably left the page (see src/lib/widget/notify-reply.ts).
+  // Never awaited: a slow or failing email must not add latency to, or
+  // fail, the agent's own reply.
+  if (isWidgetConversation) {
+    notifyWidgetVisitorOfReply(supabaseAdmin(), {
+      accountId,
+      conversationId,
+      contactId: contact.id,
+      contactEmail: contact.email ?? null,
+    }).catch((err) => console.error('[send-message] widget reply notification failed:', err));
+  }
 
   // Pause any active Flow run for this contact — the agent stepping in
   // is the strongest "yield, human is here" signal. Best-effort.

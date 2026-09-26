@@ -204,6 +204,12 @@ export const RATE_LIMITS = {
   widgetEnquiry: { limit: 5, windowMs: 60 * 60_000 },
   /** Enquiry form submissions, per widget_token + origin. */
   widgetEnquiryOrigin: { limit: 60, windowMs: 60 * 60_000 },
+  /** Code-verification attempts (`/api/widget/verify-code`), per
+   *  visitor — on top of the row's own `attempts` counter (migration
+   *  110), which invalidates the code entirely after 5 tries. This is
+   *  the belt to that suspenders: even a rapid-fire script against one
+   *  browser's session is capped. */
+  widgetVerifyCode: { limit: 10, windowMs: 10 * 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

@@ -169,13 +169,16 @@ export interface SessionResponse {
   needsIdentity?: boolean
   /** LEGACY alias of needsIdentity. */
   needsPhone?: boolean
+  /** A code was just emailed for a matched claim (migration 110); the
+   *  widget shows the code-entry screen instead of the chat. */
+  needsVerification?: boolean
   conversationId?: string
   identity?: IdentityInfo
   isGuest?: boolean
   identityError?: 'bad_identity_token' | 'expired_identity_token'
   claimFound?: boolean
   branding: Branding
-  verification?: { mode: 'none' | 'email_code' | 'whatsapp_code' }
+  verification?: { mode: 'none' | 'email_code' | 'whatsapp_code'; maskedEmail?: string }
   limits?: WidgetLimits
 }
 
@@ -192,6 +195,13 @@ export function startSession(widgetToken: string, opts: StartSessionOptions = {}
     skipIdentity: opts.skipIdentity,
     locale: opts.locale,
   })
+}
+
+/** Confirms a code sent for an email-code claim (migration 110). The
+ *  visitor's bearer token alone identifies which pending code this is
+ *  — no widgetToken needed. */
+export function verifyCode(code: string): Promise<SessionResponse> {
+  return post<SessionResponse>('/api/widget/verify-code', { code })
 }
 
 export type EnquiryRole = 'parent' | 'school' | 'merchant' | 'other'

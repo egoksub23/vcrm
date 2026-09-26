@@ -11,6 +11,7 @@ import {
   startSession,
   supabase,
   uploadMedia,
+  verifyCode,
   type Claim,
   type EnquiryInput,
   type SessionResponse,
@@ -48,11 +49,11 @@ import {
 } from './util'
 import { Bubble } from './ui/Bubble'
 import { Composer } from './ui/Composer'
-import { ChoiceScreen, ClaimForm, EnquiryForm } from './ui/Gate'
+import { ChoiceScreen, ClaimForm, EnquiryForm, VerifyCodeForm } from './ui/Gate'
 import { ArrowDownIcon, BackIcon, CloseIcon, LauncherIcon } from './ui/icons'
 import { Lightbox, MediaPreview, type StagedFile } from './ui/Overlays'
 
-type Screen = 'boot' | 'error' | 'choice' | 'claim' | 'enquiry' | 'chat'
+type Screen = 'boot' | 'error' | 'choice' | 'claim' | 'verify' | 'enquiry' | 'chat'
 type Banner = { kind: 'error' | 'info'; text: string }
 
 interface AppProps {
@@ -111,6 +112,11 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
   const [branding, setBranding] = useState<Branding | null>(null)
   const [limits, setLimits] = useState<WidgetLimits>(DEFAULT_LIMITS)
   const [identity, setIdentity] = useState<IdentityInfo | null>(null)
+  // Masked email a verification code was just sent to (migration 110);
+  // shown on the code-entry screen. The claim itself is kept so "Resend
+  // code" can just resubmit it, same request as the first time.
+  const [maskedDestination, setMaskedDestination] = useState<string | null>(null)
+  const lastClaimRef = useRef<Claim | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<LocalMessage[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -280,8 +286,21 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
         console.warn(`[vircle-widget] identity token rejected: ${res.identityError}`)
         window.dispatchEvent(new CustomEvent('vircle-widget:identity-error', { detail: { code: res.identityError } }))
       }
+      if (res.needsVerification) {
+        // A matched claim just got an emailed code (migration 110):
+        // not a chat yet, and not an error either — the code-entry
+        // screen is the expected next step.
+        setMaskedDestination(res.verification?.maskedEmail ?? null)
+        setScreen('verify')
+        return true
+      }
       if (sessionNeedsIdentity(res) || !res.conversationId) {
-        setScreen('choice')
+        // Coming from the claim/verify forms, a "could not identify you"
+        // answer stays right there so the caller's own formError shows
+        // next to the field the visitor is looking at; anywhere else
+        // (a stale/rejected token on boot, for instance) falls back to
+        // the top-level choice screen.
+        if (screen !== 'claim' && screen !== 'verify') setScreen('choice')
         return false
       }
       if (needsConnect(res.conversationId, connectedRef.current)) await connectConversation(res.conversationId)
@@ -300,7 +319,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       }
       return true
     },
-    [connectConversation, t, widgetToken],
+    [connectConversation, screen, t, widgetToken],
   )
 
   const bootstrap = useCallback(async () => {
@@ -355,6 +374,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
 
   const handleClaim = useCallback(
     async (claim: Claim) => {
+      lastClaimRef.current = claim
       setBusy(true)
       setFormError(null)
       try {
@@ -368,6 +388,35 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       }
     },
     [applySession, locale, t, widgetToken],
+  )
+
+  // "Resend code": literally resubmit the same claim, which the server
+  // answers by overwriting the previous pending code (migration 110's
+  // widget_verification_codes is keyed one row per browser) — no
+  // separate resend endpoint needed.
+  const handleResendCode = useCallback(() => {
+    if (lastClaimRef.current) void handleClaim(lastClaimRef.current)
+  }, [handleClaim])
+
+  const handleVerifyCode = useCallback(
+    async (code: string) => {
+      setBusy(true)
+      setFormError(null)
+      try {
+        const res = await verifyCode(code)
+        const ok = await applySession(res, true)
+        if (!ok) setFormError(t('errVerifyCode'))
+      } catch (err) {
+        // A wrong/expired code, too many attempts, or no verification in
+        // progress all come back as `bad_request` — one clear message
+        // covers all of them here rather than surfacing raw server text.
+        if (err instanceof ApiError && err.code === 'bad_request') setFormError(t('errVerifyCode'))
+        else setFormError(errorText(err, t, limitsRef.current))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [applySession, t],
   )
 
   const handleEnquiry = useCallback(
@@ -739,7 +788,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
 
   const position = branding?.position ?? 'right'
   const primaryColor = branding?.primaryColor ?? '#3b82f6'
-  const showBack = screen === 'claim' || screen === 'enquiry'
+  const showBack = screen === 'claim' || screen === 'verify' || screen === 'enquiry'
   const items = useMemo(
     () => safeGroupMessages(messages, { locale, now: new Date(), t, unread }),
     [messages, locale, t, unread],
@@ -749,7 +798,10 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
 
   const goBack = () => {
     setFormError(null)
-    setScreen(conversationId ? 'chat' : 'choice')
+    // From the code screen, "back" means "use a different number" —
+    // straight to the claim form, not all the way out to the top-level
+    // choice — the visitor's most likely next move.
+    setScreen(screen === 'verify' ? 'claim' : conversationId ? 'chat' : 'choice')
   }
 
   return (
@@ -831,6 +883,17 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
             )}
 
             {screen === 'claim' && <ClaimForm t={t} busy={busy} error={formError} onSubmit={handleClaim} />}
+            {screen === 'verify' && (
+              <VerifyCodeForm
+                t={t}
+                busy={busy}
+                error={formError}
+                maskedDestination={maskedDestination}
+                onSubmit={handleVerifyCode}
+                onResend={handleResendCode}
+                onBack={goBack}
+              />
+            )}
             {screen === 'enquiry' && <EnquiryForm t={t} busy={busy} error={formError} onSubmit={handleEnquiry} />}
 
             {screen === 'chat' && (

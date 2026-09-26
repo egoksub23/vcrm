@@ -61,6 +61,12 @@ vi.mock('@/lib/api/v1/contacts', () => ({
 }))
 vi.mock('@/lib/automations/engine', () => ({ runAutomationsForTrigger: vi.fn(async () => undefined) }))
 vi.mock('@/lib/widget/session-identity', () => ({ findOrCreatePrimaryConversation: vi.fn(async () => 'conv-1') }))
+const sentCodeEmails: { to: string; code: string; widgetName: string }[] = []
+vi.mock('@/lib/email/widget-verification-email', () => ({
+  sendVerificationCodeEmail: vi.fn(async (args: { to: string; code: string; widgetName: string }) => {
+    sentCodeEmails.push(args)
+  }),
+}))
 vi.mock('@/lib/widget/tags', async () => {
   const actual = await vi.importActual<typeof import('@/lib/widget/tags')>('@/lib/widget/tags')
   return { ...actual, applyContactTagByName: vi.fn(async (_db: unknown, a: { name: string }) => void tagged.push(a.name)) }
@@ -135,6 +141,7 @@ beforeEach(() => {
   tagged.length = 0
   merges.length = 0
   suggestions.length = 0
+  sentCodeEmails.length = 0
   storeSeed = {}
 })
 
@@ -323,5 +330,57 @@ describe('POST /api/widget/session', () => {
     db.config = { ...baseConfig(), verification_mode: 'email_code' }
     const body = await (await call({})).json()
     expect(body.verification).toEqual({ mode: 'email_code' })
+  })
+
+  describe('email_code verification (migration 110)', () => {
+    beforeEach(() => {
+      db.config = { ...baseConfig(), verification_mode: 'email_code' }
+    })
+
+    it('a claim matching a contact with an email on file sends a code and asks for it, no contact created/merged', async () => {
+      storeSeed = { byPhone: { id: 'existing', phone: '60123980112', email: 'real@example.com' } }
+      const res = await call({ claim: { phone: '60123980112' } })
+      const body = await res.json()
+      expect(body).toMatchObject({
+        needsIdentity: true,
+        needsVerification: true,
+        verification: { mode: 'email_code', maskedEmail: 'r***@example.com' },
+      })
+      expect(body.conversationId).toBeUndefined()
+      expect(sentCodeEmails).toEqual([{ to: 'real@example.com', code: expect.any(String), widgetName: 'Support' }])
+      expect(writes.some((w) => w.table === 'widget_visitors')).toBe(false)
+      const codeWrite = writes.find((w) => w.table === 'widget_verification_codes')
+      expect(codeWrite).toMatchObject({
+        op: 'upsert',
+        row: { widget_visitor_id: 'visitor-1', contact_id: 'existing', destination_email: 'real@example.com' },
+      })
+    })
+
+    it('a claim matching nobody sends no code and falls back to needsIdentity', async () => {
+      const res = await call({ claim: { phone: '60123980112' } })
+      const body = await res.json()
+      expect(body.needsVerification).toBeUndefined()
+      expect(body.needsIdentity).toBe(true)
+      expect(sentCodeEmails).toEqual([])
+      expect(writes.some((w) => w.table === 'widget_verification_codes')).toBe(false)
+    })
+
+    it('a claim matching a contact with NO email on file sends no code either', async () => {
+      storeSeed = { byPhone: { id: 'existing', phone: '60123980112', email: null } }
+      const res = await call({ claim: { phone: '60123980112' } })
+      const body = await res.json()
+      expect(body.needsVerification).toBeUndefined()
+      expect(sentCodeEmails).toEqual([])
+    })
+
+    it('a signed token bypasses email-code verification entirely (already the strong signal)', async () => {
+      db.contact = { name: 'Jane', phone: '60123980112', email: null }
+      const identityToken = signIdentityToken(SECRET, { phone: '60123980112' })
+      const res = await call({ identityToken })
+      const body = await res.json()
+      expect(body.conversationId).toBe('conv-1')
+      expect(body.identity.level).toBe('verified')
+      expect(sentCodeEmails).toEqual([])
+    })
   })
 })

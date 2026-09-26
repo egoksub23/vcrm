@@ -121,6 +121,73 @@ export function ClaimForm({
   )
 }
 
+/** Code-entry screen after a matched claim gets an emailed code (migration 110). */
+export function VerifyCodeForm({
+  t,
+  busy,
+  error,
+  maskedDestination,
+  onSubmit,
+  onResend,
+  onBack,
+}: {
+  t: Translate
+  busy: boolean
+  error: string | null
+  maskedDestination: string | null
+  onSubmit: (code: string) => void
+  onResend: () => void
+  onBack: () => void
+}) {
+  const [code, setCode] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const submit = (e: Event) => {
+    e.preventDefault()
+    if (busy) return
+    const c = code.trim()
+    if (!/^\d{4,8}$/.test(c)) return setProblem(t('errCode'))
+    setProblem(null)
+    onSubmit(c)
+  }
+
+  return (
+    <form class="wcw-screen" onSubmit={submit} noValidate>
+      <h2 class="wcw-screen-title">{t('verifyTitle')}</h2>
+      <p class="wcw-screen-hint">
+        {maskedDestination ? t('verifyHint', { destination: maskedDestination }) : t('claimHint')}
+      </p>
+      <label class="wcw-field">
+        <span>{t('fieldCode')}</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          autocomplete="one-time-code"
+          maxLength={8}
+          placeholder={t('fieldCodePh')}
+          value={code}
+          disabled={busy}
+          onInput={(e) => setCode((e.target as HTMLInputElement).value)}
+        />
+      </label>
+      {(problem || error) && (
+        <p class="wcw-form-error" role="alert">
+          {problem ?? error}
+        </p>
+      )}
+      <button type="submit" class="wcw-primary" disabled={busy}>
+        {busy ? t('verifying') : t('verifySubmit')}
+      </button>
+      <button type="button" class="wcw-linkbtn" disabled={busy} onClick={onResend}>
+        {t('resendCode')}
+      </button>
+      <button type="button" class="wcw-linkbtn" disabled={busy} onClick={onBack}>
+        {t('useDifferentNumber')}
+      </button>
+    </form>
+  )
+}
+
 const ROLES: Array<{ value: EnquiryRole; key: 'roleParent' | 'roleSchool' | 'roleMerchant' | 'roleOther' }> = [
   { value: 'parent', key: 'roleParent' },
   { value: 'school', key: 'roleSchool' },

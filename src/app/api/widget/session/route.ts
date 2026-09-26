@@ -50,7 +50,8 @@ import {
 import { verifyIdentityToken, type IdentityPayload } from '@/lib/widget/identity-token'
 import { decryptIdentitySecret } from '@/lib/widget/identity-secret'
 import { claimMatchesContact, meaningfulName, parseSessionBody } from '@/lib/widget/session-request'
-import { needsIdentityBody, sessionBody } from '@/lib/widget/session-response'
+import { needsIdentityBody, needsVerificationBody, sessionBody } from '@/lib/widget/session-response'
+import { startEmailCodeVerification } from '@/lib/widget/email-verification'
 import { applyContactTagByName, WIDGET_TAG_CLAIMS_EXISTING } from '@/lib/widget/tags'
 import {
   bearerToken,
@@ -175,6 +176,27 @@ export async function POST(request: Request) {
       ]
       const blocked = checks.find((c) => !c.success)
       if (blocked) return widgetRateLimited(blocked, corsOrigin)
+    }
+
+    // Migration 110: a typed claim on an account with email-code
+    // verification switched on never resolves to a contact directly —
+    // it either sends a code (real match, email on file) or leaves no
+    // trace at all (no match, or nothing to verify through). A signed
+    // token (offer.mode === 'verified') is already the strong signal
+    // this mode exists to approximate, so it skips this entirely.
+    if (offer?.mode === 'claimed' && config.verification_mode === 'email_code') {
+      const result = await startEmailCodeVerification(admin, {
+        accountId: config.account_id,
+        widgetConfigId: config.id,
+        widgetName: config.name,
+        visitorId,
+        phone: offer.phone,
+        email: offer.email,
+      })
+      if (!result.ok) {
+        return withCors(NextResponse.json(needsIdentityBody(config, identityError)), corsOrigin)
+      }
+      return withCors(NextResponse.json(needsVerificationBody(config, result.maskedEmail)), corsOrigin)
     }
 
     const store = createSupabaseIdentityStore(admin)

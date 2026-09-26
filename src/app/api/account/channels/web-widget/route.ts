@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { isResendConfigured } from '@/lib/email/resend'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import type { WebWidgetConfig } from '@/types'
 
@@ -25,8 +26,8 @@ const MAX_ORIGINS = 20
 const WIDGET_CONFIG_COLUMNS =
   'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, verification_mode, identity_secret_last4, identity_secret_rotated_at, created_at, updated_at'
 
-/** Verification modes that actually work today. The others are stored-only ("coming soon"). */
-const IMPLEMENTED_VERIFICATION_MODES = ['none'] as const
+/** Verification modes that actually work today. `whatsapp_code` is still stored-only ("coming soon"). */
+const IMPLEMENTED_VERIFICATION_MODES = ['none', 'email_code'] as const
 
 function generateWidgetToken(): string {
   return `wt_${randomBytes(24).toString('base64url')}`
@@ -138,6 +139,15 @@ export async function PUT(request: Request) {
       ) {
         return NextResponse.json(
           { error: 'That verification mode is not available yet', code: 'bad_request' },
+          { status: 400 },
+        )
+      }
+      if (body.verification_mode === 'email_code' && !isResendConfigured()) {
+        return NextResponse.json(
+          {
+            error: 'Set RESEND_API_KEY before enabling email-code verification (see .env.local.example)',
+            code: 'bad_request',
+          },
           { status: 400 },
         )
       }

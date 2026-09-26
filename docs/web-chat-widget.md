@@ -13,6 +13,10 @@ omnichannel merge described below. **Web Widget v2** (migration 092,
 `supabase/migrations/092_widget_v2.sql`) added identity levels, signed
 in-app identity, possible-duplicate suggestions, an enquiry form, files
 and voice notes, read receipts, and English / Bahasa Melayu / Mandarin.
+Migration 110 (`supabase/migrations/110_widget_email_verification.sql`)
+added real email-code verification for a typed claim and a "you have a
+new reply" email for a verified visitor who has left — see "Web
+verification switch" and "Agent replies after the visitor left" below.
 
 ## What lives where
 
@@ -21,7 +25,9 @@ and voice notes, read receipts, and English / Bahasa Melayu / Mandarin.
 | Widget name, welcome message, color, position, allowed origins, enabled toggle | `web_widget_config` (one row per account) | per account |
 | `widget_token` (public, non-secret — embedded in the `<script>` tag) | `web_widget_config.widget_token`, generated once on first save | per account |
 | A visitor's browser session | Supabase **anonymous auth** (`auth.users`, `is_anonymous = true`) | per browser/device |
-| How a visitor's typed identity would be confirmed on the web | `web_widget_config.verification_mode` (`none` live; `email_code`, `whatsapp_code` stored, "coming soon") | per account |
+| How a visitor's typed identity would be confirmed on the web | `web_widget_config.verification_mode` (`none` / `email_code` live; `whatsapp_code` stored, "coming soon") | per account |
+| A pending email-code verification | `widget_verification_codes` (one row per browser; migration 110, service-role only) | per browser/device |
+| The last "you have a new reply" email sent for a conversation | `widget_reply_notifications` (migration 110, service-role only) | per conversation |
 | The in-app identity secret (signs tokens for your signed-in users) | `web_widget_config.identity_secret_enc` (AES-256-GCM ciphertext; only the last four characters are readable, `identity_secret_last4`) | per account |
 | A visitor's *identity* — who they actually are | A signed in-app token (verified), or a phone/email they typed (claimed), matched against existing `contacts` | per phone/email, not per browser |
 | The browser ↔ contact binding and its identity level (skips the first screen on return visits) | `widget_visitors` (row per anonymous auth uid → `contact_id`, with `identity_level`, `identity_source`, `identity_verified_at`) | per browser/device |
@@ -322,15 +328,53 @@ the table has no client write policy. The badges come from
 
 ### Web verification switch
 
-Settings shows **Web verification**: `none` (live), `email_code` and
-`whatsapp_code` (stored, shown as "coming soon"). It is `verification_mode`
-on `web_widget_config` and is reported to the widget as
-`verification: { mode }`. Only `none` is implemented, and the API refuses to
-switch to the others. To turn verification on later: implement the code
-challenge for the chosen mode in `/api/widget/session` (send a code, accept
-it, then set `identity_level = 'verified'`, `identity_source = 'code'`) and
-add it to the implemented list in `src/app/api/account/channels/web-widget/route.ts`.
-Nothing else needs to change: the merge rule already keys on the level.
+Settings shows **Web verification**: `none` (live), `email_code` (live,
+migration 110 — see below) and `whatsapp_code` (stored, still "coming
+soon"). It is `verification_mode` on `web_widget_config` and is reported to
+the widget as `verification: { mode }`. The API refuses to switch to
+`whatsapp_code` today; switching to `email_code` additionally requires
+`RESEND_API_KEY` to be configured (`isResendConfigured()`), since there
+would otherwise be nothing to actually send the code with.
+
+To add `whatsapp_code` later: implement its own send/verify pair mirroring
+`src/lib/widget/email-verification.ts` / `src/app/api/widget/verify-code/route.ts`
+(sending the code via the account's own connected WhatsApp number instead of
+Resend), and add it to `IMPLEMENTED_VERIFICATION_MODES` in
+`src/app/api/account/channels/web-widget/route.ts`. Nothing else needs to
+change: the merge rule already keys on the identity level, not the
+verification method.
+
+#### Email-code verification (migration 110)
+
+With **Web verification** set to `email_code`, the "I am already a user"
+claim form works differently from the `none` default: instead of
+immediately (and unverifiably) attaching the browser to whatever it typed,
+the server looks the phone (or email) up against CRM contacts **without
+creating or merging anything** — an unmatched claim leaves no trace at all,
+by design, since the point of this mode is "must be an existing, real
+customer." Only a real match **with an email on file** gets anything sent;
+a match with no email is treated the same as no match (nothing to verify
+through, so no code, no partial trust granted).
+
+When there is a match with an email, a 6-digit code (`widget_verification_codes`,
+one pending row per browser — a fresh claim overwrites it, which is also how
+"resend the code" works, with no separate endpoint) is emailed to that
+contact's **own** email on file — never the email the visitor typed, since
+verifying an unproven typed value would defeat the purpose. The widget shows
+a code-entry screen (`needsVerification: true`, `verification.maskedEmail`).
+`POST /api/widget/verify-code` confirms it — 5 wrong attempts or 10 minutes
+past `expires_at` invalidates the code (request a new one by resubmitting
+the claim) — and success sets `identity_level = 'verified'`,
+`identity_source = 'code'`: the same trust tier a signed in-app token gets,
+including the guest-fold-in and the "may auto-merge two real contacts" rule
+(see "Matching a typed or signed identity to a contact" above).
+
+This is the piece that makes "ask for a registered phone number, verified,
+with no manual step" work for a logged-out website visitor (or a logged-out
+mobile-app WebView, which can carry no signed token at all) — the other
+half of that picture, a **logged-in** mobile app or site, uses the signed
+in-app token instead (see "In-app identity" above), since it already knows
+who the visitor is.
 
 ### Enquiry form
 
@@ -422,9 +466,40 @@ tracked for visitor messages.)
 
 ### Agent replies after the visitor left
 
-An agent reply to a visitor who has left the page stays in the widget only:
-it is not forwarded by email or WhatsApp. It appears, with an unread marker,
-the next time that browser opens the widget.
+An agent reply always appears in the widget, with an unread marker, the
+next time that browser opens it — that part never changed. What migration
+110 adds on top is the closest approximation to WhatsApp's own
+"you get notified even when you're not looking" behavior that doesn't
+require a mobile push SDK or a browser permission prompt: **for a
+verified visitor with an email** (either the signed in-app token, or a
+completed `email_code` verification — see above), a reply sent while
+they appear to be away gets a plain "you have a new reply" email via
+Resend (`src/lib/widget/notify-reply.ts`), fired best-effort from
+`sendMessageToConversation` and never blocking or failing the agent's
+send.
+
+- **"Away"** means no `widget_visitors` row for that contact was
+  `last_seen_at` within the last 2 minutes — a rough, cheap heuristic
+  (there is no open-tab heartbeat), not a real presence system.
+- Only **one** email per "away period": `widget_reply_notifications`
+  (one row per conversation) is only re-armed once the visitor has
+  actually been seen again since the last notification, so a burst of
+  agent messages doesn't turn into a burst of emails.
+- **Never sent for a `claimed` (unverified) identity** — its email
+  could be a stranger's typo or guess, and notifying it would leak that
+  a conversation exists to whoever typed it. This is deliberately more
+  conservative than what the identity itself is trusted for elsewhere.
+- No email is sent (silently) when `RESEND_API_KEY` isn't configured,
+  the visitor has no verified email at all, or the visitor is a plain
+  `guest` — the widget-only "appears next time they open it" behavior
+  is always the floor, this is additive.
+- **Not built**: real push (Web Push for a browser tab, or native push
+  for a mobile app — a WebView, unlike a full native app, cannot use
+  the Web Push API at all, so a mobile app wanting true OS-level push
+  needs its own native integration regardless of anything here) and a
+  WhatsApp-template fallback for a verified phone with no email. Both
+  are bigger, separately-scoped follow-ons flagged rather than silently
+  built partway.
 
 ### Languages
 
@@ -602,8 +677,26 @@ editing anything under `widget/src/`, then hard-refresh the test page.
 - **The voice button is missing** — the page cannot use the microphone (no
   HTTPS, iframe without `allow="microphone"`, or a WebView without the
   permission). See "Host requirements for voice notes".
-- **Checking the schema** — `supabase migration list` should show 092;
-  the verify script is `supabase/ci/verify-092-widget-v2.sql`.
+- **Checking the schema** — `supabase migration list` should show 092 and
+  110; the verify scripts are `supabase/ci/verify-092-widget-v2.sql` and
+  `supabase/ci/verify-110-widget-email-verification.sql`.
+- **"Set RESEND_API_KEY before enabling email-code verification"** —
+  Settings → Channels → Web Widget → Web verification refused to save
+  `email_code` because `isResendConfigured()` is false. Set
+  `RESEND_API_KEY` (and, for real deliverability, `RESEND_FROM_EMAIL` —
+  see `.env.local.example` and `docs/sso-login-setup.md`'s "Email
+  delivery" section) first.
+- **A visitor's claim never leads to a code / just says nothing
+  matched** — with `email_code` verification on, an unmatched phone/email,
+  or a match with no email on file, both get the same "we could not find
+  that" outcome on purpose (see "Email-code verification" above) — check
+  the contact actually exists in this account with an email set.
+- **No "new reply" email arrives for an away visitor** — confirm the
+  visitor's identity level is `verified` (a `claimed`/unverified email is
+  never notified), that `RESEND_API_KEY` is set, and that they were
+  genuinely away (`widget_visitors.last_seen_at` for their contact older
+  than 2 minutes) — an open tab that already showed the reply live via
+  Realtime correctly gets no email.
 - **A reply from the dashboard doesn't show up live in the widget**
   — check the browser console for a Realtime `CHANNEL_ERROR`/`TIMED_OUT`
   on the `widget-messages-<id>` channel; this usually means the
