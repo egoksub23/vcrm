@@ -477,6 +477,11 @@ export function MembersView({ roster }: { roster: TeamRoster }) {
                           <Badge className="border-amber-500/40 bg-amber-500/10 text-amber-300">
                             {t('status.pendingBadge')}
                           </Badge>
+                          {inv.email && inv.email_sent_at && (
+                            <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+                              {t('status.emailSentBadge')}
+                            </Badge>
+                          )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {inviter

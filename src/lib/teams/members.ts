@@ -37,6 +37,10 @@ export interface RosterInvitation {
   /** Migration 108. Set only for an email-targeted invite — null for a
    *  plain shareable-link invite, exactly like every row before it. */
   email: string | null;
+  /** Migration 109. Set once a Resend invite email was actually sent
+   *  for this row; null when no email was sent (no `email` set, Resend
+   *  not configured, or the send failed). */
+  email_sent_at: string | null;
   created_by_user_id: string | null;
   created_at: string;
   expires_at: string;

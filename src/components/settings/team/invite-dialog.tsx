@@ -66,6 +66,13 @@ interface CreatedInvite {
   /** Migration 108 — set when this invite was targeted at a specific
    *  email address instead of a plain shareable link. */
   email: string | null;
+  /** Migration 109 — whether the server actually sent an invite email
+   *  via Resend for this invite. Only meaningful when `email` is set. */
+  emailSent: boolean;
+  /** Set when Resend was configured but the send itself failed —
+   *  distinguished from "not configured" (both leave `emailSent`
+   *  false, but only one is worth explaining to the admin). */
+  emailError: string | null;
 }
 
 export function InviteDialog({
@@ -146,6 +153,8 @@ export function InviteDialog({
         url: string;
         expiresInDays: number;
         invitation: { email: string | null };
+        emailSent: boolean;
+        emailError: string | null;
       };
 
       setResult({
@@ -155,6 +164,8 @@ export function InviteDialog({
         teams: chosenTeams,
         accountName: account?.name ?? t('fallbackAccountName'),
         email: data.invitation.email,
+        emailSent: data.emailSent,
+        emailError: data.emailError,
       });
       await onCreated();
     } catch (err) {
@@ -232,6 +243,21 @@ export function InviteDialog({
                     email: result.email,
                     bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
                   })}
+                </div>
+              )}
+
+              {result.email && result.emailSent && (
+                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                  {t.rich('emailSentHint', {
+                    email: result.email,
+                    bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
+                  })}
+                </div>
+              )}
+
+              {result.email && !result.emailSent && (
+                <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  {result.emailError ? t('emailSendFailedHint') : t('emailNotConfiguredHint')}
                 </div>
               )}
 

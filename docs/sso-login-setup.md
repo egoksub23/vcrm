@@ -58,17 +58,43 @@ An admin can optionally target an invite at a specific email address
   discarding it — the invitation stays pending for the admin/user to
   resolve manually (same "your account already contains data" guard the
   link-accept flow has always had).
-- **No email is sent.** There's no outbound transactional-email sender
-  anywhere in this app (checked — no Resend/SendGrid/SES/Postmark/SMTP
-  wiring exists) and standing one up is a real infra decision (provider,
-  API key, sender domain/DKIM) this app can't make unilaterally. The
-  admin still shares the invite the same way as any link invite today
-  (WhatsApp, Slack, verbally) — what's new is that the recipient showing
-  up via SSO with the matching email also works, with nothing to share
-  at all if you'd rather just tell them to sign in.
+- **Sends an email when Resend is configured** (`RESEND_API_KEY` — see
+  "Email delivery" below). Without it, no email goes out — the admin
+  still shares the invite the same way as any link invite (WhatsApp,
+  Slack, verbally), same as before this existed; auto-join on sign-in
+  works either way. With it, the create-invite dialog shows whether the
+  email actually sent, and the Members list shows an "Email sent" badge
+  on invitations it went out for.
 - **Does not** let you require SSO for an account or block password
   login for specific users — everyone can always still use a password
   unless you build that enforcement separately.
+
+## Email delivery (optional — Resend)
+
+By default, an email-targeted invite is never emailed — the admin
+copies the link from the create-invite dialog and shares it themselves
+(WhatsApp, Slack, verbally), and auto-join on verified sign-in still
+works regardless. Setting `RESEND_API_KEY` (see `.env.local.example`)
+makes `POST /api/account/invitations` actually send that link to the
+invited address via [Resend](https://resend.com):
+
+1. Create a Resend account and an API key (dashboard → API Keys).
+2. Set `RESEND_API_KEY` in your environment.
+3. Verify a sending domain (dashboard → Domains → Add Domain, then add
+   the DNS records it gives you) and set `RESEND_FROM_EMAIL` to an
+   address on that domain, e.g. `invites@crm.example.com`. Without this,
+   sends fall back to Resend's own `onboarding@resend.dev` sandbox
+   sender, which only delivers to the email address of the Resend
+   account itself — useful for a first try, not for real invites.
+4. Invite a teammate by email (Settings → Team → Invite a teammate →
+   "Email address") — the create-invite dialog reports whether the
+   email actually sent; if it didn't (not configured, or Resend
+   returned an error), the link is still shown so you can share it
+   yourself.
+
+A failed or unconfigured send never blocks invite creation — this is
+additive on top of the existing link-and-auto-join behavior, not a
+replacement for it.
 
 ## 1. Google Cloud OAuth client
 

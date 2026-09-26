@@ -2264,7 +2264,8 @@
           "all": "모든 멤버",
           "active": "활성",
           "pending": "초대 대기 중",
-          "pendingBadge": "대기 중"
+          "pendingBadge": "대기 중",
+          "emailSentBadge": "이메일 전송됨"
         },
         "sortBy": "정렬 기준",
         "sort": {
@@ -2457,7 +2458,10 @@
         "emailLabel": "이메일 주소",
         "emailPlaceholder": "teammate@company.com",
         "emailHint": "비워두면 일반 공유 링크가 됩니다. 입력하면 정확히 일치하는 해당 이메일(Google 또는 Microsoft 로그인 포함)로 로그인하는 즉시 자동으로 참여합니다 — 링크 클릭이 필요 없습니다(아래 링크도 계속 작동하며, 이제 이 주소로 제한됩니다).",
-        "emailAutoJoinHint": "<bold>{email}</bold>은(는) 해당 이메일로 로그인하는 즉시 자동으로 참여합니다 — Google 또는 Microsoft SSO 포함. 아래 링크도 백업으로 보낼 수 있습니다."
+        "emailAutoJoinHint": "<bold>{email}</bold>은(는) 해당 이메일로 로그인하는 즉시 자동으로 참여합니다 — Google 또는 Microsoft SSO 포함. 아래 링크도 백업으로 보낼 수 있습니다.",
+        "emailSentHint": "초대 이메일이 <bold>{email}</bold>로 전송되었습니다.",
+        "emailSendFailedHint": "초대 이메일을 보내지 못했습니다. 아래 링크를 복사해서 직접 공유해 주세요.",
+        "emailNotConfiguredHint": "이 서버에는 이메일 발송이 설정되어 있지 않습니다. 아래 링크를 복사해서 직접 공유해 주세요."
       }
     },
     "invite": {

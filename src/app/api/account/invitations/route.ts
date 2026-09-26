@@ -15,6 +15,13 @@
 // shares it via WhatsApp/Slack/whatever they like. If they
 // dismiss the modal without copying, the only recourse is to
 // revoke and re-issue.
+//
+// When `email` is set AND Resend is configured (RESEND_API_KEY —
+// see src/lib/email/resend.ts), POST also emails the link to that
+// address and stamps `email_sent_at` (migration 109) on success.
+// Best-effort: an unconfigured or failing send never fails invite
+// creation — the admin still gets the link back to share manually,
+// same as before this existed.
 // ============================================================
 
 import { NextResponse } from "next/server";
@@ -27,6 +34,7 @@ import {
   inviteUrl,
 } from "@/lib/auth/invitations";
 import { isAccountRole, roleRank } from "@/lib/auth/roles";
+import { sendInvitationEmail } from "@/lib/email/invitation-email";
 import { parseInviteTeamIds } from "@/lib/teams/team-ids";
 import {
   checkRateLimit,
@@ -149,7 +157,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_invitations")
       .select(
-        "id, role, label, email, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
+        "id, role, label, email, email_sent_at, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
       )
       .eq("account_id", ctx.accountId)
       .is("accepted_at", null)
@@ -296,13 +304,53 @@ export async function POST(request: Request) {
       );
     }
 
+    const url = inviteUrl(token, getBaseUrl(request));
+
+    // Best-effort — an email-delivery hiccup must never fail invite
+    // creation, since the admin can always fall back to sharing `url`
+    // themselves (unchanged from before this feature existed). Awaited
+    // (not `after()`) because the result — sent, or not, and why —
+    // feeds directly into what the create-invite dialog shows next.
+    let emailSent = false;
+    let emailError: string | null = null;
+    let emailSentAt: string | null = null;
+    if (email) {
+      try {
+        emailSent = await sendInvitationEmail({
+          to: email,
+          accountName: ctx.account.name,
+          role,
+          url,
+          expiresInDays: expiryDays,
+        });
+        if (emailSent) {
+          emailSentAt = new Date().toISOString();
+          const { error: stampError } = await ctx.supabase
+            .from("account_invitations")
+            .update({ email_sent_at: emailSentAt })
+            .eq("id", data.id);
+          if (stampError) {
+            console.error(
+              "[POST /api/account/invitations] email_sent_at stamp error:",
+              stampError,
+            );
+          }
+        }
+      } catch (err) {
+        console.error("[POST /api/account/invitations] email send error:", err);
+        emailError = err instanceof Error ? err.message : "Failed to send email";
+      }
+    }
+
     return NextResponse.json(
       {
-        invitation: data,
+        invitation: { ...data, email_sent_at: emailSentAt },
         // Plaintext payload — visible to the admin exactly once.
         token,
-        url: inviteUrl(token, getBaseUrl(request)),
+        url,
         expiresInDays: expiryDays,
+        emailSent,
+        emailError,
       },
       { status: 201 },
     );

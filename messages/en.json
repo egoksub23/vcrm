@@ -2264,7 +2264,8 @@
           "all": "All members",
           "active": "Active",
           "pending": "Pending invitation",
-          "pendingBadge": "Pending"
+          "pendingBadge": "Pending",
+          "emailSentBadge": "Email sent"
         },
         "sortBy": "Sort by",
         "sort": {
@@ -2457,7 +2458,10 @@
         "emailLabel": "Email address",
         "emailPlaceholder": "teammate@company.com",
         "emailHint": "Leave blank for a plain shareable link. Set this and they join automatically the moment they sign in with that exact, verified email — including via Google or Microsoft — no link click required (though the link below still works too, and is now scoped to this address).",
-        "emailAutoJoinHint": "<bold>{email}</bold> will join automatically as soon as they sign in with that email — including via Google or Microsoft SSO. You can still send them the link below as a backup."
+        "emailAutoJoinHint": "<bold>{email}</bold> will join automatically as soon as they sign in with that email — including via Google or Microsoft SSO. You can still send them the link below as a backup.",
+        "emailSentHint": "An invite email was just sent to <bold>{email}</bold>.",
+        "emailSendFailedHint": "Couldn't send the invite email. Copy the link below and share it yourself.",
+        "emailNotConfiguredHint": "Email delivery isn't set up on this server. Copy the link below and share it yourself."
       }
     },
     "invite": {
