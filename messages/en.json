@@ -7363,5 +7363,11 @@
       "schedule": "Schedule",
       "scheduleFailed": "Could not schedule the meeting. Try again."
     }
+  },
+  "AuthOAuth": {
+    "continueWithGoogle": "Continue with Google",
+    "continueWithMicrosoft": "Continue with Microsoft",
+    "orDivider": "or",
+    "callbackFailed": "Sign-in did not complete. Try again, or use your email and password."
   }
 }

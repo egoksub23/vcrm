@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { AuthOAuthSection } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,10 @@ function SignupPageInner() {
   // step after verifying instead of being dropped on /dashboard.
   const inviteToken = searchParams.get("invite");
   const t = useTranslations("SignupPage");
+
+  // Same destination /login sends an OAuth sign-in to — an invited
+  // visitor lands back on the join page either way.
+  const oauthNext = inviteToken ? `/join/${encodeURIComponent(inviteToken)}` : "/dashboard";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -151,7 +156,9 @@ function SignupPageInner() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className="flex flex-col gap-4">
+          <AuthOAuthSection next={oauthNext} onError={setError} />
+
+          <form onSubmit={handleSignup} className="mt-4 flex flex-col gap-4">
             {error && (
               <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                 {error}

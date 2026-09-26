@@ -1,0 +1,128 @@
+# Sign in with Google / Microsoft
+
+Lets someone log in or sign up with their Google or Microsoft work
+account instead of setting a password. This is **login only** — a
+separate, unrelated thing from the [Gmail](./gmail-setup.md) and
+[Microsoft 365](./microsoft-365-email-setup.md) *channels*, which
+connect one shared mailbox for sending/receiving customer email. Use a
+**separate** Google Cloud OAuth client and Azure AD app registration
+for this — don't reuse the channel ones. They ask for very different
+permissions (this only ever needs `openid email profile`; the channel
+apps hold `Mail.Send`/`Mail.Read`), and keeping them apart means
+disconnecting a mailbox channel can never accidentally break login for
+the whole account.
+
+This app ships the buttons and the callback route
+(`src/components/auth/oauth-buttons.tsx`,
+`src/app/auth/callback/route.ts`) already wired up — Google/Microsoft
+sign-in appears on `/login` and `/signup` the moment the providers
+below are turned on in Supabase Auth. There's no per-app env var to set
+for this feature beyond `NEXT_PUBLIC_SITE_URL`, which you likely
+already have set (see `.env.local.example`) — the OAuth client
+ID/secret live in Supabase's own configuration, not this app's.
+
+## What this does and doesn't change
+
+- **Adds** "Continue with Google" / "Continue with Microsoft" as
+  another way to authenticate — password login is unchanged and stays
+  available.
+- **Does not** make invites email-targeted. Invites in this app are
+  shareable links (`/join/<token>`), not tied to a specific email
+  address — anyone with the link can redeem it with any account,
+  Google/Microsoft or password. Someone who signs up via Google still
+  needs to open the invite link and click **Accept** to land in the
+  right account; they don't get placed there automatically just because
+  an admin knows their email address. Building that (a real
+  "invite `someone@company.com`, they land in the account
+  automatically") is separate, larger scope, not part of this.
+- **Does not** let you require SSO for an account or block password
+  login for specific users — everyone can always still use a password
+  unless you build that enforcement separately.
+
+## 1. Google Cloud OAuth client
+
+In the [Google Cloud Console](https://console.cloud.google.com), under
+**APIs & Services → Credentials → Create Credentials → OAuth client
+ID**:
+
+- **Application type**: Web application
+- **Authorized redirect URI** — this is **Supabase's** callback, not
+  this app's:
+  ```
+  https://<your-project-ref>.supabase.co/auth/v1/callback
+  ```
+  Find your project ref in the Supabase dashboard URL or under
+  **Project Settings → General**. (This app's own
+  `/auth/callback` route is registered with *Supabase*, as the
+  `redirectTo` — you don't register it with Google directly.)
+
+Copy the **Client ID** and **Client secret** — you'll paste them into
+Supabase in step 3, not into this app's `.env`.
+
+## 2. Azure AD (Entra ID) app registration
+
+In the [Azure Portal](https://portal.azure.com) → **Microsoft Entra ID
+→ App registrations → New registration**:
+
+- **Supported account types**: "Accounts in any organizational
+  directory and personal Microsoft accounts" is the closest match to
+  "any Microsoft 365 user can sign in" — narrow this to your own
+  tenant only if you want to restrict sign-in to your organization.
+- **Redirect URI** (platform: Web) — again, Supabase's callback:
+  ```
+  https://<your-project-ref>.supabase.co/auth/v1/callback
+  ```
+- Under **Certificates & secrets → New client secret**, create one and
+  copy its **value** immediately (Azure only shows it once).
+- Copy the **Application (client) ID** from the app registration's
+  Overview page.
+
+## 3. Enable both providers in Supabase Auth
+
+**Supabase Cloud project** — dashboard → **Authentication →
+Providers**:
+- **Google**: toggle on, paste the Client ID/secret from step 1.
+- **Azure**: toggle on, paste the Application (client) ID/secret from
+  step 2. Leave "Azure Tenant URL" as the default (`common`) unless you
+  deliberately restricted sign-in to one tenant above, in which case it
+  must match.
+
+**Self-hosted Supabase/GoTrue** (docker-compose) instead — set instead
+in your Supabase environment (not this app's):
+```
+GOTRUE_EXTERNAL_GOOGLE_ENABLED=true
+GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=...
+GOTRUE_EXTERNAL_GOOGLE_SECRET=...
+GOTRUE_EXTERNAL_AZURE_ENABLED=true
+GOTRUE_EXTERNAL_AZURE_CLIENT_ID=...
+GOTRUE_EXTERNAL_AZURE_SECRET=...
+GOTRUE_EXTERNAL_AZURE_URL=https://login.microsoftonline.com/common
+```
+
+## 4. Try it
+
+Once both providers show enabled in Supabase, reload `/login` — the
+two buttons appear automatically, no redeploy of this app needed (they
+were already shipped; they were just inert with no provider to call).
+Test both the plain `/login` path and an invite link
+(`/join/<token>` → "I already have an account" → "Continue with
+Google") to confirm the redirect back lands on the invite-accept
+screen, not `/dashboard`.
+
+## Troubleshooting
+
+- **"redirect_uri_mismatch" from Google/Microsoft** — the redirect URI
+  registered with the provider doesn't exactly match
+  `https://<project-ref>.supabase.co/auth/v1/callback`. This is the
+  #1 misconfiguration: it's easy to accidentally register *this app's*
+  domain instead of Supabase's.
+- **Lands back on `/login?error=oauth_failed`** — `exchangeCodeForSession`
+  failed in `src/app/auth/callback/route.ts`; check the server logs for
+  the underlying Supabase error (a stale/reused code, or the provider
+  not actually enabled yet).
+- **New Google/Microsoft sign-in creates its own separate personal
+  account instead of joining an existing one** — expected unless they
+  came in via an invite link. Every new `auth.users` row (any sign-in
+  method) gets a personal "owner" account from the existing
+  `handle_new_user` trigger; redeeming an invite is what moves them
+  into a shared one. See "What this does and doesn't change" above.
