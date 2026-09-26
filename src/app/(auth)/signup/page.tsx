@@ -43,7 +43,10 @@ function SignupPageInner() {
   const oauthNext = inviteToken ? `/join/${encodeURIComponent(inviteToken)}` : "/dashboard";
 
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  // Prefill hint from /join/<token> (migration 108) when the invite was
+  // email-targeted — never enforced client-side, the redeem RPC (and
+  // the auto-join triggers) are what actually validate it.
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

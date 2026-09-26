@@ -34,6 +34,9 @@ export interface RosterInvitation {
   id: string;
   role: Exclude<AccountRole, "owner">;
   label: string | null;
+  /** Migration 108. Set only for an email-targeted invite — null for a
+   *  plain shareable-link invite, exactly like every row before it. */
+  email: string | null;
   created_by_user_id: string | null;
   created_at: string;
   expires_at: string;
@@ -154,7 +157,7 @@ export function filterInvitations(
     ) {
       return false;
     }
-    if (q && !norm(inv.label).includes(q)) return false;
+    if (q && !norm(inv.label).includes(q) && !norm(inv.email).includes(q)) return false;
     return true;
   });
 }

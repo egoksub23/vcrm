@@ -59,6 +59,8 @@ interface PeekOk {
   account_name: string;
   role: 'admin' | 'agent' | 'viewer';
   expires_at: string;
+  /** Migration 108. Set only for an email-targeted invite. */
+  email: string | null;
 }
 interface PeekFail {
   ok: false;
@@ -91,6 +93,10 @@ export default function JoinPage() {
   const [authedUserId, setAuthedUserId] = useState<string | null | undefined>(
     undefined, // undefined = unknown / still loading; null = signed out
   );
+  // Only meaningful once authedUserId is a real id — used to pre-empt an
+  // email-targeted invite's mismatch error with a clear message instead
+  // of letting the visitor find out only after clicking Accept.
+  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
   // `redeem_invitation` returns 409 when the caller's current account
   // has domain data, or they're already a member of a shared account.
@@ -115,10 +121,12 @@ export default function JoinPage() {
       const peekBody = (await peekRes.json()) as PeekResult;
       setPeek(peekBody);
       setAuthedUserId(authRes.data.user?.id ?? null);
+      setAuthedEmail(authRes.data.user?.email ?? null);
     } catch (err) {
       console.error('[join] peek error:', err);
       setPeek({ ok: false, reason: 'server_error' });
       setAuthedUserId(null);
+      setAuthedEmail(null);
     }
   }, [token]);
 
@@ -141,11 +149,13 @@ export default function JoinPage() {
         if (cancelled) return;
         setPeek(peekBody);
         setAuthedUserId(authRes.data.user?.id ?? null);
+        setAuthedEmail(authRes.data.user?.email ?? null);
       } catch (err) {
         console.error('[join] peek error:', err);
         if (cancelled) return;
         setPeek({ ok: false, reason: 'server_error' });
         setAuthedUserId(null);
+        setAuthedEmail(null);
       }
     })();
     return () => {
@@ -307,36 +317,75 @@ export default function JoinPage() {
           ),
         })}
       </CardDescription>
+      {peek.email && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t.rich('targetedEmail', {
+            email: peek.email,
+            bold: (chunks) => <span className="text-foreground">{chunks}</span>,
+          })}
+        </p>
+      )}
     </CardHeader>
   );
 
-  // ----- Authed: show Accept button -----
+  // Migration 108 — an email-targeted invite can only be redeemed by
+  // that exact email; check it here too so the visitor sees a clear
+  // explanation instead of only finding out after clicking Accept.
+  const emailMismatch =
+    !!peek.email && !!authedEmail && peek.email.toLowerCase() !== authedEmail.toLowerCase();
+
+  // ----- Authed: show Accept button (or the email-mismatch notice) -----
   if (authedUserId) {
     return (
       <>
         <Card className="w-full max-w-md border-border bg-card">
           {inviteHeader}
           <CardContent className="flex flex-col gap-3">
-            <Button
-              onClick={handleAccept}
-              disabled={accepting}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {accepting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  {t('accepting')}
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="size-4" />
-                  {t('acceptInvitation')}
-                </>
-              )}
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              {t('acceptNote', { name: peek.account_name })}
-            </p>
+            {emailMismatch ? (
+              <>
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
+                  {t('emailMismatch', { invited: peek.email!, current: authedEmail! })}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleSignOutAndRetry}
+                  disabled={signingOut}
+                  className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  {signingOut ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {t('signingOut')}
+                    </>
+                  ) : (
+                    t('signOutSwitch')
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={handleAccept}
+                  disabled={accepting}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {accepting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {t('accepting')}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="size-4" />
+                      {t('acceptInvitation')}
+                    </>
+                  )}
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  {t('acceptNote', { name: peek.account_name })}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -400,16 +449,19 @@ export default function JoinPage() {
   }
 
   // ----- Not authed: prompt to sign up or sign in -----
+  // The invited email (if any) is carried through as a prefill hint,
+  // not an enforced value — the backend is what actually checks it.
+  const emailParam = peek.email ? `&email=${encodeURIComponent(peek.email)}` : '';
   return (
     <Card className="w-full max-w-md border-border bg-card">
       {inviteHeader}
       <CardContent className="flex flex-col gap-2">
-        <Link href={`/signup?invite=${encodeURIComponent(token!)}`}>
+        <Link href={`/signup?invite=${encodeURIComponent(token!)}${emailParam}`}>
           <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
             {t('createAndJoin')}
           </Button>
         </Link>
-        <Link href={`/login?invite=${encodeURIComponent(token!)}`}>
+        <Link href={`/login?invite=${encodeURIComponent(token!)}${emailParam}`}>
           <Button
             variant="outline"
             className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"

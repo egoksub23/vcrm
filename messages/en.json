@@ -2453,7 +2453,11 @@
         "clipboardBlocked": "Clipboard blocked. Copy the link manually",
         "networkError": "Could not reach the server. Try again?",
         "fallbackAccountName": "our wacrm account",
-        "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}"
+        "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}",
+        "emailLabel": "Email address",
+        "emailPlaceholder": "teammate@company.com",
+        "emailHint": "Leave blank for a plain shareable link. Set this and they join automatically the moment they sign in with that exact, verified email — including via Google or Microsoft — no link click required (though the link below still works too, and is now scoped to this address).",
+        "emailAutoJoinHint": "<bold>{email}</bold> will join automatically as soon as they sign in with that email — including via Google or Microsoft SSO. You can still send them the link below as a backup."
       }
     },
     "invite": {
@@ -4743,7 +4747,9 @@
     "signingOut": "Signing out…",
     "signOutSwitch": "Sign out & use a different email",
     "createAndJoin": "Create account & join",
-    "haveAccount": "I already have an account"
+    "haveAccount": "I already have an account",
+    "targetedEmail": "This invite is for <bold>{email}</bold>.",
+    "emailMismatch": "This invite is for {invited}, but you are signed in as {current}. Sign out and sign in with {invited} to accept it."
   },
   "Notifications": {
     "title": "Notifications",

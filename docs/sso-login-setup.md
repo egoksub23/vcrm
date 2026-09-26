@@ -26,15 +26,46 @@ ID/secret live in Supabase's own configuration, not this app's.
 - **Adds** "Continue with Google" / "Continue with Microsoft" as
   another way to authenticate — password login is unchanged and stays
   available.
-- **Does not** make invites email-targeted. Invites in this app are
-  shareable links (`/join/<token>`), not tied to a specific email
-  address — anyone with the link can redeem it with any account,
-  Google/Microsoft or password. Someone who signs up via Google still
-  needs to open the invite link and click **Accept** to land in the
-  right account; they don't get placed there automatically just because
-  an admin knows their email address. Building that (a real
-  "invite `someone@company.com`, they land in the account
-  automatically") is separate, larger scope, not part of this.
+- **Invites can now optionally be email-targeted** (shipped after this
+  doc was first written — see "Invite by email" below). A plain
+  shareable link (no email set) still works exactly as before: anyone
+  with it can redeem it with any account. Setting an email on an invite
+  is what makes SSO sign-in place someone automatically, with no link
+  click at all.
+- **Does not** let you require SSO for an account or block password
+  login for specific users — everyone can always still use a password
+  unless you build that enforcement separately.
+
+## Invite by email
+
+An admin can optionally target an invite at a specific email address
+(Settings → Team → Invite a teammate → "Email address"). When set:
+
+- The moment that **exact, verified** email signs in — including
+  immediately via Google/Microsoft SSO, since the provider has already
+  verified it — they're placed straight into the invited account at the
+  invited role. No link click, no "Accept" step.
+- For a password signup, the same auto-join happens once they confirm
+  their email (click the verification link) — verification is what
+  makes it safe; an unconfirmed email is never trusted for this, so
+  someone can't claim an invited address before actually proving they
+  own it.
+- The invite link still works too (and is now also checked against the
+  target email) as a fallback, or for cases with no auto-match event
+  (e.g. the person already had an account here before being invited).
+- If the invited person already has real data in their own account
+  under that email, auto-join is skipped rather than silently
+  discarding it — the invitation stays pending for the admin/user to
+  resolve manually (same "your account already contains data" guard the
+  link-accept flow has always had).
+- **No email is sent.** There's no outbound transactional-email sender
+  anywhere in this app (checked — no Resend/SendGrid/SES/Postmark/SMTP
+  wiring exists) and standing one up is a real infra decision (provider,
+  API key, sender domain/DKIM) this app can't make unilaterally. The
+  admin still shares the invite the same way as any link invite today
+  (WhatsApp, Slack, verbally) — what's new is that the recipient showing
+  up via SSO with the matching email also works, with nothing to share
+  at all if you'd rather just tell them to sign in.
 - **Does not** let you require SSO for an account or block password
   login for specific users — everyone can always still use a password
   unless you build that enforcement separately.

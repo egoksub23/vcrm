@@ -137,6 +137,11 @@ function getBaseUrl(request: Request): string {
 
 const MAX_LABEL_LEN = 80;
 
+// Same shape the DB CHECK (migration 108) enforces — checked here too
+// so a malformed email gets a clear 400 instead of a raw constraint
+// violation.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 export async function GET() {
   try {
     const ctx = await requireCapability("members.invite");
@@ -144,7 +149,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_invitations")
       .select(
-        "id, role, label, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
+        "id, role, label, email, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
       )
       .eq("account_id", ctx.accountId)
       .is("accepted_at", null)
@@ -185,6 +190,7 @@ export async function POST(request: Request) {
           expiresInDays?: unknown;
           label?: unknown;
           teamIds?: unknown;
+          email?: unknown;
         }
       | null;
 
@@ -241,6 +247,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: teams.error }, { status: 400 });
     }
 
+    // Optional (migration 108) — when set, this invite auto-joins that
+    // exact, verified email the moment it signs in (including via
+    // Google/Microsoft SSO — no link click needed), and the link itself
+    // is additionally scoped to it. Normalized to lowercase; matching is
+    // already case-insensitive at the DB layer, but a consistent stored
+    // casing keeps the Members list readable.
+    let email: string | null = null;
+    if (typeof body?.email === "string" && body.email.trim() !== "") {
+      const trimmed = body.email.trim().toLowerCase();
+      if (!EMAIL_RE.test(trimmed)) {
+        return NextResponse.json(
+          { error: "That doesn't look like a valid email address" },
+          { status: 400 },
+        );
+      }
+      email = trimmed;
+    }
+
     const { token, hash } = generateInviteToken();
 
     const { data, error } = await ctx.supabase
@@ -251,13 +275,20 @@ export async function POST(request: Request) {
         role,
         created_by_user_id: ctx.userId,
         label,
+        email,
         team_ids: teams.ids,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, role, label, team_ids, expires_at, created_at")
+      .select("id, role, label, email, team_ids, expires_at, created_at")
       .single();
 
     if (error || !data) {
+      if (error?.code === "23505") {
+        return NextResponse.json(
+          { error: "There is already a pending invitation for this email" },
+          { status: 409 },
+        );
+      }
       console.error("[POST /api/account/invitations] insert error:", error);
       return NextResponse.json(
         { error: "Failed to create invitation" },

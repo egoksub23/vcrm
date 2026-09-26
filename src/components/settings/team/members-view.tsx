@@ -471,7 +471,7 @@ export function MembersView({ roster }: { roster: TeamRoster }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="truncate text-sm font-medium text-foreground">
-                            {inv.label || t('untitledInvite')}
+                            {inv.email || inv.label || t('untitledInvite')}
                           </span>
                           <RoleLozenge role={inv.role} />
                           <Badge className="border-amber-500/40 bg-amber-500/10 text-amber-300">

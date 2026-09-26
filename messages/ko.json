@@ -2453,7 +2453,11 @@
         "clipboardBlocked": "클립보드가 차단되었습니다. 링크를 직접 복사하세요",
         "networkError": "서버에 연결할 수 없습니다. 다시 시도하시겠어요?",
         "fallbackAccountName": "우리 wacrm 계정",
-        "whatsappMessage": "이 링크로 wacrm의 {accountName}에 참여하세요 ({expiresInDays}일 동안 유효): {url}"
+        "whatsappMessage": "이 링크로 wacrm의 {accountName}에 참여하세요 ({expiresInDays}일 동안 유효): {url}",
+        "emailLabel": "이메일 주소",
+        "emailPlaceholder": "teammate@company.com",
+        "emailHint": "비워두면 일반 공유 링크가 됩니다. 입력하면 정확히 일치하는 해당 이메일(Google 또는 Microsoft 로그인 포함)로 로그인하는 즉시 자동으로 참여합니다 — 링크 클릭이 필요 없습니다(아래 링크도 계속 작동하며, 이제 이 주소로 제한됩니다).",
+        "emailAutoJoinHint": "<bold>{email}</bold>은(는) 해당 이메일로 로그인하는 즉시 자동으로 참여합니다 — Google 또는 Microsoft SSO 포함. 아래 링크도 백업으로 보낼 수 있습니다."
       }
     },
     "invite": {
@@ -4743,7 +4747,9 @@
     "signingOut": "로그아웃 중…",
     "signOutSwitch": "로그아웃 후 다른 이메일 사용",
     "createAndJoin": "계정 만들고 참여하기",
-    "haveAccount": "이미 계정이 있습니다"
+    "haveAccount": "이미 계정이 있습니다",
+    "targetedEmail": "이 초대는 <bold>{email}</bold>용입니다.",
+    "emailMismatch": "이 초대는 {invited}용이지만 현재 {current}(으)로 로그인되어 있습니다. 로그아웃 후 {invited}(으)로 로그인하여 수락하세요."
   },
   "Notifications": {
     "title": "알림",

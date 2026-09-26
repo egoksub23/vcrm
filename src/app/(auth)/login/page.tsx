@@ -40,7 +40,11 @@ function LoginPageInner() {
   const t = useTranslations("LoginPage");
   const tOAuth = useTranslations("AuthOAuth");
 
-  const [email, setEmail] = useState("");
+  // Prefill hint from /join/<token> (migration 108) when the invite was
+  // email-targeted — never enforced client-side, the redeem RPC is what
+  // actually validates it, so typing a different address here just
+  // means that email's own account/invite state applies instead.
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
     searchParams.get("error") === "oauth_failed" ? tOAuth("callbackFailed") : null,

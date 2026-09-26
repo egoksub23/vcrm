@@ -155,6 +155,7 @@ describe("filterInvitations", () => {
   const inv = (over: Partial<RosterInvitation> & { id: string }): RosterInvitation => ({
     role: "agent",
     label: null,
+    email: null,
     created_by_user_id: null,
     created_at: "2026-01-01T00:00:00Z",
     expires_at: "2026-02-01T00:00:00Z",
@@ -164,14 +165,20 @@ describe("filterInvitations", () => {
   const list = [
     inv({ id: "a", label: "Sara from support", team_ids: ["tech"] }),
     inv({ id: "b", role: "viewer", label: "Tom" }),
+    inv({ id: "c", role: "viewer", label: null, email: "priya@example.com" }),
   ];
 
   it("filters by team, role and label, and hides them for active-only", () => {
-    expect(filterInvitations(list, EMPTY_FILTERS)).toHaveLength(2);
+    expect(filterInvitations(list, EMPTY_FILTERS)).toHaveLength(3);
     expect(filterInvitations(list, { ...EMPTY_FILTERS, teamIds: ["tech"] }).map((i) => i.id)).toEqual(["a"]);
-    expect(filterInvitations(list, { ...EMPTY_FILTERS, roles: ["viewer"] }).map((i) => i.id)).toEqual(["b"]);
+    expect(filterInvitations(list, { ...EMPTY_FILTERS, roles: ["viewer"] }).map((i) => i.id)).toEqual(["b", "c"]);
     expect(filterInvitations(list, { ...EMPTY_FILTERS, search: "sara" }).map((i) => i.id)).toEqual(["a"]);
     expect(filterInvitations(list, { ...EMPTY_FILTERS, status: "active" })).toEqual([]);
+  });
+
+  it("also matches an email-targeted invite's email (migration 108)", () => {
+    expect(filterInvitations(list, { ...EMPTY_FILTERS, search: "priya" }).map((i) => i.id)).toEqual(["c"]);
+    expect(filterInvitations(list, { ...EMPTY_FILTERS, search: "PRIYA@EXAMPLE.COM" }).map((i) => i.id)).toEqual(["c"]);
   });
 });
 

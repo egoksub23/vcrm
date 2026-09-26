@@ -63,6 +63,9 @@ interface CreatedInvite {
   teams: TeamRef[];
   /** Snapshotted so a later account rename cannot change the message. */
   accountName: string;
+  /** Migration 108 — set when this invite was targeted at a specific
+   *  email address instead of a plain shareable link. */
+  email: string | null;
 }
 
 export function InviteDialog({
@@ -90,6 +93,7 @@ export function InviteDialog({
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
+  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreatedInvite | null>(null);
 
@@ -106,6 +110,7 @@ export function InviteDialog({
     setTeamIds([]);
     setExpiry('7');
     setLabel('');
+    setEmail('');
     setResult(null);
     setSubmitting(false);
   }
@@ -116,6 +121,7 @@ export function InviteDialog({
       toast.error(t('labelTooLong', { max: MAX_LABEL_LEN }));
       return;
     }
+    const trimmedEmail = email.trim();
     setSubmitting(true);
     try {
       const res = await fetch('/api/account/invitations', {
@@ -126,6 +132,7 @@ export function InviteDialog({
           expiresInDays: Number(expiry),
           label: trimmedLabel || undefined,
           teamIds,
+          email: trimmedEmail || undefined,
         }),
       });
 
@@ -138,6 +145,7 @@ export function InviteDialog({
       const data = (await res.json()) as {
         url: string;
         expiresInDays: number;
+        invitation: { email: string | null };
       };
 
       setResult({
@@ -146,6 +154,7 @@ export function InviteDialog({
         expiresInDays: data.expiresInDays,
         teams: chosenTeams,
         accountName: account?.name ?? t('fallbackAccountName'),
+        email: data.invitation.email,
       });
       await onCreated();
     } catch (err) {
@@ -214,6 +223,15 @@ export function InviteDialog({
                       <TeamChip key={tm.id} team={tm} />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {result.email && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                  {t.rich('emailAutoJoinHint', {
+                    email: result.email,
+                    bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
+                  })}
                 </div>
               )}
 
@@ -303,6 +321,24 @@ export function InviteDialog({
                     ? t('rolesOwnerHint')
                     : t('rolesBelowHint')}
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground" htmlFor="invite-email">
+                  {t('emailLabel')}{' '}
+                  <span className="text-xs text-muted-foreground">
+                    {t('optional')}
+                  </span>
+                </Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder={t('emailPlaceholder')}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">{t('emailHint')}</p>
               </div>
 
               <div className="space-y-2">
