@@ -34,7 +34,11 @@ function clientSecret(): string {
 }
 
 // offline_access is what earns a refresh_token in the response.
-const SCOPES = ['offline_access', 'Mail.Read', 'Mail.Send', 'User.Read']
+// Calendars.ReadWrite is for Sembang "Schedule a meeting" (P4) — an
+// already-connected account only picks this up on its next reconnect,
+// since Microsoft won't grant a new scope to an existing consent grant
+// without the user going through it again.
+const SCOPES = ['offline_access', 'Mail.Read', 'Mail.Send', 'User.Read', 'Calendars.ReadWrite']
 
 export function buildMs365OAuthUrl(args: { state: string; redirectUri: string }): string {
   const params = new URLSearchParams({

@@ -7181,7 +7181,11 @@
       "muteFailed": "Could not mute the channel. Try again.",
       "unmuteFailed": "Could not unmute the channel. Try again.",
       "repliedToThread": "replied to a thread: {author}: {snippet}",
-      "voiceMessage": "Voice message"
+      "voiceMessage": "Voice message",
+      "meetingMenuAriaLabel": "Meeting options",
+      "scheduleMeeting": "Schedule a meeting…",
+      "scheduledMeetingMessage": "📅 {title} — {when}\n{url}",
+      "scheduledMeetingAttendees": "{count, plural, =1 {# person invited} other {# people invited}}"
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",
@@ -7339,6 +7343,25 @@
       "memberCount": "{count, plural, =1 {# member} other {# members}}",
       "join": "Join",
       "joinFailed": "Could not join the channel. Try again."
+    },
+    "scheduleMeeting": {
+      "title": "Schedule a meeting",
+      "description": "{count, plural, =0 {No one else is in #{channel} yet.} =1 {1 other person in #{channel} will be invited.} other {# other people in #{channel} will be invited.}}",
+      "noCalendarConnected": "No calendar is connected for this account yet. An admin can connect Google or Microsoft 365 under Settings → Channels.",
+      "calendarLabel": "Calendar",
+      "providerGoogle": "Google Calendar",
+      "providerMs365": "Microsoft 365 Calendar",
+      "titleLabel": "Title",
+      "titlePlaceholder": "What is this meeting about?",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "durationLabel": "Duration",
+      "durationMinutes": "{minutes} minutes",
+      "notesLabel": "Notes (optional)",
+      "notesPlaceholder": "Agenda, links, anything attendees should know ahead of time.",
+      "cancel": "Cancel",
+      "schedule": "Schedule",
+      "scheduleFailed": "Could not schedule the meeting. Try again."
     }
   }
 }

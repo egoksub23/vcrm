@@ -240,6 +240,37 @@ export function MessageRow({
                 )}
               </div>
             )}
+            {message.linkPreview && (
+              <a
+                href={message.linkPreview.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1.5 flex w-fit max-w-sm items-stretch gap-3 overflow-hidden rounded-lg border border-border bg-muted/30 hover:bg-muted/50"
+              >
+                {message.linkPreview.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- arbitrary external domain, same as PersonAvatar
+                  <img
+                    src={message.linkPreview.imageUrl}
+                    alt=""
+                    className="h-20 w-20 shrink-0 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
+                <div className="min-w-0 flex-1 py-2 pr-3">
+                  {message.linkPreview.domain && (
+                    <p className="truncate text-[11px] text-muted-foreground">{message.linkPreview.domain}</p>
+                  )}
+                  {message.linkPreview.title && (
+                    <p className="truncate text-sm font-medium text-foreground">{message.linkPreview.title}</p>
+                  )}
+                  {message.linkPreview.description && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">{message.linkPreview.description}</p>
+                  )}
+                </div>
+              </a>
+            )}
             <ReactionRow reactions={message.reactions} onReact={(emoji) => onReact(message.id, emoji)} />
             {showThread && (message.replyCount ?? 0) > 0 && (
               <button

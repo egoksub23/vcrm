@@ -49,6 +49,20 @@ export interface SembangReactionRow {
   created_at: string;
 }
 
+/** Migration 107. Like `SembangReactionRow` — no `channel_id` column, so
+ *  this event can't be filtered server-side either; callers check
+ *  `message_id` against their own locally-loaded messages. Always an
+ *  INSERT in practice (the server never updates/deletes a preview row). */
+export interface SembangLinkPreviewRow {
+  message_id: string;
+  account_id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  domain: string | null;
+}
+
 /** Migration 099. */
 export interface SembangPinRow {
   channel_id: string;
@@ -106,6 +120,8 @@ interface UseSembangChannelRealtimeOptions {
   onPinEvent?: (event: RealtimeEvent<SembangPinRow>) => void;
   /** Migration 099. Filtered to this channel. */
   onTaskEvent?: (event: RealtimeEvent<SembangTaskRow>) => void;
+  /** Migration 107. Unfiltered (see `SembangLinkPreviewRow`'s doc comment). */
+  onLinkPreviewEvent?: (event: RealtimeEvent<SembangLinkPreviewRow>) => void;
   enabled?: boolean;
   /** Distinguishes a second subscription to the same channel's messages
    *  (e.g. thread-panel.tsx alongside channel-thread.tsx) so both can be
@@ -122,6 +138,7 @@ export function useSembangChannelRealtime({
   onReactionEvent,
   onPinEvent,
   onTaskEvent,
+  onLinkPreviewEvent,
   enabled = true,
   topicSuffix,
 }: UseSembangChannelRealtimeOptions): { isConnected: boolean } {
@@ -131,11 +148,13 @@ export function useSembangChannelRealtime({
   const onReactionRef = useRef(onReactionEvent);
   const onPinRef = useRef(onPinEvent);
   const onTaskRef = useRef(onTaskEvent);
+  const onLinkPreviewRef = useRef(onLinkPreviewEvent);
   useEffect(() => {
     onMessageRef.current = onMessageEvent;
     onReactionRef.current = onReactionEvent;
     onPinRef.current = onPinEvent;
     onTaskRef.current = onTaskEvent;
+    onLinkPreviewRef.current = onLinkPreviewEvent;
   });
 
   useEffect(() => {
@@ -190,6 +209,17 @@ export function useSembangChannelRealtime({
             eventType: payload.eventType as RealtimeEvent<SembangTaskRow>["eventType"],
             new: payload.new as SembangTaskRow,
             old: payload.old as Partial<SembangTaskRow>,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sembang_link_previews" },
+        (payload) => {
+          onLinkPreviewRef.current?.({
+            eventType: payload.eventType as RealtimeEvent<SembangLinkPreviewRow>["eventType"],
+            new: payload.new as SembangLinkPreviewRow,
+            old: payload.old as Partial<SembangLinkPreviewRow>,
           });
         },
       )

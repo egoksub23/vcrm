@@ -10,7 +10,7 @@
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-import type { SembangAttachment, SembangMessage, SembangReactionSummary } from '@/types'
+import type { SembangAttachment, SembangLinkPreview, SembangMessage, SembangReactionSummary } from '@/types'
 import { resolveAttachmentUrls } from './resolve-attachment-urls'
 
 export interface SembangMessageRow {
@@ -48,6 +48,16 @@ interface ReactionRow {
   message_id: string
   user_id: string
   emoji: string
+}
+
+/** Migration 107. */
+interface LinkPreviewRow {
+  message_id: string
+  url: string
+  title: string | null
+  description: string | null
+  image_url: string | null
+  domain: string | null
 }
 
 /** Migration 101. The `{id, body, author_id}` of a reply's parent, for
@@ -101,6 +111,7 @@ export async function hydrateMessages(
     { data: profileRows },
     { data: attachmentRows },
     { data: reactionRows },
+    { data: linkPreviewRows },
     { data: replyRows },
     { data: starRows },
     { data: parentRows },
@@ -108,6 +119,10 @@ export async function hydrateMessages(
     supabase.from('profiles').select('user_id, full_name, avatar_url').in('user_id', authorIds),
     supabase.from('sembang_attachments').select('*').in('message_id', messageIds),
     supabase.from('sembang_reactions').select('message_id, user_id, emoji').in('message_id', messageIds),
+    supabase
+      .from('sembang_link_previews')
+      .select('message_id, url, title, description, image_url, domain')
+      .in('message_id', messageIds),
     topLevelIds.length > 0
       ? supabase
           .from('sembang_messages')
@@ -188,6 +203,17 @@ export async function hydrateMessages(
 
   const starredIds = new Set<string>((starRows ?? []).map((s) => s.message_id as string))
 
+  const linkPreviewByMessage = new Map<string, SembangLinkPreview>()
+  for (const p of (linkPreviewRows ?? []) as LinkPreviewRow[]) {
+    linkPreviewByMessage.set(p.message_id, {
+      url: p.url,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.image_url,
+      domain: p.domain,
+    })
+  }
+
   // Grouped in application code, not SQL — one flat query, then
   // aggregated the same way reactions are, above.
   const threadSummaryByParent = new Map<string, { count: number; lastReplyAt: string }>()
@@ -225,6 +251,7 @@ export async function hydrateMessages(
         ? { id: row.author_id, fullName: profile.full_name ?? '', avatarUrl: profile.avatar_url }
         : null,
       attachments: attachmentsByMessage.get(row.id) ?? [],
+      linkPreview: linkPreviewByMessage.get(row.id) ?? null,
       ...(isTopLevel ? { replyCount: summary?.count ?? 0, lastReplyAt: summary?.lastReplyAt ?? null } : {}),
       // Migration 101. Plain passthrough — defaulted to `false` for a
       // pre-101 row shape (see `also_in_channel?` above).

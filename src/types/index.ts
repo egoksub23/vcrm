@@ -1582,6 +1582,19 @@ export interface SembangAttachment {
   createdAt: string;
 }
 
+/** A link-preview card for the first URL in a message's body (migration
+ *  107) — populated best-effort, asynchronously, after the message is
+ *  already sent, so it's absent on a message that hasn't been unfurled
+ *  yet (no URL, an unreachable/private/non-HTML target, or the fetch
+ *  just hasn't landed yet). */
+export interface SembangLinkPreview {
+  url: string;
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  domain: string | null;
+}
+
 /** One emoji's aggregated reactions on a message — the shape the
  *  message list/thread routes group `sembang_reactions` rows into. */
 export interface SembangReactionSummary {
@@ -1636,6 +1649,9 @@ export interface SembangMessage {
    *  Null for a top-level message; also null if the parent itself was
    *  deleted/not found. */
   parentPreview?: { id: string; body: string; authorName: string } | null;
+  /** Migration 107. Null until the async unfurl lands (or never, if the
+   *  message has no URL or nothing worth previewing was found). */
+  linkPreview: SembangLinkPreview | null;
 }
 
 /** A channel member row, joined with `profiles` (GET .../members). */

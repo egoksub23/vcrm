@@ -30,15 +30,21 @@
 //          dropped otherwise rather than letting the DB trigger reject
 //          the whole insert. Inserts any attachment rows against the new
 //          message id, then returns it hydrated the same shape as GET.
+//          If the body contains a URL, schedules a best-effort link-
+//          preview fetch via `after()` (migration 107) — runs post-
+//          response, never delays or fails the send.
 //
 // Both return SembangMessage (camelCase, nested `author`/`attachments`/
 // `reactions` — see @/types, the frontend's own type for this exact
 // shape).
 // ============================================================
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
+import { extractLinks } from '@/lib/sembang/extract-links'
+import { fetchLinkPreview } from '@/lib/sembang/link-preview'
+import { supabaseAdmin } from '@/lib/automations/admin-client'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -222,6 +228,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           { status: 500 },
         )
       }
+    }
+
+    // Link unfurling: the first URL in the body, fetched AFTER the
+    // response so a slow/unreachable page never delays the send. Runs
+    // as the service role (this is system-computed data, not something
+    // the sender's own session writes) and is entirely best-effort — no
+    // row is written at all if the URL can't be resolved into a preview
+    // worth showing (see fetchLinkPreview's own doc comment).
+    const [firstLink] = extractLinks(messageBody)
+    if (firstLink) {
+      const messageId = (row as SembangMessageRow).id
+      const accountId = ctx.accountId
+      after(async () => {
+        try {
+          const preview = await fetchLinkPreview(firstLink)
+          if (!preview) return
+          const { error: previewErr } = await supabaseAdmin().from('sembang_link_previews').insert({
+            message_id: messageId,
+            account_id: accountId,
+            url: preview.url,
+            title: preview.title,
+            description: preview.description,
+            image_url: preview.imageUrl,
+            domain: preview.domain,
+          })
+          if (previewErr) console.error('[POST /api/sembang/channels/[id]/messages] link preview insert error:', previewErr)
+        } catch (err) {
+          console.error('[POST /api/sembang/channels/[id]/messages] link preview fetch error:', err)
+        }
+      })
     }
 
     const [message] = await hydrateMessages(ctx.supabase, [row as SembangMessageRow], ctx.userId)

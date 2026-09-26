@@ -35,6 +35,13 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'openid',
+  // Sembang "Schedule a meeting" (P4) — event management only, not full
+  // calendar admin (calendars.readonly/owner). An already-connected
+  // account only picks this up on its next reconnect: `prompt=consent`
+  // above always re-shows the consent screen, but Google won't grant a
+  // new scope to an existing token without the user going through it
+  // again.
+  'https://www.googleapis.com/auth/calendar.events',
 ]
 
 export function buildGoogleOAuthUrl(args: { state: string; redirectUri: string }): string {

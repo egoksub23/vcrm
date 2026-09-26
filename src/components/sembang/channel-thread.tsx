@@ -45,6 +45,7 @@ import { ThreadPanel } from "./thread-panel";
 import { PinsPanel } from "./pins-panel";
 import { TasksPanel } from "./tasks-panel";
 import { ChannelResourcesPanel } from "./channel-resources-panel";
+import { ScheduleMeetingDialog } from "./schedule-meeting-dialog";
 import {
   addMessageToTask,
   editMessage,
@@ -128,6 +129,10 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   // ---- P4: Files/Links/Bookmarks — self-fetched inside the panel, this
   // component only owns whether it's open. -------------------------------
   const [resourcesPanelOpen, setResourcesPanelOpen] = useState(false);
+
+  // ---- P4: Schedule a meeting — self-fetched connection status inside
+  // the dialog, this component only owns whether it's open. --------------
+  const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
 
   // Only `.id` is ever read from the open thread's parent (ThreadPanel
   // fetches the full parent + replies itself from `parentMessageId`), so
@@ -382,6 +387,15 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     },
     onTaskEvent: () => {
       void fetchTasks();
+    },
+    onLinkPreviewEvent: (event) => {
+      const messageId = event.new?.message_id;
+      if (!messageId) return;
+      if (messages.some((m) => m.id === messageId)) {
+        void fetchMessages()
+          .then(mergeMessages)
+          .catch(() => {});
+      }
     },
   });
 
@@ -690,6 +704,27 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     await handleSendMessage(t("meetingMessage", { url: MEETING_URL }), [], []);
   }, [handleSendMessage, t]);
 
+  // ---- P4: Schedule a meeting — posts a confirmation into the channel
+  // the same way the instant-meeting link does, once the calendar event
+  // itself has already been created server-side. ---------------------------
+  const handleMeetingScheduled = useCallback(
+    async (meeting: {
+      title: string;
+      htmlLink: string;
+      meetingUrl: string | null;
+      when: string;
+      attendeeCount: number;
+    }) => {
+      const link = meeting.meetingUrl || meeting.htmlLink;
+      let body = t("scheduledMeetingMessage", { title: meeting.title, when: meeting.when, url: link });
+      if (meeting.attendeeCount > 0) {
+        body += "\n" + t("scheduledMeetingAttendees", { count: meeting.attendeeCount });
+      }
+      await handleSendMessage(body, [], []);
+    },
+    [handleSendMessage, t],
+  );
+
   // ---- Search (within this channel) ---------------------------------------
   useEffect(() => {
     if (!searchOpen) {
@@ -976,15 +1011,21 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
               >
                 <Paperclip className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label={t("startMeeting")}
-                title={t("startMeeting")}
-                onClick={handleStartMeeting}
-              >
-                <Video className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={t("meetingMenuAriaLabel")}
+                  title={t("meetingMenuAriaLabel")}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30"
+                >
+                  <Video className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 border-border bg-popover">
+                  <DropdownMenuItem onClick={handleStartMeeting}>{t("startMeeting")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setScheduleMeetingOpen(true)}>
+                    {t("scheduleMeeting")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                 <PopoverTrigger
                   aria-label={t("searchAriaLabel")}
@@ -1212,6 +1253,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             open={resourcesPanelOpen}
             onOpenChange={setResourcesPanelOpen}
             channelId={channel.id}
+          />
+          <ScheduleMeetingDialog
+            open={scheduleMeetingOpen}
+            onOpenChange={setScheduleMeetingOpen}
+            channelId={channel.id}
+            channelName={channel.name ?? ""}
+            memberCount={members?.length ?? 0}
+            onScheduled={handleMeetingScheduled}
           />
         </>
       )}
