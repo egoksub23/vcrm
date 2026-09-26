@@ -1852,3 +1852,16 @@ export interface SembangMentionItem {
   };
 }
 
+/** One row of GET /api/sembang/my-tasks — every open/done task assigned
+ *  to the caller across every channel/DM, same channel-context shape
+ *  `SembangMentionItem` uses so the two global views render consistently. */
+export interface SembangMyTaskItem {
+  task: SembangTask;
+  channel: {
+    id: string;
+    name: string | null;
+    isDm: boolean;
+    dmParticipantNames: string[] | null;
+  };
+}
+

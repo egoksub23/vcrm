@@ -7106,6 +7106,8 @@
       "mutedTooltip": "Muted",
       "unreadMentionsTooltip": "{count, plural, =1 {# unread mention} other {# unread mentions}}",
       "mentionsNavLabel": "Mentions",
+      "openMyTasksTooltip": "{count, plural, =1 {# open task} other {# open tasks}}",
+      "myTasksNavLabel": "My Tasks",
       "removeDmAriaLabel": "Remove {name} from the sidebar"
     },
     "createDialog": {
@@ -7315,6 +7317,24 @@
       "messageRemoved": "This message is no longer available.",
       "markDone": "Mark as done",
       "selectMentionHint": "Select a mention to open its thread and reply."
+    },
+    "myTasksPanel": {
+      "title": "My Tasks",
+      "empty": "No tasks assigned to you.",
+      "loadFailed": "Could not load your tasks.",
+      "directMessage": "Direct message",
+      "openSection": "Open · {count}",
+      "doneSection": "Completed · {count}",
+      "noOpenTasks": "No open tasks.",
+      "due": "Due {date}",
+      "updateFailed": "Could not update the task. Try again.",
+      "deleteFailed": "Could not delete the task. Try again.",
+      "deleteTask": "Delete task",
+      "createTicket": "Create Ticket",
+      "viewTicket": "View Ticket",
+      "ticketDescriptionPrefill": "Created from a Sembang task in #{channel}.",
+      "linkTicketFailed": "The ticket was created, but could not be linked back to this task.",
+      "selectTaskHint": "Select a task to open its thread and reply."
     },
     "searchDialog": {
       "title": "Search messages",

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ChannelList } from "@/components/sembang/channel-list";
 import { ChannelThread } from "@/components/sembang/channel-thread";
 import { MentionsColumn } from "@/components/sembang/mentions-column";
+import { MyTasksColumn } from "@/components/sembang/my-tasks-column";
 import { CreateChannelDialog } from "@/components/sembang/create-channel-dialog";
 import { NewDmDialog } from "@/components/sembang/new-dm-dialog";
 import { ArchivedChannelsDialog } from "@/components/sembang/archived-channels-dialog";
@@ -22,7 +23,7 @@ import { BrowseChannelsDialog } from "@/components/sembang/browse-channels-dialo
 import { useSembangSidebarRealtime } from "@/hooks/use-sembang-realtime";
 import { useAuth } from "@/hooks/use-auth";
 import { hasMinRole } from "@/lib/auth/roles";
-import type { SembangChannelSummary } from "@/types";
+import type { SembangChannelSummary, SembangMyTaskItem } from "@/types";
 
 // `useSearchParams` (the `?c=<id>` deep link from the notifications page)
 // requires a Suspense boundary or the production build bails to CSR and
@@ -52,6 +53,9 @@ function SembangPageInner() {
   // header-icon Sheet). Mutually exclusive with `activeChannelId`:
   // selecting one always clears the other.
   const [mentionsViewActive, setMentionsViewActive] = useState(false);
+  // "My Tasks" — same mutual-exclusivity treatment as Mentions above.
+  const [myTasksViewActive, setMyTasksViewActive] = useState(false);
+  const [openMyTasksCount, setOpenMyTasksCount] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
 
   // ---- Migration 100: DMs, archive, search, starred ----------------------
@@ -87,6 +91,27 @@ function SembangPageInner() {
     void fetchChannels();
   }, [fetchChannels]);
 
+  // Badge count for the sidebar's "My Tasks" entry — fetched once on
+  // mount and again whenever MyTasksColumn reports a change (toggle/
+  // delete). Not a live realtime subscription (see my-tasks-column.tsx's
+  // own "known, accepted simplifications" note): someone else assigning
+  // you a task elsewhere won't bump this until you revisit the page.
+  const fetchMyTasksCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sembang/my-tasks", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const results = (data.results as SembangMyTaskItem[]) ?? [];
+      setOpenMyTasksCount(results.filter((r) => r.task.status === "open").length);
+    } catch (err) {
+      console.error("Failed to load My Tasks count:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchMyTasksCount();
+  }, [fetchMyTasksCount]);
+
   // Coalesce bursts of realtime events (several messages, a batch add of
   // members) into a single refetch instead of hammering the list route.
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,11 +142,13 @@ function SembangPageInner() {
     if (autoSelectedForDeepLinkRef.current === deepLinkChannelId) return;
     autoSelectedForDeepLinkRef.current = deepLinkChannelId;
     setMentionsViewActive(false);
+    setMyTasksViewActive(false);
     setActiveChannelId(deepLinkChannelId);
   }, [deepLinkChannelId]);
 
   const handleSelect = useCallback((channel: SembangChannelSummary) => {
     setMentionsViewActive(false);
+    setMyTasksViewActive(false);
     setActiveChannelId(channel.id);
     // Optimistic — ChannelThread calls the mark-read route itself and
     // reports back via onChannelRead; this just clears the badge
@@ -133,7 +160,14 @@ function SembangPageInner() {
 
   const handleSelectMentions = useCallback(() => {
     setActiveChannelId(null);
+    setMyTasksViewActive(false);
     setMentionsViewActive(true);
+  }, []);
+
+  const handleSelectMyTasks = useCallback(() => {
+    setActiveChannelId(null);
+    setMentionsViewActive(false);
+    setMyTasksViewActive(true);
   }, []);
 
   // Drafts panel only knows the channel id (it reads channel names off
@@ -158,6 +192,7 @@ function SembangPageInner() {
   // Mobile "back" — deselect the channel so the list pane comes back.
   const handleBack = useCallback(() => {
     setMentionsViewActive(false);
+    setMyTasksViewActive(false);
     setActiveChannelId(null);
   }, []);
 
@@ -227,9 +262,9 @@ function SembangPageInner() {
   );
 
   const hasActiveChannel = !!activeChannelId;
-  // Mentions view collapses the sidebar on mobile the same way a real
-  // channel selection does — it occupies the same "detail pane" slot.
-  const hasActiveDetail = hasActiveChannel || mentionsViewActive;
+  // Mentions/My Tasks views collapse the sidebar on mobile the same way
+  // a real channel selection does — they occupy the same "detail pane" slot.
+  const hasActiveDetail = hasActiveChannel || mentionsViewActive || myTasksViewActive;
   const hasChannels = (channels?.length ?? 0) > 0;
   const totalUnreadMentions = (channels ?? []).reduce((sum, c) => sum + c.unreadMentionCount, 0);
 
@@ -310,13 +345,16 @@ function SembangPageInner() {
             mentionsActive={mentionsViewActive}
             unreadMentionsTotal={totalUnreadMentions}
             onSelectMentions={handleSelectMentions}
+            myTasksActive={myTasksViewActive}
+            openMyTasksTotal={openMyTasksCount}
+            onSelectMyTasks={handleSelectMyTasks}
             onHideDm={handleHideDm}
           />
         </div>
 
-        {/* Right panel: mentions view, channel thread, or an empty state
-            when nothing is selected yet / the account has no channels
-            at all. */}
+        {/* Right panel: mentions view, My Tasks view, channel thread, or
+            an empty state when nothing is selected yet / the account
+            has no channels at all. */}
         <div
           className={cn(
             "flex h-full min-w-0 flex-1 lg:flex",
@@ -325,6 +363,8 @@ function SembangPageInner() {
         >
           {mentionsViewActive ? (
             <MentionsColumn onCleared={fetchChannels} />
+          ) : myTasksViewActive ? (
+            <MyTasksColumn onChanged={fetchMyTasksCount} />
           ) : channels !== null && !hasChannels && !activeChannelId ? (
             <div className="flex flex-1 flex-col items-center justify-center bg-background">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">

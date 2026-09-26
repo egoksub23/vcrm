@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, AtSign, BellOff, Compass, Hash, Lock, Plus, Search, X } from "lucide-react";
+import { Archive, AtSign, BellOff, CheckSquare, Compass, Hash, Lock, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,12 @@ interface ChannelListProps {
   mentionsActive: boolean;
   unreadMentionsTotal: number;
   onSelectMentions: () => void;
+  /** "My Tasks" entry, same treatment as Mentions above — every
+   *  `sembang_tasks` row assigned to the caller across every channel/DM.
+   *  Pinned right below Mentions, same triage-view ordering. */
+  myTasksActive: boolean;
+  openMyTasksTotal: number;
+  onSelectMyTasks: () => void;
   /** Migration 106 — the "X" on a DM row. Hides that DM from this user's
    *  own sidebar (it reappears on a new message, or when re-opened). */
   onHideDm: (channelId: string) => void;
@@ -61,6 +67,9 @@ export function ChannelList({
   mentionsActive,
   unreadMentionsTotal,
   onSelectMentions,
+  myTasksActive,
+  openMyTasksTotal,
+  onSelectMyTasks,
   onHideDm,
 }: ChannelListProps) {
   const t = useTranslations("Sembang.channelList");
@@ -227,6 +236,28 @@ export function ChannelList({
             className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
           >
             {unreadMentionsTotal > 99 ? "99+" : unreadMentionsTotal}
+          </span>
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={onSelectMyTasks}
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted",
+          myTasksActive && "bg-muted",
+        )}
+      >
+        <CheckSquare className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <p className={cn("flex-1 truncate text-sm text-foreground", openMyTasksTotal > 0 && "font-semibold")}>
+          {t("myTasksNavLabel")}
+        </p>
+        {openMyTasksTotal > 0 && (
+          <span
+            aria-label={t("openMyTasksTooltip", { count: openMyTasksTotal })}
+            className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white"
+          >
+            {openMyTasksTotal > 99 ? "99+" : openMyTasksTotal}
           </span>
         )}
       </button>
