@@ -122,13 +122,20 @@ describe('sendInvitationEmail', () => {
       expect(h.sendNewMail).not.toHaveBeenCalled();
     });
 
-    it('returns false when the connected mailbox is disabled', async () => {
-      adminMock.supabaseAdmin.mockReturnValue(
-        fakeAdmin({ id: 'cfg-1', enabled: false, needs_reauth: false })
-      );
+    it('still sends when the mailbox is paused as a customer channel (enabled: false)', async () => {
+      // `enabled: false` is the "pause without disconnecting" switch for
+      // the customer-facing side (inbound pulling, agent replies) — an
+      // admin pausing it specifically to stop that still expects it to
+      // keep working for internal sends like this one.
+      const cfg = { id: 'cfg-1', enabled: false, needs_reauth: false };
+      adminMock.supabaseAdmin.mockReturnValue(fakeAdmin(cfg));
+      h.getValidAccessToken.mockResolvedValue('token-abc');
+      h.sendNewMail.mockResolvedValue(undefined);
+
       const sent = await sendInvitationEmail(baseArgs);
-      expect(sent).toBe(false);
-      expect(h.sendNewMail).not.toHaveBeenCalled();
+
+      expect(sent).toBe(true);
+      expect(h.sendNewMail).toHaveBeenCalledTimes(1);
     });
 
     it('returns false when the connected mailbox needs reauth', async () => {

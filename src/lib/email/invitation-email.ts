@@ -92,12 +92,19 @@ export async function sendInvitationEmail(args: {
 
 /**
  * Fallback sender for accounts with no Resend key set. Returns false
- * when no mailbox is connected, disabled, or needs reauth — those are
- * "not usable right now" states the admin has to fix in Settings →
- * Channels, not something to fail invite creation over. On an auth
- * failure mid-send, flips `needs_reauth` the same way the customer-
- * facing send path does (`src/lib/whatsapp/send-message.ts`) before
- * rethrowing.
+ * only when no mailbox is connected at all, or it needs reauth (a
+ * dead/revoked token) — those are the only "not usable right now"
+ * states. Deliberately ignores `email_config.enabled`: that flag is
+ * the channel's "pause without disconnecting" switch (migration 097,
+ * see `ChannelEnabledSwitch`) for the *customer-facing* side — pulling
+ * inbound mail into the Inbox and letting agents reply through it. A
+ * paused channel still has a perfectly live OAuth connection, and an
+ * admin who disables it specifically to stop it acting as a support
+ * channel still wants it usable for the app's own internal sends
+ * (like this one) — so this check is narrower than send-message.ts's
+ * customer-facing send path on purpose, not an oversight. On an auth
+ * failure mid-send, flips `needs_reauth` the same way that path does
+ * before rethrowing.
  */
 async function sendViaConnectedMailbox(args: {
   accountId: string;
@@ -112,7 +119,7 @@ async function sendViaConnectedMailbox(args: {
     .select('*')
     .eq('account_id', args.accountId)
     .maybeSingle();
-  if (!cfg || cfg.enabled === false || cfg.needs_reauth) return false;
+  if (!cfg || cfg.needs_reauth) return false;
 
   try {
     const accessToken = await getValidAccessToken(cfg as EmailConfigRow);
