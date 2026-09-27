@@ -2422,6 +2422,7 @@
       "invite": {
         "inviteCreated": "Invite created",
         "inviteCreatedDesc": "Share this link with your new teammate. They'll be able to sign up (or sign in) and join the account as <bold>{role}</bold>. The link is valid for <bold>{days} {days, plural, =1 {day} other {days}}</bold>.",
+        "inviteCreatedDescEmailOnly": "They'll join as <bold>{role}</bold> the moment they sign in at <bold>{email}</bold> — including via SSO. Valid for <bold>{days} {days, plural, =1 {day} other {days}}</bold>.",
         "willJoinTeams": "They will be added to these teams",
         "inviteLink": "Invite link",
         "copy": "Copy",
@@ -2431,6 +2432,7 @@
         "done": "Done",
         "dialogTitle": "Invite a teammate",
         "dialogDesc": "Generate a one-time invite link. Share it via WhatsApp, Slack, or any channel you like. No email service required.",
+        "dialogDescEmailOnly": "We'll email them a secure invite. They sign in with SSO (Google or Microsoft) or set a password — no link for you to copy or share.",
         "roleLabel": "Role",
         "customRolesLabel": "Custom roles",
         "customRoleHint": "A custom role, based on the {role} tier.",
@@ -2442,6 +2444,7 @@
         "noTeamsYet": "No teams yet",
         "teamsHint": "They are added to these teams automatically when they accept the link.",
         "validForLabel": "Link valid for",
+        "validForLabelEmail": "Invite valid for",
         "days1": "1 day",
         "days7": "7 days",
         "days30": "30 days",
@@ -2452,6 +2455,7 @@
         "cancel": "Cancel",
         "creating": "Creating...",
         "generateLink": "Generate link",
+        "sendInvite": "Send invite",
         "labelTooLong": "Label must be {max} characters or fewer",
         "createFailed": "Failed to create invitation",
         "copied": "Invite link copied",
@@ -2461,11 +2465,14 @@
         "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}",
         "emailLabel": "Email address",
         "emailPlaceholder": "teammate@company.com",
+        "emailRequired": "Enter their email address",
         "emailHint": "Leave blank for a plain shareable link. Set this and they join automatically the moment they sign in with that exact, verified email — including via Google or Microsoft — no link click required (though the link below still works too, and is now scoped to this address).",
+        "emailHintRequired": "They join automatically the moment they sign in with this exact, verified email — including via Google or Microsoft SSO. No link click required.",
         "emailAutoJoinHint": "<bold>{email}</bold> will join automatically as soon as they sign in with that email — including via Google or Microsoft SSO. You can still send them the link below as a backup.",
         "emailSentHint": "An invite email was just sent to <bold>{email}</bold>.",
         "emailSendFailedHint": "Couldn't send the invite email. Copy the link below and share it yourself.",
-        "emailNotConfiguredHint": "Email delivery isn't set up on this server. Copy the link below and share it yourself."
+        "emailNotConfiguredHint": "Email delivery isn't set up on this server. Copy the link below and share it yourself.",
+        "linkFallbackHint": "Share this link with them instead."
       }
     },
     "invite": {

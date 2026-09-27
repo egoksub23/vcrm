@@ -99,6 +99,11 @@ export function InviteDialog({
   const t = useTranslations('Settings.team.invite');
   const tRoles = useTranslations('Settings.roles');
   const { account, accountRole } = useAuth();
+  // Only the Owner sees the plain-shareable-link path (no email, no SSO
+  // identity check). Everyone else invites by email only, so the new
+  // teammate signs in with SSO (or a password) straight into the
+  // account — no link to copy or hand off themselves.
+  const isOwner = accountRole === 'owner';
 
   const roleOptions = rolesBelow(accountRole);
   const customRoleOptions = customRolesBelow(accountRole, customRoles);
@@ -147,6 +152,10 @@ export function InviteDialog({
       return;
     }
     const trimmedEmail = email.trim();
+    if (!isOwner && !trimmedEmail) {
+      toast.error(t('emailRequired'));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/account/invitations', {
@@ -235,9 +244,10 @@ export function InviteDialog({
                 {t('inviteCreated')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                {t.rich('inviteCreatedDesc', {
+                {t.rich(isOwner || !result.emailSent ? 'inviteCreatedDesc' : 'inviteCreatedDescEmailOnly', {
                   role: result.customRoleName ?? tRoles(result.role),
                   days: result.expiresInDays,
+                  email: result.email ?? '',
                   bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
                 })}
               </DialogDescription>
@@ -257,7 +267,7 @@ export function InviteDialog({
                 </div>
               )}
 
-              {result.email && (
+              {result.email && isOwner && (
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
                   {t.rich('emailAutoJoinHint', {
                     email: result.email,
@@ -278,47 +288,55 @@ export function InviteDialog({
               {result.email && !result.emailSent && (
                 <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                   {result.emailError ? t('emailSendFailedHint') : t('emailNotConfiguredHint')}
+                  {!isOwner ? ` ${t('linkFallbackHint')}` : null}
                 </div>
               )}
 
-              <Label className="text-muted-foreground">{t('inviteLink')}</Label>
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={result.url}
-                  className="border-border bg-muted font-mono text-xs text-foreground"
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <Button
-                  type="button"
-                  onClick={copyToClipboard}
-                  className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Copy className="size-4" />
-                  {t('copy')}
-                </Button>
-              </div>
+              {/* The plain link is Owner-only by default (see isOwner above);
+                  for everyone else it only surfaces as a fallback when the
+                  invite email itself could not be sent. */}
+              {isOwner || !result.emailSent ? (
+                <>
+                  <Label className="text-muted-foreground">{t('inviteLink')}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={result.url}
+                      className="border-border bg-muted font-mono text-xs text-foreground"
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <Button
+                      type="button"
+                      onClick={copyToClipboard}
+                      className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Copy className="size-4" />
+                      {t('copy')}
+                    </Button>
+                  </div>
 
-              <div className="rounded-md border border-amber-500/50 bg-amber-500/15 px-3 py-2 text-xs text-amber-200">
-                <strong className="font-semibold text-amber-100">
-                  {t('saveLinkNow')}
-                </strong>{' '}
-                {t('saveLinkHint')}
-              </div>
+                  <div className="rounded-md border border-amber-500/50 bg-amber-500/15 px-3 py-2 text-xs text-amber-200">
+                    <strong className="font-semibold text-amber-100">
+                      {t('saveLinkNow')}
+                    </strong>{' '}
+                    {t('saveLinkHint')}
+                  </div>
 
-              <a
-                href={whatsappShareUrl(result.url)}
-                target="_blank"
-                rel="noreferrer noopener"
-                className={buttonVariants({
-                  variant: 'outline',
-                  className:
-                    'w-full border-border text-muted-foreground hover:bg-muted',
-                })}
-              >
-                <MessageCircle className="size-4" />
-                {t('sendViaWhatsApp')}
-              </a>
+                  <a
+                    href={whatsappShareUrl(result.url)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className={buttonVariants({
+                      variant: 'outline',
+                      className:
+                        'w-full border-border text-muted-foreground hover:bg-muted',
+                    })}
+                  >
+                    <MessageCircle className="size-4" />
+                    {t('sendViaWhatsApp')}
+                  </a>
+                </>
+              ) : null}
             </div>
 
             <DialogFooter className="border-border bg-popover">
@@ -337,7 +355,7 @@ export function InviteDialog({
                 {t('dialogTitle')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                {t('dialogDesc')}
+                {isOwner ? t('dialogDesc') : t('dialogDescEmailOnly')}
               </DialogDescription>
             </DialogHeader>
 
@@ -395,19 +413,22 @@ export function InviteDialog({
               <div className="space-y-2">
                 <Label className="text-muted-foreground" htmlFor="invite-email">
                   {t('emailLabel')}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    {t('optional')}
-                  </span>
+                  {isOwner ? (
+                    <span className="text-xs text-muted-foreground">{t('optional')}</span>
+                  ) : null}
                 </Label>
                 <Input
                   id="invite-email"
                   type="email"
+                  required={!isOwner}
                   placeholder={t('emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                 />
-                <p className="text-xs text-muted-foreground">{t('emailHint')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isOwner ? t('emailHint') : t('emailHintRequired')}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -439,7 +460,7 @@ export function InviteDialog({
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground">
-                  {t('validForLabel')}
+                  {isOwner ? t('validForLabel') : t('validForLabelEmail')}
                 </Label>
                 <Select value={expiry} onValueChange={(v) => v && setExpiry(v)}>
                   <SelectTrigger className="w-full border-border bg-muted text-foreground">
@@ -496,8 +517,10 @@ export function InviteDialog({
                     <Loader2 className="size-4 animate-spin" />
                     {t('creating')}
                   </>
-                ) : (
+                ) : isOwner ? (
                   t('generateLink')
+                ) : (
+                  t('sendInvite')
                 )}
               </Button>
             </DialogFooter>

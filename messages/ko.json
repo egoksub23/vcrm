@@ -2422,6 +2422,7 @@
       "invite": {
         "inviteCreated": "초대 링크가 만들어졌습니다",
         "inviteCreatedDesc": "이 링크를 새 팀원에게 공유하세요. 가입하거나 로그인하면 <bold>{role}</bold> 역할로 계정에 참여합니다. 링크는 <bold>{days}일</bold> 동안 유효합니다.",
+        "inviteCreatedDescEmailOnly": "<bold>{email}</bold>로 로그인하는 즉시 SSO를 포함해 <bold>{role}</bold> 역할로 참여합니다. <bold>{days}일</bold> 동안 유효합니다.",
         "willJoinTeams": "다음 팀에 자동으로 추가됩니다",
         "inviteLink": "초대 링크",
         "copy": "복사",
@@ -2431,6 +2432,7 @@
         "done": "완료",
         "dialogTitle": "팀원 초대",
         "dialogDesc": "일회용 초대 링크를 만드세요. WhatsApp, Slack 등 원하는 채널로 공유할 수 있으며 이메일 서비스는 필요하지 않습니다.",
+        "dialogDescEmailOnly": "안전한 초대 이메일을 보내드립니다. SSO(Google 또는 Microsoft)로 로그인하거나 비밀번호를 설정할 수 있습니다 — 복사하거나 공유할 링크가 없습니다.",
         "roleLabel": "역할",
         "customRolesLabel": "커스텀 역할",
         "customRoleHint": "{role} 등급 기반의 커스텀 역할입니다.",
@@ -2442,6 +2444,7 @@
         "noTeamsYet": "아직 팀이 없습니다",
         "teamsHint": "링크를 수락하면 이 팀들에 자동으로 추가됩니다.",
         "validForLabel": "링크 유효 기간",
+        "validForLabelEmail": "초대 유효 기간",
         "days1": "1일",
         "days7": "7일",
         "days30": "30일",
@@ -2452,6 +2455,7 @@
         "cancel": "취소",
         "creating": "만드는 중...",
         "generateLink": "링크 만들기",
+        "sendInvite": "초대 보내기",
         "labelTooLong": "라벨은 {max}자 이하여야 합니다",
         "createFailed": "초대를 만들지 못했습니다",
         "copied": "초대 링크를 복사했습니다",
@@ -2461,11 +2465,14 @@
         "whatsappMessage": "이 링크로 wacrm의 {accountName}에 참여하세요 ({expiresInDays}일 동안 유효): {url}",
         "emailLabel": "이메일 주소",
         "emailPlaceholder": "teammate@company.com",
+        "emailRequired": "이메일 주소를 입력하세요",
         "emailHint": "비워두면 일반 공유 링크가 됩니다. 입력하면 정확히 일치하는 해당 이메일(Google 또는 Microsoft 로그인 포함)로 로그인하는 즉시 자동으로 참여합니다 — 링크 클릭이 필요 없습니다(아래 링크도 계속 작동하며, 이제 이 주소로 제한됩니다).",
+        "emailHintRequired": "정확히 일치하는 이 이메일(Google 또는 Microsoft SSO 포함)로 로그인하는 즉시 자동으로 참여합니다. 링크 클릭이 필요 없습니다.",
         "emailAutoJoinHint": "<bold>{email}</bold>은(는) 해당 이메일로 로그인하는 즉시 자동으로 참여합니다 — Google 또는 Microsoft SSO 포함. 아래 링크도 백업으로 보낼 수 있습니다.",
         "emailSentHint": "초대 이메일이 <bold>{email}</bold>로 전송되었습니다.",
         "emailSendFailedHint": "초대 이메일을 보내지 못했습니다. 아래 링크를 복사해서 직접 공유해 주세요.",
-        "emailNotConfiguredHint": "이 서버에는 이메일 발송이 설정되어 있지 않습니다. 아래 링크를 복사해서 직접 공유해 주세요."
+        "emailNotConfiguredHint": "이 서버에는 이메일 발송이 설정되어 있지 않습니다. 아래 링크를 복사해서 직접 공유해 주세요.",
+        "linkFallbackHint": "대신 이 링크를 공유해 주세요."
       }
     },
     "invite": {
