@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.69.1] — 2026-09-27
+
+- **Invite-by-email no longer strictly requires Resend.** When `RESEND_API_KEY` isn't set, invite emails now fall back to the account's own connected Microsoft 365 mailbox (Settings → Channels → Email) if one is connected, enabled, and not needing reauth — reusing the same Graph API send path customer replies already go through, instead of requiring a separate transactional-email provider. No config for this to turn on beyond having that channel connected and healthy; still fully optional — with neither sender available, invite creation still works and just falls back to a shareable link, same as before.
+
 ## [0.69.0] — 2026-09-27
 
 - **Sembang: quote-and-reply is now structural, not text spliced into the message.** The earlier version prepended an italic "Replying to X: ..." line into the same plain-text body as the reply, so it rendered as one seamless, confusing paragraph with no visual boundary between the quote and the actual reply. Quoting a message now attaches it as real, separate data (`quoted_message_id`, migration 115) — the composer shows a dismissible preview box while typing, and once sent, the quoted excerpt renders as its own italic box (light, translucent background, left accent border) above the reply text, in both the sender's and recipient's view. **Migration required**: `115_sembang_quoted_message.sql`.

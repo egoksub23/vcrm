@@ -59,12 +59,16 @@ An admin can optionally target an invite at a specific email address
   resolve manually (same "your account already contains data" guard the
   link-accept flow has always had).
 - **Sends an email when Resend is configured** (`RESEND_API_KEY` — see
-  "Email delivery" below). Without it, no email goes out — the admin
-  still shares the invite the same way as any link invite (WhatsApp,
-  Slack, verbally), same as before this existed; auto-join on sign-in
-  works either way. With it, the create-invite dialog shows whether the
-  email actually sent, and the Members list shows an "Email sent" badge
-  on invitations it went out for.
+  "Email delivery" below), or, without Resend, when the account has a
+  connected, enabled Microsoft 365 mailbox (Settings → Channels →
+  Email) that doesn't need reauth — the invite goes out from that
+  mailbox instead. If neither is available, no email goes out — the
+  admin still shares the invite the same way as any link invite
+  (WhatsApp, Slack, verbally), same as before this existed; auto-join
+  on sign-in works either way. Whichever sender is used, the
+  create-invite dialog shows whether the email actually sent, and the
+  Members list shows an "Email sent" badge on invitations it went out
+  for.
 - **Does not** let you require SSO for an account or block password
   login for specific users — everyone can always still use a password
   unless you build that enforcement separately.

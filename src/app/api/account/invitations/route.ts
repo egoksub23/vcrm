@@ -16,12 +16,14 @@
 // dismiss the modal without copying, the only recourse is to
 // revoke and re-issue.
 //
-// When `email` is set AND Resend is configured (RESEND_API_KEY —
-// see src/lib/email/resend.ts), POST also emails the link to that
-// address and stamps `email_sent_at` (migration 109) on success.
-// Best-effort: an unconfigured or failing send never fails invite
-// creation — the admin still gets the link back to share manually,
-// same as before this existed.
+// When `email` is set, POST also emails the link to that address and
+// stamps `email_sent_at` (migration 109) on success — via Resend
+// (RESEND_API_KEY, see src/lib/email/resend.ts) when configured,
+// otherwise falling back to the account's own connected Microsoft 365
+// mailbox if one is connected, enabled, and not needing reauth (see
+// src/lib/email/invitation-email.ts). Best-effort: neither sender
+// being usable never fails invite creation — the admin still gets the
+// link back to share manually, same as before this existed.
 // ============================================================
 
 import { NextResponse } from "next/server";
@@ -339,6 +341,7 @@ export async function POST(request: Request) {
       try {
         emailSent = await sendInvitationEmail({
           to: email,
+          accountId: ctx.accountId,
           accountName: ctx.account.name,
           role,
           url,

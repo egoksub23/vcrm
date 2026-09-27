@@ -1,4 +1,8 @@
 import { isResendConfigured, sendEmail } from './resend';
+import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { getValidAccessToken, type EmailConfigRow } from '@/lib/ms365/token';
+import { sendNewMail } from '@/lib/ms365/mail-api';
+import { GraphApiError } from '@/lib/ms365/errors';
 
 function escapeHtml(value: string): string {
   return value
@@ -56,23 +60,74 @@ function buildInvitationEmail(args: {
 }
 
 /**
- * Sends the invite email via Resend. Returns `false` (never throws)
- * when Resend isn't configured — the caller falls back to today's
- * "share the link yourself" flow rather than failing invite creation
- * over an optional feature. Throws `ResendApiError` if Resend IS
- * configured but the send itself fails, so the caller can tell "no
- * mail sender set up" apart from "sender set up but broken right now".
+ * Sends the invite email, trying Resend first (if configured) and
+ * falling back to the account's own connected Microsoft 365 mailbox
+ * (Settings → Channels → Email) when Resend isn't set up — reuses the
+ * same channel customer replies already go out through rather than
+ * requiring a second, dedicated transactional-email setup. Returns
+ * `false` (never throws) when NEITHER sender is usable — the caller
+ * falls back to today's "share the link yourself" flow rather than
+ * failing invite creation over an optional feature. Throws if a
+ * sender IS usable but the send itself fails, so the caller can tell
+ * "no mail sender set up" apart from "sender set up but broken right
+ * now".
  */
 export async function sendInvitationEmail(args: {
   to: string;
+  accountId: string;
   accountName: string;
   role: string;
   url: string;
   expiresInDays: number;
 }): Promise<boolean> {
-  if (!isResendConfigured()) return false;
-
   const { subject, html, text } = buildInvitationEmail(args);
-  await sendEmail({ to: args.to, subject, html, text });
-  return true;
+
+  if (isResendConfigured()) {
+    await sendEmail({ to: args.to, subject, html, text });
+    return true;
+  }
+
+  return sendViaConnectedMailbox({ accountId: args.accountId, to: args.to, subject, html, text });
+}
+
+/**
+ * Fallback sender for accounts with no Resend key set. Returns false
+ * when no mailbox is connected, disabled, or needs reauth — those are
+ * "not usable right now" states the admin has to fix in Settings →
+ * Channels, not something to fail invite creation over. On an auth
+ * failure mid-send, flips `needs_reauth` the same way the customer-
+ * facing send path does (`src/lib/whatsapp/send-message.ts`) before
+ * rethrowing.
+ */
+async function sendViaConnectedMailbox(args: {
+  accountId: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<boolean> {
+  const admin = supabaseAdmin();
+  const { data: cfg } = await admin
+    .from('email_config')
+    .select('*')
+    .eq('account_id', args.accountId)
+    .maybeSingle();
+  if (!cfg || cfg.enabled === false || cfg.needs_reauth) return false;
+
+  try {
+    const accessToken = await getValidAccessToken(cfg as EmailConfigRow);
+    await sendNewMail({
+      accessToken,
+      toAddress: args.to,
+      subject: args.subject,
+      text: args.text,
+      html: args.html,
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof GraphApiError && err.isAuthError) {
+      await admin.from('email_config').update({ needs_reauth: true }).eq('id', cfg.id);
+    }
+    throw err;
+  }
 }
