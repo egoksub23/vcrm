@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ByCapabilityView } from './roles/by-capability-view';
 import { CapabilityList } from './roles/capability-list';
 import { ConfirmDialog } from './roles/confirm-dialog';
+import { CustomRolesSection } from './roles/custom-roles-section';
 import {
   buildChangeSummary,
   buildChangesPayload,
@@ -84,6 +85,7 @@ export function RolesPermissionsTab() {
             <TabsTrigger value="capabilities">
               {t('screen.tabCapabilities')}
             </TabsTrigger>
+            <TabsTrigger value="custom">{t('customRoles.tab')}</TabsTrigger>
           </TabsList>
           {/* keepMounted: the editor holds the unsaved drafts, which
               must survive a look at the reverse view. */}
@@ -92,6 +94,12 @@ export function RolesPermissionsTab() {
           </TabsContent>
           <TabsContent value="capabilities">
             <ByCapabilityView data={state.data} />
+          </TabsContent>
+          <TabsContent value="custom" keepMounted>
+            <CustomRolesSection
+              editorRole={state.data.role}
+              editorCaps={new Set(state.data.editorCapabilities)}
+            />
           </TabsContent>
         </Tabs>
       ) : null}

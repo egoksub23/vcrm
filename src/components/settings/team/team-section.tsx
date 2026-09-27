@@ -129,6 +129,7 @@ export function TeamSection() {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         teams={roster.teams}
+        customRoles={roster.customRoles}
         onCreated={roster.reload}
       />
     </section>

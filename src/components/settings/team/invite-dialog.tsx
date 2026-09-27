@@ -35,12 +35,15 @@ import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
-import { rolesBelow, type TeamRef } from '@/lib/teams/members';
+import { customRolesBelow, rolesBelow, type AssignableCustomRole, type TeamRef } from '@/lib/teams/members';
 import type { Team } from '@/types';
 import { MultiSelectPopover } from './multi-select-popover';
 import { TeamChip } from './team-chips';
@@ -59,6 +62,8 @@ const MAX_LABEL_LEN = 80;
 interface CreatedInvite {
   url: string;
   role: InviteRole;
+  /** Set when the invite carries a custom role instead of a plain one. */
+  customRoleName: string | null;
   expiresInDays: number;
   teams: TeamRef[];
   /** Snapshotted so a later account rename cannot change the message. */
@@ -79,11 +84,15 @@ export function InviteDialog({
   open,
   onOpenChange,
   teams,
+  customRoles = [],
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: Team[];
+  /** The account's custom roles, for the role picker (empty when the
+   *  caller cannot see them — the picker then only offers built-ins). */
+  customRoles?: AssignableCustomRole[];
   /** Called after a successful create so the parent reloads the list. */
   onCreated: () => void | Promise<void>;
 }) {
@@ -92,11 +101,14 @@ export function InviteDialog({
   const { account, accountRole } = useAuth();
 
   const roleOptions = rolesBelow(accountRole);
+  const customRoleOptions = customRolesBelow(accountRole, customRoles);
   const [chosenRole, setRole] = useState<InviteRole>('agent');
   // The remembered choice may not be offered to this caller.
   const role: InviteRole = roleOptions.includes(chosenRole)
     ? chosenRole
     : (roleOptions[0] ?? chosenRole);
+  const [customRoleId, setCustomRoleId] = useState<string | null>(null);
+  const chosenCustomRole = customRoleId ? customRoleOptions.find((r) => r.id === customRoleId) : undefined;
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
@@ -112,8 +124,14 @@ export function InviteDialog({
     .filter((tm) => teamIds.includes(tm.id))
     .map((tm) => ({ id: tm.id, name: tm.name, color: tm.color }));
 
+  // The role actually sent: the custom role's own base tier when one is
+  // picked (the server requires `role` to match it exactly), else the
+  // plain built-in selection.
+  const effectiveRole: InviteRole = chosenCustomRole?.baseRole ?? role;
+
   function reset() {
     setRole('agent');
+    setCustomRoleId(null);
     setTeamIds([]);
     setExpiry('7');
     setLabel('');
@@ -135,7 +153,8 @@ export function InviteDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          role,
+          role: effectiveRole,
+          customRoleId: chosenCustomRole?.id,
           expiresInDays: Number(expiry),
           label: trimmedLabel || undefined,
           teamIds,
@@ -159,7 +178,8 @@ export function InviteDialog({
 
       setResult({
         url: data.url,
-        role,
+        role: effectiveRole,
+        customRoleName: chosenCustomRole?.name ?? null,
         expiresInDays: data.expiresInDays,
         teams: chosenTeams,
         accountName: account?.name ?? t('fallbackAccountName'),
@@ -216,7 +236,7 @@ export function InviteDialog({
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
                 {t.rich('inviteCreatedDesc', {
-                  role: tRoles(result.role),
+                  role: result.customRoleName ?? tRoles(result.role),
                   days: result.expiresInDays,
                   bold: (chunks: React.ReactNode) => <strong>{chunks}</strong>,
                 })}
@@ -325,22 +345,45 @@ export function InviteDialog({
               <div className="space-y-2">
                 <Label className="text-muted-foreground">{t('roleLabel')}</Label>
                 <Select
-                  value={role}
-                  onValueChange={(v) => v && setRole(v as InviteRole)}
+                  value={chosenCustomRole ? `custom:${chosenCustomRole.id}` : `role:${role}`}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    const [kind, val] = v.split(':', 2);
+                    if (kind === 'custom') setCustomRoleId(val);
+                    else {
+                      setCustomRoleId(null);
+                      setRole(val as InviteRole);
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-full border-border bg-muted text-foreground">
-                    <SelectValue>{tRoles(role)}</SelectValue>
+                    <SelectValue>{chosenCustomRole ? chosenCustomRole.name : tRoles(role)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {roleOptions.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {tRoles(r)}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {roleOptions.map((r) => (
+                        <SelectItem key={r} value={`role:${r}`}>
+                          {tRoles(r)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                    {customRoleOptions.length > 0 && (
+                      <SelectGroup>
+                        <SelectSeparator />
+                        <SelectLabel>{t('customRolesLabel')}</SelectLabel>
+                        {customRoleOptions.map((r) => (
+                          <SelectItem key={r.id} value={`custom:${r.id}`}>
+                            {r.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {tRoles(`${role}Hint` as 'adminHint' | 'agentHint' | 'viewerHint')}
+                  {chosenCustomRole
+                    ? t('customRoleHint', { role: tRoles(chosenCustomRole.baseRole) })
+                    : tRoles(`${role}Hint` as 'adminHint' | 'agentHint' | 'viewerHint')}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {accountRole === 'owner'

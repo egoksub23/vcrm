@@ -4,6 +4,7 @@ import {
   EMPTY_FILTERS,
   addableMembers,
   canActOnMember,
+  customRolesBelow,
   diffTeamIds,
   filterInvitations,
   filterMembers,
@@ -13,6 +14,7 @@ import {
   rolesBelow,
   sortMembers,
   splitTeamChips,
+  type AssignableCustomRole,
   type RosterInvitation,
   type RosterMember,
 } from "./members";
@@ -25,6 +27,8 @@ function member(over: Partial<RosterMember> & { user_id: string }): RosterMember
     email: null,
     avatar_url: null,
     role: "agent",
+    custom_role_id: null,
+    custom_role_name: null,
     joined_at: "2026-01-01T00:00:00Z",
     last_active: null,
     teams: [],
@@ -76,6 +80,30 @@ describe("rolesBelow (the invite and change-role dropdowns)", () => {
     expect(rolesBelow(null)).toEqual([]);
     expect(rolesBelow(undefined)).toEqual([]);
     expect(rolesBelow("owner")).not.toContain("owner");
+  });
+});
+
+describe("customRolesBelow", () => {
+  const roles: AssignableCustomRole[] = [
+    { id: "r-admin", name: "Ops lead", baseRole: "admin" },
+    { id: "r-agent", name: "Support-only", baseRole: "agent" },
+    { id: "r-viewer", name: "Read-only stakeholder", baseRole: "viewer" },
+  ];
+
+  it("filters by rank exactly like rolesBelow, applied to baseRole", () => {
+    expect(customRolesBelow("owner", roles)).toEqual(roles);
+    expect(customRolesBelow("admin", roles).map((r) => r.id)).toEqual(["r-agent", "r-viewer"]);
+    expect(customRolesBelow("agent", roles).map((r) => r.id)).toEqual(["r-viewer"]);
+    expect(customRolesBelow("viewer", roles)).toEqual([]);
+  });
+
+  it("offers nothing without a caller role", () => {
+    expect(customRolesBelow(null, roles)).toEqual([]);
+    expect(customRolesBelow(undefined, roles)).toEqual([]);
+  });
+
+  it("handles an account with no custom roles", () => {
+    expect(customRolesBelow("owner", [])).toEqual([]);
   });
 });
 

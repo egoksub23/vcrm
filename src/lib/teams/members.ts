@@ -19,7 +19,12 @@ export interface RosterMember {
   /** Only Owner/Admin callers receive emails. */
   email: string | null;
   avatar_url: string | null;
+  /** Always the member's base tier — set to the custom role's own
+   *  base_role when custom_role_id is set (migration 112). */
   role: AccountRole;
+  /** The custom role assigned to this member, if any. */
+  custom_role_id: string | null;
+  custom_role_name: string | null;
   joined_at: string;
   /** From member_presence; null when never seen. */
   last_active: string | null;
@@ -27,6 +32,16 @@ export interface RosterMember {
   teams: TeamRef[];
   open_conversations: number;
   open_tickets: number;
+}
+
+/** A custom role assignable from the role picker, filtered to the
+ *  caller's own rank the same way `rolesBelow` filters built-ins.
+ *  `baseRole` is never 'owner' (the account_roles CHECK constraint
+ *  guarantees it — migration 112). */
+export interface AssignableCustomRole {
+  id: string;
+  name: string;
+  baseRole: Exclude<AccountRole, "owner">;
 }
 
 /** A pending invitation row as the invitations route returns it. */
@@ -70,6 +85,16 @@ export function rolesBelow(
   if (!callerRole) return [];
   const all: Exclude<AccountRole, "owner">[] = ["admin", "agent", "viewer"];
   return all.filter((r) => roleRank(r) < roleRank(callerRole));
+}
+
+/** Custom roles a person may hand out: same "strictly below their own
+ *  rank" rule as `rolesBelow`, applied to each role's base tier. */
+export function customRolesBelow(
+  callerRole: AccountRole | null | undefined,
+  accountCustomRoles: readonly AssignableCustomRole[],
+): AssignableCustomRole[] {
+  if (!callerRole) return [];
+  return accountCustomRoles.filter((r) => roleRank(r.baseRole) < roleRank(callerRole));
 }
 
 /**

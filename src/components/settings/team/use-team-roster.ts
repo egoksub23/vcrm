@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
 import { useCapability } from '@/hooks/use-auth';
-import type { RosterInvitation, RosterMember } from '@/lib/teams/members';
+import type { AssignableCustomRole, RosterInvitation, RosterMember } from '@/lib/teams/members';
 import type { Team } from '@/types';
 
 export interface TeamRoster {
@@ -24,7 +24,14 @@ export interface TeamRoster {
   invitations: RosterInvitation[];
   /** Capabilities enabled per role (for the access summary). */
   capabilityCounts: Record<string, number>;
+  /** Same, per custom role id — a member's real count when they hold one. */
+  customRoleCapabilityCounts: Record<string, number>;
   capabilityTotal: number;
+  /** The account's custom roles, for the role picker. Empty for a
+   *  caller who cannot see them (fetch requires roles.manage) — the
+   *  picker then just offers the 4 built-ins, same as before this
+   *  feature existed. */
+  customRoles: AssignableCustomRole[];
   loading: boolean;
   reload: () => Promise<void>;
 }
@@ -32,24 +39,32 @@ export interface TeamRoster {
 export function useTeamRoster(): TeamRoster {
   const t = useTranslations('Settings.team');
   const canInvite = useCapability('members.invite');
+  const canSeeRoles = useCapability('roles.manage');
   const [members, setMembers] = useState<RosterMember[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [invitations, setInvitations] = useState<RosterInvitation[]>([]);
   const [capabilityCounts, setCapabilityCounts] = useState<
     Record<string, number>
   >({});
+  const [customRoleCapabilityCounts, setCustomRoleCapabilityCounts] = useState<
+    Record<string, number>
+  >({});
   const [capabilityTotal, setCapabilityTotal] = useState(0);
+  const [customRoles, setCustomRoles] = useState<AssignableCustomRole[]>([]);
   const [loading, setLoading] = useState(true);
   const seq = useRef(0);
 
   const reload = useCallback(async () => {
     const mine = ++seq.current;
     try {
-      const [mres, tres, ires] = await Promise.all([
+      const [mres, tres, ires, cres] = await Promise.all([
         fetch('/api/account/members', { cache: 'no-store' }),
         fetch('/api/account/teams', { cache: 'no-store' }),
         canInvite
           ? fetch('/api/account/invitations', { cache: 'no-store' })
+          : Promise.resolve(null),
+        canSeeRoles
+          ? fetch('/api/account/roles/custom', { cache: 'no-store' })
           : Promise.resolve(null),
       ]);
       // A newer reload started while this one was in flight: drop this one.
@@ -63,11 +78,22 @@ export function useTeamRoster(): TeamRoster {
       const mdata = (await mres.json()) as {
         members: RosterMember[];
         capabilityCounts?: Record<string, number>;
+        customRoleCapabilityCounts?: Record<string, number>;
         capabilityTotal?: number;
       };
       setMembers(mdata.members);
       setCapabilityCounts(mdata.capabilityCounts ?? {});
+      setCustomRoleCapabilityCounts(mdata.customRoleCapabilityCounts ?? {});
       setCapabilityTotal(mdata.capabilityTotal ?? 0);
+
+      if (cres?.ok) {
+        const cdata = (await cres.json()) as {
+          roles: { id: string; name: string; baseRole: AssignableCustomRole['baseRole'] }[];
+        };
+        setCustomRoles(cdata.roles.map((r) => ({ id: r.id, name: r.name, baseRole: r.baseRole })));
+      } else if (cres) {
+        setCustomRoles([]);
+      }
 
       if (tres.ok) {
         const tdata = (await tres.json()) as { teams: Team[] };
@@ -99,7 +125,7 @@ export function useTeamRoster(): TeamRoster {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [canInvite, t]);
+  }, [canInvite, canSeeRoles, t]);
 
   useEffect(() => {
     void reload();
@@ -110,7 +136,9 @@ export function useTeamRoster(): TeamRoster {
     teams,
     invitations,
     capabilityCounts,
+    customRoleCapabilityCounts,
     capabilityTotal,
+    customRoles,
     loading,
     reload,
   };

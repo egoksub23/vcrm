@@ -29,7 +29,10 @@ import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -49,6 +52,7 @@ import { useAuth, useCapability } from '@/hooks/use-auth';
 import type { AccountRole } from '@/lib/auth/roles';
 import {
   canActOnMember,
+  customRolesBelow,
   rolesBelow,
   type RosterMember,
 } from '@/lib/teams/members';
@@ -113,20 +117,30 @@ function MemberPanel({
   const canManageTeams = useCapability('teams.manage');
   const canSeeRoles = useCapability('roles.manage');
 
-  const [pendingRole, setPendingRole] = useState<AccountRole | null>(null);
+  type Selection =
+    | { kind: 'builtin'; role: AccountRole }
+    | { kind: 'custom'; id: string; name: string; baseRole: AccountRole };
+  const [pendingSelection, setPendingSelection] = useState<Selection | null>(null);
   const [savingRole, setSavingRole] = useState(false);
   // Team ids while a save is in flight (or just saved, until the reload
   // lands); null means "show what the server said".
   const [optimisticTeams, setOptimisticTeams] = useState<string[] | null>(null);
   const [savingTeams, setSavingTeams] = useState(false);
 
-  const { teams, capabilityCounts, capabilityTotal, reload } = roster;
+  const { teams, capabilityCounts, customRoleCapabilityCounts, capabilityTotal, customRoles, reload } = roster;
 
   const isSelf = member.user_id === user?.id;
   const acting = canActOnMember(accountRole, user?.id, member);
   const assignable = rolesBelow(accountRole);
-  const roleEditable = canChangeRole && acting && assignable.length > 0;
-  const shownRole = pendingRole ?? member.role;
+  const assignableCustom = customRolesBelow(accountRole, customRoles);
+  const roleEditable = canChangeRole && acting && (assignable.length > 0 || assignableCustom.length > 0);
+
+  const currentSelection: Selection = member.custom_role_id
+    ? { kind: 'custom', id: member.custom_role_id, name: member.custom_role_name ?? '', baseRole: member.role }
+    : { kind: 'builtin', role: member.role };
+  const shown = pendingSelection ?? currentSelection;
+  const shownValue = shown.kind === 'custom' ? `custom:${shown.id}` : `role:${shown.role}`;
+  const shownLabel = shown.kind === 'custom' ? shown.name : tRoles(shown.role);
 
   const lockReason = isSelf
     ? t('roleLocked.self')
@@ -142,29 +156,46 @@ function MemberPanel({
     .map((tm) => ({ id: tm.id, name: tm.name, color: tm.color }));
   const name = member.full_name || member.email || t('unnamed');
 
-  async function changeRole(next: AccountRole) {
-    if (next === member.role || savingRole) return;
-    setPendingRole(next);
+  async function changeRole(value: string) {
+    if (savingRole) return;
+    const [kind, val] = value.split(':', 2);
+    const next: Selection =
+      kind === 'custom'
+        ? {
+            kind: 'custom',
+            id: val,
+            name: assignableCustom.find((r) => r.id === val)?.name ?? '',
+            baseRole: assignableCustom.find((r) => r.id === val)?.baseRole ?? member.role,
+          }
+        : { kind: 'builtin', role: val as AccountRole };
+    const unchanged =
+      next.kind === currentSelection.kind &&
+      (next.kind === 'builtin'
+        ? next.role === (currentSelection as { role: AccountRole }).role
+        : next.id === (currentSelection as { id: string }).id);
+    if (unchanged) return;
+
+    setPendingSelection(next);
     setSavingRole(true);
     try {
       const res = await fetch(`/api/account/members/${member.user_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: next }),
+        body: JSON.stringify(next.kind === 'custom' ? { customRoleId: next.id } : { role: next.role }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         toast.error(payload.error || t('roleFailed'));
-        setPendingRole(null);
+        setPendingSelection(null);
         return;
       }
-      toast.success(t('roleUpdated', { name, role: tRoles(next) }));
+      toast.success(t('roleUpdated', { name, role: next.kind === 'custom' ? next.name : tRoles(next.role) }));
       await reload();
-      setPendingRole(null);
+      setPendingSelection(null);
     } catch (err) {
       console.error('[MemberSheet] role change error:', err);
       toast.error(t('networkError'));
-      setPendingRole(null);
+      setPendingSelection(null);
     } finally {
       setSavingRole(false);
     }
@@ -197,7 +228,9 @@ function MemberPanel({
     }
   }
 
-  const enabled = capabilityCounts[member.role];
+  const enabled = member.custom_role_id
+    ? customRoleCapabilityCounts[member.custom_role_id]
+    : capabilityCounts[member.role];
   const joined = new Date(member.joined_at).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
@@ -233,23 +266,33 @@ function MemberPanel({
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-foreground">{t('role')}</h3>
           {roleEditable ? (
-            <Select
-              value={shownRole}
-              onValueChange={(v) => v && changeRole(v as AccountRole)}
-            >
+            <Select value={shownValue} onValueChange={(v) => v && changeRole(v)}>
               <SelectTrigger
                 className="w-full border-border bg-muted text-foreground"
                 disabled={savingRole}
                 aria-label={t('role')}
               >
-                <SelectValue>{tRoles(shownRole)}</SelectValue>
+                <SelectValue>{shownLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {assignable.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {tRoles(r)}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {assignable.map((r) => (
+                    <SelectItem key={r} value={`role:${r}`}>
+                      {tRoles(r)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                {assignableCustom.length > 0 && (
+                  <SelectGroup>
+                    <SelectSeparator />
+                    <SelectLabel>{t('customRolesLabel')}</SelectLabel>
+                    {assignableCustom.map((r) => (
+                      <SelectItem key={r.id} value={`custom:${r.id}`}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
               </SelectContent>
             </Select>
           ) : (
@@ -257,18 +300,16 @@ function MemberPanel({
               <TooltipTrigger
                 render={<span tabIndex={0} className="block w-full" />}
               >
-                <Select value={member.role}>
+                <Select value={shownValue}>
                   <SelectTrigger
                     className="pointer-events-none w-full border-border bg-muted text-foreground"
                     disabled
                     aria-label={t('role')}
                   >
-                    <SelectValue>{tRoles(member.role)}</SelectValue>
+                    <SelectValue>{shownLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={member.role}>
-                      {tRoles(member.role)}
-                    </SelectItem>
+                    <SelectItem value={shownValue}>{shownLabel}</SelectItem>
                   </SelectContent>
                 </Select>
               </TooltipTrigger>
@@ -276,7 +317,9 @@ function MemberPanel({
             </Tooltip>
           )}
           <p className="text-xs text-muted-foreground">
-            {tRoles(`${member.role}Hint` as 'adminHint')}
+            {currentSelection.kind === 'custom'
+              ? t('customRoleHint', { role: tRoles(currentSelection.baseRole) })
+              : tRoles(`${member.role}Hint` as 'adminHint')}
           </p>
         </section>
 
@@ -320,11 +363,11 @@ function MemberPanel({
               <p className="text-foreground">
                 {enabled !== undefined && capabilityTotal > 0
                   ? t('accessSummary', {
-                      role: tRoles(member.role),
+                      role: shownLabel,
                       enabled,
                       total: capabilityTotal,
                     })
-                  : t('accessUnknown', { role: tRoles(member.role) })}
+                  : t('accessUnknown', { role: shownLabel })}
               </p>
               {canSeeRoles ? (
                 <Link

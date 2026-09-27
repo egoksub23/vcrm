@@ -49,8 +49,21 @@ export async function PATCH(
     const { userId } = await params;
 
     const body = (await request.json().catch(() => null)) as
-      | { role?: unknown }
+      | { role?: unknown; customRoleId?: unknown }
       | null;
+
+    // Assigning a custom role (migration 112-114) is a separate RPC —
+    // its base tier comes from the custom role row itself, `role` is
+    // not read in that case.
+    if (typeof body?.customRoleId === "string" && body.customRoleId.trim() !== "") {
+      const { error } = await ctx.supabase.rpc("set_member_custom_role", {
+        p_user_id: userId,
+        p_custom_role_id: body.customRoleId,
+      });
+      if (error) return rpcErrorToResponse(error);
+      return NextResponse.json({ ok: true });
+    }
+
     const role = body?.role;
 
     if (!isAccountRole(role)) {

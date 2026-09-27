@@ -96,6 +96,12 @@ export interface AccountContext {
   accountId: string;
   /** Caller's role within their account. */
   role: AccountRole;
+  /** The custom role assigned to the caller, if any (migration 112).
+   *  `role` above always stays the custom role's own base tier — a
+   *  custom-role caller is never distinguishable from a plain member
+   *  of that base tier for rank/hierarchy purposes, only for which
+   *  capabilities they resolve to (see `loadCapabilities`). */
+  customRoleId: string | null;
   /** Lightweight account meta — id + name. */
   account: { id: string; name: string };
 }
@@ -125,7 +131,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("account_id, account_role")
+    .select("account_id, account_role, custom_role_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -177,6 +183,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     userId: user.id,
     accountId: data.account_id,
     role: data.account_role,
+    customRoleId: (data as { custom_role_id?: string | null }).custom_role_id ?? null,
     account: { id: account.id, name: account.name },
   };
 }
@@ -230,11 +237,21 @@ export function loadCapabilities(ctx: AccountContext): Promise<Set<string>> {
   if (!pending) {
     pending = (async () => {
       if (ctx.role === "owner") return resolveCapabilities("owner");
-      const { data, error } = await ctx.supabase
-        .from("role_capabilities")
-        .select("capability, granted")
-        .eq("account_id", ctx.accountId)
-        .eq("role", ctx.role);
+      // A custom-role caller (migration 112) resolves overrides against
+      // their own account_roles row instead of the literal role — `role`
+      // stays the custom role's base tier either way, so the default
+      // anchor and min-grant-role floor inside resolveCapabilities need
+      // no change, only which table the overrides come from.
+      const { data, error } = ctx.customRoleId
+        ? await ctx.supabase
+            .from("account_role_capabilities")
+            .select("capability, granted")
+            .eq("account_role_id", ctx.customRoleId)
+        : await ctx.supabase
+            .from("role_capabilities")
+            .select("capability, granted")
+            .eq("account_id", ctx.accountId)
+            .eq("role", ctx.role);
       if (error) {
         if (error.code && MISSING_TABLE_CODES.has(error.code)) {
           return resolveCapabilities(ctx.role);

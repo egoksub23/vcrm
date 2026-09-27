@@ -32,6 +32,8 @@ interface RosterRow {
   email: string | null;
   avatar_url: string | null;
   role: string;
+  custom_role_id: string | null;
+  custom_role_name: string | null;
   joined_at: string;
   last_active: string | null;
   teams: TeamRef[] | null;
@@ -43,11 +45,15 @@ export async function GET() {
   try {
     const ctx = await getCurrentAccount();
 
-    const [rosterRes, overridesRes] = await Promise.all([
+    const [rosterRes, overridesRes, customRolesRes] = await Promise.all([
       ctx.supabase.rpc("list_team_members"),
       ctx.supabase
         .from("role_capabilities")
         .select("role, capability, granted")
+        .eq("account_id", ctx.accountId),
+      ctx.supabase
+        .from("account_roles")
+        .select("id, base_role")
         .eq("account_id", ctx.accountId),
     ]);
 
@@ -72,6 +78,8 @@ export async function GET() {
             email: row.email,
             avatar_url: row.avatar_url,
             role: row.role,
+            custom_role_id: row.custom_role_id,
+            custom_role_name: row.custom_role_name,
             joined_at: row.joined_at,
             last_active: row.last_active,
             teams: Array.isArray(row.teams) ? row.teams : [],
@@ -96,9 +104,34 @@ export async function GET() {
       ).size;
     }
 
+    // Same idea per custom role (migration 112), keyed by id instead of
+    // the literal role, for members whose access diverges from their
+    // bare base tier.
+    const customRoleRows = customRolesRes.error ? [] : (customRolesRes.data ?? []);
+    const customRoleIds = customRoleRows.map((r) => r.id);
+    const customOverridesRes =
+      customRoleIds.length > 0
+        ? await ctx.supabase
+            .from("account_role_capabilities")
+            .select("account_role_id, capability, granted")
+            .in("account_role_id", customRoleIds)
+        : { data: [] as { account_role_id: string; capability: string; granted: boolean }[], error: null };
+    const customOverrideRows = customOverridesRes.error ? [] : (customOverridesRes.data ?? []);
+    const customRoleCapabilityCounts: Record<string, number> = {};
+    for (const role of customRoleRows) {
+      if (!isAccountRole(role.base_role)) continue;
+      const overrides = overridesFromRows(
+        customOverrideRows
+          .filter((r) => r.account_role_id === role.id)
+          .map((r) => ({ capability: r.capability, granted: r.granted })),
+      );
+      customRoleCapabilityCounts[role.id] = resolveCapabilities(role.base_role, overrides).size;
+    }
+
     return NextResponse.json({
       members,
       capabilityCounts,
+      customRoleCapabilityCounts,
       capabilityTotal: CAPABILITIES.length,
     });
   } catch (err) {

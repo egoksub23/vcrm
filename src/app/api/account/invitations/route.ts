@@ -157,7 +157,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_invitations")
       .select(
-        "id, role, label, email, email_sent_at, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
+        "id, role, custom_role_id, label, email, email_sent_at, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
       )
       .eq("account_id", ctx.accountId)
       .is("accepted_at", null)
@@ -195,6 +195,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as
       | {
           role?: unknown;
+          customRoleId?: unknown;
           expiresInDays?: unknown;
           label?: unknown;
           teamIds?: unknown;
@@ -224,6 +225,25 @@ export async function POST(request: Request) {
         },
         { status: 403 },
       );
+    }
+
+    // Optional (migration 112): the invite carries a custom role
+    // instead of a bare built-in one. Its base_role must match `role`
+    // exactly — the enforce_invitation_role_below_inviter trigger
+    // re-checks this too (defense in depth), but failing fast here
+    // gives a clearer 400.
+    let customRoleId: string | null = null;
+    if (typeof body?.customRoleId === "string" && body.customRoleId.trim() !== "") {
+      const { data: customRole } = await ctx.supabase
+        .from("account_roles")
+        .select("id, base_role")
+        .eq("id", body.customRoleId)
+        .eq("account_id", ctx.accountId)
+        .maybeSingle();
+      if (!customRole || customRole.base_role !== role) {
+        return NextResponse.json({ error: "That role could not be found" }, { status: 400 });
+      }
+      customRoleId = customRole.id;
     }
 
     const expiresInDaysRaw = body?.expiresInDays;
@@ -281,13 +301,14 @@ export async function POST(request: Request) {
         account_id: ctx.accountId,
         token_hash: hash,
         role,
+        custom_role_id: customRoleId,
         created_by_user_id: ctx.userId,
         label,
         email,
         team_ids: teams.ids,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, role, label, email, team_ids, expires_at, created_at")
+      .select("id, role, custom_role_id, label, email, team_ids, expires_at, created_at")
       .single();
 
     if (error || !data) {

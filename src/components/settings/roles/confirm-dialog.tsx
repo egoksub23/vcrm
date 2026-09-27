@@ -21,6 +21,8 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   role: AccountRole;
+  /** A custom role's own name, in place of the built-in role label. */
+  roleName?: string;
   memberCount: number;
   summary: ChangeSummary;
   saving: boolean;
@@ -34,6 +36,7 @@ export function ConfirmDialog({
   open,
   onOpenChange,
   role,
+  roleName: roleNameOverride,
   memberCount,
   summary,
   saving,
@@ -42,7 +45,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const t = useTranslations('Permissions');
   const tRoles = useTranslations('Settings.roles');
-  const roleName = tRoles(role);
+  const roleName = roleNameOverride ?? tRoles(role);
 
   return (
     <Dialog
