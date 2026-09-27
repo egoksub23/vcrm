@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.69.2] — 2026-09-27
+
+- **Fix: Sembang link previews never fired for a bare `www.` address.** `extractLinks` (used both by the "Links" panel and to trigger a message's unfurl-preview fetch) only matched URLs with an explicit `http://`/`https://` scheme, so something like "check out www.vircle.com" was never even recognized as a link — the preview card silently never appeared. Now also matches a bare `www.…` address (adding `https://` under the hood), matching how WhatsApp treats a pasted link with no scheme.
+
 ## [0.69.1] — 2026-09-27
 
 - **Invite-by-email no longer strictly requires Resend.** When `RESEND_API_KEY` isn't set, invite emails now fall back to the account's own connected Microsoft 365 mailbox (Settings → Channels → Email) if one is connected, enabled, and not needing reauth — reusing the same Graph API send path customer replies already go through, instead of requiring a separate transactional-email provider. No config for this to turn on beyond having that channel connected and healthy; still fully optional — with neither sender available, invite creation still works and just falls back to a shareable link, same as before.
