@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.67.1] — 2026-09-27
+
+- **Knowledge base list now fills the page instead of stopping at a centered 1280px column.** The library previously capped at `max-w-7xl` and centered itself, leaving a large empty gutter on wide monitors while the article table stayed cramped. Dropped the cap (now matches every other list view — Contacts, Tickets, Dashboard) and gave the article table deliberate column proportions (`table-fixed` + a `colgroup`) so the reclaimed width goes to the title column instead of showing up as random whitespace between cells.
+
 ## [0.67.0] — 2026-09-26
 
 - **Sembang: "My Tasks" — a cross-channel, per-user task view, same treatment as Mentions.** A new persistent sidebar entry (right below Mentions, same badge-count styling) lists every `sembang_tasks` row assigned to you across every channel/DM you're in, open tasks first then completed. Clicking a task with an origin message opens its thread on the right — the same "list stays put, only the thread changes" flow Mentions already has — and each row keeps the per-channel Tasks sheet's own actions (tick to complete, delete, link/create a Ticket), all going through the existing per-channel task routes since a hydrated task already carries its own `channelId`. New `GET /api/sembang/my-tasks`, scoped by `assignee_id` (RLS already restricts to channels you can actually see). The sidebar badge is a plain fetch-on-mount-and-on-change count, not a live realtime subscription — someone assigning you a task elsewhere won't bump it until you revisit Sembang.

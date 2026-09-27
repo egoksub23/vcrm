@@ -143,7 +143,16 @@ export function ArticleTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="w-full min-w-[860px] table-fixed text-sm">
+        <colgroup>
+          <col />
+          <col className="w-[14%]" />
+          <col className="w-[18%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-20" />
+          <col className="w-28" />
+        </colgroup>
         <thead className="bg-muted text-left text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">{t('colTitle')}</th>
@@ -154,7 +163,7 @@ export function ArticleTable({
             <th className="px-3 py-2 text-right font-medium" title={t('colAiUsesHint')}>
               {t('colAiUses')}
             </th>
-            <th className="w-28 px-3 py-2" />
+            <th className="px-3 py-2" />
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -165,7 +174,7 @@ export function ArticleTable({
             const busy = busyId === d.id;
             return (
               <tr key={d.id} className="align-top hover:bg-muted/40">
-                <td className="max-w-[340px] px-3 py-2.5">
+                <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1.5">
                     <Link
                       href={`/knowledge/${d.id}`}

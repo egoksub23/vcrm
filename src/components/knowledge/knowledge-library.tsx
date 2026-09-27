@@ -260,7 +260,7 @@ export function KnowledgeLibrary() {
   const listView = isListView(view);
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-y-auto p-4 md:p-6">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
