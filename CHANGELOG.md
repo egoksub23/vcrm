@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.67.2] — 2026-09-27
+
+- **Knowledge base articles now show who last published them, and when — automatically.** The `published_at`/`published_by` columns have quietly existed since migration 082 (server-stamped on every draft→published transition, a client can never set them) but nothing read them. The editor's sidebar now has a read-only "Last reviewed" line (date + the publisher's name) above the existing due-date field, which is relabelled "Next review due" to stop the two from being confused with each other. No migration needed — the data was already being captured. (Change history and a per-article audit trail — who added/changed/published/deleted it — already exist via the "Edit history" and "Activity" buttons next to it.)
+
 ## [0.67.1] — 2026-09-27
 
 - **Knowledge base list now fills the page instead of stopping at a centered 1280px column.** The library previously capped at `max-w-7xl` and centered itself, leaving a large empty gutter on wide monitors while the article table stayed cramped. Dropped the cap (now matches every other list view — Contacts, Tickets, Dashboard) and gave the article table deliberate column proportions (`table-fixed` + a `colgroup`) so the reclaimed width goes to the title column instead of showing up as random whitespace between cells.

@@ -140,6 +140,11 @@ export interface KnowledgeArticle {
   review_by: string | null
   updated_at: string
   created_by: string | null
+  /** When this article was last published; null if never published (or moved back to draft since). */
+  published_at: string | null
+  published_by: string | null
+  /** Resolved display name of `published_by`; null when unpublished or the user has since been removed. */
+  published_by_name: string | null
   source_conversation_id: string | null
   source_kind: 'file' | 'url' | null
   source_url: string | null

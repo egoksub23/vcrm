@@ -12,7 +12,7 @@ import type { KnowledgeArticle, KnowledgeAttachment, KnowledgeTranslationBase, K
 type Params = { params: Promise<{ id: string }> }
 
 const FULL_COLUMNS =
-  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at'
+  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, published_at, published_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at'
 
 /**
  * GET /api/knowledge/[id] — the whole article, attachments included (any member).
@@ -53,6 +53,17 @@ export async function GET(_request: Request, { params }: Params) {
     }
     const attachments = (await loadAttachments(supabase, accountId, [id])).get(id) ?? []
 
+    let publishedByName: string | null = null
+    if (doc.published_by) {
+      const { data: publisher } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('account_id', accountId)
+        .eq('user_id', doc.published_by as string)
+        .maybeSingle()
+      publishedByName = publisher?.full_name?.trim() || publisher?.email || null
+    }
+
     let translations: KnowledgeTranslationInfo[] = []
     let base: KnowledgeTranslationBase | null = null
     let outOfDate = false
@@ -73,6 +84,7 @@ export async function GET(_request: Request, { params }: Params) {
 
     const article = {
       ...doc,
+      published_by_name: publishedByName,
       source_kind: sourceKind,
       source_url: sourceUrl,
       attachments,

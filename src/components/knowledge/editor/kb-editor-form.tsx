@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
+import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, History, Loader2 } from "lucide-react";
@@ -553,6 +554,20 @@ export function KbEditorForm({
                 </select>
               )}
             </div>
+
+            {article && (
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">{td("lastReviewed")}</Label>
+                <p className="text-sm text-foreground">
+                  {article.published_at
+                    ? td(article.published_by_name ? "lastReviewedBy" : "lastReviewedUnknownName", {
+                        date: format(new Date(article.published_at), "d MMM yyyy"),
+                        name: article.published_by_name ?? "",
+                      })
+                    : td("neverPublished")}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="kb-review">{td("reviewBy")}</Label>
