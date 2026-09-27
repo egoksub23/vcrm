@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { customRolesBelow, rolesBelow, type AssignableCustomRole, type TeamRef } from '@/lib/teams/members';
+import { cn } from '@/lib/utils';
 import type { Team } from '@/types';
 import { MultiSelectPopover } from './multi-select-popover';
 import { TeamChip } from './team-chips';
@@ -99,11 +100,16 @@ export function InviteDialog({
   const t = useTranslations('Settings.team.invite');
   const tRoles = useTranslations('Settings.roles');
   const { account, accountRole } = useAuth();
-  // Only the Owner sees the plain-shareable-link path (no email, no SSO
-  // identity check). Everyone else invites by email only, so the new
-  // teammate signs in with SSO (or a password) straight into the
+  // Only the Owner can reach the plain-shareable-link path (no email, no
+  // SSO identity check) at all, and even for the Owner it is a secondary
+  // choice, not the default. Everyone else invites by email only, so the
+  // new teammate signs in with SSO (or a password) straight into the
   // account — no link to copy or hand off themselves.
   const isOwner = accountRole === 'owner';
+  const [mode, setMode] = useState<'email' | 'link'>('email');
+  // Non-owner can never reach 'link' mode, regardless of what `mode` holds
+  // (e.g. a remembered choice from a session where they were an Owner).
+  const effectiveMode: 'email' | 'link' = isOwner ? mode : 'email';
 
   const roleOptions = rolesBelow(accountRole);
   const customRoleOptions = customRolesBelow(accountRole, customRoles);
@@ -135,6 +141,7 @@ export function InviteDialog({
   const effectiveRole: InviteRole = chosenCustomRole?.baseRole ?? role;
 
   function reset() {
+    setMode('email');
     setRole('agent');
     setCustomRoleId(null);
     setTeamIds([]);
@@ -152,7 +159,7 @@ export function InviteDialog({
       return;
     }
     const trimmedEmail = email.trim();
-    if (!isOwner && !trimmedEmail) {
+    if (effectiveMode === 'email' && !trimmedEmail) {
       toast.error(t('emailRequired'));
       return;
     }
@@ -355,11 +362,29 @@ export function InviteDialog({
                 {t('dialogTitle')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                {isOwner ? t('dialogDesc') : t('dialogDescEmailOnly')}
+                {effectiveMode === 'link' ? t('dialogDesc') : t('dialogDescEmailOnly')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2">
+              {isOwner && (
+                <div className="inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
+                  {(['email', 'link'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMode(m)}
+                      className={cn(
+                        'rounded-md px-3 py-1.5 font-medium transition-colors',
+                        mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {m === 'email' ? t('modeEmail') : t('modeLink')}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-muted-foreground">{t('roleLabel')}</Label>
                 <Select
@@ -413,21 +438,21 @@ export function InviteDialog({
               <div className="space-y-2">
                 <Label className="text-muted-foreground" htmlFor="invite-email">
                   {t('emailLabel')}{' '}
-                  {isOwner ? (
+                  {effectiveMode === 'link' ? (
                     <span className="text-xs text-muted-foreground">{t('optional')}</span>
                   ) : null}
                 </Label>
                 <Input
                   id="invite-email"
                   type="email"
-                  required={!isOwner}
+                  required={effectiveMode === 'email'}
                   placeholder={t('emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {isOwner ? t('emailHint') : t('emailHintRequired')}
+                  {effectiveMode === 'link' ? t('emailHint') : t('emailHintRequired')}
                 </p>
               </div>
 
@@ -460,7 +485,7 @@ export function InviteDialog({
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground">
-                  {isOwner ? t('validForLabel') : t('validForLabelEmail')}
+                  {effectiveMode === 'link' ? t('validForLabel') : t('validForLabelEmail')}
                 </Label>
                 <Select value={expiry} onValueChange={(v) => v && setExpiry(v)}>
                   <SelectTrigger className="w-full border-border bg-muted text-foreground">
@@ -517,7 +542,7 @@ export function InviteDialog({
                     <Loader2 className="size-4 animate-spin" />
                     {t('creating')}
                   </>
-                ) : isOwner ? (
+                ) : effectiveMode === 'link' ? (
                   t('generateLink')
                 ) : (
                   t('sendInvite')

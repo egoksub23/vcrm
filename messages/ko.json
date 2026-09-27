@@ -2433,6 +2433,8 @@
         "dialogTitle": "팀원 초대",
         "dialogDesc": "일회용 초대 링크를 만드세요. WhatsApp, Slack 등 원하는 채널로 공유할 수 있으며 이메일 서비스는 필요하지 않습니다.",
         "dialogDescEmailOnly": "안전한 초대 이메일을 보내드립니다. SSO(Google 또는 Microsoft)로 로그인하거나 비밀번호를 설정할 수 있습니다 — 복사하거나 공유할 링크가 없습니다.",
+        "modeEmail": "초대 보내기",
+        "modeLink": "링크 만들기",
         "roleLabel": "역할",
         "customRolesLabel": "커스텀 역할",
         "customRoleHint": "{role} 등급 기반의 커스텀 역할입니다.",

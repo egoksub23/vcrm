@@ -2433,6 +2433,8 @@
         "dialogTitle": "Invite a teammate",
         "dialogDesc": "Generate a one-time invite link. Share it via WhatsApp, Slack, or any channel you like. No email service required.",
         "dialogDescEmailOnly": "We'll email them a secure invite. They sign in with SSO (Google or Microsoft) or set a password — no link for you to copy or share.",
+        "modeEmail": "Send invite",
+        "modeLink": "Generate link",
         "roleLabel": "Role",
         "customRolesLabel": "Custom roles",
         "customRoleHint": "A custom role, based on the {role} tier.",

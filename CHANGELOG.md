@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.68.2] — 2026-09-27
+
+- **Invite dialog: "Send invite" is the default for everyone, including the Owner.** The 0.68.1 change made email the default for Admins but left the Owner's original link-first form untouched, which meant the Owner still saw "Generate link" as the only, default action. The Owner now gets a small "Send invite / Generate link" toggle (defaulting to Send invite, same as everyone else) instead of two different dialogs — link generation is still there for the Owner, it's just a deliberate second choice, not the default. Nobody else sees the toggle at all.
+
 ## [0.68.1] — 2026-09-27
 
 - **Invite dialog: email + SSO is the default, plain links are Owner-only.** With SSO in place, sharing a bare invite link no longer needs to be the default path. Anyone below Owner (i.e. an Admin inviting someone) now must enter an email address — the invite is sent by email, and the new teammate joins the moment they sign in with that exact address, via SSO or a password, no link to copy or hand off. The Owner keeps the full original flow (optional email, plain shareable link, WhatsApp share) unchanged. If the invite email itself fails to send (Resend not configured, or the send errors), the link still surfaces as an explained fallback rather than leaving the invite stuck.
