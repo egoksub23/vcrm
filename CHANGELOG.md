@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.69.0] — 2026-09-27
+
+- **Sembang: quote-and-reply is now structural, not text spliced into the message.** The earlier version prepended an italic "Replying to X: ..." line into the same plain-text body as the reply, so it rendered as one seamless, confusing paragraph with no visual boundary between the quote and the actual reply. Quoting a message now attaches it as real, separate data (`quoted_message_id`, migration 115) — the composer shows a dismissible preview box while typing, and once sent, the quoted excerpt renders as its own italic box (light, translucent background, left accent border) above the reply text, in both the sender's and recipient's view. **Migration required**: `115_sembang_quoted_message.sql`.
+- **Sembang: the thread reply panel is noticeably wider on large screens.** It was hard-capped at 620px regardless of viewport size; the two largest breakpoints now go up to 720px/880px so it claims more of the available space on a wide monitor instead of leaving it empty.
+- **Fix: unreadable amber warning text ("yellow on yellow") in the invite dialog and the public join page.** Both used a dark-mode-only pale amber text color unconditionally, so the "save this link now" / email-mismatch warning boxes were nearly illegible in light mode. Switched to the codebase's established `text-amber-900 dark:text-amber-200` light/dark pairing.
+
 ## [0.68.2] — 2026-09-27
 
 - **Invite dialog: "Send invite" is the default for everyone, including the Owner.** The 0.68.1 change made email the default for Admins but left the Owner's original link-first form untouched, which meant the Owner still saw "Generate link" as the only, default action. The Owner now gets a small "Send invite / Generate link" toggle (defaulting to Send invite, same as everyone else) instead of two different dialogs — link generation is still there for the Owner, it's just a deliberate second choice, not the default. Nobody else sees the toggle at all.

@@ -28,7 +28,12 @@
 //          isn't. Also accepts an optional `alsoInChannel` (migration
 //          101), only meaningful with `parentMessageId` — silently
 //          dropped otherwise rather than letting the DB trigger reject
-//          the whole insert. Inserts any attachment rows against the new
+//          the whole insert. Also accepts an optional `quotedMessageId`
+//          (migration 115) — a structured "quote this earlier message"
+//          reference, validated the same way as `parentMessageId` (must
+//          be a real message in the same channel) but with no top-level
+//          restriction, since quoting a thread reply is normal. Inserts
+//          any attachment rows against the new
 //          message id, then returns it hydrated the same shape as GET.
 //          If the body contains a URL, schedules a best-effort link-
 //          preview fetch via `after()` (migration 107) — runs post-
@@ -133,6 +138,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       attachments?: unknown
       parentMessageId?: unknown
       alsoInChannel?: unknown
+      quotedMessageId?: unknown
     } | null
 
     const messageBody = typeof payload?.body === 'string' ? payload.body.trim() : ''
@@ -169,6 +175,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // mistake to silently correct, not a 400.
     const alsoInChannel = parentMessageId !== null && payload?.alsoInChannel === true
 
+    const quotedMessageId = typeof payload?.quotedMessageId === 'string' ? payload.quotedMessageId : null
+
     const { data: row, error } = await ctx.supabase
       .from('sembang_messages')
       .insert({
@@ -179,6 +187,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         mentions,
         parent_message_id: parentMessageId,
         also_in_channel: alsoInChannel,
+        quoted_message_id: quotedMessageId,
       })
       .select('*')
       .single()
@@ -205,6 +214,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           { error: 'You can only reply to a top-level message' },
           { status: 400 },
         )
+      }
+      if (msg.includes('sembang_quoted_message_missing')) {
+        return NextResponse.json(
+          { error: 'The message you quoted no longer exists' },
+          { status: 400 },
+        )
+      }
+      if (msg.includes('sembang_quoted_message_wrong_channel')) {
+        return NextResponse.json({ error: 'That message is not in this channel' }, { status: 400 })
       }
       console.error('[POST /api/sembang/channels/[id]/messages] insert error:', error)
       return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })

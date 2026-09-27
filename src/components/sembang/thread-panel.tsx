@@ -154,6 +154,7 @@ export function ThreadPanel({
       attachments: PendingSembangAttachment[],
       replyToId?: string,
       alsoInChannel?: boolean,
+      quotedMessageId?: string,
     ): Promise<boolean> => {
       if (!channelId || !replyToId) return false;
       try {
@@ -166,6 +167,7 @@ export function ThreadPanel({
             attachments: attachments.length > 0 ? attachments : undefined,
             parentMessageId: replyToId,
             alsoInChannel,
+            quotedMessageId,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -228,7 +230,11 @@ export function ThreadPanel({
       const body =
         message.body ||
         (first ? (first.mimeType?.startsWith("audio/") ? tThread("voiceMessage") : first.filename) : "");
-      composerRef.current?.insertQuote(message.author?.fullName ?? tThread("unknownAuthor"), body);
+      composerRef.current?.quoteMessage({
+        id: message.id,
+        authorName: message.author?.fullName ?? tThread("unknownAuthor"),
+        body,
+      });
     },
     [tThread],
   );
@@ -249,7 +255,12 @@ export function ThreadPanel({
     <div
       className={cn(
         "flex h-full min-h-0 w-full shrink-0 flex-col border-border bg-background",
-        "border-l sm:w-[460px] lg:w-[540px] xl:w-[620px]",
+        // Wider than before (was capped at 620px regardless of screen
+        // size) — the panel now claims noticeably more of a wide
+        // viewport instead of leaving the extra space unused, while
+        // sm/lg stay modest so the main channel column next to it
+        // doesn't get squeezed on a laptop-sized screen.
+        "border-l sm:w-[460px] lg:w-[560px] xl:w-[720px] 2xl:w-[880px]",
       )}
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">

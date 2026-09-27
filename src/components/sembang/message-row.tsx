@@ -89,10 +89,10 @@ export interface MessageRowProps {
   disableThreadAffordances?: boolean;
   onReplyInThread?: (message: SembangMessage) => void;
   onOpenThread?: (message: SembangMessage) => void;
-  /** Inserts a quoted one-line excerpt of this specific message into the
-   *  composer, so a reply within a (flat) thread can make clear which
-   *  earlier response it's answering — thread-panel.tsx's own affordance,
-   *  wired to `MessageComposerHandle.insertQuote`. Shown on every message
+  /** Attaches this specific message as a quote to the composer, so a
+   *  reply within a (flat) thread can make clear which earlier response
+   *  it's answering — thread-panel.tsx's own affordance, wired to
+   *  `MessageComposerHandle.quoteMessage`. Shown on every message
    *  (unlike `onReplyInThread`, which is top-level-only). */
   onQuoteReply?: (message: SembangMessage) => void;
   /** Migration 101. Set only from the main channel list (never from an
@@ -226,6 +226,14 @@ export function MessageRow({
           </div>
         ) : (
           <>
+            {message.quotedPreview && (
+              <div className="mb-1 rounded-md border-l-2 border-primary/40 bg-foreground/[0.04] py-1 pl-2.5 pr-2 text-xs">
+                <span className="font-medium text-foreground/80">
+                  {message.quotedPreview.authorName || t("unknownAuthor")}
+                </span>
+                <p className="mt-0.5 line-clamp-2 text-muted-foreground italic">{message.quotedPreview.body}</p>
+              </div>
+            )}
             {message.body && <MessageBody body={message.body} peopleNames={peopleNames} />}
             {message.attachments.length > 0 && (
               <div className="mt-1 flex flex-col gap-1">

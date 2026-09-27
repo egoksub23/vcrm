@@ -42,6 +42,10 @@ interface MessageComposerProps {
      *  backward-compatible extension; the main channel composer never
      *  passes a 5th argument. */
     alsoInChannel?: boolean,
+    /** Migration 115. Set when the composer has a quote attached (via
+     *  `MessageComposerHandle.quoteMessage`) — the id of the earlier
+     *  message being quoted, structurally, not spliced into `body`. */
+    quotedMessageId?: string,
   ) => Promise<boolean> | boolean;
   disabled?: boolean;
   /** Migration 099. Set when this composer posts thread replies instead of
@@ -57,14 +61,16 @@ interface MessageComposerProps {
 }
 
 /** Imperative handle so a caller (thread-panel.tsx's "quote reply" icon on
- *  a specific reply) can push text into the composer without lifting its
- *  internal draft state — same reasoning as `MentionTextareaHandle`. */
+ *  a specific reply) can attach a quote to the composer without lifting
+ *  its internal draft state — same reasoning as `MentionTextareaHandle`. */
 export interface MessageComposerHandle {
-  /** Prepends a quoted excerpt of `body` (italic, one line, truncated) as
-   *  its own line above whatever the visitor has already typed, and
-   *  focuses the textarea at the end. Repeated clicks on different
-   *  messages stack — each is its own quote line, most recent last. */
-  insertQuote: (authorName: string, body: string) => void;
+  /** Attaches `message` as a dismissible quote shown in its own box above
+   *  the textarea (replacing any previously attached quote) and focuses
+   *  the textarea. Sent as a structured `quotedMessageId` alongside the
+   *  reply's own typed body — not spliced into the message text (the
+   *  previous approach: it rendered as one seamless, confusing paragraph
+   *  with no visual boundary between the quote and the reply). */
+  quoteMessage: (message: { id: string; authorName: string; body: string }) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -93,6 +99,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [mentionedIds, setMentionedIds] = useState<Set<string>>(new Set());
   const [attachments, setAttachments] = useState<PendingSembangAttachment[]>([]);
   const [alsoInChannel, setAlsoInChannel] = useState(false);
+  const [quotedMessage, setQuotedMessage] = useState<{ id: string; authorName: string; snippet: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const textareaRef = useRef<MentionTextareaHandle>(null);
@@ -107,6 +114,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     setMentionedIds(new Set());
     setAttachments([]);
     setAlsoInChannel(false);
+    setQuotedMessage(null);
   }, [channelId]);
 
   // Restore a saved draft for this channel (or this thread, if
@@ -226,12 +234,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         attachments,
         parentMessageId,
         showAlsoInChannelOption ? alsoInChannel : undefined,
+        quotedMessage?.id,
       );
       if (ok !== false) {
         setText("");
         setMentionedIds(new Set());
         setAttachments([]);
         setAlsoInChannel(false);
+        setQuotedMessage(null);
         // Clear the saved draft immediately rather than waiting on the
         // debounced save effect above — a fast send-then-navigate could
         // otherwise leave a stale "already sent" draft behind (the
@@ -254,6 +264,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     parentMessageId,
     showAlsoInChannelOption,
     alsoInChannel,
+    quotedMessage,
   ]);
 
   // Code-block button: kept as a whole-draft wrap (not a cursor insertion)
@@ -282,14 +293,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     textareaRef.current?.insertLinePrefix("- ");
   }, []);
 
-  const insertQuote = useCallback((authorName: string, body: string) => {
-    const snippet = body.length > QUOTE_SNIPPET_MAX ? `${body.slice(0, QUOTE_SNIPPET_MAX)}…` : body;
-    const quoteLine = `_${t("quoteReplyLine", { author: authorName, snippet })}_`;
-    setText((prev) => (prev ? `${quoteLine}\n${prev}` : `${quoteLine}\n`));
+  const quoteMessage = useCallback((message: { id: string; authorName: string; body: string }) => {
+    const snippet =
+      message.body.length > QUOTE_SNIPPET_MAX ? `${message.body.slice(0, QUOTE_SNIPPET_MAX)}…` : message.body;
+    setQuotedMessage({ id: message.id, authorName: message.authorName, snippet });
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [t]);
+  }, []);
 
-  useImperativeHandle(ref, () => ({ insertQuote }), [insertQuote]);
+  useImperativeHandle(ref, () => ({ quoteMessage }), [quoteMessage]);
 
   return (
     <div className="border-t border-border bg-card p-3.5">
@@ -352,6 +363,22 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         // stacked layout; the main composer's own single-row variant was
         // retired in favor of this one).
         <div className="flex flex-col gap-2">
+          {quotedMessage && (
+            <div className="flex items-start gap-2 rounded-md border-l-2 border-primary/40 bg-foreground/[0.04] py-1.5 pr-2 pl-2.5">
+              <div className="min-w-0 flex-1 text-xs">
+                <p className="font-medium text-foreground/80">{t("quotingLabel", { author: quotedMessage.authorName })}</p>
+                <p className="mt-0.5 line-clamp-2 text-muted-foreground italic">{quotedMessage.snippet}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuotedMessage(null)}
+                aria-label={t("removeQuoteAriaLabel")}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <Button
               type="button"

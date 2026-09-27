@@ -32,6 +32,8 @@ export interface SembangMessageRow {
   // 101 is applied; typed as possibly-absent for the same pre-migration
   // compile reason as the 099 columns above.
   also_in_channel?: boolean
+  // Migration 115. Same possibly-absent typing reasoning.
+  quoted_message_id?: string | null
 }
 
 interface AttachmentRow {
@@ -60,8 +62,10 @@ interface LinkPreviewRow {
   domain: string | null
 }
 
-/** Migration 101. The `{id, body, author_id}` of a reply's parent, for
- *  building `SembangMessage.parentPreview`. */
+/** Migration 101 (parentPreview) / 115 (quotedPreview). The
+ *  `{id, body, author_id}` of a message referenced by another message —
+ *  a reply's parent, or a message it quotes. Both previews are built
+ *  from the same batched lookup below (one query covers both id sets). */
 interface ParentRow {
   id: string
   body: string
@@ -101,11 +105,17 @@ export async function hydrateMessages(
   const messageIds = rows.map((r) => r.id)
   const topLevelIds = rows.filter((r) => !r.parent_message_id).map((r) => r.id)
   // Migration 101. Every DISTINCT parent a row in this batch replies to
-  // (regardless of whether that parent is itself in `rows`) — fetched in
-  // one query below to build `parentPreview`.
+  // (regardless of whether that parent is itself in `rows`).
   const parentIds = Array.from(
     new Set(rows.filter((r) => r.parent_message_id).map((r) => r.parent_message_id as string)),
   )
+  // Migration 115. Same idea for a quoted message. Fetched together with
+  // parentIds below (one combined query, one Map) since both just need
+  // {id, body, author_id} of some other message in this batch's channel.
+  const quotedIds = Array.from(
+    new Set(rows.filter((r) => r.quoted_message_id).map((r) => r.quoted_message_id as string)),
+  )
+  const refIds = Array.from(new Set([...parentIds, ...quotedIds]))
 
   const [
     { data: profileRows },
@@ -114,7 +124,7 @@ export async function hydrateMessages(
     { data: linkPreviewRows },
     { data: replyRows },
     { data: starRows },
-    { data: parentRows },
+    { data: refRows },
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, full_name, avatar_url').in('user_id', authorIds),
     supabase.from('sembang_attachments').select('*').in('message_id', messageIds),
@@ -134,38 +144,40 @@ export async function hydrateMessages(
     // Set below (same pattern as `reactedByMe`, just pre-filtered to one
     // user rather than grouped across all of them).
     supabase.from('sembang_stars').select('message_id').eq('user_id', callerUserId).in('message_id', messageIds),
-    // Migration 101. Defensive: a parent id can come back empty if the
-    // row was somehow removed outright (normally `ON DELETE SET NULL`
-    // means this never happens, see the caller-facing comment on
-    // `SembangMessage.parentPreview`) — handled below by just leaving
-    // `parentPreview` null for that row rather than throwing.
-    parentIds.length > 0
-      ? supabase.from('sembang_messages').select('id, body, author_id').in('id', parentIds)
+    // Migrations 101 + 115. Defensive: a referenced id can come back
+    // empty if the row was somehow removed outright (normally
+    // `ON DELETE SET NULL` means this never happens, see the
+    // caller-facing comments on `SembangMessage.parentPreview`/
+    // `quotedPreview`) — handled below by just leaving that preview
+    // null for the row rather than throwing.
+    refIds.length > 0
+      ? supabase.from('sembang_messages').select('id, body, author_id').in('id', refIds)
       : Promise.resolve({ data: [] as ParentRow[] }),
   ])
 
   const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
   for (const p of profileRows ?? []) profileByUser.set(p.user_id, p)
 
-  // Migration 101. Parents by id, for `parentPreview` below. A parent
-  // whose id isn't in this map (row not found — deleted, or the FK went
-  // `SET NULL` already) just leaves `parentPreview` null for its children
-  // rather than throwing (see the ParentRow query's comment above).
-  const parentById = new Map<string, ParentRow>()
-  for (const p of (parentRows ?? []) as ParentRow[]) parentById.set(p.id, p)
+  // Migrations 101 + 115. Referenced messages (parents AND quoted
+  // messages) by id, for `parentPreview`/`quotedPreview` below. An id
+  // not in this map (row not found — deleted, or the FK went
+  // `SET NULL` already) just leaves that preview null for its
+  // referencing row rather than throwing (see the query's comment above).
+  const refById = new Map<string, ParentRow>()
+  for (const p of (refRows ?? []) as ParentRow[]) refById.set(p.id, p)
 
-  // Batch the parents' authors' names too, one query — reusing
-  // `profileByUser` where a parent's author already appears in `rows`
-  // (the common case: replying inside the same page of messages), and
-  // only querying for the rest.
-  const parentAuthorIds = Array.from(
-    new Set(Array.from(parentById.values()).map((p) => p.author_id).filter((id) => !profileByUser.has(id))),
+  // Batch those authors' names too, one query — reusing `profileByUser`
+  // where an author already appears in `rows` (the common case: quoting
+  // or replying inside the same page of messages), and only querying
+  // for the rest.
+  const refAuthorIds = Array.from(
+    new Set(Array.from(refById.values()).map((p) => p.author_id).filter((id) => !profileByUser.has(id))),
   )
-  if (parentAuthorIds.length > 0) {
+  if (refAuthorIds.length > 0) {
     const { data: parentProfileRows } = await supabase
       .from('profiles')
       .select('user_id, full_name, avatar_url')
-      .in('user_id', parentAuthorIds)
+      .in('user_id', refAuthorIds)
     for (const p of parentProfileRows ?? []) profileByUser.set(p.user_id, p)
   }
 
@@ -231,8 +243,10 @@ export async function hydrateMessages(
     const profile = profileByUser.get(row.author_id)
     const isTopLevel = !row.parent_message_id
     const summary = isTopLevel ? threadSummaryByParent.get(row.id) : undefined
-    const parent = row.parent_message_id ? parentById.get(row.parent_message_id) : undefined
+    const parent = row.parent_message_id ? refById.get(row.parent_message_id) : undefined
     const parentAuthorProfile = parent ? profileByUser.get(parent.author_id) : undefined
+    const quoted = row.quoted_message_id ? refById.get(row.quoted_message_id) : undefined
+    const quotedAuthorProfile = quoted ? profileByUser.get(quoted.author_id) : undefined
     return {
       id: row.id,
       channelId: row.channel_id,
@@ -260,6 +274,12 @@ export async function hydrateMessages(
       // couldn't be resolved (defensive — see the ParentRow query above).
       parentPreview: parent
         ? { id: parent.id, body: parent.body, authorName: parentAuthorProfile?.full_name ?? '' }
+        : null,
+      // Migration 115. Plain passthrough for the FK; null if never
+      // quoted, or if the quoted row couldn't be resolved (defensive).
+      quotedMessageId: row.quoted_message_id ?? null,
+      quotedPreview: quoted
+        ? { id: quoted.id, body: quoted.body, authorName: quotedAuthorProfile?.full_name ?? '' }
         : null,
     }
   })

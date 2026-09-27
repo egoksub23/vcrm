@@ -322,10 +322,8 @@ export function InviteDialog({
                     </Button>
                   </div>
 
-                  <div className="rounded-md border border-amber-500/50 bg-amber-500/15 px-3 py-2 text-xs text-amber-200">
-                    <strong className="font-semibold text-amber-100">
-                      {t('saveLinkNow')}
-                    </strong>{' '}
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                    <strong className="font-semibold">{t('saveLinkNow')}</strong>{' '}
                     {t('saveLinkHint')}
                   </div>
 

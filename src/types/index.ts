@@ -1649,6 +1649,14 @@ export interface SembangMessage {
    *  Null for a top-level message; also null if the parent itself was
    *  deleted/not found. */
   parentPreview?: { id: string; body: string; authorName: string } | null;
+  /** Migration 115. A structured "quote and reply": this message quotes
+   *  an earlier message in the same channel (any message, not just a
+   *  top-level one), rendered as its own box above this message's body.
+   *  `quotedMessageId` is the raw FK; `quotedPreview` is the hydrated
+   *  {id, body, authorName} snapshot, null if never quoted or if the
+   *  quoted message was deleted/not found. */
+  quotedMessageId?: string | null;
+  quotedPreview?: { id: string; body: string; authorName: string } | null;
   /** Migration 107. Null until the async unfurl lands (or never, if the
    *  message has no URL or nothing worth previewing was found). */
   linkPreview: SembangLinkPreview | null;
