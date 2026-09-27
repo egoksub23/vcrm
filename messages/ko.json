@@ -6332,6 +6332,10 @@
         "label": "지식 베이스 관리",
         "description": "컬렉션을 관리하고, 라이브러리를 다시 색인하고, 팀을 대신해 가져오기를 실행합니다."
       },
+      "sembang_manage": {
+        "label": "Sembang 관리",
+        "description": "비공개 채널을 포함해 모든 채널을 계정 전체에서 열람하고 관리합니다 — 채널 이름 변경·보관, 멤버 관리, 메시지 삭제까지. Sembang 접근 권한이 없으면 의미가 없습니다."
+      },
       "ai_use": {
         "label": "AI 사용",
         "description": "AI 초안, 대화 요약, 종료 메모, 자동 답변, 번역, 플레이그라운드."
@@ -6417,6 +6421,7 @@
       "tickets": "티켓",
       "tags": "태그, 라벨, 빠른 답장",
       "knowledge": "지식",
+      "sembang": "Sembang",
       "ai": "AI",
       "channels": "채널 및 연동",
       "workspace": "워크스페이스",

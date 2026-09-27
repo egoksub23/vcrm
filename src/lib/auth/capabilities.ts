@@ -54,6 +54,7 @@ export type CapabilityGroup =
   | "tickets"
   | "tags"
   | "knowledge"
+  | "sembang"
   | "ai"
   | "channels"
   | "workspace"
@@ -68,6 +69,7 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
   "tickets",
   "tags",
   "knowledge",
+  "sembang",
   "ai",
   "channels",
   "workspace",
@@ -214,6 +216,13 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("knowledge.publish", "knowledge", ADMIN_UP, "agent", "database"),
   def("knowledge.manage", "knowledge", ADMIN_UP, "agent", "database"),
 
+  // ---- Sembang ----
+  // menu.sembang (above, in Menus) is plain access. This is the
+  // separate "acts like an admin inside Sembang" capability: see into
+  // and moderate every channel account-wide, including private ones,
+  // without being a full CRM Admin. Migration 111.
+  def("sembang.manage", "sembang", ADMIN_UP, "agent", "database"),
+
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
   def("ai.configure", "ai", ADMIN_UP, "agent", "database"),
@@ -271,6 +280,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "knowledge.draft"
   | "knowledge.publish"
   | "knowledge.manage"
+  | "sembang.manage"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

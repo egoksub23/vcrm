@@ -6332,6 +6332,10 @@
         "label": "Manage the knowledge base",
         "description": "Manage collections, reindex the library and run imports on behalf of the team."
       },
+      "sembang_manage": {
+        "label": "Manage Sembang",
+        "description": "See into and moderate every channel account-wide, including private ones — rename or archive any channel, manage any channel's members, and remove any message. Needs Sembang access to mean anything on its own."
+      },
       "ai_use": {
         "label": "Use AI",
         "description": "AI drafts, conversation summaries, closing notes, auto-reply, translations and the playground."
@@ -6417,6 +6421,7 @@
       "tickets": "Tickets",
       "tags": "Tags, labels and quick replies",
       "knowledge": "Knowledge",
+      "sembang": "Sembang",
       "ai": "AI",
       "channels": "Channels and integrations",
       "workspace": "Workspace",

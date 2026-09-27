@@ -422,6 +422,11 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   // sembang_* table's RLS, see capabilities.ts's comment on its def()) —
   // just with no "before" state for this fixture to compare against.
   "menu.sembang",
+  // Migration 111: same story — a brand new capability with no earlier
+  // floor, database-enforced via has_capability() inside the sembang_*
+  // policies it widens (is_sembang_manager()), not a route/table fixture
+  // this test's tables model.
+  "sembang.manage",
 ]);
 
 // ============================================================

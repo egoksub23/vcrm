@@ -101,6 +101,7 @@ describe("catalogue", () => {
         "messages.send",
         "pipelines.configure",
         "roles.manage",
+        "sembang.manage",
         "settings.workspace",
         "sla.configure",
         "snippets.manage",

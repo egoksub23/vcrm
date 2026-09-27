@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.67.3] — 2026-09-27
+
+- **New grantable capability: `sembang.manage`.** Until now the only account-wide "see and moderate every Sembang channel, including private ones" path was being a full CRM Admin — no way to hand that to a trusted agent without also giving them contacts, pipelines, billing and every other admin surface. Owner/Admin get it by default; it's grantable down to Agent from Roles & permissions, same floor as Sembang access itself. **Migration required**: `111_sembang_manage_capability.sql`.
+
 ## [0.67.2] — 2026-09-27
 
 - **Knowledge base articles now show who last published them, and when — automatically.** The `published_at`/`published_by` columns have quietly existed since migration 082 (server-stamped on every draft→published transition, a client can never set them) but nothing read them. The editor's sidebar now has a read-only "Last reviewed" line (date + the publisher's name) above the existing due-date field, which is relabelled "Next review due" to stop the two from being confused with each other. No migration needed — the data was already being captured. (Change history and a per-article audit trail — who added/changed/published/deleted it — already exist via the "Edit history" and "Activity" buttons next to it.)
