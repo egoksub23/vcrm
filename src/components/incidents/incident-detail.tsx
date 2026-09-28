@@ -49,7 +49,33 @@ import type {
   IncidentNotificationSent,
 } from "@/lib/incidents/types";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
+import { linkifySegments } from "@/lib/sembang/linkify";
 import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals";
+
+/** Plain text with any URL turned into a clickable link — same link
+ *  definition Sembang uses (findLinkTokens), so a link pasted into an
+ *  incident description or note behaves the same way everywhere. */
+function LinkifiedText({ text, className }: { text: string; className?: string }) {
+  return (
+    <p className={className}>
+      {linkifySegments(text).map((seg, i) =>
+        seg.type === "link" ? (
+          <a
+            key={i}
+            href={seg.href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+          >
+            {seg.text}
+          </a>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </p>
+  );
+}
 
 type TimelineItem =
   | { kind: "comment"; id: string; at: string; comment: IncidentComment }
@@ -291,7 +317,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         </div>
 
         {incident.description ? (
-          <p className="mt-3 text-sm whitespace-pre-wrap text-foreground">{incident.description}</p>
+          <LinkifiedText text={incident.description} className="mt-3 text-sm whitespace-pre-wrap text-foreground" />
         ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
@@ -392,7 +418,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                         <span className="font-medium text-foreground">{item.comment.author_id ? nameOf(item.comment.author_id) : t("unknown")}</span>
                         <span title={format(new Date(item.at), "PPpp")}>{formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
                       </div>
-                      <p className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground">{item.comment.body}</p>
+                      <LinkifiedText text={item.comment.body} className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground" />
                     </div>
                   </div>
                 ) : (
