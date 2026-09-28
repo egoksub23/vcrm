@@ -1,27 +1,29 @@
 "use client";
 
-// Files, Links & Bookmarks — the channel's "Files & links" tab
-// (Slack-style persistent tab, not a sliding Sheet), with its own
-// files/links/bookmarks sub-tabs. Self-fetches on mount (i.e. whenever
-// this tab becomes active — channel-thread.tsx only mounts it while the
-// "files" tab is selected) rather than being piped through
+// Files, Links & Bookmarks — now three separate top-level channel tabs
+// (channel-thread.tsx's tab bar), not a single "Files & links" tab with
+// its own nested sub-tab row. One component still backs all three
+// (`section` picks which list renders) so switching between them doesn't
+// re-fetch — channel-thread.tsx keeps this component mounted across all
+// three tab keys, only the `section` prop changes.
+//
+// Self-fetches all three lists together on mount (i.e. whenever any of
+// the three tabs is first activated) rather than being piped through
 // channel-thread.tsx's already-large state — Files/Links/Bookmarks are
-// read-mostly, so they own their own fetch here, the same
-// self-contained shape thread-panel.tsx/member-directory-dialog.tsx
-// already use for global panels, rather than growing channel-thread.tsx's
-// state further for a feature that existed before none of it.
+// read-mostly, so they own their own fetch here, the same self-contained
+// shape thread-panel.tsx/member-directory-dialog.tsx already use for
+// global panels, rather than growing channel-thread.tsx's state further
+// for a feature that existed before none of it.
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Bookmark, FileText, Link2, Loader2, Paperclip, Plus, Trash2 } from "lucide-react";
+import { Bookmark, Download, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { LinkPreviewCard } from "./link-preview-card";
 import type { SembangBookmark, SembangFileItem, SembangLinkItem } from "@/types";
-
-type ResourceTab = "files" | "links" | "bookmarks";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -31,11 +33,11 @@ function formatBytes(bytes: number): string {
 
 interface ChannelResourcesTabBodyProps {
   channelId: string;
+  section: "files" | "links" | "bookmarks";
 }
 
-export function ChannelResourcesTabBody({ channelId }: ChannelResourcesTabBodyProps) {
+export function ChannelResourcesTabBody({ channelId, section }: ChannelResourcesTabBodyProps) {
   const t = useTranslations("Sembang.resourcesPanel");
-  const [tab, setTab] = useState<ResourceTab>("files");
   const [files, setFiles] = useState<SembangFileItem[] | null>(null);
   const [links, setLinks] = useState<SembangLinkItem[] | null>(null);
   const [bookmarks, setBookmarks] = useState<SembangBookmark[] | null>(null);
@@ -81,7 +83,6 @@ export function ChannelResourcesTabBody({ channelId }: ChannelResourcesTabBodyPr
     setFiles(null);
     setLinks(null);
     setBookmarks(null);
-    setTab("files");
     void fetchFiles();
     void fetchLinks();
     void fetchBookmarks();
@@ -127,50 +128,47 @@ export function ChannelResourcesTabBody({ channelId }: ChannelResourcesTabBodyPr
     }
   };
 
-  const tabs: { key: ResourceTab; label: string; icon: typeof FileText; count: number | null }[] = [
-    { key: "files", label: t("filesTab"), icon: Paperclip, count: files?.length ?? null },
-    { key: "links", label: t("linksTab"), icon: Link2, count: links?.length ?? null },
-    { key: "bookmarks", label: t("bookmarksTab"), icon: Bookmark, count: bookmarks?.length ?? null },
-  ];
-
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex shrink-0 gap-1 border-b border-border px-3 py-2 sm:px-4">
-        {tabs.map((tb) => (
-          <button
-            key={tb.key}
-            type="button"
-            onClick={() => setTab(tb.key)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium",
-              tab === tb.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <tb.icon className="h-3.5 w-3.5" />
-            {tb.label}
-            {tb.count !== null && tb.count > 0 && (
-              <span className="text-[10px] text-muted-foreground">{tb.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-        <div className="flex-1 space-y-2 overflow-y-auto px-3 pt-2 pb-4 sm:px-4">
-          {tab === "files" &&
-            (files === null ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            ) : files.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{t("noFiles")}</p>
-            ) : (
-              files.map((f) => (
+  if (section === "files") {
+    return (
+      <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3 sm:px-4">
+        {files === null ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : files.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("noFiles")}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {files.map((f) =>
+              f.mimeType?.startsWith("image/") ? (
+                <div key={f.id} className="group relative overflow-hidden rounded-lg border border-border">
+                  <a href={f.url || undefined} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a signed Storage URL, not an optimizable static asset */}
+                    <img src={f.url} alt={f.filename} className="h-32 w-full object-cover" />
+                  </a>
+                  <a
+                    href={f.url || undefined}
+                    download={f.filename}
+                    aria-label={t("download")}
+                    title={t("download")}
+                    className="absolute top-1.5 right-1.5 rounded-md bg-background/80 p-1 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-background"
+                  >
+                    <Download className="h-3.5 w-3.5 text-foreground" />
+                  </a>
+                  <div className="bg-background/80 px-2 py-1 backdrop-blur-sm">
+                    <p className="truncate text-[11px] text-foreground">{f.filename}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {f.authorName} · {formatBytes(f.sizeBytes)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
                 <a
                   key={f.id}
                   href={f.url || undefined}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 rounded-lg border border-border p-2.5 hover:bg-muted/40"
+                  className="col-span-2 flex items-center gap-2 rounded-lg border border-border p-2.5 hover:bg-muted/40 sm:col-span-3"
                 >
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -180,97 +178,128 @@ export function ChannelResourcesTabBody({ channelId }: ChannelResourcesTabBodyPr
                     </p>
                   </div>
                 </a>
-              ))
-            ))}
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
-          {tab === "links" &&
-            (links === null ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            ) : links.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{t("noLinks")}</p>
-            ) : (
-              links.map((l, i) => (
-                <a
-                  key={`${l.messageId}-${i}`}
-                  href={l.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-lg border border-border p-2.5 hover:bg-muted/40"
-                >
-                  <p className="truncate text-sm text-primary">{l.url}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {l.authorName} · {format(new Date(l.createdAt), "MMM d, HH:mm")}
-                  </p>
-                </a>
-              ))
-            ))}
-
-          {tab === "bookmarks" && (
-            <>
-              <div className="space-y-1.5 rounded-lg border border-border p-2.5">
-                <Input
-                  value={bookmarkUrl}
-                  onChange={(e) => setBookmarkUrl(e.target.value)}
-                  placeholder={t("bookmarkUrlPlaceholder")}
-                  disabled={addingBookmark}
+  if (section === "links") {
+    return (
+      <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3 sm:px-4">
+        {links === null ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : links.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("noLinks")}</p>
+        ) : (
+          links.map((l, i) =>
+            l.preview ? (
+              <div key={`${l.messageId}-${i}`} className="rounded-lg border border-border p-2.5">
+                <LinkPreviewCard
+                  url={l.url}
+                  title={l.preview.title}
+                  description={l.preview.description}
+                  imageUrl={l.preview.imageUrl}
+                  domain={l.preview.domain}
+                  className="max-w-none border-none bg-transparent p-0 hover:bg-transparent"
                 />
-                <div className="flex gap-1.5">
-                  <Input
-                    value={bookmarkTitle}
-                    onChange={(e) => setBookmarkTitle(e.target.value)}
-                    placeholder={t("bookmarkTitlePlaceholder")}
-                    disabled={addingBookmark}
-                    className="flex-1"
-                  />
-                  <Button
-                    size="icon"
-                    onClick={handleAddBookmark}
-                    disabled={!bookmarkUrl.trim() || addingBookmark}
-                    aria-label={t("addBookmark")}
-                  >
-                    {addingBookmark ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  {l.authorName} · {format(new Date(l.createdAt), "MMM d, HH:mm")}
+                </p>
               </div>
-              {bookmarks === null ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                </div>
-              ) : bookmarks.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">{t("noBookmarks")}</p>
-              ) : (
-                bookmarks.map((b) => (
-                  <div key={b.id} className="group flex items-center gap-2 rounded-lg border border-border p-2.5">
-                    <Bookmark className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <a
-                        href={b.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-sm text-primary hover:underline"
-                      >
-                        {b.title || b.url}
-                      </a>
-                      <p className="truncate text-[11px] text-muted-foreground">{t("addedBy", { name: b.addedByName })}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t("removeBookmark")}
-                      onClick={() => handleRemoveBookmark(b.id)}
-                      disabled={removingId === b.id}
-                      className="opacity-0 group-hover:opacity-100"
-                    >
-                      {removingId === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    </Button>
-                  </div>
-                ))
-              )}
-            </>
-          )}
+            ) : (
+              <a
+                key={`${l.messageId}-${i}`}
+                href={l.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-lg border border-border p-2.5 hover:bg-muted/40"
+              >
+                <p className="truncate text-sm text-primary">{l.url}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {l.authorName} · {format(new Date(l.createdAt), "MMM d, HH:mm")}
+                </p>
+              </a>
+            ),
+          )
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3 sm:px-4">
+      <div className="space-y-1.5 rounded-lg border border-border p-2.5">
+        <Input
+          value={bookmarkUrl}
+          onChange={(e) => setBookmarkUrl(e.target.value)}
+          placeholder={t("bookmarkUrlPlaceholder")}
+          disabled={addingBookmark}
+        />
+        <div className="flex gap-1.5">
+          <Input
+            value={bookmarkTitle}
+            onChange={(e) => setBookmarkTitle(e.target.value)}
+            placeholder={t("bookmarkTitlePlaceholder")}
+            disabled={addingBookmark}
+            className="flex-1"
+          />
+          <Button
+            size="icon"
+            onClick={handleAddBookmark}
+            disabled={!bookmarkUrl.trim() || addingBookmark}
+            aria-label={t("addBookmark")}
+          >
+            {addingBookmark ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          </Button>
         </div>
+      </div>
+      {bookmarks === null ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : bookmarks.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">{t("noBookmarks")}</p>
+      ) : (
+        bookmarks.map((b) => (
+          <div key={b.id} className="group rounded-lg border border-border p-2.5">
+            <div className="flex items-start gap-2">
+              {b.title || b.description || b.imageUrl ? (
+                <LinkPreviewCard
+                  url={b.url}
+                  title={b.title}
+                  description={b.description}
+                  imageUrl={b.imageUrl}
+                  domain={b.domain}
+                  className="max-w-none flex-1 border-none bg-transparent p-0 hover:bg-transparent"
+                />
+              ) : (
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <Bookmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <a href={b.url} target="_blank" rel="noreferrer" className="min-w-0 truncate text-sm text-primary hover:underline">
+                    {b.url}
+                  </a>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("removeBookmark")}
+                onClick={() => handleRemoveBookmark(b.id)}
+                disabled={removingId === b.id}
+                className="shrink-0 opacity-0 group-hover:opacity-100"
+              >
+                {removingId === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+            <p className="mt-1 truncate text-[11px] text-muted-foreground">{t("addedBy", { name: b.addedByName })}</p>
+          </div>
+        ))
+      )}
     </div>
   );
 }

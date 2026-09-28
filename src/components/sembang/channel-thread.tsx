@@ -9,9 +9,11 @@ import {
   ArrowLeft,
   Bell,
   BellOff,
+  Bookmark,
   Check,
   CheckSquare,
   Hash,
+  Link2,
   Loader2,
   Lock,
   MessageSquareText,
@@ -90,7 +92,7 @@ function boldMatch(text: string, query: string): ReactNode {
  *  deliberately not one of these — it stays a header button + Sheet,
  *  matching Slack's own header (member count sits apart from the
  *  content tabs there too). */
-type ChannelTab = "messages" | "pins" | "tasks" | "files";
+type ChannelTab = "messages" | "pins" | "tasks" | "files" | "links" | "bookmarks";
 
 interface ChannelThreadProps {
   channelId: string | null;
@@ -1121,6 +1123,8 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                 { key: "pins" as const, label: t("tabPins", { count: pins?.length ?? 0 }), icon: Pin },
                 { key: "tasks" as const, label: t("tabTasks", { count: openTaskCount }), icon: CheckSquare },
                 { key: "files" as const, label: t("tabFiles"), icon: Paperclip },
+                { key: "links" as const, label: t("tabLinks"), icon: Link2 },
+                { key: "bookmarks" as const, label: t("tabBookmarks"), icon: Bookmark },
               ]
             ).map((tb) => (
               <button
@@ -1165,8 +1169,8 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             creating={creatingTask}
             deletingId={deletingTaskId}
           />
-        ) : activeTab === "files" ? (
-          <ChannelResourcesTabBody channelId={channel.id} />
+        ) : activeTab === "files" || activeTab === "links" || activeTab === "bookmarks" ? (
+          <ChannelResourcesTabBody channelId={channel.id} section={activeTab} />
         ) : (
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
             {hasMoreEarlier && (

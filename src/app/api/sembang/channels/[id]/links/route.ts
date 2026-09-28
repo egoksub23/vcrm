@@ -2,11 +2,13 @@
 // /api/sembang/channels/[id]/links
 //
 //   GET — `{ links: SembangLinkItem[] }`. Every http(s) URL found in the
-//         channel's message bodies, most recent message first. No
-//         unfurl/preview generation — just the raw URL plus who posted
-//         it and when (see extract-links.ts). A message with several
-//         links in its body produces several rows sharing one
-//         `messageId`.
+//         channel's message bodies, most recent message first (see
+//         extract-links.ts). `preview` is joined from the message's own
+//         `sembang_link_previews` row (migration 107) when its unfurled
+//         URL matches this link exactly — a message only ever unfurls
+//         its first URL, so a second/third link in the same message has
+//         no preview of its own. A message with several links in its
+//         body produces several rows sharing one `messageId`.
 // ============================================================
 import { NextResponse } from 'next/server'
 
@@ -58,10 +60,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const nameByUser = new Map<string, string>()
     for (const p of profileRows ?? []) nameByUser.set(p.user_id, p.full_name ?? '')
 
-    const links: SembangLinkItem[] = withLinks.map((l) => ({
-      ...l,
-      authorName: nameByUser.get(l.authorId) ?? '',
-    }))
+    const messageIds = Array.from(new Set(withLinks.map((l) => l.messageId)))
+    const { data: previewRows } = await ctx.supabase
+      .from('sembang_link_previews')
+      .select('message_id, url, title, description, image_url, domain')
+      .in('message_id', messageIds)
+    const previewByMessage = new Map((previewRows ?? []).map((p) => [p.message_id as string, p]))
+
+    const links: SembangLinkItem[] = withLinks.map((l) => {
+      const p = previewByMessage.get(l.messageId)
+      const preview = p && p.url === l.url
+        ? { title: p.title, description: p.description, imageUrl: p.image_url, domain: p.domain }
+        : null
+      return { ...l, authorName: nameByUser.get(l.authorId) ?? '', preview }
+    })
 
     return NextResponse.json({ links })
   } catch (err) {

@@ -1754,26 +1754,40 @@ export interface SembangFileItem {
 }
 
 /** One URL found in a channel's messages, from GET .../channels/[id]/links.
- *  No unfurl/preview — just the raw URL plus where it came from. A
- *  message with three links in its body produces three `SembangLinkItem`
- *  rows (one per URL), all sharing the same `messageId`. */
+ *  `preview` is joined from `sembang_link_previews` when that message's
+ *  own unfurled URL matches this one exactly (a message can have several
+ *  links but only ever unfurls its first) — null otherwise. A message
+ *  with three links in its body produces three `SembangLinkItem` rows
+ *  (one per URL), all sharing the same `messageId`. */
 export interface SembangLinkItem {
   url: string;
   messageId: string;
   authorId: string;
   authorName: string;
   createdAt: string;
+  preview: {
+    title: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    domain: string | null;
+  } | null;
 }
 
-/** Migration 104. A channel-level curated bookmark — distinct from a
- *  personal Star (private, migration 100) and from a Pin (pins a
- *  specific MESSAGE, migration 099). Any member adds one; the adder, a
- *  moderator, or an admin can remove it. */
+/** Migration 104 (columns added migration 120). A channel-level curated
+ *  bookmark — distinct from a personal Star (private, migration 100) and
+ *  from a Pin (pins a specific MESSAGE, migration 099). Any member adds
+ *  one; the adder, a moderator, or an admin can remove it. `description`/
+ *  `imageUrl`/`domain` are best-effort, fetched server-side when the
+ *  bookmark is added (reuses the same `fetchLinkPreview()` the message
+ *  unfurl pipeline uses) — null when the fetch failed or hasn't run. */
 export interface SembangBookmark {
   id: string;
   channelId: string;
   url: string;
   title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  domain: string | null;
   addedBy: string;
   addedByName: string;
   addedAt: string;

@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { fetchLinkPreview } from '@/lib/sembang/link-preview'
 import type { SembangBookmark } from '@/types'
 
 interface BookmarkRow {
@@ -20,6 +21,9 @@ interface BookmarkRow {
   channel_id: string
   url: string
   title: string | null
+  description: string | null
+  image_url: string | null
+  domain: string | null
   added_by: string
   added_at: string
 }
@@ -38,6 +42,9 @@ async function hydrateBookmarks(
     channelId: r.channel_id,
     url: r.url,
     title: r.title,
+    description: r.description,
+    imageUrl: r.image_url,
+    domain: r.domain,
     addedBy: r.added_by,
     addedByName: nameByUser.get(r.added_by) ?? '',
     addedAt: r.added_at,
@@ -80,13 +87,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const title = typeof body?.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 200) : null
 
+    // Best-effort — never fails the bookmark add if the target is slow,
+    // unreachable, or has nothing worth unfurling (see fetchLinkPreview()).
+    const preview = await fetchLinkPreview(url).catch(() => null)
+
     const { data, error } = await ctx.supabase
       .from('sembang_bookmarks')
       .insert({
         channel_id: channelId,
         account_id: ctx.accountId,
         url,
-        title,
+        title: title ?? preview?.title ?? null,
+        description: preview?.description ?? null,
+        image_url: preview?.imageUrl ?? null,
+        domain: preview?.domain ?? null,
         added_by: ctx.userId,
       })
       .select('*')
