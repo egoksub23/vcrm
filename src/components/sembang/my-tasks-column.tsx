@@ -31,11 +31,13 @@
 //   caveats documented in mentions-column.tsx.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import {
   CheckSquare,
+  Info,
   Loader2,
   Ticket as TicketIcon,
   Trash2,
@@ -44,6 +46,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CreateTicketDialog } from '@/components/tickets/create-ticket-dialog';
 import { ThreadPanel } from './thread-panel';
+import { TaskDetailDialog } from './task-detail-dialog';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useAccountMembers } from '@/hooks/use-account-members';
@@ -76,6 +79,7 @@ interface MyTasksColumnProps {
 export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
   const t = useTranslations('Sembang.myTasksPanel');
   const tThread = useTranslations('Sembang.thread');
+  const router = useRouter();
   const { user, accountRole } = useAuth();
   const { members: accountMembers } = useAccountMembers();
   const peopleNames = useMemo(
@@ -93,6 +97,7 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openItem, setOpenItem] = useState<SembangMyTaskItem | null>(null);
   const [ticketItem, setTicketItem] = useState<SembangMyTaskItem | null>(null);
+  const [detailItem, setDetailItem] = useState<SembangMyTaskItem | null>(null);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -113,7 +118,7 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
     void fetchTasks();
   }, [fetchTasks]);
 
-  const openTasks = (results ?? []).filter((r) => r.task.status === 'open');
+  const openTasks = (results ?? []).filter((r) => r.task.status !== 'done');
   const doneTasks = (results ?? []).filter((r) => r.task.status === 'done');
 
   const patchTask = async (
@@ -135,7 +140,10 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
   };
 
   const handleToggleStatus = async (item: SembangMyTaskItem) => {
-    const nextStatus = item.task.status === 'open' ? 'done' : 'open';
+    // Binary quick-toggle: an in_progress task's checkbox marks it done
+    // too — reaching in_progress itself is only via the detail dialog's
+    // status dropdown (mirrors tasks-panel.tsx's own toggle).
+    const nextStatus = item.task.status === 'done' ? 'open' : 'done';
     setTogglingId(item.task.id);
     const result = await patchTask(item.task, { status: nextStatus });
     setTogglingId(null);
@@ -189,6 +197,7 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
           r.task.id === ticketItem.task.id ? { ...r, task: result.task } : r
         ) ?? prev
     );
+    router.push(`/tickets?t=${ticket.id}`);
   };
 
   // ---- Thread actions, parametrized per click by openItem.channel.id ----
@@ -330,6 +339,16 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
             )}
           </div>
         </button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('viewDetails')}
+          title={t('viewDetails')}
+          onClick={() => setDetailItem(item)}
+          className="shrink-0 opacity-0 group-hover:opacity-100"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </Button>
         {task.ticketId ? (
           <a
             href={`/tickets?t=${task.ticketId}`}
@@ -473,11 +492,36 @@ export function MyTasksColumn({ onChanged }: MyTasksColumnProps) {
               })
             : ''
         }
-        initialAssigneeId={ticketItem?.task.assigneeId ?? null}
+        initialAssigneeId={ticketItem?.task.assignees[0]?.id ?? null}
         onCreated={(ticket) => {
           void handleTicketCreated(ticket);
         }}
       />
+
+      {detailItem && (
+        <TaskDetailDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setDetailItem(null);
+          }}
+          channelId={detailItem.channel.id}
+          channelName={
+            detailItem.channel.isDm
+              ? (detailItem.channel.dmParticipantNames?.join(', ') ?? t('directMessage'))
+              : (detailItem.channel.name ?? '')
+          }
+          taskId={detailItem.task.id}
+          onChanged={(updated) => {
+            setResults((prev) => prev?.map((r) => (r.task.id === updated.id ? { ...r, task: updated } : r)) ?? prev);
+            onChanged?.();
+          }}
+          onDeleted={() => {
+            setResults((prev) => prev?.filter((r) => r.task.id !== detailItem.task.id) ?? prev);
+            setDetailItem(null);
+            onChanged?.();
+          }}
+        />
+      )}
     </div>
   );
 }

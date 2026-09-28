@@ -15,6 +15,7 @@
 // handle "already linked, try to link again."
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
+import { TaskDetailDialog } from "./task-detail-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { hasMinRole } from "@/lib/auth/roles";
@@ -44,6 +46,11 @@ interface TasksTabBodyProps {
    *  optimistic-local-patch convention every other task mutation here
    *  already follows). */
   onTicketLinked: (taskId: string, ticketId: string, ticketNumber: number) => void;
+  /** Fired by TaskDetailDialog after any field change (status, title,
+   *  description, due date — assignees/subtasks are reflected via a
+   *  full detail refetch inside the dialog itself) so the row list
+   *  reflects it without waiting for a realtime refetch. */
+  onTaskUpdated: (task: SembangTask) => void;
   creating: boolean;
   deletingId: string | null;
 }
@@ -56,17 +63,20 @@ export function TasksTabBody({
   onToggleStatus,
   onDelete,
   onTicketLinked,
+  onTaskUpdated,
   creating,
   deletingId,
 }: TasksTabBodyProps) {
   const t = useTranslations("Sembang.tasksPanel");
+  const router = useRouter();
   const { accountRole } = useAuth();
   const { keyOf } = useTicketKeyPrefix();
   const canCreateTicket = hasMinRole(accountRole ?? "viewer", "agent");
   const [draft, setDraft] = useState("");
   const [ticketTask, setTicketTask] = useState<SembangTask | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
-  const openTasks = (tasks ?? []).filter((task) => task.status === "open");
+  const openTasks = (tasks ?? []).filter((task) => task.status !== "done");
   const doneTasks = (tasks ?? []).filter((task) => task.status === "done");
 
   const handleAdd = async () => {
@@ -77,22 +87,48 @@ export function TasksTabBody({
   };
 
   const renderTask = (task: SembangTask) => (
-    <div key={task.id} className="group flex items-start gap-2 rounded-lg px-1 py-1.5 hover:bg-muted/40">
-      <Checkbox checked={task.status === "done"} onCheckedChange={() => onToggleStatus(task)} className="mt-0.5" />
+    <div
+      key={task.id}
+      role="button"
+      tabIndex={0}
+      onClick={() => setDetailTaskId(task.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") setDetailTaskId(task.id);
+      }}
+      className="group flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1.5 hover:bg-muted/40"
+    >
+      <Checkbox
+        checked={task.status === "done"}
+        onCheckedChange={() => onToggleStatus(task)}
+        onClick={(e) => e.stopPropagation()}
+        className="mt-0.5"
+      />
       <div className="min-w-0 flex-1">
-        <p className={cn("text-sm text-foreground", task.status === "done" && "text-muted-foreground line-through")}>
-          {task.title}
-        </p>
-        {(task.assignee || task.dueAt) && (
+        <div className="flex items-center gap-1.5">
+          <p className={cn("text-sm text-foreground", task.status === "done" && "text-muted-foreground line-through")}>
+            {task.title}
+          </p>
+          {task.status === "in_progress" && (
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {t("statusInProgress")}
+            </span>
+          )}
+        </div>
+        {(task.assignees.length > 0 || task.dueAt || task.subtaskCount > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            {task.assignee && (
-              <span className="flex items-center gap-1">
-                <PersonAvatar name={task.assignee.fullName} avatarUrl={task.assignee.avatarUrl} size="sm" />
-                {task.assignee.fullName}
+            {task.assignees.length > 0 && (
+              <span className="flex items-center -space-x-1">
+                {task.assignees.slice(0, 3).map((a) => (
+                  <PersonAvatar key={a.id} name={a.fullName} avatarUrl={a.avatarUrl} size="sm" className="ring-2 ring-background" />
+                ))}
+                {task.assignees.length > 3 && <span className="ml-1.5">+{task.assignees.length - 3}</span>}
               </span>
             )}
             {task.dueAt && (
               <span className="rounded-full bg-muted px-1.5 py-0.5">{t("due", { date: format(new Date(task.dueAt), "MMM d") })}</span>
+            )}
+            {task.subtaskCount > 0 && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5">{task.subtaskDoneCount}/{task.subtaskCount}</span>
             )}
           </div>
         )}
@@ -100,6 +136,7 @@ export function TasksTabBody({
       {task.ticketId ? (
         <a
           href={`/tickets?t=${task.ticketId}`}
+          onClick={(e) => e.stopPropagation()}
           className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-primary opacity-0 group-hover:opacity-100 hover:bg-primary/10"
         >
           <TicketIcon className="h-3 w-3" aria-hidden />
@@ -112,7 +149,10 @@ export function TasksTabBody({
             size="icon-sm"
             aria-label={t("createTicket")}
             title={t("createTicket")}
-            onClick={() => setTicketTask(task)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setTicketTask(task);
+            }}
             className="opacity-0 group-hover:opacity-100"
           >
             <TicketIcon className="h-3.5 w-3.5" />
@@ -124,7 +164,10 @@ export function TasksTabBody({
         size="icon-sm"
         aria-label={t("deleteTask")}
         title={t("deleteTask")}
-        onClick={() => onDelete(task.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(task.id);
+        }}
         disabled={deletingId === task.id}
         className="opacity-0 group-hover:opacity-100"
       >
@@ -147,6 +190,7 @@ export function TasksTabBody({
       return;
     }
     onTicketLinked(task.id, ticket.id, ticket.ticket_number);
+    router.push(`/tickets?t=${ticket.id}`);
   };
 
   const body = (
@@ -214,11 +258,27 @@ export function TasksTabBody({
         }}
         initialSubject={ticketTask?.title ?? ""}
         initialDescription={t("ticketDescriptionPrefill", { channel: channelName })}
-        initialAssigneeId={ticketTask?.assigneeId ?? null}
+        initialAssigneeId={ticketTask?.assignees[0]?.id ?? null}
         onCreated={(ticket) => {
           void handleTicketCreated(ticket);
         }}
       />
+      {detailTaskId && (
+        <TaskDetailDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setDetailTaskId(null);
+          }}
+          channelId={channelId}
+          channelName={channelName}
+          taskId={detailTaskId}
+          onChanged={onTaskUpdated}
+          onDeleted={() => {
+            onDelete(detailTaskId);
+            setDetailTaskId(null);
+          }}
+        />
+      )}
     </>
   );
 }

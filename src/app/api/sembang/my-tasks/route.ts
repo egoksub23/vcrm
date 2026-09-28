@@ -12,9 +12,10 @@
 //         per-route convention rather than a shared helper).
 //
 //   RLS (`sembang_tasks_select`, migration 099) already requires
-//   channel membership or account-admin per row, so filtering only by
-//   `assignee_id = caller` here is enough — a task assigned to someone
-//   who has since left its channel simply won't come back.
+//   channel membership or account-admin per row, so filtering only to
+//   tasks the caller is assigned to (via `sembang_task_assignees`,
+//   migration 121) here is enough — a task assigned to someone who has
+//   since left its channel simply won't come back.
 //
 //   Mutating a task (toggle status, delete, link a ticket) reuses the
 //   existing PATCH/DELETE `/api/sembang/channels/[id]/tasks/[taskId]`
@@ -104,10 +105,28 @@ export async function GET() {
   try {
     const ctx = await requireCapability('menu.sembang');
 
+    const { data: assignedRows, error: assignedError } = await ctx.supabase
+      .from('sembang_task_assignees')
+      .select('task_id')
+      .eq('user_id', ctx.userId);
+
+    if (assignedError) {
+      console.error('[GET /api/sembang/my-tasks] assignee fetch error:', assignedError);
+      return NextResponse.json(
+        { error: 'Failed to load your tasks' },
+        { status: 500 }
+      );
+    }
+
+    const taskIds = Array.from(new Set((assignedRows ?? []).map((r) => r.task_id as string)));
+    if (taskIds.length === 0) {
+      return NextResponse.json({ results: [] });
+    }
+
     const { data, error } = await ctx.supabase
       .from('sembang_tasks')
       .select('*')
-      .eq('assignee_id', ctx.userId)
+      .in('id', taskIds)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -123,7 +142,7 @@ export async function GET() {
       return NextResponse.json({ results: [] });
     }
 
-    const open = rows.filter((r) => r.status === 'open');
+    const open = rows.filter((r) => r.status !== 'done');
     const done = rows
       .filter((r) => r.status === 'done')
       .sort((a, b) => {

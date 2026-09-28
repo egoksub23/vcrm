@@ -637,7 +637,10 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const handleToggleTaskStatus = useCallback(
     async (task: SembangTask) => {
       if (!channelId) return;
-      const nextStatus: SembangTaskStatus = task.status === "open" ? "done" : "open";
+      // Binary quick-toggle: an in_progress task's checkbox marks it done
+      // too — reaching in_progress itself is only via the detail
+      // dialog's status dropdown.
+      const nextStatus: SembangTaskStatus = task.status === "done" ? "open" : "done";
       // Optimistic: flip immediately, revert on failure.
       setTasks((prev) => (prev ?? []).map((tk) => (tk.id === task.id ? { ...tk, status: nextStatus } : tk)));
       try {
@@ -687,6 +690,14 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     setTasks((prev) =>
       (prev ?? []).map((tk) => (tk.id === taskId ? { ...tk, ticketId, ticketNumber } : tk)),
     );
+  }, []);
+
+  // TaskDetailDialog (migration 121) already PATCHes/POSTs/DELETEs
+  // through its own routes and re-fetches its own detail; this just
+  // patches the row-list's local copy of the task once that's done, same
+  // one-line shape as handleTicketLinked above.
+  const handleTaskUpdated = useCallback((updated: SembangTask) => {
+    setTasks((prev) => (prev ?? []).map((tk) => (tk.id === updated.id ? updated : tk)));
   }, []);
 
   // ---- Thread -----------------------------------------------------------
@@ -1166,6 +1177,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
             onToggleStatus={handleToggleTaskStatus}
             onDelete={handleDeleteTask}
             onTicketLinked={handleTicketLinked}
+            onTaskUpdated={handleTaskUpdated}
             creating={creatingTask}
             deletingId={deletingTaskId}
           />

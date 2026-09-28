@@ -1702,11 +1702,21 @@ export interface SembangPin {
   message: SembangMessage;
 }
 
-export type SembangTaskStatus = 'open' | 'done';
+export type SembangTaskStatus = 'open' | 'in_progress' | 'done';
 
-/** Migration 099. A standalone, per-channel checklist item. Migration 103
- *  adds the one deliberate, write-once link into the Tickets module
- *  (`ticketId`) — see the requirements doc's decision. */
+export interface SembangTaskAssignee {
+  id: string;
+  fullName: string;
+  avatarUrl: string | null;
+}
+
+/** Migration 099. A standalone, per-channel task. Migration 103 adds the
+ *  one deliberate, write-once link into the Tickets module (`ticketId`).
+ *  Migration 121 widens `status` to a real 3-value workflow and replaces
+ *  the single `assigneeId`/`assignee` with a many-to-many `assignees[]`
+ *  (see `sembang_task_assignees`), and adds `description` plus subtask
+ *  counts for the list-row badge — see `SembangTaskDetail` for the full
+ *  subtask/comment/activity payload the detail dialog fetches. */
 export interface SembangTask {
   id: string;
   channelId: string;
@@ -1714,15 +1724,19 @@ export interface SembangTask {
   /** The message this task was created from, if any. */
   messageId: string | null;
   title: string;
-  assigneeId: string | null;
-  assignee: { id: string; fullName: string; avatarUrl: string | null } | null;
+  description: string | null;
+  assignees: SembangTaskAssignee[];
+  /** Total subtasks / how many are `status: 'done'` — for the list row's
+   *  "{done}/{total}" badge. Full subtask rows live in `SembangTaskDetail`. */
+  subtaskCount: number;
+  subtaskDoneCount: number;
   status: SembangTaskStatus;
   dueAt: string | null;
   createdBy: string;
   createdByName: string;
   createdAt: string;
   /** Server-stamped on the actor's own UPDATE — never client-supplied
-   *  (see the sembang_tasks_guard() trigger in migration 099). */
+   *  (see the sembang_tasks_guard() trigger in migration 099/121). */
   completedAt: string | null;
   completedBy: string | null;
   /** Migration 103 — the one deliberate exception to "no FK into
@@ -1731,6 +1745,71 @@ export interface SembangTask {
   ticketId: string | null;
   /** For display ("View VIR-12") — null until `ticketId` is set. */
   ticketNumber: number | null;
+}
+
+/** Migration 121. One subtask, independently checkable and assignable. */
+export interface SembangSubtask {
+  id: string;
+  taskId: string;
+  title: string;
+  status: 'open' | 'done';
+  assigneeId: string | null;
+  assignee: SembangTaskAssignee | null;
+  createdBy: string;
+  createdAt: string;
+  completedAt: string | null;
+  completedBy: string | null;
+}
+
+/** Migration 121. A note on a task. `mentions` exists for schema parity
+ *  with `ticket_comments`/`incident_comments` but is always `[]` in this
+ *  pass — no @mention picker is wired up for task comments yet. `body`
+ *  is sanitized HTML from the rich-text composer. */
+export interface SembangTaskComment {
+  id: string;
+  taskId: string;
+  authorId: string | null;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  body: string;
+  mentions: string[];
+  createdAt: string;
+  editedAt: string | null;
+}
+
+export type SembangTaskActivityEventType =
+  | 'created'
+  | 'status_changed'
+  | 'description_changed'
+  | 'due_changed'
+  | 'title_changed'
+  | 'assignee_added'
+  | 'assignee_removed'
+  | 'subtask_added'
+  | 'subtask_completed'
+  | 'subtask_reopened'
+  | 'subtask_deleted'
+  | 'ticket_linked';
+
+/** Migration 121. One line of a task's audit trail — append-only,
+ *  server-written only (mirrors `ticket_activity`). */
+export interface SembangTaskActivityEvent {
+  id: string;
+  taskId: string;
+  actorId: string | null;
+  actorName: string;
+  eventType: SembangTaskActivityEventType;
+  fromValue: string | null;
+  toValue: string | null;
+  createdAt: string;
+}
+
+/** GET .../tasks/[taskId] — the one fetch `TaskDetailDialog` makes on open. */
+export interface SembangTaskDetail {
+  task: SembangTask;
+  subtasks: SembangSubtask[];
+  comments: SembangTaskComment[];
+  activity: SembangTaskActivityEvent[];
 }
 
 // ------------------------------------------------------------

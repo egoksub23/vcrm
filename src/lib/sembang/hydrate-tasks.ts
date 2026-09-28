@@ -1,7 +1,10 @@
 // ============================================================
-// Shared Sembang task hydration — joins `profiles` (assignee +
-// creator) onto raw `sembang_tasks` rows. Used by both the channel
-// tasks list/create route and the single-task update route.
+// Shared Sembang task hydration — joins `profiles` (assignees + creator),
+// `sembang_task_assignees`, and a subtask-count aggregate onto raw
+// `sembang_tasks` rows. Used by the channel tasks list/create route, the
+// single-task update route, and the cross-channel "My Tasks" route. Full
+// subtask/comment/activity rows are NOT joined here (list-only, keeps
+// this cheap) — the task detail route hydrates those itself.
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -13,7 +16,7 @@ export interface SembangTaskRow {
   account_id: string
   message_id: string | null
   title: string
-  assignee_id: string | null
+  description: string | null
   status: SembangTaskStatus
   due_at: string | null
   created_by: string
@@ -30,8 +33,18 @@ export async function hydrateTasks(
 ): Promise<SembangTask[]> {
   if (rows.length === 0) return []
 
+  const taskIds = rows.map((r) => r.id)
+
+  const { data: assigneeRows } = await supabase
+    .from('sembang_task_assignees')
+    .select('task_id, user_id')
+    .in('task_id', taskIds)
+
   const userIds = Array.from(
-    new Set(rows.flatMap((r) => [r.assignee_id, r.created_by]).filter((v): v is string => !!v)),
+    new Set([
+      ...(assigneeRows ?? []).map((a) => a.user_id as string),
+      ...rows.map((r) => r.created_by),
+    ]),
   )
 
   const { data: profileRows } = await supabase
@@ -41,6 +54,26 @@ export async function hydrateTasks(
 
   const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
   for (const p of profileRows ?? []) profileByUser.set(p.user_id, p)
+
+  const assigneesByTask = new Map<string, string[]>()
+  for (const a of assigneeRows ?? []) {
+    const list = assigneesByTask.get(a.task_id) ?? []
+    list.push(a.user_id)
+    assigneesByTask.set(a.task_id, list)
+  }
+
+  const { data: subtaskRows } = await supabase
+    .from('sembang_subtasks')
+    .select('task_id, status')
+    .in('task_id', taskIds)
+
+  const subtaskCounts = new Map<string, { total: number; done: number }>()
+  for (const s of subtaskRows ?? []) {
+    const counts = subtaskCounts.get(s.task_id) ?? { total: 0, done: 0 }
+    counts.total += 1
+    if (s.status === 'done') counts.done += 1
+    subtaskCounts.set(s.task_id, counts)
+  }
 
   const ticketIds = Array.from(new Set(rows.map((r) => r.ticket_id).filter((v): v is string => !!v)))
   const ticketNumberById = new Map<string, number>()
@@ -53,22 +86,21 @@ export async function hydrateTasks(
   }
 
   return rows.map((row) => {
-    const assigneeProfile = row.assignee_id ? profileByUser.get(row.assignee_id) : undefined
     const creatorProfile = profileByUser.get(row.created_by)
+    const counts = subtaskCounts.get(row.id) ?? { total: 0, done: 0 }
     return {
       id: row.id,
       channelId: row.channel_id,
       accountId: row.account_id,
       messageId: row.message_id,
       title: row.title,
-      assigneeId: row.assignee_id,
-      assignee: row.assignee_id
-        ? {
-            id: row.assignee_id,
-            fullName: assigneeProfile?.full_name ?? '',
-            avatarUrl: assigneeProfile?.avatar_url ?? null,
-          }
-        : null,
+      description: row.description,
+      assignees: (assigneesByTask.get(row.id) ?? []).map((userId) => {
+        const p = profileByUser.get(userId)
+        return { id: userId, fullName: p?.full_name ?? '', avatarUrl: p?.avatar_url ?? null }
+      }),
+      subtaskCount: counts.total,
+      subtaskDoneCount: counts.done,
       status: row.status,
       dueAt: row.due_at,
       createdBy: row.created_by,

@@ -1,13 +1,14 @@
 // ============================================================
 // /api/sembang/channels/[id]/tasks
 //
-//   GET  — `{ tasks: SembangTask[] }`. Open tasks first (by `created_at`
-//          ascending within status), then done tasks (most recently
-//          completed first). Joins `profiles` for `assignee`/
-//          `createdByName`.
-//   POST — body `{ title: string; assigneeId?: string; dueAt?: string;
-//          messageId?: string }`. `created_by = ctx.userId`, status
-//          starts `open`. Returns the created task, hydrated.
+//   GET  — `{ tasks: SembangTask[] }`. Open/in-progress tasks first (by
+//          `created_at` ascending), then done tasks (most recently
+//          completed first). Joins `profiles`/`sembang_task_assignees`/
+//          `sembang_subtasks` counts via hydrateTasks().
+//   POST — body `{ title: string; description?: string; assigneeIds?:
+//          string[]; dueAt?: string; messageId?: string }`.
+//          `created_by = ctx.userId`, status starts `open`. Returns the
+//          created task, hydrated.
 // ============================================================
 import { NextResponse } from 'next/server'
 
@@ -34,9 +35,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const rows = (data ?? []) as SembangTaskRow[]
     // Already ascending by created_at from the query — filtering
-    // preserves that order for the 'open' half. 'done' is re-sorted
-    // separately, most recently completed first.
-    const open = rows.filter((r) => r.status === 'open')
+    // preserves that order for the not-done half (open + in_progress).
+    // 'done' is re-sorted separately, most recently completed first.
+    const notDone = rows.filter((r) => r.status !== 'done')
     const done = rows
       .filter((r) => r.status === 'done')
       .sort((a, b) => {
@@ -45,7 +46,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         return bt - at
       })
 
-    const tasks = await hydrateTasks(ctx.supabase, [...open, ...done])
+    const tasks = await hydrateTasks(ctx.supabase, [...notDone, ...done])
     return NextResponse.json({ tasks })
   } catch (err) {
     return toErrorResponse(err)
@@ -59,7 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const body = (await request.json().catch(() => null)) as {
       title?: unknown
-      assigneeId?: unknown
+      description?: unknown
+      assigneeIds?: unknown
       dueAt?: unknown
       messageId?: unknown
     } | null
@@ -72,8 +74,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       )
     }
 
-    const assigneeId = typeof body?.assigneeId === 'string' ? body.assigneeId : null
+    const description =
+      typeof body?.description === 'string' && body.description.trim() ? body.description.trim() : null
     const messageId = typeof body?.messageId === 'string' ? body.messageId : null
+    const assigneeIds = Array.isArray(body?.assigneeIds)
+      ? body.assigneeIds.filter((v): v is string => typeof v === 'string')
+      : []
 
     let dueAt: string | null = null
     if (body?.dueAt !== undefined && body.dueAt !== null) {
@@ -94,7 +100,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         account_id: ctx.accountId,
         message_id: messageId,
         title,
-        assignee_id: assigneeId,
+        description,
         due_at: dueAt,
         created_by: ctx.userId,
       })
@@ -110,6 +116,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       console.error('[POST /api/sembang/channels/[id]/tasks] insert error:', error)
       return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
+    }
+
+    if (assigneeIds.length > 0) {
+      const { error: assigneeError } = await ctx.supabase.from('sembang_task_assignees').insert(
+        assigneeIds.map((userId) => ({
+          task_id: row.id,
+          user_id: userId,
+          account_id: ctx.accountId,
+          added_by: ctx.userId,
+        })),
+      )
+      // Best-effort — an assignee failing to attach shouldn't undo the
+      // task that was just created (same tolerance create-ticket-dialog
+      // already applies to its own post-create attachment upload).
+      if (assigneeError) {
+        console.error('[POST /api/sembang/channels/[id]/tasks] assignee insert error:', assigneeError)
+      }
     }
 
     const [task] = await hydrateTasks(ctx.supabase, [row as SembangTaskRow])

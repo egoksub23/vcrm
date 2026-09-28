@@ -72,15 +72,19 @@ export interface SembangPinRow {
   pinned_at: string;
 }
 
-/** Migration 099. */
+/** Migration 099, widened by 121 (status gains 'in_progress', assignee_id
+ *  replaced by the separate sembang_task_assignees table, description
+ *  added) — channel-thread.tsx only uses this to type the realtime
+ *  payload shape and always just triggers a refetch, so it doesn't read
+ *  assignee/description fields off it either way. */
 export interface SembangTaskRow {
   id: string;
   channel_id: string;
   account_id: string;
   message_id: string | null;
   title: string;
-  assignee_id: string | null;
-  status: "open" | "done";
+  description: string | null;
+  status: "open" | "in_progress" | "done";
   due_at: string | null;
   created_by: string;
   created_at: string;
