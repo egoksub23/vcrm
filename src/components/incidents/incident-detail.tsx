@@ -7,7 +7,9 @@ import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
   ArrowUpCircle,
+  Check,
   FileText,
+  ListChecks,
   Loader2,
   Paperclip,
   Plus,
@@ -40,6 +42,7 @@ import type { IncidentSeverity, IncidentStatus } from "@/lib/incidents/constants
 import { incidentKey } from "@/lib/incidents/types";
 import type {
   Incident,
+  IncidentAction,
   IncidentActivity,
   IncidentAttachment,
   IncidentComment,
@@ -70,24 +73,27 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [activity, setActivity] = useState<IncidentActivity[]>([]);
   const [attachments, setAttachments] = useState<IncidentAttachment[]>([]);
   const [notificationsSent, setNotificationsSent] = useState<IncidentNotificationSent[]>([]);
+  const [actions, setActions] = useState<IncidentAction[]>([]);
   const [loading, setLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [inc, com, act, att, ns] = await Promise.all([
+    const [inc, com, act, att, ns, ac] = await Promise.all([
       supabase.from("incidents").select("*").eq("id", incidentId).maybeSingle(),
       supabase.from("incident_comments").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_activity").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_attachments").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_notifications_sent").select("*").eq("incident_id", incidentId).order("sent_at", { ascending: false }),
+      supabase.from("incident_actions").select("*").eq("incident_id", incidentId).order("created_at"),
     ]);
     setIncident((inc.data as Incident) ?? null);
     setComments((com.data as IncidentComment[]) ?? []);
     setActivity((act.data as IncidentActivity[]) ?? []);
     setAttachments((att.data as IncidentAttachment[]) ?? []);
     setNotificationsSent((ns.data as IncidentNotificationSent[]) ?? []);
+    setActions((ac.data as IncidentAction[]) ?? []);
     setLoading(false);
   }, [incidentId]);
 
@@ -494,6 +500,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </button>
           </div>
 
+          <ActionsPanel
+            incidentId={incident.id}
+            rows={actions}
+            canManage={canManage}
+            onAdded={(row) => setActions((prev) => [...prev, row])}
+            onChanged={(row) => setActions((prev) => prev.map((a) => (a.id === row.id ? row : a)))}
+          />
+
           {canManage ? (
             <NotificationsSentPanel
               incidentId={incident.id}
@@ -512,6 +526,158 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <p className="mb-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
       {children}
+    </div>
+  );
+}
+
+/** PIR (post-incident-review) corrective/preventive actions, Form C §6.
+ *  Visible to anyone who can see the incident (RLS SELECT is reporter/
+ *  watcher/manage); adding one or toggling done needs incidents.manage. */
+function ActionsPanel({
+  incidentId,
+  rows,
+  canManage,
+  onAdded,
+  onChanged,
+}: {
+  incidentId: string;
+  rows: IncidentAction[];
+  canManage: boolean;
+  onAdded: (row: IncidentAction) => void;
+  onChanged: (row: IncidentAction) => void;
+}) {
+  const t = useTranslations("Incidents.detail.actions");
+  const { user } = useAuth();
+  const { members, nameOf } = useAccountMembers();
+  const [adding, setAdding] = useState(false);
+  const [description, setDescription] = useState("");
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!user || !description.trim()) return;
+    setBusy(true);
+    const { data, error } = await createClient()
+      .from("incident_actions")
+      .insert({
+        incident_id: incidentId,
+        description: description.trim(),
+        owner_id: ownerId,
+        due_date: dueDate || null,
+        created_by: user.id,
+      })
+      .select("*")
+      .single();
+    setBusy(false);
+    if (error || !data) {
+      toast.error(t("addFailed"));
+      return;
+    }
+    onAdded(data as IncidentAction);
+    setAdding(false);
+    setDescription("");
+    setOwnerId(null);
+    setDueDate("");
+  };
+
+  const toggleDone = async (row: IncidentAction) => {
+    const nextStatus = row.status === "done" ? "open" : "done";
+    const { data, error } = await createClient()
+      .from("incident_actions")
+      .update({ status: nextStatus, closed_at: nextStatus === "done" ? new Date().toISOString() : null })
+      .eq("id", row.id)
+      .select("*")
+      .single();
+    if (error || !data) {
+      toast.error(t("updateFailed"));
+      return;
+    }
+    onChanged(data as IncidentAction);
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <ListChecks className="size-3.5" />
+        {t("title")}
+      </h3>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t("empty")}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {rows.map((a) => (
+            <li key={a.id} className="flex items-start gap-2 text-xs">
+              <button
+                type="button"
+                disabled={!canManage}
+                onClick={() => void toggleDone(a)}
+                aria-label={a.status === "done" ? t("markOpen") : t("markDone")}
+                className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border ${
+                  a.status === "done" ? "border-emerald-500 bg-emerald-500 text-white" : "border-border"
+                } ${canManage ? "cursor-pointer" : "cursor-default"}`}
+              >
+                {a.status === "done" ? <Check className="size-3" /> : null}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={a.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}>{a.description}</p>
+                <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+                  {a.owner_id ? nameOf(a.owner_id) : t("unassigned")}
+                  {a.due_date ? ` · ${t("due", { date: format(new Date(a.due_date), "d MMM") })}` : ""}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {canManage ? (
+        adding ? (
+          <div className="mt-2 space-y-2">
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("descriptionPlaceholder")}
+              rows={2}
+              className="bg-muted text-xs"
+            />
+            <div className="flex gap-2">
+              <Select value={ownerId ?? "__none__"} onValueChange={(v) => setOwnerId(v === "__none__" ? null : v)}>
+                <SelectTrigger className="h-8 flex-1 bg-muted text-xs">
+                  <SelectValue>{ownerId ? nameOf(ownerId) : t("unassigned")}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t("unassigned")}</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-8 w-36 text-xs" />
+            </div>
+            <div className="flex justify-end gap-1.5">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAdding(false)}>
+                {t("cancel")}
+              </Button>
+              <Button size="sm" className="h-7 text-xs" onClick={() => void submit()} disabled={busy || !description.trim()}>
+                {busy ? <Loader2 className="size-3 animate-spin" /> : null}
+                {t("save")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mt-2 inline-flex items-center gap-1 text-[11.5px] font-medium text-primary hover:underline"
+          >
+            <Plus className="size-3" />
+            {t("addAction")}
+          </button>
+        )
+      ) : null}
     </div>
   );
 }

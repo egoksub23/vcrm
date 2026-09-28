@@ -7235,6 +7235,20 @@
         "escalatedEvent": "Incident escalated",
         "closedEvent": "Incident closed"
       },
+      "actions": {
+        "title": "Actions",
+        "empty": "No corrective actions yet.",
+        "addFailed": "Couldn't add that action.",
+        "updateFailed": "Couldn't update that action.",
+        "unassigned": "Unassigned",
+        "due": "due {date}",
+        "descriptionPlaceholder": "What needs to be done?",
+        "cancel": "Cancel",
+        "save": "Save",
+        "addAction": "Add action",
+        "markDone": "Mark done",
+        "markOpen": "Mark open"
+      },
       "notificationsSent": {
         "title": "Notifications sent",
         "empty": "No external notifications logged yet.",

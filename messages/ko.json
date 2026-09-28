@@ -7235,6 +7235,20 @@
         "escalatedEvent": "인시던트가 에스컬레이션되었습니다",
         "closedEvent": "인시던트가 종료되었습니다"
       },
+      "actions": {
+        "title": "조치 사항",
+        "empty": "아직 시정 조치가 없습니다.",
+        "addFailed": "조치 항목을 추가하지 못했습니다.",
+        "updateFailed": "조치 항목을 업데이트하지 못했습니다.",
+        "unassigned": "미배정",
+        "due": "기한 {date}",
+        "descriptionPlaceholder": "무엇을 해야 하나요?",
+        "cancel": "취소",
+        "save": "저장",
+        "addAction": "조치 추가",
+        "markDone": "완료로 표시",
+        "markOpen": "미완료로 표시"
+      },
       "notificationsSent": {
         "title": "발송된 통지",
         "empty": "아직 기록된 외부 통지가 없습니다.",
