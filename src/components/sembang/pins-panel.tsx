@@ -1,41 +1,33 @@
 "use client";
 
-// Right-side Sheet listing pinned messages — same pattern as
-// members-panel.tsx. RLS gates who may actually unpin (the pinner, a
-// moderator, or an admin); rather than duplicate that check client-side,
-// the "Unpin" action is offered to everyone and a 403 from the route
-// surfaces as a toast (see channel-thread.tsx's `handleUnpin`).
+// The channel's Pins tab (Slack-style persistent tab next to the
+// channel name, not a sliding Sheet). RLS gates who may actually unpin
+// (the pinner, a moderator, or an admin); rather than duplicate that
+// check client-side, the "Unpin" action is offered to everyone and a
+// 403 from the route surfaces as a toast (see channel-thread.tsx's
+// `handleUnpin`).
 
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { Loader2, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { MessagePreview } from "./message-body";
 import type { SembangPin } from "@/types";
 
-interface PinsPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface PinsTabBodyProps {
   pins: SembangPin[] | null;
   peopleNames: string[];
   onUnpin: (messageId: string) => void;
   unpinningId: string | null;
 }
 
-export function PinsPanel({ open, onOpenChange, pins, peopleNames, onUnpin, unpinningId }: PinsPanelProps) {
+export function PinsTabBody({ pins, peopleNames, onUnpin, unpinningId }: PinsTabBodyProps) {
   const t = useTranslations("Sembang.pinsPanel");
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[420px]">
-        <SheetHeader>
-          <SheetTitle>{t("title")}</SheetTitle>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-          {pins === null ? (
+    <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3 sm:px-4">
+      {pins === null ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
@@ -82,8 +74,6 @@ export function PinsPanel({ open, onOpenChange, pins, peopleNames, onUnpin, unpi
               </div>
             ))
           )}
-        </div>
-      </SheetContent>
-    </Sheet>
+    </div>
   );
 }

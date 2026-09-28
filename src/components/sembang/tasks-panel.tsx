@@ -1,7 +1,7 @@
 "use client";
 
-// Right-side Sheet — the per-channel task list. Same Sheet pattern as
-// members-panel.tsx. Open/Completed sections, tick-to-complete (optimistic:
+// The channel's Tasks tab (Slack-style persistent tab, not a sliding
+// Sheet). Open/Completed sections, tick-to-complete (optimistic:
 // the caller flips `status` locally before the PATCH resolves and reverts
 // on failure — see channel-thread.tsx's `handleToggleTaskStatus`).
 //
@@ -22,7 +22,6 @@ import { Loader2, Plus, Ticket as TicketIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,9 +30,7 @@ import { hasMinRole } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 import type { SembangTask, Ticket } from "@/types";
 
-interface TasksPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface TasksTabBodyProps {
   /** Needed to PATCH the task's ticket_id after a ticket is created —
    *  the task rows themselves don't carry their own channel id. */
   channelId: string;
@@ -51,9 +48,7 @@ interface TasksPanelProps {
   deletingId: string | null;
 }
 
-export function TasksPanel({
-  open,
-  onOpenChange,
+export function TasksTabBody({
   channelId,
   channelName,
   tasks,
@@ -63,7 +58,7 @@ export function TasksPanel({
   onTicketLinked,
   creating,
   deletingId,
-}: TasksPanelProps) {
+}: TasksTabBodyProps) {
   const t = useTranslations("Sembang.tasksPanel");
   const { accountRole } = useAuth();
   const { keyOf } = useTicketKeyPrefix();
@@ -154,70 +149,64 @@ export function TasksPanel({
     onTicketLinked(task.id, ticket.id, ticket.ticket_number);
   };
 
-  const sheet = (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[420px]">
-        <SheetHeader>
-          <SheetTitle>{t("title")}</SheetTitle>
-        </SheetHeader>
+  const body = (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 gap-1.5 border-b border-border px-3 py-3 sm:px-4">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={t("addPlaceholder")}
+          aria-label={t("addPlaceholder")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleAdd();
+            }
+          }}
+        />
+        <Button size="icon" onClick={handleAdd} disabled={!draft.trim() || creating} aria-label={t("addTask")}>
+          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        </Button>
+      </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-2">
-          <div className="flex gap-1.5">
-            <Input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t("addPlaceholder")}
-              aria-label={t("addPlaceholder")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleAdd();
-                }
-              }}
-            />
-            <Button size="icon" onClick={handleAdd} disabled={!draft.trim() || creating} aria-label={t("addTask")}>
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            </Button>
+      <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-4">
+        {tasks === null ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
-
-          {tasks === null ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        ) : (
+          <>
+            <div>
+              <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {t("openSection", { count: openTasks.length })}
+              </p>
+              {openTasks.length === 0 ? (
+                <p className="px-1 py-2 text-xs text-muted-foreground">{t("noOpenTasks")}</p>
+              ) : (
+                openTasks.map(renderTask)
+              )}
             </div>
-          ) : (
-            <>
+            {doneTasks.length > 0 && (
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {t("openSection", { count: openTasks.length })}
+                  {t("doneSection", { count: doneTasks.length })}
                 </p>
-                {openTasks.length === 0 ? (
-                  <p className="px-1 py-2 text-xs text-muted-foreground">{t("noOpenTasks")}</p>
-                ) : (
-                  openTasks.map(renderTask)
-                )}
+                {doneTasks.map(renderTask)}
               </div>
-              {doneTasks.length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    {t("doneSection", { count: doneTasks.length })}
-                  </p>
-                  {doneTasks.map(renderTask)}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
+      </div>
 
-        <SheetFooter className="border-t border-border pt-3">
-          <p className="text-xs text-muted-foreground">{t("footerNote")}</p>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+      <div className="shrink-0 border-t border-border px-3 py-2.5 sm:px-4">
+        <p className="text-xs text-muted-foreground">{t("footerNote")}</p>
+      </div>
+    </div>
   );
 
   return (
     <>
-      {sheet}
+      {body}
       <CreateTicketDialog
         open={!!ticketTask}
         onOpenChange={(next) => {

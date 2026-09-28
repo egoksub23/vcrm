@@ -1,13 +1,15 @@
 "use client";
 
-// Files, Links & Bookmarks — one panel, three tabs, opened from a
-// single header button next to Pinned/Tasks/Members. Self-fetches each
-// tab's data on open rather than being piped through channel-thread.tsx's
-// already-large state — Files/Links/Bookmarks are new and read-mostly,
-// so they own their own fetch here, the same self-contained shape
-// threads-panel.tsx/member-directory-dialog.tsx already use for global
-// panels, rather than growing channel-thread.tsx's state further for a
-// feature that existed before none of it.
+// Files, Links & Bookmarks — the channel's "Files & links" tab
+// (Slack-style persistent tab, not a sliding Sheet), with its own
+// files/links/bookmarks sub-tabs. Self-fetches on mount (i.e. whenever
+// this tab becomes active — channel-thread.tsx only mounts it while the
+// "files" tab is selected) rather than being piped through
+// channel-thread.tsx's already-large state — Files/Links/Bookmarks are
+// read-mostly, so they own their own fetch here, the same
+// self-contained shape thread-panel.tsx/member-directory-dialog.tsx
+// already use for global panels, rather than growing channel-thread.tsx's
+// state further for a feature that existed before none of it.
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -16,7 +18,6 @@ import { toast } from "sonner";
 import { Bookmark, FileText, Link2, Loader2, Paperclip, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { SembangBookmark, SembangFileItem, SembangLinkItem } from "@/types";
 
@@ -28,13 +29,11 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-interface ChannelResourcesPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface ChannelResourcesTabBodyProps {
   channelId: string;
 }
 
-export function ChannelResourcesPanel({ open, onOpenChange, channelId }: ChannelResourcesPanelProps) {
+export function ChannelResourcesTabBody({ channelId }: ChannelResourcesTabBodyProps) {
   const t = useTranslations("Sembang.resourcesPanel");
   const [tab, setTab] = useState<ResourceTab>("files");
   const [files, setFiles] = useState<SembangFileItem[] | null>(null);
@@ -79,7 +78,6 @@ export function ChannelResourcesPanel({ open, onOpenChange, channelId }: Channel
   }, [channelId]);
 
   useEffect(() => {
-    if (!open) return;
     setFiles(null);
     setLinks(null);
     setBookmarks(null);
@@ -87,7 +85,7 @@ export function ChannelResourcesPanel({ open, onOpenChange, channelId }: Channel
     void fetchFiles();
     void fetchLinks();
     void fetchBookmarks();
-  }, [open, channelId, fetchFiles, fetchLinks, fetchBookmarks]);
+  }, [channelId, fetchFiles, fetchLinks, fetchBookmarks]);
 
   const handleAddBookmark = async () => {
     const url = bookmarkUrl.trim();
@@ -136,33 +134,28 @@ export function ChannelResourcesPanel({ open, onOpenChange, channelId }: Channel
   ];
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[440px]">
-        <SheetHeader>
-          <SheetTitle>{t("title")}</SheetTitle>
-        </SheetHeader>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 gap-1 border-b border-border px-3 py-2 sm:px-4">
+        {tabs.map((tb) => (
+          <button
+            key={tb.key}
+            type="button"
+            onClick={() => setTab(tb.key)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium",
+              tab === tb.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            <tb.icon className="h-3.5 w-3.5" />
+            {tb.label}
+            {tb.count !== null && tb.count > 0 && (
+              <span className="text-[10px] text-muted-foreground">{tb.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex shrink-0 gap-1 border-b border-border px-4 pb-2">
-          {tabs.map((tb) => (
-            <button
-              key={tb.key}
-              type="button"
-              onClick={() => setTab(tb.key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium",
-                tab === tb.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <tb.icon className="h-3.5 w-3.5" />
-              {tb.label}
-              {tb.count !== null && tb.count > 0 && (
-                <span className="text-[10px] text-muted-foreground">{tb.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 space-y-2 overflow-y-auto px-4 pt-2 pb-4">
+        <div className="flex-1 space-y-2 overflow-y-auto px-3 pt-2 pb-4 sm:px-4">
           {tab === "files" &&
             (files === null ? (
               <div className="flex items-center justify-center py-8">
@@ -278,7 +271,6 @@ export function ChannelResourcesPanel({ open, onOpenChange, channelId }: Channel
             </>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+    </div>
   );
 }

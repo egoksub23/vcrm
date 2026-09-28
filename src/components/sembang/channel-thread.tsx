@@ -14,6 +14,7 @@ import {
   Hash,
   Loader2,
   Lock,
+  MessageSquareText,
   MoreHorizontal,
   Paperclip,
   Pencil,
@@ -42,9 +43,9 @@ import { MessageComposer, type PendingSembangAttachment } from "./message-compos
 import { MembersPanel } from "./members-panel";
 import { MessageRow } from "./message-row";
 import { ThreadPanel } from "./thread-panel";
-import { PinsPanel } from "./pins-panel";
-import { TasksPanel } from "./tasks-panel";
-import { ChannelResourcesPanel } from "./channel-resources-panel";
+import { PinsTabBody } from "./pins-panel";
+import { TasksTabBody } from "./tasks-panel";
+import { ChannelResourcesTabBody } from "./channel-resources-panel";
 import { ScheduleMeetingDialog } from "./schedule-meeting-dialog";
 import {
   addMessageToTask,
@@ -85,6 +86,12 @@ function boldMatch(text: string, query: string): ReactNode {
   );
 }
 
+/** Slack-style content tabs next to the channel name. Members is
+ *  deliberately not one of these — it stays a header button + Sheet,
+ *  matching Slack's own header (member count sits apart from the
+ *  content tabs there too). */
+type ChannelTab = "messages" | "pins" | "tasks" | "files";
+
 interface ChannelThreadProps {
   channelId: string | null;
   /** Mobile back button — deselects the active channel. `lg:hidden`,
@@ -118,17 +125,17 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   // ---- P1: pins / tasks / thread / search / topic editing --------------
   const [pins, setPins] = useState<SembangPin[] | null>(null);
-  const [pinsPanelOpen, setPinsPanelOpen] = useState(false);
   const [unpinningId, setUnpinningId] = useState<string | null>(null);
 
   const [tasks, setTasks] = useState<SembangTask[] | null>(null);
-  const [tasksPanelOpen, setTasksPanelOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
-  // ---- P4: Files/Links/Bookmarks — self-fetched inside the panel, this
-  // component only owns whether it's open. -------------------------------
-  const [resourcesPanelOpen, setResourcesPanelOpen] = useState(false);
+  // Slack-style persistent tabs next to the channel name — replaces the
+  // earlier "buttons that pop a sliding Sheet" pattern for everything
+  // that isn't Members (Members stays a header button + Sheet, same as
+  // Slack keeps its member count separate from the content tabs).
+  const [activeTab, setActiveTab] = useState<ChannelTab>("messages");
 
   // ---- P4: Schedule a meeting — self-fetched connection status inside
   // the dialog, this component only owns whether it's open. --------------
@@ -195,6 +202,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     setEditingTopic(false);
     setThreadParentId(null);
     setSearchOpen(false);
+    setActiveTab("messages");
   }, [channelId]);
 
   // ---- Members -----------------------------------------------------------
@@ -592,7 +600,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
         return;
       }
       if (result.task) setTasks((prev) => [...(prev ?? []), result.task!]);
-      setTasksPanelOpen(true);
+      setActiveTab("tasks");
       toast.success(t("addedToTasks"));
     },
     [channelId, t],
@@ -994,23 +1002,6 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           </div>
           {channel && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button variant="outline" size="sm" onClick={() => setPinsPanelOpen(true)}>
-                <Pin className="h-4 w-4" />
-                {t("pinnedButton", { count: pins?.length ?? 0 })}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setTasksPanelOpen(true)}>
-                <CheckSquare className="h-4 w-4" />
-                {t("tasksButton", { count: openTaskCount })}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label={t("resourcesAriaLabel")}
-                title={t("resourcesAriaLabel")}
-                onClick={() => setResourcesPanelOpen(true)}
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={t("meetingMenuAriaLabel")}
@@ -1122,6 +1113,36 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           )}
         </div>
 
+        {channel && (
+          <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-card px-2 sm:px-3" role="tablist">
+            {(
+              [
+                { key: "messages" as const, label: t("tabMessages"), icon: MessageSquareText },
+                { key: "pins" as const, label: t("tabPins", { count: pins?.length ?? 0 }), icon: Pin },
+                { key: "tasks" as const, label: t("tabTasks", { count: openTaskCount }), icon: CheckSquare },
+                { key: "files" as const, label: t("tabFiles"), icon: Paperclip },
+              ]
+            ).map((tb) => (
+              <button
+                key={tb.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tb.key}
+                onClick={() => setActiveTab(tb.key)}
+                className={cn(
+                  "flex items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+                  activeTab === tb.key
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <tb.icon className="h-3.5 w-3.5" />
+                {tb.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {channelError ? (
           <div className="flex flex-1 flex-col items-center justify-center">
             <p className="text-sm text-destructive">{t("channelLoadFailed")}</p>
@@ -1130,6 +1151,22 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : activeTab === "pins" ? (
+          <PinsTabBody pins={pins} peopleNames={peopleNames} onUnpin={handleUnpinFromPanel} unpinningId={unpinningId} />
+        ) : activeTab === "tasks" ? (
+          <TasksTabBody
+            channelId={channel.id}
+            channelName={channelDisplayName}
+            tasks={tasks}
+            onCreate={handleCreateTask}
+            onToggleStatus={handleToggleTaskStatus}
+            onDelete={handleDeleteTask}
+            onTicketLinked={handleTicketLinked}
+            creating={creatingTask}
+            deletingId={deletingTaskId}
+          />
+        ) : activeTab === "files" ? (
+          <ChannelResourcesTabBody channelId={channel.id} />
         ) : (
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
             {hasMoreEarlier && (
@@ -1177,7 +1214,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           </div>
         )}
 
-        {channel && isMember ? (
+        {channel && activeTab !== "messages" ? null : channel && isMember ? (
           <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} />
         ) : channel && !channel.isPrivate && !channel.isDm ? (
           <div className="border-t border-border bg-card p-3.5 text-center">
@@ -1228,32 +1265,6 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
               onMembersChange={setMembers}
             />
           )}
-          <PinsPanel
-            open={pinsPanelOpen}
-            onOpenChange={setPinsPanelOpen}
-            pins={pins}
-            peopleNames={peopleNames}
-            onUnpin={handleUnpinFromPanel}
-            unpinningId={unpinningId}
-          />
-          <TasksPanel
-            open={tasksPanelOpen}
-            onOpenChange={setTasksPanelOpen}
-            channelId={channel.id}
-            channelName={channelDisplayName}
-            tasks={tasks}
-            onCreate={handleCreateTask}
-            onToggleStatus={handleToggleTaskStatus}
-            onDelete={handleDeleteTask}
-            onTicketLinked={handleTicketLinked}
-            creating={creatingTask}
-            deletingId={deletingTaskId}
-          />
-          <ChannelResourcesPanel
-            open={resourcesPanelOpen}
-            onOpenChange={setResourcesPanelOpen}
-            channelId={channel.id}
-          />
           <ScheduleMeetingDialog
             open={scheduleMeetingOpen}
             onOpenChange={setScheduleMeetingOpen}
