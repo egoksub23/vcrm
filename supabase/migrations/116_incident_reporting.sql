@@ -732,6 +732,10 @@ DECLARE
   v_notified INTEGER := 0;
   v_recipient UUID;
   v_key TEXT;
+  -- Per-recipient detail for the caller (the cron route) to send email
+  -- with — SQL cannot make HTTP calls, so this is handed back rather
+  -- than sent here.
+  v_notified_detail JSONB := '[]'::jsonb;
 BEGIN
   FOR v_row IN
     SELECT i.*
@@ -780,10 +784,16 @@ BEGIN
           || ' has been unacknowledged and was escalated to level ' || v_new_level
       );
       v_notified := v_notified + 1;
+      v_notified_detail := v_notified_detail || jsonb_build_object(
+        'user_id', v_recipient, 'account_id', v_row.account_id, 'incident_id', v_row.id,
+        'key', v_key, 'severity', v_row.severity, 'title', v_row.title, 'level', v_new_level
+      );
     END LOOP;
   END LOOP;
 
-  RETURN jsonb_build_object('escalated', v_escalated, 'notifications', v_notified);
+  RETURN jsonb_build_object(
+    'escalated', v_escalated, 'notifications', v_notified, 'notified', v_notified_detail
+  );
 END;
 $$;
 

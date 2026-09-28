@@ -1,6 +1,16 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
+
+interface SweepNotified {
+  user_id: string
+  incident_id: string
+  key: string
+  severity: string
+  title: string
+  level: number
+}
 
 /**
  * Sweep incident escalation (migration 116).
@@ -37,5 +47,28 @@ export async function GET(request: Request) {
     console.error('[incidents-escalation-cron] sweep failed:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Best-effort email on top of the in-app notification the sweep already
+  // inserted — never blocks the response; the sweep itself already
+  // committed by the time this runs.
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL
+  const notified = (data?.notified ?? []) as SweepNotified[]
+  if (appBaseUrl && notified.length > 0) {
+    await Promise.allSettled(
+      notified.map((n) =>
+        notifyIncidentEmail({
+          userIds: [n.user_id],
+          kind: 'escalated',
+          key: n.key,
+          title: n.title,
+          severity: n.severity,
+          detail: `Unacknowledged and escalated to level ${n.level}.`,
+          incidentId: n.incident_id,
+          appBaseUrl,
+        }),
+      ),
+    )
+  }
+
   return NextResponse.json(data ?? { escalated: 0, notifications: 0 })
 }
