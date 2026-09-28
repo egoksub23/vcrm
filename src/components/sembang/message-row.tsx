@@ -241,6 +241,15 @@ export function MessageRow({
                 {message.attachments.map((a) =>
                   a.mimeType?.startsWith("audio/") ? (
                     <audio key={a.id} src={a.url} controls className="h-10 max-w-72" />
+                  ) : a.mimeType?.startsWith("image/") ? (
+                    <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="block w-fit">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- a signed Storage URL, not an optimizable static asset */}
+                      <img
+                        src={a.url}
+                        alt={a.filename}
+                        className="max-h-72 max-w-72 rounded-lg border border-border object-contain"
+                      />
+                    </a>
                   ) : (
                     <a
                       key={a.id}
