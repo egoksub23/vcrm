@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
+import { sendMessageToConversation, SendMessageError } from '@/lib/whatsapp/send-message'
 import type { ChannelType } from '@/types'
 import type { KnowledgeAttachment } from '@/lib/knowledge-types'
 import { loadEffectiveAttachments } from './translations'
@@ -66,12 +66,19 @@ export function planDelivery(
   }
 }
 
-/** One text message listing files as "name: url" lines. An image with a
- *  caption is listed by that caption (its file name is a generated one). */
+/** One customer-facing text message with a friendly lead-in, then a "name:
+ *  url" line per file. An image with a caption is listed by that caption
+ *  (its file name is a generated one). This is what the customer actually
+ *  sees whenever a channel cannot carry the file as real media (the web
+ *  widget always takes this path — see `planDelivery` — as can Instagram
+ *  and a genuine media-send failure elsewhere), so it needs to read like an
+ *  intentional reply, not a raw dump of internal storage paths. */
 export function buildLinkText(
   files: (Pick<KnowledgeAttachment, 'file_name' | 'url'> & { caption?: string | null })[],
 ): string {
-  return files.map((f) => `${f.caption?.trim() || f.file_name}: ${f.url}`).join('\n')
+  const intro = files.length === 1 ? "Here's the file you asked about:" : 'Here are the files you asked about:'
+  const lines = files.map((f) => `${f.caption?.trim() || f.file_name}: ${f.url}`)
+  return `${intro}\n\n${lines.join('\n')}`
 }
 
 /**
@@ -203,8 +210,19 @@ export async function sendKnowledgeAttachments(
         result.sent += 1
       } catch (err) {
         // The channel refused the file (a type or size it does not take):
-        // fall back to a link rather than lose it.
-        console.error(`[knowledge attachments] media send failed for "${file.file_name}":`, err)
+        // fall back to a link rather than lose it. Logged with the
+        // provider's own reason (code/title/details — see
+        // src/lib/messages/failure-reason.ts) when there is one, so an
+        // operator reading server logs can tell why without having to
+        // separately query the `messages` table for the failed row.
+        if (err instanceof SendMessageError) {
+          console.error(
+            `[knowledge attachments] media send failed for "${file.file_name}": ${err.message}`,
+            { code: err.code, failure: err.failure, failedMessageId: err.failedMessageId }
+          )
+        } else {
+          console.error(`[knowledge attachments] media send failed for "${file.file_name}":`, err)
+        }
         asLinks.push(file)
       }
     }

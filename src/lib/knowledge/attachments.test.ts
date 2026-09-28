@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const h = vi.hoisted(() => ({ send: vi.fn() }))
-vi.mock('@/lib/whatsapp/send-message', () => ({ sendMessageToConversation: h.send }))
+vi.mock('@/lib/whatsapp/send-message', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/whatsapp/send-message')>('@/lib/whatsapp/send-message')
+  return { ...actual, sendMessageToConversation: h.send }
+})
 
+import { SendMessageError } from '@/lib/whatsapp/send-message'
 import { buildLinkText, loadSendableAttachments, planDelivery, sendKnowledgeAttachments } from './attachments'
 import type { KnowledgeAttachment } from '@/lib/knowledge-types'
 
@@ -54,10 +58,14 @@ describe('planDelivery', () => {
 })
 
 describe('buildLinkText', () => {
-  it('lists one "name: url" line per file', () => {
+  it('lists one "name: url" line per file, after a friendly lead-in', () => {
     expect(buildLinkText([att(), att({ file_name: 'b.pdf', url: 'https://cdn.example/b.pdf' })])).toBe(
-      'menu.pdf: https://cdn.example/menu.pdf\nb.pdf: https://cdn.example/b.pdf',
+      'Here are the files you asked about:\n\nmenu.pdf: https://cdn.example/menu.pdf\nb.pdf: https://cdn.example/b.pdf',
     )
+  })
+
+  it('uses singular wording for exactly one file', () => {
+    expect(buildLinkText([att()])).toBe("Here's the file you asked about:\n\nmenu.pdf: https://cdn.example/menu.pdf")
   })
 })
 
@@ -143,7 +151,8 @@ describe('sendKnowledgeAttachments', () => {
     expect(h.send).toHaveBeenCalledTimes(1)
     expect(h.send).toHaveBeenCalledWith(db, 'acct', expect.objectContaining({
       messageType: 'text',
-      contentText: 'menu.pdf: https://cdn.example/menu.pdf\nb.pdf: https://cdn.example/b.pdf',
+      contentText:
+        'Here are the files you asked about:\n\nmenu.pdf: https://cdn.example/menu.pdf\nb.pdf: https://cdn.example/b.pdf',
       channelOverride: 'web_widget',
     }))
   })
@@ -153,7 +162,30 @@ describe('sendKnowledgeAttachments', () => {
     h.send.mockRejectedValueOnce(new Error('Meta rejected the file')).mockResolvedValueOnce({ messageId: 'm2' })
     const r = await sendKnowledgeAttachments(db, 'acct', { conversationId: 'conv', attachments: [att()] })
     expect(r).toEqual({ sent: 0, linked: 1, skipped: 0, failed: 0 })
-    expect(h.send).toHaveBeenLastCalledWith(db, 'acct', expect.objectContaining({ messageType: 'text', contentText: 'menu.pdf: https://cdn.example/menu.pdf' }))
+    expect(h.send).toHaveBeenLastCalledWith(db, 'acct', expect.objectContaining({
+      messageType: 'text',
+      contentText: "Here's the file you asked about:\n\nmenu.pdf: https://cdn.example/menu.pdf",
+    }))
+  })
+
+  it('logs the provider\'s own failure reason (code/title/details), not just a raw Error, when it is a SendMessageError', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { db } = fakeDb()
+    const err = new SendMessageError('meta_error', 'Meta rejected the file', 502, {
+      failure: { code: 131053, title: 'Media unsupported', details: 'unsupported file type' },
+      failedMessageId: 'msg-1',
+    })
+    h.send.mockRejectedValueOnce(err).mockResolvedValueOnce({ messageId: 'm2' })
+    await sendKnowledgeAttachments(db, 'acct', { conversationId: 'conv', attachments: [att()] })
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('media send failed for "menu.pdf": Meta rejected the file'),
+      expect.objectContaining({
+        code: 'meta_error',
+        failure: expect.objectContaining({ code: 131053, title: 'Media unsupported' }),
+        failedMessageId: 'msg-1',
+      })
+    )
+    spy.mockRestore()
   })
 
   it('counts a file as failed, without throwing, when even the link cannot be sent', async () => {

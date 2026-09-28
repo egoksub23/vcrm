@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const h = vi.hoisted(() => ({ send: vi.fn() }))
-vi.mock('@/lib/whatsapp/send-message', () => ({ sendMessageToConversation: h.send }))
+vi.mock('@/lib/whatsapp/send-message', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/whatsapp/send-message')>('@/lib/whatsapp/send-message')
+  return { ...actual, sendMessageToConversation: h.send }
+})
 
 import { buildLinkText, sendKnowledgeAttachments } from './attachments'
 import { toAttachment, type AttachmentRow } from './articles'
@@ -137,7 +140,8 @@ describe('sending an article\'s inline images', () => {
     expect(h.send).toHaveBeenCalledTimes(1)
     expect(h.send.mock.calls[0][2]).toMatchObject({
       messageType: 'text',
-      contentText: 'Open Settings: https://cdn.example/1.png\npasted-image-1.png: https://cdn.example/2.png',
+      contentText:
+        'Here are the files you asked about:\n\nOpen Settings: https://cdn.example/1.png\npasted-image-1.png: https://cdn.example/2.png',
     })
   })
 })
@@ -150,6 +154,6 @@ describe('buildLinkText with captions', () => {
         { file_name: 'b.png', url: 'u2', caption: '   ' },
         { file_name: 'c.pdf', url: 'u3' },
       ]),
-    ).toBe('Cap: u1\nb.png: u2\nc.pdf: u3')
+    ).toBe('Here are the files you asked about:\n\nCap: u1\nb.png: u2\nc.pdf: u3')
   })
 })

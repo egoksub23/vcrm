@@ -9,6 +9,11 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.70.1] — 2026-09-28
+
+- **Fix: the AI's knowledge-base file links now read as an intentional reply, not a raw debug dump.** When an AI auto-reply cites a knowledge article whose images/files can't go out as real media on that channel — always true on the Web Widget, sometimes true elsewhere on a genuine send failure — a follow-up message lists them as bare `filename: url` lines with zero framing, which looked like it had been glued onto the AI's own reply. It's actually always a second, separate message; it now opens with "Here's the file you asked about" / "Here are the files you asked about" instead of a bare list.
+- **Fix: a real media-send failure (WhatsApp/Messenger/email) is now logged with the provider's own reason**, not just a raw JS error — the same code/title/details already shown to agents for any other failed send, so it's actually possible to tell why from server logs instead of just that it happened.
+
 ## [0.70.0] — 2026-09-28
 
 - **Web Widget: embeddable inside a native app (Ionic/Capacitor), not just a website.** The same widget token and embed script now work inside a mobile app's own chat tab: `data-mode="fullscreen"` drops the floating launcher bubble and close button, filling its container edge-to-edge instead of popping up from a corner. A logged-in app user's phone, email, and now **wallet ID** can be handed straight to the widget (`data-user-*` attributes or `window.VircleWidget.identify({...})`) to skip the widget's own identity screen entirely; a guest flow just supplies phone the same way. Wallet ID travels through on the existing unverified-claim tier now — stored on a newly created contact for reference, but, like phone/email backfill, never used to match or merge into an existing one (that stays restricted to a signed in-app identity token, unchanged). Also provisioned (not yet wired up) a no-op push-notification hook (`src/lib/widget/notify-app-push.ts`) keyed by wallet ID, for when a real push API is available. See `docs/web-chat-widget.md`, "Embedding in a native app". No migration required.
