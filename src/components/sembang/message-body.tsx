@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import { highlightMentions } from "@/lib/tickets/mention-highlight";
 import { parseCodeBlocks } from "@/lib/sembang/parse-code-blocks";
 import { parseInlineFormatting, type FormatSegment } from "@/lib/sembang/parse-inline-formatting";
+import { linkifySegments } from "@/lib/sembang/linkify";
 import type { SembangAttachment } from "@/types";
 
 function escapeHtml(s: string): string {
@@ -62,15 +63,32 @@ function FormatSegmentView({
   keyPrefix: string;
 }) {
   const renderMentions = (text: string, keyBase: string) =>
-    highlightMentions(text, peopleNames, []).map((s, j) =>
-      s.kind === "text" ? (
-        <span key={`${keyBase}-${j}`}>{s.text}</span>
-      ) : (
-        <span key={`${keyBase}-${j}`} className="rounded-sm bg-primary/15 px-0.5">
-          {s.text}
-        </span>
-      ),
-    );
+    highlightMentions(text, peopleNames, []).flatMap((s, j) => {
+      if (s.kind !== "text") {
+        return [
+          <span key={`${keyBase}-${j}`} className="rounded-sm bg-primary/15 px-0.5">
+            {s.text}
+          </span>,
+        ];
+      }
+      // A mention chip is always an exact "@Name" match, never a URL,
+      // so only plain-text segments need a further link pass.
+      return linkifySegments(s.text).map((seg, k) =>
+        seg.type === "link" ? (
+          <a
+            key={`${keyBase}-${j}-${k}`}
+            href={seg.href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+          >
+            {seg.text}
+          </a>
+        ) : (
+          <span key={`${keyBase}-${j}-${k}`}>{seg.text}</span>
+        ),
+      );
+    });
 
   if (segment.type === "list") {
     return (

@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.69.3] — 2026-09-28
+
+- **Sembang: pasted URLs are now clickable text, not just an unfurl card.** A message body never linkified a URL at all before this — `www.vircle.com` or `https://…` just sat there as plain, unclickable text (the unfurl preview card below it was the only clickable part). Both a full `http(s)://` link and a bare `www.` address now render as an actual `<a>` link inline, in the main channel and inside thread replies alike, built on the same link-detection already used for unfurl previews and the Links panel.
+
 ## [0.69.2] — 2026-09-27
 
 - **Fix: Sembang link previews never fired for a bare `www.` address.** `extractLinks` (used both by the "Links" panel and to trigger a message's unfurl-preview fetch) only matched URLs with an explicit `http://`/`https://` scheme, so something like "check out www.vircle.com" was never even recognized as a link — the preview card silently never appeared. Now also matches a bare `www.…` address (adding `https://` under the hood), matching how WhatsApp treats a pasted link with no scheme.

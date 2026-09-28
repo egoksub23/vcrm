@@ -1,15 +1,17 @@
 // ============================================================
-// Plain URL extraction from a Sembang message body — no unfurling, no
-// preview cards, just "find every http(s) URL in this text." No such
-// helper existed anywhere in the codebase before this (Sembang message
-// bodies don't linkify bare URLs at all today — see message-body.tsx).
+// Shared "what counts as a link in a Sembang message" tokenizer.
+// extractLinks() (a flat URL list — the Links panel, and what triggers
+// a message's unfurl-preview fetch on send) and the message-body
+// renderer's inline clickable links (see linkify.ts) both build on
+// findLinkTokens() so there's exactly one definition of a link, not
+// two regexes that could quietly drift apart.
 // ============================================================
 
 // Deliberately conservative: stops at whitespace and the common
 // trailing-punctuation cases (a URL at the end of a sentence, wrapped
 // in parens, etc.) rather than trying to be a fully RFC-3986-correct
-// URL matcher — this only needs to be good enough for "list the links
-// someone posted," not to validate arbitrary input.
+// URL matcher — this only needs to be good enough for "list/linkify
+// the links someone posted," not to validate arbitrary input.
 const URL_RE = /https?:\/\/[^\s<>"']+/gi
 // Bare "www.…" addresses — the other extremely common way people paste
 // a link ("check out www.example.com"), with no scheme at all.
@@ -20,24 +22,47 @@ const URL_RE = /https?:\/\/[^\s<>"']+/gi
 const BARE_WWW_RE = /\bwww\.[^\s<>"']+/gi
 const TRAILING_PUNCTUATION_RE = /[.,;:!?)\]}'"]+$/
 
-export function extractLinks(body: string): string[] {
-  const found: { index: number; url: string }[] = []
+export interface LinkToken {
+  /** Start offset of the link in the original text. */
+  index: number
+  /** End offset — where the link stops and any trailing punctuation
+   *  (left as ordinary text, not part of the link) begins. */
+  end: number
+  /** Display text — trailing punctuation already stripped, but
+   *  otherwise exactly as typed. A bare "www.foo.com" keeps that exact
+   *  text even though its `href` gets a scheme added. */
+  text: string
+  /** Where the link points — always has a scheme. */
+  href: string
+}
 
-  for (const m of body.matchAll(URL_RE)) {
-    found.push({ index: m.index ?? 0, url: m[0] })
+/** Every link-looking substring in `text`, in reading order. Pure,
+ *  never throws; returns `[]` for text with nothing link-shaped. */
+export function findLinkTokens(text: string): LinkToken[] {
+  const found: LinkToken[] = []
+
+  for (const m of text.matchAll(URL_RE)) {
+    const start = m.index ?? 0
+    const trimmed = m[0].replace(TRAILING_PUNCTUATION_RE, '')
+    found.push({ index: start, end: start + trimmed.length, text: trimmed, href: trimmed })
   }
 
-  for (const m of body.matchAll(BARE_WWW_RE)) {
+  for (const m of text.matchAll(BARE_WWW_RE)) {
     const start = m.index ?? 0
     // Skip a "www." that's already part of a scheme URL matched above
     // (the "www" inside "https://www.example.com") rather than double-
     // counting it as a second, schemeless link.
-    const preceding = body.slice(Math.max(0, start - 8), start)
+    const preceding = text.slice(Math.max(0, start - 8), start)
     if (preceding.endsWith('://')) continue
-    found.push({ index: start, url: `https://${m[0]}` })
+    const trimmed = m[0].replace(TRAILING_PUNCTUATION_RE, '')
+    found.push({ index: start, end: start + trimmed.length, text: trimmed, href: `https://${trimmed}` })
   }
 
-  return found
-    .sort((a, b) => a.index - b.index)
-    .map((entry) => entry.url.replace(TRAILING_PUNCTUATION_RE, ''))
+  return found.sort((a, b) => a.index - b.index)
+}
+
+/** Flat list of link hrefs in reading order — what the Links panel and
+ *  the unfurl-preview trigger need. */
+export function extractLinks(body: string): string[] {
+  return findLinkTokens(body).map((t) => t.href)
 }
