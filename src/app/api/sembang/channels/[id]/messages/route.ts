@@ -49,6 +49,8 @@ import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
 import { extractLinks } from '@/lib/sembang/extract-links'
 import { fetchLinkPreview } from '@/lib/sembang/link-preview'
+import { loadJiraContext } from '@/lib/jira/http'
+import { matchJiraIssueKey } from '@/lib/jira/issue-url'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 
 const DEFAULT_LIMIT = 50
@@ -254,11 +256,57 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // the sender's own session writes) and is entirely best-effort — no
     // row is written at all if the URL can't be resolved into a preview
     // worth showing (see fetchLinkPreview's own doc comment).
+    //
+    // A Jira Cloud issue link (migration 119) gets a live status/priority/
+    // assignee card via the account's own Jira connection instead of the
+    // generic OpenGraph scrape — a Jira browse page needs a login to
+    // render anything useful, so the generic path would mostly come back
+    // empty anyway. No fallback to the generic scrape on a Jira-fetch
+    // failure (not connected, issue not found, ...): same "no row rather
+    // than a wrong one" posture as every other unfurl failure here.
     const [firstLink] = extractLinks(messageBody)
     if (firstLink) {
       const messageId = (row as SembangMessageRow).id
       const accountId = ctx.accountId
+      const jiraKey = matchJiraIssueKey(firstLink)
       after(async () => {
+        if (jiraKey) {
+          try {
+            const j = await loadJiraContext({ accountId }, request)
+            const issue = await j.client.getIssue(jiraKey, [
+              'summary',
+              'status',
+              'priority',
+              'assignee',
+              'issuetype',
+              'project',
+              'updated',
+            ])
+            if (!issue) return
+            const { error: previewErr } = await supabaseAdmin().from('sembang_link_previews').insert({
+              message_id: messageId,
+              account_id: accountId,
+              kind: 'jira',
+              url: `${j.connection.site_url.replace(/\/+$/, '')}/browse/${issue.key}`,
+              title: issue.fields.summary ?? null,
+              domain: j.connection.site_name || 'Jira Cloud',
+              jira_key: issue.key,
+              jira_issue_type: issue.fields.issuetype?.name ?? null,
+              jira_status: issue.fields.status?.name ?? null,
+              jira_status_category: issue.fields.status?.statusCategory?.key ?? null,
+              jira_priority: issue.fields.priority?.name ?? null,
+              jira_assignee: issue.fields.assignee?.displayName ?? null,
+              jira_project: issue.fields.project?.name ?? issue.fields.project?.key ?? null,
+              jira_updated_at: issue.fields.updated ?? null,
+            })
+            if (previewErr) console.error('[POST /api/sembang/channels/[id]/messages] jira preview insert error:', previewErr)
+          } catch (err) {
+            // No connection, needs reauth, issue not found/no access, rate
+            // limited, ... — all "nothing to show," never a send failure.
+            console.error('[POST /api/sembang/channels/[id]/messages] jira preview fetch error:', err)
+          }
+          return
+        }
         try {
           const preview = await fetchLinkPreview(firstLink)
           if (!preview) return

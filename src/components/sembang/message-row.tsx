@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { EmojiPicker } from "@/components/emoji/emoji-picker";
 import { MessageBody } from "./message-body";
+import { JiraUnfurlCard } from "./jira-unfurl-card";
 import { cn } from "@/lib/utils";
 import type { SembangMessage, SembangReactionSummary } from "@/types";
 
@@ -256,7 +257,14 @@ export function MessageRow({
                 )}
               </div>
             )}
-            {message.linkPreview && (
+            {message.linkPreview && message.linkPreview.kind === "jira" && message.linkPreview.jira ? (
+              <JiraUnfurlCard
+                url={message.linkPreview.url}
+                title={message.linkPreview.title}
+                domain={message.linkPreview.domain}
+                jira={message.linkPreview.jira}
+              />
+            ) : message.linkPreview ? (
               <a
                 href={message.linkPreview.url}
                 target="_blank"
@@ -286,7 +294,7 @@ export function MessageRow({
                   )}
                 </div>
               </a>
-            )}
+            ) : null}
             <ReactionRow reactions={message.reactions} onReact={(emoji) => onReact(message.id, emoji)} />
             {showThread && (message.replyCount ?? 0) > 0 && (
               <button

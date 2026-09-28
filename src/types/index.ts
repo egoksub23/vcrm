@@ -1587,12 +1587,31 @@ export interface SembangAttachment {
  *  already sent, so it's absent on a message that hasn't been unfurled
  *  yet (no URL, an unreachable/private/non-HTML target, or the fetch
  *  just hasn't landed yet). */
+/** Migration 119: a live Jira issue snapshot, present only when
+ *  `SembangLinkPreview.kind === 'jira'`. */
+export interface SembangJiraPreview {
+  key: string;
+  issueType: string | null;
+  status: string | null;
+  /** Jira's status-category key ("new" | "indeterminate" | "done") — used
+   *  the same way ticket-jira-card.tsx's `categoryTone()` already colors
+   *  a linked ticket's status lozenge. */
+  statusCategory: string | null;
+  priority: string | null;
+  assignee: string | null;
+  project: string | null;
+  updatedAt: string | null;
+}
+
 export interface SembangLinkPreview {
   url: string;
   title: string | null;
   description: string | null;
   imageUrl: string | null;
   domain: string | null;
+  /** Migration 119. Defaults to 'link' for every pre-existing row. */
+  kind: "link" | "jira";
+  jira: SembangJiraPreview | null;
 }
 
 /** One emoji's aggregated reactions on a message — the shape the

@@ -7410,6 +7410,17 @@
       "dropNotImage": "Only pictures can be dropped here. Use the paperclip for other files.",
       "pastedImage": "Pasted image"
     },
+    "jiraUnfurl": {
+      "subtitle": "{type} {key} in {site}",
+      "issue": "Issue",
+      "jiraCloud": "Jira Cloud",
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "updated": "Updated {when}",
+      "openInJira": "Open in Jira"
+    },
     "membersPanel": {
       "title": "Members",
       "youTag": "(you)",

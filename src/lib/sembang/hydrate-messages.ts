@@ -52,7 +52,7 @@ interface ReactionRow {
   emoji: string
 }
 
-/** Migration 107. */
+/** Migration 107; `kind`/`jira_*` added by migration 119. */
 interface LinkPreviewRow {
   message_id: string
   url: string
@@ -60,6 +60,15 @@ interface LinkPreviewRow {
   description: string | null
   image_url: string | null
   domain: string | null
+  kind: 'link' | 'jira'
+  jira_key: string | null
+  jira_issue_type: string | null
+  jira_status: string | null
+  jira_status_category: string | null
+  jira_priority: string | null
+  jira_assignee: string | null
+  jira_project: string | null
+  jira_updated_at: string | null
 }
 
 /** Migration 101 (parentPreview) / 115 (quotedPreview). The
@@ -131,7 +140,9 @@ export async function hydrateMessages(
     supabase.from('sembang_reactions').select('message_id, user_id, emoji').in('message_id', messageIds),
     supabase
       .from('sembang_link_previews')
-      .select('message_id, url, title, description, image_url, domain')
+      .select(
+        'message_id, url, title, description, image_url, domain, kind, jira_key, jira_issue_type, jira_status, jira_status_category, jira_priority, jira_assignee, jira_project, jira_updated_at',
+      )
       .in('message_id', messageIds),
     topLevelIds.length > 0
       ? supabase
@@ -223,6 +234,20 @@ export async function hydrateMessages(
       description: p.description,
       imageUrl: p.image_url,
       domain: p.domain,
+      kind: p.kind,
+      jira:
+        p.kind === 'jira'
+          ? {
+              key: p.jira_key ?? '',
+              issueType: p.jira_issue_type,
+              status: p.jira_status,
+              statusCategory: p.jira_status_category,
+              priority: p.jira_priority,
+              assignee: p.jira_assignee,
+              project: p.jira_project,
+              updatedAt: p.jira_updated_at,
+            }
+          : null,
     })
   }
 
