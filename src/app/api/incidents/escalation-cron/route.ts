@@ -51,7 +51,7 @@ export async function GET(request: Request) {
   // Best-effort email on top of the in-app notification the sweep already
   // inserted — never blocks the response; the sweep itself already
   // committed by the time this runs.
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL
+  const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
   const notified = (data?.notified ?? []) as SweepNotified[]
   if (appBaseUrl && notified.length > 0) {
     await Promise.allSettled(
