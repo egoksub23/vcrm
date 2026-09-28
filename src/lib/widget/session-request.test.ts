@@ -30,7 +30,23 @@ describe('parseSessionBody', () => {
 
   it('normalises a typed claim (digits phone, lower-case email) and takes the name', () => {
     const v = ok({ widgetToken: 't', claim: { phone: '+60 12-398 0112', email: 'Jane@Example.com', name: ' Jane ' } })
-    expect(v.claim).toEqual({ phone: '60123980112', email: 'jane@example.com', name: 'Jane', legacy: false })
+    expect(v.claim).toEqual({
+      phone: '60123980112',
+      email: 'jane@example.com',
+      name: 'Jane',
+      walletId: null,
+      legacy: false,
+    })
+  })
+
+  it('carries a typed claim walletId through (reference-only, see identity-resolve.ts)', () => {
+    const v = ok({ widgetToken: 't', claim: { phone: '60123980112', walletId: ' w-123 ' } })
+    expect(v.claim).toMatchObject({ walletId: 'w-123' })
+  })
+
+  it('treats a blank claim walletId as absent', () => {
+    const v = ok({ widgetToken: 't', claim: { phone: '60123980112', walletId: '   ' } })
+    expect(v.claim).toMatchObject({ walletId: null })
   })
 
   it('accepts a claim with only an email', () => {
@@ -69,7 +85,10 @@ describe('parseSessionBody', () => {
 
     it('verifiedIdentity becomes an UNVERIFIED claim (never trusted any more)', () => {
       const v = ok({ widgetToken: 't', verifiedIdentity: { phone: '60123980112', email: 'a@b.co', walletId: 'w1' } })
-      expect(v.claim).toEqual({ phone: '60123980112', email: 'a@b.co', name: null, legacy: true })
+      // walletId is dropped even though the legacy payload carries one —
+      // this legacy field predates wallet id support entirely, and stays
+      // that way; only the current `claim.walletId` path (above) carries it.
+      expect(v.claim).toEqual({ phone: '60123980112', email: 'a@b.co', name: null, walletId: null, legacy: true })
       expect(v.identityToken).toBeNull()
     })
 

@@ -110,6 +110,59 @@ your page's styles and your page's styles can't leak into it. It
 works the same way inside a mobile app's WebView, since a WebView is
 just rendering the page.
 
+### Embedding in a native app (Ionic/Capacitor, etc.)
+
+A cross-platform app built on Capacitor (Ionic, and similar) renders real
+HTML/CSS/JS in a WebView, so the exact same embed above works inside your
+own app's chat tab — reuse the same widget token, no separate config or
+second embed to manage.
+
+1. **Give the chat tab a full-height page/component** containing the same
+   `<script>` tag, with two additions:
+   ```html
+   <script src="https://<your-host>/widget/loader.js"
+           data-widget-token="wt_..."
+           data-mode="fullscreen"
+           async></script>
+   ```
+   `data-mode="fullscreen"` drops the floating launcher bubble and the
+   in-panel close button, and makes the panel fill its container instead
+   of popping up from a corner — meant for a dedicated tab, not a
+   website's corner. It implies `data-open`. Make sure the page/container
+   the script mounts into has an actual height (a `100dvh` `<body>`, or
+   whatever your app's own tab-content container already provides) — the
+   panel fills 100% of it.
+2. **Logged-in user**: supply what your app already knows — phone, email,
+   and/or wallet ID — either as `data-user-phone` / `data-user-email` /
+   `data-user-wallet-id` attributes on that tag (known at load time), or
+   via `window.VircleWidget.identify({ phone, email, walletId, name })`
+   once your own sign-in resolves (safe to call before the widget has
+   mounted — it queues). Supplying phone or email up front skips the
+   widget's own "who are you" screen entirely and lands straight in chat.
+   This is the same **unverified claim** tier described under "In-app
+   identity" below — reference-only wallet ID, matched to a CRM contact by
+   phone/email, never by wallet ID. If you later want a stronger,
+   spoof-resistant identity (your own backend signs a short-lived token),
+   switch to `data-identity-token` / `identify({ token })` instead — same
+   embed, no other change.
+3. **Guest (not logged in)**: have your app ask for the phone number
+   itself (its own native input, not the widget's built-in form), then
+   supply it the same way — `data-user-phone` or
+   `identify({ phone })`. As in step 2, this skips straight to chat.
+4. **Allowed origins**: leave the Web Widget's **Allowed origins** setting
+   empty (the default) so it stays permissive — CORS's `Origin` header is
+   unreliable or absent from a WebView, and the actual trust boundary is
+   the widget token plus the visitor's own Supabase session token, not
+   `Origin`. Only add specific origins there if you need to lock the
+   *website* embed down; don't add your app's WebView origin unless you
+   know exactly what it sends.
+5. **Reply notifications while the app is backgrounded**: not built yet.
+   `src/lib/widget/notify-app-push.ts` is a provisioned, currently no-op
+   hook — once you have a push API (FCM/APNs/Huawei Push Kit) keyed by
+   wallet ID, wiring it in is a one-function change there; see "Agent
+   replies after the visitor left" below for how the equivalent email
+   notification works today.
+
 ### 4. Test it
 
 Click **Test chat** next to the embed snippet — it opens a small
@@ -270,10 +323,17 @@ The other loader inputs: `data-lang="en|ms|zh"` (else the page's
 `<html lang>`, else the browser language), `data-user-name` (a display-name
 hint), and `data-open="true"` (start with the panel open; used by Test
 chat). The **legacy** `data-user-phone`, `data-user-email`,
-`data-user-wallet-id` and `identify({ phone, email, name })` still work so
-existing embeds do not break, but they are unsigned, so the server treats
-them as an **unverified claim**. The widget does not send a wallet id as a
-claim; a wallet id is only accepted inside a signed token.
+`data-user-wallet-id` and `identify({ phone, email, name, walletId })` still
+work so existing embeds do not break, but they are unsigned, so the server
+treats them as an **unverified claim**. A wallet id on this unverified tier
+is **reference-only**: it is stored on a brand-new contact (so it shows up
+in the CRM and is available for the future push-notification hook, see
+"Agent replies after the visitor left"), but — like the phone/email on an
+*existing* contact — it
+is never used to match or merge into one; only a signed token's wallet id is
+ever trusted for matching. Requiring a signed token is the deliberate
+security boundary; storing an unverified wallet id is not the same thing as
+trusting it.
 
 ### Matching a typed or signed identity to a contact
 

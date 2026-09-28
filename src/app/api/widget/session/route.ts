@@ -164,7 +164,11 @@ export async function POST(request: Request) {
       }
     } else if (claim && knownLevel !== 'verified') {
       const same = knownVisitor && knownLevel !== 'guest' && currentContact && claimMatchesContact(currentContact, claim)
-      if (!same) offer = { mode: 'claimed', phone: claim.phone, email: claim.email, walletId: null, name: claim.name }
+      // walletId travels through even on the unverified/claimed tier now
+      // (reference-only — resolveIdentityContact's match gate stays
+      // `verified`-only, this only lets it reach storage on a brand-new
+      // contact; see identity-resolve.ts).
+      if (!same) offer = { mode: 'claimed', phone: claim.phone, email: claim.email, walletId: claim.walletId, name: claim.name }
     }
 
     // Typed claims are the enumeration surface: rate-limit them.

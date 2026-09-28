@@ -62,6 +62,7 @@ import {
 import { GmailApiError } from '@/lib/gmail/errors';
 import { failureFromError, type StoredFailure } from '@/lib/messages/failure-reason';
 import { notifyWidgetVisitorOfReply } from '@/lib/widget/notify-reply';
+import { notifyAppUserOfReplyViaPush } from '@/lib/widget/notify-app-push';
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -1088,6 +1089,16 @@ export async function sendMessageToConversation(
       contactId: contact.id,
       contactEmail: contact.email ?? null,
     }).catch((err) => console.error('[send-message] widget reply notification failed:', err));
+    // No-op until a real push API is wired in (see
+    // src/lib/widget/notify-app-push.ts) — provisioned now so a future
+    // mobile-app chat user's wallet id is already flowing to the one spot
+    // that call will go.
+    notifyAppUserOfReplyViaPush(supabaseAdmin(), {
+      accountId,
+      conversationId,
+      contactId: contact.id,
+      walletId: contact.wallet_id ?? null,
+    }).catch((err) => console.error('[send-message] app push notification failed:', err));
   }
 
   // Pause any active Flow run for this contact — the agent stepping in

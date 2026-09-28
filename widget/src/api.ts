@@ -152,6 +152,9 @@ export interface Claim {
   phone?: string
   email?: string
   name?: string
+  /** Reference-only on this unverified tier — never used to match/merge a
+   *  contact, only stored on a brand-new one. See docs/web-chat-widget.md. */
+  walletId?: string
 }
 
 export interface StartSessionOptions {

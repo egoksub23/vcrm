@@ -75,13 +75,21 @@ vi.mock('@/lib/widget/tags', async () => {
 let storeSeed: { byPhone?: unknown; byEmail?: unknown; mergeOk?: boolean } = {}
 const merges: [string, string][] = []
 const suggestions: [string, string][] = []
+const createContactCalls: { accountId: string; ownerUserId: string; input: unknown }[] = []
+const walletLookups: string[] = []
 vi.mock('@/lib/widget/identity-resolve', async () => {
   const actual = await vi.importActual<typeof import('@/lib/widget/identity-resolve')>('@/lib/widget/identity-resolve')
   const store: IdentityStore = {
     findByPhone: async () => (storeSeed.byPhone as never) ?? null,
     findByEmail: async () => (storeSeed.byEmail as never) ?? null,
-    findByWallet: async () => null,
-    createContact: async () => ({ id: 'created-contact', created: true }),
+    findByWallet: async (_accountId, walletId) => {
+      walletLookups.push(walletId)
+      return null
+    },
+    createContact: async (accountId, ownerUserId, input) => {
+      createContactCalls.push({ accountId, ownerUserId, input })
+      return { id: 'created-contact', created: true }
+    },
     backfill: async () => undefined,
     mergeContacts: async (_a, p, s) => {
       merges.push([p, s])
@@ -142,6 +150,8 @@ beforeEach(() => {
   merges.length = 0
   suggestions.length = 0
   sentCodeEmails.length = 0
+  createContactCalls.length = 0
+  walletLookups.length = 0
   storeSeed = {}
 })
 
@@ -216,6 +226,26 @@ describe('POST /api/widget/session', () => {
     expect(body).toMatchObject({ identity: { level: 'claimed', displayName: 'Sam' }, claimFound: false })
     expect(tagged).toEqual(['Claims existing user'])
     expect(visitorUpsert()).toMatchObject({ identity_level: 'claimed', identity_source: 'typed' })
+  })
+
+  it('a typed claim with a walletId stores it on the brand-new contact (reference-only, Ionic app case)', async () => {
+    await call({ claim: { phone: '60123980112', walletId: 'w-app-123' } })
+    expect(createContactCalls).toHaveLength(1)
+    expect(createContactCalls[0].input).toMatchObject({ phone: '60123980112', walletId: 'w-app-123' })
+    // The matching gate stays verified-only: an unverified claim's walletId
+    // must never be used to look an existing contact up by wallet.
+    expect(walletLookups).toEqual([])
+  })
+
+  it('a typed claim with a walletId but a matching phone still resolves by phone, not wallet', async () => {
+    storeSeed = { byPhone: { id: 'existing', name: 'Real Customer', phone: '60123980112', wallet_id: 'w-original' } }
+    db.contact = { name: 'Real Customer', phone: '60123980112', email: null, wallet_id: 'w-original' }
+    const body = await (
+      await call({ claim: { phone: '60123980112', walletId: 'w-different' } })
+    ).json()
+    expect(body.claimFound).toBe(true)
+    expect(walletLookups).toEqual([])
+    expect(createContactCalls).toEqual([])
   })
 
   it('a typed claim that matches an existing contact is claimFound=true, no tag, and does not leak the contact name', async () => {

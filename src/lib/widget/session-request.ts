@@ -19,11 +19,15 @@ import { normalizeEmail, normalizeIdentityPhone } from '@/lib/widget/identity-to
 import { parseLocale, type WidgetLocale } from '@/lib/widget/enquiry'
 
 const NAME_MAX_LEN = 120
+const WALLET_ID_MAX_LEN = 120
 
 export interface SessionClaim {
   phone: string | null
   email: string | null
   name: string | null
+  /** Reference-only (see identity-resolve.ts) — never a matching key on an
+   *  unverified claim, only stored on a brand-new contact. */
+  walletId: string | null
   /** From the legacy `verifiedIdentity` field. */
   legacy: boolean
 }
@@ -73,16 +77,22 @@ export function parseSessionBody(raw: unknown): SessionRequestParse {
     if (rawPhone && !phone) return { ok: false, status: 400, code: 'invalid_claim', error: 'Enter a valid phone number' }
     const email = rawEmail ? normalizeEmail(rawEmail) : null
     if (rawEmail && !email) return { ok: false, status: 400, code: 'invalid_claim', error: 'Enter a valid email address' }
-    claim = { phone, email, name: str(c.name).slice(0, NAME_MAX_LEN) || null, legacy: false }
+    claim = {
+      phone,
+      email,
+      name: str(c.name).slice(0, NAME_MAX_LEN) || null,
+      walletId: str(c.walletId).slice(0, WALLET_ID_MAX_LEN) || null,
+      legacy: false,
+    }
   } else if (str(b?.visitorPhone)) {
     const phone = normalizeIdentityPhone(str(b?.visitorPhone))
     if (!phone) return { ok: false, status: 400, code: 'invalid_claim', error: 'Enter a valid phone number' }
-    claim = { phone, email: null, name: null, legacy: false }
+    claim = { phone, email: null, name: null, walletId: null, legacy: false }
   } else if (b?.verifiedIdentity && typeof b.verifiedIdentity === 'object') {
     const v = b.verifiedIdentity as Record<string, unknown>
     const phone = normalizeIdentityPhone(str(v.phone))
     const email = normalizeEmail(str(v.email))
-    if (phone || email) claim = { phone, email, name: null, legacy: true }
+    if (phone || email) claim = { phone, email, name: null, walletId: null, legacy: true }
   }
 
   if (claim && !claim.name && visitorName) claim.name = visitorName

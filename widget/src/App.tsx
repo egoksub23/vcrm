@@ -60,6 +60,10 @@ interface AppProps {
   widgetToken: string
   locale: Locale
   autoOpen?: boolean
+  /** data-mode="fullscreen" — no launcher bubble or close button, the panel
+   *  fills its container instead of popping up from a corner. Meant for a
+   *  native app's own dedicated chat tab (see docs/web-chat-widget.md). */
+  embedded?: boolean
   /** Synchronous handoff from the loader's own data-* attrs (token or legacy phone/email). */
   initialIdentity?: IdentityInput
   /** Registers the callback main.tsx's window.VircleWidget.identify() invokes for an
@@ -100,7 +104,14 @@ function extensionFor(mime: string): string {
   return 'audio'
 }
 
-export function App({ widgetToken, locale, autoOpen = false, initialIdentity, onIdentifyReady }: AppProps) {
+export function App({
+  widgetToken,
+  locale,
+  autoOpen = false,
+  embedded = false,
+  initialIdentity,
+  onIdentifyReady,
+}: AppProps) {
   const t = useMemo(() => makeTranslator(locale), [locale])
 
   const [open, setOpen] = useState(autoOpen)
@@ -330,7 +341,8 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       const idn = identityRef.current
       const opts: StartSessionOptions = { locale }
       if (idn.token) opts.identityToken = idn.token
-      else if (idn.phone || idn.email) opts.claim = { phone: idn.phone, email: idn.email, name: idn.name }
+      else if (idn.phone || idn.email)
+        opts.claim = { phone: idn.phone, email: idn.email, name: idn.name, walletId: idn.walletId }
       await applySession(await startSession(widgetToken, opts))
     } catch (err) {
       bootstrapped.current = false
@@ -365,7 +377,7 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       if (next.token) {
         void runIdentity({ identityToken: next.token })
       } else if ((next.phone || next.email) && identityLevelRef.current !== 'verified') {
-        void runIdentity({ claim: { phone: next.phone, email: next.email, name: next.name } })
+        void runIdentity({ claim: { phone: next.phone, email: next.email, name: next.name, walletId: next.walletId } })
       }
     })
   }, [onIdentifyReady, runIdentity])
@@ -811,7 +823,10 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
       style={{ '--wcw-primary': primaryColor } as Record<string, string>}
     >
       {open && (
-        <div class={`wcw-panel wcw-${position}${isMobile ? ' wcw-mobile' : ''}`} style={panelStyle}>
+        <div
+          class={`wcw-panel wcw-${position}${isMobile ? ' wcw-mobile' : ''}${embedded ? ' wcw-embedded' : ''}`}
+          style={panelStyle}
+        >
           <div class="wcw-header">
             {showBack && (
               <button type="button" class="wcw-close" aria-label={t('back')} onClick={goBack}>
@@ -829,9 +844,11 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
               <div class="wcw-header-title">{branding?.name ?? 'Chat'}</div>
               {screen === 'chat' && !live && <div class="wcw-header-sub">{t('reconnecting')}</div>}
             </div>
-            <button type="button" class="wcw-close" aria-label={t('closeChat')} onClick={() => setOpen(false)}>
-              <CloseIcon />
-            </button>
+            {!embedded && (
+              <button type="button" class="wcw-close" aria-label={t('closeChat')} onClick={() => setOpen(false)}>
+                <CloseIcon />
+              </button>
+            )}
           </div>
 
           {banner && (
@@ -985,19 +1002,21 @@ export function App({ widgetToken, locale, autoOpen = false, initialIdentity, on
         </div>
       )}
 
-      <button
-        type="button"
-        class={`wcw-launcher wcw-${position}${open && isMobile ? ' wcw-hidden' : ''}`}
-        aria-label={open ? t('closeChat') : t('openChat')}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? <CloseIcon size={22} /> : <LauncherIcon />}
-        {!open && badgeCount > 0 && (
-          <span class="wcw-badge" aria-label={String(badgeCount)}>
-            {badgeCount > 9 ? '9+' : badgeCount}
-          </span>
-        )}
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          class={`wcw-launcher wcw-${position}${open && isMobile ? ' wcw-hidden' : ''}`}
+          aria-label={open ? t('closeChat') : t('openChat')}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? <CloseIcon size={22} /> : <LauncherIcon />}
+          {!open && badgeCount > 0 && (
+            <span class="wcw-badge" aria-label={String(badgeCount)}>
+              {badgeCount > 9 ? '9+' : badgeCount}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   )
 }

@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.70.0] — 2026-09-28
+
+- **Web Widget: embeddable inside a native app (Ionic/Capacitor), not just a website.** The same widget token and embed script now work inside a mobile app's own chat tab: `data-mode="fullscreen"` drops the floating launcher bubble and close button, filling its container edge-to-edge instead of popping up from a corner. A logged-in app user's phone, email, and now **wallet ID** can be handed straight to the widget (`data-user-*` attributes or `window.VircleWidget.identify({...})`) to skip the widget's own identity screen entirely; a guest flow just supplies phone the same way. Wallet ID travels through on the existing unverified-claim tier now — stored on a newly created contact for reference, but, like phone/email backfill, never used to match or merge into an existing one (that stays restricted to a signed in-app identity token, unchanged). Also provisioned (not yet wired up) a no-op push-notification hook (`src/lib/widget/notify-app-push.ts`) keyed by wallet ID, for when a real push API is available. See `docs/web-chat-widget.md`, "Embedding in a native app". No migration required.
+
 ## [0.69.3] — 2026-09-28
 
 - **Sembang: pasted URLs are now clickable text, not just an unfurl card.** A message body never linkified a URL at all before this — `www.vircle.com` or `https://…` just sat there as plain, unclickable text (the unfurl preview card below it was the only clickable part). Both a full `http(s)://` link and a bare `www.` address now render as an actual `<a>` link inline, in the main channel and inside thread replies alike, built on the same link-detection already used for unfurl previews and the Links panel.

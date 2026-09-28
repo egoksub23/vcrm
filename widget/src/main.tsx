@@ -7,6 +7,11 @@
 //           data-widget-token="wt_..." async></script>
 //
 // Optional attributes on that tag:
+//   data-mode="fullscreen"      no launcher bubble or close button — the panel fills its
+//                               container instead of popping up from a corner. Meant for
+//                               a native app's own dedicated chat tab (see
+//                               docs/web-chat-widget.md, "Embedding in a native app").
+//                               Implies data-open.
 //   data-open="true"            start with the panel open (Settings -> Web Widget "Test chat").
 //   data-lang="en|ms|zh"        widget language; else <html lang>, else the browser language.
 //   data-identity-token="..."   in-app identity signed by YOUR backend (verified — see
@@ -85,7 +90,11 @@ function mount() {
   const mountPoint = document.createElement('div')
   shadow.appendChild(mountPoint)
 
-  const autoOpen = loaderScript?.dataset.open === 'true'
+  // "fullscreen": no launcher bubble/close button, the panel fills its
+  // container — meant for a native app's own dedicated chat tab rather
+  // than a website corner popup (see docs/web-chat-widget.md).
+  const embedded = loaderScript?.dataset.mode === 'fullscreen'
+  const autoOpen = embedded || loaderScript?.dataset.open === 'true'
   const locale = resolveLocale(
     loaderScript?.dataset.lang,
     document.documentElement.lang,
@@ -113,7 +122,7 @@ function mount() {
     <Guard
       fallback={(reset) => (
         <div class="wcw-root" lang={locale}>
-          <div class="wcw-panel wcw-right">
+          <div class={`wcw-panel wcw-right${embedded ? ' wcw-embedded' : ''}`}>
             <div class="wcw-header">
               <div class="wcw-header-text">
                 <div class="wcw-header-title">Chat</div>
@@ -135,6 +144,7 @@ function mount() {
         widgetToken={widgetToken}
         locale={locale}
         autoOpen={autoOpen}
+        embedded={embedded}
         initialIdentity={initialIdentity}
         onIdentifyReady={(cb) => {
           identifyListener = cb

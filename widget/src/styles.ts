@@ -95,6 +95,27 @@ export const WIDGET_CSS = `
   box-shadow: none;
 }
 
+/* Embedded mode (data-mode="fullscreen"): no launcher bubble, the panel
+   just fills whatever container the host gives it (a native app's own
+   chat tab) instead of a fixed-position popup anchored to a corner. */
+.wcw-panel.wcw-embedded,
+.wcw-panel.wcw-embedded.wcw-left,
+.wcw-panel.wcw-embedded.wcw-right {
+  position: static;
+  left: auto; right: auto; top: auto; bottom: auto;
+  width: 100%;
+  max-width: none;
+  /* height: 100% would need every ancestor (html/body/the host's own
+     container) to carry an explicit height for the percentage to resolve
+     — viewport units don't have that requirement, same technique as the
+     mobile popup above. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* ---------- header ---------- */
 .wcw-header {
   background: var(--wcw-primary);
