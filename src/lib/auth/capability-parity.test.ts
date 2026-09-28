@@ -427,6 +427,14 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   // policies it widens (is_sembang_manager()), not a route/table fixture
   // this test's tables model.
   "sembang.manage",
+  // Migration 116: Incident Reporting is a brand new feature end to end,
+  // same reasoning as menu.sembang / sembang.manage above. All three are
+  // database-tier-enforced (has_capability() inside incidents / incident_*
+  // RLS, see capabilities.ts's comments on their def() calls) — just with
+  // no "before" state for this fixture to compare against.
+  "menu.incidents",
+  "incidents.raise",
+  "incidents.manage",
 ]);
 
 // ============================================================

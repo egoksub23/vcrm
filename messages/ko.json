@@ -47,6 +47,7 @@
     "menuSignOut": "로그아웃",
     "knowledge": "지식 베이스",
     "sembang": "Sembang",
+    "incidents": "인시던트",
     "userGuide": "사용 가이드",
     "pendingApprovals": "승인 대기 중인 제안 {count}건"
   },
@@ -64,6 +65,7 @@
     "flows": "플로우",
     "knowledge": "지식 베이스",
     "sembang": "Sembang",
+    "incidents": "인시던트",
     "aiAgents": "AI 에이전트",
     "reports": "리포트",
     "openMenu": "메뉴 열기",
@@ -6253,6 +6255,10 @@
         "label": "메뉴: Sembang",
         "description": "사이드바에 Sembang(내부 팀 채팅) 메뉴를 표시하고 해당 페이지와 채널을 열 수 있게 합니다. 기본값: 소유자와 관리자만 해당하며, 에이전트까지 권한을 확장하려면 부여하세요."
       },
+      "menu_incidents": {
+        "label": "메뉴: 인시던트",
+        "description": "사이드바에 인시던트 리포팅 메뉴를 표시하고 해당 페이지를 열 수 있게 합니다. 기본적으로 모든 역할에 열려 있습니다 — 누구나 인시던트를 등록할 수 있습니다."
+      },
       "menu_agents": {
         "label": "메뉴: AI 에이전트",
         "description": "사이드바에 AI 에이전트 메뉴를 표시하고 해당 페이지를 열 수 있게 합니다."
@@ -6348,6 +6354,14 @@
       "sembang_manage": {
         "label": "Sembang 관리",
         "description": "비공개 채널을 포함해 모든 채널을 계정 전체에서 열람하고 관리합니다 — 채널 이름 변경·보관, 멤버 관리, 메시지 삭제까지. Sembang 접근 권한이 없으면 의미가 없습니다."
+      },
+      "incidents_raise": {
+        "label": "인시던트 등록",
+        "description": "의심되는 보안 인시던트를 신고합니다. 모든 역할에 열려 있습니다 — 신고자는 자신이 등록한 인시던트를 보고 댓글을 달 수 있지만, 분류·배정·에스컬레이션·종료는 할 수 없습니다."
+      },
+      "incidents_manage": {
+        "label": "인시던트 관리",
+        "description": "모든 인시던트를 분류·배정·에스컬레이션·종료하고, 발송한 외부 통지를 기록하며, 사후 검토 조치 항목을 관리합니다. 기본값: 소유자와 관리자만 해당하며, 컴플라이언스 담당자 역할을 만들려면 에이전트까지 권한을 부여하세요."
       },
       "ai_use": {
         "label": "AI 사용",

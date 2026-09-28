@@ -28,6 +28,7 @@ import {
   Radio,
   Settings,
   Shield,
+  ShieldAlert,
   Ticket,
   User,
   UserCog,
@@ -131,6 +132,10 @@ const bottomNavItems: NavItem[] = [
   { href: "/help", labelKey: "userGuide", icon: BookMarked },
   { href: "/settings", labelKey: "settings", icon: Settings, capability: "menu.settings" },
   { href: "/sembang", labelKey: "sembang", icon: MessageCircle, beta: true, capability: "menu.sembang" },
+  // Incident Reporting: internal, next to Sembang, not a customer-facing
+  // tool — open to every role (anyone can raise one); per-incident
+  // visibility is enforced separately (migration 116).
+  { href: "/incidents", labelKey: "incidents", icon: ShieldAlert, capability: "menu.incidents" },
 ];
 
 interface SidebarProps {

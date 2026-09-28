@@ -55,6 +55,7 @@ export type CapabilityGroup =
   | "tags"
   | "knowledge"
   | "sembang"
+  | "incidents"
   | "ai"
   | "channels"
   | "workspace"
@@ -70,6 +71,7 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
   "tags",
   "knowledge",
   "sembang",
+  "incidents",
   "ai",
   "channels",
   "workspace",
@@ -126,6 +128,11 @@ export const MENU_CAPABILITIES = [
   "menu.agents",
   "menu.reports",
   "menu.settings",
+  // Incident Reporting lives next to Sembang, below Settings — internal
+  // and specific to incident reporting, open to every role (anyone can
+  // raise an incident); visibility of individual incidents is enforced
+  // separately by incidents.raise/incidents.manage (database tier).
+  "menu.incidents",
   // Not a real "menu" in the sense every other entry here is (see the
   // special-cased def() for it below, not the menu() helper) — it stays
   // in this array only so the CapabilityKey union and the PAGE_ACCESS
@@ -223,6 +230,17 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // without being a full CRM Admin. Migration 111.
   def("sembang.manage", "sembang", ADMIN_UP, "agent", "database"),
 
+  // ---- Incidents (Security Incident Reporting System) ----
+  // menu.incidents (above, in Menus) is plain nav access — open to every
+  // role, since anyone can raise an incident. These two decide what
+  // happens once inside: raise is open to everyone too (RLS enforces
+  // reporter_id = auth.uid() on insert); manage (classify, assign,
+  // escalate, close, log external notifications) defaults to Admin/Owner
+  // and is grantable down to Agent — the Compliance Officer custom role
+  // is built by granting this to an agent-tier custom role. Migration 116.
+  def("incidents.raise", "incidents", ALL, "viewer", "database"),
+  def("incidents.manage", "incidents", ADMIN_UP, "agent", "database"),
+
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
   def("ai.configure", "ai", ADMIN_UP, "agent", "database"),
@@ -281,6 +299,8 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "knowledge.publish"
   | "knowledge.manage"
   | "sembang.manage"
+  | "incidents.raise"
+  | "incidents.manage"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

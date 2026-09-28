@@ -47,6 +47,7 @@
     "menuSignOut": "Sign out",
     "knowledge": "Knowledge",
     "sembang": "Sembang",
+    "incidents": "Incidents",
     "userGuide": "User Guide",
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval"
   },
@@ -64,6 +65,7 @@
     "flows": "Flows",
     "knowledge": "Knowledge",
     "sembang": "Sembang",
+    "incidents": "Incidents",
     "aiAgents": "AI Agents",
     "reports": "Reports",
     "openMenu": "Open menu",
@@ -6253,6 +6255,10 @@
         "label": "Menu: Sembang",
         "description": "Show Sembang (internal team chat) in the sidebar and allow opening its page and channels. Default: Owner and Admin only — grant it down to Agent to extend access."
       },
+      "menu_incidents": {
+        "label": "Menu: Incidents",
+        "description": "Show Incident Reporting in the sidebar and allow opening its page. Open to every role by default — anyone can raise an incident."
+      },
       "menu_agents": {
         "label": "Menu: AI Agents",
         "description": "Show AI Agents in the sidebar and allow opening its page."
@@ -6348,6 +6354,14 @@
       "sembang_manage": {
         "label": "Manage Sembang",
         "description": "See into and moderate every channel account-wide, including private ones — rename or archive any channel, manage any channel's members, and remove any message. Needs Sembang access to mean anything on its own."
+      },
+      "incidents_raise": {
+        "label": "Raise incidents",
+        "description": "Report a suspected security incident. Open to every role — the reporter can see and comment on their own report, but not classify, assign, escalate or close it."
+      },
+      "incidents_manage": {
+        "label": "Manage incidents",
+        "description": "Classify, assign, escalate and close any incident, log external notifications sent, and manage post-incident-review actions. Default: Owner and Admin only — grant it down to Agent to build a Compliance Officer role."
       },
       "ai_use": {
         "label": "Use AI",

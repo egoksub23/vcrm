@@ -25,6 +25,7 @@ const migrationFiles = [
   "088_access_control_phase5.sql",
   "098_sembang_p0.sql",
   "111_sembang_manage_capability.sql",
+  "116_incident_reporting.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

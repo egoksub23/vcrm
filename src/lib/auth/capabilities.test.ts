@@ -51,16 +51,21 @@ describe("catalogue", () => {
   });
 
   it("never defaults a write capability to the viewer role", () => {
+    // incidents.raise (migration 116) is a deliberate, documented
+    // exception: "anyone can raise an incident" per the Security
+    // Incident Reporting policy, enforced by RLS (reporter_id =
+    // auth.uid() on insert) rather than a role floor.
     for (const c of CAPABILITIES) {
-      if (c.readOnly) continue;
+      if (c.readOnly || c.key === "incidents.raise") continue;
       expect(c.defaultRoles).not.toContain("viewer");
       expect(roleRank(c.minGrantRole)).toBeGreaterThan(roleRank("viewer"));
     }
   });
 
-  it("only lets viewers hold read-only capabilities (menus and reports)", () => {
+  it("only lets viewers hold read-only capabilities (menus, reports, and incidents.raise)", () => {
     for (const c of CAPABILITIES) {
       if (c.minGrantRole === "viewer") {
+        if (c.key === "incidents.raise") continue;
         expect(c.readOnly).toBe(true);
         expect(c.key.startsWith("menu.") || c.key === "reports.view").toBe(true);
       }
@@ -89,6 +94,8 @@ describe("catalogue", () => {
         "deals.manage",
         "flows.manage",
         "inbox.shared-views",
+        "incidents.manage",
+        "incidents.raise",
         "knowledge.draft",
         "knowledge.manage",
         "knowledge.publish",
