@@ -7140,6 +7140,121 @@
       "generic": "Something went wrong. Try again."
     }
   },
+  "Incidents": {
+    "list": {
+      "pageTitle": "Incident Reporting",
+      "pageDesc": "The Security Incident Register — report, triage and track incidents through to closure.",
+      "raiseIncident": "Raise Incident",
+      "searchPlaceholder": "Search incidents…",
+      "colKey": "Key",
+      "colTitle": "Title",
+      "colType": "Type",
+      "colSeverity": "Severity",
+      "colStatus": "Status",
+      "colLead": "Lead",
+      "colAge": "Age",
+      "unassigned": "Unassigned",
+      "loadFailed": "Couldn't load incidents.",
+      "retry": "Retry",
+      "empty": "No incidents match your filters.",
+      "moveFailed": "Couldn't move the incident."
+    },
+    "view": {
+      "label": "View",
+      "board": "Board",
+      "list": "List"
+    },
+    "common": {
+      "escalationLevel": "Level {level}",
+      "severity": {
+        "P1": "Critical",
+        "P2": "High",
+        "P3": "Medium",
+        "P4": "Low"
+      },
+      "status": {
+        "reported": "Reported",
+        "triaged": "Triaged",
+        "contained": "Contained",
+        "investigating": "Investigating",
+        "recovered": "Recovered",
+        "closed": "Closed"
+      }
+    },
+    "raise": {
+      "title": "Raise an Incident",
+      "description": "Anyone can report a suspected security incident. Add what you know now — mark anything unclear as \"under investigation\" rather than waiting. The Compliance Officer completes classification and impact during triage.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "A short summary of what happened",
+      "whatHappenedLabel": "What happened?",
+      "whatHappenedHint": "(share everything you know — screenshots and references welcome)",
+      "whatHappenedPlaceholder": "Describe what you saw, when, and any accounts or transactions involved…",
+      "typeLabel": "Incident type",
+      "typePlaceholder": "Select a type",
+      "detectedLabel": "How was this detected?",
+      "severityLabel": "Initial severity",
+      "severityHint": "— your best guess, Compliance will confirm",
+      "p2MinimumHint": "This type of report is usually at least P2 per policy — a Compliance Officer can downgrade this with a documented reason during triage.",
+      "cancel": "Cancel",
+      "submit": "Submit report",
+      "titleRequired": "Title is required.",
+      "typeRequired": "Pick an incident type.",
+      "createFailed": "Couldn't raise the incident.",
+      "created": "Reported {key}",
+      "open": "Open"
+    },
+    "detail": {
+      "back": "Back to Incidents",
+      "updateFailed": "Couldn't save that change.",
+      "commentFailed": "Couldn't post the note.",
+      "attachmentsFailed": "{count, plural, =1 {1 file} other {# files}} failed to upload.",
+      "escalateFailed": "Couldn't escalate the incident.",
+      "escalated": "Escalated.",
+      "escalateNow": "Escalate now",
+      "notFound": "That incident could not be found, or you don't have access to it.",
+      "fieldSeverity": "Severity",
+      "fieldStatus": "Status",
+      "fieldType": "Type",
+      "fieldLead": "Incident lead",
+      "unassigned": "Unassigned",
+      "timelineTitle": "Timeline",
+      "timelineEmpty": "No activity yet.",
+      "unknown": "Someone",
+      "composerPlaceholder": "Add a note — @mention a teammate to loop them in",
+      "attachFiles": "Attach files",
+      "postComment": "Post",
+      "evidenceTitle": "Evidence files",
+      "evidenceEmpty": "No evidence uploaded yet.",
+      "uploadEvidence": "Upload evidence",
+      "activity": {
+        "created": "Incident reported",
+        "statusChanged": "Status changed from {from} to {to}",
+        "severityChanged": "Severity changed from {from} to {to}",
+        "typeChanged": "Type changed from {from} to {to}",
+        "leadChanged": "Incident lead set to {name}",
+        "escalatedEvent": "Incident escalated",
+        "closedEvent": "Incident closed"
+      },
+      "notificationsSent": {
+        "title": "Notifications sent",
+        "empty": "No external notifications logged yet.",
+        "addFailed": "Couldn't log that notification.",
+        "referencePlaceholder": "Reference (optional)",
+        "cancel": "Cancel",
+        "save": "Save",
+        "log": "Log a notification",
+        "party": {
+          "bnm": "Bank Negara Malaysia",
+          "sponsor_emi": "Sponsor e-money issuer",
+          "partner": "Partner",
+          "pdp_commissioner": "PDP Commissioner",
+          "data_subjects": "Data subjects",
+          "police": "Police",
+          "other": "Other"
+        }
+      }
+    }
+  },
   "Sembang": {
     "page": {
       "emptyTitle": "No channels yet",
