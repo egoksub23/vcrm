@@ -2,7 +2,7 @@
 title: Messaging and threads
 description: Send messages, format them, react, pin, and use threads — including replying so everyone in the channel sees it.
 order: 2
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 
 This page covers everything you do with a single message in Sembang, and how threads work.
@@ -12,7 +12,8 @@ This page covers everything you do with a single message in Sembang, and how thr
 Type in the box at the bottom of a channel or direct message and press **Enter** (use <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line). You can also:
 
 - **@mention** someone. They get a notification. Type `@` and pick a name from the list.
-- **Attach a file** with the paperclip button. Files are stored privately — nobody outside the channel can reach them, even with a direct link. The limit is 16 MB per file.
+- **Attach a file** with the paperclip button, or paste or drag a picture straight into the box. A picture shows inline in the channel, full-size and downloadable — not as a generic file link. Any other file type shows as a chip with its name and size. Files are stored privately — nobody outside the channel can reach them, even with a direct link. The limit is 16 MB per file.
+- **Paste a Jira link.** If your workspace has connected Jira, a link to an issue (for example `https://yourteam.atlassian.net/browse/VIR-12`) unfurls into a small live card showing its status, priority and assignee — the same idea as [linking a ticket to Jira](/help/tickets/jira-link), just automatic here. Any other link unfurls into a plain title/description preview when the page has one.
 - **Format your text**: the **Bold**, *Italic* and list buttons in the toolbar wrap or prefix your selection, or you can type `**bold**`, `_italic_` and `- ` for a list yourself.
 - **Add a code block**: click the code-fence button, or type three backticks on their own line before and after the code.
 
@@ -23,7 +24,7 @@ Type in the box at the bottom of a channel or direct message and press **Enter**
 Point at a message to see its actions:
 
 - **React** with an emoji. Click a reaction that already has one to add your own, or remove it if it is already yours.
-- **Pin** a message so it is easy to find later. Any member can pin. Any member can pin and unpin their own pin; a moderator or admin can unpin anyone's.
+- **Pin** a message so it is easy to find later — it shows up in the channel's **Pins** tab. Any member can pin. Any member can unpin their own pin; a moderator or admin can unpin anyone's.
 - **Star** a message to save it to your own **Starred** list — this is private to you, unlike a pin, which the whole channel sees. See [Search, tasks and notifications](/help/sembang/search-notifications-and-access).
 - **Edit** your own message. It shows a small "(edited)" marker.
 - **Delete** your own message, or, if you are a moderator or admin, anyone's — except in a direct message, see below.
@@ -61,4 +62,5 @@ In a direct message, the person who started it does **not** get moderator powers
 
 - [Sembang at a glance](/help/sembang/sembang-overview)
 - [Direct messages](/help/sembang/direct-messages)
+- [Files, links and bookmarks](/help/sembang/files-links-and-bookmarks)
 - [Search, tasks and notifications](/help/sembang/search-notifications-and-access)

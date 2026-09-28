@@ -1,0 +1,20 @@
+[
+  {
+    "file": "incidents-overview-01-board.png",
+    "page": "incidents/incidents-overview",
+    "route": "/incidents",
+    "capture": "Incidents page, Board view, with at least a couple of incidents in different columns (mix of severities if possible). Capture the whole board: the status columns and at least two incident cards. Use a demo/sample account, not a real live incident with sensitive details. Do not click into a card."
+  },
+  {
+    "file": "raise-an-incident-01-dialog.png",
+    "page": "incidents/raise-an-incident",
+    "route": "/incidents",
+    "capture": "Incidents page, click 'Raise Incident'. Capture the open dialog with the Title, What happened, Incident type, How was this detected and Initial severity fields, and the Attach files button, with sample (non-sensitive) placeholder text filled in. Do not click Submit report."
+  },
+  {
+    "file": "manage-escalate-and-close-01-detail.png",
+    "page": "incidents/manage-escalate-and-close",
+    "route": "/incidents",
+    "capture": "Incidents page, open a sample incident that is past 'Reported' status (e.g. Triaged or Investigating) with an incident lead set and at least one item in its Actions panel. Capture the top of the incident: type/severity/status fields, escalation level, the Escalate now button, and the Actions panel. Use a demo/sample account. Do not change any field or click Escalate now."
+  }
+]

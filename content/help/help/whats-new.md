@@ -2,10 +2,24 @@
 title: What's new
 description: The changes in each release that you will notice when you work, newest first.
 order: 2
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
+
+## 28 September 2026 — Sembang: richer tasks, unfurled files and links
+
+- **Tasks got a lot more capable.** A task now has a status (To Do, In Progress, Done), can have more than one assignee, can hold its own subtasks, and has an activity log and a comment thread. Click a task's row to open its full detail. See [Tasks and meetings](/help/sembang/tasks-and-meetings).
+- **Pictures posted in a channel now show inline**, full-size and downloadable, instead of a generic file link. See [Messaging and threads](/help/sembang/messaging-and-threads).
+- **A pasted Jira link unfurls into a live status card** when your workspace has Jira connected, the same idea as linking a ticket to Jira. See [Messaging and threads](/help/sembang/messaging-and-threads).
+- **The channel header is now a row of tabs** — Messages, Pins, Tasks, Files, Links and Bookmarks — instead of buttons that opened a sliding panel. Files and Links now unfurl into thumbnails and preview cards instead of plain rows. See [Sembang at a glance](/help/sembang/sembang-overview) and the new [Files, links and bookmarks](/help/sembang/files-links-and-bookmarks).
+- **Raising a ticket from a Sembang task now opens the new ticket straight away**, instead of leaving just a small link to click.
+
+## 28 September 2026 — Incidents: a new Security Incident Register
+
+- **A new Incidents area**, next to Sembang in the sidebar, for reporting and tracking security, fraud and data incidents through to closure — separate from Tickets and Sembang. Anyone can raise one; only a Compliance Officer, Admin or Owner sees the full register. See [Incidents overview](/help/incidents/incidents-overview).
+- **Raise an incident** with a title, what happened (paste screenshots or attach files directly), an incident type, how it was detected, and an initial severity. See [Raise an incident](/help/incidents/raise-an-incident).
+- **Triage, escalate and close.** Classify severity and type, assign an incident lead, track corrective actions, log external notifications you have already sent, and close with a root cause. Unacknowledged incidents escalate automatically over time, or click Escalate now. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
 
 ## 0.57.0 to 0.60.0 · 24 to 25 September 2026 — Sembang, your team's own chat
 

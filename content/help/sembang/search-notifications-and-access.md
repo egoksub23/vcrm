@@ -1,7 +1,7 @@
 ---
 title: Search, tasks and notifications
 description: Search across every channel and DM, find your starred messages, see who has access, and control what notifies you.
-order: 5
+order: 6
 updated: 2026-09-25
 ---
 
@@ -56,4 +56,5 @@ All of these are switched off for a channel or DM you have muted. Notifications 
 
 - [Sembang at a glance](/help/sembang/sembang-overview)
 - [Messaging and threads](/help/sembang/messaging-and-threads)
+- [Files, links and bookmarks](/help/sembang/files-links-and-bookmarks)
 - [Notifications](/help/working-together/notifications)

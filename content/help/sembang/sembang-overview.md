@@ -2,7 +2,7 @@
 title: Sembang at a glance
 description: What Sembang is, who can see it, the layout, and how to create, join, browse and archive channels.
 order: 1
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 
 Sembang is your team's own chat, built into Vircle CRM. Use it to talk with colleagues, run projects and keep quick notes — separate from the Inbox, which is only for customers. Nothing you write in Sembang is ever visible to a customer, and nothing from the Inbox appears in Sembang.
@@ -23,6 +23,8 @@ Click **Sembang** in the sidebar. On a computer you see two panes:
 ![Sembang with the channel list on the left and an open channel on the right](/help/img/sembang-overview-01-layout.png)
 
 On a phone or small tablet you see one pane at a time. Tap a channel to open it, and use the back arrow at the top left to return to the list.
+
+Under the channel name is a row of tabs — **Messages**, **Pins**, **Tasks**, **Files**, **Links** and **Bookmarks** — each showing a live count where it applies. Click a tab to switch what you are looking at without leaving the channel. See [Files, links and bookmarks](/help/sembang/files-links-and-bookmarks) and [Tasks and meetings](/help/sembang/tasks-and-meetings).
 
 At the top of the open conversation you also have a global **Search** button and a **Starred** button that work across every channel and DM at once, not just the one you have open. See [Search, tasks and notifications](/help/sembang/search-notifications-and-access).
 
@@ -70,4 +72,5 @@ A moderator or admin can archive a channel from its menu. An archived channel di
 
 - [Messaging and threads](/help/sembang/messaging-and-threads)
 - [Direct messages](/help/sembang/direct-messages)
+- [Files, links and bookmarks](/help/sembang/files-links-and-bookmarks)
 - [Roles and permissions](/help/getting-started/roles-and-permissions)

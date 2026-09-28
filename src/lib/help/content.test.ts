@@ -32,11 +32,13 @@ const EXPECTED: Record<string, string[]> = {
   contacts: ["contacts-overview", "merge-duplicates", "import-and-export", "pipelines-and-deals"],
   knowledge: ["knowledge-overview", "use-articles-in-chat", "write-and-edit-articles", "translations"],
   tickets: ["tickets-overview", "create-a-ticket", "work-a-ticket", "jira-link"],
+  incidents: ["incidents-overview", "raise-an-incident", "manage-escalate-and-close"],
   sembang: [
     "sembang-overview",
     "messaging-and-threads",
     "direct-messages",
     "tasks-and-meetings",
+    "files-links-and-bookmarks",
     "search-notifications-and-access",
   ],
   "working-together": ["notifications", "approvals", "broadcasts", "reports"],

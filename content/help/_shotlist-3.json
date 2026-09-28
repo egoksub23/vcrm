@@ -33,7 +33,19 @@
     "file": "tasks-and-meetings-01-panel.png",
     "page": "sembang/tasks-and-meetings",
     "route": "/sembang",
-    "capture": "Sembang, an open channel, click 'Tasks · N open' in the header. Capture the open Tasks panel: the 'Add a task…' box, an Open section with at least one task (showing an assignee and/or due date if possible), and a Completed section. Do not add or complete a task."
+    "capture": "Sembang, an open channel, click the 'Tasks' tab under the channel name. Capture the tab: the 'Add a task…' box, an open section with at least one task showing multiple assignee avatars, a due-date chip and a subtask count badge (e.g. '1/3') if possible, and a completed section. Do not add, complete or click into a task. NOTE (2026-09-28): this replaces an older screenshot of the 'Tasks · N open' sliding panel button — the header is now a persistent tab bar and tasks now show multiple assignees and subtask counts, re-capture to match."
+  },
+  {
+    "file": "tasks-and-meetings-02-detail.png",
+    "page": "sembang/tasks-and-meetings",
+    "route": "/sembang",
+    "capture": "Sembang, an open channel's Tasks tab, click a task row (not its checkbox) to open its detail dialog. Capture the whole dialog: the left side (title, status dropdown, assignees, due date, description, subtasks with at least one shown) and the right side (activity log with a couple of entries, and the comment box with its formatting toolbar visible). Do not change the status, add a comment, or delete anything."
+  },
+  {
+    "file": "files-links-and-bookmarks-01-files.png",
+    "page": "sembang/files-links-and-bookmarks",
+    "route": "/sembang",
+    "capture": "Sembang, an open channel with at least one image and one non-image file previously shared, click the 'Files' tab under the channel name. Capture the tab showing an image thumbnail and a plain file row side by side. Do not click into or download anything."
   },
   {
     "file": "search-notifications-and-access-01-search.png",
