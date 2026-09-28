@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MentionTextarea, type MentionTextareaHandle } from "@/components/tickets/ticket-mention-textarea";
 import { useAccountMembers } from "@/hooks/use-account-members";
+import { dragHasFiles, droppedImages, pastedImages } from "@/lib/media/clipboard-images";
 import { SEMBANG_MAX_BYTES, uploadSembangFile } from "@/lib/storage/upload-sembang-file";
 import { readChannelDraft, readThreadDraft, writeChannelDraft, writeThreadDraft } from "@/lib/sembang/draft-storage";
 import { RecordingBar } from "@/components/inbox/recording-bar";
@@ -143,11 +144,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     fileInputRef.current?.click();
   }, []);
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file) return;
+  // Shared by the file picker, paste and drag-drop — upload one file and
+  // append it to the attachment list, or toast the reason it couldn't.
+  const attachFile = useCallback(
+    async (file: File, filenameFallback?: string) => {
       if (file.size > SEMBANG_MAX_BYTES) {
         toast.error(t("fileTooLarge", { max: Math.round(SEMBANG_MAX_BYTES / 1024 / 1024) }));
         return;
@@ -159,7 +159,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           ...prev,
           {
             storagePath: uploaded.path,
-            filename: uploaded.filename,
+            filename: uploaded.filename || filenameFallback || file.name,
             sizeBytes: uploaded.sizeBytes,
             mimeType: uploaded.mimeType,
           },
@@ -171,6 +171,63 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       }
     },
     [channelId, t],
+  );
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      await attachFile(file);
+    },
+    [attachFile],
+  );
+
+  // Paste / drag-drop a picture straight into the composer — a screenshot
+  // tool, "Copy image" or a drag from the Finder/Explorer all land here.
+  // Copying real text (even from an app that also puts a rendered picture
+  // on the clipboard, e.g. Word/Excel) is left to the textarea as normal
+  // text paste (pastedImages() only returns images when there is no text).
+  const stagePastedImages = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0 || disabled) return;
+      // One after another so attachments land in the order they were pasted.
+      for (const file of files) {
+        await attachFile(file, t("pastedImage"));
+      }
+    },
+    [attachFile, disabled, t],
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      const images = pastedImages(e.clipboardData?.files, e.clipboardData?.getData("text/plain"));
+      if (images.length === 0) return;
+      e.preventDefault();
+      void stagePastedImages(images);
+    },
+    [disabled, stagePastedImages],
+  );
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (disabled || !dragHasFiles(e.dataTransfer?.types)) return;
+      e.preventDefault();
+    },
+    [disabled],
+  );
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (disabled || !dragHasFiles(e.dataTransfer?.types)) return;
+      e.preventDefault();
+      const images = droppedImages(e.dataTransfer?.files);
+      if (images.length === 0) {
+        if ((e.dataTransfer?.files.length ?? 0) > 0) toast.error(t("dropNotImage"));
+        return;
+      }
+      void stagePastedImages(images);
+    },
+    [disabled, stagePastedImages, t],
   );
 
   const removeAttachment = useCallback((path: string) => {
@@ -303,7 +360,12 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   useImperativeHandle(ref, () => ({ quoteMessage }), [quoteMessage]);
 
   return (
-    <div className="border-t border-border bg-card p-3.5">
+    <div
+      className="border-t border-border bg-card p-3.5"
+      onPaste={handlePaste}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {showAlsoInChannelOption && (
         <label className="mb-2 flex w-fit cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
           <Checkbox checked={alsoInChannel} onCheckedChange={(v) => setAlsoInChannel(v === true)} />

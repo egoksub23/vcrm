@@ -7406,7 +7406,9 @@
       "microphoneLost": "The microphone was disconnected. The recording was discarded.",
       "microphone": "Microphone",
       "micLevel": "Microphone level",
-      "noSoundDetected": "No sound detected. Pick a different microphone below."
+      "noSoundDetected": "No sound detected. Pick a different microphone below.",
+      "dropNotImage": "Only pictures can be dropped here. Use the paperclip for other files.",
+      "pastedImage": "Pasted image"
     },
     "membersPanel": {
       "title": "Members",
