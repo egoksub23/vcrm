@@ -61,6 +61,14 @@ describe("settings sections and capabilities", () => {
     expect(canSeeSection("response-time", holds())).toBe(true);
   });
 
+  it("registers Incidents in the workspace group behind incidents.manage", () => {
+    expect(SECTION_META.incidents.group).toBe("workspace");
+    expect(SECTION_META.incidents.capability).toBe("incidents.manage");
+    expect(resolveSection("incidents")).toBe("incidents");
+    expect(canSeeSection("incidents", holds())).toBe(false);
+    expect(canSeeSection("incidents", holds("incidents.manage"))).toBe(true);
+  });
+
   it("hides roles without roles.manage and api without api.manage", () => {
     expect(canSeeSection("roles", holds())).toBe(false);
     expect(canSeeSection("api", holds())).toBe(false);
@@ -70,7 +78,14 @@ describe("settings sections and capabilities", () => {
 
   it("keeps every other section visible to anyone who can open Settings", () => {
     const rest = SETTINGS_SECTIONS.filter(
-      (s) => s !== "roles" && s !== "api" && s !== "audit" && s !== "approvals" && s !== "integrations" && s !== "sla",
+      (s) =>
+        s !== "roles" &&
+        s !== "api" &&
+        s !== "audit" &&
+        s !== "approvals" &&
+        s !== "integrations" &&
+        s !== "sla" &&
+        s !== "incidents",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
     expect(visibleSections(holds())).toEqual(rest);
@@ -78,7 +93,9 @@ describe("settings sections and capabilities", () => {
 
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
-      visibleSections(holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure")),
+      visibleSections(
+        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage"),
+      ),
     ).toEqual([
       ...SETTINGS_SECTIONS,
     ]);

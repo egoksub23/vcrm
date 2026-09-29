@@ -4670,6 +4670,52 @@
         }
       }
     },
+    "incidents": {
+      "title": "인시던트",
+      "description": "에스컬레이션 타이머, 인시던트가 확대될 때 알림을 받을 사람, 그리고 생성된 보고서에 사용되는 24/7 인시던트 연락처입니다.",
+      "tabs": {
+        "timers": "에스컬레이션 타이머",
+        "recipients": "수신자"
+      },
+      "timers": {
+        "intro": "인시던트가 자동으로 다음 단계로 확대되기 전까지 한 단계에 머무를 수 있는 시간입니다. 업무 시간만 계산하려면 영업시간 일정을 연결하세요 — \"전체 시간\"으로 두면 24/7 실제 시간을 계산합니다.",
+        "severity": "심각도",
+        "level1Minutes": "레벨 1 → 2 (분)",
+        "level2Minutes": "레벨 2 → 3 (분)",
+        "schedule": "영업시간",
+        "allHours": "전체 시간 (24/7)",
+        "usingDefault": "기본값 사용 중: {level1} / {level2}분, 24/7.",
+        "save": "저장",
+        "resetToDefault": "기본값으로 재설정",
+        "saved": "에스컬레이션 타이머가 저장되었습니다.",
+        "saveFailed": "에스컬레이션 타이머를 저장하지 못했습니다. 다시 시도하세요.",
+        "reset": "기본 타이머로 재설정했습니다.",
+        "resetFailed": "에스컬레이션 타이머를 재설정하지 못했습니다. 다시 시도하세요."
+      },
+      "recipients": {
+        "intro": "인시던트가 각 단계로 확대될 때 알림을 받을 사람입니다. 비워두면 기본값을 사용합니다.",
+        "level2Title": "레벨 2 수신자",
+        "level2Hint": "인시던트가 레벨 1을 지나 확대될 만큼 오래 확인되지 않았을 때 알림을 받습니다.",
+        "level3Title": "레벨 3 수신자",
+        "level3Hint": "인시던트가 최고 단계까지 확대되었을 때 알림을 받습니다.",
+        "noneConfigured": "수신자가 설정되지 않음",
+        "recipientCount": "수신자 {count}명",
+        "noMembers": "구성원을 찾을 수 없습니다.",
+        "fallbackHint": "관리자, 소유자, 그리고 인시던트 관리 권한이 있는 모든 사람에게 대신 전달됩니다.",
+        "saveFailed": "변경 사항을 저장하지 못했습니다. 다시 시도하세요."
+      },
+      "contact": {
+        "title": "24/7 인시던트 연락처",
+        "intro": "생성되는 모든 인시던트 보고서에 수신자가 연락할 담당자로 미리 채워집니다.",
+        "name": "이름",
+        "role": "역할",
+        "mobile": "휴대전화",
+        "email": "이메일",
+        "save": "저장",
+        "saved": "인시던트 연락처가 저장되었습니다.",
+        "saveFailed": "인시던트 연락처를 저장하지 못했습니다. 다시 시도하세요."
+      }
+    },
     "ticketResolutions": {
       "title": "해결 유형",
       "description": "티켓을 해결하거나 종료할 때 상담원이 고르는 선택지입니다. 이름을 바꾸고, 순서를 정하고, 직접 추가하거나 사용하지 않는 항목은 보관하세요.",
@@ -7270,8 +7316,59 @@
           "pdp_commissioner": "개인정보보호위원회",
           "data_subjects": "정보주체",
           "police": "경찰",
-          "other": "기타"
+          "other": "기타",
+          "safeguarding_bank": "안전보관 은행",
+          "settlement_bank_acquirer": "정산 은행 / 매입사",
+          "payment_network": "결제 네트워크",
+          "nsrc": "PDRM / NSRC",
+          "mycert": "MyCERT"
         }
+      },
+      "documents": {
+        "generateDocument": "문서 생성",
+        "title": "문서 생성",
+        "description": "기록에 없는 내용을 입력한 뒤 .docx를 생성하여 다운로드하세요. 원하면 이 인시던트의 증거 기록에도 저장할 수 있습니다.",
+        "formA": "Form A — 초기 통지",
+        "formAHint": "탐지 후 몇 시간 이내에 BNM, 스폰서 EMI 또는 관련 파트너에게 발송됩니다.",
+        "formB": "Form B — 전체 인시던트 보고서",
+        "formBHint": "Form A를 받은 모든 당사자에게 세부 내용과 함께 발송됩니다.",
+        "formC": "Form C — 사후 검토 보고서",
+        "formCHint": "종료 후 근본 원인, 교훈, 시정 조치를 담습니다.",
+        "formD": "Form D — 상태 업데이트 / 종료 통지",
+        "formDHint": "인시던트가 열려 있는 동안의 정기 업데이트, 또는 최종 종료 통지입니다.",
+        "preparedByName": "작성자 (이름)",
+        "preparedByRole": "작성자 (역할)",
+        "approvedByName": "승인자 (이름)",
+        "approvedByRole": "승인자 (역할)",
+        "recipients": "수신자",
+        "otherPartiesNotified": "통지된 다른 당사자",
+        "actionsRequested": "수신자에게 요청하는 조치",
+        "executiveSummary": "요약 (5-10줄)",
+        "timeline": "상세 타임라인 — 한 줄에 한 사건씩",
+        "timelinePlaceholder": "모니터링 알림으로 이상 징후 탐지\n인시던트 리드에게 확대 보고\n비밀번호 강제 재설정으로 봉쇄",
+        "reputationalImpact": "평판 및 규제 영향",
+        "nextStepsContactName": "후속 조치 담당자 (이름)",
+        "nextStepsContactRole": "후속 조치 담당자 (역할)",
+        "reviewMeetingAttendees": "검토 회의 참석자",
+        "timeliness": "목표 대비 적시성",
+        "required": "요구 사항",
+        "actual": "실제",
+        "reasonIfMissed": "미충족 사유",
+        "signOffCeo": "서명 — CEO 이름",
+        "updateType": "업데이트 유형",
+        "statusUpdate": "상태 업데이트",
+        "finalClosure": "최종: 종료 통지",
+        "changesSinceLastUpdate": "이전 업데이트 이후 변경 사항",
+        "completedSinceLastUpdate": "이전 업데이트 이후 완료된 조치",
+        "inProgressNextSteps": "진행 중인 조치 / 다음 단계",
+        "requestsToRecipient": "수신자에게 요청 사항",
+        "saveAsEvidence": "이 문서를 인시던트의 증거 기록에도 저장",
+        "back": "뒤로",
+        "cancel": "취소",
+        "generate": "생성",
+        "generated": "문서가 생성되었습니다.",
+        "generateFailed": "문서를 생성하지 못했습니다. 다시 시도하세요.",
+        "attachFailed": "문서는 생성되었지만 증거로 저장하지 못했습니다."
       }
     }
   },

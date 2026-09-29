@@ -771,7 +771,10 @@ describe("route handlers use capabilities, not role floors", () => {
         // Migration 116: Incident Reporting is a brand new feature end to
         // end, same reasoning as the entries above — no legacy floor to
         // preserve for a route that did not exist before this feature.
-        r.key.startsWith("incidents")
+        // Migration 122/123 extends it with escalation-policy/-recipient
+        // settings routes under account/incidents/* — same reasoning.
+        r.key.startsWith("incidents") ||
+        r.key.startsWith("account/incidents")
       ) {
         continue;
       }

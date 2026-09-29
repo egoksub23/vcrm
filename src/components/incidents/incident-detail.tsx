@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowUpCircle,
   Check,
+  FileOutput,
   FileText,
   ListChecks,
   Loader2,
@@ -51,6 +52,7 @@ import type {
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { linkifySegments } from "@/lib/sembang/linkify";
 import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals";
+import { GenerateDocumentDialog } from "./generate-document-dialog";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -231,6 +233,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }));
   };
 
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+
   const [escalating, setEscalating] = useState(false);
   const escalate = async () => {
     if (!incident) return;
@@ -308,11 +312,19 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </div>
             <h1 className="mt-1 text-xl font-bold text-foreground">{incident.title}</h1>
           </div>
-          {canManage && incident.escalation_level < 3 && incident.status !== "closed" ? (
-            <Button variant="outline" size="sm" onClick={() => void escalate()} disabled={escalating}>
-              {escalating ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpCircle className="size-3.5" />}
-              {t("escalateNow")}
-            </Button>
+          {canManage ? (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {incident.escalation_level < 3 && incident.status !== "closed" ? (
+                <Button variant="outline" size="sm" onClick={() => void escalate()} disabled={escalating}>
+                  {escalating ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpCircle className="size-3.5" />}
+                  {t("escalateNow")}
+                </Button>
+              ) : null}
+              <Button variant="outline" size="sm" onClick={() => setDocumentDialogOpen(true)}>
+                <FileOutput className="size-3.5" />
+                {t("documents.generateDocument")}
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -543,6 +555,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           ) : null}
         </div>
       </div>
+
+      {canManage ? (
+        <GenerateDocumentDialog
+          open={documentDialogOpen}
+          onOpenChange={setDocumentDialogOpen}
+          incident={incident}
+          incidentLeadName={incident.incident_lead_id ? nameOf(incident.incident_lead_id) : null}
+          onAttached={() => void load()}
+        />
+      ) : null}
     </div>
   );
 }
@@ -708,7 +730,20 @@ function ActionsPanel({
   );
 }
 
-const RECIPIENT_PARTIES = ["bnm", "sponsor_emi", "partner", "pdp_commissioner", "data_subjects", "police", "other"] as const;
+const RECIPIENT_PARTIES = [
+  "bnm",
+  "sponsor_emi",
+  "partner",
+  "pdp_commissioner",
+  "data_subjects",
+  "police",
+  "other",
+  "safeguarding_bank",
+  "settlement_bank_acquirer",
+  "payment_network",
+  "nsrc",
+  "mycert",
+] as const;
 
 function NotificationsSentPanel({
   incidentId,

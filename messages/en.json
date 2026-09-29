@@ -4670,6 +4670,52 @@
         }
       }
     },
+    "incidents": {
+      "title": "Incidents",
+      "description": "Escalation timers, who gets notified as an incident escalates, and the 24/7 incident contact used on generated reports.",
+      "tabs": {
+        "timers": "Escalation timers",
+        "recipients": "Recipients"
+      },
+      "timers": {
+        "intro": "How long an incident can sit at a level before it auto-escalates. Attach a business-hours schedule to count only working time — leave it on \"All hours\" to count real time, 24/7.",
+        "severity": "Severity",
+        "level1Minutes": "Level 1 → 2 (minutes)",
+        "level2Minutes": "Level 2 → 3 (minutes)",
+        "schedule": "Business hours",
+        "allHours": "All hours (24/7)",
+        "usingDefault": "Using the default: {level1} / {level2} minutes, 24/7.",
+        "save": "Save",
+        "resetToDefault": "Reset to default",
+        "saved": "Escalation timer saved.",
+        "saveFailed": "Could not save the escalation timer. Try again.",
+        "reset": "Reset to the default timer.",
+        "resetFailed": "Could not reset the escalation timer. Try again."
+      },
+      "recipients": {
+        "intro": "Who gets notified when an incident escalates to each level. Leave a level empty to use the default.",
+        "level2Title": "Level 2 recipients",
+        "level2Hint": "Notified when an incident is unacknowledged long enough to escalate past level 1.",
+        "level3Title": "Level 3 recipients",
+        "level3Hint": "Notified when an incident escalates all the way to the top.",
+        "noneConfigured": "No recipients configured",
+        "recipientCount": "{count, plural, =1 {1 recipient} other {# recipients}}",
+        "noMembers": "No members found.",
+        "fallbackHint": "Falling back to Admins, the Owner, and anyone with incident-management access.",
+        "saveFailed": "Could not save that change. Try again."
+      },
+      "contact": {
+        "title": "24/7 incident contact",
+        "intro": "Pre-filled into every generated incident report as the contact for the recipient to reach.",
+        "name": "Name",
+        "role": "Role",
+        "mobile": "Mobile",
+        "email": "Email",
+        "save": "Save",
+        "saved": "Incident contact saved.",
+        "saveFailed": "Could not save the incident contact. Try again."
+      }
+    },
     "ticketResolutions": {
       "title": "Resolutions",
       "description": "The choices an agent picks from when resolving or closing a ticket. Rename them, reorder them, add your own, or archive the ones you do not use.",
@@ -7270,8 +7316,59 @@
           "pdp_commissioner": "PDP Commissioner",
           "data_subjects": "Data subjects",
           "police": "Police",
-          "other": "Other"
+          "other": "Other",
+          "safeguarding_bank": "Safeguarding bank",
+          "settlement_bank_acquirer": "Settlement bank / acquirer",
+          "payment_network": "Payment network",
+          "nsrc": "PDRM / NSRC",
+          "mycert": "MyCERT"
         }
+      },
+      "documents": {
+        "generateDocument": "Generate document",
+        "title": "Generate a document",
+        "description": "Fill in what isn't already on the record, then generate and download the .docx. Optionally save it to this incident's evidence log too.",
+        "formA": "Form A — Initial notification",
+        "formAHint": "Sent to BNM, the sponsor EMI or affected partners within hours of detection.",
+        "formB": "Form B — Full incident report",
+        "formBHint": "Sent to every party that received Form A, with the full detail.",
+        "formC": "Form C — Post-incident review",
+        "formCHint": "Root cause, lessons learned and corrective actions, after closure.",
+        "formD": "Form D — Status update / closure notice",
+        "formDHint": "A regular update while the incident is open, or the final closure notice.",
+        "preparedByName": "Prepared by (name)",
+        "preparedByRole": "Prepared by (role)",
+        "approvedByName": "Approved by (name)",
+        "approvedByRole": "Approved by (role)",
+        "recipients": "Recipient",
+        "otherPartiesNotified": "Other parties notified",
+        "actionsRequested": "Actions requested of the recipient",
+        "executiveSummary": "Executive summary (5-10 lines)",
+        "timeline": "Detailed timeline — one event per line",
+        "timelinePlaceholder": "Detected the anomaly via monitoring alert\nEscalated to the incident lead\nContained by forcing a password reset",
+        "reputationalImpact": "Reputational and regulatory impact",
+        "nextStepsContactName": "Follow-up contact (name)",
+        "nextStepsContactRole": "Follow-up contact (role)",
+        "reviewMeetingAttendees": "Review meeting attendees",
+        "timeliness": "Timeliness against targets",
+        "required": "Required",
+        "actual": "Actual",
+        "reasonIfMissed": "Reason if missed",
+        "signOffCeo": "Sign-off — CEO name",
+        "updateType": "Update type",
+        "statusUpdate": "Status update",
+        "finalClosure": "Final: closure notice",
+        "changesSinceLastUpdate": "Changes since last update",
+        "completedSinceLastUpdate": "Actions completed since last update",
+        "inProgressNextSteps": "Actions in progress / next steps",
+        "requestsToRecipient": "Requests to the recipient",
+        "saveAsEvidence": "Also save this document to the incident's evidence log",
+        "back": "Back",
+        "cancel": "Cancel",
+        "generate": "Generate",
+        "generated": "Document generated.",
+        "generateFailed": "Couldn't generate the document. Try again.",
+        "attachFailed": "The document was generated, but couldn't be saved as evidence."
       }
     }
   },

@@ -11,6 +11,7 @@ import {
   Plug,
   PlugZap,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   SwatchBook,
@@ -44,6 +45,7 @@ export const SETTINGS_SECTIONS = [
   'deals',
   'response-time',
   'sla',
+  'incidents',
   'status-colors',
   'team',
   'roles',
@@ -86,6 +88,9 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   'response-time': { id: 'response-time', label: 'Response time', icon: Timer, group: 'workspace' },
   // Migration 086: Settings > SLA & business hours (sla.configure).
   sla: { id: 'sla', label: 'SLA & business hours', icon: CalendarClock, group: 'workspace', capability: 'sla.configure' },
+  // Migration 122/123: Settings > Incidents (incidents.manage) — escalation
+  // timers/recipients and the 24/7 incident contact.
+  incidents: { id: 'incidents', label: 'Incidents', icon: ShieldAlert, group: 'workspace', capability: 'incidents.manage' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },

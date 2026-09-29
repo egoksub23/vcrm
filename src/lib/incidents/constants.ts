@@ -118,3 +118,15 @@ export function suggestsP2Minimum(type: IncidentTypeCode, detectionSource: Incid
 export const LIST_PAGE_SIZE = 200;
 /** Incidents fetched per board column. */
 export const BOARD_COLUMN_PAGE_SIZE = 100;
+
+/** Mirrors `incident_escalation_default_minutes()` (migration 118) — the
+ *  fallback used when an account has no `incident_escalation_policies`
+ *  row for a severity. Kept in lockstep with that SQL function; used by
+ *  the Settings escalation-timers tab (to show "using the default") and
+ *  by Form C's document generator (§4a "Required" column). */
+export const ESCALATION_DEFAULT_MINUTES: Record<IncidentSeverity, { level1: number; level2: number }> = {
+  P1: { level1: 15, level2: 60 },
+  P2: { level1: 60, level2: 240 },
+  P3: { level1: 1440, level2: 43200 },
+  P4: { level1: 10080, level2: 43200 },
+};
