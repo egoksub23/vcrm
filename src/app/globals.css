@@ -287,6 +287,37 @@ html[data-mode="dark"] {
 .rte-content img.ProseMirror-selectednode {
   outline: 2px solid var(--primary);
 }
+/* Tables (ticket description) — Tiptap's table extensions ship no styling. */
+.rte-content table {
+  border-collapse: collapse;
+  margin: 0 0 8px;
+  width: 100%;
+  table-layout: fixed;
+}
+.rte-content th,
+.rte-content td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: top;
+  position: relative;
+}
+.rte-content th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.rte-content .selectedCell {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.rte-content .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
 .rte-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;

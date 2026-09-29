@@ -8,6 +8,10 @@ import Link from "@tiptap/extension-link";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
 import {
   Bold,
   Italic,
@@ -17,6 +21,10 @@ import {
   ListOrdered,
   Link as LinkIcon,
   Palette,
+  Table as TableIcon,
+  Columns3,
+  Rows3,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pastedImages } from "@/lib/media/clipboard-images";
@@ -52,6 +60,15 @@ interface RichTextEditorProps {
   onImageFiles?: (files: File[]) => void;
   /** Show the emoji picker button in the toolbar (inserts at the cursor). */
   emojiPicker?: boolean;
+  /** Registers the table extensions and shows table toolbar controls
+   *  (insert / add row / add column / delete row / delete column / delete
+   *  table). Off by default so the email composer and Sembang task-comment
+   *  editor are unaffected. */
+  table?: boolean;
+  /** Overrides the editor surface's height classes (default:
+   *  `"max-h-56 min-h-[100px]"`, sized for a reply box). A document-style
+   *  body like a ticket description wants more room. */
+  contentClassName?: string;
 }
 
 function ToolbarButton({
@@ -92,6 +109,8 @@ export function RichTextEditor({
   onEditorReady,
   onImageFiles,
   emojiPicker,
+  table,
+  contentClassName,
 }: RichTextEditorProps) {
   const onImageFilesRef = useRef(onImageFiles);
   useEffect(() => {
@@ -113,6 +132,9 @@ export function RichTextEditor({
       // place in the text; only this project's own uploaded files are accepted.
       InlineImage,
       Placeholder.configure({ placeholder: placeholder ?? "" }),
+      ...(table
+        ? [Table.configure({ resizable: true }), TableRow, TableHeader, TableCell]
+        : []),
     ],
     editorProps: {
       attributes: { class: "rte-content" },
@@ -244,9 +266,61 @@ export function RichTextEditor({
             />
           ))}
         </div>
+
+        {table && (
+          <>
+            <div className="mx-1 h-4 w-px bg-border" />
+            <ToolbarButton
+              label="Insert table"
+              onClick={() =>
+                editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+              }
+            >
+              <TableIcon className="h-3.5 w-3.5" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Add column"
+              disabled={!editor.can().addColumnAfter()}
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+            >
+              <Columns3 className="h-3.5 w-3.5" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Delete column"
+              disabled={!editor.can().deleteColumn()}
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+            >
+              <Columns3 className="h-3.5 w-3.5 opacity-60" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Add row"
+              disabled={!editor.can().addRowAfter()}
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+            >
+              <Rows3 className="h-3.5 w-3.5" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Delete row"
+              disabled={!editor.can().deleteRow()}
+              onClick={() => editor.chain().focus().deleteRow().run()}
+            >
+              <Rows3 className="h-3.5 w-3.5 opacity-60" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Delete table"
+              disabled={!editor.can().deleteTable()}
+              onClick={() => editor.chain().focus().deleteTable().run()}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </ToolbarButton>
+          </>
+        )}
       </div>
 
-      <EditorContent editor={editor} className="max-h-56 min-h-[100px] overflow-y-auto px-3 py-2.5" />
+      <EditorContent
+        editor={editor}
+        className={cn("overflow-y-auto px-3 py-2.5", contentClassName ?? "max-h-56 min-h-[100px]")}
+      />
     </div>
   );
 }

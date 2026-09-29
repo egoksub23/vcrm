@@ -5347,6 +5347,7 @@
       "editSummary": "Click to edit",
       "descriptionHeading": "Description",
       "descriptionPlaceholder": "Add a description…",
+      "editDescription": "Edit description",
       "notFound": "This ticket could not be found. It may have been deleted.",
       "close": "Close",
       "backToTickets": "Back to tickets",

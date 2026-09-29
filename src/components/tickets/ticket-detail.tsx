@@ -4,10 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
+import type { Editor } from "@tiptap/react";
 import { Eye, EyeOff, Link2, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EmojiTextarea } from "@/components/emoji/emoji-textarea";
+import { RichTextEditor } from "@/components/inbox/rich-text-editor";
 import {
   Dialog,
   DialogContent,
@@ -114,7 +116,8 @@ function InlineSummary({
   );
 }
 
-/** The description: click to edit in a textarea with Save / Cancel; whitespace is kept. */
+/** The description: click to edit in a rich-text editor (tables, color,
+ *  formatting) with Save / Cancel; stored and rendered as sanitized HTML. */
 function DescriptionSection({
   value,
   disabled,
@@ -126,11 +129,14 @@ function DescriptionSection({
 }) {
   const t = useTranslations("Tickets.detail");
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const draftRef = useRef(value);
+  const editorRef = useRef<Editor | null>(null);
 
   const save = () => {
     setEditing(false);
-    if (draft !== value) onSave(draft);
+    const isEmpty = editorRef.current?.isEmpty ?? draftRef.current.trim() === "";
+    const next = isEmpty ? "" : draftRef.current;
+    if (next !== value) onSave(next);
   };
 
   return (
@@ -138,23 +144,17 @@ function DescriptionSection({
       <h3 className="text-[13px] font-semibold text-foreground">{t("descriptionHeading")}</h3>
       {editing ? (
         <div className="space-y-2">
-          <EmojiTextarea
-            value={draft}
-            onValueChange={setDraft}
-            rows={6}
-            autoFocus
-            aria-label={t("descriptionHeading")}
+          <RichTextEditor
+            table
+            emojiPicker
             placeholder={t("descriptionPlaceholder")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                save();
-              } else if (e.key === "Escape") {
-                e.stopPropagation();
-                setEditing(false);
-              }
+            contentClassName="min-h-[160px]"
+            onChangeHtml={(html) => {
+              draftRef.current = html;
             }}
-            className="w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-primary/50"
+            onEditorReady={(editor) => {
+              editorRef.current = editor;
+            }}
           />
           <div className="flex gap-2">
             <Button size="sm" onClick={save}>
@@ -165,17 +165,47 @@ function DescriptionSection({
             </Button>
           </div>
         </div>
+      ) : disabled ? (
+        <div className="-mx-2 rounded-md px-2 py-1.5">
+          {value ? (
+            <div
+              className="rte-content"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+            />
+          ) : (
+            <span className="text-[13px] leading-relaxed text-muted-foreground">
+              {t("descriptionPlaceholder")}
+            </span>
+          )}
+        </div>
+      ) : value ? (
+        <div className="group relative -mx-2 rounded-md hover:bg-muted/70">
+          <div
+            className="rte-content px-2 py-1.5"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+          />
+          <button
+            type="button"
+            title={t("editDescription")}
+            onClick={() => {
+              draftRef.current = value;
+              setEditing(true);
+            }}
+            className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </div>
       ) : (
         <button
           type="button"
-          disabled={disabled}
           onClick={() => {
-            setDraft(value);
+            draftRef.current = value;
             setEditing(true);
           }}
-          className="-mx-2 block w-[calc(100%+1rem)] cursor-text rounded-md px-2 py-1.5 text-left text-[13px] leading-relaxed whitespace-pre-wrap hover:bg-muted/70 disabled:cursor-default disabled:hover:bg-transparent"
+          className="-mx-2 block w-[calc(100%+1rem)] cursor-text rounded-md px-2 py-1.5 text-left text-[13px] leading-relaxed text-muted-foreground hover:bg-muted/70"
         >
-          {value ? value : <span className="text-muted-foreground">{t("descriptionPlaceholder")}</span>}
+          {t("descriptionPlaceholder")}
         </button>
       )}
     </section>
