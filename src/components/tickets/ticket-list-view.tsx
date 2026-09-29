@@ -159,7 +159,7 @@ export function TicketListView({
           <PriorityMenu
             priority={row.priority}
             disabled={!canWork}
-            withLabel
+            pill
             onChange={(priority) => onPatch(row.id, { priority })}
           />
         </TableCell>

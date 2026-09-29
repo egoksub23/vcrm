@@ -64,6 +64,17 @@ const PRIORITY_ICON: Record<TicketPriority, { icon: LucideIcon; className: strin
   low: { icon: ChevronDown, className: "text-sky-500" },
 };
 
+/** Bordered-pill colours per priority — same soft-tint-plus-border shape
+ *  as Incidents' SeverityBadge, for surfaces that want that denser,
+ *  more scannable look (currently just the ticket list's Priority
+ *  column) rather than the plain icon every other surface keeps. */
+export const PRIORITY_PILL_STYLE: Record<TicketPriority, string> = {
+  urgent: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  high: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  normal: "bg-muted text-muted-foreground border-border",
+  low: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+};
+
 const TYPE_ICON: Record<TicketCategory, { icon: LucideIcon; className: string }> = {
   bug: { icon: Bug, className: "bg-red-500 text-white" },
   feature_request: { icon: Lightbulb, className: "bg-emerald-500 text-white" },
@@ -93,13 +104,31 @@ export function PriorityIcon({
   priority,
   className,
   withLabel = false,
+  pill = false,
 }: {
   priority: TicketPriority;
   className?: string;
   withLabel?: boolean;
+  /** Render as a bordered, soft-tinted pill (icon + label together) instead
+   *  of the plain icon — matches Incidents' SeverityBadge shape. */
+  pill?: boolean;
 }) {
   const t = useTranslations("Tickets.common.priority");
   const { icon: Icon, className: color } = PRIORITY_ICON[priority];
+  if (pill) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] leading-none font-bold tracking-wide",
+          PRIORITY_PILL_STYLE[priority],
+          className,
+        )}
+      >
+        <Icon className="size-3 shrink-0" aria-hidden />
+        {t(priority)}
+      </span>
+    );
+  }
   return (
     <span className={cn("inline-flex items-center gap-1", color, className)} title={t(priority)}>
       <Icon className="size-4 shrink-0" aria-hidden />

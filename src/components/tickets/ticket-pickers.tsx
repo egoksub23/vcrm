@@ -143,22 +143,26 @@ export function PriorityMenu({
   onChange,
   disabled,
   withLabel = false,
+  pill = false,
 }: {
   priority: TicketPriority;
   onChange: (next: TicketPriority) => void;
   disabled?: boolean;
   withLabel?: boolean;
+  /** Render the trigger as a bordered pill (see PriorityIcon's `pill`) —
+   *  the dropdown's own option rows stay icon+label either way. */
+  pill?: boolean;
 }) {
   const t = useTranslations("Tickets.common");
   return (
     <PickerMenu
       trigger={
         <>
-          <PriorityIcon priority={priority} withLabel={withLabel} />
-          {!disabled && withLabel ? <ChevronDown className="size-3 text-muted-foreground" /> : null}
+          <PriorityIcon priority={priority} withLabel={withLabel} pill={pill} />
+          {!disabled && (withLabel || pill) ? <ChevronDown className="size-3 text-muted-foreground" /> : null}
         </>
       }
-      triggerClassName={withLabel ? "-mx-1.5 px-1.5 py-1 hover:bg-muted" : "p-0.5"}
+      triggerClassName={pill ? "p-0" : withLabel ? "-mx-1.5 px-1.5 py-1 hover:bg-muted" : "p-0.5"}
       options={TICKET_PRIORITIES.map((p) => ({
         value: p,
         label: <PriorityIcon priority={p} withLabel />,
