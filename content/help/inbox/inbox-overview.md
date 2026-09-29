@@ -96,7 +96,7 @@ The **Knowledge** tab searches your team's articles. See [Use articles in chat](
 ## Tips
 
 - Use **Unread** to find what you have not seen, and **Mine** to see your own chats.
-- The panel button in the chat header hides the right-hand column when you need more room. Vircle CRM remembers your choice.
+- The panel button in the chat header hides the right-hand column when you need more room. Vircle Halo remembers your choice.
 
 ## Common mistakes
 

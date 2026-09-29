@@ -15,7 +15,7 @@ Every channel and DM has its own task list — a standalone project-style to-do 
 
 ![The Tasks tab with an add-task box, an open section and a completed section](/help/img/tasks-and-meetings-01-panel.png)
 
-A task has a **status**, one or more **assignees**, a **due date**, a **description**, and can hold its own **subtasks**. Assigning someone sends them a notification. When a task is marked Done, Vircle CRM records who completed it and when — this cannot be edited to say someone else did it.
+A task has a **status**, one or more **assignees**, a **due date**, a **description**, and can hold its own **subtasks**. Assigning someone sends them a notification. When a task is marked Done, Vircle Halo records who completed it and when — this cannot be edited to say someone else did it.
 
 ## Task status
 
@@ -40,7 +40,7 @@ Break a task into smaller, independently-checkable steps: type into the subtask 
 
 ### Raise a ticket from a task
 
-Click the ticket icon on a task row, or **Create Ticket** inside its detail view, to raise a real Ticket from it — useful when what started as an internal job turns out to need customer-facing tracking. Vircle CRM opens the new ticket for you as soon as it is created, and the task keeps a link back to it ("View" plus the ticket's key).
+Click the ticket icon on a task row, or **Create Ticket** inside its detail view, to raise a real Ticket from it — useful when what started as an internal job turns out to need customer-facing tracking. Vircle Halo opens the new ticket for you as soon as it is created, and the task keeps a link back to it ("View" plus the ticket's key).
 
 ## Create a task from a message
 

@@ -37,7 +37,7 @@ You see "Saved view" and the name. Some people also see a box **Share with the w
 
 ### Use a view
 
-Press the bookmark button and click the view's name. It replaces your current filters. If the view is about email channels, Vircle CRM moves you to the **Emails** tab.
+Press the bookmark button and click the view's name. It replaces your current filters. If the view is about email channels, Vircle Halo moves you to the **Emails** tab.
 
 Shared views have a small people icon.
 

@@ -13,7 +13,7 @@ A direct message (DM) is a private chat with one other person, or a small group,
 2. Pick one person for a one-to-one DM, or several for a group DM.
 3. Click **Start**.
 
-If you already have a DM with that exact set of people, Vircle CRM opens it instead of starting a new one — you will never end up with two separate DMs with the same person.
+If you already have a DM with that exact set of people, Vircle Halo opens it instead of starting a new one — you will never end up with two separate DMs with the same person.
 
 ![The New message picker listing people to start a DM with](/help/img/direct-messages-01-new-dm.png)
 

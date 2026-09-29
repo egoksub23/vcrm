@@ -1,11 +1,11 @@
 ---
-title: Welcome to Vircle CRM
-description: What Vircle CRM is for, how to sign in, how to set up your profile, and where your alerts appear.
+title: Welcome to Vircle Halo
+description: What Vircle Halo is for, how to sign in, how to set up your profile, and where your alerts appear.
 order: 1
 updated: 2026-09-21
 ---
 
-Vircle CRM is where your team talks to customers. Chats, emails and social comments all arrive in one place, so you can reply, hand over to a teammate, and keep notes without switching tools.
+Vircle Halo is where your team talks to customers. Chats, emails and social comments all arrive in one place, so you can reply, hand over to a teammate, and keep notes without switching tools.
 
 This guide is for agents who work with customers every day. It explains the screens you use. Setting up channels, roles and AI is done by your admin, so those topics only say "ask your admin".
 
@@ -25,11 +25,11 @@ Your admin sends you an invitation link.
 2. Sign in, or create your login on the same page.
 3. Press **Accept invitation**.
 
-If you create a new login, Vircle CRM first emails you a link to confirm your email address. Open that link, then come back to the invitation.
+If you create a new login, Vircle Halo first emails you a link to confirm your email address. Open that link, then come back to the invitation.
 
 After that, you sign in at any time with your email and password. You land on the Dashboard.
 
-If you forget your password, press **Forgot password?** on the sign-in page. Vircle CRM emails you a reset link.
+If you forget your password, press **Forgot password?** on the sign-in page. Vircle Halo emails you a reset link.
 
 > [!NOTE]
 > If the invitation says it has expired or was already used, ask your admin to send a new link. Invitation links stop working after a set time.
@@ -43,7 +43,7 @@ Your name and photo appear in the header and in the sidebar. Teammates also see 
 3. Change your **Display name** if needed.
 4. Press **Save changes**.
 
-If you change your email, Vircle CRM asks both the old and the new address to confirm before the change takes effect.
+If you change your email, Vircle Halo asks both the old and the new address to confirm before the change takes effect.
 
 To change your password, open **Login & security** in the Settings menu on the left.
 
@@ -60,7 +60,7 @@ Press the sun or moon button in the top right corner. The button always names wh
 
 - The **Inbox** item in the sidebar shows a pulsing dot when a chat has unread messages.
 - The **Notifications** item (the bell icon) shows a number when you have unread alerts. Alerts include chats assigned to you and times you were mentioned.
-- You can also turn on desktop alerts for new customer messages. Open **Your profile**, find **Browser notifications**, and switch on **Notify me about new customer messages**. Your browser asks for permission once. These alerts only work while Vircle CRM is open in a browser tab.
+- You can also turn on desktop alerts for new customer messages. Open **Your profile**, find **Browser notifications**, and switch on **Notify me about new customer messages**. Your browser asks for permission once. These alerts only work while Vircle Halo is open in a browser tab.
 
 ## Sign out
 

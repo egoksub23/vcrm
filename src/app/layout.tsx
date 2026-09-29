@@ -22,17 +22,16 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Vircle CRM",
-    template: "%s — Vircle CRM",
+    default: "Vircle Halo",
+    template: "%s — Vircle Halo",
   },
-  description: "Vircle CRM — WhatsApp shared inbox and business automation.",
+  description: "Vircle Halo — WhatsApp shared inbox and business automation.",
   robots: {
     index: false,
     follow: false,
   },
-  icons: {
-    icon: [{ url: "/icon" }],
-  },
+  // No explicit `icons` entry — src/app/icon.png and apple-icon.png are
+  // picked up automatically by Next's file-convention metadata.
   formatDetection: {
     email: false,
     address: false,

@@ -15,7 +15,7 @@
     "createAccount": "계정 만들기"
   },
   "Sidebar": {
-    "title": "WhatsApp용 CRM 템플릿",
+    "title": "Vircle Halo",
     "primaryNav": "기본 메뉴",
     "dashboard": "대시보드",
     "inbox": "인박스",
@@ -78,7 +78,7 @@
   },
   "Help": {
     "pageTitle": "사용 가이드",
-    "landingTitle": "Vircle CRM 사용 가이드",
+    "landingTitle": "Vircle Halo 사용 가이드",
     "landingSubtitle": "채팅, 연락처, 지식 베이스, 티켓 등 일상 업무를 단계별로 안내합니다.",
     "searchPlaceholder": "가이드 검색",
     "searchButton": "가이드 검색",
@@ -4756,7 +4756,7 @@
     "titleJoin": "계정 만들고 참여하기",
     "title": "계정 만들기",
     "descJoin": "이메일을 인증한 뒤 초대를 수락해 팀에 참여하세요.",
-    "desc": "WhatsApp용 CRM Template을 시작하세요",
+    "desc": "Vircle Halo를 시작하세요",
     "fullNameLabel": "이름",
     "fullNamePlaceholder": "홍길동",
     "emailLabel": "이메일",

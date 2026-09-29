@@ -15,7 +15,7 @@
     "createAccount": "Create account"
   },
   "Sidebar": {
-    "title": "Vircle CRM",
+    "title": "Vircle Halo",
     "primaryNav": "Primary",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
@@ -78,7 +78,7 @@
   },
   "Help": {
     "pageTitle": "User Guide",
-    "landingTitle": "Vircle CRM User Guide",
+    "landingTitle": "Vircle Halo User Guide",
     "landingSubtitle": "Step-by-step help for everyday work: chats, contacts, knowledge and tickets.",
     "searchPlaceholder": "Search the guide",
     "searchButton": "Search the guide",
@@ -4756,7 +4756,7 @@
     "titleJoin": "Create account & join",
     "title": "Create account",
     "descJoin": "Verify your email, then accept the invitation to join your team.",
-    "desc": "Get started with Vircle CRM",
+    "desc": "Get started with Vircle Halo",
     "fullNameLabel": "Full name",
     "fullNamePlaceholder": "John Doe",
     "emailLabel": "Email",

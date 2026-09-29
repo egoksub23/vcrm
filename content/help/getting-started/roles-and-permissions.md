@@ -5,7 +5,7 @@ order: 3
 updated: 2026-09-21
 ---
 
-Everyone in Vircle CRM has a role. Your role decides which screens you see and which buttons you can use. This page explains what that means for you.
+Everyone in Vircle Halo has a role. Your role decides which screens you see and which buttons you can use. This page explains what that means for you.
 
 ## The four roles
 
@@ -54,7 +54,7 @@ A **Viewer** can open the menus they are given and the Reports page, and nothing
 | A button is greyed out, and pointing at it shows "Read-only — your role can't ..." | You can see the feature but not use it. The tooltip finishes the sentence, for example "send messages". |
 | A button or link does not appear at all | It is for a role above yours. Example: the **Manage** link next to contact fields. |
 | The sidebar is empty for a moment after you open the app | Your permissions are still loading. Wait a second. |
-| A message "Could not load your permissions" with a **Retry** button | Vircle CRM could not read your role, so it treats you as read-only until it can. Check your connection and press **Retry**. |
+| A message "Could not load your permissions" with a **Retry** button | Vircle Halo could not read your role, so it treats you as read-only until it can. Check your connection and press **Retry**. |
 | A message "This user is not linked to an account" | Your login is not attached to a workspace. Ask the owner to send the invitation again. |
 
 ## Who to ask

@@ -5,7 +5,7 @@ order: 4
 updated: 2026-09-22
 ---
 
-Vircle CRM has a small set of keyboard shortcuts. They save the most time when you reply to customers. There are no shortcuts to jump between pages or to assign or close a chat, so you use the mouse for those.
+Vircle Halo has a small set of keyboard shortcuts. They save the most time when you reply to customers. There are no shortcuts to jump between pages or to assign or close a chat, so you use the mouse for those.
 
 > [!NOTE]
 > On a Mac, use <kbd>Cmd</kbd> wherever this page says <kbd>Ctrl</kbd>. Both work.

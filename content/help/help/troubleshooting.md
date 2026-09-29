@@ -23,7 +23,7 @@ Find your problem by the words you see on screen. If the fix does not work, tell
 
 ### A message shows "Not sent"
 
-**Why:** The channel refused the message, or Meta accepted it and then could not deliver it. Vircle CRM keeps the message in the chat with a red **Not sent** panel. The panel says why in plain words and what to do. Press the small **i** button to see the provider's own message and error code.
+**Why:** The channel refused the message, or Meta accepted it and then could not deliver it. Vircle Halo keeps the message in the chat with a red **Not sent** panel. The panel says why in plain words and what to do. Press the small **i** button to see the provider's own message and error code.
 
 **Fix:** Do what the panel says. For example, send a template when the 24-hour window has closed, ask your admin to reconnect the channel when the connection has expired, or wait a moment when it says you are sending too fast. Then press **Resend** on the message. It sends the same thing again and replaces the red message, so the customer never gets two. If the 24-hour window has closed, **Resend** opens the templates instead of trying again. Press **Delete** to remove a message you no longer want to send. If the same reason keeps coming back, send your admin the exact words and the error code. See [Reply to customers](/help/inbox/reply-to-customers).
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -289,8 +290,15 @@ export function Sidebar({
           )}
         >
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <MessageSquare className="h-4 w-4" />
+            <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+              <Image
+                src="/brand/mascot-icon.png"
+                alt=""
+                width={64}
+                height={64}
+                className="h-full w-full object-cover"
+                priority
+              />
             </div>
             {expanded && (
               <span className="text-sm font-semibold text-foreground">

@@ -31,7 +31,7 @@ function buildIncidentEmail(args: {
   const text = [
     `${args.key} (${args.severity}) — ${args.title}`,
     '',
-    `${detailLine}Open it in Vircle CRM: ${args.url}`,
+    `${detailLine}Open it in Vircle Halo: ${args.url}`,
   ].join('\n');
 
   const html = `

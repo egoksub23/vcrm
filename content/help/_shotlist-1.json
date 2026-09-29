@@ -9,7 +9,7 @@
     "file": "screen-tour-01-sidebar.png",
     "page": "getting-started/screen-tour",
     "route": "/dashboard",
-    "capture": "Dashboard page with the sidebar pinned open (wide). Crop to the whole left sidebar from the logo and Vircle CRM title down to the user block at the bottom, so every item Dashboard to Settings and User Guide is visible. Nothing to click or type."
+    "capture": "Dashboard page with the sidebar pinned open (wide). Crop to the whole left sidebar from the logo and Vircle Halo title down to the user block at the bottom, so every item Dashboard to Settings and User Guide is visible. Nothing to click or type."
   },
   {
     "file": "screen-tour-02-dashboard.png",

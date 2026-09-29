@@ -20,7 +20,7 @@ Every change is recorded in the incident's **Timeline**, with who made it and wh
 
 ## Escalation
 
-Every incident has an **escalation level**, shown at the top of the record. If an incident is left unacknowledged (still **Reported**) past your workspace's timer for its severity, Vircle CRM escalates it automatically — bumping the level and notifying the next tier: the incident's watchers and lead first, then Admins, then the Owner. Escalation stops as soon as the incident moves out of **Reported**.
+Every incident has an **escalation level**, shown at the top of the record. If an incident is left unacknowledged (still **Reported**) past your workspace's timer for its severity, Vircle Halo escalates it automatically — bumping the level and notifying the next tier: the incident's watchers and lead first, then Admins, then the Owner. Escalation stops as soon as the incident moves out of **Reported**.
 
 Click **Escalate now** at any time to escalate immediately, for example when you want a second pair of eyes without waiting for the clock. A manual escalation is recorded in the Timeline the same as an automatic one.
 
@@ -38,7 +38,7 @@ The **Actions** panel tracks the corrective and preventive actions that come out
 If your Compliance Officer or CEO notifies Bank Negara Malaysia, your sponsor e-money issuer, a partner, the PDP Commissioner, affected data subjects, the police, or anyone else outside the company, click **Log a notification** on the incident to record it — who was notified, when, how, and a reference if there is one.
 
 > [!IMPORTANT]
-> Vircle CRM never sends this notification for you. Logging one only records that a person already sent it through the proper channel — it is your audit trail, not a delivery mechanism.
+> Vircle Halo never sends this notification for you. Logging one only records that a person already sent it through the proper channel — it is your audit trail, not a delivery mechanism.
 
 ## Timeline
 
