@@ -275,6 +275,13 @@ html[data-mode="dark"] {
   color: var(--primary);
   text-decoration: underline;
 }
+.rte-content .mention-chip {
+  border-radius: 4px;
+  padding: 0 3px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  font-weight: 500;
+}
 /* An article's picture inserted into an email reply. */
 .rte-content img {
   display: inline-block;

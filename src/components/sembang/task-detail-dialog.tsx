@@ -91,8 +91,13 @@ export function TaskDetailDialog({
 
   const [commentHtml, setCommentHtml] = useState("");
   const [commentText, setCommentText] = useState("");
+  const [commentMentionIds, setCommentMentionIds] = useState<string[]>([]);
   const [postingComment, setPostingComment] = useState(false);
   const commentEditorRef = useRef<Editor | null>(null);
+
+  // @mention candidates are this task's own channel members, not the
+  // whole account (useAccountMembers above is only used for AssigneeMenu).
+  const [channelMembers, setChannelMembers] = useState<{ id: string; label: string }[]>([]);
 
   const [deleting, setDeleting] = useState(false);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
@@ -117,6 +122,18 @@ export function TaskDetailDialog({
     if (open) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, taskId]);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const res = await fetch(`/api/sembang/channels/${channelId}/members`, { cache: "no-store" });
+      const data = (await res.json().catch(() => ({}))) as { members?: { userId: string; fullName: string }[] };
+      if (!res.ok || !data.members) return;
+      setChannelMembers(
+        data.members.filter((m) => m.fullName).map((m) => ({ id: m.userId, label: m.fullName })),
+      );
+    })();
+  }, [open, channelId]);
 
   const patch = async (body: Record<string, unknown>) => {
     const res = await fetch(base, {
@@ -240,7 +257,7 @@ export function TaskDetailDialog({
       const res = await fetch(`${base}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: commentHtml }),
+        body: JSON.stringify({ body: commentHtml, mentions: commentMentionIds }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -249,6 +266,7 @@ export function TaskDetailDialog({
       }
       setCommentHtml("");
       setCommentText("");
+      setCommentMentionIds([]);
       commentEditorRef.current?.commands.clearContent();
       await load();
     } finally {
@@ -595,6 +613,10 @@ export function TaskDetailDialog({
                     commentEditorRef.current = editor;
                   }}
                   placeholder={t("commentPlaceholder")}
+                  mentions={{
+                    candidates: channelMembers,
+                    onMentionsChange: setCommentMentionIds,
+                  }}
                 />
                 <div className="mt-2 flex justify-end">
                   <Button size="sm" onClick={() => void postComment()} disabled={!commentText.trim() || postingComment}>

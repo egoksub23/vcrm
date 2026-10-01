@@ -632,6 +632,7 @@
         "phone_invalid": "숫자 7~15자리로 입력하세요(앞에 +는 선택).",
         "phone_required": "이 연락처에는 전화번호가 필요합니다.",
         "phone_taken": "다른 연락처가 이미 이 번호를 사용 중입니다.",
+        "phone_taken_named": "{name}님이 이미 이 번호를 사용 중입니다.",
         "too_long": "너무 깁니다."
       }
     },
@@ -806,6 +807,11 @@
       "selectedCount": "{count}개 선택됨",
       "clearSelection": "지우기",
       "deleteSelected": "선택 항목 삭제",
+      "showDeleted": "삭제된 항목 보기",
+      "deletedBadge": "삭제됨",
+      "deletedBy": "{name}님이 삭제함",
+      "deletedByUnknown": "삭제됨",
+      "restoreAction": "복원",
       "tableColumns": {
         "name": "이름",
         "phone": "전화번호",
@@ -817,6 +823,7 @@
       "loading": "연락처를 불러오는 중...",
       "noContactsMatch": "필터와 일치하는 연락처가 없습니다.",
       "noContactsYet": "아직 연락처가 없습니다.",
+      "noDeletedContacts": "삭제된 연락처가 없습니다.",
       "addFirstContact": "첫 연락처 추가하기",
       "unnamed": "이름 없음",
       "editAction": "수정",
@@ -824,16 +831,19 @@
       "showingPagination": "전체 {total}개 중 {start}-{end}",
       "pageCount": "{total} 중 {page}페이지",
       "deleteContactTitle": "연락처 삭제",
-      "deleteContactDesc": "{name}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+      "deleteContactDesc": "{name}은(는) 숨겨지며 기록은 유지됩니다 — 티켓과 대화 내용은 그대로 남습니다. \"삭제된 항목 보기\"에서 나중에 복원할 수 있습니다.",
       "cancel": "취소",
       "deleteBtn": "삭제",
       "deleteBulkTitle": "연락처 삭제",
-      "deleteBulkDesc": "선택한 연락처 {count}개를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+      "deleteBulkDesc": "선택한 연락처 {count}개가 숨겨지며 기록은 유지됩니다. \"삭제된 항목 보기\"에서 나중에 복원할 수 있습니다.",
       "toastFailedLoad": "연락처를 불러오지 못했습니다",
       "toastFailedDelete": "연락처를 삭제하지 못했습니다",
       "toastDeleted": "연락처가 삭제되었습니다",
       "toastBulkFailedDelete": "연락처를 삭제하지 못했습니다",
-      "toastBulkDeleted": "연락처 {count}개가 삭제되었습니다"
+      "toastBulkDeleted": "연락처 {count}개가 삭제되었습니다",
+      "toastFailedLoadDeleted": "삭제된 연락처를 불러오지 못했습니다",
+      "toastRestored": "{name} 복원됨",
+      "toastRestoreFailed": "연락처를 복원하지 못했습니다"
     },
     "form": {
       "addTitle": "연락처 추가",
@@ -7438,6 +7448,7 @@
       "loadEarlier": "이전 메시지 불러오기",
       "loadFailed": "메시지를 불러오지 못했습니다",
       "noMessages": "아직 메시지가 없습니다. 인사해 보세요!",
+      "newMessages": "새 메시지 {count}개 ↓",
       "unknownAuthor": "알 수 없음",
       "messageRemoved": "모더레이터가 삭제한 메시지입니다",
       "removeMessage": "삭제",

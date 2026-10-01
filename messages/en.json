@@ -632,6 +632,7 @@
         "phone_invalid": "Use 7–15 digits, with an optional + at the start.",
         "phone_required": "A phone number is required for this contact.",
         "phone_taken": "Another contact already uses this number.",
+        "phone_taken_named": "{name} already uses this number.",
         "too_long": "That’s too long."
       }
     },
@@ -806,6 +807,11 @@
       "selectedCount": "{count} selected",
       "clearSelection": "Clear",
       "deleteSelected": "Delete selected",
+      "showDeleted": "Show deleted",
+      "deletedBadge": "Deleted",
+      "deletedBy": "Deleted by {name}",
+      "deletedByUnknown": "Deleted",
+      "restoreAction": "Restore",
       "tableColumns": {
         "name": "Name",
         "phone": "Phone",
@@ -817,6 +823,7 @@
       "loading": "Loading contacts...",
       "noContactsMatch": "No contacts match your filters.",
       "noContactsYet": "No contacts yet.",
+      "noDeletedContacts": "No deleted contacts.",
       "addFirstContact": "Add your first contact",
       "unnamed": "Unnamed",
       "editAction": "Edit",
@@ -824,16 +831,19 @@
       "showingPagination": "Showing {start}-{end} of {total}",
       "pageCount": "Page {page} of {total}",
       "deleteContactTitle": "Delete Contact",
-      "deleteContactDesc": "Are you sure you want to delete {name}? This action cannot be undone.",
+      "deleteContactDesc": "{name} will be hidden and its history kept — tickets and conversations stay intact. You can restore it later from \"Show deleted\".",
       "cancel": "Cancel",
       "deleteBtn": "Delete",
       "deleteBulkTitle": "Delete Contacts",
-      "deleteBulkDesc": "Are you sure you want to delete {count} selected contacts? This action cannot be undone.",
+      "deleteBulkDesc": "{count} selected contacts will be hidden and their history kept. You can restore them later from \"Show deleted\".",
       "toastFailedLoad": "Failed to load contacts",
       "toastFailedDelete": "Failed to delete contact",
       "toastDeleted": "Contact deleted",
       "toastBulkFailedDelete": "Failed to delete contacts",
-      "toastBulkDeleted": "{count} contacts deleted"
+      "toastBulkDeleted": "{count} contacts deleted",
+      "toastFailedLoadDeleted": "Failed to load deleted contacts",
+      "toastRestored": "{name} restored",
+      "toastRestoreFailed": "Failed to restore contact"
     },
     "form": {
       "addTitle": "Add Contact",
@@ -7438,6 +7448,7 @@
       "loadEarlier": "Load earlier messages",
       "loadFailed": "Could not load messages",
       "noMessages": "No messages yet. Say hello!",
+      "newMessages": "{count, plural, =1 {1 new message} other {# new messages}} ↓",
       "unknownAuthor": "Unknown",
       "messageRemoved": "Message removed by a moderator",
       "removeMessage": "Remove",

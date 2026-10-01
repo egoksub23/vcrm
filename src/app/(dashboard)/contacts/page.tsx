@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -50,6 +51,7 @@ import {
   SlidersHorizontal,
   Filter,
   X,
+  RotateCcw,
 } from 'lucide-react';
 import { ContactForm } from '@/components/contacts/contact-form';
 import { ContactDetailView } from '@/components/contacts/contact-detail-view';
@@ -63,6 +65,18 @@ const PAGE_SIZE = 25;
 
 interface ContactWithTags extends Contact {
   tags?: Tag[];
+}
+
+interface DeletedContact {
+  id: string;
+  name: string | null;
+  phone: string;
+  email: string | null;
+  company: string | null;
+  created_at: string;
+  deleted_at: string;
+  deleted_by: string | null;
+  deleted_by_name: string | null;
 }
 
 export default function ContactsPage() {
@@ -92,6 +106,13 @@ export default function ContactsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // "Show deleted" — soft-deleted contacts (migration 125), fetched on
+  // their own since RLS hides them from the normal `contacts` query.
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [deletedContacts, setDeletedContacts] = useState<DeletedContact[]>([]);
+  const [loadingDeleted, setLoadingDeleted] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   // Bulk selection (page-scoped — only the loaded rows are selectable)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -225,6 +246,46 @@ export default function ContactsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchContacts();
   }, [fetchContacts]);
+
+  const fetchDeletedContacts = useCallback(async () => {
+    setLoadingDeleted(true);
+    try {
+      const res = await fetch('/api/contacts/deleted', { cache: 'no-store' });
+      const payload = (await res.json().catch(() => ({}))) as { contacts?: DeletedContact[] };
+      if (!res.ok || !payload.contacts) throw new Error();
+      setDeletedContacts(payload.contacts);
+    } catch {
+      toast.error(t('toastFailedLoadDeleted'));
+    } finally {
+      setLoadingDeleted(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (showDeleted) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchDeletedContacts();
+    }
+  }, [showDeleted, fetchDeletedContacts]);
+
+  async function restoreContact(contact: DeletedContact) {
+    setRestoringId(contact.id);
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/restore`, { method: 'POST' });
+      if (res.ok) {
+        toast.success(t('toastRestored', { name: contact.name || contact.phone }));
+        setDeletedContacts((prev) => prev.filter((c) => c.id !== contact.id));
+        fetchContacts();
+      } else {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(payload.error || t('toastRestoreFailed'));
+      }
+    } catch {
+      toast.error(t('toastRestoreFailed'));
+    } finally {
+      setRestoringId(null);
+    }
+  }
 
   function openAddForm() {
     setEditContact(null);
@@ -513,6 +574,17 @@ export default function ContactsPage() {
               )}
             </PopoverContent>
           </Popover>
+
+          <label className="flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+            <Switch
+              checked={showDeleted}
+              onCheckedChange={(checked) => {
+                setShowDeleted(checked === true);
+                setSelected(new Set());
+              }}
+            />
+            {t('showDeleted')}
+          </label>
         </div>
 
         {/* Active tag-filter chips */}
@@ -552,7 +624,7 @@ export default function ContactsPage() {
       </div>
 
       {/* Bulk action bar */}
-      {selected.size > 0 && (
+      {!showDeleted && selected.size > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/40 px-4 py-2">
           <p className="text-sm text-foreground">
             {t('selectedCount', { count: selected.size })}
@@ -590,7 +662,7 @@ export default function ContactsPage() {
                   checked={allOnPageSelected}
                   indeterminate={!allOnPageSelected && someOnPageSelected}
                   onCheckedChange={toggleSelectAll}
-                  disabled={contacts.length === 0}
+                  disabled={contacts.length === 0 || showDeleted}
                   aria-label={t('selectAllOnPage')}
                 />
               </TableHead>
@@ -604,7 +676,77 @@ export default function ContactsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {showDeleted ? (
+              loadingDeleted ? (
+                <TableRow className="border-border">
+                  <TableCell colSpan={8} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">{t('loading')}</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : deletedContacts.length === 0 ? (
+                <TableRow className="border-border">
+                  <TableCell colSpan={8} className="text-center py-12">
+                    <p className="text-sm text-muted-foreground">{t('noDeletedContacts')}</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                deletedContacts.map((contact) => (
+                  <TableRow key={contact.id} className="border-border opacity-70">
+                    <TableCell />
+                    <TableCell className="text-foreground font-medium">
+                      <div className="flex items-center gap-2">
+                        {contact.name || <span className="text-muted-foreground italic">{t('unnamed')}</span>}
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {t('deletedBadge')}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">
+                      {contact.phone}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground hidden md:table-cell text-sm">
+                      {contact.email || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground hidden lg:table-cell text-sm">
+                      {contact.company || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                      {contact.deleted_by_name
+                        ? t('deletedBy', { name: contact.deleted_by_name })
+                        : t('deletedByUnknown')}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs hidden lg:table-cell">
+                      {new Date(contact.deleted_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <GatedButton
+                        variant="outline"
+                        size="sm"
+                        canAct={canEdit}
+                        gateReason="restore contacts"
+                        onClick={() => restoreContact(contact)}
+                        disabled={restoringId === contact.id}
+                        className="border-border text-muted-foreground hover:bg-muted"
+                      >
+                        {restoringId === contact.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="size-3.5" />
+                        )}
+                        {t('restoreAction')}
+                      </GatedButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )
+            ) : loading ? (
               <TableRow className="border-border">
                 <TableCell colSpan={8} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
@@ -751,7 +893,7 @@ export default function ContactsPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!showDeleted && totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             {t('showingPagination', {

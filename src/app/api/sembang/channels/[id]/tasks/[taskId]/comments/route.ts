@@ -1,17 +1,22 @@
 // ============================================================
 // /api/sembang/channels/[id]/tasks/[taskId]/comments
 //
-//   POST — body `{ body: string }` (sanitized HTML from the rich-text
-//          composer). `author_id = ctx.userId`, `mentions` always `[]`
-//          in this pass (no @mention picker wired up yet — see
-//          sembang_task_comments' migration comment). Notifies every
-//          current assignee except the author via a DB trigger. No
-//          standalone GET here — TaskDetailDialog refetches the whole
-//          task detail after posting.
+//   POST — body `{ body: string, mentions?: string[] }` (sanitized HTML
+//          from the rich-text composer, plus the ids the mention picker
+//          tagged). `author_id = ctx.userId`. `mentions` is re-validated
+//          server-side against the channel's real membership (service
+//          role, so it can't be spoofed) before storing — anyone not
+//          currently a member of this channel is silently dropped, the
+//          same defense-in-depth posture as the ticket comment mention
+//          flow. Notifies every current assignee except the author
+//          (existing trigger) and every validated mention (migration
+//          126). No standalone GET here — TaskDetailDialog refetches the
+//          whole task detail after posting.
 // ============================================================
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { supabaseAdmin } from '@/lib/automations/admin-client'
 import type { SembangTaskComment } from '@/types'
 
 const BODY_MAX = 20_000
@@ -22,15 +27,30 @@ export async function POST(
 ) {
   try {
     const ctx = await requireCapability('menu.sembang')
-    const { taskId } = await params
+    const { id: channelId, taskId } = await params
 
-    const body = (await request.json().catch(() => null)) as { body?: unknown } | null
+    const body = (await request.json().catch(() => null)) as
+      | { body?: unknown; mentions?: unknown }
+      | null
     const text = typeof body?.body === 'string' ? body.body.trim() : ''
     if (!text || text.length > BODY_MAX) {
       return NextResponse.json(
         { error: `Comment must be between 1 and ${BODY_MAX} characters` },
         { status: 400 },
       )
+    }
+    const requestedMentions = Array.isArray(body?.mentions)
+      ? [...new Set(body.mentions.filter((id): id is string => typeof id === 'string'))]
+      : []
+
+    let mentions: string[] = []
+    if (requestedMentions.length > 0) {
+      const { data: members } = await supabaseAdmin()
+        .from('sembang_channel_members')
+        .select('user_id')
+        .eq('channel_id', channelId)
+        .in('user_id', requestedMentions)
+      mentions = (members ?? []).map((m) => m.user_id)
     }
 
     const { data, error } = await ctx.supabase
@@ -40,6 +60,7 @@ export async function POST(
         account_id: ctx.accountId,
         author_id: ctx.userId,
         body: text,
+        mentions,
       })
       .select('*')
       .single()
@@ -68,7 +89,7 @@ export async function POST(
       authorName: profile?.full_name ?? '',
       authorAvatarUrl: profile?.avatar_url ?? null,
       body: data.body,
-      mentions: [],
+      mentions: data.mentions ?? [],
       createdAt: data.created_at,
       editedAt: data.edited_at,
     }

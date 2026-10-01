@@ -168,6 +168,23 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
+  // "Jump to new messages" — the id of the last message we last reacted to,
+  // so a merge that doesn't actually change the bottom message (a reaction
+  // refetch, an edit) is never mistaken for a new arrival.
+  const prevLastIdRef = useRef<string | null>(null);
+  const [unseenCount, setUnseenCount] = useState(0);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    setUnseenCount(0);
+  }, []);
+
+  const handleThreadScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) setUnseenCount(0);
+  }, []);
 
   // ---- Channel detail --------------------------------------------------
   useEffect(() => {
@@ -205,6 +222,10 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     setThreadParentId(null);
     setSearchOpen(false);
     setActiveTab("messages");
+    // A different channel's first paint should always land at the bottom,
+    // never be mistaken for "new messages arrived while reading history".
+    prevLastIdRef.current = null;
+    setUnseenCount(0);
   }, [channelId]);
 
   // ---- Members -----------------------------------------------------------
@@ -323,16 +344,39 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     }
   }, [channelId, messages, loadingEarlier, fetchMessages, mergeMessages, t]);
 
-  // Auto-scroll to bottom on new messages — suppressed right after
-  // "load earlier" prepends older ones (that shouldn't yank the view).
+  // Auto-scroll to bottom on new messages — but only when a message was
+  // actually appended at the bottom (not a reaction/edit refetch, which
+  // also replaces the `messages` array), and only when that wouldn't yank
+  // the view away from history the user is currently reading: force-scroll
+  // when already near the bottom, sending your own message, or this is the
+  // channel's first paint; otherwise show the "jump to new messages" pill
+  // instead. Suppressed right after "load earlier" prepends older ones.
   useEffect(() => {
+    const el = scrollRef.current;
+    const last = messages[messages.length - 1];
+
     if (suppressAutoScrollRef.current) {
       suppressAutoScrollRef.current = false;
+      prevLastIdRef.current = last?.id ?? prevLastIdRef.current;
       return;
     }
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+
+    const isFirstPaint = prevLastIdRef.current === null;
+    const isNewAppend = !!last && last.id !== prevLastIdRef.current;
+    prevLastIdRef.current = last?.id ?? prevLastIdRef.current;
+
+    if (!el || !isNewAppend) return;
+
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const isSelf = last.authorId === user?.id;
+
+    if (isFirstPaint || nearBottom || isSelf) {
+      el.scrollTop = el.scrollHeight;
+      setUnseenCount(0);
+    } else {
+      setUnseenCount((c) => c + 1);
+    }
+  }, [messages, user?.id]);
 
   // ---- Realtime: messages (+ replies), reactions, pins, tasks ------------
   useSembangChannelRealtime({
@@ -1184,7 +1228,8 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
         ) : activeTab === "files" || activeTab === "links" || activeTab === "bookmarks" ? (
           <ChannelResourcesTabBody channelId={channel.id} section={activeTab} />
         ) : (
-          <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
+          <div className="relative min-h-0 flex-1">
+          <div ref={scrollRef} onScroll={handleThreadScroll} className="absolute inset-0 overflow-y-auto py-2">
             {hasMoreEarlier && (
               <div className="flex justify-center py-2">
                 <Button variant="outline" size="sm" onClick={handleLoadEarlier} disabled={loadingEarlier}>
@@ -1227,6 +1272,16 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                 />
               ))
             )}
+          </div>
+          {unseenCount > 0 && (
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-lg hover:bg-primary/90"
+            >
+              {t("newMessages", { count: unseenCount })}
+            </button>
+          )}
           </div>
         )}
 

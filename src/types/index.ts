@@ -370,7 +370,11 @@ export type NotificationType =
   | 'sembang_task_assigned'
   /** Migration 100: every Sembang DM message, not just @mentions — skipped
    *  when the same message also fires a sembang_mention for that recipient. */
-  | 'sembang_dm_message';
+  | 'sembang_dm_message'
+  /** Migration 121: a comment on a Sembang task you're assigned to. */
+  | 'sembang_task_comment'
+  /** Migration 126: an @mention in a Sembang task comment. */
+  | 'sembang_task_mention';
 
 export interface Notification {
   id: string;

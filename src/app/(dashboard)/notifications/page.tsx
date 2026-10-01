@@ -32,6 +32,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   sembang_mention: Hash,
   sembang_task_assigned: CheckSquare,
   sembang_dm_message: MessageSquare,
+  sembang_task_comment: MessageSquare,
+  sembang_task_mention: AtSign,
 };
 
 export default function NotificationsPage() {

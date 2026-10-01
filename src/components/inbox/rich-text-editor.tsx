@@ -12,6 +12,8 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
+import { Mention } from "@tiptap/extension-mention";
+import { createMentionSuggestion, type MentionCandidate } from "@/lib/tiptap/mention-suggestion";
 import {
   Bold,
   Italic,
@@ -69,6 +71,26 @@ interface RichTextEditorProps {
    *  `"max-h-56 min-h-[100px]"`, sized for a reply box). A document-style
    *  body like a ticket description wants more room. */
   contentClassName?: string;
+  /** Registers @mention autocomplete (a real Tiptap node, not a regex
+   *  overlay — the shared `MentionTextarea` can't drop into a
+   *  contentEditable editor). `candidates` can update after mount (e.g.
+   *  once a channel's member list loads); `onMentionsChange` is called
+   *  with the current set of mentioned ids, re-derived from the document
+   *  on every change so it can never drift from what's actually mentioned. */
+  mentions?: {
+    candidates: MentionCandidate[];
+    onMentionsChange: (ids: string[]) => void;
+  };
+}
+
+function collectMentionIds(editor: Editor): string[] {
+  const ids = new Set<string>();
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === "mention" && typeof node.attrs.id === "string") {
+      ids.add(node.attrs.id);
+    }
+  });
+  return [...ids];
 }
 
 function ToolbarButton({
@@ -111,11 +133,16 @@ export function RichTextEditor({
   emojiPicker,
   table,
   contentClassName,
+  mentions,
 }: RichTextEditorProps) {
   const onImageFilesRef = useRef(onImageFiles);
   useEffect(() => {
     onImageFilesRef.current = onImageFiles;
   }, [onImageFiles]);
+  const mentionCandidatesRef = useRef<MentionCandidate[]>(mentions?.candidates ?? []);
+  useEffect(() => {
+    mentionCandidatesRef.current = mentions?.candidates ?? [];
+  }, [mentions?.candidates]);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -135,6 +162,14 @@ export function RichTextEditor({
       ...(table
         ? [Table.configure({ resizable: true }), TableRow, TableHeader, TableCell]
         : []),
+      ...(mentions
+        ? [
+            Mention.configure({
+              HTMLAttributes: { class: "mention-chip" },
+              suggestion: createMentionSuggestion(() => mentionCandidatesRef.current),
+            }),
+          ]
+        : []),
     ],
     editorProps: {
       attributes: { class: "rte-content" },
@@ -150,6 +185,7 @@ export function RichTextEditor({
     },
     onUpdate: ({ editor }) => {
       onChangeHtml(editor.getHTML(), editor.getText());
+      mentions?.onMentionsChange(collectMentionIds(editor));
     },
     editable: !disabled,
     // Tiptap v3 renders on the client only — without this, Next.js's

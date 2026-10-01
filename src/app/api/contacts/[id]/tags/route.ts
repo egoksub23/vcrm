@@ -4,6 +4,7 @@ import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import { addContactTagAndDispatch } from '@/lib/contacts/tag-events';
 import {
   ContactTagWriteError,
+  assertTagIsContactTag,
   removeContactTag,
 } from '@/lib/contacts/tag-write';
 
@@ -31,6 +32,12 @@ export async function POST(
     if (!tagId) {
       return NextResponse.json({ error: 'tag_id required' }, { status: 400 });
     }
+
+    // Only contact tags can be attached here; a conversation-only label is a 400.
+    await assertTagIsContactTag(ctx.supabase, {
+      accountId: ctx.accountId,
+      tagId,
+    });
 
     const result = await addContactTagAndDispatch({
       db: ctx.supabase,
