@@ -33,6 +33,7 @@ import { useTeams } from "@/hooks/use-teams";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
+import { useTicketTypes } from "@/hooks/use-ticket-types";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
 import { dragHasFiles, pastedImages } from "@/lib/media/clipboard-images";
 import { attachFileToTicket } from "@/lib/tickets/attachment-actions";
@@ -154,6 +155,13 @@ export function CreateTicketDialog({
   // Admin-defined form fields (migration 066). Only fetched while the
   // dialog is open; the visible set follows the selected type.
   const { fields: fieldDefs } = useTicketFields(open);
+  // Ticket types (migration 128): falls back to the 7 built-in defaults
+  // (with no catalogue name, so TypeIcon uses its own i18n fallback) while
+  // the catalogue is still loading, so the picker never renders empty.
+  const { active: ticketTypes, loaded: ticketTypesLoaded } = useTicketTypes();
+  const typeOptions: { slug: string; name?: string }[] = ticketTypesLoaded
+    ? ticketTypes.map((ty) => ({ slug: ty.slug, name: ty.name }))
+    : TICKET_CATEGORIES.map((slug) => ({ slug }));
   const [customValues, setCustomValues] = useState<TicketCustomValues>({});
   const [showInvalid, setShowInvalid] = useState(false);
   const visibleFields = fieldsForCategory(fieldDefs, category);
@@ -381,13 +389,13 @@ export function CreateTicketDialog({
             <Select value={category} onValueChange={(v) => setCategory((v ?? "general") as TicketCategory)}>
               <SelectTrigger className="w-full bg-muted sm:w-64">
                 <SelectValue>
-                  <TypeIcon category={category} withLabel />
+                  <TypeIcon category={category} label={typeOptions.find((o) => o.slug === category)?.name} withLabel />
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {TICKET_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    <TypeIcon category={c} withLabel />
+                {typeOptions.map((opt) => (
+                  <SelectItem key={opt.slug} value={opt.slug}>
+                    <TypeIcon category={opt.slug} label={opt.name} withLabel />
                   </SelectItem>
                 ))}
               </SelectContent>

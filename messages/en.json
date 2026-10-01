@@ -4756,6 +4756,32 @@
       "cancel": "Cancel",
       "saveFailed": "Could not save the resolution",
       "duplicate": "There is already a resolution called “{name}”."
+    },
+    "ticketTypes": {
+      "title": "Types",
+      "description": "The choices an agent picks from when raising a ticket. Rename them, reorder them, add your own, or archive the ones you do not use.",
+      "addType": "Add type",
+      "adminOnly": "Only admins can change the ticket types.",
+      "loading": "Loading types…",
+      "empty": "No types yet.",
+      "systemChip": "Built-in",
+      "systemHint": "One of the original types. You can rename or move it, but not archive it.",
+      "archivedHeading": "Archived",
+      "archivedHint": "Archived types are not offered any more; tickets that already have one keep it.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "edit": "Rename",
+      "archive": "Archive",
+      "restore": "Restore",
+      "addTitle": "Add a type",
+      "editTitle": "Rename the type",
+      "dialogDesc": "A short name an agent recognises, for example “Escalation” or “Onboarding”.",
+      "nameLabel": "Name",
+      "namePlaceholder": "For example: Escalation",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveFailed": "Could not save the type",
+      "duplicate": "There is already a type called “{name}”."
     }
   },
   "SignupPage": {
@@ -5705,6 +5731,12 @@
           "first_response": "First response",
           "resolution": "Resolution"
         }
+      },
+      "drilldown": {
+        "oldestOpenTitle": "Oldest open tickets",
+        "byLabelTitle": "By label",
+        "colLabel": "Label",
+        "colCount": "Tickets"
       },
       "byResolution": "Resolved by resolution",
       "byResolutionHint": "Tickets resolved or closed in the date range, by how they were resolved.",

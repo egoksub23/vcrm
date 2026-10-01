@@ -1198,3 +1198,60 @@ export async function loadTicketSlaReport(
     }),
   }
 }
+
+// --- Tickets report: drill-down (migration 128) -----------------------------------
+// Another server-side aggregate (`ticket_reports_drilldown`, SQL), same jsonb-RPC
+// shape as ticket_sla_report above — oldest-open and a label breakdown both need a
+// real query (labels is a text[] column), not something the already-fetched rows
+// for the rest of this report can answer client-side.
+
+export interface OldestOpenTicket {
+  id: string
+  ticketNumber: number
+  subject: string
+  createdAt: string
+  assigneeName: string | null
+}
+
+export interface LabelBreakdownRow {
+  label: string
+  count: number
+}
+
+export interface TicketReportsDrilldown {
+  oldestOpen: OldestOpenTicket[]
+  byLabel: LabelBreakdownRow[]
+}
+
+export const DRILLDOWN_OLDEST_OPEN_LIMIT = 10
+
+export async function loadTicketReportsDrilldown(
+  db: DB,
+  accountId: string,
+  range: DateRange,
+): Promise<TicketReportsDrilldown> {
+  const { data, error } = await db.rpc('ticket_reports_drilldown', {
+    p_account: accountId,
+    p_from: range.from.toISOString(),
+    p_to: exclusiveEnd(range.to).toISOString(),
+    p_limit: DRILLDOWN_OLDEST_OPEN_LIMIT,
+  })
+  if (error) throw error
+  const d = (data ?? {}) as Record<string, unknown>
+  return {
+    oldestOpen: (Array.isArray(d.oldestOpen) ? d.oldestOpen : []).map((r) => {
+      const o = r as Record<string, unknown>
+      return {
+        id: String(o.id ?? ''),
+        ticketNumber: num(o.ticketNumber),
+        subject: String(o.subject ?? ''),
+        createdAt: String(o.createdAt ?? ''),
+        assigneeName: typeof o.assigneeName === 'string' ? o.assigneeName : null,
+      }
+    }),
+    byLabel: (Array.isArray(d.byLabel) ? d.byLabel : []).map((r) => {
+      const o = r as Record<string, unknown>
+      return { label: String(o.label ?? ''), count: num(o.count) }
+    }),
+  }
+}

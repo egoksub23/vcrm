@@ -21,6 +21,7 @@ import {
   loadBroadcastsReport,
   loadTicketsReport,
   loadTicketSlaReport,
+  loadTicketReportsDrilldown,
   slaCompliancePct,
   LIFECYCLE_STAGES,
   type OverviewMetric,
@@ -712,6 +713,7 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
       </div>
 
       <TicketSlaReportSection accountId={accountId} range={range} />
+      <TicketDrilldownSection accountId={accountId} range={range} />
     </div>
   );
 }
@@ -883,6 +885,90 @@ function TicketSlaReportSection({ accountId, range }: PanelProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Drill-down (migration 128): a clickable oldest-open list and a label
+ * breakdown, reusing the SLA section's own mechanism just above — a `Link`
+ * into `/tickets?t=<id>` (already consumed by the Tickets page's
+ * `TicketDetailDialog`) or `/tickets?label=<x>` (already consumed by
+ * `parseFilters`) rather than inventing a new drill-down UI.
+ */
+function TicketDrilldownSection({ accountId, range }: PanelProps) {
+  const t = useTranslations("Reports.tickets");
+  const { data, loading, error } = useReportData(loadTicketReportsDrilldown, accountId, range);
+
+  if (error) return <ErrorState message={error} />;
+  if (loading || !data) return <EmptyState label={t("loading")} />;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2" data-testid="ticket-drilldown">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("drilldown.oldestOpenTitle")}</p>
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="px-4 py-2">{t("sla.colTicket")}</th>
+              <th className="px-4 py-2">{t("sla.colSubject")}</th>
+              <th className="px-4 py-2">{t("sla.colAssignee")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.oldestOpen.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                  {t("noData")}
+                </td>
+              </tr>
+            ) : (
+              data.oldestOpen.map((o) => (
+                <tr key={o.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2.5 font-mono text-xs">
+                    <Link href={`/tickets?t=${o.id}`} className="text-primary hover:underline">
+                      #{o.ticketNumber}
+                    </Link>
+                  </td>
+                  <td className="max-w-64 truncate px-4 py-2.5 text-foreground">{o.subject}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{o.assigneeName ?? t("sla.unassigned")}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <p className="px-4 pt-4 text-sm font-medium text-foreground">{t("drilldown.byLabelTitle")}</p>
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="px-4 py-2">{t("drilldown.colLabel")}</th>
+              <th className="px-4 py-2 text-right">{t("drilldown.colCount")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.byLabel.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-4 py-6 text-center text-muted-foreground">
+                  {t("noData")}
+                </td>
+              </tr>
+            ) : (
+              data.byLabel.map((l) => (
+                <tr key={l.label} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2.5">
+                    <Link href={`/tickets?label=${encodeURIComponent(l.label)}`} className="text-primary hover:underline">
+                      {l.label}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-foreground">{l.count}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

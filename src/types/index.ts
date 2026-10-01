@@ -419,14 +419,12 @@ export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'cl
  *  model for "how urgent" across conversations and tickets. */
 export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low';
 
-export type TicketCategory =
-  | 'general'
-  | 'billing'
-  | 'technical'
-  | 'feature_request'
-  | 'bug'
-  | 'account'
-  | 'other';
+/** Migration 128: the slug of an account's ticket_types catalogue entry (the
+ *  UI label is "type"; the column is still `category`). An admin-editable
+ *  catalogue, not a fixed set, so this is a plain string, not a literal
+ *  union — `TICKET_CATEGORIES` in src/lib/tickets/constants.ts lists only
+ *  the 7 built-in seed values, kept as a loading-state fallback. */
+export type TicketCategory = string;
 
 export interface Ticket {
   id: string;
@@ -458,7 +456,9 @@ export interface Ticket {
   /** Migration 081. Position on the board: higher is nearer the top. */
   board_rank?: number;
   /** Migration 096. How the ticket was resolved (a ticket_resolutions row).
-   *  Kept when the ticket is re-opened; shown only while it is Resolved or Closed. */
+   *  Migration 128: cleared by the database when the ticket is re-opened, so
+   *  re-closing it always demands a fresh pick. Shown only while the ticket
+   *  is Resolved or Closed. */
   resolution_id?: string | null;
   /** Migration 096. Optional free text with the resolution, at most 2000 characters. */
   resolution_note?: string | null;
@@ -506,6 +506,23 @@ export interface TicketResolution {
   /** "Resolved in Jira" / "Closed automatically": used by the database, cannot be archived. */
   is_system: boolean;
   system_key: 'resolved_in_jira' | 'closed_automatically' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Migration 128: one entry of the account's catalogue of ticket types —
+ *  `slug` is what `tickets.category` stores (stable, never shown directly
+ *  once `name` exists); renaming a type only ever changes `name`. */
+export interface TicketType {
+  id: string;
+  account_id: string;
+  slug: string;
+  name: string;
+  position: number;
+  /** false = archived: not offered for new tickets, still names old ones. */
+  is_active: boolean;
+  /** One of the 7 original built-in types: can be renamed, cannot be archived. */
+  is_system: boolean;
   created_at: string;
   updated_at: string;
 }

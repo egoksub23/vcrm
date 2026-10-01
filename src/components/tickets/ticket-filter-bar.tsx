@@ -21,7 +21,7 @@ import {
   type TicketFilters,
 } from "@/lib/tickets/filters";
 import { activeResolutions } from "@/lib/tickets/resolution";
-import type { Profile, Team, TicketResolution } from "@/types";
+import type { Profile, Team, TicketResolution, TicketType } from "@/types";
 import { PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon } from "./ticket-visuals";
 import { SavedFiltersMenu } from "./ticket-saved-filters";
 
@@ -95,6 +95,7 @@ export function TicketFilterBar({
   knownLabels,
   mentionedCount = 0,
   resolutions = [],
+  types = [],
 }: {
   filters: TicketFilters;
   onChange: (next: TicketFilters) => void;
@@ -106,9 +107,15 @@ export function TicketFilterBar({
   mentionedCount?: number;
   /** The account's ticket resolutions (migration 096); the Resolution filter shows once there are any. */
   resolutions?: TicketResolution[];
+  /** The account's ticket types (migration 128); falls back to the 7 built-in
+   *  defaults when empty (still loading), so the Type filter never renders empty. */
+  types?: TicketType[];
 }) {
   const t = useTranslations("Tickets.filters");
   const tCommon = useTranslations("Tickets.common");
+
+  const typeFilterOptions: { slug: string; name?: string }[] =
+    types.length > 0 ? types.map((ty) => ({ slug: ty.slug, name: ty.name })) : TICKET_CATEGORIES.map((slug) => ({ slug }));
 
   // The search box keeps its own text and reports it after a pause. It
   // follows `filters.q` again when that changes from elsewhere (Clear
@@ -209,7 +216,10 @@ export function TicketFilterBar({
         label={t("type")}
         selected={filters.types}
         onChange={(types) => set({ types: types as TicketFilters["types"] })}
-        options={TICKET_CATEGORIES.map((c) => ({ value: c, label: <TypeIcon category={c} withLabel /> }))}
+        options={typeFilterOptions.map((opt) => ({
+          value: opt.slug,
+          label: <TypeIcon category={opt.slug} label={opt.name} withLabel />,
+        }))}
       />
       <MultiFilter
         label={t("priority")}

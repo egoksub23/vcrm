@@ -196,6 +196,9 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("contacts/export", "GET", "agent", "contacts.edit"),
   row("contacts/[id]/tags", "POST", "agent", "contacts.edit"),
   row("contacts/[id]/tags", "DELETE", "agent", "contacts.edit"),
+  // Soft-delete (0.70.x): the "Show deleted" list and restoring one.
+  row("contacts/deleted", "GET", "agent", "contacts.edit"),
+  row("contacts/[id]/restore", "POST", "agent", "contacts.edit"),
   row("whatsapp/broadcast", "POST", "agent", "broadcasts.send"),
   row("whatsapp/broadcast/[id]/resume", "POST", "agent", "broadcasts.send"),
 

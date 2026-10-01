@@ -137,23 +137,33 @@ export function PriorityIcon({
   );
 }
 
+const KNOWN_CATEGORIES = new Set<TicketCategory>(Object.keys(TYPE_ICON));
+
 export function TypeIcon({
   category,
+  label,
   className,
   withLabel = false,
 }: {
   category: TicketCategory;
+  /** The catalogue's display name (migration 128's ticket_types.name) for a
+   *  caller that already has it loaded — a custom type has no i18n key, so
+   *  without this it falls back to showing the raw slug. */
+  label?: string;
   className?: string;
   withLabel?: boolean;
 }) {
   const t = useTranslations("Tickets.common.type");
-  const { icon: Icon, className: color } = TYPE_ICON[category];
+  // A custom type's slug has no icon mapping of its own — the generic
+  // ticket icon ("other") is a safe, never-crashing fallback.
+  const { icon: Icon, className: color } = TYPE_ICON[category] ?? TYPE_ICON.other;
+  const display = label ?? (KNOWN_CATEGORIES.has(category) ? t(category) : category);
   return (
-    <span className={cn("inline-flex items-center gap-1.5", className)} title={t(category)}>
+    <span className={cn("inline-flex items-center gap-1.5", className)} title={display}>
       <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-[3px]", color)}>
         <Icon className="size-3" aria-hidden />
       </span>
-      {withLabel ? <span className="text-[13px] text-foreground">{t(category)}</span> : <span className="sr-only">{t(category)}</span>}
+      {withLabel ? <span className="text-[13px] text-foreground">{display}</span> : <span className="sr-only">{display}</span>}
     </span>
   );
 }

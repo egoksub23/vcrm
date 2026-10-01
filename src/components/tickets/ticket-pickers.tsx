@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, orderedTransitions } from "@/lib/tickets/constants";
+import { useTicketTypes } from "@/hooks/use-ticket-types";
 import { PersonAvatar, PriorityIcon, StatusLozenge, TypeIcon, STATUS_STYLE } from "./ticket-visuals";
 import type { Profile, Team, TicketCategory, TicketPriority, TicketStatus } from "@/types";
 
@@ -185,19 +186,24 @@ export function TypeMenu({
   disabled?: boolean;
 }) {
   const t = useTranslations("Tickets.common");
+  const { active: ticketTypes, loaded } = useTicketTypes();
+  const typeOptions: { slug: string; name?: string }[] = loaded
+    ? ticketTypes.map((ty) => ({ slug: ty.slug, name: ty.name }))
+    : TICKET_CATEGORIES.map((slug) => ({ slug }));
+  const currentLabel = typeOptions.find((o) => o.slug === category)?.name;
   return (
     <PickerMenu
       trigger={
         <>
-          <TypeIcon category={category} withLabel />
+          <TypeIcon category={category} label={currentLabel} withLabel />
           {!disabled ? <ChevronDown className="size-3 text-muted-foreground" /> : null}
         </>
       }
       triggerClassName="-mx-1.5 px-1.5 py-1 hover:bg-muted"
-      options={TICKET_CATEGORIES.map((c) => ({
-        value: c,
-        label: <TypeIcon category={c} withLabel />,
-        selected: c === category,
+      options={typeOptions.map((opt) => ({
+        value: opt.slug,
+        label: <TypeIcon category={opt.slug} label={opt.name} withLabel />,
+        selected: opt.slug === category,
       }))}
       onSelect={(v) => onChange(v as TicketCategory)}
       disabled={disabled}

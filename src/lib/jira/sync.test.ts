@@ -391,6 +391,35 @@ describe("pushStatus: Vircle to Jira", () => {
     expect(fake.calls.find((c) => c.method === "doTransition")!.args).toEqual(["10001", "31", { resolution: { name: "Done" } }]);
   });
 
+  it("prefers the ticket's own chosen resolution (migration 096) over the connection's fixed default", async () => {
+    const transitionsWithDuplicate = {
+      transitions: [
+        transitions.transitions[0],
+        { ...transitions.transitions[1], fields: { resolution: { required: true, allowedValues: [{ name: "Done" }, { name: "Duplicate" }] } } },
+      ],
+    };
+    const { store, ctx, fake } = setup(
+      { getIssue: async () => issue({ status: inProgress }), getTransitions: async () => transitionsWithDuplicate },
+      enabled,
+    );
+    store.tickets[0].status = "resolved";
+    store.tickets[0].resolution_id = "res-1";
+    store.resolutions = [{ id: "res-1", name: "Duplicate", is_active: true }];
+    await pushStatus(ctx, { ticketId: "t-1", status: "resolved" });
+    // The connection's fixed default is "Done" (also a valid allowed value here) — proves the
+    // ticket's own "Duplicate" resolution was asked for, not just whatever Jira happened to offer first.
+    expect(fake.calls.find((c) => c.method === "doTransition")!.args).toEqual(["10001", "31", { resolution: { name: "Duplicate" } }]);
+  });
+
+  it("falls back to the connection's fixed resolution when the ticket's resolution lookup fails", async () => {
+    const { store, ctx, fake } = setup({ getIssue: async () => issue({ status: inProgress }), getTransitions: async () => transitions }, enabled);
+    store.tickets[0].status = "resolved";
+    store.tickets[0].resolution_id = "res-1";
+    store.failResolutionLookup = true;
+    await pushStatus(ctx, { ticketId: "t-1", status: "resolved" });
+    expect(fake.calls.find((c) => c.method === "doTransition")!.args).toEqual(["10001", "31", { resolution: { name: "Done" } }]);
+  });
+
   it("ECHO: the webhook for our own transition does not bounce back into the ticket", async () => {
     const { store, ctx } = setup({ getIssue: async () => issue(), getTransitions: async () => transitions }, enabled);
     store.tickets[0].status = "in_progress";

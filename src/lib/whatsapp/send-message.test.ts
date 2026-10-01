@@ -1182,7 +1182,7 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
     });
   });
 
-  it('does not touch the conversation preview, unread or awaiting-response flag', async () => {
+  it('only sets last_message_failed — never touches the preview, unread or awaiting-response flag', async () => {
     const { sendTextMessage } = await import('@/lib/whatsapp/meta-api');
     vi.mocked(sendTextMessage).mockRejectedValueOnce(await metaErr(131030, 'Not allowed'));
     const captured: CapturedWrites = {};
@@ -1192,7 +1192,9 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
       contentText: 'x',
     }).catch(() => undefined);
     expect(captured.message?.status).toBe('failed');
-    expect(captured.conversation).toBeUndefined();
+    // A message that did not go out must not read as a reply — the only field
+    // insertFailedMessageRow is allowed to touch is this one new flag.
+    expect(captured.conversation).toEqual({ last_message_failed: true });
   });
 
   it('keeps the media url and caption on a failed media send', async () => {

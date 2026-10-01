@@ -507,6 +507,21 @@ export async function pushStatus(ctx: SyncContext, args: { ticketId: string; sta
   const ticket = await store.getTicket(args.ticketId);
   if (!ticket || ticket.status !== args.status) return out; // changed again meanwhile: a newer job follows
 
+  // The ticket's own chosen resolution (migration 096) takes priority over
+  // the connection's fixed default, so a Done transition's resolution field
+  // shows what actually happened instead of a generic placeholder. Only
+  // looked up when it could matter (the ticket is closing and has one) and
+  // never fatal — a lookup failure just falls back to the fixed default.
+  let resolutionNameForJira: string | null = null;
+  if (ticket.resolution_id && (args.status === "resolved" || args.status === "closed")) {
+    try {
+      const resolutions = await store.listResolutions(ticket.account_id);
+      resolutionNameForJira = resolutions.find((r) => r.id === ticket.resolution_id)?.name ?? null;
+    } catch {
+      resolutionNameForJira = null;
+    }
+  }
+
   const target = wantedJiraTarget(base, args.status);
   // Only the links whose project (or the workspace) has "status to Jira" on.
   const links = (await store.linksForTicket(ticket.id)).filter(
@@ -544,7 +559,7 @@ export async function pushStatus(ctx: SyncContext, args: { ticketId: string; sta
           message: `${link.issue_key}: no transition to ${wanted}`,
         });
       } else {
-        const fields = transitionFields(choice.transition, settings.resolution);
+        const fields = transitionFields(choice.transition, resolutionNameForJira ?? settings.resolution);
         if (!fields.ok) {
           last = { ok: false, reason: "screen_fields", wanted, at };
         } else {

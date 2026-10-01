@@ -16,15 +16,18 @@ export interface TicketRow extends Omit<Ticket, "contact"> {
 
 export type TicketViewMode = "board" | "list";
 
-const SELECT =
+/** Exported so useTicketSearch (server-side search, migration 128) can
+ *  hydrate full rows for the ids `tickets_search` returns without
+ *  duplicating this join. */
+export const SELECT =
   "*, contact:contacts(id, name, phone, wa_username, wa_user_id), comments:ticket_comments(count)";
 
-type RawTicket = Ticket & {
+export type RawTicket = Ticket & {
   contact?: TicketContact | null;
   comments?: { count: number }[] | null;
 };
 
-function normalize(raw: RawTicket): TicketRow {
+export function normalize(raw: RawTicket): TicketRow {
   const { comments, contact, ...rest } = raw;
   return {
     ...rest,

@@ -4756,6 +4756,32 @@
       "cancel": "취소",
       "saveFailed": "해결 유형을 저장하지 못했습니다",
       "duplicate": "“{name}” 해결 유형이 이미 있습니다."
+    },
+    "ticketTypes": {
+      "title": "티켓 유형",
+      "description": "티켓을 등록할 때 상담원이 고르는 선택지입니다. 이름을 바꾸고, 순서를 정하고, 직접 추가하거나 사용하지 않는 항목은 보관하세요.",
+      "addType": "유형 추가",
+      "adminOnly": "관리자만 티켓 유형을 변경할 수 있습니다.",
+      "loading": "유형을 불러오는 중…",
+      "empty": "아직 유형이 없습니다.",
+      "systemChip": "기본 제공",
+      "systemHint": "처음부터 있던 유형입니다. 이름과 순서는 바꿀 수 있지만 보관할 수는 없습니다.",
+      "archivedHeading": "보관됨",
+      "archivedHint": "보관한 유형은 더 이상 표시되지 않으며, 이미 사용 중인 티켓에는 그대로 남습니다.",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "edit": "이름 변경",
+      "archive": "보관",
+      "restore": "복원",
+      "addTitle": "유형 추가",
+      "editTitle": "유형 이름 변경",
+      "dialogDesc": "상담원이 알아볼 수 있는 짧은 이름입니다. 예: “에스컬레이션”, “온보딩”.",
+      "nameLabel": "이름",
+      "namePlaceholder": "예: 에스컬레이션",
+      "save": "저장",
+      "cancel": "취소",
+      "saveFailed": "유형을 저장하지 못했습니다",
+      "duplicate": "“{name}” 유형이 이미 있습니다."
     }
   },
   "SignupPage": {
@@ -5705,6 +5731,12 @@
           "first_response": "첫 응답",
           "resolution": "해결"
         }
+      },
+      "drilldown": {
+        "oldestOpenTitle": "오래된 미해결 티켓",
+        "byLabelTitle": "라벨별",
+        "colLabel": "라벨",
+        "colCount": "티켓 수"
       },
       "byResolution": "해결 유형별 해결 건수",
       "byResolutionHint": "선택한 기간에 해결되거나 종료된 티켓을 해결 방법별로 나눈 표입니다.",

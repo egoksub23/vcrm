@@ -24,9 +24,24 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, Loader2, MessageSquare } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Loader2, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TICKET_STATUSES } from "@/lib/tickets/constants";
 import type { JiraChip } from "@/lib/tickets/jira-ui";
 import { compareByRank, planDrop, rebalanceRanks } from "@/lib/tickets/rank";
@@ -67,10 +82,13 @@ interface TicketBoardProps {
   /** Whether filters / search are narrowing the board (counts then show what matches). */
   filtered: boolean;
   canWork: boolean;
+  /** Gates the per-card "Delete ticket" menu action (tickets.delete). */
+  canDelete?: boolean;
   keyOf: (ticketNumber: number) => string;
   members: Profile[];
   onOpen: (id: string) => void;
   onMove: (move: BoardMove) => void;
+  onDelete?: (id: string) => void;
   onShowMore: (status: TicketStatus) => void;
   /** Called when Closed is opened, so the parent can fetch it. */
   onExpandColumn: (status: TicketStatus) => void;
@@ -102,6 +120,8 @@ function CardBody({
   overlay = false,
   jiraChips,
   waiting,
+  canDelete = false,
+  onRequestDelete,
 }: {
   row: TicketRow;
   keyText: string;
@@ -109,20 +129,45 @@ function CardBody({
   overlay?: boolean;
   jiraChips?: JiraChip[];
   waiting?: TicketMention;
+  canDelete?: boolean;
+  onRequestDelete?: (row: TicketRow) => void;
 }) {
   const t = useTranslations("Tickets.board");
+  const tDetail = useTranslations("Tickets.detail");
   const assignee = members.find((m) => m.user_id === row.assigned_agent_id);
   const customer = row.contact ? row.contact.name || contactHandle(row.contact) : "";
   const shownLabels = row.labels.slice(0, 3);
   return (
     <div
       className={cn(
-        "rounded-md border border-l-[3px] border-border bg-card p-2.5 text-[13px] shadow-xs transition-shadow",
+        "group/card relative rounded-md border border-l-[3px] border-border bg-card p-2.5 text-[13px] shadow-xs transition-shadow",
         PRIORITY_EDGE[row.priority],
         overlay ? "rotate-1 shadow-lg ring-1 ring-primary/30" : "hover:shadow-md",
       )}
     >
-      <p className="line-clamp-2 leading-snug font-medium text-foreground">{row.subject}</p>
+      {canDelete && !overlay ? (
+        <div
+          className="absolute top-1.5 right-1.5 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={tDetail("moreActions")}
+              className="inline-flex size-6 items-center justify-center rounded-md bg-card text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 border-border bg-popover">
+              <DropdownMenuItem variant="destructive" onClick={() => onRequestDelete?.(row)}>
+                <Trash2 className="size-4" />
+                {tDetail("deleteTicket")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
+      <p className="line-clamp-2 pr-6 leading-snug font-medium text-foreground">{row.subject}</p>
       {customer ? <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{customer}</p> : null}
       {waiting ? (
         <div className="mt-1.5">
@@ -177,6 +222,8 @@ function SortableCard({
   onOpen,
   jiraChips,
   waiting,
+  canDelete,
+  onRequestDelete,
 }: {
   row: TicketRow;
   keyText: string;
@@ -185,6 +232,8 @@ function SortableCard({
   onOpen: (id: string) => void;
   jiraChips?: JiraChip[];
   waiting?: TicketMention;
+  canDelete?: boolean;
+  onRequestDelete?: (row: TicketRow) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
@@ -210,7 +259,15 @@ function SortableCard({
         isDragging && "opacity-40",
       )}
     >
-      <CardBody row={row} keyText={keyText} members={members} jiraChips={jiraChips} waiting={waiting} />
+      <CardBody
+        row={row}
+        keyText={keyText}
+        members={members}
+        jiraChips={jiraChips}
+        waiting={waiting}
+        canDelete={canDelete}
+        onRequestDelete={onRequestDelete}
+      />
     </div>
   );
 }
@@ -233,6 +290,8 @@ function Column({
   onCollapse,
   jiraChips,
   waiting,
+  canDelete,
+  onRequestDelete,
 }: {
   status: TicketStatus;
   ids: string[];
@@ -249,6 +308,8 @@ function Column({
   onCollapse?: () => void;
   jiraChips?: Record<string, JiraChip[]>;
   waiting?: Record<string, TicketMention>;
+  canDelete?: boolean;
+  onRequestDelete?: (row: TicketRow) => void;
 }) {
   const t = useTranslations("Tickets.board");
   const tStatus = useTranslations("Tickets.common.status");
@@ -294,6 +355,8 @@ function Column({
                 onOpen={onOpen}
                 jiraChips={jiraChips?.[id]}
                 waiting={waiting?.[id]}
+                canDelete={canDelete}
+                onRequestDelete={onRequestDelete}
               />
             ) : null;
           })}
@@ -329,10 +392,12 @@ export function TicketBoard({
   loadingMore,
   filtered,
   canWork,
+  canDelete,
   keyOf,
   members,
   onOpen,
   onMove,
+  onDelete,
   onShowMore,
   onExpandColumn,
   closedOpen,
@@ -342,6 +407,11 @@ export function TicketBoard({
 }: TicketBoardProps) {
   const t = useTranslations("Tickets.board");
   const tStatus = useTranslations("Tickets.common.status");
+  const tDetail = useTranslations("Tickets.detail");
+
+  // A card's own "Delete ticket" menu action, confirmed once here rather than per-card.
+  // onDelete is fire-and-forget (the page toasts the outcome), so there is no spinner state.
+  const [deleteTarget, setDeleteTarget] = useState<TicketRow | null>(null);
 
   const rowMap = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
   const baseColumns = useMemo<Columns>(() => {
@@ -456,7 +526,11 @@ export function TicketBoard({
         ids={columns[status]}
         rowMap={rowMap}
         total={total}
-        hasMore={columnLoaded[status] && loadedCounts[status] < total && !dragColumns}
+        // While filtered/searching, rows already come from the full server-side
+        // search result (up to its own cap) rather than the unfiltered page —
+        // "Show more" would page the unfiltered store, which the filtered view
+        // does not even read, so it is suppressed instead of looking like a no-op.
+        hasMore={columnLoaded[status] && loadedCounts[status] < total && !dragColumns && !filtered}
         filtered={filtered}
         loadingMore={loadingMore === status}
         canWork={canWork}
@@ -467,11 +541,14 @@ export function TicketBoard({
         onCollapse={onCollapse}
         jiraChips={jiraChips}
         waiting={waiting}
+        canDelete={canDelete}
+        onRequestDelete={setDeleteTarget}
       />
     );
   };
 
   return (
+    <>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
@@ -511,5 +588,30 @@ export function TicketBoard({
         {activeRow ? <CardBody row={activeRow} keyText={keyOf(activeRow.ticket_number)} members={members} overlay jiraChips={jiraChips?.[activeRow.id]} waiting={waiting?.[activeRow.id]} /> : null}
       </DragOverlay>
     </DndContext>
+
+    <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <DialogContent className="bg-popover text-popover-foreground sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{deleteTarget ? tDetail("deleteTitle", { key: keyOf(deleteTarget.ticket_number) }) : ""}</DialogTitle>
+          <DialogDescription>{tDetail("deleteDescription")}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            {tDetail("cancel")}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (!deleteTarget) return;
+              onDelete?.(deleteTarget.id);
+              setDeleteTarget(null);
+            }}
+          >
+            {tDetail("delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

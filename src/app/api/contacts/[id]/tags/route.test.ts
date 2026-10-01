@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   add: vi.fn(),
   remove: vi.fn(),
+  assertTagIsContactTag: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/account', () => ({
@@ -26,9 +27,11 @@ vi.mock('@/lib/contacts/tag-write', () => ({
     }
   },
   removeContactTag: mocks.remove,
+  assertTagIsContactTag: mocks.assertTagIsContactTag,
 }));
 
 import { DELETE, POST } from './route';
+import { ContactTagWriteError } from '@/lib/contacts/tag-write';
 
 const context = {
   supabase: { name: 'scoped-client' },
@@ -52,7 +55,9 @@ beforeEach(() => {
   mocks.requireCapability.mockReset();
   mocks.add.mockReset();
   mocks.remove.mockReset();
+  mocks.assertTagIsContactTag.mockReset();
   mocks.requireCapability.mockResolvedValue(context);
+  mocks.assertTagIsContactTag.mockResolvedValue(undefined);
 });
 
 describe('/api/contacts/[id]/tags', () => {
@@ -74,6 +79,21 @@ describe('/api/contacts/[id]/tags', () => {
   it('rejects a missing tag id before writing', async () => {
     const response = await POST(request('POST', {}), params);
     expect(response.status).toBe(400);
+    expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it('rejects a conversation-only tag before writing', async () => {
+    mocks.assertTagIsContactTag.mockRejectedValue(
+      new ContactTagWriteError('This tag is for conversations only.', 400)
+    );
+
+    const response = await POST(request('POST', { tag_id: 'tag-1' }), params);
+
+    expect(response.status).toBe(400);
+    expect(mocks.assertTagIsContactTag).toHaveBeenCalledWith(context.supabase, {
+      accountId: 'account-1',
+      tagId: 'tag-1',
+    });
     expect(mocks.add).not.toHaveBeenCalled();
   });
 

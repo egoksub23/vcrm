@@ -32,10 +32,14 @@ export interface TicketRow {
   created_by: string | null;
   /** Migration 066: custom field values keyed by definition id. */
   custom_fields?: Record<string, unknown> | null;
+  /** Migration 096: the catalogue resolution chosen when this ticket was
+   *  resolved/closed from Vircle, if any — `pushStatus` sends its name to
+   *  Jira's own resolution field instead of the connection's fixed default. */
+  resolution_id?: string | null;
 }
 
 export const TICKET_COLUMNS =
-  "id, account_id, ticket_number, contact_id, subject, description, category, status, priority, assigned_agent_id, created_by, custom_fields";
+  "id, account_id, ticket_number, contact_id, subject, description, category, status, priority, assigned_agent_id, created_by, custom_fields, resolution_id";
 
 export interface TicketAttachmentRow {
   id: string;

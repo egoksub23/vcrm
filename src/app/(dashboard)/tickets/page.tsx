@@ -25,7 +25,9 @@ import { useJiraLinkChips } from "@/hooks/use-ticket-jira";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { useTicketLabels } from "@/hooks/use-ticket-labels";
 import { useTicketResolutions } from "@/hooks/use-ticket-resolutions";
-import { useTicketStore, type TicketViewMode } from "@/hooks/use-ticket-store";
+import { useTicketTypes } from "@/hooks/use-ticket-types";
+import { useTicketStore, type TicketRow, type TicketViewMode } from "@/hooks/use-ticket-store";
+import { useTicketSearch } from "@/hooks/use-ticket-search";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { TicketBoard, type BoardMove } from "@/components/tickets/ticket-board";
 import { TicketBulkBar } from "@/components/tickets/ticket-bulk-bar";
@@ -63,6 +65,12 @@ import {
 import { updateTicketResult, updateTicketsResult, type UpdateResult } from "@/lib/tickets/update";
 import type { Ticket, TicketStatus } from "@/types";
 
+function mergeById(a: TicketRow[], b: TicketRow[]): TicketRow[] {
+  const byId = new Map(a.map((r) => [r.id, r]));
+  for (const r of b) if (!byId.has(r.id)) byId.set(r.id, r);
+  return [...byId.values()];
+}
+
 const VIEW_STORAGE_KEY = "wacrm:tickets:view";
 const SLA_COLUMN_STORAGE_KEY = "wacrm:tickets:sla-column";
 const RESOLUTION_COLUMN_STORAGE_KEY = "wacrm:tickets:resolution-column";
@@ -84,7 +92,7 @@ function TicketsPageInner() {
   const tResolution = useTranslations("Tickets.resolution");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, accountId } = useAuth();
   const { teams } = useTeams();
   const { members, nameOf } = useAccountMembers();
   const { prefix, keyOf } = useTicketKeyPrefix();
@@ -95,6 +103,8 @@ function TicketsPageInner() {
   // Resolutions (migration 096): moving tickets to Resolved or Closed asks how they were
   // resolved (one dialog, also for a bulk change); cancelling leaves them where they were.
   const { resolutions, byId: resolutionsById } = useTicketResolutions();
+  // Ticket types (migration 128): the Type filter and create-dialog picker.
+  const { active: ticketTypes } = useTicketTypes();
   const { ask: askResolution, dialog: resolutionDialog } = useResolutionPrompt();
   const resolutionName = useCallback((id: string) => resolutionsById.get(id)?.name ?? null, [resolutionsById]);
   /** The message for a failed write: the resolution reasons are spelled out, anything else is `fallback`. */
@@ -246,10 +256,25 @@ function TicketsPageInner() {
     }),
     [user?.id, prefix, mentionedTicketIds, slaFilterOn, slaNow],
   );
-  const filtered = useMemo(
-    () => applyFilters(store.rows, filters, ctx, mode === "list"),
-    [store.rows, filters, ctx, mode],
-  );
+  const narrowed = hasActiveFilters(filters, mode === "list");
+  // Server-side search (migration 128): useTicketStore's own fetch only ever
+  // sees LIST_PAGE_SIZE/BOARD_COLUMN_PAGE_SIZE rows per page, so a match
+  // outside that window used to be invisible no matter what was typed. While
+  // a filter or search term is on, the candidate set comes from here instead
+  // of store.rows — applyFilters below still runs over it exactly as before,
+  // so correctness is always governed by that one already-tested matcher.
+  const search = useTicketSearch(narrowed, filters, sort, mode, accountId, user?.id ?? null);
+  const filtered = useMemo(() => {
+    const base = narrowed ? search.rows : store.rows;
+    // The "Mentioned me" chip is excluded from the search RPC on purpose (it is
+    // an id-list lookup, not a column predicate) and relies on the ensureLoaded
+    // effect above having already pulled every such ticket into store.rows — a
+    // mentioned ticket outside the search's own top-500 would otherwise vanish.
+    const source = filters.quick.includes("mentioned")
+      ? mergeById(base, store.rows.filter((r) => ctx.mentionedTicketIds?.has(r.id)))
+      : base;
+    return applyFilters(source, filters, ctx, mode === "list");
+  }, [narrowed, search.rows, store.rows, filters, ctx, mode]);
   const listRows = useMemo(
     () =>
       mode === "list"
@@ -265,7 +290,6 @@ function TicketsPageInner() {
   // Linked Jira keys for the cards / rows on screen: cached rows, one query, no Jira call.
   const jiraChips = useJiraLinkChips(useMemo(() => listRows.map((r) => r.id), [listRows]));
   const selectedRows = useMemo(() => listRows.filter((r) => selected.has(r.id)), [listRows, selected]);
-  const narrowed = hasActiveFilters(filters, mode === "list");
 
   // ---- Edits -----------------------------------------------------------------
   /** One ticket, optimistic: an inline edit in the list. */
@@ -370,6 +394,17 @@ function TicketsPageInner() {
     else if (done > 0) toast.warning(tBulk("partial", { done, total: plan.changed }));
     else toast.error(failures.length > 0 ? failureText(failures[0], tBulk("failed")) : tBulk("failed"));
     if (action.kind === "label") void reloadLabels();
+  };
+
+  /** The board has no bulk-select; a card's own menu deletes it directly. */
+  const handleDeleteOne = async (id: string) => {
+    const { error } = await createClient().from("tickets").delete().eq("id", id);
+    if (error) {
+      toast.error(tBulk("deleteFailed"));
+      return;
+    }
+    store.removeRows([id]);
+    toast.success(tBulk("deleted", { count: 1 }));
   };
 
   const handleBulkDelete = async () => {
@@ -479,11 +514,12 @@ function TicketsPageInner() {
           knownLabels={knownLabels.map((k) => k.label)}
           mentionedCount={myMentions.count}
           resolutions={resolutions}
+          types={ticketTypes}
         />
       </div>
 
       <div className={cn("mt-4", mode === "list" && "rounded-xl border border-border bg-card")}>
-        {view === null || store.loading ? (
+        {view === null || store.loading || (narrowed && search.loading && search.rows.length === 0) ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-primary" />
           </div>
@@ -503,10 +539,12 @@ function TicketsPageInner() {
             loadingMore={store.loadingMore}
             filtered={narrowed}
             canWork={canWork}
+            canDelete={canDelete}
             keyOf={keyOf}
             members={members}
             onOpen={openTicket}
             onMove={(move) => void handleMove(move)}
+            onDelete={(id) => void handleDeleteOne(id)}
             onShowMore={(status) => void store.loadColumn(status)}
             onExpandColumn={(status) => {
               if (!store.columnLoaded[status]) void store.loadColumn(status);
@@ -540,7 +578,11 @@ function TicketsPageInner() {
             nameOf={nameOf}
             onOpen={openTicket}
             onPatch={(id, patch) => void handlePatch(id, patch)}
-            hasMore={store.listHasMore}
+            // While filtered/searching, listRows already comes from the full
+            // server-side search result (capped at useTicketSearch's own
+            // limit) rather than the unfiltered page — "Load more" would page
+            // the unfiltered store, which the filtered view does not read.
+            hasMore={narrowed ? false : store.listHasMore}
             loadingMore={store.loadingMore === "list"}
             onLoadMore={() => void store.loadMore()}
             jiraChips={jiraChips}
