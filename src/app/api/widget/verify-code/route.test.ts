@@ -21,6 +21,10 @@ function chain(table: string) {
     writes.push({ table, op: 'update', row });
     return self;
   };
+  self.insert = (row: unknown) => {
+    writes.push({ table, op: 'insert', row });
+    return self;
+  };
   self.upsert = (row: unknown) => {
     writes.push({ table, op: 'upsert', row });
     return self;
@@ -251,9 +255,19 @@ describe('POST /api/widget/verify-code', () => {
     ]);
   });
 
-  it('never merges when the existing browser is already claimed/verified on a different contact', async () => {
+  it('never merges when the existing browser is already claimed/verified on a different contact — flags a possible duplicate instead', async () => {
     state.visitor = { contact_id: 'other-contact', identity_level: 'claimed' };
     await call({ code: PENDING_CODE });
     expect(rpcCalls).toEqual([]);
+    expect(writes).toContainEqual({
+      table: 'contact_merge_suggestions',
+      op: 'insert',
+      row: {
+        account_id: 'acc-1',
+        contact_a_id: 'other-contact',
+        contact_b_id: 'contact-1',
+        source: 'web_widget',
+      },
+    });
   });
 });

@@ -69,6 +69,27 @@ describe('parseContactCsv', () => {
     });
   });
 
+  it('keeps a quoted cell with an embedded newline as one row, not two', () => {
+    const csv = 'phone,name,company\n+15551234567,Alice,"Acme Corp\nFloor 2"\n+15559876543,Bob,Contoso';
+
+    const { rows } = parseContactCsv(csv);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({
+      phone: '+15551234567',
+      name: 'Alice',
+      email: undefined,
+      company: 'Acme Corp\nFloor 2',
+      tagNames: [],
+    });
+    expect(rows[1]).toEqual({
+      phone: '+15559876543',
+      name: 'Bob',
+      email: undefined,
+      company: 'Contoso',
+      tagNames: [],
+    });
+  });
+
   it('returns empty tagNames when tags column is absent', () => {
     const csv = `phone,name
 +15551234567,Alice`;

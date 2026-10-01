@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import type { StatusColors } from "@/lib/status-colors";
 import { hexWithAlpha } from "@/lib/status-colors";
 import type { ChannelType, Conversation, ConversationPriority, ConversationStatus, InboxView, Tag, Team } from "@/types";
-import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users } from "lucide-react";
+import { Search, ChevronDown, X, Flag, ArrowUpDown, Clock, ListChecks, Tag as TagIcon, Check, Bookmark, Trash2, Users, XCircle } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -1412,9 +1412,16 @@ function ConversationItem({
           <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-xs text-muted-foreground">
-            {conversation.last_message_text || t("noMessagesYet")}
-          </p>
+          {conversation.last_message_failed ? (
+            <span className="flex min-w-0 items-center gap-1 truncate text-xs font-medium text-red-600 dark:text-red-400">
+              <XCircle className="h-3 w-3 shrink-0" />
+              {t("notSent")}
+            </span>
+          ) : (
+            <p className="truncate text-xs text-muted-foreground">
+              {conversation.last_message_text || t("noMessagesYet")}
+            </p>
+          )}
           <div className="flex shrink-0 items-center gap-1.5">
             {showAging && (
               <span

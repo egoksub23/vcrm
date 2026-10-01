@@ -290,12 +290,14 @@ describe('POST /api/widget/session', () => {
     expect(visitorUpsert()).toMatchObject({ contact_id: 'existing', identity_level: 'claimed' })
   })
 
-  it('a returning CLAIMED browser is never folded/merged when it switches to a token identity', async () => {
+  it('a returning CLAIMED browser is never folded/merged when it switches to a token identity — flagged as a possible duplicate instead', async () => {
     db.visitor = visitorRow({ contact_id: 'contact-claimed', identity_level: 'claimed', identity_source: 'typed' })
     db.contact = { id: 'contact-claimed', name: 'X', phone: '60111000111', email: null }
     storeSeed = { byPhone: { id: 'other' } }
     await call({ identityToken: signIdentityToken(SECRET, { phone: '60123980112' }) })
     expect(rpcCalls).toEqual([])
+    expect(merges).toEqual([])
+    expect(suggestions).toEqual([['contact-claimed', 'other']])
     expect(visitorUpsert()).toMatchObject({ contact_id: 'other', identity_level: 'verified' })
   })
 

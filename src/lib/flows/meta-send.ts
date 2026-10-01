@@ -14,6 +14,7 @@ import {
   isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils'
 import { resolveContactSendTarget } from '@/lib/whatsapp/wa-identity'
+import { insertFailedMessageRow } from '@/lib/messages/persist-failed'
 import { supabaseAdmin } from './admin-client'
 
 // ------------------------------------------------------------
@@ -141,7 +142,23 @@ export async function engineSendText(
       lastError = err
     }
   }
-  if (lastError) throw lastError
+  if (lastError) {
+    // Leave a visible "Not sent" bubble instead of letting this vanish
+    // into the Flow's own run log — nobody looking at the conversation
+    // would think to check there.
+    await insertFailedMessageRow(
+      db,
+      {
+        conversation_id: args.conversationId,
+        sender_type: 'bot',
+        content_type: 'text',
+        content_text: args.text,
+        ai_generated: args.aiGenerated ?? false,
+      },
+      lastError,
+    )
+    throw lastError
+  }
 
   if (sendTarget.isPhone && workingPhone !== sanitized) {
     await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
@@ -254,7 +271,19 @@ export async function engineSendMedia(
       lastError = err
     }
   }
-  if (lastError) throw lastError
+  if (lastError) {
+    await insertFailedMessageRow(
+      db,
+      {
+        conversation_id: args.conversationId,
+        sender_type: 'bot',
+        content_type: args.kind,
+        content_text: args.caption ?? null,
+      },
+      lastError,
+    )
+    throw lastError
+  }
 
   if (sendTarget.isPhone && workingPhone !== sanitized) {
     await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
@@ -422,12 +451,6 @@ async function sendInteractiveViaMeta(
       lastError = err
     }
   }
-  if (lastError) throw lastError
-
-  if (sendTarget.isPhone && workingPhone !== sanitized) {
-    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
-  }
-
   // Persist the bot's prompt to the messages table so it appears in
   // the inbox. content_type='interactive' is supported as of
   // migration 010; sender_type='bot' distinguishes flow sends from
@@ -438,7 +461,8 @@ async function sendInteractiveViaMeta(
   // for the customer's tap on this message, populated by the webhook
   // when their reply arrives. We DO persist the structured payload so
   // the inbox thread re-renders the buttons/rows the bot sent (round-
-  // trip), matching the composer + automation send paths.
+  // trip), matching the composer + automation send paths. Computed
+  // before the error check below so a failed send can carry it too.
   const interactivePayload: InteractiveMessagePayload =
     input.kind === 'buttons'
       ? {
@@ -456,6 +480,25 @@ async function sendInteractiveViaMeta(
           button_label: input.buttonLabel,
           sections: input.sections,
         }
+
+  if (lastError) {
+    await insertFailedMessageRow(
+      db,
+      {
+        conversation_id: input.conversationId,
+        sender_type: 'bot',
+        content_type: 'interactive',
+        content_text: input.bodyText,
+        interactive_payload: interactivePayload,
+      },
+      lastError,
+    )
+    throw lastError
+  }
+
+  if (sendTarget.isPhone && workingPhone !== sanitized) {
+    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
+  }
 
   const { error: msgErr } = await db.from('messages').insert({
     conversation_id: input.conversationId,

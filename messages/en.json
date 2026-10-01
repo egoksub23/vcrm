@@ -278,6 +278,7 @@
       "viewDeleteFailed": "Failed to delete view",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
+      "notSent": "Not sent",
       "unknown": "Unknown",
       "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "tagTitle": "Tag: {name}",

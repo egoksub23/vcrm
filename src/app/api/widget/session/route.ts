@@ -234,7 +234,10 @@ export async function POST(request: Request) {
       // Fold the visitor's own GUEST contact into the contact they
       // identified as (automatic, verified or not). A claimed/verified
       // browser switching identity just rebinds; it never auto-merges the
-      // contact it was on.
+      // contact it was on — two real identities on the same browser (a
+      // shared/kiosk device, a previous owner) are evidence they're
+      // probably different people, not the same one, so a forced merge
+      // would risk splicing two strangers' conversations together.
       if (contactId && contactId !== result.contactId && knownLevel === 'guest') {
         const { error: mergeErr } = await admin.rpc('merge_widget_guest_contact', {
           p_account_id: config.account_id,
@@ -242,6 +245,14 @@ export async function POST(request: Request) {
           p_target_contact_id: result.contactId,
         })
         if (mergeErr) console.error('[widget/session] guest merge failed:', mergeErr)
+      } else if (contactId && contactId !== result.contactId && knownLevel !== 'guest') {
+        // The browser was already claimed/verified on a different contact.
+        // Don't merge (see above) — but don't let the earlier contact's
+        // widget identity silently vanish either (its only widget_visitors
+        // row is about to repoint to the new contact below). Flag it the
+        // same way the phone/email-split case already does, so an agent
+        // can review and decide.
+        await store.recordSuggestion(config.account_id, contactId, result.contactId)
       }
 
       contactId = result.contactId

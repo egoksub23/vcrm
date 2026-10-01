@@ -25,6 +25,8 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { CHANNEL_ICONS } from "./channel-icons";
+import { CHAT_MEDIA_BUCKET } from "./message-composer";
+import { deleteAccountMedia, storagePathFromPublicUrl } from "@/lib/storage/upload-media";
 import type { ChannelType } from "@/types";
 
 interface PendingDeleteRow {
@@ -33,9 +35,21 @@ interface PendingDeleteRow {
   channel_type: ChannelType;
   pending_delete_at: string | null;
   conversation_id: string;
+  media_url: string | null;
   conversation: {
     contact: { name: string | null; phone: string | null; email: string | null } | null;
   } | null;
+}
+
+/** Best-effort storage cleanup for a message about to be permanently
+ *  deleted — a missed delete is a storage nit, not something to surface
+ *  to the user (same posture as the upload-time GC call this mirrors). */
+function gcMedia(rows: Pick<PendingDeleteRow, "media_url">[]) {
+  for (const row of rows) {
+    if (!row.media_url) continue;
+    const path = storagePathFromPublicUrl(CHAT_MEDIA_BUCKET, row.media_url);
+    if (path) void deleteAccountMedia(CHAT_MEDIA_BUCKET, path).catch(() => {});
+  }
 }
 
 interface PendingDeletePanelProps {
@@ -70,7 +84,7 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     const { data, error } = await supabase
       .from("messages")
       .select(
-        "id, content_text, channel_type, pending_delete_at, conversation_id, conversation:conversations(contact:contacts(name, phone, email))",
+        "id, content_text, channel_type, pending_delete_at, conversation_id, media_url, conversation:conversations(contact:contacts(name, phone, email))",
       )
       .eq("pending_delete", true)
       .order("pending_delete_at", { ascending: false });
@@ -116,13 +130,14 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
       if (error) {
         toast.error(t("deleteFailed"));
       } else {
+        gcMedia(rows.filter((r) => r.id === id));
         setRows((prev) => prev.filter((r) => r.id !== id));
         toast.success(t("deleted"));
         onChanged?.();
       }
       setBusyId(null);
     },
-    [canDelete, onChanged, t],
+    [canDelete, onChanged, rows, t],
   );
 
   const emptyTrash = useCallback(async () => {
@@ -133,13 +148,14 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     if (error) {
       toast.error(t("deleteFailed"));
     } else {
+      gcMedia(rows);
       setRows([]);
       toast.success(t("emptied"));
       onChanged?.();
     }
     setEmptying(false);
     setEmptyConfirmOpen(false);
-  }, [canDelete, onChanged, t]);
+  }, [canDelete, onChanged, rows, t]);
 
   return (
     <>

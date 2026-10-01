@@ -23,6 +23,7 @@ import { supabaseAdmin } from '@/lib/flows/admin-client';
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors';
+import { createSupabaseIdentityStore } from '@/lib/widget/identity-resolve';
 import { findOrCreatePrimaryConversation } from '@/lib/widget/session-identity';
 import { meaningfulName } from '@/lib/widget/session-request';
 import { sessionBody } from '@/lib/widget/session-response';
@@ -153,26 +154,34 @@ export async function POST(request: Request) {
     // Fold the browser's own guest contact (if any) into the now-verified
     // one — same rule every other identity path uses: a guest is always
     // absorbed into whatever real contact the browser turns out to be.
+    // A browser already claimed/verified on a DIFFERENT contact never
+    // auto-merges (two real identities on one browser is evidence they're
+    // probably different people) — flagged as a possible duplicate instead,
+    // so the earlier contact's widget identity doesn't silently vanish.
     const { data: knownVisitor } = await admin
       .from('widget_visitors')
       .select('contact_id, identity_level')
       .eq('id', visitorId)
       .maybeSingle();
-    if (
-      knownVisitor &&
-      knownVisitor.contact_id !== pending.contact_id &&
-      knownVisitor.identity_level === 'guest'
-    ) {
-      const { error: mergeErr } = await admin.rpc(
-        'merge_widget_guest_contact',
-        {
-          p_account_id: config.account_id,
-          p_guest_contact_id: knownVisitor.contact_id,
-          p_target_contact_id: pending.contact_id,
-        }
-      );
-      if (mergeErr)
-        console.error('[widget/verify-code] guest merge failed:', mergeErr);
+    if (knownVisitor && knownVisitor.contact_id !== pending.contact_id) {
+      if (knownVisitor.identity_level === 'guest') {
+        const { error: mergeErr } = await admin.rpc(
+          'merge_widget_guest_contact',
+          {
+            p_account_id: config.account_id,
+            p_guest_contact_id: knownVisitor.contact_id,
+            p_target_contact_id: pending.contact_id,
+          }
+        );
+        if (mergeErr)
+          console.error('[widget/verify-code] guest merge failed:', mergeErr);
+      } else {
+        await createSupabaseIdentityStore(admin).recordSuggestion(
+          config.account_id,
+          knownVisitor.contact_id,
+          pending.contact_id,
+        );
+      }
     }
 
     const conversationId = await findOrCreatePrimaryConversation(

@@ -15,6 +15,7 @@ import {
   templateContentText,
 } from '@/lib/whatsapp/template-body'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
+import { insertFailedMessageRow } from '@/lib/messages/persist-failed'
 import { supabaseAdmin } from './admin-client'
 
 // ------------------------------------------------------------
@@ -222,15 +223,9 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
       lastError = err
     }
   }
-  if (lastError) throw lastError
-
-  if (sendTarget.isPhone && workingPhone !== sanitized) {
-    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
-  }
-
-  // Persist the sent message so it appears in the inbox with a real
-  // Meta message id. sender_type='bot' distinguishes automation sends
-  // from manual agent sends.
+  // Persist the sent (or, on exhausted retries, failed) message so it
+  // appears in the inbox with a real Meta message id. sender_type='bot'
+  // distinguishes automation sends from manual agent sends.
   const content_type = input.kind === 'template' ? 'template' : 'text'
   // Templates persist the substituted body, same as the manual and
   // public-API send paths. This was unconditionally null, so every
@@ -240,6 +235,26 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
       ? input.text
       : templateContentText(templateRow, input.params ?? [])
   const template_name = input.kind === 'template' ? input.templateName : null
+
+  if (lastError) {
+    // Every phone-number variant was rejected — leave a visible "Not
+    // sent" bubble instead of letting this vanish into the automation's
+    // own run log, which nobody looking at the conversation would think
+    // to check (the shared sendMessageToConversation() core already
+    // does this for a plain text automation step; template/button/list
+    // sends go through this separate hand-rolled Meta call and need the
+    // same treatment explicitly).
+    await insertFailedMessageRow(
+      db,
+      { conversation_id: input.conversationId, sender_type: 'bot', content_type, content_text, template_name },
+      lastError,
+    )
+    throw lastError
+  }
+
+  if (sendTarget.isPhone && workingPhone !== sanitized) {
+    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
+  }
 
   const { error: msgErr } = await db.from('messages').insert({
     conversation_id: input.conversationId,

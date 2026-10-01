@@ -161,3 +161,22 @@ export async function deleteAccountMedia(
   const { error } = await supabase.storage.from(bucket).remove([path]);
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Recover the storage object path from a public URL `getPublicUrl()`
+ * returned (`.../object/public/<bucket>/<path>`) — only the public URL
+ * is ever persisted on a `messages` row, not the path itself, so
+ * deleting a message's attachment later has to parse it back out.
+ * Returns null for a URL that doesn't match the expected shape (a
+ * pre-migration row, a non-Supabase URL) rather than guessing.
+ */
+export function storagePathFromPublicUrl(bucket: string, url: string): string | null {
+  const marker = `/object/public/${bucket}/`;
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  try {
+    return decodeURIComponent(url.slice(i + marker.length));
+  } catch {
+    return null;
+  }
+}

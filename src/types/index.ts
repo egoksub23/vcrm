@@ -279,6 +279,12 @@ export interface Conversation {
   labels?: Tag[];
   last_message_text?: string;
   last_message_at?: string;
+  /** True when the last outbound send attempt in this conversation
+   *  failed (migration 127) — set only by `insertFailedMessageRow`,
+   *  cleared on the next successful send. Deliberately independent of
+   *  `last_message_text`/`last_message_at`, which a failed send never
+   *  touches: a message that didn't go out must not read as a reply. */
+  last_message_failed?: boolean;
   /** True from the moment a customer message arrives until the next
    *  reply on either channel (migration 049) — drives the Inbox's
    *  "aging response" indicator. */

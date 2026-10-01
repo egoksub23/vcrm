@@ -278,6 +278,7 @@
       "viewDeleteFailed": "보기를 삭제하지 못했습니다",
       "noConversations": "대화를 찾을 수 없습니다",
       "noMessagesYet": "아직 메시지가 없습니다",
+      "notSent": "전송 안 됨",
       "unknown": "알 수 없음",
       "awaitingResponseSince": "답변 대기 중 — 고객이 {time} 메시지를 보냈습니다",
       "tagTitle": "태그: {name}",

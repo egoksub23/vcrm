@@ -61,6 +61,7 @@ import {
 } from '@/lib/gmail/gmail-api';
 import { GmailApiError } from '@/lib/gmail/errors';
 import { failureFromError, type StoredFailure } from '@/lib/messages/failure-reason';
+import { insertFailedMessageRow, insertMessageRowCompat } from '@/lib/messages/persist-failed';
 import { notifyWidgetVisitorOfReply } from '@/lib/widget/notify-reply';
 import { notifyAppUserOfReplyViaPush } from '@/lib/widget/notify-app-push';
 
@@ -560,53 +561,22 @@ export async function sendMessageToConversation(
 
   // Insert a `messages` row. If the database has not had migration 094 yet,
   // retry without `send_payload` rather than losing the message.
-  const insertMessageRow = async (row: Record<string, unknown>) => {
-    const first = await db.from('messages').insert(row).select().single();
-    if (
-      first.error &&
-      'send_payload' in row &&
-      /send_payload/i.test(first.error.message ?? '')
-    ) {
-      const { send_payload: _dropped, ...rest } = row;
-      void _dropped;
-      return db.from('messages').insert(rest).select().single();
-    }
-    return first;
-  };
+  const insertMessageRow = (row: Record<string, unknown>) => insertMessageRowCompat(db, row);
 
   // The channel rejected the send. Save what the agent tried to send as a
   // `failed` bubble carrying the reason, so it stays in the chat and can be
   // resent, then raise the error the caller already expected. Nothing here
-  // touches the conversation's preview, unread count or awaiting-response
-  // flag: a message that did not go out must not read as a reply.
+  // touches the conversation's preview text/unread count/awaiting-response
+  // flag beyond the `last_message_failed` marker `insertFailedMessageRow`
+  // itself sets: a message that did not go out must not read as a reply.
   const failSend = async (
     cause: unknown,
     message: string
   ): Promise<never> => {
     const failure = failureFromError(cause);
-    let failedMessageId: string | null = null;
-    if (persistFailedAttempt) {
-      try {
-        const { data: failedRow, error: failedErr } = await insertMessageRow({
-          ...baseRow,
-          message_id: null,
-          status: 'failed',
-          error_code: failure.code,
-          error_title: failure.title,
-          error_details: failure.details,
-        });
-        if (failedErr) {
-          console.error('[send-message] could not save the failed message:', failedErr.message);
-        } else {
-          failedMessageId = (failedRow as { id: string } | null)?.id ?? null;
-        }
-      } catch (saveErr) {
-        console.error(
-          '[send-message] could not save the failed message:',
-          saveErr instanceof Error ? saveErr.message : saveErr
-        );
-      }
-    }
+    const failedMessageId = persistFailedAttempt
+      ? await insertFailedMessageRow(db, baseRow as typeof baseRow & { conversation_id: string }, cause)
+      : null;
     throw new SendMessageError('meta_error', message, 502, {
       failure,
       failedMessageId,
@@ -1049,13 +1019,13 @@ export async function sendMessageToConversation(
     status: 'sent',
   });
 
-  if (msgError) {
+  if (msgError || !messageRecord) {
     console.error('[send-message] error inserting sent message:', msgError);
     throw new SendMessageError(
       'db_error',
       isWidgetConversation
-        ? `Failed to save message to DB: ${msgError.message}`
-        : `Message sent to Meta but failed to save to DB: ${msgError.message}`,
+        ? `Failed to save message to DB: ${msgError?.message ?? 'no row returned'}`
+        : `Message sent to Meta but failed to save to DB: ${msgError?.message ?? 'no row returned'}`,
       500
     );
   }
@@ -1074,6 +1044,9 @@ export async function sendMessageToConversation(
       // A reply — human, bot, or automation — closes the current wait
       // cycle regardless of channel (migration 049).
       awaiting_response: false,
+      // A successful send clears any "Not sent" flag a prior failed
+      // attempt in this conversation left behind.
+      last_message_failed: false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);

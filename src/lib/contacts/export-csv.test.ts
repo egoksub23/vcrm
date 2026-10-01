@@ -102,7 +102,7 @@ describe('contactExportLines', () => {
     expect(row[3]).toBe("'@SUM(A1)");
   });
 
-  it('round-trips through the importer parser', () => {
+  it('round-trips through the importer parser, including a multi-line cell', () => {
     const out =
       contactExportHeaderLine() +
       contactExportLines(
@@ -111,9 +111,17 @@ describe('contactExportLines', () => {
             phone: '+447911123456',
             name: 'Ann',
             email: 'ann@x.com',
-            company: 'Acme',
+            company: 'Acme HQ\nBuilding 2',
             created_at: '2026-01-02',
             contact_tags: [{ tag_id: 't1' }, { tag_id: 't3' }],
+          },
+          {
+            phone: '+15559876543',
+            name: 'Bob',
+            email: null,
+            company: 'Contoso',
+            created_at: '2026-01-03',
+            contact_tags: [],
           },
         ],
         tags
@@ -125,8 +133,15 @@ describe('contactExportLines', () => {
         phone: '+447911123456',
         name: 'Ann',
         email: 'ann@x.com',
-        company: 'Acme',
+        company: 'Acme HQ\nBuilding 2',
         tagNames: ['Alpha', 'VIP'],
+      },
+      {
+        phone: '+15559876543',
+        name: 'Bob',
+        email: undefined,
+        company: 'Contoso',
+        tagNames: [],
       },
     ]);
   });

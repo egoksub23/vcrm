@@ -81,9 +81,11 @@ export async function POST(
     }
 
     // Claim: only one request can move this row from failed to sending.
+    // sending_locked_at lets the sweep cron (migration 127) recover this
+    // row if the server dies before the outcome below resolves.
     const { data: claimed, error: claimError } = await supabase
       .from('messages')
-      .update({ status: 'sending' })
+      .update({ status: 'sending', sending_locked_at: new Date().toISOString() })
       .eq('id', id)
       .eq('status', 'failed')
       .select('id')
