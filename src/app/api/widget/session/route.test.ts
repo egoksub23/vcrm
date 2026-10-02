@@ -134,6 +134,7 @@ function call(body: Record<string, unknown>, headers: Record<string, string> = {
 }
 
 const visitorRow = (over: Record<string, unknown> = {}) => ({
+  account_id: 'acc-1',
   contact_id: 'contact-guest',
   identity_level: 'guest',
   identity_source: null,
@@ -274,6 +275,14 @@ describe('POST /api/widget/session', () => {
     expect(merges).toEqual([['A', 'B']])
     expect(suggestions).toEqual([])
     expect(visitorUpsert()).toMatchObject({ contact_id: 'A', identity_level: 'verified' })
+  })
+
+  it('rejects a browser session minted for another tenant: 409, and nothing is written or merged', async () => {
+    db.visitor = visitorRow({ account_id: 'acc-other' })
+    const res = await call({})
+    expect(res.status).toBe(409)
+    expect(writes).toEqual([])
+    expect(rpcCalls).toEqual([])
   })
 
   it('a returning GUEST browser that claims an identity has its guest contact folded in automatically', async () => {

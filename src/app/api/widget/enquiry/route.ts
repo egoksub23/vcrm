@@ -112,9 +112,14 @@ export async function POST(request: Request) {
 
     const { data: knownVisitor } = await admin
       .from('widget_visitors')
-      .select('contact_id, identity_level, identity_source, identity_verified_at')
+      .select('account_id, contact_id, identity_level, identity_source, identity_verified_at')
       .eq('id', visitorId)
       .maybeSingle()
+    // See session/route.ts: a session minted for another tenant's widget
+    // must never be accepted here.
+    if (knownVisitor && knownVisitor.account_id !== config.account_id) {
+      return widgetError(409, 'This browser session belongs to a different widget', undefined, corsOrigin)
+    }
     const knownLevel = ((knownVisitor?.identity_level as IdentityLevel | undefined) ?? 'guest') as IdentityLevel
 
     let contactId: string | null = (knownVisitor?.contact_id as string | undefined) ?? null

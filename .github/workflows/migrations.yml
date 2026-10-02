@@ -69,3 +69,16 @@ jobs:
       # just the absence of an error.
       - name: Verify the resulting schema
         run: supabase db query --local --file supabase/ci/verify-schema.sql
+
+      # Tenant isolation, as behaviour rather than schema: an anonymous
+      # visitor cannot make itself a member of another account, custom
+      # roles cannot be self-assigned, cross-tenant functions are not
+      # callable by anon/authenticated, and storage cannot be listed
+      # across tenants. The script builds its own two tenants, runs the
+      # checks inside one transaction and ends in a deliberate
+      # "ROLLBACK-OK" error, so success is that marker, not exit status.
+      - name: Verify tenant isolation
+        run: |
+          out=$(supabase db query --local --file supabase/ci/verify-130-tenant-isolation-hotfix.sql 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "ROLLBACK-OK" || { echo "::error::tenant isolation checks did not reach ROLLBACK-OK"; exit 1; }

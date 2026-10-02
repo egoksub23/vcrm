@@ -185,14 +185,23 @@ describe('POST /api/widget/enquiry', () => {
     expect(automations).not.toHaveBeenCalled()
   })
 
+  it('rejects a browser session minted for another tenant: 409, and nothing is written', async () => {
+    db.visitor = { account_id: 'acc-other', contact_id: 'foreign-contact', identity_level: 'guest', identity_source: null, identity_verified_at: null }
+    const res = await call(valid)
+    expect(res.status).toBe(409)
+    expect(writes).toEqual([])
+    expect(rpcCalls).toEqual([])
+  })
+
   it('folds a guest browser into the contact automatically', async () => {
-    db.visitor = { contact_id: 'guest-contact', identity_level: 'guest', identity_source: null, identity_verified_at: null }
+    db.visitor = { account_id: 'acc-1', contact_id: 'guest-contact', identity_level: 'guest', identity_source: null, identity_verified_at: null }
     await call(valid)
     expect(rpcCalls[0]).toMatchObject({ fn: 'merge_widget_guest_contact' })
   })
 
   it('keeps a VERIFIED browser on its verified contact (the typed form does not re-identify it)', async () => {
     db.visitor = {
+      account_id: 'acc-1',
       contact_id: 'verified-contact',
       identity_level: 'verified',
       identity_source: 'signed_app',

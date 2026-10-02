@@ -240,8 +240,16 @@ describe('POST /api/widget/verify-code', () => {
     expect(rpcCalls).toEqual([]);
   });
 
+  it('rejects a browser session minted for another tenant: 409, and no visitor row is written', async () => {
+    state.visitor = { account_id: 'acc-other', contact_id: 'foreign-contact', identity_level: 'verified' };
+    const res = await call({ code: PENDING_CODE });
+    expect(res.status).toBe(409);
+    expect(visitorUpsert()).toBeUndefined();
+    expect(rpcCalls).toEqual([]);
+  });
+
   it('folds an existing GUEST browser contact into the verified contact', async () => {
-    state.visitor = { contact_id: 'guest-contact', identity_level: 'guest' };
+    state.visitor = { account_id: 'acc-1', contact_id: 'guest-contact', identity_level: 'guest' };
     await call({ code: PENDING_CODE });
     expect(rpcCalls).toEqual([
       {
@@ -256,7 +264,7 @@ describe('POST /api/widget/verify-code', () => {
   });
 
   it('never merges when the existing browser is already claimed/verified on a different contact — flags a possible duplicate instead', async () => {
-    state.visitor = { contact_id: 'other-contact', identity_level: 'claimed' };
+    state.visitor = { account_id: 'acc-1', contact_id: 'other-contact', identity_level: 'claimed' };
     await call({ code: PENDING_CODE });
     expect(rpcCalls).toEqual([]);
     expect(writes).toContainEqual({

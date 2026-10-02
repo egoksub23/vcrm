@@ -41,6 +41,10 @@ const h = vi.hoisted(() => ({
     broadcastRecipient: null as { id: string; status: string } | null,
     /** Patches applied to that broadcast_recipients row. */
     recipientUpdates: [] as Record<string, unknown>[],
+    /** Rows the status webhook's account-scoped messages lookup resolves. */
+    statusMessageRows: [] as { id: string; conversation_id: string }[],
+    /** Overrides the whatsapp_config rows a phone_number_id resolves to. */
+    configRows: null as { account_id: string }[] | null,
   },
 }))
 
@@ -62,7 +66,7 @@ vi.mock('@supabase/supabase-js', () => ({
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
+                  data: h.state.configRows ?? [
                     {
                       account_id: 'acc-1',
                       user_id: 'user-1',
@@ -94,7 +98,7 @@ vi.mock('@supabase/supabase-js', () => ({
         case 'broadcast_recipients':
           // Two chains land here:
           //   flagBroadcastReplyIfAny: select().eq().eq().in().order().limit()
-          //   handleStatusUpdate:      select().eq().maybeSingle(), then
+          //   handleStatusUpdate:      select().eq().eq().maybeSingle(), then
           //                            update().eq()
           return {
             select: () => ({
@@ -106,12 +110,12 @@ vi.mock('@supabase/supabase-js', () => ({
                         Promise.resolve({ data: [], error: null }),
                     }),
                   }),
+                  maybeSingle: () =>
+                    Promise.resolve({
+                      data: h.state.broadcastRecipient,
+                      error: null,
+                    }),
                 }),
-                maybeSingle: () =>
-                  Promise.resolve({
-                    data: h.state.broadcastRecipient,
-                    error: null,
-                  }),
               }),
             }),
             update: (patch: Record<string, unknown>) => {
@@ -178,7 +182,7 @@ vi.mock('@supabase/supabase-js', () => ({
                     }),
                   }
                 : // lookupInternalIdByMetaId: select('id').eq().eq().maybeSingle()
-                  // handleStatusUpdate fan-out: select().eq().limit().maybeSingle()
+                  // handleStatusUpdate scope: select().eq().eq() (awaited as a list)
                   {
                     eq: () => ({
                       eq: () => ({
@@ -187,17 +191,21 @@ vi.mock('@supabase/supabase-js', () => ({
                             data: h.state.replyContextParent,
                             error: null,
                           }),
-                      }),
-                      limit: () => ({
-                        maybeSingle: () =>
-                          Promise.resolve({ data: null, error: null }),
+                        then: (
+                          resolve: (v: unknown) => unknown,
+                          reject: (e: unknown) => unknown,
+                        ) =>
+                          Promise.resolve({
+                            data: h.state.statusMessageRows,
+                            error: null,
+                          }).then(resolve, reject),
                       }),
                     }),
                   },
-            // Status webhook mirror (#535): update(...).eq('message_id', ...)
+            // Status webhook mirror (#535): update(...).in('id', ownedIds)
             update: (patch: Record<string, unknown>) => {
               h.state.messageUpdates.push(patch)
-              return { eq: () => Promise.resolve({ error: null }) }
+              return { in: () => Promise.resolve({ error: null }) }
             },
             // Idempotent insert: upsert(...).select('id')
             upsert: (row: Record<string, unknown>, options: unknown) => {
@@ -377,6 +385,8 @@ beforeEach(() => {
   h.state.contactInserts = []
   h.state.contactUpdates = []
   h.state.messageUpdates = []
+  h.state.statusMessageRows = [{ id: 'msg-1', conversation_id: 'conv-1' }]
+  h.state.configRows = null
   h.state.broadcastRecipient = null
   h.state.recipientUpdates = []
   mockFindExistingContact.mockResolvedValue({
@@ -1010,5 +1020,50 @@ describe('status webhook: failed statuses keep Meta\'s reason (#535)', () => {
     expect(h.state.recipientUpdates).toHaveLength(1)
     expect(h.state.recipientUpdates[0]).not.toHaveProperty('error_message')
     expect(h.state.recipientUpdates[0]).not.toHaveProperty('error_code')
+  })
+
+  it('ignores a status for a phone_number_id that maps to no account', async () => {
+    h.state.configRows = []
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await runStatusWebhook({
+        id: 'wamid.OUT1',
+        status: 'delivered',
+        timestamp: '1700000100',
+        recipient_id: '15551230000',
+      })
+    } finally {
+      err.mockRestore()
+    }
+    expect(h.state.messageUpdates).toHaveLength(0)
+    expect(h.state.recipientUpdates).toHaveLength(0)
+  })
+
+  it('ignores a status whose phone_number_id is claimed by two accounts', async () => {
+    h.state.configRows = [{ account_id: 'acc-1' }, { account_id: 'acc-2' }]
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await runStatusWebhook({
+        id: 'wamid.OUT1',
+        status: 'delivered',
+        timestamp: '1700000100',
+        recipient_id: '15551230000',
+      })
+    } finally {
+      err.mockRestore()
+    }
+    expect(h.state.messageUpdates).toHaveLength(0)
+  })
+
+  it('does not touch messages when no conversation of this account owns the wamid', async () => {
+    // Another tenant holds the same wamid: the account-scoped lookup is empty.
+    h.state.statusMessageRows = []
+    await runStatusWebhook({
+      id: 'wamid.OUT1',
+      status: 'delivered',
+      timestamp: '1700000100',
+      recipient_id: '15551230000',
+    })
+    expect(h.state.messageUpdates).toHaveLength(0)
   })
 })

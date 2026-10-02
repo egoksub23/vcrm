@@ -160,9 +160,19 @@ export async function POST(request: Request) {
     // so the earlier contact's widget identity doesn't silently vanish.
     const { data: knownVisitor } = await admin
       .from('widget_visitors')
-      .select('contact_id, identity_level')
+      .select('account_id, contact_id, identity_level')
       .eq('id', visitorId)
       .maybeSingle();
+    // See session/route.ts: a session minted for another tenant's widget
+    // must never be accepted here.
+    if (knownVisitor && knownVisitor.account_id !== config.account_id) {
+      return widgetError(
+        409,
+        'This browser session belongs to a different widget',
+        undefined,
+        corsOrigin
+      );
+    }
     if (knownVisitor && knownVisitor.contact_id !== pending.contact_id) {
       if (knownVisitor.identity_level === 'guest') {
         const { error: mergeErr } = await admin.rpc(
