@@ -1,6 +1,7 @@
 import type { CreateTicketStepConfig, TicketCategory, TicketPriority } from '@/types'
 import { buildConversationContext } from '@/lib/ai/context'
 import { buildTicketDraftPrompt, parseTicketDraft } from '@/lib/ai/wrap-up'
+import { loadAccountLocale } from '@/lib/i18n/account-locale'
 import { formatTranscript } from '@/lib/ai/wrap-up-run'
 import { languageName } from '@/lib/contacts/locale-options'
 import { ACTIVE_STATUSES } from '@/lib/tickets/constants'
@@ -151,7 +152,7 @@ export async function planCreateTicket(cfg: CreateTicketStepConfig, rt: AiStepRu
       plan.varsPatch[AI_STEPS_VAR] = used + 1
       const out = await rt.ai.call({
         // The closing-note pipeline's prompt style: same untrusted-conversation rule.
-        system: buildTicketDraftPrompt({ language: languageName(process.env.NEXT_PUBLIC_APP_LOCALE || 'en', 'en') || 'English' }),
+        system: buildTicketDraftPrompt({ language: languageName(await loadAccountLocale(rt.db, rt.accountId), 'en') || 'English' }),
         messages: [{ role: 'user', content: `Conversation:\n\n${formatTranscript(clipMessages(history))}` }],
         maxOutputTokens: AI_JSON_MAX_TOKENS,
       })

@@ -82,3 +82,32 @@ describe("parseAccountPatch: outgoing mail identity", () => {
     if (!r.ok) expect(r.error).toMatch(message);
   });
 });
+
+describe("parseAccountPatch: language and timezone", () => {
+  it("accepts an offered language (normalised) and a timezone", () => {
+    expect(parseAccountPatch({ locale: "KO-kr", timezone: " Asia/Kuala_Lumpur " })).toEqual({
+      ok: true,
+      value: { locale: "ko", timezone: "Asia/Kuala_Lumpur" },
+    });
+  });
+
+  it("lets the language be cleared (back to the deployment default)", () => {
+    expect(parseAccountPatch({ locale: null })).toEqual({ ok: true, value: { locale: null } });
+    expect(parseAccountPatch({ locale: "" })).toEqual({ ok: true, value: { locale: null } });
+  });
+
+  it.each([
+    [{ locale: "fr" }, /not available/],
+    [{ locale: "../x" }, /not available/],
+    [{ locale: 4 }, /locale/],
+    [{ timezone: "" }, /timezone/],
+    [{ timezone: null }, /timezone/],
+    [{ timezone: "Asia/Kuala Lumpur" }, /not a timezone/],
+    [{ timezone: "x".repeat(65) }, /not a timezone/],
+    [{ timezone: "A;DROP" }, /not a timezone/],
+  ])("rejects %j", (body, message) => {
+    const r = parseAccountPatch(body);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(message);
+  });
+});

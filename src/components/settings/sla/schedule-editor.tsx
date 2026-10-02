@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
 import { MON_FRI_9_TO_18, emptyWeekly, type WeeklyHours } from "@/lib/sla/business-time";
 import { validateHolidayPayload, validateSchedulePayload } from "@/lib/sla/policy";
 import type { SlaErrorCode, SlaSchedule } from "@/lib/sla/types";
@@ -73,7 +74,8 @@ export function ScheduleEditor({
   const format = useFormatter();
 
   const [name, setName] = useState(schedule?.name ?? "");
-  const [timezone, setTimezone] = useState(schedule?.timezone ?? browserTimezone());
+  const { account } = useAuth();
+  const [timezone, setTimezone] = useState(schedule?.timezone ?? account?.timezone ?? browserTimezone());
   const [weekly, setWeekly] = useState<WeeklyHours>(schedule?.weekly ?? emptyWeekly());
   const [holidays, setHolidays] = useState<HolidayDraft[]>(
     () => (schedule?.holidays ?? []).map((h) => ({ date: h.holiday_date, name: h.name })),

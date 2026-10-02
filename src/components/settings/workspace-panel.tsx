@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
@@ -13,6 +14,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { uploadAccountMedia } from "@/lib/storage/upload-media";
 import { SettingsPanelHead } from "./settings-panel-head";
+import { LanguageSelect } from "./language-select";
+import { TimezonePicker } from "./sla/timezone-picker";
 
 const MAX_LOGO_BYTES = 1024 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -25,6 +28,7 @@ const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export function WorkspacePanel() {
   const t = useTranslations("Settings.workspace");
   const canEdit = useCapability("settings.workspace");
+  const router = useRouter();
   const { account, refreshProfile } = useAuth();
 
   // Seeded once from the account; the panel owns the draft after that.
@@ -33,6 +37,8 @@ export function WorkspacePanel() {
   const [logoUrl, setLogoUrl] = useState<string | null>(account?.brand_logo_url ?? null);
   const [senderName, setSenderName] = useState(account?.email_sender_name ?? "");
   const [replyTo, setReplyTo] = useState(account?.email_reply_to ?? "");
+  const [locale, setLocale] = useState(account?.locale ?? "");
+  const [timezone, setTimezone] = useState(account?.timezone ?? "UTC");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -72,6 +78,8 @@ export function WorkspacePanel() {
           brand_logo_url: logoUrl,
           email_sender_name: senderName.trim() || null,
           email_reply_to: replyTo.trim() || null,
+          locale: locale || null,
+          timezone,
         }),
       });
       if (!res.ok) {
@@ -80,6 +88,8 @@ export function WorkspacePanel() {
       }
       await refreshProfile();
       toast.success(t("saved"));
+      // The language may have changed: re-render the page with it.
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
@@ -139,6 +149,18 @@ export function WorkspacePanel() {
               onChange={(e) => setReplyTo(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">{t("replyToHint")}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-language">{t("languageLabel")}</Label>
+            <LanguageSelect id="ws-language" value={locale} onChange={setLocale} defaultLabel={t("languageDefault")} disabled={!canEdit} />
+            <p className="text-xs text-muted-foreground">{t("languageHint")}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-timezone">{t("timezoneLabel")}</Label>
+            <TimezonePicker id="ws-timezone" value={timezone} onChange={setTimezone} disabled={!canEdit} />
+            <p className="text-xs text-muted-foreground">{t("timezoneHint")}</p>
           </div>
 
           <div className="space-y-2">

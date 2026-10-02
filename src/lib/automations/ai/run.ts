@@ -18,6 +18,7 @@ import { buildSummaryPrompt, cleanSummary } from '@/lib/ai/wrap-up'
 import { formatTranscript } from '@/lib/ai/wrap-up-run'
 import { groupHitsByArticle } from '@/lib/knowledge/excerpts'
 import { languageName } from '@/lib/contacts/locale-options'
+import { loadAccountLocale } from '@/lib/i18n/account-locale'
 import { MAX_AI_STEPS_PER_RUN } from '../step-kinds'
 import {
   checkExtractFields,
@@ -491,7 +492,7 @@ const AI_MESSAGE_LOOKBACK = 10
 async function planSummarize(cfg: AiSummarizeStepConfig, rt: AiStepRuntime, acc: Acc): Promise<AiStepResult> {
   if (!rt.conversationId) throw new AiStepError('no_conversation', 'This step needs a conversation.')
   const transcript = await transcriptOf(rt, rt.conversationId, SUMMARY_MESSAGES)
-  const language = codeToName(cfg.language || process.env.NEXT_PUBLIC_APP_LOCALE, 'English')
+  const language = codeToName(cfg.language || (await loadAccountLocale(rt.db, rt.accountId)), 'English')
   const out = await rt.ai.call({
     // The existing summary job's prompt and cleaner.
     system: buildSummaryPrompt({ language }),

@@ -66,9 +66,13 @@ export async function PATCH(request: Request) {
       .from("accounts")
       .update(parsed.value)
       .eq("id", ctx.accountId)
-      .select("id, name, brand_name, brand_logo_url, email_sender_name, email_reply_to")
+      .select("id, name, brand_name, brand_logo_url, email_sender_name, email_reply_to, locale, timezone")
       .single();
 
+    if (error?.code === "22023") {
+      // validate_timezone_column (migration 144): a name Postgres does not know.
+      return NextResponse.json({ error: "Unknown timezone" }, { status: 400 });
+    }
     if (error) {
       console.error("[PATCH /api/account] update error:", error);
       return NextResponse.json(

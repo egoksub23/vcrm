@@ -3256,6 +3256,11 @@
       "brandNameLabel": "Product name",
       "brandNameHint": "Shown in the sidebar. Leave empty to use the default.",
       "brandNamePlaceholder": "Halo",
+      "languageLabel": "Language",
+      "languageDefault": "Default",
+      "languageHint": "The language your team sees by default. Each person can choose their own under Your profile.",
+      "timezoneLabel": "Timezone",
+      "timezoneHint": "The workspace's home timezone. New business-hours schedules start in it.",
       "senderNameLabel": "Email sender name",
       "senderNameHint": "The name people see on emails sent for your workspace: invitations, chat verification codes and reply notifications. Leave empty to use your product name.",
       "replyToLabel": "Reply-to email",
@@ -3305,6 +3310,14 @@
       "workspace": "Workspace"
     },
     "profile": {
+      "language": {
+        "label": "Language",
+        "followWorkspace": "Follow my workspace",
+        "hint": "The language you see the app in. Leave it on Follow my workspace to use whatever your workspace has set.",
+        "save": "Save language",
+        "saved": "Language saved.",
+        "saveFailed": "Could not save your language."
+      },
       "title": "Your profile",
       "description": "How you show up across the app. Your avatar and name appear in the header, sidebar, and anywhere your teammates see you.",
       "changePhoto": "Change photo",

@@ -90,6 +90,9 @@ interface AccountSummary {
   /** Outgoing-mail identity (migration 143). Null = fall back to the brand name / no reply-to. */
   email_sender_name: string | null;
   email_reply_to: string | null;
+  /** Workspace language (null = deployment default) and timezone (migration 144). */
+  locale: string | null;
+  timezone: string;
 }
 
 /**
@@ -413,7 +416,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // reason: an error just means "neutral defaults".
             const { data: brandRow } = await supabase
               .from("accounts")
-              .select("brand_name, brand_logo_url, email_sender_name, email_reply_to")
+              .select("brand_name, brand_logo_url, email_sender_name, email_reply_to, locale, timezone")
               .eq("id", data.account_id)
               .maybeSingle();
             accountRow = {
@@ -427,6 +430,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               brand_logo_url: brandRow?.brand_logo_url ?? null,
               email_sender_name: brandRow?.email_sender_name ?? null,
               email_reply_to: brandRow?.email_reply_to ?? null,
+              locale: brandRow?.locale ?? null,
+              timezone: brandRow?.timezone ?? "UTC",
             };
           }
         }

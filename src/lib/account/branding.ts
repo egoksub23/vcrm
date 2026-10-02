@@ -7,11 +7,14 @@
 // accounts_brand_logo_url_check); this gives a clear 400 first.
 // ============================================================
 
+import { normalizeLocale } from "@/lib/i18n/locales";
+
 export const MAX_ACCOUNT_NAME_LEN = 80;
 export const MAX_BRAND_NAME_LEN = 60;
 export const MAX_LOGO_URL_LEN = 500;
 export const MAX_EMAIL_SENDER_NAME_LEN = 60;
 export const MAX_EMAIL_LEN = 254;
+export const MAX_TIMEZONE_LEN = 64;
 
 /** Characters that could break out of a mail header (mirrors accounts_email_sender_name_check). */
 const UNSAFE_SENDER_NAME = /[\r\n"<>;,]/;
@@ -27,6 +30,10 @@ export interface AccountPatch {
   email_sender_name?: string | null;
   /** Where replies to the workspace's outgoing mail go (migration 143). */
   email_reply_to?: string | null;
+  /** The workspace's language (migration 144). null = follow the deployment default. */
+  locale?: string | null;
+  /** The workspace's IANA timezone (migration 144). Never null. */
+  timezone?: string;
 }
 
 type Result = { ok: true; value: AccountPatch } | { ok: false; error: string };
@@ -121,6 +128,30 @@ export function parseAccountPatch(body: unknown): Result {
     } else {
       return { ok: false, error: "'email_reply_to' must be a string or null" };
     }
+  }
+
+  if (b.locale !== undefined) {
+    if (b.locale === null || b.locale === "") {
+      out.locale = null;
+    } else if (typeof b.locale === "string") {
+      const code = normalizeLocale(b.locale);
+      if (!code) return { ok: false, error: "That language is not available" };
+      out.locale = code;
+    } else {
+      return { ok: false, error: "'locale' must be a string or null" };
+    }
+  }
+
+  if (b.timezone !== undefined) {
+    if (typeof b.timezone !== "string" || b.timezone.trim() === "") {
+      return { ok: false, error: "'timezone' must be a timezone name" };
+    }
+    const tz = b.timezone.trim();
+    // The database checks the name against its own list; this keeps junk out first.
+    if (tz.length > MAX_TIMEZONE_LEN || !/^[A-Za-z0-9_+\-/]+$/.test(tz)) {
+      return { ok: false, error: "That is not a timezone name" };
+    }
+    out.timezone = tz;
   }
 
   if (Object.keys(out).length === 0) return { ok: false, error: "Nothing to update" };
