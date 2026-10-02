@@ -68,11 +68,11 @@ docker run -d --env-file .env.local -e PORT=3000 -p 3000:3000 wacrm
   Attachment Storage; attachments received while it's off become
   unviewable once Meta drops them. Files over 16 MB (the bucket's
   limit) are never copied.
-- Nothing inside the container is scheduled. If you use automation
-  Wait steps, flows, or want SLA breach alerts (migration 049), point
-  an external scheduler at `GET /api/automations/cron`,
-  `GET /api/flows/cron`, and `GET /api/sla/cron` on this deployment,
-  sending the shared secret in the `x-cron-secret` header
-  (`AUTOMATION_CRON_SECRET`, see `.env.local.example`). All three
-  return 503 until that variable is set. A 5-minute interval is a
-  reasonable default for all three.
+- Nothing inside the container is scheduled. Automation Wait steps, flow
+  timeouts, SLA alerts, incident escalation, Jira sync, stuck-send recovery
+  and mailbox renewals all need an external scheduler to call nine URLs with
+  the shared secret in the `x-cron-secret` header (`AUTOMATION_CRON_SECRET`,
+  see `.env.local.example`). Every job answers 503 until that variable is
+  set. The full list, how often to call each, an example crontab, and how to
+  check from the Platform page that they are running are in
+  [automations-and-cron.md](automations-and-cron.md).

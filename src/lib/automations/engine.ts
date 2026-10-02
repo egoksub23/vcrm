@@ -24,6 +24,7 @@ import type {
   CreateTicketStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
+import { isAccountActive } from '@/lib/platform/active'
 import { closeConversation, chainOf } from '@/lib/conversations/close'
 import { isAiStepType } from './step-kinds'
 import { createAiCaller } from './ai/caller'
@@ -92,6 +93,10 @@ export interface DispatchInput {
 export async function runAutomationsForTrigger(input: DispatchInput): Promise<void> {
   try {
     const db = supabaseAdmin()
+
+    // A suspended workspace (migration 132) does nothing in the
+    // background: no automation fires, whatever event reached us.
+    if (!(await isAccountActive(db, input.accountId))) return
 
     // Tenant isolation. `contactId` can be caller-supplied (the manual
     // POST /api/automations/engine entrypoint reads it straight from the

@@ -8,6 +8,7 @@
 // and are only read by ./service.ts (the token store).
 // ============================================================
 
+import { suspendedAccountIds } from "@/lib/platform/active";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { FieldMappingRow, VircleFieldDef } from "./field-mapping";
@@ -312,10 +313,22 @@ export class SupabaseJiraStore implements JiraStore {
     return (data as JiraConnectionRow | null) ?? null;
   }
 
+  /**
+   * Active connections for the scheduled run, least recently caught up first
+   * (never-run first), so a run that ends on its time budget starts the next
+   * one with the connections it did not reach instead of the same first few
+   * every time. A suspended workspace's connection is left alone.
+   */
   async listActiveConnections() {
-    const { data, error } = await this.db.from("jira_connections").select(CONNECTION_COLUMNS).eq("status", "active");
+    const { data, error } = await this.db
+      .from("jira_connections")
+      .select(CONNECTION_COLUMNS)
+      .eq("status", "active")
+      .order("last_catchup_at", { ascending: true, nullsFirst: true });
     if (error) fail("listActiveConnections", error);
-    return (data as JiraConnectionRow[]) ?? [];
+    const rows = (data as JiraConnectionRow[]) ?? [];
+    const suspended = await suspendedAccountIds(this.db);
+    return suspended.size === 0 ? rows : rows.filter((c) => !suspended.has(c.account_id));
   }
 
   async updateConnection(id: string, patch: Record<string, unknown>) {

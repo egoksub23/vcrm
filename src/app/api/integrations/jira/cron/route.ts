@@ -12,31 +12,15 @@
 // minute or two.
 // ============================================================
 
-import { timingSafeEqual } from "node:crypto";
-
-import { NextResponse } from "next/server";
-
+import { CRON_INTERVALS, cronRoute } from "@/lib/cron/guard";
 import { runCron } from "@/lib/jira/cron";
 import { jiraAppUrl } from "@/lib/jira/http";
 import { isJiraConfigured } from "@/lib/jira/oauth";
 import { cronDeps } from "@/lib/jira/service";
 
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET;
-  if (!expected) return NextResponse.json({ error: "cron not configured" }, { status: 503 });
-  const supplied = Buffer.from(request.headers.get("x-cron-secret") ?? "");
-  const want = Buffer.from(expected);
-  if (supplied.length !== want.length || !timingSafeEqual(supplied, want)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  // Jira switched off on this deployment: nothing to do, and not an error.
-  if (!isJiraConfigured()) return NextResponse.json({ skipped: "jira not configured" });
+export const GET = cronRoute("jira", CRON_INTERVALS.jira, async (request) => {
+  if (!isJiraConfigured()) return { body: { skipped: "jira not configured" } };
 
-  try {
-    const report = await runCron(cronDeps(jiraAppUrl(request)));
-    return NextResponse.json(report);
-  } catch (err) {
-    console.error("[jira cron] failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: "cron failed" }, { status: 500 });
-  }
-}
+  const report = await runCron(cronDeps(jiraAppUrl(request)));
+  return { body: report as unknown as Record<string, unknown> };
+});

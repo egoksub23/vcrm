@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import type { CronJobStatus } from "@/lib/cron/status";
 import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
 
 interface TenantRow {
@@ -71,6 +72,7 @@ export function PlatformConsole() {
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [openSignup, setOpenSignup] = useState<boolean | null>(null);
+  const [jobs, setJobs] = useState<CronJobStatus[] | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -92,6 +94,10 @@ export function PlatformConsole() {
       .then((b: { open_signup?: boolean } | null) =>
         setOpenSignup(typeof b?.open_signup === "boolean" ? b.open_signup : null),
       )
+      .catch(() => {});
+    void fetch("/api/platform/cron", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { jobs?: CronJobStatus[] } | null) => setJobs(b?.jobs ?? null))
       .catch(() => {});
   }, [load]);
 
@@ -232,6 +238,39 @@ export function PlatformConsole() {
               onCheckedChange={(v) => void toggleSignup(v)}
               aria-label={t("signupTitle")}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {jobs !== null && (
+        <Card className="border-border bg-card">
+          <CardContent className="space-y-3 p-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">{t("cronTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("cronDesc")}</p>
+            </div>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {jobs.map((j) => {
+                const state: "never" | "error" | "late" | "ok" =
+                  j.last_run_at === null ? "never" : j.last_status === "error" ? "error" : j.late ? "late" : "ok";
+                return (
+                  <li key={j.job} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-foreground">{t(`job_${j.job}`)}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {j.last_run_at ? new Date(j.last_run_at).toLocaleString() : t("cronNeverRan")}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={state === "ok" ? "secondary" : "destructive"}
+                      className="shrink-0"
+                    >
+                      {t(`cron_${state}`)}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
           </CardContent>
         </Card>
       )}

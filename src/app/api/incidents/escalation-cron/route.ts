@@ -1,5 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
+import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
 
@@ -27,30 +26,13 @@ interface SweepNotified {
  *
  *   * * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/incidents/escalation-cron
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-escalation'], async () => {
   const { data, error } = await supabaseAdmin().rpc('incident_escalation_sweep', { p_limit: 200 })
   if (error) {
     console.error('[incidents-escalation-cron] sweep failed:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return { status: 500, body: { error: error.message } }
   }
 
-  // Best-effort email on top of the in-app notification the sweep already
-  // inserted — never blocks the response; the sweep itself already
-  // committed by the time this runs.
   const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
   const notified = (data?.notified ?? []) as SweepNotified[]
   if (appBaseUrl && notified.length > 0) {
@@ -70,5 +52,6 @@ export async function GET(request: Request) {
     )
   }
 
-  return NextResponse.json(data ?? { escalated: 0, notifications: 0 })
-}
+  // The per-recipient detail stays out of the stored heartbeat result.
+  return { body: { escalated: data?.escalated ?? 0, notifications: data?.notifications ?? 0 } }
+})

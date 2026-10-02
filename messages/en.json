@@ -7917,6 +7917,22 @@
     "signupTitle": "Allow self-service sign-up",
     "signupDesc": "Off (recommended): people can only join through an invitation or a workspace you create here. On: anyone can create their own workspace from the sign-up page.",
     "signupSaved": "Sign-up setting saved.",
+    "cronTitle": "Background jobs",
+    "cronDesc": "Each scheduled job reports when it last ran. A job that stops reporting (for example a missing line in the server's crontab) shows as late.",
+    "cronNeverRan": "Never reported",
+    "cron_ok": "On time",
+    "cron_late": "Late",
+    "cron_error": "Failed",
+    "cron_never": "Not running",
+    "job_automations": "Automation delayed steps",
+    "job_flows": "Flow timeouts",
+    "job_sla-conversations": "Conversation response times",
+    "job_sla-tickets": "Ticket SLA",
+    "job_incident-escalation": "Incident escalation",
+    "job_jira": "Jira sync",
+    "job_message-sweep": "Stuck message recovery",
+    "job_mailbox-renew": "Microsoft 365 mailbox renewal",
+    "job_gmail-watch-renew": "Gmail watch renewal",
     "notAllowed": "You do not have access to platform administration."
   }
 }

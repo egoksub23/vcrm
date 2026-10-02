@@ -7917,6 +7917,22 @@
     "signupTitle": "자가 가입 허용",
     "signupDesc": "끄기(권장): 초대를 받았거나 여기서 만든 워크스페이스를 통해서만 가입할 수 있습니다. 켜기: 누구나 가입 페이지에서 자신의 워크스페이스를 만들 수 있습니다.",
     "signupSaved": "가입 설정을 저장했습니다.",
+    "cronTitle": "백그라운드 작업",
+    "cronDesc": "예약된 각 작업은 마지막 실행 시각을 보고합니다. 보고가 끊긴 작업(예: 서버 crontab 항목 누락)은 지연으로 표시됩니다.",
+    "cronNeverRan": "보고 없음",
+    "cron_ok": "정상",
+    "cron_late": "지연",
+    "cron_error": "실패",
+    "cron_never": "실행 안 됨",
+    "job_automations": "자동화 지연 단계",
+    "job_flows": "플로우 시간 초과",
+    "job_sla-conversations": "대화 응답 시간",
+    "job_sla-tickets": "티켓 SLA",
+    "job_incident-escalation": "사고 에스컬레이션",
+    "job_jira": "Jira 동기화",
+    "job_message-sweep": "멈춘 메시지 복구",
+    "job_mailbox-renew": "Microsoft 365 메일함 갱신",
+    "job_gmail-watch-renew": "Gmail 감시 갱신",
     "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다."
   }
 }

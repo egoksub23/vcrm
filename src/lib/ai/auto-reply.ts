@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './admin-client'
+import { isAccountActive } from '@/lib/platform/active'
 import { loadAiConfig } from './config'
 import { buildConversationContext, getPreferredLanguage } from './context'
 import { logKnowledgeGap, logKnowledgeUse, searchKnowledge } from './knowledge'
@@ -63,6 +64,9 @@ export async function dispatchInboundToAiReply(
 
   try {
     const db = supabaseAdmin()
+
+    // A suspended workspace (migration 132) gets no AI replies.
+    if (!(await isAccountActive(db, accountId))) return
 
     const config = await loadAiConfig(db, accountId, { task: 'auto_reply' })
     if (!config || !config.autoReplyEnabled) return

@@ -174,9 +174,13 @@ describe("every route file", () => {
 
   it("the public endpoints are the receiver and the cron only, and the cron checks its shared secret in constant time", () => {
     const cron = FILES.find((f) => f.key === "cron")!;
-    expect(cron.src).toContain("x-cron-secret");
-    expect(cron.src).toContain("timingSafeEqual");
-    expect(cron.src).toContain("AUTOMATION_CRON_SECRET");
+    // The check itself lives in the one shared wrapper (src/lib/cron/guard.ts),
+    // so the route must go through it and the wrapper must do the check.
+    expect(cron.src).toContain("cronRoute(");
+    const guard = readFileSync(join(process.cwd(), "src/lib/cron/guard.ts"), "utf8");
+    expect(guard).toContain("x-cron-secret");
+    expect(guard).toContain("timingSafeEqual");
+    expect(guard).toContain("AUTOMATION_CRON_SECRET");
     expect(FILES.filter((f) => !/require(Any)?Capability\(/.test(f.src)).map((f) => f.key).sort()).toEqual(["cron", "webhook/[token]"]);
   });
 

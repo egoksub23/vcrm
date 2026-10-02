@@ -1,5 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
+import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 
 /**
@@ -21,27 +20,13 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  *
  *   star-slash-5 * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/messages/sweep-cron
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('message-sweep', CRON_INTERVALS['message-sweep'], async () => {
   const { data, error } = await supabaseAdmin().rpc('sweep_stuck_sending_messages', {
     p_stale_minutes: 10,
   })
   if (error) {
     console.error('[messages-sweep-cron] sweep failed:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return { status: 500, body: { error: error.message } }
   }
-  return NextResponse.json(data?.[0] ?? { recovered: 0 })
-}
+  return { body: data?.[0] ?? { recovered: 0 } }
+})

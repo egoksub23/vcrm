@@ -1,5 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
+import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 
 /**
@@ -15,8 +14,10 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  * so two overlapping runs never take the same ticket; a backlog drains over
  * the next runs.
  *
+ * Fair across workspaces and skipping suspended ones (migration 135).
+ *
  * Auth: the same `AUTOMATION_CRON_SECRET` / `x-cron-secret` header as the
- * other sweeps. Schedule it every minute (the state on screen does not wait
+ * other sweeps (src/lib/cron/guard.ts). Schedule it every minute (the state on screen does not wait
  * for it: a running target past its due time is shown as breached at once;
  * this sweep is what stores that and sends the notifications):
  *
@@ -25,25 +26,11 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  * The conversation response-time sweep (`/api/sla/cron`) is separate and
  * unchanged.
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('sla-tickets', CRON_INTERVALS['sla-tickets'], async () => {
   const { data, error } = await supabaseAdmin().rpc('sla_sweep', { p_limit: 200 })
   if (error) {
     console.error('[tickets-sla-cron] sweep failed:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return { status: 500, body: { error: error.message } }
   }
-  return NextResponse.json(data ?? { breached: 0, tickets_notified: 0, notifications: 0 })
-}
+  return { body: data ?? { breached: 0, tickets_notified: 0, notifications: 0 } }
+})

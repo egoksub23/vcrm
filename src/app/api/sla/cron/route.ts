@@ -1,7 +1,19 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
+import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
+
+/** Candidates per run, and the most one workspace may contribute to a run. */
+const LIMIT = 500
+const PER_ACCOUNT = 100
+
+type Candidate = {
+  id: string
+  account_id: string
+  contact_id: string | null
+  assigned_agent_id: string | null
+  last_customer_message_at: string
+  sla_minutes: number
+}
 
 /**
  * Sweep conversations that have breached their account's SLA response
@@ -14,66 +26,37 @@ import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
  * message arrives or we reply), and the wait has exceeded the
  * account's `sla_response_minutes`.
  *
+ * The scan is done by the database (migration 135,
+ * conversation_sla_candidates): it applies the breach test itself,
+ * takes at most PER_ACCOUNT per workspace so one workspace's backlog
+ * cannot crowd out the others, and skips suspended workspaces. It used
+ * to load every waiting conversation and loop over them here.
+ *
  * Recipient: the assigned agent if the conversation has one, otherwise
  * every owner/admin on the account who holds `conversations.manage` (an unassigned conversation is
  * everyone's problem, not nobody's).
  *
- * Auth: reuses `AUTOMATION_CRON_SECRET`, same header contract as
- * `/api/flows/cron` and `/api/automations/cron` — operators only need
- * to provision one secret across all three sweeps. Hit on a schedule
- * (Vercel Cron / GitHub Actions / external pinger); a 5-minute
- * interval keeps the worst-case notification delay reasonable without
- * being a meaningfully heavier poll than the flow-timeout sweep.
+ * Auth: `AUTOMATION_CRON_SECRET` (src/lib/cron/guard.ts). A 5-minute
+ * interval keeps the worst-case notification delay reasonable.
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('sla-conversations', CRON_INTERVALS['sla-conversations'], async () => {
   const admin = supabaseAdmin()
   const now = Date.now()
 
-  const { data: candidates, error } = await admin
-    .from('conversations')
-    .select(
-      'id, account_id, contact_id, assigned_agent_id, last_customer_message_at, accounts ( sla_response_minutes )',
-    )
-    .eq('awaiting_response', true)
-    .is('sla_notified_at', null)
-    .neq('status', 'closed')
+  const { data: candidates, error } = await admin.rpc('conversation_sla_candidates', {
+    p_limit: LIMIT,
+    p_per_account: PER_ACCOUNT,
+  })
 
   if (error) {
     console.error('[sla-cron] candidate scan failed:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return { status: 500, body: { error: error.message } }
   }
-  if (!candidates?.length) return NextResponse.json({ notified: 0 })
-
-  type Row = {
-    id: string
-    account_id: string
-    contact_id: string | null
-    assigned_agent_id: string | null
-    last_customer_message_at: string | null
-    accounts: { sla_response_minutes: number } | { sla_response_minutes: number }[] | null
-  }
+  if (!candidates?.length) return { body: { notified: 0 } }
 
   let notified = 0
-  for (const r of candidates as Row[]) {
-    if (!r.last_customer_message_at) continue
-    const accountField = Array.isArray(r.accounts) ? r.accounts[0] : r.accounts
-    const targetMinutes = accountField?.sla_response_minutes ?? 30
+  for (const r of candidates as Candidate[]) {
     const waitingMinutes = (now - new Date(r.last_customer_message_at).getTime()) / 60000
-    if (waitingMinutes < targetMinutes) continue
 
     // Claim this breach — guarded by the precondition sla_notified_at
     // IS NULL so a concurrent sweep run can't double-notify.
@@ -129,5 +112,5 @@ export async function GET(request: Request) {
     notified += 1
   }
 
-  return NextResponse.json({ notified })
-}
+  return { body: { notified } }
+})

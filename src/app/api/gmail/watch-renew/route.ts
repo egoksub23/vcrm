@@ -1,7 +1,7 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
+import { suspendedAccountIds } from '@/lib/platform/active'
 import { getValidAccessToken } from '@/lib/gmail/token'
 import { watchMailbox } from '@/lib/gmail/gmail-api'
 
@@ -18,24 +18,10 @@ import { watchMailbox } from '@/lib/gmail/gmail-api'
  * whose connection never got a Pub/Sub topic to watch against) — there's
  * nothing to renew until that one-time setup is done.
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('gmail-watch-renew', CRON_INTERVALS['gmail-watch-renew'], async () => {
   const pubsubTopic = process.env.GMAIL_PUBSUB_TOPIC?.trim()
   if (!pubsubTopic) {
-    return NextResponse.json({ renewed: 0, skipped: 'GMAIL_PUBSUB_TOPIC not configured' })
+    return { body: { renewed: 0, skipped: 'GMAIL_PUBSUB_TOPIC not configured' } }
   }
 
   const admin = createClient(
@@ -43,31 +29,30 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  // Renew anything expiring within the next 48 hours (watch lasts up
-  // to 7 days, so daily-or-more-often coverage leaves ample slack),
-  // plus anything that never registered a watch at all.
+  // Renew anything expiring within the next 48 hours (a watch lasts up to
+  // 7 days), plus anything lapsed or never set. Soonest first and capped,
+  // so a backlog is worked through over successive runs; suspended
+  // workspaces are left alone.
   const soon = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
   const { data: configs, error } = await admin
     .from('gmail_config')
     .select('*')
     .eq('status', 'connected')
     .or(`watch_expiration.is.null,watch_expiration.lte.${soon}`)
+    .order('watch_expiration', { ascending: true, nullsFirst: true })
+    .limit(500)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!configs || configs.length === 0) return NextResponse.json({ renewed: 0 })
+  if (error) return { status: 500, body: { error: error.message } }
+  const suspended = await suspendedAccountIds(admin)
+  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string))
+  if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0
   let failed = 0
-  for (const config of configs) {
+  const { skipped } = await forEachWithinBudget(eligible, 45_000, async (config) => {
     try {
       const accessToken = await getValidAccessToken(config)
       const watch = await watchMailbox({ accessToken, topicName: pubsubTopic })
-      // Re-registering the watch does NOT reset Gmail's history log —
-      // `watch`'s returned historyId is just "current as of now", not
-      // a new starting point. Overwriting an already-set history_id
-      // with it would silently skip every message that arrived
-      // between the last processed notification and this renewal, so
-      // only use it to establish a first-time baseline.
       const update: Record<string, unknown> = { watch_expiration: watch.expiration }
       if (!config.history_id) update.history_id = watch.historyId
       await admin.from('gmail_config').update(update).eq('id', config.id)
@@ -79,7 +64,7 @@ export async function GET(request: Request) {
         err instanceof Error ? err.message : err,
       )
     }
-  }
+  })
 
-  return NextResponse.json({ renewed, failed })
-}
+  return { body: { renewed, failed, deferred: skipped.length } }
+})

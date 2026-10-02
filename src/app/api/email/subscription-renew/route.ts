@@ -1,6 +1,7 @@
-import { timingSafeEqual } from 'node:crypto'
-import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+
+import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
+import { suspendedAccountIds } from '@/lib/platform/active'
 
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
@@ -21,41 +22,33 @@ import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
  * covers the case where a renewal was missed for long enough that
  * Graph deleted the subscription outright.
  */
-export async function GET(request: Request) {
-  const expected = process.env.AUTOMATION_CRON_SECRET
-  if (!expected) {
-    return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
-  }
-  const supplied = request.headers.get('x-cron-secret') ?? ''
-  const suppliedBuf = Buffer.from(supplied)
-  const expectedBuf = Buffer.from(expected)
-  if (
-    suppliedBuf.length !== expectedBuf.length ||
-    !timingSafeEqual(suppliedBuf, expectedBuf)
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = cronRoute('mailbox-renew', CRON_INTERVALS['mailbox-renew'], async (request) => {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
   // Renew anything expiring within the next 24 hours, plus anything
-  // that never got a subscription id at all.
+  // already lapsed or never set. Soonest-to-expire first and capped, so a
+  // large backlog is worked through over successive runs instead of one
+  // run that never finishes; suspended workspaces are left alone.
   const soon = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
   const { data: configs, error } = await admin
     .from('email_config')
     .select('*')
     .eq('status', 'connected')
     .or(`subscription_expires_at.is.null,subscription_expires_at.lte.${soon}`)
+    .order('subscription_expires_at', { ascending: true, nullsFirst: true })
+    .limit(500)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!configs || configs.length === 0) return NextResponse.json({ renewed: 0 })
+  if (error) return { status: 500, body: { error: error.message } }
+  const suspended = await suspendedAccountIds(admin)
+  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string))
+  if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0
   let failed = 0
-  for (const config of configs) {
+  const { skipped } = await forEachWithinBudget(eligible, 45_000, async (config) => {
     try {
       await renewMailboxSubscription({
         admin,
@@ -70,7 +63,7 @@ export async function GET(request: Request) {
         err instanceof Error ? err.message : err,
       )
     }
-  }
+  })
 
-  return NextResponse.json({ renewed, failed })
-}
+  return { body: { renewed, failed, deferred: skipped.length } }
+})
