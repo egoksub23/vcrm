@@ -101,6 +101,32 @@ export async function POST(request: Request) {
     );
     if (!limit.success) return widgetRateLimited(limit, corsOrigin);
 
+    // Contacts soft-delete (migration 125) and the delete clears pending codes
+    // (migration 142), so a code for a deleted contact should not exist. Check
+    // anyway: this is the gate, and a delete can land between the lookup above
+    // and here. The admin client sees tombstones, so test deleted_at.
+    const { data: codeContact, error: codeContactError } = await admin
+      .from('contacts')
+      .select('id, deleted_at')
+      .eq('id', pending.contact_id)
+      .maybeSingle();
+    if (codeContactError) {
+      console.error('[widget/verify-code] contact lookup error:', codeContactError);
+      return widgetError(500, 'Internal server error', undefined, corsOrigin);
+    }
+    if (!codeContact || codeContact.deleted_at) {
+      await admin
+        .from('widget_verification_codes')
+        .delete()
+        .eq('widget_visitor_id', visitorId);
+      return widgetError(
+        400,
+        'No verification in progress. Request a new code.',
+        'not_found',
+        corsOrigin
+      );
+    }
+
     if (new Date(pending.expires_at).getTime() < Date.now()) {
       await admin
         .from('widget_verification_codes')

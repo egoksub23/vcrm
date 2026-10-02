@@ -19,6 +19,7 @@ DECLARE
   acct_a  UUID;
   cfg_id  UUID;
   v_contact_id UUID;
+  v_other_id UUID;
   conv_id UUID;
   res     TEXT;
 BEGIN
@@ -130,12 +131,40 @@ BEGIN
     RAISE EXCEPTION 'FAIL: anon could read widget_verification_codes (got %)', res;
   END IF;
 
-  -- 6. Cascade: deleting the contact removes its verification-code row
-  --    (ON DELETE CASCADE on v_contact_id) without needing app cleanup.
+  -- 6. Deleting the contact removes its verification-code row. Contacts
+  --    soft-delete (migration 125), so no FK cascade fires: migration 142's
+  --    trigger does it. Another contact's code is left alone, and a plain
+  --    restore does not bring the code back.
+  INSERT INTO contacts (account_id, user_id, phone, name, email)
+  VALUES (acct_a, admin_a, '60123980113', 'Other Customer', 'other-110@example.com')
+  RETURNING id INTO v_other_id;
+  INSERT INTO widget_verification_codes
+    (widget_visitor_id, account_id, widget_config_id, contact_id, destination_email, code_hash, expires_at)
+  VALUES (gen_random_uuid(), acct_a, cfg_id, v_other_id, 'other-110@example.com', 'hash', NOW() + INTERVAL '10 minutes');
+
   DELETE FROM contacts WHERE id = v_contact_id;
+  IF NOT EXISTS (SELECT 1 FROM contacts WHERE id = v_contact_id AND deleted_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL: deleting a contact did not soft-delete it';
+  END IF;
   IF (SELECT COUNT(*) FROM widget_verification_codes WHERE contact_id = v_contact_id) <> 0 THEN
     RAISE EXCEPTION 'FAIL: widget_verification_codes row survived its contact being deleted';
   END IF;
+  IF (SELECT COUNT(*) FROM widget_verification_codes WHERE contact_id = v_other_id) <> 1 THEN
+    RAISE EXCEPTION 'FAIL: deleting one contact removed another contact''s verification code';
+  END IF;
+
+  -- Setting deleted_at directly takes the same path.
+  UPDATE contacts SET deleted_at = NOW() WHERE id = v_other_id;
+  IF (SELECT COUNT(*) FROM widget_verification_codes WHERE contact_id = v_other_id) <> 0 THEN
+    RAISE EXCEPTION 'FAIL: widget_verification_codes row survived deleted_at being set';
+  END IF;
+
+  -- Restoring a contact does not resurrect the code that was removed.
+  UPDATE contacts SET deleted_at = NULL WHERE id = v_contact_id;
+  IF (SELECT COUNT(*) FROM widget_verification_codes WHERE contact_id = v_contact_id) <> 0 THEN
+    RAISE EXCEPTION 'FAIL: restoring a contact brought its verification code back';
+  END IF;
+
   -- The conversation itself has no FK to contacts.id ON DELETE CASCADE
   -- change here (unrelated to 110); widget_reply_notifications cascades
   -- off conversations directly, so deleting the conversation removes it.
@@ -144,6 +173,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL: widget_reply_notifications row survived its conversation being deleted';
   END IF;
 
-  RAISE EXCEPTION 'ROLLBACK-OK: migration 110 verified (tables present, service-role write/read works, RLS blocks authenticated and anon, cascades clean up)';
+  RAISE EXCEPTION 'ROLLBACK-OK: migration 110 verified (tables present, service-role write/read works, RLS blocks authenticated and anon, soft-deleting a contact clears its verification code, reply notifications cascade)';
 END;
 $verify$;

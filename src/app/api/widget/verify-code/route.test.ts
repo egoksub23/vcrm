@@ -177,6 +177,32 @@ describe('POST /api/widget/verify-code', () => {
     expect(res.status).toBe(403);
   });
 
+  it('400s "no verification in progress" for a soft-deleted contact, drops the code, and verifies nobody', async () => {
+    state.contact = {
+      name: 'Real Customer',
+      phone: '60123980112',
+      email: 'real@example.com',
+      deleted_at: new Date().toISOString(),
+    };
+    const res = await call({ code: PENDING_CODE });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('not_found');
+    expect(writes).toContainEqual({
+      table: 'widget_verification_codes',
+      op: 'delete',
+    });
+    expect(visitorUpsert()).toBeUndefined();
+    expect(rpcCalls).toEqual([]);
+  });
+
+  it('400s "no verification in progress" when the contact row is gone', async () => {
+    state.contact = null;
+    const res = await call({ code: PENDING_CODE });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('not_found');
+    expect(visitorUpsert()).toBeUndefined();
+  });
+
   it('400s an expired code and deletes the row', async () => {
     state.pending = pendingRow({
       expires_at: new Date(Date.now() - 1000).toISOString(),

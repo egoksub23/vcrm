@@ -86,8 +86,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Could not merge these contacts' }, { status: 500 })
     }
 
-    // merge_contacts deletes contact B, which removes this row by cascade;
-    // returning the surviving contact lets the inbox refresh onto it.
+    // merge_contacts soft-deletes contact B (migration 125), so no FK cascade
+    // fires; its trigger (migration 142) removes this row and every other
+    // suggestion for B. Returning the surviving contact lets the inbox refresh
+    // onto it.
     return NextResponse.json({ ok: true, status: 'merged', contact_id: suggestion.contact_a_id })
   } catch (err) {
     return toErrorResponse(err)

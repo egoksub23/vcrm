@@ -8,6 +8,9 @@ DECLARE
   v_a       uuid;
   v_b       uuid;
   v_guest   uuid;
+  v_c       uuid;
+  v_d       uuid;
+  v_e       uuid;
   v_conv    uuid;
   v_conv2   uuid;
   v_cfg     uuid;
@@ -108,12 +111,55 @@ BEGIN
     RAISE EXCEPTION 'FAIL clients can write contact_merge_suggestions';
   END IF;
 
-  -- merge_contacts (the function the suggestion's Merge calls) still folds B
-  -- into A and the suggestion row goes with B.
+  -- merge_contacts (the function the suggestion's Merge calls) folds B into A.
+  -- Contact deletion is a soft delete (125), so no FK cascade removes B's
+  -- suggestion rows: migration 142's trigger does, and B is left a tombstone.
   PERFORM merge_contacts(v_account, v_a, v_b);
-  IF EXISTS (SELECT 1 FROM contact_merge_suggestions WHERE contact_a_id = v_a OR contact_b_id = v_a) THEN
+  IF EXISTS (SELECT 1 FROM contact_merge_suggestions WHERE contact_a_id IN (v_a, v_b) OR contact_b_id IN (v_a, v_b)) THEN
     RAISE EXCEPTION 'FAIL the suggestion survived the merge of its contact';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM contacts WHERE id = v_b AND deleted_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL the merged-away contact is not a soft-deleted tombstone';
+  END IF;
+
+  -- A stale suggestion (or any caller) can no longer merge into / out of a
+  -- tombstone, whichever side it is on.
+  BEGIN
+    PERFORM merge_contacts(v_account, v_a, v_b);
+    RAISE EXCEPTION 'FAIL merge_contacts accepted a soft-deleted secondary contact';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE 'Secondary contact % not found%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM merge_contacts(v_account, v_b, v_a);
+    RAISE EXCEPTION 'FAIL merge_contacts accepted a soft-deleted primary contact';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE 'Primary contact % not found%' THEN RAISE; END IF;
+  END;
+
+  -- Deleting a contact (plain DELETE, or setting deleted_at) forgets every
+  -- suggestion it is in, whatever its status or side; others are untouched.
+  INSERT INTO contacts (account_id, user_id, phone, name)
+    VALUES (v_account, v_owner, '60111000003', 'Verify C') RETURNING id INTO v_c;
+  INSERT INTO contacts (account_id, user_id, phone, name)
+    VALUES (v_account, v_owner, '60111000004', 'Verify D') RETURNING id INTO v_d;
+  INSERT INTO contacts (account_id, user_id, phone, name)
+    VALUES (v_account, v_owner, '60111000005', 'Verify E') RETURNING id INTO v_e;
+  INSERT INTO contact_merge_suggestions (account_id, contact_a_id, contact_b_id) VALUES (v_account, v_a, v_c);
+  INSERT INTO contact_merge_suggestions (account_id, contact_a_id, contact_b_id, status) VALUES (v_account, v_d, v_c, 'dismissed');
+  INSERT INTO contact_merge_suggestions (account_id, contact_a_id, contact_b_id) VALUES (v_account, v_a, v_d);
+  INSERT INTO contact_merge_suggestions (account_id, contact_a_id, contact_b_id) VALUES (v_account, v_e, v_d);
+  DELETE FROM contacts WHERE id = v_c;
+  IF NOT EXISTS (SELECT 1 FROM contacts WHERE id = v_c AND deleted_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL a deleted contact is not a soft-deleted tombstone';
+  END IF;
+  SELECT count(*) INTO v_n FROM contact_merge_suggestions WHERE v_c IN (contact_a_id, contact_b_id);
+  IF v_n <> 0 THEN RAISE EXCEPTION 'FAIL % suggestion row(s) survived their contact being deleted', v_n; END IF;
+  SELECT count(*) INTO v_n FROM contact_merge_suggestions WHERE v_d IN (contact_a_id, contact_b_id);
+  IF v_n <> 2 THEN RAISE EXCEPTION 'FAIL deleting another contact touched unrelated suggestions: %', v_n; END IF;
+  UPDATE contacts SET deleted_at = now() WHERE id = v_d;
+  SELECT count(*) INTO v_n FROM contact_merge_suggestions WHERE v_d IN (contact_a_id, contact_b_id);
+  IF v_n <> 0 THEN RAISE EXCEPTION 'FAIL % suggestion row(s) survived deleted_at being set', v_n; END IF;
 
   -- ---- 4. enquiries -----------------------------------------------------
   INSERT INTO widget_enquiries (account_id, contact_id, role, message, consent_at)
@@ -167,7 +213,8 @@ BEGIN
   INSERT INTO messages (conversation_id, sender_type, content_type, content_text, channel_type, status)
     VALUES (v_conv2, 'customer', 'text', 'from the guest', 'web_widget', 'sent');
   PERFORM merge_widget_guest_contact(v_account, v_guest, v_a);
-  IF EXISTS (SELECT 1 FROM contacts WHERE id = v_guest) THEN
+  -- The folded guest is a soft-deleted tombstone (125), not a live contact.
+  IF EXISTS (SELECT 1 FROM contacts WHERE id = v_guest AND deleted_at IS NULL) THEN
     RAISE EXCEPTION 'FAIL the guest contact survived the merge';
   END IF;
   SELECT count(*) INTO v_n FROM messages WHERE conversation_id = v_conv AND content_text = 'from the guest';
@@ -179,5 +226,5 @@ BEGIN
     RAISE EXCEPTION 'FAIL clients can execute widget_customer_messages_read';
   END IF;
 
-  RAISE EXCEPTION 'ROLLBACK-OK: widget v2 schema, suggestions, enquiries, read ticks, audit, guest merge';
+  RAISE EXCEPTION 'ROLLBACK-OK: widget v2 schema, suggestions, enquiries, read ticks, audit, guest merge, soft-deleted contacts drop their suggestions and cannot be merged';
 END $$;
