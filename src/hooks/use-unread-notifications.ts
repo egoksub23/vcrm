@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import type { Notification } from "@/types";
 
 /**
@@ -9,13 +11,16 @@ import type { Notification } from "@/types";
  * sidebar to surface a badge on the Notifications nav entry.
  *
  * RLS on `notifications` already scopes every read to `auth.uid() =
- * user_id`, so no explicit filter is needed here — same pattern as
- * `useTotalUnread` for conversations.
+ * user_id`; the live subscription is filtered to the user too, so the
+ * server does not weigh every other user's notifications.
  */
 export function useUnreadNotifications(): number {
+  const { user } = useAuth();
+  const userId = user?.id;
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (!userId) return;
     const supabase = createClient();
     let cancelled = false;
 
@@ -30,12 +35,12 @@ export function useUnreadNotifications(): number {
       setCount(unreadCount ?? 0);
     })();
 
-    const channel = supabase
-      .channel("notifications-unread-count")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        (payload) => {
+    const channel = supabase.channel("notifications-unread-count");
+    // Only this user's notifications. A delete cannot be filtered, and
+    // notifications replicate the whole row, so another user's delete is
+    // recognised by its user_id and ignored.
+    onScopedChanges(channel, { table: "notifications", filter: eq("user_id", userId) }, (payload) => {
+          if (payload.eventType === "DELETE" && (payload.old as Partial<Notification>).user_id !== userId) return;
           if (payload.eventType === "INSERT") {
             const row = payload.new as Notification;
             if (!row.read_at) setCount((n) => n + 1);
@@ -49,15 +54,14 @@ export function useUnreadNotifications(): number {
             const oldRow = payload.old as Partial<Notification>;
             if (!oldRow.read_at) setCount((n) => Math.max(0, n - 1));
           }
-        },
-      )
-      .subscribe();
+    });
+    channel.subscribe();
 
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   return count;
 }

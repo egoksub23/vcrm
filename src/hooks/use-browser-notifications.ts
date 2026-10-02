@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import type { Message } from "@/types";
 import {
   DEFAULT_NOTIFICATION_LABELS,
@@ -69,12 +70,14 @@ export function useBrowserNotifications(): void {
     };
   });
 
+  const { accountId } = useAuth();
+
   // Message ids already handled, for replay dedupe. Survives re-renders,
   // pruned by shouldNotifyForMessage.
   const seenRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !accountId) return;
     if (getNotificationPermission() === "unsupported") return;
 
     const supabase = createClient();
@@ -123,7 +126,7 @@ export function useBrowserNotifications(): void {
       .channel("browser-notifications")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
+        { event: "INSERT", schema: "public", table: "messages", filter: `account_id=eq.${accountId}` },
         (payload) => {
           // Re-check every time: the user can revoke permission in the
           // browser without the preference flipping.
@@ -147,5 +150,5 @@ export function useBrowserNotifications(): void {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [enabled, router]);
+  }, [enabled, router, accountId]);
 }

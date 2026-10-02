@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import { BOARD_COLUMN_PAGE_SIZE, LIST_PAGE_SIZE, TICKET_STATUSES } from "@/lib/tickets/constants";
 import type { Contact, Ticket, TicketStatus } from "@/types";
 
@@ -67,6 +69,7 @@ const emptyTotals = (): Record<TicketStatus, number> => ({
  * server is the follow-up for accounts with very many tickets.
  */
 export function useTicketStore(mode: TicketViewMode, enabled = true) {
+  const { accountId } = useAuth();
   const [rows, setRows] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -303,11 +306,11 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
   }, []);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !accountId) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel(`tickets-store-${mode}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, (payload) => {
+    const scope = eq("account_id", accountId);
+    const channel = supabase.channel(`tickets-store-${mode}`);
+    onScopedChanges(channel, { table: "tickets", filter: scope }, (payload) => {
         if (payload.eventType === "DELETE") {
           const id = (payload.old as { id?: string }).id;
           if (id) removeRows([id]);
@@ -336,19 +339,19 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
               if (data) upsertRow(normalize(data as unknown as RawTicket));
             });
         }
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_comments" }, (payload) => {
-        const ticketId = (payload.new as { ticket_id?: string }).ticket_id;
-        if (!ticketId) return;
-        setRows((prev) =>
-          prev.map((r) => (r.id === ticketId ? { ...r, comment_count: r.comment_count + 1 } : r)),
-        );
-      })
-      .subscribe();
+    });
+    onScopedChanges(channel, { table: "ticket_comments", filter: scope, events: ["INSERT"] }, (payload) => {
+      const ticketId = (payload.new as { ticket_id?: string }).ticket_id;
+      if (!ticketId) return;
+      setRows((prev) =>
+        prev.map((r) => (r.id === ticketId ? { ...r, comment_count: r.comment_count + 1 } : r)),
+      );
+    });
+    channel.subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [enabled, mode, removeRows, upsertRow, belongsInWindow]);
+  }, [enabled, mode, accountId, removeRows, upsertRow, belongsInWindow]);
 
   return {
     rows,

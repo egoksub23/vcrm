@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import { directionOnAnywhere, normalizeSettings } from "@/lib/jira/settings";
 import {
   MAX_LINKS_PER_TICKET,
@@ -393,6 +395,7 @@ const CHIP_BATCH = 100;
  * board cards and list rows. Cached rows only; kept fresh over realtime.
  */
 export function useJiraLinkChips(ticketIds: readonly string[]): Record<string, JiraChip[]> {
+  const { accountId } = useAuth();
   const [chips, setChips] = useState<Record<string, JiraChip[]>>({});
   // A stable key: the same set of ids in any order asks once.
   const idKey = useMemo(() => [...new Set(ticketIds)].sort().join(","), [ticketIds]);
@@ -434,21 +437,20 @@ export function useJiraLinkChips(ticketIds: readonly string[]): Record<string, J
   }, [idKey, fetchChips]);
 
   useEffect(() => {
-    if (!idKey) return;
+    if (!idKey || !accountId) return;
     const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const channel = supabase
-      .channel(`jira-chips-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_jira_links" }, () => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => void fetchChips(idKey), 400);
-      })
-      .subscribe();
+    const channel = supabase.channel(`jira-chips-${Math.random().toString(36).slice(2, 8)}`);
+    onScopedChanges(channel, { table: "ticket_jira_links", filter: eq("account_id", accountId) }, () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void fetchChips(idKey), 400);
+    });
+    channel.subscribe();
     return () => {
       if (timer) clearTimeout(timer);
       void supabase.removeChannel(channel);
     };
-  }, [idKey, fetchChips]);
+  }, [idKey, accountId, fetchChips]);
 
   return chips;
 }

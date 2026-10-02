@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import type { Message, Conversation } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -24,6 +26,7 @@ export function useRealtime({
   onConversationEvent,
   enabled = true,
 }: UseRealtimeOptions) {
+  const { accountId } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -40,37 +43,29 @@ export function useRealtime({
   });
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !accountId) return;
 
     const supabase = createClient();
+    const scope = eq("account_id", accountId);
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        (payload) => {
-          onMessageRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<Message>["eventType"],
-            new: payload.new as Message,
-            old: payload.old as Partial<Message>,
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "conversations" },
-        (payload) => {
-          onConversationRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<Conversation>["eventType"],
-            new: payload.new as Conversation,
-            old: payload.old as Partial<Conversation>,
-          });
-        }
-      )
-      .subscribe((status) => {
-        setIsConnected(status === "SUBSCRIBED");
+    const channel = supabase.channel(channelName);
+    onScopedChanges(channel, { table: "messages", filter: scope }, (payload) => {
+      onMessageRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<Message>["eventType"],
+        new: payload.new as Message,
+        old: payload.old as Partial<Message>,
       });
+    });
+    onScopedChanges(channel, { table: "conversations", filter: scope }, (payload) => {
+      onConversationRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<Conversation>["eventType"],
+        new: payload.new as Conversation,
+        old: payload.old as Partial<Conversation>,
+      });
+    });
+    channel.subscribe((status) => {
+      setIsConnected(status === "SUBSCRIBED");
+    });
 
     channelRef.current = channel;
 
@@ -79,7 +74,7 @@ export function useRealtime({
       channelRef.current = null;
       setIsConnected(false);
     };
-  }, [channelName, enabled]);
+  }, [channelName, enabled, accountId]);
 
   const unsubscribe = useCallback(() => {
     if (channelRef.current) {

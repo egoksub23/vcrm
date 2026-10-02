@@ -15,6 +15,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 
 interface RealtimeEvent<T> {
   eventType: "INSERT" | "UPDATE" | "DELETE";
@@ -146,6 +148,7 @@ export function useSembangChannelRealtime({
   enabled = true,
   topicSuffix,
 }: UseSembangChannelRealtimeOptions): { isConnected: boolean } {
+  const { accountId } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
 
   const onMessageRef = useRef(onMessageEvent);
@@ -162,9 +165,10 @@ export function useSembangChannelRealtime({
   });
 
   useEffect(() => {
-    if (!enabled || !channelId) return;
+    if (!enabled || !channelId || !accountId) return;
 
     const supabase = createClient();
+    const scope = eq("account_id", accountId);
     const channel = supabase
       .channel(`sembang-messages-${channelId}${topicSuffix ? `-${topicSuffix}` : ""}`)
       .on(
@@ -180,17 +184,6 @@ export function useSembangChannelRealtime({
             eventType: payload.eventType as RealtimeEvent<SembangMessageRow>["eventType"],
             new: payload.new as SembangMessageRow,
             old: payload.old as Partial<SembangMessageRow>,
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sembang_reactions" },
-        (payload) => {
-          onReactionRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<SembangReactionRow>["eventType"],
-            new: payload.new as SembangReactionRow,
-            old: payload.old as Partial<SembangReactionRow>,
           });
         },
       )
@@ -216,24 +209,29 @@ export function useSembangChannelRealtime({
           });
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sembang_link_previews" },
-        (payload) => {
-          onLinkPreviewRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<SembangLinkPreviewRow>["eventType"],
-            new: payload.new as SembangLinkPreviewRow,
-            old: payload.old as Partial<SembangLinkPreviewRow>,
-          });
-        },
-      )
-      .subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
+      ;
+    // Reactions and link previews have no channel column to filter on; scope them to the workspace.
+    onScopedChanges(channel, { table: "sembang_reactions", filter: scope }, (payload) => {
+      onReactionRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<SembangReactionRow>["eventType"],
+        new: payload.new as SembangReactionRow,
+        old: payload.old as Partial<SembangReactionRow>,
+      });
+    });
+    onScopedChanges(channel, { table: "sembang_link_previews", filter: scope }, (payload) => {
+      onLinkPreviewRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<SembangLinkPreviewRow>["eventType"],
+        new: payload.new as SembangLinkPreviewRow,
+        old: payload.old as Partial<SembangLinkPreviewRow>,
+      });
+    });
+    channel.subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
 
     return () => {
       supabase.removeChannel(channel);
       setIsConnected(false);
     };
-  }, [channelId, enabled, topicSuffix]);
+  }, [channelId, enabled, topicSuffix, accountId]);
 
   return { isConnected };
 }
@@ -256,6 +254,7 @@ export function useSembangSidebarRealtime({
   onMessageEvent,
   enabled = true,
 }: UseSembangSidebarRealtimeOptions): { isConnected: boolean } {
+  const { accountId } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
 
   const onChannelRef = useRef(onChannelEvent);
@@ -268,51 +267,39 @@ export function useSembangSidebarRealtime({
   });
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !accountId) return;
 
     const supabase = createClient();
-    const channel = supabase
-      .channel("sembang-sidebar")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sembang_channels" },
-        (payload) => {
-          onChannelRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<SembangChannelRow>["eventType"],
-            new: payload.new as SembangChannelRow,
-            old: payload.old as Partial<SembangChannelRow>,
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sembang_channel_members" },
-        (payload) => {
-          onMemberRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<SembangChannelMemberRow>["eventType"],
-            new: payload.new as SembangChannelMemberRow,
-            old: payload.old as Partial<SembangChannelMemberRow>,
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sembang_messages" },
-        (payload) => {
-          onMessageRef.current?.({
-            eventType: payload.eventType as RealtimeEvent<SembangMessageRow>["eventType"],
-            new: payload.new as SembangMessageRow,
-            old: payload.old as Partial<SembangMessageRow>,
-          });
-        },
-      )
-      .subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
+    const scope = eq("account_id", accountId);
+    const channel = supabase.channel("sembang-sidebar");
+    onScopedChanges(channel, { table: "sembang_channels", filter: scope }, (payload) => {
+      onChannelRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<SembangChannelRow>["eventType"],
+        new: payload.new as SembangChannelRow,
+        old: payload.old as Partial<SembangChannelRow>,
+      });
+    });
+    onScopedChanges(channel, { table: "sembang_channel_members", filter: scope }, (payload) => {
+      onMemberRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<SembangChannelMemberRow>["eventType"],
+        new: payload.new as SembangChannelMemberRow,
+        old: payload.old as Partial<SembangChannelMemberRow>,
+      });
+    });
+    onScopedChanges(channel, { table: "sembang_messages", filter: scope }, (payload) => {
+      onMessageRef.current?.({
+        eventType: payload.eventType as RealtimeEvent<SembangMessageRow>["eventType"],
+        new: payload.new as SembangMessageRow,
+        old: payload.old as Partial<SembangMessageRow>,
+      });
+    });
+    channel.subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
 
     return () => {
       supabase.removeChannel(channel);
       setIsConnected(false);
     };
-  }, [enabled]);
+  }, [enabled, accountId]);
 
   return { isConnected };
 }

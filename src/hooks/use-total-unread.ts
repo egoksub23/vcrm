@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import type { Conversation } from "@/types";
 
 /**
@@ -13,6 +15,7 @@ import type { Conversation } from "@/types";
  * "inbox-realtime") so both can coexist without sharing state.
  */
 export function useTotalUnread(): number {
+  const { accountId } = useAuth();
   const [total, setTotal] = useState(0);
 
   // Keep a live local mirror of {id: unread_count} so INSERT/UPDATE/DELETE
@@ -20,6 +23,7 @@ export function useTotalUnread(): number {
   const countsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
+    if (!accountId) return;
     const supabase = createClient();
     let cancelled = false;
 
@@ -42,33 +46,28 @@ export function useTotalUnread(): number {
       setTotal(sum);
     })();
 
-    const channel = supabase
-      .channel("total-unread-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "conversations" },
-        (payload) => {
-          const map = countsRef.current;
-          if (payload.eventType === "DELETE") {
-            const oldRow = payload.old as Partial<Conversation>;
-            if (oldRow.id) map.delete(oldRow.id);
-          } else {
-            const row = payload.new as Conversation;
-            map.set(row.id, row.unread_count ?? 0);
-          }
-          // Recompute — cheap, conversations per user stay small.
-          let sum = 0;
-          for (const n of map.values()) if (n > 0) sum += 1;
-          setTotal(sum);
-        },
-      )
-      .subscribe();
+    const channel = supabase.channel("total-unread-realtime");
+    onScopedChanges(channel, { table: "conversations", filter: eq("account_id", accountId) }, (payload) => {
+      const map = countsRef.current;
+      if (payload.eventType === "DELETE") {
+        const oldRow = payload.old as Partial<Conversation>;
+        if (oldRow.id) map.delete(oldRow.id);
+      } else {
+        const row = payload.new as Conversation;
+        map.set(row.id, row.unread_count ?? 0);
+      }
+      // Recompute — cheap, conversations per user stay small.
+      let sum = 0;
+      for (const n of map.values()) if (n > 0) sum += 1;
+      setTotal(sum);
+    });
+    channel.subscribe();
 
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [accountId]);
 
   return total;
 }

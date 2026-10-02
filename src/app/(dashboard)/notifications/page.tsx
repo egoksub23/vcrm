@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import type { Notification } from "@/types";
 import { AlarmClock, AtSign, Bell, Bot, CheckCheck, CheckSquare, ClipboardCheck, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -39,7 +40,8 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
 export default function NotificationsPage() {
   const t = useTranslations("Notifications");
   const router = useRouter();
-  const { accountId } = useAuth();
+  const { accountId, user } = useAuth();
+  const userId = user?.id;
   const [notifications, setNotifications] = useState<Notification[] | null>(
     null,
   );
@@ -70,13 +72,11 @@ export default function NotificationsPage() {
   // Realtime — new assignments appear without a refresh, and a
   // "mark all read" fired from another tab/device stays in sync here.
   useEffect(() => {
+    if (!userId) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel("notifications-page")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        (payload) => {
+    const channel = supabase.channel("notifications-page");
+    onScopedChanges(channel, { table: "notifications", filter: eq("user_id", userId) }, (payload) => {
+          if (payload.eventType === "DELETE" && (payload.old as Partial<Notification>).user_id !== userId) return;
           if (payload.eventType === "INSERT") {
             const row = payload.new as Notification;
             setNotifications((prev) => {
@@ -96,14 +96,13 @@ export default function NotificationsPage() {
               (prev) => prev?.filter((n) => n.id !== oldRow.id) ?? prev,
             );
           }
-        },
-      )
-      .subscribe();
+    });
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   const markRead = useCallback(
     async (id: string) => {

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import { attachFileToTicket, removeTicketAttachment } from "@/lib/tickets/attachment-actions";
 import { TICKET_MAX_ATTACHMENTS, checkTicketFile, formatBytes } from "@/lib/tickets/attachments";
 import { linkRowFor, type LinkGroupKey } from "@/lib/tickets/links";
@@ -56,7 +57,7 @@ export function useTicketDetail(
   const tAtt = useTranslations("Tickets.attachments");
   const tMention = useTranslations("Tickets.detail.mention");
   const tResolution = useTranslations("Tickets.resolution");
-  const { user } = useAuth();
+  const { user, accountId } = useAuth();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -175,7 +176,7 @@ export function useTicketDetail(
           .order("created_at", { ascending: true })
           .then(({ data }) => setWatchers((data as TicketWatcher[]) ?? []));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_links" }, () => void loadLinks(ticketId))
+      // Links: this workspace's changes. onScopedChanges is not chainable, so it is wired after the chain below.
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_attachments", filter }, (payload) => {
         const row = payload.new as TicketAttachment;
         setAttachments((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]));
@@ -184,11 +185,15 @@ export function useTicketDetail(
         const id = (payload.old as { id?: string }).id;
         if (id) setAttachments((prev) => prev.filter((a) => a.id !== id));
       })
-      .subscribe();
+    ;
+    if (accountId) {
+      onScopedChanges(channel, { table: "ticket_links", filter: eq("account_id", accountId) }, () => void loadLinks(ticketId));
+    }
+    channel.subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [ticketId, loadLinks]);
+  }, [ticketId, loadLinks, accountId]);
 
   // ---- Writes ------------------------------------------------------------------
   /** Save fields: optimistic, rolled back with a toast if the write fails. */

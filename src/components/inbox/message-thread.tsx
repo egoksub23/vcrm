@@ -498,10 +498,11 @@ export function MessageThread({
       .on(
         "postgres_changes",
         {
+          // A DELETE carries only the row's id, so it cannot be filtered by
+          // conversation (a filter would silence it); the id is matched below.
           event: "DELETE",
           schema: "public",
           table: "message_reactions",
-          filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
           const old = payload.old as Partial<MessageReaction>;
