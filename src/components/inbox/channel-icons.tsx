@@ -78,6 +78,23 @@ const WebWidgetIcon: ChannelIconComponent = (props) => (
   </svg>
 );
 
+/** Vircle Chat (the Vircle mobile app's in-app chat): a white rounded
+ *  speech bubble with three typing dots on a teal disc — a different hue
+ *  from the violet Web Widget bubble above so the two chat channels can
+ *  be told apart at ~12px. */
+const VircleChatIcon: ChannelIconComponent = (props) => (
+  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <circle cx="16" cy="16" r="16" fill="#0D9488" />
+    <path
+      d="M11 8h10a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4h-5.5L10 26v-4.1A4 4 0 0 1 7 18v-6a4 4 0 0 1 4-4Z"
+      fill="#fff"
+    />
+    <circle cx="12" cy="15" r="1.4" fill="#0D9488" />
+    <circle cx="16" cy="15" r="1.4" fill="#0D9488" />
+    <circle cx="20" cy="15" r="1.4" fill="#0D9488" />
+  </svg>
+);
+
 const EmailIcon: ChannelIconComponent = (props) => (
   <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <rect width="32" height="32" rx="8" fill="#0A66C2" />
@@ -107,4 +124,5 @@ export const CHANNEL_ICONS: Record<ChannelType, ChannelIconComponent> = {
   instagram: InstagramIcon,
   email: EmailIcon,
   gmail: GmailIcon,
+  vircle_chat: VircleChatIcon,
 };

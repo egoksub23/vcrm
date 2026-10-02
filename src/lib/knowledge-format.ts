@@ -823,7 +823,7 @@ export function kbHtmlToPlainText(html: string | null | undefined): string {
  * The text to put in a chat message for a channel.
  *
  *  - WhatsApp: *bold*, _italic_, ~strike~, "• " bullets, headings in bold
- *  - Messenger, Instagram, the web widget: plain text (they do not format)
+ *  - Messenger, Instagram, the web widget, Vircle Chat: plain text (they do not format)
  *  - email / Gmail: plain text too — the rich version goes in `contentHtml`,
  *    this is its plain-text fallback
  *

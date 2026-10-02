@@ -259,7 +259,7 @@ describe('text derived from an article with images', () => {
   })
 
   it('leaves images out of chat text for every channel', () => {
-    for (const channel of ['whatsapp', 'messenger', 'instagram', 'web_widget', 'email', 'gmail'] as const) {
+    for (const channel of ['whatsapp', 'messenger', 'instagram', 'web_widget', 'email', 'gmail', 'vircle_chat'] as const) {
       const text = kbHtmlToChannelText(html, '', channel)
       expect(text).toBe('Open the menu.\n\nThen save.')
       expect(text).not.toContain('image')

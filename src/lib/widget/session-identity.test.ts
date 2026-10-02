@@ -42,6 +42,7 @@ function makeDb(script: Script): { db: SupabaseClient; updateCalls: { id: string
       return builder;
     },
     order: () => builder,
+    is: () => builder,
     like: () => {
       const data = script.contactCandidatesByCall
         ? (script.contactCandidatesByCall[likeCalls] ?? [])

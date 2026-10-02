@@ -41,8 +41,16 @@ export function hasNonPhoneIdentity(c: {
   messenger_psid?: string | null;
   instagram_igsid?: string | null;
   widget_visitor_id?: string | null;
+  /** Vircle Chat's identity key (such a contact may have no phone). */
+  wallet_id?: string | null;
 }): boolean {
-  return !!(c.wa_user_id || c.messenger_psid || c.instagram_igsid || c.widget_visitor_id);
+  return !!(
+    c.wa_user_id ||
+    c.messenger_psid ||
+    c.instagram_igsid ||
+    c.widget_visitor_id ||
+    c.wallet_id
+  );
 }
 
 /** Free text (name, company): trimmed, blank → null, capped. */

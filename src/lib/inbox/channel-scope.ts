@@ -9,7 +9,7 @@ import type { ChannelType, Conversation } from '@/types'
  * Not a second inbox: both tabs read the same conversations.
  */
 export const EMAIL_CHANNELS: ChannelType[] = ['email', 'gmail']
-export const CHAT_CHANNELS: ChannelType[] = ['whatsapp', 'web_widget', 'messenger', 'instagram']
+export const CHAT_CHANNELS: ChannelType[] = ['whatsapp', 'web_widget', 'messenger', 'instagram', 'vircle_chat']
 
 export type InboxTab = 'chats' | 'emails' | 'comments'
 

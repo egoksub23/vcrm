@@ -33,6 +33,8 @@ const CHANNEL_NAMES: Record<string, string> = {
   instagram: 'Instagram',
   email: 'Email',
   gmail: 'Gmail',
+  // web_widget is deliberately absent: it falls back to t('channelWebWidget').
+  vircle_chat: 'Vircle Chat',
 };
 
 /**

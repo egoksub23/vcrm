@@ -37,7 +37,12 @@ interface PendingDeleteRow {
   conversation_id: string;
   media_url: string | null;
   conversation: {
-    contact: { name: string | null; phone: string | null; email: string | null } | null;
+    contact: {
+      name: string | null;
+      phone: string | null;
+      email: string | null;
+      wallet_id: string | null;
+    } | null;
   } | null;
 }
 
@@ -84,7 +89,7 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     const { data, error } = await supabase
       .from("messages")
       .select(
-        "id, content_text, channel_type, pending_delete_at, conversation_id, media_url, conversation:conversations(contact:contacts(name, phone, email))",
+        "id, content_text, channel_type, pending_delete_at, conversation_id, media_url, conversation:conversations(contact:contacts(name, phone, email, wallet_id))",
       )
       .eq("pending_delete", true)
       .order("pending_delete_at", { ascending: false });
@@ -182,7 +187,7 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
               rows.map((row) => {
                 const Icon = CHANNEL_ICONS[row.channel_type];
                 const contact = row.conversation?.contact;
-                const name = contact?.name || contact?.email || contact?.phone || t("unknownContact");
+                const name = contact?.name || contact?.email || contact?.phone || contact?.wallet_id || t("unknownContact");
                 const busy = busyId === row.id;
                 return (
                   <div

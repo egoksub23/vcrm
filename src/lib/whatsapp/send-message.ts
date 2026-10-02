@@ -53,6 +53,12 @@ import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '
 import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
 import { MetaApiError } from '@/lib/meta/errors';
 import { isPrivateMediaUrl } from '@/lib/storage/media-urls';
+import { randomUUID } from 'node:crypto';
+import { findConfigForAccount, openConfig } from '@/lib/vircle-chat/config';
+import { vircleChatEnabled } from '@/lib/vircle-chat/feature';
+import { GatewayError, sendToGateway } from '@/lib/vircle-chat/gateway';
+import { VircleSendError } from '@/lib/vircle-chat/errors';
+import { guessMimeType } from '@/lib/vircle-chat/media';
 import { getValidAccessToken } from '@/lib/ms365/token';
 import { sendNewMail, sendReplyText, sendReplyWithAttachment, sendReplyHtml } from '@/lib/ms365/mail-api';
 import { GraphApiError } from '@/lib/ms365/errors';
@@ -293,6 +299,17 @@ async function attachmentFile(
   };
 }
 
+/** Every channel `sendMessageToConversation` can deliver on. */
+const KNOWN_CHANNELS: ReadonlySet<string> = new Set([
+  'whatsapp',
+  'web_widget',
+  'messenger',
+  'instagram',
+  'email',
+  'gmail',
+  'vircle_chat',
+]);
+
 export async function sendMessageToConversation(
   db: SupabaseClient,
   accountId: string,
@@ -408,8 +425,18 @@ export async function sendMessageToConversation(
   const isInstagramConversation = channel === 'instagram';
   const isEmailConversation = channel === 'email';
   const isGmailConversation = channel === 'gmail';
+  const isVircleConversation = channel === 'vircle_chat';
+  // A channel this function has no branch for would be stored as "sent" and delivered
+  // nowhere: refuse it instead.
+  if (channel && !KNOWN_CHANNELS.has(channel)) {
+    throw new SendMessageError('bad_request', `Cannot send on the "${channel}" channel`, 400);
+  }
   if (
-    (isMessengerConversation || isInstagramConversation || isEmailConversation || isGmailConversation) &&
+    (isMessengerConversation ||
+      isInstagramConversation ||
+      isEmailConversation ||
+      isGmailConversation ||
+      isVircleConversation) &&
     messageType !== 'text' &&
     !isMediaKind
   ) {
@@ -597,6 +624,12 @@ export async function sendMessageToConversation(
     reply_to_message_id: replyToMessageId || null,
     ...(Object.keys(sendPayload).length ? { send_payload: sendPayload } : {}),
   };
+
+  // The gateway de-duplicates on the Halo message id, so for Vircle Chat the id is chosen
+  // up front and used both as the Idempotency-Key and as the stored row's id: a send that
+  // reached the gateway but failed to save is never sent twice by a retry.
+  const vircleMessageId = isVircleConversation ? randomUUID() : null;
+  if (vircleMessageId) baseRow.id = vircleMessageId;
 
   // Insert a `messages` row. If the database has not had migration 094 yet,
   // retry without `send_payload` rather than losing the message.
@@ -1035,6 +1068,76 @@ export async function sendMessageToConversation(
     }
   }
 
+  // Vircle Chat: the gateway the workspace connected delivers to the app (a socket when the
+  // app is open, a push when it is not) and tells us what it did.
+  let vircleDelivery: string | null = null;
+  if (isVircleConversation) {
+    if (!contact.wallet_id) {
+      throw new SendMessageError('bad_request', 'Contact has no Vircle identity', 400);
+    }
+    const admin = supabaseAdmin();
+    // The connection holds encrypted secrets, so it is read with the service role.
+    const cfgRow = await findConfigForAccount(admin, accountId);
+    if (!cfgRow) {
+      throw new SendMessageError(
+        'vircle_chat_not_configured',
+        'Vircle Chat is not connected. Connect it in Settings → Channels first.',
+        400
+      );
+    }
+    if (cfgRow.enabled === false || !(await vircleChatEnabled(admin, accountId))) {
+      throw new SendMessageError(
+        'channel_disabled',
+        'Vircle Chat is currently disabled. Enable it in Settings → Channels to send messages.',
+        400
+      );
+    }
+    const secrets = openConfig(cfgRow);
+    let senderName: string | null = null;
+    if (senderType === 'agent' && senderUserId) {
+      const { data: prof } = await admin.from('profiles').select('full_name').eq('user_id', senderUserId).maybeSingle();
+      senderName = (prof as { full_name?: string | null } | null)?.full_name ?? null;
+    }
+    try {
+      const accepted = await sendToGateway(
+        { baseUrl: cfgRow.gateway_base_url, apiToken: secrets.apiToken },
+        {
+          idempotencyKey: vircleMessageId!,
+          walletId: contact.wallet_id,
+          conversationId: (conversation.vircle_conversation_id as string | null) ?? null,
+          type: messageType as 'text' | 'image' | 'video' | 'audio' | 'document',
+          text: contentText || null,
+          media: isMediaKind
+            ? {
+                url: await linkForPlatform(db, accountId, mediaUrl!),
+                mimeType: guessMimeType(filename || mediaUrl),
+                fileName: filename || null,
+                sizeBytes: null,
+              }
+            : null,
+          senderName,
+        }
+      );
+      waMessageId = accepted.serverId;
+      vircleDelivery = accepted.delivery;
+      if (accepted.conversationId && accepted.conversationId !== conversation.vircle_conversation_id) {
+        await admin
+          .from('conversations')
+          .update({ vircle_conversation_id: accepted.conversationId })
+          .eq('id', conversationId);
+      }
+    } catch (err) {
+      if (err instanceof SendMessageError) throw err;
+      const message = err instanceof Error ? err.message : 'Unknown gateway error';
+      console.error('[send-message] Vircle Chat send failed:', message);
+      if (err instanceof GatewayError) {
+        await admin.from('vircle_chat_config').update({ last_error: err.message.slice(0, 300) }).eq('id', cfgRow.id);
+        return failSend(new VircleSendError(err), `Vircle Chat error: ${err.message}`);
+      }
+      return failSend(err, `Vircle Chat error: ${message}`);
+    }
+  }
+
   // Persist the sent message. Field names MUST match the messages
   // schema (see 001_initial_schema.sql). The shared columns are built
   // above (`baseRow`) so a failed attempt stores exactly the same row.
@@ -1103,6 +1206,21 @@ export async function sendMessageToConversation(
       contactId: contact.id,
       walletId: contact.wallet_id ?? null,
     }).catch((err) => console.error('[send-message] app push notification failed:', err));
+  }
+
+  // Vircle Chat: when the gateway could only queue the message (the app is not connected and
+  // it raised no alert itself), ask the push API to alert the user, if the workspace turned
+  // that on. Best-effort, never awaited.
+  if (isVircleConversation && (vircleDelivery === 'queued' || vircleDelivery === 'no_device')) {
+    notifyAppUserOfReplyViaPush(supabaseAdmin(), {
+      accountId,
+      conversationId,
+      contactId: contact.id,
+      walletId: contact.wallet_id ?? null,
+      phone: contact.phone ?? null,
+      email: contact.email ?? null,
+      source: 'vircle_chat',
+    }).catch((err) => console.error('[send-message] Vircle push alert failed:', err));
   }
 
   // Pause any active Flow run for this contact — the agent stepping in

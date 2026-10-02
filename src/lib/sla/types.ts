@@ -23,6 +23,7 @@ export const SLA_CHANNELS: readonly ChannelType[] = [
   "instagram",
   "email",
   "gmail",
+  "vircle_chat",
 ];
 
 export interface PolicyConditions {

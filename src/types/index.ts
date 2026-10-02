@@ -127,9 +127,11 @@ export interface Contact {
    *  `messenger_psid`, keyed to the account's connected IG business
    *  account instead of a Page. */
   instagram_igsid?: string | null;
-  /** Informational only (migration 054) — passed through from a
-   *  verified in-app/WebView widget handoff. Never used for contact
-   *  matching; phone stays the sole identity key. */
+  /** Passed through from a verified in-app/WebView widget handoff
+   *  (migration 054), informational there: the widget never matches
+   *  contacts on it. It IS the identity key for the Vircle Chat channel
+   *  (migrations 147/148): the gateway's inbound events are matched to a
+   *  contact by wallet_id, and such a contact may have no phone at all. */
   wallet_id?: string | null;
   name?: string;
   /** Not new — this pre-existing CRM field also doubles as the Email
@@ -249,10 +251,14 @@ export type ConversationPriority = 'urgent' | 'high' | 'normal' | 'low';
  *  "email", since an account may connect one, the other, or both (e.g.
  *  support@ on Gmail and sales@ on Microsoft 365), same reasoning
  *  Messenger/Instagram stay distinct despite both being Meta.
+ *  Vircle Chat (the Vircle mobile app's in-app customer chat, carried by
+ *  an external gateway) added in migrations 147/148; it is keyed by
+ *  `contacts.wallet_id` and, like Web Widget, is a plain text + media
+ *  chat channel.
  *  WhatsApp-only send affordances (templates, interactive buttons/lists)
  *  only make sense for `'whatsapp'` — see send-message.ts and the
  *  automation engine's per-step channel guards. */
-export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail';
+export type ChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail' | 'vircle_chat';
 
 export interface Conversation {
   id: string;

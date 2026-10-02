@@ -228,6 +228,10 @@ export const RATE_LIMITS = {
    *  database work. 120/min is far above what a misconfigured Meta app
    *  produces while it is being fixed. */
   webhookInvalid: { limit: 120, windowMs: 60_000 },
+  /** Valid Vircle Chat events from one workspace's gateway (`/api/vircle-chat/webhook`),
+   *  checked with checkSharedRateLimit. 1 200/min = 20 events a second, far above a
+   *  customer-care chat; it only stops a runaway or hostile gateway. */
+  vircleInbound: { limit: 1200, windowMs: 60_000 },
 
   // ---- Per-workspace budgets (checked with checkSharedRateLimit, so every
   // app instance counts into the same bucket, migration 138). They bound a

@@ -229,7 +229,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "E-mel",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "allPriorities": "Semua keutamaan",
       "priority": {
@@ -302,7 +303,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "E-mel",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "awaitingResponseSince": "Menunggu balasan — pelanggan menghantar mesej {time}",
       "priority": {
@@ -411,7 +413,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "E-mel",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "modeKnowledge": "Pengetahuan"
     },
@@ -2803,7 +2806,8 @@
         "email": "E-mel",
         "gmail": "Gmail",
         "sms": "SMS",
-        "tiktok": "TikTok"
+        "tiktok": "TikTok",
+        "vircle_chat": "Vircle Chat"
       },
       "comingSoonBadge": "Tidak lama lagi",
       "comingSoonTitle": "{channel} akan datang tidak lama lagi",
@@ -3023,6 +3027,71 @@
         "pushEndpointLabel": "URL titik akhir tolak",
         "pushEndpointHint": "Tampal URL tepat ini sebagai titik akhir tolak semasa mencipta langganan Pub/Sub dalam Google Cloud Console — ia mengandungi token pengesahan sambungan ini sendiri.",
         "pushEndpointCopied": "URL titik akhir tolak disalin ke papan keratan"
+      },
+      "vircleChat": {
+        "title": "Vircle Chat",
+        "description": "Berbual dengan pelanggan di dalam aplikasi Vircle. Mesej dihantar melalui gateway sembang Vircle.",
+        "needsPermission": "Hanya orang yang boleh mengurus saluran boleh melihat atau mengubah sambungan Vircle Chat.",
+        "notEnabled": "Vircle Chat tidak diaktifkan untuk ruang kerja ini. Minta pengendali platform anda mengaktifkannya.",
+        "loadFailed": "Tidak dapat memuatkan sambungan Vircle Chat.",
+        "retry": "Cuba lagi",
+        "gatewayTitle": "Gateway",
+        "gatewayDescription": "Tempat Halo menghantar balasan anda: alamat gateway sembang Vircle yang diberikan oleh pasukan gateway.",
+        "gatewayLabel": "Alamat gateway",
+        "gatewayPlaceholder": "https://chat-gateway.example.com",
+        "gatewayHint": "Mesti bermula dengan https://. Simpanan pertama mencipta kunci ruang kerja, rahsia tandatangan dan token API.",
+        "save": "Simpan",
+        "saveAndConnect": "Simpan dan sambung",
+        "saved": "Alamat gateway disimpan",
+        "connected": "Vircle Chat disambungkan. Salin rahsia di bawah sekarang.",
+        "saveFailed": "Tidak dapat menyimpan sambungan Vircle Chat",
+        "detailsTitle": "Berikan ini kepada pasukan gateway",
+        "detailsDescription": "Gateway memerlukan keempat-empat nilai ini untuk menghantar peristiwa kepada Halo dan menerima mesej daripada Halo.",
+        "revealedTitle": "Salin rahsia sekarang",
+        "revealedHint": "Rahsia tandatangan dan token API hanya dipaparkan sekali. Ia disimpan dengan penyulitan dan tidak boleh dipaparkan semula. Jika hilang, tukar untuk mendapatkan nilai baharu.",
+        "revealedDone": "Saya sudah menyalinnya",
+        "workspaceKeyLabel": "Kunci ruang kerja",
+        "workspaceKeyHint": "Awam. Gateway memasukkannya dalam setiap peristiwa supaya Halo tahu peristiwa itu untuk ruang kerja yang mana.",
+        "webhookUrlLabel": "URL webhook",
+        "webhookUrlHint": "Tempat gateway menghantar peristiwa: mesej daripada aplikasi dan resit penghantaran.",
+        "signingSecretLabel": "Rahsia tandatangan",
+        "signingSecretHint": "Gateway menandatangani setiap peristiwa dengannya, dan Halo menolak apa-apa yang tidak sepadan.",
+        "apiTokenLabel": "Token API",
+        "apiTokenHint": "Halo mengemukakannya kepada gateway bersama setiap mesej yang dihantar.",
+        "secretHidden": "Disembunyikan. Ia dipaparkan sekali semasa dicipta. Tukar untuk mendapatkan nilai baharu.",
+        "copy": "Salin",
+        "copied": "Disalin ke papan keratan",
+        "copyFailed": "Gagal menyalin",
+        "rotateSecret": "Tukar rahsia",
+        "rotateToken": "Tukar token",
+        "rotateSecretTitle": "Tukar rahsia tandatangan?",
+        "rotateSecretBody": "Rahsia semasa berhenti berfungsi serta-merta. Peristiwa yang ditandatangani gateway dengan rahsia lama ditolak sehingga pasukan gateway beralih kepada yang baharu.",
+        "rotateTokenTitle": "Tukar token API?",
+        "rotateTokenBody": "Halo mula menggunakan token baharu serta-merta. Mesej kepada gateway ditolak sehingga pasukan gateway menerima token baharu.",
+        "rotateConfirm": "Tukar",
+        "rotateFailed": "Tidak dapat menukar. Cuba lagi.",
+        "secretRotated": "Rahsia tandatangan baharu dicipta. Salin sekarang.",
+        "tokenRotated": "Token API baharu dicipta. Salin sekarang.",
+        "cancel": "Batal",
+        "statusTitle": "Status",
+        "pausedNotice": "Dijeda. Tiada mesej baharu diterima atau dihantar sehingga anda mengaktifkan semula saluran ini.",
+        "lastInboundLabel": "Mesej terakhir diterima",
+        "neverReceived": "Belum ada mesej diterima",
+        "lastErrorLabel": "Ralat terakhir",
+        "noError": "Tiada",
+        "testConnection": "Uji sambungan",
+        "testOk": "Gateway menjawab. Sambungan berfungsi.",
+        "testFailed": "Ujian sambungan gagal.",
+        "testFailedWith": "Ujian sambungan gagal: {error}",
+        "pushLabel": "Amaran tolak daripada Halo",
+        "pushHint": "Apabila balasan hanya dapat disimpan dalam baris gilir kerana orang itu tidak bersambung, minta API tolak Vircle memberi amaran kepada mereka. Tidak aktif sehingga butiran API tolak dikonfigurasikan.",
+        "pushToggleFailed": "Tidak dapat mengemas kini. Cuba lagi.",
+        "disconnect": "Putuskan sambungan",
+        "disconnectTitle": "Putuskan sambungan Vircle Chat?",
+        "disconnectBody": "Kunci ruang kerja, rahsia tandatangan dan token API dipadam. Orang tidak dapat menghubungi anda melalui aplikasi sehingga anda menyambung semula dan memberikan nilai baharu kepada pasukan gateway. Perbualan sedia ada dikekalkan.",
+        "disconnectConfirm": "Putuskan sambungan",
+        "disconnected": "Sambungan Vircle Chat diputuskan",
+        "disconnectFailed": "Tidak dapat memutuskan sambungan Vircle Chat"
       },
       "tiktok": {
         "title": "TikTok",
@@ -3857,7 +3926,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "E-mel",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "errors": {
         "invalid_timezone": "Zon waktu itu tidak sah. Pilih satu daripada senarai.",

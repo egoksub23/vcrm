@@ -88,13 +88,18 @@ export function useBrowserNotifications(): void {
       // failure here just means the generic fallback title.
       const { data } = await supabase
         .from("conversations")
-        .select("contact:contacts(name, wa_username, phone)")
+        .select("contact:contacts(name, wa_username, phone, wallet_id)")
         .eq("id", msg.conversation_id)
         .maybeSingle();
       if (cancelled) return;
 
       const contact = (data as {
-        contact?: { name?: string | null; wa_username?: string | null; phone?: string | null } | null;
+        contact?: {
+          name?: string | null;
+          wa_username?: string | null;
+          phone?: string | null;
+          wallet_id?: string | null;
+        } | null;
       } | null)?.contact;
       const { title, body } = buildNotificationContent(
         msg,

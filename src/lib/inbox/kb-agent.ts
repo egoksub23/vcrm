@@ -134,6 +134,9 @@ export function planKbFile(
       if (file.kind === "video") return { mode: "media", kind: WA_VIDEO.has(mime) ? "video" : "document" };
       if (file.kind === "audio") return { mode: "media", kind: WA_AUDIO.has(mime) ? "audio" : "document" };
       return { mode: "media", kind: "document" };
+    case "vircle_chat":
+      // The in-app chat shows image, video, audio and documents natively.
+      return { mode: "media", kind: file.kind };
     default:
       // Messenger, and email/Gmail (a real attachment on its own message).
       return { mode: "media", kind: file.kind };

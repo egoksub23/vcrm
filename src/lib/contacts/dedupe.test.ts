@@ -74,6 +74,7 @@ describe("findExistingContact", () => {
     const builder = {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       like: () => Promise.resolve({ data: rows, error: null }),
     };
     return { from: () => builder } as unknown as SupabaseClient;
@@ -105,6 +106,7 @@ describe("findExistingContact", () => {
     const builder: Record<string, unknown> = {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       like: () => builder,
       neq: (_col: string, id: string) => {
         expect(id).toBe("self");

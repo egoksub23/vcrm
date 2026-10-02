@@ -32,7 +32,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents", "jira"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -100,6 +100,11 @@ const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => bool
   // The Jira link (Settings > Integrations, the Jira section of a ticket,
   // every /api/integrations/jira route) is gated by the three jira.* caps.
   jira: (c) => c.startsWith("jira."),
+  // Vircle Chat has no capability of its own: it is configured under
+  // `channels.manage`, which every other channel shares. Its routes, the
+  // webhook, the send path and the Settings card read the flag directly
+  // (lib/vircle-chat/feature.ts, and `isFeatureEnabled` in the browser).
+  vircle_chat: () => false,
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */

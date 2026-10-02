@@ -229,7 +229,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "邮件",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "allPriorities": "所有优先级",
       "priority": {
@@ -302,7 +303,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "邮件",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "awaitingResponseSince": "等待回复——客户于 {time} 发来消息",
       "priority": {
@@ -411,7 +413,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "邮件",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "modeKnowledge": "知识"
     },
@@ -2803,7 +2806,8 @@
         "email": "电子邮件",
         "gmail": "Gmail",
         "sms": "SMS",
-        "tiktok": "TikTok"
+        "tiktok": "TikTok",
+        "vircle_chat": "Vircle Chat"
       },
       "comingSoonBadge": "即将推出",
       "comingSoonTitle": "{channel} 即将推出",
@@ -3023,6 +3027,71 @@
         "pushEndpointLabel": "推送端点 URL",
         "pushEndpointHint": "在 Google Cloud Console 中创建 Pub/Sub 订阅时，请原样粘贴此 URL 作为推送端点——它包含此连接专属的验证令牌。",
         "pushEndpointCopied": "推送端点 URL 已复制到剪贴板"
+      },
+      "vircleChat": {
+        "title": "Vircle Chat",
+        "description": "在 Vircle 应用内与客户聊天。消息通过 Vircle 聊天网关传递。",
+        "needsPermission": "只有能够管理渠道的人才能查看或更改 Vircle Chat 连接。",
+        "notEnabled": "此工作区未启用 Vircle Chat。请联系平台运营方开启。",
+        "loadFailed": "无法加载 Vircle Chat 连接。",
+        "retry": "重试",
+        "gatewayTitle": "网关",
+        "gatewayDescription": "Halo 发送回复的目的地：由网关团队提供的 Vircle 聊天网关地址。",
+        "gatewayLabel": "网关地址",
+        "gatewayPlaceholder": "https://chat-gateway.example.com",
+        "gatewayHint": "必须以 https:// 开头。首次保存会生成工作区标识、签名密钥和 API 令牌。",
+        "save": "保存",
+        "saveAndConnect": "保存并连接",
+        "saved": "网关地址已保存",
+        "connected": "Vircle Chat 已连接。请立即复制下方的密钥。",
+        "saveFailed": "无法保存 Vircle Chat 连接",
+        "detailsTitle": "请把这些交给网关团队",
+        "detailsDescription": "网关需要这四项值，才能向 Halo 发送事件并接收来自 Halo 的消息。",
+        "revealedTitle": "请立即复制密钥",
+        "revealedHint": "签名密钥和 API 令牌只显示一次。它们以加密方式存储，无法再次显示。如果丢失，请轮换以获取新值。",
+        "revealedDone": "我已复制",
+        "workspaceKeyLabel": "工作区标识",
+        "workspaceKeyHint": "公开值。网关会把它放进每个事件，让 Halo 知道事件属于哪个工作区。",
+        "webhookUrlLabel": "Webhook URL",
+        "webhookUrlHint": "网关发送事件的地址：来自应用的消息和送达回执。",
+        "signingSecretLabel": "签名密钥",
+        "signingSecretHint": "网关用它为每个事件签名，Halo 会拒绝不匹配的请求。",
+        "apiTokenLabel": "API 令牌",
+        "apiTokenHint": "Halo 每次发送消息时都会向网关出示它。",
+        "secretHidden": "已隐藏。它在创建时只显示过一次。轮换可获取新值。",
+        "copy": "复制",
+        "copied": "已复制到剪贴板",
+        "copyFailed": "复制失败",
+        "rotateSecret": "轮换密钥",
+        "rotateToken": "轮换令牌",
+        "rotateSecretTitle": "轮换签名密钥？",
+        "rotateSecretBody": "当前密钥将立即失效。在网关团队改用新密钥之前，用旧密钥签名的事件都会被拒绝。",
+        "rotateTokenTitle": "轮换 API 令牌？",
+        "rotateTokenBody": "Halo 会立即改用新令牌。在网关团队接受新令牌之前，发往网关的消息都会被拒绝。",
+        "rotateConfirm": "轮换",
+        "rotateFailed": "无法轮换。请重试。",
+        "secretRotated": "已生成新的签名密钥。请立即复制。",
+        "tokenRotated": "已生成新的 API 令牌。请立即复制。",
+        "cancel": "取消",
+        "statusTitle": "状态",
+        "pausedNotice": "已暂停。重新启用此渠道之前，不会接收或发送新消息。",
+        "lastInboundLabel": "最近收到消息的时间",
+        "neverReceived": "尚未收到消息",
+        "lastErrorLabel": "最近的错误",
+        "noError": "无",
+        "testConnection": "测试连接",
+        "testOk": "网关已响应。连接正常。",
+        "testFailed": "连接测试失败。",
+        "testFailedWith": "连接测试失败：{error}",
+        "pushLabel": "来自 Halo 的推送提醒",
+        "pushHint": "当回复因对方未连接而只能排队时，请求 Vircle 推送 API 提醒对方。在推送 API 的详细信息配置好之前不会生效。",
+        "pushToggleFailed": "无法更新。请重试。",
+        "disconnect": "断开连接",
+        "disconnectTitle": "断开 Vircle Chat？",
+        "disconnectBody": "工作区标识、签名密钥和 API 令牌将被删除。在您重新连接并把新值交给网关团队之前，用户无法通过应用联系您。现有对话会保留。",
+        "disconnectConfirm": "断开连接",
+        "disconnected": "Vircle Chat 已断开",
+        "disconnectFailed": "无法断开 Vircle Chat"
       },
       "tiktok": {
         "title": "TikTok",
@@ -3857,7 +3926,8 @@
         "messenger": "Messenger",
         "instagram": "Instagram",
         "email": "电子邮件",
-        "gmail": "Gmail"
+        "gmail": "Gmail",
+        "vircle_chat": "Vircle Chat"
       },
       "errors": {
         "invalid_timezone": "该时区无效，请从列表中选择。",

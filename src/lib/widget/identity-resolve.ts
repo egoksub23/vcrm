@@ -179,6 +179,7 @@ export function createSupabaseIdentityStore(admin: SupabaseClient): IdentityStor
         .from('contacts')
         .select('id, account_id, name, phone, email, wallet_id')
         .eq('account_id', accountId)
+        .is('deleted_at', null)
         .ilike('email', escapeLikeExact(email))
         .order('created_at', { ascending: true })
         .limit(1)
@@ -192,6 +193,7 @@ export function createSupabaseIdentityStore(admin: SupabaseClient): IdentityStor
         .select('id, account_id, name, phone, email, wallet_id')
         .eq('account_id', accountId)
         .eq('wallet_id', walletId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
         .limit(1)
       if (error) throw error

@@ -299,10 +299,10 @@ describe('kbHtmlToChannelText', () => {
     )
   })
 
-  it('is plain text for Messenger, Instagram and the web widget', () => {
+  it('is plain text for Messenger, Instagram, the web widget and Vircle Chat', () => {
     const expected =
       'Refunds\n\nYou get full refunds in 14 days, not 30.\n\n- Keep the receipt\n- Unused items\n\nSee refund policy (https://x.com/refunds).'
-    for (const ch of ['messenger', 'instagram', 'web_widget'] as const) {
+    for (const ch of ['messenger', 'instagram', 'web_widget', 'vircle_chat'] as const) {
       expect(kbHtmlToChannelText(html, 'plain', ch)).toBe(expected)
     }
   })

@@ -112,6 +112,15 @@ describe("planKbFile", () => {
     });
   });
 
+  it("sends every kind as media on Vircle Chat", () => {
+    expect(planKbFile("vircle_chat", file("document", "application/pdf"))).toEqual({
+      mode: "media",
+      kind: "document",
+    });
+    expect(planKbFile("vircle_chat", file("image", "image/heic"))).toEqual({ mode: "media", kind: "image" });
+    expect(planKbFile("vircle_chat", file("audio", "audio/ogg"))).toEqual({ mode: "media", kind: "audio" });
+  });
+
   it("keeps the natural kind on Messenger and email", () => {
     expect(planKbFile("messenger", file("document", "application/pdf"))).toEqual({
       mode: "media",

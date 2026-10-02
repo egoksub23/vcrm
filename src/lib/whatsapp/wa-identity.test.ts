@@ -254,6 +254,11 @@ describe('contactHandle', () => {
     ).toBe('US.13491208655302741918')
   })
 
+  it('falls back to the wallet id for a Vircle Chat contact with no phone', () => {
+    expect(contactHandle({ phone: '', wallet_id: 'w_123' })).toBe('w_123')
+    expect(contactHandle({ phone: '+15551230000', wallet_id: 'w_123' })).toBe('+15551230000')
+  })
+
   it('is empty only when the contact carries no identity at all', () => {
     expect(contactHandle({})).toBe('')
     expect(contactHandle({ phone: null, wa_username: null, wa_user_id: null })).toBe('')

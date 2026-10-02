@@ -51,6 +51,13 @@ describe('planDelivery', () => {
     expect(planDelivery('instagram', att({ kind: 'image', mime_type: 'image/heic' }))).toEqual({ via: 'link' })
   })
 
+  it('sends every file kind as real media on Vircle Chat', () => {
+    expect(planDelivery('vircle_chat', att())).toEqual({ via: 'media', messageType: 'document' })
+    expect(planDelivery('vircle_chat', att({ kind: 'image', mime_type: 'image/heic' }))).toEqual({ via: 'media', messageType: 'image' })
+    expect(planDelivery('vircle_chat', att({ kind: 'video', mime_type: 'video/mp4' }))).toEqual({ via: 'media', messageType: 'video' })
+    expect(planDelivery('vircle_chat', att({ kind: 'audio', mime_type: 'audio/ogg' }))).toEqual({ via: 'media', messageType: 'audio' })
+  })
+
   it('sends everything on the web widget as a link', () => {
     expect(planDelivery('web_widget', att())).toEqual({ via: 'link' })
     expect(planDelivery('web_widget', att({ kind: 'image', mime_type: 'image/png' }))).toEqual({ via: 'link' })

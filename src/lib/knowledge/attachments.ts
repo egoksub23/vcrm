@@ -49,6 +49,8 @@ export function planDelivery(
       if (file.kind === 'audio' && WA_AUDIO.has(mime)) return { via: 'media', messageType: 'audio' }
       return { via: 'media', messageType: 'document' }
     case 'messenger':
+    case 'vircle_chat':
+      // The in-app chat shows images, video, audio and documents natively.
       return { via: 'media', messageType: file.kind }
     case 'instagram':
       if (file.kind === 'image' && IG_IMAGE.has(mime)) return { via: 'media', messageType: 'image' }

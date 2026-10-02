@@ -42,6 +42,7 @@ describe('hasNonPhoneIdentity', () => {
     expect(hasNonPhoneIdentity({ wa_user_id: 'US.1' })).toBe(true);
     expect(hasNonPhoneIdentity({ messenger_psid: 'x' })).toBe(true);
     expect(hasNonPhoneIdentity({ widget_visitor_id: 'y' })).toBe(true);
+    expect(hasNonPhoneIdentity({ wallet_id: 'w_1' })).toBe(true);
   });
 });
 

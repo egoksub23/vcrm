@@ -82,6 +82,11 @@ const CHANNELS_ADMIN: [string, string[]][] = [
   // Web Widget v2: the in-app identity secret and the admin-only test token.
   ["account/channels/web-widget/identity-secret", ["POST", "DELETE"]],
   ["account/channels/web-widget/identity-token", ["POST"]],
+  // Vircle Chat (migration 147): the connection, its two secrets and the health check.
+  ["account/channels/vircle-chat", ["GET", "PUT", "PATCH", "DELETE"]],
+  ["account/channels/vircle-chat/secret", ["POST"]],
+  ["account/channels/vircle-chat/token", ["POST"]],
+  ["account/channels/vircle-chat/test", ["POST"]],
   ["comments/test", ["POST", "DELETE"]],
   ["whatsapp/templates/submit", ["POST"]],
   ["whatsapp/templates/sync", ["POST"]],
@@ -262,6 +267,10 @@ export const DB_TIER_ROWS: readonly Row[] = [
     "web_widget_config",
     "message_templates",
   ].map((t) => row(t, "insert/update/delete", "admin", "channels.manage")),
+  // Migration 147 (Vircle Chat): new table, admin floor on writes and reads
+  // (it holds the encrypted signing secret and API token). Not in
+  // DB_TIER_WRITE_TABLES: that list pins migration 079's own VALUES list only.
+  row("vircle_chat_config", "insert/update/delete", "admin", "channels.manage", "new (migration 147)"),
   ...["ai_configs", "ai_connections", "ai_task_routing"].map((t) =>
     row(t, "insert/update/delete", "admin", "ai.configure"),
   ),

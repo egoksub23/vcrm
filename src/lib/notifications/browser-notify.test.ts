@@ -250,6 +250,10 @@ describe("pickContactDisplayName", () => {
     );
   });
 
+  it("falls back to the wallet id for a Vircle Chat contact with no phone", () => {
+    expect(pickContactDisplayName({ name: null, phone: "", wallet_id: "w_1" })).toBe("w_1");
+  });
+
   it("returns null when nothing is usable", () => {
     expect(pickContactDisplayName(null)).toBeNull();
     expect(pickContactDisplayName({ name: " ", wa_username: "", phone: "" })).toBeNull();

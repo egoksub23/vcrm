@@ -2006,7 +2006,7 @@ export function MessageThread({
                           authorLabel:
                             parent.sender_type === "agent" || parent.sender_type === "bot"
                               ? t("me")
-                              : contact?.name || contact?.phone || t("unknown"),
+                              : contact?.name || contact?.phone || contact?.wallet_id || t("unknown"),
                           preview: buildReplyPreview(parent, tQuote),
                         }
                       : null;
@@ -2024,7 +2024,7 @@ export function MessageThread({
                     const senderLabel = sameSenderAsPrev
                       ? undefined
                       : msg.sender_type === "customer"
-                        ? contact?.name || contact?.phone || t("unknown")
+                        ? contact?.name || contact?.phone || contact?.wallet_id || t("unknown")
                         : msg.sender_type === "bot"
                           ? t("botLabel")
                           : msg.sender_id === user?.id

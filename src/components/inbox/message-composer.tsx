@@ -280,10 +280,11 @@ export function MessageComposer({
 
   // Media attach works on every channel, the web widget included (Web
   // Widget v2: photos, video, voice notes and files reach the visitor as
-  // ordinary message rows). Templates and interactive buttons/lists are
-  // Meta concepts with no Messenger/Instagram/widget equivalent (different
-  // quick-reply shape, no pre-approved template system at all) —
-  // WhatsApp-only until that's built out separately.
+  // ordinary message rows) and Vircle Chat. Templates and interactive
+  // buttons/lists are Meta concepts with no Messenger/Instagram/widget/
+  // Vircle Chat equivalent (different quick-reply shape, no pre-approved
+  // template system at all) — WhatsApp-only until that's built out
+  // separately.
   const supportsMedia = true;
   const supportsTemplatesAndInteractive = selectedChannel === "whatsapp";
 
@@ -336,8 +337,8 @@ export function MessageComposer({
   // ---- WYSIWYG editor for Email(MS365)/Gmail replies -------------------
   // Only these two channels have anything resembling formatted HTML mail
   // to compose — every other channel is plain text (WhatsApp/Messenger/
-  // Instagram have no rich-formatting concept, and the web widget renders
-  // customer-facing text only). `text` still tracks the editor's plain-
+  // Instagram have no rich-formatting concept, and the web widget and
+  // Vircle Chat render customer-facing text only). `text` still tracks the editor's plain-
   // text derivation (via onChangeHtml's second arg) so the rest of the
   // send path — validation, the optimistic bubble, every non-email
   // channel — keeps working exactly as before without a parallel state.

@@ -51,6 +51,8 @@ export async function findExistingContact(
     .from("contacts")
     .select("*")
     .eq("account_id", accountId)
+    // A deleted contact keeps its row (a soft delete) but must never receive a message.
+    .is("deleted_at", null)
     .like("phone", `%${suffix}`);
   if (excludeContactId) {
     query = query.neq("id", excludeContactId);

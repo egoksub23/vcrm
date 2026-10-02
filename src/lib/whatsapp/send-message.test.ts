@@ -248,6 +248,26 @@ vi.mock('@/lib/gmail/token', () => ({
     (getValidGmailAccessTokenMock as unknown as (...a: unknown[]) => unknown)(...args),
 }));
 
+// Vircle Chat: the gateway call, the connection and the operator's flag are stubbed; their
+// own tests cover them. Here we check what the send path does with their answers.
+const sendToGatewayMock = vi.fn(async (..._args: unknown[]) => ({
+  serverId: 'm_78',
+  seq: 42,
+  conversationId: 'c_9f2',
+  delivery: 'socket' as const,
+}));
+const vircleConfig = { current: { id: 'vc-1', gateway_base_url: 'https://gw.example.com', enabled: true } as Record<string, unknown> | null };
+const vircleFlag = { on: true };
+vi.mock('@/lib/vircle-chat/gateway', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  sendToGateway: (...args: unknown[]) => sendToGatewayMock(...args),
+}));
+vi.mock('@/lib/vircle-chat/config', () => ({
+  findConfigForAccount: async () => vircleConfig.current,
+  openConfig: () => ({ signingSecret: 's', apiToken: 'tok' }),
+}));
+vi.mock('@/lib/vircle-chat/feature', () => ({ vircleChatEnabled: async () => vircleFlag.on }));
+
 interface CapturedWrites {
   message?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
@@ -259,7 +279,7 @@ interface CapturedWrites {
  * object serves `.single()` lookups and the bare `select().eq().eq()`
  * the template resolver uses.
  */
-type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail';
+type TestChannelType = 'whatsapp' | 'web_widget' | 'messenger' | 'instagram' | 'email' | 'gmail' | 'vircle_chat';
 
 function sendPathDb(
   templateRows: unknown[],
@@ -286,6 +306,7 @@ function sendPathDb(
     id: 'cv-1',
     contact,
     last_channel_type: channelType,
+    vircle_conversation_id: null as string | null,
   };
   const config =
     'whatsappConfig' in configOverrides
@@ -1594,5 +1615,105 @@ describe('sendMessageToConversation — disabled channel (migration 097)', () =>
       sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
     ).rejects.toThrow(/Gmail is currently disabled/);
     expect(sendNewGmailMock).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// Vircle Chat channel (migration 147)
+// ============================================================
+describe('sendMessageToConversation — Vircle Chat channel', () => {
+  const contact = { id: 'ct-1', phone: '', wallet_id: 'W123', email: null };
+  const send = (db: SupabaseClient, params: Partial<SendMessageParams> = {}) =>
+    sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'Hi Aisha, checking now.',
+      ...params,
+    });
+
+  const reset = () => {
+    sendToGatewayMock.mockClear();
+    vircleConfig.current = { id: 'vc-1', gateway_base_url: 'https://gw.example.com', enabled: true };
+    vircleFlag.on = true;
+  };
+
+  it('sends through the gateway with the message id as the idempotency key and stores the gateway id', async () => {
+    reset();
+    const captured: CapturedWrites = {};
+    const result = await send(sendPathDb([], captured, contact, 'vircle_chat'));
+
+    expect(sendToGatewayMock).toHaveBeenCalledTimes(1);
+    const [conn, msg] = sendToGatewayMock.mock.calls[0] as [Record<string, unknown>, Record<string, unknown>];
+    expect(conn).toEqual({ baseUrl: 'https://gw.example.com', apiToken: 'tok' });
+    expect(msg).toMatchObject({ walletId: 'W123', type: 'text', text: 'Hi Aisha, checking now.', media: null, conversationId: null });
+    // The same id is the stored row's id, so a retry after a crash cannot send twice.
+    expect(msg.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+    expect(captured.message?.id).toBe(msg.idempotencyKey);
+    expect(captured.message).toMatchObject({ channel_type: 'vircle_chat', message_id: 'm_78', status: 'sent' });
+    expect(result.whatsappMessageId).toBe('m_78');
+  });
+
+  it('sends a file as a signed link with a guessed type', async () => {
+    reset();
+    const db = sendPathDb([], {}, contact, 'vircle_chat');
+    await send(db, { messageType: 'image', mediaUrl: 'https://cdn.example.com/a/photo.PNG', contentText: undefined });
+    const msg = sendToGatewayMock.mock.calls[0][1] as { media: Record<string, unknown>; type: string };
+    expect(msg.type).toBe('image');
+    expect(msg.media).toMatchObject({ url: 'https://cdn.example.com/a/photo.PNG', mimeType: 'image/png' });
+  });
+
+  it('refuses a contact without a wallet id, before calling the gateway', async () => {
+    reset();
+    await expect(send(sendPathDb([], {}, { id: 'ct-1', phone: '' }, 'vircle_chat'))).rejects.toMatchObject({
+      code: 'bad_request',
+      status: 400,
+    });
+    expect(sendToGatewayMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses when Vircle Chat is not connected, paused, or switched off by the operator', async () => {
+    reset();
+    vircleConfig.current = null;
+    await expect(send(sendPathDb([], {}, contact, 'vircle_chat'))).rejects.toMatchObject({ code: 'vircle_chat_not_configured' });
+
+    reset();
+    vircleConfig.current = { id: 'vc-1', gateway_base_url: 'https://gw.example.com', enabled: false };
+    await expect(send(sendPathDb([], {}, contact, 'vircle_chat'))).rejects.toMatchObject({ code: 'channel_disabled' });
+
+    reset();
+    vircleFlag.on = false;
+    await expect(send(sendPathDb([], {}, contact, 'vircle_chat'))).rejects.toMatchObject({ code: 'channel_disabled' });
+    expect(sendToGatewayMock).not.toHaveBeenCalled();
+  });
+
+  it('saves a failed bubble with the mapped reason when the gateway refuses', async () => {
+    reset();
+    const { GatewayError } = await import('@/lib/vircle-chat/gateway');
+    sendToGatewayMock.mockRejectedValueOnce(new GatewayError('user_not_found', 'No such user', 404, false));
+    const captured: CapturedWrites = {};
+    await expect(send(sendPathDb([], captured, contact, 'vircle_chat'))).rejects.toBeInstanceOf(SendMessageError);
+    expect(captured.message).toMatchObject({
+      status: 'failed',
+      channel_type: 'vircle_chat',
+      error_code: 551,
+    });
+    expect(String(captured.message?.error_details)).toContain('user_not_found');
+  });
+
+  it('does not text a web-chat style template or interactive message', async () => {
+    reset();
+    await expect(
+      send(sendPathDb([], {}, contact, 'vircle_chat'), { messageType: 'template', templateName: 'hello', contentText: undefined }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(sendToGatewayMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a channel it has no way to deliver on instead of saving it as sent', async () => {
+    reset();
+    const db = sendPathDb([], {}, contact, 'whatsapp');
+    await expect(send(db, { channelOverride: 'carrier_pigeon' as never })).rejects.toMatchObject({
+      code: 'bad_request',
+      message: expect.stringContaining('carrier_pigeon'),
+    });
   });
 });

@@ -15,16 +15,30 @@ import { InstagramChannel } from './channels/instagram-channel';
 import { EmailChannel } from './channels/email-channel';
 import { GmailChannel } from './channels/gmail-channel';
 import { TikTokChannel } from './channels/tiktok-channel';
+import { VircleChatChannel } from './channels/vircle-chat-channel';
 import { CommentsSamplesCard } from './channels/comments-samples-card';
 import { PROVIDER_ICONS } from '@/components/comments/provider-icons';
 import { useCapability } from '@/hooks/use-can';
+import { useAuth } from '@/hooks/use-auth';
+import { isFeatureEnabled } from '@/lib/platform/features';
 
-type ChannelId = 'whatsapp' | 'web_widget' | 'instagram' | 'messenger' | 'tiktok' | 'email' | 'gmail' | 'sms';
+type ChannelId =
+  | 'whatsapp'
+  | 'web_widget'
+  | 'instagram'
+  | 'messenger'
+  | 'tiktok'
+  | 'email'
+  | 'gmail'
+  | 'vircle_chat'
+  | 'sms';
 
 interface ChannelEntry {
   id: ChannelId;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   comingSoon?: boolean;
+  /** Operator flag (Platform console) that must be on for this tab to exist. */
+  feature?: string;
 }
 
 const CHANNELS: ChannelEntry[] = [
@@ -35,6 +49,7 @@ const CHANNELS: ChannelEntry[] = [
   { id: 'tiktok', icon: PROVIDER_ICONS.tiktok },
   { id: 'email', icon: CHANNEL_ICONS.email },
   { id: 'gmail', icon: CHANNEL_ICONS.gmail },
+  { id: 'vircle_chat', icon: CHANNEL_ICONS.vircle_chat, feature: 'vircle_chat' },
   // No real channel behind SMS yet — no brand to show, so it keeps the
   // generic outline icon the others used before this changed to logos.
   { id: 'sms', icon: MessageSquareText, comingSoon: true },
@@ -56,7 +71,16 @@ function isChannelId(value: string | null): value is ChannelId {
 export function ChannelsTab() {
   const t = useTranslations('Settings.channels');
   const canManageChannels = useCapability('channels.manage');
+  const { platform, loading: authLoading, profileLoading } = useAuth();
   const searchParams = useSearchParams();
+  // A channel behind an operator flag (Vircle Chat) has no tab, and a
+  // `?channel=` link to it falls back to WhatsApp, while the flag is off (or
+  // not yet known: the flags arrive with the profile, so a workspace that
+  // has it off never sees the tab flash up).
+  const flagsKnown = !authLoading && !profileLoading;
+  const visibleChannels = CHANNELS.filter(
+    (c) => !c.feature || (flagsKnown && isFeatureEnabled(platform, c.feature)),
+  );
   // The OAuth connect flow (Messenger/Instagram) redirects back here
   // with `?channel=`, so a completed connection (or an error) lands on
   // the right sub-nav tab instead of defaulting to WhatsApp.
@@ -64,6 +88,7 @@ export function ChannelsTab() {
     const fromUrl = searchParams.get('channel');
     return isChannelId(fromUrl) ? fromUrl : 'whatsapp';
   });
+  const shown: ChannelId = visibleChannels.some((c) => c.id === active) ? active : 'whatsapp';
   // WhatsApp's own sub-tabs: an explicit `?view=` wins; the legacy
   // `?tab=whatsapp` link (account menu) means the connection, and the
   // legacy `?tab=templates` link means templates. Otherwise Templates
@@ -89,14 +114,14 @@ export function ChannelsTab() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        {CHANNELS.map((channel) => (
+        {visibleChannels.map((channel) => (
           <button
             key={channel.id}
             type="button"
             onClick={() => setActive(channel.id)}
             className={cn(
               'flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-              active === channel.id
+              shown === channel.id
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
@@ -112,20 +137,21 @@ export function ChannelsTab() {
         ))}
       </div>
 
-      {active === 'whatsapp' ? <WhatsAppChannel initialView={initialWhatsAppView} /> : null}
-      {active === 'web_widget' ? <WebWidgetChannel /> : null}
-      {active === 'messenger' ? <MessengerChannel /> : null}
-      {active === 'instagram' ? <InstagramChannel /> : null}
-      {active === 'tiktok' ? <TikTokChannel /> : null}
-      {canManageChannels && (active === 'messenger' || active === 'instagram' || active === 'tiktok') ? (
+      {shown === 'whatsapp' ? <WhatsAppChannel initialView={initialWhatsAppView} /> : null}
+      {shown === 'web_widget' ? <WebWidgetChannel /> : null}
+      {shown === 'messenger' ? <MessengerChannel /> : null}
+      {shown === 'instagram' ? <InstagramChannel /> : null}
+      {shown === 'tiktok' ? <TikTokChannel /> : null}
+      {canManageChannels && (shown === 'messenger' || shown === 'instagram' || shown === 'tiktok') ? (
         <CommentsSamplesCard />
       ) : null}
-      {active === 'email' ? <EmailChannel /> : null}
-      {active === 'gmail' ? <GmailChannel /> : null}
-      {active === 'sms' ? (
+      {shown === 'email' ? <EmailChannel /> : null}
+      {shown === 'gmail' ? <GmailChannel /> : null}
+      {shown === 'vircle_chat' ? <VircleChatChannel /> : null}
+      {shown === 'sms' ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <p className="text-sm font-medium text-foreground">
-            {t('comingSoonTitle', { channel: t(`names.${active}`) })}
+            {t('comingSoonTitle', { channel: t(`names.${shown}`) })}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {t('comingSoonDescription')}

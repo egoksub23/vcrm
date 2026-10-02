@@ -118,6 +118,8 @@ export interface FanoutArgs {
   media?: InboundMedia | null
   isFirstInboundMessage: boolean
   visitorId?: string
+  /** The channel the message arrived on (the web widget unless a caller says otherwise). */
+  channelType?: 'web_widget' | 'vircle_chat'
 }
 
 /** Everything that happens after a customer message row exists. */
@@ -128,7 +130,7 @@ export async function runWidgetInboundFanout(admin: SupabaseClient, args: Fanout
   await admin.rpc('bump_conversation_on_inbound', {
     p_conversation_id: conversationId,
     p_last_message_text: previewText(text, media),
-    p_channel_type: 'web_widget',
+    p_channel_type: args.channelType ?? 'web_widget',
   })
 
   await reopenClosedConversation(admin, conversation)

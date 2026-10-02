@@ -461,8 +461,9 @@ export function ConversationList({
       result = result.filter((c) => {
         const name = c.contact?.name?.toLowerCase() ?? "";
         const phone = c.contact?.phone?.toLowerCase() ?? "";
+        const wallet = c.contact?.wallet_id?.toLowerCase() ?? "";
         const lastMsg = c.last_message_text?.toLowerCase() ?? "";
-        return name.includes(q) || phone.includes(q) || lastMsg.includes(q);
+        return name.includes(q) || phone.includes(q) || wallet.includes(q) || lastMsg.includes(q);
       });
     }
 
@@ -1316,7 +1317,7 @@ function ConversationItem({
   onToggleSelect,
 }: ConversationItemProps) {
   const contact = conversation.contact;
-  const displayName = contact?.name || contact?.phone || t("unknown");
+  const displayName = contact?.name || contact?.phone || contact?.wallet_id || t("unknown");
   const initials = displayName.charAt(0).toUpperCase();
   const ChannelIcon = CHANNEL_ICONS[conversation.last_channel_type];
 

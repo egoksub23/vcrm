@@ -156,10 +156,13 @@ export function contactHandle(contact: {
   phone?: string | null
   wa_username?: string | null
   wa_user_id?: string | null
+  /** The Vircle Chat identity: such a contact may have no phone at all. */
+  wallet_id?: string | null
 }): string {
   if (contact.phone?.trim()) return contact.phone
   if (contact.wa_username?.trim()) return `@${contact.wa_username.trim()}`
-  return contact.wa_user_id?.trim() ?? ''
+  if (contact.wa_user_id?.trim()) return contact.wa_user_id.trim()
+  return contact.wallet_id?.trim() ?? ''
 }
 
 export interface WaSendTarget {
