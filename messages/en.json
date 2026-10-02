@@ -2704,6 +2704,17 @@
       "webhookVerifyToken": "Webhook Verify Token",
       "webhookVerifyTokenPlaceholder": "Create a custom verify token",
       "webhookVerifyTokenHint": "A custom string you create. Must match the token you set in Meta webhook settings.",
+      "appSecretTitle": "Your own Meta app (optional)",
+      "appSecretDesc": "Only needed if this WhatsApp number is subscribed to a Meta app that belongs to you rather than to the platform operator. Paste that app's App Secret so messages it signs are accepted for this number only.",
+      "appSecretStored": "An app secret is saved for this number.",
+      "appSecretNone": "No app secret saved. Messages signed by the platform's own Meta app are accepted.",
+      "appSecretLabel": "Meta App Secret",
+      "appSecretPlaceholder": "Paste the App Secret",
+      "appSecretSave": "Save secret",
+      "appSecretRemove": "Remove secret",
+      "appSecretSaved": "App secret saved.",
+      "appSecretRemoved": "App secret removed.",
+      "appSecretFailed": "Could not save the app secret.",
       "twoStepPin": "Two-step verification PIN",
       "optional": "(optional)",
       "pinPlaceholder": "6-digit PIN from Meta WhatsApp Manager",
@@ -2980,6 +2991,7 @@
         "oauthError": {
           "invalid_state": "The connection request expired or was invalid. Try connecting again.",
           "denied": "Microsoft sign-in was cancelled.",
+          "mailbox_in_use": "This mailbox is already connected to another workspace. A mailbox can belong to one workspace only. Disconnect it there first, or connect a different mailbox.",
           "unknown": "Something went wrong connecting to Microsoft 365. Try again."
         }
       },
@@ -3001,6 +3013,7 @@
         "oauthError": {
           "invalid_state": "The connection request expired or was invalid. Try connecting again.",
           "denied": "Google sign-in was cancelled.",
+          "mailbox_in_use": "This mailbox is already connected to another workspace. A mailbox can belong to one workspace only. Disconnect it there first, or connect a different mailbox.",
           "unknown": "Something went wrong connecting to Gmail. Try again."
         },
         "pubsubTitle": "Push notification setup",

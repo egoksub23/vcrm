@@ -1,8 +1,12 @@
 import crypto from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  collectWhatsAppIds,
   parseAppSecrets,
   verifyMetaWebhookSignature,
+  verifyWhatsAppWebhook,
+  type TenantSecretRow,
+  type WhatsAppIds,
 } from "./webhook-signature";
 
 const SECRET = process.env.META_APP_SECRET!;
@@ -131,3 +135,122 @@ describe("verifyMetaWebhookSignature", () => {
     });
   });
 });
+
+// ------------------------------------------------------------------
+// Workspace-bound verification (migration 136)
+// ------------------------------------------------------------------
+
+const delivery = (...phoneIds: string[]) =>
+  JSON.stringify({
+    entry: phoneIds.map((id) => ({
+      id: "waba-x",
+      changes: [{ field: "messages", value: { metadata: { phone_number_id: id }, messages: [] } }],
+    })),
+  });
+
+const templateEvent = (wabaId: string) =>
+  JSON.stringify({
+    entry: [{ id: wabaId, changes: [{ field: "message_template_status_update", value: {} }] }],
+  });
+
+// Rows as the database would return them; "enc:" stands in for encryption.
+const rowsFor = (rows: TenantSecretRow[]) => async (ids: WhatsAppIds) =>
+  rows.filter(
+    (r) =>
+      (r.phone_number_id && ids.phoneNumberIds.includes(r.phone_number_id)) ||
+      (r.waba_id && ids.wabaIds.includes(r.waba_id)),
+  );
+const dec = (c: string) => {
+  if (!c.startsWith("enc:")) throw new Error("bad ciphertext");
+  return c.slice(4);
+};
+const tenant = (phone: string, waba: string, secret: string): TenantSecretRow => ({
+  phone_number_id: phone,
+  waba_id: waba,
+  app_secret_enc: "enc:" + secret,
+});
+
+describe("collectWhatsAppIds", () => {
+  it("reads phone numbers from message changes and WABAs from template events", () => {
+    expect(collectWhatsAppIds(JSON.parse(delivery("p1", "p2", "p1")))).toEqual({
+      phoneNumberIds: ["p1", "p2"],
+      wabaIds: [],
+    });
+    expect(collectWhatsAppIds(JSON.parse(templateEvent("w9")))).toEqual({ phoneNumberIds: [], wabaIds: ["w9"] });
+  });
+
+  it("tolerates junk without throwing", () => {
+    for (const junk of [null, undefined, 5, "x", {}, { entry: "no" }, { entry: [null, {}, { changes: "no" }] }]) {
+      expect(collectWhatsAppIds(junk)).toEqual({ phoneNumberIds: [], wabaIds: [] });
+    }
+  });
+});
+
+describe("verifyWhatsAppWebhook", () => {
+  const B = tenant("pn-b", "waba-b", "tenant-b-secret");
+  const A = tenant("pn-a", "waba-a", "tenant-a-secret");
+
+  it("accepts an operator-owned secret for any number, without touching the database", async () => {
+    let asked = false;
+    const body = delivery("pn-anything");
+    const ok = await verifyWhatsAppWebhook(body, signedHeader(body), async () => {
+      asked = true;
+      return [];
+    }, dec);
+    expect(ok).toBe(true);
+    expect(asked).toBe(false);
+  });
+
+  it("accepts a workspace's own secret for its own number", async () => {
+    const body = delivery("pn-b");
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(true);
+  });
+
+  it("rejects a workspace's secret on a payload that names ANOTHER workspace's number", async () => {
+    const body = delivery("pn-a");
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(false);
+  });
+
+  it("rejects a payload that mixes the signer's number with someone else's", async () => {
+    const body = delivery("pn-b", "pn-a");
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(false);
+  });
+
+  it("rejects a workspace's secret for a number nobody has registered", async () => {
+    const body = delivery("pn-unknown");
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(false);
+  });
+
+  it("binds template events by WABA the same way", async () => {
+    const own = templateEvent("waba-b");
+    expect(await verifyWhatsAppWebhook(own, signedHeader(own, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(true);
+    const foreign = templateEvent("waba-a");
+    expect(await verifyWhatsAppWebhook(foreign, signedHeader(foreign, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(false);
+  });
+
+  it("rejects when no stored secret matches, the signature is malformed, or the body is not JSON", async () => {
+    const body = delivery("pn-b");
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "nope"), rowsFor([A, B]), dec)).toBe(false);
+    expect(await verifyWhatsAppWebhook(body, null, rowsFor([A, B]), dec)).toBe(false);
+    expect(await verifyWhatsAppWebhook(body, "abc", rowsFor([A, B]), dec)).toBe(false);
+    const junk = "not json";
+    expect(await verifyWhatsAppWebhook(junk, signedHeader(junk, "tenant-b-secret"), rowsFor([A, B]), dec)).toBe(false);
+  });
+
+  it("fails closed when the lookup throws, a secret cannot be decrypted, or the payload names nothing", async () => {
+    const body = delivery("pn-b");
+    const header = signedHeader(body, "tenant-b-secret");
+    expect(await verifyWhatsAppWebhook(body, header, async () => { throw new Error("db down"); }, dec)).toBe(false);
+    const broken: TenantSecretRow = { phone_number_id: "pn-b", waba_id: "waba-b", app_secret_enc: "garbage" };
+    expect(await verifyWhatsAppWebhook(body, header, rowsFor([broken]), dec)).toBe(false);
+    const empty = "{}";
+    expect(await verifyWhatsAppWebhook(empty, signedHeader(empty, "tenant-b-secret"), rowsFor([B]), dec)).toBe(false);
+  });
+
+  it("ignores rows that hold no secret", async () => {
+    const body = delivery("pn-b");
+    const none: TenantSecretRow = { phone_number_id: "pn-b", waba_id: "waba-b", app_secret_enc: null };
+    expect(await verifyWhatsAppWebhook(body, signedHeader(body, "tenant-b-secret"), rowsFor([none]), dec)).toBe(false);
+  });
+});
+

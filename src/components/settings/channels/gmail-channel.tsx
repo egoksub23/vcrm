@@ -73,7 +73,7 @@ export function GmailChannel() {
       fetchStatus();
     } else if (searchParams.get('oauth_error')) {
       const code = searchParams.get('oauth_error') ?? 'unknown';
-      const known = ['invalid_state', 'denied'].includes(code) ? code : 'unknown';
+      const known = ['invalid_state', 'denied', 'mailbox_in_use'].includes(code) ? code : 'unknown';
       toast.error(t(`oauthError.${known}`));
     }
   }, [searchParams, t, fetchStatus]);

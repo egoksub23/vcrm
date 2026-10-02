@@ -15,6 +15,7 @@
 // set, the connection still succeeds (sending still works) but skips
 // watch registration — the Settings panel flags that inbound needs it.
 // ============================================================
+import { escapeLike } from '@/lib/security/safe-compare'
 import { NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 
@@ -59,6 +60,20 @@ export async function GET(request: Request) {
     const tokens = await exchangeCodeForTokens({ code, redirectUri })
     const emailAddress = await getUserEmailAddress({ accessToken: tokens.accessToken })
 
+    // A mailbox belongs to one workspace only (migration 136). Refuse
+    // BEFORE registering a push watch for it, so a second workspace can
+    // never redirect another workspace's incoming mail.
+    const { data: taken } = await db
+      .from('gmail_config')
+      .select('id')
+      .ilike('email_address', escapeLike(emailAddress))
+      .neq('account_id', pending.account_id)
+      .limit(1)
+    if (taken && taken.length > 0) {
+      await markGmailConnectionFailed(db, pending.id)
+      return settingsRedirect(baseUrl, { oauth_error: 'mailbox_in_use' })
+    }
+
     const { data: existing } = await db
       .from('gmail_config')
       .select('id, pubsub_verify_token, history_id')
@@ -99,10 +114,16 @@ export async function GET(request: Request) {
       connected_at: new Date().toISOString(),
     }
 
-    if (existing) {
-      await db.from('gmail_config').update(row).eq('id', existing.id)
-    } else {
-      await db.from('gmail_config').insert(row)
+    const { error: saveError } = existing
+      ? await db.from('gmail_config').update(row).eq('id', existing.id)
+      : await db.from('gmail_config').insert(row)
+    if (saveError) {
+      // The unique index is the backstop for two connections racing.
+      if (saveError.code === '23505') {
+        await markGmailConnectionFailed(db, pending.id)
+        return settingsRedirect(baseUrl, { oauth_error: 'mailbox_in_use' })
+      }
+      throw saveError
     }
     await markGmailConnectionCompleted(db, pending.id)
     return settingsRedirect(baseUrl, { connected: '1' })

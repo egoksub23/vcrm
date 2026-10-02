@@ -268,6 +268,9 @@ vi.mock('@/lib/contacts/dedupe', () => ({
 
 vi.mock('@/lib/whatsapp/webhook-signature', () => ({
   verifyMetaWebhookSignature: () => true,
+  // Signature handling is covered in webhook-signature.test.ts; here every
+  // delivery is treated as correctly signed.
+  verifyWhatsAppWebhook: async () => true,
 }))
 vi.mock('@/lib/whatsapp/template-webhook', () => ({
   isTemplateWebhookField: (field: string) =>

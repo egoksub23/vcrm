@@ -96,6 +96,8 @@ export const ROUTE_ROWS: readonly Row[] = [
   // policy (admin) -- the check now runs before the Meta call.
   row("whatsapp/config", "POST", "admin", "channels.manage", "was RLS-only (admin)"),
   row("whatsapp/config", "DELETE", "admin", "channels.manage", "was RLS-only (admin)"),
+  row("whatsapp/app-secret", "PUT", "admin", "channels.manage", "new (migration 136): a workspace's own Meta app secret"),
+  row("whatsapp/app-secret", "DELETE", "admin", "channels.manage", "new (migration 136)"),
   row("whatsapp/templates/[id]", "PATCH", "admin", "channels.manage", "was RLS-only (admin); called Meta first"),
   row("whatsapp/templates/[id]", "DELETE", "admin", "channels.manage", "was RLS-only (admin); called Meta first"),
 

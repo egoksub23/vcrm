@@ -24,6 +24,7 @@ import { NextResponse, after } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
+import { escapeLike, tokensEqual } from '@/lib/security/safe-compare'
 import { findOrCreateContactByExternalId } from '@/lib/meta/contact-identity'
 import { findOrCreateConversation } from '@/lib/conversations/find-or-create'
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
@@ -109,7 +110,9 @@ async function processNotification(emailAddress: string, token: string) {
   const { data: config, error: configError } = await admin
     .from('gmail_config')
     .select('*')
-    .eq('email_address', emailAddress)
+    // Case-insensitive: a mailbox belongs to one workspace whatever its
+    // capitalisation (unique index on lower(email_address), migration 136).
+    .ilike('email_address', escapeLike(emailAddress))
     .maybeSingle()
 
   if (configError) {
@@ -120,7 +123,7 @@ async function processNotification(emailAddress: string, token: string) {
     console.warn('[gmail webhook] no config for emailAddress:', emailAddress)
     return
   }
-  if (config.pubsub_verify_token !== token) {
+  if (!tokensEqual(config.pubsub_verify_token, token)) {
     console.warn('[gmail webhook] token mismatch for:', emailAddress)
     return
   }

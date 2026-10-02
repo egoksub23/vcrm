@@ -17,6 +17,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useAuth, useCapability } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
+import { WhatsAppAppSecretCard } from './whatsapp-app-secret-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -840,6 +841,9 @@ export function WhatsAppConfig() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Optional: this workspace's own Meta app secret (migration 136) */}
+        <WhatsAppAppSecretCard />
 
         {/* Webhook URL */}
         <Card>

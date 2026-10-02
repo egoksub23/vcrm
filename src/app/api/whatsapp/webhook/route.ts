@@ -14,7 +14,7 @@ import {
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
 import { findOrCreateConversation } from '@/lib/conversations/find-or-create'
-import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
+import { verifyWhatsAppWebhook, type WhatsAppIds } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
@@ -217,6 +217,32 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * The per-workspace Meta App secrets registered for the numbers / WABAs a
+ * delivery names (migration 136). Only rows that actually hold a secret.
+ */
+async function loadTenantSecrets(ids: WhatsAppIds) {
+  const db = supabaseAdmin()
+  const filters: string[] = []
+  if (ids.phoneNumberIds.length > 0) {
+    filters.push(`phone_number_id.in.(${ids.phoneNumberIds.map((i) => `"${i.replace(/"/g, '')}"`).join(',')})`)
+  }
+  if (ids.wabaIds.length > 0) {
+    filters.push(`waba_id.in.(${ids.wabaIds.map((i) => `"${i.replace(/"/g, '')}"`).join(',')})`)
+  }
+  const { data, error } = await db
+    .from('whatsapp_config')
+    .select('phone_number_id, waba_id, app_secret_enc')
+    .not('app_secret_enc', 'is', null)
+    .or(filters.join(','))
+  if (error) throw error
+  return (data ?? []) as {
+    phone_number_id: string | null
+    waba_id: string | null
+    app_secret_enc: string | null
+  }[]
+}
+
 // POST - Receive messages
 export async function POST(request: Request) {
   // Read raw body first so we can HMAC-verify the exact bytes Meta
@@ -224,7 +250,7 @@ export async function POST(request: Request) {
   const rawBody = await request.text()
   const signature = request.headers.get('x-hub-signature-256')
 
-  if (!verifyMetaWebhookSignature(rawBody, signature)) {
+  if (!(await verifyWhatsAppWebhook(rawBody, signature, loadTenantSecrets, decrypt))) {
     // 401 (not 200) — we want Meta's delivery dashboard to show failures
     // loudly if a misconfiguration causes signatures to stop matching,
     // rather than silently eating events.

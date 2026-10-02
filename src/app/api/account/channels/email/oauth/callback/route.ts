@@ -70,6 +70,19 @@ export async function GET(request: Request) {
     const tokens = await exchangeCodeForTokens({ code, redirectUri })
     const mailbox = await getMailboxProfile({ accessToken: tokens.accessToken })
 
+    // A mailbox belongs to one workspace only (migration 136). Refuse
+    // BEFORE creating a change-notification subscription for it.
+    const { data: taken } = await db
+      .from('email_config')
+      .select('id')
+      .eq('mailbox_user_id', mailbox.id)
+      .neq('account_id', pending.account_id)
+      .limit(1)
+    if (taken && taken.length > 0) {
+      await markEmailConnectionFailed(db, pending.id)
+      return settingsRedirect(baseUrl, { oauth_error: 'mailbox_in_use' })
+    }
+
     const clientState = randomBytes(24).toString('base64url')
     const notificationUrl = `${baseUrl}/api/email/webhook`
     const subscription = await createSubscription({
@@ -100,10 +113,16 @@ export async function GET(request: Request) {
       connected_at: new Date().toISOString(),
     }
 
-    if (existing) {
-      await db.from('email_config').update(row).eq('id', existing.id)
-    } else {
-      await db.from('email_config').insert(row)
+    const { error: saveError } = existing
+      ? await db.from('email_config').update(row).eq('id', existing.id)
+      : await db.from('email_config').insert(row)
+    if (saveError) {
+      // The unique index is the backstop for two connections racing.
+      if (saveError.code === '23505') {
+        await markEmailConnectionFailed(db, pending.id)
+        return settingsRedirect(baseUrl, { oauth_error: 'mailbox_in_use' })
+      }
+      throw saveError
     }
     await markEmailConnectionCompleted(db, pending.id)
     return settingsRedirect(baseUrl, { connected: '1' })
