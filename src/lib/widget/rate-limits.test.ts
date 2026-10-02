@@ -20,12 +20,14 @@ describe('widget identity rate limits', () => {
     expect(checkRateLimit('widget:identity:visitor-2', RATE_LIMITS.widgetIdentity).success).toBe(true)
   })
 
-  it('a script minting a new visitor per attempt still hits the token+origin bucket', () => {
-    const key = 'widget:identity:o:wt_1:https://evil.example'
-    for (let i = 0; i < RATE_LIMITS.widgetIdentityOrigin.limit; i++) {
-      expect(checkRateLimit(key, RATE_LIMITS.widgetIdentityOrigin).success).toBe(true)
-    }
-    expect(checkRateLimit(key, RATE_LIMITS.widgetIdentityOrigin).success).toBe(false)
+  it('a script minting a new visitor per attempt still hits the per-token budget, whatever Origin it sends', () => {
+    // Per-token budgets are keyed on the widget token alone (checkSharedRateLimit); the
+    // Origin header is caller-supplied so it is deliberately not part of any key.
+    expect(RATE_LIMITS.widgetIdentityToken).toEqual({ limit: 60, windowMs: 10 * 60_000 })
+    expect(RATE_LIMITS.widgetSessionToken).toEqual({ limit: 600, windowMs: 60_000 })
+    expect(RATE_LIMITS.widgetEnquiryToken).toEqual({ limit: 60, windowMs: 60 * 60_000 })
+    expect('widgetIdentityOrigin' in RATE_LIMITS).toBe(false)
+    expect('widgetEnquiryOrigin' in RATE_LIMITS).toBe(false)
   })
 
   it('upload tokens: 20 per 10 minutes per visitor', () => {

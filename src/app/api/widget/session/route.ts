@@ -38,6 +38,8 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
+import { clientIp } from '@/lib/net/client-ip'
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors'
 import { findOrCreatePrimaryConversation } from '@/lib/widget/session-identity'
 import {
@@ -62,11 +64,6 @@ import {
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
-}
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for') ?? ''
-  return fwd.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
 }
 
 export async function POST(request: Request) {
@@ -95,8 +92,13 @@ export async function POST(request: Request) {
   const corsOrigin = resolveCorsOrigin(requestOrigin, config.allowed_origins ?? [])
   if (!corsOrigin) return widgetError(403, 'Origin not allowed for this widget')
 
-  const limit = checkRateLimit(`widget:session:${widgetToken}:${requestOrigin ?? 'unknown'}`, RATE_LIMITS.widgetSession)
+  // Keyed on the widget token (and, separately, the caller's address), never on
+  // the Origin header: that is sent by the caller, so keying on it let a script
+  // take a fresh bucket with every request.
+  const limit = checkRateLimit(`widget:session:${widgetToken}:${clientIp(request.headers)}`, RATE_LIMITS.widgetSession)
   if (!limit.success) return widgetRateLimited(limit, corsOrigin)
+  const tokenLimit = await checkSharedRateLimit(`widget:session:${widgetToken}`, RATE_LIMITS.widgetSessionToken)
+  if (!tokenLimit.success) return widgetRateLimited(tokenLimit, corsOrigin)
 
   const jwt = bearerToken(request)
   if (!jwt) return widgetError(401, 'Missing Authorization bearer token', undefined, corsOrigin)
@@ -183,8 +185,8 @@ export async function POST(request: Request) {
     if (offer?.mode === 'claimed') {
       const checks = [
         checkRateLimit(`widget:identity:${visitorId}`, RATE_LIMITS.widgetIdentity),
-        checkRateLimit(`widget:identity:o:${widgetToken}:${requestOrigin ?? 'unknown'}`, RATE_LIMITS.widgetIdentityOrigin),
-        checkRateLimit(`widget:identity:ip:${clientIp(request)}`, RATE_LIMITS.widgetIdentityIp),
+        await checkSharedRateLimit(`widget:identity:t:${widgetToken}`, RATE_LIMITS.widgetIdentityToken),
+        checkRateLimit(`widget:identity:ip:${clientIp(request.headers)}`, RATE_LIMITS.widgetIdentityIp),
       ]
       const blocked = checks.find((c) => !c.success)
       if (blocked) return widgetRateLimited(blocked, corsOrigin)

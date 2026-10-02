@@ -37,6 +37,8 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rate-limit';
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared';
+import { enforceBroadcastRecipientCap } from '@/lib/broadcast/recipient-cap';
 
 // The fan-out below is sequential over up to 1 000 recipients.
 export const maxDuration = 300;
@@ -51,13 +53,15 @@ export async function POST(
     // Same gate as the batch send endpoint: running a broadcast is a
     // write, and viewers are read-only. Resuming is no different — it
     // puts real messages on real phones.
-    const { supabase, accountId, userId } = await requireCapability('broadcasts.send');
+    const { supabase, accountId, userId, platform } = await requireCapability('broadcasts.send');
 
     const limit = checkRateLimit(
       `broadcast-resume:${userId}`,
       RATE_LIMITS.broadcast
     );
     if (!limit.success) return rateLimitResponse(limit);
+    const acctLimit = await checkSharedRateLimit(`broadcast-acct:${accountId}`, RATE_LIMITS.broadcastAccount);
+    if (!acctLimit.success) return rateLimitResponse(acctLimit);
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
@@ -88,6 +92,12 @@ export async function POST(
       id,
       scope
     );
+
+    // The operator's per-day recipient cap. Checked once the plan is known, and
+    // before the campaign is marked sending, so a refusal leaves it resumable
+    // (the catch below releases the claim).
+    const capped = await enforceBroadcastRecipientCap(accountId, platform, plan.planned.length);
+    if (capped) return capped; // `claimedId` is still set: released below
 
     await markBroadcastSending(supabase, id);
     claimedId = null; // ownership passes to the after() block

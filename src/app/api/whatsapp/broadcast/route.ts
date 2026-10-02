@@ -15,6 +15,8 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
+import { enforceBroadcastRecipientCap } from '@/lib/broadcast/recipient-cap'
 
 interface BroadcastResult {
   phone: string
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     // to arbitrary phone numbers from the account's WhatsApp number.
     // Nothing about that is recoverable after the fact, so the check has
     // to happen here.
-    const { supabase, accountId, userId } = await requireCapability('broadcasts.send')
+    const { supabase, accountId, userId, platform } = await requireCapability('broadcasts.send')
 
     // Per-user broadcast budget. Note: this limits how often a user
     // can *start* a campaign, not how many messages go out inside
@@ -81,6 +83,8 @@ export async function POST(request: Request) {
     if (!limit.success) {
       return rateLimitResponse(limit)
     }
+    const acctLimit = await checkSharedRateLimit(`broadcast-acct:${accountId}`, RATE_LIMITS.broadcastAccount)
+    if (!acctLimit.success) return rateLimitResponse(acctLimit)
 
     const body = await request.json()
     const {
@@ -119,6 +123,10 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // The operator's per-day recipient cap for this workspace (if any).
+    const capped = await enforceBroadcastRecipientCap(accountId, platform, recipients.length)
+    if (capped) return capped
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')

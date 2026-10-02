@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetRateLimitForTests,
   checkRateLimit,
+  isRateLimited,
   rateLimitResponse,
 } from "./rate-limit";
 
@@ -115,4 +116,28 @@ describe("RATE_LIMITS presets", () => {
 
 afterEach(() => {
   __resetRateLimitForTests();
+});
+
+describe("isRateLimited", () => {
+  beforeEach(() => __resetRateLimitForTests());
+
+  it("reports exhaustion without counting a call", () => {
+    const opts = { limit: 2, windowMs: 60_000 }
+    expect(isRateLimited("k", opts)).toBe(false);
+    expect(isRateLimited("k", opts)).toBe(false) // peeking never spends the budget;
+    checkRateLimit("k", opts);
+    expect(isRateLimited("k", opts)).toBe(false);
+    checkRateLimit("k", opts);
+    expect(isRateLimited("k", opts)).toBe(true);
+  });
+
+  it("clears when the window ends", () => {
+    vi.useFakeTimers();
+    const opts = { limit: 1, windowMs: 1_000 }
+    checkRateLimit("t", opts);
+    expect(isRateLimited("t", opts)).toBe(true);
+    vi.advanceTimersByTime(1_001);
+    expect(isRateLimited("t", opts)).toBe(false);
+    vi.useRealTimers();
+  });
 });

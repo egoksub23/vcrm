@@ -3,7 +3,8 @@ import { loadAiConfig } from '@/lib/ai/config'
 import { generateReply } from '@/lib/ai/generate'
 import { logAiUsage } from '@/lib/ai/usage'
 import { AiError, type AiConfig } from '@/lib/ai/types'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import {
   AI_CALL_TIMEOUT_MS,
   AI_REPLY_MAX_TOKENS,
@@ -101,7 +102,7 @@ export function createAiCaller(opts: {
     async call(req: AiCallRequest): Promise<AiCallResult> {
       const config = await getConfig()
 
-      const limit = checkRateLimit(opts.rateKey ?? `ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
+      const limit = await checkSharedRateLimit(opts.rateKey ?? `ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
       if (!limit.success) {
         throw new AiStepError('rate_limited', 'The account AI rate limit was reached. Try again in a minute.')
       }

@@ -17,7 +17,8 @@ import { loadSendableAttachments, sendKnowledgeAttachments } from '@/lib/knowled
 import { postSourcesNote } from '@/lib/knowledge/sources-note'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { sendTypingIndicator } from '@/lib/whatsapp/meta-api'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -108,7 +109,7 @@ export async function dispatchInboundToAiReply(
     // marketing blast landing 200 replies at once) so we never run the
     // owner's key past the provider's rate limit. Over the limit → skip
     // the auto-reply; the inbound still sits in the inbox for a human.
-    const acctLimit = checkRateLimit(
+    const acctLimit = await checkSharedRateLimit(
       `ai-autoreply:${accountId}`,
       RATE_LIMITS.aiAutoReplyAccount,
     )

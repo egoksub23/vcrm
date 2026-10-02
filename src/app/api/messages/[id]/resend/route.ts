@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import {
   sendMessageToConversation,
   SendMessageError,
@@ -27,6 +28,8 @@ export async function POST(
 
     const limit = checkRateLimit(`send:${userId}`, RATE_LIMITS.send)
     if (!limit.success) return rateLimitResponse(limit)
+    const acctLimit = await checkSharedRateLimit(`send-acct:${accountId}`, RATE_LIMITS.sendAccount)
+    if (!acctLimit.success) return rateLimitResponse(acctLimit)
 
     const { id } = await params
 

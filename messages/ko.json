@@ -7902,6 +7902,8 @@
     "fieldOwnerName": "소유자 이름(선택)",
     "fieldPlan": "요금제",
     "fieldSeats": "좌석 한도",
+    "fieldBroadcastPerDay": "일일 브로드캐스트 수신자 수",
+    "fieldBroadcastPerDayHint": "이 워크스페이스가 24시간 동안 브로드캐스트로 메시지를 보낼 수 있는 최대 수신자 수입니다. 비워 두면 제한이 없습니다.",
     "unlimited": "무제한",
     "cancel": "취소",
     "createSubmit": "생성 및 초대",

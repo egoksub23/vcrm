@@ -12,9 +12,19 @@ let platformResult: { data: { status: string } | null; error: { code?: string } 
   data: null,
   error: null,
 };
+// The shared per-workspace counter (migration 138) is an rpc on the same client.
+let workspaceBudgetLeft = true;
+const rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
 vi.mock("@/lib/flows/admin-client", () => ({
   supabaseAdmin: () => ({
     __isMockAdminClient: true,
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args });
+      return Promise.resolve({
+        data: [{ allowed: workspaceBudgetLeft, remaining: 0, reset_at: new Date(Date.now() + 60_000).toISOString() }],
+        error: null,
+      });
+    },
     from: () => ({
       select: () => ({
         eq: () => ({ maybeSingle: () => Promise.resolve(platformResult) }),
@@ -57,6 +67,8 @@ function row(overrides: Partial<ApiKeyRow> = {}): ApiKeyRow {
 
 beforeEach(() => {
   platformResult = { data: { status: "active" }, error: null };
+  workspaceBudgetLeft = true;
+  rpcCalls.length = 0;
   __resetRateLimitForTests();
   findActiveKeyByHash.mockReset();
   touchLastUsed.mockReset();
@@ -155,5 +167,24 @@ describe("requireApiKey", () => {
       "rate_limited",
       429,
     );
+  });
+
+  it("429s when the WORKSPACE budget is exhausted, even though this key's own budget is fine", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    workspaceBudgetLeft = false;
+    await expectApiError(requireApiKey(reqWith(`Bearer ${KEY}`)), "rate_limited", 429);
+    expect(rpcCalls).toEqual([
+      {
+        fn: "rate_limit_hit",
+        args: { p_key: "apikey-acct:acct-1", p_limit: RATE_LIMITS.publicApiAccount.limit, p_window_seconds: 60, p_cost: 1 },
+      },
+    ]);
+  });
+
+  it("exposes the workspace's platform row (limits, flags) on the context", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    platformResult = { data: { status: "active", limits: { broadcast_per_day: 50 } } as never, error: null };
+    const ctx = await requireApiKey(reqWith(`Bearer ${KEY}`));
+    expect(ctx.platform.limits).toEqual({ broadcast_per_day: 50 });
   });
 });

@@ -82,4 +82,21 @@ describe("parseUpdateTenant", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(message);
   });
+
+  it("accepts a daily broadcast cap well above the seat ceiling, and clears it with null", () => {
+    expect(parseUpdateTenant({ limits: { broadcast_per_day: 50_000 } })).toEqual({
+      ok: true,
+      value: { limits: { broadcast_per_day: 50_000 } },
+    });
+    expect(parseUpdateTenant({ limits: { broadcast_per_day: null } })).toEqual({
+      ok: true,
+      value: { limits: { broadcast_per_day: null } },
+    });
+  });
+
+  it("still bounds seats and rejects a nonsense broadcast cap", () => {
+    expect(parseUpdateTenant({ limits: { seats: 10_000_000 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { broadcast_per_day: 0 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { broadcast_per_day: 2_000_000 } }).ok).toBe(false);
+  });
 });

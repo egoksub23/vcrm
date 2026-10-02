@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertCapability, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { createAiCaller } from '@/lib/automations/ai/caller'
 import { dryRunStep, testKindFor } from '@/lib/automations/ai/dry-run'
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
 
     const userLimit = checkRateLimit(`automation-ai-test:${userId}`, RATE_LIMITS.aiDraft)
     if (!userLimit.success) return rateLimitResponse(userLimit)
-    const accountLimit = checkRateLimit(`ai-draft-acct:${accountId}`, RATE_LIMITS.aiDraftAccount)
+    const accountLimit = await checkSharedRateLimit(`ai-draft-acct:${accountId}`, RATE_LIMITS.aiDraftAccount)
     if (!accountLimit.success) return rateLimitResponse(accountLimit)
 
     const body = (await request.json().catch(() => null)) as {

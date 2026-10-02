@@ -15,6 +15,8 @@ import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
 import { findOrCreateConversation } from '@/lib/conversations/find-or-create'
 import { verifyWhatsAppWebhook, type WhatsAppIds } from '@/lib/whatsapp/webhook-signature'
+import { clientIp } from '@/lib/net/client-ip'
+import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
@@ -245,12 +247,23 @@ async function loadTenantSecrets(ids: WhatsAppIds) {
 
 // POST - Receive messages
 export async function POST(request: Request) {
+  // An address that keeps sending bad signatures is turned away before the
+  // signature check (which reads every workspace's app secret) runs again.
+  // Valid deliveries never count towards this. Skipped when no address can be
+  // told apart (see lib/net/client-ip.ts), so one attacker cannot lock Meta out.
+  const caller = clientIp(request.headers)
+  const badKey = `webhook-bad:${caller}`
+  if (caller !== 'unknown' && isRateLimited(badKey, RATE_LIMITS.webhookInvalid)) {
+    return NextResponse.json({ error: 'Too many invalid requests' }, { status: 429, headers: { 'Retry-After': '60' } })
+  }
+
   // Read raw body first so we can HMAC-verify the exact bytes Meta
   // signed. request.json() would re-encode and break the signature.
   const rawBody = await request.text()
   const signature = request.headers.get('x-hub-signature-256')
 
   if (!(await verifyWhatsAppWebhook(rawBody, signature, loadTenantSecrets, decrypt))) {
+    if (caller !== 'unknown') checkRateLimit(badKey, RATE_LIMITS.webhookInvalid)
     // 401 (not 200) — we want Meta's delivery dashboard to show failures
     // loudly if a misconfiguration causes signatures to stop matching,
     // rather than silently eating events.

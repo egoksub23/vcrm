@@ -68,7 +68,7 @@ export function PlatformConsole() {
   const [create, setCreate] = useState<CreateDraft | null>(null);
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<string | null>(null);
-  const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; features: Record<string, boolean> } | null>(null);
+  const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; features: Record<string, boolean> } | null>(null);
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [openSignup, setOpenSignup] = useState<boolean | null>(null);
@@ -180,6 +180,7 @@ export function PlatformConsole() {
   const saveEdit = async () => {
     if (!edit) return;
     const seats = edit.seats.trim();
+    const broadcastPerDay = edit.broadcastPerDay.trim();
     const platform = parsePlatformRow({ features: edit.row.features });
     const features: Record<string, boolean | null> = {};
     for (const f of PLATFORM_FEATURES) {
@@ -188,7 +189,7 @@ export function PlatformConsole() {
     }
     const ok = await patch(
       edit.row.id,
-      { plan: edit.plan.trim() || edit.row.plan, limits: { seats: seats ? Number(seats) : null }, features },
+      { plan: edit.plan.trim() || edit.row.plan, limits: { seats: seats ? Number(seats) : null, broadcast_per_day: broadcastPerDay ? Number(broadcastPerDay) : null }, features },
       t("saved"),
     );
     if (ok) setEdit(null);
@@ -334,6 +335,7 @@ export function PlatformConsole() {
                                 row: r,
                                 plan: r.plan,
                                 seats: typeof r.limits?.seats === "number" ? String(r.limits.seats) : "",
+                                broadcastPerDay: typeof r.limits?.broadcast_per_day === "number" ? String(r.limits.broadcast_per_day) : "",
                                 features: Object.fromEntries(
                                   PLATFORM_FEATURES.map((f) => [f, isFeatureEnabled(parsePlatformRow({ features: r.features }), f)]),
                                 ),
@@ -460,6 +462,11 @@ export function PlatformConsole() {
                 <div className="space-y-1.5">
                   <Label htmlFor="pe-seats">{t("fieldSeats")}</Label>
                   <Input id="pe-seats" type="number" min={1} placeholder={t("unlimited")} value={edit.seats} onChange={(e) => setEdit({ ...edit, seats: e.target.value })} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label htmlFor="pe-broadcast">{t("fieldBroadcastPerDay")}</Label>
+                  <Input id="pe-broadcast" type="number" min={1} placeholder={t("unlimited")} value={edit.broadcastPerDay} onChange={(e) => setEdit({ ...edit, broadcastPerDay: e.target.value })} />
+                  <p className="text-xs text-muted-foreground">{t("fieldBroadcastPerDayHint")}</p>
                 </div>
               </div>
               <div className="space-y-2">

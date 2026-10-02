@@ -78,6 +78,11 @@ export interface UpdateTenantInput {
   reseed?: true;
 }
 
+/** Upper bound for each operator limit (seats are people, broadcasts are recipients). */
+function maxFor(limit: string): number {
+  return limit === "broadcast_per_day" ? 1_000_000 : MAX_SEATS;
+}
+
 export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {
   if (!isObject(body)) return { ok: false, error: "Invalid request body" };
   const out: UpdateTenantInput = {};
@@ -113,10 +118,10 @@ export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {
       }
       if (v === null) {
         limits[k] = null;
-      } else if (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= MAX_SEATS) {
+      } else if (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= maxFor(k)) {
         limits[k] = v;
       } else {
-        return { ok: false, error: `Limit '${k}' must be null or a whole number from 1 to ${MAX_SEATS}` };
+        return { ok: false, error: `Limit '${k}' must be null or a whole number from 1 to ${maxFor(k)}` };
       }
     }
     out.limits = limits;

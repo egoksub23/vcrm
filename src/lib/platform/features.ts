@@ -36,7 +36,7 @@ export const PLATFORM_FEATURES = ["incidents", "jira"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
-export const PLATFORM_LIMITS = ["seats"] as const;
+export const PLATFORM_LIMITS = ["seats", "broadcast_per_day"] as const;
 export type PlatformLimit = (typeof PLATFORM_LIMITS)[number];
 
 /** Shown to a member of a suspended account (API message and screen). */

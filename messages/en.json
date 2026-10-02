@@ -7902,6 +7902,8 @@
     "fieldOwnerName": "Owner name (optional)",
     "fieldPlan": "Plan",
     "fieldSeats": "Seat limit",
+    "fieldBroadcastPerDay": "Broadcast recipients per day",
+    "fieldBroadcastPerDayHint": "Most recipients this workspace can message with broadcasts in a rolling 24 hours. Empty means no cap.",
     "unlimited": "Unlimited",
     "cancel": "Cancel",
     "createSubmit": "Create and invite",

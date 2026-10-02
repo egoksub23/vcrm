@@ -6,6 +6,7 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import {
   sendMessageToConversation,
   validateSendMessageParams,
@@ -41,6 +42,9 @@ export async function POST(request: Request) {
     if (!limit.success) {
       return rateLimitResponse(limit)
     }
+    // The whole workspace, across every agent and app instance.
+    const acctLimit = await checkSharedRateLimit(`send-acct:${accountId}`, RATE_LIMITS.sendAccount)
+    if (!acctLimit.success) return rateLimitResponse(acctLimit)
 
     const body = await request.json()
     const {

@@ -26,15 +26,8 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/net/client-ip";
 import { createClient } from "@/lib/supabase/server";
-
-function getClientIp(request: Request): string {
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  const xri = request.headers.get("x-real-ip");
-  if (xri) return xri.trim();
-  return "unknown";
-}
 
 function rpcErrorToResponse(err: PostgrestError): NextResponse {
   if (err.code === "42501") {
@@ -57,7 +50,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
-  const ip = getClientIp(request);
+  const ip = clientIp(request.headers);
   const limit = checkRateLimit(`redeem:${ip}`, RATE_LIMITS.invitationRedeem);
   if (!limit.success) return rateLimitResponse(limit);
 

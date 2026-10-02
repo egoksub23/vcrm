@@ -25,6 +25,7 @@
 import { after } from 'next/server';
 
 import { requireApiKey } from '@/lib/auth/api-context';
+import { checkBroadcastRecipientCap } from '@/lib/broadcast/recipient-cap';
 
 // The `after()` fan-out below sends to every recipient sequentially and
 // runs within this route's max duration (the same constraint the
@@ -58,6 +59,14 @@ export async function POST(request: Request) {
     const templateName =
       typeof body.template_name === 'string' ? body.template_name : '';
     const recipients = Array.isArray(body.recipients) ? body.recipients : [];
+
+    // The operator's per-day recipient cap for this workspace (if any).
+    const cap = await checkBroadcastRecipientCap(ctx.accountId, ctx.platform, recipients.length);
+    if (!cap.ok) {
+      return fail('broadcast_daily_limit', cap.message, 429, {
+        'Retry-After': String(cap.retryAfterSeconds),
+      });
+    }
 
     const auditUserId = await resolveAuditUserId(ctx.supabase, ctx.accountId);
 

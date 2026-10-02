@@ -30,6 +30,8 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
+import { clientIp } from '@/lib/net/client-ip'
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors'
 import { findOrCreatePrimaryConversation } from '@/lib/widget/session-identity'
 import {
@@ -52,11 +54,6 @@ import { bearerToken, verifyVisitorJwt, widgetError, widgetRateLimited } from '@
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
-}
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for') ?? ''
-  return fwd.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
 }
 
 export async function POST(request: Request) {
@@ -91,8 +88,8 @@ export async function POST(request: Request) {
 
   const limits = [
     checkRateLimit(`widget:enquiry:${visitorId}`, RATE_LIMITS.widgetEnquiry),
-    checkRateLimit(`widget:enquiry:o:${widgetToken}:${requestOrigin ?? 'unknown'}`, RATE_LIMITS.widgetEnquiryOrigin),
-    checkRateLimit(`widget:identity:ip:${clientIp(request)}`, RATE_LIMITS.widgetIdentityIp),
+    await checkSharedRateLimit(`widget:enquiry:t:${widgetToken}`, RATE_LIMITS.widgetEnquiryToken),
+    checkRateLimit(`widget:identity:ip:${clientIp(request.headers)}`, RATE_LIMITS.widgetIdentityIp),
   ]
   const blocked = limits.find((l) => !l.success)
   if (blocked) return widgetRateLimited(blocked, corsOrigin)

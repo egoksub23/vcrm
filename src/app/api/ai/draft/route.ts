@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext, getPreferredLanguage } from '@/lib/ai/context'
 import { logKnowledgeUse, searchKnowledge } from '@/lib/ai/knowledge'
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     const userLimit = checkRateLimit(`ai-draft:${userId}`, RATE_LIMITS.aiDraft)
     if (!userLimit.success) return rateLimitResponse(userLimit)
     // Also cap the whole team's draws on the shared BYO provider key.
-    const accountLimit = checkRateLimit(
+    const accountLimit = await checkSharedRateLimit(
       `ai-draft-acct:${accountId}`,
       RATE_LIMITS.aiDraftAccount,
     )

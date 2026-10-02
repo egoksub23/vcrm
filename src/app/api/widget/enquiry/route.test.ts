@@ -37,6 +37,15 @@ function chain(table: string) {
   return self
 }
 
+// The shared (Postgres) limiter is covered by its own tests; here it must not show up as an rpc call.
+vi.mock('@/lib/rate-limit-shared', () => ({
+  checkSharedRateLimit: vi.fn(async (_key: string, o: { limit: number; windowMs: number }) => ({
+    success: true,
+    remaining: o.limit,
+    reset: Date.now() + o.windowMs,
+    limit: o.limit,
+  })),
+}))
 vi.mock('@/lib/flows/admin-client', () => ({
   supabaseAdmin: () => ({
     from: (table: string) => chain(table),

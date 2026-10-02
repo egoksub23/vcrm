@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { handleTranslate } from '@/lib/knowledge/translate-run'
 
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: Params) {
     const { supabase, accountId, userId, capabilities } = await requireAnyCapability(['knowledge.draft', 'knowledge.publish'])
     const user = checkRateLimit(`kb-translate:${userId}`, RATE_LIMITS.aiDraft)
     if (!user.success) return rateLimitResponse(user)
-    const account = checkRateLimit(`kb-translate-acct:${accountId}`, RATE_LIMITS.aiDraftAccount)
+    const account = await checkSharedRateLimit(`kb-translate-acct:${accountId}`, RATE_LIMITS.aiDraftAccount)
     if (!account.success) return rateLimitResponse(account)
 
     const { id } = await params

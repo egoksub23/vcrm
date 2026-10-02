@@ -7,11 +7,12 @@
  * template will usually deploy.
  *
  * Trade-off: a single Node process holds the Map, so horizontal scale
- * (multiple regions, multiple Hostinger nodes, Vercel serverless fan-
- * out) silently defeats the limit. If you scale beyond one instance,
- * swap the `check` implementation for Redis / Upstash / Cloudflare
- * Durable Objects keeping the same return shape. The call sites won't
- * change.
+ * (multiple regions, multiple nodes, serverless fan-out) silently
+ * defeats the limit. The budgets that protect the platform from one
+ * workspace (RATE_LIMITS.*Account, *Token) therefore use
+ * checkSharedRateLimit in ./rate-limit-shared, which counts in Postgres
+ * (migration 138) and falls back to this limiter if the database call
+ * fails. What stays here is the cheap per-user / per-IP checking.
  *
  * Memory: entries are ~50 bytes each. With LIGHT_SWEEP below, expired
  * keys get cleared opportunistically on every ~1 000th call, so a
@@ -87,6 +88,16 @@ export function checkRateLimit(
     reset: entry.resetAt,
     limit,
   };
+}
+
+/**
+ * True when `key`'s current window is already used up. Does not count a call:
+ * pair it with checkRateLimit to count only some events (for example failures),
+ * so ordinary traffic is never limited but a stream of failures is.
+ */
+export function isRateLimited(key: string, { limit }: RateLimitOptions): boolean {
+  const entry = buckets.get(key);
+  return !!entry && entry.resetAt > Date.now() && entry.count >= limit;
 }
 
 /**
@@ -189,9 +200,6 @@ export const RATE_LIMITS = {
    *  person typing their own details needs. A valid signed token is a
    *  proof, not a probe, so it never spends this budget. */
   widgetIdentity: { limit: 5, windowMs: 10 * 60_000 },
-  /** The same claims, keyed per widget_token + origin: a script that
-   *  mints a fresh anonymous visitor per attempt still hits this. */
-  widgetIdentityOrigin: { limit: 30, windowMs: 10 * 60_000 },
   /** The same claims, keyed per client IP (first x-forwarded-for hop). */
   widgetIdentityIp: { limit: 20, windowMs: 10 * 60_000 },
   /** Upload tokens for widget attachments (`/api/widget/upload-url`),
@@ -202,15 +210,46 @@ export const RATE_LIMITS = {
   widgetReceipt: { limit: 120, windowMs: 60_000 },
   /** Enquiry form submissions (`/api/widget/enquiry`), per visitor. */
   widgetEnquiry: { limit: 5, windowMs: 60 * 60_000 },
-  /** Enquiry form submissions, per widget_token + origin. */
-  widgetEnquiryOrigin: { limit: 60, windowMs: 60 * 60_000 },
   /** Code-verification attempts (`/api/widget/verify-code`), per
    *  visitor — on top of the row's own `attempts` counter (migration
    *  110), which invalidates the code entirely after 5 tries. This is
    *  the belt to that suspenders: even a rapid-fire script against one
    *  browser's session is capped. */
   widgetVerifyCode: { limit: 10, windowMs: 10 * 60_000 },
+  /** Webhook deliveries with a bad signature, per caller address. Only
+   *  FAILURES count: Meta's real traffic is never limited, but an address
+   *  that keeps failing is refused before the signature check does any
+   *  database work. 120/min is far above what a misconfigured Meta app
+   *  produces while it is being fixed. */
+  webhookInvalid: { limit: 120, windowMs: 60_000 },
+
+  // ---- Per-workspace budgets (checked with checkSharedRateLimit, so every
+  // app instance counts into the same bucket, migration 138). They bound a
+  // WORKSPACE as a whole: per-user and per-key limits alone let one workspace
+  // multiply its budget with more agents or more API keys.
+
+  /** All message sends from one workspace. 1 200/min = 20/s, a little under
+   *  WhatsApp's own 80/s ceiling, far above a busy human team. */
+  sendAccount: { limit: 1200, windowMs: 60_000 },
+  /** All broadcast batch calls from one workspace (see `broadcast`: the
+   *  wizard sends ~1 call per 1-2 s per campaign). */
+  broadcastAccount: { limit: 300, windowMs: 60_000 },
+  /** All public REST API traffic from one workspace, whatever the number of
+   *  keys it has issued (`publicApi` is per key). */
+  publicApiAccount: { limit: 1200, windowMs: 60_000 },
+  /** Every call to a web widget's session endpoint, per widget token. Keyed on
+   *  the token alone: the Origin header is sent by the caller, so keying on it
+   *  let a script pick a fresh bucket with every request. */
+  widgetSessionToken: { limit: 600, windowMs: 60_000 },
+  /** Typed identity claims, per widget token (see `widgetIdentity`). */
+  widgetIdentityToken: { limit: 60, windowMs: 10 * 60_000 },
+  /** Enquiry submissions, per widget token. */
+  widgetEnquiryToken: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
+
+/** Window for the per-workspace broadcast recipient cap: the operator's
+ *  `broadcast_per_day` limit (account_platform.limits) per rolling day. */
+export const BROADCAST_RECIPIENTS_WINDOW_MS = 24 * 60 * 60_000;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't
  *  leak buckets across files. Not wired up in production code. */

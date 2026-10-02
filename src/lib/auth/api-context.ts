@@ -35,7 +35,8 @@ import { hashApiKey, looksLikeApiKey } from '@/lib/api-keys/keys';
 import { hasScope, type ApiScope } from '@/lib/api-keys/scopes';
 import { forbidden, rateLimited, unauthorized } from '@/lib/api/v1/respond';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/platform/features';
+import { checkSharedRateLimit } from '@/lib/rate-limit-shared';
+import { ACCOUNT_SUSPENDED_MESSAGE, parsePlatformRow, type AccountPlatform } from '@/lib/platform/features';
 
 export interface ApiKeyContext {
   /** Discriminant — lets shared logic tell key auth from cookie auth. */
@@ -50,6 +51,8 @@ export interface ApiKeyContext {
   scopes: string[];
   /** Who minted the key (null if that user was later removed). */
   createdBy: string | null;
+  /** The workspace's operator-set plan, limits and flags (migration 132). */
+  platform: AccountPlatform;
 }
 
 /**
@@ -101,6 +104,11 @@ export async function requireApiKey(
   if (!limit.success) {
     throw rateLimited(limit);
   }
+  // And per workspace: issuing more keys must not multiply the budget.
+  const acctLimit = await checkSharedRateLimit(`apikey-acct:${row.account_id}`, RATE_LIMITS.publicApiAccount);
+  if (!acctLimit.success) {
+    throw rateLimited(acctLimit);
+  }
 
   if (scope && !hasScope(row.scopes, scope)) {
     throw forbidden(`This API key is missing the '${scope}' scope`);
@@ -111,7 +119,7 @@ export async function requireApiKey(
   const admin = supabaseAdmin();
   const { data: platform, error: platformError } = await admin
     .from('account_platform')
-    .select('status')
+    .select('status, plan, limits, features, suspended_reason')
     .eq('account_id', row.account_id)
     .maybeSingle();
   if (platformError && platformError.code !== '42P01' && platformError.code !== 'PGRST205') {
@@ -130,5 +138,6 @@ export async function requireApiKey(
     keyId: row.id,
     scopes: row.scopes,
     createdBy: row.created_by,
+    platform: parsePlatformRow(platform),
   };
 }
