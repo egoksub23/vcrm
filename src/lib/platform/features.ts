@@ -32,7 +32,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -97,6 +97,9 @@ export function limitFor(
 // through the existing capability checks instead of each being patched.
 const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => boolean> = {
   incidents: (c) => c === "menu.incidents" || c.startsWith("incidents."),
+  // The Jira link (Settings > Integrations, the Jira section of a ticket,
+  // every /api/integrations/jira route) is gated by the three jira.* caps.
+  jira: (c) => c.startsWith("jira."),
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */

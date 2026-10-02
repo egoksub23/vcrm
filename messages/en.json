@@ -7915,6 +7915,8 @@
     "featuresTitle": "Modules",
     "feature_incidents": "Incident Reporting",
     "feature_incidents_desc": "Security incident register with regulator notification forms. Off for most customers.",
+    "feature_jira": "Jira link",
+    "feature_jira_desc": "Link tickets to Jira issues and sync status and comments. Off for most customers.",
     "save": "Save",
     "saved": "Saved.",
     "suspendTitle": "Suspend {name}?",

@@ -73,4 +73,16 @@ describe("applyFeatureFlags", () => {
     // the input is not mutated
     expect(caps.has("incidents.raise")).toBe(true);
   });
+
+  it("removes every jira capability and nothing else when jira is off", () => {
+    const withJira = new Set(["menu.inbox", "tickets.delete", "jira.connect", "jira.link", "jira.share-comments", "incidents.raise"]);
+    const out = applyFeatureFlags(withJira, parsePlatformRow({ features: { jira: false } }));
+    expect([...out].sort()).toEqual(["incidents.raise", "menu.inbox", "tickets.delete"]);
+  });
+
+  it("drops both modules together when both are off", () => {
+    const both = new Set(["menu.incidents", "jira.link", "tickets.delete"]);
+    const out = applyFeatureFlags(both, parsePlatformRow({ features: { incidents: false, jira: false } }));
+    expect([...out]).toEqual(["tickets.delete"]);
+  });
 });

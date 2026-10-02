@@ -79,7 +79,7 @@ jobs:
       # "ROLLBACK-OK" error, so success is that marker, not exit status.
       - name: Verify tenant isolation
         run: |
-          for f in supabase/ci/verify-130-tenant-isolation-hotfix.sql supabase/ci/verify-131-user-delete-keeps-tenant-data.sql supabase/ci/verify-132-platform-layer.sql supabase/ci/verify-133-tenant-branding.sql supabase/ci/verify-134-invite-only-signup.sql supabase/ci/verify-135-fair-background-jobs.sql supabase/ci/verify-136-webhook-binding-and-mailbox-owner.sql; do
+          for f in supabase/ci/verify-130-tenant-isolation-hotfix.sql supabase/ci/verify-131-user-delete-keeps-tenant-data.sql supabase/ci/verify-132-platform-layer.sql supabase/ci/verify-133-tenant-branding.sql supabase/ci/verify-134-invite-only-signup.sql supabase/ci/verify-135-fair-background-jobs.sql supabase/ci/verify-136-webhook-binding-and-mailbox-owner.sql supabase/ci/verify-137-jira-feature-flag.sql; do
             out=$(supabase db query --local --file "$f" 2>&1 || true)
             echo "$out"
             echo "$out" | grep -q "ROLLBACK-OK" || { echo "::error::$f did not reach ROLLBACK-OK"; exit 1; }
