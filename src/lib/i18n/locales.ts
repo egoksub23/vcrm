@@ -12,13 +12,15 @@
 // settings screens.
 // ============================================================
 
-export const SUPPORTED_LOCALES = ["en", "ko"] as const;
+export const SUPPORTED_LOCALES = ["en", "ko", "ms", "zh"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 /** Each language written in itself, so a person can find theirs whatever the current language. */
 export const LOCALE_NAMES: Record<SupportedLocale, string> = {
   en: "English",
   ko: "한국어",
+  ms: "Bahasa Melayu",
+  zh: "简体中文",
 };
 
 /** A supported code for `value` (case-insensitive, "ko-KR" and "ko_KR" count as "ko"), or null. */

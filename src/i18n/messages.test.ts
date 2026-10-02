@@ -13,9 +13,21 @@ const MESSAGES_DIR = join(process.cwd(), 'messages');
 const SOURCE_LOCALE = 'en';
 // Maintained locales. es and pt are frozen (no longer needed: the product
 // runs in English, Bahasa Melayu and Mandarin, with Korean and Japanese as
-// backups) so they are not held to parity. Add 'ms', 'zh' and 'ja' here as
-// their message files are built.
-const TRANSLATED_LOCALES = ['ko'];
+// backups) so they are not held to parity. Add 'ja' here when its file is built.
+const TRANSLATED_LOCALES = ['ko', 'ms', 'zh'];
+
+// Namespaces customers never see (Vircle's own Jira and incident tools, and the
+// operator console). ms and zh leave them out: src/i18n/request.ts lays every
+// translation over English, so they fall back to English. Everything else must
+// be translated, and what IS translated is still held to placeholder parity.
+const EXEMPT_NAMESPACES: Record<string, string[]> = {
+  ms: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents'],
+  zh: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents'],
+};
+
+function isExempt(locale: string, key: string): boolean {
+  return (EXEMPT_NAMESPACES[locale] ?? []).some((ns) => key === ns || key.startsWith(ns + '.'));
+}
 
 type Catalogue = Record<string, unknown>;
 
@@ -263,7 +275,7 @@ describe('message catalogue parity', () => {
 
   it.each(TRANSLATED_LOCALES)('%s.json covers every en.json key', (locale) => {
     const translated = loadKeys(locale);
-    const missing = [...source].filter((k) => !translated.has(k)).sort();
+    const missing = [...source].filter((k) => !translated.has(k) && !isExempt(locale, k)).sort();
     expect(missing, `${locale}.json is missing these keys`).toEqual([]);
   });
 
