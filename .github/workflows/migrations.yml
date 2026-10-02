@@ -70,17 +70,16 @@ jobs:
       - name: Verify the resulting schema
         run: supabase db query --local --file supabase/ci/verify-schema.sql
 
-      # Tenant isolation, as behaviour rather than schema: an anonymous
-      # visitor cannot make itself a member of another account, custom
-      # roles cannot be self-assigned, cross-tenant functions are not
-      # callable by anon/authenticated, and storage cannot be listed
-      # across tenants. The script builds its own two tenants, runs the
-      # checks inside one transaction and ends in a deliberate
-      # "ROLLBACK-OK" error, so success is that marker, not exit status.
-      - name: Verify tenant isolation
-        run: |
-          for f in supabase/ci/verify-130-tenant-isolation-hotfix.sql supabase/ci/verify-131-user-delete-keeps-tenant-data.sql supabase/ci/verify-132-platform-layer.sql supabase/ci/verify-133-tenant-branding.sql supabase/ci/verify-134-invite-only-signup.sql supabase/ci/verify-135-fair-background-jobs.sql supabase/ci/verify-136-webhook-binding-and-mailbox-owner.sql supabase/ci/verify-137-jira-feature-flag.sql supabase/ci/verify-138-shared-rate-limits.sql; do
-            out=$(supabase db query --local --file "$f" 2>&1 || true)
-            echo "$out"
-            echo "$out" | grep -q "ROLLBACK-OK" || { echo "::error::$f did not reach ROLLBACK-OK"; exit 1; }
-          done
+      # Every verification script under supabase/ci, as behaviour rather than
+      # schema: tenant isolation (an anonymous visitor cannot make itself a member
+      # of another account, custom roles cannot be self-assigned, cross-tenant
+      # functions are not callable, storage cannot be listed across tenants), the
+      # operator layer, background-job fairness, rate limits, and the catalogue
+      # guards (RLS on every table, reviewed lists of callable functions and public
+      # buckets). Scripts are discovered by name, so a new one cannot be forgotten;
+      # supabase/ci/stale-verifications.txt records the few that are skipped and
+      # why. Each script builds its own data, runs inside one transaction and ends
+      # in a deliberate "ROLLBACK-OK" error, so success is that marker, not the
+      # exit status.
+      - name: Verify behaviour
+        run: bash supabase/ci/run-verifications.sh --local

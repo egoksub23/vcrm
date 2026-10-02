@@ -82,8 +82,8 @@ BEGIN
   -- ---------------------------------------------------------
   -- 1. Columns and defaults
   -- ---------------------------------------------------------
-  IF (SELECT ticket_key_prefix FROM accounts WHERE id = a) IS DISTINCT FROM 'VIR' THEN
-    RAISE EXCEPTION 'FAIL accounts.ticket_key_prefix default must be VIR';
+  IF (SELECT ticket_key_prefix FROM accounts WHERE id = a) IS DISTINCT FROM 'TKT' THEN
+    RAISE EXCEPTION 'FAIL accounts.ticket_key_prefix default must be TKT (migration 133 changed it from VIR)';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                   WHERE table_schema='public' AND table_name='accounts'

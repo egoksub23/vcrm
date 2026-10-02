@@ -1,0 +1,18 @@
+# Verification scripts that are NOT run by CI, and why. Format:  file | why it is stale
+#
+# Each was written for a migration at its time and asserts something a later
+# migration changed ON PURPOSE (triaged 2 Oct 2026: none hides a regression).
+# They are not deleted because most of what they check is still worth keeping:
+# bring one back by updating its assertions and removing its line here.
+#
+# New verify scripts are picked up automatically. Do not add a line here to get
+# a red check green: fix the script, or record exactly which later migration
+# changed the behaviour.
+
+verify-088-access-phase5.sql | closed list of capabilities and old grant floors; later migrations added sembang.manage, menu.sembang, menu.incidents, incidents.raise (viewers may report incidents, migration 116) and incidents.manage
+verify-092-widget-v2.sql | contact deletion became a soft delete (migration 125), so merge no longer removes the merged contact's suggestion rows by cascade
+verify-098-sembang-p0.sql | step 9a deletes the member's OWN message, which authors may now do (migration 099 adds the edit_own policy); should test that a member cannot delete someone else's
+verify-099-sembang-p1.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
+verify-101-sembang-p3.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
+verify-102-sembang-mentions.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
+verify-110-widget-email-verification.sql | contact deletion became a soft delete (migration 125), so widget_verification_codes no longer cascade away

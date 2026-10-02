@@ -329,7 +329,10 @@ BEGIN
     RAISE EXCEPTION 'FAIL min_grant_role must be agent for the write capabilities';
   END IF;
   IF EXISTS (SELECT 1 FROM capability_catalogue
-              WHERE enforced_by = 'database' AND min_grant_role = 'viewer' AND capability NOT LIKE 'menu.%') THEN
+              WHERE enforced_by = 'database' AND min_grant_role = 'viewer' AND capability NOT LIKE 'menu.%'
+                -- migration 116: any member may report a security incident (the insert policy
+                -- ties the row to the reporter, who sees only their own)
+                AND capability <> 'incidents.raise') THEN
     RAISE EXCEPTION 'FAIL a database capability must never be grantable to a Viewer';
   END IF;
 

@@ -264,7 +264,7 @@ BEGIN
   IF res NOT LIKE 'ERR 22023: resolution_required' THEN RAISE EXCEPTION 'FAIL 2q a ticket was created resolved without a resolution: %', res; END IF;
 
   -- ---------------------------------------------------------
-  -- 3. Changing it later is allowed and logged; re-opening clears nothing
+  -- 3. Changing it later is allowed and logged; re-opening clears it (migration 128)
   -- ---------------------------------------------------------
   res := pg_temp.run(agent_a, format('UPDATE tickets SET resolution_id = %L, resolution_note = NULL WHERE id = %L', r_dup, tk1));
   IF res <> 'OK' OR pg_temp.resname(tk1) <> 'Duplicate' THEN RAISE EXCEPTION 'FAIL 3a changing the resolution: %', res; END IF;
@@ -276,13 +276,16 @@ BEGIN
   -- it cannot be cleared while the ticket is done
   res := pg_temp.run(agent_a, format('UPDATE tickets SET resolution_id = NULL WHERE id = %L', tk1));
   IF res NOT LIKE 'ERR 22023: resolution_required' THEN RAISE EXCEPTION 'FAIL 3c a done ticket lost its resolution: %', res; END IF;
-  -- re-open: nothing is cleared
+  -- re-open: migration 128 clears the resolution (the old value stays in the history)
   res := pg_temp.run(agent_a, format('UPDATE tickets SET status = ''open'', resolved_at = NULL, closed_at = NULL WHERE id = %L', tk1));
-  IF res <> 'OK' OR pg_temp.resname(tk1) <> 'Duplicate' THEN RAISE EXCEPTION 'FAIL 3d re-opening cleared the resolution: %', res; END IF;
+  IF res <> 'OK' OR pg_temp.resname(tk1) IS NOT NULL THEN RAISE EXCEPTION 'FAIL 3d re-opening kept the resolution: %', res; END IF;
   IF pg_temp.act(tk1, 'resolved_as') <> 1 THEN RAISE EXCEPTION 'FAIL 3e re-opening rewrote the history'; END IF;
-  -- resolving again keeps the earlier resolution and adds another "resolved as" line
+  -- resolving again needs a fresh pick...
   res := pg_temp.run(agent_a, format('UPDATE tickets SET status = ''resolved'', resolved_at = now() WHERE id = %L', tk1));
-  IF res <> 'OK' OR pg_temp.act(tk1, 'resolved_as') <> 2 THEN RAISE EXCEPTION 'FAIL 3f resolving again: %', res; END IF;
+  IF res NOT LIKE 'ERR 22023: resolution_required' THEN RAISE EXCEPTION 'FAIL 3f resolving again without a resolution: %', res; END IF;
+  -- ...and with one adds another "resolved as" line
+  res := pg_temp.run(agent_a, format('UPDATE tickets SET status = ''resolved'', resolved_at = now(), resolution_id = %L WHERE id = %L', r_dup, tk1));
+  IF res <> 'OK' OR pg_temp.act(tk1, 'resolved_as') <> 2 THEN RAISE EXCEPTION 'FAIL 3f2 resolving again with a resolution: %', res; END IF;
   -- resolved -> closed keeps what is there and needs nothing
   res := pg_temp.run(agent_a, format('UPDATE tickets SET status = ''closed'', closed_at = now() WHERE id = %L', tk1));
   IF res <> 'OK' OR pg_temp.resname(tk1) <> 'Duplicate' THEN RAISE EXCEPTION 'FAIL 3g resolved -> closed: %', res; END IF;

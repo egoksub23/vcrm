@@ -270,6 +270,9 @@ BEGIN
     RAISE EXCEPTION 'FAIL 6a a team request wrote % history lines, expected 1', pg_temp.act(tk2, 'mention_requested');
   END IF;
 
+  -- Migration 096 made a resolution mandatory when closing; this check is about the mentions, so
+  -- turn that rule off for the fixture workspace.
+  UPDATE accounts SET require_ticket_resolution = false WHERE id = a;
   res := pg_temp.run(agent_a, format('UPDATE tickets SET status = ''resolved'' WHERE id = %L', tk2));
   IF res <> 'OK' THEN RAISE EXCEPTION 'FAIL 6b status update: %', res; END IF;
   IF (SELECT count(*) FROM ticket_mentions WHERE ticket_id = tk2 AND status = 'done' AND resolved_reason = 'ticket_closed') <> 2 THEN
