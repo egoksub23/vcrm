@@ -1,3 +1,4 @@
+import { loadEmailIdentity } from './identity';
 import { isResendConfigured, sendEmail } from './resend';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 import { getValidAccessToken, type EmailConfigRow } from '@/lib/ms365/token';
@@ -83,7 +84,7 @@ export async function sendInvitationEmail(args: {
   const { subject, html, text } = buildInvitationEmail(args);
 
   if (isResendConfigured()) {
-    await sendEmail({ to: args.to, subject, html, text });
+    await sendEmail({ to: args.to, subject, html, text, ...(await loadEmailIdentity(args.accountId)) });
     return true;
   }
 

@@ -66,7 +66,7 @@ export async function PATCH(request: Request) {
       .from("accounts")
       .update(parsed.value)
       .eq("id", ctx.accountId)
-      .select("id, name, brand_name, brand_logo_url")
+      .select("id, name, brand_name, brand_logo_url, email_sender_name, email_reply_to")
       .single();
 
     if (error) {

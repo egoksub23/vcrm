@@ -5,13 +5,12 @@
  * `src/lib/gmail/*`): named-params-object functions, a small typed error
  * class, no vendor SDK weight added to the app.
  *
- * Bring-your-own-key, global (not per-account): `RESEND_API_KEY` /
- * `RESEND_FROM_EMAIL` env vars, same tier as `META_APP_SECRET` or
- * `MS365_CLIENT_SECRET` — see .env.local.example. Deliberately NOT an
- * account setting like the WhatsApp/Gmail/MS365 channels: this only
- * ever sends the app's own transactional mail (invites today), never a
- * customer-facing message, so one deployment-wide sender identity is
- * the right scope, not one per account.
+ * The API key and the sending ADDRESS are global (`RESEND_API_KEY` /
+ * `RESEND_FROM_EMAIL`, same tier as `META_APP_SECRET`): an address can only be
+ * sent as once its domain is verified with Resend. What a workspace controls is
+ * the display name and reply-to (accounts.email_sender_name / email_reply_to,
+ * migration 143), passed per send; see lib/email/identity.ts. Mail sent as the
+ * platform itself (a new customer's welcome) passes neither.
  */
 
 export class ResendApiError extends Error {
@@ -44,12 +43,43 @@ function fromAddress(): string {
   return 'onboarding@resend.dev';
 }
 
+/** What a workspace's outgoing mail looks like to the person receiving it. */
+export interface EmailIdentity {
+  /** Display name shown next to the address. */
+  fromName?: string | null;
+  /** Where replies go. */
+  replyTo?: string | null;
+}
+
+const UNSAFE_NAME_CHARS = /[\r\n"<>;,]/g;
+const PLAIN_EMAIL = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
+
+/**
+ * The `From` header: the deployment's verified address (the only address mail
+ * can be sent as without verifying another domain) under the workspace's
+ * display name. An address configured as `Name <addr>` keeps only its address
+ * when a workspace name is given. Unsafe characters are dropped, never quoted:
+ * a name can never alter the address or add a header.
+ */
+export function formatFrom(configured: string, fromName?: string | null): string {
+  const name = (fromName ?? '').replace(UNSAFE_NAME_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (!name) return configured;
+  const bare = configured.match(/<([^<>]+)>\s*$/)?.[1]?.trim() ?? configured.trim();
+  return `${name} <${bare}>`;
+}
+
+/** The reply-to address if it is one plain address, otherwise nothing. */
+export function safeReplyTo(replyTo?: string | null): string | undefined {
+  const v = replyTo?.trim();
+  return v && v.length <= 254 && PLAIN_EMAIL.test(v) ? v : undefined;
+}
+
 export async function sendEmail(args: {
   to: string;
   subject: string;
   html: string;
   text: string;
-}): Promise<void> {
+} & EmailIdentity): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     throw new ResendApiError('RESEND_API_KEY is not configured', 0);
@@ -62,11 +92,12 @@ export async function sendEmail(args: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: fromAddress(),
+      from: formatFrom(fromAddress(), args.fromName),
       to: [args.to],
       subject: args.subject,
       html: args.html,
       text: args.text,
+      ...(safeReplyTo(args.replyTo) ? { reply_to: safeReplyTo(args.replyTo) } : {}),
     }),
   });
 

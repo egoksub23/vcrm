@@ -87,6 +87,9 @@ interface AccountSummary {
    *  the neutral product default. */
   brand_name: string | null;
   brand_logo_url: string | null;
+  /** Outgoing-mail identity (migration 143). Null = fall back to the brand name / no reply-to. */
+  email_sender_name: string | null;
+  email_reply_to: string | null;
 }
 
 /**
@@ -410,7 +413,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // reason: an error just means "neutral defaults".
             const { data: brandRow } = await supabase
               .from("accounts")
-              .select("brand_name, brand_logo_url")
+              .select("brand_name, brand_logo_url, email_sender_name, email_reply_to")
               .eq("id", data.account_id)
               .maybeSingle();
             accountRow = {
@@ -422,6 +425,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               status_colors: withStatusColorDefaults(account.status_colors),
               brand_name: brandRow?.brand_name ?? null,
               brand_logo_url: brandRow?.brand_logo_url ?? null,
+              email_sender_name: brandRow?.email_sender_name ?? null,
+              email_reply_to: brandRow?.email_reply_to ?? null,
             };
           }
         }

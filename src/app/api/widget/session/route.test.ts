@@ -397,7 +397,9 @@ describe('POST /api/widget/session', () => {
         verification: { mode: 'email_code', maskedEmail: 'r***@example.com' },
       })
       expect(body.conversationId).toBeUndefined()
-      expect(sentCodeEmails).toEqual([{ to: 'real@example.com', code: expect.any(String), widgetName: 'Support' }])
+      expect(sentCodeEmails).toEqual([
+        { to: 'real@example.com', code: expect.any(String), widgetName: 'Support', accountId: 'acc-1' },
+      ])
       expect(writes.some((w) => w.table === 'widget_visitors')).toBe(false)
       const codeWrite = writes.find((w) => w.table === 'widget_verification_codes')
       expect(codeWrite).toMatchObject({

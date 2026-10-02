@@ -31,6 +31,8 @@ export function WorkspacePanel() {
   const [name, setName] = useState(account?.name ?? "");
   const [brandName, setBrandName] = useState(account?.brand_name ?? "");
   const [logoUrl, setLogoUrl] = useState<string | null>(account?.brand_logo_url ?? null);
+  const [senderName, setSenderName] = useState(account?.email_sender_name ?? "");
+  const [replyTo, setReplyTo] = useState(account?.email_reply_to ?? "");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,6 +70,8 @@ export function WorkspacePanel() {
           name,
           brand_name: brandName.trim() || null,
           brand_logo_url: logoUrl,
+          email_sender_name: senderName.trim() || null,
+          email_reply_to: replyTo.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -108,6 +112,33 @@ export function WorkspacePanel() {
               onChange={(e) => setBrandName(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">{t("brandNameHint")}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-sender">{t("senderNameLabel")}</Label>
+            <Input
+              id="ws-sender"
+              value={senderName}
+              maxLength={60}
+              placeholder={brandName.trim() || name}
+              disabled={!canEdit}
+              onChange={(e) => setSenderName(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t("senderNameHint")}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-reply-to">{t("replyToLabel")}</Label>
+            <Input
+              id="ws-reply-to"
+              type="email"
+              value={replyTo}
+              maxLength={254}
+              placeholder="support@yourcompany.com"
+              disabled={!canEdit}
+              onChange={(e) => setReplyTo(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t("replyToHint")}</p>
           </div>
 
           <div className="space-y-2">

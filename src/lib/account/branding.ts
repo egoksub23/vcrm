@@ -10,12 +10,23 @@
 export const MAX_ACCOUNT_NAME_LEN = 80;
 export const MAX_BRAND_NAME_LEN = 60;
 export const MAX_LOGO_URL_LEN = 500;
+export const MAX_EMAIL_SENDER_NAME_LEN = 60;
+export const MAX_EMAIL_LEN = 254;
+
+/** Characters that could break out of a mail header (mirrors accounts_email_sender_name_check). */
+const UNSAFE_SENDER_NAME = /[\r\n"<>;,]/;
+/** One plain address, no display name or list (mirrors accounts_email_reply_to_check). */
+const PLAIN_EMAIL = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
 
 export interface AccountPatch {
   name?: string;
   /** null clears it (back to the neutral product default). */
   brand_name?: string | null;
   brand_logo_url?: string | null;
+  /** Display name on the workspace's outgoing mail (migration 143). null = fall back to the brand name. */
+  email_sender_name?: string | null;
+  /** Where replies to the workspace's outgoing mail go (migration 143). */
+  email_reply_to?: string | null;
 }
 
 type Result = { ok: true; value: AccountPatch } | { ok: false; error: string };
@@ -75,6 +86,40 @@ export function parseAccountPatch(body: unknown): Result {
       }
     } else {
       return { ok: false, error: "'brand_logo_url' must be a string or null" };
+    }
+  }
+
+  if (b.email_sender_name !== undefined) {
+    if (b.email_sender_name === null) {
+      out.email_sender_name = null;
+    } else if (typeof b.email_sender_name === "string") {
+      const v = b.email_sender_name.trim();
+      if (v.length > MAX_EMAIL_SENDER_NAME_LEN) {
+        return { ok: false, error: `Sender name must be ${MAX_EMAIL_SENDER_NAME_LEN} characters or fewer` };
+      }
+      if (UNSAFE_SENDER_NAME.test(v)) {
+        return { ok: false, error: "Sender name cannot contain quotes, angle brackets, commas or semicolons" };
+      }
+      out.email_sender_name = v === "" ? null : v;
+    } else {
+      return { ok: false, error: "'email_sender_name' must be a string or null" };
+    }
+  }
+
+  if (b.email_reply_to !== undefined) {
+    if (b.email_reply_to === null) {
+      out.email_reply_to = null;
+    } else if (typeof b.email_reply_to === "string") {
+      const v = b.email_reply_to.trim();
+      if (v === "") {
+        out.email_reply_to = null;
+      } else if (v.length > MAX_EMAIL_LEN || !PLAIN_EMAIL.test(v)) {
+        return { ok: false, error: "Reply-to must be a single email address" };
+      } else {
+        out.email_reply_to = v;
+      }
+    } else {
+      return { ok: false, error: "'email_reply_to' must be a string or null" };
     }
   }
 

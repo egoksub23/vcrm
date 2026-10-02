@@ -72,6 +72,7 @@ export async function startEmailCodeVerification(
     to: candidate.email,
     code,
     widgetName: args.widgetName,
+    accountId: args.accountId,
   });
   return { ok: true, maskedEmail: maskEmail(candidate.email) };
 }

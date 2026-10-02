@@ -42,3 +42,43 @@ describe("parseAccountPatch", () => {
     if (!r.ok) expect(r.error).toMatch(message);
   });
 });
+
+describe("parseAccountPatch: outgoing mail identity", () => {
+  it("accepts a sender name and reply-to, trimming and turning blanks into null", () => {
+    expect(parseAccountPatch({ email_sender_name: "  Acme Support ", email_reply_to: " help@acme.example " })).toEqual({
+      ok: true,
+      value: { email_sender_name: "Acme Support", email_reply_to: "help@acme.example" },
+    });
+    expect(parseAccountPatch({ email_sender_name: "  ", email_reply_to: "" })).toEqual({
+      ok: true,
+      value: { email_sender_name: null, email_reply_to: null },
+    });
+    expect(parseAccountPatch({ email_sender_name: null, email_reply_to: null })).toEqual({
+      ok: true,
+      value: { email_sender_name: null, email_reply_to: null },
+    });
+  });
+
+  it("accepts non-Latin names and plus-addressing", () => {
+    expect(parseAccountPatch({ email_sender_name: "고객 지원", email_reply_to: "a+b@x.example" }).ok).toBe(true);
+  });
+
+  it.each([
+    [{ email_sender_name: "x".repeat(61) }, /60/],
+    [{ email_sender_name: 'Evil" <x@y.z>' }, /cannot contain/],
+    [{ email_sender_name: "a,b" }, /cannot contain/],
+    [{ email_sender_name: "a;b" }, /cannot contain/],
+    [{ email_sender_name: "two\nlines" }, /cannot contain/],
+    [{ email_sender_name: 4 }, /email_sender_name/],
+    [{ email_reply_to: "nope" }, /single email/],
+    [{ email_reply_to: "a@b" }, /single email/],
+    [{ email_reply_to: "a@b.co, c@d.co" }, /single email/],
+    [{ email_reply_to: "<a@b.co>" }, /single email/],
+    [{ email_reply_to: "a@b.co\nBcc: x@y.z" }, /single email/],
+    [{ email_reply_to: 4 }, /email_reply_to/],
+  ])("rejects %j", (body, message) => {
+    const r = parseAccountPatch(body);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(message);
+  });
+});

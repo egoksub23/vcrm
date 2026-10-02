@@ -21,6 +21,7 @@
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { loadEmailIdentity } from '@/lib/email/identity';
 import { isResendConfigured, sendEmail } from '@/lib/email/resend';
 
 /** Below this, assume the visitor is still looking at the page and
@@ -84,6 +85,7 @@ export async function notifyWidgetVisitorOfReply(
       );
 
     await sendEmail({
+      ...(await loadEmailIdentity(args.accountId)),
       to: args.contactEmail,
       subject: 'You have a new reply',
       html: `<p>${escapeHtml('You have a new reply waiting for you. Reopen the chat to see it.')}</p>`,

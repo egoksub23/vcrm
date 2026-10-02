@@ -1,3 +1,4 @@
+import { loadEmailIdentity } from './identity';
 import { sendEmail } from './resend';
 
 function escapeHtml(value: string): string {
@@ -22,6 +23,8 @@ export async function sendVerificationCodeEmail(args: {
   /** The widget's own display name (Settings → Channels → Web Widget),
    *  not the CRM account's name — this is what the visitor recognizes. */
   widgetName: string;
+  /** The workspace the widget belongs to: its sender name and reply-to are used. */
+  accountId?: string;
 }): Promise<void> {
   const subject = `Your verification code: ${args.code}`;
   const text = [
@@ -44,5 +47,6 @@ export async function sendVerificationCodeEmail(args: {
     </div>
   `.trim();
 
-  await sendEmail({ to: args.to, subject, html, text });
+  const identity = args.accountId ? await loadEmailIdentity(args.accountId) : {};
+  await sendEmail({ to: args.to, subject, html, text, ...identity });
 }
