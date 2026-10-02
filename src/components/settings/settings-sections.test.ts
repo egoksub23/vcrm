@@ -85,7 +85,8 @@ describe("settings sections and capabilities", () => {
         s !== "approvals" &&
         s !== "integrations" &&
         s !== "sla" &&
-        s !== "incidents",
+        s !== "incidents" &&
+        s !== "workspace",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
     expect(visibleSections(holds())).toEqual(rest);
@@ -94,11 +95,21 @@ describe("settings sections and capabilities", () => {
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
       visibleSections(
-        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage"),
+        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage", "settings.workspace"),
       ),
     ).toEqual([
       ...SETTINGS_SECTIONS,
     ]);
+  });
+});
+
+describe("the Workspace section (migration 133)", () => {
+  it("sits in the workspace group behind settings.workspace", () => {
+    expect(SECTION_META.workspace.group).toBe("workspace");
+    expect(SECTION_META.workspace.capability).toBe("settings.workspace");
+    expect(resolveSection("workspace")).toBe("workspace");
+    expect(canSeeSection("workspace", holds())).toBe(false);
+    expect(canSeeSection("workspace", holds("settings.workspace"))).toBe(true);
   });
 });
 

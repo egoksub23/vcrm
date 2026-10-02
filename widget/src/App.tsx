@@ -112,8 +112,6 @@ export function App({
   initialIdentity,
   onIdentifyReady,
 }: AppProps) {
-  const t = useMemo(() => makeTranslator(locale), [locale])
-
   const [open, setOpen] = useState(autoOpen)
   const [screen, setScreen] = useState<Screen>('boot')
   const [busy, setBusy] = useState(false)
@@ -121,6 +119,8 @@ export function App({
   const [bootError, setBootError] = useState<string | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [branding, setBranding] = useState<Branding | null>(null)
+  // The strings that name the company follow the widget's brand name (migration 133).
+  const t = useMemo(() => makeTranslator(locale, branding?.brandName), [locale, branding?.brandName])
   const [limits, setLimits] = useState<WidgetLimits>(DEFAULT_LIMITS)
   const [identity, setIdentity] = useState<IdentityInfo | null>(null)
   // Masked email a verification code was just sent to (migration 110);

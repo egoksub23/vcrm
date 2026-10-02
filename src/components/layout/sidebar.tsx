@@ -301,18 +301,33 @@ export function Sidebar({
         >
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-              <Image
-                src="/brand/mascot-icon.png"
-                alt=""
-                width={64}
-                height={64}
-                className="h-full w-full object-cover"
-                priority
-              />
+              {/* The workspace's own logo (migration 133) when it set one,
+                  otherwise the stock mark. A plain <img>: the URL is any
+                  https host the admin chose, which next/image would need
+                  allow-listing for. */}
+              {account?.brand_logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={account.brand_logo_url}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <Image
+                  src="/brand/mascot-icon.png"
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-full w-full object-cover"
+                  priority
+                />
+              )}
             </div>
             {expanded && (
               <span className="text-sm font-semibold text-foreground">
-                {t("title")}
+                {account?.brand_name ?? t("title")}
               </span>
             )}
           </Link>

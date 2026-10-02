@@ -75,16 +75,14 @@ import {
 //
 //   When `ALLOWED_INVITE_HOSTS` is set (comma-separated hostnames),
 //   we validate the derived host against the list. Anything not
-//   on the list falls through to the wacrm.tech fallback with a
+//   on the list falls through to the first allow-listed host with a
 //   loud console.warn. Operators who care about this attack
 //   surface should set this to their canonical hostnames; everyone
 //   else gets today's permissive behavior.
 //
-// Previous implementation hard-defaulted to `https://wacrm.tech`
-// (the docs/marketing site, a different repo). Forks that didn't
-// set `NEXT_PUBLIC_SITE_URL` got invite links pointing at the
-// marketing site, which 404s on `/join/<token>`. This resolution
-// chain removes the foot-gun.
+// An older version hard-defaulted to a fixed marketing domain, which
+// 404s on `/join/<token>` and is wrong for every other deployment. This
+// resolution chain never names a domain that is not the deployment's own.
 function parseAllowedHosts(): readonly string[] | null {
   const raw = process.env.ALLOWED_INVITE_HOSTS?.trim();
   if (!raw) return null;
@@ -143,7 +141,12 @@ function getBaseUrl(request: Request): string {
       "[POST /api/account/invitations] could not derive base URL from request; falling back to marketing domain",
     );
   }
-  return "https://wacrm.tech";
+  // Last resort. With an allow-list the first canonical host is the safe
+  // answer (a spoofed Host header must not be able to steer the link);
+  // without one this request's own origin is the only thing left. Never
+  // a third party's domain.
+  if (allowList && allowList.length > 0) return `https://${allowList[0]}`;
+  return new URL(request.url).origin;
 }
 
 const MAX_LABEL_LEN = 80;

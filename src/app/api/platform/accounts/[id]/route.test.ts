@@ -65,6 +65,12 @@ describe('PATCH /api/platform/accounts/[id]', () => {
     expect(h.rpc.mock.calls.map((c) => c[0])).toEqual(['platform_update_account', 'platform_set_account_status'])
   })
 
+  it('re-seeds the defaults through platform_reseed_account', async () => {
+    const res = await patch({ reseed: true })
+    expect(res.status).toBe(200)
+    expect(h.rpc).toHaveBeenCalledWith('platform_reseed_account', { p_account: ID })
+  })
+
   it('rejects an unknown feature or limit key without calling the database', async () => {
     expect((await patch({ features: { teleport: true } })).status).toBe(400)
     expect((await patch({ limits: { widgets: 5 } })).status).toBe(400)

@@ -18,13 +18,14 @@ import type { WebWidgetConfig } from '@/types'
 
 const NAME_MAX_LEN = 80
 const WELCOME_MAX_LEN = 300
+const BRAND_NAME_MAX_LEN = 60
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const MAX_ORIGINS = 20
 
 // Never selects identity_secret_enc: the settings screen only needs to know
 // THAT a secret exists (last4 is set together with it), not its ciphertext.
 const WIDGET_CONFIG_COLUMNS =
-  'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, allowed_origins, enabled, verification_mode, identity_secret_last4, identity_secret_rotated_at, created_at, updated_at'
+  'id, account_id, widget_token, name, welcome_message, primary_color, avatar_url, position, brand_name, allowed_origins, enabled, verification_mode, identity_secret_last4, identity_secret_rotated_at, created_at, updated_at'
 
 /** Verification modes that actually work today. `whatsapp_code` is still stored-only ("coming soon"). */
 const IMPLEMENTED_VERIFICATION_MODES = ['none', 'email_code'] as const
@@ -70,6 +71,7 @@ export async function PUT(request: Request) {
           primary_color?: unknown
           avatar_url?: unknown
           position?: unknown
+          brand_name?: unknown
           allowed_origins?: unknown
           enabled?: unknown
           verification_mode?: unknown
@@ -102,6 +104,19 @@ export async function PUT(request: Request) {
     }
 
     const position = body.position === 'left' ? 'left' : 'right'
+
+    // Company name the widget uses in its own sentences (migration 133).
+    // Empty / absent = neutral wording that names nobody.
+    let brandName: string | null = null
+    if (typeof body.brand_name === 'string' && body.brand_name.trim()) {
+      brandName = body.brand_name.trim()
+      if (brandName.length > BRAND_NAME_MAX_LEN) {
+        return NextResponse.json(
+          { error: `Company name must be ${BRAND_NAME_MAX_LEN} characters or fewer` },
+          { status: 400 },
+        )
+      }
+    }
 
     let allowedOrigins: string[] = []
     if (Array.isArray(body.allowed_origins)) {
@@ -166,6 +181,7 @@ export async function PUT(request: Request) {
       primary_color: primaryColor,
       avatar_url: avatarUrl,
       position,
+      brand_name: brandName,
       allowed_origins: allowedOrigins,
       enabled,
       ...(verificationMode ? { verification_mode: verificationMode } : {}),

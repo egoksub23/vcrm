@@ -83,6 +83,10 @@ interface AccountSummary {
   /** Currencies offered in pickers (migration 068). Falls back to the
    *  built-in list when the account hasn't customised it. */
   currencies: CurrencyOption[];
+  /** Product name and logo for the app chrome (migration 133). Null =
+   *  the neutral product default. */
+  brand_name: string | null;
+  brand_logo_url: string | null;
 }
 
 /**
@@ -402,6 +406,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select("currencies")
               .eq("id", data.account_id)
               .maybeSingle();
+            // Branding (migration 133), read on its own for the same
+            // reason: an error just means "neutral defaults".
+            const { data: brandRow } = await supabase
+              .from("accounts")
+              .select("brand_name, brand_logo_url")
+              .eq("id", data.account_id)
+              .maybeSingle();
             accountRow = {
               id: account.id,
               name: account.name,
@@ -409,6 +420,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
               sla_response_minutes: account.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
               status_colors: withStatusColorDefaults(account.status_colors),
+              brand_name: brandRow?.brand_name ?? null,
+              brand_logo_url: brandRow?.brand_logo_url ?? null,
             };
           }
         }

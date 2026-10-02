@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   const { data: config, error: configError } = await admin
     .from('web_widget_config')
     .select(
-      'id, account_id, enabled, allowed_origins, name, welcome_message, primary_color, avatar_url, position, verification_mode',
+      'id, account_id, enabled, allowed_origins, name, welcome_message, primary_color, avatar_url, position, brand_name, verification_mode',
     )
     .eq('widget_token', widgetToken)
     .maybeSingle()

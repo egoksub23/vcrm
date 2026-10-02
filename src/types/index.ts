@@ -848,6 +848,8 @@ export interface WebWidgetConfig {
   primary_color: string;
   avatar_url?: string | null;
   position: 'left' | 'right';
+  /** Company name the widget uses in its own sentences (migration 133); null = neutral wording. */
+  brand_name?: string | null;
   /** Origins allowed to embed this widget (CORS allow-list). Empty
    *  array means unrestricted — any origin may embed. */
   allowed_origins: string[];

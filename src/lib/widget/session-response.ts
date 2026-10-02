@@ -13,6 +13,8 @@ export interface WidgetConfigRow {
   primary_color: string;
   avatar_url: string | null;
   position: string;
+  /** Company name the widget uses in its own sentences (migration 133). */
+  brand_name?: string | null;
   verification_mode?: string | null;
 }
 
@@ -23,6 +25,7 @@ export function brandingOf(config: WidgetConfigRow) {
     primaryColor: config.primary_color,
     avatarUrl: config.avatar_url,
     position: config.position,
+    brandName: config.brand_name ?? null,
   };
 }
 

@@ -16,14 +16,16 @@ const en = {
   loadingChat: 'Loading chat…',
 
   choiceTitle: 'How can we help?',
-  choiceExisting: "I'm already a Vircle user",
+  choiceExisting: "I'm already a {brand} user",
+  choiceExistingNeutral: "I'm already a customer",
   choiceExistingHint: 'Find your account so we can help faster.',
   choiceEnquiry: 'I have an enquiry',
   choiceEnquiryHint: 'Tell us who you are and what you need.',
   choiceGuest: 'Just chat, skip this',
 
   claimTitle: 'Find your account',
-  claimHint: 'Enter the phone number or email you use with Vircle.',
+  claimHint: 'Enter the phone number or email you use with {brand}.',
+  claimHintNeutral: 'Enter the phone number or email on your account.',
   fieldPhone: 'Phone number',
   fieldPhonePh: 'e.g. 60123456789',
   fieldEmail: 'Email',
@@ -60,14 +62,16 @@ const en = {
   roleOther: 'Other',
   fieldMessage: 'Your message',
   fieldMessagePh: 'How can we help?',
-  consent: 'I agree that Vircle may contact me about this enquiry.',
+  consent: 'I agree that {brand} may contact me about this enquiry.',
+  consentNeutral: 'I agree that you may contact me about this enquiry.',
   submitEnquiry: 'Send enquiry',
   enquirySent: 'Thanks! We have your enquiry and will reply here soon.',
 
   welcomeBack: 'Welcome back, {name}!',
   welcomeBackNoName: 'Welcome back!',
   welcomeNew: 'Thanks! We will get you sorted.',
-  linkAccount: 'Already a Vircle user? Link your account',
+  linkAccount: 'Already a {brand} user? Link your account',
+  linkAccountNeutral: 'Already a customer? Link your account',
   linkSubmit: 'Link',
 
   typeMessage: 'Type a message',
@@ -155,14 +159,16 @@ const ms: Dict = {
   loadingChat: 'Memuatkan sembang…',
 
   choiceTitle: 'Bagaimana kami boleh membantu?',
-  choiceExisting: 'Saya sudah pengguna Vircle',
+  choiceExisting: 'Saya sudah pengguna {brand}',
+  choiceExistingNeutral: 'Saya sudah menjadi pelanggan',
   choiceExistingHint: 'Cari akaun anda supaya kami dapat membantu dengan lebih cepat.',
   choiceEnquiry: 'Saya ada pertanyaan',
   choiceEnquiryHint: 'Beritahu kami siapa anda dan apa yang anda perlukan.',
   choiceGuest: 'Sembang sahaja, langkau ini',
 
   claimTitle: 'Cari akaun anda',
-  claimHint: 'Masukkan nombor telefon atau e-mel yang anda guna dengan Vircle.',
+  claimHint: 'Masukkan nombor telefon atau e-mel yang anda guna dengan {brand}.',
+  claimHintNeutral: 'Masukkan nombor telefon atau e-mel pada akaun anda.',
   fieldPhone: 'Nombor telefon',
   fieldPhonePh: 'cth. 60123456789',
   fieldEmail: 'E-mel',
@@ -199,14 +205,16 @@ const ms: Dict = {
   roleOther: 'Lain-lain',
   fieldMessage: 'Mesej anda',
   fieldMessagePh: 'Bagaimana kami boleh membantu?',
-  consent: 'Saya bersetuju Vircle boleh menghubungi saya mengenai pertanyaan ini.',
+  consent: 'Saya bersetuju {brand} boleh menghubungi saya mengenai pertanyaan ini.',
+  consentNeutral: 'Saya bersetuju anda boleh menghubungi saya mengenai pertanyaan ini.',
   submitEnquiry: 'Hantar pertanyaan',
   enquirySent: 'Terima kasih! Kami telah menerima pertanyaan anda dan akan membalas di sini tidak lama lagi.',
 
   welcomeBack: 'Selamat kembali, {name}!',
   welcomeBackNoName: 'Selamat kembali!',
   welcomeNew: 'Terima kasih! Kami akan membantu anda.',
-  linkAccount: 'Sudah pengguna Vircle? Pautkan akaun anda',
+  linkAccount: 'Sudah pengguna {brand}? Pautkan akaun anda',
+  linkAccountNeutral: 'Sudah menjadi pelanggan? Pautkan akaun anda',
   linkSubmit: 'Pautkan',
 
   typeMessage: 'Taip mesej',
@@ -291,14 +299,16 @@ const zh: Dict = {
   loadingChat: '正在加载聊天…',
 
   choiceTitle: '我们能为您做些什么？',
-  choiceExisting: '我已是 Vircle 用户',
+  choiceExisting: '我已是 {brand} 用户',
+  choiceExistingNeutral: '我已是客户',
   choiceExistingHint: '找到您的账户，我们可以更快地为您服务。',
   choiceEnquiry: '我想咨询',
   choiceEnquiryHint: '告诉我们您是谁以及您的需求。',
   choiceGuest: '直接聊天，跳过此步',
 
   claimTitle: '查找您的账户',
-  claimHint: '请输入您在 Vircle 使用的手机号码或电子邮箱。',
+  claimHint: '请输入您在 {brand} 使用的手机号码或电子邮箱。',
+  claimHintNeutral: '请输入您账户上的手机号码或电子邮箱。',
   fieldPhone: '手机号码',
   fieldPhonePh: '例如 60123456789',
   fieldEmail: '电子邮箱',
@@ -335,14 +345,16 @@ const zh: Dict = {
   roleOther: '其他',
   fieldMessage: '您的留言',
   fieldMessagePh: '我们能帮您什么？',
-  consent: '我同意 Vircle 就此咨询与我联系。',
+  consent: '我同意 {brand} 就此咨询与我联系。',
+  consentNeutral: '我同意你们就此咨询与我联系。',
   submitEnquiry: '发送咨询',
   enquirySent: '谢谢！我们已收到您的咨询，很快会在此回复。',
 
   welcomeBack: '欢迎回来，{name}！',
   welcomeBackNoName: '欢迎回来！',
   welcomeNew: '谢谢！我们会为您处理。',
-  linkAccount: '已是 Vircle 用户？关联您的账户',
+  linkAccount: '已是 {brand} 用户？关联您的账户',
+  linkAccountNeutral: '已是客户？关联您的账户',
   linkSubmit: '关联',
 
   typeMessage: '输入消息',
@@ -460,8 +472,22 @@ export function translate(
   )
 }
 
-export function makeTranslator(locale: Locale): Translate {
-  return (key, params) => translate(locale, key, params)
+// The strings that name the company. A widget with a brand name fills
+// `{brand}`; one without gets the matching `<key>Neutral` wording that
+// names nobody (so a tenant that never set a brand name never shows
+// someone else's, or a dangling "I'm already a  user").
+const BRANDED_KEYS = new Set<StringKey>(['choiceExisting', 'claimHint', 'consent', 'linkAccount'])
+
+export function makeTranslator(locale: Locale, brand?: string | null): Translate {
+  const name = brand?.trim() || null
+  return (key, params) => {
+    if (BRANDED_KEYS.has(key)) {
+      return name
+        ? translate(locale, key, { ...params, brand: name })
+        : translate(locale, `${key}Neutral` as StringKey, params)
+    }
+    return translate(locale, key, params)
+  }
 }
 
 /** Every key present in English, for tests that assert full coverage. */

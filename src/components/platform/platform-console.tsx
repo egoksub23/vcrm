@@ -35,6 +35,8 @@ interface TenantRow {
   members: number;
   contacts: number;
   conversations: number;
+  /** False when the default ticket types/resolutions are missing (migration 133). */
+  seed_ok?: boolean;
 }
 
 interface CreateDraft {
@@ -234,6 +236,11 @@ export function PlatformConsole() {
                         ) : (
                           <Badge variant="secondary">{t("statusActive")}</Badge>
                         )}
+                        {r.seed_ok === false && (
+                          <Badge variant="outline" className="ml-1 border-amber-500/50 text-amber-600" title={t("setupIncompleteHint")}>
+                            {t("setupIncomplete")}
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
@@ -255,6 +262,11 @@ export function PlatformConsole() {
                             <Pencil className="mr-1 h-3.5 w-3.5" />
                             {t("edit")}
                           </Button>
+                          {r.seed_ok === false && (
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void patch(r.id, { reseed: true }, t("repaired"))}>
+                              {t("repair")}
+                            </Button>
+                          )}
                           {r.status === "suspended" ? (
                             <Button
                               size="sm"

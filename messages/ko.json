@@ -16,7 +16,7 @@
     "linkExpired": "링크가 만료되었거나 이미 사용되었습니다. 로그인하거나 \"비밀번호 찾기\"로 새 링크를 받으세요."
   },
   "Sidebar": {
-    "title": "Vircle Halo",
+    "title": "Halo",
     "primaryNav": "기본 메뉴",
     "dashboard": "대시보드",
     "inbox": "인박스",
@@ -2814,6 +2814,8 @@
         "appearanceTitle": "모양",
         "nameLabel": "위젯 이름",
         "welcomeLabel": "환영 메시지",
+        "brandNameLabel": "채팅 문구에 쓰는 회사명",
+        "brandNameHint": "\"저는 이미 ___ 사용자입니다\"와 같은 문장에 사용됩니다. 비워 두면 특정 이름을 쓰지 않는 중립적인 문구가 사용됩니다.",
         "colorLabel": "기본 색상",
         "positionLabel": "위치",
         "position": {
@@ -3233,11 +3235,34 @@
         }
       }
     },
+    "workspace": {
+      "title": "워크스페이스",
+      "description": "워크스페이스 이름과 앱 내 브랜딩을 설정합니다.",
+      "nameLabel": "워크스페이스 이름",
+      "nameHint": "팀원, 초대장, 보고서에 표시됩니다.",
+      "brandNameLabel": "제품 이름",
+      "brandNameHint": "사이드바에 표시됩니다. 비워 두면 기본값을 사용합니다.",
+      "brandNamePlaceholder": "Halo",
+      "logoLabel": "로고",
+      "logoHint": "정사각형 PNG, JPG 또는 WebP, 최대 1MB. 사이드바에 표시됩니다.",
+      "upload": "로고 업로드",
+      "uploading": "업로드 중...",
+      "remove": "로고 제거",
+      "save": "변경 사항 저장",
+      "saving": "저장 중...",
+      "saved": "워크스페이스를 업데이트했습니다.",
+      "saveFailed": "워크스페이스를 저장하지 못했습니다.",
+      "uploadFailed": "로고를 업로드하지 못했습니다.",
+      "fileTooLarge": "파일이 1MB보다 큽니다.",
+      "badType": "PNG, JPG 또는 WebP 이미지를 사용하세요.",
+      "noPermission": "워크스페이스 설정을 변경할 권한이 없습니다."
+    },
     "sections": {
       "overview": "개요",
       "profile": "내 프로필",
       "security": "로그인 & 보안",
       "appearance": "화면 설정",
+      "workspace": "워크스페이스",
       "channels": "채널",
       "templates": "템플릿",
       "quick-replies": "빠른 답장",
@@ -7883,6 +7908,10 @@
     "suspendConfirm": "워크스페이스 일시 중지",
     "suspended": "워크스페이스를 일시 중지했습니다.",
     "resumed": "워크스페이스를 재개했습니다.",
+    "setupIncomplete": "설정 미완료",
+    "setupIncompleteHint": "이 워크스페이스의 기본 티켓 유형 또는 해결 항목이 없습니다. 복구하면 고객이 수정한 내용은 그대로 두고 기본값을 다시 만듭니다.",
+    "repair": "복구",
+    "repaired": "기본값을 복원했습니다.",
     "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다."
   }
 }

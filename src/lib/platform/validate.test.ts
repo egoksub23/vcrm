@@ -57,6 +57,11 @@ describe("parseUpdateTenant", () => {
     });
   });
 
+  it("accepts a reseed request on its own", () => {
+    expect(parseUpdateTenant({ reseed: true })).toEqual({ ok: true, value: { reseed: true } });
+    expect(parseUpdateTenant({ reseed: false }).ok).toBe(false);
+  });
+
   it("lets null clear a limit or a feature override", () => {
     const r = parseUpdateTenant({ limits: { seats: null }, features: { incidents: null } });
     expect(r).toEqual({ ok: true, value: { limits: { seats: null }, features: { incidents: null } } });

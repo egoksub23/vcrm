@@ -11,6 +11,8 @@ export interface Branding {
   primaryColor: string
   avatarUrl: string | null
   position: 'left' | 'right'
+  /** Company name used in the widget's own sentences; null = neutral wording. */
+  brandName?: string | null
 }
 
 export type IdentityLevel = 'guest' | 'claimed' | 'verified'

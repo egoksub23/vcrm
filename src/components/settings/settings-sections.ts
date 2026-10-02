@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  Building2,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
@@ -36,6 +37,7 @@ export const SETTINGS_SECTIONS = [
   'profile',
   'security',
   'appearance',
+  'workspace',
   'channels',
   'quick-replies',
   'tags',
@@ -78,6 +80,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   profile: { id: 'profile', label: 'Your profile', icon: User, group: 'account' },
   security: { id: 'security', label: 'Login & security', icon: Shield, group: 'account' },
   appearance: { id: 'appearance', label: 'Appearance', icon: Palette, group: 'account' },
+  workspace: { id: 'workspace', label: 'Workspace', icon: Building2, group: 'workspace', capability: 'settings.workspace' },
   channels: { id: 'channels', label: 'Channels', icon: PlugZap, group: 'workspace' },
   'quick-replies': { id: 'quick-replies', label: 'Quick replies', icon: Zap, group: 'workspace' },
   tags: { id: 'tags', label: 'Tags', icon: Tag, group: 'workspace' },

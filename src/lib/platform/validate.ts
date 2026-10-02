@@ -74,6 +74,8 @@ export interface UpdateTenantInput {
   limits?: Record<string, number | null>;
   /** A key set to null removes that override (back to the default). */
   features?: Record<string, boolean | null>;
+  /** Re-run the per-account defaults (platform_reseed_account). */
+  reseed?: true;
 }
 
 export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {
@@ -97,6 +99,10 @@ export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {
       return { ok: false, error: `'plan' must be 1-${MAX_PLAN} characters` };
     }
     out.plan = body.plan.trim();
+  }
+  if (body.reseed !== undefined) {
+    if (body.reseed !== true) return { ok: false, error: "'reseed' must be true" };
+    out.reseed = true;
   }
   if (body.limits !== undefined) {
     if (!isObject(body.limits)) return { ok: false, error: "'limits' must be an object" };

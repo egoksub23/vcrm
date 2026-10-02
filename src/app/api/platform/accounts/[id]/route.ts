@@ -36,7 +36,7 @@ export async function PATCH(
 
     const parsed = parseUpdateTenant(await request.json().catch(() => null));
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const { status, reason, plan, limits, features } = parsed.value;
+    const { status, reason, plan, limits, features, reseed } = parsed.value;
 
     if (plan !== undefined || limits !== undefined || features !== undefined) {
       const { error } = await ctx.supabase.rpc("platform_update_account", {
@@ -46,6 +46,11 @@ export async function PATCH(
         p_features: features ?? null,
       });
       if (error) return rpcFailure("platform_update_account", error);
+    }
+
+    if (reseed) {
+      const { error } = await ctx.supabase.rpc("platform_reseed_account", { p_account: id });
+      if (error) return rpcFailure("platform_reseed_account", error);
     }
 
     if (status !== undefined) {

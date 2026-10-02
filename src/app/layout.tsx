@@ -20,12 +20,17 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// The product name shown in the browser tab. A deployment can set
+// NEXT_PUBLIC_APP_NAME (build time); each workspace's own name for it
+// (accounts.brand_name, migration 133) shows in the sidebar.
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Halo";
+
 export const metadata: Metadata = {
   title: {
-    default: "Vircle Halo",
-    template: "%s — Vircle Halo",
+    default: APP_NAME,
+    template: `%s — ${APP_NAME}`,
   },
-  description: "Vircle Halo — WhatsApp shared inbox and business automation.",
+  description: `${APP_NAME} — WhatsApp shared inbox and business automation.`,
   robots: {
     index: false,
     follow: false,

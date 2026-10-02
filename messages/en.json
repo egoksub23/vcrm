@@ -16,7 +16,7 @@
     "linkExpired": "That link has expired or was already used. Sign in, or use \"Forgot password\" to get a new one."
   },
   "Sidebar": {
-    "title": "Vircle Halo",
+    "title": "Halo",
     "primaryNav": "Primary",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
@@ -2814,6 +2814,8 @@
         "appearanceTitle": "Appearance",
         "nameLabel": "Widget name",
         "welcomeLabel": "Welcome message",
+        "brandNameLabel": "Company name in chat wording",
+        "brandNameHint": "Used in sentences such as \"I'm already a ___ user\". Leave empty for neutral wording that names nobody.",
         "colorLabel": "Primary color",
         "positionLabel": "Position",
         "position": {
@@ -3233,11 +3235,34 @@
         }
       }
     },
+    "workspace": {
+      "title": "Workspace",
+      "description": "Your workspace's name and how it is branded inside the app.",
+      "nameLabel": "Workspace name",
+      "nameHint": "Shown to your team, on invitations and on reports.",
+      "brandNameLabel": "Product name",
+      "brandNameHint": "Shown in the sidebar. Leave empty to use the default.",
+      "brandNamePlaceholder": "Halo",
+      "logoLabel": "Logo",
+      "logoHint": "Square PNG, JPG or WebP, up to 1 MB. Shown in the sidebar.",
+      "upload": "Upload logo",
+      "uploading": "Uploading...",
+      "remove": "Remove logo",
+      "save": "Save changes",
+      "saving": "Saving...",
+      "saved": "Workspace updated.",
+      "saveFailed": "Could not save the workspace.",
+      "uploadFailed": "Could not upload the logo.",
+      "fileTooLarge": "That file is larger than 1 MB.",
+      "badType": "Use a PNG, JPG or WebP image.",
+      "noPermission": "You do not have permission to change workspace settings."
+    },
     "sections": {
       "overview": "Overview",
       "profile": "Your profile",
       "security": "Login & security",
       "appearance": "Appearance",
+      "workspace": "Workspace",
       "channels": "Channels",
       "templates": "Templates",
       "quick-replies": "Quick replies",
@@ -7883,6 +7908,10 @@
     "suspendConfirm": "Suspend workspace",
     "suspended": "Workspace suspended.",
     "resumed": "Workspace resumed.",
+    "setupIncomplete": "Setup incomplete",
+    "setupIncompleteHint": "Default ticket types or resolutions are missing for this workspace. Repair re-creates them without touching anything the customer edited.",
+    "repair": "Repair",
+    "repaired": "Defaults restored.",
     "notAllowed": "You do not have access to platform administration."
   }
 }

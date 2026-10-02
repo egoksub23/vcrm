@@ -2,7 +2,7 @@
 // /api/account
 //
 //   GET   — current caller's account + role. Any member.
-//   PATCH — rename the account.                  Admin+.
+//   PATCH — rename the account and set its branding.  settings.workspace.
 //
 // Why both verbs share a route file
 //   They speak about the same singular resource (the caller's
@@ -18,6 +18,7 @@ import {
   getCurrentAccount,
   toErrorResponse,
 } from "@/lib/auth/account";
+import { parseAccountPatch } from "@/lib/account/branding";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -36,8 +37,6 @@ export async function GET() {
   }
 }
 
-const MAX_NAME_LEN = 80;
-
 export async function PATCH(request: Request) {
   try {
     const ctx = await requireCapability("settings.workspace");
@@ -52,30 +51,12 @@ export async function PATCH(request: Request) {
     );
     if (!limit.success) return rateLimitResponse(limit);
 
-    const body = (await request.json().catch(() => null)) as
-      | { name?: unknown }
-      | null;
-    const rawName = body?.name;
-
-    if (typeof rawName !== "string") {
-      return NextResponse.json(
-        { error: "'name' must be a string" },
-        { status: 400 },
-      );
-    }
-
-    const name = rawName.trim();
-    if (name.length === 0) {
-      return NextResponse.json(
-        { error: "Account name cannot be empty" },
-        { status: 400 },
-      );
-    }
-    if (name.length > MAX_NAME_LEN) {
-      return NextResponse.json(
-        { error: `Account name must be ${MAX_NAME_LEN} characters or fewer` },
-        { status: 400 },
-      );
+    // The workspace's own name, plus the per-tenant branding of migration
+    // 133 (product name and logo for the app chrome). Each field is
+    // optional; at least one is required.
+    const parsed = parseAccountPatch(await request.json().catch(() => null));
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
     // RLS allows this UPDATE because accounts_update requires
@@ -83,9 +64,9 @@ export async function PATCH(request: Request) {
     // guaranteed the caller holds `settings.workspace` (admins).
     const { data, error } = await ctx.supabase
       .from("accounts")
-      .update({ name })
+      .update(parsed.value)
       .eq("id", ctx.accountId)
-      .select("id, name")
+      .select("id, name, brand_name, brand_logo_url")
       .single();
 
     if (error) {

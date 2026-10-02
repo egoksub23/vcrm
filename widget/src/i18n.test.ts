@@ -56,3 +56,34 @@ describe('string lookup', () => {
     }
   })
 })
+
+describe('brand-aware strings', () => {
+  const BRANDED = ['choiceExisting', 'claimHint', 'consent', 'linkAccount'] as const
+
+  it('fills the brand name into every sentence that names the company', () => {
+    for (const locale of ['en', 'ms', 'zh'] as const) {
+      const t = makeTranslator(locale, 'Acme')
+      for (const key of BRANDED) expect(t(key), `${locale}.${key}`).toContain('Acme')
+    }
+  })
+
+  it('uses wording that names nobody when the widget has no brand name (never a dangling blank or another company)', () => {
+    for (const locale of ['en', 'ms', 'zh'] as const) {
+      for (const brand of [undefined, null, '', '   ']) {
+        const t = makeTranslator(locale, brand)
+        for (const key of BRANDED) {
+          const text = t(key)
+          expect(text, `${locale}.${key}`).not.toMatch(/\{brand\}|Vircle|undefined/)
+          expect(text, `${locale}.${key}`).not.toMatch(/ {2}/)
+        }
+      }
+    }
+    expect(makeTranslator('en', null)('choiceExisting')).toBe("I'm already a customer")
+  })
+
+  it('leaves every other string untouched by the brand', () => {
+    expect(makeTranslator('en', 'Acme')('back')).toBe('Back')
+    expect(makeTranslator('en', 'Acme')('welcomeBack', { name: 'Sam' })).toBe('Welcome back, Sam!')
+  })
+})
+

@@ -29,7 +29,8 @@ const PRESET_COLORS = [
 ];
 
 function widgetOrigin(): string {
-  if (typeof window === 'undefined') return 'https://crm.vircle.tech';
+  // Server render only (the snippet is built in the browser): this deployment's own URL.
+  if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') ?? '';
   return window.location.origin;
 }
 
@@ -45,6 +46,7 @@ export function WebWidgetChannel() {
 
   const [name, setName] = useState('Website chat');
   const [welcomeMessage, setWelcomeMessage] = useState('Hi there! How can we help?');
+  const [brandName, setBrandName] = useState('');
   const [primaryColor, setPrimaryColor] = useState(PRESET_COLORS[0]);
   const [position, setPosition] = useState<'left' | 'right'>('right');
   const [enabled, setEnabled] = useState(true);
@@ -57,6 +59,7 @@ export function WebWidgetChannel() {
     if (!c) return;
     setName(c.name);
     setWelcomeMessage(c.welcome_message);
+    setBrandName(c.brand_name ?? '');
     setPrimaryColor(c.primary_color);
     setPosition(c.position);
     setEnabled(c.enabled);
@@ -117,6 +120,7 @@ export function WebWidgetChannel() {
         body: JSON.stringify({
           name,
           welcome_message: welcomeMessage,
+          brand_name: brandName,
           primary_color: primaryColor,
           position,
           enabled,
@@ -248,6 +252,19 @@ export function WebWidgetChannel() {
               rows={2}
               className="mt-1.5"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="widget-brand">{t('brandNameLabel')}</Label>
+            <Input
+              id="widget-brand"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              disabled={!canManageChannels}
+              maxLength={60}
+              className="mt-1.5"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">{t('brandNameHint')}</p>
           </div>
 
           <div>

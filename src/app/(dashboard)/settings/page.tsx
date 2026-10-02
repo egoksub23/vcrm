@@ -23,6 +23,7 @@ import { DealsSettings } from '@/components/settings/deals-settings';
 import { ResponseTimeSettings } from '@/components/settings/response-time-settings';
 import { StatusColorsTab } from '@/components/settings/status-colors-tab';
 import { TeamSection } from '@/components/settings/team/team-section';
+import { WorkspacePanel } from '@/components/settings/workspace-panel';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab';
 import { AuditLogPanel } from '@/components/settings/audit/audit-log-panel';
@@ -115,6 +116,7 @@ function SettingsPageInner() {
     ),
     deals: <DealsSettings />,
     'response-time': <ResponseTimeSettings />,
+    workspace: <WorkspacePanel />,
     sla: <SlaPanel />,
     incidents: <IncidentsSettingsPanel />,
     'status-colors': <StatusColorsTab />,
