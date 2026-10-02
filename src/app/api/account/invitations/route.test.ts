@@ -22,7 +22,7 @@ vi.mock('@/lib/email/invitation-email', () => ({
 
 import { POST } from './route'
 
-function ctx(role: string) {
+function ctx(role: string, seats?: { limit: number; members: number; pending: number }) {
   const single = vi.fn(async () => ({
     data: {
       id: 'inv-1',
@@ -38,12 +38,30 @@ function ctx(role: string) {
   h.insert.mockReturnValue({ select: () => ({ single }) })
   const eq = vi.fn(async () => ({ error: null }))
   h.update.mockReturnValue({ eq })
+  // Seat counting (migration 132): profiles = members, account_invitations
+  // select = pending. Only reached when the account has a seats limit.
+  const counted = (table: string) => {
+    const result = { count: table === 'profiles' ? seats?.members ?? 0 : seats?.pending ?? 0, error: null }
+    const chain: Record<string, unknown> = {}
+    for (const m of ['eq', 'is', 'gt']) chain[m] = () => chain
+    chain.then = (resolve: (v: unknown) => unknown) => resolve(result)
+    return chain
+  }
   return {
-    supabase: { from: () => ({ insert: h.insert, update: h.update }) },
+    supabase: {
+      from: (table: string) => ({
+        insert: h.insert,
+        update: h.update,
+        select: () => counted(table),
+      }),
+    },
     account: { id: 'a1', name: 'Acme' },
     userId: 'u1',
     accountId: 'a1',
     role,
+    platform: seats
+      ? { status: 'active', plan: 'standard', limits: { seats: seats.limit }, features: {}, suspendedReason: null }
+      : undefined,
   }
 }
 
@@ -67,6 +85,23 @@ beforeEach(() => {
 })
 
 describe('POST /api/account/invitations', () => {
+  it('refuses a new invitation once members plus pending invites fill the seat limit', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin', { limit: 5, members: 3, pending: 2 }))
+    const res = await post('agent')
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.code).toBe('seat_limit_reached')
+    expect(body.error).toMatch(/5 of 5 seats/)
+    expect(h.insert).not.toHaveBeenCalled()
+  })
+
+  it('allows an invitation while a seat is still free', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin', { limit: 5, members: 3, pending: 1 }))
+    const res = await post('agent')
+    expect(res.status).toBe(201)
+    expect(h.insert).toHaveBeenCalledTimes(1)
+  })
+
   it('needs the members.invite capability', async () => {
     h.requireCapability.mockResolvedValue(ctx('admin'))
     await post('agent')

@@ -39,6 +39,13 @@ import {
   overridesFromRows,
   resolveCapabilities,
 } from "./capabilities";
+import {
+  ACCOUNT_SUSPENDED_MESSAGE,
+  DEFAULT_PLATFORM,
+  applyFeatureFlags,
+  parsePlatformRow,
+  type AccountPlatform,
+} from "@/lib/platform/features";
 
 // ------------------------------------------------------------
 // Errors
@@ -104,7 +111,14 @@ export interface AccountContext {
   customRoleId: string | null;
   /** Lightweight account meta — id + name. */
   account: { id: string; name: string };
+  /** Operator-set status / plan / limits / feature flags (migration 132).
+   *  Always present from `getCurrentAccount`; optional so hand-built
+   *  contexts in tests and scripts need not supply it (read as default). */
+  platform?: AccountPlatform;
 }
+
+/** Postgres / PostgREST codes for "that table does not exist (yet)". */
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
 
 /**
  * Resolve the caller's user + account + role in one round trip.
@@ -162,11 +176,16 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   // and takes down the entire account context (issue #294). A lookup by
   // id needs no relationship inference and is gated by the same accounts
   // RLS, so it stays robust against cache staleness and older schemas.
-  const { data: account, error: accountErr } = await supabase
-    .from("accounts")
-    .select("id, name")
-    .eq("id", data.account_id)
-    .maybeSingle();
+  // The platform row is a second point lookup by account id, issued in
+  // parallel; no embed, for the same schema-cache reason as above.
+  const [
+    { data: account, error: accountErr },
+    { data: platformRow, error: platformErr },
+  ] = await Promise.all([
+    supabase.from("accounts").select("id, name").eq("id", data.account_id).maybeSingle(),
+    supabase.from("account_platform").select("status, plan, limits, features, suspended_reason")
+      .eq("account_id", data.account_id).maybeSingle(),
+  ]);
 
   if (accountErr) {
     console.error("[getCurrentAccount] account fetch error:", accountErr);
@@ -178,6 +197,18 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     throw new ForbiddenError("Profile is not linked to an account");
   }
 
+  // Missing table = migration 132 not applied yet: nothing can be
+  // suspended, read as the permissive default. Any other failure refuses
+  // the request rather than serving a possibly-suspended account.
+  if (platformErr && !(platformErr.code && MISSING_TABLE_CODES.has(platformErr.code))) {
+    console.error("[getCurrentAccount] platform fetch error:", platformErr);
+    throw new ForbiddenError("Could not load account context");
+  }
+  const platform = platformErr ? DEFAULT_PLATFORM : parsePlatformRow(platformRow);
+  if (platform.status === "suspended") {
+    throw new ForbiddenError(ACCOUNT_SUSPENDED_MESSAGE);
+  }
+
   return {
     supabase,
     userId: user.id,
@@ -185,6 +216,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     role: data.account_role,
     customRoleId: (data as { custom_role_id?: string | null }).custom_role_id ?? null,
     account: { id: account.id, name: account.name },
+    platform,
   };
 }
 
@@ -215,9 +247,6 @@ export interface CapabilityContext extends AccountContext {
   capabilities: ReadonlySet<string>;
 }
 
-/** Postgres / PostgREST codes for "that table does not exist (yet)". */
-const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
-
 // One load per request context: `getCurrentAccount()` builds a fresh
 // context object per call, so keying on it memoises per request while
 // never leaking one caller's capabilities to another.
@@ -236,36 +265,44 @@ export function loadCapabilities(ctx: AccountContext): Promise<Set<string>> {
   let pending = capabilityCache.get(ctx);
   if (!pending) {
     pending = (async () => {
-      if (ctx.role === "owner") return resolveCapabilities("owner");
-      // A custom-role caller (migration 112) resolves overrides against
-      // their own account_roles row instead of the literal role — `role`
-      // stays the custom role's base tier either way, so the default
-      // anchor and min-grant-role floor inside resolveCapabilities need
-      // no change, only which table the overrides come from.
-      const { data, error } = ctx.customRoleId
-        ? await ctx.supabase
-            .from("account_role_capabilities")
-            .select("capability, granted")
-            .eq("account_role_id", ctx.customRoleId)
-        : await ctx.supabase
-            .from("role_capabilities")
-            .select("capability, granted")
-            .eq("account_id", ctx.accountId)
-            .eq("role", ctx.role);
-      if (error) {
-        if (error.code && MISSING_TABLE_CODES.has(error.code)) {
-          return resolveCapabilities(ctx.role);
-        }
-        console.error("[loadCapabilities] overrides fetch error:", error);
-        throw new ForbiddenError("Could not load permissions");
-      }
-      return resolveCapabilities(ctx.role, overridesFromRows(data));
+      const resolved = await resolveForContext(ctx);
+      // A switched-off feature (operator-set, migration 132) loses every
+      // one of its capabilities, so its menu, pages and routes all vanish
+      // through the checks that already exist.
+      return new Set(applyFeatureFlags(resolved, ctx.platform));
     })();
     capabilityCache.set(ctx, pending);
     // A rejected load must not poison a later retry on the same ctx.
     pending.catch(() => capabilityCache.delete(ctx));
   }
   return pending;
+}
+
+async function resolveForContext(ctx: AccountContext): Promise<Set<string>> {
+  if (ctx.role === "owner") return resolveCapabilities("owner");
+  // A custom-role caller (migration 112) resolves overrides against
+  // their own account_roles row instead of the literal role — `role`
+  // stays the custom role's base tier either way, so the default
+  // anchor and min-grant-role floor inside resolveCapabilities need
+  // no change, only which table the overrides come from.
+  const { data, error } = ctx.customRoleId
+    ? await ctx.supabase
+        .from("account_role_capabilities")
+        .select("capability, granted")
+        .eq("account_role_id", ctx.customRoleId)
+    : await ctx.supabase
+        .from("role_capabilities")
+        .select("capability, granted")
+        .eq("account_id", ctx.accountId)
+        .eq("role", ctx.role);
+  if (error) {
+    if (error.code && MISSING_TABLE_CODES.has(error.code)) {
+      return resolveCapabilities(ctx.role);
+    }
+    console.error("[loadCapabilities] overrides fetch error:", error);
+    throw new ForbiddenError("Could not load permissions");
+  }
+  return resolveCapabilities(ctx.role, overridesFromRows(data));
 }
 
 function capabilityDenied(cap: string): ForbiddenError {

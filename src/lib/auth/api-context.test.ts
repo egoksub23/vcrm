@@ -5,10 +5,22 @@ import type { ApiKeyRow } from "@/lib/api-keys/store";
 import { ApiError } from "@/lib/api/v1/respond";
 import { __resetRateLimitForTests, RATE_LIMITS } from "@/lib/rate-limit";
 
-// Mock the service-role client factory — requireApiKey only stashes
-// the returned client in the context; tests never call through it.
+// Mock the service-role client factory. requireApiKey stashes the client
+// in the context and reads the account's platform status through it
+// (migration 132); every other query is the route's own business.
+let platformResult: { data: { status: string } | null; error: { code?: string } | null } = {
+  data: null,
+  error: null,
+};
 vi.mock("@/lib/flows/admin-client", () => ({
-  supabaseAdmin: () => ({ __isMockAdminClient: true }),
+  supabaseAdmin: () => ({
+    __isMockAdminClient: true,
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: () => Promise.resolve(platformResult) }),
+      }),
+    }),
+  }),
 }));
 
 // Mock the store so we control which row a hash resolves to.
@@ -44,6 +56,7 @@ function row(overrides: Partial<ApiKeyRow> = {}): ApiKeyRow {
 }
 
 beforeEach(() => {
+  platformResult = { data: { status: "active" }, error: null };
   __resetRateLimitForTests();
   findActiveKeyByHash.mockReset();
   touchLastUsed.mockReset();
@@ -63,6 +76,20 @@ async function expectApiError(p: Promise<unknown>, code: string, status: number)
 }
 
 describe("requireApiKey", () => {
+  it("403s a valid key whose account is suspended, without touching last_used_at", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    platformResult = { data: { status: "suspended" }, error: null };
+    await expectApiError(requireApiKey(reqWith(`Bearer ${KEY}`)), "forbidden", 403);
+    expect(touchLastUsed).not.toHaveBeenCalled();
+  });
+
+  it("still works when the platform table does not exist yet (migration 132 not applied)", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    platformResult = { data: null, error: { code: "42P01" } };
+    const ctx = await requireApiKey(reqWith(`Bearer ${KEY}`));
+    expect(ctx.accountId).toBe("acct-1");
+  });
+
   it("401s when no Authorization header is present", async () => {
     await expectApiError(requireApiKey(reqWith()), "unauthorized", 401);
     expect(findActiveKeyByHash).not.toHaveBeenCalled();

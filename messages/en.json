@@ -12,7 +12,8 @@
     "signingIn": "Signing in...",
     "signIn": "Sign in",
     "noAccount": "Don't have an account?",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "linkExpired": "That link has expired or was already used. Sign in, or use \"Forgot password\" to get a new one."
   },
   "Sidebar": {
     "title": "Vircle Halo",
@@ -49,7 +50,8 @@
     "sembang": "Sembang",
     "incidents": "Incidents",
     "userGuide": "User Guide",
-    "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval"
+    "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval",
+    "platform": "Platform"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -5771,7 +5773,11 @@
     "addSection": "Add section"
   },
   "DashboardShell": {
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "suspendedTitle": "This workspace is suspended",
+    "suspendedBody": "Access to this workspace has been paused. Please contact support to have it restored.",
+    "suspendedReason": "Reason",
+    "signOut": "Sign out"
   },
   "Knowledge": {
     "title": "Knowledge base",
@@ -7814,5 +7820,69 @@
     "continueWithMicrosoft": "Continue with Microsoft",
     "orDivider": "or",
     "callbackFailed": "Sign-in did not complete. Try again, or use your email and password."
+  },
+  "ResetPasswordPage": {
+    "title": "Choose a password",
+    "description": "Set the password you will use to sign in.",
+    "expired": "This link has expired or has already been used.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "tooShort": "Use at least {min} characters.",
+    "mismatch": "The two passwords do not match.",
+    "save": "Save password",
+    "saving": "Saving...",
+    "requestNew": "Request a new link"
+  },
+  "Platform": {
+    "title": "Platform administration",
+    "subtitle": "Every customer workspace on this deployment. Create, adjust and suspend them here.",
+    "newCustomer": "New customer",
+    "statWorkspaces": "Workspaces",
+    "statActive": "Active",
+    "statMembers": "Members",
+    "loading": "Loading workspaces...",
+    "loadFailed": "Could not load workspaces.",
+    "createFailed": "Could not create the workspace.",
+    "updateFailed": "Could not save the change.",
+    "colWorkspace": "Workspace",
+    "colPlan": "Plan",
+    "colSeats": "Seats",
+    "colContacts": "Contacts",
+    "colStatus": "Status",
+    "colCreated": "Created",
+    "statusActive": "Active",
+    "statusSuspended": "Suspended",
+    "edit": "Edit",
+    "suspend": "Suspend",
+    "resume": "Resume",
+    "createTitle": "New customer workspace",
+    "createDesc": "Creates the workspace and its owner's login, then emails the owner a link to choose a password.",
+    "fieldCompany": "Company name",
+    "fieldOwnerEmail": "Owner email",
+    "fieldOwnerName": "Owner name (optional)",
+    "fieldPlan": "Plan",
+    "fieldSeats": "Seat limit",
+    "unlimited": "Unlimited",
+    "cancel": "Cancel",
+    "createSubmit": "Create and invite",
+    "createdEmailed": "Workspace created. A set-password link was emailed to {email}.",
+    "linkTitle": "Share this link with the owner",
+    "linkDesc": "Email is not configured on this deployment, so the set-password link was not sent. It works once and expires soon. Send it to the owner yourself.",
+    "copied": "Link copied",
+    "done": "Done",
+    "editTitle": "Edit {name}",
+    "editDesc": "Plan, seat limit and which modules this workspace can use.",
+    "featuresTitle": "Modules",
+    "feature_incidents": "Incident Reporting",
+    "feature_incidents_desc": "Security incident register with regulator notification forms. Off for most customers.",
+    "save": "Save",
+    "saved": "Saved.",
+    "suspendTitle": "Suspend {name}?",
+    "suspendDesc": "Their team is locked out, their API keys stop working and every channel pauses. Resuming restores exactly what was on.",
+    "suspendReason": "Reason (shown to their team)",
+    "suspendConfirm": "Suspend workspace",
+    "suspended": "Workspace suspended.",
+    "resumed": "Workspace resumed.",
+    "notAllowed": "You do not have access to platform administration."
   }
 }

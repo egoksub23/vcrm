@@ -18,6 +18,7 @@ import {
   Bot,
   BookMarked,
   BookOpen,
+  Building2,
   ChevronsLeft,
   ChevronsRight,
   Crown,
@@ -139,6 +140,11 @@ const bottomNavItems: NavItem[] = [
   { href: "/incidents", labelKey: "incidents", icon: ShieldAlert, capability: "menu.incidents" },
 ];
 
+// Operator console (migration 132). Not capability-gated: platform admins
+// are a separate population from account roles, so it is appended below
+// only for them. The page and the /api/platform routes enforce it again.
+const platformNavItem: NavItem = { href: "/platform", labelKey: "platform", icon: Building2 };
+
 interface SidebarProps {
   /** Controlled on mobile by the Header's hamburger button. Ignored on lg+. */
   open?: boolean;
@@ -171,6 +177,7 @@ export function Sidebar({
     signOut,
     capabilities,
     capabilitiesLoading,
+    isPlatformAdmin,
   } = useAuth();
   // Fail closed, without a flash: while capabilities load nothing is
   // listed (items that might then disappear are never shown); a failed
@@ -181,7 +188,10 @@ export function Sidebar({
     : filterByCapability(navItems, hasCap);
   const visibleBottomItems = capabilitiesLoading
     ? []
-    : filterByCapability(bottomNavItems, hasCap);
+    : [
+        ...filterByCapability(bottomNavItems, hasCap),
+        ...(isPlatformAdmin ? [platformNavItem] : []),
+      ];
   const canOpenSettings = !capabilitiesLoading && hasCap("menu.settings");
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();

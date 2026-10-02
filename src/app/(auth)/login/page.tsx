@@ -47,7 +47,11 @@ function LoginPageInner() {
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    searchParams.get("error") === "oauth_failed" ? tOAuth("callbackFailed") : null,
+    searchParams.get("error") === "oauth_failed"
+      ? tOAuth("callbackFailed")
+      : searchParams.get("error") === "link_expired"
+        ? t("linkExpired")
+        : null,
   );
   const [loading, setLoading] = useState(false);
   const supabase = createClient();

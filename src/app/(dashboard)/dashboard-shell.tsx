@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
+import { AccountSuspendedScreen } from "@/components/layout/account-suspended";
 import { PageGuard } from "@/components/auth/page-guard";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 import { BrowserNotificationsListener } from "@/components/notifications/browser-notifications-listener";
@@ -53,7 +54,7 @@ function setSidebarPinnedStorage(value: boolean): void {
 }
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, accountSuspended } = useAuth();
   const router = useRouter();
   const t = useTranslations("DashboardShell");
 
@@ -94,6 +95,10 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) return null;
+
+  // The operator suspended this workspace (migration 132): explain, don't
+  // render a dashboard whose every request will be refused.
+  if (accountSuspended) return <AccountSuspendedScreen />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

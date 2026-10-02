@@ -31,6 +31,12 @@ const DEFAULT_SLA_MINUTES = 30;
 import { isAccountRole, type AccountRole } from "@/lib/auth/roles";
 import type { CapabilityKey } from "@/lib/auth/capabilities";
 
+import {
+  DEFAULT_PLATFORM,
+  parsePlatformRow,
+  type AccountPlatform,
+} from "@/lib/platform/features";
+
 /** How often the effective capability set is re-read in the background. */
 const CAPABILITIES_REFRESH_MS = 2 * 60 * 1000;
 /** Minimum gap between focus-triggered refreshes. */
@@ -161,6 +167,14 @@ interface AuthContextValue {
    *  DEFAULT_STATUS_COLORS while loading or when no account is
    *  resolved, so callers can use it unconditionally. */
   statusColors: StatusColors;
+  /** Operator-set status / plan / limits / feature flags (migration 132).
+   *  The permissive default while loading or when the row can't be read. */
+  platform: AccountPlatform;
+  /** True when the operator has suspended this account: the dashboard
+   *  shows a blocking screen and every API request is refused. */
+  accountSuspended: boolean;
+  /** True for a platform operator (migration 132's `platform_admins`). */
+  isPlatformAdmin: boolean;
   /** True if `accountRole === 'owner'`. */
   isOwner: boolean;
   /** True if `accountRole === 'admin'` (does NOT include owner — use canManageMembers for "admin or above"). */
@@ -224,6 +238,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [account, setAccount] = useState<AccountSummary | null>(null);
+  const [platform, setPlatform] = useState<AccountPlatform>(DEFAULT_PLATFORM);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   // Why the account/role couldn't be established, when it couldn't.
   // Null on the happy path.
@@ -397,6 +413,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Operator-set status/features (migration 132) and whether the
+        // caller is a platform operator. Both are best-effort reads: an
+        // error (older schema, transient) reads as the permissive
+        // default, never as a lock-out. The server enforces suspension
+        // on its own (getCurrentAccount / requireApiKey).
+        let platformRow: AccountPlatform = DEFAULT_PLATFORM;
+        if (data.account_id) {
+          const { data: pr, error: pe } = await supabase
+            .from("account_platform")
+            .select("status, plan, limits, features, suspended_reason")
+            .eq("account_id", data.account_id)
+            .maybeSingle();
+          if (!pe) platformRow = parsePlatformRow(pr);
+        }
+        setPlatform(platformRow);
+        const { data: operator } = await supabase.rpc("is_platform_admin");
+        setIsPlatformAdmin(operator === true);
+
         // Narrow the DB enum into our AccountRole union. The DB
         // constraint should make this unconditional, but a future
         // migration that broadens the enum without updating TS would
@@ -431,7 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             `profile ${data.id} has no ${!data.account_id ? "account_id" : "account_role"}`,
           );
         }
-        if (accountRole) {
+        if (accountRole && platformRow.status !== "suspended") {
           // Once per profile fetch; not awaited so it never delays the
           // profile. `capabilitiesLoading` stays true until it settles.
           capabilitiesStarted = true;
@@ -637,6 +671,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         currencies: account?.currencies ?? CURRENCIES,
         slaResponseMinutes: account?.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
         statusColors: account?.status_colors ?? DEFAULT_STATUS_COLORS,
+        platform,
+        accountSuspended: platform.status === "suspended",
+        isPlatformAdmin,
         accountStatus,
         accountStatusDetail: statusDetail,
         capabilities,
@@ -675,6 +712,9 @@ export function useAuth(): AuthContextValue {
       currencies: CURRENCIES,
       slaResponseMinutes: DEFAULT_SLA_MINUTES,
       statusColors: DEFAULT_STATUS_COLORS,
+      platform: DEFAULT_PLATFORM,
+      accountSuspended: false,
+      isPlatformAdmin: false,
       // Outside the provider there is nothing to resolve yet — 'loading'
       // keeps the access alert from firing on, say, the login page.
       accountStatus: "loading",

@@ -12,7 +12,8 @@
     "signingIn": "로그인 중...",
     "signIn": "로그인",
     "noAccount": "계정이 없으신가요?",
-    "createAccount": "계정 만들기"
+    "createAccount": "계정 만들기",
+    "linkExpired": "링크가 만료되었거나 이미 사용되었습니다. 로그인하거나 \"비밀번호 찾기\"로 새 링크를 받으세요."
   },
   "Sidebar": {
     "title": "Vircle Halo",
@@ -49,7 +50,8 @@
     "sembang": "Sembang",
     "incidents": "인시던트",
     "userGuide": "사용 가이드",
-    "pendingApprovals": "승인 대기 중인 제안 {count}건"
+    "pendingApprovals": "승인 대기 중인 제안 {count}건",
+    "platform": "플랫폼"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -5771,7 +5773,11 @@
     "addSection": "섹션 추가"
   },
   "DashboardShell": {
-    "loading": "불러오는 중..."
+    "loading": "불러오는 중...",
+    "suspendedTitle": "이 워크스페이스는 일시 중지되었습니다",
+    "suspendedBody": "이 워크스페이스에 대한 접근이 일시 중지되었습니다. 복구하려면 지원팀에 문의하세요.",
+    "suspendedReason": "사유",
+    "signOut": "로그아웃"
   },
   "Knowledge": {
     "title": "지식 베이스",
@@ -7814,5 +7820,69 @@
     "continueWithMicrosoft": "Microsoft로 계속하기",
     "orDivider": "또는",
     "callbackFailed": "로그인을 완료하지 못했습니다. 다시 시도하거나 이메일과 비밀번호를 사용하세요."
+  },
+  "ResetPasswordPage": {
+    "title": "비밀번호 설정",
+    "description": "로그인에 사용할 비밀번호를 설정하세요.",
+    "expired": "이 링크는 만료되었거나 이미 사용되었습니다.",
+    "newPassword": "새 비밀번호",
+    "confirmPassword": "비밀번호 확인",
+    "tooShort": "{min}자 이상 입력하세요.",
+    "mismatch": "두 비밀번호가 일치하지 않습니다.",
+    "save": "비밀번호 저장",
+    "saving": "저장 중...",
+    "requestNew": "새 링크 요청"
+  },
+  "Platform": {
+    "title": "플랫폼 관리",
+    "subtitle": "이 배포의 모든 고객 워크스페이스입니다. 여기에서 생성, 조정, 일시 중지할 수 있습니다.",
+    "newCustomer": "새 고객",
+    "statWorkspaces": "워크스페이스",
+    "statActive": "활성",
+    "statMembers": "구성원",
+    "loading": "워크스페이스를 불러오는 중...",
+    "loadFailed": "워크스페이스를 불러오지 못했습니다.",
+    "createFailed": "워크스페이스를 만들지 못했습니다.",
+    "updateFailed": "변경 사항을 저장하지 못했습니다.",
+    "colWorkspace": "워크스페이스",
+    "colPlan": "요금제",
+    "colSeats": "좌석",
+    "colContacts": "연락처",
+    "colStatus": "상태",
+    "colCreated": "생성일",
+    "statusActive": "활성",
+    "statusSuspended": "일시 중지됨",
+    "edit": "편집",
+    "suspend": "일시 중지",
+    "resume": "재개",
+    "createTitle": "새 고객 워크스페이스",
+    "createDesc": "워크스페이스와 소유자 계정을 만들고, 소유자에게 비밀번호 설정 링크를 이메일로 보냅니다.",
+    "fieldCompany": "회사명",
+    "fieldOwnerEmail": "소유자 이메일",
+    "fieldOwnerName": "소유자 이름(선택)",
+    "fieldPlan": "요금제",
+    "fieldSeats": "좌석 한도",
+    "unlimited": "무제한",
+    "cancel": "취소",
+    "createSubmit": "생성 및 초대",
+    "createdEmailed": "워크스페이스를 만들었습니다. 비밀번호 설정 링크를 {email}(으)로 보냈습니다.",
+    "linkTitle": "이 링크를 소유자에게 전달하세요",
+    "linkDesc": "이 배포에는 이메일이 설정되어 있지 않아 비밀번호 설정 링크를 보내지 못했습니다. 링크는 한 번만 사용할 수 있고 곧 만료됩니다. 직접 소유자에게 전달하세요.",
+    "copied": "링크를 복사했습니다",
+    "done": "완료",
+    "editTitle": "{name} 편집",
+    "editDesc": "요금제, 좌석 한도, 이 워크스페이스에서 사용할 수 있는 모듈입니다.",
+    "featuresTitle": "모듈",
+    "feature_incidents": "사고 보고",
+    "feature_incidents_desc": "규제 기관 통지 양식이 포함된 보안 사고 대장입니다. 대부분의 고객에게는 꺼 둡니다.",
+    "save": "저장",
+    "saved": "저장했습니다.",
+    "suspendTitle": "{name}을(를) 일시 중지할까요?",
+    "suspendDesc": "팀의 접근이 차단되고, API 키가 작동하지 않으며, 모든 채널이 중지됩니다. 재개하면 켜져 있던 상태 그대로 복원됩니다.",
+    "suspendReason": "사유(팀에 표시됨)",
+    "suspendConfirm": "워크스페이스 일시 중지",
+    "suspended": "워크스페이스를 일시 중지했습니다.",
+    "resumed": "워크스페이스를 재개했습니다.",
+    "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다."
   }
 }

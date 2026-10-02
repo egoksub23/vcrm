@@ -35,6 +35,7 @@ import { hashApiKey, looksLikeApiKey } from '@/lib/api-keys/keys';
 import { hasScope, type ApiScope } from '@/lib/api-keys/scopes';
 import { forbidden, rateLimited, unauthorized } from '@/lib/api/v1/respond';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/platform/features';
 
 export interface ApiKeyContext {
   /** Discriminant — lets shared logic tell key auth from cookie auth. */
@@ -105,11 +106,26 @@ export async function requireApiKey(
     throw forbidden(`This API key is missing the '${scope}' scope`);
   }
 
+  // A suspended tenant's keys stop working with the rest of the account
+  // (operator-set, migration 132). A missing table means 132 isn't applied.
+  const admin = supabaseAdmin();
+  const { data: platform, error: platformError } = await admin
+    .from('account_platform')
+    .select('status')
+    .eq('account_id', row.account_id)
+    .maybeSingle();
+  if (platformError && platformError.code !== '42P01' && platformError.code !== 'PGRST205') {
+    throw platformError;
+  }
+  if (platform?.status === 'suspended') {
+    throw forbidden(ACCOUNT_SUSPENDED_MESSAGE);
+  }
+
   touchLastUsed(row.id);
 
   return {
     authType: 'api_key',
-    supabase: supabaseAdmin(),
+    supabase: admin,
     accountId: row.account_id,
     keyId: row.id,
     scopes: row.scopes,

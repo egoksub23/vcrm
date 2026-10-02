@@ -37,6 +37,7 @@ import {
 } from "@/lib/auth/invitations";
 import { isAccountRole, roleRank } from "@/lib/auth/roles";
 import { sendInvitationEmail } from "@/lib/email/invitation-email";
+import { limitFor } from "@/lib/platform/features";
 import { parseInviteTeamIds } from "@/lib/teams/team-ids";
 import {
   checkRateLimit,
@@ -293,6 +294,35 @@ export async function POST(request: Request) {
         );
       }
       email = trimmed;
+    }
+
+    // Seat limit set by the platform operator (migration 132, `limits.seats`).
+    // Members plus still-open invitations count, so a burst of invites
+    // cannot be redeemed past the cap. No limit = no extra queries.
+    const seatLimit = limitFor(ctx.platform, "seats");
+    if (seatLimit !== null) {
+      const [{ count: members }, { count: pending }] = await Promise.all([
+        ctx.supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("account_id", ctx.accountId),
+        ctx.supabase
+          .from("account_invitations")
+          .select("id", { count: "exact", head: true })
+          .eq("account_id", ctx.accountId)
+          .is("accepted_at", null)
+          .gt("expires_at", new Date().toISOString()),
+      ]);
+      const used = (members ?? 0) + (pending ?? 0);
+      if (used >= seatLimit) {
+        return NextResponse.json(
+          {
+            error: `Seat limit reached: ${used} of ${seatLimit} seats are in use (members plus pending invitations). Contact support to add more.`,
+            code: "seat_limit_reached",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const { token, hash } = generateInviteToken();

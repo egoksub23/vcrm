@@ -97,13 +97,94 @@ describe("getCurrentAccount", () => {
       account: { id: "acct-1", name: "Acme" },
     });
 
-    // Two queries: profiles by user_id, then accounts by id. Neither
-    // selects an embedded relationship — the regression guard.
-    expect(calls.map((c) => c.table)).toEqual(["profiles", "accounts"]);
+    // Three point queries: profiles by user_id, then accounts and the
+    // operator-set platform row, both by account id. None selects an
+    // embedded relationship — the regression guard.
+    expect(calls.map((c) => c.table)).toEqual([
+      "profiles",
+      "accounts",
+      "account_platform",
+    ]);
     expect(calls[0].columns).not.toMatch(/accounts!/);
     expect(calls[0].eqArgs).toEqual([["user_id", "user-1"]]);
     expect(calls[1].columns).not.toMatch(/accounts!/);
     expect(calls[1].eqArgs).toEqual([["id", "acct-1"]]);
+    expect(calls[2].eqArgs).toEqual([["account_id", "acct-1"]]);
+    // No platform row yet reads as the permissive default.
+    expect(ctx.platform).toMatchObject({ status: "active", features: {} });
+  });
+
+  it("refuses a member of a suspended account", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: { data: { account_id: "acct-1", account_role: "owner" }, error: null },
+        accounts: { data: { id: "acct-1", name: "Acme" }, error: null },
+        account_platform: {
+          data: { status: "suspended", plan: "standard", limits: {}, features: {}, suspended_reason: "unpaid" },
+          error: null,
+        },
+      },
+    });
+    createClient.mockReturnValue(client);
+
+    await expect(getCurrentAccount()).rejects.toThrow(/suspended/i);
+  });
+
+  it("reads a missing platform table (migration 132 not applied) as active", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: { data: { account_id: "acct-1", account_role: "owner" }, error: null },
+        accounts: { data: { id: "acct-1", name: "Acme" }, error: null },
+        account_platform: { data: null, error: { code: "42P01", message: "relation does not exist" } },
+      },
+    });
+    createClient.mockReturnValue(client);
+
+    const ctx = await getCurrentAccount();
+    expect(ctx.platform?.status).toBe("active");
+  });
+
+  it("fails closed on any other platform read error", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: { data: { account_id: "acct-1", account_role: "owner" }, error: null },
+        accounts: { data: { id: "acct-1", name: "Acme" }, error: null },
+        account_platform: { data: null, error: { code: "XX000", message: "boom" } },
+      },
+    });
+    createClient.mockReturnValue(client);
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await expect(getCurrentAccount()).rejects.toThrow(/Could not load account context/);
+    } finally {
+      err.mockRestore();
+    }
+  });
+
+  it("drops the capabilities of a feature the operator switched off", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: { data: { account_id: "acct-1", account_role: "owner" }, error: null },
+        accounts: { data: { id: "acct-1", name: "Acme" }, error: null },
+        account_platform: {
+          data: { status: "active", plan: "standard", limits: {}, features: { incidents: false } },
+          error: null,
+        },
+      },
+    });
+    createClient.mockReturnValue(client);
+
+    const { loadCapabilities } = await import("./account");
+    const ctx = await getCurrentAccount();
+    const caps = await loadCapabilities(ctx);
+    expect(caps.has("menu.inbox")).toBe(true);
+    expect(caps.has("menu.incidents")).toBe(false);
+    expect(caps.has("incidents.raise")).toBe(false);
+    expect(caps.has("incidents.manage")).toBe(false);
   });
 
   it("throws UnauthorizedError when there is no session", async () => {
