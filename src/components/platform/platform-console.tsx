@@ -70,6 +70,7 @@ export function PlatformConsole() {
   const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; features: Record<string, boolean> } | null>(null);
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openSignup, setOpenSignup] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -86,7 +87,31 @@ export function PlatformConsole() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch on mount
     void load();
+    void fetch("/api/platform/settings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { open_signup?: boolean } | null) =>
+        setOpenSignup(typeof b?.open_signup === "boolean" ? b.open_signup : null),
+      )
+      .catch(() => {});
   }, [load]);
+
+  const toggleSignup = async (next: boolean) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/platform/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ open_signup: next }),
+      });
+      if (!res.ok) throw new Error(await errorFrom(res, t("updateFailed")));
+      setOpenSignup(next);
+      toast.success(t("signupSaved"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const totals = useMemo(() => {
     const list = rows ?? [];
@@ -193,6 +218,23 @@ export function PlatformConsole() {
           </Card>
         ))}
       </div>
+
+      {openSignup !== null && (
+        <Card className="border-border bg-card">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">{t("signupTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("signupDesc")}</p>
+            </div>
+            <Switch
+              checked={openSignup}
+              disabled={busy}
+              onCheckedChange={(v) => void toggleSignup(v)}
+              aria-label={t("signupTitle")}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-border bg-card">
         <CardContent className="p-0">

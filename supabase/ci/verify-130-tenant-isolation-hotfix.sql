@@ -56,6 +56,12 @@ BEGIN
 
   -- Fixtures: two real signups (handle_new_user builds an account + owner each)
   -- and one anonymous visitor (no email, so no profile is ever built for it).
+  -- Fixture logins are inserted directly; keep self-service sign-up open for this transaction
+  -- (migration 134 closes it by default on a fresh database).
+  IF to_regclass('public.platform_settings') IS NOT NULL THEN
+    UPDATE public.platform_settings SET value = 'true'::jsonb WHERE key = 'open_signup';
+  END IF;
+
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, email_confirmed_at)
   VALUES
     (uA, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a-' || uA || '@example.invalid', '{"full_name":"Tenant A"}', now()),

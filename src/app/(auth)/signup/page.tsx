@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -52,7 +52,21 @@ function SignupPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Whether the operator allows self-service sign-up (migration 134). null
+  // while unknown; the database enforces the rule either way, this only
+  // sets expectations before someone fills in the form.
+  const [signupOpen, setSignupOpen] = useState<boolean | null>(null);
   const supabase = createClient();
+
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc("signup_is_open").then(({ data, error: rpcError }) => {
+      if (active && !rpcError && typeof data === "boolean") setSignupOpen(data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,13 +98,21 @@ function SignupPageInner() {
       options: {
         data: {
           full_name: fullName,
+          // Lets a link invitation through the invite-only gate (migration 134).
+          ...(inviteToken ? { invite_token: inviteToken } : {}),
         },
         ...(emailRedirectTo ? { emailRedirectTo } : {}),
       },
     });
 
     if (error) {
-      setError(error.message);
+      // Supabase reports a database-side refusal (the invite-only gate) as
+      // a generic "Database error saving new user".
+      setError(
+        signupOpen === false && /database error saving new user/i.test(error.message)
+          ? t("inviteOnlyBlocked")
+          : error.message,
+      );
       setLoading(false);
       return;
     }
@@ -159,6 +181,12 @@ function SignupPageInner() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {signupOpen === false && !inviteToken && (
+            <div role="note" className="mb-4 rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+              {t("inviteOnlyNotice")}
+            </div>
+          )}
+
           <AuthOAuthSection next={oauthNext} onError={setError} />
 
           <form onSubmit={handleSignup} className="mt-4 flex flex-col gap-4">
