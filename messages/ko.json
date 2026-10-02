@@ -7950,6 +7950,21 @@
     "job_message-sweep": "멈춘 메시지 복구",
     "job_mailbox-renew": "Microsoft 365 메일함 갱신",
     "job_gmail-watch-renew": "Gmail 감시 갱신",
+    "encTitle": "저장된 비밀 값",
+    "encDesc": "채널 토큰, API 키, 웹훅 비밀 값은 암호화되어 저장됩니다. 키 교체를 시작한 뒤 다시 암호화를 실행하면 이전에 저장된 값이 모두 새 키로 옮겨져 이전 키를 폐기할 수 있습니다.",
+    "encLoadFailed": "암호화 상태를 불러오지 못했습니다.",
+    "encRunFailed": "다시 암호화하지 못했습니다.",
+    "encWritingWith": "새 비밀 값은 키 {id}(으)로 저장됩니다.",
+    "encNotRotating": "진행 중인 키 교체가 없습니다. 새 비밀 값은 기존 키를 사용합니다.",
+    "encKeyLegacy": "기존 키",
+    "encKeyCbc": "기존 키(이전 형식)",
+    "encUnrecognised": "암호화되지 않음 {count}건",
+    "encStale": "저장된 비밀 값 {count}건이 아직 이전 키 또는 형식입니다.",
+    "encReencrypt": "지금 다시 암호화",
+    "encAllCurrent": "저장된 모든 값이 현재 키를 사용합니다.",
+    "encRan": "비밀 값 {count}건을 다시 암호화했습니다.",
+    "encLastRun": "마지막 실행: {rewritten}건 변경, {conflicts}건 도중 변경됨, {unreadable}건 읽을 수 없음.",
+    "encNotFinished": "완료 전에 시간이 끝났습니다. 다시 실행하세요.",
     "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다."
   }
 }

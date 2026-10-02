@@ -8,6 +8,7 @@
 // ./pending.ts.
 // ============================================================
 
+import { primaryKeyMaterial } from "@/lib/crypto/keyring";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { JiraAuthError, JiraConfigError, JiraNetworkError, JiraServerError } from "./errors";
@@ -113,7 +114,7 @@ export function verifyOAuthState(
 
 /** The state is signed with a key derived from the token-encryption key, never the key itself. */
 export function stateSecret(env: Record<string, string | undefined> = process.env): string {
-  const key = env.ENCRYPTION_KEY;
+  const key = primaryKeyMaterial(env);
   if (!key) throw new JiraConfigError("ENCRYPTION_KEY is not configured");
   return createHmac("sha256", key).update("vircle:jira:oauth-state").digest("hex");
 }

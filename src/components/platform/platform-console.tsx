@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { EncryptionCard } from "@/components/platform/encryption-card";
 import { Textarea } from "@/components/ui/textarea";
 import type { CronJobStatus } from "@/lib/cron/status";
 import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
@@ -275,6 +276,8 @@ export function PlatformConsole() {
           </CardContent>
         </Card>
       )}
+
+      <EncryptionCard />
 
       <Card className="border-border bg-card">
         <CardContent className="p-0">

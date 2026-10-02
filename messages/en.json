@@ -7950,6 +7950,21 @@
     "job_message-sweep": "Stuck message recovery",
     "job_mailbox-renew": "Microsoft 365 mailbox renewal",
     "job_gmail-watch-renew": "Gmail watch renewal",
+    "encTitle": "Stored secrets",
+    "encDesc": "Channel tokens, API keys and webhook secrets are encrypted. After you start a key rotation, re-encrypt moves everything stored earlier to the new key so the old one can be retired.",
+    "encLoadFailed": "Could not load encryption status.",
+    "encRunFailed": "Re-encrypt failed.",
+    "encWritingWith": "New secrets are written with key {id}.",
+    "encNotRotating": "No rotation in progress: new secrets use the original key.",
+    "encKeyLegacy": "Original key",
+    "encKeyCbc": "Original key (old format)",
+    "encUnrecognised": "{count} not encrypted",
+    "encStale": "{count} stored secrets are still under an older key or format.",
+    "encReencrypt": "Re-encrypt now",
+    "encAllCurrent": "Everything stored is on the current key.",
+    "encRan": "Re-encrypted {count} secrets.",
+    "encLastRun": "Last run: {rewritten} rewritten, {conflicts} changed meanwhile, {unreadable} unreadable.",
+    "encNotFinished": "Time ran out before it finished: run it again.",
     "notAllowed": "You do not have access to platform administration."
   }
 }
