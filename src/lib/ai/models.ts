@@ -1,3 +1,4 @@
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 import { AiError, type AiProvider } from './types'
 import { providerHttpError, toNetworkError } from './providers/shared'
 
@@ -42,7 +43,7 @@ export async function listModels(args: {
 
   let res: Response
   try {
-    res = await fetch(url, { headers, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS) })
+    res = await (compatible ? pinnedFetch : fetch)(url, { headers, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS) })
   } catch (err) {
     throw toNetworkError(err)
   }

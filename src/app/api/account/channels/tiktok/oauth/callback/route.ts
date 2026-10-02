@@ -2,12 +2,15 @@
 // GET /api/account/channels/tiktok/oauth/callback
 //
 // TikTok redirects here with ?code=&state= (or ?auth_code=). The state is
-// the auth: it was minted for one account by /oauth/start and cannot be
-// guessed. Exchanges the code for tokens and stores them encrypted.
+// single-use: it was minted for one person in one account by /oauth/start,
+// cannot be guessed, and only that person (signed in to that account) can
+// finish it (lib/oauth/session-binding). Exchanges the code for tokens and
+// stores them encrypted.
 // ============================================================
 import { NextResponse } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { exchangeTikTokCode, getTikTokAccountInfo } from '@/lib/comments/tiktok/api'
 import { encrypt } from '@/lib/whatsapp/encryption'
@@ -39,7 +42,15 @@ export async function GET(request: Request) {
     .eq('state', state)
     .select('account_id, user_id, expires_at')
     .maybeSingle()
-  if (!pending || new Date(pending.expires_at as string).getTime() < Date.now()) {
+  if (
+    !pending ||
+    new Date(pending.expires_at as string).getTime() < Date.now() ||
+    // Only the person who started it, in the same workspace, can finish it.
+    !(await sessionOwnsPending({
+      account_id: pending.account_id as string,
+      initiated_by_user_id: pending.user_id as string,
+    }))
+  ) {
     return settingsRedirect(baseUrl, { oauth_error: 'invalid_state' })
   }
   const accountId = pending.account_id as string

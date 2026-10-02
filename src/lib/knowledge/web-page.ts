@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 import { decodeEntities, kbHtmlToPlainText, plainTextToKbHtml, sanitizeKbHtml, splitKbHtml } from '@/lib/knowledge-format'
 import { MAX_CONTENT_CHARS, MAX_TITLE_CHARS } from '@/lib/ai/knowledge-doc'
 
@@ -84,7 +85,7 @@ export async function fetchWebPage(rawUrl: string): Promise<{ url: string; html:
     }
     let res: Response
     try {
-      res = await fetch(url.toString(), {
+      res = await pinnedFetch(url.toString(), {
         redirect: 'manual',
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         headers: {

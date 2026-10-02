@@ -25,6 +25,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import { buildSignatureHeader } from '@/lib/webhooks/sign';
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf';
+import { pinnedFetch } from '@/lib/net/safe-fetch';
 import type { WebhookEvent } from '@/lib/webhooks/events';
 
 /** Per-endpoint HTTP timeout. Kept short — this runs in `after()`. */
@@ -111,7 +112,7 @@ async function deliverOne(
   }
 
   try {
-    const res = await fetch(row.url, {
+    const res = await pinnedFetch(row.url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

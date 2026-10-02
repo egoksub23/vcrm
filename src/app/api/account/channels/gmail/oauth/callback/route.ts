@@ -2,9 +2,10 @@
 // GET /api/account/channels/gmail/oauth/callback
 //
 // Google redirects here with ?code=&state= after the admin approves
-// the consent dialog. No requireRole here — same reasoning as every
-// other channel's callback: the state token IS the auth (32 random
-// bytes, minted for a specific account by /oauth/start).
+// the consent dialog. The state token (32 random bytes, minted for one
+// person in one account by /oauth/start) is single-use and bound to the
+// signed-in session, same as every other channel's callback: only the
+// person who started it can finish it (lib/oauth/session-binding).
 //
 // Also registers Gmail push notifications (users.watch) against the
 // operator's own Pub/Sub topic (GMAIL_PUBSUB_TOPIC) — unlike Microsoft
@@ -20,6 +21,7 @@ import { NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { exchangeCodeForTokens, getUserEmailAddress, getOAuthBaseUrl } from '@/lib/gmail/oauth'
 import { watchMailbox, getCurrentHistoryId } from '@/lib/gmail/gmail-api'
 import {
@@ -51,7 +53,8 @@ export async function GET(request: Request) {
 
   const db = supabaseAdmin()
   const pending = await findPendingGmailConnectionByState(db, state)
-  if (!pending) {
+  // Single-use, and only the person who started it (same workspace) can finish it.
+  if (!pending || pending.status !== 'pending' || !(await sessionOwnsPending(pending))) {
     return settingsRedirect(baseUrl, { oauth_error: 'invalid_state' })
   }
 

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// Address pinning has its own tests (lib/net/safe-fetch.test.ts); here the global fetch stub stands in.
+vi.mock('@/lib/net/safe-fetch', () => ({ pinnedFetch: (...a: Parameters<typeof fetch>) => fetch(...a) }));
 
 // Stub the Meta resumable upload so the helper is tested in isolation.
 vi.mock('./meta-api', () => ({

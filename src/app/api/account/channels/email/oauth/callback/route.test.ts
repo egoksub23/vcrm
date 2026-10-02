@@ -36,10 +36,12 @@ vi.mock('@/lib/ms365/oauth', () => ({
 }))
 vi.mock('@/lib/ms365/mail-api', () => ({ createSubscription: h.subscribe }))
 vi.mock('@/lib/ms365/oauth-connect', () => ({
-  findPendingEmailConnectionByState: async () => ({ id: 'pend-1', account_id: 'acc-1', initiated_by_user_id: 'u1' }),
+  findPendingEmailConnectionByState: async () => ({ id: 'pend-1', account_id: 'acc-1', initiated_by_user_id: 'u1', status: 'pending' }),
   markEmailConnectionCompleted: h.completed,
   markEmailConnectionFailed: h.failed,
 }))
+// Session binding has its own tests (lib/oauth/session-binding.test.ts).
+vi.mock('@/lib/oauth/session-binding', () => ({ sessionOwnsPending: async () => true }))
 vi.mock('@/lib/whatsapp/encryption', () => ({ encrypt: (s: string) => `enc:${s}` }))
 
 import { GET } from './route'

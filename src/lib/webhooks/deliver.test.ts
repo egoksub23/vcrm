@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Address pinning has its own tests (lib/net/safe-fetch.test.ts); here the global fetch stub stands in.
+vi.mock('@/lib/net/safe-fetch', () => ({ pinnedFetch: (...a: Parameters<typeof fetch>) => fetch(...a) }));
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 vi.mock('@/lib/whatsapp/encryption', () => ({

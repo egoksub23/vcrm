@@ -42,6 +42,7 @@ import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 import { matchesWholeWord } from './keyword-match'
 
 // Re-exported: the matcher moved to ./keyword-match so client code (the
@@ -817,7 +818,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
         throw new Error('send_webhook: destination not allowed')
       }
       const body = cfg.body_template ? interpolate(cfg.body_template, args) : JSON.stringify(args.context)
-      const res = await fetch(cfg.url, {
+      const res = await pinnedFetch(cfg.url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(cfg.headers ?? {}) },
         body,

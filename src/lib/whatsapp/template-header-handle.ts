@@ -2,6 +2,7 @@ import { uploadResumableMedia } from '@/lib/whatsapp/meta-api'
 import { MEDIA_HEADER_SPECS, isMediaHeaderKind } from '@/lib/whatsapp/media-header-types'
 import type { TemplatePayload } from '@/lib/whatsapp/template-validators'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 
 /**
  * Meta requires an `example.header_handle` (from the Resumable Upload
@@ -55,7 +56,7 @@ export async function ensureMediaHeaderHandle(
   // a manually-pasted public link).
   let res: Response
   try {
-    res = await fetch(payload.header_media_url, {
+    res = await pinnedFetch(payload.header_media_url, {
       // Do NOT follow redirects — a public URL could 3xx-bounce to an
       // internal address, defeating the guard above. Bound the request so
       // a hung host can't tie up the template-submit handler.

@@ -1,7 +1,7 @@
 // ============================================================
 // GET /api/account/channels/instagram/oauth/callback
 //
-// Same code-exchange shape as Messenger's callback, plus one extra
+// Same code-exchange and session binding as Messenger's callback, plus one extra
 // step per candidate Page: resolving whether it has a linked Instagram
 // professional account at all (`getInstagramBusinessAccount`) — a Page
 // with no linked IG account can't be used for this channel.
@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import {
   exchangeCodeForUserToken,
@@ -47,7 +48,14 @@ export async function GET(request: Request) {
 
   const db = supabaseAdmin()
   const pending = await findPendingConnectionByState(db, state)
-  if (!pending || pending.channel !== 'instagram') {
+  // A state is single-use and only the person who started the connection, signed in to
+  // the same workspace, can finish it (a forwarded callback link does nothing).
+  if (
+    !pending ||
+    pending.channel !== 'instagram' ||
+    pending.status !== 'pending' ||
+    !(await sessionOwnsPending(pending))
+  ) {
     return settingsRedirect(baseUrl, { oauth_error: 'invalid_state' })
   }
 

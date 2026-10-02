@@ -42,10 +42,10 @@ const ACCOUNT_REFERENCE = new RegExp(
 /** Reachable without a session or key. Why each is safe. */
 const PUBLIC_ROUTES: Record<string, string> = {
   'account/channels/email/oauth/callback': 'OAuth redirect; signed one-time state ties it to the workspace and user that started it',
-  'account/channels/gmail/oauth/callback': 'OAuth redirect; signed one-time state',
-  'account/channels/instagram/oauth/callback': 'OAuth redirect; signed one-time state',
-  'account/channels/messenger/oauth/callback': 'OAuth redirect; signed one-time state',
-  'account/channels/tiktok/oauth/callback': 'OAuth redirect; one-time state row',
+  'account/channels/gmail/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
+  'account/channels/instagram/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
+  'account/channels/messenger/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
+  'account/channels/tiktok/oauth/callback': 'OAuth redirect; one-time state row bound to the signed-in person who started it',
   'account/transfer-ownership': 'session user via the transfer_account_ownership RPC, which checks the caller itself',
   'email/webhook': 'Microsoft Graph notification; per-mailbox client state compared before anything is read',
   'gmail/webhook': 'Pub/Sub push; per-mailbox token compared in constant time',

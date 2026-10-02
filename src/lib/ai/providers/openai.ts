@@ -1,3 +1,4 @@
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 import { AiError, type ProviderResult } from '../types'
 import { MAX_OUTPUT_TOKENS } from '../defaults'
 import {
@@ -166,7 +167,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
 
   const send = async (thinkingOff: boolean): Promise<Response> => {
     try {
-      return await fetch(url, {
+      return await (compatible ? pinnedFetch : fetch)(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,

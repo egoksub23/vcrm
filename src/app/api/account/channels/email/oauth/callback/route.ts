@@ -2,9 +2,10 @@
 // GET /api/account/channels/email/oauth/callback
 //
 // Microsoft redirects here with ?code=&state= after the admin approves
-// the consent dialog. No requireRole here — same reasoning as the
-// Messenger/Instagram callback: the state token IS the auth (32 random
-// bytes, minted for a specific account by /oauth/start).
+// the consent dialog. The state token (32 random bytes, minted for one
+// person in one account by /oauth/start) is single-use and bound to the
+// signed-in session, same as the Messenger/Instagram callback: only the
+// person who started it can finish it (lib/oauth/session-binding).
 //
 // Unlike Messenger/Instagram there's no Page-picker branch — a
 // Microsoft 365 connection is always the signed-in user's own single
@@ -16,6 +17,7 @@ import { NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { exchangeCodeForTokens, getMailboxProfile, getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { createSubscription } from '@/lib/ms365/mail-api'
 import {
@@ -61,7 +63,8 @@ export async function GET(request: Request) {
 
   const db = supabaseAdmin()
   const pending = await findPendingEmailConnectionByState(db, state)
-  if (!pending) {
+  // Single-use, and only the person who started it (same workspace) can finish it.
+  if (!pending || pending.status !== 'pending' || !(await sessionOwnsPending(pending))) {
     return settingsRedirect(baseUrl, { oauth_error: 'invalid_state' })
   }
 

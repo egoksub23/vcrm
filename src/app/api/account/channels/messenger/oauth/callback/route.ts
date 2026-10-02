@@ -2,16 +2,18 @@
 // GET /api/account/channels/messenger/oauth/callback
 //
 // Meta redirects here with ?code=&state= after the admin approves
-// the OAuth dialog. No requireRole here — Meta's redirect carries no
-// session-proof beyond the state token itself, which IS the auth: it
-// was minted for a specific account by /oauth/start and can't be
-// guessed (32 random bytes). Exchanges the code for a long-lived user
+// the OAuth dialog. The state token (32 random bytes, minted for one
+// person in one account by /oauth/start) is single-use and is bound to
+// the signed-in session: only the person who started the connection can
+// finish it, so a forwarded callback link does nothing
+// (lib/oauth/session-binding). Exchanges the code for a long-lived user
 // token, lists the admin's Pages, and either auto-connects (1 Page) or
 // hands off to the picker UI (>1 Page).
 // ============================================================
 import { NextResponse } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import {
   exchangeCodeForUserToken,
   exchangeForLongLivedToken,
@@ -50,7 +52,14 @@ export async function GET(request: Request) {
 
   const db = supabaseAdmin()
   const pending = await findPendingConnectionByState(db, state)
-  if (!pending || pending.channel !== 'messenger') {
+  // A state is single-use and only the person who started the connection, signed in to
+  // the same workspace, can finish it (a forwarded callback link does nothing).
+  if (
+    !pending ||
+    pending.channel !== 'messenger' ||
+    pending.status !== 'pending' ||
+    !(await sessionOwnsPending(pending))
+  ) {
     return settingsRedirect(baseUrl, { oauth_error: 'invalid_state' })
   }
 

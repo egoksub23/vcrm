@@ -1,3 +1,4 @@
+import { pinnedFetch } from '@/lib/net/safe-fetch'
 import { AiError } from './types'
 import { aiRequestTimeoutMs } from './defaults'
 import { providerHttpError, toNetworkError } from './providers/shared'
@@ -72,7 +73,7 @@ export async function embedTexts(
 
     let res: Response
     try {
-      res = await fetch(url, {
+      res = await (opts.baseUrl ? pinnedFetch : fetch)(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,

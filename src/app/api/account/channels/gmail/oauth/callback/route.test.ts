@@ -43,10 +43,12 @@ vi.mock('@/lib/gmail/gmail-api', () => ({
   getCurrentHistoryId: async () => 'h1',
 }))
 vi.mock('@/lib/gmail/oauth-connect', () => ({
-  findPendingGmailConnectionByState: async () => ({ id: 'pend-1', account_id: 'acc-1', initiated_by_user_id: 'u1' }),
+  findPendingGmailConnectionByState: async () => ({ id: 'pend-1', account_id: 'acc-1', initiated_by_user_id: 'u1', status: 'pending' }),
   markGmailConnectionCompleted: h.completed,
   markGmailConnectionFailed: h.failed,
 }))
+// Session binding has its own tests (lib/oauth/session-binding.test.ts).
+vi.mock('@/lib/oauth/session-binding', () => ({ sessionOwnsPending: async () => true }))
 vi.mock('@/lib/whatsapp/encryption', () => ({ encrypt: (s: string) => `enc:${s}` }))
 
 import { GET } from './route'

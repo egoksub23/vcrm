@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+// Address pinning has its own tests (lib/net/safe-fetch.test.ts); here the global fetch stub stands in.
+vi.mock('@/lib/net/safe-fetch', () => ({ pinnedFetch: (...a: Parameters<typeof fetch>) => fetch(...a) }));
 
 // Shared mock state for the service-role client. Lives in a hoisted block
 // so the vi.mock factory below can close over it.
