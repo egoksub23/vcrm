@@ -2,12 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { FileText, Loader2, Paperclip, Send, Trash2, Upload } from "lucide-react";
+import { FileText, ImageOff, Loader2, Paperclip, Send, Trash2, Upload } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { TICKET_MAX_ATTACHMENTS, formatBytes, splitAttachments } from "@/lib/tickets/attachments";
 import { dragHasFiles } from "@/lib/media/clipboard-images";
 import type { UploadingFile } from "@/hooks/use-ticket-detail";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import type { TicketAttachment } from "@/types";
 
 /** Jira actions on the files (0.45.0): shown only when attachments are switched on for the workspace. */
@@ -19,6 +20,54 @@ export interface AttachmentJiraProps {
   /** The attachment being sent right now. */
   busyId: string | null;
   onSend: (attachment: TicketAttachment) => void;
+}
+
+/**
+ * A picture thumbnail that opens the file. Ticket files live in the private
+ * bucket, so the stored URL is signed before it is shown or linked.
+ */
+function AttachmentThumb({ url, filename }: { url: string; filename: string }) {
+  const { src, status } = useSignedMediaUrl(url);
+
+  if (status !== "ready" || !src) {
+    return (
+      <span
+        className="flex aspect-square items-center justify-center text-muted-foreground"
+        title={filename}
+        role={status === "error" ? "img" : undefined}
+        aria-label={status === "error" ? filename : undefined}
+      >
+        {status === "error" ? <ImageOff className="size-4" /> : <Loader2 className="size-4 animate-spin" />}
+      </span>
+    );
+  }
+
+  return (
+    <a href={src} target="_blank" rel="noreferrer" title={filename} className="block aspect-square">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={filename} loading="lazy" className="size-full object-cover" />
+    </a>
+  );
+}
+
+/** The file's name as a link to its signed URL; plain text while that is pending or failed. */
+function AttachmentFileLink({ url, filename }: { url: string; filename: string }) {
+  const { src } = useSignedMediaUrl(url);
+  const className = "min-w-0 flex-1 truncate";
+
+  if (!src) {
+    return (
+      <span aria-disabled="true" className={cn(className, "text-muted-foreground")} title={filename}>
+        {filename}
+      </span>
+    );
+  }
+
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className={cn(className, "hover:underline")} title={filename}>
+      {filename}
+    </a>
+  );
 }
 
 /**
@@ -167,10 +216,7 @@ export function TicketAttachmentsSection({
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {images.map((a) => (
                 <li key={a.id} className="group relative overflow-hidden rounded-md border border-border bg-muted">
-                  <a href={a.url} target="_blank" rel="noreferrer" title={a.filename} className="block aspect-square">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.url} alt={a.filename} loading="lazy" className="size-full object-cover" />
-                  </a>
+                  <AttachmentThumb url={a.url} filename={a.filename} />
                   {removeButton(
                     a,
                     "absolute top-1 right-1 rounded bg-background/90 p-1 text-muted-foreground opacity-0 shadow-sm group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100",
@@ -194,9 +240,7 @@ export function TicketAttachmentsSection({
               {files.map((a) => (
                 <li key={a.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-[13px]">
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
-                  <a href={a.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline" title={a.filename}>
-                    {a.filename}
-                  </a>
+                  <AttachmentFileLink url={a.url} filename={a.filename} />
                   {jira || a.source === "jira" ? jiraTag(a, false) : null}
                   <span className="shrink-0 text-xs text-muted-foreground">{formatBytes(a.size_bytes)}</span>
                   {removeButton(a, "shrink-0 rounded p-1 text-muted-foreground hover:text-destructive")}

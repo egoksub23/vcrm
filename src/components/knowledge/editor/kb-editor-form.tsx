@@ -16,6 +16,7 @@ import { detectLanguage, KB_LANGUAGES, KB_LANGUAGE_LABELS, type KbLanguage } fro
 import { MAX_CONTENT_CHARS, MAX_TITLE_CHARS, type KbKind, type KbStatus } from "@/lib/ai/knowledge-doc";
 import { canTranslateArticle } from "@/lib/knowledge/translate";
 import type { ArticleDraftSeed, KnowledgeArticle, KnowledgeCollection } from "@/lib/knowledge-types";
+import { PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { removeImagesBySrc } from "@/lib/tiptap/inline-image";
 import { Button } from "@/components/ui/button";
@@ -159,7 +160,7 @@ export function KbEditorForm({
   useEffect(
     () => () => {
       if (savedRef.current) return;
-      for (const u of unsavedUploads(rowsRef.current)) void deleteAccountMedia("chat-media", u.storage_path).catch(() => {});
+      for (const u of unsavedUploads(rowsRef.current)) void deleteAccountMedia(PUBLIC_MEDIA_BUCKET, u.storage_path).catch(() => {});
     },
     [],
   );
@@ -257,7 +258,7 @@ export function KbEditorForm({
       // Images deleted from the text were left out of the list, which removed
       // them on the server; an upload that was never saved has to go too.
       for (const u of unsavedUploads(inlineRowsMissingFromHtml(rows, html))) {
-        void deleteAccountMedia("chat-media", u.storage_path).catch(() => {});
+        void deleteAccountMedia(PUBLIC_MEDIA_BUCKET, u.storage_path).catch(() => {});
       }
       const saved: KbStatus = data.status ?? (isAdmin ? target : "draft");
       if (data.warning) toast.warning(data.warning);

@@ -16,6 +16,7 @@ import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import type { WidgetMediaKind } from '@/lib/widget/media'
+import { signMediaUrl } from '@/lib/storage/sign-media'
 
 export type WidgetContentType = 'text' | WidgetMediaKind
 
@@ -163,11 +164,14 @@ export async function runWidgetInboundFanout(admin: SupabaseClient, args: Fanout
     })
   }
 
+  // The stored URL only identifies a file in a private bucket; the receiver
+  // gets a link that works for the next hour.
+  const mediaLink = media ? await signMediaUrl(admin, media.url, accountId) : null
   await dispatchWebhookEvent(admin, accountId, 'message.received', {
     conversation_id: conversationId,
     contact_id: contactId,
     content_type: media ? media.kind : 'text',
     text,
-    ...(media ? { media_url: media.url } : {}),
+    ...(mediaLink ? { media_url: mediaLink } : {}),
   })
 }

@@ -15,13 +15,13 @@ const ACCOUNT = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
 const BASE = 'https://abc.supabase.co'
 const POLICY: KbImagePolicy = { accountId: ACCOUNT, publicBaseUrl: BASE }
-const PREFIX = `${BASE}/storage/v1/object/public/chat-media/account-${ACCOUNT}/`
+const PREFIX = `${BASE}/storage/v1/object/public/public-assets/account-${ACCOUNT}/`
 const OK = `${PREFIX}kb/1700000000000-pasted-image.png`
 
 const clean = (html: string) => sanitizeKbHtml(html, { images: POLICY })
 
 describe('kbImageUrlPrefix / kbImageUrlForPath', () => {
-  it('is the account folder of the chat-media bucket on the project host', () => {
+  it('is the account folder of the public-assets bucket on the project host', () => {
     expect(kbImageUrlPrefix(POLICY)).toBe(PREFIX)
   })
   it('accepts a local development server over http, but no other plain http host', () => {
@@ -42,6 +42,21 @@ describe('kbImageUrlPrefix / kbImageUrlForPath', () => {
     expect(kbImageUrlForPath(POLICY, `account-${ACCOUNT}/../account-${OTHER}/a.png`)).toBeNull()
     expect(kbImageUrlForPath(POLICY, `account-${ACCOUNT}/kb/a b.png`)).toBeNull()
     expect(kbImageUrlForPath(POLICY, `account-${ACCOUNT}/`)).toBeNull()
+  })
+})
+
+describe('images written before the files moved out of chat-media (migration 146)', () => {
+  const LEGACY = `${BASE}/storage/v1/object/public/chat-media/account-${ACCOUNT}/kb/old.png`
+  it('keeps an own-account legacy image and rewrites it to its public-assets address', () => {
+    expect(clean(`<p><img src="${LEGACY}" alt="Old"></p>`)).toBe(
+      `<p><img src="${PREFIX}kb/old.png" alt="Old"></p>`,
+    )
+  })
+  it('still refuses a legacy address in another account, in a private form, or with a query', () => {
+    const other = `${BASE}/storage/v1/object/public/chat-media/account-${OTHER}/kb/old.png`
+    expect(clean(`<p><img src="${other}"></p>`)).not.toContain('<img')
+    expect(clean(`<p><img src="${BASE}/storage/v1/object/sign/chat-media/account-${ACCOUNT}/kb/old.png?token=x"></p>`)).not.toContain('<img')
+    expect(clean(`<p><img src="${LEGACY}?x=1"></p>`)).not.toContain('<img')
   })
 })
 
@@ -131,14 +146,14 @@ describe('sanitizeKbHtml — image XSS and abuse attempts', () => {
     ['vbscript: URL', 'vbscript:msgbox(1)'],
     ['blob: URL', 'blob:https://app.example/1234'],
     ['file: URL', 'file:///C:/Users/x/a.png'],
-    ['relative path', '/storage/v1/object/public/chat-media/a.png'],
-    ['protocol-relative URL', `//abc.supabase.co/storage/v1/object/public/chat-media/account-${ACCOUNT}/a.png`],
-    ['another host', `https://evil.example/storage/v1/object/public/chat-media/account-${ACCOUNT}/a.png`],
-    ['a look-alike host (suffix)', `https://abc.supabase.co.evil.example/storage/v1/object/public/chat-media/account-${ACCOUNT}/a.png`],
-    ['a look-alike host (userinfo)', `https://abc.supabase.co@evil.example/storage/v1/object/public/chat-media/account-${ACCOUNT}/a.png`],
-    ['plain http on the project host', `http://abc.supabase.co/storage/v1/object/public/chat-media/account-${ACCOUNT}/a.png`],
-    ['another account', `${BASE}/storage/v1/object/public/chat-media/account-${OTHER}/kb/a.png`],
-    ['an account folder prefix that only starts the same', `${BASE}/storage/v1/object/public/chat-media/account-${ACCOUNT}x/a.png`],
+    ['relative path', '/storage/v1/object/public/public-assets/a.png'],
+    ['protocol-relative URL', `//abc.supabase.co/storage/v1/object/public/public-assets/account-${ACCOUNT}/a.png`],
+    ['another host', `https://evil.example/storage/v1/object/public/public-assets/account-${ACCOUNT}/a.png`],
+    ['a look-alike host (suffix)', `https://abc.supabase.co.evil.example/storage/v1/object/public/public-assets/account-${ACCOUNT}/a.png`],
+    ['a look-alike host (userinfo)', `https://abc.supabase.co@evil.example/storage/v1/object/public/public-assets/account-${ACCOUNT}/a.png`],
+    ['plain http on the project host', `http://abc.supabase.co/storage/v1/object/public/public-assets/account-${ACCOUNT}/a.png`],
+    ['another account', `${BASE}/storage/v1/object/public/public-assets/account-${OTHER}/kb/a.png`],
+    ['an account folder prefix that only starts the same', `${BASE}/storage/v1/object/public/public-assets/account-${ACCOUNT}x/a.png`],
     ['another bucket', `${BASE}/storage/v1/object/public/flow-media/account-${ACCOUNT}/kb/a.png`],
     ['a private (authenticated) object URL', `${BASE}/storage/v1/object/authenticated/chat-media/account-${ACCOUNT}/kb/a.png`],
     ['a signed URL (query string)', `${PREFIX}kb/a.png?token=abc`],

@@ -68,7 +68,13 @@ export interface WidgetMessage {
   sender_type: SenderType
   content_text: string | null
   content_type?: ContentType | null
+  /** What the widget renders. For a private chat-media file this is the short-lived
+   *  signed link (see media-links.ts), not the stored identifier. */
   media_url?: string | null
+  /** Client-only: the stored `media_url` a signed link was minted for. Realtime
+   *  re-sends this raw value on every UPDATE, and it is how a later row is
+   *  matched to the link already held. Never sent anywhere. */
+  rawMediaUrl?: string | null
   status?: string | null
   created_at: string
   is_internal?: boolean | null

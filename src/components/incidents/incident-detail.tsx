@@ -33,6 +33,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useCapability } from "@/hooks/use-can";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { attachFileToIncident } from "@/lib/incidents/attachment-actions";
 import {
   INCIDENT_SEVERITIES,
@@ -87,6 +88,34 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** An evidence file: the stored URL is signed (private bucket) before it is linked. */
+function EvidenceLink({ attachment: a }: { attachment: IncidentAttachment }) {
+  const { src } = useSignedMediaUrl(a.url);
+  const row = (
+    <>
+      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate">{a.filename}</span>
+      <span className="shrink-0 text-muted-foreground">{formatBytes(a.size_bytes)}</span>
+    </>
+  );
+  const className = "flex items-center gap-2 rounded-md px-1.5 py-1 text-xs";
+
+  // No link yet (signing, or it could not be signed): show the row, inert.
+  if (!src) {
+    return (
+      <span aria-disabled="true" className={`${className} opacity-60`}>
+        {row}
+      </span>
+    );
+  }
+
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className={`${className} hover:bg-muted`}>
+      {row}
+    </a>
+  );
 }
 
 export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onBack: () => void }) {
@@ -513,16 +542,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <ul className="flex flex-col gap-1.5">
                 {attachments.map((a) => (
                   <li key={a.id}>
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-muted"
-                    >
-                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">{a.filename}</span>
-                      <span className="shrink-0 text-muted-foreground">{formatBytes(a.size_bytes)}</span>
-                    </a>
+                    <EvidenceLink attachment={a} />
                   </li>
                 ))}
               </ul>

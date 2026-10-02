@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMediaBlobUrl } from "@/hooks/use-media-blob-url";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { downloadMediaMessage } from "@/lib/media/download";
 import { galleryIndexOf, type MediaGalleryItem } from "@/lib/media/gallery";
 
@@ -147,16 +148,7 @@ export function MediaLightbox({
                 onClick={toggleZoom}
               />
             )}
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={t("openOriginal")}
-              title={t("openOriginal")}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
+            <OpenOriginalLink url={item.url} label={t("openOriginal")} />
             <ToolbarButton
               icon={Download}
               label={t("download")}
@@ -175,13 +167,7 @@ export function MediaLightbox({
               t={t}
             />
           ) : (
-            <video
-              // Plain URL, never a blob — the player should stream.
-              src={item.url}
-              controls
-              preload="metadata"
-              className={cn(MEDIA_MAX_HEIGHT, "max-w-full rounded-lg")}
-            />
+            <LightboxVideo url={item.url} t={t} />
           )}
 
           {items.length > 1 && (
@@ -211,6 +197,73 @@ export function MediaLightbox({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** "Open original" in a new tab: the signed link for a private file. */
+function OpenOriginalLink({ url, label }: { url: string; label: string }) {
+  const { src } = useSignedMediaUrl(url);
+  const className =
+    "flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors";
+
+  // No link yet (signing, or it could not be signed): keep the slot but
+  // render it inert rather than pointing at a URL that serves nothing.
+  if (!src) {
+    return (
+      <span
+        role="link"
+        aria-disabled="true"
+        aria-label={label}
+        title={label}
+        className={cn(className, "opacity-60")}
+      >
+        <ExternalLink className="h-4 w-4" />
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      title={label}
+      className={cn(className, "hover:bg-muted hover:text-foreground")}
+    >
+      <ExternalLink className="h-4 w-4" />
+    </a>
+  );
+}
+
+function LightboxVideo({ url, t }: { url: string; t: Translator }) {
+  const { src, status } = useSignedMediaUrl(url);
+
+  if (status === "error") {
+    return (
+      <div className="flex h-64 w-full min-w-64 flex-col items-center justify-center gap-2 rounded-lg bg-muted text-sm text-muted-foreground">
+        <ImageOff className="h-8 w-8" />
+        <span>{t("failed")}</span>
+      </div>
+    );
+  }
+
+  if (status !== "ready" || !src) {
+    return (
+      <div className="flex h-64 w-full min-w-64 items-center justify-center rounded-lg bg-muted">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <video
+      // Plain URL (signed when private), never a blob — the player should stream.
+      src={src}
+      controls
+      preload="metadata"
+      className={cn(MEDIA_MAX_HEIGHT, "max-w-full rounded-lg")}
+    />
   );
 }
 

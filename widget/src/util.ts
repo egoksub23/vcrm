@@ -270,6 +270,21 @@ function time(iso: string): number {
 }
 
 /**
+ * A raw row (a Realtime UPDATE, a poll that missed link resolution) carries the
+ * stored `media_url` again. When that is the very file `prev` already holds a
+ * signed link for, keep the link rather than swapping a working one for an
+ * identifier that no longer serves anything. A row for a different file drops
+ * the old link's bookkeeping.
+ */
+function keepMediaLink(prev: LocalMessage, row: WidgetMessage, merged: LocalMessage): LocalMessage {
+  if (row.rawMediaUrl !== undefined || !prev.rawMediaUrl) return merged
+  if (row.media_url === prev.rawMediaUrl) {
+    return { ...merged, media_url: prev.media_url, rawMediaUrl: prev.rawMediaUrl }
+  }
+  return { ...merged, rawMediaUrl: undefined }
+}
+
+/**
  * Merge server rows into the local list by id (server fields win, local-only
  * fields such as `localUrl` survive), sorted oldest first, with in-flight
  * optimistic messages kept at the end in the order they were typed.
@@ -281,9 +296,9 @@ export function mergeMessages(existing: LocalMessage[], incoming: WidgetMessage[
     const prev = byId.get(row.id)
     if (prev && !isStatusUpgrade(prev.status, row.status)) {
       // Never let a stale row (older poll / out-of-order event) roll a tick back.
-      byId.set(row.id, { ...prev, ...row, status: prev.status })
+      byId.set(row.id, keepMediaLink(prev, row, { ...prev, ...row, status: prev.status }))
     } else {
-      byId.set(row.id, { ...prev, ...row })
+      byId.set(row.id, prev ? keepMediaLink(prev, row, { ...prev, ...row }) : { ...row })
     }
   }
   const all = [...byId.values()]

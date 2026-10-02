@@ -12,10 +12,11 @@
 // loopback, private, link-local, ULA, or otherwise non-publicly-
 // routable. Combined with `redirect: 'manual'` at the call site (so a
 // public URL can't 3xx-bounce to an internal one), this blocks the
-// common SSRF vectors. It is NOT a defense against DNS rebinding (a
-// host that resolves public here but flips to private before connect) —
-// that needs pinning the resolved IP into the socket, which fetch
-// doesn't expose; documented as a residual risk.
+// common SSRF vectors. On its own it is NOT a defense against DNS
+// rebinding (a host that resolves public here but flips to private before
+// connect); the fetch itself goes through `pinnedFetch`
+// (src/lib/net/safe-fetch.ts), which re-checks the address the socket
+// really connects to. This check stays as the early, friendly refusal.
 // ============================================================
 
 import { lookup } from 'node:dns/promises';

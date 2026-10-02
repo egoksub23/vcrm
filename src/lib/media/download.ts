@@ -1,6 +1,7 @@
 import type { Message } from "@/types";
 import { loadMediaBlob, MediaResponseError } from "./blob-cache";
 import { mediaFilename } from "./filename";
+import { signedMediaUrl } from "./signed-urls";
 
 /**
  * Save a chat attachment to the agent's machine.
@@ -32,7 +33,7 @@ export async function downloadMediaMessage(message: Message): Promise<void> {
     // stricter CORS policy than ours can block the XHR while the browser
     // is still perfectly able to navigate to the object. Handing the URL
     // to a new tab gets the agent to the file, visibly.
-    if (openInNewTab(url)) return;
+    if (openInNewTab(await signedMediaUrl(url).catch(() => url))) return;
     throw error;
   }
 

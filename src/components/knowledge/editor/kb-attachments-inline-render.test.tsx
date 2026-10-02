@@ -26,7 +26,7 @@ const render = (node: React.ReactNode) =>
     </NextIntlClientProvider>,
   )
 
-const BASE = 'https://abc.supabase.co/storage/v1/object/public/chat-media/account-a/kb'
+const BASE = 'https://abc.supabase.co/storage/v1/object/public/public-assets/account-a/kb'
 const row = (name: string, over: Partial<AttachmentRow> = {}): AttachmentRow => ({
   key: name,
   id: name,

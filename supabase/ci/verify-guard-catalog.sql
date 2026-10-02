@@ -38,7 +38,7 @@ DECLARE
   -- Reference tables every signed-in user may read in full (no tenant data in them).
   open_read_tables text[] := ARRAY['capability_catalogue', 'role_capability_defaults'];
   -- Storage buckets served publicly by URL. Anything new must be a deliberate choice.
-  public_buckets text[] := ARRAY['avatars', 'chat-media', 'flow-media'];
+  public_buckets text[] := ARRAY['avatars', 'chat-media', 'flow-media', 'public-assets'];
   r record;
   v_list text;
 BEGIN

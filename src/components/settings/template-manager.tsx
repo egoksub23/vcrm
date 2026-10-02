@@ -25,6 +25,8 @@ import {
 } from '@/lib/whatsapp/media-header-types';
 import { useAuth } from '@/hooks/use-auth';
 import { useCapability } from '@/hooks/use-can';
+import { useSignedMediaUrl } from '@/hooks/use-signed-media-url';
+import { PUBLIC_MEDIA_BUCKET } from '@/lib/storage/media-urls';
 import { Button } from '@/components/ui/button';
 import { GatedButton } from '@/components/ui/gated-button';
 import { Input } from '@/components/ui/input';
@@ -156,10 +158,13 @@ export function TemplateManager() {
   const [templateToDelete, setTemplateToDelete] =
     useState<MessageTemplate | null>(null);
   // Header-media upload (image #230; video/document #562). Uploads to the
-  // account-scoped chat-media bucket and stores the public URL in
-  // header_media_url; the submit route turns that into a Meta
-  // Resumable-Upload handle.
+  // account-scoped public-assets bucket (under `template-headers/`) and stores
+  // the public URL in header_media_url; the submit route turns that into a Meta
+  // Resumable-Upload handle. A template saved before that bucket existed may
+  // still hold a legacy chat-media URL (private now), so the preview below goes
+  // through useSignedMediaUrl, which leaves public-assets URLs untouched.
   const [uploadingHeader, setUploadingHeader] = useState(false);
+  const { src: headerPreviewSrc } = useSignedMediaUrl(form.header_media_url || null);
   const headerFileRef = useRef<HTMLInputElement>(null);
 
   // Body variable indices — `[1, 2, 3]` for "{{1}} {{2}} {{3}}". We
@@ -497,7 +502,7 @@ export function TemplateManager() {
       toast.error(t(invalidTypeKey[kind]));
       return;
     }
-    // The upload lands in the chat-media bucket, whose 16 MB ceiling is
+    // The upload lands in the public-assets bucket, whose 16 MB ceiling is
     // below Meta's 100 MB document cap — so this is the bucket-side
     // limit, not Meta's. A larger document can still be pasted as a link.
     const maxBytes = MEDIA_MAX_BYTES_BY_KIND[kind];
@@ -512,7 +517,8 @@ export function TemplateManager() {
     }
     setUploadingHeader(true);
     try {
-      const { publicUrl } = await uploadAccountMedia('chat-media', file);
+      // Public on purpose: Meta fetches the sample on every template send.
+      const { publicUrl } = await uploadAccountMedia(PUBLIC_MEDIA_BUCKET, file, 'template-headers');
       setForm((f) => ({ ...f, header_media_url: publicUrl }));
       toast.success(t('toastUploadSuccess'));
     } catch (err) {
@@ -890,10 +896,10 @@ export function TemplateManager() {
                     }
                     className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
-                  {form.header_format === 'image' && form.header_media_url && (
+                  {form.header_format === 'image' && headerPreviewSrc && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={form.header_media_url}
+                      src={headerPreviewSrc}
                       alt="Header sample"
                       className="max-h-28 rounded-md border border-border object-contain"
                     />

@@ -10,8 +10,9 @@
  *      `Cache-Control: no-store` on every `/api/*` response, so nothing
  *      caches them at the HTTP layer either.
  *
- *   2. OUTBOUND — a public `chat-media` bucket URL (migration 023). Plain
- *      https that the browser fetches and caches like any other image.
+ *   2. OUTBOUND — a `chat-media` bucket URL. The bucket is private, so the
+ *      URL is signed for the signed-in person first (`signedMediaUrl`) and
+ *      the signed link is then plain https the browser fetches and caches.
  *
  * The thumbnail, the lightbox and a download all want the same bytes. For
  * (1) that would otherwise be three separate multi-MB round trips through
@@ -22,6 +23,9 @@
  * eviction can never yank a URL out from under a mounted `<img>` — an
  * object URL keeps its blob's data alive by itself.
  */
+
+import { signedMediaUrl } from "./signed-urls";
+import { isPrivateMediaUrl } from "@/lib/storage/media-urls";
 
 /** Prefix of the auth-gated proxy — these need a credentialed fetch. */
 const PROXY_PREFIX = "/api/whatsapp/media/";
@@ -91,7 +95,7 @@ export async function loadMediaBlob(
   fetchImpl: MediaFetch = defaultFetch,
 ): Promise<Blob> {
   if (!isProxiedMediaUrl(url)) {
-    const res = await fetchImpl(url);
+    const res = await fetchImpl(isPrivateMediaUrl(url) ? await signedMediaUrl(url) : url);
     if (!res.ok) throw new MediaResponseError(res.status);
     return res.blob();
   }

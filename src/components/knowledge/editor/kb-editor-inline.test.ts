@@ -8,7 +8,7 @@ import {
   type AttachmentRow,
 } from './kb-editor-utils'
 
-const BASE = 'https://abc.supabase.co/storage/v1/object/public/chat-media/account-a/kb'
+const BASE = 'https://abc.supabase.co/storage/v1/object/public/public-assets/account-a/kb'
 const row = (name: string, over: Partial<AttachmentRow> = {}): AttachmentRow => ({
   key: name,
   file_name: name,

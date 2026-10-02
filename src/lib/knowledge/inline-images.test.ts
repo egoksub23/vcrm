@@ -9,7 +9,7 @@ const ACCOUNT = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
 const BASE = 'https://abc.supabase.co'
 const POLICY: KbImagePolicy = { accountId: ACCOUNT, publicBaseUrl: BASE }
-const url = (name: string, account = ACCOUNT) => `${BASE}/storage/v1/object/public/chat-media/account-${account}/kb/${name}`
+const url = (name: string, account = ACCOUNT) => `${BASE}/storage/v1/object/public/public-assets/account-${account}/kb/${name}`
 const path = (name: string, account = ACCOUNT) => `account-${account}/kb/${name}`
 
 const file = (name: string, over: Partial<StagedKnowledgeAttachment> = {}): StagedKnowledgeAttachment => ({

@@ -28,9 +28,9 @@ export interface KnowledgeAttachment {
   mime_type: string
   size_bytes: number
   kind: KbAttachmentKind
-  /** Public URL (chat-media bucket) that Meta / mail providers can fetch. */
+  /** Public URL (public-assets bucket) that Meta / mail providers can fetch. */
   url: string
-  /** Object path inside the chat-media bucket, e.g. account-<id>/kb/….pdf */
+  /** Object path inside the public-assets bucket, e.g. account-<id>/kb/….pdf */
   storage_path: string
   /** When the AI answers from this article, send this file with the reply. */
   send_with_ai: boolean

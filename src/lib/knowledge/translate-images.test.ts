@@ -3,7 +3,7 @@ import { buildTranslatePrompt, parseTranslation } from './translate'
 
 const ACCOUNT = '11111111-1111-4111-8111-111111111111'
 const POLICY = { accountId: ACCOUNT, publicBaseUrl: 'https://abc.supabase.co' }
-const url = (n: string) => `https://abc.supabase.co/storage/v1/object/public/chat-media/account-${ACCOUNT}/kb/${n}`
+const url = (n: string) => `https://abc.supabase.co/storage/v1/object/public/public-assets/account-${ACCOUNT}/kb/${n}`
 const answer = (html: string) => JSON.stringify({ title: 'Panduan', content_html: html })
 
 describe('parseTranslation with images', () => {

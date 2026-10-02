@@ -44,10 +44,11 @@ export interface StagedKbFile {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
-  /** Public chat-media URL. The object is shared with the article, so it is
+  /** Public URL of the article's file (public-assets bucket; a legacy row may
+   *  still name chat-media). The object is shared with the article, so it is
    *  never deleted from the composer, even when a send fails. */
   url: string;
-  /** Object path in the chat-media bucket (for the send payload only). */
+  /** Object path in the article's bucket (for the send payload only). */
   storagePath: string;
   kind: KbAttachmentKind;
   /** "kb" = the agent inserted an article; "ai" = the AI draft cited it;

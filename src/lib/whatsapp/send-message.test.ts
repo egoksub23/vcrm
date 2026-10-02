@@ -1219,6 +1219,46 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
     });
   });
 
+  describe('files in the private chat-media bucket', () => {
+    const own = 'https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-1/inbound/pic.png'
+    const foreign = 'https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-2/pic.png'
+    const withStorage = (db: SupabaseClient) => {
+      const createSignedUrl = vi.fn(async (path: string) => ({
+        data: { signedUrl: `https://x.supabase.co/storage/v1/object/sign/chat-media/${path}?token=t` },
+        error: null,
+      }))
+      return { db: Object.assign(db, { storage: { from: () => ({ createSignedUrl }) } }), createSignedUrl }
+    }
+
+    it('gives Meta a signed link minted now, and stores the identifier', async () => {
+      const { sendMediaMessage } = await import('@/lib/whatsapp/meta-api')
+      vi.mocked(sendMediaMessage).mockClear()
+      const captured: CapturedWrites = {}
+      const { db, createSignedUrl } = withStorage(sendPathDb([], captured))
+      await sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'image',
+        mediaUrl: own,
+      })
+      expect(createSignedUrl).toHaveBeenCalledWith('account-acct-1/inbound/pic.png', 3600)
+      expect(vi.mocked(sendMediaMessage).mock.calls[0][0].link).toBe(
+        'https://x.supabase.co/storage/v1/object/sign/chat-media/account-acct-1/inbound/pic.png?token=t',
+      )
+      expect(captured.message?.media_url).toBe(own)
+    })
+
+    it('refuses to send a file from another workspace, and never signs it', async () => {
+      const { sendMediaMessage } = await import('@/lib/whatsapp/meta-api')
+      vi.mocked(sendMediaMessage).mockClear()
+      const { db, createSignedUrl } = withStorage(sendPathDb([], {}))
+      await expect(
+        sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'image', mediaUrl: foreign }),
+      ).rejects.toBeInstanceOf(SendMessageError)
+      expect(createSignedUrl).not.toHaveBeenCalled()
+      expect(sendMediaMessage).not.toHaveBeenCalled()
+    })
+  })
+
   it('keeps the template name, substituted body, language and params so a resend can rebuild it', async () => {
     sendTemplateMessage.mockRejectedValueOnce(await metaErr(132001, 'Template does not exist'));
     const captured: CapturedWrites = {};

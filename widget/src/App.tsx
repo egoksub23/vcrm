@@ -4,6 +4,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import {
   ApiError,
   fetchMessages,
+  resolveMediaUrls,
+  resolveMessageMedia,
   sendEnquiry,
   sendReceipt,
   sendWidgetMessage,
@@ -18,6 +20,7 @@ import {
   type StartSessionOptions,
 } from './api'
 import { makeTranslator, type Translate } from './i18n'
+import { applyMediaLinks, mediaUrlsToResolve, rawMediaUrlOf } from './media-links'
 import { canRecordVoice } from './recorder'
 import type { VoiceResult } from './recorder-strategy'
 import { isReturning, markReturning, readLastSeen, writeLastSeen } from './storage'
@@ -30,6 +33,7 @@ import {
   type LocalMessage,
   type MediaKind,
   type WidgetLimits,
+  type WidgetMessage,
 } from './types'
 import {
   findUnread,
@@ -185,6 +189,38 @@ export function App({
     }
   }, [])
 
+  // A signed media link lives 4 hours (and chat-media serves nothing without one), so a
+  // chat left open must trade the ones it shows for fresh links before they lapse. The
+  // resolver answers from its cache until ~5 minutes before expiry, then asks again; it
+  // also picks up links for rows that were first shown without one (a slow or failed
+  // lookup). Called on a timer, when the panel opens and when the tab comes back.
+  const relinkMedia = useCallback(async () => {
+    const id = convRef.current
+    if (!id) return
+    const urls = mediaUrlsToResolve(messagesRef.current)
+    if (urls.length === 0) return
+    const links = await resolveMediaUrls(id, urls)
+    if (convRef.current !== id || links.size === 0) return
+    setMessages((prev) => applyMediaLinks(prev, links))
+  }, [])
+
+  // A Realtime row arrives with the stored media_url: swap in its signed link first (so an
+  // image never flashes broken), but never wait on that for a row without media, and never
+  // lose a row because the link lookup failed (resolveMessageMedia does not throw).
+  const landRow = useCallback(
+    (convId: string, row: WidgetMessage, apply: (prev: LocalMessage[], row: WidgetMessage) => LocalMessage[]) => {
+      const run = (r: WidgetMessage) => {
+        if (convRef.current === convId) setMessages((prev) => apply(prev, r))
+      }
+      if (!rawMediaUrlOf(row)) {
+        run(row)
+        return
+      }
+      void resolveMessageMedia(convId, [row]).then(([resolved]) => run(resolved ?? row))
+    },
+    [],
+  )
+
   // The Try again button under a failed history load: fetches the newest page again.
   const retryHistory = useCallback(async () => {
     const id = convRef.current
@@ -233,22 +269,23 @@ export function App({
           const row = toWidgetMessage(payload.new as Record<string, unknown>)
           // is_internal is also excluded server-side by RLS (migration 046) - belt and braces.
           if (!row || row.is_internal) return
-          setMessages((prev) => {
-            if (row.sender_type === 'customer') {
+          landRow(id, row, (prev, r) => {
+            if (r.sender_type === 'customer') {
               // The visitor's own sends are rendered optimistically and reconciled
               // from the /message response; only adopt one that this browser is
               // not in the middle of sending (e.g. sent from another tab).
-              if (prev.some((m) => m.id === row.id)) return mergeMessages(prev, [row])
+              if (prev.some((m) => m.id === r.id)) return mergeMessages(prev, [r])
               if (prev.some((m) => isTemp(m) && m.pending)) return prev
             }
-            return mergeMessages(prev, [row])
+            return mergeMessages(prev, [r])
           })
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (payload) => {
           const row = toWidgetMessage(payload.new as Record<string, unknown>)
           if (!row || row.is_internal) return
           // Animates the ticks; mergeMessages never lets a status go backwards.
-          setMessages((prev) => (prev.some((m) => m.id === row.id) ? mergeMessages(prev, [row]) : prev))
+          // The row re-sends the stored media_url; mergeMessages keeps the signed link already held for it.
+          landRow(id, row, (prev, r) => (prev.some((m) => m.id === r.id) ? mergeMessages(prev, [r]) : prev))
         })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
@@ -279,7 +316,7 @@ export function App({
     }
     setHistoryReady(true)
     connectedRef.current = id
-  }, [refreshLatest])
+  }, [landRow, refreshLatest])
 
   // Shared by every path that resolves (or re-resolves) identity.
   // Returns true when the visitor ended up in a conversation.
@@ -745,11 +782,23 @@ export function App({
     const onVis = () => {
       const now = document.visibilityState !== 'hidden'
       setVisible(now)
-      if (now) void refreshLatest()
+      if (now) {
+        void refreshLatest()
+        void relinkMedia() // timers are throttled in a background tab: catch up on links that lapsed meanwhile
+      }
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
-  }, [refreshLatest])
+  }, [refreshLatest, relinkMedia])
+
+  // Keep the media links of a long-open chat fresh (see relinkMedia). The check is local
+  // (cached links) except in the few minutes before a link lapses, so a minute is cheap.
+  useEffect(() => {
+    if (!open || screen !== 'chat') return
+    void relinkMedia()
+    const id = window.setInterval(() => void relinkMedia(), 60_000)
+    return () => window.clearInterval(id)
+  }, [open, screen, relinkMedia])
 
   useEffect(() => {
     let mq: MediaQueryList

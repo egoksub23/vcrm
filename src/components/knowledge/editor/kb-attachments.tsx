@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { listKbImages } from "@/lib/knowledge-format";
 import { KB_MAX_ATTACHMENTS } from "@/lib/knowledge-types";
 import { orderForDocument } from "@/lib/knowledge/inline-images";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
+import { PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
 import { deleteAccountMedia, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -46,10 +48,13 @@ const ICONS: Record<Exclude<FileVisual, "image">, { Icon: typeof FileIcon; tone:
 
 function Thumb({ row }: { row: AttachmentRow }) {
   const visual = fileVisual(row.mime_type, row.file_name);
-  const src = row.url || row.preview;
+  const rawSrc = row.url || row.preview;
+  // A file saved before the public-assets bucket existed may still point into
+  // the private chat-media bucket until the data migration; those get signed.
+  const { src } = useSignedMediaUrl(visual === "image" && rawSrc ? rawSrc : null);
   if (visual === "image" && src) {
     return (
-      // A small preview of a public storage URL: next/image adds nothing here.
+      // A small preview of a storage URL: next/image adds nothing here.
       // eslint-disable-next-line @next/next/no-img-element
       <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md border border-border object-cover" />
     );
@@ -123,7 +128,7 @@ export function KbAttachments({
       // Sequential on purpose: keeps the list order the same as the drop
       // order and avoids hammering the bucket with ten parallel uploads.
       try {
-        const { publicUrl, path } = await uploadAccountMedia("chat-media", file, "kb");
+        const { publicUrl, path } = await uploadAccountMedia(PUBLIC_MEDIA_BUCKET, file, "kb");
         patch(key, { status: "ready", url: publicUrl, storage_path: path });
       } catch (err) {
         patch(key, { status: "error", error: err instanceof Error ? err.message : t("uploadFailed") });
@@ -139,7 +144,7 @@ export function KbAttachments({
     onRemoveRow?.(row);
     onChange((prev) => prev.filter((r) => r.key !== row.key));
     // A file nobody saved would otherwise sit in the public bucket forever.
-    for (const u of unsavedUploads([row])) void deleteAccountMedia("chat-media", u.storage_path).catch(() => {});
+    for (const u of unsavedUploads([row])) void deleteAccountMedia(PUBLIC_MEDIA_BUCKET, u.storage_path).catch(() => {});
   }
 
   const full = rows.length >= KB_MAX_ATTACHMENTS;

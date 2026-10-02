@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCapability } from "@/hooks/use-can";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -91,7 +92,7 @@ import { escapeHtml } from "@/lib/email/build-quote-html";
 /** Media content types an agent can send from the composer. */
 export type ComposerMediaKind = "image" | "video" | "document" | "audio";
 
-/** Supabase Storage bucket holding agent-sent chat attachments (migration 023). */
+/** Supabase Storage bucket holding agent-sent chat attachments (migration 023). Private: a stored URL is only an identifier and is signed to be shown. */
 export const CHAT_MEDIA_BUCKET = "chat-media";
 
 /** Meta caps media captions at 1024 chars. Enforced here and in the send route. */
@@ -103,7 +104,8 @@ const MAX_RECORDING_SECONDS = 5 * 60;
 
 export interface SendMediaPayload {
   kind: ComposerMediaKind;
-  /** Public chat-media URL Meta fetches at send time. */
+  /** Stored URL of the file (an identifier for a private chat-media file; the
+   *  send route signs a link Meta can fetch at send time). */
   mediaUrl: string;
   /** Storage object path — lets the caller GC the object if the send fails. */
   path: string;
@@ -1880,23 +1882,26 @@ function MediaDraftPreview({
   onSend: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  // The draft sits in the private bucket, so its stored URL is signed to
+  // preview it (a knowledge-base file in public-assets passes through).
+  const { src: previewSrc } = useSignedMediaUrl(draft.mediaUrl);
   return (
     <div className="rounded-xl border border-border bg-muted/40 p-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          {draft.kind === "image" && (
+          {draft.kind === "image" && previewSrc && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={draft.mediaUrl}
+              src={previewSrc}
               alt={draft.filename}
               className="max-h-40 rounded-lg object-cover"
             />
           )}
-          {draft.kind === "video" && (
-            <video src={draft.mediaUrl} controls className="max-h-40 rounded-lg" />
+          {draft.kind === "video" && previewSrc && (
+            <video src={previewSrc} controls className="max-h-40 rounded-lg" />
           )}
-          {draft.kind === "audio" && (
-            <audio src={draft.mediaUrl} controls className="w-full" />
+          {draft.kind === "audio" && previewSrc && (
+            <audio src={previewSrc} controls className="w-full" />
           )}
           {draft.kind === "document" && (
             <div className="flex items-center gap-2 text-sm text-foreground">

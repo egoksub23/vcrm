@@ -36,6 +36,8 @@ import {
 } from '@/lib/whatsapp/interactive';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { pinnedFetch } from '@/lib/net/safe-fetch';
+import { downloadPrivateMedia, signMediaUrl } from '@/lib/storage/sign-media';
 import {
   phoneVariants,
   isRecipientNotAllowedError,
@@ -50,6 +52,7 @@ import {
 import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '@/lib/messenger/meta-api';
 import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
 import { MetaApiError } from '@/lib/meta/errors';
+import { isPrivateMediaUrl } from '@/lib/storage/media-urls';
 import { getValidAccessToken } from '@/lib/ms365/token';
 import { sendNewMail, sendReplyText, sendReplyWithAttachment, sendReplyHtml } from '@/lib/ms365/mail-api';
 import { GraphApiError } from '@/lib/ms365/errors';
@@ -252,6 +255,42 @@ export function validateSendMessageParams(params: {
       400
     );
   }
+}
+
+/**
+ * The address a third party (Meta, Messenger, Instagram) fetches a file from.
+ * A file in the private chat-media bucket is signed for an hour, minted now;
+ * any other URL is passed on as given. The stored `media_url` stays the
+ * identifier, so a resend signs a fresh link.
+ */
+async function linkForPlatform(db: SupabaseClient, accountId: string, mediaUrl: string): Promise<string> {
+  const link = await signMediaUrl(db, mediaUrl, accountId);
+  if (!link) {
+    throw new SendMessageError('bad_request', 'That attachment is not available to this workspace.', 400);
+  }
+  return link;
+}
+
+/** The bytes of a file to attach to an email: read by path from the private bucket, or fetched from a public address. */
+async function attachmentFile(
+  db: SupabaseClient,
+  accountId: string,
+  mediaUrl: string,
+  label: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  const own = await downloadPrivateMedia(db, mediaUrl, accountId);
+  if (own) {
+    return { bytes: Buffer.from(await own.arrayBuffer()), contentType: own.type || 'application/octet-stream' };
+  }
+  if (isPrivateMediaUrl(mediaUrl)) {
+    throw new Error(`Failed to read media for ${label} attachment: not available to this workspace`);
+  }
+  const res = await pinnedFetch(mediaUrl);
+  if (!res.ok) throw new Error(`Failed to fetch media for ${label} attachment: ${res.status}`);
+  return {
+    bytes: Buffer.from(await res.arrayBuffer()),
+    contentType: res.headers.get('content-type') || 'application/octet-stream',
+  };
 }
 
 export async function sendMessageToConversation(
@@ -614,7 +653,7 @@ export async function sendMessageToConversation(
           accessToken,
           to: phone,
           kind: messageType as MediaKind,
-          link: mediaUrl!,
+          link: await linkForPlatform(db, accountId, mediaUrl!),
           caption: contentText || undefined,
           filename: filename || undefined,
           contextMessageId,
@@ -737,7 +776,7 @@ export async function sendMessageToConversation(
             pageAccessToken,
             recipientPsid: contact.messenger_psid,
             kind: (messageType === 'document' ? 'file' : messageType) as MessengerMediaKind,
-            url: mediaUrl!,
+            url: await linkForPlatform(db, accountId, mediaUrl!),
           })
         : await sendMessengerText({
             pageId: cfg.page_id,
@@ -791,7 +830,7 @@ export async function sendMessageToConversation(
             pageAccessToken,
             recipientIgsid: contact.instagram_igsid,
             kind: (messageType === 'document' ? 'file' : messageType) as InstagramMediaKind,
-            url: mediaUrl!,
+            url: await linkForPlatform(db, accountId, mediaUrl!),
           })
         : await sendInstagramText({
             igBusinessAccountId: cfg.ig_business_account_id,
@@ -858,15 +897,11 @@ export async function sendMessageToConversation(
 
       let attachment: { name: string; contentType: string; contentBytesBase64: string } | undefined;
       if (isMediaKind) {
-        const mediaResponse = await fetch(mediaUrl!);
-        if (!mediaResponse.ok) {
-          throw new Error(`Failed to fetch media for email attachment: ${mediaResponse.status}`);
-        }
-        const bytes = Buffer.from(await mediaResponse.arrayBuffer());
+        const file = await attachmentFile(db, accountId, mediaUrl!, 'email');
         attachment = {
           name: filename || mediaUrl!.split('/').pop() || 'attachment',
-          contentType: mediaResponse.headers.get('content-type') || 'application/octet-stream',
-          contentBytesBase64: bytes.toString('base64'),
+          contentType: file.contentType,
+          contentBytesBase64: file.bytes.toString('base64'),
         };
       }
 
@@ -951,15 +986,11 @@ export async function sendMessageToConversation(
 
       let attachment: { name: string; contentType: string; contentBytesBase64: string } | undefined;
       if (isMediaKind) {
-        const mediaResponse = await fetch(mediaUrl!);
-        if (!mediaResponse.ok) {
-          throw new Error(`Failed to fetch media for Gmail attachment: ${mediaResponse.status}`);
-        }
-        const bytes = Buffer.from(await mediaResponse.arrayBuffer());
+        const file = await attachmentFile(db, accountId, mediaUrl!, 'Gmail');
         attachment = {
           name: filename || mediaUrl!.split('/').pop() || 'attachment',
-          contentType: mediaResponse.headers.get('content-type') || 'application/octet-stream',
-          contentBytesBase64: bytes.toString('base64'),
+          contentType: file.contentType,
+          contentBytesBase64: file.bytes.toString('base64'),
         };
       }
 

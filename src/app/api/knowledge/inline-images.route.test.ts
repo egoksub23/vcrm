@@ -18,7 +18,7 @@ import { PATCH } from './[id]/route'
 const ACCT = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
 const SUPABASE = 'https://abc.supabase.co'
-const url = (name: string, account = ACCT) => `${SUPABASE}/storage/v1/object/public/chat-media/account-${account}/kb/${name}`
+const url = (name: string, account = ACCT) => `${SUPABASE}/storage/v1/object/public/public-assets/account-${account}/kb/${name}`
 const path = (name: string, account = ACCT) => `account-${account}/kb/${name}`
 const img = (name: string, alt = '') => `<img src="${url(name)}" alt="${alt}">`
 const NOW = '2026-09-20T10:00:00Z'
@@ -27,7 +27,7 @@ function withStorage(fake: FakeDb): FakeDb {
   Object.assign(fake.db, {
     storage: {
       from: () => ({
-        getPublicUrl: (p: string) => ({ data: { publicUrl: `${SUPABASE}/storage/v1/object/public/chat-media/${p}` } }),
+        getPublicUrl: (p: string) => ({ data: { publicUrl: `${SUPABASE}/storage/v1/object/public/public-assets/${p}` } }),
         remove: async () => ({ error: null }),
       }),
     },

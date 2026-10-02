@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
 import { downloadMediaMessage } from "@/lib/media/download";
 import { useMediaBlobUrl } from "@/hooks/use-media-blob-url";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 
 /**
  * The media renderers behind `<MessageBubble>`'s image / video / audio /
@@ -111,6 +112,19 @@ function MediaPlaceholder({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Stands in for a video while its signed link is pending or failed. */
+function MediaLinkPlaceholder({ status }: { status: string }) {
+  return (
+    <MediaPlaceholder>
+      {status === "error" ? (
+        <ImageOff className="h-8 w-8 text-muted-foreground" />
+      ) : (
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      )}
+    </MediaPlaceholder>
+  );
+}
+
 export function MediaImageBubble({
   message,
   onOpen,
@@ -190,17 +204,22 @@ export function MediaVideoBubble({
   t: Translator;
 }) {
   const { downloading, download } = useMediaDownload(message, t);
+  const { src, status } = useSignedMediaUrl(message.media_url);
 
   return (
     <div className="relative w-fit">
-      {/* Plain URL, not a blob: the element should stream rather than wait
-          for up to 16 MB to land. */}
-      <video
-        src={message.media_url}
-        controls
-        preload="metadata"
-        className={cn(MEDIA_BOX, "rounded-lg")}
-      />
+      {/* Plain URL (signed when the file is private), not a blob: the element
+          should stream rather than wait for up to 16 MB to land. */}
+      {status === "ready" && src ? (
+        <video
+          src={src}
+          controls
+          preload="metadata"
+          className={cn(MEDIA_BOX, "rounded-lg")}
+        />
+      ) : (
+        <MediaLinkPlaceholder status={status} />
+      )}
       {/* Top-right, clear of the native controls — and always visible, since
           expanding is the only way to watch a clip capped at 15rem wide and
           a touch device gets no hover. */}
@@ -231,10 +250,21 @@ export function MediaAudioBubble({
   t: Translator;
 }) {
   const { downloading, download } = useMediaDownload(message, t);
+  const { src, status } = useSignedMediaUrl(message.media_url);
 
   return (
     <div className="flex items-center gap-2">
-      <audio src={message.media_url} controls className="max-w-60" />
+      {status === "ready" && src ? (
+        <audio src={src} controls className="max-w-60" />
+      ) : (
+        <div className="flex h-10 w-60 items-center justify-center rounded-full bg-muted">
+          {status === "error" ? (
+            <ImageOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
+        </div>
+      )}
       <MediaActionButton
         icon={Download}
         label={t("download")}
@@ -253,18 +283,37 @@ export function MediaDocumentBubble({
   t: Translator;
 }) {
   const { downloading, download } = useMediaDownload(message, t);
+  const { src, status } = useSignedMediaUrl(message.media_url);
+  const rowClass =
+    "flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm";
+  const label = (
+    <>
+      <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <span className="truncate">{message.content_text || t("document")}</span>
+    </>
+  );
 
   return (
     <div className="flex items-center gap-2">
-      <a
-        href={message.media_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm hover:bg-muted"
-      >
-        <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-        <span className="truncate">{message.content_text || t("document")}</span>
-      </a>
+      {status === "ready" && src ? (
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(rowClass, "hover:bg-muted")}
+        >
+          {label}
+        </a>
+      ) : (
+        // No link yet (still signing, or the file could not be signed): show
+        // the row without an href so it can't be followed to a dead URL.
+        <span
+          aria-disabled="true"
+          className={cn(rowClass, "opacity-60")}
+        >
+          {label}
+        </span>
+      )}
       <MediaActionButton
         icon={Download}
         label={t("download")}

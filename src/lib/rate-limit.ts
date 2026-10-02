@@ -193,6 +193,12 @@ export const RATE_LIMITS = {
    *  visitor (their anon auth.uid()). Same budget as an authenticated
    *  agent's `send` bucket — a live visitor typing should never hit it. */
   widgetMessage: { limit: 60, windowMs: 60_000 },
+  /** Signed-link requests for the media in a visitor's own conversation
+   *  (`/api/widget/media-url`), keyed per visitor uid. The widget batches up
+   *  to 25 links per call and caches them for hours, so a normal session makes
+   *  a handful; 30 a minute leaves room for a busy thread and a flaky socket
+   *  retrying, and still caps how fast one visitor can mint links. */
+  widgetMediaUrl: { limit: 30, windowMs: 60_000 },
   /** Typed identity claims on `/api/widget/session` ("I am an existing
    *  user"), keyed per visitor uid. Each claim can reveal, through
    *  `claimFound`, whether a phone/email belongs to a contact, so it is

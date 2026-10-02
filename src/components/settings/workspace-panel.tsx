@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
+import { PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
 import { uploadAccountMedia } from "@/lib/storage/upload-media";
 import { SettingsPanelHead } from "./settings-panel-head";
 import { LanguageSelect } from "./language-select";
@@ -42,6 +44,7 @@ export function WorkspacePanel() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { src: logoPreview } = useSignedMediaUrl(logoUrl);
 
   const onPickFile = async (file: File | undefined) => {
     if (!file) return;
@@ -55,7 +58,11 @@ export function WorkspacePanel() {
     }
     setUploading(true);
     try {
-      const { publicUrl } = await uploadAccountMedia("chat-media", file, "brand");
+      // Public on purpose: the logo is shown to people who are not signed in
+      // (emails, the sign-in page). A logo saved before the public-assets
+      // bucket existed may still be a legacy chat-media URL; the preview
+      // below signs those.
+      const { publicUrl } = await uploadAccountMedia(PUBLIC_MEDIA_BUCKET, file, "brand");
       setLogoUrl(publicUrl);
     } catch (err) {
       console.error("[WorkspacePanel] logo upload failed:", err);
@@ -167,9 +174,9 @@ export function WorkspacePanel() {
             <Label>{t("logoLabel")}</Label>
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
-                {logoUrl ? (
+                {logoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={logoPreview} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <ImagePlus className="h-5 w-5 text-muted-foreground" />
                 )}

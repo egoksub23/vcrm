@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/client";
 /**
  * Shared media-upload helper for Supabase Storage buckets that use the
  * account-scoped path convention introduced in migration 020
- * (`flow-media`) and reused by migration 023 (`chat-media`):
+ * (`flow-media`) and reused by migration 023 (`chat-media`, private since
+ * wave C1) and the public `public-assets` bucket:
  *
  *   <bucket>/account-<account_id>/<timestamp>-<basename>.<ext>
  *
@@ -77,15 +78,23 @@ export function buildMediaPath(
 }
 
 export interface UploadAccountMediaResult {
-  /** Public URL Meta can fetch at send time. */
+  /**
+   * The `/storage/v1/object/public/<bucket>/<path>` URL `getPublicUrl` returns.
+   * For the PUBLIC bucket (`public-assets`) it is a real link anyone can open
+   * (Meta fetches it, it goes out in emails). For the PRIVATE bucket
+   * (`chat-media`) it serves nothing: it is only the identifier stored on the
+   * row, and must be signed (`lib/media/signed-urls`, `lib/storage/sign-media`)
+   * before anyone can fetch it. See `lib/storage/media-urls`.
+   */
   publicUrl: string;
   /** Storage object path (account-scoped). */
   path: string;
 }
 
 /**
- * Upload a file to an account-scoped Storage bucket and return its public
- * URL. Throws with a user-facing message on auth / account-resolution /
+ * Upload a file to an account-scoped Storage bucket and return its stored
+ * URL (a public link for `public-assets`, an identifier for the private
+ * `chat-media`; see `UploadAccountMediaResult`). Throws with a user-facing message on auth / account-resolution /
  * upload failure — callers surface it via a toast.
  *
  * Size validation is the caller's responsibility (limits can differ per
@@ -146,7 +155,7 @@ export async function uploadAccountMedia(
 /**
  * Delete a previously-uploaded object. Used to GC media that was staged
  * (uploaded) but never sent — a cancelled draft or a failed Meta send —
- * so abandoned attachments don't accumulate in the public bucket. The
+ * so abandoned attachments don't accumulate in the bucket. The
  * DELETE is gated by the same account-scoped RLS policy as the upload,
  * so a caller can only remove objects under their own account folder.
  *
@@ -163,9 +172,9 @@ export async function deleteAccountMedia(
 }
 
 /**
- * Recover the storage object path from a public URL `getPublicUrl()`
- * returned (`.../object/public/<bucket>/<path>`) — only the public URL
- * is ever persisted on a `messages` row, not the path itself, so
+ * Recover the storage object path from a URL `getPublicUrl()`
+ * returned (`.../object/public/<bucket>/<path>`) — only that URL (an
+ * identifier, for a private bucket) is ever persisted on a `messages` row, not the path itself, so
  * deleting a message's attachment later has to parse it back out.
  * Returns null for a URL that doesn't match the expected shape (a
  * pre-migration row, a non-Supabase URL) rather than guessing.

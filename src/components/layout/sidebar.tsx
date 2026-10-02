@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { useApprovalsCount } from "@/hooks/use-approvals-count";
+import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { useMyTicketMentions } from "@/hooks/use-my-ticket-mentions";
 import { TicketsWaitingBadge } from "@/components/tickets/tickets-waiting-badge";
 import { badgeLabel } from "@/lib/approvals/rules";
@@ -179,6 +180,7 @@ export function Sidebar({
     capabilitiesLoading,
     isPlatformAdmin,
   } = useAuth();
+  const brandLogo = useSignedMediaUrl(account?.brand_logo_url ?? null);
   // Fail closed, without a flash: while capabilities load nothing is
   // listed (items that might then disappear are never shown); a failed
   // load leaves the set empty, so the list stays empty too.
@@ -305,15 +307,19 @@ export function Sidebar({
                   otherwise the stock mark. A plain <img>: the URL is any
                   https host the admin chose, which next/image would need
                   allow-listing for. */}
-              {account?.brand_logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={account.brand_logo_url}
-                  alt=""
-                  width={64}
-                  height={64}
-                  className="h-full w-full object-cover"
-                />
+              {account?.brand_logo_url && brandLogo.status !== "error" ? (
+                // A legacy chat-media logo is signed first (blank until then);
+                // a public-assets one is used as it is.
+                brandLogo.src ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brandLogo.src}
+                    alt=""
+                    width={64}
+                    height={64}
+                    className="h-full w-full object-cover"
+                  />
+                ) : null
               ) : (
                 <Image
                   src="/brand/mascot-icon.png"

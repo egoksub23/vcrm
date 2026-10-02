@@ -15,7 +15,7 @@ const file = (over: Record<string, unknown> = {}) => ({
   file_name: 'menu.pdf',
   mime_type: 'application/pdf',
   size_bytes: 1000,
-  url: 'https://x.supabase.co/storage/v1/object/public/chat-media/account-' + ACCT + '/kb/1-menu.pdf',
+  url: 'https://x.supabase.co/storage/v1/object/public/public-assets/account-' + ACCT + '/kb/1-menu.pdf',
   storage_path: `account-${ACCT}/kb/1-menu.pdf`,
   send_with_ai: true,
   ...over,

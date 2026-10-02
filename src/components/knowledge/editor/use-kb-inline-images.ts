@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { KB_ATTACHMENT_MAX_BYTES, KB_MAX_ATTACHMENTS } from "@/lib/knowledge-types";
 import { ImagePrepareError, prepareImageForUpload } from "@/lib/media/prepare-image";
+import { PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
 import { deleteAccountMedia, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { updateImageByUploadId } from "@/lib/tiptap/inline-image";
 import { formatBytes, type AttachmentRow } from "./kb-editor-utils";
@@ -103,12 +104,12 @@ export function useKbInlineImages({
         try {
           const prepared = await prepareImageForUpload(file, { maxBytes: KB_ATTACHMENT_MAX_BYTES.image });
           patch(key, { file_name: prepared.name, mime_type: prepared.type, size_bytes: prepared.size });
-          const { publicUrl, path } = await uploadAccountMedia("chat-media", prepared, "kb");
+          const { publicUrl, path } = await uploadAccountMedia(PUBLIC_MEDIA_BUCKET, prepared, "kb");
           if (updateImageByUploadId(editor, key, { src: publicUrl })) {
             patch(key, { status: "ready", url: publicUrl, storage_path: path, preview: undefined });
           } else {
             // The image was deleted from the text while it uploaded.
-            void deleteAccountMedia("chat-media", path).catch(() => {});
+            void deleteAccountMedia(PUBLIC_MEDIA_BUCKET, path).catch(() => {});
             drop(key);
           }
         } catch (err) {

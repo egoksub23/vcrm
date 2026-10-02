@@ -1,4 +1,8 @@
 import type { ChannelType } from '@/types'
+import { PRIVATE_MEDIA_BUCKET, PUBLIC_MEDIA_BUCKET } from '@/lib/storage/media-urls'
+
+/** Where knowledge-base files lived before migration 146 moved them to public-assets. */
+const LEGACY_KB_BUCKET = PRIVATE_MEDIA_BUCKET
 
 // ============================================================
 // Knowledge-base rich text.
@@ -301,9 +305,15 @@ function safeHref(raw: string | undefined): string | null {
 // Images
 //
 // An article may hold `<img>` only when its `src` is a file this account
-// uploaded to its own folder of the public chat-media bucket. Nothing else is
+// uploaded to its own folder of the public-assets bucket. Nothing else is
 // ever let through: not a data: URL, not another host, another account's
 // folder, another bucket, a query string, an encoded or `..` path.
+//
+// Until migration 146 these files lived in the (then public) chat-media
+// bucket, and articles written before it still point there. Such a URL is
+// accepted when it names this account's own folder and is rewritten to its
+// public-assets address on the way through (the script that moves the files
+// keeps the same path), so an article saved in between keeps its images.
 // ------------------------------------------------------------
 
 /** Where an account's article images may live. `publicBaseUrl` is the
@@ -334,7 +344,13 @@ export function kbImageUrlPrefix(policy: KbImagePolicy | null | undefined): stri
   const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) return null
   if (url.username || url.password) return null
-  return `${url.origin}/storage/v1/object/public/chat-media/account-${policy.accountId}/`
+  return `${url.origin}/storage/v1/object/public/${PUBLIC_MEDIA_BUCKET}/account-${policy.accountId}/`
+}
+
+/** The address articles used before the files moved to public-assets, or null when unusable. */
+function legacyKbImageUrlPrefix(policy: KbImagePolicy | null | undefined): string | null {
+  const prefix = kbImageUrlPrefix(policy)
+  return prefix ? prefix.replace(`/object/public/${PUBLIC_MEDIA_BUCKET}/`, `/object/public/${LEGACY_KB_BUCKET}/`) : null
 }
 
 /** The public URL of an object path in this account's folder (what the
@@ -361,8 +377,11 @@ export function safeImageSrc(raw: string | undefined, policy: KbImagePolicy | nu
   if (!raw) return null
   const prefix = kbImageUrlPrefix(policy)
   if (!prefix) return null
-  const src = decodeEntities(raw)
-  if (src.length > MAX_IMAGE_SRC_CHARS || !src.startsWith(prefix)) return null
+  let src = decodeEntities(raw)
+  if (src.length > MAX_IMAGE_SRC_CHARS) return null
+  const legacy = legacyKbImageUrlPrefix(policy)
+  if (legacy && src.startsWith(legacy)) src = prefix + src.slice(legacy.length)
+  if (!src.startsWith(prefix)) return null
   return isPlainImagePath(src.slice(prefix.length)) ? src : null
 }
 
@@ -577,7 +596,7 @@ function serialize(nodes: Node[]): string {
  * Reduce any HTML to the tags an article may use: p, br, strong, em, u, s,
  * h2, h3, ul, ol, li, blockquote, a (http, https, mailto and tel links only)
  * and, only when `images` says where this account's files live, `img` (see
- * `KbImagePolicy`: the src must be the account's own public chat-media file;
+ * `KbImagePolicy`: the src must be the account's own public-assets file;
  * only `src`, a text `alt` and numeric `width` / `height` survive).
  * Everything else — scripts, styles, event handlers, every other attribute,
  * `javascript:` links, data: images — is removed; malformed markup comes out

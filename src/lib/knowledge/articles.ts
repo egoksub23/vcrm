@@ -10,13 +10,14 @@ import {
   type StagedKnowledgeAttachment,
 } from '@/lib/knowledge-types'
 import { planAttachmentChanges } from './attachments-input'
+import { PUBLIC_MEDIA_BUCKET } from '@/lib/storage/media-urls'
 
 // ============================================================
 // Shared plumbing for the knowledge API routes: reading an article's files,
 // saving the attachment list, and (re)indexing an article for search.
 // ============================================================
 
-export const KB_BUCKET = 'chat-media'
+export const KB_BUCKET = PUBLIC_MEDIA_BUCKET
 
 export interface AttachmentRow {
   id: string

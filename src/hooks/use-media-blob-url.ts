@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { isProxiedMediaUrl, loadMediaBlob } from "@/lib/media/blob-cache";
+import { useSignedMediaUrl } from "./use-signed-media-url";
 
 export type MediaLoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -21,8 +22,9 @@ interface ResolvedMedia {
 /**
  * Resolve a `messages.media_url` into something an `<img>` can render.
  *
- * Public `chat-media` URLs are handed straight back — the browser fetches
- * and caches them itself. Inbound `/api/whatsapp/media/*` URLs are pulled
+ * Files in the private `chat-media` bucket are signed for the signed-in
+ * person (`useSignedMediaUrl`); other URLs are handed straight back. The
+ * browser fetches and caches either itself. Inbound `/api/whatsapp/media/*` URLs are pulled
  * through `loadMediaBlob` (credentialed, cached, de-duplicated) and turned
  * into an object URL that is revoked when the URL changes or the component
  * unmounts.
@@ -32,6 +34,7 @@ interface ResolvedMedia {
  */
 export function useMediaBlobUrl(url: string | undefined): MediaBlobUrlState {
   const [resolved, setResolved] = useState<ResolvedMedia | null>(null);
+  const signed = useSignedMediaUrl(url && !isProxiedMediaUrl(url) ? url : null);
 
   useEffect(() => {
     if (!url || !isProxiedMediaUrl(url)) return;
@@ -62,9 +65,10 @@ export function useMediaBlobUrl(url: string | undefined): MediaBlobUrlState {
 
   if (!url) return { src: null, status: "idle" };
 
-  // Nothing to load for a public URL — derived here rather than pushed
-  // through state so the first paint already has the image.
-  if (!isProxiedMediaUrl(url)) return { src: url, status: "ready" };
+  // Nothing to fetch for a public URL — derived here rather than pushed
+  // through state so the first paint already has the image. A private one
+  // waits for its signed link.
+  if (!isProxiedMediaUrl(url)) return signed;
 
   // A result for a *previous* URL is stale; the new URL's load is already
   // in flight, so report loading rather than flashing the old image.

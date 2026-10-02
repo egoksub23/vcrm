@@ -169,8 +169,10 @@ describe('a bad message can never blank the chat', () => {
       throw new Error('boom')
     }) as unknown as typeof t
     // dayLabel() calls t(); a throwing translator makes groupMessages throw.
-    expect(() => groupMessages([m], { locale: 'en', now: new Date(), t: boom })).toThrow()
-    const items = safeGroupMessages([m], { locale: 'en', now: new Date(), t: boom })
+    // A fixed "now" a day after the message, so the day label is "Yesterday" whatever today is.
+    const now = new Date(new Date(m.created_at).getTime() + 24 * 60 * 60 * 1000)
+    expect(() => groupMessages([m], { locale: 'en', now, t: boom })).toThrow()
+    const items = safeGroupMessages([m], { locale: 'en', now, t: boom })
     expect(items).toEqual([{ type: 'message', key: m.id, message: m }])
   })
 

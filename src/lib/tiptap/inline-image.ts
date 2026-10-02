@@ -1,5 +1,7 @@
 import { mergeAttributes, Node, type Editor } from "@tiptap/react";
 
+import { PRIVATE_MEDIA_BUCKET, PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
+
 // ============================================================
 // An inline image for the knowledge editor and the email reply editor.
 //
@@ -13,25 +15,35 @@ import { mergeAttributes, Node, type Editor } from "@tiptap/react";
 // upload lands (see `updateImageByUploadId`).
 //
 // An `<img>` arriving by paste of HTML (a web page, PowerPoint) is only kept
-// when its src is one of this project's own chat-media files: everything else
+// when its src is one of this project's own public files (knowledge-base images
+// live in public-assets; older ones may still be addressed in chat-media, which
+// is why that prefix is accepted too): everything else
 // (remote pictures, data: URLs, file: paths) is ignored, never inserted.
 // ============================================================
 
-/** Where this project's public chat-media files live. */
+/** Where this project's public files live (public-assets). */
 export function ownImagePrefix(): string | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return null;
   try {
-    return `${new URL(base).origin}/storage/v1/object/public/chat-media/`;
+    return `${new URL(base).origin}/storage/v1/object/public/${PUBLIC_MEDIA_BUCKET}/`;
   } catch {
     return null;
   }
 }
 
-/** True for a URL of one of this project's chat-media files. */
+/** The address those files had before they moved out of chat-media (migration 146). */
+function legacyImagePrefix(): string | null {
+  const prefix = ownImagePrefix();
+  return prefix ? prefix.replace(`/${PUBLIC_MEDIA_BUCKET}/`, `/${PRIVATE_MEDIA_BUCKET}/`) : null;
+}
+
+/** True for a URL of one of this project's public files. */
 export function isOwnImageUrl(src: string | null | undefined): boolean {
   const prefix = ownImagePrefix();
-  return !!src && !!prefix && src.startsWith(prefix);
+  if (!src || !prefix) return false;
+  const legacy = legacyImagePrefix();
+  return src.startsWith(prefix) || (!!legacy && src.startsWith(legacy));
 }
 
 export interface InlineImageOptions {

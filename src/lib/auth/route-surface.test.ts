@@ -51,6 +51,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'gmail/webhook': 'Pub/Sub push; per-mailbox token compared in constant time',
   'invitations/[token]/peek': 'invite preview by secret token; rate limited per caller address',
   'whatsapp/webhook': 'Meta delivery; HMAC signature bound to the workspace (lib/whatsapp/webhook-signature.ts)',
+  'widget/media-url': 'web chat visitor; visitor JWT; signs only a file named by a message of the visitor\'s own conversation, inside the workspace folder',
   'widget/message': 'web chat visitor; bearer visitor JWT verified in lib/widget/visitor-auth.ts, same-account checks',
   'widget/receipt': 'web chat visitor; visitor JWT',
   'widget/upload-url': 'web chat visitor; visitor JWT',

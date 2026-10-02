@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setSignerForTests } from "./signed-urls";
 import {
   __resetMediaBlobCache,
   isProxiedMediaUrl,
@@ -8,7 +9,8 @@ import {
 } from "./blob-cache";
 
 const PROXY = "/api/whatsapp/media/";
-const BUCKET = "https://x.supabase.co/storage/v1/object/public/chat-media/a/1-p.png";
+const BUCKET = "https://x.supabase.co/storage/v1/object/public/public-assets/a/1-p.png";
+const PRIVATE = "https://x.supabase.co/storage/v1/object/public/chat-media/account-a/1-p.png";
 
 function okResponse(body: string): Response {
   return new Response(body, { status: 200 });
@@ -27,6 +29,7 @@ function trackingFetch(): MediaFetch & { calls: string[] } {
 
 beforeEach(() => {
   __resetMediaBlobCache();
+  setSignerForTests(async (paths) => new Map(paths.map((p) => [p, `https://x.supabase.co/storage/v1/object/sign/chat-media/${p}?token=t`])));
 });
 
 describe("isProxiedMediaUrl", () => {
@@ -67,6 +70,15 @@ describe("loadMediaBlob", () => {
     await loadMediaBlob(BUCKET, fetchImpl);
 
     expect(fetchImpl.calls).toEqual([BUCKET, BUCKET]);
+  });
+
+  it("signs a private chat-media URL before fetching it, and fetches the signed link", async () => {
+    const fetchImpl = trackingFetch();
+    await loadMediaBlob(PRIVATE, fetchImpl);
+
+    expect(fetchImpl.calls).toEqual([
+      "https://x.supabase.co/storage/v1/object/sign/chat-media/account-a/1-p.png?token=t",
+    ]);
   });
 
   it("evicts the least-recently-used entry past the cap", async () => {

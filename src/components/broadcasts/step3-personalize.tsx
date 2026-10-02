@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Eye, ImageIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useSignedMediaUrl } from '@/hooks/use-signed-media-url';
 
 type VariableType = 'static' | 'field' | 'custom_field';
 
@@ -153,6 +154,10 @@ export function Step3Personalize({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaHeaderType, template.header_media_url]);
 
+  // The preview of a legacy chat-media sample (private now) is signed; a
+  // public-assets or external URL is shown as it is.
+  const { src: headerPreviewSrc } = useSignedMediaUrl(headerMediaUrl.trim() || null);
+
   const headerMediaError = useMemo<'missing' | 'invalid' | null>(() => {
     if (!mediaHeaderType) return null;
     const value = headerMediaUrl.trim();
@@ -266,10 +271,10 @@ export function Step3Personalize({
           </p>
           {mediaHeaderType === 'image' &&
             headerMediaError === null &&
-            headerMediaUrl.trim() && (
+            headerPreviewSrc && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={headerMediaUrl.trim()}
+                src={headerPreviewSrc}
                 alt={t('personalize.headerPreviewAlt')}
                 className="mt-3 max-h-40 rounded-lg border border-border object-contain"
               />

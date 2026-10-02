@@ -5,6 +5,7 @@
 //   POST /api/widget/message      text and/or media
 //   POST /api/widget/upload-url   signed upload token for chat-media
 //   POST /api/widget/receipt      delivered / read reports for agent messages
+//   POST /api/widget/media-url    signed links for the (private) chat media
 // plus RLS reads of `messages` straight through the visitor's own
 // Supabase client.
 //
@@ -18,6 +19,7 @@
 // ============================================================
 import { createClient } from '@supabase/supabase-js'
 
+import { createMediaLinkResolver, resolveMessageMedia as resolveRowsMedia } from './media-links'
 import { toWidgetMessages } from './util'
 import type {
   Branding,
@@ -262,8 +264,36 @@ export async function fetchMessages(
   const { data, error } = result
   if (error) throw new ApiError(error.message, 500, 'history')
   // Rows the widget cannot place (no id / bad timestamp) are dropped, not rendered.
-  const rows = toWidgetMessages(data).filter((m) => !m.is_internal).reverse()
+  const rows = await resolveMessageMedia(conversationId, toWidgetMessages(data).filter((m) => !m.is_internal).reverse())
   return { rows, hasMore: (data ?? []).length >= HISTORY_PAGE_SIZE }
+}
+
+// ---------- media links ----------
+
+/**
+ * chat-media is a private bucket: a stored `media_url` no longer serves the file,
+ * so every file shown goes through a short-lived signed link from the server.
+ * Links are cached by the stored url for a little under their lifetime, so
+ * polling, Realtime updates and re-renders never ask twice.
+ */
+const mediaLinks = createMediaLinkResolver(async (conversationId, urls) => {
+  const res = await post<{ urls?: Record<string, string> }>('/api/widget/media-url', { conversationId, urls })
+  return res.urls ?? {}
+})
+
+/** Signed links for stored media urls of this conversation, keyed by stored url. Never rejects; urls that could not be linked are absent. */
+export function resolveMediaUrls(conversationId: string, urls: readonly string[]): Promise<Map<string, string>> {
+  return mediaLinks.resolve(conversationId, urls)
+}
+
+/**
+ * `rows` with each private file's `media_url` swapped for its signed link (the
+ * stored url is kept in `rawMediaUrl`). Never throws and never holds the rows
+ * back for long: a message whose link is missing still renders, and the next
+ * pass (App's relink) fills it in.
+ */
+export function resolveMessageMedia<T extends WidgetMessage>(conversationId: string, rows: T[]): Promise<T[]> {
+  return resolveRowsMedia(conversationId, rows, mediaLinks)
 }
 
 export interface OutgoingMedia {
