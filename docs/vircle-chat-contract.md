@@ -79,6 +79,9 @@ so the gateway does not retry forever.
   (a message Halo sent, whose id Halo got in the `202` answer, or an earlier message of the user's, whose id Halo got in
   `message.inbound`). Halo shows the new message as a reply to that one. An id Halo does not know is ignored.
 - **Voice notes (1.2).** `message.media.duration_seconds` (optional whole number) is the length of a voice note.
+- **GIFs (1.3).** `message.media.animated` (optional, `true`) marks a GIF. A GIF is never sent as a `.gif` file (WhatsApp does not
+  accept them either): it is a short looping **MP4** (`type: "video"`, `mime_type: "video/mp4"`) with `animated: true`. Halo shows
+  it as a muted loop with no controls instead of as a video. Any other value, or the flag on anything but an MP4, is ignored.
 
 Answer `200 {"ok":true,"message_id":"<halo id>"}`. Any 5xx or timeout means "retry with the same
 `event_id`"; the gateway should retry with back-off for at least 24 hours.
@@ -171,7 +174,8 @@ app the quoted message beside the new one. An id the gateway does not know is ig
 
 **Files (1.2).** The gateway fetches `media.url` while it handles the request (so the call can take a few seconds) and keeps
 its own copy. It refuses a file it cannot fetch, that is over 16 MB, or whose type is not in the allowed list with `400`
-`invalid_media`. `media.duration_seconds` (optional) is the length of a voice note.
+`invalid_media`. `media.duration_seconds` (optional) is the length of a voice note. `media.animated` (optional, `true`, MP4 only, 1.3)
+marks a GIF; the app then plays it as a muted loop.
 
 Success is `202`:
 

@@ -27,6 +27,8 @@ export interface ChatMedia {
   sizeBytes: number
   /** Length of a voice note, in seconds. */
   durationSeconds: number | null
+  /** A GIF: an MP4 to play as a muted, looping picture with no controls (autoplay, loop, muted, playsinline). */
+  animated: boolean
 }
 
 /** The message another one quotes (a snapshot: it stays readable even if the original scrolled away). */
@@ -96,6 +98,11 @@ export interface ChatSnapshot {
   supportTyping: boolean
   /** True once the history the gateway holds has been loaded at least once on this device (or it is empty). */
   loaded: boolean
+  /**
+   * Messages from support the user has not seen: the number for a badge on the chat tab or the app icon. Always 0 while the chat
+   * screen is open (`setScreenOpen(true)`); messages already read on another device are not counted; kept across restarts.
+   */
+  unreadCount: number
   limits: Limits | null
   conversationId: string | null
   /** The highest message number this device holds. */
@@ -183,6 +190,8 @@ export interface StoredState {
   v: 1
   conversationId: string | null
   lastSeq: number
+  /** The highest message number from support that the user has seen (for `unreadCount`). */
+  seenUpTo?: number
   messages: ChatMessage[]
   /** Text messages written but not yet stored by the gateway: sent again on the next connection. */
   pending: { id: string; text: string; replyToServerId: string | null; sentAt: number }[]

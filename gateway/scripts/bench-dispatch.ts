@@ -18,7 +18,7 @@ const N = Number(process.argv[2] || 2000)
 async function main() {
   const { default: EmbeddedPostgres } = await import('embedded-postgres')
   const dir = mkdtempSync(join(tmpdir(), 'gw-bench-'))
-  const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'postgres', password: 'postgres', port: 54332, persistent: false, onLog: () => undefined, onError: () => undefined })
+  const pg = new EmbeddedPostgres({ databaseDir: dir, user: 'postgres', password: 'postgres', port: 54332, persistent: false, initdbFlags: ['--encoding=UTF8', '--locale=C'], onLog: () => undefined, onError: () => undefined })
   await pg.initialise()
   await pg.start()
   await pg.createDatabase('gateway')

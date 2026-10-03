@@ -320,6 +320,7 @@ async function main(): Promise<void> {
       password: 'postgres',
       port: PG_PORT,
       persistent: false,
+      initdbFlags: ['--encoding=UTF8', '--locale=C'],
       postgresFlags: ['-c', 'max_connections=100'],
       onLog: () => undefined,
       onError: () => undefined,

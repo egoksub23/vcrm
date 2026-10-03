@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { startGateway } from './app'
 import { loadConfig } from './config'
-import { createPgDb, migrate } from './db'
+import { createPgDb, migrate, requireUtf8 } from './db'
 import { log } from './log'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -22,6 +22,7 @@ async function main(): Promise<void> {
   const db = createPgDb(cfg.databaseUrl, { max: cfg.dbPoolMax })
   if (!cfg.files.publicBaseUrl) log.warn('PUBLIC_BASE_URL is not set: links to files will point at this machine (127.0.0.1) and no one else can open them.')
   if (cfg.simulator.enabled) log.warn('SIMULATOR_ENABLED=true: /simulator is available to anyone Halo opens it for. Switch it off for a production launch.')
+  await requireUtf8(db)
   const applied = await migrate(db, process.env.GATEWAY_MIGRATIONS_DIR || join(here, '..', 'migrations'))
   if (applied.length > 0) log.info('applied migrations', { migrations: applied })
 

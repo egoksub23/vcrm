@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { testConfig } from '../src/config'
 import type { Db } from '../src/db'
+import { requireUtf8 } from '../src/db'
 import { createLogger } from '../src/log'
 import { runRetention, UNDELIVERED_FACTOR } from '../src/retention'
 import { Store, type Subject, type Workspace } from '../src/store'
@@ -208,6 +209,22 @@ describe('GET /readyz', () => {
       expect((await fetch(`${h.url}/readyz`)).status).toBe(200)
     } finally {
       await h.close()
+    }
+  })
+})
+
+describe('the database encoding', () => {
+  it('is accepted when UTF-8, and refused with a clear reason when it is not', async () => {
+    await expect(requireUtf8({ query: (async () => ({ rows: [{ server_encoding: 'UTF8' }], rowCount: 1 })) as never })).resolves.toBeUndefined()
+    await expect(requireUtf8({ query: (async () => ({ rows: [{ server_encoding: 'WIN1252' }], rowCount: 1 })) as never })).rejects.toThrow(/must be UTF8/)
+  })
+
+  it('is UTF-8 on the database the tests run on, so emoji are stored as written', async () => {
+    const db = await createTestDb()
+    try {
+      await expect(requireUtf8(db)).resolves.toBeUndefined()
+    } finally {
+      await db.close()
     }
   })
 })

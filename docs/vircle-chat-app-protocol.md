@@ -37,7 +37,7 @@ Every frame is one JSON text frame with a `type`. Binary frames are refused.
 | --- | --- | --- |
 | `hello` | `v: 1`, `token`, `device_id`, `app_version?`, `last_seq?` | First frame. `device_id` is stable per install. `last_seq` is the highest message number the app already has; the gateway then replays what it missed. |
 | `send` | `client_id`, `kind`, `text?`, `media?: { file_id }`, `reply_to?` | Send a message. `client_id` is a new unique id per message (a UUID): sending it again is safe and answered with the original. `kind` is `text`, `image`, `video`, `audio` or `document`. A file message names an **uploaded** file (section 4) and may carry a caption in `text`. `reply_to` is the `server_id` of the message being quoted. |
-| `upload_request` | `request_id`, `kind`, `file_name?`, `mime_type`, `size_bytes`, `duration_seconds?` | Ask for an address to upload a file to. |
+| `upload_request` | `request_id`, `kind`, `file_name?`, `mime_type`, `size_bytes`, `duration_seconds?`, `animated?` | Ask for an address to upload a file to. |
 | `file_url` | `file_id` | Ask for a fresh link to a file in this conversation (the link in a message expired). |
 | `receipt` | `up_to_seq`, `status: 'delivered' \| 'read'` | About **support's** messages: the app received them (`delivered`, send it as soon as they arrive) or showed them on the chat screen (`read`). Cumulative: everything up to that number. |
 | `resume` | `last_seq` | Replay everything after `last_seq` (use after a gap, and to page through a long one). |
@@ -61,7 +61,9 @@ Every frame is one JSON text frame with a `type`. Binary frames are refused.
 
 `reply_to` on a message is `{ server_id, kind, text, from: 'you' | 'support' }`: the quoted message as a snapshot
 (`text` is its first 140 characters, null for a file with no caption). `media` on a message is
-`{ file_id, url, expires_at, mime_type, file_name, size_bytes, duration_seconds }`.
+`{ file_id, url, expires_at, mime_type, file_name, size_bytes, duration_seconds, animated? }`. `animated: true` is a GIF: an MP4
+(`kind: "video"`, `video/mp4`) to play as a muted loop with no controls. A GIF is never uploaded as a `.gif` (`file_type_not_allowed`),
+the way WhatsApp does it: ask the GIF service for the MP4 and send that with `animated: true` (the library does it: `sendGif`).
 
 ## 4. Sending a file (photo, video, voice note, document)
 

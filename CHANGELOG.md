@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.74.0] — 2026-10-03
+
+- **Vircle Chat: GIFs.** A customer can send a GIF from the app; it reaches the inbox as a short looping picture that plays on its own (muted, no controls), the way it looks on WhatsApp, instead of a video with a play button. Behind it, a GIF travels as a looping MP4 marked `animated` (contract 1.3). **Migration required: `151_message_media_animated.sql`** (one new column, nothing else changes). Agents cannot send GIFs yet.
+
 ## [0.73.0] — 2026-10-03
 
 - **Vircle Chat: files and voice notes, replies that quote a message, "read" ticks and "typing..." in both directions (contract 1.2).** The customer in the app now sees **Read** on their messages once an agent has opened the conversation (opening it, marking it read in bulk, or sending a reply all tell the app; if the gateway was unreachable the tick goes out the next time). When the customer is typing, the Inbox shows "typing..." under the last message for about six seconds (it clears as soon as their message arrives); when an agent is typing a reply, the customer's app shows "typing..." too (one signal every three seconds at most, never for an internal comment or a snippet search). A customer's reply to a specific message is shown in the Inbox as a quoted reply, and an agent's **Reply** on a Vircle Chat message quotes it in the app. Photos, videos, voice notes and documents work in both directions as before; a voice note's length is now passed along. All of it needs the gateway to speak contract 1.2 (`docs/vircle-chat-contract.md`); an older gateway keeps working and simply ignores the new fields. Bahasa Melayu, Korean and Simplified Chinese strings included. **Migration required: 150_vircle_chat_read_receipts.sql.**

@@ -245,6 +245,7 @@ export function attachWebSocket(args: {
               fileName: frame.fileName,
               sizeBytes: frame.sizeBytes,
               durationSeconds: frame.durationSeconds,
+              animated: frame.animated,
             })
             send(uploadSlotFrame(frame.requestId, slot))
           } catch (err) {

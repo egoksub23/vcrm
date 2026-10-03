@@ -108,6 +108,8 @@ export interface FileRow {
   file_name: string | null
   size_bytes: number
   duration_seconds: number | null
+  /** A GIF: an MP4 to play as a muted loop. */
+  animated: boolean
   status: 'pending' | 'ready'
   attached_at: string | null
   expires_at: string
@@ -120,9 +122,11 @@ export interface MessageMedia {
   file_name: string | null
   size_bytes: number
   duration_seconds: number | null
+  /** Present (true) only for a GIF. */
+  animated?: boolean
 }
 
-const COLUMNS = 'id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, status, attached_at, expires_at'
+const COLUMNS = 'id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, animated, status, attached_at, expires_at'
 
 export interface DeclaredFile {
   kind: unknown
@@ -130,6 +134,8 @@ export interface DeclaredFile {
   fileName?: unknown
   sizeBytes: unknown
   durationSeconds?: unknown
+  /** true for a GIF sent as a looping MP4 (kind video, video/mp4 only). */
+  animated?: unknown
 }
 
 export interface FileServiceOptions {
@@ -197,6 +203,7 @@ export class FileService {
       file_name: media.file_name,
       size_bytes: media.size_bytes,
       duration_seconds: media.duration_seconds,
+      ...(media.animated ? { animated: true } : {}),
     }
   }
 
@@ -225,6 +232,7 @@ export class FileService {
           ...(media.file_name ? { file_name: media.file_name } : {}),
           size_bytes: media.size_bytes,
           ...(media.duration_seconds !== null && media.duration_seconds !== undefined ? { duration_seconds: media.duration_seconds } : {}),
+          ...(media.animated ? { animated: true } : {}),
         },
       },
     }
@@ -234,7 +242,7 @@ export class FileService {
   // Checking what a file claims to be
   // ----------------------------------------------------------
 
-  validateDeclared(d: DeclaredFile): { kind: FileKind; mimeType: string; fileName: string | null; sizeBytes: number; durationSeconds: number | null } {
+  validateDeclared(d: DeclaredFile): { kind: FileKind; mimeType: string; fileName: string | null; sizeBytes: number; durationSeconds: number | null; animated: boolean } {
     const kind = typeof d.kind === 'string' && (FILE_KINDS as readonly string[]).includes(d.kind) ? (d.kind as FileKind) : null
     if (!kind) throw new FileError('bad_request', 'kind must be image, video, audio or document', 400)
     if (typeof d.mimeType !== 'string' || !d.mimeType.trim()) throw new FileError('bad_request', 'mime_type is required', 400)
@@ -253,7 +261,13 @@ export class FileService {
       durationSeconds = Math.round(d.durationSeconds)
     }
     const fileName = typeof d.fileName === 'string' && d.fileName.trim() ? d.fileName.trim().replace(/[\\/\r\n\0]/g, '_').slice(0, 200) : null
-    return { kind, mimeType, fileName, sizeBytes: size, durationSeconds }
+    let animated = false
+    if (d.animated !== undefined && d.animated !== null) {
+      if (typeof d.animated !== 'boolean') throw new FileError('bad_request', 'animated must be true or false', 400)
+      if (d.animated && !(kind === 'video' && mimeType === 'video/mp4')) throw new FileError('bad_request', 'animated is only for an MP4 video (send a GIF as a looping MP4)', 400)
+      animated = d.animated
+    }
+    return { kind, mimeType, fileName, sizeBytes: size, durationSeconds, animated }
   }
 
   // ----------------------------------------------------------
@@ -265,9 +279,9 @@ export class FileService {
     const fileId = newId('f_')
     const expiresAt = new Date(this.now() + this.cfg.files.uploadSlotMinutes * 60_000)
     await this.db.query(
-      `INSERT INTO files (id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, status, expires_at)
-       VALUES ($1, $2, $3, 'app', $4, $5, $6, $7, $8, 'pending', $9)`,
-      [fileId, subject.workspace.id, subject.conversation.id, f.kind, f.mimeType, f.fileName, f.sizeBytes, f.durationSeconds, expiresAt.toISOString()],
+      `INSERT INTO files (id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, animated, status, expires_at)
+       VALUES ($1, $2, $3, 'app', $4, $5, $6, $7, $8, $9, 'pending', $10)`,
+      [fileId, subject.workspace.id, subject.conversation.id, f.kind, f.mimeType, f.fileName, f.sizeBytes, f.durationSeconds, f.animated, expiresAt.toISOString()],
     )
     const link = this.signed('upload', fileId, this.cfg.files.uploadSlotMinutes * 60)
     return { fileId, uploadUrl: link.url, expiresAt: link.expiresAt, maxBytes: f.sizeBytes }
@@ -324,16 +338,16 @@ export class FileService {
   async storeBytes(
     subject: Subject,
     origin: 'app' | 'halo',
-    f: { kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; bytes: Buffer },
+    f: { kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; animated?: boolean; bytes: Buffer },
   ): Promise<FileRow> {
-    const v = this.validateDeclared({ kind: f.kind, mimeType: f.mimeType, fileName: f.fileName, sizeBytes: f.bytes.length, durationSeconds: f.durationSeconds })
+    const v = this.validateDeclared({ kind: f.kind, mimeType: f.mimeType, fileName: f.fileName, sizeBytes: f.bytes.length, durationSeconds: f.durationSeconds, animated: f.animated })
     if (!sniffMatches(v.mimeType, f.bytes)) throw new FileError('invalid_media', `The file's content is not ${v.mimeType}`, 400)
     const fileId = newId('f_')
     const now = new Date(this.now()).toISOString()
     const { rows } = await this.db.query<FileRow>(
-      `INSERT INTO files (id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, status, data, attached_at, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $11) RETURNING ${COLUMNS}`,
-      [fileId, subject.workspace.id, subject.conversation.id, origin, v.kind, v.mimeType, v.fileName, v.sizeBytes, v.durationSeconds, f.bytes, now],
+      `INSERT INTO files (id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, animated, status, data, attached_at, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ready', $11, $12, $12) RETURNING ${COLUMNS}`,
+      [fileId, subject.workspace.id, subject.conversation.id, origin, v.kind, v.mimeType, v.fileName, v.sizeBytes, v.durationSeconds, v.animated, f.bytes, now],
     )
     return rows[0]!
   }
@@ -344,8 +358,8 @@ export class FileService {
    */
   async fetchFromHalo(
     kind: FileKind,
-    media: { url: string; mimeType: string; fileName: string | null; sizeBytes: number | null; durationSeconds: number | null },
-  ): Promise<{ kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; bytes: Buffer }> {
+    media: { url: string; mimeType: string; fileName: string | null; sizeBytes: number | null; durationSeconds: number | null; animated?: boolean },
+  ): Promise<{ kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; animated: boolean; bytes: Buffer }> {
     let url: URL
     try {
       url = new URL(media.url)
@@ -360,7 +374,7 @@ export class FileService {
       }
     }
     // Refuse early what the declared type or size already rules out, before any bytes move.
-    this.validateDeclared({ kind, mimeType: media.mimeType, fileName: media.fileName, sizeBytes: media.sizeBytes ?? 1, durationSeconds: media.durationSeconds })
+    this.validateDeclared({ kind, mimeType: media.mimeType, fileName: media.fileName, sizeBytes: media.sizeBytes ?? 1, durationSeconds: media.durationSeconds, animated: media.animated })
 
     let res: Response
     try {
@@ -395,14 +409,14 @@ export class FileService {
     if (total === 0) throw new FileError('invalid_media', 'The file is empty', 400)
     const bytes = Buffer.concat(chunks)
     try {
-      const v = this.validateDeclared({ kind, mimeType: media.mimeType, fileName: media.fileName, sizeBytes: bytes.length, durationSeconds: media.durationSeconds })
+      const v = this.validateDeclared({ kind, mimeType: media.mimeType, fileName: media.fileName, sizeBytes: bytes.length, durationSeconds: media.durationSeconds, animated: media.animated })
       if (!sniffMatches(v.mimeType, bytes)) throw new FileError('invalid_media', `The file's content is not ${v.mimeType}`, 400)
     } catch (err) {
       // A file that fails a check is Halo's problem to hear about, in the contract's words.
       if (err instanceof FileError) throw new FileError('invalid_media', err.message, 400)
       throw err
     }
-    return { kind, mimeType: media.mimeType, fileName: media.fileName, durationSeconds: media.durationSeconds, bytes }
+    return { kind, mimeType: media.mimeType, fileName: media.fileName, durationSeconds: media.durationSeconds, animated: media.animated === true, bytes }
   }
 
   // ----------------------------------------------------------
@@ -418,7 +432,14 @@ export class FileService {
   }
 
   mediaOf(row: FileRow): MessageMedia {
-    return { file_id: row.id, mime_type: row.mime_type, file_name: row.file_name, size_bytes: row.size_bytes, duration_seconds: row.duration_seconds }
+    return {
+      file_id: row.id,
+      mime_type: row.mime_type,
+      file_name: row.file_name,
+      size_bytes: row.size_bytes,
+      duration_seconds: row.duration_seconds,
+      ...(row.animated ? { animated: true } : {}),
+    }
   }
 
   /** Housekeeping: upload slots that were never used. */

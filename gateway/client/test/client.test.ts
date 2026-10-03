@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
 
 import { VircleChatClient, memoryStore, type ClientOptions, type ChatMessage, type ChatStore } from '../src'
-import { allowLocalFetch, JPEG, OGG, PNG, startFileServer, startHarness, WORKSPACE, type FileServer, type Harness } from '../../test/helpers'
+import { allowLocalFetch, JPEG, MP4, OGG, PNG, startFileServer, startHarness, WORKSPACE, type FileServer, type Harness } from '../../test/helpers'
 
 let h: Harness
 let clients: VircleChatClient[] = []
@@ -30,6 +30,8 @@ async function start(opts: Parameters<typeof startHarness>[0] = {}) {
 }
 
 /** A client wired to the harness: a fresh session from the gateway before every connection, as the app's backend would give. */
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
 function make(wallet: string, extra: Partial<ClientOptions> = {}): VircleChatClient {
   const c = new VircleChatClient({
     deviceId: `dev-${wallet}`,
@@ -137,6 +139,47 @@ describe('connecting', () => {
     await fromHalo('W-live', 'hello there')
     await vi.waitFor(() => expect(texts(c)).toEqual(['hello there']))
     expect(seen).toEqual(['added:hello there'])
+  })
+
+  it('counts what support wrote that the user has not seen, for a badge: zero while the screen is open, kept across restarts', async () => {
+    const store = memoryStore()
+    const c = make('W-unread', { store })
+    await online(c)
+    expect(c.getSnapshot().unreadCount).toBe(0)
+    await fromHalo('W-unread', 'one')
+    await fromHalo('W-unread', 'two')
+    await vi.waitFor(() => expect(c.getSnapshot().unreadCount).toBe(2))
+    c.setScreenOpen(true)
+    expect(c.getSnapshot().unreadCount).toBe(0)
+    await fromHalo('W-unread', 'three') // arrives while the user is looking
+    await vi.waitFor(() => expect(texts(c)).toContain('three'))
+    expect(c.getSnapshot().unreadCount).toBe(0)
+    c.setScreenOpen(false)
+    expect(c.getSnapshot().unreadCount).toBe(0) // all three were on screen
+    await fromHalo('W-unread', 'four')
+    await vi.waitFor(() => expect(c.getSnapshot().unreadCount).toBe(1))
+    await c.sendText('thanks') // the user's own messages never count
+    expect(c.getSnapshot().unreadCount).toBe(1)
+    await sleep(400) // the state is kept shortly after a change
+    c.stop()
+    const again = make('W-unread', { store })
+    await again.start()
+    expect(again.getSnapshot().unreadCount).toBe(1)
+  })
+
+  it('does not count messages already read on another device of the user', async () => {
+    await fromHalo('W-unread-2', 'old news')
+    const phone = make('W-unread-2', { store: memoryStore() })
+    await online(phone)
+    await vi.waitFor(() => expect(phone.getSnapshot().unreadCount).toBe(1))
+    phone.setScreenOpen(true) // the user reads it on the phone: the gateway learns "read"
+    await sleep(500)
+    phone.stop()
+    await fromHalo('W-unread-2', 'new news')
+    const tablet = make('W-unread-2', { store: memoryStore() }) // a fresh install: loads the history from the gateway
+    await online(tablet)
+    await vi.waitFor(() => expect(texts(tablet)).toEqual(['old news', 'new news']))
+    expect(tablet.getSnapshot().unreadCount).toBe(1) // only the new one
   })
 
   it('a second client on the same store takes up where the first left off, asking only for what it missed', async () => {
@@ -476,13 +519,42 @@ describe('files', () => {
     await vi.waitFor(() => expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.media.duration_seconds).toBe(12))
   })
 
+  it('sends a GIF as a looping MP4: shown at once as animated, stored flagged, and Halo is told', async () => {
+    const c = make('W-gif')
+    await online(c)
+    const p = c.sendGif({ blob: new Blob([MP4], { type: 'video/mp4' }), name: 'cat.mp4' })
+    expect(c.getSnapshot().messages[0]).toMatchObject({ kind: 'video', status: 'sending', media: { mimeType: 'video/mp4', animated: true } })
+    const stored = await p
+    expect(stored.media).toMatchObject({ animated: true, fileId: expect.stringMatching(/^f_/) })
+    await vi.waitFor(() => expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.media).toMatchObject({ mime_type: 'video/mp4', animated: true }))
+  })
+
+  it('fetches a GIF from an address when given one, and shows a GIF from support as animated', async () => {
+    fileServer = await startFileServer({ '/g.mp4': { type: 'video/mp4', body: MP4 } })
+    const c = make('W-gif-url')
+    await online(c)
+    const sent = await c.sendGif({ url: fileServer.url('/g.mp4') })
+    expect(sent.media).toMatchObject({ animated: true })
+    await vi.waitFor(() => expect(halo.hits.some((e) => e.event === 'message.inbound')).toBe(true))
+  })
+
+  it('refuses a .gif file with a clear reason, and animated on anything that is not an MP4', async () => {
+    const c = make('W-gif-refuse')
+    await online(c)
+    const gif = new Blob([Buffer.from('GIF89a')], { type: 'image/gif' })
+    await expect(c.sendGif({ blob: gif })).rejects.toMatchObject({ code: 'gif_must_be_mp4' })
+    await expect(c.sendFile({ blob: gif, name: 'a.gif' })).rejects.toMatchObject({ code: 'gif_must_be_mp4' })
+    await expect(c.sendFile({ blob: new Blob([PNG], { type: 'image/png' }), name: 'a.png' }, { animated: true })).rejects.toMatchObject({ code: 'bad_request' })
+    expect(c.getSnapshot().messages).toHaveLength(0)
+  })
+
   it('refuses before uploading: a type that is not allowed, an empty file, too large a file, a voice note over five minutes, a long caption', async () => {
     await h.close()
     await start({ cfg: { ...allowLocalFetch(), limits: { textMax: 4000, captionMax: 20, fileMaxBytes: 500 } } })
     const c = make('W-refuse-file')
     await online(c)
     const blob = (type: string, bytes = 100) => ({ blob: new Blob([Buffer.alloc(bytes, 1)], { type }), name: 'f' })
-    await expect(c.sendFile(blob('image/gif'))).rejects.toMatchObject({ code: 'file_type_not_allowed' })
+    await expect(c.sendFile(blob('image/gif'))).rejects.toMatchObject({ code: 'gif_must_be_mp4' })
     await expect(c.sendFile({ blob: new Blob([], { type: 'image/png' }) })).rejects.toMatchObject({ code: 'bad_request' })
     await expect(c.sendFile(blob('image/png', 501))).rejects.toMatchObject({ code: 'file_too_large' })
     await expect(c.sendFile(blob('audio/ogg'), { durationSeconds: 301 })).rejects.toMatchObject({ code: 'file_too_large' })

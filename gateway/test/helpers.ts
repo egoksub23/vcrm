@@ -252,6 +252,7 @@ export async function connectUser(
 /** The smallest thing that passes for a PNG: the signature, then filler. */
 export const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(120, 7)])
 export const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(120, 9)])
+export const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom', 'latin1'), Buffer.alloc(120, 5)])
 export const OGG = Buffer.concat([Buffer.from('OggS', 'latin1'), Buffer.alloc(200, 3)])
 export const PDF = Buffer.concat([Buffer.from('%PDF-1.4 test', 'latin1'), Buffer.alloc(60, 1)])
 
@@ -294,10 +295,10 @@ export async function startFileServer(files: Record<string, { status?: number; t
 /** Ask for an upload slot over the socket and PUT the bytes to it, as the app does. */
 export async function uploadFile(
   client: TestClient,
-  f: { kind: string; mime: string; name?: string; bytes: Buffer; durationSeconds?: number },
+  f: { kind: string; mime: string; name?: string; bytes: Buffer; durationSeconds?: number; animated?: boolean },
   tweak: { contentType?: string; body?: Buffer } = {},
 ): Promise<{ slot: Frame; res: Response }> {
-  client.send({ type: 'upload_request', request_id: `r-${Math.random()}`, kind: f.kind, file_name: f.name, mime_type: f.mime, size_bytes: f.bytes.length, duration_seconds: f.durationSeconds })
+  client.send({ type: 'upload_request', request_id: `r-${Math.random()}`, kind: f.kind, file_name: f.name, mime_type: f.mime, size_bytes: f.bytes.length, duration_seconds: f.durationSeconds, animated: f.animated })
   const slot = await client.next('upload_slot')
   const res = await fetch(slot.upload_url as string, { method: 'PUT', headers: { 'content-type': tweak.contentType ?? f.mime }, body: (tweak.body ?? f.bytes) as never })
   return { slot, res }

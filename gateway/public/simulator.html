@@ -41,9 +41,29 @@
       </div>
       <div id="messages" class="messages" aria-live="polite"></div>
       <div id="reply-bar" class="reply-bar" hidden><span id="reply-text" class="small"></span><button type="button" id="reply-cancel" class="link" title="Cancel the reply">✕</button></div>
+      <div id="attach-menu" class="panel attach-menu" hidden>
+        <button type="button" data-pick="document"><span class="ic">📄</span>Document</button>
+        <button type="button" data-pick="media"><span class="ic">🖼️</span>Photos &amp; videos</button>
+        <button type="button" data-pick="camera"><span class="ic">📷</span>Camera</button>
+        <button type="button" data-pick="audio"><span class="ic">🎧</span>Audio</button>
+        <button type="button" data-pick="gif"><span class="ic">🎞️</span>GIF</button>
+        <div class="small muted note">Voice notes use the microphone button in the app. Location, contact and poll are not offered (nor on the web widget).</div>
+      </div>
+      <div id="emoji-panel" class="panel emoji-panel" hidden>
+        <input id="emoji-search" type="text" placeholder="Search emoji" autocomplete="off">
+        <div id="emoji-tabs" class="emoji-tabs"></div>
+        <div id="emoji-grid" class="emoji-grid"></div>
+      </div>
+      <div id="gif-panel" class="panel gif-panel" hidden>
+        <div class="row"><input id="gif-search" type="text" placeholder="Search GIFs (needs a GIPHY key)" autocomplete="off"><button type="button" id="gif-go" class="ghost">Search</button></div>
+        <div class="small muted">Sample GIFs are made in this browser (looping MP4, as the app sends them):</div>
+        <div id="gif-samples" class="gif-samples"></div>
+        <div id="gif-grid" class="gif-grid"></div>
+        <details class="small"><summary>GIPHY key (optional, kept in this browser only)</summary><div class="row"><input id="gif-key" type="text" placeholder="API key from developers.giphy.com" autocomplete="off"><button type="button" id="gif-key-save" class="ghost">Save</button></div></details>
+      </div>
       <form id="composer" class="composer">
-        <button type="button" id="attach" class="ghost" title="Send a photo, video, voice note or document" disabled>＋</button>
-        <input id="file" type="file" hidden accept="image/png,image/jpeg,image/webp,video/mp4,video/3gpp,audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+        <button type="button" id="emoji-btn" class="ghost" title="Emoji" disabled>😊</button>
+        <button type="button" id="attach" class="ghost" title="Attach a document, photo, video, audio file or GIF" disabled>＋</button>
         <input id="draft" placeholder="Message Vircle Support" maxlength="4000" autocomplete="off" disabled>
         <button type="submit" id="send" disabled>Send</button>
       </form>
@@ -102,6 +122,7 @@
 </main>
 <div id="toast" class="toast" hidden></div>
 <script src="/simulator/client.js"></script>
+<script src="/simulator/emoji.js"></script>
 <script src="/simulator/app.js"></script>
 </body>
 </html>

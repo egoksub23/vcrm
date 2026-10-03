@@ -741,6 +741,11 @@ export interface Message {
    * Null on every row written before migration 039.
    */
   media_type?: string | null;
+  /**
+   * A GIF: `media_url` is a short MP4 to play as a muted, looping picture with
+   * no controls (migration 151). Sent that way by the Vircle app, as WhatsApp does.
+   */
+  media_animated?: boolean;
   template_name?: string;
   message_id?: string;
   /** Which channel this specific message came in/went out on

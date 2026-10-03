@@ -65,6 +65,18 @@ export function createPgDb(connectionString: string, opts: { max?: number } = {}
 }
 
 /**
+ * Messages are people's words: emoji, every script. A database whose encoding is not UTF-8 stores most of them as an error on the first
+ * message that needs it (found by running the tests on a Windows Postgres whose default was WIN1252). Refuse to start on one.
+ */
+export async function requireUtf8(db: Queryable): Promise<void> {
+  const { rows } = await db.query<{ server_encoding: string }>('SHOW server_encoding')
+  const encoding = rows[0]?.server_encoding
+  if (encoding && encoding.toUpperCase() !== 'UTF8') {
+    throw new Error(`The database encoding is ${encoding}; it must be UTF8 (create the database with ENCODING 'UTF8', as the postgres Docker image does by default)`)
+  }
+}
+
+/**
  * Apply every `NNN_name.sql` in `dir` that has not been applied yet, in name order, each in its own
  * transaction. Safe to run on every start.
  */

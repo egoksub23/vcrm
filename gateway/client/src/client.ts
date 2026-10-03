@@ -57,6 +57,7 @@ interface FileTask {
   mimeType: string
   sizeBytes: number
   durationSeconds: number | null
+  animated: boolean
   /** Set once the bytes are uploaded. */
   fileId: string | null
   attempts: number
@@ -135,6 +136,8 @@ export class VircleChatClient {
   private screenOpen = false
   private deliveredUpTo = 0
   private readUpTo = 0
+  /** The highest message number from support the user has seen: on screen here, or already read on another device. */
+  private seenUpTo = 0
   private lastTypingSent = 0
 
   // snapshot cache (a new object whenever anything changed, so frameworks can compare by identity)
@@ -203,6 +206,7 @@ export class VircleChatClient {
       messages: this.messages.slice(),
       supportTyping: this.supportTyping,
       loaded: this.loaded,
+      unreadCount: this.screenOpen ? 0 : this.countUnread(),
       limits: this.limits,
       conversationId: this.conversationId,
       lastSeq: this.lastSeq,
@@ -240,10 +244,16 @@ export class VircleChatClient {
    */
   sendFile(
     file: { blob: Blob; name?: string | null; type?: string },
-    opts: { caption?: string; replyTo?: string | ChatMessage; durationSeconds?: number } = {},
+    opts: { caption?: string; replyTo?: string | ChatMessage; durationSeconds?: number; animated?: boolean } = {},
   ): Promise<ChatMessage> {
     const mimeType = baseMime(file.type || file.blob.type || '')
+    if (mimeType === 'image/gif') {
+      return Promise.reject(new ChatError('gif_must_be_mp4', 'A .gif file cannot be sent: use sendGif with the MP4 version of the GIF (every GIF service offers one)'))
+    }
     const kind = kindOfMime(mimeType)
+    if (opts.animated && !(kind === 'video' && mimeType === 'video/mp4')) {
+      return Promise.reject(new ChatError('bad_request', 'A GIF is sent as an MP4 video'))
+    }
     if (!kind) return Promise.reject(new ChatError('file_type_not_allowed', `Files of type ${mimeType || 'unknown'} cannot be sent`))
     const sizeBytes = file.blob.size
     const maxBytes = this.limits?.fileMaxBytes ?? DEFAULT_FILE_MAX_BYTES
@@ -265,11 +275,42 @@ export class VircleChatClient {
         mimeType,
         sizeBytes,
         durationSeconds: opts.durationSeconds !== undefined ? Math.round(opts.durationSeconds) : null,
+        animated: opts.animated === true,
         fileId: null,
         attempts: 0,
         running: false,
       },
     })
+  }
+
+  /**
+   * Send a GIF the way WhatsApp does: as a short looping MP4 that plays muted, with no controls. Give it the MP4 of the GIF
+   * (GIPHY and every other GIF service offer one next to the .gif), either as a `blob` or as a `url` to fetch. A `.gif` file
+   * is refused with `gif_must_be_mp4`.
+   */
+  async sendGif(
+    gif: { blob: Blob; name?: string | null } | { url: string; name?: string | null },
+    opts: { caption?: string; replyTo?: string | ChatMessage } = {},
+  ): Promise<ChatMessage> {
+    let blob: Blob
+    if ('blob' in gif) {
+      blob = gif.blob
+    } else {
+      const doFetch = this.opts.fetch ?? globalThis.fetch.bind(globalThis)
+      let res: Response
+      try {
+        res = await doFetch(gif.url)
+      } catch {
+        throw new ChatError('network', 'The GIF could not be downloaded')
+      }
+      if (!res.ok) throw new ChatError('network', `The GIF could not be downloaded (${res.status})`)
+      blob = await res.blob()
+    }
+    const type = baseMime(blob.type || '')
+    if (type !== 'video/mp4') {
+      throw new ChatError('gif_must_be_mp4', type === 'image/gif' ? 'A .gif file cannot be sent: use the MP4 version of the GIF' : `A GIF is sent as video/mp4, not ${type || 'an unknown type'}`)
+    }
+    return this.sendFile({ blob, name: gif.name ?? 'gif.mp4', type }, { ...opts, animated: true })
   }
 
   /** Try a failed message again. */
@@ -304,8 +345,24 @@ export class VircleChatClient {
   /** The chat screen is open or not. While it is open, support's messages are reported as read. */
   setScreenOpen(open: boolean): void {
     if (this.screenOpen === open) return
+    // Everything on the list when the screen opens or closes has been in front of the user.
+    this.seenUpTo = Math.max(this.seenUpTo, this.topSupportSeq())
     this.screenOpen = open
+    this.persistSoon()
+    this.changed()
     if (open) this.sendReceipts()
+  }
+
+  private topSupportSeq(): number {
+    let top = 0
+    for (const m of this.messages) if (!m.mine && m.seq !== null && m.seq > top) top = m.seq
+    return top
+  }
+
+  private countUnread(): number {
+    let n = 0
+    for (const m of this.messages) if (!m.mine && m.seq !== null && m.seq > this.seenUpTo) n++
+    return n
   }
 
   /** The user is typing. Call it on every keystroke: it sends at most every 2.5 seconds. */
@@ -348,6 +405,7 @@ export class VircleChatClient {
     this.loaded = false
     this.deliveredUpTo = 0
     this.readUpTo = 0
+    this.seenUpTo = 0
     await this.store.clear()
     this.changed()
   }
@@ -378,6 +436,7 @@ export class VircleChatClient {
             fileName: input.file.fileName,
             sizeBytes: input.file.sizeBytes,
             durationSeconds: input.file.durationSeconds,
+            animated: input.file.animated,
           }
         : null,
       replyTo: quote,
@@ -436,6 +495,7 @@ export class VircleChatClient {
         mime_type: file.mimeType,
         size_bytes: file.sizeBytes,
         ...(file.durationSeconds ? { duration_seconds: file.durationSeconds } : {}),
+        ...(file.animated ? { animated: true } : {}),
       })
       const url = str(slot.upload_url)
       const fileId = str(slot.file_id)
@@ -702,6 +762,7 @@ export class VircleChatClient {
     this.lastSeq = 0
     this.deliveredUpTo = 0
     this.readUpTo = 0
+    this.seenUpTo = 0
     this.loaded = false
     this.changed()
   }
@@ -739,6 +800,8 @@ export class VircleChatClient {
       status: mine && wire && STATUS_ORDER.includes(wire) ? wire : 'sent',
       error: null,
     }
+    // Already read on another device of the user: not unread here (a read receipt covers every earlier message too).
+    if (!mine && wire === 'read') this.seenUpTo = Math.max(this.seenUpTo, seq)
     this.addMessage(message)
     this.touch(message, 'added')
     if (!mine) {
@@ -1001,6 +1064,7 @@ export class VircleChatClient {
       fileName: str(m.file_name),
       sizeBytes: num(m.size_bytes) ?? 0,
       durationSeconds: num(m.duration_seconds),
+      animated: m.animated === true,
     }
   }
 
@@ -1018,6 +1082,7 @@ export class VircleChatClient {
     if (!saved || saved.v !== 1) return
     this.conversationId = saved.conversationId
     this.lastSeq = saved.lastSeq
+    this.seenUpTo = saved.seenUpTo ?? 0
     for (const m of saved.messages) {
       this.messages.push(m)
       this.byId.set(m.id, m)
@@ -1058,7 +1123,7 @@ export class VircleChatClient {
       .filter((p) => !p.file && p.text)
       .map((p) => ({ id: p.id, text: p.text!, replyToServerId: p.replyToServerId, sentAt: this.byId.get(p.id)?.sentAt ?? this.now() }))
     try {
-      await this.store.save({ v: 1, conversationId: this.conversationId, lastSeq: this.lastSeq, messages: stored, pending })
+      await this.store.save({ v: 1, conversationId: this.conversationId, lastSeq: this.lastSeq, seenUpTo: this.seenUpTo, messages: stored, pending })
     } catch {
       /* the chat works without the store */
     }

@@ -7,7 +7,7 @@
 //
 //   app -> gateway   hello    { v, token, device_id, app_version?, last_seq? }
 //                    send     { client_id, kind, text?, media?: { file_id }, reply_to? }
-//                    upload_request { request_id, kind, file_name?, mime_type, size_bytes, duration_seconds? }
+//                    upload_request { request_id, kind, file_name?, mime_type, size_bytes, duration_seconds?, animated? }
 //                    file_url { file_id }
 //                    receipt  { up_to_seq, status: 'delivered' | 'read' }
 //                    resume   { last_seq }
@@ -28,7 +28,7 @@
 // FILES. Bytes never travel on the socket. The app sends `upload_request`, gets an `upload_slot`, PUTs the bytes to
 // `upload_url` over HTTPS (Content-Type = the declared mime_type, exactly `size_bytes` bytes), then sends a message
 // whose `media.file_id` is that file. A `deliver` for a file carries `media: { file_id, url, expires_at, mime_type,
-// file_name, size_bytes, duration_seconds }`; when `url` has expired the app asks `file_url` for a new one.
+// file_name, size_bytes, duration_seconds, animated? }`; when `url` has expired the app asks `file_url` for a new one.
 //
 // RECEIPTS. The client's `receipt` is about Halo's messages (delivered / read). The gateway's `receipt` is about the
 // user's own messages: `delivered` once Halo has them, `read` once an agent has read them.
@@ -45,7 +45,7 @@ export const PROTOCOL_VERSION = 1
 export type ClientFrame =
   | { type: 'hello'; v: number; token: string; deviceId: string; appVersion: string | null; lastSeq: number | null }
   | { type: 'send'; clientId: string; messageType: MessageType; text: string | null; media: { fileId: string } | null; replyTo: string | null }
-  | { type: 'upload_request'; requestId: string; kind: unknown; fileName: unknown; mimeType: unknown; sizeBytes: unknown; durationSeconds: unknown }
+  | { type: 'upload_request'; requestId: string; kind: unknown; fileName: unknown; mimeType: unknown; sizeBytes: unknown; durationSeconds: unknown; animated: unknown }
   | { type: 'file_url'; fileId: string }
   | { type: 'receipt'; upToSeq: number; status: 'delivered' | 'read' }
   | { type: 'resume'; lastSeq: number }
@@ -111,7 +111,7 @@ export function parseClientFrame(raw: string, limits: Limits): ParseResult {
     case 'upload_request': {
       const requestId = str(f.request_id, 100)
       if (!requestId) return bad('bad_frame', 'upload_request needs a request_id')
-      return { ok: true, frame: { type: 'upload_request', requestId, kind: f.kind, fileName: f.file_name, mimeType: f.mime_type, sizeBytes: f.size_bytes, durationSeconds: f.duration_seconds } }
+      return { ok: true, frame: { type: 'upload_request', requestId, kind: f.kind, fileName: f.file_name, mimeType: f.mime_type, sizeBytes: f.size_bytes, durationSeconds: f.duration_seconds, animated: f.animated } }
     }
     case 'file_url': {
       const fileId = str(f.file_id, 100)

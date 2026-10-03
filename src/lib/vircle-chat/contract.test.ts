@@ -146,6 +146,22 @@ describe('parseWebhookEvent: contract 1.2 additions on message.inbound', () => {
     }
   })
 
+  const mediaOf = (r: ReturnType<typeof parseWebhookEvent>) => (r.ok && 'event' in r && r.event.kind === 'message.inbound' ? r.event.message.media : undefined)
+
+  it('reads media.animated for a GIF sent as a looping MP4, and ignores it on anything else', () => {
+    const gif = (media: Record<string, unknown>) => inbound({ message: { server_id: 'm', type: 'video', media: { url: 'https://f.example/g.mp4', mime_type: 'video/mp4', ...media } } })
+    expect(parseWebhookEvent(gif({ animated: true }))).toMatchObject({ ok: true, event: { message: { media: { animated: true } } } })
+    for (const not of [undefined, false, 'true', 1, null]) {
+      const r = parseWebhookEvent(gif({ animated: not }))
+      expect(r).toMatchObject({ ok: true })
+      expect(mediaOf(r)).not.toHaveProperty('animated')
+    }
+    // a flag on a photo is ignored, never an error
+    const photo = parseWebhookEvent(inbound({ message: { server_id: 'm', type: 'image', media: { url: 'https://f.example/a.png', mime_type: 'image/png', animated: true } } }))
+    expect(mediaOf(photo)).toBeTruthy()
+    expect(mediaOf(photo)).not.toHaveProperty('animated')
+  })
+
   it('reads reply_to_server_id, and treats a missing or unreadable one as "not a reply"', () => {
     const msg = (extra: Record<string, unknown>) => inbound({ message: { server_id: 'm_2', type: 'text', text: 'yes', ...extra } })
     expect(parseWebhookEvent(msg({ reply_to_server_id: 'm_77' }))).toMatchObject({ ok: true, event: { message: { replyToServerId: 'm_77' } } })

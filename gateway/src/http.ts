@@ -199,6 +199,7 @@ async function postMessage(req: IncomingMessage, res: ServerResponse, s: Service
       fileName: optionalText(m.file_name, 255),
       sizeBytes: wholeNumber(m.size_bytes),
       durationSeconds: wholeNumber(m.duration_seconds),
+      animated: m.animated === true,
     }
   }
 

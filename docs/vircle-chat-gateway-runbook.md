@@ -62,7 +62,7 @@ API). While `PUSH_ADAPTER=mock` alerts are only recorded, never sent: expected u
 the user sees them when they open the chat.
 
 **The gateway restarts in a loop.** `gw logs --tail 50 gateway`. The line says why: `DATABASE_URL is required` or
-`GATEWAY_ENCRYPTION_KEY is required` (the `.env.gateway` file is wrong or missing), `connect ECONNREFUSED` (the database is not up: `gw ps`).
+`GATEWAY_ENCRYPTION_KEY is required` (the `.env.gateway` file is wrong or missing), `connect ECONNREFUSED` (the database is not up: `gw ps`), `The database encoding is ... it must be UTF8` (the database was created with another encoding and could not store emoji; the Docker image used here is UTF8 by default).
 
 **Everything stored by the gateway looks wrong or was lost.** Restore the last backup (section 5). Halo keeps the conversations, so
 what is lost is only the gateway's own copy of the last day.

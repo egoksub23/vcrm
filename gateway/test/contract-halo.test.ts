@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { checkGatewayHealth, GatewayError, normalizeGatewayUrl, sendReadReceipts, sendToGateway, sendTyping } from '../../src/lib/vircle-chat/gateway'
 import { parseWebhookEvent } from '../../src/lib/vircle-chat/contract'
 import { verifySignature } from '../../src/lib/vircle-chat/signing'
-import { allowLocalFetch, connectUser, OGG, PNG, startFileServer, startHarness, uploadFile, WORKSPACE, type FileServer, type Harness, type TestClient } from './helpers'
+import { allowLocalFetch, connectUser, MP4, OGG, PNG, startFileServer, startHarness, uploadFile, WORKSPACE, type FileServer, type Harness, type TestClient } from './helpers'
 
 interface Received {
   headers: Headers
@@ -270,6 +270,59 @@ describe('contract 1.2, with Halo own code on both sides', () => {
     expect(accepted.delivery).toBe('socket')
     const frame = await client.next('deliver', (f) => f.direction === 'out')
     expect(frame).toMatchObject({ kind: 'image', text: 'like this', reply_to: { server_id: asked.server_id, text: 'what does it look like?', from: 'you' }, media: { mime_type: 'image/png', file_name: 'photo.png' } })
+  })
+
+  it('a GIF from the app (an animated MP4) is read by Halo parser as animated, and Halo can fetch it', async () => {
+    const wallet = `W-contract-gif-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    received.length = 0
+    const { slot } = await uploadFile(client, { kind: 'video', mime: 'video/mp4', name: 'cat.mp4', bytes: MP4, animated: true })
+    client.send({ type: 'send', client_id: 'c-gif', kind: 'video', media: { file_id: slot.file_id } })
+    await client.next('ack')
+    await vi.waitFor(() => expect(events().some((e) => e.event === 'message.inbound')).toBe(true))
+    const sent = events().find((e) => e.event === 'message.inbound')!
+    const parsed = parseWebhookEvent({ ...sent, message: { ...sent.message, media: { ...sent.message.media, url: sent.message.media.url.replace('http://', 'https://') } } })
+    expect(parsed).toMatchObject({ ok: true, event: { message: { type: 'video', media: { mimeType: 'video/mp4', animated: true } } } })
+    expect(Buffer.from(await (await fetch(sent.message.media.url)).arrayBuffer()).equals(MP4)).toBe(true)
+  })
+
+  // Emoji are just text, but the places they can break are exactly the places this test crosses: JSON, signing, the
+  // database, and any length count. Skin tones, joined families, flags, keycaps and a heart on fire are several code
+  // points each (and astral, so two UTF-16 units per code point); other scripts ride along.
+  const EMOJI_TEXT = '👍🏽 👨‍👩‍👧‍👦 🇲🇾 1️⃣ ❤️‍🔥 😀 مرحبا 你好 안녕 🧑🏻‍💻'
+
+  it('emoji in a message from the app reach Halo byte for byte, through the signature and Halo parser', async () => {
+    const wallet = `W-contract-emoji-up-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    received.length = 0
+    client.send({ type: 'send', client_id: 'c-emoji', kind: 'text', text: EMOJI_TEXT })
+    await client.next('ack')
+    await vi.waitFor(() => expect(events().some((e) => e.event === 'message.inbound')).toBe(true))
+    const r = received.find((x) => JSON.parse(x.raw).event === 'message.inbound')!
+    expect(verifySignature({ secret: WORKSPACE.signingSecret, timestampHeader: r.headers.get('x-vircle-timestamp'), signatureHeader: r.headers.get('x-vircle-signature'), rawBody: r.raw })).toBe('ok')
+    expect(parseWebhookEvent(JSON.parse(r.raw))).toMatchObject({ ok: true, event: { message: { text: EMOJI_TEXT } } })
+  })
+
+  it('emoji in a message from Halo reach the app byte for byte, and in the quote of a reply', async () => {
+    const wallet = `W-contract-emoji-down-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    const first = await sendToGateway(conn(), outbound({ walletId: wallet, text: EMOJI_TEXT }))
+    expect((await client.next('deliver', (f) => f.direction === 'out')).text).toBe(EMOJI_TEXT)
+    await sendToGateway(conn(), outbound({ walletId: wallet, text: 'ok 👌', replyToServerId: first.serverId }))
+    expect(await client.next('deliver', (f) => f.direction === 'out')).toMatchObject({ text: 'ok 👌', reply_to: { text: EMOJI_TEXT } })
+  })
+
+  it('counts a long emoji message by characters the way people do not: 4,000 UTF-16 units is the limit, and a message of 2,000 emoji fits', async () => {
+    const wallet = `W-contract-emoji-len-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    client.send({ type: 'send', client_id: 'c-2000', kind: 'text', text: '😀'.repeat(2000) }) // 4,000 UTF-16 units
+    expect(await client.next('ack')).toMatchObject({ client_id: 'c-2000' })
+    client.send({ type: 'send', client_id: 'c-2001', kind: 'text', text: '😀'.repeat(2001) })
+    expect(await client.next('error')).toMatchObject({ code: 'message_too_long' })
   })
 
   it('a file the gateway may not fetch comes back as the error Halo already understands', async () => {

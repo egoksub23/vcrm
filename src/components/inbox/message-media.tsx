@@ -210,7 +210,19 @@ export function MediaVideoBubble({
     <div className="relative w-fit">
       {/* Plain URL (signed when the file is private), not a blob: the element
           should stream rather than wait for up to 16 MB to land. */}
-      {status === "ready" && src ? (
+      {status === "ready" && src && message.media_animated ? (
+        // A GIF (sent as a looping MP4): a muted loop, no controls, like on WhatsApp.
+        <video
+          src={src}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          aria-label="GIF"
+          className={cn(MEDIA_BOX, "rounded-lg")}
+        />
+      ) : status === "ready" && src ? (
         <video
           src={src}
           controls

@@ -26,6 +26,8 @@ export interface VircleMedia {
   sizeBytes: number | null
   /** The length of a voice note, in whole seconds (contract 1.2). Absent or invalid: null. */
   durationSeconds?: number | null
+  /** A GIF sent as a looping MP4 (contract 1.3). Absent or anything but true: false. */
+  animated?: boolean
 }
 
 export interface InboundEvent {
@@ -109,7 +111,10 @@ function parseMedia(v: unknown): VircleMedia | null | 'invalid' {
   const size = typeof m.size_bytes === 'number' && Number.isFinite(m.size_bytes) && m.size_bytes >= 0 ? m.size_bytes : null
   // A voice note's length: a whole number of seconds, 0 or more. Anything else is ignored, never an error.
   const duration = typeof m.duration_seconds === 'number' && Number.isInteger(m.duration_seconds) && m.duration_seconds >= 0 ? m.duration_seconds : null
-  return { url, mimeType: mimeType.toLowerCase(), fileName: name.value, sizeBytes: size, durationSeconds: duration }
+  const mime = mimeType.toLowerCase()
+  // Only an MP4 video can be a GIF; a flag on anything else is ignored, never an error.
+  const animated = m.animated === true && mime === 'video/mp4'
+  return { url, mimeType: mime, fileName: name.value, sizeBytes: size, durationSeconds: duration, ...(animated ? { animated: true } : {}) }
 }
 
 export function parseWebhookEvent(raw: unknown): ParsedEvent {

@@ -31,6 +31,168 @@
   let usersCache = []
   let agentReply = null // the message the agent is replying to
 
+
+  // ------------------------------------------------------------ composer: emoji, the attach menu, GIFs
+  // The reference for the app's chat screen: the same three controls as WhatsApp and the web widget (emoji, "+" attach menu,
+  // GIF) in front of the client library's sendText / sendFile / sendGif.
+
+  const PICK = {
+    document: { accept: 'application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx' },
+    media: { accept: 'image/png,image/jpeg,image/webp,video/mp4,video/3gpp' },
+    camera: { accept: 'image/*,video/*', capture: 'environment' },
+    audio: { accept: 'audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr' },
+  }
+  const PANELS = { attach: 'attach-menu', emoji: 'emoji-panel', gif: 'gif-panel' }
+  let panel = null
+
+  function showPanel(name) {
+    panel = panel === name ? null : name
+    for (const [key, id] of Object.entries(PANELS)) $(id).hidden = key !== panel
+    if (panel === 'emoji') { buildEmoji(); $('emoji-search').focus() }
+    if (panel === 'gif') buildGifSamples()
+  }
+
+  function pickFile({ accept, capture }) {
+    return new Promise((resolve) => {
+      const input = el('input', { type: 'file', accept, hidden: '' })
+      if (capture) input.setAttribute('capture', capture)
+      input.addEventListener('change', () => { resolve(input.files[0] || null); input.remove() })
+      input.addEventListener('cancel', () => { resolve(null); input.remove() })
+      document.body.append(input)
+      input.click()
+    })
+  }
+
+  /** What every send does with the draft: it becomes the caption, and a reply in progress is used up. */
+  function takeDraft(p) {
+    const caption = $('draft').value.trim()
+    $('draft').value = ''
+    const replyTo = p.replyTo
+    p.replyTo = null
+    return { caption, replyTo: replyTo || undefined }
+  }
+  const sendFailed = (err) => toast(`${err.code || 'error'}: ${err.message}`)
+
+  async function sendPicked(file) {
+    const p = cur()
+    if (!p || !file) return
+    const { caption, replyTo } = takeDraft(p)
+    // A .gif chosen from the device is refused by the library with a clear reason: GIFs go through the GIF button as MP4.
+    p.client.sendFile({ blob: file, name: file.name, type: file.type }, { caption, replyTo, durationSeconds: await audioDuration(file) }).catch(sendFailed)
+  }
+
+  // ---- emoji (the web widget's own list: window.__vircleWidgetLazy.emoji)
+  let emojiBuilt = false
+  function buildEmoji() {
+    if (emojiBuilt) return
+    const data = window.__vircleWidgetLazy && window.__vircleWidgetLazy.emoji
+    if (!data) { $('emoji-grid').textContent = 'The emoji list did not load.'; return }
+    emojiBuilt = true
+    const groups = data.groups
+    const grid = $('emoji-grid')
+    const tabs = $('emoji-tabs')
+    const insert = (emoji) => {
+      const d = $('draft')
+      const at = d.selectionStart == null ? d.value.length : d.selectionStart
+      d.setRangeText(emoji, at, d.selectionEnd == null ? at : d.selectionEnd, 'end')
+      d.focus()
+      d.dispatchEvent(new Event('input'))
+    }
+    const show = (items) => grid.replaceChildren(...items.map(([emoji, words]) => el('button', { type: 'button', title: words.split(' ').slice(0, 4).join(' '), text: emoji, onclick: () => insert(emoji) })))
+    const choose = (i) => {
+      for (const [n, b] of [...tabs.children].entries()) b.classList.toggle('on', n === i)
+      $('emoji-search').value = ''
+      show(groups[i].items)
+    }
+    tabs.replaceChildren(...groups.map((g, i) => el('button', { type: 'button', title: g.key, text: g.items[0][0], onclick: () => choose(i) })))
+    $('emoji-search').addEventListener('input', () => {
+      const q = $('emoji-search').value.trim().toLowerCase()
+      if (!q) return choose(0)
+      for (const b of tabs.children) b.classList.remove('on')
+      show(groups.flatMap((g) => g.items).filter(([, words]) => words.includes(q)).slice(0, 120))
+    })
+    choose(0)
+  }
+
+  // ---- GIFs: always sent as a looping MP4 with client.sendGif (never as a .gif file)
+  async function sendGifFrom(source) {
+    const p = cur()
+    if (!p) return
+    const { caption, replyTo } = takeDraft(p)
+    showPanel('gif')
+    try { await p.client.sendGif(source, { caption, replyTo }) } catch (err) { sendFailed(err) }
+  }
+
+  /** A short looping MP4 made in this browser (canvas + MediaRecorder), so the whole path can be tried without any GIF service. */
+  async function makeSampleMp4(emoji) {
+    const type = ['video/mp4;codecs=avc1', 'video/mp4'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t))
+    if (!type) throw new Error('This browser cannot record MP4. Use Chrome, or paste a GIPHY key.')
+    const canvas = el('canvas', { width: '240', height: '240' })
+    const ctx = canvas.getContext('2d')
+    const recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: type })
+    const chunks = []
+    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+    const done = new Promise((resolve) => (recorder.onstop = resolve))
+    recorder.start()
+    const t0 = performance.now()
+    // A timer, not requestAnimationFrame: a page in the background gets no animation frames, and the recording would never end.
+    await new Promise((resolve) => {
+      const timer = setInterval(() => {
+        const t = (performance.now() - t0) / 1500
+        ctx.fillStyle = `hsl(${Math.round(Math.min(t, 1) * 360)}, 70%, 85%)`
+        ctx.fillRect(0, 0, 240, 240)
+        ctx.font = '96px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(emoji, 120, 120 + Math.sin(Math.min(t, 1) * Math.PI * 4) * 40)
+        if (t >= 1) { clearInterval(timer); resolve() }
+      }, 33)
+    })
+    recorder.stop()
+    await done
+    return new Blob(chunks, { type: 'video/mp4' })
+  }
+
+  function buildGifSamples() {
+    const box = $('gif-samples')
+    if (box.children.length) return
+    box.replaceChildren(...['😀', '🎉', '👍', '🔥'].map((e) => el('button', { type: 'button', class: 'ghost', text: e, title: 'Make and send a sample GIF', onclick: async () => {
+      try { await sendGifFrom({ blob: await makeSampleMp4(e), name: 'sample.mp4' }) } catch (err) { toast(err.message) }
+    } })))
+    try { $('gif-key').value = localStorage.getItem('sim-giphy-key') || '' } catch {}
+  }
+
+  async function searchGiphy() {
+    let key = ''
+    try { key = localStorage.getItem('sim-giphy-key') || '' } catch {}
+    if (!key) return toast('Paste a GIPHY API key under "GIPHY key" first (free at developers.giphy.com).')
+    const q = $('gif-search').value.trim()
+    const url = `https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}?api_key=${encodeURIComponent(key)}&limit=18&rating=pg${q ? `&q=${encodeURIComponent(q)}` : ''}`
+    try {
+      const body = await (await fetch(url)).json()
+      const grid = $('gif-grid')
+      grid.replaceChildren(...(body.data || []).map((g) => el('img', { src: g.images.fixed_height_small.url, alt: g.title || 'GIF', title: g.title || '', onclick: () => sendGifFrom({ url: g.images.fixed_height.mp4 || g.images.original_mp4.mp4, name: `${g.id}.mp4` }) })))
+      if (!(body.data || []).length) grid.textContent = 'No GIFs found.'
+    } catch { toast('GIPHY could not be reached (check the key).') }
+  }
+
+  function bindComposer() {
+    $('attach').addEventListener('click', () => showPanel('attach'))
+    $('emoji-btn').addEventListener('click', () => showPanel('emoji'))
+    for (const b of document.querySelectorAll('#attach-menu [data-pick]')) {
+      b.addEventListener('click', async () => {
+        const what = b.getAttribute('data-pick')
+        if (what === 'gif') return showPanel('gif')
+        showPanel('attach') // closes the menu, then the system picker opens
+        await sendPicked(await pickFile(PICK[what]))
+      })
+    }
+    $('gif-go').addEventListener('click', searchGiphy)
+    $('gif-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchGiphy() } })
+    $('gif-key-save').addEventListener('click', () => { try { localStorage.setItem('sim-giphy-key', $('gif-key').value.trim()) } catch {} toast('Key saved in this browser') })
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panel) showPanel(panel) })
+  }
+
   // ------------------------------------------------------------ API
 
   async function api(path, method = 'GET', body, headers = {}) {
@@ -170,6 +332,12 @@
     const url = media.url
     if (!url) return el('div', { class: 'small muted', text: `[${m.kind}] ${media.fileName || ''}` })
     if (m.kind === 'image') return el('img', { class: 'att', src: url, alt: media.fileName || 'image' })
+    if (m.kind === 'video' && media.animated) {
+      // A GIF: a muted loop with no controls, as on WhatsApp.
+      const v = el('video', { class: 'gif', src: url, autoplay: '', loop: '', playsinline: '', 'aria-label': 'GIF' })
+      v.muted = true
+      return el('span', { class: 'gifwrap' }, el('span', { class: 'gif-tag', text: 'GIF' }), v)
+    }
     if (m.kind === 'video') return el('video', { class: 'att', src: url, controls: '' })
     if (m.kind === 'audio') return el('div', {}, el('audio', { src: url, controls: '' }), media.durationSeconds ? el('div', { class: 'small muted', text: `voice note · ${media.durationSeconds}s` }) : null)
     return el('a', { href: url, target: '_blank', rel: 'noopener', text: `${media.fileName || 'document'} (${Math.max(1, Math.round((media.sizeBytes || 0) / 1024))} KB)` })
@@ -182,6 +350,7 @@
     $('phone-name').textContent = p ? p.name || p.wallet : 'No user selected'
     $('phone-sub').textContent = p ? `${p.wallet} · ${p.phone || ''}` : 'Add a test user, then open the app'
     const s = p ? snap(p) : null
+    if (p && s && s.unreadCount) $('phone-sub').textContent += ` · ${s.unreadCount} unread (badge)`
     const [cls, label] = CONN[s ? s.state : 'idle']
     const conn = $('conn')
     conn.className = `pill ${cls}`
@@ -219,6 +388,7 @@
     $('draft').disabled = !active
     $('send').disabled = !active
     $('attach').disabled = !active
+    $('emoji-btn').disabled = !active
     $('connect').disabled = !p || active
     $('disconnect').disabled = !p || !active
     $('drop').disabled = !open
@@ -282,6 +452,12 @@
         if (m.reply_to) row.append(quoteBlock({ from: m.reply_to.from, text: m.reply_to.text, kind: m.reply_to.kind }))
         if (m.media && m.media.url) {
           if (m.kind === 'image') row.append(el('img', { class: 'att', src: m.media.url, alt: m.media.file_name || 'image' }))
+          else if (m.kind === 'video') {
+            const v = el('video', { class: m.media.animated ? 'gif' : 'att', src: m.media.url, ...(m.media.animated ? { autoplay: '', loop: '', playsinline: '' } : { controls: '' }) })
+            if (m.media.animated) v.muted = true
+            row.append(v)
+            if (m.media.animated) row.append(el('span', { class: 'small muted', text: ' GIF' }))
+          }
           else row.append(el('a', { href: m.media.url, target: '_blank', rel: 'noopener', text: `${m.kind}: ${m.media.file_name || 'file'}` }))
         }
         if (m.text) row.append(document.createTextNode(m.text))
@@ -510,10 +686,28 @@
         const got = await fetch(url)
         expect(got.ok && got.headers.get('content-type') === 'image/png', `the link answered ${got.status} ${got.headers.get('content-type')}`)
       })
-      await step('A file type the library knows is not allowed is refused before any upload', async () => {
+      await step('A file type that is not allowed is refused before any upload', async () => {
         let code = null
-        try { await p.client.sendFile({ blob: new Blob([new Uint8Array(20)], { type: 'image/gif' }), name: 'x.gif' }) } catch (e) { code = e.code }
+        try { await p.client.sendFile({ blob: new Blob([new Uint8Array(20)], { type: 'application/zip' }), name: 'x.zip' }) } catch (e) { code = e.code }
         expect(code === 'file_type_not_allowed', `code was ${code}`)
+      })
+    },
+    'Emoji and GIFs': async () => {
+      const p = await step('Add a test user and open the app', () => openUser('Emoji'))
+      const text = '👍🏽 👨‍👩‍👧‍👦 🇲🇾 1️⃣ ❤️‍🔥 😀 你好 안녕'
+      await step('The app sends emoji of every kind (skin tone, family, flag, keycap)', async () => { const m = await p.client.sendText(text); expect(stored(m), 'the message was not stored') })
+      await step('The agent sees the very same characters', () => until(async () => (await refreshAgent()).some((m) => m.direction === 'in' && m.text === text), 5000, 'the emoji'))
+      await step('The agent answers with emoji, and they arrive unchanged', async () => { await agentSend(p.wallet, 'On it 🙏 ✅'); await until(() => find(p, 'On it 🙏 ✅'), 4000, 'the answer') })
+      await step('The app sends a GIF (a looping MP4, as WhatsApp does)', async () => {
+        const mp4 = await makeSampleMp4('🎉')
+        const m = await p.client.sendGif({ blob: mp4, name: 'party.mp4' })
+        expect(stored(m) && m.media.animated === true, 'the GIF was not stored as animated')
+      })
+      await step('The agent sees it flagged as a GIF', () => until(async () => (await refreshAgent()).some((m) => m.direction === 'in' && m.kind === 'video' && m.media && m.media.animated), 5000, 'the GIF'))
+      await step('A .gif file is refused with the reason, and nothing is uploaded', async () => {
+        let code = null
+        try { await p.client.sendGif({ blob: new Blob([new Uint8Array(20)], { type: 'image/gif' }) }) } catch (e) { code = e.code }
+        expect(code === 'gif_must_be_mp4', `code was ${code}`)
       })
     },
     'A reply quotes the message': async () => {
@@ -596,18 +790,7 @@
     })
     // The library throttles this itself (at most every 2.5 seconds).
     $('draft').addEventListener('input', () => { const p = cur(); if (p && $('draft').value) p.client.typing() })
-    $('attach').addEventListener('click', () => $('file').click())
-    $('file').addEventListener('change', async () => {
-      const p = cur()
-      const file = $('file').files[0]
-      $('file').value = ''
-      if (!p || !file) return
-      const caption = $('draft').value.trim()
-      $('draft').value = ''
-      const replyTo = p.replyTo
-      p.replyTo = null
-      p.client.sendFile({ blob: file, name: file.name, type: file.type }, { caption, replyTo: replyTo || undefined, durationSeconds: await audioDuration(file) }).catch((err) => toast(`${err.code || 'error'}: ${err.message}`))
-    })
+    bindComposer()
     $('reply-cancel').addEventListener('click', () => { const p = cur(); if (p) { p.replyTo = null; render() } })
     $('connect').addEventListener('click', () => { const p = cur(); if (p) openApp(p).catch((e) => toast(e.message)) })
     $('disconnect').addEventListener('click', () => { const p = cur(); if (p) closeApp(p) })

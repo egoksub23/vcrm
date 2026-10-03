@@ -18,8 +18,8 @@ export interface HaloMessageInput {
   replyToServerId?: string | null
   /** A file: Halo's address for it (the gateway fetches it) or, from the simulator, bytes already in hand. */
   media?:
-    | { kind: FileKind; url: string; mimeType: string; fileName: string | null; sizeBytes: number | null; durationSeconds: number | null }
-    | { kind: FileKind; bytes: Buffer; mimeType: string; fileName: string | null; durationSeconds: number | null }
+    | { kind: FileKind; url: string; mimeType: string; fileName: string | null; sizeBytes: number | null; durationSeconds: number | null; animated?: boolean }
+    | { kind: FileKind; bytes: Buffer; mimeType: string; fileName: string | null; durationSeconds: number | null; animated?: boolean }
     | null
 }
 

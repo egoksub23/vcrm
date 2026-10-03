@@ -266,6 +266,15 @@ describe('ingestInbound', () => {
     expect(h.inserted[0]).toMatchObject({ content_type: 'audio', media_type: 'audio/ogg' })
   })
 
+  it('stores a GIF (an animated MP4) flagged, and an ordinary video not', async () => {
+    h.mirror.mockResolvedValue('https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-1/inbound/vc-m_78-g.mp4')
+    await ingestInbound(admin as never, cfg, inbound({ type: 'video', text: null, media: { url: 'https://files.example/g', mimeType: 'video/mp4', fileName: null, sizeBytes: 5, animated: true } }))
+    expect(h.inserted[0]).toMatchObject({ content_type: 'video', media_type: 'video/mp4', media_animated: true })
+    h.inserted.length = 0
+    await ingestInbound(admin as never, cfg, inbound({ type: 'video', text: null, media: { url: 'https://files.example/v', mimeType: 'video/mp4', fileName: null, sizeBytes: 5 } }))
+    expect(h.inserted[0]).not.toHaveProperty('media_animated')
+  })
+
   it('defers everything that follows the message to fanOut(), on the vircle_chat channel', async () => {
     h.isFirst.mockResolvedValue(true)
     const r = await ingestInbound(admin as never, cfg, inbound())

@@ -102,9 +102,11 @@ const STATIC: Record<string, { file: string; type: string }> = {
   // The client library, as the app uses it (built from client/src by build.mjs).
   'GET /simulator/client.js': { file: 'vircle-chat-client.js', type: 'text/javascript; charset=utf-8' },
   'GET /simulator/app.css': { file: 'simulator.css', type: 'text/css; charset=utf-8' },
+  // The emoji list: the web widget's own (public/widget/emoji.js in Halo), so both pickers offer the same emoji and search words.
+  'GET /simulator/emoji.js': { file: 'emoji.js', type: 'text/javascript; charset=utf-8' },
 }
 
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss: https://api.giphy.com https://*.giphy.com; img-src 'self' data: blob: https://*.giphy.com; media-src 'self' blob: https://*.giphy.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 const simUsername = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().length <= max ? v.trim() : null)
 
@@ -278,7 +280,7 @@ export function buildSimulatorRoutes(args: { state: SimulatorState; dispatcher: 
         text: m.text,
         kind: m.type,
         reply_to: m.reply_to,
-        media: m.media ? { file_name: m.media.file_name, mime_type: m.media.mime_type, size_bytes: m.media.size_bytes, url: s.files.linkForApp(m.media.file_id).url } : null,
+        media: m.media ? { file_name: m.media.file_name, mime_type: m.media.mime_type, size_bytes: m.media.size_bytes, ...(m.media.animated ? { animated: true } : {}), url: s.files.linkForApp(m.media.file_id).url } : null,
         status: m.status,
         delivery: m.delivery,
         created_at: new Date(m.created_at).toISOString(),

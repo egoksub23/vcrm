@@ -76,7 +76,7 @@ const snap = useSyncExternalStore(chat.subscribe.bind(chat), chat.getSnapshot.bi
 
 | Field | Meaning |
 | --- | --- |
-| `messages` | In order. Each has `id` (a stable list key), `mine`, `kind`, `text`, `media`, `replyTo`, `sender`, `sentAt`, and `status`: `sending`, `sent`, `delivered`, `read` or `failed` (with `error`). |
+| `messages` | In order. Each has `id` (a stable list key), `mine`, `kind`, `text`, `media` (with `animated` for a GIF), `replyTo`, `sender`, `sentAt`, and `status`: `sending`, `sent`, `delivered`, `read` or `failed` (with `error`). |
 | `state` | `idle`, `connecting`, `online`, `offline` (retrying; `nextAttemptAt`), `replaced`, `stopped`. Show a thin "Connecting..." bar when it is not `online`; do not block the screen, because sending still works. |
 | `supportTyping` | An agent is typing. |
 | `loaded` | The history has been loaded at least once. Show a spinner only until it is true and the list is empty. |
@@ -89,6 +89,7 @@ await chat.sendText('Hi, I cannot top up')                    // resolves when s
 await chat.sendText('The savings one', { replyTo: message })  // quote a message
 await chat.sendFile({ blob, name: 'receipt.jpg', type: 'image/jpeg' }, { caption: 'my receipt' })
 await chat.sendFile({ blob: voice, name: 'note.m4a', type: 'audio/mp4' }, { durationSeconds: 12 })
+await chat.sendGif({ url: gif.mp4Url })                       // a GIF from a GIF service: always its MP4 version (see below)
 chat.retry(message.id)       // a message with status "failed"
 chat.discard(message.id)
 chat.typing()                // call on every keystroke: it sends at most every 2.5 s
@@ -98,6 +99,16 @@ chat.typing()                // call on every keystroke: it sends at most every 
 `file_type_not_allowed`, `file_too_large`) and for what the gateway refuses (the message is then `failed`). Allowed file types are the
 same as WhatsApp: PNG, JPEG, WebP, MP4, 3GPP, AAC/MP4/MPEG/Ogg/AMR audio, PDF, Word, Excel, PowerPoint, plain text; 16 MB; voice notes up to 5 minutes.
 Record voice notes in one of the allowed audio types (AAC in MP4 is the usual choice on iOS and Android).
+
+### GIFs and emoji
+
+**Emoji** are ordinary text: the keyboard's emoji, or your own picker, go into `sendText`. Skin tones, joined families, flags and keycaps
+survive unchanged both ways (tested end to end). The limit is 4,000 characters counted as JavaScript counts them (an emoji is usually 2).
+
+**GIFs** are sent the way WhatsApp sends them: as a short looping **MP4** that plays muted with no controls. `sendGif({ url })` (or
+`{ blob }`) takes the MP4 of a GIF; every GIF service gives one next to the `.gif`. A `.gif` file is refused with `gif_must_be_mp4`
+(also from `sendFile`). A message with `media.animated === true` is drawn as `<video autoplay loop muted playsinline>` with no controls.
+Tenor's API was shut down on 30 June 2026; use GIPHY (or another provider) for the picker.
 
 ### Showing a file
 

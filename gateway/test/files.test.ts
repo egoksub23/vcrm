@@ -5,6 +5,7 @@ import {
   allowLocalFetch,
   connectUser,
   JPEG,
+  MP4,
   OGG,
   PDF,
   PNG,
@@ -99,6 +100,17 @@ describe('asking for an upload slot', () => {
     expect(await ask({ ...voice, duration_seconds: 301 })).toMatchObject({ code: 'file_too_large' })
     expect(await ask({ ...voice, duration_seconds: 300 })).toMatchObject({ type: 'upload_slot' })
     expect(await ask({ ...voice, duration_seconds: -1 })).toMatchObject({ code: 'bad_request' })
+  })
+
+  it('accepts animated only on an MP4 video: a GIF is sent as a looping MP4, never as a .gif', async () => {
+    const gif = { kind: 'video', mime_type: 'video/mp4', file_name: 'cat.mp4', size_bytes: 5000, animated: true }
+    expect(await ask(gif)).toMatchObject({ type: 'upload_slot' })
+    expect(await ask({ ...gif, kind: 'image', mime_type: 'image/png' })).toMatchObject({ code: 'bad_request' })
+    expect(await ask({ ...gif, mime_type: 'video/3gpp' })).toMatchObject({ code: 'bad_request' })
+    expect(await ask({ ...gif, animated: 'yes' })).toMatchObject({ code: 'bad_request' })
+    expect(await ask({ ...gif, animated: false })).toMatchObject({ type: 'upload_slot' })
+    // the real .gif is still refused, as on WhatsApp
+    expect(await ask({ kind: 'image', mime_type: 'image/gif', size_bytes: 1000, animated: true })).toMatchObject({ code: 'file_type_not_allowed' })
   })
 
   it('limits how many slots one user may ask for', async () => {
@@ -213,6 +225,26 @@ describe('sending a file from the app', () => {
     const [event] = await h.gw.store.pendingEvents(h.workspace.id)
     const signed = h.gw.files.signEventMedia(event!.payload) as { message: { type: string; media: Record<string, unknown> } }
     expect(signed.message).toMatchObject({ type: 'audio', media: { mime_type: 'audio/ogg', duration_seconds: 12 } })
+  })
+
+  it('carries a GIF (an animated MP4) to Halo and to the other devices of the user, flagged', async () => {
+    const phone = await user({ wallet_id: 'W-gif' }, { device_id: 'phone' })
+    const tablet = await user({ wallet_id: 'W-gif' }, { device_id: 'tablet' })
+    await sendFile(phone, { kind: 'video', mime: 'video/mp4', name: 'cat.mp4', bytes: MP4, animated: true })
+    await phone.next('ack')
+    const [event] = await h.gw.store.pendingEvents(h.workspace.id)
+    const signed = h.gw.files.signEventMedia(event!.payload) as { message: { type: string; media: Record<string, unknown> } }
+    expect(signed.message).toMatchObject({ type: 'video', media: { mime_type: 'video/mp4', animated: true } })
+    expect(await tablet.next('deliver')).toMatchObject({ kind: 'video', direction: 'in', media: { animated: true } })
+  })
+
+  it('does not flag an ordinary video', async () => {
+    const client = await user({ wallet_id: 'W-video' })
+    await sendFile(client, { kind: 'video', mime: 'video/mp4', name: 'clip.mp4', bytes: MP4 })
+    await client.next('ack')
+    const [event] = await h.gw.store.pendingEvents(h.workspace.id)
+    const signed = h.gw.files.signEventMedia(event!.payload) as { message: { media: Record<string, unknown> } }
+    expect(signed.message.media).not.toHaveProperty('animated')
   })
 
   it('shows on the user\'s other devices with a link to the file', async () => {
@@ -387,6 +419,14 @@ describe('a file from Halo', () => {
     const second = await (await post(body, 'same-key')).json()
     expect(second).toEqual(first)
     expect(fileServer.hits['/a.png']).toBe(1)
+  })
+
+  it('carries a GIF from Halo to the app, flagged animated', async () => {
+    fileServer = await startFileServer({ '/g.mp4': { type: 'video/mp4', body: MP4 } })
+    const client = await user({ wallet_id: 'W-from-halo' })
+    const ok = await post(msg({ url: fileServer.url('/g.mp4'), mime_type: 'video/mp4', animated: true }, { type: 'video', text: undefined }))
+    expect(ok.status).toBeLessThan(300)
+    expect(await client.next('deliver')).toMatchObject({ kind: 'video', media: { animated: true } })
   })
 
   it('carries a voice note\'s length to the app', async () => {

@@ -21,6 +21,7 @@ export default async function setup(): Promise<(() => Promise<void>) | void> {
     password: 'postgres',
     port,
     persistent: false,
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
     postgresFlags: ['-c', 'max_connections=200', '-c', 'fsync=off', '-c', 'synchronous_commit=off'],
     onLog: () => undefined,
     onError: () => undefined,

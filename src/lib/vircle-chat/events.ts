@@ -145,6 +145,7 @@ export async function ingestInbound(
       content_text: text,
       media_url: mediaUrl,
       media_type: mediaType,
+      ...(mediaUrl && m.media?.animated ? { media_animated: true } : {}),
       channel_type: 'vircle_chat',
       status: 'sent',
       message_id: m.serverId,
