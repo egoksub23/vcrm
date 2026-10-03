@@ -153,6 +153,8 @@ export function attachWebSocket(args: {
         const current = await store.findSubjectByWallet(found.workspace, found.user.wallet_id)
         if (current) subject = current
         if (closed) return
+        // The user is here: the away period (and any outstanding alert) is over.
+        await store.clearAlert(subject.conversation.id)
         send(welcomeFrame(subject, cfg))
         // Join the live set only after the welcome, so nothing another device sends can reach this one
         // ahead of it, and so a connection that dropped during the lookups is never counted as online.
@@ -172,6 +174,7 @@ export function attachWebSocket(args: {
         case 'resume':
           return replay(frame.lastSeq)
         case 'receipt': {
+          await store.clearAlert(subject.conversation.id)
           const changed = await store.applyReceipt(subject, frame.upToSeq, frame.status)
           if (changed.length > 0) hooks?.receiptsApplied?.(subject, changed)
           return
@@ -182,6 +185,7 @@ export function attachWebSocket(args: {
           }
           const wait = limiter.hit(subject.user.id)
           if (wait > 0) return void send(errorFrame('rate_limited', 'You are sending too fast', wait))
+          await store.clearAlert(subject.conversation.id)
           const { message, duplicate } = await store.appendInbound(subject, {
             clientId: frame.clientId,
             type: frame.messageType,

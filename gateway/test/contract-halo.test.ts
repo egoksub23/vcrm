@@ -70,7 +70,7 @@ describe('Halo -> gateway, with Halo\'s own client', () => {
 
   it('sends a message and reads the answer: server id, sequence, conversation, delivery', async () => {
     const accepted = await sendToGateway(conn(), outbound())
-    expect(accepted).toMatchObject({ serverId: expect.stringMatching(/^m_/), seq: 1, conversationId: expect.stringMatching(/^c_/), delivery: 'queued' })
+    expect(accepted).toMatchObject({ serverId: expect.stringMatching(/^m_/), seq: 1, conversationId: expect.stringMatching(/^c_/), delivery: 'push' })
   })
 
   it('a repeated send with the same idempotency key gets the same answer', async () => {

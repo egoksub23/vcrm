@@ -8,7 +8,9 @@ import { PGlite } from '@electric-sql/pglite'
 import { WebSocket } from 'ws'
 
 import { startGateway, type Gateway } from '../src/app'
+import type { DeliveryOptions } from '../src/delivery'
 import type { DispatcherOptions } from '../src/dispatcher'
+import { MockPushAdapter } from '../src/push'
 import { testConfig, type GatewayConfig } from '../src/config'
 import { migrate, type Db, type Queryable } from '../src/db'
 import type { GatewayHooks } from '../src/ws-server'
@@ -53,6 +55,8 @@ export interface Harness {
   db: Db
   workspace: Workspace
   sessionsKey: string
+  /** The push adapter the gateway uses: records every alert it would have sent. */
+  push: MockPushAdapter
   url: string
   /** Ask for a session over HTTP, as the Vircle backend would. */
   session(user?: Partial<{ wallet_id: string; name: string; phone: string; email: string }>): Promise<{ token: string; conversation_id: string }>
@@ -67,11 +71,22 @@ export async function startHarness(
     routes?: Record<string, Route>
     /** Off unless a test asks for it, so no test posts to a made-up Halo address by accident. */
     dispatcher?: false | DispatcherOptions
+    /** The sweeper that alerts for unacknowledged messages is off unless a test asks for it (`sweeper: true`). */
+    delivery?: DeliveryOptions & { sweeper?: boolean }
   } = {},
 ): Promise<Harness> {
   const db = await createTestDb()
   const cfg = testConfig(opts.cfg)
-  const gw = await startGateway({ cfg, db, hooks: opts.hooks, routes: opts.routes, dispatcher: opts.dispatcher ?? false })
+  const push = new MockPushAdapter()
+  const gw = await startGateway({
+    cfg,
+    db,
+    hooks: opts.hooks,
+    routes: opts.routes,
+    dispatcher: opts.dispatcher ?? false,
+    push,
+    delivery: { ...opts.delivery, sweeper: opts.delivery?.sweeper ?? false },
+  })
   const { workspace, sessionsKey } = await gw.store.createWorkspace(WORKSPACE)
   const url = `http://127.0.0.1:${gw.port}`
   return {
@@ -79,6 +94,7 @@ export async function startHarness(
     db,
     workspace,
     sessionsKey,
+    push,
     url,
     async session(user = {}) {
       const res = await fetch(`${url}/v1/sessions`, {

@@ -50,10 +50,10 @@ describe('POST /v1/messages', () => {
     const res = await send(text(), { key: 'halo-msg-1' })
     expect(res.status).toBe(202)
     const body = (await res.json()) as Record<string, unknown>
-    expect(body).toMatchObject({ server_id: expect.stringMatching(/^m_/), seq: 1, conversation_id: expect.stringMatching(/^c_/), delivery: 'queued' })
+    expect(body).toMatchObject({ server_id: expect.stringMatching(/^m_/), seq: 1, conversation_id: expect.stringMatching(/^c_/), delivery: 'push' })
     const s = await h.subject('W-api')
     const [stored] = await h.gw.store.listAfter(s.conversation.id, 0, 10)
-    expect(stored).toMatchObject({ direction: 'out', text: 'Hi Aisha, checking now.', sender_name: 'Support', idempotency_key: 'halo-msg-1', delivery: 'queued' })
+    expect(stored).toMatchObject({ direction: 'out', text: 'Hi Aisha, checking now.', sender_name: 'Support', idempotency_key: 'halo-msg-1', delivery: 'push' })
     expect(s.user).toMatchObject({ name: 'Aisha', phone: '+60123456789', email: 'aisha@example.com' })
   })
 

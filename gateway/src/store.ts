@@ -454,6 +454,115 @@ export class Store {
   }
 
   // ----------------------------------------------------------
+  // Alerts (push): one per conversation per away period (src/delivery.ts)
+  // ----------------------------------------------------------
+
+  /**
+   * Take the right to raise an alert for this conversation. One atomic statement, so two messages arriving
+   * at once cannot both alert. False when an alert is already outstanding (and not yet due a reminder), or
+   * the push API failed recently and its retry time has not come.
+   */
+  async claimAlert(conversationId: string, now: Date, reminderBefore: Date): Promise<boolean> {
+    const r = await this.db.query(
+      `UPDATE conversations SET alert_open = true, last_alert_at = $2
+        WHERE id = $1
+          AND (alert_open = false OR last_alert_at IS NULL OR last_alert_at <= $3)
+          AND (push_retry_at IS NULL OR push_retry_at <= $2)`,
+      [conversationId, now.toISOString(), reminderBefore.toISOString()],
+    )
+    return r.rowCount > 0
+  }
+
+  /** The push API took the alert (or said the user has no app, which a retry would not change). */
+  async alertSettled(conversationId: string): Promise<void> {
+    await this.db.query('UPDATE conversations SET push_fail_count = 0, push_retry_at = NULL WHERE id = $1', [conversationId])
+  }
+
+  /** The push API failed: give the claim back. With `retryAt` the sweeper tries again then; without, never. */
+  async alertFailed(conversationId: string, retryAt: Date | null): Promise<number> {
+    const { rows } = await this.db.query<{ push_fail_count: number }>(
+      `UPDATE conversations SET alert_open = false, push_fail_count = push_fail_count + 1, push_retry_at = $2
+        WHERE id = $1 RETURNING push_fail_count`,
+      [conversationId, retryAt ? retryAt.toISOString() : null],
+    )
+    return rows[0]?.push_fail_count ?? 0
+  }
+
+  /** The user is here (connected, sent something, or acknowledged something): the away period is over. */
+  async clearAlert(conversationId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE conversations SET alert_open = false, push_fail_count = 0, push_retry_at = NULL
+        WHERE id = $1 AND (alert_open OR push_fail_count > 0 OR push_retry_at IS NOT NULL)`,
+      [conversationId],
+    )
+  }
+
+  async alertState(conversationId: string): Promise<{ alert_open: boolean; last_alert_at: string | null; push_fail_count: number; push_retry_at: string | null } | null> {
+    const { rows } = await this.db.query<{ alert_open: boolean; last_alert_at: string | null; push_fail_count: number; push_retry_at: string | null }>(
+      'SELECT alert_open, last_alert_at, push_fail_count, push_retry_at FROM conversations WHERE id = $1',
+      [conversationId],
+    )
+    return rows[0] ?? null
+  }
+
+  async markPushChecked(messageIds: string[], now: Date): Promise<void> {
+    if (messageIds.length === 0) return
+    await this.db.query('UPDATE messages SET push_checked_at = $2 WHERE id = ANY($1::text[]) AND push_checked_at IS NULL', [messageIds, now.toISOString()])
+  }
+
+  /** Messages from Halo the app has not acknowledged, sent before `ackBefore` and not older than `notBefore`, whose alert decision is still open. */
+  async unackedMessages(ackBefore: Date, notBefore: Date, limit: number): Promise<{ id: string; conversation_id: string }[]> {
+    const { rows } = await this.db.query<{ id: string; conversation_id: string }>(
+      `SELECT id, conversation_id FROM messages
+        WHERE direction = 'out' AND status = 'sent' AND push_checked_at IS NULL
+          AND created_at <= $1 AND created_at > $2
+        ORDER BY created_at LIMIT $3`,
+      [ackBefore.toISOString(), notBefore.toISOString(), limit],
+    )
+    return rows
+  }
+
+  /** Messages that stayed unacknowledged past the window: no alert for them any more. */
+  async expireUnchecked(notBefore: Date, now: Date): Promise<number> {
+    const r = await this.db.query(
+      `UPDATE messages SET push_checked_at = $2
+        WHERE direction = 'out' AND status = 'sent' AND push_checked_at IS NULL AND created_at <= $1`,
+      [notBefore.toISOString(), now.toISOString()],
+    )
+    return r.rowCount
+  }
+
+  async logPush(entry: { workspaceId: string; conversationId: string; messageId: string | null; outcome: 'sent' | 'no_device' | 'failed' | 'skipped'; detail?: string | null }): Promise<void> {
+    await this.db.query('INSERT INTO push_log (id, workspace_id, conversation_id, message_id, outcome, detail) VALUES ($1, $2, $3, $4, $5, $6)', [
+      newId('pl_'),
+      entry.workspaceId,
+      entry.conversationId,
+      entry.messageId,
+      entry.outcome,
+      entry.detail ? entry.detail.slice(0, 500) : null,
+    ])
+  }
+
+  async pushLog(conversationId: string, limit = 50): Promise<{ message_id: string | null; outcome: string; detail: string | null; created_at: string }[]> {
+    const { rows } = await this.db.query<{ message_id: string | null; outcome: string; detail: string | null; created_at: string }>(
+      'SELECT message_id, outcome, detail, created_at FROM push_log WHERE conversation_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2',
+      [conversationId, limit],
+    )
+    return rows
+  }
+
+  async subjectByConversation(conversationId: string): Promise<Subject | null> {
+    const conv = await this.db.query<Conversation>('SELECT id, workspace_id, user_id, last_seq FROM conversations WHERE id = $1', [conversationId])
+    const c = conv.rows[0]
+    if (!c) return null
+    const [ws, user] = await Promise.all([
+      this.db.query<Workspace>(`SELECT ${WORKSPACE_COLUMNS} FROM workspaces WHERE id = $1`, [c.workspace_id]),
+      this.db.query<User>('SELECT id, workspace_id, wallet_id, name, phone, email FROM users WHERE id = $1', [c.user_id]),
+    ])
+    return ws.rows[0] && user.rows[0] ? { workspace: ws.rows[0], user: user.rows[0], conversation: c } : null
+  }
+
+  // ----------------------------------------------------------
   // Events for Halo (transactional outbox; dispatched in work package 2)
   // ----------------------------------------------------------
 

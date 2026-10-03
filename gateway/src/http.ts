@@ -13,12 +13,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { GatewayConfig } from './config'
-import { deliverFromHalo } from './delivery'
+import type { DeliveryService } from './delivery'
 import type { Hub } from './hub'
 import type { Store, Workspace } from './store'
 
 export interface Services {
   store: Store
+  delivery: DeliveryService
   hub: Hub
   cfg: GatewayConfig
 }
@@ -159,7 +160,7 @@ async function postMessage(req: IncomingMessage, res: ServerResponse, s: Service
     senderName: sender ? optionalText(sender.name, 200) : null,
   })
   // A repeat is answered as the first time was; only a new message is delivered.
-  const delivery = duplicate ? (message.delivery ?? 'queued') : await deliverFromHalo(s, subject, message)
+  const delivery = duplicate ? (message.delivery ?? 'queued') : await s.delivery.deliverFromHalo(subject, message)
 
   sendJson(res, 202, { server_id: message.id, seq: message.seq, conversation_id: message.conversation_id, delivery })
 }

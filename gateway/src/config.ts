@@ -44,6 +44,21 @@ export interface GatewayConfig {
     /** An event Halo still has not accepted after this long is given up on and kept for inspection. */
     giveUpHours: number
   }
+  /** The delivery decision: socket or push (src/delivery.ts). */
+  push: {
+    /** Which adapter calls the Vircle push API: `mock` records alerts and sends nothing; `vircle` is work package 8. */
+    adapter: 'mock' | 'vircle'
+    /** How long a live app has to acknowledge a message before the gateway alerts the user anyway. */
+    ackTimeoutMs: number
+    /** How often unacknowledged messages are looked at. */
+    sweepMs: number
+    /** A message still unacknowledged after this long raises no alert any more (the user can read it when they open the chat). */
+    windowMinutes: number
+    /** While one alert is outstanding, a reminder is allowed after this long if the user still has not come back. */
+    realertHours: number
+    /** Where tapping an alert goes; `{conversation_id}` and `{wallet_id}` are filled in. A workspace may override it (push_settings.deep_link). */
+    deepLinkTemplate: string
+  }
   /** Largest request body Halo may send (a message with its text). */
   maxHaloBodyBytes: number
   limits: Limits
@@ -55,6 +70,12 @@ function int(env: NodeJS.ProcessEnv, name: string, fallback: number, min = 1): n
   const n = Number(raw)
   if (!Number.isInteger(n) || n < min) throw new Error(`${name} must be an integer of at least ${min}`)
   return n
+}
+
+function pushAdapter(raw: string | undefined): 'mock' | 'vircle' {
+  if (raw === undefined || raw === '') return 'mock'
+  if (raw === 'mock' || raw === 'vircle') return raw
+  throw new Error('PUSH_ADAPTER must be mock or vircle')
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -81,6 +102,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       timeoutMs: int(env, 'DISPATCH_TIMEOUT_MS', 10_000),
       maxBackoffMs: int(env, 'DISPATCH_MAX_BACKOFF_S', 900) * 1000,
       giveUpHours: int(env, 'DISPATCH_GIVE_UP_HOURS', 72),
+    },
+    push: {
+      adapter: pushAdapter(env.PUSH_ADAPTER),
+      ackTimeoutMs: int(env, 'PUSH_ACK_TIMEOUT_MS', 5000),
+      sweepMs: int(env, 'PUSH_SWEEP_MS', 1000),
+      windowMinutes: int(env, 'PUSH_WINDOW_MINUTES', 60),
+      realertHours: int(env, 'PUSH_REALERT_HOURS', 24),
+      deepLinkTemplate: env.PUSH_DEEP_LINK || 'vircle://chat/{conversation_id}',
     },
     maxHaloBodyBytes: int(env, 'MAX_HALO_BODY_BYTES', 64 * 1024),
     limits: {

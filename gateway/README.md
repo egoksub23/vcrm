@@ -10,19 +10,22 @@ not part of Halo's build or its Docker image.
 | --- | --- |
 | 1. Storage, sessions, the app WebSocket protocol | done |
 | 2. Halo side: `POST /v1/messages`, `GET /v1/health`, signed events with a retrying outbox | done |
-| 3. Delivery decision, push adapter and mock | next |
+| 3. Delivery decision: socket or push, one alert per away period, push adapter interface and mock | done |
 | 4 to 8. Files, client library, simulator, deployment, real push adapter | not started |
 
-Until work package 3, a message from Halo goes to a user's live connection if they have one (`delivery:
-"socket"`) and otherwise waits for their next connection (`"queued"`); no push is raised yet. File messages
-are refused with `invalid_media` until work package 4.
+A message from Halo goes to the user's live connection if they have one (`delivery: "socket"`). If the app does
+not acknowledge it within 5 seconds, or the user has no connection, the gateway asks the push API to alert them
+(`"push"`; `"no_device"` if the API knows no device; `"queued"` if no alert was raised). Today the push API is
+the **mock** (`PUSH_ADAPTER=mock`, the default): alerts are recorded, never sent. The real adapter is work
+package 8, when the push API's details are known. File messages are refused with `invalid_media` until work
+package 4. Details: the header of `src/delivery.ts`.
 
 ## Run the tests
 
 ```
 cd gateway
 npm install
-npm test            # 136 tests, about 40 seconds; an in-process Postgres (PGlite), no Docker needed
+npm test            # 162 tests, about 1 to 2 minutes; an in-process Postgres (PGlite), no Docker needed
 npm run typecheck
 ```
 
@@ -43,7 +46,9 @@ Settings (environment): `PORT`, `GATEWAY_WS_PATH` (`/ws`), `SESSION_TTL_SECONDS`
 (25), `HELLO_TIMEOUT_MS` (10000), `MAX_DEVICES_PER_USER` (3), `SEND_RATE_LIMIT` / `SEND_RATE_WINDOW_MS` (30 per
 10 s), `REPLAY_BATCH` (200), `TEXT_MAX` (4000), `CAPTION_MAX` (1024), `FILE_MAX_BYTES` (16 MB),
 `DISPATCH_POLL_MS` (2000), `DISPATCH_TIMEOUT_MS` (10000), `DISPATCH_MAX_BACKOFF_S` (900),
-`DISPATCH_GIVE_UP_HOURS` (72), `MAX_HALO_BODY_BYTES` (64 KB).
+`DISPATCH_GIVE_UP_HOURS` (72), `MAX_HALO_BODY_BYTES` (64 KB), `PUSH_ADAPTER` (`mock`), `PUSH_ACK_TIMEOUT_MS` (5000),
+`PUSH_SWEEP_MS` (1000), `PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
+(`vircle://chat/{conversation_id}`; a workspace can override the title, text and link in `push_settings`).
 
 ## Connect a Halo workspace
 
