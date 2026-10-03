@@ -35,7 +35,7 @@ Dashboard links last four hours (`VIEW_URL_TTL_SECONDS`); links handed to third 
 
 Migration 145 (the `public-assets` bucket) is additive and already safe to apply. Migration 146 makes
 `chat-media` private and **breaks every image, voice note and attachment in an app that does not sign links**,
-so it waits in `supabase/held/` until the new app is running.
+so it waited in `supabase/held/` until the new app was running (applied 3 Oct 2026) until the new app is running.
 
 1. Deploy the app (the VPS redeploy).
 2. Copy the files that must stay public: `node scripts/move-public-assets.mjs` (dry run), then `--apply`.
