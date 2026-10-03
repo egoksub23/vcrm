@@ -72,7 +72,8 @@ jobs:
       # NOT granted, the catalogue guard reviews who may call each one.
       - name: Give the API roles the platform's default table grants
         run: |
-          supabase db query --local "GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;"
+          supabase db query --local "GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role"
+          supabase db query --local "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role"
 
       # A migration can apply "successfully" and still do nothing —
       # every DDL statement here is IF NOT EXISTS-guarded, which turns a
