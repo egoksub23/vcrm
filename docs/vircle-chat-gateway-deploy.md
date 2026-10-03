@@ -39,8 +39,8 @@ ssh root@187.127.105.156 "curl -s http://127.0.0.1:8090/healthz"
 ## 4. TLS and WebSockets for chat.vircle.tech
 
 A reverse proxy on the server must serve `https://chat.vircle.tech` and pass it to `127.0.0.1:8090`,
-**including WebSocket upgrades** (the app connects to `wss://chat.vircle.tech/ws`). Use whichever proxy
-already serves `crm.vircle.tech`.
+**including WebSocket upgrades** (the app connects to `wss://chat.vircle.tech/ws`). `crm.vircle.tech` is served
+by **nginx** on this server (checked 3 Oct 2026), so use the nginx block below; Caddy is only an alternative.
 
 Caddy (gets the certificate by itself):
 
@@ -50,7 +50,15 @@ chat.vircle.tech {
 }
 ```
 
-nginx (certificate from certbot, `certbot --nginx -d chat.vircle.tech`):
+nginx: save the block as `/etc/nginx/sites-available/chat.vircle.tech`, then (as root on the server):
+
+```bash
+ln -s /etc/nginx/sites-available/chat.vircle.tech /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d chat.vircle.tech      # adds the certificate and the https listener
+```
+
+The block, before certbot edits it:
 
 ```
 server {
