@@ -11,7 +11,9 @@ not part of Halo's build or its Docker image.
 | 1. Storage, sessions, the app WebSocket protocol | done |
 | 2. Halo side: `POST /v1/messages`, `GET /v1/health`, signed events with a retrying outbox | done |
 | 3. Delivery decision: socket or push, one alert per away period, push adapter interface and mock | done |
-| 4 to 8. Files, client library, simulator, deployment, real push adapter | not started |
+| 6 (part). Simulator page, scenarios, launch from Halo | done; the client library it will use is WP 5 |
+| deploy files (compose, Dockerfile, proxy notes) | written, not yet run on the server |
+| 4, 5, 7, 8. Files, client library, load test and runbook, real push adapter | not started |
 
 A message from Halo goes to the user's live connection if they have one (`delivery: "socket"`). If the app does
 not acknowledge it within 5 seconds, or the user has no connection, the gateway asks the push API to alert them
@@ -49,6 +51,26 @@ Settings (environment): `PORT`, `GATEWAY_WS_PATH` (`/ws`), `SESSION_TTL_SECONDS`
 `DISPATCH_GIVE_UP_HOURS` (72), `MAX_HALO_BODY_BYTES` (64 KB), `PUSH_ADAPTER` (`mock`), `PUSH_ACK_TIMEOUT_MS` (5000),
 `PUSH_SWEEP_MS` (1000), `PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
 (`vircle://chat/{conversation_id}`; a workspace can override the title, text and link in `push_settings`).
+
+## The simulator
+
+A page served by the gateway (`/simulator`, files in `public/`) for trying the chat without the app: a pretend
+phone that speaks the real WebSocket protocol, the push inbox (what the gateway would have sent), the agent's
+view of the conversation with sent / delivered / read ticks, the calls to Halo (state, retries, replay), a wire
+log, fault buttons (drop the connection, delay or swallow acknowledgements, send the same message twice, switch
+Halo off) and six scripted scenarios. Switched on with `SIMULATOR_ENABLED=true`.
+
+- **From Halo:** Settings, Channels, Vircle Chat, **Open simulator**. Halo hands the gateway a five-minute,
+  single-use link signed with the workspace's signing secret (`src/simulator/token.ts`).
+- **On your own machine, no database and no Halo needed:** `npm run sim`, then open http://localhost:8090/launch.
+  It uses an in-memory Postgres and a stand-in Halo that checks signatures and remembers event ids.
+- Test users are named `... (sim)`, are flagged in the database, and their alerts always go to the mock push
+  adapter whatever `PUSH_ADAPTER` is. The simulator can act only on them.
+
+## Deploy
+
+`docs/vircle-chat-gateway-deploy.md` (compose file `docker-compose.gateway.yml`, `gateway/Dockerfile`, the
+`chat.vircle.tech` proxy, connecting Halo).
 
 ## Connect a Halo workspace
 

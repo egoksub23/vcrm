@@ -87,6 +87,7 @@ const CHANNELS_ADMIN: [string, string[]][] = [
   ["account/channels/vircle-chat/secret", ["POST"]],
   ["account/channels/vircle-chat/token", ["POST"]],
   ["account/channels/vircle-chat/test", ["POST"]],
+  ["account/channels/vircle-chat/simulator", ["POST"]],
   ["comments/test", ["POST", "DELETE"]],
   ["whatsapp/templates/submit", ["POST"]],
   ["whatsapp/templates/sync", ["POST"]],

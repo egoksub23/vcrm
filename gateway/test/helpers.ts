@@ -86,6 +86,7 @@ export async function startHarness(
     dispatcher: opts.dispatcher ?? false,
     push,
     delivery: { ...opts.delivery, sweeper: opts.delivery?.sweeper ?? false },
+    publicDir: join(MIGRATIONS, '..', 'public'),
   })
   const { workspace, sessionsKey } = await gw.store.createWorkspace(WORKSPACE)
   const url = `http://127.0.0.1:${gw.port}`

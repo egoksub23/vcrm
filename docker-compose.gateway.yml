@@ -1,0 +1,40 @@
+# The Vircle Chat gateway and its own database, next to Halo but separate from it.
+# Deploy:   docker compose -f docker-compose.gateway.yml --env-file .env.gateway up --build -d
+# Halo's own docker-compose.yml is untouched; this file is only for the gateway.
+# See docs/vircle-chat-gateway-deploy.md.
+name: vircle-gateway
+
+services:
+  gateway-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: ${GATEWAY_DB_PASSWORD:?set GATEWAY_DB_PASSWORD in .env.gateway}
+      POSTGRES_DB: gateway
+    volumes:
+      - gateway-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gateway -d gateway']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: ./gateway
+    restart: unless-stopped
+    depends_on:
+      gateway-db:
+        condition: service_healthy
+    env_file:
+      - .env.gateway
+    environment:
+      PORT: 8090
+      DATABASE_URL: postgres://gateway:${GATEWAY_DB_PASSWORD}@gateway-db:5432/gateway
+    # Only the reverse proxy on this machine reaches it; the proxy terminates TLS for chat.vircle.tech.
+    ports:
+      - '127.0.0.1:${GATEWAY_HOST_PORT:-8090}:8090'
+
+volumes:
+  gateway-db:

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle2, Copy, Loader2, PlugZap, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, FlaskConical, Loader2, PlugZap, RefreshCw, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth, useCapability } from '@/hooks/use-auth';
@@ -70,6 +70,8 @@ export function VircleChatChannel() {
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [openingSimulator, setOpeningSimulator] = useState(false);
+  const [simulatorLink, setSimulatorLink] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const loadedAccountIdRef = useRef<string | null>(null);
 
@@ -166,6 +168,30 @@ export function VircleChatChannel() {
       toast.error(t('rotateFailed'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleOpenSimulator() {
+    setOpeningSimulator(true);
+    setSimulatorLink(null);
+    try {
+      const res = await fetch(`${BASE}/simulator`, { method: 'POST' });
+      const data = await readJson<{ url?: string }>(res);
+      if (!res.ok || !data.url) {
+        toast.error(data.error || t('simulatorFailed'));
+        return;
+      }
+      // The link carries a one-time token, so it is opened straight away and not kept in the page unless the browser blocked the tab.
+      const opened = window.open(data.url, '_blank', 'noopener');
+      if (!opened) {
+        setSimulatorLink(data.url);
+        toast.error(t('simulatorBlocked'));
+      }
+    } catch (err) {
+      console.error('[vircle-chat-channel] simulator error:', err);
+      toast.error(t('simulatorFailed'));
+    } finally {
+      setOpeningSimulator(false);
     }
   }
 
@@ -399,6 +425,10 @@ export function VircleChatChannel() {
                   {testing ? <Loader2 className="size-4 animate-spin" /> : <PlugZap className="size-4" />}
                   {t('testConnection')}
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => void handleOpenSimulator()} disabled={openingSimulator}>
+                  {openingSimulator ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+                  {openingSimulator ? t('openingSimulator') : t('openSimulator')}
+                </Button>
                 {testResult ? (
                   testResult.ok ? (
                     <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
@@ -414,6 +444,12 @@ export function VircleChatChannel() {
                 ) : null}
               </div>
 
+              {simulatorLink ? (
+                <a href={simulatorLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
+                  {t('simulatorLink')}
+                </a>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{t('simulatorHint')}</p>
               <p className="text-xs text-muted-foreground">{t('gatewayDecidesPush')}</p>
 
               <div className="flex justify-end">

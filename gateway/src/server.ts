@@ -19,10 +19,11 @@ async function main(): Promise<void> {
     console.warn('[gateway] PUSH_ADAPTER=mock: alerts are recorded, NOT sent. Users who are away will not be notified until the Vircle push adapter is configured.')
   }
   const db = createPgDb(cfg.databaseUrl)
+  if (cfg.simulator.enabled) console.warn('[gateway] SIMULATOR_ENABLED=true: /simulator is available to anyone Halo opens it for. Switch it off for a production launch.')
   const applied = await migrate(db, process.env.GATEWAY_MIGRATIONS_DIR || join(here, '..', 'migrations'))
   if (applied.length > 0) console.log(`[gateway] applied migrations: ${applied.join(', ')}`)
 
-  const gateway = await startGateway({ cfg, db })
+  const gateway = await startGateway({ cfg, db, publicDir: process.env.GATEWAY_PUBLIC_DIR || join(here, '..', 'public') })
   console.log(`[gateway] listening on port ${gateway.port}, app connects at ${cfg.wsPath}`)
 
   const stop = async (signal: string) => {

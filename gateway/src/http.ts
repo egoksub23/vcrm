@@ -14,6 +14,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { GatewayConfig } from './config'
 import type { DeliveryService } from './delivery'
+import { acceptHaloMessage } from './halo-messages'
 import type { Hub } from './hub'
 import type { Store, Workspace } from './store'
 
@@ -146,23 +147,18 @@ async function postMessage(req: IncomingMessage, res: ServerResponse, s: Service
 
   const sender = body.sender && typeof body.sender === 'object' ? (body.sender as Record<string, unknown>) : null
   const email = optionalText(recipient.email, 320)
-  const subject = await s.store.upsertUser(workspace, {
-    walletId,
-    name: optionalText(recipient.name, 200),
-    phone: optionalText(recipient.phone, 40),
-    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email.toLowerCase() : null,
-  })
-
-  const { message, duplicate } = await s.store.appendOutbound(subject, {
+  const answer = await acceptHaloMessage(s, workspace, {
     idempotencyKey,
-    type: 'text',
     text,
     senderName: sender ? optionalText(sender.name, 200) : null,
+    recipient: {
+      walletId,
+      name: optionalText(recipient.name, 200),
+      phone: optionalText(recipient.phone, 40),
+      email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email.toLowerCase() : null,
+    },
   })
-  // A repeat is answered as the first time was; only a new message is delivered.
-  const delivery = duplicate ? (message.delivery ?? 'queued') : await s.delivery.deliverFromHalo(subject, message)
-
-  sendJson(res, 202, { server_id: message.id, seq: message.seq, conversation_id: message.conversation_id, delivery })
+  sendJson(res, 202, answer)
 }
 
 export type Route = (req: IncomingMessage, res: ServerResponse, s: Services) => Promise<void>

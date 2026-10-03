@@ -39,6 +39,8 @@ export interface User {
   name: string | null
   phone: string | null
   email: string | null
+  /** Created by the simulator: its alerts go to the mock push adapter only. */
+  simulated: boolean
 }
 
 export interface Conversation {
@@ -79,10 +81,13 @@ export interface Identity {
   name?: string | null
   phone?: string | null
   email?: string | null
+  /** Set by the simulator when it creates a test user; ignored for a user that already exists. */
+  simulated?: boolean
 }
 
 export const WORKSPACE_KEY_PATTERN = /^vcw_[A-Za-z0-9_-]{16,64}$/
 
+const USER_COLUMNS = 'id, workspace_id, wallet_id, name, phone, email, simulated'
 const WORKSPACE_COLUMNS = 'id, workspace_key, name, halo_webhook_url, halo_signing_secret_enc, push_settings'
 const MESSAGE_COLUMNS =
   'id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, status, delivery, created_at, delivered_at, read_at'
@@ -195,6 +200,50 @@ export class Store {
     return sessionsKey
   }
 
+  // ----------------------------------------------------------
+  // Simulator test users
+  // ----------------------------------------------------------
+
+  async listSimulatedUsers(workspaceId: string): Promise<(User & { conversation_id: string; last_seq: number; created_at: string })[]> {
+    const { rows } = await this.db.query<User & { conversation_id: string; last_seq: number; created_at: string }>(
+      `SELECT u.id, u.workspace_id, u.wallet_id, u.name, u.phone, u.email, u.simulated, u.created_at,
+              c.id AS conversation_id, c.last_seq
+         FROM users u JOIN conversations c ON c.user_id = u.id
+        WHERE u.workspace_id = $1 AND u.simulated ORDER BY u.created_at DESC, u.id LIMIT 100`,
+      [workspaceId],
+    )
+    return rows
+  }
+
+  /** Remove every simulator user of a workspace, with their conversations and messages. */
+  async deleteSimulatedUsers(workspaceId: string): Promise<number> {
+    const r = await this.db.query('DELETE FROM users WHERE workspace_id = $1 AND simulated', [workspaceId])
+    return r.rowCount
+  }
+
+  /** The newest events for a workspace, whatever their state (the simulator's "Halo calls" panel). */
+  async recentEvents(workspaceId: string, limit: number): Promise<RecentEvent[]> {
+    const { rows } = await this.db.query<RecentEvent>(
+      `SELECT id, kind, payload, attempts, next_attempt_at, last_error, created_at, dispatched_at, failed_at
+         FROM outbox_events WHERE workspace_id = $1 ORDER BY ord DESC LIMIT $2`,
+      [workspaceId, limit],
+    )
+    return rows
+  }
+
+  /** Make every waiting event of a workspace due now (the simulator, after it restores a Halo it switched off). */
+  async retryNow(workspaceId: string): Promise<void> {
+    await this.db.query('UPDATE outbox_events SET next_attempt_at = now() WHERE workspace_id = $1 AND dispatched_at IS NULL AND failed_at IS NULL', [workspaceId])
+  }
+
+  async getEvent(workspaceId: string, id: string): Promise<OutboxEvent | null> {
+    const { rows } = await this.db.query<OutboxEvent>(
+      'SELECT id, workspace_id, kind, payload, attempts, next_attempt_at, created_at FROM outbox_events WHERE workspace_id = $1 AND id = $2',
+      [workspaceId, id],
+    )
+    return rows[0] ?? null
+  }
+
   async getWorkspaceById(id: string): Promise<Workspace | null> {
     const { rows } = await this.db.query<Workspace>(`SELECT ${WORKSPACE_COLUMNS} FROM workspaces WHERE id = $1`, [id])
     return rows[0] ?? null
@@ -237,15 +286,15 @@ export class Store {
    */
   async upsertUser(workspace: Workspace, identity: Identity): Promise<Subject> {
     const { rows: userRows } = await this.db.query<User>(
-      `INSERT INTO users (id, workspace_id, wallet_id, name, phone, email)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (id, workspace_id, wallet_id, name, phone, email, simulated)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (workspace_id, wallet_id) DO UPDATE SET
          name  = COALESCE(EXCLUDED.name,  users.name),
          phone = COALESCE(EXCLUDED.phone, users.phone),
          email = COALESCE(EXCLUDED.email, users.email),
          updated_at = now()
-       RETURNING id, workspace_id, wallet_id, name, phone, email`,
-      [newId('u_'), workspace.id, identity.walletId, identity.name ?? null, identity.phone ?? null, identity.email ?? null],
+       RETURNING ${USER_COLUMNS}`,
+      [newId('u_'), workspace.id, identity.walletId, identity.name ?? null, identity.phone ?? null, identity.email ?? null, identity.simulated === true],
     )
     const user = userRows[0]!
     await this.db.query(
@@ -261,7 +310,7 @@ export class Store {
 
   async findSubjectByWallet(workspace: Workspace, walletId: string): Promise<Subject | null> {
     const { rows } = await this.db.query<User>(
-      'SELECT id, workspace_id, wallet_id, name, phone, email FROM users WHERE workspace_id = $1 AND wallet_id = $2',
+      `SELECT ${USER_COLUMNS} FROM users WHERE workspace_id = $1 AND wallet_id = $2`,
       [workspace.id, walletId],
     )
     const user = rows[0]
@@ -297,7 +346,7 @@ export class Store {
     const s = rows[0]
     if (!s) return null
     const ws = await this.db.query<Workspace>(`SELECT ${WORKSPACE_COLUMNS} FROM workspaces WHERE id = $1`, [s.workspace_id])
-    const user = await this.db.query<User>('SELECT id, workspace_id, wallet_id, name, phone, email FROM users WHERE id = $1', [s.user_id])
+    const user = await this.db.query<User>(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [s.user_id])
     const conv = await this.db.query<Conversation>('SELECT id, workspace_id, user_id, last_seq FROM conversations WHERE user_id = $1', [s.user_id])
     if (!ws.rows[0] || !user.rows[0] || !conv.rows[0]) return null
     return { workspace: ws.rows[0], user: user.rows[0], conversation: conv.rows[0] }
@@ -557,7 +606,7 @@ export class Store {
     if (!c) return null
     const [ws, user] = await Promise.all([
       this.db.query<Workspace>(`SELECT ${WORKSPACE_COLUMNS} FROM workspaces WHERE id = $1`, [c.workspace_id]),
-      this.db.query<User>('SELECT id, workspace_id, wallet_id, name, phone, email FROM users WHERE id = $1', [c.user_id]),
+      this.db.query<User>(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [c.user_id]),
     ])
     return ws.rows[0] && user.rows[0] ? { workspace: ws.rows[0], user: user.rows[0], conversation: c } : null
   }
@@ -707,4 +756,16 @@ export interface OutboxEvent {
   attempts: number
   next_attempt_at: string | Date
   created_at: string | Date
+}
+
+export interface RecentEvent {
+  id: string
+  kind: string
+  payload: Record<string, unknown>
+  attempts: number
+  next_attempt_at: string | Date
+  last_error: string | null
+  created_at: string | Date
+  dispatched_at: string | Date | null
+  failed_at: string | Date | null
 }

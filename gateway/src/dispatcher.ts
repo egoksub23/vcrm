@@ -36,7 +36,11 @@ export interface RunSummary {
   failed: number
 }
 
-type Outcome = { kind: 'ok' } | { kind: 'retry'; error: string; retryAfterMs: number | null } | { kind: 'dead'; error: string }
+/** `status` and `detail` are what Halo answered (absent when it could not be reached); the simulator shows them. */
+export type Outcome =
+  | { kind: 'ok'; status?: number; detail?: string }
+  | { kind: 'retry'; error: string; retryAfterMs: number | null; status?: number }
+  | { kind: 'dead'; error: string; status?: number }
 
 /** Statuses meaning "Halo read this and refuses it": nothing a retry can fix. */
 const FINAL_STATUSES = new Set([400, 413, 422])
@@ -158,6 +162,14 @@ export class Dispatcher {
     return Math.min(cap, Math.max(jittered, retryAfterMs ?? 0))
   }
 
+  /**
+   * Post an event again, freshly signed, WITHOUT touching its state in the outbox. For the simulator's
+   * "replay an old event": Halo must answer a repeat with 200 and no effect (it remembers event ids).
+   */
+  async replay(workspace: Workspace, event: OutboxEvent): Promise<Outcome> {
+    return this.deliver(workspace, event)
+  }
+
   private async deliver(workspace: Workspace, event: OutboxEvent): Promise<Outcome> {
     const rawBody = JSON.stringify(event.payload)
     let secret: string
@@ -183,10 +195,10 @@ export class Dispatcher {
     // Free the connection; the body of a success carries nothing the gateway needs.
     const detail = await res.text().catch(() => '')
 
-    if (res.status >= 200 && res.status < 300) return { kind: 'ok' }
+    if (res.status >= 200 && res.status < 300) return { kind: 'ok', status: res.status, detail: detail.slice(0, 300) }
     const error = `Halo answered ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
-    if (FINAL_STATUSES.has(res.status)) return { kind: 'dead', error }
+    if (FINAL_STATUSES.has(res.status)) return { kind: 'dead', error, status: res.status }
     const retryAfter = Number(res.headers.get('retry-after'))
-    return { kind: 'retry', error, retryAfterMs: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null }
+    return { kind: 'retry', error, retryAfterMs: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null, status: res.status }
   }
 }

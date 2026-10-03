@@ -28,7 +28,7 @@
 import type { GatewayConfig } from './config'
 import { deliverFrame } from './frames'
 import type { Hub } from './hub'
-import type { PushAdapter } from './push'
+import type { MockPushAdapter, PushAdapter } from './push'
 import type { Delivery, Message, Store, Subject, Workspace } from './store'
 
 export interface DeliveryOptions {
@@ -58,6 +58,8 @@ export class DeliveryService {
     private readonly store: Store,
     private readonly hub: Hub,
     readonly push: PushAdapter,
+    /** Where the alerts for simulator users go, whatever `push` is: a test user never causes a real alert. */
+    readonly simulatedPush: MockPushAdapter,
     private readonly cfg: Pick<GatewayConfig, 'push'>,
     opts: DeliveryOptions = {},
   ) {
@@ -106,7 +108,7 @@ export class DeliveryService {
 
     let result
     try {
-      result = await this.push.send({
+      result = await (user.simulated ? this.simulatedPush : this.push).send({
         phone: user.phone,
         email: user.email,
         walletId: user.wallet_id,

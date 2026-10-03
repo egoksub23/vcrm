@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
@@ -83,6 +85,7 @@ import { DELETE, GET, PATCH, PUT } from './route'
 import { POST as rotateSecret } from './secret/route'
 import { POST as rotateToken } from './token/route'
 import { POST as testConnection } from './test/route'
+import { POST as openSimulator } from './simulator/route'
 
 const SECRET_FIELDS = ['signing_secret', 'api_token', 'signingSecret', 'apiToken', 'secrets']
 
@@ -336,5 +339,37 @@ describe('PATCH (pause switch) and DELETE', () => {
     const res = await DELETE()
     expect(await res.json()).toEqual({ disconnected: true })
     expect(h.state.config).toBeNull()
+  })
+})
+
+describe('POST /simulator (Open simulator)', () => {
+  it('answers with the gateway\'s simulator page and a launch token in the fragment, signed with this workspace\'s secret', async () => {
+    h.state.config = existingRow()
+    const res = await openSimulator()
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    const { url } = await res.json()
+    expect(url.startsWith('https://gw.example.com/simulator#t=')).toBe(true)
+    const token = url.split('#t=')[1] as string
+    const [payload, signature] = token.split('.')
+    expect(JSON.parse(Buffer.from(payload, 'base64url').toString())).toMatchObject({ k: 'vcw_abcdefghijklmnopqrst' })
+    expect(signature).toBe(createHmac('sha256', 'vcs_old').update(`vircle-sim.${payload}`).digest('hex'))
+    // no secret travels in the answer
+    expect(JSON.stringify({ url })).not.toContain('vcs_old')
+  })
+
+  it('needs channels.manage', async () => {
+    h.state.config = existingRow()
+    h.requireCapability.mockRejectedValueOnce(new Error('forbidden'))
+    expect((await openSimulator()).status).toBe(403)
+  })
+
+  it('is refused when the operator has not enabled Vircle Chat, and when there is no connection', async () => {
+    h.state.config = existingRow()
+    h.state.platform = { features: { vircle_chat: false } }
+    expect((await openSimulator()).status).toBe(403)
+    h.state.platform = null
+    h.state.config = null
+    expect((await openSimulator()).status).toBe(404)
   })
 })

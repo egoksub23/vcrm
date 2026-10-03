@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "cli": "tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "sim": "tsx scripts/sim-dev.ts"
   },
   "dependencies": {
     "pg": "^8.13.0",

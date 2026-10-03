@@ -59,6 +59,8 @@ export interface GatewayConfig {
     /** Where tapping an alert goes; `{conversation_id}` and `{wallet_id}` are filled in. A workspace may override it (push_settings.deep_link). */
     deepLinkTemplate: string
   }
+  /** The test page and its API under /simulator (staging and the pilot; switch it off for a production launch). */
+  simulator: { enabled: boolean }
   /** Largest request body Halo may send (a message with its text). */
   maxHaloBodyBytes: number
   limits: Limits
@@ -111,6 +113,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       realertHours: int(env, 'PUSH_REALERT_HOURS', 24),
       deepLinkTemplate: env.PUSH_DEEP_LINK || 'vircle://chat/{conversation_id}',
     },
+    simulator: { enabled: env.SIMULATOR_ENABLED === 'true' },
     maxHaloBodyBytes: int(env, 'MAX_HALO_BODY_BYTES', 64 * 1024),
     limits: {
       textMax: int(env, 'TEXT_MAX', 4000),

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Vircle Chat simulator</title>
+<link rel="stylesheet" href="/simulator/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><strong>Vircle Chat simulator</strong><span id="ws-name" class="muted"></span></div>
+  <div class="top-right">
+    <span id="halo-state" class="pill">Halo</span>
+    <label class="switch" title="Pretend Halo cannot be reached: events queue up and retry"><input type="checkbox" id="halo-offline"><span>Halo offline</span></label>
+    <button id="reset" class="ghost" title="Delete the test users and their messages">Forget test users</button>
+  </div>
+</header>
+
+<div id="login" class="notice" hidden></div>
+
+<main id="app" class="grid" hidden>
+  <section class="col users">
+    <h2>Test users</h2>
+    <form id="new-user" class="row">
+      <input id="new-name" placeholder="Name (optional)" maxlength="60" autocomplete="off">
+      <button type="submit">Add</button>
+    </form>
+    <ul id="user-list" class="list"></ul>
+    <h2>Scenarios</h2>
+    <p class="muted small">Each runs on a fresh test user and reports every step.</p>
+    <div id="scenario-buttons" class="stack"></div>
+    <ol id="scenario-log" class="steps"></ol>
+  </section>
+
+  <section class="col phone-col">
+    <div class="phone" id="phone">
+      <div class="phone-head">
+        <div><div id="phone-name" class="phone-name">No user selected</div><div id="phone-sub" class="muted small"></div></div>
+        <span id="conn" class="pill off">App closed</span>
+      </div>
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <form id="composer" class="composer">
+        <input id="draft" placeholder="Message Vircle Support" maxlength="4000" autocomplete="off" disabled>
+        <button type="submit" id="send" disabled>Send</button>
+      </form>
+    </div>
+    <div class="controls">
+      <div class="row wrap">
+        <button id="connect">Open app</button>
+        <button id="disconnect" class="ghost">Close app</button>
+        <button id="drop" class="ghost" title="Cut the connection without a goodbye">Drop connection</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="screen-open" checked><span>Chat screen open (reports "read")</span></label>
+      <label class="switch"><input type="checkbox" id="auto-ack" checked><span>Acknowledge deliveries</span></label>
+      <label class="field">Delay acknowledgements
+        <select id="ack-delay"><option value="0">none</option><option value="2000">2 s</option><option value="8000">8 s (longer than the push timeout)</option></select>
+      </label>
+      <div class="row wrap">
+        <button id="typing" class="ghost">Typing</button>
+        <button id="send-again" class="ghost" title="Send the last message again with the same id">Send last again</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="col side">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="push" class="active">Push inbox <span id="push-count" class="count" hidden>0</span></button>
+      <button role="tab" data-tab="agent">Agent (Halo)</button>
+      <button role="tab" data-tab="events">Halo calls</button>
+      <button role="tab" data-tab="wire">Wire log</button>
+    </nav>
+    <div id="tab-push" class="tabpane">
+      <p class="muted small">Alerts the gateway raised for this user. Nothing is sent to a real phone: simulator users always use the mock push.</p>
+      <ul id="push-list" class="list"></ul>
+    </div>
+    <div id="tab-agent" class="tabpane" hidden>
+      <p class="muted small">The conversation as Halo's agent sees it, with the status the app's receipts give each message. Send as an agent without Halo being connected.</p>
+      <ul id="agent-list" class="agent-list"></ul>
+      <form id="agent-form" class="row">
+        <input id="agent-draft" placeholder="Reply as Support" maxlength="4000" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+      <div id="agent-result" class="muted small"></div>
+    </div>
+    <div id="tab-events" class="tabpane" hidden>
+      <p class="muted small">What the gateway sends to Halo. An event waits, retries with growing pauses, or is given up on. Replay shows how Halo treats a repeat.</p>
+      <ul id="event-list" class="list"></ul>
+    </div>
+    <div id="tab-wire" class="tabpane" hidden>
+      <div class="row"><button id="wire-clear" class="ghost">Clear</button><span class="muted small">Every frame between this phone and the gateway.</span></div>
+      <ol id="wire-list" class="wire"></ol>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<script src="/simulator/app.js"></script>
+</body>
+</html>
