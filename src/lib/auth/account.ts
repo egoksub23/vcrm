@@ -183,7 +183,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     { data: platformRow, error: platformErr },
   ] = await Promise.all([
     supabase.from("accounts").select("id, name").eq("id", data.account_id).maybeSingle(),
-    supabase.from("account_platform").select("status, plan, limits, features, suspended_reason")
+    supabase.from("account_platform").select("status, plan, limits, features, suspended_reason, deletion_due_at")
       .eq("account_id", data.account_id).maybeSingle(),
   ]);
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Building2, Copy, Loader2, Pause, Pencil, Play, Plus } from "lucide-react";
+import { Building2, Copy, Download, Loader2, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,12 @@ import type { UsageMeter, UsageState } from "@/lib/platform/usage";
 /** The limits the console edits besides seats and the broadcast cap, all measured against usage (migration 152). */
 const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb"] as const;
 type UsageLimitField = (typeof USAGE_LIMIT_FIELDS)[number];
+
+interface DeletionRow {
+  account_id: string;
+  due_at: string | null;
+  started: boolean;
+}
 
 interface UsageRow {
   accountId: string;
@@ -105,6 +111,8 @@ export function PlatformConsole() {
   const [link, setLink] = useState<string | null>(null);
   const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; usageLimits: Record<UsageLimitField, string>; features: Record<string, boolean> } | null>(null);
   const [usage, setUsage] = useState<Map<string, UsageRow> | null>(null);
+  const [deletions, setDeletions] = useState<Map<string, DeletionRow>>(new Map());
+  const [del, setDel] = useState<{ row: TenantRow; confirm: string; days: string; now: boolean; note: string } | null>(null);
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [openSignup, setOpenSignup] = useState<boolean | null>(null);
@@ -135,6 +143,12 @@ export function PlatformConsole() {
       .then((r) => (r.ok ? r.json() : null))
       .then((b: { accounts?: UsageRow[] } | null) =>
         setUsage(b?.accounts ? new Map(b.accounts.map((a) => [a.accountId, a])) : null),
+      )
+      .catch(() => {});
+    void fetch("/api/platform/deletions", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { deletions?: DeletionRow[] } | null) =>
+        setDeletions(new Map((b?.deletions ?? []).map((d) => [d.account_id, d]))),
       )
       .catch(() => {});
     void fetch("/api/platform/cron", { cache: "no-store" })
@@ -214,6 +228,48 @@ export function PlatformConsole() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("updateFailed"));
       return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!del) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/platform/accounts/${del.row.id}/deletion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirm: del.confirm,
+          now: del.now,
+          days: del.now ? 0 : Number(del.days) || 30,
+          note: del.note.trim() || undefined,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as { error?: string; dueAt?: string; started?: boolean } | null;
+      if (!res.ok) throw new Error(body?.error ?? t("updateFailed"));
+      setDeletions(new Map(deletions).set(del.row.id, { account_id: del.row.id, due_at: body?.dueAt ?? null, started: body?.started === true }));
+      toast.success(del.now ? t("deletionStarted") : t("deletionRequested"));
+      setDel(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelDeletion = async (id: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/platform/accounts/${id}/deletion`, { method: "DELETE" });
+      if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? t("updateFailed"));
+      const next = new Map(deletions);
+      next.delete(id);
+      setDeletions(next);
+      toast.success(t("deletionCancelled"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
     } finally {
       setBusy(false);
     }
@@ -374,6 +430,13 @@ export function PlatformConsole() {
                         ) : (
                           <Badge variant="secondary">{t("statusActive")}</Badge>
                         )}
+                        {deletions.get(r.id)?.due_at && (
+                          <Badge variant="destructive" className="ml-1" title={deletions.get(r.id)?.started ? t("deletionRunning") : undefined}>
+                            {deletions.get(r.id)?.started
+                              ? t("deletionRunning")
+                              : t("deletionOn", { date: new Date(deletions.get(r.id)?.due_at as string).toLocaleDateString() })}
+                          </Badge>
+                        )}
                         {r.seed_ok === false && (
                           <Badge variant="outline" className="ml-1 border-amber-500/50 text-amber-600" title={t("setupIncompleteHint")}>
                             {t("setupIncomplete")}
@@ -407,6 +470,24 @@ export function PlatformConsole() {
                           {r.seed_ok === false && (
                             <Button size="sm" variant="ghost" disabled={busy} onClick={() => void patch(r.id, { reseed: true }, t("repaired"))}>
                               {t("repair")}
+                            </Button>
+                          )}
+                          {deletions.get(r.id)?.due_at ? (
+                            <>
+                              <Button size="sm" variant="ghost" render={<a href={`/api/platform/accounts/${r.id}/export`} download />}>
+                                <Download className="mr-1 h-3.5 w-3.5" />
+                                {t("exportData")}
+                              </Button>
+                              {!deletions.get(r.id)?.started && (
+                                <Button size="sm" variant="ghost" disabled={busy} onClick={() => void cancelDeletion(r.id)}>
+                                  {t("cancelDeletion")}
+                                </Button>
+                              )}
+                            </>
+                          ) : (
+                            <Button size="sm" variant="ghost" onClick={() => setDel({ row: r, confirm: "", days: "30", now: false, note: "" })}>
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                              {t("delete")}
                             </Button>
                           )}
                           {r.status === "suspended" ? (
@@ -570,6 +651,53 @@ export function PlatformConsole() {
       </Dialog>
 
       {/* Suspend */}
+      <Dialog open={del !== null} onOpenChange={(o) => !o && !busy && setDel(null)}>
+        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteTitle", { name: del?.row.name ?? "" })}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">{t("deleteDesc")}</DialogDescription>
+          </DialogHeader>
+          {del && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pd-confirm">{t("deleteConfirmLabel")}</Label>
+                <Input id="pd-confirm" value={del.confirm} placeholder={del.row.name} onChange={(e) => setDel({ ...del, confirm: e.target.value })} />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                <div>
+                  <p className="text-sm text-foreground">{t("deleteNow")}</p>
+                  <p className="text-xs text-muted-foreground">{t("deleteNowHint")}</p>
+                </div>
+                <Switch checked={del.now} onCheckedChange={(v) => setDel({ ...del, now: v })} />
+              </div>
+              {!del.now && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="pd-days">{t("deleteDays")}</Label>
+                  <Input id="pd-days" type="number" min={1} max={90} value={del.days} onChange={(e) => setDel({ ...del, days: e.target.value })} />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="pd-note">{t("deleteNote")}</Label>
+                <Textarea id="pd-note" rows={2} maxLength={500} value={del.note} onChange={(e) => setDel({ ...del, note: e.target.value })} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" disabled={busy} onClick={() => setDel(null)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy || !del || del.confirm.trim().toLowerCase() !== del.row.name.trim().toLowerCase()}
+              onClick={() => void requestDeletion()}
+            >
+              {busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              {del?.now ? t("deleteNowButton") : t("deleteButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={suspend !== null} onOpenChange={(o) => !o && !busy && setSuspend(null)}>
         <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-md">
           <DialogHeader>

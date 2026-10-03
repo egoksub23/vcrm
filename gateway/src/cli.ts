@@ -5,6 +5,7 @@
 //   npm run cli -- update-workspace --key vcw_... [--halo-url ...] [--name ...]
 //   npm run cli -- rotate-sessions-key --key vcw_...
 //   npm run cli -- list-workspaces
+//   npm run cli -- delete-workspace --key vcw_... --yes
 //   npm run cli -- outbox [--key vcw_...]            what is waiting for Halo, and what was given up on
 //   npm run cli -- retry-failed [--key vcw_...]      put given-up events back in the queue
 //
@@ -28,6 +29,10 @@ function parseFlags(argv: string[]): Record<string, string> {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
     if (!a.startsWith('--')) throw new Error(`Unexpected argument: ${a}`)
+    if (a === '--yes') {
+      flags.yes = 'true' // a switch, not a value
+      continue
+    }
     const value = argv[i + 1]
     if (value === undefined || value.startsWith('--')) throw new Error(`${a} needs a value`)
     flags[a.slice(2)] = value
@@ -89,6 +94,13 @@ async function main(): Promise<void> {
         console.log(`  ${key}`)
         break
       }
+      case 'delete-workspace': {
+        // For a workspace whose Halo workspace has been deleted: removes its users, messages and files here too.
+        if (flags.yes !== 'true') throw new Error('Add --yes to confirm: this removes the workspace and every message, file and user in it, and cannot be undone')
+        const r = await store.deleteWorkspace(need(flags, 'key'))
+        console.log(`Workspace removed: ${r.users} user(s), ${r.messages} message(s) and ${r.files} file(s) deleted.`)
+        break
+      }
       case 'list-workspaces': {
         for (const w of await store.listWorkspaces()) console.log(`${w.workspace_key}  ${w.name}  ${w.halo_webhook_url}`)
         break
@@ -106,7 +118,7 @@ async function main(): Promise<void> {
         break
       }
       default:
-        console.log('Commands: create-workspace, update-workspace, rotate-sessions-key, list-workspaces, outbox, retry-failed')
+        console.log('Commands: create-workspace, update-workspace, rotate-sessions-key, delete-workspace, list-workspaces, outbox, retry-failed')
         process.exitCode = command ? 1 : 0
     }
   } finally {

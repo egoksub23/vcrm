@@ -20,14 +20,15 @@ DECLARE
     'list_deleted_contacts', 'list_sembang_channels_for_current_user', 'list_team_members',
     'mark_sembang_channel_read', 'next_incident_number', 'next_ticket_number', 'peek_invitation',
     'platform_cron_status', 'platform_list_accounts', 'platform_reseed_account',
-    'platform_set_account_status', 'platform_set_open_signup', 'platform_update_account', 'platform_usage_overview',
+    'platform_deletion_overview', 'platform_set_account_status', 'platform_set_open_signup', 'platform_update_account',
+    'platform_usage_overview',
     'propose_snippet', 'propose_snippet_edit', 'propose_tag', 'propose_tag_edit',
     'redeem_invitation', 'remove_account_member', 'reopen_conversation', 'restore_contact',
     'restore_removed_item', 'set_account_role_capabilities', 'set_member_custom_role',
     'set_member_role', 'set_member_teams', 'set_role_capabilities', 'set_sembang_channel_hidden',
     'set_sembang_channel_muted', 'signup_is_open', 'sla_apply_to_open_tickets',
     'sla_reorder_policies', 'team_open_conversation_counts', 'touch_presence',
-    'transfer_account_ownership', 'withdraw_proposal'
+    'transfer_account_ownership', 'withdraw_proposal', 'workspace_deletion_cancel', 'workspace_deletion_request'
   ];
   -- ...and the subset a SIGNED-OUT caller may call: the two used before login, and the
   -- helpers that RLS policies (which apply to every role) evaluate.

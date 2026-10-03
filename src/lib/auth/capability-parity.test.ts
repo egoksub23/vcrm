@@ -745,7 +745,7 @@ const ROUTES = routeFiles(API_DIR)
   .filter((r) => !r.key.startsWith("v1/") && r.key !== "v1");
 
 /** Owner-only routes: the one legitimate use of requireRole. */
-const OWNER_ONLY_ROUTES = new Set(["account/transfer-ownership"]);
+const OWNER_ONLY_ROUTES = new Set(["account/transfer-ownership", "account/export", "account/deletion"]);
 
 describe("route handlers use capabilities, not role floors", () => {
   it("finds the route files", () => {

@@ -125,4 +125,5 @@ export const CRON_INTERVALS = {
   'mailbox-renew': 86_400,
   'gmail-watch-renew': 86_400,
   'usage-snapshot': 86_400,
+  'workspace-deletion': 3600,
 } as const

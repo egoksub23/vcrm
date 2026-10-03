@@ -5711,6 +5711,33 @@
     "dismiss": "Tutup",
     "contactLimitReached": "Ruang kerja anda telah mencapai had kenalan. Minta sokongan menaikkannya."
   },
+  "DataControl": {
+    "title": "Data anda",
+    "description": "Muat turun semua yang disimpan oleh ruang kerja ini, atau minta ia dipadam. Hanya pemilik boleh berbuat demikian.",
+    "ownerOnly": "Hanya pemilik ruang kerja boleh mengeksport atau memadamnya.",
+    "exportTitle": "Eksport data anda",
+    "exportBody": "Fail zip dengan hamparan (CSV) bagi setiap jadual, fail yang disimpan dan satu manifes. Token saluran, kunci API dan rahsia lain tidak pernah disertakan.",
+    "exportAll": "Muat turun semuanya",
+    "exportDataOnly": "Data sahaja (tanpa fail)",
+    "deleteTitle": "Padam ruang kerja ini",
+    "deleteBody": "Tiga puluh hari selepas anda memintanya, semuanya dipadam secara kekal: kenalan, perbualan, mesej, fail, tetapan dan log masuk setiap ahli pasukan. Anda boleh membatalkannya pada bila-bila masa sebelum itu. Eksport data anda dahulu.",
+    "deleteButton": "Padam ruang kerja…",
+    "pendingBody": "Ruang kerja ini akan dipadam secara kekal pada {date}. Sehingga itu ia berfungsi seperti biasa.",
+    "cancelDeletion": "Batalkan pemadaman",
+    "confirmTitle": "Padam {name}?",
+    "confirmBody": "Taip nama ruang kerja untuk mengesahkan. Ia terus berfungsi selama 30 hari dan anda boleh membatalkan sebelum itu.",
+    "confirmLabel": "Nama ruang kerja",
+    "noteLabel": "Sebab (pilihan)",
+    "confirmButton": "Minta pemadaman",
+    "cancel": "Batal",
+    "requested": "Pemadaman dijadualkan pada {date}",
+    "cancelled": "Pemadaman dibatalkan",
+    "failed": "Tidak dapat mengemas kini permintaan pemadaman",
+    "bannerTitle": "Ruang kerja ini dijadualkan untuk dipadam",
+    "bannerBody": "Ia akan dipadam secara kekal pada {date}. Pemilik boleh membatalkannya dalam Tetapan.",
+    "bannerBodyOwner": "Ia akan dipadam secara kekal pada {date}. Anda boleh membatalkannya dalam Tetapan > Ruang kerja sebelum itu.",
+    "openSettings": "Buka tetapan"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

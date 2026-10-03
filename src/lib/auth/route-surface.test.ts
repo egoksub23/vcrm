@@ -47,6 +47,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'account/channels/messenger/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
   'account/channels/tiktok/oauth/callback': 'OAuth redirect; one-time state row bound to the signed-in person who started it',
   'account/transfer-ownership': 'session user via the transfer_account_ownership RPC, which checks the caller itself',
+  'account/export': 'owner only (requireRole owner), a full export of the workspace',
+  'account/deletion': 'owner only (requireRole owner), through the workspace_deletion_* RPCs, which check the caller themselves',
   'email/webhook': 'Microsoft Graph notification; per-mailbox client state compared before anything is read',
   'gmail/webhook': 'Pub/Sub push; per-mailbox token compared in constant time',
   'invitations/[token]/peek': 'invite preview by secret token; rate limited per caller address',
@@ -62,6 +64,7 @@ const SYSTEM_ROUTES: Record<string, { why: string; mustContain: string }> = {
   'incidents/escalation-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'messages/sweep-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'usage/snapshot-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
+  'platform/deletion-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'sla/tickets-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'tiktok/webhook': { why: 'provider webhook, matched to a workspace by the connected account id', mustContain: 'verifyTikTokSignature' },
 }

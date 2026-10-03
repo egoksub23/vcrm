@@ -21,6 +21,8 @@ export interface AccountPlatform {
   /** e.g. `{ incidents: false }`. An absent key means enabled. */
   features: Record<string, boolean>;
   suspendedReason: string | null;
+  /** When the workspace will be deleted, if the owner or the operator asked (migration 153). */
+  deletionDueAt: string | null;
 }
 
 export const DEFAULT_PLATFORM: AccountPlatform = {
@@ -29,6 +31,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
   limits: {},
   features: {},
   suspendedReason: null,
+  deletionDueAt: null,
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
@@ -80,6 +83,8 @@ export function parsePlatformRow(row: unknown): AccountPlatform {
       typeof row.suspended_reason === "string" && row.suspended_reason
         ? row.suspended_reason
         : null,
+    deletionDueAt:
+      typeof row.deletion_due_at === "string" && row.deletion_due_at ? row.deletion_due_at : null,
   };
 }
 

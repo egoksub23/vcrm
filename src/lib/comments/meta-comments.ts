@@ -25,6 +25,11 @@ async function graph<T>(
   return (await res.json().catch(() => ({}))) as T
 }
 
+/** Stops this app receiving a Page's events (workspace deletion). */
+export async function unsubscribePage(a: { pageId: string; token: string }) {
+  await graph<{ success?: boolean }>(`${a.pageId}/subscribed_apps`, { token: a.token, method: 'DELETE' })
+}
+
 /** Public reply under a Facebook comment. */
 export async function replyFacebookComment(a: { commentId: string; token: string; message: string }) {
   const r = await graph<{ id: string }>(`${a.commentId}/comments`, {

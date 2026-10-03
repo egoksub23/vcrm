@@ -292,3 +292,23 @@ describe('events for Halo', () => {
     expect(conv.rows[0]!.last_seq).toBe(0)
   })
 })
+
+describe('deleting a workspace', () => {
+  it('removes the workspace with its users, and refuses a key that does not exist; another workspace is untouched', async () => {
+    const other = await store.createWorkspace({ ...WORKSPACE, key: 'vcw_deletedeletedeletede1', name: 'To delete', apiToken: 'another-api-token-for-the-delete-test' })
+    await store.upsertUser(other.workspace, identity('wallet-to-delete'))
+    await store.upsertUser(workspace, identity('wallet-stays'))
+
+    const removed = await store.deleteWorkspace(other.workspace.workspace_key)
+    expect(removed.users).toBe(1)
+    expect((await store.listWorkspaces()).map((w) => w.workspace_key)).not.toContain(other.workspace.workspace_key)
+    const { rows } = await db.query<{ n: string }>('SELECT count(*) AS n FROM users WHERE workspace_id = $1', [other.workspace.id])
+    expect(Number(rows[0]!.n)).toBe(0)
+    // the first workspace and its user are still there
+    expect((await store.listWorkspaces()).map((w) => w.workspace_key)).toContain(workspace.workspace_key)
+    const kept = await db.query<{ n: string }>('SELECT count(*) AS n FROM users WHERE workspace_id = $1', [workspace.id])
+    expect(Number(kept.rows[0]!.n)).toBeGreaterThanOrEqual(1)
+
+    await expect(store.deleteWorkspace('vcw_doesnotexistdoesnot1')).rejects.toThrow(/No workspace has the key/)
+  })
+})

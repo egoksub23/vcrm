@@ -240,6 +240,24 @@ export async function subscribeWabaToApp(
   }
 }
 
+/**
+ * Removes this app's subscription from a WABA (workspace deletion). Does NOT
+ * deregister the phone number: that would take the customer's number off the
+ * Cloud API, and it is theirs.
+ */
+export async function unsubscribeWabaFromApp(
+  args: SubscribeWabaToAppArgs
+): Promise<void> {
+  const { wabaId, accessToken } = args
+  const response = await fetch(`${META_API_BASE}/${wabaId}/subscribed_apps`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+}
+
 export interface ListWabaPhoneNumbersArgs {
   wabaId: string
   accessToken: string

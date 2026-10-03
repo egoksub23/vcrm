@@ -17,6 +17,7 @@ describe("parsePlatformRow", () => {
         limits: { seats: 10 },
         features: { incidents: false },
         suspended_reason: "unpaid",
+        deletion_due_at: "2026-11-03T00:00:00Z",
       }),
     ).toEqual({
       status: "suspended",
@@ -24,6 +25,7 @@ describe("parsePlatformRow", () => {
       limits: { seats: 10 },
       features: { incidents: false },
       suspendedReason: "unpaid",
+      deletionDueAt: "2026-11-03T00:00:00Z",
     });
   });
 

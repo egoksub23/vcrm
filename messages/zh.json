@@ -5711,6 +5711,33 @@
     "dismiss": "关闭",
     "contactLimitReached": "您的工作区已达到联系人上限，请联系支持团队提高额度。"
   },
+  "DataControl": {
+    "title": "您的数据",
+    "description": "下载此工作区保存的全部内容，或申请删除。只有所有者可以操作。",
+    "ownerOnly": "只有工作区所有者可以导出或删除工作区。",
+    "exportTitle": "导出您的数据",
+    "exportBody": "压缩包内含每个数据表的电子表格（CSV）、已存储的文件和一份清单。渠道令牌、API 密钥等机密信息不会包含在内。",
+    "exportAll": "下载全部",
+    "exportDataOnly": "仅数据（不含文件）",
+    "deleteTitle": "删除此工作区",
+    "deleteBody": "申请 30 天后，所有内容将被永久删除：联系人、对话、消息、文件、设置以及每位团队成员的登录账号。在此之前您可以随时取消。请先导出数据。",
+    "deleteButton": "删除工作区…",
+    "pendingBody": "此工作区将于 {date} 被永久删除。在此之前可正常使用。",
+    "cancelDeletion": "取消删除",
+    "confirmTitle": "删除 {name}？",
+    "confirmBody": "请输入工作区名称以确认。30 天内它仍可正常使用，您可在此之前取消。",
+    "confirmLabel": "工作区名称",
+    "noteLabel": "原因（可选）",
+    "confirmButton": "申请删除",
+    "cancel": "取消",
+    "requested": "已安排在 {date} 删除",
+    "cancelled": "已取消删除",
+    "failed": "无法更新删除申请",
+    "bannerTitle": "此工作区已安排删除",
+    "bannerBody": "将于 {date} 被永久删除。所有者可在设置中取消。",
+    "bannerBodyOwner": "将于 {date} 被永久删除。在此之前您可在 设置 > 工作区 中取消。",
+    "openSettings": "打开设置"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

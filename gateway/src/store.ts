@@ -205,6 +205,22 @@ export class Store {
   }
 
   /** A new sessions key for the Vircle backend; the old one stops working at once. Shown once. */
+  /**
+   * Remove a workspace and everything that belongs to it: users, conversations, messages, files, sessions,
+   * the outbox and the push log (all of them cascade from the workspace row). For when the customer's Halo
+   * workspace has been deleted. Returns what was removed, for the record. Not reversible.
+   */
+  async deleteWorkspace(key: string): Promise<{ users: number; messages: number; files: number }> {
+    const { rows } = await this.db.query<{ id: string }>('SELECT id FROM workspaces WHERE workspace_key = $1', [key])
+    const id = rows[0]?.id
+    if (!id) throw new Error(`No workspace has the key ${key}`)
+    const count = async (table: string) =>
+      Number((await this.db.query<{ n: string }>(`SELECT count(*) AS n FROM ${table} WHERE workspace_id = $1`, [id])).rows[0]!.n)
+    const removed = { users: await count('users'), messages: await count('messages'), files: await count('files') }
+    await this.db.query('DELETE FROM workspaces WHERE id = $1', [id])
+    return removed
+  }
+
   async rotateSessionsKey(key: string): Promise<string> {
     const sessionsKey = randomToken('vgs_')
     const r = await this.db.query('UPDATE workspaces SET sessions_key_hash = $1 WHERE workspace_key = $2', [sha256Hex(sessionsKey), key])

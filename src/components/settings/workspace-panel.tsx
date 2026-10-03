@@ -15,6 +15,7 @@ import { useCapability } from "@/hooks/use-can";
 import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-urls";
 import { uploadAccountMedia } from "@/lib/storage/upload-media";
+import { DataControlCard } from "@/components/settings/data-control-card";
 import { UsageCard } from "@/components/usage/usage-card";
 import { SettingsPanelHead } from "./settings-panel-head";
 import { LanguageSelect } from "./language-select";
@@ -215,6 +216,8 @@ export function WorkspacePanel() {
       </Card>
 
       <UsageCard />
+
+      <DataControlCard />
     </section>
   );
 }

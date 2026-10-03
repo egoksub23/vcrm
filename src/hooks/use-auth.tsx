@@ -445,7 +445,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.account_id) {
           const { data: pr, error: pe } = await supabase
             .from("account_platform")
-            .select("status, plan, limits, features, suspended_reason")
+            .select("status, plan, limits, features, suspended_reason, deletion_due_at")
             .eq("account_id", data.account_id)
             .maybeSingle();
           if (!pe) platformRow = parsePlatformRow(pr);
