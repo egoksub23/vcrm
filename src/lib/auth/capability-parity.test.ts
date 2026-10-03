@@ -196,6 +196,9 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("whatsapp/react", "POST", "agent", "messages.send"),
   // Resend of a failed message: the same gate as sending it in the first place.
   row("messages/[id]/resend", "POST", "agent", "messages.send"),
+  // Vircle Chat (0.73.0): what an agent's reading and typing tells the user's app. Both are part of replying.
+  row("vircle-chat/read", "POST", "agent", "messages.send", "new: the 'read' ticks back to the app"),
+  row("vircle-chat/typing", "POST", "agent", "messages.send", "new: the 'typing...' signal to the app"),
 
   // ---- contacts / broadcasts ----
   row("contacts/merge", "POST", "agent", "contacts.merge"),

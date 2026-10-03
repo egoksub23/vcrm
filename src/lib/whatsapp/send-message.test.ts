@@ -267,6 +267,11 @@ vi.mock('@/lib/vircle-chat/config', () => ({
   openConfig: () => ({ signingSecret: 's', apiToken: 'tok' }),
 }));
 vi.mock('@/lib/vircle-chat/feature', () => ({ vircleChatEnabled: async () => vircleFlag.on }));
+// The "read" ticks back to the app: covered by its own tests; here only when the send path asks for them.
+const notifyReadsMock = vi.fn<(...args: unknown[]) => Promise<number>>(async () => 0);
+vi.mock('@/lib/vircle-chat/read-receipts', () => ({
+  notifyVircleReads: (...args: unknown[]) => notifyReadsMock(...args),
+}));
 
 interface CapturedWrites {
   message?: Record<string, unknown>;
@@ -1633,6 +1638,7 @@ describe('sendMessageToConversation — Vircle Chat channel', () => {
 
   const reset = () => {
     sendToGatewayMock.mockClear();
+    notifyReadsMock.mockClear();
     vircleConfig.current = { id: 'vc-1', gateway_base_url: 'https://gw.example.com', enabled: true };
     vircleFlag.on = true;
   };
@@ -1698,6 +1704,40 @@ describe('sendMessageToConversation — Vircle Chat channel', () => {
       error_code: 551,
     });
     expect(String(captured.message?.error_details)).toContain('user_not_found');
+  });
+
+  it("passes the quoted message's gateway id to the gateway as replyToServerId (contract 1.2)", async () => {
+    reset();
+    // The fake answers the parent lookup with the gateway id of the message being quoted.
+    const db = sendPathDb([], {}, contact, 'vircle_chat', { emailLastInboundMessageId: 'm_41' });
+    await send(db, { replyToMessageId: 'parent-uuid' });
+    const msg = sendToGatewayMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(msg.replyToServerId).toBe('m_41');
+  });
+
+  it('sends no reply target for a message that is not a reply', async () => {
+    reset();
+    await send(sendPathDb([], {}, contact, 'vircle_chat'));
+    const msg = sendToGatewayMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(msg.replyToServerId ?? null).toBeNull();
+  });
+
+  it('after an agent reply goes out, retries any "read" tick the app has not been told about', async () => {
+    reset();
+    await send(sendPathDb([], {}, contact, 'vircle_chat'));
+    expect(notifyReadsMock).toHaveBeenCalledTimes(1);
+    expect(notifyReadsMock).toHaveBeenCalledWith(expect.anything(), 'acct-1', 'cv-1');
+  });
+
+  it('does not report reads for a bot reply, or when the send failed', async () => {
+    reset();
+    await send(sendPathDb([], {}, contact, 'vircle_chat'), { senderType: 'bot' });
+    expect(notifyReadsMock).not.toHaveBeenCalled();
+
+    const { GatewayError } = await import('@/lib/vircle-chat/gateway');
+    sendToGatewayMock.mockRejectedValueOnce(new GatewayError('unreachable', 'down', 0, true));
+    await expect(send(sendPathDb([], {}, contact, 'vircle_chat'))).rejects.toBeInstanceOf(SendMessageError);
+    expect(notifyReadsMock).not.toHaveBeenCalled();
   });
 
   it('does not text a web-chat style template or interactive message', async () => {

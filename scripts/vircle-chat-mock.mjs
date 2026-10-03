@@ -6,24 +6,32 @@
 // Node 18+ only; no dependencies.
 //
 //   node scripts/vircle-chat-mock.mjs serve [--port 4010] [--token T]
-//       Runs the gateway side Halo calls: POST /v1/messages and GET /v1/health.
+//       Runs the gateway side Halo calls: POST /v1/messages, POST /v1/receipts
+//       (read ticks, 202 {updated}), POST /v1/typing (202 {delivered_to}) and
+//       GET /v1/health.
 //       Checks the bearer token, answers 202 with a server_id, honours the
 //       Idempotency-Key (the same key returns the same answer, never a new
-//       message), and prints what it received. In Halo set the gateway address
-//       to http://localhost:4010 and the API token to the one printed here.
+//       message), and prints what it received (including reply_to_server_id and
+//       media.duration_seconds when Halo sends them). In Halo set the gateway
+//       address to http://localhost:4010 and the API token to the one printed here.
 //         --delivery socket|push|queued|no_device   what to answer (default socket)
 //         --fail user_not_found|rate_limited|...     answer every send with that error
 //
 //   node scripts/vircle-chat-mock.mjs inbound --halo URL --key WORKSPACE_KEY --secret SECRET \
 //        --wallet W123 [--name Aisha] [--phone +60...] [--email a@b.c] [--text "Hi"] \
-//        [--image-url https://... --mime image/png]
-//       Sends Halo a correctly signed message.inbound event.
+//        [--image-url https://... --mime image/png] \
+//        [--audio-url https://... --mime audio/ogg --duration 12] [--reply-to m_78]
+//       Sends Halo a correctly signed message.inbound event. --reply-to quotes a
+//       message (the server_id of one Halo sent or the user sent earlier).
 //
 //   node scripts/vircle-chat-mock.mjs receipt --halo URL --key K --secret S --server-id m_1 \
 //        [--status delivered|read|failed]
 //       Sends Halo a signed message.receipt event.
 //
-//   Add --replay to either command to send the identical request twice (Halo must
+//   node scripts/vircle-chat-mock.mjs typing --halo URL --key K --secret S --wallet W123
+//       Sends Halo a signed user.typing event (the agent sees "typing..." for ~6 s).
+//
+//   Add --replay to any of these commands to send the identical request twice (Halo must
 //   accept the first and treat the second as a no-op), or --stale to sign with a
 //   timestamp ten minutes old (Halo must refuse it with 401).
 // ============================================================
@@ -86,6 +94,30 @@ if (command === 'serve') {
       return send(401, { error: { code: 'unauthorized', message: 'Bad or missing bearer token' } })
     }
     if (req.method === 'GET' && req.url === '/v1/health') return send(200, { ok: true })
+    if (req.method === 'POST' && (req.url === '/v1/receipts' || req.url === '/v1/typing')) {
+      let raw = ''
+      req.on('data', (c) => (raw += c))
+      req.on('end', () => {
+        let body
+        try {
+          body = JSON.parse(raw)
+        } catch {
+          return send(400, { error: { code: 'bad_request', message: 'Body is not JSON' } })
+        }
+        if (!body?.recipient?.wallet_id) return send(400, { error: { code: 'user_not_found', message: 'recipient.wallet_id is required' } })
+        if (req.url === '/v1/typing') {
+          console.log(`TYPING  ${body.recipient.wallet_id}`)
+          return send(202, { delivered_to: 1 })
+        }
+        const ids = Array.isArray(body.server_ids) ? body.server_ids : []
+        if (body.status !== 'read' || ids.length === 0 || ids.length > 200) {
+          return send(400, { error: { code: 'bad_request', message: 'status must be "read" and server_ids 1 to 200 ids' } })
+        }
+        console.log(`RECEIPT ${body.recipient.wallet_id} read ${JSON.stringify(ids)}`)
+        send(202, { updated: ids.length })
+      })
+      return
+    }
     if (req.method === 'POST' && req.url === '/v1/messages') {
       let raw = ''
       req.on('data', (c) => (raw += c))
@@ -125,10 +157,16 @@ if (command === 'serve') {
     message.type = 'image'
     message.media = { url: String(flags['image-url']), mime_type: String(flags.mime || 'image/png'), file_name: 'mock.png' }
     if (flags.text) message.text = String(flags.text)
+  } else if (flags['audio-url']) {
+    message.type = 'audio'
+    message.media = { url: String(flags['audio-url']), mime_type: String(flags.mime || 'audio/ogg'), file_name: 'mock.ogg' }
+    if (flags.duration) message.media.duration_seconds = Number(flags.duration)
+    if (flags.text) message.text = String(flags.text)
   } else {
     message.type = 'text'
     message.text = String(flags.text || 'Hello from the mock gateway')
   }
+  if (flags['reply-to']) message.reply_to_server_id = String(flags['reply-to'])
   await postSigned('/api/vircle-chat/webhook', {
     event: 'message.inbound',
     event_id: `evt_${randomUUID()}`,
@@ -136,6 +174,15 @@ if (command === 'serve') {
     user,
     conversation_id: `c_${user.wallet_id}`,
     message,
+  })
+} else if (command === 'typing') {
+  await postSigned('/api/vircle-chat/webhook', {
+    event: 'user.typing',
+    event_id: `evt_${randomUUID()}`,
+    workspace_key: String(flags.key || ''),
+    user: { wallet_id: String(flags.wallet || 'W123') },
+    conversation_id: `c_${String(flags.wallet || 'W123')}`,
+    at: new Date().toISOString(),
   })
 } else if (command === 'receipt') {
   await postSigned('/api/vircle-chat/webhook', {
@@ -147,6 +194,6 @@ if (command === 'serve') {
     at: new Date().toISOString(),
   })
 } else {
-  console.log('Usage: node scripts/vircle-chat-mock.mjs serve | inbound | receipt   (see the header of this file)')
+  console.log('Usage: node scripts/vircle-chat-mock.mjs serve | inbound | receipt | typing   (see the header of this file)')
   process.exit(command ? 1 : 0)
 }

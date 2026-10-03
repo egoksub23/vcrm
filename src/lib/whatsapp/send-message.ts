@@ -57,6 +57,7 @@ import { randomUUID } from 'node:crypto';
 import { findConfigForAccount, openConfig } from '@/lib/vircle-chat/config';
 import { vircleChatEnabled } from '@/lib/vircle-chat/feature';
 import { GatewayError, sendToGateway } from '@/lib/vircle-chat/gateway';
+import { notifyVircleReads } from '@/lib/vircle-chat/read-receipts';
 import { VircleSendError } from '@/lib/vircle-chat/errors';
 import { guessMimeType } from '@/lib/vircle-chat/media';
 import { getValidAccessToken } from '@/lib/ms365/token';
@@ -1121,6 +1122,8 @@ export async function sendMessageToConversation(
               }
             : null,
           senderName,
+          // The quoted message's gateway id (contract 1.2); null when the parent has none.
+          replyToServerId: contextMessageId ?? null,
         }
       );
       waMessageId = accepted.serverId;
@@ -1188,6 +1191,12 @@ export async function sendMessageToConversation(
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);
+
+  // Vircle Chat: an agent reply means the agent has read what the user wrote, so any "read" tick
+  // an earlier notification failed to deliver goes now. Best-effort and never throws (contract 4.1).
+  if (isVircleConversation && senderType === 'agent') {
+    await notifyVircleReads(supabaseAdmin(), accountId, conversationId);
+  }
 
   // Best-effort "you have a new reply" email for a widget visitor who
   // has probably left the page (see src/lib/widget/notify-reply.ts).

@@ -129,3 +129,60 @@ describe('gateway answers', () => {
     expect(parseGatewayError({ error: 'x' })).toMatchObject({ code: 'unknown' })
   })
 })
+
+describe('parseWebhookEvent: contract 1.2 additions on message.inbound', () => {
+  const file = (media: Record<string, unknown>) =>
+    inbound({ message: { server_id: 'm', type: 'audio', media: { url: 'https://f.example/v.ogg', mime_type: 'audio/ogg', ...media } } })
+
+  it("reads a voice note's duration_seconds as a whole number of seconds", () => {
+    expect(parseWebhookEvent(file({ duration_seconds: 12 }))).toMatchObject({ ok: true, event: { message: { media: { durationSeconds: 12 } } } })
+    expect(parseWebhookEvent(file({ duration_seconds: 0 }))).toMatchObject({ ok: true, event: { message: { media: { durationSeconds: 0 } } } })
+  })
+
+  it('ignores a duration that is missing or invalid, without refusing the message', () => {
+    for (const bad of [undefined, null, -1, 1.5, '12', NaN, Infinity, {}]) {
+      const r = parseWebhookEvent(file({ duration_seconds: bad }))
+      expect(r).toMatchObject({ ok: true, event: { message: { media: { durationSeconds: null, mimeType: 'audio/ogg' } } } })
+    }
+  })
+
+  it('reads reply_to_server_id, and treats a missing or unreadable one as "not a reply"', () => {
+    const msg = (extra: Record<string, unknown>) => inbound({ message: { server_id: 'm_2', type: 'text', text: 'yes', ...extra } })
+    expect(parseWebhookEvent(msg({ reply_to_server_id: 'm_77' }))).toMatchObject({ ok: true, event: { message: { replyToServerId: 'm_77' } } })
+    expect(parseWebhookEvent(msg({}))).toMatchObject({ ok: true, event: { message: { replyToServerId: null } } })
+    expect(parseWebhookEvent(msg({ reply_to_server_id: null }))).toMatchObject({ ok: true, event: { message: { replyToServerId: null } } })
+    expect(parseWebhookEvent(msg({ reply_to_server_id: 42 }))).toMatchObject({ ok: true, event: { message: { replyToServerId: null } } })
+    expect(parseWebhookEvent(msg({ reply_to_server_id: 'x'.repeat(201) }))).toMatchObject({ ok: true, event: { message: { replyToServerId: null } } })
+  })
+})
+
+describe('parseWebhookEvent: user.typing', () => {
+  const typing = (over: Record<string, unknown> = {}) => ({
+    event: 'user.typing',
+    event_id: 'evt_t1',
+    workspace_key: 'vcw_1',
+    user: { wallet_id: 'W123' },
+    conversation_id: 'c_9f2a',
+    at: '2026-10-02T09:14:58Z',
+    ...over,
+  })
+
+  it('reads the example in the contract', () => {
+    expect(parseWebhookEvent(typing())).toEqual({
+      ok: true,
+      event: { kind: 'user.typing', eventId: 'evt_t1', workspaceKey: 'vcw_1', walletId: 'W123', conversationId: 'c_9f2a' },
+    })
+  })
+
+  it('needs only the workspace key, event id and wallet id; the conversation id is optional', () => {
+    expect(parseWebhookEvent(typing({ conversation_id: undefined, at: undefined }))).toMatchObject({ ok: true, event: { conversationId: null } })
+    expect(parseWebhookEvent(typing({ user: {} }))).toEqual({ ok: false, error: 'user.wallet_id is required' })
+    expect(parseWebhookEvent(typing({ user: undefined }))).toMatchObject({ ok: false })
+    expect(parseWebhookEvent(typing({ event_id: '' }))).toMatchObject({ ok: false })
+    expect(parseWebhookEvent(typing({ workspace_key: undefined }))).toMatchObject({ ok: false })
+  })
+
+  it('ignores an unreadable conversation id instead of refusing the signal', () => {
+    expect(parseWebhookEvent(typing({ conversation_id: 42 }))).toMatchObject({ ok: true, event: { conversationId: null } })
+  })
+})

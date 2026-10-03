@@ -143,6 +143,31 @@ Halo only moves a message forward: a late `delivered` after `read` is ignored. A
 from the gateway is retried (honouring `Retry-After`); anything else is final. The same
 `Idempotency-Key` (the Halo message id) is used on every retry, so a message is never duplicated.
 
+### Files, replies, read ticks and typing (contract 1.2, Halo 0.73.0)
+
+These need a gateway that speaks contract 1.2; against an older gateway they are simply ignored, and
+nothing from 1.1 changes. **Migration required: `150_vircle_chat_read_receipts.sql`.**
+
+- **Files and voice notes** work in both directions (photo, video, voice note, document; 16 MB).
+  A voice note's length (`media.duration_seconds`) is read from the gateway's event and passed along
+  on a send; Halo does not store it.
+- **Replies.** A customer's reply to a message (`message.reply_to_server_id`) is linked to Halo's
+  message in the same conversation and shown as a quote; an id Halo does not know is ignored. An
+  agent's **Reply** on a Vircle Chat message is sent with `reply_to_server_id`, so the app shows the
+  quote.
+- **Read ticks back to the app.** When an agent opens a Vircle Chat conversation (or marks it read in
+  bulk, or replies), Halo sends `POST /v1/receipts` with the gateway ids of the customer messages that
+  are now read. Each message is reported once (`messages.read_receipt_sent_at`); a call the gateway
+  refused is tried again the next time. Halo never throws away a message because of it.
+- **Typing, both ways.** The gateway's signed `user.typing` event is answered `200 {"ok":true}` and
+  shown to agents as "typing..." for about six seconds; it is never stored and never deduplicated.
+  It is delivered to the Inbox over a Supabase Realtime broadcast on `vircle-typing:<conversation id>`,
+  sent from the server over REST, so the Supabase project needs Realtime enabled (nothing else to
+  configure). While an agent types a normal reply, Halo calls `POST /v1/typing` at most once every three
+  seconds.
+- The mock gateway (`scripts/vircle-chat-mock.mjs`) accepts `POST /v1/receipts` and `POST /v1/typing` and
+  `reply_to_server_id` too, and `inbound` can send a reply (`--reply-to`) and a typing signal (`typing`).
+
 ## 6. Push alerts (the gateway's job)
 
 The gateway alone decides whether a reply goes over a live socket, as a push, or waits in the

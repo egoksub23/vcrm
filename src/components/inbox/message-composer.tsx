@@ -75,6 +75,7 @@ import {
   type StagedKbFile,
 } from "@/lib/inbox/kb-agent";
 import { onKbDraft, onKbInsert } from "@/lib/inbox/kb-bus";
+import { notifyVircleTyping, throttled } from "@/lib/vircle-chat/client";
 import { dragHasFiles, droppedImages, pastedImages } from "@/lib/media/clipboard-images";
 import { ImagePrepareError, prepareImageForUpload } from "@/lib/media/prepare-image";
 import { KnowledgePanel } from "./knowledge-panel";
@@ -767,12 +768,29 @@ export function MessageComposer({
     [emoji, handleSend, mentionQuery, mentionMatches, insertMention, kbSlashOpen, kbSlash.results, insertKnowledge]
   );
 
+  // Vircle Chat: while the agent types a normal reply, the user's app shows "typing..."
+  // (docs/vircle-chat-contract.md, section 4.2). At most one signal every 3 seconds; the
+  // server throttles the same way.
+  const vircleTypingSignal = useMemo(
+    () => throttled(() => notifyVircleTyping(conversationId)),
+    [conversationId],
+  );
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       emoji.handleChange(e);
       adjustHeight();
+      // Not for an internal comment, a snippet search or a /kb search, and not for an empty box.
+      if (
+        selectedChannel === "vircle_chat" &&
+        mode === "message" &&
+        !readOnly &&
+        e.target.value.trim() &&
+        !parseKbCommand(e.target.value)
+      ) {
+        vircleTypingSignal();
+      }
     },
-    [emoji, adjustHeight]
+    [emoji, adjustHeight, selectedChannel, mode, readOnly, vircleTypingSignal]
   );
 
   // Ask the AI assistant for a suggested reply and drop it into the

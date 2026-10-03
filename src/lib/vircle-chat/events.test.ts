@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({
   /** what findMessageByServerId finds (the messages select) */
   existing: null as null | { id: string; status: string; conversation_id: string },
+  /** what the reply-target lookup finds (a Halo message in the same conversation) */
+  replyParent: null as null | { id: string },
+  replyLookupError: false,
+  replyLookups: [] as Record<string, unknown>[],
   insertResult: { data: { id: 'msg-new' } as { id: string } | null, error: null as { code?: string; message: string } | null },
   inserted: [] as Record<string, unknown>[],
   updates: [] as { table: string; row: Record<string, unknown>; filters: Record<string, unknown> }[],
@@ -60,7 +64,14 @@ const admin = {
         filters[col] = v
         return b
       },
-      limit: async () => ({ data: h.existing ? [h.existing] : [], error: null }),
+      limit: async () => {
+        // The reply-target lookup filters by conversation; the duplicate check does not.
+        if ('conversation_id' in filters) {
+          h.replyLookups.push({ ...filters })
+          return h.replyLookupError ? { data: null, error: { message: 'boom' } } : { data: h.replyParent ? [h.replyParent] : [], error: null }
+        }
+        return { data: h.existing ? [h.existing] : [], error: null }
+      },
       single: async () => (mode === 'insert' ? h.insertResult : { data: null, error: null }),
       then: (resolve: (r: unknown) => unknown) => {
         if (mode === 'update') {
@@ -87,6 +98,9 @@ const inbound = (over: Partial<InboundEvent['message']> = {}, user: Partial<Inbo
 
 beforeEach(() => {
   h.existing = null
+  h.replyParent = null
+  h.replyLookupError = false
+  h.replyLookups = []
   h.insertResult = { data: { id: 'msg-new' }, error: null }
   h.inserted = []
   h.updates = []
@@ -208,6 +222,48 @@ describe('ingestInbound', () => {
     const bare = inbound({ type: 'image', text: null, media: { url: 'https://files.example/a', mimeType: 'image/png', fileName: null, sizeBytes: null } })
     await ingestInbound(admin as never, cfg, bare)
     expect(h.inserted[1]).toMatchObject({ content_type: 'text', content_text: DROPPED_FILE_NOTE })
+  })
+
+  it('links a reply to the Halo message it quotes, looked up by gateway id in the SAME conversation', async () => {
+    h.replyParent = { id: 'halo-parent' }
+    await ingestInbound(admin as never, cfg, inbound({ replyToServerId: 'm_70' }))
+    expect(h.replyLookups).toEqual([{ message_id: 'm_70', channel_type: 'vircle_chat', conversation_id: 'cv-1' }])
+    expect(h.inserted[0]).toMatchObject({ message_id: 'm_77', reply_to_message_id: 'halo-parent' })
+  })
+
+  it('stores a reply to an id it does not know without a link', async () => {
+    h.replyParent = null
+    const r = await ingestInbound(admin as never, cfg, inbound({ replyToServerId: 'm_unknown' }))
+    expect(r.status).toBe('stored')
+    expect(h.replyLookups).toHaveLength(1)
+    expect(h.inserted[0]).not.toHaveProperty('reply_to_message_id')
+  })
+
+  it('still stores the message, unlinked, when the reply lookup fails', async () => {
+    h.replyLookupError = true
+    const r = await ingestInbound(admin as never, cfg, inbound({ replyToServerId: 'm_70' }))
+    expect(r.status).toBe('stored')
+    expect(h.inserted[0]).not.toHaveProperty('reply_to_message_id')
+  })
+
+  it('does no reply lookup for a message that is not a reply', async () => {
+    h.replyParent = { id: 'halo-parent' }
+    await ingestInbound(admin as never, cfg, inbound())
+    await ingestInbound(admin as never, cfg, inbound({ replyToServerId: null }))
+    expect(h.replyLookups).toHaveLength(0)
+    expect(h.inserted[0]).not.toHaveProperty('reply_to_message_id')
+  })
+
+  it('accepts a voice note that carries a duration (not stored, must not break)', async () => {
+    h.mirror.mockResolvedValue('https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-1/inbound/vc-m_77-v.ogg')
+    const ev = inbound({
+      type: 'audio',
+      text: null,
+      media: { url: 'https://files.example/v', mimeType: 'audio/ogg', fileName: null, sizeBytes: 5, durationSeconds: 12 },
+    })
+    const r = await ingestInbound(admin as never, cfg, ev)
+    expect(r.status).toBe('stored')
+    expect(h.inserted[0]).toMatchObject({ content_type: 'audio', media_type: 'audio/ogg' })
   })
 
   it('defers everything that follows the message to fanOut(), on the vircle_chat channel', async () => {

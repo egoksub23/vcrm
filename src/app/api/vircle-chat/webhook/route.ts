@@ -3,7 +3,8 @@
 //
 // Where the Vircle chat gateway tells Halo what its users did
 // (docs/vircle-chat-contract.md, section 3): a message arrived, or a message
-// Halo sent was delivered / read / refused by the app.
+// Halo sent was delivered / read / refused by the app, or the user is typing
+// (ephemeral: broadcast to the open Inbox thread, nothing stored).
 //
 // Order of checks, each cheaper than the next and none believing the body:
 //   1. an address that keeps failing is turned away before any database work;
@@ -26,6 +27,7 @@ import { parseWebhookEvent } from '@/lib/vircle-chat/contract'
 import { applyReceipt, ingestInbound } from '@/lib/vircle-chat/events'
 import { vircleChatEnabled } from '@/lib/vircle-chat/feature'
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifySignature } from '@/lib/vircle-chat/signing'
+import { broadcastUserTyping } from '@/lib/vircle-chat/typing'
 
 export const maxDuration = 60
 
@@ -97,6 +99,17 @@ export async function POST(request: Request) {
 
   if (!row.enabled || !(await vircleChatEnabled(admin, row.account_id))) {
     return json(200, { ok: true, ignored: 'paused' })
+  }
+
+  // "The user is typing" (contract 3.4) is ephemeral: no event-id memory, nothing stored, never
+  // retried. A failed broadcast is logged and still answered 200, because a late "typing..." is useless.
+  if (event.kind === 'user.typing') {
+    try {
+      await broadcastUserTyping(admin, row.account_id, event)
+    } catch (err) {
+      console.error('[vircle-chat] typing broadcast failed:', err instanceof Error ? err.message : err)
+    }
+    return json(200, { ok: true })
   }
 
   // An event handled before (a retry, or a replay inside the window) does nothing twice.

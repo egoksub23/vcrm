@@ -24,6 +24,8 @@ export interface VircleMedia {
   mimeType: string
   fileName: string | null
   sizeBytes: number | null
+  /** The length of a voice note, in whole seconds (contract 1.2). Absent or invalid: null. */
+  durationSeconds?: number | null
 }
 
 export interface InboundEvent {
@@ -40,6 +42,8 @@ export interface InboundEvent {
     text: string | null
     sentAt: string | null
     media: VircleMedia | null
+    /** The gateway id of the message this one replies to (contract 1.2), when the user quoted one. */
+    replyToServerId?: string | null
   }
 }
 
@@ -53,8 +57,17 @@ export interface ReceiptEvent {
   error: { code: string; message: string } | null
 }
 
+/** The user is typing (contract 3.4, 1.2): ephemeral, never stored. */
+export interface TypingEvent {
+  kind: 'user.typing'
+  eventId: string
+  workspaceKey: string
+  walletId: string
+  conversationId: string | null
+}
+
 export type ParsedEvent =
-  | { ok: true; event: InboundEvent | ReceiptEvent }
+  | { ok: true; event: InboundEvent | ReceiptEvent | TypingEvent }
   | { ok: true; ignored: string }
   | { ok: false; error: string }
 
@@ -94,7 +107,9 @@ function parseMedia(v: unknown): VircleMedia | null | 'invalid' {
   const name = optStr(m.file_name, 255)
   if (!name.ok) return 'invalid'
   const size = typeof m.size_bytes === 'number' && Number.isFinite(m.size_bytes) && m.size_bytes >= 0 ? m.size_bytes : null
-  return { url, mimeType: mimeType.toLowerCase(), fileName: name.value, sizeBytes: size }
+  // A voice note's length: a whole number of seconds, 0 or more. Anything else is ignored, never an error.
+  const duration = typeof m.duration_seconds === 'number' && Number.isInteger(m.duration_seconds) && m.duration_seconds >= 0 ? m.duration_seconds : null
+  return { url, mimeType: mimeType.toLowerCase(), fileName: name.value, sizeBytes: size, durationSeconds: duration }
 }
 
 export function parseWebhookEvent(raw: unknown): ParsedEvent {
@@ -119,6 +134,24 @@ export function parseWebhookEvent(raw: unknown): ParsedEvent {
       error = { code: str(e.code, 100) ?? 'unknown', message: str(e.message, 500) ?? '' }
     }
     return { ok: true, event: { kind: 'message.receipt', eventId, workspaceKey, serverId, status: b.status, at: isoOrNull(b.at), error } }
+  }
+
+  if (event === 'user.typing') {
+    const tu = b.user && typeof b.user === 'object' ? (b.user as Record<string, unknown>) : null
+    const typingWallet = tu ? str(tu.wallet_id, 200) : null
+    if (!typingWallet) return fail('user.wallet_id is required')
+    // The conversation id is only a hint: a bad one is ignored, not a reason to refuse a typing signal.
+    const typingConversation = optStr(b.conversation_id, 200)
+    return {
+      ok: true,
+      event: {
+        kind: 'user.typing',
+        eventId,
+        workspaceKey,
+        walletId: typingWallet,
+        conversationId: typingConversation.ok ? typingConversation.value : null,
+      },
+    }
   }
 
   if (event !== 'message.inbound') return { ok: true, ignored: event.slice(0, 100) }
@@ -148,6 +181,8 @@ export function parseWebhookEvent(raw: unknown): ParsedEvent {
   if (!conversationId.ok) return fail('conversation_id is invalid')
   const clientId = optStr(m.client_id, 200)
   if (!clientId.ok) return fail('message.client_id is invalid')
+  // A reply's target is a hint: an unreadable id means "not a reply", never a refused message.
+  const replyTo = optStr(m.reply_to_server_id, 200)
 
   return {
     ok: true,
@@ -165,6 +200,7 @@ export function parseWebhookEvent(raw: unknown): ParsedEvent {
         text,
         sentAt: isoOrNull(m.sent_at),
         media: type === 'text' ? null : media,
+        replyToServerId: replyTo.ok ? replyTo.value : null,
       },
     },
   }

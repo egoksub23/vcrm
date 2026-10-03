@@ -290,6 +290,7 @@
     },
     "messageThread": {
       "backToConversations": "返回对话列表",
+      "vircleTyping": "正在输入...",
       "hideContactPanel": "隐藏联系人面板",
       "showContactPanel": "显示联系人面板",
       "hideContact": "隐藏联系人",

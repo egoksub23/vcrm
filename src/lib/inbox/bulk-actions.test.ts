@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
+
+const notifyVircleRead = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/vircle-chat/client', () => ({ notifyVircleRead }))
+
 import { bulkAssign, bulkClose, bulkMarkRead, bulkMarkUnread } from './bulk-actions'
 
 interface UpdateCall {
@@ -74,6 +78,25 @@ describe('bulkMarkRead / bulkMarkUnread', () => {
     await bulkMarkRead(db, [conv('a', 'open', 0)])
     await bulkMarkUnread(db, [conv('a', 'open', 2)])
     expect(updates).toHaveLength(0)
+  })
+})
+
+describe('bulkMarkRead and Vircle Chat read ticks', () => {
+  beforeEach(() => notifyVircleRead.mockClear())
+  const vc = (id: string, unread: number, channel = 'vircle_chat') =>
+    ({ id, status: 'open', unread_count: unread, last_channel_type: channel }) as never
+
+  it('tells the app about the Vircle Chat conversations it marked read, and only those', async () => {
+    const { db } = fakeDb()
+    await bulkMarkRead(db, [vc('a', 2), vc('b', 1, 'whatsapp'), vc('c', 0), vc('d', 4)])
+    expect(notifyVircleRead.mock.calls.map((c) => c[0])).toEqual(['a', 'd'])
+  })
+
+  it('does not tell the app when the update failed or nothing changed', async () => {
+    await bulkMarkRead(fakeDb({ updateError: true }).db, [vc('a', 2)])
+    await bulkMarkRead(fakeDb().db, [vc('a', 0)])
+    await bulkMarkUnread(fakeDb().db, [vc('a', 0)])
+    expect(notifyVircleRead).not.toHaveBeenCalled()
   })
 })
 

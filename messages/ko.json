@@ -290,6 +290,7 @@
     },
     "messageThread": {
       "backToConversations": "대화 목록으로 돌아가기",
+      "vircleTyping": "입력 중...",
       "hideContactPanel": "연락처 패널 숨기기",
       "showContactPanel": "연락처 패널 표시",
       "hideContact": "연락처 숨기기",

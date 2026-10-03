@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Conversation } from '@/types'
 import { closeConversationsWithNote } from '@/lib/conversations/session-log-api'
+import { notifyVircleRead } from '@/lib/vircle-chat/client'
 
 /**
  * Bulk inbox actions (multi-select → assign / close / mark read / mark
@@ -18,7 +19,7 @@ export interface BulkResult {
   failed: number
 }
 
-type ConvRef = Pick<Conversation, 'id' | 'status' | 'unread_count'>
+type ConvRef = Pick<Conversation, 'id' | 'status' | 'unread_count'> & Partial<Pick<Conversation, 'last_channel_type'>>
 
 export async function bulkAssign(
   db: SupabaseClient,
@@ -37,7 +38,13 @@ export async function bulkMarkRead(db: SupabaseClient, convs: ConvRef[]): Promis
   const ids = convs.filter((c) => c.unread_count > 0).map((c) => c.id)
   if (ids.length === 0) return { succeeded: [], failed: 0 }
   const { error } = await db.from('conversations').update({ unread_count: 0 }).in('id', ids)
-  return error ? { succeeded: [], failed: ids.length } : { succeeded: ids, failed: 0 }
+  if (error) return { succeeded: [], failed: ids.length }
+  // Vircle Chat: the database has now marked their messages read, so tell the app (the "read"
+  // ticks). Fire-and-forget; a failure is retried the next time the conversation is opened.
+  for (const c of convs) {
+    if (c.unread_count > 0 && c.last_channel_type === 'vircle_chat') notifyVircleRead(c.id)
+  }
+  return { succeeded: ids, failed: 0 }
 }
 
 /** Marks read conversations unread (count 1). Already-unread ones are

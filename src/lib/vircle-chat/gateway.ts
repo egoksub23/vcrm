@@ -35,8 +35,11 @@ export interface GatewaySend {
   conversationId: string | null
   type: VircleMessageType
   text: string | null
-  media: { url: string; mimeType: string; fileName: string | null; sizeBytes: number | null } | null
+  /** `durationSeconds` is a voice note's length (contract 1.2); sent only when known. */
+  media: { url: string; mimeType: string; fileName: string | null; sizeBytes: number | null; durationSeconds?: number | null } | null
   senderName: string | null
+  /** The gateway id of the message being quoted (contract 1.2): sent only when set. */
+  replyToServerId?: string | null
 }
 
 /** A refusal or failure from the gateway, in the contract's terms. */
@@ -108,6 +111,7 @@ export async function sendToGateway(conn: GatewayConnection, msg: GatewaySend): 
     ...(msg.conversationId ? { conversation_id: msg.conversationId } : {}),
     ...(msg.text ? { text: msg.text } : {}),
     ...(msg.senderName ? { sender: { name: msg.senderName } } : {}),
+    ...(msg.replyToServerId ? { reply_to_server_id: msg.replyToServerId } : {}),
     ...(msg.media
       ? {
           media: {
@@ -115,6 +119,7 @@ export async function sendToGateway(conn: GatewayConnection, msg: GatewaySend): 
             mime_type: msg.media.mimeType,
             ...(msg.media.fileName ? { file_name: msg.media.fileName } : {}),
             ...(msg.media.sizeBytes !== null ? { size_bytes: msg.media.sizeBytes } : {}),
+            ...(typeof msg.media.durationSeconds === 'number' ? { duration_seconds: msg.media.durationSeconds } : {}),
           },
         }
       : {}),
@@ -132,15 +137,57 @@ export async function sendToGateway(conn: GatewayConnection, msg: GatewaySend): 
     throw new GatewayError('bad_response', 'The chat gateway accepted the message but did not say how', res.status, true)
   }
 
+  throw refusal(res, parsed)
+}
+
+/** The GatewayError for a non-2xx answer, in the contract's terms (429 and 5xx are retryable). */
+function refusal(res: Response, parsed: unknown): GatewayError {
   const err = parseGatewayError(parsed)
   const retryAfter = Number(res.headers.get('retry-after'))
-  throw new GatewayError(
+  return new GatewayError(
     err.code,
     err.message,
     res.status,
     res.status === 429 || res.status >= 500,
     Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
   )
+}
+
+/**
+ * Tell the gateway an agent has read these messages of the user's (contract 4.1, `POST /v1/receipts`).
+ * Resolves with how many the gateway updated; throws a GatewayError when it refuses or cannot be reached.
+ * The call is a repeat-safe one: a status only moves forward, so a resend changes nothing.
+ */
+export async function sendReadReceipts(conn: GatewayConnection, walletId: string, serverIds: string[]): Promise<number> {
+  const res = await call(conn, '/v1/receipts', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ recipient: { wallet_id: walletId }, status: 'read', server_ids: serverIds }),
+  })
+  const parsed = await res.json().catch(() => null)
+  if (res.status === 202 || res.status === 200) {
+    const updated = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>).updated : null
+    return typeof updated === 'number' && Number.isFinite(updated) ? updated : serverIds.length
+  }
+  throw refusal(res, parsed)
+}
+
+/**
+ * Tell the gateway an agent is typing to this user (contract 4.2, `POST /v1/typing`).
+ * Resolves with the number of live connections it reached (0 when the app is closed).
+ */
+export async function sendTyping(conn: GatewayConnection, walletId: string): Promise<number> {
+  const res = await call(conn, '/v1/typing', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ recipient: { wallet_id: walletId } }),
+  })
+  const parsed = await res.json().catch(() => null)
+  if (res.status === 202 || res.status === 200) {
+    const delivered = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>).delivered_to : null
+    return typeof delivered === 'number' && Number.isFinite(delivered) ? delivered : 0
+  }
+  throw refusal(res, parsed)
 }
 
 /** Halo's "Test connection": GET /v1/health with the token. */

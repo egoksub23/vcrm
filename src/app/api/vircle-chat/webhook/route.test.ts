@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   ingest: vi.fn(),
   receipt: vi.fn(),
   fanOut: vi.fn(),
+  typing: vi.fn(),
   afterCallbacks: [] as (() => unknown)[],
 }))
 
@@ -61,6 +62,8 @@ vi.mock('@/lib/vircle-chat/events', () => ({
   applyReceipt: (...a: unknown[]) => h.receipt(...a),
 }))
 
+vi.mock('@/lib/vircle-chat/typing', () => ({ broadcastUserTyping: (...a: unknown[]) => h.typing(...a) }))
+
 import { signBody } from '@/lib/vircle-chat/signing'
 import { POST } from './route'
 
@@ -101,6 +104,8 @@ beforeEach(() => {
   h.receipt.mockReset()
   h.fanOut.mockReset()
   h.fanOut.mockResolvedValue(undefined)
+  h.typing.mockReset()
+  h.typing.mockResolvedValue({ status: 'broadcast', conversationId: 'cv' })
   h.ingest.mockResolvedValue({ status: 'stored', messageId: 'msg-1', contactId: 'c', conversationId: 'cv', fanOut: h.fanOut })
   h.receipt.mockResolvedValue({ status: 'updated' })
 })
@@ -197,5 +202,77 @@ describe('POST /api/vircle-chat/webhook: what it does', () => {
     expect(res.status).toBe(500)
     expect(h.eventsUpserts).toHaveLength(0)
     expect(h.configUpdates).toContainEqual({ last_error: 'database down' })
+  })
+})
+
+describe('POST /api/vircle-chat/webhook: user.typing (contract 3.4)', () => {
+  const typingBody = {
+    event: 'user.typing',
+    event_id: 'evt_t1',
+    workspace_key: 'vcw_abcdefghijklmnop1234',
+    user: { wallet_id: 'W123' },
+    conversation_id: 'c_1',
+    at: '2026-10-02T09:14:58Z',
+  }
+
+  it('broadcasts the signal, answers 200 {ok:true} and remembers nothing', async () => {
+    const res = await POST(request(typingBody))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+    expect(h.typing).toHaveBeenCalledTimes(1)
+    expect(h.typing.mock.calls[0][1]).toBe('acct-1')
+    expect(h.typing.mock.calls[0][2]).toMatchObject({ kind: 'user.typing', walletId: 'W123', conversationId: 'c_1' })
+    // no event-id memory, no inbound bookkeeping, no message work
+    expect(h.eventsUpserts).toHaveLength(0)
+    expect(h.configUpdates).toHaveLength(0)
+    expect(h.ingest).not.toHaveBeenCalled()
+    expect(h.receipt).not.toHaveBeenCalled()
+  })
+
+  it('does not look the event id up: a repeat is broadcast again, not answered as a duplicate', async () => {
+    h.seen = true
+    const res = await POST(request(typingBody))
+    expect(await res.json()).toEqual({ ok: true })
+    expect(h.typing).toHaveBeenCalledTimes(1)
+  })
+
+  it('needs a valid signature like every other event', async () => {
+    const res = await POST(request(typingBody, { secret: 'someone-elses' }))
+    expect(res.status).toBe(401)
+    expect(h.typing).not.toHaveBeenCalled()
+  })
+
+  it('is refused by the shared rate limit, and ignored for a paused workspace', async () => {
+    h.limited = true
+    expect((await POST(request(typingBody))).status).toBe(429)
+    h.limited = false
+    h.row = { ...h.row!, enabled: false }
+    expect(await (await POST(request(typingBody))).json()).toEqual({ ok: true, ignored: 'paused' })
+    h.row = { ...h.row!, enabled: true }
+    h.enabled = false
+    expect(await (await POST(request(typingBody))).json()).toEqual({ ok: true, ignored: 'paused' })
+    expect(h.typing).not.toHaveBeenCalled()
+  })
+
+  it('answers 200 {ok:true} when there is no such user or conversation yet', async () => {
+    h.typing.mockResolvedValueOnce({ status: 'unknown_user' })
+    const res = await POST(request(typingBody))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+  })
+
+  it('still answers 200 when the broadcast fails (a typing signal is never retried)', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    h.typing.mockRejectedValueOnce(new Error('realtime down'))
+    const res = await POST(request(typingBody))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+    spy.mockRestore()
+  })
+
+  it('needs the wallet id', async () => {
+    const res = await POST(request({ ...typingBody, user: {} }))
+    expect(res.status).toBe(400)
+    expect(h.typing).not.toHaveBeenCalled()
   })
 })

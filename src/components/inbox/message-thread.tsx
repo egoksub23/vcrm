@@ -42,6 +42,8 @@ import {
 import { CHANNEL_ICONS } from "./channel-icons";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
+import { notifyVircleRead } from "@/lib/vircle-chat/client";
+import { VircleTypingIndicator } from "./vircle-typing-indicator";
 import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
@@ -360,6 +362,7 @@ export function MessageThread({
 
   const conversationId = conversation?.id;
   const hasUnread = (conversation?.unread_count ?? 0) > 0;
+  const isVircleChat = conversation?.last_channel_type === "vircle_chat";
 
   const mediaMessageId =
     openMedia && openMedia.conversationId === conversationId
@@ -550,9 +553,15 @@ export function MessageThread({
       .update({ unread_count: 0 })
       .eq("id", conversationId)
       .then(({ error }) => {
-        if (error) console.error("Failed to reset unread_count:", error);
+        if (error) {
+          console.error("Failed to reset unread_count:", error);
+          return;
+        }
+        // Vircle Chat: the database has now marked the user's messages read, so tell the app
+        // (the "read" ticks). Fire-and-forget; a failure is retried the next time.
+        if (isVircleChat) notifyVircleRead(conversationId);
       });
-  }, [conversationId, hasUnread]);
+  }, [conversationId, hasUnread, isVircleChat]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -2100,6 +2109,17 @@ export function MessageThread({
                 </div>
               </div>
             ))}
+            {/* Vircle Chat: "typing..." while the user is writing. Keyed by conversation so
+                switching threads starts clean (and drops the old subscription). */}
+            {isVircleChat && (
+              <VircleTypingIndicator
+                key={conversation.id}
+                conversationId={conversation.id}
+                lastCustomerMessageId={
+                  [...messages].reverse().find((m) => m.sender_type === "customer")?.id ?? null
+                }
+              />
+            )}
           </div>
         )}
       </div>

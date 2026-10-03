@@ -131,6 +131,10 @@ export async function ingestInbound(
     }
   }
 
+  // A reply (contract 1.2): link it to the message it quotes, when that message is in this conversation.
+  // An id Halo does not know is ignored: the message is stored without a link.
+  const replyToMessageId = m.replyToServerId ? await findReplyTarget(admin, conversation.id, m.replyToServerId) : null
+
   const isFirst = await isFirstCustomerMessage(admin, conversation.id)
   const { data, error } = await admin
     .from('messages')
@@ -144,6 +148,7 @@ export async function ingestInbound(
       channel_type: 'vircle_chat',
       status: 'sent',
       message_id: m.serverId,
+      ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
     })
     .select('id')
     .single()
@@ -176,6 +181,20 @@ export async function ingestInbound(
   }
 
   return { status: 'stored', messageId: data.id as string, contactId: identity.contactId, conversationId: conversation.id, fanOut }
+}
+
+/** Halo's message for a gateway id, in THIS conversation only (a quote never reaches into another chat). */
+async function findReplyTarget(admin: SupabaseClient, conversationId: string, serverId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from('messages')
+    .select('id')
+    .eq('message_id', serverId)
+    .eq('channel_type', 'vircle_chat')
+    .eq('conversation_id', conversationId)
+    .limit(1)
+  // A lookup that fails only costs the quote, never the message.
+  if (error) return null
+  return ((data ?? [])[0] as { id: string } | undefined)?.id ?? null
 }
 
 async function findMessageByServerId(admin: SupabaseClient, accountId: string, serverId: string) {

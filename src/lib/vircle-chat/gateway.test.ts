@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({ pinned: vi.fn() }))
 vi.mock('@/lib/net/safe-fetch', () => ({ pinnedFetch: h.pinned }))
 
-import { checkGatewayHealth, GatewayError, normalizeGatewayUrl, sendToGateway } from './gateway'
+import { checkGatewayHealth, GatewayError, normalizeGatewayUrl, sendReadReceipts, sendToGateway, sendTyping } from './gateway'
 
 const conn = { baseUrl: 'https://gw.example.com', apiToken: 'tok' }
 const msg = {
@@ -116,5 +116,80 @@ describe('checkGatewayHealth', () => {
 
     h.pinned.mockRejectedValueOnce(new Error('boom'))
     expect(await checkGatewayHealth(conn)).toMatchObject({ ok: false })
+  })
+})
+
+describe('contract 1.2: replies and voice-note length on a send', () => {
+  it('sends reply_to_server_id only when set', async () => {
+    h.pinned.mockImplementation(async () => json(202, { server_id: 'm_1', delivery: 'socket' }))
+    await sendToGateway(conn, { ...msg, replyToServerId: 'm_77' })
+    expect(JSON.parse(h.pinned.mock.calls[0][1].body)).toMatchObject({ reply_to_server_id: 'm_77' })
+    await sendToGateway(conn, { ...msg, replyToServerId: null })
+    expect(JSON.parse(h.pinned.mock.calls[1][1].body)).not.toHaveProperty('reply_to_server_id')
+    await sendToGateway(conn, msg)
+    expect(JSON.parse(h.pinned.mock.calls[2][1].body)).not.toHaveProperty('reply_to_server_id')
+  })
+
+  it('sends media.duration_seconds only when known (0 counts as known)', async () => {
+    h.pinned.mockImplementation(async () => json(202, { server_id: 'm_1', delivery: 'socket' }))
+    const media = { url: 'https://signed.example/v.ogg', mimeType: 'audio/ogg', fileName: null, sizeBytes: null }
+    await sendToGateway(conn, { ...msg, type: 'audio', text: null, media: { ...media, durationSeconds: 14 } })
+    expect(JSON.parse(h.pinned.mock.calls[0][1].body).media).toEqual({ url: media.url, mime_type: 'audio/ogg', duration_seconds: 14 })
+    await sendToGateway(conn, { ...msg, type: 'audio', text: null, media: { ...media, durationSeconds: 0 } })
+    expect(JSON.parse(h.pinned.mock.calls[1][1].body).media).toHaveProperty('duration_seconds', 0)
+    await sendToGateway(conn, { ...msg, type: 'audio', text: null, media: { ...media, durationSeconds: null } })
+    expect(JSON.parse(h.pinned.mock.calls[2][1].body).media).not.toHaveProperty('duration_seconds')
+    await sendToGateway(conn, { ...msg, type: 'audio', text: null, media })
+    expect(JSON.parse(h.pinned.mock.calls[3][1].body).media).not.toHaveProperty('duration_seconds')
+  })
+})
+
+describe('sendReadReceipts (contract 4.1)', () => {
+  it('posts the read receipt body with the bearer token and reads the count', async () => {
+    h.pinned.mockResolvedValue(json(202, { updated: 2 }))
+    expect(await sendReadReceipts(conn, 'W1', ['m_41', 'm_42'])).toBe(2)
+    const [url, init] = h.pinned.mock.calls[0]
+    expect(url).toBe('https://gw.example.com/v1/receipts')
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({ authorization: 'Bearer tok', 'content-type': 'application/json' })
+    expect(JSON.parse(init.body)).toEqual({ recipient: { wallet_id: 'W1' }, status: 'read', server_ids: ['m_41', 'm_42'] })
+  })
+
+  it('counts every id as updated when the 202 does not say', async () => {
+    h.pinned.mockResolvedValue(json(202, {}))
+    expect(await sendReadReceipts(conn, 'W1', ['a', 'b', 'c'])).toBe(3)
+  })
+
+  it("throws a GatewayError in the contract's terms: final for 4xx, retryable for 429, 5xx and a network failure", async () => {
+    h.pinned.mockResolvedValueOnce(json(404, { error: { code: 'user_not_found', message: 'No such user' } }))
+    expect(await sendReadReceipts(conn, 'W1', ['a']).catch((e) => e)).toMatchObject({ code: 'user_not_found', status: 404, retryable: false })
+    h.pinned.mockResolvedValueOnce(json(429, { error: { code: 'rate_limited', message: 'slow' } }, { 'retry-after': '4' }))
+    expect(await sendReadReceipts(conn, 'W1', ['a']).catch((e) => e)).toMatchObject({ retryable: true, retryAfterSeconds: 4 })
+    h.pinned.mockResolvedValueOnce(json(502, 'bad gateway'))
+    expect(await sendReadReceipts(conn, 'W1', ['a']).catch((e) => e)).toMatchObject({ retryable: true, status: 502 })
+    h.pinned.mockRejectedValueOnce(new Error('connect ECONNREFUSED'))
+    const err = await sendReadReceipts(conn, 'W1', ['a']).catch((e) => e)
+    expect(err).toBeInstanceOf(GatewayError)
+    expect(err).toMatchObject({ code: 'unreachable', retryable: true })
+  })
+})
+
+describe('sendTyping (contract 4.2)', () => {
+  it('posts the recipient and returns how many connections it reached', async () => {
+    h.pinned.mockResolvedValue(json(202, { delivered_to: 1 }))
+    expect(await sendTyping(conn, 'W1')).toBe(1)
+    const [url, init] = h.pinned.mock.calls[0]
+    expect(url).toBe('https://gw.example.com/v1/typing')
+    expect(init.headers).toMatchObject({ authorization: 'Bearer tok' })
+    expect(JSON.parse(init.body)).toEqual({ recipient: { wallet_id: 'W1' } })
+  })
+
+  it('reads 0 when the app is closed or the answer is empty, and throws on a refusal', async () => {
+    h.pinned.mockResolvedValueOnce(json(202, { delivered_to: 0 }))
+    expect(await sendTyping(conn, 'W1')).toBe(0)
+    h.pinned.mockResolvedValueOnce(json(202, {}))
+    expect(await sendTyping(conn, 'W1')).toBe(0)
+    h.pinned.mockResolvedValueOnce(json(401, { error: { code: 'unauthorized', message: 'bad token' } }))
+    expect(await sendTyping(conn, 'W1').catch((e) => e)).toMatchObject({ code: 'unauthorized', status: 401, retryable: false })
   })
 })

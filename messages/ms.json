@@ -290,6 +290,7 @@
     },
     "messageThread": {
       "backToConversations": "Kembali ke perbualan",
+      "vircleTyping": "sedang menaip...",
       "hideContactPanel": "Sembunyikan panel kenalan",
       "showContactPanel": "Tunjukkan panel kenalan",
       "hideContact": "Sembunyikan kenalan",

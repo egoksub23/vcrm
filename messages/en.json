@@ -290,6 +290,7 @@
     },
     "messageThread": {
       "backToConversations": "Back to conversations",
+      "vircleTyping": "typing...",
       "hideContactPanel": "Hide contact panel",
       "showContactPanel": "Show contact panel",
       "hideContact": "Hide contact",
