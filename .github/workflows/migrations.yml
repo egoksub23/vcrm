@@ -72,6 +72,11 @@ jobs:
       - name: Apply production's table grants
         run: supabase db query --local --file supabase/ci/platform-grants.sql
 
+      # Sign-up is by invitation only (migration 134) once the platform switch is off; production still has it open, and the older
+      # checks create their users directly. This database is thrown away, so open it.
+      - name: Open sign-up, as production has it
+        run: supabase db query --local "UPDATE public.platform_settings SET value = 'true'::jsonb WHERE key = 'open_signup'"
+
       # A migration can apply "successfully" and still do nothing —
       # every DDL statement here is IF NOT EXISTS-guarded, which turns a
       # typo'd object name into a silent no-op. Assert the outcome, not
