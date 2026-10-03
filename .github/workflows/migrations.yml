@@ -65,6 +65,15 @@ jobs:
       - name: Replay every migration from scratch
         run: supabase db reset --local --no-seed
 
+      # The hosted Supabase platform hands every new table to the API roles (anon, authenticated, service_role) through default
+      # privileges; production has exactly that (checked 3 Oct 2026). The migrations rely on it and never GRANT by themselves, so a
+      # database that does not hand them out makes 28 behaviour checks fail with "permission denied for table". Reproduce the
+      # platform's behaviour here so the checks test what production does. Tables and sequences only: functions are deliberately
+      # NOT granted, the catalogue guard reviews who may call each one.
+      - name: Give the API roles the platform's default table grants
+        run: |
+          supabase db query --local "GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;"
+
       # A migration can apply "successfully" and still do nothing —
       # every DDL statement here is IF NOT EXISTS-guarded, which turns a
       # typo'd object name into a silent no-op. Assert the outcome, not
