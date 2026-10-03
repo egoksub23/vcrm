@@ -124,4 +124,5 @@ export const CRON_INTERVALS = {
   'message-sweep': 300,
   'mailbox-renew': 86_400,
   'gmail-watch-renew': 86_400,
+  'usage-snapshot': 86_400,
 } as const

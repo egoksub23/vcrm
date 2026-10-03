@@ -5687,6 +5687,30 @@
     "loadMore": "加载更多",
     "selectPrompt": "选择一条评论以查看帖子、对话并进行回复。"
   },
+  "Usage": {
+    "title": "套餐用量",
+    "description": "此工作区已使用的套餐额度。额度由您的套餐决定，如需提高请联系支持团队。",
+    "meter": {
+      "contacts": "联系人",
+      "messages_per_month": "本月已发送消息",
+      "ai_tokens_per_month": "本月 AI 令牌",
+      "storage_mb": "已存储文件（MB）",
+      "seats": "团队席位"
+    },
+    "noLimit": "{used}（无上限）",
+    "usedOf": "{used} / {limit}",
+    "stateWarn": "即将用尽",
+    "stateOver": "已达上限",
+    "storageNote": "已存储文件每天统计一次（上次统计于 {when}），达到上限时不会被拦截。",
+    "item": "{name} {used} / {limit}",
+    "bannerWarnTitle": "您即将达到套餐上限",
+    "bannerWarnBody": "即将用尽：{items}。请在达到上限前联系支持团队提高额度。",
+    "bannerOverTitle": "已达到套餐上限",
+    "bannerOverBody": "已达上限：{items}。在额度提高之前（月度额度则至下月开始），继续新增可能被拒绝。",
+    "viewUsage": "查看用量",
+    "dismiss": "关闭",
+    "contactLimitReached": "您的工作区已达到联系人上限，请联系支持团队提高额度。"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

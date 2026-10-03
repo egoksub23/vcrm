@@ -20,6 +20,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { assertCanSendMessage, UsageLimitError } from '@/lib/platform/usage';
 
 import {
   sendTextMessage,
@@ -351,6 +352,14 @@ export async function sendMessageToConversation(
     templateName,
     interactivePayload,
   });
+
+  // The workspace's monthly outbound message limit (migration 152). Fails open when it cannot be read.
+  try {
+    await assertCanSendMessage(db, accountId);
+  } catch (err) {
+    if (err instanceof UsageLimitError) throw new SendMessageError(err.code, err.message, err.status);
+    throw err;
+  }
 
   const isMediaKind = (MEDIA_KINDS as readonly string[]).includes(messageType);
 

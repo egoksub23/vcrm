@@ -120,7 +120,18 @@ describe('ensureWithinBudget', () => {
   it('does nothing without a budget (and never queries usage)', async () => {
     const f = dbWithUsage(999999)
     await ensureWithinBudget(f.db, ACCT, { monthlyTokenBudget: null })
-    expect(f.rpc).not.toHaveBeenCalled()
+    expect(f.rpc).not.toHaveBeenCalledWith('ai_tokens_this_month', expect.anything())
+  })
+
+  it("stops at the operator's plan allowance even when the tenant set no budget (migration 152)", async () => {
+    const f = makeFakeDb({ ai_configs: [{ account_id: 'acct-plan', budget_alert_month: null }] })
+    const usage = { contacts: 0, members: 1, conversations: 0, messages_month: 0, ai_tokens_month: 500, storage_bytes: 0, storage_measured_at: null }
+    const rpc = vi.fn(async (name: string) => (name === 'account_usage' ? { data: { ...usage, limits: { ai_tokens_per_month: 500 } }, error: null } : { data: 0, error: null }))
+    const db = { from: f.db.from.bind(f.db), rpc } as unknown as SupabaseClient
+    await expect(ensureWithinBudget(db, 'acct-plan', { monthlyTokenBudget: null })).rejects.toMatchObject({ code: 'budget_exceeded', status: 429 })
+    // room left: allowed
+    const roomy = { from: f.db.from.bind(f.db), rpc: vi.fn(async () => ({ data: { ...usage, ai_tokens_month: 100, limits: { ai_tokens_per_month: 500 } }, error: null })) } as unknown as SupabaseClient
+    await expect(ensureWithinBudget(roomy, 'acct-plan-2', { monthlyTokenBudget: null })).resolves.toBeUndefined()
   })
 
   it('lets a call through under the budget', async () => {

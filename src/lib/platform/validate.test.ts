@@ -99,4 +99,17 @@ describe("parseUpdateTenant", () => {
     expect(parseUpdateTenant({ limits: { broadcast_per_day: 0 } }).ok).toBe(false);
     expect(parseUpdateTenant({ limits: { broadcast_per_day: 2_000_000 } }).ok).toBe(false);
   });
+
+  it("accepts the usage limits (migration 152) and refuses zero, fractions and values past their ceiling", () => {
+    const ok = parseUpdateTenant({ limits: { contacts: 5000, messages_per_month: 100000, ai_tokens_per_month: 2_000_000, storage_mb: 10240, contacts_x: null } });
+    expect(ok.ok).toBe(false); // unknown key
+    expect(parseUpdateTenant({ limits: { contacts: 5000, messages_per_month: 100000, ai_tokens_per_month: 2_000_000, storage_mb: 10240 } })).toEqual({
+      ok: true,
+      value: { limits: { contacts: 5000, messages_per_month: 100000, ai_tokens_per_month: 2_000_000, storage_mb: 10240 } },
+    });
+    expect(parseUpdateTenant({ limits: { contacts: 0 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { storage_mb: 1.5 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { contacts: 100_000_001 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { contacts: null, storage_mb: null } }).ok).toBe(true);
+  });
 });

@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
 import { AccountSuspendedScreen } from "@/components/layout/account-suspended";
+import { UsageBanner } from "@/components/usage/usage-banner";
 import { PageGuard } from "@/components/auth/page-guard";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 import { BrowserNotificationsListener } from "@/components/notifications/browser-notifications-listener";
@@ -128,6 +129,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           {/* Above every page: writes are being rejected and here's why.
               Renders nothing unless the account/role failed to resolve. */}
           <AccountAccessAlert />
+          {/* Near or at a plan limit (workspace admins only); renders nothing otherwise. */}
+          <UsageBanner />
           {/* Blocks the page (deep links too) when the caller lacks its
               menu capability; fails closed while capabilities load. */}
           <PageGuard>{children}</PageGuard>

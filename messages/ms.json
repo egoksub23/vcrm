@@ -5687,6 +5687,30 @@
     "loadMore": "Muat lagi",
     "selectPrompt": "Pilih komen untuk melihat siaran, perbualan dan membalas."
   },
+  "Usage": {
+    "title": "Penggunaan pelan",
+    "description": "Berapa banyak pelan anda yang telah digunakan oleh ruang kerja ini. Had ditetapkan oleh pelan anda; minta sokongan untuk menaikkannya.",
+    "meter": {
+      "contacts": "Kenalan",
+      "messages_per_month": "Mesej dihantar bulan ini",
+      "ai_tokens_per_month": "Token AI bulan ini",
+      "storage_mb": "Fail disimpan (MB)",
+      "seats": "Tempat duduk pasukan"
+    },
+    "noLimit": "{used} (tiada had)",
+    "usedOf": "{used} daripada {limit}",
+    "stateWarn": "Hampir penuh",
+    "stateOver": "Had dicapai",
+    "storageNote": "Fail disimpan dikira sekali sehari (dikira kali terakhir {when}) dan tidak pernah disekat apabila had dicapai.",
+    "item": "{name} {used} daripada {limit}",
+    "bannerWarnTitle": "Anda hampir mencapai had pelan",
+    "bannerWarnBody": "Hampir penuh: {items}. Minta sokongan menaikkan had sebelum ia dicapai.",
+    "bannerOverTitle": "Had pelan telah dicapai",
+    "bannerOverBody": "Dicapai: {items}. Menambah lagi mungkin ditolak sehingga had dinaikkan atau, bagi had bulanan, bulan berakhir.",
+    "viewUsage": "Lihat penggunaan",
+    "dismiss": "Tutup",
+    "contactLimitReached": "Ruang kerja anda telah mencapai had kenalan. Minta sokongan menaikkannya."
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

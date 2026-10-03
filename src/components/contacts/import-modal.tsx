@@ -127,6 +127,7 @@ export function ImportModal({
   onImported,
 }: ImportModalProps) {
   const t = useTranslations('Contacts.importModal');
+  const tUsage = useTranslations('Usage');
   const supabase = createClient();
   const { accountId } = useAuth();
   const canCreateTags = useCapability('tags.manage');
@@ -339,8 +340,10 @@ export function ImportModal({
                 phone: row.phone,
                 name: row.name ?? undefined,
                 reason:
-                  (singleErr as { message?: string } | null)?.message ||
-                  t('unknownReason'),
+                  (singleErr as { message?: string } | null)?.message === 'contact_limit_reached'
+                    ? tUsage('contactLimitReached')
+                    : (singleErr as { message?: string } | null)?.message ||
+                      t('unknownReason'),
               });
             }
           }

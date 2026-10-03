@@ -61,6 +61,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
 const SYSTEM_ROUTES: Record<string, { why: string; mustContain: string }> = {
   'incidents/escalation-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'messages/sweep-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
+  'usage/snapshot-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'sla/tickets-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'tiktok/webhook': { why: 'provider webhook, matched to a workspace by the connected account id', mustContain: 'verifyTikTokSignature' },
 }

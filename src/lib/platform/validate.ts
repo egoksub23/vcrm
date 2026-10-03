@@ -78,9 +78,22 @@ export interface UpdateTenantInput {
   reseed?: true;
 }
 
-/** Upper bound for each operator limit (seats are people, broadcasts are recipients). */
+/** Upper bound for each operator limit (seats are people, broadcasts are recipients, the rest are counts, tokens and megabytes). */
 function maxFor(limit: string): number {
-  return limit === "broadcast_per_day" ? 1_000_000 : MAX_SEATS;
+  switch (limit) {
+    case "broadcast_per_day":
+      return 1_000_000;
+    case "contacts":
+      return 100_000_000;
+    case "messages_per_month":
+      return 1_000_000_000;
+    case "ai_tokens_per_month":
+      return 1_000_000_000_000;
+    case "storage_mb":
+      return 100_000_000;
+    default:
+      return MAX_SEATS;
+  }
 }
 
 export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {

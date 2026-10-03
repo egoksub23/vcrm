@@ -49,6 +49,7 @@ export function ContactForm({
   onViewExisting,
 }: ContactFormProps) {
   const t = useTranslations('Contacts.form');
+  const tUsage = useTranslations('Usage');
   const supabase = createClient();
   const { accountId } = useAuth();
   // Reached only from gated entry points; the submit button repeats the check (contacts.edit).
@@ -235,6 +236,11 @@ export function ContactForm({
         } else {
           toast.error(t('toastConflict'));
         }
+        return;
+      }
+      // The workspace's contact limit (migration 152) comes back from the database as a bare code.
+      if ((err as { message?: string } | null)?.message === 'contact_limit_reached') {
+        toast.error(tUsage('contactLimitReached'));
         return;
       }
       const message = err instanceof Error ? err.message : t('toastError');

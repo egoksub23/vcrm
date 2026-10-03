@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AiError, type AiConfig } from './types'
 import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
+import { aiAllowance, LIMIT_MESSAGES } from '@/lib/platform/usage'
 
 // ============================================================
 // Monthly token budget. Usage is summed from ai_usage_log for the current
@@ -47,14 +48,21 @@ export async function tokensThisMonth(db: SupabaseClient, accountId: string): Pr
 }
 
 /**
- * Throws `budget_exceeded` when the month's budget is used up; sends the
- * 80% alert once per month. No-op without a budget.
+ * Throws `budget_exceeded` when the month's budget (the tenant's own, or the
+ * plan allowance the operator set) is used up; sends the 80% alert once per
+ * month for the tenant's own budget. No-op without either.
  */
 export async function ensureWithinBudget(
   db: SupabaseClient,
   accountId: string,
   config: Pick<AiConfig, 'monthlyTokenBudget'>,
 ): Promise<void> {
+  // The operator's plan allowance (migration 152) applies whatever the tenant set; the lower of the two wins.
+  const allowance = await aiAllowance(db, accountId)
+  if (allowance && allowance.used >= allowance.limit) {
+    throw new AiError(LIMIT_MESSAGES.ai_limit_reached, { code: 'budget_exceeded', status: 429 })
+  }
+
   const budget = config.monthlyTokenBudget
   if (!budget || budget <= 0) return
 

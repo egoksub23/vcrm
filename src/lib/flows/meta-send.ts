@@ -7,6 +7,7 @@ import {
   type InteractiveListSection,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
+import { assertCanSendMessage } from '@/lib/platform/usage'
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -90,6 +91,7 @@ export async function engineSendText(
   args: SendTextEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+  await assertCanSendMessage(db, args.accountId) // the workspace's monthly message limit (migration 152)
 
   const { data: contact, error: contactErr } = await db
     .from('contacts')
@@ -216,6 +218,7 @@ export async function engineSendMedia(
   args: SendMediaEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+  await assertCanSendMessage(db, args.accountId) // the workspace's monthly message limit (migration 152)
 
   const { data: contact, error: contactErr } = await db
     .from('contacts')
@@ -377,6 +380,7 @@ async function sendInteractiveViaMeta(
   input: SendInput,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+  await assertCanSendMessage(db, input.accountId) // the workspace's monthly message limit (migration 152)
 
   // Scope the contact + whatsapp_config lookups by account_id —
   // same defense-in-depth rationale as automations/meta-send.ts.

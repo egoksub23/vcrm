@@ -32,6 +32,7 @@ curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/autom
 | `/api/messages/sweep-cron` | Marks a send stuck in "sending" as failed after 10 min so it can be resent. | every 5 min | A crashed send stays "sending" forever. |
 | `/api/email/subscription-renew` | Renews each Microsoft 365 mailbox's change-notification subscription. | daily | Inbound mail stops after about 3 days. |
 | `/api/gmail/watch-renew` | Renews each Gmail push registration. | daily | Inbound Gmail stops after about 7 days. |
+| `/api/usage/snapshot-cron` | Records each workspace's contacts, members, messages, stored files and AI tokens for the day. | daily | The operator console shows no usage against plan limits. Limits themselves are still enforced live. |
 
 Example crontab (replace `YOUR-APP`):
 
@@ -45,6 +46,7 @@ Example crontab (replace `YOUR-APP`):
 0 * * * *   curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/flows/cron
 15 3 * * *  curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/email/subscription-renew
 20 3 * * *  curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/gmail/watch-renew
+25 3 * * *  curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/usage/snapshot-cron
 ```
 
 `crontab` does not read your shell profile: write the secret into the line or

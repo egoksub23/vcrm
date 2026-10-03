@@ -23,6 +23,18 @@ import { EncryptionCard } from "@/components/platform/encryption-card";
 import { Textarea } from "@/components/ui/textarea";
 import type { CronJobStatus } from "@/lib/cron/status";
 import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
+import type { UsageMeter, UsageState } from "@/lib/platform/usage";
+
+/** The limits the console edits besides seats and the broadcast cap, all measured against usage (migration 152). */
+const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb"] as const;
+type UsageLimitField = (typeof USAGE_LIMIT_FIELDS)[number];
+
+interface UsageRow {
+  accountId: string;
+  measuredDay: string | null;
+  meters: UsageMeter[];
+  state: UsageState;
+}
 
 interface TenantRow {
   id: string;
@@ -56,6 +68,28 @@ async function errorFrom(res: Response, fallback: string): Promise<string> {
   return body?.error ?? fallback;
 }
 
+/** The workspace's worst limit at a glance; the full list is in the tooltip. */
+function UsageCell({ row, t }: { row: UsageRow | null; t: ReturnType<typeof useTranslations> }) {
+  if (!row || row.measuredDay === null) return <span className="text-xs text-muted-foreground">{t("usageNone")}</span>;
+  const limited = row.meters.filter((m) => m.limit !== null);
+  if (limited.length === 0) return <span className="text-xs text-muted-foreground">{t("usageNoLimits")}</span>;
+  const title = limited.map((m) => `${t(`meter_${m.key}`)}: ${m.used.toLocaleString()} / ${m.limit?.toLocaleString()}`).join("\n");
+  const worst = [...limited].sort((a, b) => (b.fraction ?? 0) - (a.fraction ?? 0))[0];
+  const pct = Math.round((worst.fraction ?? 0) * 100);
+  if (row.state === "ok") {
+    return <Badge variant="secondary" title={title}>{t("usageOk")}</Badge>;
+  }
+  return (
+    <Badge
+      variant={row.state === "over" ? "destructive" : "outline"}
+      className={row.state === "warn" ? "border-amber-500/50 text-amber-600" : undefined}
+      title={title}
+    >
+      {t(row.state === "over" ? "usageOver" : "usageWarn", { meter: t(`meter_${worst.key}`), pct })}
+    </Badge>
+  );
+}
+
 /**
  * Operator console: every customer workspace on this deployment, with
  * create / edit (plan, seats, feature flags) / suspend and resume. Only
@@ -69,7 +103,8 @@ export function PlatformConsole() {
   const [create, setCreate] = useState<CreateDraft | null>(null);
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<string | null>(null);
-  const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; features: Record<string, boolean> } | null>(null);
+  const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; usageLimits: Record<UsageLimitField, string>; features: Record<string, boolean> } | null>(null);
+  const [usage, setUsage] = useState<Map<string, UsageRow> | null>(null);
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [openSignup, setOpenSignup] = useState<boolean | null>(null);
@@ -94,6 +129,12 @@ export function PlatformConsole() {
       .then((r) => (r.ok ? r.json() : null))
       .then((b: { open_signup?: boolean } | null) =>
         setOpenSignup(typeof b?.open_signup === "boolean" ? b.open_signup : null),
+      )
+      .catch(() => {});
+    void fetch("/api/platform/usage", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { accounts?: UsageRow[] } | null) =>
+        setUsage(b?.accounts ? new Map(b.accounts.map((a) => [a.accountId, a])) : null),
       )
       .catch(() => {});
     void fetch("/api/platform/cron", { cache: "no-store" })
@@ -190,7 +231,15 @@ export function PlatformConsole() {
     }
     const ok = await patch(
       edit.row.id,
-      { plan: edit.plan.trim() || edit.row.plan, limits: { seats: seats ? Number(seats) : null, broadcast_per_day: broadcastPerDay ? Number(broadcastPerDay) : null }, features },
+      {
+        plan: edit.plan.trim() || edit.row.plan,
+        limits: {
+          seats: seats ? Number(seats) : null,
+          broadcast_per_day: broadcastPerDay ? Number(broadcastPerDay) : null,
+          ...Object.fromEntries(USAGE_LIMIT_FIELDS.map((k) => [k, edit.usageLimits[k].trim() ? Number(edit.usageLimits[k]) : null])),
+        },
+        features,
+      },
       t("saved"),
     );
     if (ok) setEdit(null);
@@ -297,6 +346,7 @@ export function PlatformConsole() {
                     <th className="px-4 py-3 font-medium">{t("colPlan")}</th>
                     <th className="px-4 py-3 font-medium">{t("colSeats")}</th>
                     <th className="px-4 py-3 font-medium">{t("colContacts")}</th>
+                    <th className="px-4 py-3 font-medium">{t("colUsage")}</th>
                     <th className="px-4 py-3 font-medium">{t("colStatus")}</th>
                     <th className="px-4 py-3 font-medium">{t("colCreated")}</th>
                     <th className="px-4 py-3" />
@@ -315,6 +365,9 @@ export function PlatformConsole() {
                         {typeof r.limits?.seats === "number" ? ` / ${r.limits.seats}` : ""}
                       </td>
                       <td className="px-4 py-3 text-foreground">{r.contacts}</td>
+                      <td className="px-4 py-3">
+                        <UsageCell row={usage?.get(r.id) ?? null} t={t} />
+                      </td>
                       <td className="px-4 py-3">
                         {r.status === "suspended" ? (
                           <Badge variant="destructive" title={r.suspended_reason ?? undefined}>{t("statusSuspended")}</Badge>
@@ -339,6 +392,9 @@ export function PlatformConsole() {
                                 plan: r.plan,
                                 seats: typeof r.limits?.seats === "number" ? String(r.limits.seats) : "",
                                 broadcastPerDay: typeof r.limits?.broadcast_per_day === "number" ? String(r.limits.broadcast_per_day) : "",
+                                usageLimits: Object.fromEntries(
+                                  USAGE_LIMIT_FIELDS.map((k) => [k, typeof r.limits?.[k] === "number" ? String(r.limits[k]) : ""]),
+                                ) as Record<UsageLimitField, string>,
                                 features: Object.fromEntries(
                                   PLATFORM_FEATURES.map((f) => [f, isFeatureEnabled(parsePlatformRow({ features: r.features }), f)]),
                                 ),
@@ -471,6 +527,20 @@ export function PlatformConsole() {
                   <Input id="pe-broadcast" type="number" min={1} placeholder={t("unlimited")} value={edit.broadcastPerDay} onChange={(e) => setEdit({ ...edit, broadcastPerDay: e.target.value })} />
                   <p className="text-xs text-muted-foreground">{t("fieldBroadcastPerDayHint")}</p>
                 </div>
+                {USAGE_LIMIT_FIELDS.map((k) => (
+                  <div key={k} className="space-y-1.5">
+                    <Label htmlFor={`pe-${k}`}>{t(`meter_${k}`)}</Label>
+                    <Input
+                      id={`pe-${k}`}
+                      type="number"
+                      min={1}
+                      placeholder={t("unlimited")}
+                      value={edit.usageLimits[k]}
+                      onChange={(e) => setEdit({ ...edit, usageLimits: { ...edit.usageLimits, [k]: e.target.value } })}
+                    />
+                  </div>
+                ))}
+                <p className="col-span-2 text-xs text-muted-foreground">{t("fieldUsageLimitsHint")}</p>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">{t("featuresTitle")}</p>

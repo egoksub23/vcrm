@@ -12,6 +12,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe';
 import { resolveImportTagIds } from '@/lib/contacts/resolve-import-tags';
 import { addContactTagAndDispatch } from '@/lib/contacts/tag-events';
+import { assertCanAddContact, UsageLimitError } from '@/lib/platform/usage';
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
 
 /** Row select that embeds the contact's tags for serialization. */
@@ -123,6 +124,13 @@ export async function findOrCreateContact(
 
   const existing = await findExistingContact(db, accountId, sanitized);
   if (existing) return { id: existing.id, created: false };
+
+  try {
+    await assertCanAddContact(db, accountId);
+  } catch (err) {
+    if (err instanceof UsageLimitError) throw new ContactError(err.message, err.status);
+    throw err;
+  }
 
   const { data: created, error } = await db
     .from('contacts')

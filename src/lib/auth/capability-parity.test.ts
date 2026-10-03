@@ -113,6 +113,7 @@ export const ROUTE_ROWS: readonly Row[] = [
 
   // ---- settings.workspace / people (admin) ----
   row("account", "PATCH", "admin", "settings.workspace"),
+  row("account/usage", "GET", "admin", "settings.workspace"),
   row("account/invitations", "GET", "admin", "members.invite"),
   row("account/invitations", "POST", "admin", "members.invite"),
   row("account/invitations/[id]", "DELETE", "admin", "members.invite"),
