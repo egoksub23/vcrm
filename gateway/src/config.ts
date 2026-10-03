@@ -33,6 +33,19 @@ export interface GatewayConfig {
   sendRateLimit: { limit: number; windowMs: number }
   /** Messages replayed per resume batch. */
   replayBatch: number
+  /** How the outbox of events for Halo is sent. */
+  dispatch: {
+    /** Seconds between looks at the outbox (a new event also wakes it at once). */
+    pollMs: number
+    /** How long one call to Halo may take. */
+    timeoutMs: number
+    /** The longest wait between two tries of the same event. */
+    maxBackoffMs: number
+    /** An event Halo still has not accepted after this long is given up on and kept for inspection. */
+    giveUpHours: number
+  }
+  /** Largest request body Halo may send (a message with its text). */
+  maxHaloBodyBytes: number
   limits: Limits
 }
 
@@ -63,6 +76,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     maxFrameBytes: int(env, 'MAX_FRAME_BYTES', 64 * 1024),
     sendRateLimit: { limit: int(env, 'SEND_RATE_LIMIT', 30), windowMs: int(env, 'SEND_RATE_WINDOW_MS', 10_000) },
     replayBatch: int(env, 'REPLAY_BATCH', 200),
+    dispatch: {
+      pollMs: int(env, 'DISPATCH_POLL_MS', 2000),
+      timeoutMs: int(env, 'DISPATCH_TIMEOUT_MS', 10_000),
+      maxBackoffMs: int(env, 'DISPATCH_MAX_BACKOFF_S', 900) * 1000,
+      giveUpHours: int(env, 'DISPATCH_GIVE_UP_HOURS', 72),
+    },
+    maxHaloBodyBytes: int(env, 'MAX_HALO_BODY_BYTES', 64 * 1024),
     limits: {
       textMax: int(env, 'TEXT_MAX', 4000),
       captionMax: int(env, 'CAPTION_MAX', 1024),

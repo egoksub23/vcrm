@@ -20,6 +20,8 @@ import type { Db, Queryable } from './db'
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document'
 export type MessageStatus = 'sent' | 'delivered' | 'read' | 'failed'
 export type Direction = 'in' | 'out'
+/** What the gateway did with a message from Halo (contract section 4). */
+export type Delivery = 'socket' | 'push' | 'queued' | 'no_device'
 
 export interface Workspace {
   id: string
@@ -59,6 +61,7 @@ export interface Message {
   client_id: string | null
   idempotency_key: string | null
   status: MessageStatus
+  delivery: Delivery | null
   created_at: string
   delivered_at: string | null
   read_at: string | null
@@ -82,7 +85,21 @@ export const WORKSPACE_KEY_PATTERN = /^vcw_[A-Za-z0-9_-]{16,64}$/
 
 const WORKSPACE_COLUMNS = 'id, workspace_key, name, halo_webhook_url, halo_signing_secret_enc, push_settings'
 const MESSAGE_COLUMNS =
-  'id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, status, created_at, delivered_at, read_at'
+  'id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, status, delivery, created_at, delivered_at, read_at'
+
+function parseWebhookUrl(raw: string): string {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new Error('The Halo webhook address is not a valid URL')
+  }
+  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) {
+    throw new Error('The Halo webhook address must start with https:// (http is allowed for localhost only)')
+  }
+  return url.toString()
+}
 
 const isUniqueViolation = (err: unknown) => typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505'
 
@@ -109,16 +126,7 @@ export class Store {
     apiToken: string
   }): Promise<{ workspace: Workspace; sessionsKey: string }> {
     if (!WORKSPACE_KEY_PATTERN.test(input.key)) throw new Error('The workspace key must look like vcw_ followed by 16 to 64 letters, digits, - or _')
-    let url: URL
-    try {
-      url = new URL(input.haloWebhookUrl)
-    } catch {
-      throw new Error('The Halo webhook address is not a valid URL')
-    }
-    const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
-    if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) {
-      throw new Error('The Halo webhook address must start with https:// (http is allowed for localhost only)')
-    }
+    const webhookUrl = parseWebhookUrl(input.haloWebhookUrl)
     if (!input.signingSecret || !input.apiToken) throw new Error('The signing secret and the API token are required')
 
     const sessionsKey = randomToken('vgs_')
@@ -129,7 +137,7 @@ export class Store {
         newId('w_'),
         input.key,
         input.name,
-        url.toString(),
+        webhookUrl,
         encryptSecret(input.signingSecret, this.cfg.encryptionKey),
         sha256Hex(input.apiToken),
         sha256Hex(sessionsKey),
@@ -143,6 +151,53 @@ export class Store {
       'SELECT id, workspace_key, name, halo_webhook_url FROM workspaces ORDER BY created_at',
     )
     return rows
+  }
+
+  /**
+   * Change what Halo gave us when the workspace's secrets or address change in Halo (Settings, Channels,
+   * Vircle Chat: rotate the signing secret, rotate the API token, a new webhook address).
+   */
+  async updateWorkspace(
+    key: string,
+    changes: { haloWebhookUrl?: string; signingSecret?: string; apiToken?: string; name?: string },
+  ): Promise<Workspace> {
+    const sets: string[] = []
+    const params: unknown[] = []
+    const set = (column: string, value: unknown) => {
+      params.push(value)
+      sets.push(`${column} = $${params.length}`)
+    }
+    if (changes.haloWebhookUrl !== undefined) set('halo_webhook_url', parseWebhookUrl(changes.haloWebhookUrl))
+    if (changes.signingSecret !== undefined) {
+      if (!changes.signingSecret) throw new Error('The signing secret cannot be empty')
+      set('halo_signing_secret_enc', encryptSecret(changes.signingSecret, this.cfg.encryptionKey))
+    }
+    if (changes.apiToken !== undefined) {
+      if (!changes.apiToken) throw new Error('The API token cannot be empty')
+      set('halo_api_token_hash', sha256Hex(changes.apiToken))
+    }
+    if (changes.name !== undefined) set('name', changes.name)
+    if (sets.length === 0) throw new Error('Nothing to change')
+    params.push(key)
+    const { rows } = await this.db.query<Workspace>(
+      `UPDATE workspaces SET ${sets.join(', ')} WHERE workspace_key = $${params.length} RETURNING ${WORKSPACE_COLUMNS}`,
+      params,
+    )
+    if (!rows[0]) throw new Error(`No workspace has the key ${key}`)
+    return rows[0]
+  }
+
+  /** A new sessions key for the Vircle backend; the old one stops working at once. Shown once. */
+  async rotateSessionsKey(key: string): Promise<string> {
+    const sessionsKey = randomToken('vgs_')
+    const r = await this.db.query('UPDATE workspaces SET sessions_key_hash = $1 WHERE workspace_key = $2', [sha256Hex(sessionsKey), key])
+    if (r.rowCount === 0) throw new Error(`No workspace has the key ${key}`)
+    return sessionsKey
+  }
+
+  async getWorkspaceById(id: string): Promise<Workspace | null> {
+    const { rows } = await this.db.query<Workspace>(`SELECT ${WORKSPACE_COLUMNS} FROM workspaces WHERE id = $1`, [id])
+    return rows[0] ?? null
   }
 
   async getWorkspaceByKey(key: string): Promise<Workspace | null> {
@@ -359,6 +414,10 @@ export class Store {
     return rows[0] ?? null
   }
 
+  async setDelivery(messageId: string, delivery: Delivery): Promise<void> {
+    await this.db.query('UPDATE messages SET delivery = $2 WHERE id = $1', [messageId, delivery])
+  }
+
   /** Messages with a sequence number above `afterSeq`, oldest first (what a reconnecting app missed). */
   async listAfter(conversationId: string, afterSeq: number, limit: number): Promise<Message[]> {
     const { rows } = await this.db.query<Message>(
@@ -450,9 +509,93 @@ export class Store {
   async pendingEvents(workspaceId: string, limit = 100): Promise<{ id: string; kind: string; payload: Record<string, unknown> }[]> {
     const { rows } = await this.db.query<{ id: string; kind: string; payload: Record<string, unknown> }>(
       `SELECT id, kind, payload FROM outbox_events
-        WHERE workspace_id = $1 AND dispatched_at IS NULL ORDER BY created_at, id LIMIT $2`,
+        WHERE workspace_id = $1 AND dispatched_at IS NULL AND failed_at IS NULL ORDER BY ord LIMIT $2`,
       [workspaceId, limit],
     )
     return rows
   }
+
+  // ----------------------------------------------------------
+  // The dispatcher's view of the outbox
+  // ----------------------------------------------------------
+
+  /** Workspaces that have at least one event waiting. */
+  async workspacesWithPendingEvents(): Promise<string[]> {
+    const { rows } = await this.db.query<{ workspace_id: string }>(
+      'SELECT DISTINCT workspace_id FROM outbox_events WHERE dispatched_at IS NULL AND failed_at IS NULL',
+    )
+    return rows.map((r) => r.workspace_id)
+  }
+
+  /** The oldest event of a workspace that Halo has not accepted and that has not been given up on. */
+  async nextEvent(workspaceId: string): Promise<OutboxEvent | null> {
+    const { rows } = await this.db.query<OutboxEvent>(
+      `SELECT id, workspace_id, kind, payload, attempts, next_attempt_at, created_at FROM outbox_events
+        WHERE workspace_id = $1 AND dispatched_at IS NULL AND failed_at IS NULL ORDER BY ord LIMIT 1`,
+      [workspaceId],
+    )
+    return rows[0] ?? null
+  }
+
+  async markDispatched(id: string): Promise<void> {
+    await this.db.query('UPDATE outbox_events SET dispatched_at = now(), attempts = attempts + 1, last_error = NULL WHERE id = $1', [id])
+  }
+
+  async markRetry(id: string, nextAttemptAt: Date, error: string): Promise<void> {
+    await this.db.query('UPDATE outbox_events SET attempts = attempts + 1, next_attempt_at = $2, last_error = $3 WHERE id = $1', [
+      id,
+      nextAttemptAt.toISOString(),
+      error.slice(0, 500),
+    ])
+  }
+
+  /** Give up on an event for good. It stays in the table, with its error, for someone to look at. */
+  async markFailed(id: string, error: string): Promise<void> {
+    await this.db.query('UPDATE outbox_events SET failed_at = now(), attempts = attempts + 1, last_error = $2 WHERE id = $1', [
+      id,
+      error.slice(0, 500),
+    ])
+  }
+
+  async failedEvents(workspaceKey: string | null, limit: number): Promise<{ id: string; kind: string; last_error: string | null }[]> {
+    const { rows } = await this.db.query<{ id: string; kind: string; last_error: string | null }>(
+      `SELECT e.id, e.kind, e.last_error FROM outbox_events e JOIN workspaces w ON w.id = e.workspace_id
+        WHERE e.failed_at IS NOT NULL AND ($1::text IS NULL OR w.workspace_key = $1) ORDER BY e.ord DESC LIMIT $2`,
+      [workspaceKey, limit],
+    )
+    return rows
+  }
+
+  /** Put events that were given up on back in the queue, to be tried again now (after fixing the cause). */
+  async requeueFailed(workspaceKey: string | null): Promise<number> {
+    const r = await this.db.query(
+      `UPDATE outbox_events SET failed_at = NULL, next_attempt_at = now(), created_at = now()
+        WHERE failed_at IS NOT NULL
+          AND ($1::text IS NULL OR workspace_id = (SELECT id FROM workspaces WHERE workspace_key = $1))`,
+      [workspaceKey],
+    )
+    return r.rowCount
+  }
+
+  /** How much is waiting for Halo, how old the oldest is, and how many were given up on. */
+  async outboxStats(): Promise<{ pending: number; failed: number; oldestPendingAt: string | null }> {
+    const { rows } = await this.db.query<{ pending: string | number; failed: string | number; oldest: string | Date | null }>(
+      `SELECT count(*) FILTER (WHERE dispatched_at IS NULL AND failed_at IS NULL) AS pending,
+              count(*) FILTER (WHERE failed_at IS NOT NULL) AS failed,
+              min(created_at) FILTER (WHERE dispatched_at IS NULL AND failed_at IS NULL) AS oldest
+         FROM outbox_events`,
+    )
+    const r = rows[0]!
+    return { pending: Number(r.pending), failed: Number(r.failed), oldestPendingAt: r.oldest ? new Date(r.oldest).toISOString() : null }
+  }
+}
+
+export interface OutboxEvent {
+  id: string
+  workspace_id: string
+  kind: string
+  payload: Record<string, unknown>
+  attempts: number
+  next_attempt_at: string | Date
+  created_at: string | Date
 }

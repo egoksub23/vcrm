@@ -1,17 +1,19 @@
 // ============================================================
-// The gateway's HTTP side. Work package 1 has two routes:
+// The gateway's HTTP side:
 //
 //   GET  /healthz       is the service up (no auth)
 //   POST /v1/sessions   the Vircle backend asks for a chat session for a signed-in
 //                       user; the answer is a one-time token the app connects with
+//   POST /v1/messages   Halo sends a message to a user (bearer: Halo's API token)
+//   GET  /v1/health     Halo's "Test connection" (bearer: Halo's API token)
 //
-// (Halo's POST /v1/messages and GET /v1/health arrive with work package 2.)
 // Errors always have one shape: { "error": { "code": "...", "message": "..." } }.
 // ============================================================
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { GatewayConfig } from './config'
+import { deliverFromHalo } from './delivery'
 import type { Hub } from './hub'
 import type { Store, Workspace } from './store'
 
@@ -40,12 +42,12 @@ export function sendJson(res: ServerResponse, status: number, body: unknown, hea
 
 const MAX_BODY = 64 * 1024
 
-export async function readJson(req: IncomingMessage): Promise<unknown> {
+export async function readJson(req: IncomingMessage, maxBytes = MAX_BODY): Promise<unknown> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     size += (chunk as Buffer).length
-    if (size > MAX_BODY) throw new HttpError(413, 'too_large', 'The request body is too large')
+    if (size > maxBytes) throw new HttpError(413, 'too_large', 'The request body is too large', { connection: 'close' })
     chunks.push(chunk as Buffer)
   }
   const raw = Buffer.concat(chunks).toString('utf8')
@@ -97,12 +99,79 @@ async function createSession(req: IncomingMessage, res: ServerResponse, s: Servi
   })
 }
 
+/** Halo's calls carry the API token Halo generated; it finds the workspace. */
+async function authenticateHalo(req: IncomingMessage, s: Services): Promise<Workspace> {
+  const token = bearer(req)
+  const workspace = token ? await s.store.authenticateHalo(token) : null
+  if (!workspace) throw new HttpError(401, 'unauthorized', 'Bad or missing API token')
+  return workspace
+}
+
+/** Halo's "Test connection" (contract section 5). */
+async function health(req: IncomingMessage, res: ServerResponse, s: Services): Promise<void> {
+  await authenticateHalo(req, s)
+  sendJson(res, 200, { ok: true })
+}
+
+const MESSAGE_KINDS = ['text', 'image', 'video', 'audio', 'document'] as const
+
+/** What Halo knows about a contact is passed on when it is usable; a malformed extra is dropped, never a reason to refuse the message. */
+function optionalText(v: unknown, max: number): string | null {
+  return typeof v === 'string' && v.trim() && v.trim().length <= max ? v.trim() : null
+}
+
+/**
+ * Halo sends one message to a user (contract section 4). The Idempotency-Key is Halo's message id:
+ * the same key always gives the same answer and never a second message.
+ */
+async function postMessage(req: IncomingMessage, res: ServerResponse, s: Services): Promise<void> {
+  const workspace = await authenticateHalo(req, s)
+  const rawKey = req.headers['idempotency-key']
+  const idempotencyKey = typeof rawKey === 'string' ? rawKey.trim() : ''
+  if (!idempotencyKey || idempotencyKey.length > 200) throw new HttpError(400, 'bad_request', 'An Idempotency-Key header (up to 200 characters) is required')
+
+  const body = (await readJson(req, s.cfg.maxHaloBodyBytes)) as Record<string, unknown>
+  const recipient = body.recipient && typeof body.recipient === 'object' ? (body.recipient as Record<string, unknown>) : null
+  const walletId = recipient ? optionalText(recipient.wallet_id, 200) : null
+  if (!recipient || !walletId) throw new HttpError(400, 'bad_request', 'recipient.wallet_id is required')
+
+  const kind = typeof body.type === 'string' ? body.type : ''
+  if (!(MESSAGE_KINDS as readonly string[]).includes(kind)) throw new HttpError(400, 'bad_request', 'type must be text, image, video, audio or document')
+  if (kind !== 'text') throw new HttpError(400, 'invalid_media', 'File messages are not available yet')
+
+  const text = typeof body.text === 'string' ? body.text.trim() : ''
+  if (!text) throw new HttpError(400, 'bad_request', 'A text message needs text')
+  if (text.length > s.cfg.limits.textMax) throw new HttpError(400, 'message_too_long', `A message may be at most ${s.cfg.limits.textMax} characters`)
+
+  const sender = body.sender && typeof body.sender === 'object' ? (body.sender as Record<string, unknown>) : null
+  const email = optionalText(recipient.email, 320)
+  const subject = await s.store.upsertUser(workspace, {
+    walletId,
+    name: optionalText(recipient.name, 200),
+    phone: optionalText(recipient.phone, 40),
+    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email.toLowerCase() : null,
+  })
+
+  const { message, duplicate } = await s.store.appendOutbound(subject, {
+    idempotencyKey,
+    type: 'text',
+    text,
+    senderName: sender ? optionalText(sender.name, 200) : null,
+  })
+  // A repeat is answered as the first time was; only a new message is delivered.
+  const delivery = duplicate ? (message.delivery ?? 'queued') : await deliverFromHalo(s, subject, message)
+
+  sendJson(res, 202, { server_id: message.id, seq: message.seq, conversation_id: message.conversation_id, delivery })
+}
+
 export type Route = (req: IncomingMessage, res: ServerResponse, s: Services) => Promise<void>
 
 export function buildRoutes(): Record<string, Route> {
   return {
     'GET /healthz': async (_req, res, s) => sendJson(res, 200, { ok: true, connections: s.hub.size }),
     'POST /v1/sessions': createSession,
+    'POST /v1/messages': postMessage,
+    'GET /v1/health': health,
   }
 }
 

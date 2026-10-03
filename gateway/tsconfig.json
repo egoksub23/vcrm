@@ -13,5 +13,7 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  // Imports Halo's own code (resolved through a vitest alias), which has its own tsconfig; vitest still runs it.
+  "exclude": ["test/contract-halo.test.ts"]
 }

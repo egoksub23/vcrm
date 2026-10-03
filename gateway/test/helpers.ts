@@ -8,6 +8,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { WebSocket } from 'ws'
 
 import { startGateway, type Gateway } from '../src/app'
+import type { DispatcherOptions } from '../src/dispatcher'
 import { testConfig, type GatewayConfig } from '../src/config'
 import { migrate, type Db, type Queryable } from '../src/db'
 import type { GatewayHooks } from '../src/ws-server'
@@ -60,11 +61,17 @@ export interface Harness {
 }
 
 export async function startHarness(
-  opts: { cfg?: Partial<GatewayConfig>; hooks?: GatewayHooks; routes?: Record<string, Route> } = {},
+  opts: {
+    cfg?: Partial<GatewayConfig>
+    hooks?: GatewayHooks
+    routes?: Record<string, Route>
+    /** Off unless a test asks for it, so no test posts to a made-up Halo address by accident. */
+    dispatcher?: false | DispatcherOptions
+  } = {},
 ): Promise<Harness> {
   const db = await createTestDb()
   const cfg = testConfig(opts.cfg)
-  const gw = await startGateway({ cfg, db, hooks: opts.hooks, routes: opts.routes })
+  const gw = await startGateway({ cfg, db, hooks: opts.hooks, routes: opts.routes, dispatcher: opts.dispatcher ?? false })
   const { workspace, sessionsKey } = await gw.store.createWorkspace(WORKSPACE)
   const url = `http://127.0.0.1:${gw.port}`
   return {

@@ -59,6 +59,33 @@ describe('workspaces', () => {
   })
 })
 
+describe('changing a workspace after Halo changes it', () => {
+  it('takes a rotated signing secret and API token, and the old token stops working', async () => {
+    const w = (await store.createWorkspace({ ...WORKSPACE, key: 'vcw_rotaterotaterotate1', apiToken: 'vct_old' })).workspace
+    const updated = await store.updateWorkspace(w.workspace_key, { signingSecret: 'vcs_new', apiToken: 'vct_new' })
+    expect(store.haloSigningSecret(updated)).toBe('vcs_new')
+    expect((await store.authenticateHalo('vct_new'))?.id).toBe(w.id)
+    expect(await store.authenticateHalo('vct_old')).toBeNull()
+  })
+
+  it('changes the webhook address (validated like a new one) and refuses an empty change or an unknown key', async () => {
+    const w = (await store.createWorkspace({ ...WORKSPACE, key: 'vcw_addressaddress00001', apiToken: 'vct_addr' })).workspace
+    expect((await store.updateWorkspace(w.workspace_key, { haloWebhookUrl: 'https://halo2.example.com/hook' })).halo_webhook_url).toBe('https://halo2.example.com/hook')
+    await expect(store.updateWorkspace(w.workspace_key, { haloWebhookUrl: 'http://halo.example.com/hook' })).rejects.toThrow(/https/)
+    await expect(store.updateWorkspace(w.workspace_key, {})).rejects.toThrow(/Nothing to change/)
+    await expect(store.updateWorkspace(w.workspace_key, { signingSecret: '' })).rejects.toThrow(/empty/)
+    await expect(store.updateWorkspace('vcw_doesnotexist000000001', { name: 'x' })).rejects.toThrow(/No workspace/)
+  })
+
+  it('rotates the sessions key: the new one works, the old one does not', async () => {
+    const w = await store.createWorkspace({ ...WORKSPACE, key: 'vcw_sessionssessions001', apiToken: 'vct_sess' })
+    const next = await store.rotateSessionsKey(w.workspace.workspace_key)
+    expect((await store.authenticateSessionsKey(next))?.id).toBe(w.workspace.id)
+    expect(await store.authenticateSessionsKey(w.sessionsKey)).toBeNull()
+    await expect(store.rotateSessionsKey('vcw_doesnotexist000000001')).rejects.toThrow(/No workspace/)
+  })
+})
+
 describe('users and conversations', () => {
   it('gives each user exactly one conversation, however often they are upserted', async () => {
     const a = await store.upsertUser(workspace, identity('W-one'))

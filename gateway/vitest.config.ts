@@ -1,6 +1,12 @@
+import { fileURLToPath } from 'node:url'
+
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    // test/contract-halo.test.ts runs Halo's own client and parsers (../src) against this gateway.
+    alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) },
+  },
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],
