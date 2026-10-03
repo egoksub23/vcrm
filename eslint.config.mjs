@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     // Next.js app, so the Next-specific / React-JSX-scope rules here
     // don't apply to it.
     "widget/**",
+    // Standalone gateway service (own package.json, tsconfig and tests).
+    "gateway/**",
   ]),
 ]);
 

@@ -149,12 +149,15 @@ export function attachWebSocket(args: {
         if (!found) return fail(CLOSE.unauthorized, 'unauthorized', 'The connect token is not valid')
         subject = found
         clearTimeout(helloTimer)
-        live = { id: connectionId, userId: found.user.id, deviceId: frame.deviceId, send, close: (code, reason) => ws.close(code, reason) }
-        for (const old of hub.add(live)) old.close(CLOSE.replaced, 'replaced')
         // The conversation row may have moved on since the session was made.
         const current = await store.findSubjectByWallet(found.workspace, found.user.wallet_id)
         if (current) subject = current
+        if (closed) return
         send(welcomeFrame(subject, cfg))
+        // Join the live set only after the welcome, so nothing another device sends can reach this one
+        // ahead of it, and so a connection that dropped during the lookups is never counted as online.
+        live = { id: connectionId, userId: found.user.id, deviceId: frame.deviceId, send, close: (code, reason) => ws.close(code, reason) }
+        for (const old of hub.add(live)) old.close(CLOSE.replaced, 'replaced')
         if (frame.lastSeq !== null) await replay(frame.lastSeq)
         return
       }
