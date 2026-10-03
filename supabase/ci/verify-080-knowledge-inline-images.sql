@@ -146,8 +146,9 @@ BEGIN
   -- ---------------------------------------------------------
   -- 6. The chat-media bucket settings were not touched by this migration
   -- ---------------------------------------------------------
-  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'chat-media' AND public) THEN
-    RAISE EXCEPTION 'FAIL chat-media must still exist and be public';
+  -- (Public until migration 146 made it private; the point here is that this migration did not remove it.)
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'chat-media') THEN
+    RAISE EXCEPTION 'FAIL chat-media must still exist';
   END IF;
   n := n + 1;
 

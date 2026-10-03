@@ -17,7 +17,11 @@ DECLARE
   v_n       integer;
   v_status  text;
 BEGIN
-  SELECT id, owner_user_id INTO v_account, v_owner FROM accounts WHERE owner_user_id IS NOT NULL LIMIT 1;
+  -- Self-contained (it used to borrow an existing account, which an empty database does not have).
+  v_owner := gen_random_uuid();
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, email_confirmed_at)
+  VALUES (v_owner, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'o-' || v_owner || '@example.invalid', '{"full_name":"Owner"}', now());
+  SELECT account_id INTO v_account FROM profiles WHERE user_id = v_owner;
   IF v_account IS NULL THEN
     RAISE EXCEPTION 'FAIL no account to test against';
   END IF;
