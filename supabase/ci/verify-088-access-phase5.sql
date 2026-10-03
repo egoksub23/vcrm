@@ -593,8 +593,9 @@ BEGIN
   -- accounts: one row, three capabilities, decided per column
   PERFORM pg_temp.exercise('accounts.name', 'settings.workspace', NULL, ARRAY['settings.workspace'], NULL,
     NULL, NULL, $q$UPDATE accounts SET name = 'Verify 088 ' || left('{N}', 6) WHERE id = '{A}'$q$, NULL);
+  -- the value must CHANGE every time (a random one collided now and then, and an unchanged column is not guarded)
   PERFORM pg_temp.exercise('accounts.ticket_key_prefix', 'tickets.configure-form', NULL, ARRAY['tickets.configure-form'], NULL,
-    NULL, NULL, $q$UPDATE accounts SET ticket_key_prefix = 'ZQ' || (floor(random() * 90) + 10)::int WHERE id = '{A}'$q$, NULL);
+    NULL, NULL, $q$UPDATE accounts SET ticket_key_prefix = CASE WHEN ticket_key_prefix = 'ZQ1' THEN 'ZQ2' ELSE 'ZQ1' END WHERE id = '{A}'$q$, NULL);
   PERFORM pg_temp.exercise('accounts.auto_label_ai_enabled', 'tags.manage', NULL, ARRAY['tags.manage'], NULL,
     NULL, NULL, $q$UPDATE accounts SET auto_label_ai_enabled = NOT auto_label_ai_enabled WHERE id = '{A}'$q$, NULL);
 
