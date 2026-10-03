@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.75.0] — 2026-10-04
+
+**Migrations required: 152, 153, 154, 155** (all applied to the Vircle production database). Add two crontab lines (see `docs/automations-and-cron.md`): `/api/usage/snapshot-cron` (daily) and `/api/platform/deletion-cron` (hourly).
+
+- **Plan limits beyond seats (migration 152).** The operator can now set, per workspace: contacts, messages sent per month, AI tokens per month and stored files (MB), next to seats and the daily broadcast cap. From 80% the workspace's admins see a notice above every page and a **Plan usage** card in Settings > Workspace; at 100% adding more is refused: a contact added by a person (database), an outbound message (every send path, including Flows), an AI call (the lower of the plan allowance and the tenant's own budget), a contact created through the API. A customer writing in is never refused. Stored files are measured and flagged, not blocked. A daily snapshot job records each workspace's numbers, and the operator console shows a usage column per workspace.
+- **Export and delete a workspace (migration 153).** The owner can download everything the workspace holds as a zip (a CSV per table with rows, the stored files, a manifest and a README; secrets are never included) and can ask for the workspace to be deleted: 30 days with a notice for every member, cancellable until it begins, then every row, file, channel registration and login is removed and a tombstone with no personal data is kept. The operator can shorten the wait, delete now, cancel, and export while a deletion is pending. Also fixes deleting a custom role, or a login that had changed a capability, failing once the capability log held a row. Vircle Chat gateway: new `delete-workspace` command. See `docs/workspace-export-and-deletion.md`.
+- **Audited support access (migration 154).** The owner can let the platform operator look at diagnostics (plan and limits, channel health, failed-send counts, job counts, usage, member counts) for 1 hour to 7 days, optionally for one named operator, and end it any time. Never conversations, contacts, names, emails, files, tokens or secrets. Every look is logged, in the same database function that answers, and listed in Settings > Workspace. See `docs/support-access.md`.
+- **First-run checklist for a new customer admin (migration 155).** The dashboard shows a short checklist (connect a channel, invite the team, add contacts, then three optional extras) that reads what really exists, so it is always accurate, and hides itself when done or dismissed for the workspace.
+- **Help pages and notices no longer say "Vircle Halo"** where a customer reads them (help articles, the Reports notice, the access-denied screen, the ticket-prefix hint, a sample ad); a test keeps it that way.
+- **Behind the scenes:** the five verification scripts that were switched off in CI are brought up to date and run again; every check now runs in CI.
+
 ## [0.74.0] — 2026-10-03
 
 - **Vircle Chat: GIFs are shown properly.** A GIF (sent from the app, or by an agent in future) arrives as a looping MP4 marked `animated` (contract 1.3) and the inbox plays it as a short picture that loops by itself (muted, no controls), the way it looks on WhatsApp, instead of a video with a play button. **Migration required: `151_message_media_animated.sql`** (one new column, nothing else changes). Agents cannot send GIFs yet.

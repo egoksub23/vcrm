@@ -6506,6 +6506,47 @@
     "bannerBody": "{when}까지 플랫폼 운영자가 이 워크스페이스의 진단 정보를 볼 수 있습니다.",
     "bannerAction": "관리"
   },
+  "Onboarding": {
+    "title": "시작하기",
+    "description": "{total}개 중 {done}개 완료. 이 세 가지로 팀이 고객에게 답할 수 있습니다.",
+    "titleExtras": "좋은 시작입니다. 선택 사항 몇 가지",
+    "descriptionExtras": "필수 설정을 마쳤습니다. 아래 항목은 일상 업무를 더 편하게 해 줍니다.",
+    "hide": "숨기기",
+    "progress": "설정 진행률",
+    "optional": "선택",
+    "step": {
+      "channel": {
+        "title": "채널 연결",
+        "hint": "WhatsApp, 웹 채팅 위젯, 이메일, Messenger, Instagram 등 고객이 문의하는 곳입니다.",
+        "action": "연결"
+      },
+      "team": {
+        "title": "팀 초대",
+        "hint": "답변할 사람들을 추가하고 각자에게 역할을 지정하세요.",
+        "action": "초대"
+      },
+      "contacts": {
+        "title": "연락처 추가",
+        "hint": "스프레드시트를 가져오거나 한 명씩 추가하세요.",
+        "action": "연락처 추가"
+      },
+      "replies": {
+        "title": "빠른 답변 저장",
+        "hint": "자주 보내는 답변을 클릭 두 번으로 사용하세요.",
+        "action": "추가"
+      },
+      "hours": {
+        "title": "영업 시간 설정",
+        "hint": "응답 시간 목표에 영업 중인 시간만 반영됩니다.",
+        "action": "설정"
+      },
+      "knowledge": {
+        "title": "지식 문서 작성",
+        "hint": "AI가 여러분의 표현으로 답할 수 있게 합니다.",
+        "action": "작성"
+      }
+    }
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

@@ -18,7 +18,7 @@ DECLARE
     'has_capability', 'incident_escalate_manual', 'is_account_member', 'is_platform_admin',
     'is_sembang_channel_member', 'is_sembang_channel_moderator', 'is_sembang_manager',
     'list_deleted_contacts', 'list_sembang_channels_for_current_user', 'list_team_members',
-    'mark_sembang_channel_read', 'next_incident_number', 'next_ticket_number', 'peek_invitation',
+    'mark_sembang_channel_read', 'next_incident_number', 'next_ticket_number', 'onboarding_dismiss', 'onboarding_status', 'peek_invitation',
     'platform_cron_status', 'platform_list_accounts', 'platform_reseed_account',
     'platform_deletion_overview', 'platform_set_account_status', 'platform_support_grants', 'platform_support_view', 'platform_set_open_signup', 'platform_update_account',
     'platform_usage_overview',

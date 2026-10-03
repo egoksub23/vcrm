@@ -6506,6 +6506,47 @@
     "bannerBody": "The platform operator can see diagnostics for this workspace until {when}.",
     "bannerAction": "Manage"
   },
+  "Onboarding": {
+    "title": "Get set up",
+    "description": "{done} of {total} done. These three things get your team replying to customers.",
+    "titleExtras": "Nice start. A few optional extras",
+    "descriptionExtras": "The essentials are done. These make day-to-day work smoother.",
+    "hide": "Hide",
+    "progress": "Setup progress",
+    "optional": "Optional",
+    "step": {
+      "channel": {
+        "title": "Connect a channel",
+        "hint": "WhatsApp, the web chat widget, email, Messenger or Instagram: where your customers write to you.",
+        "action": "Connect"
+      },
+      "team": {
+        "title": "Invite your team",
+        "hint": "Add the people who will reply, and give each a role.",
+        "action": "Invite"
+      },
+      "contacts": {
+        "title": "Add your contacts",
+        "hint": "Import a spreadsheet or add people one by one.",
+        "action": "Add contacts"
+      },
+      "replies": {
+        "title": "Save a quick reply",
+        "hint": "Answers you send often, ready in two clicks.",
+        "action": "Add"
+      },
+      "hours": {
+        "title": "Set your business hours",
+        "hint": "So response-time targets only count the hours you are open.",
+        "action": "Set up"
+      },
+      "knowledge": {
+        "title": "Write a knowledge article",
+        "hint": "Lets the AI answer from your own words.",
+        "action": "Write"
+      }
+    }
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

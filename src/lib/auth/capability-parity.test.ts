@@ -115,6 +115,7 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("account", "PATCH", "admin", "settings.workspace"),
   row("account/usage", "GET", "admin", "settings.workspace"),
   row("account/support-access", "GET", "admin", "settings.workspace"),
+  row("account/onboarding", "GET", "admin", "settings.workspace"),
   row("account/invitations", "GET", "admin", "members.invite"),
   row("account/invitations", "POST", "admin", "members.invite"),
   row("account/invitations/[id]", "DELETE", "admin", "members.invite"),

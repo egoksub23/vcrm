@@ -33,6 +33,7 @@ import { ConversationsChart } from '@/components/dashboard/conversations-chart'
 import { PipelineDonut } from '@/components/dashboard/pipeline-donut'
 import { ResponseTimeChart } from '@/components/dashboard/response-time-chart'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
+import { GettingStartedCard } from '@/components/onboarding/getting-started-card'
 
 import { useTranslations } from 'next-intl'
 
@@ -130,6 +131,9 @@ export default function DashboardPage() {
           {t('description')}
         </p>
       </div>
+
+      {/* First-run checklist (workspace admins; hides itself when done or dismissed) */}
+      <GettingStartedCard />
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

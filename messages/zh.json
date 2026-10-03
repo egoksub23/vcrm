@@ -5776,6 +5776,47 @@
     "bannerBody": "平台运营人员可在 {when} 之前查看此工作区的诊断信息。",
     "bannerAction": "管理"
   },
+  "Onboarding": {
+    "title": "开始设置",
+    "description": "已完成 {done}/{total}。完成这三件事，您的团队就能开始回复客户。",
+    "titleExtras": "开局不错，再来几项可选设置",
+    "descriptionExtras": "必要设置已完成。以下几项可以让日常工作更顺畅。",
+    "hide": "隐藏",
+    "progress": "设置进度",
+    "optional": "可选",
+    "step": {
+      "channel": {
+        "title": "连接渠道",
+        "hint": "WhatsApp、网页聊天插件、邮件、Messenger 或 Instagram：客户联系您的地方。",
+        "action": "连接"
+      },
+      "team": {
+        "title": "邀请团队",
+        "hint": "添加负责回复的人员，并为每人分配角色。",
+        "action": "邀请"
+      },
+      "contacts": {
+        "title": "添加联系人",
+        "hint": "导入电子表格，或逐个添加。",
+        "action": "添加联系人"
+      },
+      "replies": {
+        "title": "保存快捷回复",
+        "hint": "常用的回答，两次点击即可发送。",
+        "action": "添加"
+      },
+      "hours": {
+        "title": "设置营业时间",
+        "hint": "让响应时间目标只计算您营业的时段。",
+        "action": "设置"
+      },
+      "knowledge": {
+        "title": "撰写知识库文章",
+        "hint": "让 AI 用您自己的话来回答。",
+        "action": "撰写"
+      }
+    }
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {

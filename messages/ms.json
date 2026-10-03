@@ -5776,6 +5776,47 @@
     "bannerBody": "Pengendali platform boleh melihat diagnostik ruang kerja ini sehingga {when}.",
     "bannerAction": "Urus"
   },
+  "Onboarding": {
+    "title": "Mulakan",
+    "description": "{done} daripada {total} selesai. Tiga perkara ini membolehkan pasukan anda membalas pelanggan.",
+    "titleExtras": "Permulaan yang baik. Beberapa tambahan pilihan",
+    "descriptionExtras": "Perkara penting sudah selesai. Yang berikut memudahkan kerja harian.",
+    "hide": "Sembunyikan",
+    "progress": "Kemajuan persediaan",
+    "optional": "Pilihan",
+    "step": {
+      "channel": {
+        "title": "Sambungkan saluran",
+        "hint": "WhatsApp, widget sembang web, e-mel, Messenger atau Instagram: tempat pelanggan anda menulis kepada anda.",
+        "action": "Sambung"
+      },
+      "team": {
+        "title": "Jemput pasukan anda",
+        "hint": "Tambah orang yang akan membalas, dan berikan setiap seorang peranan.",
+        "action": "Jemput"
+      },
+      "contacts": {
+        "title": "Tambah kenalan anda",
+        "hint": "Import hamparan atau tambah seorang demi seorang.",
+        "action": "Tambah kenalan"
+      },
+      "replies": {
+        "title": "Simpan balasan pantas",
+        "hint": "Jawapan yang sering anda hantar, sedia dalam dua klik.",
+        "action": "Tambah"
+      },
+      "hours": {
+        "title": "Tetapkan waktu perniagaan",
+        "hint": "Supaya sasaran masa respons hanya mengira waktu anda beroperasi.",
+        "action": "Tetapkan"
+      },
+      "knowledge": {
+        "title": "Tulis artikel pengetahuan",
+        "hint": "Membolehkan AI menjawab dengan kata-kata anda sendiri.",
+        "action": "Tulis"
+      }
+    }
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {
