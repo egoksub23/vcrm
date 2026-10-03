@@ -40,7 +40,12 @@ for f in "$dir"/verify-*.sql; do
     echo "skip  $base (stale, see stale-verifications.txt)"
     continue
   fi
-  out="$(supabase db query "$target" --file "$f" 2>&1 || true)"
+  # Sign-up is by invitation only (migration 134) once the platform switch is turned off, and the older scripts create their users
+  # directly. Open it for the length of the script: the script's own final error rolls the whole request back, so nothing is kept.
+  tmp="$(mktemp)"
+  { echo "UPDATE public.platform_settings SET value = 'true'::jsonb WHERE key = 'open_signup';"; cat "$f"; } > "$tmp"
+  out="$(supabase db query "$target" --file "$tmp" 2>&1 || true)"
+  rm -f "$tmp"
   ran=$((ran + 1))
   if echo "$out" | grep -q "ROLLBACK-OK"; then
     echo "ok    $base"
