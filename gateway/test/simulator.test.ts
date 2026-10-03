@@ -78,7 +78,7 @@ async function openApp(s: string, wallet: string) {
 
 describe('the page', () => {
   it('serves the page and its script and styles, with a policy that allows only its own script', async () => {
-    for (const [path, type] of [['/simulator', 'text/html'], ['/simulator/app.js', 'text/javascript'], ['/simulator/app.css', 'text/css']] as const) {
+    for (const [path, type] of [['/simulator', 'text/html'], ['/simulator/app.js', 'text/javascript'], ['/simulator/client.js', 'text/javascript'], ['/simulator/app.css', 'text/css']] as const) {
       const res = await fetch(`${h.url}${path}`)
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toContain(type)

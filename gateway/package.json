@@ -4,15 +4,18 @@
   "private": true,
   "description": "Vircle Chat gateway: live connections for the Vircle app, signed events to and from Halo, push decision (docs/vircle-chat-gateway-scope.md)",
   "type": "module",
-  "engines": { "node": ">=20.0.0" },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx src/server.ts",
     "build": "node build.mjs",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p client/tsconfig.json --noEmit",
     "test": "vitest run",
     "cli": "tsx src/cli.ts",
-    "sim": "tsx scripts/sim-dev.ts"
+    "sim": "node build.mjs && tsx scripts/sim-dev.ts",
+    "build:client": "node build.mjs && tsc -p client/tsconfig.build.json"
   },
   "dependencies": {
     "pg": "^8.13.0",

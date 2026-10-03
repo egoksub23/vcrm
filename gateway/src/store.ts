@@ -518,6 +518,20 @@ export class Store {
     return rows
   }
 
+  /**
+   * The user's own recent messages that support has received or read, newest first. Sent to the app on every
+   * connection: a status that changed while the app was closed would otherwise never reach a message the app already holds.
+   */
+  async ownMessageStatuses(conversationId: string, limit: number): Promise<{ id: string; seq: number; status: MessageStatus }[]> {
+    const { rows } = await this.db.query<{ id: string; seq: number; status: MessageStatus }>(
+      `SELECT id, seq, status FROM messages
+        WHERE conversation_id = $1 AND direction = 'in' AND status IN ('delivered', 'read')
+        ORDER BY seq DESC LIMIT $2`,
+      [conversationId, limit],
+    )
+    return rows
+  }
+
   async getMessage(id: string): Promise<Message | null> {
     const { rows } = await this.db.query<Message>(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE id = $1`, [id])
     return rows[0] ?? null

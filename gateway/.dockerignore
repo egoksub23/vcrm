@@ -4,3 +4,5 @@ dist
 .env*
 test
 scripts
+client/test
+client/dist

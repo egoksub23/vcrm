@@ -8,8 +8,9 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) },
   },
   test: {
+    globalSetup: ['./vitest.setup.ts'],
     environment: 'node',
-    include: ['test/**/*.test.ts'],
+    include: ['test/**/*.test.ts', 'client/test/**/*.test.ts'],
     testTimeout: 20_000,
     hookTimeout: 30_000,
     // PGlite starts an in-process Postgres per test file; run files one at a time to keep memory flat.

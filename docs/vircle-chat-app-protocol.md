@@ -1,9 +1,11 @@
 # Vircle Chat: the app's connection to the gateway
 
-For the developer of the Vircle app chat screen. Version 1 of the protocol, matching contract 1.2
+For the developer of the Vircle app chat screen. **Most of this is done for you by the client library** (`gateway/client`, see its
+README): connection, reconnect, resume, queueing, uploads, ticks and typing. Read this only if you need to speak the protocol yourself, or
+to understand what the library does. Version 1 of the protocol, matching contract 1.2
 (`docs/vircle-chat-contract.md`, which is the gateway's side with Halo). You can try every behaviour below
 in the simulator (Halo, Settings, Channels, Vircle Chat, **Open simulator**): its pretend phone speaks exactly this
-protocol, and `gateway/public/simulator.js` is a working reference client (about 300 lines).
+protocol, and `gateway/client/src/client.ts` is the reference client.
 
 The source of truth is `gateway/src/protocol.ts` (frames) and `gateway/src/ws-server.ts` (behaviour).
 
@@ -49,7 +51,7 @@ Every frame is one JSON text frame with a `type`. Binary frames are refused.
 | `welcome` | `v`, `server_time`, `heartbeat_s`, `limits`, `user`, `conversation: { id, last_seq }` | The hello was accepted. `limits` has `text_max`, `caption_max`, `file_max_bytes`, `send_per_window`, `send_window_s`. Use `server_time` to correct the phone's clock. |
 | `ack` | `client_id`, `server_id`, `seq`, `conversation_id`, `duplicate?` | The message is stored. Show it as **sent** (one tick). `duplicate: true` means the gateway already had it. |
 | `deliver` | `server_id`, `seq`, `conversation_id`, `direction`, `kind`, `text`, `media`, `reply_to`, `sender: { name }`, `sent_at`, `status` | A message to show. `direction: 'out'` is from support; `'in'` is the user's own (another device of theirs, or a replay). `status` is its current tick (`sent`, `delivered`, `read`). Show messages in `seq` order and ignore a `server_id` you already have. |
-| `receipt` | `conversation_id`, `status: 'delivered' \| 'read'`, `messages: [{ server_id, seq }]` | About the **user's own** messages: `delivered` means support has received them (two ticks), `read` means an agent read them (two blue ticks). |
+| `receipt` | `conversation_id`, `status: 'delivered' \| 'read'`, `messages: [{ server_id, seq }]` | About the **user's own** messages: `delivered` means support has received them (two ticks), `read` means an agent read them (two blue ticks). The gateway also sends one of each, after the replay, on **every connection** for the user's last 100 messages, so a tick that changed while the app was closed is not missed. |
 | `typing` | `conversation_id`, `from: 'support'` | An agent is typing. Show "typing..." and clear it after about 6 seconds without another, or when a message arrives. |
 | `upload_slot` | `request_id`, `file_id`, `upload_url`, `expires_at`, `max_bytes` | The answer to `upload_request`. |
 | `file_url` | `file_id`, `url`, `expires_at` | The answer to `file_url`. |

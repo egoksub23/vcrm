@@ -273,6 +273,6 @@ export async function uploadFile(
 ): Promise<{ slot: Frame; res: Response }> {
   client.send({ type: 'upload_request', request_id: `r-${Math.random()}`, kind: f.kind, file_name: f.name, mime_type: f.mime, size_bytes: f.bytes.length, duration_seconds: f.durationSeconds })
   const slot = await client.next('upload_slot')
-  const res = await fetch(slot.upload_url as string, { method: 'PUT', headers: { 'content-type': tweak.contentType ?? f.mime }, body: tweak.body ?? f.bytes })
+  const res = await fetch(slot.upload_url as string, { method: 'PUT', headers: { 'content-type': tweak.contentType ?? f.mime }, body: (tweak.body ?? f.bytes) as never })
   return { slot, res }
 }

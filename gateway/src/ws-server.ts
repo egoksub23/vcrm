@@ -19,7 +19,7 @@ import { WebSocket, WebSocketServer } from 'ws'
 
 import type { GatewayConfig } from './config'
 import { FileError, type FileKind, type FileRow, type FileService, type MessageMedia } from './files'
-import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, uploadSlotFrame, welcomeFrame } from './frames'
+import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, receiptFrame, uploadSlotFrame, welcomeFrame } from './frames'
 import type { Hub, LiveConnection } from './hub'
 import { parseClientFrame, type ClientFrame } from './protocol'
 import type { Message, Store, Subject } from './store'
@@ -167,6 +167,12 @@ export function attachWebSocket(args: {
         live = { id: connectionId, userId: found.user.id, deviceId: frame.deviceId, send, close: (code, reason) => ws.close(code, reason) }
         for (const old of hub.add(live)) old.close(CLOSE.replaced, 'replaced')
         if (frame.lastSeq !== null) await replay(frame.lastSeq)
+        // Ticks that changed while the app was closed: the replay only carries messages the app does not have yet.
+        const own = await store.ownMessageStatuses(subject.conversation.id, 100)
+        for (const status of ['delivered', 'read'] as const) {
+          const list = own.filter((m) => m.status === status)
+          if (list.length > 0) send(receiptFrame(subject.conversation.id, status, list))
+        }
         return
       }
 

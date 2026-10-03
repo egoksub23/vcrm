@@ -14,7 +14,8 @@ not part of Halo's build or its Docker image.
 | 6 (part). Simulator page, scenarios, launch from Halo | done; the client library it will use is WP 5 |
 | deploy files (compose, Dockerfile, proxy notes) | written, not yet run on the server |
 | 4. Files in both directions (upload slot, fetch from Halo, signed links, ranges), contract 1.2 extras: replies, read ticks back to the app, typing both ways | done |
-| 5, 7, 8. Client library, load test and runbook, real push adapter | not started |
+| 5. Client library for the app (`client/`, its own README), the simulator now runs on it | done |
+| 7, 8. Load test and runbook, real push adapter | not started |
 
 Files: the app asks for an upload slot over the socket and PUTs the bytes over HTTPS; Halo's files are fetched by the gateway; both are kept in the `files` table and served by signed links (`docs/vircle-chat-app-protocol.md`).
 
@@ -29,7 +30,7 @@ package 8, when the push API's details are known. Details: the header of `src/de
 ```
 cd gateway
 npm install
-npm test            # 243 tests, about 4 minutes; an in-process Postgres (PGlite), no Docker needed
+npm test            # about 290 tests (gateway and client library), about 5 minutes; an in-process Postgres (PGlite), no Docker needed
 npm run typecheck
 ```
 

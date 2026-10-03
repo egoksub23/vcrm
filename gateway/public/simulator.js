@@ -1,9 +1,12 @@
 // Vircle Chat simulator (served by the gateway; docs/vircle-chat-gateway-scope.md, section 4).
-// The browser here plays the Vircle app: it talks to the gateway over the same WebSocket protocol the
-// real app will (src/protocol.ts, docs/vircle-chat-app-protocol.md), and the panels show what the gateway does
-// around it. All text from messages is written with textContent, never as HTML.
+// The pretend phone here runs on the SAME client library the app uses (client/src, loaded as /simulator/client.js), so what this
+// page shows is what the app gets: connection, reconnect, resume, queueing, uploads, ticks, typing. This file is only the
+// screen around it and the test tools (fault buttons, the agent side, scripted scenarios). All text from messages is written
+// with textContent, never as HTML.
 (() => {
   'use strict'
+
+  const { VircleChatClient, memoryStore } = window.VircleChat
 
   const $ = (id) => document.getElementById(id)
   const el = (tag, props = {}, ...children) => {
@@ -19,15 +22,6 @@
   }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  const TYPING_SHOWN_MS = 6000
-  const TYPING_SEND_MS = 2500
-  const KINDS = [
-    ['image', /^image\/(png|jpeg|webp)$/],
-    ['video', /^video\/(mp4|3gpp)$/],
-    ['audio', /^audio\/(ogg|mpeg|aac|mp4|amr)$/],
-    ['document', /^(application\/(pdf|msword|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.[a-z.]+)|text\/plain)$/],
-  ]
-  const kindOf = (mime) => (KINDS.find(([, re]) => re.test(mime)) || [null])[0]
 
   let session = null
   let config = null
@@ -35,7 +29,7 @@
   let tab = 'push'
   const phones = new Map()
   let usersCache = []
-  let agentReply = null // server_id the agent is replying to
+  let agentReply = null // the message the agent is replying to
 
   // ------------------------------------------------------------ API
 
@@ -72,17 +66,47 @@
     n.textContent = 'This simulator session has ended or was never started. Open it from Halo: Settings, Channels, Vircle Chat, Open simulator.'
   }
 
-  // ------------------------------------------------------------ phones (the app side)
+  // ------------------------------------------------------------ phones: one library client per test user
 
   function phoneFor(u) {
     let p = phones.get(u.wallet_id)
-    if (!p) {
-      p = { wallet: u.wallet_id, name: u.name, phone: u.phone, email: u.email, ws: null, connected: false, msgs: [], lastSeq: 0, wire: [], lastSend: null, replyTo: null, typingUntil: 0, lastTypingSent: 0, uploads: new Map() }
-      phones.set(u.wallet_id, p)
+    if (p) return p
+    p = { wallet: u.wallet_id, name: u.name, phone: u.phone, email: u.email, wire: [], socket: null, lastSend: null, replyTo: null, client: null }
+    // The test tools sit between the app and the network, exactly where a real network would: they can swallow or delay what the app
+    // sends (receipts) and cut the socket without telling the library.
+    class TrackedSocket extends WebSocket {
+      constructor(url) { super(url); p.socket = this }
     }
+    p.client = new VircleChatClient({
+      deviceId: 'sim-browser',
+      appVersion: 'simulator',
+      baseUrl: location.origin,
+      WebSocket: TrackedSocket,
+      store: memoryStore(),
+      backoff: { minMs: 1500, maxMs: 8000, factor: 2, jitter: 0.2 },
+      getSession: async () => {
+        const t = await api('/connect-token', 'POST', { wallet_id: p.wallet })
+        return { token: t.token, wsPath: t.ws_path }
+      },
+      interceptSend: (frame) => {
+        if (frame.type === 'send') p.lastSend = frame
+        if (frame.type === 'receipt') {
+          if (!$('auto-ack').checked) return 'drop'
+          return Number($('ack-delay').value) || 'send'
+        }
+        return 'send'
+      },
+    })
+    p.client.on('wire', ({ direction, frame }) => wire(p, direction, JSON.stringify(frame), frame.type === 'error' ? 'err' : direction))
+    p.client.on('state', (s) => wire(p, 'sys', `Connection: ${s}`, s === 'offline' || s === 'replaced' ? 'err' : 'sys'))
+    p.client.on('error', (e) => toast(`${e.code}: ${e.message}`))
+    p.client.subscribe(() => { if (p.wallet === current) render() })
+    phones.set(u.wallet_id, p)
     return p
   }
   const cur = () => (current ? phones.get(current) : null)
+  const snap = (p) => p.client.getSnapshot()
+  const msgs = (p) => snap(p).messages
 
   function wire(p, dir, text, cls = '') {
     p.wire.push({ at: new Date().toISOString(), dir, text, cls: cls || dir })
@@ -90,167 +114,19 @@
     if (p === cur() && tab === 'wire') renderWire()
   }
 
-  function sendFrame(p, frame) {
-    if (!p.ws || p.ws.readyState !== WebSocket.OPEN) return false
-    const text = JSON.stringify(frame)
-    p.ws.send(text)
-    wire(p, 'out', text)
-    return true
-  }
-
-  async function openApp(p) {
-    if (p.ws) return
-    const t = await api('/connect-token', 'POST', { wallet_id: p.wallet })
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${proto}://${location.host}${t.ws_path}`)
-    p.ws = ws
-    wire(p, 'sys', 'Connecting…')
-    ws.onopen = () => sendFrame(p, { type: 'hello', v: 1, token: t.token, device_id: 'sim-browser', app_version: 'simulator', last_seq: p.lastSeq })
-    ws.onmessage = (ev) => {
-      let f
-      try { f = JSON.parse(ev.data) } catch { return }
-      wire(p, 'in', ev.data, f.type === 'error' ? 'err' : 'in')
-      onFrame(p, f)
-    }
-    ws.onclose = (ev) => {
-      wire(p, 'sys', `Connection closed (${ev.code}${ev.reason ? ' ' + ev.reason : ''})`, ev.code === 1000 ? 'sys' : 'err')
-      if (p.ws === ws) { p.ws = null; p.connected = false }
-      render()
-    }
-    ws.onerror = () => wire(p, 'sys', 'Connection error', 'err')
-    render()
-  }
-
-  function closeApp(p, code = 1000, reason = 'app closed') {
-    if (p.ws) p.ws.close(code, reason)
-  }
-
-  function onFrame(p, f) {
-    switch (f.type) {
-      case 'welcome':
-        p.connected = true
-        addSys(p, 'App open')
-        break
-      case 'deliver':
-        onDeliver(p, f)
-        break
-      case 'ack': {
-        const m = p.msgs.find((x) => x.client_id === f.client_id)
-        if (m) { m.state = 'sent'; m.server_id = f.server_id; m.seq = f.seq; m.status = m.status || 'sent'; if (f.duplicate) m.note = 'duplicate absorbed' }
-        p.lastSeq = Math.max(p.lastSeq, f.seq)
-        break
-      }
-      case 'receipt': {
-        // Support's side of my own messages: delivered (Halo has it) or read (an agent read it).
-        for (const r of f.messages || []) {
-          const m = p.msgs.find((x) => x.server_id === r.server_id)
-          if (m && !(m.status === 'read' && f.status === 'delivered')) m.status = f.status
-        }
-        break
-      }
-      case 'typing':
-        p.typingUntil = Date.now() + TYPING_SHOWN_MS
-        setTimeout(render, TYPING_SHOWN_MS + 50)
-        break
-      case 'upload_slot': {
-        const u = p.uploads.get(f.request_id)
-        if (u) u.resolve(f)
-        break
-      }
-      case 'resume_done':
-        if (f.more) sendFrame(p, { type: 'resume', last_seq: p.lastSeq })
-        break
-      case 'error': {
-        const u = f.request_id && p.uploads.get(f.request_id)
-        if (u) u.reject(new Error(`${f.code}: ${f.message}`))
-        const m = f.client_id && p.msgs.find((x) => x.client_id === f.client_id)
-        if (m) { m.state = 'failed'; m.note = f.code }
-        toast(`${f.code}: ${f.message}`)
-        break
-      }
-    }
-    render()
-  }
-
-  function addSys(p, text) {
-    p.msgs.push({ sys: true, text, at: new Date().toISOString() })
-  }
-
-  function onDeliver(p, f) {
-    const known = p.msgs.find((m) => m.server_id === f.server_id)
-    if (known) {
-      if (f.status) known.status = f.status
-      return
-    }
-    p.msgs.push({ direction: f.direction, text: f.text, kind: f.kind, media: f.media, reply_to: f.reply_to, server_id: f.server_id, seq: f.seq, sender: f.sender && f.sender.name, state: 'sent', status: f.status, at: f.sent_at })
-    p.lastSeq = Math.max(p.lastSeq, f.seq)
-    if (f.direction === 'out') {
-      p.typingUntil = 0 // the answer arrived: the typing line goes
-      scheduleAck(p, f.seq)
-    }
-  }
-
-  function scheduleAck(p, seq) {
-    if (!$('auto-ack').checked) return
-    const delay = Number($('ack-delay').value) || 0
-    setTimeout(() => {
-      if (!p.ws || !p.connected || !$('auto-ack').checked) return
-      sendFrame(p, { type: 'receipt', up_to_seq: seq, status: 'delivered' })
-      if ($('screen-open').checked) sendFrame(p, { type: 'receipt', up_to_seq: seq, status: 'read' })
-    }, delay)
-  }
-
-  function sendText(p, text) {
-    const client_id = `c-${crypto.randomUUID()}`
-    const frame = { type: 'send', client_id, kind: 'text', text, ...(p.replyTo ? { reply_to: p.replyTo.server_id } : {}) }
-    p.msgs.push({ direction: 'in', text, client_id, state: 'pending', reply_to: p.replyTo ? quoteOf(p.replyTo) : null, at: new Date().toISOString() })
-    p.lastSend = frame
-    p.replyTo = null
-    if (!sendFrame(p, frame)) toast('The app is closed: open it first')
-    render()
-  }
-
-  const quoteOf = (m) => ({ server_id: m.server_id, kind: m.kind || 'text', text: m.text, from: m.direction === 'in' ? 'you' : 'support' })
-
-  /** Upload a file the way the app does: ask for a slot over the socket, PUT the bytes over HTTPS, then send a message that names the file. */
-  async function sendFile(p, file, caption, durationSeconds) {
-    const kind = kindOf(file.type)
-    if (!kind) throw new Error(`${file.type || 'This type'} is not an allowed file type`)
-    const request_id = `r-${crypto.randomUUID()}`
-    const client_id = `c-${crypto.randomUUID()}`
-    const bubble = { direction: 'in', text: caption || '', kind, client_id, state: 'pending', note: 'uploading…', media: { local: URL.createObjectURL(file), mime_type: file.type, file_name: file.name, size_bytes: file.size }, reply_to: p.replyTo ? quoteOf(p.replyTo) : null, at: new Date().toISOString() }
-    p.msgs.push(bubble)
-    render()
-    try {
-      const slot = await new Promise((resolve, reject) => {
-        p.uploads.set(request_id, { resolve, reject })
-        if (!sendFrame(p, { type: 'upload_request', request_id, kind, file_name: file.name, mime_type: file.type, size_bytes: file.size, ...(durationSeconds ? { duration_seconds: durationSeconds } : {}) })) reject(new Error('The app is closed: open it first'))
-        setTimeout(() => reject(new Error('No upload slot came back')), 8000)
-      })
-      const put = await fetch(slot.upload_url, { method: 'PUT', headers: { 'content-type': file.type }, body: file })
-      if (!put.ok) throw new Error((await put.json().catch(() => ({})))?.error?.message || `Upload failed (${put.status})`)
-      const frame = { type: 'send', client_id, kind, media: { file_id: slot.file_id }, ...(caption ? { text: caption } : {}), ...(p.replyTo ? { reply_to: p.replyTo.server_id } : {}) }
-      p.lastSend = frame
-      p.replyTo = null
-      bubble.note = null
-      if (!sendFrame(p, frame)) throw new Error('The connection closed before the message was sent')
-    } catch (e) {
-      bubble.state = 'failed'
-      bubble.note = e.message
-      toast(e.message)
-    } finally {
-      p.uploads.delete(request_id)
-      render()
-    }
-  }
+  const openApp = async (p) => { p.client.setScreenOpen($('screen-open').checked); await p.client.start() }
+  const closeApp = (p) => p.client.stop()
+  /** Cut the connection without a goodbye: the library notices, shows it, and reconnects by itself. */
+  const dropSocket = (p) => { try { p.socket && p.socket.close(4000, 'simulated drop') } catch {} }
+  const isOnline = (p) => snap(p).state === 'online'
 
   async function audioDuration(file) {
-    if (!file.type.startsWith('audio/')) return null
+    if (!file.type.startsWith('audio/')) return undefined
     return new Promise((resolve) => {
       const a = new Audio()
       a.preload = 'metadata'
-      a.onloadedmetadata = () => resolve(Number.isFinite(a.duration) ? Math.round(a.duration) : null)
-      a.onerror = () => resolve(null)
+      a.onloadedmetadata = () => resolve(Number.isFinite(a.duration) ? Math.round(a.duration) : undefined)
+      a.onerror = () => resolve(undefined)
       a.src = URL.createObjectURL(file)
     })
   }
@@ -268,7 +144,7 @@
     list.replaceChildren(
       ...usersCache.map((u) => {
         const p = phones.get(u.wallet_id)
-        const online = p ? p.connected : u.online
+        const online = p ? isOnline(p) : u.online
         return el(
           'li',
           { class: `user${u.wallet_id === current ? ' sel' : ''}`, onclick: () => select(u.wallet_id) },
@@ -280,7 +156,7 @@
     if (usersCache.length === 0) list.append(el('li', { class: 'muted', text: 'No test users yet. Add one above.' }))
   }
 
-  const tickText = (m) => (m.status === 'read' ? '✓✓ read' : m.status === 'delivered' ? '✓✓ delivered' : '✓ sent')
+  const TICK = { sending: 'sending…', sent: '✓ sent', delivered: '✓✓ delivered', read: '✓✓ read', failed: 'not sent' }
 
   function quoteBlock(q) {
     if (!q) return null
@@ -291,49 +167,61 @@
   function mediaBlock(m) {
     const media = m.media
     if (!media) return null
-    const url = media.local || media.url
-    if (!url) return el('div', { class: 'small muted', text: `[${m.kind}] ${media.file_name || ''}` })
-    if (m.kind === 'image') return el('img', { class: 'att', src: url, alt: media.file_name || 'image' })
+    const url = media.url
+    if (!url) return el('div', { class: 'small muted', text: `[${m.kind}] ${media.fileName || ''}` })
+    if (m.kind === 'image') return el('img', { class: 'att', src: url, alt: media.fileName || 'image' })
     if (m.kind === 'video') return el('video', { class: 'att', src: url, controls: '' })
-    if (m.kind === 'audio') return el('div', {}, el('audio', { src: url, controls: '' }), media.duration_seconds ? el('div', { class: 'small muted', text: `voice note · ${media.duration_seconds}s` }) : null)
-    return el('a', { href: url, target: '_blank', rel: 'noopener', text: `${media.file_name || 'document'} (${Math.max(1, Math.round((media.size_bytes || 0) / 1024))} KB)` })
+    if (m.kind === 'audio') return el('div', {}, el('audio', { src: url, controls: '' }), media.durationSeconds ? el('div', { class: 'small muted', text: `voice note · ${media.durationSeconds}s` }) : null)
+    return el('a', { href: url, target: '_blank', rel: 'noopener', text: `${media.fileName || 'document'} (${Math.max(1, Math.round((media.sizeBytes || 0) / 1024))} KB)` })
   }
+
+  const CONN = { online: ['on', 'App open'], connecting: ['off', 'Connecting…'], offline: ['bad', 'Offline, retrying'], replaced: ['bad', 'Replaced'], stopped: ['off', 'App closed'], idle: ['off', 'App closed'] }
 
   function renderPhone() {
     const p = cur()
     $('phone-name').textContent = p ? p.name || p.wallet : 'No user selected'
     $('phone-sub').textContent = p ? `${p.wallet} · ${p.phone || ''}` : 'Add a test user, then open the app'
+    const s = p ? snap(p) : null
+    const [cls, label] = CONN[s ? s.state : 'idle']
     const conn = $('conn')
-    conn.className = `pill ${p && p.connected ? 'on' : 'off'}`
-    conn.textContent = p && p.connected ? 'App open' : p && p.ws ? 'Connecting…' : 'App closed'
+    conn.className = `pill ${cls}`
+    conn.textContent = label
     const box = $('messages')
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40
-    const items = (p ? p.msgs : []).map((m) => {
-      if (m.sys) return el('div', { class: 'sys', text: `${m.text} · ${clock(m.at)}` })
-      const mine = m.direction === 'in'
-      const meta = mine ? (m.state === 'pending' ? m.note || 'sending…' : m.state === 'failed' ? `not sent: ${m.note || ''}` : `${tickText(m)}${m.note ? ' · ' + m.note : ''}`) : `${m.sender || 'Support'}`
-      const bubble = el('div', { class: `msg${mine ? ' me' : ''}${m.state === 'failed' ? ' failed' : ''}` })
-      const q = quoteBlock(m.reply_to)
+    const items = (s ? s.messages : []).map((m) => {
+      const bubble = el('div', { class: `msg${m.mine ? ' me' : ''}${m.status === 'failed' ? ' failed' : ''}` })
+      const q = quoteBlock(m.replyTo)
       if (q) bubble.append(q)
       const media = mediaBlock(m)
       if (media) bubble.append(media)
       if (m.text) bubble.append(document.createTextNode(m.text))
-      bubble.append(el('span', { class: 'meta' }, document.createTextNode(`${meta} · ${clock(m.at)} `), m.server_id ? el('button', { class: 'link', title: 'Reply to this message', onclick: () => { p.replyTo = m; render(); $('draft').focus() } }, '↩ reply') : null))
+      const meta = m.mine ? `${TICK[m.status] || m.status}${m.error ? ': ' + m.error.code : ''}` : m.sender || 'Support'
+      bubble.append(
+        el(
+          'span',
+          { class: 'meta' },
+          document.createTextNode(`${meta} · ${clock(m.sentAt)} `),
+          m.serverId ? el('button', { class: 'link', title: 'Reply to this message', onclick: () => { p.replyTo = m; render(); $('draft').focus() } }, '↩ reply') : null,
+          m.status === 'failed' ? el('button', { class: 'link', onclick: () => p.client.retry(m.id).catch(() => {}) }, ' retry') : null,
+          m.status === 'failed' ? el('button', { class: 'link', onclick: () => p.client.discard(m.id) }, ' discard') : null,
+        ),
+      )
       return bubble
     })
-    if (p && p.typingUntil > Date.now()) items.push(el('div', { class: 'sys typing', text: 'Support is typing…' }))
+    if (s && s.supportTyping) items.push(el('div', { class: 'sys typing', text: 'Support is typing…' }))
     box.replaceChildren(...items)
     if (atBottom) box.scrollTop = box.scrollHeight
-    const bar = $('reply-bar')
-    bar.hidden = !(p && p.replyTo)
-    if (p && p.replyTo) $('reply-text').textContent = `Replying to ${p.replyTo.direction === 'in' ? 'yourself' : 'Support'}: ${p.replyTo.text || `[${p.replyTo.kind}]`}`
-    const open = !!(p && p.connected)
-    $('draft').disabled = !open
-    $('send').disabled = !open
-    $('attach').disabled = !open
-    $('connect').disabled = !p || !!p.ws
-    $('disconnect').disabled = !p || !p.ws
-    $('drop').disabled = !p || !p.ws
+    $('reply-bar').hidden = !(p && p.replyTo)
+    if (p && p.replyTo) $('reply-text').textContent = `Replying to ${p.replyTo.mine ? 'yourself' : 'Support'}: ${p.replyTo.text || `[${p.replyTo.kind}]`}`
+    const open = !!s && s.state === 'online'
+    const active = !!s && (s.state === 'online' || s.state === 'connecting' || s.state === 'offline')
+    // Writing while offline is allowed (the library queues), so the composer works whenever the app is started.
+    $('draft').disabled = !active
+    $('send').disabled = !active
+    $('attach').disabled = !active
+    $('connect').disabled = !p || active
+    $('disconnect').disabled = !p || !active
+    $('drop').disabled = !open
     $('typing').disabled = !open
     $('send-again').disabled = !open || !p.lastSend
   }
@@ -374,9 +262,11 @@
     $('push-list').replaceChildren(...(items.length ? items : [el('li', { class: 'muted', text: 'No alerts yet for this user.' })]), ...decisions)
   }
 
+  /** What tapping an alert does in the app: open it (and the library takes what it missed). */
   async function tap(p, alert) {
     toast(`Opening ${alert.deep_link}`)
-    if (!p.ws) await openApp(p)
+    if (!['online', 'connecting'].includes(snap(p).state)) await openApp(p)
+    else p.client.reconnectNow()
   }
 
   const ticks = (m) => (m.status === 'read' ? el('span', { class: 'tick read', text: '✓✓' }) : m.status === 'delivered' ? el('span', { class: 'tick', text: '✓✓' }) : el('span', { class: 'tick', text: '✓' }))
@@ -389,7 +279,7 @@
     box.replaceChildren(
       ...messages.map((m) => {
         const row = el('li', { class: `a${m.direction === 'out' ? ' out' : ''}` })
-        if (m.reply_to) row.append(quoteBlock(m.reply_to))
+        if (m.reply_to) row.append(quoteBlock({ from: m.reply_to.from, text: m.reply_to.text, kind: m.reply_to.kind }))
         if (m.media && m.media.url) {
           if (m.kind === 'image') row.append(el('img', { class: 'att', src: m.media.url, alt: m.media.file_name || 'image' }))
           else row.append(el('a', { href: m.media.url, target: '_blank', rel: 'noopener', text: `${m.kind}: ${m.media.file_name || 'file'}` }))
@@ -515,10 +405,12 @@
     }
   }
   const expect = (cond, msg) => { if (!cond) throw new Error(msg) }
-  const phoneHas = (p, text) => p.msgs.some((m) => m.text === text)
+  const phoneHas = (p, text) => msgs(p).some((m) => m.text === text)
+  const find = (p, text) => msgs(p).find((m) => m.text === text)
   const alertsOf = async (p) => (await api(`/push?wallet_id=${encodeURIComponent(p.wallet)}`)).alerts
   const resetControls = () => { $('auto-ack').checked = true; $('ack-delay').value = '0'; $('screen-open').checked = true }
-  const openUser = async (name) => { const x = await createUser(name); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x }
+  const openUser = async (name) => { const x = await createUser(name); await openApp(x); await until(() => isOnline(x), 8000, 'the app to connect'); return x }
+  const stored = (m) => m && (m.status === 'sent' || m.status === 'delivered' || m.status === 'read')
 
   /** A small real PNG (a coloured square), made in the page. */
   async function samplePng() {
@@ -562,21 +454,22 @@
     },
     'Reconnect replays the gap': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Gap'))
-      await step('Drop the connection', async () => { closeApp(p, 4000, 'simulated drop'); await until(() => !p.ws, 3000, 'the app to close') })
+      await step('Drop the connection (the library notices and starts to reconnect)', async () => { dropSocket(p); await until(() => !isOnline(p), 3000, 'the connection to drop') })
       await step('Agent sends three messages while it is away', async () => { for (const t of ['one', 'two', 'three']) await agentSend(p.wallet, t) })
-      await step('Reconnect', async () => { await openApp(p); await until(() => p.connected, 8000, 'the app to connect') })
+      await step('The library reconnects by itself', () => until(() => isOnline(p), 10000, 'the app to reconnect'))
       await step('All three arrive, once each, in order', async () => {
-        await until(() => p.msgs.filter((m) => m.direction === 'out').length >= 3, 6000, 'the three messages')
-        const got = p.msgs.filter((m) => m.direction === 'out').map((m) => m.text)
+        await until(() => msgs(p).filter((m) => !m.mine).length >= 3, 6000, 'the three messages')
+        const got = msgs(p).filter((m) => !m.mine).map((m) => m.text)
         expect(JSON.stringify(got) === JSON.stringify(['one', 'two', 'three']), `got ${JSON.stringify(got)}`)
       })
     },
     'The same message sent twice': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Duplicate'))
-      await step('Send "once"', async () => { sendText(p, 'once'); await until(() => p.msgs.some((m) => m.text === 'once' && m.state === 'sent'), 4000, 'the acknowledgement') })
+      await step('Send "once"', async () => { const m = await p.client.sendText('once'); expect(stored(m), `status ${m.status}`) })
       await step('Send it again with the same id: the gateway absorbs it', async () => {
         const before = p.wire.length
-        expect(sendFrame(p, p.lastSend), 'not connected')
+        expect(p.lastSend && p.socket && p.socket.readyState === 1, 'not connected')
+        p.socket.send(JSON.stringify(p.lastSend))
         await until(() => p.wire.slice(before).some((w) => w.dir === 'in' && w.text.includes('"duplicate":true')), 4000, 'a duplicate acknowledgement')
       })
       await step('Halo is told once', async () => {
@@ -588,7 +481,7 @@
     'Halo is down, then back': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Halo down'))
       await step('Switch Halo off', () => setHaloOffline(true))
-      await step('Send two messages from the app: the gateway still accepts them', async () => { sendText(p, 'first while down'); sendText(p, 'second while down'); await until(() => p.msgs.filter((m) => m.direction === 'in' && m.state === 'sent').length >= 2, 5000, 'both acknowledgements') })
+      await step('Send two messages from the app: the gateway still accepts them', async () => { await Promise.all([p.client.sendText('first while down'), p.client.sendText('second while down')]) })
       await step('The events wait and retry', () => until(async () => (await refreshEvents()).some((e) => e.summary.includes('while down') && e.state !== 'sent'), 6000, 'events waiting'))
       await step('Switch Halo back on', () => setHaloOffline(false))
       await step('Both are delivered to Halo, in order', async () => {
@@ -601,56 +494,57 @@
       const p = await step('Add a test user and open the app', () => openUser('Files'))
       const png = await samplePng()
       await step('The app sends a photo with a caption (slot, upload, send)', async () => {
-        await sendFile(p, png, 'my receipt')
-        await until(() => p.msgs.some((m) => m.kind === 'image' && m.state === 'sent'), 8000, 'the photo to be acknowledged')
+        const m = await p.client.sendFile({ blob: png, name: png.name, type: png.type }, { caption: 'my receipt' })
+        expect(stored(m) && m.media && m.media.fileId, 'the photo was not stored')
       })
       await step('The agent sees the photo with its caption', () => until(async () => (await refreshAgent()).some((m) => m.kind === 'image' && m.direction === 'in' && m.text === 'my receipt' && m.media && m.media.url), 5000, 'the photo'))
       await step('The app sends a voice note with its length', async () => {
-        await sendFile(p, sampleVoice(), '', 6)
-        await until(() => p.msgs.some((m) => m.kind === 'audio' && m.state === 'sent'), 8000, 'the voice note to be acknowledged')
+        const v = sampleVoice()
+        const m = await p.client.sendFile({ blob: v, name: v.name, type: v.type }, { durationSeconds: 6 })
+        expect(stored(m) && m.media.durationSeconds === 6, 'the voice note was not stored with its length')
       })
       await step('The agent sends a photo back', async () => { const a = await agentSendFile(p.wallet, png, 'here is the form'); expect(a.delivery === 'socket', `delivery was ${a.delivery}`) })
       await step('It arrives in the app with a link that serves the file', async () => {
-        const m = await until(() => p.msgs.find((x) => x.direction === 'out' && x.kind === 'image'), 5000, 'the photo')
-        const got = await fetch(m.media.url)
+        const m = await until(() => msgs(p).find((x) => !x.mine && x.kind === 'image'), 5000, 'the photo')
+        const url = await p.client.getMediaUrl(m.id)
+        const got = await fetch(url)
         expect(got.ok && got.headers.get('content-type') === 'image/png', `the link answered ${got.status} ${got.headers.get('content-type')}`)
       })
-      await step('A file type that is not allowed is refused at the slot', async () => {
-        const bad = new File([new Uint8Array(20)], 'x.gif', { type: 'image/gif' })
-        let refused = false
-        try { await sendFile(p, bad, '') } catch { refused = true }
-        expect(refused || p.msgs.some((m) => m.state === 'failed'), 'the gateway accepted a gif')
+      await step('A file type the library knows is not allowed is refused before any upload', async () => {
+        let code = null
+        try { await p.client.sendFile({ blob: new Blob([new Uint8Array(20)], { type: 'image/gif' }), name: 'x.gif' }) } catch (e) { code = e.code }
+        expect(code === 'file_type_not_allowed', `code was ${code}`)
       })
     },
     'A reply quotes the message': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Quote'))
       const q = await step('The agent asks something', () => agentSend(p.wallet, 'Which account do you want to close?'))
-      const asked = await step('The app has it', () => until(() => p.msgs.find((m) => m.server_id === q.server_id), 4000, 'the question'))
-      await step('The app answers, quoting it', async () => { p.replyTo = asked; sendText(p, 'The savings one'); await until(() => p.msgs.some((m) => m.text === 'The savings one' && m.state === 'sent'), 4000, 'the acknowledgement') })
+      const asked = await step('The app has it', () => until(() => msgs(p).find((m) => m.serverId === q.server_id), 4000, 'the question'))
+      await step('The app answers, quoting it', async () => { const m = await p.client.sendText('The savings one', { replyTo: asked }); expect(m.replyTo && m.replyTo.serverId === q.server_id, 'the answer carries no quote') })
       await step('The agent sees the answer as a reply to the question', () => until(async () => (await refreshAgent()).some((m) => m.text === 'The savings one' && m.reply_to && m.reply_to.server_id === q.server_id), 5000, 'the quote'))
       await step('The agent replies to that answer, and the app shows the quote', async () => {
         const answer = (await refreshAgent()).find((m) => m.text === 'The savings one')
         await agentSend(p.wallet, 'Done, it is closed', answer.server_id)
-        await until(() => p.msgs.some((m) => m.text === 'Done, it is closed' && m.reply_to && m.reply_to.text === 'The savings one' && m.reply_to.from === 'you'), 4000, 'the quoted reply')
+        await until(() => { const m = find(p, 'Done, it is closed'); return m && m.replyTo && m.replyTo.text === 'The savings one' && m.replyTo.from === 'you' }, 4000, 'the quoted reply')
       })
     },
     'Ticks: delivered, then read': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Ticks'))
-      await step('The app sends a message', async () => { sendText(p, 'please check my account'); await until(() => p.msgs.some((m) => m.text === 'please check my account' && m.state === 'sent'), 4000, 'the acknowledgement') })
-      await step('It shows delivered once Halo has accepted it', () => until(() => p.msgs.some((m) => m.text === 'please check my account' && (m.status === 'delivered' || m.status === 'read')), 15000, 'delivered (needs Halo to be reachable)'))
+      await step('The app sends a message', async () => { const m = await p.client.sendText('please check my account'); expect(stored(m), `status ${m.status}`) })
+      await step('It shows delivered once Halo has accepted it', () => until(() => { const m = find(p, 'please check my account'); return m && (m.status === 'delivered' || m.status === 'read') }, 15000, 'delivered (needs Halo to be reachable)'))
       await step('When an agent reads it, the app shows read', async () => {
         const r = await api('/agent-read', 'POST', { wallet_id: p.wallet })
         expect(r.updated >= 1, 'nothing was marked read')
-        await until(() => p.msgs.some((m) => m.text === 'please check my account' && m.status === 'read'), 4000, 'the read tick')
+        await until(() => { const m = find(p, 'please check my account'); return m && m.status === 'read' }, 4000, 'the read tick')
       })
     },
     'Typing indicators': async () => {
       const p = await step('Add a test user and open the app', () => openUser('Typing'))
-      await step('An agent starts typing: the app shows it', async () => { await api('/agent-typing', 'POST', { wallet_id: p.wallet }); await until(() => p.typingUntil > Date.now(), 4000, 'the typing line') })
-      await step('The typing line goes away by itself', () => until(() => p.typingUntil <= Date.now(), TYPING_SHOWN_MS + 2000, 'the line to clear'))
+      await step('An agent starts typing: the app shows it', async () => { await api('/agent-typing', 'POST', { wallet_id: p.wallet }); await until(() => snap(p).supportTyping, 4000, 'the typing line') })
+      await step('The typing line goes away by itself', () => until(() => !snap(p).supportTyping, 9000, 'the line to clear'))
       await step('The app types: a typing frame goes to the gateway (and on to Halo)', async () => {
         const before = p.wire.length
-        sendFrame(p, { type: 'typing' })
+        p.client.typing()
         expect(p.wire.slice(before).some((w) => w.dir === 'out' && w.text.includes('"typing"')), 'no typing frame was sent')
       })
     },
@@ -696,16 +590,12 @@
       const p = cur()
       if (!p || !text) return
       $('draft').value = ''
-      sendText(p, text)
+      const replyTo = p.replyTo
+      p.replyTo = null
+      p.client.sendText(text, { replyTo: replyTo || undefined }).catch((err) => toast(`${err.code || 'error'}: ${err.message}`))
     })
-    // The app tells the gateway the user is typing, at most every couple of seconds.
-    $('draft').addEventListener('input', () => {
-      const p = cur()
-      if (!p || !p.connected || !$('draft').value) return
-      if (Date.now() - p.lastTypingSent < TYPING_SEND_MS) return
-      p.lastTypingSent = Date.now()
-      sendFrame(p, { type: 'typing' })
-    })
+    // The library throttles this itself (at most every 2.5 seconds).
+    $('draft').addEventListener('input', () => { const p = cur(); if (p && $('draft').value) p.client.typing() })
     $('attach').addEventListener('click', () => $('file').click())
     $('file').addEventListener('change', async () => {
       const p = cur()
@@ -714,20 +604,17 @@
       if (!p || !file) return
       const caption = $('draft').value.trim()
       $('draft').value = ''
-      sendFile(p, file, caption, await audioDuration(file)).catch((e) => toast(e.message))
+      const replyTo = p.replyTo
+      p.replyTo = null
+      p.client.sendFile({ blob: file, name: file.name, type: file.type }, { caption, replyTo: replyTo || undefined, durationSeconds: await audioDuration(file) }).catch((err) => toast(`${err.code || 'error'}: ${err.message}`))
     })
     $('reply-cancel').addEventListener('click', () => { const p = cur(); if (p) { p.replyTo = null; render() } })
     $('connect').addEventListener('click', () => { const p = cur(); if (p) openApp(p).catch((e) => toast(e.message)) })
     $('disconnect').addEventListener('click', () => { const p = cur(); if (p) closeApp(p) })
-    $('drop').addEventListener('click', () => { const p = cur(); if (p) closeApp(p, 4000, 'simulated drop') })
-    $('typing').addEventListener('click', () => { const p = cur(); if (p) sendFrame(p, { type: 'typing' }) })
-    $('send-again').addEventListener('click', () => { const p = cur(); if (p && p.lastSend) sendFrame(p, p.lastSend) })
-    $('screen-open').addEventListener('change', () => {
-      const p = cur()
-      if (!$('screen-open').checked || !p || !p.connected) return
-      const top = Math.max(0, ...p.msgs.filter((m) => m.direction === 'out').map((m) => m.seq || 0))
-      if (top) sendFrame(p, { type: 'receipt', up_to_seq: top, status: 'read' })
-    })
+    $('drop').addEventListener('click', () => { const p = cur(); if (p) dropSocket(p) })
+    $('typing').addEventListener('click', () => { const p = cur(); if (p) p.client.typing() })
+    $('send-again').addEventListener('click', () => { const p = cur(); if (p && p.lastSend && p.socket && p.socket.readyState === 1) p.socket.send(JSON.stringify(p.lastSend)) })
+    $('screen-open').addEventListener('change', () => { const p = cur(); if (p) p.client.setScreenOpen($('screen-open').checked) })
     $('halo-offline').addEventListener('change', (e) => setHaloOffline(e.target.checked).catch((err) => toast(err.message)))
     $('reset').addEventListener('click', async () => {
       for (const p of phones.values()) closeApp(p)
@@ -787,8 +674,6 @@
     }
     const sb = $('scenario-buttons')
     for (const name of Object.keys(SCENARIOS)) sb.append(el('button', { class: 'ghost', onclick: () => runScenario(name) }, name))
-    // the typing line clears itself even when nothing else happens
-    setInterval(() => { const p = cur(); if (p && p.typingUntil && p.typingUntil <= Date.now()) { p.typingUntil = 0; render() } }, 1000)
   }
 
   // ------------------------------------------------------------ start

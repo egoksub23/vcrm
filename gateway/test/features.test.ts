@@ -111,6 +111,19 @@ describe('"delivered" to support, and "read" by an agent', () => {
     expect(await later.next('deliver')).toMatchObject({ server_id: ack.server_id, direction: 'in', status: 'read' })
   })
 
+  it('on every connection tells the app the ticks of its recent messages, so a change made while it was closed is not missed', async () => {
+    await start()
+    const first = await user({ wallet_id: 'W-missed-ticks' }, { device_id: 'phone' })
+    const ack = await sendFromApp(first, 'read while I was away')
+    await first.next('receipt')
+    first.close()
+    await vi.waitFor(() => expect(h.gw.hub.size).toBe(0))
+    await post('/v1/receipts', { recipient: { wallet_id: 'W-missed-ticks' }, status: 'read', server_ids: [ack.server_id] })
+    // the app already holds the message (last_seq is past it), so the replay will not carry it again
+    const back = await user({ wallet_id: 'W-missed-ticks' }, { device_id: 'phone', last_seq: ack.seq })
+    expect(await back.next('receipt', (f) => f.status === 'read')).toMatchObject({ messages: [{ server_id: ack.server_id, seq: ack.seq }] })
+  })
+
   it('ignores ids that are not the user\'s, are Halo\'s own messages, or are unknown', async () => {
     await start()
     const mine = await user({ wallet_id: 'W-mine-read' })

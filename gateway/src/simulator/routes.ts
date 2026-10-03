@@ -2,7 +2,7 @@
 // The simulator's server side (docs/vircle-chat-gateway-scope.md, section 4). Off unless
 // SIMULATOR_ENABLED=true. Everything is under /simulator:
 //
-//   GET  /simulator, /simulator/app.js, /simulator/app.css      the page (public/)
+//   GET  /simulator, /simulator/app.js, /simulator/client.js, /simulator/app.css      the page (public/)
 //   POST /simulator/api/login          { token }   the launch token from Halo -> a simulator session
 //   (the rest need the header x-sim-session)
 //   GET  /simulator/api/config         what this gateway is set to (timeouts, push adapter, Halo address)
@@ -99,6 +99,8 @@ export function simulatorFetch(state: SimulatorState, real: typeof fetch = fetch
 const STATIC: Record<string, { file: string; type: string }> = {
   'GET /simulator': { file: 'simulator.html', type: 'text/html; charset=utf-8' },
   'GET /simulator/app.js': { file: 'simulator.js', type: 'text/javascript; charset=utf-8' },
+  // The client library, as the app uses it (built from client/src by build.mjs).
+  'GET /simulator/client.js': { file: 'vircle-chat-client.js', type: 'text/javascript; charset=utf-8' },
   'GET /simulator/app.css': { file: 'simulator.css', type: 'text/css; charset=utf-8' },
 }
 

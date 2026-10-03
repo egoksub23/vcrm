@@ -5,6 +5,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY build.mjs tsconfig.json ./
 COPY src ./src
+COPY client/src ./client/src
+COPY public ./public
 RUN node build.mjs
 
 FROM node:20-alpine
@@ -14,7 +16,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY migrations ./migrations
-COPY public ./public
+COPY --from=build /app/public ./public
 USER node
 EXPOSE 8090
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
