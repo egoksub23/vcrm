@@ -151,10 +151,10 @@ describe('sending', () => {
     expect(await client.next('ack')).toMatchObject({ client_id: 'ok' })
   })
 
-  it('says files are not available yet', async () => {
+  it('refuses a file message whose file was never uploaded', async () => {
     const { client } = await user()
-    client.send({ type: 'send', client_id: 'f', kind: 'image', media: { file_id: 'x' } })
-    expect(await client.next('error')).toMatchObject({ code: 'unsupported_kind' })
+    client.send({ type: 'send', client_id: 'f', kind: 'image', media: { file_id: 'f_never' } })
+    expect(await client.next('error')).toMatchObject({ code: 'file_not_found', client_id: 'f' })
   })
 
   it('limits how fast one user may send, and says when to retry', async () => {

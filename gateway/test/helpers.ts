@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { WebSocket } from 'ws'
 
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+
 import { startGateway, type Gateway } from '../src/app'
+import type { FileServiceOptions } from '../src/files'
 import type { DeliveryOptions } from '../src/delivery'
 import type { DispatcherOptions } from '../src/dispatcher'
 import { MockPushAdapter } from '../src/push'
@@ -73,6 +77,8 @@ export async function startHarness(
     dispatcher?: false | DispatcherOptions
     /** The sweeper that alerts for unacknowledged messages is off unless a test asks for it (`sweeper: true`). */
     delivery?: DeliveryOptions & { sweeper?: boolean }
+    /** What the gateway fetches Halo's files with. */
+    files?: FileServiceOptions
   } = {},
 ): Promise<Harness> {
   const db = await createTestDb()
@@ -86,6 +92,7 @@ export async function startHarness(
     dispatcher: opts.dispatcher ?? false,
     push,
     delivery: { ...opts.delivery, sweeper: opts.delivery?.sweeper ?? false },
+    files: opts.files,
     publicDir: join(MIGRATIONS, '..', 'public'),
   })
   const { workspace, sessionsKey } = await gw.store.createWorkspace(WORKSPACE)
@@ -210,4 +217,62 @@ export async function connectUser(
   client.hello(token, hello)
   const welcome = await client.next('welcome')
   return { client, welcome }
+}
+
+// ------------------------------------------------------------
+// Files
+// ------------------------------------------------------------
+
+/** The smallest thing that passes for a PNG: the signature, then filler. */
+export const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(120, 7)])
+export const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(120, 9)])
+export const OGG = Buffer.concat([Buffer.from('OggS', 'latin1'), Buffer.alloc(200, 3)])
+export const PDF = Buffer.concat([Buffer.from('%PDF-1.4 test', 'latin1'), Buffer.alloc(60, 1)])
+
+/** The settings of a gateway that may fetch from a local test server (http://127.0.0.1) as Halo's file address. */
+export function allowLocalFetch(): Partial<GatewayConfig> {
+  const base = testConfig()
+  return { files: { ...base.files, allowInsecureFetch: true } }
+}
+
+export interface FileServer {
+  url(path: string): string
+  /** Requests received, per path. */
+  hits: Record<string, number>
+  close(): Promise<void>
+}
+
+/** A tiny HTTP server that plays "Halo's storage": serves what it is given, and counts requests. */
+export async function startFileServer(files: Record<string, { status?: number; type?: string; body: Buffer }>): Promise<FileServer> {
+  const hits: Record<string, number> = {}
+  const server: Server = createServer((req, res) => {
+    const path = (req.url ?? '').split('?')[0] ?? ''
+    hits[path] = (hits[path] ?? 0) + 1
+    const f = files[path]
+    if (!f) {
+      res.writeHead(404).end()
+      return
+    }
+    res.writeHead(f.status ?? 200, { 'content-type': f.type ?? 'application/octet-stream', 'content-length': String(f.body.length) })
+    res.end(f.body)
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as AddressInfo).port
+  return {
+    url: (path) => `http://127.0.0.1:${port}${path}`,
+    hits,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  }
+}
+
+/** Ask for an upload slot over the socket and PUT the bytes to it, as the app does. */
+export async function uploadFile(
+  client: TestClient,
+  f: { kind: string; mime: string; name?: string; bytes: Buffer; durationSeconds?: number },
+  tweak: { contentType?: string; body?: Buffer } = {},
+): Promise<{ slot: Frame; res: Response }> {
+  client.send({ type: 'upload_request', request_id: `r-${Math.random()}`, kind: f.kind, file_name: f.name, mime_type: f.mime, size_bytes: f.bytes.length, duration_seconds: f.durationSeconds })
+  const slot = await client.next('upload_slot')
+  const res = await fetch(slot.upload_url as string, { method: 'PUT', headers: { 'content-type': tweak.contentType ?? f.mime }, body: tweak.body ?? f.bytes })
+  return { slot, res }
 }

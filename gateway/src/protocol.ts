@@ -6,18 +6,32 @@
 // be `hello`. Version 1.
 //
 //   app -> gateway   hello    { v, token, device_id, app_version?, last_seq? }
-//                    send     { client_id, kind, text?, media? }
+//                    send     { client_id, kind, text?, media?: { file_id }, reply_to? }
+//                    upload_request { request_id, kind, file_name?, mime_type, size_bytes, duration_seconds? }
+//                    file_url { file_id }
 //                    receipt  { up_to_seq, status: 'delivered' | 'read' }
 //                    resume   { last_seq }
 //                    typing   { }
 //                    ping     { t? }
 //   gateway -> app   welcome  { v, server_time, heartbeat_s, limits, user, conversation }
 //                    ack      { client_id, server_id, seq, conversation_id, duplicate? }
-//                    deliver  { server_id, seq, conversation_id, direction, kind, text, media,
+//                    deliver  { server_id, seq, conversation_id, direction, kind, text, media, reply_to,
 //                               sender, sent_at, status }
+//                    upload_slot { request_id, file_id, upload_url, expires_at, max_bytes }
+//                    file_url { file_id, url, expires_at }
+//                    receipt  { conversation_id, status: 'delivered' | 'read', messages: [{ server_id, seq }] }
+//                    typing   { conversation_id, from: 'support' }
 //                    resume_done { conversation_id, up_to_seq, more }
 //                    pong     { t? }
-//                    error    { code, message, retry_after? }
+//                    error    { code, message, retry_after?, request_id?, client_id? }
+//
+// FILES. Bytes never travel on the socket. The app sends `upload_request`, gets an `upload_slot`, PUTs the bytes to
+// `upload_url` over HTTPS (Content-Type = the declared mime_type, exactly `size_bytes` bytes), then sends a message
+// whose `media.file_id` is that file. A `deliver` for a file carries `media: { file_id, url, expires_at, mime_type,
+// file_name, size_bytes, duration_seconds }`; when `url` has expired the app asks `file_url` for a new one.
+//
+// RECEIPTS. The client's `receipt` is about Halo's messages (delivered / read). The gateway's `receipt` is about the
+// user's own messages: `delivered` once Halo has them, `read` once an agent has read them.
 //
 // `direction` on a `deliver` is `out` for a message from Halo and `in` for one the user sent from
 // another of their devices (or that a resume replays).
@@ -30,7 +44,9 @@ export const PROTOCOL_VERSION = 1
 
 export type ClientFrame =
   | { type: 'hello'; v: number; token: string; deviceId: string; appVersion: string | null; lastSeq: number | null }
-  | { type: 'send'; clientId: string; messageType: MessageType; text: string | null; media: Record<string, unknown> | null }
+  | { type: 'send'; clientId: string; messageType: MessageType; text: string | null; media: { fileId: string } | null; replyTo: string | null }
+  | { type: 'upload_request'; requestId: string; kind: unknown; fileName: unknown; mimeType: unknown; sizeBytes: unknown; durationSeconds: unknown }
+  | { type: 'file_url'; fileId: string }
   | { type: 'receipt'; upToSeq: number; status: 'delivered' | 'read' }
   | { type: 'resume'; lastSeq: number }
   | { type: 'typing' }
@@ -79,15 +95,28 @@ export function parseClientFrame(raw: string, limits: Limits): ParseResult {
       const kind = typeof f.kind === 'string' ? f.kind : null
       if (!kind || !MESSAGE_TYPES.includes(kind)) return bad('bad_frame', 'send needs a kind: text, image, video, audio or document')
       const text = typeof f.text === 'string' && f.text.trim() ? f.text.trim() : null
-      const media = f.media && typeof f.media === 'object' && !Array.isArray(f.media) ? (f.media as Record<string, unknown>) : null
+      const rawMedia = f.media && typeof f.media === 'object' && !Array.isArray(f.media) ? (f.media as Record<string, unknown>) : null
+      const fileId = rawMedia ? str(rawMedia.file_id, 100) : null
+      const replyTo = f.reply_to === undefined || f.reply_to === null ? null : str(f.reply_to, 100)
+      if (f.reply_to !== undefined && f.reply_to !== null && !replyTo) return bad('bad_frame', 'reply_to must be the server_id of a message')
       if (kind === 'text') {
         if (!text) return bad('bad_frame', 'A text message needs text')
         if (text.length > limits.textMax) return bad('message_too_long', `A message may be at most ${limits.textMax} characters`)
       } else {
-        if (!media) return bad('bad_frame', 'A file message needs media')
+        if (!fileId) return bad('bad_frame', 'A file message needs media.file_id (upload the file first)')
         if (text && text.length > limits.captionMax) return bad('message_too_long', `A caption may be at most ${limits.captionMax} characters`)
       }
-      return { ok: true, frame: { type: 'send', clientId, messageType: kind as MessageType, text, media: kind === 'text' ? null : media } }
+      return { ok: true, frame: { type: 'send', clientId, messageType: kind as MessageType, text, media: kind === 'text' || !fileId ? null : { fileId }, replyTo } }
+    }
+    case 'upload_request': {
+      const requestId = str(f.request_id, 100)
+      if (!requestId) return bad('bad_frame', 'upload_request needs a request_id')
+      return { ok: true, frame: { type: 'upload_request', requestId, kind: f.kind, fileName: f.file_name, mimeType: f.mime_type, sizeBytes: f.size_bytes, durationSeconds: f.duration_seconds } }
+    }
+    case 'file_url': {
+      const fileId = str(f.file_id, 100)
+      if (!fileId) return bad('bad_frame', 'file_url needs a file_id')
+      return { ok: true, frame: { type: 'file_url', fileId } }
     }
     case 'receipt': {
       const upToSeq = seq(f.up_to_seq)

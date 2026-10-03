@@ -16,6 +16,7 @@
 import type { GatewayConfig } from './config'
 import { decryptSecret, encryptSecret, newId, randomToken, sha256Hex } from './crypto'
 import type { Db, Queryable } from './db'
+import type { MessageMedia } from './files'
 
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document'
 export type MessageStatus = 'sent' | 'delivered' | 'read' | 'failed'
@@ -58,7 +59,8 @@ export interface Message {
   direction: Direction
   type: MessageType
   text: string | null
-  media: Record<string, unknown> | null
+  media: MessageMedia | null
+  reply_to: Quote | null
   sender_name: string | null
   client_id: string | null
   idempotency_key: string | null
@@ -67,6 +69,16 @@ export interface Message {
   created_at: string
   delivered_at: string | null
   read_at: string | null
+}
+
+/** The message another one quotes, as the app shows it (kept on the quoting message, so no second lookup). */
+export interface Quote {
+  server_id: string
+  kind: MessageType
+  /** The first 140 characters of the text or caption (null for a file without a caption). */
+  text: string | null
+  /** `you` when the user wrote the quoted message, `support` when Halo did. */
+  from: 'you' | 'support'
 }
 
 /** Who a connection or a request is about: the user, their conversation and the workspace. */
@@ -90,7 +102,7 @@ export const WORKSPACE_KEY_PATTERN = /^vcw_[A-Za-z0-9_-]{16,64}$/
 const USER_COLUMNS = 'id, workspace_id, wallet_id, name, phone, email, simulated'
 const WORKSPACE_COLUMNS = 'id, workspace_key, name, halo_webhook_url, halo_signing_secret_enc, push_settings'
 const MESSAGE_COLUMNS =
-  'id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, status, delivery, created_at, delivered_at, read_at'
+  'id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, status, delivery, reply_to, created_at, delivered_at, read_at'
 
 function parseWebhookUrl(raw: string): string {
   let url: URL
@@ -365,7 +377,7 @@ export class Store {
   /** A message from the user (the app's `send`). Idempotent on `clientId`. */
   async appendInbound(
     subject: Subject,
-    input: { clientId: string | null; type: MessageType; text: string | null; media?: Record<string, unknown> | null },
+    input: { clientId: string | null; type: MessageType; text: string | null; media?: MessageMedia | null; replyTo?: Quote | null },
   ): Promise<{ message: Message; duplicate: boolean }> {
     return this.append(subject, 'in', {
       clientId: input.clientId,
@@ -373,6 +385,7 @@ export class Store {
       type: input.type,
       text: input.text,
       media: input.media ?? null,
+      replyTo: input.replyTo ?? null,
       senderName: subject.user.name,
     })
   }
@@ -380,7 +393,7 @@ export class Store {
   /** A message from Halo (a teammate or the AI). Idempotent on Halo's `Idempotency-Key`. */
   async appendOutbound(
     subject: Subject,
-    input: { idempotencyKey: string; type: MessageType; text: string | null; media?: Record<string, unknown> | null; senderName: string | null },
+    input: { idempotencyKey: string; type: MessageType; text: string | null; media?: MessageMedia | null; replyTo?: Quote | null; senderName: string | null },
   ): Promise<{ message: Message; duplicate: boolean }> {
     return this.append(subject, 'out', {
       clientId: null,
@@ -388,6 +401,7 @@ export class Store {
       type: input.type,
       text: input.text,
       media: input.media ?? null,
+      replyTo: input.replyTo ?? null,
       senderName: input.senderName,
     })
   }
@@ -395,7 +409,7 @@ export class Store {
   private async append(
     subject: Subject,
     direction: Direction,
-    m: { clientId: string | null; idempotencyKey: string | null; type: MessageType; text: string | null; media: Record<string, unknown> | null; senderName: string | null },
+    m: { clientId: string | null; idempotencyKey: string | null; type: MessageType; text: string | null; media: MessageMedia | null; replyTo: Quote | null; senderName: string | null },
   ): Promise<{ message: Message; duplicate: boolean }> {
     const existing = () => this.findByIdempotency(subject, m.clientId, m.idempotencyKey)
     const prior = await existing()
@@ -409,8 +423,8 @@ export class Store {
         )
         const seq = seqRow.rows[0]!.last_seq
         const { rows } = await q.query<Message>(
-          `INSERT INTO messages (id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING ${MESSAGE_COLUMNS}`,
+          `INSERT INTO messages (id, workspace_id, conversation_id, seq, direction, type, text, media, sender_name, client_id, idempotency_key, reply_to)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING ${MESSAGE_COLUMNS}`,
           [
             newId('m_'),
             subject.workspace.id,
@@ -423,6 +437,7 @@ export class Store {
             m.senderName,
             m.clientId,
             m.idempotencyKey,
+            m.replyTo ? JSON.stringify(m.replyTo) : null,
           ],
         )
         const message = rows[0]!
@@ -456,6 +471,51 @@ export class Store {
       if (rows[0]) return rows[0]
     }
     return null
+  }
+
+  /** The message of the user's own conversation that a new message wants to quote, as a snapshot; null if it is not there. */
+  async quoteFor(subject: Subject, serverId: string): Promise<Quote | null> {
+    const { rows } = await this.db.query<{ id: string; type: MessageType; text: string | null; direction: Direction }>(
+      'SELECT id, type, text, direction FROM messages WHERE id = $1 AND conversation_id = $2',
+      [serverId, subject.conversation.id],
+    )
+    const q = rows[0]
+    if (!q) return null
+    return { server_id: q.id, kind: q.type, text: q.text ? q.text.slice(0, 140) : null, from: q.direction === 'in' ? 'you' : 'support' }
+  }
+
+  /** The user's message already stored under this client id (a retry), or null. */
+  async findInboundByClientId(subject: Subject, clientId: string): Promise<Message | null> {
+    return this.findByIdempotency(subject, clientId, null)
+  }
+
+  /** The message already stored for this Halo idempotency key, or null. */
+  async findOutboundByKey(workspaceId: string, idempotencyKey: string): Promise<Message | null> {
+    const { rows } = await this.db.query<Message>(
+      `SELECT ${MESSAGE_COLUMNS} FROM messages WHERE workspace_id = $1 AND idempotency_key = $2`,
+      [workspaceId, idempotencyKey],
+    )
+    return rows[0] ?? null
+  }
+
+  /**
+   * Support's side of the user's own messages: Halo accepted them (`delivered`) or an agent read them (`read`).
+   * Only the user's messages (direction `in`) in this conversation move, only forward, and nothing is queued
+   * for Halo (it is Halo telling us). Returns the ones that changed.
+   */
+  async applySupportStatus(subject: Subject, serverIds: string[], status: 'delivered' | 'read'): Promise<Message[]> {
+    if (serverIds.length === 0) return []
+    const from = status === 'delivered' ? `('sent')` : `('sent', 'delivered')`
+    const { rows } = await this.db.query<Message>(
+      `UPDATE messages
+          SET status = $3,
+              delivered_at = COALESCE(delivered_at, now()),
+              read_at = CASE WHEN $3 = 'read' THEN now() ELSE read_at END
+        WHERE conversation_id = $1 AND direction = 'in' AND id = ANY($2::text[]) AND status IN ${from}
+      RETURNING ${MESSAGE_COLUMNS}`,
+      [subject.conversation.id, serverIds, status],
+    )
+    return rows
   }
 
   async getMessage(id: string): Promise<Message | null> {
@@ -634,7 +694,8 @@ export class Store {
         type: message.type,
         text: message.text,
         sent_at: new Date(message.created_at).toISOString(),
-        // The download address of a file is added when the event is sent (work package 4).
+        // The download address of a file is added when the event is sent (the file's id is kept here).
+        ...(message.reply_to ? { reply_to_server_id: message.reply_to.server_id } : {}),
         ...(message.media ? { media: message.media } : {}),
       },
     }

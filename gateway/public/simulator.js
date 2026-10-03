@@ -1,7 +1,7 @@
 // Vircle Chat simulator (served by the gateway; docs/vircle-chat-gateway-scope.md, section 4).
 // The browser here plays the Vircle app: it talks to the gateway over the same WebSocket protocol the
-// real app will (src/protocol.ts), and the panels show what the gateway does around it. All text from
-// messages is written with textContent, never as HTML.
+// real app will (src/protocol.ts, docs/vircle-chat-app-protocol.md), and the panels show what the gateway does
+// around it. All text from messages is written with textContent, never as HTML.
 (() => {
   'use strict'
 
@@ -19,6 +19,15 @@
   }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const TYPING_SHOWN_MS = 6000
+  const TYPING_SEND_MS = 2500
+  const KINDS = [
+    ['image', /^image\/(png|jpeg|webp)$/],
+    ['video', /^video\/(mp4|3gpp)$/],
+    ['audio', /^audio\/(ogg|mpeg|aac|mp4|amr)$/],
+    ['document', /^(application\/(pdf|msword|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.[a-z.]+)|text\/plain)$/],
+  ]
+  const kindOf = (mime) => (KINDS.find(([, re]) => re.test(mime)) || [null])[0]
 
   let session = null
   let config = null
@@ -26,14 +35,16 @@
   let tab = 'push'
   const phones = new Map()
   let usersCache = []
+  let agentReply = null // server_id the agent is replying to
 
   // ------------------------------------------------------------ API
 
-  async function api(path, method = 'GET', body) {
+  async function api(path, method = 'GET', body, headers = {}) {
+    const raw = body instanceof Blob || body instanceof ArrayBuffer || body instanceof Uint8Array
     const res = await fetch(`/simulator/api${path}`, {
       method,
-      headers: { 'content-type': 'application/json', 'x-sim-session': session || '' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { ...(raw ? {} : { 'content-type': 'application/json' }), 'x-sim-session': session || '', ...headers },
+      body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -66,7 +77,7 @@
   function phoneFor(u) {
     let p = phones.get(u.wallet_id)
     if (!p) {
-      p = { wallet: u.wallet_id, name: u.name, phone: u.phone, email: u.email, ws: null, connected: false, msgs: [], lastSeq: 0, wire: [], lastSend: null }
+      p = { wallet: u.wallet_id, name: u.name, phone: u.phone, email: u.email, ws: null, connected: false, msgs: [], lastSeq: 0, wire: [], lastSend: null, replyTo: null, typingUntil: 0, lastTypingSent: 0, uploads: new Map() }
       phones.set(u.wallet_id, p)
     }
     return p
@@ -125,16 +136,38 @@
         break
       case 'ack': {
         const m = p.msgs.find((x) => x.client_id === f.client_id)
-        if (m) { m.state = 'sent'; m.server_id = f.server_id; m.seq = f.seq; if (f.duplicate) m.note = 'duplicate absorbed' }
+        if (m) { m.state = 'sent'; m.server_id = f.server_id; m.seq = f.seq; m.status = m.status || 'sent'; if (f.duplicate) m.note = 'duplicate absorbed' }
         p.lastSeq = Math.max(p.lastSeq, f.seq)
+        break
+      }
+      case 'receipt': {
+        // Support's side of my own messages: delivered (Halo has it) or read (an agent read it).
+        for (const r of f.messages || []) {
+          const m = p.msgs.find((x) => x.server_id === r.server_id)
+          if (m && !(m.status === 'read' && f.status === 'delivered')) m.status = f.status
+        }
+        break
+      }
+      case 'typing':
+        p.typingUntil = Date.now() + TYPING_SHOWN_MS
+        setTimeout(render, TYPING_SHOWN_MS + 50)
+        break
+      case 'upload_slot': {
+        const u = p.uploads.get(f.request_id)
+        if (u) u.resolve(f)
         break
       }
       case 'resume_done':
         if (f.more) sendFrame(p, { type: 'resume', last_seq: p.lastSeq })
         break
-      case 'error':
+      case 'error': {
+        const u = f.request_id && p.uploads.get(f.request_id)
+        if (u) u.reject(new Error(`${f.code}: ${f.message}`))
+        const m = f.client_id && p.msgs.find((x) => x.client_id === f.client_id)
+        if (m) { m.state = 'failed'; m.note = f.code }
         toast(`${f.code}: ${f.message}`)
         break
+      }
     }
     render()
   }
@@ -144,10 +177,17 @@
   }
 
   function onDeliver(p, f) {
-    if (p.msgs.some((m) => m.server_id === f.server_id)) return
-    p.msgs.push({ direction: f.direction, text: f.text, kind: f.kind, server_id: f.server_id, seq: f.seq, sender: f.sender && f.sender.name, state: 'sent', at: f.sent_at })
+    const known = p.msgs.find((m) => m.server_id === f.server_id)
+    if (known) {
+      if (f.status) known.status = f.status
+      return
+    }
+    p.msgs.push({ direction: f.direction, text: f.text, kind: f.kind, media: f.media, reply_to: f.reply_to, server_id: f.server_id, seq: f.seq, sender: f.sender && f.sender.name, state: 'sent', status: f.status, at: f.sent_at })
     p.lastSeq = Math.max(p.lastSeq, f.seq)
-    if (f.direction === 'out') scheduleAck(p, f.seq)
+    if (f.direction === 'out') {
+      p.typingUntil = 0 // the answer arrived: the typing line goes
+      scheduleAck(p, f.seq)
+    }
   }
 
   function scheduleAck(p, seq) {
@@ -162,11 +202,57 @@
 
   function sendText(p, text) {
     const client_id = `c-${crypto.randomUUID()}`
-    const frame = { type: 'send', client_id, kind: 'text', text }
-    p.msgs.push({ direction: 'in', text, client_id, state: 'pending', at: new Date().toISOString() })
+    const frame = { type: 'send', client_id, kind: 'text', text, ...(p.replyTo ? { reply_to: p.replyTo.server_id } : {}) }
+    p.msgs.push({ direction: 'in', text, client_id, state: 'pending', reply_to: p.replyTo ? quoteOf(p.replyTo) : null, at: new Date().toISOString() })
     p.lastSend = frame
+    p.replyTo = null
     if (!sendFrame(p, frame)) toast('The app is closed: open it first')
     render()
+  }
+
+  const quoteOf = (m) => ({ server_id: m.server_id, kind: m.kind || 'text', text: m.text, from: m.direction === 'in' ? 'you' : 'support' })
+
+  /** Upload a file the way the app does: ask for a slot over the socket, PUT the bytes over HTTPS, then send a message that names the file. */
+  async function sendFile(p, file, caption, durationSeconds) {
+    const kind = kindOf(file.type)
+    if (!kind) throw new Error(`${file.type || 'This type'} is not an allowed file type`)
+    const request_id = `r-${crypto.randomUUID()}`
+    const client_id = `c-${crypto.randomUUID()}`
+    const bubble = { direction: 'in', text: caption || '', kind, client_id, state: 'pending', note: 'uploading…', media: { local: URL.createObjectURL(file), mime_type: file.type, file_name: file.name, size_bytes: file.size }, reply_to: p.replyTo ? quoteOf(p.replyTo) : null, at: new Date().toISOString() }
+    p.msgs.push(bubble)
+    render()
+    try {
+      const slot = await new Promise((resolve, reject) => {
+        p.uploads.set(request_id, { resolve, reject })
+        if (!sendFrame(p, { type: 'upload_request', request_id, kind, file_name: file.name, mime_type: file.type, size_bytes: file.size, ...(durationSeconds ? { duration_seconds: durationSeconds } : {}) })) reject(new Error('The app is closed: open it first'))
+        setTimeout(() => reject(new Error('No upload slot came back')), 8000)
+      })
+      const put = await fetch(slot.upload_url, { method: 'PUT', headers: { 'content-type': file.type }, body: file })
+      if (!put.ok) throw new Error((await put.json().catch(() => ({})))?.error?.message || `Upload failed (${put.status})`)
+      const frame = { type: 'send', client_id, kind, media: { file_id: slot.file_id }, ...(caption ? { text: caption } : {}), ...(p.replyTo ? { reply_to: p.replyTo.server_id } : {}) }
+      p.lastSend = frame
+      p.replyTo = null
+      bubble.note = null
+      if (!sendFrame(p, frame)) throw new Error('The connection closed before the message was sent')
+    } catch (e) {
+      bubble.state = 'failed'
+      bubble.note = e.message
+      toast(e.message)
+    } finally {
+      p.uploads.delete(request_id)
+      render()
+    }
+  }
+
+  async function audioDuration(file) {
+    if (!file.type.startsWith('audio/')) return null
+    return new Promise((resolve) => {
+      const a = new Audio()
+      a.preload = 'metadata'
+      a.onloadedmetadata = () => resolve(Number.isFinite(a.duration) ? Math.round(a.duration) : null)
+      a.onerror = () => resolve(null)
+      a.src = URL.createObjectURL(file)
+    })
   }
 
   // ------------------------------------------------------------ rendering
@@ -194,6 +280,25 @@
     if (usersCache.length === 0) list.append(el('li', { class: 'muted', text: 'No test users yet. Add one above.' }))
   }
 
+  const tickText = (m) => (m.status === 'read' ? '✓✓ read' : m.status === 'delivered' ? '✓✓ delivered' : '✓ sent')
+
+  function quoteBlock(q) {
+    if (!q) return null
+    const label = q.from === 'you' ? 'You' : 'Support'
+    return el('div', { class: 'quote' }, el('strong', { text: label }), document.createTextNode(` ${q.text || `[${q.kind}]`}`))
+  }
+
+  function mediaBlock(m) {
+    const media = m.media
+    if (!media) return null
+    const url = media.local || media.url
+    if (!url) return el('div', { class: 'small muted', text: `[${m.kind}] ${media.file_name || ''}` })
+    if (m.kind === 'image') return el('img', { class: 'att', src: url, alt: media.file_name || 'image' })
+    if (m.kind === 'video') return el('video', { class: 'att', src: url, controls: '' })
+    if (m.kind === 'audio') return el('div', {}, el('audio', { src: url, controls: '' }), media.duration_seconds ? el('div', { class: 'small muted', text: `voice note · ${media.duration_seconds}s` }) : null)
+    return el('a', { href: url, target: '_blank', rel: 'noopener', text: `${media.file_name || 'document'} (${Math.max(1, Math.round((media.size_bytes || 0) / 1024))} KB)` })
+  }
+
   function renderPhone() {
     const p = cur()
     $('phone-name').textContent = p ? p.name || p.wallet : 'No user selected'
@@ -203,18 +308,29 @@
     conn.textContent = p && p.connected ? 'App open' : p && p.ws ? 'Connecting…' : 'App closed'
     const box = $('messages')
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40
-    box.replaceChildren(
-      ...(p ? p.msgs : []).map((m) => {
-        if (m.sys) return el('div', { class: 'sys', text: `${m.text} · ${clock(m.at)}` })
-        const mine = m.direction === 'in'
-        const meta = mine ? (m.state === 'pending' ? 'sending…' : `sent ✓${m.note ? ' · ' + m.note : ''}`) : `${m.sender || 'Support'}`
-        return el('div', { class: `msg${mine ? ' me' : ''}` }, document.createTextNode(m.text || `[${m.kind}]`), el('span', { class: 'meta', text: `${meta} · ${clock(m.at)}` }))
-      }),
-    )
+    const items = (p ? p.msgs : []).map((m) => {
+      if (m.sys) return el('div', { class: 'sys', text: `${m.text} · ${clock(m.at)}` })
+      const mine = m.direction === 'in'
+      const meta = mine ? (m.state === 'pending' ? m.note || 'sending…' : m.state === 'failed' ? `not sent: ${m.note || ''}` : `${tickText(m)}${m.note ? ' · ' + m.note : ''}`) : `${m.sender || 'Support'}`
+      const bubble = el('div', { class: `msg${mine ? ' me' : ''}${m.state === 'failed' ? ' failed' : ''}` })
+      const q = quoteBlock(m.reply_to)
+      if (q) bubble.append(q)
+      const media = mediaBlock(m)
+      if (media) bubble.append(media)
+      if (m.text) bubble.append(document.createTextNode(m.text))
+      bubble.append(el('span', { class: 'meta' }, document.createTextNode(`${meta} · ${clock(m.at)} `), m.server_id ? el('button', { class: 'link', title: 'Reply to this message', onclick: () => { p.replyTo = m; render(); $('draft').focus() } }, '↩ reply') : null))
+      return bubble
+    })
+    if (p && p.typingUntil > Date.now()) items.push(el('div', { class: 'sys typing', text: 'Support is typing…' }))
+    box.replaceChildren(...items)
     if (atBottom) box.scrollTop = box.scrollHeight
+    const bar = $('reply-bar')
+    bar.hidden = !(p && p.replyTo)
+    if (p && p.replyTo) $('reply-text').textContent = `Replying to ${p.replyTo.direction === 'in' ? 'yourself' : 'Support'}: ${p.replyTo.text || `[${p.replyTo.kind}]`}`
     const open = !!(p && p.connected)
     $('draft').disabled = !open
     $('send').disabled = !open
+    $('attach').disabled = !open
     $('connect').disabled = !p || !!p.ws
     $('disconnect').disabled = !p || !p.ws
     $('drop').disabled = !p || !p.ws
@@ -271,14 +387,27 @@
     const { messages } = await api(`/messages?wallet_id=${encodeURIComponent(p.wallet)}`)
     const box = $('agent-list')
     box.replaceChildren(
-      ...messages.map((m) =>
-        el(
-          'li',
-          { class: `a${m.direction === 'out' ? ' out' : ''}` },
-          document.createTextNode(m.text || ''),
-          el('span', { class: 'muted small' }, document.createTextNode(` ${clock(m.created_at)} `), m.direction === 'out' ? ticks(m) : null, m.direction === 'out' && m.delivery ? document.createTextNode(` ${m.delivery}`) : null),
-        ),
-      ),
+      ...messages.map((m) => {
+        const row = el('li', { class: `a${m.direction === 'out' ? ' out' : ''}` })
+        if (m.reply_to) row.append(quoteBlock(m.reply_to))
+        if (m.media && m.media.url) {
+          if (m.kind === 'image') row.append(el('img', { class: 'att', src: m.media.url, alt: m.media.file_name || 'image' }))
+          else row.append(el('a', { href: m.media.url, target: '_blank', rel: 'noopener', text: `${m.kind}: ${m.media.file_name || 'file'}` }))
+        }
+        if (m.text) row.append(document.createTextNode(m.text))
+        row.append(
+          el(
+            'span',
+            { class: 'muted small' },
+            document.createTextNode(` ${clock(m.created_at)} `),
+            m.direction === 'in' ? ticks(m) : null,
+            m.direction === 'out' && m.delivery ? document.createTextNode(` ${m.delivery}`) : null,
+            document.createTextNode(' '),
+            el('button', { class: 'link', title: 'Reply to this message', onclick: () => { agentReply = m; $('agent-reply-text').textContent = `Replying to: ${m.text || `[${m.kind}]`}`; $('agent-reply-bar').hidden = false } }, '↩ reply'),
+          ),
+        )
+        return row
+      }),
     )
     box.scrollTop = box.scrollHeight
     return messages
@@ -328,6 +457,8 @@
 
   function select(wallet) {
     current = wallet
+    agentReply = null
+    $('agent-reply-bar').hidden = true
     render()
     refreshTab()
   }
@@ -341,8 +472,19 @@
     return phones.get(u.wallet_id)
   }
 
-  async function agentSend(wallet, text) {
-    return api('/agent-message', 'POST', { wallet_id: wallet, text })
+  async function agentSend(wallet, text, replyTo) {
+    return api('/agent-message', 'POST', { wallet_id: wallet, text, ...(replyTo ? { reply_to_server_id: replyTo } : {}) })
+  }
+
+  async function agentSendFile(wallet, file, caption, replyTo, durationSeconds) {
+    return api('/agent-file', 'POST', file, {
+      'content-type': file.type,
+      'x-wallet-id': wallet,
+      'x-file-name': encodeURIComponent(file.name),
+      ...(caption ? { 'x-caption': encodeURIComponent(caption) } : {}),
+      ...(replyTo ? { 'x-reply-to': replyTo } : {}),
+      ...(durationSeconds ? { 'x-duration': String(durationSeconds) } : {}),
+    })
   }
 
   // ------------------------------------------------------------ scenarios
@@ -376,10 +518,26 @@
   const phoneHas = (p, text) => p.msgs.some((m) => m.text === text)
   const alertsOf = async (p) => (await api(`/push?wallet_id=${encodeURIComponent(p.wallet)}`)).alerts
   const resetControls = () => { $('auto-ack').checked = true; $('ack-delay').value = '0'; $('screen-open').checked = true }
+  const openUser = async (name) => { const x = await createUser(name); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x }
+
+  /** A small real PNG (a coloured square), made in the page. */
+  async function samplePng() {
+    const c = document.createElement('canvas')
+    c.width = c.height = 48
+    const g = c.getContext('2d')
+    g.fillStyle = '#1b5e9e'
+    g.fillRect(0, 0, 48, 48)
+    g.fillStyle = '#fff'
+    g.fillRect(12, 12, 24, 24)
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'))
+    return new File([blob], 'sample.png', { type: 'image/png' })
+  }
+  /** Bytes that are an Ogg file as far as the gateway can tell (not playable: the point is the voice-note path). */
+  const sampleVoice = () => new File([new Uint8Array([79, 103, 103, 83, ...new Array(300).fill(1)])], 'voice.ogg', { type: 'audio/ogg' })
 
   const SCENARIOS = {
     'Agent replies while the app is open': async () => {
-      const p = await step('Add a test user and open the app', async () => { const x = await createUser('Open app'); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x })
+      const p = await step('Add a test user and open the app', () => openUser('Open app'))
       const a = await step('Agent sends a message', () => agentSend(p.wallet, 'Hello from support'))
       await step('Gateway says it went over the live connection', () => expect(a.delivery === 'socket', `delivery was ${a.delivery}`))
       await step('The app receives it', () => until(() => phoneHas(p, 'Hello from support'), 4000, 'the message'))
@@ -395,7 +553,7 @@
       await step('The agent sees it delivered', () => until(async () => (await refreshAgent()).find((m) => m.server_id === a.server_id)?.status !== 'sent', 5000, 'delivered/read'))
     },
     'Acknowledgement lost: push is the fallback': async () => {
-      const p = await step('Add a test user and open the app', async () => { const x = await createUser('Lost ack'); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x })
+      const p = await step('Add a test user and open the app', () => openUser('Lost ack'))
       await step('Stop acknowledging deliveries', () => { $('auto-ack').checked = false })
       const a = await step('Agent sends a message', () => agentSend(p.wallet, 'Did this arrive?'))
       await step('It went over the connection', () => expect(a.delivery === 'socket', `delivery was ${a.delivery}`))
@@ -403,7 +561,7 @@
       resetControls()
     },
     'Reconnect replays the gap': async () => {
-      const p = await step('Add a test user and open the app', async () => { const x = await createUser('Gap'); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x })
+      const p = await step('Add a test user and open the app', () => openUser('Gap'))
       await step('Drop the connection', async () => { closeApp(p, 4000, 'simulated drop'); await until(() => !p.ws, 3000, 'the app to close') })
       await step('Agent sends three messages while it is away', async () => { for (const t of ['one', 'two', 'three']) await agentSend(p.wallet, t) })
       await step('Reconnect', async () => { await openApp(p); await until(() => p.connected, 8000, 'the app to connect') })
@@ -414,7 +572,7 @@
       })
     },
     'The same message sent twice': async () => {
-      const p = await step('Add a test user and open the app', async () => { const x = await createUser('Duplicate'); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x })
+      const p = await step('Add a test user and open the app', () => openUser('Duplicate'))
       await step('Send "once"', async () => { sendText(p, 'once'); await until(() => p.msgs.some((m) => m.text === 'once' && m.state === 'sent'), 4000, 'the acknowledgement') })
       await step('Send it again with the same id: the gateway absorbs it', async () => {
         const before = p.wire.length
@@ -428,7 +586,7 @@
       })
     },
     'Halo is down, then back': async () => {
-      const p = await step('Add a test user and open the app', async () => { const x = await createUser('Halo down'); await openApp(x); await until(() => x.connected, 8000, 'the app to connect'); return x })
+      const p = await step('Add a test user and open the app', () => openUser('Halo down'))
       await step('Switch Halo off', () => setHaloOffline(true))
       await step('Send two messages from the app: the gateway still accepts them', async () => { sendText(p, 'first while down'); sendText(p, 'second while down'); await until(() => p.msgs.filter((m) => m.direction === 'in' && m.state === 'sent').length >= 2, 5000, 'both acknowledgements') })
       await step('The events wait and retry', () => until(async () => (await refreshEvents()).some((e) => e.summary.includes('while down') && e.state !== 'sent'), 6000, 'events waiting'))
@@ -439,9 +597,66 @@
         expect(evs[0].summary.includes('first') && evs[1].summary.includes('second'), 'the events went out of order')
       })
     },
+    'Photos and voice notes, both ways': async () => {
+      const p = await step('Add a test user and open the app', () => openUser('Files'))
+      const png = await samplePng()
+      await step('The app sends a photo with a caption (slot, upload, send)', async () => {
+        await sendFile(p, png, 'my receipt')
+        await until(() => p.msgs.some((m) => m.kind === 'image' && m.state === 'sent'), 8000, 'the photo to be acknowledged')
+      })
+      await step('The agent sees the photo with its caption', () => until(async () => (await refreshAgent()).some((m) => m.kind === 'image' && m.direction === 'in' && m.text === 'my receipt' && m.media && m.media.url), 5000, 'the photo'))
+      await step('The app sends a voice note with its length', async () => {
+        await sendFile(p, sampleVoice(), '', 6)
+        await until(() => p.msgs.some((m) => m.kind === 'audio' && m.state === 'sent'), 8000, 'the voice note to be acknowledged')
+      })
+      await step('The agent sends a photo back', async () => { const a = await agentSendFile(p.wallet, png, 'here is the form'); expect(a.delivery === 'socket', `delivery was ${a.delivery}`) })
+      await step('It arrives in the app with a link that serves the file', async () => {
+        const m = await until(() => p.msgs.find((x) => x.direction === 'out' && x.kind === 'image'), 5000, 'the photo')
+        const got = await fetch(m.media.url)
+        expect(got.ok && got.headers.get('content-type') === 'image/png', `the link answered ${got.status} ${got.headers.get('content-type')}`)
+      })
+      await step('A file type that is not allowed is refused at the slot', async () => {
+        const bad = new File([new Uint8Array(20)], 'x.gif', { type: 'image/gif' })
+        let refused = false
+        try { await sendFile(p, bad, '') } catch { refused = true }
+        expect(refused || p.msgs.some((m) => m.state === 'failed'), 'the gateway accepted a gif')
+      })
+    },
+    'A reply quotes the message': async () => {
+      const p = await step('Add a test user and open the app', () => openUser('Quote'))
+      const q = await step('The agent asks something', () => agentSend(p.wallet, 'Which account do you want to close?'))
+      const asked = await step('The app has it', () => until(() => p.msgs.find((m) => m.server_id === q.server_id), 4000, 'the question'))
+      await step('The app answers, quoting it', async () => { p.replyTo = asked; sendText(p, 'The savings one'); await until(() => p.msgs.some((m) => m.text === 'The savings one' && m.state === 'sent'), 4000, 'the acknowledgement') })
+      await step('The agent sees the answer as a reply to the question', () => until(async () => (await refreshAgent()).some((m) => m.text === 'The savings one' && m.reply_to && m.reply_to.server_id === q.server_id), 5000, 'the quote'))
+      await step('The agent replies to that answer, and the app shows the quote', async () => {
+        const answer = (await refreshAgent()).find((m) => m.text === 'The savings one')
+        await agentSend(p.wallet, 'Done, it is closed', answer.server_id)
+        await until(() => p.msgs.some((m) => m.text === 'Done, it is closed' && m.reply_to && m.reply_to.text === 'The savings one' && m.reply_to.from === 'you'), 4000, 'the quoted reply')
+      })
+    },
+    'Ticks: delivered, then read': async () => {
+      const p = await step('Add a test user and open the app', () => openUser('Ticks'))
+      await step('The app sends a message', async () => { sendText(p, 'please check my account'); await until(() => p.msgs.some((m) => m.text === 'please check my account' && m.state === 'sent'), 4000, 'the acknowledgement') })
+      await step('It shows delivered once Halo has accepted it', () => until(() => p.msgs.some((m) => m.text === 'please check my account' && (m.status === 'delivered' || m.status === 'read')), 15000, 'delivered (needs Halo to be reachable)'))
+      await step('When an agent reads it, the app shows read', async () => {
+        const r = await api('/agent-read', 'POST', { wallet_id: p.wallet })
+        expect(r.updated >= 1, 'nothing was marked read')
+        await until(() => p.msgs.some((m) => m.text === 'please check my account' && m.status === 'read'), 4000, 'the read tick')
+      })
+    },
+    'Typing indicators': async () => {
+      const p = await step('Add a test user and open the app', () => openUser('Typing'))
+      await step('An agent starts typing: the app shows it', async () => { await api('/agent-typing', 'POST', { wallet_id: p.wallet }); await until(() => p.typingUntil > Date.now(), 4000, 'the typing line') })
+      await step('The typing line goes away by itself', () => until(() => p.typingUntil <= Date.now(), TYPING_SHOWN_MS + 2000, 'the line to clear'))
+      await step('The app types: a typing frame goes to the gateway (and on to Halo)', async () => {
+        const before = p.wire.length
+        sendFrame(p, { type: 'typing' })
+        expect(p.wire.slice(before).some((w) => w.dir === 'out' && w.text.includes('"typing"')), 'no typing frame was sent')
+      })
+    },
   }
 
-  async function runScenario(name, btn) {
+  async function runScenario(name) {
     for (const b of document.querySelectorAll('#scenario-buttons button')) b.disabled = true
     log.replaceChildren()
     head(name)
@@ -483,6 +698,25 @@
       $('draft').value = ''
       sendText(p, text)
     })
+    // The app tells the gateway the user is typing, at most every couple of seconds.
+    $('draft').addEventListener('input', () => {
+      const p = cur()
+      if (!p || !p.connected || !$('draft').value) return
+      if (Date.now() - p.lastTypingSent < TYPING_SEND_MS) return
+      p.lastTypingSent = Date.now()
+      sendFrame(p, { type: 'typing' })
+    })
+    $('attach').addEventListener('click', () => $('file').click())
+    $('file').addEventListener('change', async () => {
+      const p = cur()
+      const file = $('file').files[0]
+      $('file').value = ''
+      if (!p || !file) return
+      const caption = $('draft').value.trim()
+      $('draft').value = ''
+      sendFile(p, file, caption, await audioDuration(file)).catch((e) => toast(e.message))
+    })
+    $('reply-cancel').addEventListener('click', () => { const p = cur(); if (p) { p.replyTo = null; render() } })
     $('connect').addEventListener('click', () => { const p = cur(); if (p) openApp(p).catch((e) => toast(e.message)) })
     $('disconnect').addEventListener('click', () => { const p = cur(); if (p) closeApp(p) })
     $('drop').addEventListener('click', () => { const p = cur(); if (p) closeApp(p, 4000, 'simulated drop') })
@@ -505,12 +739,42 @@
       const p = cur(); const text = $('agent-draft').value.trim()
       if (!p || !text) return
       try {
-        const r = await agentSend(p.wallet, text)
+        const r = await agentSend(p.wallet, text, agentReply && agentReply.server_id)
         $('agent-draft').value = ''
+        agentReply = null
+        $('agent-reply-bar').hidden = true
         $('agent-result').textContent = `Gateway answered: delivery ${r.delivery}, seq ${r.seq}`
         refreshAgent()
       } catch (err) { $('agent-result').textContent = err.message }
     })
+    let lastAgentTyping = 0
+    $('agent-draft').addEventListener('input', () => {
+      const p = cur()
+      if (!p || Date.now() - lastAgentTyping < 2500) return
+      lastAgentTyping = Date.now()
+      api('/agent-typing', 'POST', { wallet_id: p.wallet }).catch(() => {})
+    })
+    $('agent-attach').addEventListener('click', () => $('agent-file').click())
+    $('agent-file').addEventListener('change', async () => {
+      const p = cur()
+      const file = $('agent-file').files[0]
+      $('agent-file').value = ''
+      if (!p || !file) return
+      try {
+        const r = await agentSendFile(p.wallet, file, $('agent-draft').value.trim(), agentReply && agentReply.server_id, await audioDuration(file))
+        $('agent-draft').value = ''
+        agentReply = null
+        $('agent-reply-bar').hidden = true
+        $('agent-result').textContent = `Gateway answered: delivery ${r.delivery}, seq ${r.seq}`
+        refreshAgent()
+      } catch (err) { $('agent-result').textContent = err.message }
+    })
+    $('agent-read').addEventListener('click', async () => {
+      const p = cur()
+      if (!p) return
+      try { const r = await api('/agent-read', 'POST', { wallet_id: p.wallet }); $('agent-result').textContent = `Marked ${r.updated} message(s) read`; refreshAgent() } catch (err) { $('agent-result').textContent = err.message }
+    })
+    $('agent-reply-cancel').addEventListener('click', () => { agentReply = null; $('agent-reply-bar').hidden = true })
     $('wire-clear').addEventListener('click', () => { const p = cur(); if (p) { p.wire = []; renderWire() } })
     for (const b of document.querySelectorAll('.tabs button')) {
       b.addEventListener('click', () => {
@@ -522,7 +786,9 @@
       })
     }
     const sb = $('scenario-buttons')
-    for (const name of Object.keys(SCENARIOS)) sb.append(el('button', { class: 'ghost', onclick: (e) => runScenario(name, e.target) }, name))
+    for (const name of Object.keys(SCENARIOS)) sb.append(el('button', { class: 'ghost', onclick: () => runScenario(name) }, name))
+    // the typing line clears itself even when nothing else happens
+    setInterval(() => { const p = cur(); if (p && p.typingUntil && p.typingUntil <= Date.now()) { p.typingUntil = 0; render() } }, 1000)
   }
 
   // ------------------------------------------------------------ start

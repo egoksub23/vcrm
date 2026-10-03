@@ -13,21 +13,23 @@ not part of Halo's build or its Docker image.
 | 3. Delivery decision: socket or push, one alert per away period, push adapter interface and mock | done |
 | 6 (part). Simulator page, scenarios, launch from Halo | done; the client library it will use is WP 5 |
 | deploy files (compose, Dockerfile, proxy notes) | written, not yet run on the server |
-| 4, 5, 7, 8. Files, client library, load test and runbook, real push adapter | not started |
+| 4. Files in both directions (upload slot, fetch from Halo, signed links, ranges), contract 1.2 extras: replies, read ticks back to the app, typing both ways | done |
+| 5, 7, 8. Client library, load test and runbook, real push adapter | not started |
+
+Files: the app asks for an upload slot over the socket and PUTs the bytes over HTTPS; Halo's files are fetched by the gateway; both are kept in the `files` table and served by signed links (`docs/vircle-chat-app-protocol.md`).
 
 A message from Halo goes to the user's live connection if they have one (`delivery: "socket"`). If the app does
 not acknowledge it within 5 seconds, or the user has no connection, the gateway asks the push API to alert them
 (`"push"`; `"no_device"` if the API knows no device; `"queued"` if no alert was raised). Today the push API is
 the **mock** (`PUSH_ADAPTER=mock`, the default): alerts are recorded, never sent. The real adapter is work
-package 8, when the push API's details are known. File messages are refused with `invalid_media` until work
-package 4. Details: the header of `src/delivery.ts`.
+package 8, when the push API's details are known. Details: the header of `src/delivery.ts`.
 
 ## Run the tests
 
 ```
 cd gateway
 npm install
-npm test            # 162 tests, about 1 to 2 minutes; an in-process Postgres (PGlite), no Docker needed
+npm test            # 243 tests, about 4 minutes; an in-process Postgres (PGlite), no Docker needed
 npm run typecheck
 ```
 
@@ -49,7 +51,9 @@ Settings (environment): `PORT`, `GATEWAY_WS_PATH` (`/ws`), `SESSION_TTL_SECONDS`
 10 s), `REPLAY_BATCH` (200), `TEXT_MAX` (4000), `CAPTION_MAX` (1024), `FILE_MAX_BYTES` (16 MB),
 `DISPATCH_POLL_MS` (2000), `DISPATCH_TIMEOUT_MS` (10000), `DISPATCH_MAX_BACKOFF_S` (900),
 `DISPATCH_GIVE_UP_HOURS` (72), `MAX_HALO_BODY_BYTES` (64 KB), `PUSH_ADAPTER` (`mock`), `PUSH_ACK_TIMEOUT_MS` (5000),
-`PUSH_SWEEP_MS` (1000), `PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
+`PUSH_SWEEP_MS` (1000), `PUBLIC_BASE_URL` (the https address file links are built from), `UPLOAD_SLOT_MINUTES` (15), `APP_FILE_LINK_HOURS` (24),
+`HALO_FILE_LINK_HOURS` (1), `FILE_FETCH_TIMEOUT_MS` (20000), `MAX_VOICE_SECONDS` (300),
+`PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
 (`vircle://chat/{conversation_id}`; a workspace can override the title, text and link in `push_settings`).
 
 ## The simulator

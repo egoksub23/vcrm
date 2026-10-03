@@ -19,6 +19,7 @@ async function main(): Promise<void> {
     console.warn('[gateway] PUSH_ADAPTER=mock: alerts are recorded, NOT sent. Users who are away will not be notified until the Vircle push adapter is configured.')
   }
   const db = createPgDb(cfg.databaseUrl)
+  if (!cfg.files.publicBaseUrl) console.warn('[gateway] PUBLIC_BASE_URL is not set: links to files will point at this machine (127.0.0.1) and no one else can open them.')
   if (cfg.simulator.enabled) console.warn('[gateway] SIMULATOR_ENABLED=true: /simulator is available to anyone Halo opens it for. Switch it off for a production launch.')
   const applied = await migrate(db, process.env.GATEWAY_MIGRATIONS_DIR || join(here, '..', 'migrations'))
   if (applied.length > 0) console.log(`[gateway] applied migrations: ${applied.join(', ')}`)

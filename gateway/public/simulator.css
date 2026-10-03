@@ -69,3 +69,12 @@ input[type=text], input:not([type]), select { background: var(--surface); border
 .steps li { padding: 4px 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); font-size: 13px; }
 .steps li.pass::before { content: "✓ "; color: var(--ok); } .steps li.fail::before { content: "✗ "; color: var(--bad); } .steps li.run::before { content: "… "; color: var(--muted); } .steps li.head { font-weight: 600; background: none; border: 0; padding-left: 0; }
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; max-width: 90vw; z-index: 10; }
+.quote { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 3px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.quote strong { color: var(--text); }
+.att { display: block; max-width: 100%; max-height: 220px; border-radius: 8px; margin-bottom: 4px; }
+audio.att, .msg audio { max-width: 100%; }
+button.link { background: none; border: 0; color: var(--accent); padding: 0 2px; cursor: pointer; font-size: 11px; }
+.msg.failed { border-color: var(--bad); }
+.sys.typing { font-style: italic; }
+.reply-bar { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--line); }
+.composer button.ghost { padding: 7px 10px; }

@@ -18,7 +18,8 @@ import { randomUUID } from 'node:crypto'
 import { WebSocket, WebSocketServer } from 'ws'
 
 import type { GatewayConfig } from './config'
-import { ackFrame, deliverFrame, errorFrame, welcomeFrame } from './frames'
+import { FileError, type FileKind, type FileRow, type FileService, type MessageMedia } from './files'
+import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, uploadSlotFrame, welcomeFrame } from './frames'
 import type { Hub, LiveConnection } from './hub'
 import { parseClientFrame, type ClientFrame } from './protocol'
 import type { Message, Store, Subject } from './store'
@@ -36,6 +37,8 @@ export const CLOSE = {
 export interface GatewayHooks {
   inboundStored?(subject: Subject, message: Message): void
   receiptsApplied?(subject: Subject, messages: Message[]): void
+  /** The user is typing (the app sent a `typing` frame). */
+  typing?(subject: Subject): void
 }
 
 class SendRateLimiter {
@@ -70,12 +73,15 @@ export function attachWebSocket(args: {
   server: Server
   hub: Hub
   store: Store
+  files: FileService
   cfg: GatewayConfig
   hooks?: GatewayHooks
 }): WebSocketGateway {
-  const { server, hub, store, cfg, hooks } = args
+  const { server, hub, store, files, cfg, hooks } = args
   const wss = new WebSocketServer({ noServer: true, maxPayload: cfg.maxFrameBytes })
   const limiter = new SendRateLimiter(cfg.sendRateLimit.limit, cfg.sendRateLimit.windowMs)
+  // Twenty upload slots per user every ten minutes: enough for a gallery, not for filling the disk.
+  const uploadLimiter = new SendRateLimiter(20, 600_000)
   const sockets = new Set<WebSocket>()
   const alive = new WeakMap<WebSocket, boolean>()
 
@@ -170,7 +176,8 @@ export function attachWebSocket(args: {
         case 'ping':
           return void send({ type: 'pong', t: frame.t ?? null })
         case 'typing':
-          return // accepted and ignored for now; Halo has no typing event in contract version 1
+          hooks?.typing?.(subject)
+          return
         case 'resume':
           return replay(frame.lastSeq)
         case 'receipt': {
@@ -180,24 +187,69 @@ export function attachWebSocket(args: {
           return
         }
         case 'send': {
-          if (frame.messageType !== 'text') {
-            return void send(errorFrame('unsupported_kind', 'Files are not available yet'))
-          }
           const wait = limiter.hit(subject.user.id)
-          if (wait > 0) return void send(errorFrame('rate_limited', 'You are sending too fast', wait))
+          if (wait > 0) return void send(errorFrame('rate_limited', 'You are sending too fast', wait, { client_id: frame.clientId }))
           await store.clearAlert(subject.conversation.id)
-          const { message, duplicate } = await store.appendInbound(subject, {
-            clientId: frame.clientId,
-            type: frame.messageType,
-            text: frame.text,
-          })
-          send(ackFrame(frame.clientId, message, duplicate))
-          if (!duplicate) {
-            // The user's other devices see what this one sent.
-            hub.send(subject.user.id, deliverFrame(message), connectionId)
-            hooks?.inboundStored?.(subject, message)
+          // A retry of a message that was stored is answered with the original, before any file is claimed again.
+          const prior = await store.findInboundByClientId(subject, frame.clientId)
+          if (prior) return void send(ackFrame(frame.clientId, prior, true))
+
+          let claimed: FileRow | null = null
+          let media: MessageMedia | null = null
+          if (frame.messageType !== 'text') {
+            try {
+              claimed = await files.claimForMessage(subject, frame.media!.fileId, frame.messageType as FileKind)
+              media = files.mediaOf(claimed)
+            } catch (err) {
+              if (err instanceof FileError) return void send(errorFrame(err.code, err.message, undefined, { client_id: frame.clientId }))
+              throw err
+            }
+          }
+          try {
+            const quote = frame.replyTo ? await store.quoteFor(subject, frame.replyTo) : null
+            const { message, duplicate } = await store.appendInbound(subject, {
+              clientId: frame.clientId,
+              type: frame.messageType,
+              text: frame.text,
+              media,
+              replyTo: quote,
+            })
+            send(ackFrame(frame.clientId, message, duplicate))
+            if (!duplicate) {
+              // The user's other devices see what this one sent.
+              hub.send(subject.user.id, deliverFrame(message, files), connectionId)
+              hooks?.inboundStored?.(subject, message)
+            } else if (claimed) {
+              await files.release(claimed.id) // raced with another copy of the same send: the file was not used
+            }
+          } catch (err) {
+            if (claimed) await files.release(claimed.id).catch(() => undefined)
+            throw err
           }
           return
+        }
+        case 'upload_request': {
+          const slotWait = uploadLimiter.hit(subject.user.id)
+          if (slotWait > 0) return void send(errorFrame('rate_limited', 'Too many uploads: wait a little', slotWait, { request_id: frame.requestId }))
+          try {
+            const slot = await files.createUploadSlot(subject, {
+              kind: frame.kind,
+              mimeType: frame.mimeType,
+              fileName: frame.fileName,
+              sizeBytes: frame.sizeBytes,
+              durationSeconds: frame.durationSeconds,
+            })
+            send(uploadSlotFrame(frame.requestId, slot))
+          } catch (err) {
+            if (err instanceof FileError) return void send(errorFrame(err.code, err.message, undefined, { request_id: frame.requestId }))
+            throw err
+          }
+          return
+        }
+        case 'file_url': {
+          const link = await files.linkForUser(subject, frame.fileId)
+          if (!link) return void send(errorFrame('file_not_found', 'No such file in your conversation'))
+          return void send(fileUrlFrame(frame.fileId, link))
         }
       }
     }
@@ -206,7 +258,7 @@ export function attachWebSocket(args: {
     async function replay(lastSeq: number): Promise<void> {
       if (!subject) return
       const batch = await store.listAfter(subject.conversation.id, lastSeq, cfg.replayBatch)
-      for (const m of batch) send(deliverFrame(m))
+      for (const m of batch) send(deliverFrame(m, files))
       const upTo = batch.length > 0 ? batch[batch.length - 1]!.seq : lastSeq
       send({ type: 'resume_done', conversation_id: subject.conversation.id, up_to_seq: upTo, more: batch.length >= cfg.replayBatch })
     }

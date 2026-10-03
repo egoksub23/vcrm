@@ -59,6 +59,23 @@ export interface GatewayConfig {
     /** Where tapping an alert goes; `{conversation_id}` and `{wallet_id}` are filled in. A workspace may override it (push_settings.deep_link). */
     deepLinkTemplate: string
   }
+  /** Files in both directions (src/files.ts). */
+  files: {
+    /** The public https address of this gateway, used to build the links the app and Halo fetch files from. Defaults to the local address (tests, `npm run sim`). */
+    publicBaseUrl: string | null
+    /** How long the address an app uploads to stays valid. */
+    uploadSlotMinutes: number
+    /** How long a link to a file in a message sent to the app is valid (the app can ask for a fresh one). */
+    appLinkHours: number
+    /** How long a link to a file in an event sent to Halo is valid (made fresh on every attempt). */
+    haloLinkHours: number
+    /** How long the gateway waits for a file Halo asked it to fetch. */
+    fetchTimeoutMs: number
+    /** Longest voice note, in seconds (same as the web widget). */
+    maxVoiceSeconds: number
+    /** Allow Halo's file addresses to be http (tests only). */
+    allowInsecureFetch: boolean
+  }
   /** The test page and its API under /simulator (staging and the pilot; switch it off for a production launch). */
   simulator: { enabled: boolean }
   /** Largest request body Halo may send (a message with its text). */
@@ -112,6 +129,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       windowMinutes: int(env, 'PUSH_WINDOW_MINUTES', 60),
       realertHours: int(env, 'PUSH_REALERT_HOURS', 24),
       deepLinkTemplate: env.PUSH_DEEP_LINK || 'vircle://chat/{conversation_id}',
+    },
+    files: {
+      publicBaseUrl: env.PUBLIC_BASE_URL ? env.PUBLIC_BASE_URL.replace(/\/+$/, '') : null,
+      uploadSlotMinutes: int(env, 'UPLOAD_SLOT_MINUTES', 15),
+      appLinkHours: int(env, 'APP_FILE_LINK_HOURS', 24),
+      haloLinkHours: int(env, 'HALO_FILE_LINK_HOURS', 1),
+      fetchTimeoutMs: int(env, 'FILE_FETCH_TIMEOUT_MS', 20_000),
+      maxVoiceSeconds: int(env, 'MAX_VOICE_SECONDS', 300),
+      allowInsecureFetch: false,
     },
     simulator: { enabled: env.SIMULATOR_ENABLED === 'true' },
     maxHaloBodyBytes: int(env, 'MAX_HALO_BODY_BYTES', 64 * 1024),

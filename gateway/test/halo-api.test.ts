@@ -115,8 +115,8 @@ describe('POST /v1/messages', () => {
       expect((await send(text({ recipient: { wallet_id: 'W-limit' }, text: 'x'.repeat(4000) }))).status).toBe(202)
     })
 
-    it('invalid_media for a file message until files arrive', async () => {
-      const res = await send(text({ type: 'image', media: { url: 'https://files.example.com/a.jpg', mime_type: 'image/jpeg' } }))
+    it('invalid_media for a file the gateway may not fetch (an address that is not https)', async () => {
+      const res = await send(text({ type: 'image', media: { url: 'http://files.example.com/a.jpg', mime_type: 'image/jpeg' } }))
       expect(res.status).toBe(400)
       expect((await errorOf(res)).code).toBe('invalid_media')
     })

@@ -28,6 +28,13 @@ export interface DispatcherOptions {
   now?: () => number
   random?: () => number
   log?: (level: 'info' | 'warn', message: string) => void
+  /**
+   * Last touch on the payload before it is signed and sent: the gateway uses it to turn a stored file into a
+   * fresh link (so an event retried hours later still has a good one).
+   */
+  transformPayload?: (payload: Record<string, unknown>) => Record<string, unknown>
+  /** Halo accepted an event (2xx). The gateway uses it to mark the user's message `delivered` and tell the app. */
+  onDispatched?: (event: OutboxEvent) => Promise<void>
 }
 
 export interface RunSummary {
@@ -57,6 +64,8 @@ export class Dispatcher {
   private readonly now: () => number
   private readonly random: () => number
   private readonly log: NonNullable<DispatcherOptions['log']>
+  private readonly transformPayload: (payload: Record<string, unknown>) => Record<string, unknown>
+  private readonly onDispatched: ((event: OutboxEvent) => Promise<void>) | null
 
   constructor(
     private readonly store: Store,
@@ -66,6 +75,8 @@ export class Dispatcher {
     this.doFetch = opts.fetch ?? fetch
     this.now = opts.now ?? Date.now
     this.random = opts.random ?? Math.random
+    this.transformPayload = opts.transformPayload ?? ((p) => p)
+    this.onDispatched = opts.onDispatched ?? null
     this.log = opts.log ?? ((level, message) => (level === 'warn' ? console.warn : console.log)(`[dispatcher] ${message}`))
   }
 
@@ -130,6 +141,7 @@ export class Dispatcher {
       const outcome = await this.deliver(workspace, event)
       if (outcome.kind === 'ok') {
         await this.store.markDispatched(event.id)
+        await this.onDispatched?.(event).catch((err) => this.log('warn', `after-dispatch step failed for ${event.id}: ${err instanceof Error ? err.message : err}`))
         summary.sent++
         continue
       }
@@ -163,6 +175,27 @@ export class Dispatcher {
   }
 
   /**
+   * Tell Halo something that is only worth knowing now (the user is typing): one signed post, no outbox, no
+   * retry, never throws. Returns whether Halo accepted it.
+   */
+  async sendEphemeral(workspace: Workspace, payload: Record<string, unknown>): Promise<boolean> {
+    try {
+      const rawBody = JSON.stringify(payload)
+      const res = await this.doFetch(workspace.halo_webhook_url, {
+        method: 'POST',
+        headers: signedHeaders(this.store.haloSigningSecret(workspace), rawBody, this.now()),
+        body: rawBody,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(Math.min(this.cfg.dispatch.timeoutMs, 5000)),
+      })
+      await res.body?.cancel().catch(() => undefined)
+      return res.status >= 200 && res.status < 300
+    } catch {
+      return false
+    }
+  }
+
+  /**
    * Post an event again, freshly signed, WITHOUT touching its state in the outbox. For the simulator's
    * "replay an old event": Halo must answer a repeat with 200 and no effect (it remembers event ids).
    */
@@ -171,7 +204,7 @@ export class Dispatcher {
   }
 
   private async deliver(workspace: Workspace, event: OutboxEvent): Promise<Outcome> {
-    const rawBody = JSON.stringify(event.payload)
+    const rawBody = JSON.stringify(this.transformPayload(event.payload))
     let secret: string
     try {
       secret = this.store.haloSigningSecret(workspace)

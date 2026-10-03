@@ -26,12 +26,15 @@
 // ============================================================
 
 import type { GatewayConfig } from './config'
+import type { FileService } from './files'
 import { deliverFrame } from './frames'
 import type { Hub } from './hub'
 import type { MockPushAdapter, PushAdapter } from './push'
 import type { Delivery, Message, Store, Subject, Workspace } from './store'
 
 export interface DeliveryOptions {
+  /** Turns a file in a message into a link for the app. Without it the frame carries the stored `media` as it is. */
+  files?: FileService | null
   now?: () => number
   log?: (level: 'info' | 'warn', message: string) => void
 }
@@ -52,6 +55,7 @@ export class DeliveryService {
   private sweeping: Promise<number> | null = null
   private stopped = false
   private readonly now: () => number
+  private readonly files: FileService | null
   private readonly log: NonNullable<DeliveryOptions['log']>
 
   constructor(
@@ -64,12 +68,13 @@ export class DeliveryService {
     opts: DeliveryOptions = {},
   ) {
     this.now = opts.now ?? Date.now
+    this.files = opts.files ?? null
     this.log = opts.log ?? ((level, message) => (level === 'warn' ? console.warn : console.log)(`[delivery] ${message}`))
   }
 
   /** Get a stored message from Halo to the user. Resolves with what the gateway did (contract section 4). */
   async deliverFromHalo(subject: Subject, message: Message): Promise<Delivery> {
-    const reached = this.hub.send(subject.user.id, deliverFrame(message))
+    const reached = this.hub.send(subject.user.id, deliverFrame(message, this.files))
     if (reached > 0) {
       await this.store.setDelivery(message.id, 'socket')
       return 'socket'

@@ -11,10 +11,10 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { checkGatewayHealth, GatewayError, normalizeGatewayUrl, sendToGateway } from '../../src/lib/vircle-chat/gateway'
+import { checkGatewayHealth, GatewayError, normalizeGatewayUrl, sendReadReceipts, sendToGateway, sendTyping } from '../../src/lib/vircle-chat/gateway'
 import { parseWebhookEvent } from '../../src/lib/vircle-chat/contract'
 import { verifySignature } from '../../src/lib/vircle-chat/signing'
-import { connectUser, startHarness, WORKSPACE, type Harness, type TestClient } from './helpers'
+import { allowLocalFetch, connectUser, OGG, PNG, startFileServer, startHarness, uploadFile, WORKSPACE, type FileServer, type Harness, type TestClient } from './helpers'
 
 interface Received {
   headers: Headers
@@ -30,6 +30,7 @@ beforeAll(async () => {
   vi.stubEnv('VIRCLE_CHAT_ALLOW_LOCAL_GATEWAY', 'true')
   received = []
   h = await startHarness({
+    cfg: allowLocalFetch(),
     dispatcher: {
       // Halo's endpoint, as far as the gateway can tell: it records what it was sent and answers 200.
       fetch: (async (_url: string, init: RequestInit) => {
@@ -96,7 +97,7 @@ describe('Halo -> gateway, with Halo\'s own client', () => {
 
     const media = await sendToGateway(
       conn(),
-      outbound({ type: 'image', text: null, media: { url: 'https://files.example.com/a.jpg', mimeType: 'image/jpeg', fileName: null, sizeBytes: null } }),
+      outbound({ type: 'image', text: null, media: { url: 'http://files.example.com/a.jpg', mimeType: 'image/jpeg', fileName: null, sizeBytes: null } }),
     ).catch((e) => e)
     expect(media).toMatchObject({ code: 'invalid_media', retryable: false })
   })
@@ -180,5 +181,100 @@ describe('gateway -> Halo, checked with Halo\'s own code', () => {
   it('sends events in the order they happened: the user\'s message, then the receipts', async () => {
     const { sent } = await eventsFromARealConversation()
     expect(sent.map((r) => (JSON.parse(r.raw) as { event: string }).event).slice(0, 3)).toEqual(['message.inbound', 'message.receipt', 'message.receipt'])
+  })
+})
+
+describe('contract 1.2, with Halo own code on both sides', () => {
+  let files: FileServer | null = null
+  afterAll(async () => files?.close())
+
+  const events = () => received.map((r) => JSON.parse(r.raw) as Record<string, any>)
+
+  it('Halo read receipts reach the app as "read", and Halo client reads the count back', async () => {
+    const wallet = `W-contract-read-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    client.send({ type: 'send', client_id: 'c1', kind: 'text', text: 'please look at this' })
+    const ack = await client.next('ack')
+    await client.next('receipt') // delivered, once Halo accepted the event
+    expect(await sendReadReceipts(conn(), wallet, [ack.server_id as string])).toBe(1)
+    expect(await client.next('receipt')).toMatchObject({ status: 'read', messages: [{ server_id: ack.server_id }] })
+    expect(await sendReadReceipts(conn(), wallet, [ack.server_id as string])).toBe(0)
+    await expect(sendReadReceipts({ ...conn(), apiToken: 'wrong' }, wallet, ['m_1'])).rejects.toMatchObject({ code: 'unauthorized' })
+  })
+
+  it('Halo typing signal reaches the app', async () => {
+    const wallet = `W-contract-typing-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    expect(await sendTyping(conn(), wallet)).toBe(1)
+    expect(await client.next('typing')).toMatchObject({ from: 'support' })
+    expect(await sendTyping(conn(), 'W-nobody-at-all')).toBe(0)
+  })
+
+  it('the app typing is a user.typing event Halo parser accepts, signature included', async () => {
+    const wallet = `W-contract-typing-up-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    received.length = 0
+    client.send({ type: 'typing' })
+    await vi.waitFor(() => expect(events().some((e) => e.event === 'user.typing')).toBe(true))
+    const r = received.find((x) => JSON.parse(x.raw).event === 'user.typing')!
+    expect(verifySignature({ secret: WORKSPACE.signingSecret, timestampHeader: r.headers.get('x-vircle-timestamp'), signatureHeader: r.headers.get('x-vircle-signature'), rawBody: r.raw })).toBe('ok')
+    expect(parseWebhookEvent(JSON.parse(r.raw))).toMatchObject({ ok: true, event: { kind: 'user.typing', walletId: wallet, workspaceKey: WORKSPACE.key } })
+  })
+
+  it('a reply and a voice note from the app are read by Halo parser: the quote, the file link and its length', async () => {
+    const wallet = `W-contract-file-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    const asked = await sendToGateway(conn(), outbound({ walletId: wallet, text: 'How can we help?' }))
+    await client.next('deliver')
+    received.length = 0
+
+    const { slot } = await uploadFile(client, { kind: 'audio', mime: 'audio/ogg', name: 'note.ogg', bytes: OGG, durationSeconds: 9 })
+    client.send({ type: 'send', client_id: 'c-voice', kind: 'audio', media: { file_id: slot.file_id }, reply_to: asked.serverId })
+    await client.next('ack')
+    await vi.waitFor(() => expect(events().some((e) => e.event === 'message.inbound')).toBe(true))
+    const sent = events().find((e) => e.event === 'message.inbound')!
+    // Halo accepts only https addresses; in production the gateway is behind https, here it is on 127.0.0.1.
+    const parsed = parseWebhookEvent({ ...sent, message: { ...sent.message, media: { ...sent.message.media, url: sent.message.media.url.replace('http://', 'https://') } } })
+    expect(parsed).toMatchObject({
+      ok: true,
+      event: {
+        kind: 'message.inbound',
+        message: { type: 'audio', replyToServerId: asked.serverId, media: { mimeType: 'audio/ogg', fileName: 'note.ogg', durationSeconds: 9 } },
+      },
+    })
+    // the address in the event is one Halo can fetch, and it serves the file
+    expect(Buffer.from(await (await fetch(sent.message.media.url)).arrayBuffer()).equals(OGG)).toBe(true)
+  })
+
+  it('Halo file send, with a quote and a voice-note length, is fetched and shown in the app', async () => {
+    files = await startFileServer({ '/photo.png': { type: 'image/png', body: PNG } })
+    const wallet = `W-contract-halo-file-${++walletCounter}`
+    const { client } = await connectUser(h, { wallet_id: wallet })
+    clients.push(client)
+    client.send({ type: 'send', client_id: 'c-q', kind: 'text', text: 'what does it look like?' })
+    const asked = await client.next('ack')
+    const accepted = await sendToGateway(
+      conn(),
+      outbound({
+        walletId: wallet,
+        type: 'image',
+        text: 'like this',
+        replyToServerId: asked.server_id,
+        media: { url: files.url('/photo.png'), mimeType: 'image/png', fileName: 'photo.png', sizeBytes: PNG.length },
+      }),
+    )
+    expect(accepted.delivery).toBe('socket')
+    const frame = await client.next('deliver', (f) => f.direction === 'out')
+    expect(frame).toMatchObject({ kind: 'image', text: 'like this', reply_to: { server_id: asked.server_id, text: 'what does it look like?', from: 'you' }, media: { mime_type: 'image/png', file_name: 'photo.png' } })
+  })
+
+  it('a file the gateway may not fetch comes back as the error Halo already understands', async () => {
+    const err = await sendToGateway(conn(), outbound({ type: 'image', media: { url: 'http://127.0.0.1:1/none.png', mimeType: 'image/png', fileName: null, sizeBytes: null } })).catch((e) => e)
+    expect(err).toBeInstanceOf(GatewayError)
+    expect(err).toMatchObject({ code: 'invalid_media', retryable: false })
   })
 })

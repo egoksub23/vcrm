@@ -64,7 +64,8 @@ async function main(): Promise<void> {
   }).listen(HALO_PORT)
 
   const gw = await startGateway({
-    cfg: testConfig({ port: GATEWAY_PORT, simulator: { enabled: true } }),
+    // Links to files must name the host the browser used (localhost), or the page's own policy would block them.
+    cfg: testConfig({ port: GATEWAY_PORT, simulator: { enabled: true }, files: { ...testConfig().files, publicBaseUrl: `http://localhost:${GATEWAY_PORT}` } }),
     db,
     publicDir: join(here, '..', 'public'),
     routes: {

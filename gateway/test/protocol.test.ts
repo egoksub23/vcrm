@@ -36,7 +36,7 @@ describe('parseClientFrame: send', () => {
   it('accepts a text message and trims it', () => {
     expect(parse({ type: 'send', client_id: 'c1', kind: 'text', text: '  hi  ' })).toEqual({
       ok: true,
-      frame: { type: 'send', clientId: 'c1', messageType: 'text', text: 'hi', media: null },
+      frame: { type: 'send', clientId: 'c1', messageType: 'text', text: 'hi', media: null, replyTo: null },
     })
   })
 
@@ -57,8 +57,31 @@ describe('parseClientFrame: send', () => {
     expect(fail({ type: 'send', client_id: 'c', kind: 'image', media: { file_id: 'f1' }, text: 'x'.repeat(limits.captionMax + 1) }).code).toBe('message_too_long')
     expect(parse({ type: 'send', client_id: 'c', kind: 'image', media: { file_id: 'f1' }, text: 'a caption' })).toMatchObject({
       ok: true,
-      frame: { messageType: 'image', text: 'a caption', media: { file_id: 'f1' } },
+      frame: { messageType: 'image', text: 'a caption', media: { fileId: 'f1' }, replyTo: null },
     })
+    // a file message names an uploaded file; a bare object with no id is not one
+    expect(fail({ type: 'send', client_id: 'c', kind: 'image', media: { url: 'https://x/y.png' } }).code).toBe('bad_frame')
+  })
+
+  it('reads a reply, and refuses one that is not an id', () => {
+    expect(parse({ type: 'send', client_id: 'c', kind: 'text', text: 'yes', reply_to: 'm_77' })).toMatchObject({ ok: true, frame: { replyTo: 'm_77' } })
+    expect(fail({ type: 'send', client_id: 'c', kind: 'text', text: 'yes', reply_to: 77 }).code).toBe('bad_frame')
+    expect(fail({ type: 'send', client_id: 'c', kind: 'text', text: 'yes', reply_to: '' }).code).toBe('bad_frame')
+  })
+})
+
+describe('parseClientFrame: files', () => {
+  it('reads an upload request, leaving the checks of the file itself to the file service', () => {
+    expect(parse({ type: 'upload_request', request_id: 'r1', kind: 'audio', file_name: 'n.ogg', mime_type: 'audio/ogg', size_bytes: 900, duration_seconds: 4 })).toEqual({
+      ok: true,
+      frame: { type: 'upload_request', requestId: 'r1', kind: 'audio', fileName: 'n.ogg', mimeType: 'audio/ogg', sizeBytes: 900, durationSeconds: 4 },
+    })
+    expect(fail({ type: 'upload_request', kind: 'image' }).code).toBe('bad_frame')
+  })
+
+  it('reads a request for a fresh link', () => {
+    expect(parse({ type: 'file_url', file_id: 'f_1' })).toEqual({ ok: true, frame: { type: 'file_url', fileId: 'f_1' } })
+    expect(fail({ type: 'file_url' }).code).toBe('bad_frame')
   })
 })
 

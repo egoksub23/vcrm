@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createLaunchToken as haloToken } from '../../src/lib/vircle-chat/simulator'
 import { createLaunchToken, LAUNCH_TOKEN_TTL_SECONDS, peekWorkspaceKey, verifyLaunchToken } from '../src/simulator/token'
-import { startHarness, TestClient, WORKSPACE, type Harness } from './helpers'
+import { PNG, startHarness, TestClient, WORKSPACE, type Harness } from './helpers'
 
 const SECRET = WORKSPACE.signingSecret
 const KEY = WORKSPACE.key
@@ -279,3 +279,58 @@ describe('the calls to Halo', () => {
     expect((await api(s, '/replay-event', 'POST', { event_id: 'evt_nope' })).status).toBe(404)
   })
 })
+
+describe('files, replies, ticks and typing through the simulator', () => {
+  const simUser = async (s: string) => (await api(s, '/users', 'POST', { name: 'Feature' })).body as { wallet_id: string }
+
+  it('the agent sends a file: it reaches the open app, and the agent view shows it with a link', async () => {
+    const s = await loggedIn()
+    const u = await simUser(s)
+    const client = await openApp(s, u.wallet_id)
+    const res = await fetch(`${h.url}/simulator/api/agent-file`, {
+      method: 'POST',
+      headers: { 'x-sim-session': s, 'x-wallet-id': u.wallet_id, 'content-type': 'image/png', 'x-file-name': encodeURIComponent('form.png'), 'x-caption': encodeURIComponent('the form') },
+      body: PNG,
+    })
+    expect(res.status).toBe(202)
+    expect(((await res.json()) as { delivery: string }).delivery).toBe('socket')
+    expect(await client.next('deliver')).toMatchObject({ kind: 'image', text: 'the form', media: { file_name: 'form.png', mime_type: 'image/png' } })
+    const m = ((await api(s, `/messages?wallet_id=${u.wallet_id}`)).body.messages as { kind: string; media: { url: string } }[])[0]!
+    expect(m.kind).toBe('image')
+    expect(Buffer.from(await (await fetch(m.media.url)).arrayBuffer()).equals(PNG)).toBe(true)
+  })
+
+  it('refuses a file type that is not allowed, and a file for a user that is not a test user', async () => {
+    const s = await loggedIn()
+    const u = await simUser(s)
+    const send = (headers: Record<string, string>) => fetch(`${h.url}/simulator/api/agent-file`, { method: 'POST', headers: { 'x-sim-session': s, ...headers }, body: PNG })
+    expect((await send({ 'x-wallet-id': u.wallet_id, 'content-type': 'image/gif' })).status).toBe(400)
+    await h.session({ wallet_id: 'W-real-file' })
+    expect((await send({ 'x-wallet-id': 'W-real-file', 'content-type': 'image/png' })).status).toBe(404)
+  })
+
+  it('"mark read" does what Halo does: the app sees its messages as read', async () => {
+    const s = await loggedIn()
+    const u = await simUser(s)
+    const client = await openApp(s, u.wallet_id)
+    client.send({ type: 'send', client_id: 'c1', kind: 'text', text: 'is anyone there' })
+    await client.next('ack')
+    const r = await api(s, '/agent-read', 'POST', { wallet_id: u.wallet_id })
+    expect(r.body.updated).toBe(1)
+    expect(await client.next('receipt', (f) => f.status === 'read')).toMatchObject({ messages: [{ seq: 1 }] })
+    expect((await api(s, '/agent-read', 'POST', { wallet_id: u.wallet_id })).body.updated).toBe(0)
+  })
+
+  it('shows "support is typing" in the app, and quotes a reply', async () => {
+    const s = await loggedIn()
+    const u = await simUser(s)
+    const client = await openApp(s, u.wallet_id)
+    expect((await api(s, '/agent-typing', 'POST', { wallet_id: u.wallet_id })).body.delivered_to).toBe(1)
+    expect(await client.next('typing')).toMatchObject({ from: 'support' })
+    client.send({ type: 'send', client_id: 'c1', kind: 'text', text: 'my question' })
+    const asked = await client.next('ack')
+    await api(s, '/agent-message', 'POST', { wallet_id: u.wallet_id, text: 'the answer', reply_to_server_id: asked.server_id })
+    expect((await client.next('deliver', (f) => f.direction === 'out')).reply_to).toMatchObject({ server_id: asked.server_id, text: 'my question', from: 'you' })
+  })
+})
+

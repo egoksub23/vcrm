@@ -1,6 +1,6 @@
 # Vircle Chat: contract between Halo and the chat gateway
 
-Version 1.1 draft, 3 October 2026 (1.1: push is the gateway's job, not Halo's; Halo's send also carries the contact's name, phone and email). Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
+Version 1.2 draft, 3 October 2026 (1.1: push is the gateway's job, not Halo's; Halo's send also carries the contact's name, phone and email. 1.2: files in both directions, replies that quote a message, "read" ticks back to the app, and typing indicators in both directions: all additions, nothing from 1.1 changed). Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
 This is what the Halo team and the gateway team agree **before** either writes code. Everything is plain
 HTTPS with JSON, so each side can build and test against the mock in `scripts/vircle-chat-mock.mjs`.
 
@@ -75,6 +75,10 @@ so the gateway does not retry forever.
 - `server_id` is the gateway's id for the message and is Halo's dedupe key for the message itself.
   `seq` is the per-conversation sequence number (informational in v1; Halo displays by `sent_at`).
 - Limits: `text` up to 4,000 characters; a caption up to 1,024.
+- **Replies (1.2).** `message.reply_to_server_id` (optional) is the gateway id of the message the user is replying to
+  (a message Halo sent, whose id Halo got in the `202` answer, or an earlier message of the user's, whose id Halo got in
+  `message.inbound`). Halo shows the new message as a reply to that one. An id Halo does not know is ignored.
+- **Voice notes (1.2).** `message.media.duration_seconds` (optional whole number) is the length of a voice note.
 
 Answer `200 {"ok":true,"message_id":"<halo id>"}`. Any 5xx or timeout means "retry with the same
 `event_id`"; the gateway should retry with back-off for at least 24 hours.
@@ -116,6 +120,24 @@ addresses). Halo copies the file into its own private storage and does not keep 
 and the 16 MB ceiling are the same as for WhatsApp media; larger or other types are answered
 `200 {"ok":true,"dropped":"unsupported_media"}` and the text, if any, is kept.
 
+### 3.4 `user.typing` (the user is typing, 1.2)
+
+```json
+{
+  "event": "user.typing",
+  "event_id": "evt_01JABCDEH",
+  "workspace_key": "vcw_9f2c...",
+  "user": { "wallet_id": "W123" },
+  "conversation_id": "c_9f2a",
+  "at": "2026-10-02T09:14:58Z"
+}
+```
+
+Signed like every other event, but **ephemeral**: it is sent once, never retried and not kept if Halo is down, and Halo
+answers `200 {"ok":true}` and remembers nothing. The gateway sends at most one per user every 3 seconds while they
+type; Halo shows "typing..." to the agent for about 6 seconds after the last one. A paused workspace answers
+`200 {"ok":true,"ignored":"paused"}`.
+
 ## 4. REST: Halo to gateway
 
 ```
@@ -144,6 +166,13 @@ A file message sets `type` to `image` / `video` / `audio` / `document` and adds
 fetches it within an hour. `conversation_id` is included when Halo has seen one for this user (from an inbound
 event), omitted for a first outbound message.
 
+**Replies (1.2).** `reply_to_server_id` (optional) is the gateway id of the message being quoted. The gateway shows the
+app the quoted message beside the new one. An id the gateway does not know is ignored and the message is sent without a quote.
+
+**Files (1.2).** The gateway fetches `media.url` while it handles the request (so the call can take a few seconds) and keeps
+its own copy. It refuses a file it cannot fetch, that is over 16 MB, or whose type is not in the allowed list with `400`
+`invalid_media`. `media.duration_seconds` (optional) is the length of a voice note.
+
 Success is `202`:
 
 ```json
@@ -167,6 +196,33 @@ retryable (honours `Retry-After`) and everything else as final, surfaced as "Not
 | `invalid_media` | the file could not be fetched or is not allowed |
 | `message_too_long` | over the text limit |
 | `blocked` | the user opted out or is barred from chat |
+
+### 4.1 `POST /v1/receipts`: the agent read the user's messages (1.2)
+
+```
+POST https://<gateway>/v1/receipts
+Authorization: Bearer <api_token>
+```
+
+```json
+{ "recipient": { "wallet_id": "W123" }, "status": "read", "server_ids": ["m_41", "m_42"] }
+```
+
+Tells the gateway that an agent has read these messages of the user's, so the app can show them as read. `status` is
+`read`; up to 200 ids; an id the gateway does not know, or one that is not the user's, is ignored; a status only moves forward
+(`sent`, `delivered`, `read`), so a repeat changes nothing. Answer `202 {"updated": 2}`.
+
+The gateway marks a user's message `delivered` by itself as soon as Halo has accepted its `message.inbound` event (so the
+app can show that support received it); Halo only ever needs to send `read`.
+
+### 4.2 `POST /v1/typing`: an agent is typing (1.2)
+
+```json
+{ "recipient": { "wallet_id": "W123" } }
+```
+
+Shows "typing..." in the user's app, if it is open. Not stored, no push. Answer `202 {"delivered_to": 1}` (the number of live
+connections it reached; 0 when the app is closed). Halo sends it at most once every 3 seconds while an agent types.
 
 ## 5. Connection health
 
@@ -202,6 +258,9 @@ for them on every event, and why the user's session token (the gateway's own, se
 `docs/vircle-chat-gateway-scope.md`) carries them.
 
 ## 8. Versioning and change
+
+Version 1.2 only adds fields and calls (replies, voice-note length, `user.typing`, `/v1/receipts`, `/v1/typing`); a 1.1 gateway
+or a 1.1 Halo keeps working with a 1.2 peer, because each side ignores what it does not know.
 
 This is version 1. Additions that do not break a reader (new optional fields, new event types a receiver can
 ignore, new `delivery` values the sender documents) stay in version 1; Halo ignores fields and events it does

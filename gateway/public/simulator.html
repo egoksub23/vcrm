@@ -40,7 +40,10 @@
         <span id="conn" class="pill off">App closed</span>
       </div>
       <div id="messages" class="messages" aria-live="polite"></div>
+      <div id="reply-bar" class="reply-bar" hidden><span id="reply-text" class="small"></span><button type="button" id="reply-cancel" class="link" title="Cancel the reply">✕</button></div>
       <form id="composer" class="composer">
+        <button type="button" id="attach" class="ghost" title="Send a photo, video, voice note or document" disabled>＋</button>
+        <input id="file" type="file" hidden accept="image/png,image/jpeg,image/webp,video/mp4,video/3gpp,audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
         <input id="draft" placeholder="Message Vircle Support" maxlength="4000" autocomplete="off" disabled>
         <button type="submit" id="send" disabled>Send</button>
       </form>
@@ -77,10 +80,14 @@
     <div id="tab-agent" class="tabpane" hidden>
       <p class="muted small">The conversation as Halo's agent sees it, with the status the app's receipts give each message. Send as an agent without Halo being connected.</p>
       <ul id="agent-list" class="agent-list"></ul>
+      <div id="agent-reply-bar" class="reply-bar" hidden><span id="agent-reply-text" class="small"></span><button type="button" id="agent-reply-cancel" class="link" title="Cancel the reply">✕</button></div>
       <form id="agent-form" class="row">
+        <button type="button" id="agent-attach" class="ghost" title="Send a file as the agent">＋</button>
+        <input id="agent-file" type="file" hidden accept="image/png,image/jpeg,image/webp,video/mp4,video/3gpp,audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
         <input id="agent-draft" placeholder="Reply as Support" maxlength="4000" autocomplete="off">
         <button type="submit">Send</button>
       </form>
+      <div class="row"><button type="button" id="agent-read" class="ghost" title="What Halo does when an agent opens the chat">Mark the customer's messages read</button></div>
       <div id="agent-result" class="muted small"></div>
     </div>
     <div id="tab-events" class="tabpane" hidden>

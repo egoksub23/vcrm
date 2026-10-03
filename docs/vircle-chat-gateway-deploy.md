@@ -19,7 +19,7 @@ cp .env.gateway.example .env.gateway
 nano .env.gateway
 ```
 
-Set `GATEWAY_DB_PASSWORD` to a long random string (`openssl rand -hex 24`) and `GATEWAY_ENCRYPTION_KEY` to
+Add `PUBLIC_BASE_URL=https://chat.vircle.tech` (the file links in messages are built from it; without it photos and voice notes cannot be opened by the app or by Halo; if your `.env.gateway` was made before 3 Oct 2026, append it: `echo PUBLIC_BASE_URL=https://chat.vircle.tech >> .env.gateway`). Set `GATEWAY_DB_PASSWORD` to a long random string (`openssl rand -hex 24`) and `GATEWAY_ENCRYPTION_KEY` to
 `openssl rand -hex 32`. **Keep a copy of the encryption key somewhere safe**: it encrypts the Halo signing
 secret the gateway stores, and without it that secret has to be entered again. Leave `SIMULATOR_ENABLED=true`
 and `PUSH_ADAPTER=mock` for the pilot.

@@ -9,7 +9,10 @@
 //   GET  /simulator/api/users          the test users of this workspace
 //   POST /simulator/api/users          create a test user
 //   POST /simulator/api/connect-token  a connect token for a test user (what the Vircle backend would mint)
-//   POST /simulator/api/agent-message  send a message to a test user as Halo would (no Halo needed)
+//   POST /simulator/api/agent-message  send a message to a test user as Halo would (no Halo needed); may quote one
+//   POST /simulator/api/agent-file     send a file (the request body is the file) as Halo would
+//   POST /simulator/api/agent-read     mark the user's messages read, as Halo does when an agent opens the chat
+//   POST /simulator/api/agent-typing   show "support is typing" in the user's app
 //   GET  /simulator/api/push           the alerts the gateway raised for a test user (mock only)
 //   GET  /simulator/api/events         the calls to Halo (the outbox): state, attempts, last error
 //   POST /simulator/api/halo-offline   pretend Halo is unreachable (or restore it)
@@ -27,7 +30,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 
 import { acceptHaloMessage } from '../halo-messages'
-import { HttpError, readJson, sendJson, type Route, type Services } from '../http'
+import { FILE_KINDS, mimeMatchesKind, type FileKind } from '../files'
+import { HttpError, readBody, readJson, sendJson, type Route, type Services } from '../http'
+import { applySupportStatus, showAgentTyping } from '../receipts'
 import type { Dispatcher } from '../dispatcher'
 import type { MockPushAdapter } from '../push'
 import type { Workspace } from '../store'
@@ -97,7 +102,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   'GET /simulator/app.css': { file: 'simulator.css', type: 'text/css; charset=utf-8' },
 }
 
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 const simUsername = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().length <= max ? v.trim() : null)
 
@@ -198,7 +203,7 @@ export function buildSimulatorRoutes(args: { state: SimulatorState; dispatcher: 
   })
 
   routes['POST /simulator/api/agent-message'] = authed(async (req, res, s, workspace) => {
-    const body = (await readJson(req)) as { wallet_id?: unknown; text?: unknown }
+    const body = (await readJson(req)) as { wallet_id?: unknown; text?: unknown; reply_to_server_id?: unknown }
     const subject = await simUser(s, workspace, body.wallet_id)
     const text = typeof body.text === 'string' ? body.text.trim() : ''
     if (!text) throw new HttpError(400, 'bad_request', 'The message needs text')
@@ -206,10 +211,47 @@ export function buildSimulatorRoutes(args: { state: SimulatorState; dispatcher: 
     const answer = await acceptHaloMessage(s, workspace, {
       idempotencyKey: `sim-${randomBytes(8).toString('hex')}`,
       text,
+      replyToServerId: typeof body.reply_to_server_id === 'string' ? body.reply_to_server_id : null,
       senderName: 'Support (sim)',
       recipient: { walletId: subject.user.wallet_id, name: subject.user.name, phone: subject.user.phone, email: subject.user.email },
     })
     sendJson(res, 202, answer)
+  })
+
+  /** The request body is the file; the rest is in headers (x-wallet-id, x-file-name, x-kind, x-caption, x-duration, x-reply-to). */
+  routes['POST /simulator/api/agent-file'] = authed(async (req, res, s, workspace) => {
+    const header = (name: string) => (typeof req.headers[name] === 'string' ? (req.headers[name] as string) : null)
+    const subject = await simUser(s, workspace, header('x-wallet-id'))
+    const mimeType = (header('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
+    const kind = FILE_KINDS.find((k) => mimeMatchesKind(k, mimeType)) as FileKind | undefined
+    if (!kind) throw new HttpError(400, 'invalid_media', `Files of type ${mimeType || 'unknown'} are not allowed`)
+    const bytes = await readBody(req, s.cfg.limits.fileMaxBytes)
+    const duration = Number(header('x-duration'))
+    const caption = decodeURIComponent(header('x-caption') ?? '').trim()
+    const answer = await acceptHaloMessage(s, workspace, {
+      idempotencyKey: `sim-${randomBytes(8).toString('hex')}`,
+      text: caption ? caption.slice(0, s.cfg.limits.captionMax) : null,
+      replyToServerId: header('x-reply-to'),
+      senderName: 'Support (sim)',
+      media: { kind, bytes, mimeType, fileName: header('x-file-name') ? decodeURIComponent(header('x-file-name')!) : null, durationSeconds: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null },
+      recipient: { walletId: subject.user.wallet_id, name: subject.user.name, phone: subject.user.phone, email: subject.user.email },
+    }).catch((err) => {
+      if (err && typeof err === 'object' && 'code' in err && 'status' in err) throw new HttpError(400, 'invalid_media', (err as Error).message)
+      throw err
+    })
+    sendJson(res, 202, answer)
+  })
+
+  routes['POST /simulator/api/agent-read'] = authed(async (req, res, s, workspace) => {
+    const subject = await simUser(s, workspace, ((await readJson(req)) as { wallet_id?: unknown }).wallet_id)
+    const all = await s.store.listAfter(subject.conversation.id, 0, 1000)
+    const ids = all.filter((m) => m.direction === 'in' && m.status !== 'read').map((m) => m.id)
+    sendJson(res, 200, { updated: ids.length ? await applySupportStatus(s, subject, ids, 'read') : 0 })
+  })
+
+  routes['POST /simulator/api/agent-typing'] = authed(async (req, res, s, workspace) => {
+    const subject = await simUser(s, workspace, ((await readJson(req)) as { wallet_id?: unknown }).wallet_id)
+    sendJson(res, 200, { delivered_to: showAgentTyping(s, subject) })
   })
 
   routes['GET /simulator/api/push'] = authed(async (req, res, s, workspace) => {
@@ -232,6 +274,9 @@ export function buildSimulatorRoutes(args: { state: SimulatorState; dispatcher: 
         seq: m.seq,
         direction: m.direction,
         text: m.text,
+        kind: m.type,
+        reply_to: m.reply_to,
+        media: m.media ? { file_name: m.media.file_name, mime_type: m.media.mime_type, size_bytes: m.media.size_bytes, url: s.files.linkForApp(m.media.file_id).url } : null,
         status: m.status,
         delivery: m.delivery,
         created_at: new Date(m.created_at).toISOString(),
