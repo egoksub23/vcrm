@@ -130,8 +130,12 @@ BEGIN
   --    (channel's count is still 0 from step 2)
   -- ---------------------------------------------------------
   res := pg_temp.run(mod_a, format(
-    'INSERT INTO sembang_tasks (channel_id, account_id, title, assignee_id, created_by) VALUES (%L, %L, ''do the thing'', %L, %L)',
-    ch, a, mem_a, mod_a));
+    'INSERT INTO sembang_tasks (channel_id, account_id, title, created_by) VALUES (%L, %L, ''do the thing'', %L)', ch, a, mod_a));
+  IF res = 'OK' THEN
+    res := pg_temp.run(mod_a, format(
+      'INSERT INTO sembang_task_assignees (task_id, account_id, user_id, added_by) SELECT id, %L, %L, %L FROM sembang_tasks WHERE channel_id = %L AND title = %L',
+      a, mem_a, mod_a, ch, 'do the thing'));
+  END IF;
   IF res <> 'OK' THEN RAISE EXCEPTION 'FAIL 4a assign a task: %', res; END IF;
 
   res := pg_temp.run(mem_a, format(

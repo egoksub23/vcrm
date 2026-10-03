@@ -138,8 +138,12 @@ BEGIN
   -- 3. Mute suppresses task-assignment notifications
   -- ---------------------------------------------------------
   res := pg_temp.run(mod_a, format(
-    'INSERT INTO sembang_tasks (channel_id, account_id, title, assignee_id, created_by) VALUES (%L, %L, ''do the thing'', %L, %L)',
-    ch, a, mem_a, mod_a));
+    'INSERT INTO sembang_tasks (channel_id, account_id, title, created_by) VALUES (%L, %L, ''do the thing'', %L)', ch, a, mod_a));
+  IF res = 'OK' THEN
+    res := pg_temp.run(mod_a, format(
+      'INSERT INTO sembang_task_assignees (task_id, account_id, user_id, added_by) SELECT id, %L, %L, %L FROM sembang_tasks WHERE channel_id = %L AND title = %L',
+      a, mem_a, mod_a, ch, 'do the thing'));
+  END IF;
   IF res <> 'OK' THEN RAISE EXCEPTION 'FAIL 3a create a task assigned to a muted member: %', res; END IF;
   IF (SELECT count(*) FROM notifications WHERE user_id = mem_a AND type = 'sembang_task_assigned') <> 0 THEN
     RAISE EXCEPTION 'FAIL 3b a muted member was notified of a task assignment anyway';

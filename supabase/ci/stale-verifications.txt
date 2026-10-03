@@ -9,8 +9,4 @@
 # a red check green: fix the script, or record exactly which later migration
 # changed the behaviour.
 
-verify-088-access-phase5.sql | closed list of capabilities and old grant floors; later migrations added sembang.manage, menu.sembang, menu.incidents, incidents.raise (viewers may report incidents, migration 116) and incidents.manage
-verify-098-sembang-p0.sql | step 9a deletes the member's OWN message, which authors may now do (migration 099 adds the edit_own policy); should test that a member cannot delete someone else's
-verify-099-sembang-p1.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
-verify-101-sembang-p3.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
-verify-102-sembang-mentions.sql | sembang_tasks.assignee_id moved to sembang_task_assignees (migration 121)
+# (none at present: the five scripts that were listed here were brought up to date on 3 Oct 2026 and now run in CI.)

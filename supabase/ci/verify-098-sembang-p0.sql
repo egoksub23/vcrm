@@ -34,6 +34,7 @@ DECLARE
   priv_ch   UUID;
   pub_ch_b  UUID;
   msg1      UUID;
+  msg2      UUID;
   res       TEXT;
 BEGIN
   -- ---------------------------------------------------------
@@ -220,15 +221,22 @@ BEGIN
   IF res NOT LIKE 'ERR%' THEN RAISE EXCEPTION 'FAIL 8b a member posted a message authored as someone else: %', res; END IF;
 
   -- ---------------------------------------------------------
-  -- 9. Moderators remove messages; a plain member cannot
+  -- 9. Moderators remove any message; an author removes their own; a
+  --    plain member cannot remove someone else's (migration 099 lets
+  --    authors edit and remove their own messages)
   -- ---------------------------------------------------------
-  PERFORM pg_temp.run(agent2_a, format('UPDATE sembang_messages SET deleted_at = now() WHERE id = %L', msg1));
-  IF (SELECT deleted_at FROM sembang_messages WHERE id = msg1) IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL 9a a plain member removed a message';
+  INSERT INTO sembang_messages (channel_id, account_id, author_id, body) VALUES (pub_ch, a, admin_a, 'from the admin') RETURNING id INTO msg2;
+  PERFORM pg_temp.run(agent2_a, format('UPDATE sembang_messages SET deleted_at = now() WHERE id = %L', msg2));
+  IF (SELECT deleted_at FROM sembang_messages WHERE id = msg2) IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL 9a a plain member removed someone else''s message';
+  END IF;
+  res := pg_temp.run(agent2_a, format('UPDATE sembang_messages SET deleted_at = now() WHERE id = %L', msg1));
+  IF res <> 'OK' OR (SELECT deleted_at FROM sembang_messages WHERE id = msg1) IS NULL THEN
+    RAISE EXCEPTION 'FAIL 9a2 an author could not remove their own message: %', res;
   END IF;
   res := pg_temp.run(admin_a, format(
-    'UPDATE sembang_messages SET deleted_at = now(), deleted_by = %L WHERE id = %L', admin_a, msg1));
-  IF res <> 'OK' OR (SELECT deleted_at FROM sembang_messages WHERE id = msg1) IS NULL THEN
+    'UPDATE sembang_messages SET deleted_at = now(), deleted_by = %L WHERE id = %L', admin_a, msg2));
+  IF res <> 'OK' OR (SELECT deleted_at FROM sembang_messages WHERE id = msg2) IS NULL THEN
     RAISE EXCEPTION 'FAIL 9b the moderator could not remove a message: %', res;
   END IF;
 

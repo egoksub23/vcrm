@@ -212,7 +212,9 @@ BEGIN
             q := substr(q, length(split_part(q, ':', 1) || ':' || split_part(q, ':', 2)) + 2);
           END IF;
           res := pg_temp.dml(other, pg_temp.tpl(q, other));
-          IF res NOT LIKE 'ERR 42501%' AND res <> 'ROWS 0' THEN
+          -- A ticket insert is also refused earlier, by the category check (migration 128), which runs before the row policy
+          -- and cannot see another account's ticket types: still a refusal.
+          IF res NOT LIKE 'ERR 42501%' AND res <> 'ROWS 0' AND res NOT LIKE 'ERR 22023: ticket_type_invalid%' THEN
             RAISE EXCEPTION 'FAIL % (%): % by a member of another account gave %', p_label, cfg, op, res;
           END IF;
           UPDATE pg_temp.counters SET n = n + 1 WHERE k = 'checks';
@@ -427,7 +429,7 @@ BEGIN
   n := n + 1;
 
   -- ---------------------------------------------------------
-  -- 2. Defaults equal the OLD floors: nothing changes until someone edits
+  -- 2. Defaults equal the shipped floors (the original ones, plus the capabilities added since): nothing changes until someone edits
   -- ---------------------------------------------------------
   CREATE TEMP TABLE old_floors (capability TEXT PRIMARY KEY, floor_role TEXT NOT NULL);
   INSERT INTO old_floors VALUES
@@ -446,7 +448,11 @@ BEGIN
     ('jira.connect','admin'),('jira.link','agent'),('jira.share-comments','agent'),
     ('settings.workspace','admin'),('audit.view','admin'),('approvals.review','admin'),
     ('members.invite','admin'),('members.change-role','admin'),('members.remove','admin'),
-    ('teams.manage','admin'),('roles.manage','admin');
+    ('teams.manage','admin'),('roles.manage','admin'),
+    -- added after this script was written, with the default role each shipped with:
+    -- Sembang (098, 111: owner and admin), incidents (116: everyone may report, owner and admin manage)
+    ('menu.sembang','admin'),('sembang.manage','admin'),
+    ('menu.incidents','viewer'),('incidents.raise','viewer'),('incidents.manage','admin');
 
   IF EXISTS (SELECT 1 FROM capability_catalogue c WHERE NOT EXISTS (SELECT 1 FROM old_floors f WHERE f.capability = c.capability)) THEN
     RAISE EXCEPTION 'FAIL a capability exists that this script does not know the old floor of: %',
@@ -629,7 +635,7 @@ BEGIN
     $q$INSERT INTO contacts (id, user_id, phone, account_id) VALUES ('{ID}', '{O}', '+1' || (floor(random() * 9e9) + 1e9)::bigint, '{A}')$q$,
     $q$INSERT INTO contacts (user_id, phone, account_id) VALUES ('{O}', '+1' || (floor(random() * 9e9) + 1e9)::bigint, '{A}')$q$,
     $q$UPDATE contacts SET company = 'Acme' WHERE id = '{ID}'$q$,
-    $q$DELETE FROM contacts WHERE id = '{ID}'$q$);
+    $q$SOFT:contacts:DELETE FROM contacts WHERE id = '{ID}'$q$);
   PERFORM pg_temp.exercise('contact_notes (own)', 'contacts.edit', ARRAY['contacts.edit'], ARRAY['contacts.edit'], ARRAY['contacts.edit'],
     $q$INSERT INTO contact_notes (id, contact_id, user_id, note_text, account_id) VALUES ('{ID}', '{C}', '{ACTOR}', 'n', '{A}')$q$,
     $q$INSERT INTO contact_notes (contact_id, user_id, note_text, account_id) VALUES ('{C}', '{ACTOR}', 'n', '{A}')$q$,
@@ -1017,13 +1023,15 @@ BEGIN
     IF (rec.tablename, rec.policyname) NOT IN (
          ('contact_notes', 'contact_notes_update'),
          ('contact_notes', 'contact_notes_delete'),
-         ('ticket_attachments', 'ticket_attachments_delete')) THEN
+         ('ticket_attachments', 'ticket_attachments_delete'),
+         -- deleting an incident is owner-only on purpose (migration 116)
+         ('incidents', 'incidents_delete')) THEN
       RAISE EXCEPTION 'FAIL write policy %.% still tests a role floor and is not on the allow-list', rec.tablename, rec.policyname;
     END IF;
   END LOOP;
   IF (SELECT count(*) FROM pg_policies WHERE schemaname = 'public'
        AND (tablename, policyname) IN (('contact_notes', 'contact_notes_update'), ('contact_notes', 'contact_notes_delete'),
-                                       ('ticket_attachments', 'ticket_attachments_delete'))) <> 3 THEN
+                                       ('ticket_attachments', 'ticket_attachments_delete'), ('incidents', 'incidents_delete'))) <> 4 THEN
     RAISE EXCEPTION 'FAIL the allow-list names a policy that no longer exists';
   END IF;
   -- policies that gate an admin-only READ (token hashes) also use the capability

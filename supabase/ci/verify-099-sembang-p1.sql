@@ -220,9 +220,14 @@ BEGIN
   -- 6. Tasks: create, toggle done (completed_at/by auto-set), delete rules
   -- ---------------------------------------------------------
   res := pg_temp.run(mem_a, format(
-    'INSERT INTO sembang_tasks (channel_id, account_id, message_id, title, assignee_id, created_by) VALUES (%L, %L, %L, ''Fix the thing'', %L, %L)',
-    ch, a, top1, mod_a, mem_a));
+    'INSERT INTO sembang_tasks (channel_id, account_id, message_id, title, created_by) VALUES (%L, %L, %L, ''Fix the thing'', %L)',
+    ch, a, top1, mem_a));
   IF res <> 'OK' THEN RAISE EXCEPTION 'FAIL 6a a member could not create a task: %', res; END IF;
+  -- assignees live in their own table since migration 121
+  res := pg_temp.run(mem_a, format(
+    'INSERT INTO sembang_task_assignees (task_id, account_id, user_id, added_by) SELECT id, %L, %L, %L FROM sembang_tasks WHERE channel_id = %L AND title = ''Fix the thing''',
+    a, mod_a, mem_a, ch));
+  IF res <> 'OK' THEN RAISE EXCEPTION 'FAIL 6a2 a member could not assign a task: %', res; END IF;
   SELECT id INTO task1 FROM sembang_tasks WHERE channel_id = ch AND title = 'Fix the thing';
 
   -- a non-member cannot create a task in this channel
@@ -276,15 +281,23 @@ BEGIN
   DELETE FROM notifications WHERE account_id = a AND type = 'sembang_task_assigned';
 
   res := pg_temp.run(mem_a, format(
-    'INSERT INTO sembang_tasks (channel_id, account_id, title, assignee_id, created_by) VALUES (%L, %L, ''self assign'', %L, %L)',
-    ch, a, mem_a, mem_a));
+    'INSERT INTO sembang_tasks (channel_id, account_id, title, created_by) VALUES (%L, %L, ''self assign'', %L)', ch, a, mem_a));
+  IF res = 'OK' THEN
+    res := pg_temp.run(mem_a, format(
+      'INSERT INTO sembang_task_assignees (task_id, account_id, user_id, added_by) SELECT id, %L, %L, %L FROM sembang_tasks WHERE channel_id = %L AND title = %L',
+      a, mem_a, mem_a, ch, 'self assign'));
+  END IF;
   IF EXISTS (SELECT 1 FROM notifications WHERE account_id = a AND user_id = mem_a AND type = 'sembang_task_assigned') THEN
     RAISE EXCEPTION 'FAIL 7b a self-assigned task created a notification';
   END IF;
 
   res := pg_temp.run(mem_a, format(
-    'INSERT INTO sembang_tasks (channel_id, account_id, title, assignee_id, created_by) VALUES (%L, %L, ''assign to outsider'', %L, %L)',
-    ch, a, out_a, mem_a));
+    'INSERT INTO sembang_tasks (channel_id, account_id, title, created_by) VALUES (%L, %L, ''assign to outsider'', %L)', ch, a, mem_a));
+  IF res = 'OK' THEN
+    res := pg_temp.run(mem_a, format(
+      'INSERT INTO sembang_task_assignees (task_id, account_id, user_id, added_by) SELECT id, %L, %L, %L FROM sembang_tasks WHERE channel_id = %L AND title = %L',
+      a, out_a, mem_a, ch, 'assign to outsider'));
+  END IF;
   IF EXISTS (SELECT 1 FROM notifications WHERE account_id = a AND user_id = out_a AND type = 'sembang_task_assigned') THEN
     RAISE EXCEPTION 'FAIL 7c assigning to a non-member created a notification anyway';
   END IF;
