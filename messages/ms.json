@@ -3376,7 +3376,8 @@
       "audit": "Log audit",
       "approvals": "Kelulusan",
       "integrations": "Integrasi",
-      "sla": "SLA & waktu perniagaan"
+      "sla": "SLA & waktu perniagaan",
+      "incidents": "Insiden"
     },
     "groups": {
       "account": "Akaun",

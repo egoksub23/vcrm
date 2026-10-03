@@ -3376,7 +3376,8 @@
       "audit": "감사 로그",
       "approvals": "승인",
       "integrations": "연동",
-      "sla": "SLA 및 업무 시간"
+      "sla": "SLA 및 업무 시간",
+      "incidents": "인시던트"
     },
     "groups": {
       "account": "계정",

@@ -3376,7 +3376,8 @@
       "audit": "Audit log",
       "approvals": "Approvals",
       "integrations": "Integrations",
-      "sla": "SLA & business hours"
+      "sla": "SLA & business hours",
+      "incidents": "Incidents"
     },
     "groups": {
       "account": "Account",

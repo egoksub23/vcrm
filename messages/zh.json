@@ -3376,7 +3376,8 @@
       "audit": "审计日志",
       "approvals": "审批",
       "integrations": "集成",
-      "sla": "SLA 与营业时间"
+      "sla": "SLA 与营业时间",
+      "incidents": "事件"
     },
     "groups": {
       "account": "账户",
