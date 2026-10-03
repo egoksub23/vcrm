@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { PGlite } from '@electric-sql/pglite'
+import pg from 'pg'
 import { WebSocket } from 'ws'
 
 import { createServer, type Server } from 'node:http'
@@ -16,7 +17,7 @@ import type { DeliveryOptions } from '../src/delivery'
 import type { DispatcherOptions } from '../src/dispatcher'
 import { MockPushAdapter } from '../src/push'
 import { testConfig, type GatewayConfig } from '../src/config'
-import { migrate, type Db, type Queryable } from '../src/db'
+import { createPgDb, migrate, type Db, type Queryable } from '../src/db'
 import type { GatewayHooks } from '../src/ws-server'
 import type { Route } from '../src/http'
 import type { Subject, Workspace } from '../src/store'
@@ -24,7 +25,32 @@ import type { Subject, Workspace } from '../src/store'
 const here = dirname(fileURLToPath(import.meta.url))
 export const MIGRATIONS = join(here, '..', 'migrations')
 
+let dbCounter = 0
+
+/** TEST_PG=1 (npm run test:pg): a fresh database on a real Postgres, through the same `pg` driver production uses. */
+async function createRealPgTestDb(adminUrl: string): Promise<Db> {
+  const name = `gwtest_${process.pid}_${Date.now()}_${dbCounter++}`
+  const admin = new pg.Client({ connectionString: adminUrl })
+  await admin.connect()
+  await admin.query(`CREATE DATABASE ${name}`)
+  const url = new URL(adminUrl)
+  url.pathname = `/${name}`
+  const inner = createPgDb(url.toString(), { max: 5 })
+  const db: Db = {
+    ...inner,
+    tx: inner.tx.bind(inner),
+    async close() {
+      await inner.close()
+      await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`)
+      await admin.end()
+    },
+  }
+  await migrate(db, MIGRATIONS)
+  return db
+}
+
 export async function createTestDb(): Promise<Db> {
+  if (process.env.TEST_PG_URL) return createRealPgTestDb(process.env.TEST_PG_URL)
   const pg = new PGlite()
   const wrap = (q: { query: PGlite['query'] }): Queryable => ({
     async query<T>(sql: string, params: unknown[] = []) {

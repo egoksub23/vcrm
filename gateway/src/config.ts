@@ -37,6 +37,8 @@ export interface GatewayConfig {
   dispatch: {
     /** Seconds between looks at the outbox (a new event also wakes it at once). */
     pollMs: number
+    /** Conversations whose events are sent at the same moment (order is kept inside a conversation). */
+    concurrency: number
     /** How long one call to Halo may take. */
     timeoutMs: number
     /** The longest wait between two tries of the same event. */
@@ -76,6 +78,16 @@ export interface GatewayConfig {
     /** Allow Halo's file addresses to be http (tests only). */
     allowInsecureFetch: boolean
   }
+  /** How long the gateway keeps what it has delivered (src/retention.ts). */
+  retention: {
+    days: number
+    /** Minutes between runs. */
+    intervalMinutes: number
+  }
+  /** Bearer token for GET /metrics; unset means the endpoint does not exist. */
+  metricsToken: string | null
+  /** Connections the database pool may hold. */
+  dbPoolMax: number
   /** The test page and its API under /simulator (staging and the pilot; switch it off for a production launch). */
   simulator: { enabled: boolean }
   /** Largest request body Halo may send (a message with its text). */
@@ -118,6 +130,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     replayBatch: int(env, 'REPLAY_BATCH', 200),
     dispatch: {
       pollMs: int(env, 'DISPATCH_POLL_MS', 2000),
+      concurrency: int(env, 'DISPATCH_CONCURRENCY', 16),
       timeoutMs: int(env, 'DISPATCH_TIMEOUT_MS', 10_000),
       maxBackoffMs: int(env, 'DISPATCH_MAX_BACKOFF_S', 900) * 1000,
       giveUpHours: int(env, 'DISPATCH_GIVE_UP_HOURS', 72),
@@ -139,6 +152,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       maxVoiceSeconds: int(env, 'MAX_VOICE_SECONDS', 300),
       allowInsecureFetch: false,
     },
+    retention: { days: int(env, 'RETENTION_DAYS', 30), intervalMinutes: int(env, 'RETENTION_INTERVAL_MINUTES', 360) },
+    metricsToken: env.METRICS_TOKEN || null,
+    dbPoolMax: int(env, 'DB_POOL_MAX', 20),
     simulator: { enabled: env.SIMULATOR_ENABLED === 'true' },
     maxHaloBodyBytes: int(env, 'MAX_HALO_BODY_BYTES', 64 * 1024),
     limits: {

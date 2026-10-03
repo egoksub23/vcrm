@@ -86,7 +86,7 @@ One engineer working alone. Days are working days.
 | 4 | Files | 2 |
 | 5 | Client library | 3 |
 | 6 | Simulator and the scripted scenarios | 4 |
-| 7 | Deployment, TLS hostname, backups, load test (a thousand idle connections and a burst), runbook | 3 |
+| 7 | Deployment, TLS hostname, backups, load test (a thousand idle connections and a burst), runbook. **Done 3 Oct 2026** (`vircle-chat-gateway-loadtest.md`, `vircle-chat-gateway-runbook.md`); the backup scripts and Docker/nginx settings still need their first run on the server | 3 |
 | | **Total** | **about 22 days, 4 to 6 weeks with review and fixes** |
 | 8 | Real push API adapter, once you provide the details | 1 to 2 |
 

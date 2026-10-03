@@ -1,12 +1,14 @@
 // ============================================================
 // The gateway's HTTP side:
 //
-//   GET  /healthz       is the service up (no auth)
+//   GET  /healthz       is the process up (no auth; what Docker checks)
+//   GET  /readyz        is it up AND can it reach its database (no auth; what an uptime monitor should watch)
 //   POST /v1/sessions   the Vircle backend asks for a chat session for a signed-in
 //                       user; the answer is a one-time token the app connects with
 //   POST /v1/messages   Halo sends a message to a user (bearer: Halo's API token)
 //   POST /v1/receipts   Halo says an agent read the user's messages (bearer: Halo's API token)
 //   POST /v1/typing     Halo says an agent is typing (bearer: Halo's API token)
+//   GET  /metrics       queue and process numbers for monitoring (bearer: METRICS_TOKEN; absent when unset)
 //   GET  /v1/health     Halo's "Test connection" (bearer: Halo's API token)
 //   PUT  /v1/uploads/:id  the app uploads a file to the address `upload_slot` gave it (signed address)
 //   GET  /v1/files/:id    a file, for the app and for Halo (signed address; ranges for video and audio)
@@ -14,15 +16,19 @@
 // Errors always have one shape: { "error": { "code": "...", "message": "..." } }.
 // ============================================================
 
+import { createHash, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { GatewayConfig } from './config'
+import type { Db } from './db'
+import { renderMetrics } from './metrics'
 import type { DeliveryService } from './delivery'
 import { FileError, type FileKind, type FileService } from './files'
 import { acceptHaloMessage } from './halo-messages'
 import type { Hub } from './hub'
 import { applySupportStatus, showAgentTyping } from './receipts'
 import type { Store, Workspace } from './store'
+import { log } from './log'
 
 export interface Services {
   store: Store
@@ -30,6 +36,7 @@ export interface Services {
   files: FileService
   hub: Hub
   cfg: GatewayConfig
+  db?: Db
 }
 
 export class HttpError extends Error {
@@ -317,12 +324,34 @@ async function getFile(req: IncomingMessage, res: ServerResponse, s: Services, p
   res.end(req.method === 'HEAD' ? undefined : data)
 }
 
+/** Prometheus text for a scraper. Not there at all unless METRICS_TOKEN is set; then it needs that token. */
+async function getMetrics(req: IncomingMessage, res: ServerResponse, s: Services): Promise<void> {
+  const token = s.cfg.metricsToken
+  if (!token) throw new HttpError(404, 'not_found', 'No such route')
+  const presented = /^Bearer\s+(.+)$/i.exec(typeof req.headers.authorization === 'string' ? req.headers.authorization : '')?.[1] ?? ''
+  const a = createHash('sha256').update(presented).digest()
+  const b = createHash('sha256').update(token).digest()
+  if (!timingSafeEqual(a, b)) throw new HttpError(401, 'unauthorized', 'Bad metrics token')
+  const text = await renderMetrics({ store: s.store, hub: s.hub, db: s.db ?? null })
+  res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8', 'cache-control': 'no-store' })
+  res.end(text)
+}
+
 /** `params` carries the `:name` parts of a route like "PUT /v1/uploads/:id". */
 export type Route = (req: IncomingMessage, res: ServerResponse, s: Services, params: Record<string, string>) => Promise<void>
 
 export function buildRoutes(): Record<string, Route> {
   return {
     'GET /healthz': async (_req, res, s) => sendJson(res, 200, { ok: true, connections: s.hub.size }),
+    'GET /readyz': async (_req, res, s) => {
+      try {
+        await s.store.ping()
+      } catch {
+        return sendJson(res, 503, { ok: false, error: 'database_unavailable' })
+      }
+      sendJson(res, 200, { ok: true, connections: s.hub.size })
+    },
+    'GET /metrics': getMetrics,
     'POST /v1/sessions': createSession,
     'POST /v1/messages': postMessage,
     'POST /v1/receipts': postReceipts,
@@ -375,7 +404,7 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse, s
     await found.route(req, res, s, found.params)
   } catch (err) {
     if (err instanceof HttpError) return sendJson(res, err.status, { error: { code: err.code, message: err.message } }, err.headers)
-    console.error('[http] request failed:', err)
+    log.child('http').error('request failed', { error: err instanceof Error ? err.message : String(err) })
     sendJson(res, 500, { error: { code: 'internal', message: 'Something went wrong' } })
   }
 }

@@ -23,6 +23,7 @@ import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, receiptFrame, uploadS
 import type { Hub, LiveConnection } from './hub'
 import { parseClientFrame, type ClientFrame } from './protocol'
 import type { Message, Store, Subject } from './store'
+import { log } from './log'
 
 /** Close codes the app can act on. */
 export const CLOSE = {
@@ -142,7 +143,7 @@ export function attachWebSocket(args: {
         try {
           await handle(parsed.frame)
         } catch (err) {
-          console.error('[ws] frame failed:', err)
+          log.child('ws').error('frame failed', { error: err instanceof Error ? err.message : String(err) })
           send(errorFrame('internal', 'Something went wrong; try again'))
         }
       })

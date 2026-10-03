@@ -713,11 +713,12 @@ export class Store {
         ...(message.media ? { media: message.media } : {}),
       },
     }
-    await q.query('INSERT INTO outbox_events (id, workspace_id, kind, payload) VALUES ($1, $2, $3, $4)', [
+    await q.query('INSERT INTO outbox_events (id, workspace_id, kind, payload, conversation_id) VALUES ($1, $2, $3, $4, $5)', [
       payload.event_id,
       subject.workspace.id,
       'message.inbound',
       JSON.stringify(payload),
+      subject.conversation.id,
     ])
   }
 
@@ -731,11 +732,12 @@ export class Store {
       at: new Date().toISOString(),
       error: null,
     }
-    await q.query('INSERT INTO outbox_events (id, workspace_id, kind, payload) VALUES ($1, $2, $3, $4)', [
+    await q.query('INSERT INTO outbox_events (id, workspace_id, kind, payload, conversation_id) VALUES ($1, $2, $3, $4, $5)', [
       payload.event_id,
       workspace.id,
       'message.receipt',
       JSON.stringify(payload),
+      message.conversation_id,
     ])
   }
 
@@ -766,6 +768,39 @@ export class Store {
       `SELECT id, workspace_id, kind, payload, attempts, next_attempt_at, created_at FROM outbox_events
         WHERE workspace_id = $1 AND dispatched_at IS NULL AND failed_at IS NULL ORDER BY ord LIMIT 1`,
       [workspaceId],
+    )
+    return rows[0] ?? null
+  }
+
+  /**
+   * The next event of every conversation (its lane) that is due, oldest first. A lane whose head is waiting out a retry is
+   * left out whole: the events behind it wait too. `nowIso` is a test clock; null (production) asks the database's own clock, which
+   * also stamped the event: comparing it with a millisecond clock in this process would call an event written a moment ago "not
+   * due yet" and leave it waiting for the next poll.
+   */
+  async dueLaneHeads(workspaceId: string, nowIso: string | null, limit: number): Promise<OutboxEvent[]> {
+    const { rows } = await this.db.query<OutboxEvent>(
+      `SELECT id, workspace_id, kind, payload, attempts, next_attempt_at, created_at, conversation_id FROM (
+         SELECT DISTINCT ON (conversation_id) id, workspace_id, kind, payload, attempts, next_attempt_at, created_at, conversation_id, ord
+           FROM outbox_events
+          WHERE workspace_id = $1 AND dispatched_at IS NULL AND failed_at IS NULL
+          ORDER BY conversation_id, ord
+       ) heads
+       WHERE next_attempt_at <= COALESCE($2::timestamptz, now()) ORDER BY ord LIMIT $3`,
+      [workspaceId, nowIso, limit],
+    )
+    return rows
+  }
+
+  /** The event after the one just handled, in the same conversation, and whether it is due (see `dueLaneHeads` for `nowIso`). */
+  async nextEventInLane(workspaceId: string, conversationId: string | null, nowIso: string | null): Promise<(OutboxEvent & { due: boolean }) | null> {
+    const { rows } = await this.db.query<OutboxEvent & { due: boolean }>(
+      `SELECT id, workspace_id, kind, payload, attempts, next_attempt_at, created_at, conversation_id,
+              next_attempt_at <= COALESCE($3::timestamptz, now()) AS due
+         FROM outbox_events
+        WHERE workspace_id = $1 AND conversation_id IS NOT DISTINCT FROM $2 AND dispatched_at IS NULL AND failed_at IS NULL
+        ORDER BY ord LIMIT 1`,
+      [workspaceId, conversationId, nowIso],
     )
     return rows[0] ?? null
   }
@@ -810,6 +845,62 @@ export class Store {
     return r.rowCount
   }
 
+  /** Can the database answer? For the readiness check. Rejects when it cannot, or takes longer than `timeoutMs`. */
+  async ping(timeoutMs = 2000): Promise<void> {
+    let timer: NodeJS.Timeout | undefined
+    try {
+      await Promise.race([
+        this.db.query('SELECT 1'),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('database did not answer')), timeoutMs)
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /** What an operator watches: the queues and the last hour, in one round trip. The metrics endpoint publishes them. */
+  async metricsSnapshot(): Promise<MetricsSnapshot> {
+    const { rows } = await this.db.query<Record<string, string | number | null>>(
+      `SELECT
+         (SELECT count(*) FROM outbox_events WHERE dispatched_at IS NULL AND failed_at IS NULL) AS outbox_pending,
+         (SELECT count(*) FROM outbox_events WHERE failed_at IS NOT NULL) AS outbox_failed,
+         (SELECT EXTRACT(EPOCH FROM now() - min(created_at)) FROM outbox_events WHERE dispatched_at IS NULL AND failed_at IS NULL) AS outbox_oldest_s,
+         (SELECT count(*) FROM outbox_events WHERE dispatched_at IS NULL AND failed_at IS NULL AND attempts > 0) AS outbox_retrying,
+         (SELECT count(*) FROM messages WHERE direction = 'out' AND status = 'sent') AS undelivered,
+         (SELECT EXTRACT(EPOCH FROM now() - min(created_at)) FROM messages WHERE direction = 'out' AND status = 'sent') AS undelivered_oldest_s,
+         (SELECT count(*) FROM messages WHERE direction = 'in' AND created_at > now() - interval '1 hour') AS in_1h,
+         (SELECT count(*) FROM messages WHERE direction = 'out' AND created_at > now() - interval '1 hour') AS out_1h,
+         (SELECT count(*) FROM push_log WHERE outcome = 'sent' AND created_at > now() - interval '1 hour') AS push_sent_1h,
+         (SELECT count(*) FROM push_log WHERE outcome = 'failed' AND created_at > now() - interval '1 hour') AS push_failed_1h,
+         (SELECT count(*) FROM push_log WHERE outcome = 'no_device' AND created_at > now() - interval '1 hour') AS push_no_device_1h,
+         (SELECT count(*) FROM users) AS users,
+         (SELECT count(*) FROM messages) AS messages,
+         (SELECT count(*) FROM files) AS files,
+         (SELECT COALESCE(sum(size_bytes), 0) FROM files WHERE status = 'ready') AS file_bytes`,
+    )
+    const r = rows[0]!
+    const n = (k: string) => Number(r[k] ?? 0)
+    return {
+      outboxPending: n('outbox_pending'),
+      outboxFailed: n('outbox_failed'),
+      outboxRetrying: n('outbox_retrying'),
+      outboxOldestSeconds: n('outbox_oldest_s'),
+      undelivered: n('undelivered'),
+      undeliveredOldestSeconds: n('undelivered_oldest_s'),
+      inLastHour: n('in_1h'),
+      outLastHour: n('out_1h'),
+      pushSentLastHour: n('push_sent_1h'),
+      pushFailedLastHour: n('push_failed_1h'),
+      pushNoDeviceLastHour: n('push_no_device_1h'),
+      users: n('users'),
+      messages: n('messages'),
+      files: n('files'),
+      fileBytes: n('file_bytes'),
+    }
+  }
+
   /** How much is waiting for Halo, how old the oldest is, and how many were given up on. */
   async outboxStats(): Promise<{ pending: number; failed: number; oldestPendingAt: string | null }> {
     const { rows } = await this.db.query<{ pending: string | number; failed: string | number; oldest: string | Date | null }>(
@@ -831,6 +922,8 @@ export interface OutboxEvent {
   attempts: number
   next_attempt_at: string | Date
   created_at: string | Date
+  /** The lane: events of one conversation are sent in order; different conversations run side by side. */
+  conversation_id?: string | null
 }
 
 export interface RecentEvent {
@@ -843,4 +936,22 @@ export interface RecentEvent {
   created_at: string | Date
   dispatched_at: string | Date | null
   failed_at: string | Date | null
+}
+
+export interface MetricsSnapshot {
+  outboxPending: number
+  outboxFailed: number
+  outboxRetrying: number
+  outboxOldestSeconds: number
+  undelivered: number
+  undeliveredOldestSeconds: number
+  inLastHour: number
+  outLastHour: number
+  pushSentLastHour: number
+  pushFailedLastHour: number
+  pushNoDeviceLastHour: number
+  users: number
+  messages: number
+  files: number
+  fileBytes: number
 }

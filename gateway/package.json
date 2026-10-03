@@ -13,8 +13,10 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit && tsc -p client/tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:pg": "node scripts/test-pg.mjs",
     "cli": "tsx src/cli.ts",
     "sim": "node build.mjs && tsx scripts/sim-dev.ts",
+    "loadtest": "node build.mjs && tsx scripts/loadtest.ts",
     "build:client": "node build.mjs && tsc -p client/tsconfig.build.json"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "@types/node": "^20.17.0",
     "@types/pg": "^8.11.0",
     "@types/ws": "^8.5.0",
+    "embedded-postgres": "16.14.0-beta.17",
     "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",

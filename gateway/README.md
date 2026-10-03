@@ -15,7 +15,8 @@ not part of Halo's build or its Docker image.
 | deploy files (compose, Dockerfile, proxy notes) | written, not yet run on the server |
 | 4. Files in both directions (upload slot, fetch from Halo, signed links, ranges), contract 1.2 extras: replies, read ticks back to the app, typing both ways | done |
 | 5. Client library for the app (`client/`, its own README), the simulator now runs on it | done |
-| 7, 8. Load test and runbook, real push adapter | not started |
+| 7. Operations: retention, `/metrics`, `/readyz`, JSON logs, parallel event sending, whole suite on real Postgres 16, load test, backup and restore scripts, runbook | done (the scripts and Docker/nginx settings are written, not yet run on the server) |
+| 8. Real push adapter | waiting for the push API details |
 
 Files: the app asks for an upload slot over the socket and PUTs the bytes over HTTPS; Halo's files are fetched by the gateway; both are kept in the `files` table and served by signed links (`docs/vircle-chat-app-protocol.md`).
 
@@ -117,14 +118,18 @@ Frames are documented at the top of `src/protocol.ts`.
 
 Every `message.inbound` and `message.receipt` is written to the `outbox_events` table in the same
 transaction as the change it describes, then posted to Halo signed with the workspace's secret. Events go in
-order per workspace; one that Halo does not accept (no answer, 5xx, 429, 401, 404) is retried with growing
-waits and holds back the ones behind it; a 400/413/422 is set aside and the rest carry on; after
+order per conversation, and different conversations are sent side by side (`DISPATCH_CONCURRENCY`, default 16); one that Halo does not accept (no answer, 5xx, 429, 401, 404) is retried with growing
+waits and holds back the ones behind it in the same conversation; a 400/413/422 is set aside and the rest carry on; after
 `DISPATCH_GIVE_UP_HOURS` an event is given up on and kept for `outbox` and `retry-failed`. See the header of
 `src/dispatcher.ts`. Run one gateway process: two would not corrupt anything (Halo dedupes event ids) but
 could reorder events.
 
-## Not yet exercised
+## Real Postgres, load test, operations
 
-The tests use PGlite, which serves one connection at a time, and nothing has run against the `pg` driver or
-a real Postgres yet (work package 7 does, with a load test). Two writers at the same instant are therefore
-untested; the schema's unique indexes are what protect them.
+`npm test` runs on PGlite (in-process, no install). `npm run test:pg` runs the same suite on a real Postgres 16 through the
+`pg` driver (an embedded server, downloaded by npm, no Docker). `npm run loadtest` runs the gateway as a separate process on a real
+Postgres with 1,000 pretend phones (`docs/vircle-chat-gateway-loadtest.md`). Day-to-day running, alerts, backup and restore:
+`docs/vircle-chat-gateway-runbook.md`.
+
+Still untested: two gateway writers at the same instant from separate processes (the schema's unique indexes protect them), and
+anything that needs the server itself (see the runbook, section 9).

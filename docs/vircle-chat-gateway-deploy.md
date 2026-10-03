@@ -114,16 +114,24 @@ gateway a link that is valid for five minutes and works once, signed with the wo
 creates are named `... (sim)`, appear in Halo's inbox as Vircle Chat contacts, and **never cause a real push**,
 whatever `PUSH_ADAPTER` is. Before a production launch set `SIMULATOR_ENABLED=false` and redeploy.
 
-## 7. Backups and logs
+## 7. Backups, logs and monitoring
 
-The database is the `gateway-db` volume. A nightly dump:
+The database is the `gateway-db` volume. Nightly backup and a tested restore are scripts in `deploy/` (details, retention, off-server
+copy and the monthly check are in `docs/vircle-chat-gateway-runbook.md`, section 5):
 
 ```bash
-docker compose -f docker-compose.gateway.yml exec -T gateway-db pg_dump -U gateway gateway | gzip > /opt/backups/gateway-$(date +%F).sql.gz
+cd /opt/wacrm && chmod +x deploy/gateway-backup.sh deploy/gateway-restore.sh
+deploy/gateway-backup.sh
+( crontab -l 2>/dev/null; echo '15 2 * * * /opt/wacrm/deploy/gateway-backup.sh >> /var/log/gateway-backup.log 2>&1' ) | crontab -
 ```
 
-(Add it to cron and keep a week; a fuller backup and restore runbook comes with work package 7.)
-Logs: `docker compose -f docker-compose.gateway.yml logs -f gateway`.
+Logs are one JSON object per line and rotate by themselves: `docker compose -f docker-compose.gateway.yml logs -f gateway`. Point an
+uptime monitor at `https://chat.vircle.tech/readyz`. To read queue sizes and memory, set `METRICS_TOKEN` in `.env.gateway` and
+see the runbook, section 2.
+
+**Updating the nginx file after the first install.** `certbot` added the certificate to the copy in `/etc/nginx/sites-available`, so
+copying the repo file over it removes that. After `cp deploy/nginx/chat.vircle.tech.conf /etc/nginx/sites-available/chat.vircle.tech`
+run `certbot --nginx -d chat.vircle.tech --redirect` again (it reuses the certificate), then `nginx -t && systemctl reload nginx`.
 
 ## 8. Update later
 

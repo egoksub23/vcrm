@@ -352,7 +352,7 @@ describe('sending text', () => {
     expect(mine.replyTo).toEqual({ serverId: asked.server_id, kind: 'text', text: 'Which account?', from: 'support' })
     await fromHalo('W-quote', 'Done', { reply_to_server_id: mine.serverId })
     await vi.waitFor(() => expect(c.getSnapshot().messages.at(-1)?.replyTo).toMatchObject({ text: 'The savings one', from: 'you' }))
-    expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.reply_to_server_id).toBe(asked.server_id)
+    await vi.waitFor(() => expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.reply_to_server_id).toBe(asked.server_id))
   })
 })
 
@@ -461,6 +461,7 @@ describe('files', () => {
     expect(shown).toMatchObject({ kind: 'image', text: 'my receipt', status: 'sending', media: { mimeType: 'image/png', fileName: 'shot.png', sizeBytes: PNG.length, fileId: null } })
     const stored = await p
     expect(stored).toMatchObject({ status: settled, seq: 1, media: { fileId: expect.stringMatching(/^f_/) } })
+    await vi.waitFor(() => expect(halo.hits.find((e) => e.event === 'message.inbound')).toBeDefined())
     const event = halo.hits.find((e) => e.event === 'message.inbound')!
     expect(event.message).toMatchObject({ type: 'image', text: 'my receipt', media: { mime_type: 'image/png', file_name: 'shot.png', size_bytes: PNG.length } })
     expect(Buffer.from(await (await fetch(event.message.media.url)).arrayBuffer()).equals(PNG)).toBe(true)
@@ -472,7 +473,7 @@ describe('files', () => {
     const stored = await c.sendFile({ blob: new Blob([OGG], { type: 'audio/ogg' }), name: 'note.ogg' }, { durationSeconds: 12.4 })
     expect(stored.kind).toBe('audio')
     expect(stored.media?.durationSeconds).toBe(12)
-    expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.media.duration_seconds).toBe(12)
+    await vi.waitFor(() => expect(halo.hits.find((e) => e.event === 'message.inbound')?.message.media.duration_seconds).toBe(12))
   })
 
   it('refuses before uploading: a type that is not allowed, an empty file, too large a file, a voice note over five minutes, a long caption', async () => {

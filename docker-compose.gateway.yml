@@ -1,19 +1,29 @@
 # The Vircle Chat gateway and its own database, next to Halo but separate from it.
 # Deploy:   docker compose -f docker-compose.gateway.yml --env-file .env.gateway up --build -d
 # Halo's own docker-compose.yml is untouched; this file is only for the gateway.
-# See docs/vircle-chat-gateway-deploy.md.
+# See docs/vircle-chat-gateway-deploy.md and docs/vircle-chat-gateway-runbook.md.
 name: vircle-gateway
+
+# Container logs rotate: without this Docker keeps every line forever and eventually fills the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '20m'
+    max-file: '5'
 
 services:
   gateway-db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: gateway
       POSTGRES_PASSWORD: ${GATEWAY_DB_PASSWORD:?set GATEWAY_DB_PASSWORD in .env.gateway}
       POSTGRES_DB: gateway
     volumes:
       - gateway-db:/var/lib/postgresql/data
+    # Postgres gets time to finish its writes when the container is stopped.
+    stop_grace_period: 60s
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U gateway -d gateway']
       interval: 10s
@@ -24,6 +34,7 @@ services:
     build:
       context: ./gateway
     restart: unless-stopped
+    logging: *logging
     depends_on:
       gateway-db:
         condition: service_healthy
@@ -32,6 +43,16 @@ services:
     environment:
       PORT: 8090
       DATABASE_URL: postgres://gateway:${GATEWAY_DB_PASSWORD}@gateway-db:5432/gateway
+    # Reap zombie processes and pass SIGTERM straight to node, so a restart closes connections cleanly.
+    init: true
+    # Time to tell every connected app to reconnect (close code 1012) before the container is killed.
+    stop_grace_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     # Only the reverse proxy on this machine reaches it; the proxy terminates TLS for chat.vircle.tech.
     ports:
       - '127.0.0.1:${GATEWAY_HOST_PORT:-8090}:8090'

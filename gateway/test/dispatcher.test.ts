@@ -259,6 +259,7 @@ describe('events Halo refuses for good', () => {
     await dispatcher.runOnce()
     expect((await store.outboxStats()).failed).toBe(1)
     expect(await store.requeueFailed(workspace.workspace_key)).toBe(1)
+    skew += 1000 // the database stamps the retry with its own clock, to the microsecond; the test clock is whole milliseconds
     answers = [respond(200)]
     expect((await dispatcher.runOnce()).sent).toBe(1)
     expect(await store.outboxStats()).toMatchObject({ pending: 0, failed: 0 })
@@ -282,5 +283,103 @@ describe('failures that are ours', () => {
     dispatcher.kick()
     await new Promise((r) => setTimeout(r, 30))
     expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('conversations are sent side by side', () => {
+  /** A Halo that takes `ms` to answer, and remembers how many calls were in flight at once and the order they arrived in. */
+  function slowHalo(ms: number, statusFor: (text: string) => number = () => 200) {
+    const seen: string[] = []
+    let inFlight = 0
+    let peak = 0
+    const d = new Dispatcher(
+      store,
+      { dispatch: { ...cfg.dispatch, concurrency: 4 } },
+      {
+        fetch: (async (_url: string, init: RequestInit) => {
+          const body = JSON.parse(String(init.body)) as { message?: { text?: string }; server_id?: string }
+          const text = body.message?.text ?? `receipt:${body.server_id}`
+          inFlight++
+          peak = Math.max(peak, inFlight)
+          await new Promise((r) => setTimeout(r, ms))
+          inFlight--
+          seen.push(text)
+          return respond(statusFor(text))
+        }) as unknown as typeof fetch,
+        now,
+        random: () => 0.5,
+        log: () => undefined,
+      },
+    )
+    return { d, seen, peak: () => peak }
+  }
+
+  async function users(n: number) {
+    const out: Subject[] = []
+    for (let i = 0; i < n; i++) out.push(await store.upsertUser(workspace, { walletId: `W-lane-${i}`, name: `User ${i}`, phone: null, email: null }))
+    return out
+  }
+
+  it('sends different conversations at the same time, up to the configured number, so a slow Halo does not cap the gateway at one at a time', async () => {
+    const all = await users(12)
+    for (const [i, s] of all.entries()) await store.appendInbound(s, { clientId: `c${i}`, type: 'text', text: `u${i}` })
+    const halo = slowHalo(40)
+    const t0 = Date.now()
+    expect((await halo.d.runOnce()).sent).toBe(12)
+    const took = Date.now() - t0
+    expect(halo.peak()).toBe(4)
+    expect(took).toBeLessThan(12 * 40 * 0.7) // twelve calls of 40 ms one after another would be 480 ms
+  })
+
+  it('keeps the order inside a conversation, however many are running', async () => {
+    const all = await users(6)
+    for (let round = 0; round < 3; round++) for (const [i, s] of all.entries()) await store.appendInbound(s, { clientId: `c${round}-${i}`, type: 'text', text: `u${i}-m${round}` })
+    const halo = slowHalo(10)
+    expect((await halo.d.runOnce()).sent).toBe(18)
+    for (let i = 0; i < 6; i++) expect(halo.seen.filter((t) => t.startsWith(`u${i}-`))).toEqual([`u${i}-m0`, `u${i}-m1`, `u${i}-m2`])
+  })
+
+  it('holds back only the conversation whose event was not accepted; the others carry on', async () => {
+    const [a, b, c] = await users(3)
+    await store.appendInbound(a!, { clientId: 'a1', type: 'text', text: 'a1' })
+    await store.appendInbound(a!, { clientId: 'a2', type: 'text', text: 'a2' })
+    await store.appendInbound(b!, { clientId: 'b1', type: 'text', text: 'b1' })
+    await store.appendInbound(c!, { clientId: 'c1', type: 'text', text: 'c1' })
+    const halo = slowHalo(5, (text) => (text === 'a1' ? 503 : 200))
+    expect(await halo.d.runOnce()).toEqual({ sent: 2, retrying: 1, failed: 0 })
+    expect(halo.seen.sort()).toEqual(['a1', 'b1', 'c1']) // a2 never went: it waits behind a1
+    expect(await pendingTexts()).toEqual(['a1', 'a2'])
+  })
+
+  it('stops the pass when Halo keeps refusing, instead of trying every conversation against a Halo that is down', async () => {
+    const all = await users(20)
+    for (const [i, s] of all.entries()) await store.appendInbound(s, { clientId: `c${i}`, type: 'text', text: `u${i}` })
+    const halo = slowHalo(5, () => 503)
+    const r = await halo.d.runOnce()
+    expect(r.sent).toBe(0)
+    expect(r.retrying).toBeLessThanOrEqual(3 + 4) // three failures stop the pass; calls already in flight finish
+    expect(halo.seen.length).toBeLessThan(20)
+  })
+})
+
+describe('on the database clock (no test clock)', () => {
+  it('sends an event written a moment ago at once, never leaving it for the next poll', async () => {
+    // The database stamps an event to the microsecond; a millisecond clock in this process used to call it "not due yet"
+    // when the send came within the same millisecond, which on a real Postgres left the first message after a quiet spell
+    // waiting for the next two-second poll.
+    const sent: string[] = []
+    const d = new Dispatcher(store, cfg, {
+      fetch: (async (_url: string, init: RequestInit) => {
+        sent.push((JSON.parse(String(init.body)) as { event_id: string }).event_id)
+        return respond(200)
+      }) as unknown as typeof fetch,
+      log: () => undefined,
+    })
+    for (let i = 0; i < 40; i++) {
+      await inbound(1000 + i)
+      expect((await d.runOnce()).sent).toBe(1)
+    }
+    expect(sent).toHaveLength(40)
+    expect(await store.outboxStats()).toMatchObject({ pending: 0 })
   })
 })

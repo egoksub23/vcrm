@@ -21,6 +21,8 @@ import { applySupportStatus } from './receipts'
 import { buildSimulatorRoutes, SimulatorState, simulatorFetch } from './simulator/routes'
 import { Store } from './store'
 import { attachWebSocket, type GatewayHooks, type WebSocketGateway } from './ws-server'
+import { log } from './log'
+import { runRetention } from './retention'
 
 export interface Gateway {
   server: Server
@@ -68,7 +70,7 @@ export async function startGateway(args: {
   const files = new FileService(db, cfg, args.files)
   const simulatedPush = new MockPushAdapter()
   const delivery = new DeliveryService(store, hub, args.push ?? createPushAdapter(cfg), simulatedPush, cfg, { ...args.delivery, files })
-  const services = { store, hub, cfg, delivery, files }
+  const services = { store, hub, cfg, delivery, files, db }
 
   // The simulator may switch a Halo "off": the dispatcher's calls to it then fail like a network outage.
   const simulator = cfg.simulator.enabled ? new SimulatorState() : null
@@ -136,6 +138,17 @@ export async function startGateway(args: {
   if (args.delivery?.sweeper !== false) delivery.start()
   const housekeeping = setInterval(() => void files.purgeStalePending().catch(() => undefined), FILE_HOUSEKEEPING_MS)
   housekeeping.unref()
+  // Retention: a first run a minute after start (not during the busy moment of a restart), then on a schedule.
+  const retain = () =>
+    runRetention(db, { days: cfg.retention.days })
+      .then((r) => {
+        if (r.messages + r.files + r.events + r.pushLog + r.sessions > 0) log.info('retention', { ...r })
+      })
+      .catch((err) => log.error('retention failed', { error: err instanceof Error ? err.message : String(err) }))
+  const retentionFirst = setTimeout(retain, 60_000)
+  const retentionTimer = setInterval(retain, cfg.retention.intervalMinutes * 60_000)
+  retentionFirst.unref()
+  retentionTimer.unref()
 
   return {
     server,
@@ -149,6 +162,8 @@ export async function startGateway(args: {
     port,
     async close() {
       clearInterval(housekeeping)
+      clearTimeout(retentionFirst)
+      clearInterval(retentionTimer)
       await dispatcher?.stop()
       await delivery.stop()
       await ws.shutdown()

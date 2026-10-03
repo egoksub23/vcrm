@@ -6,8 +6,10 @@
 // them, signed, and marks each one done only when Halo answers 2xx.
 //
 // Rules:
-//   * ORDER. A workspace's events go in the order they were written. An event waiting for a retry
-//     holds back the ones behind it, so Halo never sees a reply before the message it answers.
+//   * ORDER. A conversation's events go in the order they were written. An event waiting for a retry
+//     holds back the ones behind it in the same conversation, so Halo never sees a reply before the message it
+//     answers. Different conversations are sent side by side (DISPATCH_CONCURRENCY at a time): a slow Halo
+//     would otherwise cap the whole gateway at one event per round trip.
 //   * RETRY. Anything that might clear up (no answer, 5xx, 429, a wrong signature while someone is
 //     fixing the secret) is retried with growing waits and a little jitter, honouring Retry-After.
 //     After `giveUpHours` an event is given up on and kept, with its error, for inspection.
@@ -21,6 +23,7 @@
 import type { GatewayConfig } from './config'
 import { signedHeaders } from './signing'
 import type { OutboxEvent, Store, Workspace } from './store'
+import { log } from './log'
 
 export interface DispatcherOptions {
   /** Replaceable in tests. */
@@ -52,10 +55,16 @@ export type Outcome =
 /** Statuses meaning "Halo read this and refuses it": nothing a retry can fix. */
 const FINAL_STATUSES = new Set([400, 413, 422])
 /** The most events sent for one workspace in one pass, so one busy workspace cannot starve the rest. */
-const MAX_PER_PASS = 200
+const MAX_PER_PASS = 1000
+/** Conversations looked at in one pass. */
+const MAX_LANES_PER_PASS = 500
+/** After this many events Halo did not accept in one pass, the pass stops: Halo is struggling, wait for the backoff. */
+const MAX_FAILURES_PER_PASS = 3
 
 export class Dispatcher {
   private timer: NodeJS.Timeout | null = null
+  /** True when a test supplied its own clock; otherwise "due" is decided by the database's clock. */
+  private readonly injectedClock: boolean
   private running: Promise<RunSummary> | null = null
   private again = false
   private stopped = false
@@ -74,10 +83,12 @@ export class Dispatcher {
   ) {
     this.doFetch = opts.fetch ?? fetch
     this.now = opts.now ?? Date.now
+    this.injectedClock = opts.now !== undefined
     this.random = opts.random ?? Math.random
     this.transformPayload = opts.transformPayload ?? ((p) => p)
     this.onDispatched = opts.onDispatched ?? null
-    this.log = opts.log ?? ((level, message) => (level === 'warn' ? console.warn : console.log)(`[dispatcher] ${message}`))
+    const logger = log.child('dispatcher')
+    this.log = opts.log ?? ((level, message) => logger[level === 'warn' ? 'warn' : 'info'](message))
   }
 
   start(): void {
@@ -132,37 +143,52 @@ export class Dispatcher {
     const workspace = await this.store.getWorkspaceById(workspaceId)
     if (!workspace) return summary
 
-    for (let i = 0; i < MAX_PER_PASS && !this.stopped; i++) {
-      const event = await this.store.nextEvent(workspaceId)
-      if (!event) break
-      // The head of the queue is waiting out a retry: everything behind it waits too.
-      if (new Date(event.next_attempt_at).getTime() > this.now()) break
+    const nowIso = this.injectedClock ? new Date(this.now()).toISOString() : null
+    const heads = await this.store.dueLaneHeads(workspaceId, nowIso, MAX_LANES_PER_PASS)
+    if (heads.length >= MAX_LANES_PER_PASS) this.again = true
+    let budget = MAX_PER_PASS
+    let nextHead = 0
+    let halted = false
 
-      const outcome = await this.deliver(workspace, event)
-      if (outcome.kind === 'ok') {
-        await this.store.markDispatched(event.id)
-        await this.onDispatched?.(event).catch((err) => this.log('warn', `after-dispatch step failed for ${event.id}: ${err instanceof Error ? err.message : err}`))
-        summary.sent++
-        continue
+    // `concurrency` workers each take a conversation and send its events in order until it has none due, or one is not accepted.
+    const worker = async (): Promise<void> => {
+      while (!halted && !this.stopped) {
+        const head = heads[nextHead++]
+        if (!head) return
+        let event: OutboxEvent | null = head
+        while (event && !halted && !this.stopped && budget-- > 0) {
+          const outcome = await this.deliver(workspace, event)
+          if (outcome.kind === 'ok') {
+            await this.store.markDispatched(event.id)
+            await this.onDispatched?.(event).catch((err) => this.log('warn', `after-dispatch step failed for ${event!.id}: ${err instanceof Error ? err.message : err}`))
+            summary.sent++
+          } else if (outcome.kind === 'dead') {
+            await this.store.markFailed(event.id, outcome.error)
+            this.log('warn', `event ${event.id} (${event.kind}) refused by Halo for good: ${outcome.error}`)
+            summary.failed++
+          } else {
+            const ageHours = (this.now() - new Date(event.created_at).getTime()) / 3_600_000
+            if (ageHours >= this.cfg.dispatch.giveUpHours) {
+              await this.store.markFailed(event.id, `Given up after ${this.cfg.dispatch.giveUpHours} hours: ${outcome.error}`)
+              this.log('warn', `event ${event.id} (${event.kind}) given up after ${Math.round(ageHours)} hours: ${outcome.error}`)
+              summary.failed++
+            } else {
+              await this.store.markRetry(event.id, new Date(this.now() + this.backoffMs(event.attempts, outcome.retryAfterMs)), outcome.error)
+              if (event.attempts === 0) this.log('warn', `event ${event.id} (${event.kind}) not accepted by Halo, will retry: ${outcome.error}`)
+              summary.retrying++
+              // This conversation waits out the retry; so does the whole pass once Halo keeps refusing.
+              if (summary.retrying >= MAX_FAILURES_PER_PASS) halted = true
+              break
+            }
+          }
+          // The next event of the same conversation, if it is due.
+          const following: (OutboxEvent & { due: boolean }) | null = await this.store.nextEventInLane(workspaceId, event.conversation_id ?? null, nowIso)
+          event = following?.due ? following : null
+        }
       }
-      if (outcome.kind === 'dead') {
-        await this.store.markFailed(event.id, outcome.error)
-        this.log('warn', `event ${event.id} (${event.kind}) refused by Halo for good: ${outcome.error}`)
-        summary.failed++
-        continue
-      }
-      const ageHours = (this.now() - new Date(event.created_at).getTime()) / 3_600_000
-      if (ageHours >= this.cfg.dispatch.giveUpHours) {
-        await this.store.markFailed(event.id, `Given up after ${this.cfg.dispatch.giveUpHours} hours: ${outcome.error}`)
-        this.log('warn', `event ${event.id} (${event.kind}) given up after ${Math.round(ageHours)} hours: ${outcome.error}`)
-        summary.failed++
-        continue
-      }
-      await this.store.markRetry(event.id, new Date(this.now() + this.backoffMs(event.attempts, outcome.retryAfterMs)), outcome.error)
-      if (event.attempts === 0) this.log('warn', `event ${event.id} (${event.kind}) not accepted by Halo, will retry: ${outcome.error}`)
-      summary.retrying++
-      break
     }
+    await Promise.all(Array.from({ length: Math.min(this.cfg.dispatch.concurrency, heads.length) }, () => worker()))
+    if (budget <= 0) this.again = true
     return summary
   }
 

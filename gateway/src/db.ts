@@ -25,6 +25,8 @@ export interface Db extends Queryable {
   /** Run a script of several statements (migrations). No parameters. */
   exec(sql: string): Promise<void>
   close(): Promise<void>
+  /** Connection pool numbers, for the metrics (a real Postgres only). */
+  stats?(): { total: number; idle: number; waiting: number; max: number }
 }
 
 /** A real Postgres through a connection pool. */
@@ -58,6 +60,7 @@ export function createPgDb(connectionString: string, opts: { max?: number } = {}
       await pool.query(sql)
     },
     close: () => pool.end(),
+    stats: () => ({ total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount, max: opts.max ?? 10 }),
   }
 }
 

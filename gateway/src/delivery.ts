@@ -31,6 +31,7 @@ import { deliverFrame } from './frames'
 import type { Hub } from './hub'
 import type { MockPushAdapter, PushAdapter } from './push'
 import type { Delivery, Message, Store, Subject, Workspace } from './store'
+import { log } from './log'
 
 export interface DeliveryOptions {
   /** Turns a file in a message into a link for the app. Without it the frame carries the stored `media` as it is. */
@@ -69,7 +70,8 @@ export class DeliveryService {
   ) {
     this.now = opts.now ?? Date.now
     this.files = opts.files ?? null
-    this.log = opts.log ?? ((level, message) => (level === 'warn' ? console.warn : console.log)(`[delivery] ${message}`))
+    const logger = log.child('delivery')
+    this.log = opts.log ?? ((level, message) => logger[level === 'warn' ? 'warn' : 'info'](message))
   }
 
   /** Get a stored message from Halo to the user. Resolves with what the gateway did (contract section 4). */

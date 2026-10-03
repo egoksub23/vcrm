@@ -16,10 +16,14 @@ export interface LiveConnection {
 export class Hub {
   private readonly byUser = new Map<string, LiveConnection[]>()
 
+  /** Connections accepted since the process started (a counter for the metrics). */
+  totalAdded = 0
+
   constructor(private readonly maxDevicesPerUser: number) {}
 
   /** Register a connection. Returns the connections it pushed out (the same device reconnecting, or the oldest over the limit). */
   add(conn: LiveConnection): LiveConnection[] {
+    this.totalAdded++
     const list = this.byUser.get(conn.userId) ?? []
     const evicted: LiveConnection[] = []
     // The same device connecting again replaces its earlier connection (a reconnect the server has not noticed yet).

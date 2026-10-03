@@ -10,25 +10,26 @@ import { fileURLToPath } from 'node:url'
 import { startGateway } from './app'
 import { loadConfig } from './config'
 import { createPgDb, migrate } from './db'
+import { log } from './log'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
 async function main(): Promise<void> {
   const cfg = loadConfig()
   if (cfg.push.adapter === 'mock') {
-    console.warn('[gateway] PUSH_ADAPTER=mock: alerts are recorded, NOT sent. Users who are away will not be notified until the Vircle push adapter is configured.')
+    log.warn('PUSH_ADAPTER=mock: alerts are recorded, NOT sent. Users who are away will not be notified until the Vircle push adapter is configured.')
   }
-  const db = createPgDb(cfg.databaseUrl)
-  if (!cfg.files.publicBaseUrl) console.warn('[gateway] PUBLIC_BASE_URL is not set: links to files will point at this machine (127.0.0.1) and no one else can open them.')
-  if (cfg.simulator.enabled) console.warn('[gateway] SIMULATOR_ENABLED=true: /simulator is available to anyone Halo opens it for. Switch it off for a production launch.')
+  const db = createPgDb(cfg.databaseUrl, { max: cfg.dbPoolMax })
+  if (!cfg.files.publicBaseUrl) log.warn('PUBLIC_BASE_URL is not set: links to files will point at this machine (127.0.0.1) and no one else can open them.')
+  if (cfg.simulator.enabled) log.warn('SIMULATOR_ENABLED=true: /simulator is available to anyone Halo opens it for. Switch it off for a production launch.')
   const applied = await migrate(db, process.env.GATEWAY_MIGRATIONS_DIR || join(here, '..', 'migrations'))
-  if (applied.length > 0) console.log(`[gateway] applied migrations: ${applied.join(', ')}`)
+  if (applied.length > 0) log.info('applied migrations', { migrations: applied })
 
   const gateway = await startGateway({ cfg, db, publicDir: process.env.GATEWAY_PUBLIC_DIR || join(here, '..', 'public') })
-  console.log(`[gateway] listening on port ${gateway.port}, app connects at ${cfg.wsPath}`)
+  log.info('listening', { port: gateway.port, ws_path: cfg.wsPath, retention_days: cfg.retention.days, push_adapter: cfg.push.adapter })
 
   const stop = async (signal: string) => {
-    console.log(`[gateway] ${signal}: closing connections`)
+    log.info('shutting down: closing connections', { signal })
     await gateway.close()
     await db.close()
     process.exit(0)
@@ -38,6 +39,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('[gateway] failed to start:', err instanceof Error ? err.message : err)
+  log.error('failed to start', { error: err instanceof Error ? err.message : String(err) })
   process.exit(1)
 })
