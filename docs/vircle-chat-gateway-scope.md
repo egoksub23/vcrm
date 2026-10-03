@@ -67,8 +67,10 @@ what you use to see a chat working before the app exists.
 
 ## 5. Changes in Halo (small)
 
-- Remove the "Push alerts from Halo" switch, its stored setting and the call in the send path (they were
-  built for the earlier idea). The contract already says Halo never pushes.
+- Done (3 Oct 2026, migration 149): the "Push alerts from Halo" switch, its stored setting and the call in the
+  send path are removed. The contract says Halo never pushes.
+- Done: Halo's send now carries the contact's name, phone and email (contract 1.1), so the gateway can name the
+  recipient to the push API even for a user who has never opened the chat.
 - Nothing else changes: `delivery` is shown as "sent" whatever the gateway answered.
 
 ## 6. Plan and effort

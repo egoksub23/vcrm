@@ -22,7 +22,6 @@ import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
@@ -72,7 +71,6 @@ export function VircleChatChannel() {
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
-  const [pushSaving, setPushSaving] = useState(false);
   const loadedAccountIdRef = useRef<string | null>(null);
 
   const fetchState = useCallback(async () => {
@@ -183,28 +181,6 @@ export function VircleChatChannel() {
       setTestResult({ ok: false });
     } finally {
       setTesting(false);
-    }
-  }
-
-  async function handlePushToggle(next: boolean) {
-    const previous = state?.config?.pushAlertsEnabled ?? false;
-    setState((prev) => (prev?.config ? { ...prev, config: { ...prev.config, pushAlertsEnabled: next } } : prev));
-    setPushSaving(true);
-    try {
-      const res = await fetch(BASE, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ push_alerts_enabled: next }),
-      });
-      if (!res.ok) throw new Error(`PATCH failed: ${res.status}`);
-    } catch (err) {
-      console.error('[vircle-chat-channel] push toggle error:', err);
-      setState((prev) =>
-        prev?.config ? { ...prev, config: { ...prev.config, pushAlertsEnabled: previous } } : prev,
-      );
-      toast.error(t('pushToggleFailed'));
-    } finally {
-      setPushSaving(false);
     }
   }
 
@@ -438,20 +414,7 @@ export function VircleChatChannel() {
                 ) : null}
               </div>
 
-              <div className="flex items-start justify-between gap-4 rounded-lg border border-border px-3 py-2.5">
-                <div className="min-w-0">
-                  <Label htmlFor="vircle-chat-push" className="text-sm font-medium text-foreground">
-                    {t('pushLabel')}
-                  </Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t('pushHint')}</p>
-                </div>
-                <Switch
-                  id="vircle-chat-push"
-                  checked={config.pushAlertsEnabled}
-                  onCheckedChange={(next) => void handlePushToggle(next)}
-                  disabled={pushSaving}
-                />
-              </div>
+              <p className="text-xs text-muted-foreground">{t('gatewayDecidesPush')}</p>
 
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirming('disconnect')}>

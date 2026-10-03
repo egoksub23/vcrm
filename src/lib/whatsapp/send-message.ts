@@ -1069,8 +1069,8 @@ export async function sendMessageToConversation(
   }
 
   // Vircle Chat: the gateway the workspace connected delivers to the app (a socket when the
-  // app is open, a push when it is not) and tells us what it did.
-  let vircleDelivery: string | null = null;
+  // app is open, a push when it is not; Halo never sends a push for Vircle Chat). Whatever
+  // delivery path it answers, the message is stored as sent.
   if (isVircleConversation) {
     if (!contact.wallet_id) {
       throw new SendMessageError('bad_request', 'Contact has no Vircle identity', 400);
@@ -1104,6 +1104,11 @@ export async function sendMessageToConversation(
         {
           idempotencyKey: vircleMessageId!,
           walletId: contact.wallet_id,
+          contact: {
+            name: (contact.name as string | null) || null,
+            phone: (contact.phone as string | null) || null,
+            email: (contact.email as string | null) || null,
+          },
           conversationId: (conversation.vircle_conversation_id as string | null) ?? null,
           type: messageType as 'text' | 'image' | 'video' | 'audio' | 'document',
           text: contentText || null,
@@ -1119,7 +1124,6 @@ export async function sendMessageToConversation(
         }
       );
       waMessageId = accepted.serverId;
-      vircleDelivery = accepted.delivery;
       if (accepted.conversationId && accepted.conversationId !== conversation.vircle_conversation_id) {
         await admin
           .from('conversations')
@@ -1206,21 +1210,6 @@ export async function sendMessageToConversation(
       contactId: contact.id,
       walletId: contact.wallet_id ?? null,
     }).catch((err) => console.error('[send-message] app push notification failed:', err));
-  }
-
-  // Vircle Chat: when the gateway could only queue the message (the app is not connected and
-  // it raised no alert itself), ask the push API to alert the user, if the workspace turned
-  // that on. Best-effort, never awaited.
-  if (isVircleConversation && (vircleDelivery === 'queued' || vircleDelivery === 'no_device')) {
-    notifyAppUserOfReplyViaPush(supabaseAdmin(), {
-      accountId,
-      conversationId,
-      contactId: contact.id,
-      walletId: contact.wallet_id ?? null,
-      phone: contact.phone ?? null,
-      email: contact.email ?? null,
-      source: 'vircle_chat',
-    }).catch((err) => console.error('[send-message] Vircle push alert failed:', err));
   }
 
   // Pause any active Flow run for this contact — the agent stepping in

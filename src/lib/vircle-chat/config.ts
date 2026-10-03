@@ -21,7 +21,6 @@ export interface VircleChatConfigRow {
   gateway_base_url: string
   signing_secret: string
   api_token: string
-  push_alerts_enabled: boolean
   enabled: boolean
   last_inbound_at: string | null
   last_error: string | null
@@ -34,7 +33,6 @@ export interface VircleChatConfigRow {
 export interface VircleChatConfigView {
   workspaceKey: string
   gatewayBaseUrl: string
-  pushAlertsEnabled: boolean
   enabled: boolean
   lastInboundAt: string | null
   lastError: string | null
@@ -45,7 +43,6 @@ export function toConfigView(row: VircleChatConfigRow): VircleChatConfigView {
   return {
     workspaceKey: row.workspace_key,
     gatewayBaseUrl: row.gateway_base_url,
-    pushAlertsEnabled: row.push_alerts_enabled,
     enabled: row.enabled,
     lastInboundAt: row.last_inbound_at,
     lastError: row.last_error,

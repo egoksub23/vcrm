@@ -9,6 +9,7 @@ const conn = { baseUrl: 'https://gw.example.com', apiToken: 'tok' }
 const msg = {
   idempotencyKey: 'halo-msg-1',
   walletId: 'W1',
+  contact: { name: 'Aisha', phone: '+60123456789', email: 'a@example.com' },
   conversationId: null as string | null,
   type: 'text' as const,
   text: 'Hi',
@@ -54,7 +55,7 @@ describe('sendToGateway', () => {
     expect(init.method).toBe('POST')
     expect(init.headers).toMatchObject({ authorization: 'Bearer tok', 'idempotency-key': 'halo-msg-1' })
     expect(JSON.parse(init.body)).toEqual({
-      recipient: { wallet_id: 'W1' },
+      recipient: { wallet_id: 'W1', name: 'Aisha', phone: '+60123456789', email: 'a@example.com' },
       type: 'text',
       conversation_id: 'c_1',
       text: 'Hi',
@@ -69,6 +70,7 @@ describe('sendToGateway', () => {
       type: 'image',
       text: null,
       senderName: null,
+      contact: { name: null, phone: null, email: null },
       media: { url: 'https://signed.example/a.png', mimeType: 'image/png', fileName: null, sizeBytes: null },
     })
     expect(JSON.parse(h.pinned.mock.calls[0][1].body)).toEqual({

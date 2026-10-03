@@ -10,7 +10,7 @@
 //          connection: a workspace key, a signing secret and an API token are
 //          generated, stored encrypted, and the two secrets come back in
 //          THIS response once (Cache-Control: no-store) and never again.
-//   PATCH  the pause switch (`enabled`) and the push-alerts switch.
+//   PATCH  the pause switch (`enabled`).
 //   DELETE remove the connection.
 //
 // All of it needs `channels.manage`, and the operator's Vircle Chat flag for
@@ -71,16 +71,13 @@ export async function PUT(request: Request) {
     if (refused) return refused
 
     const body = (await request.json().catch(() => null)) as
-      | { gateway_base_url?: unknown; push_alerts_enabled?: unknown }
+      | { gateway_base_url?: unknown }
       | null
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
     if (typeof body.gateway_base_url !== 'string') {
       return NextResponse.json({ error: 'Enter the gateway address' }, { status: 400 })
-    }
-    if (body.push_alerts_enabled !== undefined && typeof body.push_alerts_enabled !== 'boolean') {
-      return NextResponse.json({ error: 'push_alerts_enabled must be a boolean' }, { status: 400 })
     }
     const url = normalizeGatewayUrl(body.gateway_base_url)
     if (!url.ok) return NextResponse.json({ error: url.error }, { status: 400 })
@@ -94,7 +91,6 @@ export async function PUT(request: Request) {
         .from('vircle_chat_config')
         .update({
           gateway_base_url: url.url,
-          ...(typeof body.push_alerts_enabled === 'boolean' ? { push_alerts_enabled: body.push_alerts_enabled } : {}),
           updated_at: now,
         })
         .eq('account_id', ctx.accountId)
@@ -122,7 +118,6 @@ export async function PUT(request: Request) {
         gateway_base_url: url.url,
         signing_secret: sealSecret(signingSecret),
         api_token: sealSecret(apiToken),
-        push_alerts_enabled: body.push_alerts_enabled === true,
         connected_by_user_id: ctx.userId,
       })
       .select('*')
@@ -156,25 +151,11 @@ export async function PATCH(request: Request) {
     const refused = await vircleChatGate(admin, ctx, BUCKET)
     if (refused) return refused
 
-    const body = (await request.json().catch(() => null)) as
-      | { enabled?: unknown; push_alerts_enabled?: unknown }
-      | null
-    const patch: { enabled?: boolean; push_alerts_enabled?: boolean } = {}
-    if (body?.enabled !== undefined) {
-      if (typeof body.enabled !== 'boolean') {
-        return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
-      }
-      patch.enabled = body.enabled
-    }
-    if (body?.push_alerts_enabled !== undefined) {
-      if (typeof body.push_alerts_enabled !== 'boolean') {
-        return NextResponse.json({ error: 'push_alerts_enabled must be a boolean' }, { status: 400 })
-      }
-      patch.push_alerts_enabled = body.push_alerts_enabled
-    }
-    if (Object.keys(patch).length === 0) {
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+    if (typeof body?.enabled !== 'boolean') {
       return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
     }
+    const patch = { enabled: body.enabled }
 
     const { data, error } = await admin
       .from('vircle_chat_config')

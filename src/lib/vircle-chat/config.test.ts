@@ -26,7 +26,6 @@ const row: VircleChatConfigRow = {
   gateway_base_url: 'https://gw.example.com',
   signing_secret: 'enc:vcs_secret',
   api_token: 'enc:vct_token',
-  push_alerts_enabled: true,
   enabled: true,
   last_inbound_at: '2026-10-02T09:00:00Z',
   last_error: null,
@@ -60,7 +59,6 @@ describe('toConfigView', () => {
     expect(view).toEqual({
       workspaceKey: 'vcw_abcdefghijklmnop1234',
       gatewayBaseUrl: 'https://gw.example.com',
-      pushAlertsEnabled: true,
       enabled: true,
       lastInboundAt: '2026-10-02T09:00:00Z',
       lastError: null,

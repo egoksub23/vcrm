@@ -1,6 +1,6 @@
 # Vircle Chat: contract between Halo and the chat gateway
 
-Version 1.0 draft, 2 October 2026. Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
+Version 1.1 draft, 3 October 2026 (1.1: push is the gateway's job, not Halo's; Halo's send also carries the contact's name, phone and email). Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
 This is what the Halo team and the gateway team agree **before** either writes code. Everything is plain
 HTTPS with JSON, so each side can build and test against the mock in `scripts/vircle-chat-mock.mjs`.
 
@@ -127,13 +127,17 @@ Content-Type: application/json
 
 ```json
 {
-  "recipient": { "wallet_id": "W123" },
+  "recipient": { "wallet_id": "W123", "name": "Aisha", "phone": "+60123456789", "email": "aisha@example.com" },
   "conversation_id": "c_9f2a",
   "type": "text",
   "text": "Hi Aisha, checking now.",
   "sender": { "name": "Support" }
 }
 ```
+
+`recipient.wallet_id` is required; `name`, `phone` and `email` are what Halo knows about the contact and are sent
+whenever it has them. The gateway needs the phone or email to name the recipient to the push API, including for a
+user who has never opened the chat and so has no session yet.
 
 A file message sets `type` to `image` / `video` / `audio` / `document` and adds
 `media: { "url": "<signed address>", "mime_type": "...", "file_name": "...", "size_bytes": 0 }`; the gateway

@@ -100,7 +100,6 @@ const existingRow = () => ({
   gateway_base_url: 'https://gw.example.com',
   signing_secret: 'enc:vcs_old',
   api_token: 'enc:vct_old',
-  push_alerts_enabled: false,
   enabled: true,
   last_inbound_at: null,
   last_error: null,
@@ -153,14 +152,14 @@ describe('PUT creates the connection', () => {
     expect((await PUT(req('PUT', { gateway_base_url: 'not a url' }))).status).toBe(400)
   })
 
-  it('on a second save only updates the address and the push flag: no secrets, no new insert', async () => {
+  it('on a second save only updates the address: no secrets, no new insert, no push setting', async () => {
     h.state.config = existingRow()
-    const res = await PUT(req('PUT', { gateway_base_url: 'https://other.example.com', push_alerts_enabled: true }))
+    const res = await PUT(req('PUT', { gateway_base_url: 'https://other.example.com' }))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.secrets).toBeUndefined()
     expect(body.config.gatewayBaseUrl).toBe('https://other.example.com')
-    expect(body.config.pushAlertsEnabled).toBe(true)
+    expect(body.config).not.toHaveProperty('pushAlertsEnabled')
     expect(h.state.inserts).toHaveLength(0)
     expect(h.state.updates[0]).not.toHaveProperty('signing_secret')
     expect(h.state.updates[0]).not.toHaveProperty('api_token')
@@ -318,9 +317,9 @@ describe('PATCH (pause switch) and DELETE', () => {
     expect(h.state.config?.enabled).toBe(true)
   })
 
-  it('takes the push-alerts switch too', async () => {
-    await PATCH(req('PATCH', { push_alerts_enabled: true }))
-    expect(h.state.config?.push_alerts_enabled).toBe(true)
+  it('no longer takes a push-alerts switch (the gateway decides about push)', async () => {
+    expect((await PATCH(req('PATCH', { push_alerts_enabled: true }))).status).toBe(400)
+    expect(h.state.config).not.toHaveProperty('push_alerts_enabled')
   })
 
   it('rejects a body with no boolean', async () => {

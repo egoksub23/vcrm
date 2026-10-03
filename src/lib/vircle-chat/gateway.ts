@@ -29,6 +29,8 @@ export interface GatewaySend {
   /** The Halo message id: the same key always gives the same answer. */
   idempotencyKey: string
   walletId: string
+  /** What Halo knows about the contact: the gateway needs the phone or email to name the recipient to the push API. */
+  contact: { name: string | null; phone: string | null; email: string | null }
   /** The gateway's conversation id, when an inbound event has told us one. */
   conversationId: string | null
   type: VircleMessageType
@@ -96,7 +98,12 @@ async function call(conn: GatewayConnection, path: string, init: RequestInit): P
 /** Send one message. Resolves with what the gateway did, or throws a GatewayError. */
 export async function sendToGateway(conn: GatewayConnection, msg: GatewaySend): Promise<GatewayAccepted> {
   const body: Record<string, unknown> = {
-    recipient: { wallet_id: msg.walletId },
+    recipient: {
+      wallet_id: msg.walletId,
+      ...(msg.contact.name ? { name: msg.contact.name } : {}),
+      ...(msg.contact.phone ? { phone: msg.contact.phone } : {}),
+      ...(msg.contact.email ? { email: msg.contact.email } : {}),
+    },
     type: msg.type,
     ...(msg.conversationId ? { conversation_id: msg.conversationId } : {}),
     ...(msg.text ? { text: msg.text } : {}),

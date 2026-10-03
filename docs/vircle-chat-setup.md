@@ -59,7 +59,6 @@ Other controls on the same screen:
 - **Rotate secret / Rotate token**: generate a new value (after a confirmation) and show it once.
   The old value stops working at once, so give the new one to the gateway team straight away. A
   lost secret is never recoverable, only replaceable.
-- **Push alerts from Halo**: see section 6.
 - **Last message received** and **Last error**: the most recent inbound time and the most recent
   problem Halo hit while handling an event from the gateway (cleared by the next good event).
 - **Disconnect**: deletes the connection and its secrets. Conversations and contacts are kept. To
@@ -144,17 +143,17 @@ Halo only moves a message forward: a late `delivered` after `read` is ignored. A
 from the gateway is retried (honouring `Retry-After`); anything else is final. The same
 `Idempotency-Key` (the Halo message id) is used on every retry, so a message is never duplicated.
 
-## 6. Push alerts
+## 6. Push alerts (the gateway's job)
 
-The gateway decides whether a reply goes over a live socket, as a push, or waits in the queue. If
-it answers `queued` (kept for the next time the app opens) or `no_device` (no app installed), the
-customer may not know a reply is waiting.
+The gateway alone decides whether a reply goes over a live socket, as a push, or waits in the
+queue, and it calls the Vircle push API itself (by phone number or email, with a generic message
+and a deep link). Halo never sends a push for Vircle Chat, holds no push credentials, and has no
+push setting: there is nothing to switch on in Settings. Halo only reads the `delivery` value the
+gateway answers with (`socket`, `push`, `queued` or `no_device`) and shows every one of them as
+"sent" (section 5). To change when a customer is alerted, change the gateway, not Halo.
 
-With **Push alerts from Halo** switched on, Halo is meant to ask the Vircle push API to alert that
-customer (by phone number, else email) with a generic message and a deep link, at most once per
-conversation per away period. **This is not active yet:** the push API's details (endpoint,
-authentication, payload) are still to come, and the hook is `src/lib/widget/notify-app-push.ts`.
-Until it exists the switch is stored but does nothing.
+(The web widget has its own separate, still inactive placeholder for app pushes,
+`src/lib/widget/notify-app-push.ts`. It is not used by Vircle Chat.)
 
 ## 7. Troubleshooting
 
