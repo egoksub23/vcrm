@@ -8,9 +8,9 @@ HTTPS with JSON, so each side can build and test against the mock in `scripts/vi
 
 | Question | Answer (owner, 2 Oct 2026) | Effect here |
 | --- | --- | --- |
-| Is there a socket gateway? | No; the Vircle developers will add one | The gateway is new work, built against this contract |
+| Is there a socket gateway? | No. **We build it** (scope: `docs/vircle-chat-gateway-scope.md`); the owner's developer then builds the app chat screen | The gateway is built against this contract, with a simulator to test chats before the app exists |
 | What is the app? | Hybrid Ionic, three builds (Huawei, Android, Apple) | A WebSocket (WSS) client works in the WebView; raw TCP is not assumed |
-| Push | A Vircle push API, called with a **phone number or email**; it finds the user and pushes. Details to follow | Halo (or the gateway) can raise an alert without holding any push credentials. See section 7 |
+| Push | A Vircle push API, called with a **phone number or email**; it finds the user and pushes. Details to follow. The gateway decides when to push; Halo never does | The gateway calls it. Halo holds no push credentials and has no push logic. See section 7 |
 | One conversation per user? | Not answered; **assumed yes** | A user is addressed by `wallet_id`; the gateway's `conversation_id` is stable per user |
 | Raw TCP vs WebSocket | Not answered; **WebSocket assumed** | Only the gateway-to-client side; this contract is unaffected |
 
@@ -148,8 +148,7 @@ Success is `202`:
 
 `delivery` says what the gateway did: `socket` (sent to a live connection), `push` (the gateway raised the
 alert itself), `queued` (kept for the next time the app connects; no alert was raised) or `no_device` (the
-user has no app installed or registered). Halo shows all four as "sent"; section 7 describes what it does
-with `queued` and `no_device`.
+user has no app installed or registered). Halo shows all four as "sent" and does nothing more (section 7).
 
 The same `Idempotency-Key` returns the same answer and never a second message, for at least 24 hours.
 
@@ -185,13 +184,18 @@ WhatsApp is the same contact with one merged history.
 
 ## 7. Push alerts
 
-The gateway owns the socket-or-push decision, so for `delivery: "socket"` or `"push"` Halo does nothing more.
-For `delivery: "queued"` or `"no_device"` the user may not know a reply is waiting. If the workspace turns on
-**Push alerts from Halo** and the push API is configured, Halo asks the Vircle push API to alert the user
-(recipient: the phone number, else the email, on the contact), generic text with a deep link, at most once per
-conversation per away period (the rule the web widget's email already follows). The push API's details are
-still to come (endpoint, authentication, payload, error contract); the hook is
-`src/lib/widget/notify-app-push.ts`. Until it exists the setting does nothing.
+Decided by the owner, 3 Oct 2026: **the gateway alone decides** between a socket and a push for each
+message, and it raises the push itself through the Vircle push API (which takes a phone number or an
+email and finds the user and device). Halo never sends a push and holds no push credentials.
+
+For Halo this means nothing more than the `delivery` value in section 4: `socket`, `push` or `queued`
+(the user could not be alerted yet; the message waits for their next connection) are all shown as "sent",
+and `delivered` / `read` follow as receipts when the app reports them. A user the gateway cannot reach at
+all (`no_device`) is also "sent"; the agent sees no tick beyond that.
+
+The gateway needs the user's phone and email to name the push recipient, which is why section 3.1 asks
+for them on every event, and why the user's session token (the gateway's own, see
+`docs/vircle-chat-gateway-scope.md`) carries them.
 
 ## 8. Versioning and change
 
