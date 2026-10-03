@@ -114,6 +114,7 @@ export const ROUTE_ROWS: readonly Row[] = [
   // ---- settings.workspace / people (admin) ----
   row("account", "PATCH", "admin", "settings.workspace"),
   row("account/usage", "GET", "admin", "settings.workspace"),
+  row("account/support-access", "GET", "admin", "settings.workspace"),
   row("account/invitations", "GET", "admin", "members.invite"),
   row("account/invitations", "POST", "admin", "members.invite"),
   row("account/invitations/[id]", "DELETE", "admin", "members.invite"),
@@ -745,7 +746,13 @@ const ROUTES = routeFiles(API_DIR)
   .filter((r) => !r.key.startsWith("v1/") && r.key !== "v1");
 
 /** Owner-only routes: the one legitimate use of requireRole. */
-const OWNER_ONLY_ROUTES = new Set(["account/transfer-ownership", "account/export", "account/deletion"]);
+const OWNER_ONLY_ROUTES = new Set([
+  "account/transfer-ownership",
+  "account/export",
+  "account/deletion",
+  "account/support-access",
+  "account/support-access/[id]",
+]);
 
 describe("route handlers use capabilities, not role floors", () => {
   it("finds the route files", () => {

@@ -5738,6 +5738,44 @@
     "bannerBodyOwner": "将于 {date} 被永久删除。在此之前您可在 设置 > 工作区 中取消。",
     "openSettings": "打开设置"
   },
+  "SupportAccess": {
+    "title": "支持访问",
+    "description": "允许平台运营人员在限定时间内查看此工作区出了什么问题。除非您开启，否则默认关闭，并且您可以随时结束。",
+    "canSeeTitle": "他们能看到什么",
+    "canSee": "您的套餐和额度、哪些渠道已连接且运行正常、按错误统计的发送失败次数、后台任务数量、用量，以及按角色统计的成员数量。",
+    "cannotSeeTitle": "他们看不到什么",
+    "cannotSee": "对话、消息、联系人、姓名、电子邮件地址、文件、令牌和机密信息。访问为只读。",
+    "on": "已开启",
+    "until": "至 {when}",
+    "off": "支持访问已关闭。",
+    "endNow": "立即结束",
+    "duration": "持续时间",
+    "hours": "{count} 小时",
+    "days": "{count} 天",
+    "reason": "您需要什么帮助？（可选）",
+    "reasonPlaceholder": "例如：WhatsApp 消息发不出去",
+    "allow": "允许支持访问",
+    "ownerOnly": "只有工作区所有者可以开启或关闭支持访问。",
+    "allowed": "支持访问已开启",
+    "ended": "支持访问已结束",
+    "failed": "无法更新支持访问",
+    "logTitle": "支持人员的每次查看",
+    "logEmpty": "还没有人查看过。",
+    "logWhen": "时间",
+    "logWho": "谁",
+    "logWhat": "内容",
+    "section": {
+      "overview": "概览",
+      "channels": "渠道",
+      "failures": "发送失败",
+      "members": "成员",
+      "jobs": "后台任务",
+      "usage": "用量"
+    },
+    "bannerTitle": "支持访问已开启",
+    "bannerBody": "平台运营人员可在 {when} 之前查看此工作区的诊断信息。",
+    "bannerAction": "管理"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {
@@ -6205,7 +6243,9 @@
       "business_hours_holiday": "假期",
       "sla_policy": "SLA 策略",
       "ticket_resolution": "工单解决方式",
-      "ticket_settings": "工单设置"
+      "ticket_settings": "工单设置",
+      "workspace": "工作区",
+      "support_access": "支持访问"
     },
     "roleNames": {
       "owner": "所有者",

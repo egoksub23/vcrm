@@ -132,6 +132,8 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   sla_policy: ScrollText,
   ticket_resolution: ListChecks,
   ticket_settings: ListChecks,
+  workspace: Boxes,
+  support_access: ShieldCheck,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

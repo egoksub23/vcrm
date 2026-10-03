@@ -60,6 +60,9 @@ export const AUDIT_ENTITY_TYPES = [
   // Migration 096 (ticket resolutions): the catalogue, and the "require a resolution" switch.
   "ticket_resolution",
   "ticket_settings",
+  // Migrations 153 and 154: a workspace deletion request, and support access granted or ended.
+  "workspace",
+  "support_access",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

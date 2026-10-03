@@ -6468,6 +6468,44 @@
     "bannerBodyOwner": "It will be permanently deleted on {date}. You can cancel this in Settings > Workspace until then.",
     "openSettings": "Open settings"
   },
+  "SupportAccess": {
+    "title": "Support access",
+    "description": "Let the platform operator look at what is wrong with this workspace, for a limited time. It is off unless you turn it on, and you can end it at any time.",
+    "canSeeTitle": "What they can see",
+    "canSee": "Your plan and limits, which channels are connected and healthy, counts of failed sends by error, background job counts, usage, and how many members you have by role.",
+    "cannotSeeTitle": "What they cannot see",
+    "cannotSee": "Conversations, messages, contacts, names, email addresses, files, tokens and secrets. Access is read only.",
+    "on": "On",
+    "until": "Until {when}",
+    "off": "Support access is off.",
+    "endNow": "End now",
+    "duration": "For how long",
+    "hours": "{count, plural, one {# hour} other {# hours}}",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "reason": "What do you need help with? (optional)",
+    "reasonPlaceholder": "For example: WhatsApp messages are not going out",
+    "allow": "Allow support access",
+    "ownerOnly": "Only the workspace owner can turn support access on or off.",
+    "allowed": "Support access is on",
+    "ended": "Support access ended",
+    "failed": "Could not update support access",
+    "logTitle": "Every time support looked",
+    "logEmpty": "Nobody has looked yet.",
+    "logWhen": "When",
+    "logWho": "Who",
+    "logWhat": "What",
+    "section": {
+      "overview": "Overview",
+      "channels": "Channels",
+      "failures": "Failed sends",
+      "members": "Members",
+      "jobs": "Background jobs",
+      "usage": "Usage"
+    },
+    "bannerTitle": "Support access is on",
+    "bannerBody": "The platform operator can see diagnostics for this workspace until {when}.",
+    "bannerAction": "Manage"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {
@@ -6935,7 +6973,9 @@
       "business_hours_holiday": "Holiday",
       "sla_policy": "SLA policy",
       "ticket_resolution": "Ticket resolution",
-      "ticket_settings": "Ticket settings"
+      "ticket_settings": "Ticket settings",
+      "workspace": "Workspace",
+      "support_access": "Support access"
     },
     "roleNames": {
       "owner": "Owner",
@@ -8036,6 +8076,17 @@
     "colSeats": "Seats",
     "colContacts": "Contacts",
     "colUsage": "Usage",
+    "support": "Support view",
+    "supportUntil": "Access until {when}",
+    "supportTitle": "Support view: {name}",
+    "supportDesc": "Diagnostics only, allowed by the workspace owner for a limited time. No conversations, contacts or secrets are shown.",
+    "supportLogged": "Every section you open is recorded in the workspace's support access log.",
+    "supportSection_overview": "Overview",
+    "supportSection_channels": "Channels",
+    "supportSection_failures": "Failed sends",
+    "supportSection_members": "Members",
+    "supportSection_jobs": "Background jobs",
+    "supportSection_usage": "Usage",
     "deletionOn": "Deletes {date}",
     "deletionRunning": "Deleting now",
     "deletionRequested": "Deletion scheduled",

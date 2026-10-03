@@ -48,6 +48,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'account/channels/tiktok/oauth/callback': 'OAuth redirect; one-time state row bound to the signed-in person who started it',
   'account/transfer-ownership': 'session user via the transfer_account_ownership RPC, which checks the caller itself',
   'account/export': 'owner only (requireRole owner), a full export of the workspace',
+  'account/support-access/[id]': 'owner only (requireRole owner), through support_revoke_access, which checks the caller itself',
   'account/deletion': 'owner only (requireRole owner), through the workspace_deletion_* RPCs, which check the caller themselves',
   'email/webhook': 'Microsoft Graph notification; per-mailbox client state compared before anything is read',
   'gmail/webhook': 'Pub/Sub push; per-mailbox token compared in constant time',

@@ -6468,6 +6468,44 @@
     "bannerBodyOwner": "{date}에 영구 삭제됩니다. 그 전에는 설정 > 워크스페이스에서 취소할 수 있습니다.",
     "openSettings": "설정 열기"
   },
+  "SupportAccess": {
+    "title": "지원 접근",
+    "description": "플랫폼 운영자가 이 워크스페이스의 문제를 확인할 수 있도록 제한된 시간 동안 허용합니다. 켜기 전에는 꺼져 있으며 언제든 끝낼 수 있습니다.",
+    "canSeeTitle": "볼 수 있는 것",
+    "canSee": "요금제와 한도, 연결되어 있고 정상인 채널, 오류별 발송 실패 건수, 백그라운드 작업 건수, 사용량, 역할별 팀원 수.",
+    "cannotSeeTitle": "볼 수 없는 것",
+    "cannotSee": "대화, 메시지, 연락처, 이름, 이메일 주소, 파일, 토큰, 비밀 정보. 읽기 전용입니다.",
+    "on": "켜짐",
+    "until": "{when}까지",
+    "off": "지원 접근이 꺼져 있습니다.",
+    "endNow": "지금 끝내기",
+    "duration": "기간",
+    "hours": "{count}시간",
+    "days": "{count}일",
+    "reason": "어떤 도움이 필요하세요? (선택)",
+    "reasonPlaceholder": "예: WhatsApp 메시지가 발송되지 않습니다",
+    "allow": "지원 접근 허용",
+    "ownerOnly": "워크스페이스 소유자만 지원 접근을 켜거나 끌 수 있습니다.",
+    "allowed": "지원 접근이 켜졌습니다",
+    "ended": "지원 접근이 종료되었습니다",
+    "failed": "지원 접근을 업데이트하지 못했습니다",
+    "logTitle": "지원팀이 확인한 모든 기록",
+    "logEmpty": "아직 확인한 사람이 없습니다.",
+    "logWhen": "시간",
+    "logWho": "누가",
+    "logWhat": "무엇을",
+    "section": {
+      "overview": "개요",
+      "channels": "채널",
+      "failures": "발송 실패",
+      "members": "팀원",
+      "jobs": "백그라운드 작업",
+      "usage": "사용량"
+    },
+    "bannerTitle": "지원 접근이 켜져 있습니다",
+    "bannerBody": "{when}까지 플랫폼 운영자가 이 워크스페이스의 진단 정보를 볼 수 있습니다.",
+    "bannerAction": "관리"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {
@@ -6935,7 +6973,9 @@
       "business_hours_holiday": "휴일",
       "sla_policy": "SLA 정책",
       "ticket_resolution": "티켓 해결 유형",
-      "ticket_settings": "티켓 설정"
+      "ticket_settings": "티켓 설정",
+      "workspace": "워크스페이스",
+      "support_access": "지원 접근"
     },
     "roleNames": {
       "owner": "소유자",
@@ -8036,6 +8076,17 @@
     "colSeats": "좌석",
     "colContacts": "연락처",
     "colUsage": "사용량",
+    "support": "지원 보기",
+    "supportUntil": "{when}까지 접근 가능",
+    "supportTitle": "지원 보기: {name}",
+    "supportDesc": "진단 정보만 표시되며, 워크스페이스 소유자가 제한된 시간 동안 허용한 것입니다. 대화, 연락처, 비밀 정보는 표시되지 않습니다.",
+    "supportLogged": "열어 본 모든 항목은 워크스페이스의 지원 접근 기록에 남습니다.",
+    "supportSection_overview": "개요",
+    "supportSection_channels": "채널",
+    "supportSection_failures": "발송 실패",
+    "supportSection_members": "팀원",
+    "supportSection_jobs": "백그라운드 작업",
+    "supportSection_usage": "사용량",
     "deletionOn": "{date} 삭제",
     "deletionRunning": "삭제 진행 중",
     "deletionRequested": "삭제가 예약되었습니다",

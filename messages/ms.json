@@ -5738,6 +5738,44 @@
     "bannerBodyOwner": "Ia akan dipadam secara kekal pada {date}. Anda boleh membatalkannya dalam Tetapan > Ruang kerja sebelum itu.",
     "openSettings": "Buka tetapan"
   },
+  "SupportAccess": {
+    "title": "Akses sokongan",
+    "description": "Benarkan pengendali platform melihat apa yang tidak kena dengan ruang kerja ini, untuk tempoh terhad. Ia dimatikan melainkan anda menghidupkannya, dan anda boleh menamatkannya pada bila-bila masa.",
+    "canSeeTitle": "Apa yang boleh mereka lihat",
+    "canSee": "Pelan dan had anda, saluran yang disambungkan dan sihat, bilangan penghantaran gagal mengikut ralat, bilangan kerja latar, penggunaan, dan bilangan ahli mengikut peranan.",
+    "cannotSeeTitle": "Apa yang tidak boleh mereka lihat",
+    "cannotSee": "Perbualan, mesej, kenalan, nama, alamat e-mel, fail, token dan rahsia. Akses adalah baca sahaja.",
+    "on": "Hidup",
+    "until": "Sehingga {when}",
+    "off": "Akses sokongan dimatikan.",
+    "endNow": "Tamatkan sekarang",
+    "duration": "Untuk berapa lama",
+    "hours": "{count} jam",
+    "days": "{count} hari",
+    "reason": "Apa yang anda perlukan bantuan? (pilihan)",
+    "reasonPlaceholder": "Contohnya: mesej WhatsApp tidak keluar",
+    "allow": "Benarkan akses sokongan",
+    "ownerOnly": "Hanya pemilik ruang kerja boleh menghidupkan atau mematikan akses sokongan.",
+    "allowed": "Akses sokongan dihidupkan",
+    "ended": "Akses sokongan ditamatkan",
+    "failed": "Tidak dapat mengemas kini akses sokongan",
+    "logTitle": "Setiap kali sokongan melihat",
+    "logEmpty": "Belum ada sesiapa yang melihat.",
+    "logWhen": "Bila",
+    "logWho": "Siapa",
+    "logWhat": "Apa",
+    "section": {
+      "overview": "Gambaran keseluruhan",
+      "channels": "Saluran",
+      "failures": "Penghantaran gagal",
+      "members": "Ahli",
+      "jobs": "Kerja latar",
+      "usage": "Penggunaan"
+    },
+    "bannerTitle": "Akses sokongan dihidupkan",
+    "bannerBody": "Pengendali platform boleh melihat diagnostik ruang kerja ini sehingga {when}.",
+    "bannerAction": "Urus"
+  },
   "Permissions": {
     "cap": {
       "menu_dashboard": {
@@ -6205,7 +6243,9 @@
       "business_hours_holiday": "Cuti",
       "sla_policy": "Dasar SLA",
       "ticket_resolution": "Penyelesaian tiket",
-      "ticket_settings": "Tetapan tiket"
+      "ticket_settings": "Tetapan tiket",
+      "workspace": "Ruang kerja",
+      "support_access": "Akses sokongan"
     },
     "roleNames": {
       "owner": "Pemilik",

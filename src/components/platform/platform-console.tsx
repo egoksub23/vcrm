@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Building2, Copy, Download, Loader2, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Building2, Copy, Download, LifeBuoy, Loader2, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,20 @@ import { EncryptionCard } from "@/components/platform/encryption-card";
 import { Textarea } from "@/components/ui/textarea";
 import type { CronJobStatus } from "@/lib/cron/status";
 import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
+import { diagnosticRows, SUPPORT_SECTIONS, type SupportSection } from "@/lib/platform/support";
 import type { UsageMeter, UsageState } from "@/lib/platform/usage";
 
 /** The limits the console edits besides seats and the broadcast cap, all measured against usage (migration 152). */
 const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb"] as const;
 type UsageLimitField = (typeof USAGE_LIMIT_FIELDS)[number];
+
+interface SupportGrantRow {
+  grant_id: string;
+  account_id: string;
+  account_name: string;
+  reason: string | null;
+  expires_at: string;
+}
 
 interface DeletionRow {
   account_id: string;
@@ -112,6 +121,8 @@ export function PlatformConsole() {
   const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; usageLimits: Record<UsageLimitField, string>; features: Record<string, boolean> } | null>(null);
   const [usage, setUsage] = useState<Map<string, UsageRow> | null>(null);
   const [deletions, setDeletions] = useState<Map<string, DeletionRow>>(new Map());
+  const [support, setSupport] = useState<Map<string, SupportGrantRow>>(new Map());
+  const [view, setView] = useState<{ row: TenantRow; section: SupportSection; loading: boolean; error: string | null; data: unknown } | null>(null);
   const [del, setDel] = useState<{ row: TenantRow; confirm: string; days: string; now: boolean; note: string } | null>(null);
   const [suspend, setSuspend] = useState<{ row: TenantRow; reason: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -143,6 +154,12 @@ export function PlatformConsole() {
       .then((r) => (r.ok ? r.json() : null))
       .then((b: { accounts?: UsageRow[] } | null) =>
         setUsage(b?.accounts ? new Map(b.accounts.map((a) => [a.accountId, a])) : null),
+      )
+      .catch(() => {});
+    void fetch("/api/platform/support", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { grants?: SupportGrantRow[] } | null) =>
+        setSupport(new Map((b?.grants ?? []).map((g) => [g.account_id, g]))),
       )
       .catch(() => {});
     void fetch("/api/platform/deletions", { cache: "no-store" })
@@ -230,6 +247,18 @@ export function PlatformConsole() {
       return false;
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openSupport = async (row: TenantRow, section: SupportSection) => {
+    setView({ row, section, loading: true, error: null, data: null });
+    try {
+      const res = await fetch(`/api/platform/accounts/${row.id}/support?section=${section}`, { cache: "no-store" });
+      const body = (await res.json().catch(() => null)) as { error?: string; data?: unknown } | null;
+      if (!res.ok) throw new Error(body?.error ?? t("updateFailed"));
+      setView({ row, section, loading: false, error: null, data: body?.data ?? null });
+    } catch (err) {
+      setView({ row, section, loading: false, error: err instanceof Error ? err.message : t("updateFailed"), data: null });
     }
   };
 
@@ -472,6 +501,17 @@ export function PlatformConsole() {
                               {t("repair")}
                             </Button>
                           )}
+                          {support.has(r.id) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t("supportUntil", { when: new Date(support.get(r.id)?.expires_at as string).toLocaleString() })}
+                              onClick={() => void openSupport(r, "overview")}
+                            >
+                              <LifeBuoy className="mr-1 h-3.5 w-3.5" />
+                              {t("support")}
+                            </Button>
+                          )}
                           {deletions.get(r.id)?.due_at ? (
                             <>
                               <Button size="sm" variant="ghost" render={<a href={`/api/platform/accounts/${r.id}/export`} download />}>
@@ -651,6 +691,54 @@ export function PlatformConsole() {
       </Dialog>
 
       {/* Suspend */}
+      <Dialog open={view !== null} onOpenChange={(o) => !o && setView(null)}>
+        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("supportTitle", { name: view?.row.name ?? "" })}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">{t("supportDesc")}</DialogDescription>
+          </DialogHeader>
+          {view && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {SUPPORT_SECTIONS.map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={view.section === s ? "default" : "outline"}
+                    disabled={view.loading}
+                    onClick={() => void openSupport(view.row, s)}
+                  >
+                    {t(`supportSection_${s}`)}
+                  </Button>
+                ))}
+              </div>
+              {view.loading ? (
+                <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("loading")}
+                </div>
+              ) : view.error ? (
+                <p role="alert" className="text-sm text-destructive">{view.error}</p>
+              ) : (
+                <div className="max-h-[50vh] overflow-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {diagnosticRows(view.data).map((row, i) => (
+                        <tr key={`${row.path}-${i}`} className="border-b border-border last:border-0">
+                          <td className="w-1/2 break-all px-3 py-1.5 font-mono text-xs text-muted-foreground">{row.path}</td>
+                          <td className="break-all px-3 py-1.5 text-foreground">{row.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{t("supportLogged")}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={del !== null} onOpenChange={(o) => !o && !busy && setDel(null)}>
         <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-md">
           <DialogHeader>

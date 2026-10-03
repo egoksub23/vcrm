@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
 import { AccountSuspendedScreen } from "@/components/layout/account-suspended";
 import { DeletionBanner } from "@/components/layout/deletion-banner";
+import { SupportAccessBanner } from "@/components/layout/support-access-banner";
 import { UsageBanner } from "@/components/usage/usage-banner";
 import { PageGuard } from "@/components/auth/page-guard";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
@@ -134,6 +135,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           <UsageBanner />
           {/* The workspace is scheduled for deletion (every member sees it). */}
           <DeletionBanner />
+          {/* Support access is on (workspace admins only); renders nothing otherwise. */}
+          <SupportAccessBanner />
           {/* Blocks the page (deep links too) when the caller lacks its
               menu capability; fails closed while capabilities load. */}
           <PageGuard>{children}</PageGuard>
