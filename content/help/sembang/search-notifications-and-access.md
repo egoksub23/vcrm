@@ -33,7 +33,7 @@ Open its menu and choose **Mute channel**. A muted conversation stops sending yo
 - **Any message** in a direct message, whether or not you are mentioned — a DM is a direct conversation, so it always notifies unless you mute it.
 - Someone **assigns you a task**.
 
-All of these are switched off for a channel or DM you have muted. Notifications arrive the same way as everywhere else in Vircle Halo — see [Notifications](/help/working-together/notifications).
+All of these are switched off for a channel or DM you have muted. Notifications arrive the same way as everywhere else in Halo — see [Notifications](/help/working-together/notifications).
 
 ## Who can see what
 

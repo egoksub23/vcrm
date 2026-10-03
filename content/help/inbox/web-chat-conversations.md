@@ -29,7 +29,7 @@ Under the customer's name in the chat header, you may see one of these badges. P
 
 ## A possible duplicate
 
-When a visitor's details match two different contacts and the identity is not proven, Vircle Halo does not merge them. Instead, an amber bar appears under the chat header. It says **Possible duplicate**, then "may be the same person as" and the other contact's name, phone and email. The bar has two buttons: **Merge** and **Dismiss**.
+When a visitor's details match two different contacts and the identity is not proven, Halo does not merge them. Instead, an amber bar appears under the chat header. It says **Possible duplicate**, then "may be the same person as" and the other contact's name, phone and email. The bar has two buttons: **Merge** and **Dismiss**.
 
 1. Compare the two contacts. Do the phone number, email and name look like one person?
 2. If you are sure they are the same person, press **Merge**.
@@ -40,7 +40,7 @@ If they are different people, press **Dismiss**. The same pair is not suggested 
 
 You need permission to merge contacts. If not, the buttons are greyed out with "Read-only — your role can't merge contacts". See [Roles and permissions](/help/getting-started/roles-and-permissions).
 
-When a customer is **Verified in-app** and matches two contacts, Vircle Halo merges them for you. You do not need to do anything.
+When a customer is **Verified in-app** and matches two contacts, Halo merges them for you. You do not need to do anything.
 
 ## Photos, voice notes and files
 
@@ -58,7 +58,7 @@ If the customer has also used another channel, such as WhatsApp, the channel dro
 
 ## Enquiries
 
-Visitors we do not know yet see a choice: **I'm already a Vircle user**, **I have an enquiry**, or **Just chat, skip this**.
+Visitors we do not know yet see a choice: **I'm already a (your company name) user**, **I have an enquiry**, or **Just chat, skip this**.
 
 If they send an enquiry, you see:
 

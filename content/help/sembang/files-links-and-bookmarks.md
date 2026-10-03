@@ -23,7 +23,7 @@ Bookmarks are a curated list for the channel, separate from Files and Links — 
 
 1. Click the **Bookmarks** tab.
 2. Paste a **URL**, optionally give it a **label**, and click add.
-3. Vircle Halo fetches a title, description and thumbnail where the page has them, the same as a link pasted into a message.
+3. Halo fetches a title, description and thumbnail where the page has them, the same as a link pasted into a message.
 
 Any member can add a bookmark. The person who added it, a moderator, or an admin can remove it.
 

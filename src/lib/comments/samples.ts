@@ -39,7 +39,7 @@ function samples(): Sample[] {
         source: 'ad',
         channelRefId: 'test-page',
         externalPostId: 'test-fb-ad-1',
-        message: 'Try Vircle free for 14 days. No credit card needed.',
+        message: 'Try our product free for 14 days. No credit card needed.',
         permalinkUrl: 'https://www.facebook.com/',
         mediaType: 'link',
         postedAt: minutesAgo(60 * 72),

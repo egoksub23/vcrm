@@ -80,7 +80,7 @@
   },
   "Help": {
     "pageTitle": "사용 가이드",
-    "landingTitle": "Vircle Halo 사용 가이드",
+    "landingTitle": "Halo 사용 가이드",
     "landingSubtitle": "채팅, 연락처, 지식 베이스, 티켓 등 일상 업무를 단계별로 안내합니다.",
     "searchPlaceholder": "가이드 검색",
     "searchButton": "가이드 검색",
@@ -5785,7 +5785,7 @@
     },
     "users": {
       "loading": "사용자 리포트를 불러오는 중…",
-      "scopeNotice": "이 기간의 메시지 볼륨, 대화, 응답 시간입니다 — 로그인/활동 기록이 아닙니다(Vircle은 아직 이를 추적하지 않습니다).",
+      "scopeNotice": "이 기간의 메시지 볼륨, 대화, 응답 시간입니다 — 로그인/활동 기록이 아닙니다(아직 추적하지 않습니다).",
       "teamSize": "팀원 수",
       "rank": "순위",
       "agent": "팀원",
@@ -6702,7 +6702,7 @@
     },
     "access": {
       "title": "이 페이지에 접근할 수 없습니다",
-      "description": "현재 역할에는 Vircle의 이 부분이 포함되어 있지 않습니다. 필요하면 소유자나 관리자에게 켜 달라고 요청하세요.",
+      "description": "현재 역할에는 앱의 이 부분이 포함되어 있지 않습니다. 필요하면 소유자나 관리자에게 켜 달라고 요청하세요.",
       "descriptionUnknown": "방금 접근 권한을 확인하지 못했습니다. 잠시 후 다시 시도하고, 계속되면 소유자나 관리자에게 문의하세요.",
       "goTo": "{page}(으)로 이동",
       "backToSettings": "설정으로 돌아가기",

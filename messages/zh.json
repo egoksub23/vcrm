@@ -80,7 +80,7 @@
   },
   "Help": {
     "pageTitle": "用户指南",
-    "landingTitle": "Vircle Halo 用户指南",
+    "landingTitle": "Halo 用户指南",
     "landingSubtitle": "日常工作的分步帮助：聊天、联系人、知识库和工单。",
     "searchPlaceholder": "搜索指南",
     "searchButton": "搜索指南",
@@ -5031,7 +5031,7 @@
     },
     "users": {
       "loading": "正在加载用户报表…",
-      "scopeNotice": "此范围内的消息量、对话和响应时间——不是登录/活动历史（Vircle 暂未记录这些）。",
+      "scopeNotice": "此范围内的消息量、对话和响应时间——不是登录/活动历史（暂未记录这些）。",
       "teamSize": "团队成员",
       "rank": "排名",
       "agent": "队友",
@@ -5948,7 +5948,7 @@
     },
     "access": {
       "title": "您无权访问此页面",
-      "description": "您的角色不包含 Vircle 的这一部分。如需使用，请联系所有者或管理员为您开通。",
+      "description": "您的角色不包含应用的这一部分。如需使用，请联系所有者或管理员为您开通。",
       "descriptionUnknown": "我们暂时无法检查您的访问权限。请稍后重试；如果问题持续，请联系所有者或管理员。",
       "goTo": "前往{page}",
       "backToSettings": "返回设置",

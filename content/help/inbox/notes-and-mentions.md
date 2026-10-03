@@ -5,7 +5,7 @@ order: 5
 updated: 2026-09-21
 ---
 
-Sometimes you need to tell your team something about a chat without telling the customer. Vircle Halo has two ways: **internal comments** in the chat, and **session notes** about the customer.
+Sometimes you need to tell your team something about a chat without telling the customer. Halo has two ways: **internal comments** in the chat, and **session notes** about the customer.
 
 ## Before you start
 

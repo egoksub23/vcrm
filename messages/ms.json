@@ -80,7 +80,7 @@
   },
   "Help": {
     "pageTitle": "Panduan Pengguna",
-    "landingTitle": "Panduan Pengguna Vircle Halo",
+    "landingTitle": "Panduan Pengguna Halo",
     "landingSubtitle": "Bantuan langkah demi langkah untuk kerja harian: sembang, kenalan, pengetahuan dan tiket.",
     "searchPlaceholder": "Cari dalam panduan",
     "searchButton": "Cari dalam panduan",
@@ -5031,7 +5031,7 @@
     },
     "users": {
       "loading": "Memuatkan laporan pengguna…",
-      "scopeNotice": "Jumlah mesej, perbualan dan masa respons untuk julat ini — bukan sejarah log masuk/aktiviti (Vircle belum menjejaki perkara itu).",
+      "scopeNotice": "Jumlah mesej, perbualan dan masa respons untuk julat ini — bukan sejarah log masuk/aktiviti (perkara itu belum dijejaki).",
       "teamSize": "Ahli pasukan",
       "rank": "Kedudukan",
       "agent": "Rakan sepasukan",
@@ -5948,7 +5948,7 @@
     },
     "access": {
       "title": "Anda tidak mempunyai akses ke halaman ini",
-      "description": "Peranan anda tidak merangkumi bahagian Vircle ini. Jika anda memerlukannya, minta pemilik atau pentadbir untuk mengaktifkannya bagi anda.",
+      "description": "Peranan anda tidak merangkumi bahagian aplikasi ini. Jika anda memerlukannya, minta pemilik atau pentadbir untuk mengaktifkannya bagi anda.",
       "descriptionUnknown": "Kami tidak dapat menyemak akses anda sebentar tadi. Cuba lagi sebentar nanti, atau tanya pemilik atau pentadbir jika ia berterusan.",
       "goTo": "Pergi ke {page}",
       "backToSettings": "Kembali ke Tetapan",

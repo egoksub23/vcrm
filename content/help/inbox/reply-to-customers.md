@@ -81,7 +81,7 @@ To start the conversation again on WhatsApp:
 
 The timer always counts from the customer's last message, on every channel. If an email or a web chat shows **Expired** and you cannot reply, tell your admin.
 
-If the list says "No approved templates", ask your admin. Templates are approved by Meta, and admins sync them into Vircle Halo.
+If the list says "No approved templates", ask your admin. Templates are approved by Meta, and admins sync them into Halo.
 
 > [!NOTE]
 > Templates can only be sent on WhatsApp. The interactive message button (buttons and lists) is also WhatsApp only.
@@ -108,7 +108,7 @@ Common reasons:
 - **A file is too big.** The message shows the size and the limit.
 - **"Caption exceeds the 1024-character limit".** Shorten the caption.
 
-A reason Vircle Halo does not know shows Meta's own words and the error code. Give both to your admin. If a template fails with "Template row is malformed locally", tell your admin.
+A reason Halo does not know shows Meta's own words and the error code. Give both to your admin. If a template fails with "Template row is malformed locally", tell your admin.
 
 A red message you never see a **Resend** button on (for example after your internet dropped while sending) can only be deleted. Type it again.
 
@@ -120,7 +120,7 @@ A red message you never see a **Resend** button on (for example after your inter
 ## Common mistakes
 
 - **Typing in the Comment tab by accident.** Comments are amber and never reach the customer.
-- **Moving a message to trash and expecting it to disappear for the customer.** It only hides the message inside Vircle Halo. It stays on the customer's phone.
+- **Moving a message to trash and expecting it to disappear for the customer.** It only hides the message inside Halo. It stays on the customer's phone.
 - **Sending before a pasted picture has finished uploading.** A pasted image that still says "Uploading..." cannot be sent yet. Wait for it to finish.
 
 ## Next steps

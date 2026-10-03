@@ -5,7 +5,7 @@ order: 1
 updated: 2026-09-28
 ---
 
-Sembang is your team's own chat, built into Vircle Halo. Use it to talk with colleagues, run projects and keep quick notes — separate from the Inbox, which is only for customers. Nothing you write in Sembang is ever visible to a customer, and nothing from the Inbox appears in Sembang.
+Sembang is your team's own chat, built into Halo. Use it to talk with colleagues, run projects and keep quick notes — separate from the Inbox, which is only for customers. Nothing you write in Sembang is ever visible to a customer, and nothing from the Inbox appears in Sembang.
 
 ## Who can see Sembang
 

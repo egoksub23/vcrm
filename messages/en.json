@@ -80,7 +80,7 @@
   },
   "Help": {
     "pageTitle": "User Guide",
-    "landingTitle": "Vircle Halo User Guide",
+    "landingTitle": "Halo User Guide",
     "landingSubtitle": "Step-by-step help for everyday work: chats, contacts, knowledge and tickets.",
     "searchPlaceholder": "Search the guide",
     "searchButton": "Search the guide",
@@ -3212,7 +3212,7 @@
     },
     "ticketForm": {
       "prefixTitle": "Ticket key prefix",
-      "prefixHint": "Tickets are shown as PREFIX-number, for example VIR-12. This only changes how numbers are displayed; existing tickets keep their numbers and links keep working. 2 to 6 capital letters or digits, starting with a letter.",
+      "prefixHint": "Tickets are shown as PREFIX-number, for example TKT-12. This only changes how numbers are displayed; existing tickets keep their numbers and links keep working. 2 to 6 capital letters or digits, starting with a letter.",
       "prefixPreview": "Shown as {key}",
       "prefixInvalid": "Use 2 to 6 capital letters or digits, starting with a letter.",
       "prefixSaved": "Ticket key prefix saved. Tickets now read like {key}.",
@@ -5785,7 +5785,7 @@
     },
     "users": {
       "loading": "Loading users report…",
-      "scopeNotice": "Message volume, conversations, and response time for this range — not a login/activity history (Vircle doesn't track that yet).",
+      "scopeNotice": "Message volume, conversations, and response time for this range — not a login/activity history (this isn't tracked yet).",
       "teamSize": "Team members",
       "rank": "Rank",
       "agent": "Teammate",
@@ -6702,7 +6702,7 @@
     },
     "access": {
       "title": "You don't have access to this page",
-      "description": "Your role doesn't include this part of Vircle. If you need it, ask an owner or admin to turn it on for you.",
+      "description": "Your role doesn't include this part of the app. If you need it, ask an owner or admin to turn it on for you.",
       "descriptionUnknown": "We couldn't check what you have access to just now. Try again in a moment, or ask an owner or admin if this keeps happening.",
       "goTo": "Go to {page}",
       "backToSettings": "Back to Settings",

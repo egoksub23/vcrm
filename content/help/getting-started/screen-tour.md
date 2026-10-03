@@ -5,7 +5,7 @@ order: 2
 updated: 2026-09-21
 ---
 
-This page walks through the parts of Vircle Halo that are always on screen, and what each sidebar item is for.
+This page walks through the parts of Halo that are always on screen, and what each sidebar item is for.
 
 > [!NOTE]
 > You only see the sidebar items your role includes. If an item below is missing for you, that is normal. See [Roles and permissions](/help/getting-started/roles-and-permissions).

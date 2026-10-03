@@ -3259,7 +3259,7 @@
     },
     "users": {
       "loading": "Cargando informe de usuarios…",
-      "scopeNotice": "Volumen de mensajes, conversaciones y tiempo de respuesta para este período — no es un historial de inicio de sesión/actividad (Vircle aún no lo registra).",
+      "scopeNotice": "Volumen de mensajes, conversaciones y tiempo de respuesta para este período — no es un historial de inicio de sesión/actividad (aún no se registra).",
       "teamSize": "Miembros del equipo",
       "rank": "Puesto",
       "agent": "Compañero",
