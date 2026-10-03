@@ -9,6 +9,10 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.72.1] — 2026-10-03
+
+- **Inbox: when a person owns a conversation, the AI banner now says so and offers "Hand back to AI".** The AI assistant never competes with a person: it stays silent on any conversation with an assignee (and opening an unassigned conversation still assigns it to you, as before). That was invisible, so a test chat looked as if auto-reply had stopped working. Now the thread shows "This chat is assigned to you (or to a teammate), so the AI assistant is not replying" with **Hand back to AI**, which releases the assignment, clears any pause and gives the assistant a fresh reply budget (the same action as Resume AI). Also: the Incidents entry in the Settings menu showed a raw translation key; fixed in all four languages. Bahasa Melayu, Korean and Simplified Chinese strings included. No migration required.
+
 ## [0.72.0] — 2026-10-03
 
 - **Vircle Chat: an "Open simulator" button in Settings → Channels → Vircle Chat.** It opens the gateway's test page (a pretend phone, the push alerts the gateway raises, the calls to Halo, fault buttons and six scripted scenarios) so the chat can be tried without the app. The link carries a five-minute, single-use token signed with the workspace's signing secret (in the URL fragment, so it is in no access log); only people who can manage channels get one. The gateway itself (`gateway/`, deployed at `chat.vircle.tech`, see `docs/vircle-chat-gateway-deploy.md`) must have the simulator switched on. Test users never cause a real push. Bahasa Melayu, Korean and Simplified Chinese strings included. No migration required.

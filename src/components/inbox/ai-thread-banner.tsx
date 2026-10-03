@@ -69,8 +69,8 @@ interface AiThreadBannerProps {
  * conversation:
  *   - bot active here → "AI is replying automatically" + [Take over]
  *   - bot paused here → the handoff note (if any) + [Resume AI]
- * Renders nothing when the account has no auto-reply configured, or when
- * the bot is active but a human already owns the thread (nothing to do).
+ * A human who owns the thread always wins: the bot stays silent, and the banner says so with
+ * [Hand back to AI]. Renders nothing when the account has no auto-reply configured.
  */
 export function AiThreadBanner({
   conversationId,
@@ -161,8 +161,23 @@ export function AiThreadBanner({
     );
   }
 
-  // Active, but a human already owns it → the bot won't fire; no banner.
-  if (assignedAgentId) return null;
+  // A human owns the thread, so the bot stays silent (it never competes with a person). Say so, and
+  // give the way back: "Hand back to AI" releases the assignment, clears any pause and gives the bot
+  // a fresh reply budget (the same action as "Resume AI").
+  if (assignedAgentId) {
+    return (
+      <Banner tone="muted">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-foreground">
+            {assignedAgentId === currentUserId ? t("humanOwnsYou") : t("humanOwnsOther")}
+          </p>
+        </div>
+        <BannerButton onClick={() => toggle(false)} busy={busy} locked={!canUseAi} icon={Undo2}>
+          {t("handBack")}
+        </BannerButton>
+      </Banner>
+    );
+  }
 
   // Active on this thread.
   return (
