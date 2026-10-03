@@ -50,15 +50,16 @@ chat.vircle.tech {
 }
 ```
 
-nginx: save the block as `/etc/nginx/sites-available/chat.vircle.tech`, then (as root on the server):
+nginx: the site file is in the repo (`deploy/nginx/chat.vircle.tech.conf`); after `git pull` on the server, as root:
 
 ```bash
-ln -s /etc/nginx/sites-available/chat.vircle.tech /etc/nginx/sites-enabled/
+cp deploy/nginx/chat.vircle.tech.conf /etc/nginx/sites-available/chat.vircle.tech
+ln -sf /etc/nginx/sites-available/chat.vircle.tech /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
-certbot --nginx -d chat.vircle.tech      # adds the certificate and the https listener
+certbot --nginx -d chat.vircle.tech --redirect      # adds the certificate and the https listener
 ```
 
-The block, before certbot edits it:
+The same block, for reference:
 
 ```
 server {
