@@ -89,7 +89,7 @@ await chat.sendText('Hi, I cannot top up')                    // resolves when s
 await chat.sendText('The savings one', { replyTo: message })  // quote a message
 await chat.sendFile({ blob, name: 'receipt.jpg', type: 'image/jpeg' }, { caption: 'my receipt' })
 await chat.sendFile({ blob: voice, name: 'note.m4a', type: 'audio/mp4' }, { durationSeconds: 12 })
-await chat.sendGif({ url: gif.mp4Url })                       // a GIF from a GIF service: always its MP4 version (see below)
+await chat.sendGif({ url: mp4Url })                           // not needed by the Vircle app (no GIF picker): see "GIFs and emoji"
 chat.retry(message.id)       // a message with status "failed"
 chat.discard(message.id)
 chat.typing()                // call on every keystroke: it sends at most every 2.5 s
@@ -105,10 +105,10 @@ Record voice notes in one of the allowed audio types (AAC in MP4 is the usual ch
 **Emoji** are ordinary text: the keyboard's emoji, or your own picker, go into `sendText`. Skin tones, joined families, flags and keycaps
 survive unchanged both ways (tested end to end). The limit is 4,000 characters counted as JavaScript counts them (an emoji is usually 2).
 
-**GIFs** are sent the way WhatsApp sends them: as a short looping **MP4** that plays muted with no controls. `sendGif({ url })` (or
-`{ blob }`) takes the MP4 of a GIF; every GIF service gives one next to the `.gif`. A `.gif` file is refused with `gif_must_be_mp4`
+**GIFs** travel the way WhatsApp sends them: as a short looping **MP4** that plays muted with no controls. The Vircle app only has to
+**show** one (no picker). `sendGif({ url })` (or `{ blob }`) exists for tools and tests and takes the MP4 of a GIF. A `.gif` file is refused with `gif_must_be_mp4`
 (also from `sendFile`). A message with `media.animated === true` is drawn as `<video autoplay loop muted playsinline>` with no controls.
-Tenor's API was shut down on 30 June 2026; use GIPHY (or another provider) for the picker.
+The Vircle app does not need `sendGif` (it has no GIF picker); it only shows GIFs that arrive.
 
 ### Showing a file
 

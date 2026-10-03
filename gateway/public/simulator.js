@@ -42,14 +42,13 @@
     camera: { accept: 'image/*,video/*', capture: 'environment' },
     audio: { accept: 'audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr' },
   }
-  const PANELS = { attach: 'attach-menu', emoji: 'emoji-panel', gif: 'gif-panel' }
+  const PANELS = { attach: 'attach-menu', emoji: 'emoji-panel' }
   let panel = null
 
   function showPanel(name) {
     panel = panel === name ? null : name
     for (const [key, id] of Object.entries(PANELS)) $(id).hidden = key !== panel
     if (panel === 'emoji') { buildEmoji(); $('emoji-search').focus() }
-    if (panel === 'gif') buildGifSamples()
   }
 
   function pickFile({ accept, capture }) {
@@ -114,19 +113,13 @@
     choose(0)
   }
 
-  // ---- GIFs: always sent as a looping MP4 with client.sendGif (never as a .gif file)
-  async function sendGifFrom(source) {
-    const p = cur()
-    if (!p) return
-    const { caption, replyTo } = takeDraft(p)
-    showPanel('gif')
-    try { await p.client.sendGif(source, { caption, replyTo }) } catch (err) { sendFailed(err) }
-  }
+  // ---- GIFs: the app has no picker; it only has to SHOW one that arrives (an MP4 flagged animated: muted loop, no controls).
+  // The Agent tab sends a sample one so that can be seen.
 
   /** A short looping MP4 made in this browser (canvas + MediaRecorder), so the whole path can be tried without any GIF service. */
   async function makeSampleMp4(emoji) {
     const type = ['video/mp4;codecs=avc1', 'video/mp4'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t))
-    if (!type) throw new Error('This browser cannot record MP4. Use Chrome, or paste a GIPHY key.')
+    if (!type) throw new Error('This browser cannot record MP4. Use Chrome.')
     const canvas = el('canvas', { width: '240', height: '240' })
     const ctx = canvas.getContext('2d')
     const recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: type })
@@ -153,43 +146,16 @@
     return new Blob(chunks, { type: 'video/mp4' })
   }
 
-  function buildGifSamples() {
-    const box = $('gif-samples')
-    if (box.children.length) return
-    box.replaceChildren(...['😀', '🎉', '👍', '🔥'].map((e) => el('button', { type: 'button', class: 'ghost', text: e, title: 'Make and send a sample GIF', onclick: async () => {
-      try { await sendGifFrom({ blob: await makeSampleMp4(e), name: 'sample.mp4' }) } catch (err) { toast(err.message) }
-    } })))
-    try { $('gif-key').value = localStorage.getItem('sim-giphy-key') || '' } catch {}
-  }
-
-  async function searchGiphy() {
-    let key = ''
-    try { key = localStorage.getItem('sim-giphy-key') || '' } catch {}
-    if (!key) return toast('Paste a GIPHY API key under "GIPHY key" first (free at developers.giphy.com).')
-    const q = $('gif-search').value.trim()
-    const url = `https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}?api_key=${encodeURIComponent(key)}&limit=18&rating=pg${q ? `&q=${encodeURIComponent(q)}` : ''}`
-    try {
-      const body = await (await fetch(url)).json()
-      const grid = $('gif-grid')
-      grid.replaceChildren(...(body.data || []).map((g) => el('img', { src: g.images.fixed_height_small.url, alt: g.title || 'GIF', title: g.title || '', onclick: () => sendGifFrom({ url: g.images.fixed_height.mp4 || g.images.original_mp4.mp4, name: `${g.id}.mp4` }) })))
-      if (!(body.data || []).length) grid.textContent = 'No GIFs found.'
-    } catch { toast('GIPHY could not be reached (check the key).') }
-  }
-
   function bindComposer() {
     $('attach').addEventListener('click', () => showPanel('attach'))
     $('emoji-btn').addEventListener('click', () => showPanel('emoji'))
     for (const b of document.querySelectorAll('#attach-menu [data-pick]')) {
       b.addEventListener('click', async () => {
         const what = b.getAttribute('data-pick')
-        if (what === 'gif') return showPanel('gif')
         showPanel('attach') // closes the menu, then the system picker opens
         await sendPicked(await pickFile(PICK[what]))
       })
     }
-    $('gif-go').addEventListener('click', searchGiphy)
-    $('gif-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchGiphy() } })
-    $('gif-key-save').addEventListener('click', () => { try { localStorage.setItem('sim-giphy-key', $('gif-key').value.trim()) } catch {} toast('Key saved in this browser') })
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panel) showPanel(panel) })
   }
 
@@ -542,7 +508,7 @@
     return api('/agent-message', 'POST', { wallet_id: wallet, text, ...(replyTo ? { reply_to_server_id: replyTo } : {}) })
   }
 
-  async function agentSendFile(wallet, file, caption, replyTo, durationSeconds) {
+  async function agentSendFile(wallet, file, caption, replyTo, durationSeconds, animated) {
     return api('/agent-file', 'POST', file, {
       'content-type': file.type,
       'x-wallet-id': wallet,
@@ -550,6 +516,7 @@
       ...(caption ? { 'x-caption': encodeURIComponent(caption) } : {}),
       ...(replyTo ? { 'x-reply-to': replyTo } : {}),
       ...(durationSeconds ? { 'x-duration': String(durationSeconds) } : {}),
+      ...(animated ? { 'x-animated': '1' } : {}),
     })
   }
 
@@ -698,15 +665,15 @@
       await step('The app sends emoji of every kind (skin tone, family, flag, keycap)', async () => { const m = await p.client.sendText(text); expect(stored(m), 'the message was not stored') })
       await step('The agent sees the very same characters', () => until(async () => (await refreshAgent()).some((m) => m.direction === 'in' && m.text === text), 5000, 'the emoji'))
       await step('The agent answers with emoji, and they arrive unchanged', async () => { await agentSend(p.wallet, 'On it 🙏 ✅'); await until(() => find(p, 'On it 🙏 ✅'), 4000, 'the answer') })
-      await step('The app sends a GIF (a looping MP4, as WhatsApp does)', async () => {
+      await step('The agent sends a GIF (a looping MP4 flagged animated, as WhatsApp does)', async () => {
         const mp4 = await makeSampleMp4('🎉')
-        const m = await p.client.sendGif({ blob: mp4, name: 'party.mp4' })
-        expect(stored(m) && m.media.animated === true, 'the GIF was not stored as animated')
+        const a = await agentSendFile(p.wallet, new File([mp4], 'party.mp4', { type: 'video/mp4' }), '', null, 0, true)
+        expect(a.delivery === 'socket', `delivery was ${a.delivery}`)
       })
-      await step('The agent sees it flagged as a GIF', () => until(async () => (await refreshAgent()).some((m) => m.direction === 'in' && m.kind === 'video' && m.media && m.media.animated), 5000, 'the GIF'))
-      await step('A .gif file is refused with the reason, and nothing is uploaded', async () => {
+      await step('It arrives in the app flagged animated, so the screen plays it as a muted loop', () => until(() => msgs(p).find((m) => !m.mine && m.kind === 'video' && m.media && m.media.animated === true), 5000, 'the GIF'))
+      await step('A .gif file is refused by the library with the reason, and nothing is uploaded', async () => {
         let code = null
-        try { await p.client.sendGif({ blob: new Blob([new Uint8Array(20)], { type: 'image/gif' }) }) } catch (e) { code = e.code }
+        try { await p.client.sendFile({ blob: new Blob([new Uint8Array(20)], { type: 'image/gif' }), name: 'x.gif' }) } catch (e) { code = e.code }
         expect(code === 'gif_must_be_mp4', `code was ${code}`)
       })
     },
@@ -825,6 +792,16 @@
       api('/agent-typing', 'POST', { wallet_id: p.wallet }).catch(() => {})
     })
     $('agent-attach').addEventListener('click', () => $('agent-file').click())
+    $('agent-gif').addEventListener('click', async () => {
+      const p = cur()
+      if (!p) return toast('Add a test user first')
+      try {
+        const mp4 = await makeSampleMp4('🎉')
+        mp4.name = 'party.mp4'
+        const a = await agentSendFile(p.wallet, new File([mp4], 'party.mp4', { type: 'video/mp4' }), '', agentReply && agentReply.server_id, 0, true)
+        toast(`GIF sent as the agent (${a.delivery})`)
+      } catch (err) { toast(err.message) }
+    })
     $('agent-file').addEventListener('change', async () => {
       const p = cur()
       const file = $('agent-file').files[0]

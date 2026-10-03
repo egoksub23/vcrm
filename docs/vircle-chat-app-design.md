@@ -14,7 +14,7 @@ developer for, which keys exist, where each one is generated, and how to test it
 **What you do not have to build.** The connection, reconnecting, resuming after a break, queueing messages while offline, sending
 files, delivery and read ticks, typing signals, the local copy of the conversation and the unread count are all done by a ready,
 tested library (`@vircle/chat-client`, about 1,100 lines, no dependencies). **You build the screen around it**, plus the
-device-specific parts a library cannot do: picking photos, recording a voice note, showing emoji and GIF pickers, and handling a push
+device-specific parts a library cannot do: picking photos, recording a voice note, showing an emoji picker, and handling a push
 notification.
 
 **What is decided and what is not.**
@@ -26,7 +26,7 @@ notification.
 | Reference screen | The **simulator** (section 14) is a working pretend phone built on the same library: emoji picker, attach menu, GIFs, replies, ticks |
 | Session endpoint on the Vircle backend | **Not built.** Backend developer. Ten lines, example in section 5 |
 | Push notifications | **On hold** until the Vircle push API details are provided. The gateway already decides when to alert; section 11 says what the app must be ready for |
-| GIF picker key | **Needs a decision**: Tenor's API was shut down on 30 June 2026; GIPHY is the recommended replacement (section 10) |
+| GIFs | **No picker and no GIF service in version 1.** The app only has to show a GIF when one arrives (section 10) |
 
 **The chat feels like WhatsApp and the web chat widget.** Section 2 is the feature list you are building to, with what is and is
 not included.
@@ -41,7 +41,7 @@ call one method; "You" means you build it with an Ionic or Capacitor plugin.
 | Text messages (up to 4,000 characters) | Yes | Yes | **Yes** | Library: `sendText` |
 | Emoji: keyboard | Yes | Yes | **Yes** | Nothing (the system keyboard). Emoji survive both ways unchanged (tested: skin tones, families, flags, keycaps) |
 | Emoji: in-app picker with search | Yes | Yes | **Yes** | You (section 9) |
-| **GIFs** | Yes | No | **Yes** | You pick it; library: `sendGif`. Sent as a looping MP4 (section 10) |
+| **GIFs** | Yes | No | **Shown when one arrives** | You draw it as a looping picture (section 10). No GIF picker and no GIF service key |
 | Photos | Yes | Yes | **Yes** | You pick and shrink; library: `sendFile` |
 | Videos (up to 16 MB) | Yes | Yes | **Yes** | You pick and compress; library: `sendFile` |
 | Documents (PDF, Word, Excel, PowerPoint, text) | Yes | Yes | **Yes** | You pick; library: `sendFile` |
@@ -145,7 +145,6 @@ or an email), it is rotated and the backend is given the new one.
 | Session endpoint | the backend's address, for example `https://api.vircle.tech/chat/session` | Built by the backend developer; section 5 |
 | Device id | a random id made on first launch, kept in secure storage | One per install. Same value forever: it is how the gateway recognises "the same device reconnecting" |
 | Deep link | `vircle://chat/{conversation_id}` | The scheme your app registers; section 11 |
-| GIF service key | the key from the GIF provider | Section 10. A public client key, **not** from Halo |
 
 ## 4.4 Test and live environments
 
@@ -216,7 +215,7 @@ ion-content       the message list (scrolls; stays at the bottom for new message
   typing indicator "Support is typing..."   (snapshot.supportTyping)
 ion-footer        reply bar (when replying)  |  composer
 composer          [emoji]  [text field, grows to 5 lines]  [+ attach]  [mic  or  send]
-overlays          attach menu (ion-action-sheet or popover), emoji picker and GIF picker (ion-modal, bottom sheet),
+overlays          attach menu (ion-action-sheet or popover), emoji picker (ion-modal, bottom sheet),
                   media viewer (ion-modal, full screen), voice recorder (inline in the composer)
 ```
 
@@ -363,10 +362,9 @@ Entries, in this order:
 | **Photos & videos** | The photo library (multiple selection optional) | `image` or `video` |
 | **Camera** | The camera, photo or video | `image` or `video` |
 | **Audio** | The system file picker, filtered to audio | `audio` |
-| **GIF** | Your GIF picker (section 10) | `video` flagged `animated` |
 
 A **voice note** is not in the menu: it is the **microphone button** that replaces Send while the text field is empty (section 8.4).
-**Not offered:** Location, Contact, Poll (not supported by Halo, nor on the web widget).
+**Not offered:** GIF (the app only shows GIFs, section 10), Location, Contact, Poll (not supported by Halo, nor on the web widget).
 
 After choosing a file, show a **preview with a caption field** and a Send button (as WhatsApp does), then call `sendFile`. The
 message appears in the list at once as "sending" with a local preview, so the user never waits.
@@ -459,53 +457,35 @@ has one:
 **Emoji-only messages** of up to three emoji are shown large without a bubble (a regular expression using
 `\p{Extended_Pictographic}` with a quick check that nothing else is in the text).
 
-# 10. GIFs
+# 10. GIFs: showing them
 
-## 10.1 How a GIF travels
+**Decision (3 October 2026): the app does not create or search for GIFs.** There is no GIF button, no GIF picker and no GIF service
+account or key. What the app must do is **show a GIF properly when one arrives**.
 
-WhatsApp does not send `.gif` files. It converts a GIF to a short **looping MP4** and marks it so every screen plays it as a muted loop.
-The Vircle chat does the same:
+## 10.1 How a GIF arrives
 
-1. The user picks a GIF from your GIF picker. GIF services give a `.gif` and an **MP4** of the same animation. **Use the MP4.**
-2. `await chat.sendGif({ url: mp4Url })` downloads it and sends it flagged `animated`. (Give `{ blob }` instead of `{ url }` if you
-   already hold the bytes.)
-3. Support sees it in Halo's inbox as a small picture that loops by itself (not a video with a play button).
-4. A GIF shows in the app like any message: `message.kind === 'video'` and `message.media.animated === true`, drawn as in 7.5.
+WhatsApp does not send `.gif` files either. It turns a GIF into a short **looping MP4** and marks it, so every screen plays it as a
+muted loop. The Vircle chat carries the same marking:
 
-A `.gif` file chosen from the phone's gallery is **refused** by the library with the error `gif_must_be_mp4` and a plain-language message
-(from `sendFile` and from `sendGif`). The attach menu's "Photos & videos" should therefore **hide GIF files** or convert them first.
+- The message has `kind: 'video'`, `media.mimeType: 'video/mp4'` and **`media.animated: true`**.
+- Draw it as `<video autoplay loop muted playsinline>` with **no controls** and a small "GIF" tag; tapping may open it larger. Without
+  `muted` and `playsinline`, iPhones will not autoplay it.
+- It needs no special handling in the library: it is an ordinary message with a file. Fetch its address with
+  `chat.getMediaUrl(message.id)` as for any file.
+- Autoplay in the WebView needs `muted` and `playsinline` on the element (as above). If the build is Cordova rather than Capacitor, also
+  set the `AllowInlineMediaPlayback` preference to true so iOS plays it inline.
+- Also be ready for an ordinary `image` message whose file is a `.gif` or `.webp`: an `<img>` element animates it by itself, so the
+  normal photo bubble already shows it.
 
-## 10.2 The GIF picker (you build it)
+## 10.2 Who can post a GIF today
 
-A bottom sheet with a search box, a **Trending** grid (shown when the search is empty), and a grid of results; tapping one sends it.
-Reference: the simulator's GIF panel (section 14).
-
-**Provider and key.** Tenor's API **was shut down on 30 June 2026** (new keys were disabled in January), so do not use it. Use
-**GIPHY** (recommended) or another provider; the library only needs an MP4 address. With GIPHY:
-
-- Make an account at `developers.giphy.com`, create an **app** (type "API"), and you are given an **API key**. A new key starts in a
-  limited tier; apply for **production access** before launch. This key is a public client key: it is **not** generated by Halo and is
-  **not** secret, but keep it in the app's environment settings, not in the code.
-- Check GIPHY's terms before launch: attribution ("Powered by GIPHY") and rate limits apply. Confirm the current terms on their site.
-- **Privacy:** every search sends the typed words and the phone's address to the provider. If that matters, make the backend proxy the
-  two calls (it also hides the key); the app then calls `/chat/gifs?q=...`.
-
-```ts
-const KEY = environment.giphyKey
-const base = 'https://api.giphy.com/v1/gifs'
-const url = q ? `${base}/search?api_key=${KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg&lang=en`
-              : `${base}/trending?api_key=${KEY}&limit=24&rating=pg`
-const { data } = await (await fetch(url)).json()
-// preview in the grid:  data[i].images.fixed_width_small.url  (a small GIF; or ...fixed_width_small.mp4)
-// send this:            data[i].images.fixed_height.mp4        (a small MP4, usually well under 1 MB)
-await chat.sendGif({ url: data[i].images.fixed_height.mp4 })
-```
-
-Use `rating=pg` (or stricter) because this is a customer-care chat. Choose a **small rendition** (a few hundred KB): the limit is 16 MB
-but a GIF should send in a second. If the GIF host is blocked by the app's Content Security Policy or network settings, allow the
-provider's media domain (`*.giphy.com`) for `connect-src`, `img-src` and `media-src`.
-
-The sender sees the GIF at once with a local preview ("sending"), then the ticks, like any message.
+- **Support agents in Halo cannot post GIFs yet.** The inbox's attach menu refuses `.gif` files, because it shares the list of types
+  WhatsApp accepts. So today **nothing in production produces a GIF for the app to show.** The app should still be ready (above), and the
+  simulator's **Agent** tab has a **GIF** button that sends one, so you can build and test the display now.
+- If agents should be able to post GIFs (for example to a Vircle Chat or web-widget conversation, not to WhatsApp), that is a small
+  change on the Halo side, and it needs a decision (section 16). The app needs nothing more when it ships.
+- The library can still send a GIF (`chat.sendGif`) and refuses `.gif` files with the error `gif_must_be_mp4`. The app does not need
+  either: do not build a GIF button.
 
 # 11. Push notifications and deep links (on hold, design now)
 
@@ -553,7 +533,6 @@ The library's methods reject with a `ChatError` that has a `code` and a plain `m
 | `message_too_long` | Over 4,000 characters (or a caption over 1,024) | Counter on the field; block send |
 | `file_too_large` | Over 16 MB, or a voice note over 5 minutes | "This file is too big (16 MB maximum)" |
 | `file_type_not_allowed` | A type outside the list in 8.3 | "This type of file cannot be sent" |
-| `gif_must_be_mp4` | A `.gif` file was given | Use the GIF picker; hide `.gif` in the gallery |
 | `bad_request` | Empty message or file | Ignore |
 | `rate_limited` (on a message) | More than 30 sends in 10 seconds | The library waits and sends; no message needed |
 | `upload_failed`, `network`, `timeout`, `offline` | The network failed during an upload | The message shows `failed`; offer Retry |
@@ -596,7 +575,7 @@ SQLite plugin or the secure-storage plugin), keeping the key per signed-in perso
 | iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (text a human can understand, in the app's languages); URL type `vircle`; push capability and background modes if used; App Transport Security stays on (the gateway is HTTPS only) |
 | Android | `CAMERA`, `RECORD_AUDIO`; for gallery access `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (Android 13 and later) or the photo picker; `POST_NOTIFICATIONS` (Android 13 and later); intent filter for `vircle://chat`; cleartext traffic stays off |
 | Huawei | The same as Android; push through Huawei Push Kit; test on a device without Google services (the library needs nothing from them) |
-| All | Allow `https://chat.vircle.tech` and `wss://chat.vircle.tech` in the WebView's Content Security Policy (`connect-src`), plus `img-src`/`media-src` for the same host (files are served from it) and the GIF provider |
+| All | Allow `https://chat.vircle.tech` and `wss://chat.vircle.tech` in the WebView's Content Security Policy (`connect-src`), plus `img-src`/`media-src` for the same host (files are served from it) |
 
 ## 13.4 Security checklist for review
 
@@ -618,9 +597,9 @@ cd gateway && npm install && npm run sim        # then open http://localhost:809
 
 What to try there, as your specification:
 
-- The **emoji** button (picker with search and categories) and the **+** button (Document, Photos & videos, Camera, Audio, GIF).
-- The GIF panel: the sample buttons make a looping MP4 in the browser and send it, so you can see a GIF arrive without any service
-  (paste a GIPHY key under "GIPHY key" to try real search).
+- The **emoji** button (picker with search and categories) and the **+** button (Document, Photos & videos, Camera, Audio).
+- The **GIF** button on the Agent tab: it makes a looping MP4 in the browser and sends it as the agent, so you can see a GIF arrive
+  on the phone (a muted loop with a "GIF" tag).
 - The **Agent** tab: send text, files and replies to the pretend user; the phone shows ticks, typing and quotes.
 - The scenario buttons: reconnect after a gap, a message sent twice, Halo down then back, photos and voice notes both ways, replies,
   ticks, typing, and **Emoji and GIFs**. Each reports pass or fail per step.
@@ -639,7 +618,7 @@ and answer from its inbox; the person in the app appears there as a contact with
 | 4 | Aeroplane mode: write three messages, switch it off | All three send, in order, once each |
 | 5 | Kill the app mid-upload of a photo | The message is marked not sent; Retry works |
 | 6 | Emoji of every kind, including skin tones and flags | Identical on both sides |
-| 7 | GIF from the picker; GIF from the gallery (`.gif` file) | First plays as a loop in the app and in Halo; second is refused with a clear message |
+| 7 | A GIF arrives (the simulator's Agent tab, later from Halo) | Plays by itself as a muted loop with a GIF tag, no controls, on iPhone and Android |
 | 8 | Photo from the gallery (including a HEIC photo), from the camera, and a 20 MB video | JPEG under 1 MB; a video compressed under 16 MB or a helpful message |
 | 9 | PDF and Word document | Arrive; the file name and size show; the agent can open them |
 | 10 | Voice note of 3 seconds, 4 minutes, and over 5 minutes | Plays in Halo with the right length; the last is refused or stopped at 5 minutes |
@@ -666,13 +645,13 @@ services. Old WebViews are where voice recording, emoji rendering and video play
 | 5 | Documents and audio files; opening a received document | 8.1, 8.5 | 1 |
 | 6 | Voice recording and the voice-note player | 8.4 | 3 |
 | 7 | Emoji picker (search, categories, recent), large emoji-only messages | 9 | 2 |
-| 8 | GIF picker and GIF display | 10 (needs the provider key) | 2 |
+| 8 | GIF display (a looping, muted, controls-free video) | 10 | 0.5 |
 | 9 | Typing, connection bar, errors, retry, replaced state | 7.4, 12 | 1 |
 | 10 | Unread badge, foreground and background handling, sign-out | 13.1 | 1 |
 | 11 | Push alert handling and deep link | 11 (final testing after the push API) | 2 |
 | 12 | Encrypted store (if required), permissions, CSP, accessibility, dark mode, translations | 13 | 3 |
 | 13 | Device testing (section 14.1) and fixes | | 4 |
-| | **Total** | A realistic range is **3 to 4 weeks**, with the backend endpoint and the GIF key ready on day one | **about 29** |
+| | **Total** | A realistic range is **3 to 4 weeks**, with the backend endpoint ready on day one | **about 27** |
 
 **Definition of done:** every row of the test plan passes on the device list; the checklist in 13.4 is signed off; no secret or token
 appears in the code, the logs or the network traces other than the one-time connect token; the screens are translated; the
@@ -685,7 +664,7 @@ conversation is cleared on sign-out.
 | Session endpoint (`POST /chat/session`) in test and live | Vircle backend developer | Day 1 |
 | Sessions key for the sandbox workspace and later the live one | Halo administrator, to the backend developer only | Day 1 |
 | Sandbox Halo workspace with Vircle Chat connected, and an agent login | Platform operator and Halo administrator | Day 1 |
-| GIF provider account and key (GIPHY recommended), attribution decision, whether the backend proxies it | Product and security | Task 8 |
+| Decision: should Halo agents be able to post GIFs? (section 10.2) | Product | Not blocking: the app shows one either way |
 | Push API details, the payload fields, and the push registration for Huawei | Push team | Task 11 |
 | App strings in each language, icons, and colour pairs for bubbles in both themes | Design | Task 2 |
 | Decision: encrypted storage required? | Security | Task 12 |

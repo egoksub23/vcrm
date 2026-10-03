@@ -175,7 +175,8 @@ app the quoted message beside the new one. An id the gateway does not know is ig
 **Files (1.2).** The gateway fetches `media.url` while it handles the request (so the call can take a few seconds) and keeps
 its own copy. It refuses a file it cannot fetch, that is over 16 MB, or whose type is not in the allowed list with `400`
 `invalid_media`. `media.duration_seconds` (optional) is the length of a voice note. `media.animated` (optional, `true`, MP4 only, 1.3)
-marks a GIF; the app then plays it as a muted loop.
+marks a GIF; the app then plays it as a muted loop. Today the app has no GIF picker and Halo's agent composer cannot attach a `.gif`,
+so no production source produces one yet; the display is ready for when one does.
 
 Success is `202`:
 

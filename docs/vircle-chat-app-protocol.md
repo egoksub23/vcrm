@@ -63,7 +63,9 @@ Every frame is one JSON text frame with a `type`. Binary frames are refused.
 (`text` is its first 140 characters, null for a file with no caption). `media` on a message is
 `{ file_id, url, expires_at, mime_type, file_name, size_bytes, duration_seconds, animated? }`. `animated: true` is a GIF: an MP4
 (`kind: "video"`, `video/mp4`) to play as a muted loop with no controls. A GIF is never uploaded as a `.gif` (`file_type_not_allowed`),
-the way WhatsApp does it: ask the GIF service for the MP4 and send that with `animated: true` (the library does it: `sendGif`).
+the way WhatsApp does it. **The Vircle app has no GIF picker and sends none; it only has to show one that arrives**: draw a message with
+`media.animated` as `<video autoplay loop muted playsinline>` with no controls. (The library can still send one with `sendGif`, which is not
+needed by the app.)
 
 ## 4. Sending a file (photo, video, voice note, document)
 

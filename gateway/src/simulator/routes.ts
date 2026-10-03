@@ -106,7 +106,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   'GET /simulator/emoji.js': { file: 'emoji.js', type: 'text/javascript; charset=utf-8' },
 }
 
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss: https://api.giphy.com https://*.giphy.com; img-src 'self' data: blob: https://*.giphy.com; media-src 'self' blob: https://*.giphy.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 const simUsername = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().length <= max ? v.trim() : null)
 
@@ -237,7 +237,7 @@ export function buildSimulatorRoutes(args: { state: SimulatorState; dispatcher: 
       text: caption ? caption.slice(0, s.cfg.limits.captionMax) : null,
       replyToServerId: header('x-reply-to'),
       senderName: 'Support (sim)',
-      media: { kind, bytes, mimeType, fileName: header('x-file-name') ? decodeURIComponent(header('x-file-name')!) : null, durationSeconds: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null },
+      media: { kind, bytes, mimeType, fileName: header('x-file-name') ? decodeURIComponent(header('x-file-name')!) : null, durationSeconds: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null, animated: header('x-animated') === '1' },
       recipient: { walletId: subject.user.wallet_id, name: subject.user.name, phone: subject.user.phone, email: subject.user.email },
     }).catch((err) => {
       if (err && typeof err === 'object' && 'code' in err && 'status' in err) throw new HttpError(400, 'invalid_media', (err as Error).message)

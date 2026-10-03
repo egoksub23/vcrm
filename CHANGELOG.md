@@ -11,7 +11,7 @@ and polish.
 
 ## [0.74.0] — 2026-10-03
 
-- **Vircle Chat: GIFs.** A customer can send a GIF from the app; it reaches the inbox as a short looping picture that plays on its own (muted, no controls), the way it looks on WhatsApp, instead of a video with a play button. Behind it, a GIF travels as a looping MP4 marked `animated` (contract 1.3). **Migration required: `151_message_media_animated.sql`** (one new column, nothing else changes). Agents cannot send GIFs yet.
+- **Vircle Chat: GIFs are shown properly.** A GIF (sent from the app, or by an agent in future) arrives as a looping MP4 marked `animated` (contract 1.3) and the inbox plays it as a short picture that loops by itself (muted, no controls), the way it looks on WhatsApp, instead of a video with a play button. **Migration required: `151_message_media_animated.sql`** (one new column, nothing else changes). Agents cannot send GIFs yet.
 
 ## [0.73.0] — 2026-10-03
 
