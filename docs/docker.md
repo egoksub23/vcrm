@@ -76,3 +76,16 @@ docker run -d --env-file .env.local -e PORT=3000 -p 3000:3000 wacrm
   set. The full list, how often to call each, an example crontab, and how to
   check from the Platform page that they are running are in
   [automations-and-cron.md](automations-and-cron.md).
+
+## Keeping the disk from filling
+
+Each `docker compose up --build` leaves build layers behind, and they add up
+(one server reached 25 GB of build cache). Clearing the cache is safe: the
+next build just takes longer the first time. This does not touch volumes, so
+no data is lost. Add it to root's crontab to run weekly:
+
+```
+0 4 * * 0  docker builder prune -af --filter until=168h >> /var/log/docker-prune.log 2>&1 && docker image prune -f >> /var/log/docker-prune.log 2>&1
+```
+
+Check usage any time with `df -h /` and `docker system df`.
