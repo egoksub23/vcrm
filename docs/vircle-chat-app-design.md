@@ -115,7 +115,7 @@ This is done once per Halo workspace by whoever administers Halo, **not** by you
 | Value | Looks like | Generated | Who holds it | Used for |
 | --- | --- | --- | --- | --- |
 | Workspace key | `vcw_...` | Halo, when the channel is saved | Halo and the gateway | Names the workspace in every event. Not secret |
-| Webhook URL | `https://crm.vircle.tech/api/vircle-chat/webhook` | Halo (shown on the same screen) | Gateway | Where the gateway posts events to Halo |
+| Webhook URL | `https://halo.vircle.tech/api/vircle-chat/webhook` | Halo (shown on the same screen) | Gateway | Where the gateway posts events to Halo |
 | **Signing secret** | `vcs_...` | Halo. **Shown once** | Halo (encrypted) and the gateway (encrypted) | The gateway signs every event to Halo with it |
 | **API token** | `vct_...` | Halo. **Shown once** | Halo (encrypted) and the gateway (hashed) | Halo calls the gateway with it |
 

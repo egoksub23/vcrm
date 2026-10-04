@@ -8,7 +8,7 @@ pilot, with its own database, moving to AWS with the rest later.
 ## 1. DNS
 
 Create an `A` record `chat.vircle.tech` pointing at the VPS (`187.127.105.156`), the same address as
-`crm.vircle.tech`.
+`halo.vircle.tech`.
 
 ## 2. The gateway's settings
 
@@ -39,7 +39,7 @@ ssh root@187.127.105.156 "curl -s http://127.0.0.1:8090/healthz"
 ## 4. TLS and WebSockets for chat.vircle.tech
 
 A reverse proxy on the server must serve `https://chat.vircle.tech` and pass it to `127.0.0.1:8090`,
-**including WebSocket upgrades** (the app connects to `wss://chat.vircle.tech/ws`). `crm.vircle.tech` is served
+**including WebSocket upgrades** (the app connects to `wss://chat.vircle.tech/ws`). `halo.vircle.tech` is served
 by **nginx** on this server (checked 3 Oct 2026), so use the nginx block below; Caddy is only an alternative.
 
 Caddy (gets the certificate by itself):
@@ -96,7 +96,7 @@ cd /opt/wacrm
 docker compose -f docker-compose.gateway.yml --env-file .env.gateway exec \
   -e HALO_SIGNING_SECRET='vcs_...' -e HALO_API_TOKEN='vct_...' gateway \
   node dist/cli.js create-workspace --key vcw_... --name "Vircle" \
-  --halo-url https://crm.vircle.tech/api/vircle-chat/webhook
+  --halo-url https://halo.vircle.tech/api/vircle-chat/webhook
 ```
 
    It prints a **sessions key**: that is for the Vircle backend developer (it is what lets the backend ask for

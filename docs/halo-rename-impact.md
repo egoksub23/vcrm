@@ -3,6 +3,17 @@
 Prepared 3 October 2026 from the code, the documentation and a read-only look at the production database. Nothing has
 been changed. Use it to decide, schedule and later measure the change.
 
+## Status (4 October 2026)
+
+Done: DNS, nginx and one certificate for both names; `NEXT_PUBLIC_SITE_URL` and `ALLOWED_INVITE_HOSTS` set and rebuilt; Supabase
+redirect list and Site URL; redirect URIs added at Meta and Microsoft; chat gateway pointed at the new address (outbox clear);
+Microsoft 365 mail subscription recreated (expires 7 Oct, renews nightly); Messenger, Instagram and Vircle Chat tested end to end.
+Cron jobs call `localhost:3000`, so they never needed changing.
+
+Still open: the WhatsApp callback in Meta (needs a fresh access token and verify token), confirming the Messenger and Instagram
+callbacks are on the new host, updating web-widget embeds and the Vircle app's WebView, the Atlassian callback (no webhooks exist),
+nginx logging by host to watch the old address, and after 30 days a redirect for browser pages and retirement of `crm`.
+
 ## 1. The short version
 
 * **The code needs no change.** The app never hard-codes its own host. It builds its own links from the
