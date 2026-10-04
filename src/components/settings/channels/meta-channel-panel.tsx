@@ -15,6 +15,7 @@ import { SettingsPanelHead } from '../settings-panel-head';
 import { CommentsChannelCard } from './comments-channel-card';
 import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import type { MetaChannelConnectionStatus } from '@/types';
+import { publicOrigin } from '@/lib/site-url';
 
 interface MetaPage {
   id: string;
@@ -66,8 +67,7 @@ export function MetaChannelPanel({
   // whether one was set before.
   const [verifyToken, setVerifyToken] = useState('');
   const [savingVerifyToken, setSavingVerifyToken] = useState(false);
-  const webhookUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/api/${channel}/webhook` : '';
+  const webhookUrl = `${publicOrigin()}/api/${channel}/webhook`;
 
   function handleCopyWebhookUrl() {
     navigator.clipboard.writeText(webhookUrl);

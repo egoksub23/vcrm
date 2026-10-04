@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.75.1] — 2026-10-04
+
+**Migration required: 156** (applied to the Vircle production database).
+
+- **Moving Halo to a new address no longer needs manual repair.** A Microsoft 365 mail subscription and a Jira webhook keep the address they were created with, so after a domain change they went on calling the old one until someone cleared them by hand. Halo now records the address each was made for and, at the next renewal, recreates one that was made for a different address (the old one is removed). One made before this was tracked is recreated once, so it is tracked from then on.
+- **Settings > Channels > Addresses to register.** Every address another service must hold for Halo (Meta webhooks and redirect URIs, Microsoft, Gmail, TikTok, Jira, the chat gateway, the web widget, Supabase), at Halo's canonical address, each with a Copy button and where to paste it.
+- **The widget snippet and the webhook addresses shown in Settings always use the canonical address** (`NEXT_PUBLIC_SITE_URL`), not whichever alias the admin happens to be browsing through.
+- **Fix: the AI no longer attaches an unrelated article's files.** When the model cited no article, the draft and auto-reply paths sent the files of the best-ranked one anyway, so a plain "Hi, can you help?" got the child-login guide's images. Nothing cited now means nothing attached.
+
 ## [0.75.0] — 2026-10-04
 
 **Migrations required: 152, 153, 154, 155** (all applied to the Vircle production database). Add two crontab lines (see `docs/automations-and-cron.md`): `/api/usage/snapshot-cron` (daily) and `/api/platform/deletion-cron` (hourly).

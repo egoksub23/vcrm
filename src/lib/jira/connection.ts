@@ -205,7 +205,12 @@ export async function ensureWebhooks(args: {
     return { action: "skipped", detail: "Jira only delivers webhooks to https addresses" };
   }
 
-  const wanted = alive.length > 0 && alive.every((w) => (w.jqlFilter ?? "") === jql);
+  // The webhook keeps the address it was registered with, so a changed address of ours means replace it.
+  // `undefined` = the column is not there yet (migration 156 not applied): behave as before.
+  const url = `${args.baseUrl.replace(/\/+$/, "")}/api/integrations/jira/webhook/${args.webhookToken}`;
+  const recordedUrl = (connection as { webhook_url?: string | null }).webhook_url;
+  const addressChanged = recordedUrl !== undefined && recordedUrl !== url;
+  const wanted = alive.length > 0 && !addressChanged && alive.every((w) => (w.jqlFilter ?? "") === jql);
   if (wanted) {
     const res = await client.refreshWebhooks(alive.map((w) => w.id));
     const expiresAt = res?.expirationDate ?? new Date(now + WEBHOOK_LIFETIME_DAYS * 86_400_000).toISOString();
@@ -216,7 +221,6 @@ export async function ensureWebhooks(args: {
   const replacing = alive.length > 0;
   if (replacing) await client.deleteWebhooks(alive.map((w) => w.id)).catch(() => undefined);
 
-  const url = `${args.baseUrl.replace(/\/+$/, "")}/api/integrations/jira/webhook/${args.webhookToken}`;
   try {
     const res = await client.registerWebhooks({ url, events: JIRA_WEBHOOK_EVENTS, jqlFilter: jql });
     const created = (res?.webhookRegistrationResult ?? []).flatMap((r) => (typeof r.createdWebhookId === "number" ? [r.createdWebhookId] : []));
@@ -233,7 +237,7 @@ export async function ensureWebhooks(args: {
       return { action: "failed", detail: errors[0] ?? "refused" };
     }
     const expiresAt = new Date(now + WEBHOOK_LIFETIME_DAYS * 86_400_000).toISOString();
-    await store.updateConnection(connection.id, { webhook_ids: created, webhook_expires_at: expiresAt, ...stamp });
+    await store.updateConnection(connection.id, { webhook_ids: created, webhook_expires_at: expiresAt, webhook_url: url, ...stamp });
     return { action: replacing ? "replaced" : "registered", ids: created, expiresAt };
   } catch (e) {
     await store.logEvent({

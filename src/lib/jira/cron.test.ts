@@ -241,6 +241,33 @@ describe("webhook registration and renewal", () => {
     expect(c2.calls.map((x) => x.m)).toEqual(["list", "delete", "register"]);
   });
 
+  it("re-registers a healthy webhook that was registered for a different address of ours, and records the new one", async () => {
+    const store = new MemoryStore();
+    store.links.push(linkRow({ project_key: "ENG" }));
+    store.connections[0].webhook_ids = [7];
+    (store.connections[0] as { webhook_url?: string | null }).webhook_url = "https://crm.example.com/api/integrations/jira/webhook/secret-token";
+    const c = client({ list: [{ id: 7, jqlFilter: "project in (ENG)" }], created: [8] });
+    expect(await run(store, c, "https://halo.example.com")).toMatchObject({ action: "replaced", ids: [8] });
+    expect(c.calls.map((x) => x.m)).toEqual(["list", "delete", "register"]);
+    expect((c.calls.find((x) => x.m === "register")!.a[0] as { url: string }).url).toBe("https://halo.example.com/api/integrations/jira/webhook/secret-token");
+    expect((store.connections[0] as { webhook_url?: string | null }).webhook_url).toBe("https://halo.example.com/api/integrations/jira/webhook/secret-token");
+
+    // the same address again: a plain refresh, nothing re-registered
+    const c2 = client({ list: [{ id: 8, jqlFilter: "project in (ENG)" }] });
+    store.connections[0].webhook_ids = [8];
+    expect(await run(store, c2, "https://halo.example.com")).toMatchObject({ action: "refreshed" });
+    expect(c2.calls.map((x) => x.m)).toEqual(["list", "refresh"]);
+  });
+
+  it("treats a webhook with no recorded address (registered before it was tracked) as needing one re-registration", async () => {
+    const store = new MemoryStore();
+    store.links.push(linkRow({ project_key: "ENG" }));
+    store.connections[0].webhook_ids = [7];
+    (store.connections[0] as { webhook_url?: string | null }).webhook_url = null;
+    const c = client({ list: [{ id: 7, jqlFilter: "project in (ENG)" }], created: [9] });
+    expect(await run(store, c)).toMatchObject({ action: "replaced", ids: [9] });
+  });
+
   it("re-registers a webhook Jira no longer lists (expired or removed)", async () => {
     const store = new MemoryStore();
     store.links.push(linkRow({ project_key: "ENG" }));

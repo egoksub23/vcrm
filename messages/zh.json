@@ -2796,6 +2796,17 @@
       "wabaNotSubscribed": "WhatsApp Business 账户未订阅此应用，因此 Meta 不会投递入站 webhook。请重新输入访问令牌并再次保存以完成订阅。"
     },
     "channels": {
+      "urls": {
+        "title": "需要登记的地址",
+        "description": "其他服务需要为 Halo 保存的所有地址，可直接复制。Halo 迁移到新域名时使用，迁移后也可用来核对。",
+        "loading": "加载中…",
+        "base": "以下是 {base} 对应的地址。",
+        "viaAlias": "（您当前通过 {host} 访问 Halo。）",
+        "automatic": "由 Halo 自动登记",
+        "copy": "复制",
+        "copied": "地址已复制",
+        "copyFailed": "无法复制"
+      },
       "title": "渠道",
       "description": "为此账户连接 WhatsApp、网页聊天小组件及其他入站渠道。",
       "whatsappTabs": {

@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { SettingsPanelHead } from '../settings-panel-head';
 import { InAppIdentityCard, VerificationModeCard } from './web-widget-identity';
 import type { WebWidgetConfig } from '@/types';
+import { publicOrigin } from '@/lib/site-url';
 
 const PRESET_COLORS = [
   '#3b82f6',
@@ -28,11 +29,8 @@ const PRESET_COLORS = [
   '#06b6d4',
 ];
 
-function widgetOrigin(): string {
-  // Server render only (the snippet is built in the browser): this deployment's own URL.
-  if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') ?? '';
-  return window.location.origin;
-}
+// The snippet must name the canonical host, not whichever alias the admin happens to be using.
+const widgetOrigin = publicOrigin;
 
 export function WebWidgetChannel() {
   const t = useTranslations('Settings.channels.webWidget');

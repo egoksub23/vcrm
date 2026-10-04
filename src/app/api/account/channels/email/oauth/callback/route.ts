@@ -111,6 +111,7 @@ export async function GET(request: Request) {
       client_state: encrypt(clientState),
       subscription_id: subscription.id,
       subscription_expires_at: subscription.expirationDateTime,
+      subscription_notification_url: notificationUrl,
       needs_reauth: false,
       status: 'connected' as const,
       connected_at: new Date().toISOString(),

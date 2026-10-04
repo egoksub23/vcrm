@@ -179,6 +179,8 @@ export interface JiraConnectionRow {
   status_reason: string | null;
   token_expires_at: string | null;
   webhook_ids: unknown;
+  /** The address the webhooks were registered with (migration 156); null for ones registered before it was recorded. */
+  webhook_url?: string | null;
   webhook_expires_at: string | null;
   webhook_checked_at: string | null;
   last_catchup_at: string | null;
@@ -211,7 +213,7 @@ export interface ReportResult {
 }
 
 export const CONNECTION_COLUMNS =
-  "id, account_id, cloud_id, site_url, site_name, connected_by, jira_account_id, jira_display_name, status, status_reason, token_expires_at, webhook_ids, webhook_expires_at, webhook_checked_at, last_catchup_at, last_report_at, settings, rate_limit, webhook_stats, last_report_result, created_at, updated_at";
+  "id, account_id, cloud_id, site_url, site_name, connected_by, jira_account_id, jira_display_name, status, status_reason, token_expires_at, webhook_ids, webhook_expires_at, webhook_url, webhook_checked_at, last_catchup_at, last_report_at, settings, rate_limit, webhook_stats, last_report_result, created_at, updated_at";
 
 export interface TicketJiraLinkRow {
   id: string;

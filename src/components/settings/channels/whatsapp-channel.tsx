@@ -33,6 +33,7 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
+import { publicOrigin } from '@/lib/site-url';
 
 const MASKED_TOKEN = '••••••••••••••••';
 
@@ -137,10 +138,7 @@ export function WhatsAppConfig() {
   const [registrationProbe, setRegistrationProbe] =
     useState<RegistrationProbe | null>(null);
 
-  const webhookUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/api/whatsapp/webhook`
-      : '';
+  const webhookUrl = `${publicOrigin()}/api/whatsapp/webhook`;
 
   const fetchConfig = useCallback(async (acctId: string) => {
     setLoading(true);

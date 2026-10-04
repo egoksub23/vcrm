@@ -21,6 +21,7 @@ import { PROVIDER_ICONS } from '@/components/comments/provider-icons';
 import { useCapability } from '@/hooks/use-can';
 import { useAuth } from '@/hooks/use-auth';
 import { isFeatureEnabled } from '@/lib/platform/features';
+import { RegisteredUrlsCard } from './channels/registered-urls-card';
 
 type ChannelId =
   | 'whatsapp'
@@ -158,6 +159,7 @@ export function ChannelsTab() {
           </p>
         </div>
       ) : null}
+      {canManageChannels ? <RegisteredUrlsCard /> : null}
     </div>
   );
 }

@@ -2796,6 +2796,17 @@
       "wabaNotSubscribed": "Akaun WhatsApp Business tidak dilanggan pada aplikasi ini, jadi Meta tidak akan menghantar webhook masuk. Masukkan semula token akses dan simpan sekali lagi untuk melanggannya."
     },
     "channels": {
+      "urls": {
+        "title": "Alamat untuk didaftarkan",
+        "description": "Setiap alamat yang mesti ada pada perkhidmatan lain untuk Halo, sedia untuk disalin. Gunakannya apabila Halo berpindah ke domain baharu, dan untuk menyemak selepas itu.",
+        "loading": "Memuatkan…",
+        "base": "Ini ialah alamat untuk {base}.",
+        "viaAlias": "(Anda sedang melihat Halo melalui {host}.)",
+        "automatic": "Didaftarkan oleh Halo",
+        "copy": "Salin",
+        "copied": "Alamat disalin",
+        "copyFailed": "Tidak dapat menyalin"
+      },
       "title": "Saluran",
       "description": "Sambungkan WhatsApp, widget sembang web dan saluran masuk lain untuk akaun ini.",
       "whatsappTabs": {

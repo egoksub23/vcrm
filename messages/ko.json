@@ -2796,6 +2796,17 @@
       "wabaNotSubscribed": "WhatsApp 비즈니스 계정이 이 앱에 구독되어 있지 않아 Meta가 수신 웹훅을 전달하지 않습니다. 액세스 토큰을 다시 입력하고 저장해 구독하세요."
     },
     "channels": {
+      "urls": {
+        "title": "등록할 주소",
+        "description": "다른 서비스에 등록해야 하는 Halo의 모든 주소를 복사하기 쉽게 모았습니다. Halo를 새 도메인으로 옮길 때와 옮긴 뒤 확인할 때 사용하세요.",
+        "loading": "불러오는 중…",
+        "base": "{base} 기준의 주소입니다.",
+        "viaAlias": "(현재 {host}(으)로 Halo에 접속 중입니다.)",
+        "automatic": "Halo가 자동 등록",
+        "copy": "복사",
+        "copied": "주소를 복사했습니다",
+        "copyFailed": "복사하지 못했습니다"
+      },
       "title": "채널",
       "description": "이 계정에 WhatsApp, 웹 채팅 위젯 및 기타 수신 채널을 연결하세요.",
       "whatsappTabs": {

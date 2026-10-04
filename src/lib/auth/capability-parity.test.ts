@@ -62,6 +62,7 @@ const DRAFT_OR_PUBLISH = ["knowledge.draft", "knowledge.publish"] as const;
 // ------------------------------------------------------------
 const CHANNELS_ADMIN: [string, string[]][] = [
   ["account/channels/email/oauth/start", ["GET"]],
+  ["account/urls", ["GET"]],
   ["account/channels/email", ["DELETE"]],
   ["account/channels/gmail/oauth/start", ["GET"]],
   ["account/channels/gmail", ["DELETE"]],
