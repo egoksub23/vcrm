@@ -408,12 +408,14 @@ describe('dispatchInboundToAiReply — citations, files and the sources note', (
     )
   })
 
-  it('falls back to the best-ranked article when the model cites nothing', async () => {
+  it('sends no files and no note when the model cites nothing, even though articles were retrieved', async () => {
     h.searchKnowledge.mockResolvedValue([hit('c1', 'dA', 'Refunds', 'a'), hit('c2', 'dB', 'Hours', 'b')])
-    h.generateReply.mockResolvedValue({ text: 'Refunds take 14 days.', handoff: false })
+    h.generateReply.mockResolvedValue({ text: 'Hi! Happy to help. What do you need?', handoff: false })
     await dispatchInboundToAiReply(ARGS)
-    expect(h.loadSendableAttachments).toHaveBeenCalledWith(expect.anything(), 'acct-1', ['dA'])
-    expect(h.postSourcesNote).toHaveBeenCalledWith(expect.anything(), 'acct-1', 'conv-1', [{ id: 'dA', title: 'Refunds' }])
+    expect(h.sendMessageToConversation).toHaveBeenCalled()
+    expect(h.loadSendableAttachments).not.toHaveBeenCalled()
+    expect(h.sendKnowledgeAttachments).not.toHaveBeenCalled()
+    expect(h.postSourcesNote).not.toHaveBeenCalled()
   })
 
   it('sends no files and no note when no article was retrieved', async () => {

@@ -42,8 +42,8 @@ describe('citedDocumentIds', () => {
   it('maps cited numbers to distinct articles', () => {
     expect(citedDocumentIds([3, 1, 2], docs)).toEqual(['docA', 'docB'])
   })
-  it('falls back to the top excerpt when nothing was cited', () => {
-    expect(citedDocumentIds([], docs)).toEqual(['docA'])
+  it('attaches nothing when the model cited nothing (a greeting must not send an unrelated article files)', () => {
+    expect(citedDocumentIds([], docs)).toEqual([])
     expect(citedDocumentIds([], [])).toEqual([])
   })
   it('ignores numbers outside the list', () => {

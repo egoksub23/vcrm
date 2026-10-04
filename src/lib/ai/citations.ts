@@ -43,12 +43,19 @@ export function extractCitations(raw: string, excerptCount: number): ExtractedCi
 }
 
 /**
- * The articles a reply was based on: those it cited, or - when the model
- * cited nothing (many models forget) - just the best-ranked excerpt's article,
- * since the excerpts already passed the relevance cut-off. `documentIds[i]`
- * is the article of excerpt i + 1. Returns distinct article ids in order.
+ * The articles a reply was based on: exactly those the model cited.
+ * `documentIds[i]` is the article of excerpt i + 1. Returns distinct article
+ * ids in order.
+ *
+ * Nothing cited means nothing attached. It used to fall back to the
+ * best-ranked excerpt's article, on the theory that the excerpts had passed the
+ * relevance cut-off. That cut-off is loose, and the search text can include
+ * older, unrelated turns of the conversation, so a greeting ("Hi, can you
+ * help?") got the files of whichever article ranked first (a child-login guide)
+ * sent to the customer. A file the customer should have had but did not get is
+ * easy to send by hand; a wrong file that has already gone out is not.
  */
 export function citedDocumentIds(cited: number[], documentIds: string[]): string[] {
-  const picks = cited.length > 0 ? cited.map((n) => documentIds[n - 1]) : documentIds.slice(0, 1)
+  const picks = cited.map((n) => documentIds[n - 1])
   return Array.from(new Set(picks.filter((id): id is string => !!id)))
 }
