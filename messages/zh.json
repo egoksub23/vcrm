@@ -197,6 +197,7 @@
   },
   "Inbox": {
     "page": {
+      "resizePanel": "拖动以调整此面板的大小。也可使用方向键；双击可恢复默认。",
       "whatsappNotConnected": "WhatsApp® 尚未连接。请前往“设置”连接您的账号。"
     },
     "conversationList": {

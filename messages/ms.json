@@ -197,6 +197,7 @@
   },
   "Inbox": {
     "page": {
+      "resizePanel": "Seret untuk mengubah saiz panel ini. Kekunci anak panah juga boleh digunakan; klik dua kali untuk tetapkan semula.",
       "whatsappNotConnected": "WhatsApp® belum disambungkan. Pergi ke Tetapan untuk menyambungkan akaun anda."
     },
     "conversationList": {

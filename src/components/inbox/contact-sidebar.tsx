@@ -167,7 +167,7 @@ export function ContactSidebar({
 
   if (!contact) {
     return (
-      <div className="flex h-full w-70 items-center justify-center border-l border-border bg-card">
+      <div className="flex h-full w-full items-center justify-center border-l border-border bg-card">
         <p className="text-sm text-muted-foreground">{tThread("selectConversation")}</p>
       </div>
     );
@@ -177,7 +177,7 @@ export function ContactSidebar({
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="flex h-full min-h-0 w-70 flex-col border-l border-border bg-card">
+    <div className="flex h-full min-h-0 w-full flex-col border-l border-border bg-card">
       {/* Contact | Knowledge. (Tickets and notes keep their own column.) */}
       <div role="tablist" className="flex shrink-0 border-b border-border px-2 pt-1.5">
         {(["contact", "knowledge"] as const).map((id) => (

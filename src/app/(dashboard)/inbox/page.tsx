@@ -16,6 +16,8 @@ import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { InboxSideColumn } from "@/components/inbox/inbox-side-column";
+import { PaneResizeHandle } from "@/components/inbox/pane-resize-handle";
+import { usePaneWidth } from "@/hooks/use-pane-width";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,12 @@ const CONTACT_PANEL_STORAGE_KEY = "wacrm:inbox:contact-panel-open";
 const TICKET_PANEL_STORAGE_KEY = "wacrm:inbox:ticket-panel-open";
 /** Viewport width at/above which the ticket-history column is open by default. */
 const TICKET_PANEL_DEFAULT_OPEN_MIN_PX = 1536;
+
+// Widths the person can drag (desktop). Personal to this browser, like the show/hide choices above.
+const PANE_DEFAULT_PX = { list: 420, tickets: 288, contact: 280 };
+const PANE_MIN_PX = { list: 280, tickets: 240, contact: 240 };
+/** The conversation thread never gets squeezed below this by a dragged panel. */
+const THREAD_MIN_PX = 320;
 
 // `useSearchParams` (the `?c=<id>` deep link below) requires a Suspense
 // boundary or the production build bails to CSR and errors out. Thin
@@ -124,6 +132,20 @@ function InboxPageInner() {
       // localStorage can throw in private-browsing / sandboxed contexts.
     }
   }, []);
+
+  const listPane = usePaneWidth("wacrm:inbox:list-width", PANE_DEFAULT_PX.list);
+  const ticketPane = usePaneWidth("wacrm:inbox:ticket-width", PANE_DEFAULT_PX.tickets);
+  const contactPane = usePaneWidth("wacrm:inbox:contact-width", PANE_DEFAULT_PX.contact);
+  const rowRef = useRef<HTMLDivElement>(null);
+  /** Most a panel may grow to: the row, less the thread's minimum and every other open panel. */
+  const maxPaneWidth = (which: "list" | "tickets" | "contact") => {
+    const row = rowRef.current?.clientWidth ?? window.innerWidth;
+    const others =
+      (which !== "list" ? listPane.width : 0) +
+      (which !== "tickets" && ticketPanelOpen ? ticketPane.width : 0) +
+      (which !== "contact" && contactPanelOpen ? contactPane.width : 0);
+    return row - THREAD_MIN_PX - others;
+  };
 
   const handleToggleTicketPanel = useCallback(() => {
     setTicketPanelOpen((prev) => {
@@ -767,15 +789,16 @@ function InboxPageInner() {
           onCountChange={refreshCommentsCount}
         />
       ) : (
-      <div className="flex flex-1 overflow-hidden">
+      <div ref={rowRef} className="flex flex-1 overflow-hidden">
         {/* Left panel: Conversation list.
             Hidden on mobile when a conversation is selected so the
             thread can occupy the full width. Always visible on lg+. */}
         <div
           className={cn(
-            "flex h-full flex-1 lg:flex-none",
+            "flex h-full flex-1 lg:w-(--pane-w) lg:max-w-[60vw] lg:flex-none",
             hasActiveConv ? "hidden lg:flex" : "flex",
           )}
+          style={{ "--pane-w": `${listPane.width}px` } as React.CSSProperties}
         >
           <ConversationList
             activeConversationId={activeConversation?.id ?? null}
@@ -790,6 +813,16 @@ function InboxPageInner() {
             commentsOpen={commentsOpen}
           />
         </div>
+        <PaneResizeHandle
+          width={listPane.width}
+          min={PANE_MIN_PX.list}
+          getMax={() => maxPaneWidth("list")}
+          dir={1}
+          onChange={listPane.setWidth}
+          onCommit={listPane.commit}
+          onReset={listPane.reset}
+          label={t("resizePanel")}
+        />
 
         {/* Center panel: Message thread.
             Hidden on mobile when no conversation is selected so the
@@ -832,12 +865,27 @@ function InboxPageInner() {
         {/* Ticket history + customer notes — xl+ only (it would starve the thread on
             smaller screens); the header toggle is hidden below xl too. */}
         {ticketPanelOpen && activeConversation && (
-          <div className="hidden h-full min-h-0 xl:block">
-            <InboxSideColumn
-              contactId={activeContact?.id ?? null}
-              conversationId={activeConversation.id}
+          <>
+            <PaneResizeHandle
+              width={ticketPane.width}
+              min={PANE_MIN_PX.tickets}
+              getMax={() => maxPaneWidth("tickets")}
+              dir={-1}
+              onChange={ticketPane.setWidth}
+              onCommit={ticketPane.commit}
+              onReset={ticketPane.reset}
+              label={t("resizePanel")}
             />
-          </div>
+            <div
+              className="hidden h-full min-h-0 xl:block xl:w-(--pane-w) xl:max-w-[45vw] xl:flex-none"
+              style={{ "--pane-w": `${ticketPane.width}px` } as React.CSSProperties}
+            >
+              <InboxSideColumn
+                contactId={activeContact?.id ?? null}
+                conversationId={activeConversation.id}
+              />
+            </div>
+          </>
         )}
 
         {/* Right panel: Contact sidebar — desktop only, and only when the
@@ -845,7 +893,21 @@ function InboxPageInner() {
             On mobile it's always hidden (the `lg:block` below), so the
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
-          <div className="hidden h-full min-h-0 lg:block">
+          <>
+          <PaneResizeHandle
+            width={contactPane.width}
+            min={PANE_MIN_PX.contact}
+            getMax={() => maxPaneWidth("contact")}
+            dir={-1}
+            onChange={contactPane.setWidth}
+            onCommit={contactPane.commit}
+            onReset={contactPane.reset}
+            label={t("resizePanel")}
+          />
+          <div
+            className="hidden h-full min-h-0 lg:block lg:w-(--pane-w) lg:max-w-[45vw] lg:flex-none"
+            style={{ "--pane-w": `${contactPane.width}px` } as React.CSSProperties}
+          >
             <ContactSidebar
               contact={activeContact}
               conversationId={activeConversation?.id ?? null}
@@ -856,6 +918,7 @@ function InboxPageInner() {
               messages={messages}
             />
           </div>
+          </>
         )}
       </div>
       )}

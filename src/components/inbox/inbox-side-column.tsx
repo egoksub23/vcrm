@@ -17,7 +17,7 @@ export function InboxSideColumn({
   conversationId: string | null;
 }) {
   return (
-    <div className="flex h-full w-72 flex-col border-l border-border bg-card">
+    <div className="flex h-full w-full flex-col border-l border-border bg-card">
       <div className="min-h-0 flex-1">
         <TicketHistoryPanel contactId={contactId} conversationId={conversationId} />
       </div>

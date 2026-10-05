@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.75.2] — 2026-10-05
+
+No migration.
+
+### Added
+
+- **Resizable inbox panels.** On desktop, drag the divider between the conversation list, the chat, the ticket history column and the contact column to give any of them more room. Arrow keys work when a divider has focus, and double-clicking it puts that panel back to its normal width. The chat keeps at least 320 px, and each person's widths are remembered in their own browser only (nothing is shared with the workspace). The existing show/hide buttons for the ticket and contact columns are unchanged.
+
 ## [0.75.1] — 2026-10-04
 
 **Migration required: 156** (applied to the Vircle production database).
