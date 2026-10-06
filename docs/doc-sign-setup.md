@@ -98,8 +98,11 @@ file was changed after signing, but the reader cannot check who made the certifi
 workspace sees this under Settings > Doc Sign > Sealing certificate, with its date. A new one is made
 the next time a document is sealed after it expires.
 
-A certificate from a certificate authority (so readers show a valid signature) is a later
-step: there is no screen or route to upload one yet.
+A certificate from a certificate authority (so readers show a valid signature) can be installed under
+Settings > Doc Sign > Sealing certificate (`.p12` or `.pfx`, migration 165). It is checked before it is kept (expiry, key size,
+key use, chain) and sealed with its full chain; a document waits in "sealing" with a readable reason while the certificate in use is
+expired, and administrators are notified 30, 14 and 7 days before it ends. See `docs/doc-sign-certificate.md` for what to ask a
+certificate authority for, and how to rotate. Deploy order: apply migration 165 before the new app.
 
 ## 6a. Sensitive form fields
 
@@ -129,7 +132,7 @@ the CSV and zip exports and the public API never carry an answer. Nothing to con
 | Expiry | 1 to 365 days (default 14, per workspace) |
 | Reminders | up to five, each 1 to 60 days after the invitation |
 | Verification code | 6 digits, 10 minutes, 5 tries, 5 codes an hour |
-| Retention of signed files | 7 years by default (`sign_settings.retention_years`, set by the operator for now) |
+| Retention of signed files | 7 years by default (`sign_settings.retention_years`, 1 to 50, per workspace under Settings > Doc Sign, per category if set); a completed document cannot be deleted before its date, by anyone (`docs/doc-sign-retention.md`) |
 | One bulk send | 500 people, a CSV of 1 MB, 5 fixed people; 3 batches queued or running per workspace |
 | Export of the documents list | 50,000 documents, read 500 at a time and streamed |
 | Zip of signed files | 50 documents and 300 MB a download, one file read at a time |

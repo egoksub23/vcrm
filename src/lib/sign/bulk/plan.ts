@@ -5,7 +5,9 @@
 // ============================================================
 
 import { cleanReminderDays } from "../defaults";
-import { formSendProblems, validateForm, type FormDefinition } from "../forms";
+// not the forms barrel: it re-exports printing, which pulls the PDF engine (and its font files) into the browser bundle of the bulk page
+import type { FormDefinition } from "../forms/types";
+import { formSendProblems, validateForm } from "../forms/validate";
 import type { PlacedField } from "../pdf/types";
 import { normalizePhone, sendProblems, type Issue } from "../rules";
 import type { SignChannel, SignMode, SignRole, SignerKind } from "../types";
