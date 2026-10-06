@@ -7,13 +7,15 @@
 --
 --   sign_send_document      draft -> sent: the frozen base file, the first invitations
 --   sign_complete_signer    a signer finishes: the next step is invited once, or sealing starts
---   sign_decline_signer     a signer declines: the chain stops
+--   sign_decline_signer     a signer declines: the chain stops (links stay and show how it ended)
 --   sign_void_document      the sender cancels
 --   sign_expire_due         documents past their expiry
 --   sign_issue_token        (internal) a fresh link token; only its SHA-256 is stored
 --   sign_rotate_token       resend: a new link, the old one dies
 --   sign_change_recipient   a different name, email or phone for someone who has not signed
 --   sign_mark_viewed        first time a signer opens their link
+--   sign_record_consent     the signer agrees to sign electronically (required before signing)
+--   sign_code_attempt       count a code entry before it is compared, so guesses cannot race
 --   sign_claim_sealing      the sealing job takes documents, with a lease so two workers never share one
 --   sign_finish_sealing / sign_fail_sealing
 --
@@ -30,7 +32,14 @@ ALTER TABLE public.sign_documents
   ADD COLUMN IF NOT EXISTS sealing_attempts    INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS seal_error          TEXT;
 
+-- The approved WhatsApp message template that carries a signing link (only used when a sender chooses
+-- WhatsApp for a signer). The body takes three values: the signer's name, the document title, the link.
+ALTER TABLE public.sign_settings
+  ADD COLUMN IF NOT EXISTS whatsapp_template_name     TEXT CHECK (whatsapp_template_name IS NULL OR whatsapp_template_name ~ '^[a-z0-9_]{1,512}$'),
+  ADD COLUMN IF NOT EXISTS whatsapp_template_language TEXT NOT NULL DEFAULT 'en' CHECK (whatsapp_template_language ~ '^[a-z]{2}(_[A-Z]{2})?$');
+
 ALTER TABLE public.sign_signers
+  ADD COLUMN IF NOT EXISTS consented_at     TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS reminder_count   INTEGER NOT NULL DEFAULT 0;
 
@@ -215,6 +224,58 @@ REVOKE ALL ON FUNCTION public.sign_mark_viewed(UUID, TEXT, TEXT) FROM PUBLIC, an
 GRANT EXECUTE ON FUNCTION public.sign_mark_viewed(UUID, TEXT, TEXT) TO service_role;
 
 -- ------------------------------------------------------------
+-- A signer agrees to sign electronically (before filling or signing anything)
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sign_record_consent(p_signer UUID, p_version TEXT, p_locale TEXT, p_ip TEXT, p_device TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  s public.sign_signers%ROWTYPE;
+  d public.sign_documents%ROWTYPE;
+BEGIN
+  SELECT document_id INTO STRICT d.id FROM public.sign_signers WHERE id = p_signer;
+  SELECT * INTO d FROM public.sign_documents WHERE id = d.id FOR UPDATE;
+  SELECT * INTO s FROM public.sign_signers WHERE id = p_signer;
+  IF d.status NOT IN ('sent', 'in_progress') OR s.status NOT IN ('sent', 'viewed') THEN
+    RAISE EXCEPTION 'signer_not_open' USING ERRCODE = '23514';
+  END IF;
+  IF s.consented_at IS NOT NULL THEN
+    RETURN FALSE; -- already recorded; the first agreement is the one that counts
+  END IF;
+  UPDATE public.sign_signers
+     SET consented_at = now(), consent_version = p_version, locale = COALESCE(p_locale, locale),
+         ip = COALESCE(p_ip, ip), device = COALESCE(p_device, device)
+   WHERE id = p_signer;
+  PERFORM public.sign_log(d.id, 'consented', 'signer', p_signer, NULL, jsonb_build_object('version', p_version), p_ip, p_device);
+  RETURN TRUE;
+END;
+$$;
+ALTER FUNCTION public.sign_record_consent(UUID, TEXT, TEXT, TEXT, TEXT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.sign_record_consent(UUID, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.sign_record_consent(UUID, TEXT, TEXT, TEXT, TEXT) TO service_role;
+
+-- ------------------------------------------------------------
+-- A code entry: count the try first (atomically), then the app compares
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sign_code_attempt(p_signer UUID)
+RETURNS JSONB
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.sign_signer_secrets
+     SET code_attempts = code_attempts + 1, updated_at = now()
+   WHERE signer_id = p_signer
+  RETURNING jsonb_build_object('code_hash', code_hash, 'code_expires_at', code_expires_at, 'code_attempts', code_attempts);
+$$;
+ALTER FUNCTION public.sign_code_attempt(UUID) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.sign_code_attempt(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.sign_code_attempt(UUID) TO service_role;
+
+-- ------------------------------------------------------------
 -- A signer finishes
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.sign_complete_signer(
@@ -247,6 +308,9 @@ BEGIN
   END IF;
   IF s.status NOT IN ('sent', 'viewed') THEN
     RAISE EXCEPTION 'signer_not_open' USING ERRCODE = '23514';
+  END IF;
+  IF s.consented_at IS NULL THEN
+    RAISE EXCEPTION 'consent_required' USING ERRCODE = '23514';
   END IF;
 
   UPDATE public.sign_signers
@@ -282,7 +346,7 @@ REVOKE ALL ON FUNCTION public.sign_complete_signer(UUID, TEXT, TEXT, TEXT, TEXT)
 GRANT EXECUTE ON FUNCTION public.sign_complete_signer(UUID, TEXT, TEXT, TEXT, TEXT) TO service_role;
 
 -- ------------------------------------------------------------
--- A signer declines; the chain stops and every link stops working
+-- A signer declines; the chain stops (links stay, and show how it ended)
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.sign_decline_signer(p_signer UUID, p_reason TEXT, p_ip TEXT, p_device TEXT)
 RETURNS JSONB
@@ -307,10 +371,7 @@ BEGIN
   UPDATE public.sign_documents SET status = 'declined' WHERE id = d.id;
   PERFORM public.sign_log(d.id, 'declined', 'signer', p_signer, NULL,
                           jsonb_build_object('reason', left(NULLIF(btrim(p_reason), ''), 1000)), p_ip, p_device);
-  -- Links of people who have not finished stop working; signed signers keep theirs (to see the outcome).
-  DELETE FROM public.sign_signer_secrets k
-   USING public.sign_signers x
-   WHERE k.signer_id = x.id AND x.document_id = d.id AND x.status <> 'signed';
+  -- The links stay, so each opens a page that says how the document ended; signing needs an open document.
   RETURN jsonb_build_object('account_id', d.account_id, 'reference', d.reference, 'document_id', d.id);
 END;
 $$;
@@ -339,9 +400,6 @@ BEGIN
   END IF;
   UPDATE public.sign_documents SET status = 'voided', void_reason = left(NULLIF(btrim(p_reason), ''), 1000) WHERE id = p_document;
   PERFORM public.sign_log(p_document, 'voided', 'user', NULL, p_actor, jsonb_build_object('reason', left(NULLIF(btrim(p_reason), ''), 1000)));
-  DELETE FROM public.sign_signer_secrets k
-   USING public.sign_signers x
-   WHERE k.signer_id = x.id AND x.document_id = p_document;
   RETURN jsonb_build_object('account_id', d.account_id, 'reference', d.reference, 'was', d.status);
 END;
 $$;
@@ -372,8 +430,6 @@ BEGIN
   LOOP
     UPDATE public.sign_documents SET status = 'expired' WHERE id = r.id;
     PERFORM public.sign_log(r.id, 'expired', 'system');
-    DELETE FROM public.sign_signer_secrets k USING public.sign_signers x
-     WHERE k.signer_id = x.id AND x.document_id = r.id AND x.status <> 'signed';
     v_out := v_out || jsonb_build_object('document_id', r.id, 'account_id', r.account_id, 'reference', r.reference);
   END LOOP;
   RETURN v_out;

@@ -74,11 +74,18 @@ export function safeReplyTo(replyTo?: string | null): string | undefined {
   return v && v.length <= 254 && PLAIN_EMAIL.test(v) ? v : undefined;
 }
 
+/** A file sent with the message; `content` is the file's bytes as base64 (Resend's format). */
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
 export async function sendEmail(args: {
   to: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 } & EmailIdentity): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
@@ -98,6 +105,7 @@ export async function sendEmail(args: {
       html: args.html,
       text: args.text,
       ...(safeReplyTo(args.replyTo) ? { reply_to: safeReplyTo(args.replyTo) } : {}),
+      ...(args.attachments?.length ? { attachments: args.attachments } : {}),
     }),
   });
 

@@ -95,6 +95,13 @@ BEGIN
   IF public.sign_mark_viewed(s1, '203.0.113.9', 'Chrome') THEN RAISE EXCEPTION 'FAIL second view recorded again'; END IF;
 
   -- 4. The first signer finishes: the second is invited (once), the third is not.
+  BEGIN
+    PERFORM public.sign_complete_signer(s1, '203.0.113.9', 'Chrome', 'en', 'v1');
+    RAISE EXCEPTION 'FAIL a signer signed without agreeing to sign electronically';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  IF NOT public.sign_record_consent(s1, 'consent-v1', 'ms', '203.0.113.9', 'Chrome on Android') THEN RAISE EXCEPTION 'FAIL consent not recorded'; END IF;
+  IF public.sign_record_consent(s1, 'consent-v2', 'en', NULL, NULL) THEN RAISE EXCEPTION 'FAIL consent recorded twice'; END IF;
   r := public.sign_complete_signer(s1, '203.0.113.9', 'Chrome on Android', 'ms', 'consent-v1');
   IF (r ->> 'sealing')::boolean THEN RAISE EXCEPTION 'FAIL sealing started too early'; END IF;
   IF jsonb_array_length(r -> 'invited') <> 1 OR (r -> 'invited' -> 0 ->> 'signer_id')::uuid <> s2 THEN RAISE EXCEPTION 'FAIL the director should be invited next: %', r; END IF;
@@ -127,7 +134,9 @@ BEGIN
   IF (SELECT email FROM sign_signers WHERE id = s2) <> 'gk@example.invalid' OR v_json ->> 'token' IS NULL THEN RAISE EXCEPTION 'FAIL recipient not changed'; END IF;
 
   -- 6. The second, then the third finish: sealing starts when the last does.
+  PERFORM public.sign_record_consent(s2, 'consent-v1', 'en', NULL, NULL);
   PERFORM public.sign_complete_signer(s2, '198.51.100.4', 'Safari', 'en', 'consent-v1');
+  PERFORM public.sign_record_consent(s3, 'consent-v1', 'en', NULL, NULL);
   r := public.sign_complete_signer(s3, '198.51.100.5', 'Firefox', 'en', 'consent-v1');
   -- (s3 was invited when s2 finished)
   IF NOT (r ->> 'sealing')::boolean THEN RAISE EXCEPTION 'FAIL sealing should start when the last signer finishes: %', r; END IF;
@@ -154,7 +163,7 @@ BEGIN
   v_json := public.sign_verify_chain(d1);
   IF NOT (v_json ->> 'ok')::boolean THEN RAISE EXCEPTION 'FAIL the chain is not intact: %', v_json; END IF;
   IF (SELECT string_agg(type, ',' ORDER BY doc_seq) FROM sign_events WHERE document_id = d1)
-     <> 'sent,invited,viewed,signed,invited,resent,recipient_changed,signed,invited,signed,all_signed,seal_attempt_failed,sealed,completed' THEN
+     <> 'sent,invited,viewed,consented,signed,invited,resent,recipient_changed,consented,signed,invited,consented,signed,all_signed,seal_attempt_failed,sealed,completed' THEN
     RAISE EXCEPTION 'FAIL unexpected event sequence: %', (SELECT string_agg(type, ',' ORDER BY doc_seq) FROM sign_events WHERE document_id = d1);
   END IF;
 
@@ -164,6 +173,8 @@ BEGIN
   INSERT INTO sign_signers (account_id, document_id, role_key, full_name, email, order_no, kind) VALUES (acctA, d2, 'b', 'B', 'b@example.invalid', 2, 'filler') RETURNING id INTO u2;
   r := public.sign_send_document(d2, 'p', repeat('b', 64), 1, now() + interval '3 days', uA);
   IF jsonb_array_length(r -> 'invited') <> 2 THEN RAISE EXCEPTION 'FAIL everyone should be invited when there is no signing order: %', r; END IF;
+  PERFORM public.sign_record_consent(u1, 'v1', 'en', NULL, NULL);
+  PERFORM public.sign_record_consent(u2, 'v1', 'en', NULL, NULL);
   PERFORM public.sign_complete_signer(u2, NULL, NULL, 'en', 'v1');
   IF (SELECT status FROM sign_documents WHERE id = d2) <> 'in_progress' THEN RAISE EXCEPTION 'FAIL one of two done is in progress'; END IF;
   IF (SELECT count(*) FROM sign_events WHERE document_id = d2 AND type = 'submitted') <> 1 THEN RAISE EXCEPTION 'FAIL a filler submits, it does not sign'; END IF;
@@ -173,7 +184,7 @@ BEGIN
   PERFORM public.sign_claim_sealing(2, 300, 5);
   IF (SELECT status FROM sign_documents WHERE id = d2) <> 'failed' THEN RAISE EXCEPTION 'FAIL a document that failed 5 times should be failed'; END IF;
 
-  -- 9. Decline stops the chain and the links of people who have not finished.
+  -- 9. Decline stops the chain; links stay (they show how it ended) but nothing can be signed.
   INSERT INTO sign_documents (account_id, title, created_by, sign_in_order) VALUES (acctA, 'Declined', uA, true) RETURNING id INTO d3;
   INSERT INTO sign_signers (account_id, document_id, role_key, full_name, email, order_no) VALUES (acctA, d3, 'a', 'A', 'a3@example.invalid', 1) RETURNING id INTO e1;
   INSERT INTO sign_signers (account_id, document_id, role_key, full_name, email, order_no) VALUES (acctA, d3, 'b', 'B', 'b3@example.invalid', 2) RETURNING id INTO e2;
@@ -181,7 +192,7 @@ BEGIN
   PERFORM public.sign_decline_signer(e1, 'I do not agree with clause 4', '203.0.113.1', 'Safari');
   IF (SELECT status FROM sign_documents WHERE id = d3) <> 'declined' THEN RAISE EXCEPTION 'FAIL the document should be declined'; END IF;
   IF (SELECT decline_reason FROM sign_signers WHERE id = e1) <> 'I do not agree with clause 4' THEN RAISE EXCEPTION 'FAIL the reason was not kept'; END IF;
-  IF EXISTS (SELECT 1 FROM sign_signer_secrets WHERE signer_id IN (e1, e2)) THEN RAISE EXCEPTION 'FAIL links survived a decline'; END IF;
+  IF (SELECT count(*) FROM sign_signer_secrets WHERE signer_id IN (e1, e2)) <> 1 THEN RAISE EXCEPTION 'FAIL the link of the signer who was invited should survive a decline (it shows how the document ended); the one never invited has none'; END IF;
   IF (SELECT status FROM sign_signers WHERE id = e2) <> 'pending' THEN RAISE EXCEPTION 'FAIL the next signer must not be invited after a decline'; END IF;
   BEGIN
     PERFORM public.sign_complete_signer(e2, NULL, NULL, 'en', 'v1');
@@ -195,7 +206,7 @@ BEGIN
   PERFORM public.sign_send_document(d4, 'p', repeat('d', 64), 1, NULL, uA);
   r := public.sign_void_document(d4, 'Sent to the wrong merchant', uA);
   IF (SELECT status FROM sign_documents WHERE id = d4) <> 'voided' OR (SELECT void_reason FROM sign_documents WHERE id = d4) <> 'Sent to the wrong merchant' THEN RAISE EXCEPTION 'FAIL void'; END IF;
-  IF EXISTS (SELECT 1 FROM sign_signer_secrets k JOIN sign_signers x ON x.id = k.signer_id WHERE x.document_id = d4) THEN RAISE EXCEPTION 'FAIL links survived a void'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM sign_signer_secrets k JOIN sign_signers x ON x.id = k.signer_id WHERE x.document_id = d4) THEN RAISE EXCEPTION 'FAIL the link should stay and show the document was voided'; END IF;
   BEGIN
     PERFORM public.sign_void_document(d4, 'again', uA);
     RAISE EXCEPTION 'FAIL a voided document was voided again';
@@ -216,7 +227,7 @@ BEGIN
   v_json := public.sign_expire_due(10);
   IF jsonb_array_length(v_json) <> 1 OR (v_json -> 0 ->> 'document_id')::uuid <> d5 THEN RAISE EXCEPTION 'FAIL expiry: %', v_json; END IF;
   IF (SELECT status FROM sign_documents WHERE id = d5) <> 'expired' THEN RAISE EXCEPTION 'FAIL the document should be expired'; END IF;
-  IF EXISTS (SELECT 1 FROM sign_signer_secrets k JOIN sign_signers x ON x.id = k.signer_id WHERE x.document_id = d5) THEN RAISE EXCEPTION 'FAIL links survived expiry'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM sign_signer_secrets k JOIN sign_signers x ON x.id = k.signer_id WHERE x.document_id = d5) THEN RAISE EXCEPTION 'FAIL the link should stay and show the document expired'; END IF;
 
   -- 12. Every document's chain is intact, and the monthly count includes what was sent.
   FOR v_json IN SELECT public.sign_verify_chain(x) FROM unnest(ARRAY[d1, d2, d3, d4, d5]) x LOOP
@@ -224,6 +235,6 @@ BEGIN
   END LOOP;
   IF (public.account_usage(acctA) ->> 'sign_documents_month')::int <> 5 THEN RAISE EXCEPTION 'FAIL expected 5 documents sent this month'; END IF;
 
-  RAISE EXCEPTION 'ROLLBACK-OK: sending invites the first step with hashed tokens; signing order invites each next step once; resend and change of recipient replace links; decline, void and expiry end the chain and revoke links; sealing is leased, bounded and finishes once; the audit chain stays intact and tells the story in order; nothing is callable by a signed-in or signed-out user';
+  RAISE EXCEPTION 'ROLLBACK-OK: sending invites the first step with hashed tokens; signing order invites each next step once; resend and change of recipient replace links; decline, void and expiry end the chain and nothing more can be signed; sealing is leased, bounded and finishes once; the audit chain stays intact and tells the story in order; nothing is callable by a signed-in or signed-out user';
 END
 $verify$;
