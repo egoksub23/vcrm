@@ -73,7 +73,8 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 1g
-    cpus: 1.5
+    # 1 is the most a one-CPU server accepts; Docker refuses to start the container above the host's CPU count.
+    cpus: 1
     pids_limit: 256
     healthcheck:
       test: ['CMD', 'curl', '--silent', '--fail', 'http://localhost:3000/health']
