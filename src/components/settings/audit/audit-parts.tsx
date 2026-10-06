@@ -6,6 +6,7 @@ import {
   Boxes,
   CalendarClock,
   CalendarOff,
+  FileSignature,
   KeyRound,
   Link2,
   ListChecks,
@@ -134,6 +135,12 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   ticket_settings: ListChecks,
   workspace: Boxes,
   support_access: ShieldCheck,
+  sign_template: FileSignature,
+  sign_category: FileSignature,
+  sign_settings: FileSignature,
+  sign_certificate: FileSignature,
+  sign_addon: FileSignature,
+  sign_document: FileSignature,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

@@ -105,11 +105,16 @@ describe("catalogue", () => {
         // Sembang (menu.sembang) is the one "menu" capability that is also
         // a real table guard — see the comment above its def() call.
         "menu.sembang",
+        // Doc Sign: the reading gate and the three table-guarding writes (migration 157).
+        "menu.sign",
         "messages.send",
         "pipelines.configure",
         "roles.manage",
         "sembang.manage",
         "settings.workspace",
+        "sign.send",
+        "sign.settings",
+        "sign.templates",
         "sla.configure",
         "snippets.manage",
         "snippets.propose",
@@ -133,7 +138,7 @@ describe("catalogue", () => {
         // protected by the action capabilities and the read policies.
         // menu.sembang is the deliberate exception (it IS a table guard,
         // see the previous test) so it's excluded here.
-        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang"),
+        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign"),
         "reports.view",
         // the action is a call to the AI provider, made by the server
         "ai.use",
@@ -143,6 +148,9 @@ describe("catalogue", () => {
         "jira.connect",
         "jira.link",
         "jira.share-comments",
+        // Doc Sign: act through server routes; a sent document is written by the service role
+        "sign.sign",
+        "sign.void",
       ].sort(),
     );
   });

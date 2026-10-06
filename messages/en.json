@@ -51,7 +51,8 @@
     "incidents": "Incidents",
     "userGuide": "User Guide",
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval",
-    "platform": "Platform"
+    "platform": "Platform",
+    "sign": "Doc Sign"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -76,7 +77,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Profile",
     "menuSettings": "Settings",
-    "menuSignOut": "Sign out"
+    "menuSignOut": "Sign out",
+    "sign": "Doc Sign"
   },
   "Help": {
     "pageTitle": "User Guide",
@@ -6788,6 +6790,30 @@
       "sla_configure": {
         "label": "Configure SLA and business hours",
         "description": "Open Settings → SLA & business hours to edit business-hour schedules and holidays and to create, order and edit ticket SLA policies. Everyone can see the SLA state on a ticket."
+      },
+      "menu_sign": {
+        "label": "Menu: Doc Sign",
+        "description": "Show Doc Sign in the sidebar and allow opening its page and reading its documents, templates and audit trail. Default: Owner, Admin and Agent."
+      },
+      "sign_send": {
+        "label": "Send documents for signing",
+        "description": "Prepare documents, add signers and send them for signature, and delete your own drafts."
+      },
+      "sign_void": {
+        "label": "Void documents",
+        "description": "Cancel a document that was sent, resend or change a signer's link, and send reminders. Default: Owner and Admin."
+      },
+      "sign_templates": {
+        "label": "Manage signing templates",
+        "description": "Create, edit, duplicate and archive signing templates and their forms. Default: Owner and Admin."
+      },
+      "sign_settings": {
+        "label": "Configure Doc Sign",
+        "description": "Categories, add-ons, defaults, consent wording, the sender's name and logo, and the sealing certificate. Default: Owner and Admin."
+      },
+      "sign_sign": {
+        "label": "Countersign inside Halo",
+        "description": "Sign a document as the workspace's own signer without leaving Halo. Default: Owner and Admin."
       }
     },
     "group": {
@@ -6802,7 +6828,8 @@
       "ai": "AI",
       "channels": "Channels and integrations",
       "workspace": "Workspace",
-      "people": "People"
+      "people": "People",
+      "sign": "Doc Sign"
     },
     "preset": {
       "support-manager": {
@@ -7028,7 +7055,13 @@
       "ticket_resolution": "Ticket resolution",
       "ticket_settings": "Ticket settings",
       "workspace": "Workspace",
-      "support_access": "Support access"
+      "support_access": "Support access",
+      "sign_template": "Signing template",
+      "sign_category": "Signing category",
+      "sign_settings": "Doc Sign settings",
+      "sign_certificate": "Signing certificate",
+      "sign_addon": "Doc Sign add-on",
+      "sign_document": "Signing document"
     },
     "roleNames": {
       "owner": "Owner",
@@ -8097,7 +8130,8 @@
       "messages_per_month": "Messages sent this month",
       "ai_tokens_per_month": "AI tokens this month",
       "storage_mb": "Stored files (MB)",
-      "seats": "Team seats"
+      "seats": "Team seats",
+      "sign_documents_per_month": "Documents sent for signing this month"
     },
     "noLimit": "{used} (no limit)",
     "usedOf": "{used} of {limit}",
@@ -8248,6 +8282,11 @@
     "encRan": "Re-encrypted {count} secrets.",
     "encLastRun": "Last run: {rewritten} rewritten, {conflicts} changed meanwhile, {unreadable} unreadable.",
     "encNotFinished": "Time ran out before it finished: run it again.",
-    "notAllowed": "You do not have access to platform administration."
+    "notAllowed": "You do not have access to platform administration.",
+    "feature_sign": "Doc Sign",
+    "feature_sign_desc": "Electronic signing: upload or build documents, send them for signature and keep the signed copies. Off until the operator turns it on.",
+    "feature_sign_merchant": "Doc Sign: Merchant Registration",
+    "feature_sign_merchant_desc": "The Merchant Registration add-on for Doc Sign (merchant application and e-invoice details). Needs Doc Sign. Off for most customers.",
+    "meter_sign_documents_per_month": "Signing documents per month"
   }
 }

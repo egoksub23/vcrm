@@ -91,6 +91,8 @@ function maxFor(limit: string): number {
       return 1_000_000_000_000;
     case "storage_mb":
       return 100_000_000;
+    case "sign_documents_per_month":
+      return 10_000_000;
     default:
       return MAX_SEATS;
   }

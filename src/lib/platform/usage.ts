@@ -29,6 +29,7 @@ export const USAGE_METERS = [
   'ai_tokens_per_month',
   'storage_mb',
   'seats',
+  'sign_documents_per_month',
 ] as const
 export type UsageMeterKey = (typeof USAGE_METERS)[number] & PlatformLimit
 
@@ -42,6 +43,8 @@ export interface AccountUsage {
   storage_bytes: number
   storage_measured_at: string | null
   limits: Record<string, number>
+  /** Documents sent for signing this month (Doc Sign, migration 157). Absent on older readings. */
+  sign_documents_month?: number
 }
 
 export type UsageState = 'ok' | 'warn' | 'over'
@@ -80,8 +83,12 @@ export function usageMeters(usage: AccountUsage | null | undefined): UsageMeter[
     ai_tokens_per_month: Number(usage.ai_tokens_month) || 0,
     storage_mb: Math.ceil((Number(usage.storage_bytes) || 0) / MIB),
     seats: Number(usage.members) || 0,
+    sign_documents_per_month: Number(usage.sign_documents_month) || 0,
   }
-  return USAGE_METERS.map((key) => {
+  return USAGE_METERS.filter(
+    // Doc Sign's meter appears only for a workspace that has a limit on it or has sent something.
+    (key) => key !== 'sign_documents_per_month' || limitOf(usage.limits, key) !== null || used[key] > 0,
+  ).map((key) => {
     const limit = limitOf(usage.limits, key)
     return {
       key,
@@ -132,7 +139,7 @@ export function forgetAccountUsage(accountId: string): void {
 }
 
 export class UsageLimitError extends Error {
-  readonly code: 'message_limit_reached' | 'contact_limit_reached' | 'ai_limit_reached'
+  readonly code: 'message_limit_reached' | 'contact_limit_reached' | 'ai_limit_reached' | 'sign_limit_reached'
   readonly status = 429
   constructor(code: UsageLimitError['code'], message: string) {
     super(message)
@@ -145,6 +152,7 @@ export const LIMIT_MESSAGES = {
   message_limit_reached: "This workspace has reached its monthly message limit. Ask the account owner to contact support to raise it.",
   contact_limit_reached: "This workspace has reached its contact limit. Ask the account owner to contact support to raise it.",
   ai_limit_reached: "This workspace has used up its AI allowance for the month.",
+  sign_limit_reached: "This workspace has reached its monthly limit of documents sent for signing. Ask the account owner to contact support to raise it.",
 } as const
 
 /**
@@ -157,6 +165,21 @@ export async function assertCanSendMessage(db: SupabaseClient, accountId: string
   const limit = limitOf(usage.limits, 'messages_per_month')
   if (limit !== null && (Number(usage.messages_month) || 0) >= limit) {
     throw new UsageLimitError('message_limit_reached', LIMIT_MESSAGES.message_limit_reached)
+  }
+}
+
+/**
+ * Throws when sending one more document for signing would go over the monthly limit (Doc Sign).
+ * Only a document SENT counts, never a draft. Returns quietly when there is no limit, no reading,
+ * or room; the count is the live one from account_usage(), so it is not cached across a send.
+ */
+export async function assertCanSendDocument(db: SupabaseClient, accountId: string): Promise<void> {
+  forgetAccountUsage(accountId)
+  const usage = await loadAccountUsage(db, accountId)
+  if (!usage) return
+  const limit = limitOf(usage.limits, 'sign_documents_per_month')
+  if (limit !== null && (Number(usage.sign_documents_month) || 0) >= limit) {
+    throw new UsageLimitError('sign_limit_reached', LIMIT_MESSAGES.sign_limit_reached)
   }
 }
 

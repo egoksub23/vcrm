@@ -56,6 +56,7 @@ export type CapabilityGroup =
   | "knowledge"
   | "sembang"
   | "incidents"
+  | "sign"
   | "ai"
   | "channels"
   | "workspace"
@@ -72,6 +73,7 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
   "knowledge",
   "sembang",
   "incidents",
+  "sign",
   "ai",
   "channels",
   "workspace",
@@ -133,6 +135,10 @@ export const MENU_CAPABILITIES = [
   // raise an incident); visibility of individual incidents is enforced
   // separately by incidents.raise/incidents.manage (database tier).
   "menu.incidents",
+  // Doc Sign (electronic signing). Like Sembang it is a real database-tier gate, not plain
+  // nav access: contracts are not for every role, so the policies of every sign_* table read
+  // it through has_capability() (migration 157). Default Owner, Admin and Agent.
+  "menu.sign",
   // Not a real "menu" in the sense every other entry here is (see the
   // special-cased def() for it below, not the menu() helper) — it stays
   // in this array only so the CapabilityKey union and the PAGE_ACCESS
@@ -163,7 +169,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // 'database' tier and grantable down to Agent; the parity table in
   // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
-  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang").map((k) =>
+  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign").map((k) =>
     menu(k.slice("menu.".length)),
   ),
   // Sembang (internal team chat) is the one "menu" capability that is
@@ -180,6 +186,8 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // Permissions screen — that IS the "given access" mechanism, no new
   // per-user grant table needed.
   def("menu.sembang", "menus", ADMIN_UP, "agent", "database"),
+  // Doc Sign: see the section and read its documents, templates and audit trail (migration 157).
+  def("menu.sign", "menus", AGENT_UP, "agent", "database"),
 
   // ---- Inbox ----
   def("messages.send", "inbox", AGENT_UP, "agent", "database"),
@@ -241,6 +249,16 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("incidents.raise", "incidents", ALL, "viewer", "database"),
   def("incidents.manage", "incidents", ADMIN_UP, "agent", "database"),
 
+  // ---- Doc Sign (electronic signing, migration 157) ----
+  // menu.sign (above, in Menus) is the reading gate. send, templates and settings guard writes to
+  // tables through RLS. void and sign act through server routes only: a sent document's status and
+  // its signers are written by the service role, so there is no table for the database to guard.
+  def("sign.send", "sign", AGENT_UP, "agent", "database"),
+  def("sign.void", "sign", ADMIN_UP, "agent"),
+  def("sign.templates", "sign", ADMIN_UP, "agent", "database"),
+  def("sign.settings", "sign", ADMIN_UP, "agent", "database"),
+  def("sign.sign", "sign", ADMIN_UP, "agent"),
+
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
   def("ai.configure", "ai", ADMIN_UP, "agent", "database"),
@@ -301,6 +319,11 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sembang.manage"
   | "incidents.raise"
   | "incidents.manage"
+  | "sign.send"
+  | "sign.void"
+  | "sign.templates"
+  | "sign.settings"
+  | "sign.sign"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

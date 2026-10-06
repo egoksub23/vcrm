@@ -35,7 +35,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -46,6 +46,7 @@ export const PLATFORM_LIMITS = [
   "messages_per_month",
   "ai_tokens_per_month",
   "storage_mb",
+  "sign_documents_per_month",
 ] as const;
 export type PlatformLimit = (typeof PLATFORM_LIMITS)[number];
 
@@ -117,6 +118,12 @@ const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => bool
   // webhook, the send path and the Settings card read the flag directly
   // (lib/vircle-chat/feature.ts, and `isFeatureEnabled` in the browser).
   vircle_chat: () => false,
+  // Doc Sign (migration 157): the reading gate and every sign.* capability. Off until the
+  // operator turns it on, for existing and new workspaces alike.
+  sign: (c) => c === "menu.sign" || c.startsWith("sign."),
+  // The Merchant Registration add-on has no capability of its own: its templates are read and
+  // sent through the sign.* ones, and the installer reads the flag directly.
+  sign_merchant: () => false,
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */

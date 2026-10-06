@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [Unreleased]
+
+**Migration required: 157.** Doc Sign groundwork (no screens yet): nothing changes for any workspace.
+
+### Added
+
+- **Doc Sign foundation** (electronic signing, built in stages; see `docs/vircle-sign-plan.md`). The database tables for categories, add-ons, templates and their immutable versions, documents, signers, answers and an append-only, hash-chained audit trail; a private storage bucket only the server can touch; the permissions `menu.sign`, `sign.send`, `sign.void`, `sign.templates`, `sign.settings` and `sign.sign`; and the operator switches `sign` and `sign_merchant`, **off for every workspace** until the operator turns them on, plus the limit `sign_documents_per_month` in the Platform console. The database enforces the document status moves, freezes a document once it has been sent, writes the sealed file once, and refuses to let anything attach across workspaces.
+
 ## [0.75.2] — 2026-10-05
 
 No migration.

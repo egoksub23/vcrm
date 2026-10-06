@@ -75,7 +75,7 @@ container; LibreOffice keeps its own licence and is not modified or linked into 
  Sender (Halo UI)                          Signer (public page, no login)
       |                                              |
       v                                              v
- /sign/*  dashboard pages            /sign/[token]   public signing page
+ /sign/*  dashboard pages            /s/[token]      public signing page
  /api/sign/*  (requireCapability)    /api/sign/public/[token]/*  (token auth)
       |                                              |
       +----------- src/lib/sign/*  (shared logic) ---+
@@ -302,7 +302,7 @@ templates and a shared library of form parts are parked.
   document's data.
 - **Signer uploads:** type and size checked, stored under the document, scanned by type only (no
   macros possible in the allowed types).
-- **Staff access:** reading requires `sign.view`; writes happen only through server routes that call
+- **Staff access:** reading requires `menu.sign`; writes happen only through server routes that call
   `requireCapability`; the audit log records administrative changes.
 
 # 10. Where each part touches Halo
@@ -310,11 +310,11 @@ templates and a shared library of form parts are parked.
 | Part | Files and conventions |
 |---|---|
 | Database | `supabase/migrations/157_sign_foundation.sql` onward, idempotent. CI: lines in `supabase/ci/platform-grants.sql`; `authenticated_ok` and bucket entries in `verify-guard-catalog.sql`; `verify-157-sign-*.sql` ending in `ROLLBACK-OK`. |
-| Permissions | `capabilities.ts` (`menu.sign`, `sign.view`, `sign.send`, `sign.void`, `sign.templates`, `sign.settings`, `sign.sign`), `CapabilityKey`, `capabilities-sql.test.ts`, `capability-parity.test.ts`, role defaults in the migration. |
+| Permissions | `capabilities.ts` (`menu.sign` is the reading gate, as `menu.sembang` is; `sign.send`, `sign.void`, `sign.templates`, `sign.settings`, `sign.sign`), `CapabilityKey`, `capabilities-sql.test.ts`, `capability-parity.test.ts`, role defaults in the migration. |
 | Navigation | `sidebar.tsx` nav item, `page-access.ts`, `settings-sections.ts`. |
 | Switch and limits | `features.ts` (`sign` and `sign_merchant` in `PLATFORM_FEATURES`, `FEATURE_CAPABILITIES`, `sign_documents_per_month` in `PLATFORM_LIMITS`), `validate.ts`, `platform-console.tsx`, `usage.ts` (`assertCanSendDocument`), `account_usage()` and snapshots. |
 | Seed function | `account_platform_seed()` is recreated in full, carrying `incidents`, `jira`, `vircle_chat`, `sign` and `sign_merchant`. |
-| Pages | `src/app/(dashboard)/sign/...` (list, templates, editor, document), public `src/app/sign/[token]/page.tsx`. |
+| Pages | `src/app/(dashboard)/sign/...` (list, templates, editor, document), public `src/app/s/[token]/page.tsx` (a short path, so it never meets the dashboard's `/sign`). |
 | API | `src/app/api/sign/*` (staff, `requireCapability`), `src/app/api/sign/public/[token]/*` (token auth, listed in `PUBLIC_ROUTES` in `route-surface.test.ts`), `src/app/api/v1/sign/*` (P2). |
 | Conversion | `docker-compose.sign.yml` (converter service, internal network), `SIGN_CONVERTER_URL`, converter client in `src/lib/sign/convert/`, health on the Platform job card. |
 | Add-ons | `src/lib/sign/addons/merchant/` (manifest, template files, fields, wording), installer route, Settings > Doc Sign > Add-ons. |

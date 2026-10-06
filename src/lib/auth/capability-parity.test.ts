@@ -457,6 +457,15 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "menu.incidents",
   "incidents.raise",
   "incidents.manage",
+  // Migration 157: Doc Sign is a brand new feature, no earlier floor to compare against. The
+  // reading gate and the write guards are database-tier (has_capability() in every sign_*
+  // policy); void and sign act through server routes.
+  "menu.sign",
+  "sign.send",
+  "sign.void",
+  "sign.templates",
+  "sign.settings",
+  "sign.sign",
 ]);
 
 // ============================================================
@@ -802,7 +811,9 @@ describe("route handlers use capabilities, not role floors", () => {
         // Migration 122/123 extends it with escalation-policy/-recipient
         // settings routes under account/incidents/* — same reasoning.
         r.key.startsWith("incidents") ||
-        r.key.startsWith("account/incidents")
+        r.key.startsWith("account/incidents") ||
+        // Doc Sign (migration 157): brand new, same reasoning.
+        r.key.startsWith("sign/")
       ) {
         continue;
       }

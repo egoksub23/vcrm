@@ -27,7 +27,7 @@ import { diagnosticRows, SUPPORT_SECTIONS, type SupportSection } from "@/lib/pla
 import type { UsageMeter, UsageState } from "@/lib/platform/usage";
 
 /** The limits the console edits besides seats and the broadcast cap, all measured against usage (migration 152). */
-const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb"] as const;
+const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb", "sign_documents_per_month"] as const;
 type UsageLimitField = (typeof USAGE_LIMIT_FIELDS)[number];
 
 interface SupportGrantRow {

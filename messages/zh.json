@@ -51,7 +51,8 @@
     "incidents": "事件",
     "userGuide": "用户指南",
     "pendingApprovals": "{count} 个{count, plural, =1 {提案} other {提案}}等待审批",
-    "platform": "平台"
+    "platform": "平台",
+    "sign": "Doc Sign"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -76,7 +77,8 @@
     "defaultAvatar": "头像",
     "menuProfile": "个人资料",
     "menuSettings": "设置",
-    "menuSignOut": "退出登录"
+    "menuSignOut": "退出登录",
+    "sign": "Doc Sign"
   },
   "Help": {
     "pageTitle": "用户指南",
@@ -5707,7 +5709,8 @@
       "messages_per_month": "本月已发送消息",
       "ai_tokens_per_month": "本月 AI 令牌",
       "storage_mb": "已存储文件（MB）",
-      "seats": "团队席位"
+      "seats": "团队席位",
+      "sign_documents_per_month": "本月发送签署的文档"
     },
     "noLimit": "{used}（无上限）",
     "usedOf": "{used} / {limit}",
@@ -6058,6 +6061,30 @@
       "sla_configure": {
         "label": "配置 SLA 和营业时间",
         "description": "打开 设置 → SLA 与营业时间，编辑营业时间表和节假日，并创建、排序和编辑工单 SLA 策略。所有人都可以在工单上看到 SLA 状态。"
+      },
+      "menu_sign": {
+        "label": "菜单：Doc Sign",
+        "description": "在侧边栏显示 Doc Sign，并允许打开其页面、查看文档、模板和审计记录。默认：所有者、管理员和客服。"
+      },
+      "sign_send": {
+        "label": "发送文档签署",
+        "description": "准备文档、添加签署人并发送签署，也可删除自己的草稿。"
+      },
+      "sign_void": {
+        "label": "作废文档",
+        "description": "取消已发送的文档，重新发送或更换签署人的链接，并发送提醒。默认：所有者和管理员。"
+      },
+      "sign_templates": {
+        "label": "管理签署模板",
+        "description": "创建、编辑、复制和归档签署模板及其表单。默认：所有者和管理员。"
+      },
+      "sign_settings": {
+        "label": "配置 Doc Sign",
+        "description": "类别、附加模块、默认设置、同意条款、发件人名称和徽标，以及密封证书。默认：所有者和管理员。"
+      },
+      "sign_sign": {
+        "label": "在 Halo 内会签",
+        "description": "无需离开 Halo，即可以工作区自己的签署人身份签署文档。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -6072,7 +6099,8 @@
       "ai": "AI",
       "channels": "渠道与集成",
       "workspace": "工作区",
-      "people": "人员"
+      "people": "人员",
+      "sign": "Doc Sign"
     },
     "preset": {
       "support-manager": {
@@ -6298,7 +6326,13 @@
       "ticket_resolution": "工单解决方式",
       "ticket_settings": "工单设置",
       "workspace": "工作区",
-      "support_access": "支持访问"
+      "support_access": "支持访问",
+      "sign_template": "签署模板",
+      "sign_category": "签署类别",
+      "sign_settings": "Doc Sign 设置",
+      "sign_certificate": "签署证书",
+      "sign_addon": "Doc Sign 附加模块",
+      "sign_document": "签署文档"
     },
     "roleNames": {
       "owner": "所有者",

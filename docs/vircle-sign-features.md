@@ -307,7 +307,7 @@ reads the completion email.
 
 | Permission | Allows | Default roles |
 |---|---|---|
-| `sign.view` | See documents and templates | Agent, Admin, Owner |
+| `menu.sign` | See Doc Sign, its documents, templates and audit trail | Agent, Admin, Owner |
 | `sign.send` | Create and send documents, remind, resend | Agent, Admin, Owner |
 | `sign.void` | Void a document, change a recipient | Admin, Owner |
 | `sign.templates` | Create, edit and archive templates | Admin, Owner |

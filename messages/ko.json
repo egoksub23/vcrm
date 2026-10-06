@@ -51,7 +51,8 @@
     "incidents": "인시던트",
     "userGuide": "사용 가이드",
     "pendingApprovals": "승인 대기 중인 제안 {count}건",
-    "platform": "플랫폼"
+    "platform": "플랫폼",
+    "sign": "Doc Sign"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -76,7 +77,8 @@
     "defaultAvatar": "아바타",
     "menuProfile": "프로필",
     "menuSettings": "설정",
-    "menuSignOut": "로그아웃"
+    "menuSignOut": "로그아웃",
+    "sign": "Doc Sign"
   },
   "Help": {
     "pageTitle": "사용 가이드",
@@ -6788,6 +6790,30 @@
       "sla_configure": {
         "label": "SLA 및 업무 시간 설정",
         "description": "설정 → SLA 및 업무 시간에서 업무 시간 일정과 휴일을 편집하고, 티켓 SLA 정책을 만들고 순서를 바꾸고 편집합니다. 티켓의 SLA 상태는 모든 구성원이 볼 수 있습니다."
+      },
+      "menu_sign": {
+        "label": "메뉴: Doc Sign",
+        "description": "사이드바에 Doc Sign을 표시하고 해당 페이지를 열어 문서, 템플릿, 감사 기록을 볼 수 있게 합니다. 기본값: 소유자, 관리자, 에이전트."
+      },
+      "sign_send": {
+        "label": "서명용 문서 보내기",
+        "description": "문서를 준비하고 서명자를 추가해 서명을 요청하며, 본인의 임시 저장 문서를 삭제할 수 있습니다."
+      },
+      "sign_void": {
+        "label": "문서 무효화",
+        "description": "발송한 문서를 취소하고, 서명자의 링크를 다시 보내거나 변경하며, 알림을 보냅니다. 기본값: 소유자와 관리자."
+      },
+      "sign_templates": {
+        "label": "서명 템플릿 관리",
+        "description": "서명 템플릿과 양식을 만들고, 편집하고, 복제하고, 보관합니다. 기본값: 소유자와 관리자."
+      },
+      "sign_settings": {
+        "label": "Doc Sign 설정",
+        "description": "카테고리, 애드온, 기본값, 동의 문구, 발신자 이름과 로고, 봉인 인증서를 설정합니다. 기본값: 소유자와 관리자."
+      },
+      "sign_sign": {
+        "label": "Halo 안에서 연서",
+        "description": "Halo를 떠나지 않고 워크스페이스의 서명자로서 문서에 서명합니다. 기본값: 소유자와 관리자."
       }
     },
     "group": {
@@ -6802,7 +6828,8 @@
       "ai": "AI",
       "channels": "채널 및 연동",
       "workspace": "워크스페이스",
-      "people": "사람"
+      "people": "사람",
+      "sign": "Doc Sign"
     },
     "preset": {
       "support-manager": {
@@ -7028,7 +7055,13 @@
       "ticket_resolution": "티켓 해결 유형",
       "ticket_settings": "티켓 설정",
       "workspace": "워크스페이스",
-      "support_access": "지원 접근"
+      "support_access": "지원 접근",
+      "sign_template": "서명 템플릿",
+      "sign_category": "서명 카테고리",
+      "sign_settings": "Doc Sign 설정",
+      "sign_certificate": "서명 인증서",
+      "sign_addon": "Doc Sign 애드온",
+      "sign_document": "서명 문서"
     },
     "roleNames": {
       "owner": "소유자",
@@ -8097,7 +8130,8 @@
       "messages_per_month": "이번 달 발송 메시지",
       "ai_tokens_per_month": "이번 달 AI 토큰",
       "storage_mb": "저장된 파일(MB)",
-      "seats": "팀 좌석"
+      "seats": "팀 좌석",
+      "sign_documents_per_month": "이번 달 서명용으로 보낸 문서"
     },
     "noLimit": "{used} (한도 없음)",
     "usedOf": "{used} / {limit}",
@@ -8248,6 +8282,11 @@
     "encRan": "비밀 값 {count}건을 다시 암호화했습니다.",
     "encLastRun": "마지막 실행: {rewritten}건 변경, {conflicts}건 도중 변경됨, {unreadable}건 읽을 수 없음.",
     "encNotFinished": "완료 전에 시간이 끝났습니다. 다시 실행하세요.",
-    "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다."
+    "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다.",
+    "feature_sign": "Doc Sign",
+    "feature_sign_desc": "전자서명: 문서를 업로드하거나 만들어 서명을 요청하고 서명본을 보관합니다. 운영자가 켜기 전에는 꺼져 있습니다.",
+    "feature_sign_merchant": "Doc Sign: 가맹점 등록",
+    "feature_sign_merchant_desc": "Doc Sign의 가맹점 등록 애드온(가맹점 신청서와 전자세금계산서 정보)입니다. Doc Sign이 필요합니다. 대부분의 고객에게는 꺼 둡니다.",
+    "meter_sign_documents_per_month": "월간 서명 문서"
   }
 }

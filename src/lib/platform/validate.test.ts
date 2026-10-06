@@ -112,4 +112,14 @@ describe("parseUpdateTenant", () => {
     expect(parseUpdateTenant({ limits: { contacts: 100_000_001 } }).ok).toBe(false);
     expect(parseUpdateTenant({ limits: { contacts: null, storage_mb: null } }).ok).toBe(true);
   });
+
+  it("accepts the Doc Sign limit (migration 157) and the two Doc Sign switches", () => {
+    expect(parseUpdateTenant({ limits: { sign_documents_per_month: 200 } })).toEqual({
+      ok: true,
+      value: { limits: { sign_documents_per_month: 200 } },
+    });
+    expect(parseUpdateTenant({ limits: { sign_documents_per_month: 0 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ limits: { sign_documents_per_month: 10_000_001 } }).ok).toBe(false);
+    expect(parseUpdateTenant({ features: { sign: true, sign_merchant: false } }).ok).toBe(true);
+  });
 });

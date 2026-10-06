@@ -27,7 +27,7 @@ DECLARE
     'restore_removed_item', 'set_account_role_capabilities', 'set_member_custom_role',
     'set_member_role', 'set_member_teams', 'set_role_capabilities', 'set_sembang_channel_hidden',
     'set_sembang_channel_muted', 'signup_is_open', 'support_grant_access', 'support_revoke_access', 'sla_apply_to_open_tickets',
-    'sla_reorder_policies', 'team_open_conversation_counts', 'touch_presence',
+    'sign_verify_chain', 'sla_reorder_policies', 'team_open_conversation_counts', 'touch_presence',
     'transfer_account_ownership', 'withdraw_proposal', 'workspace_deletion_cancel', 'workspace_deletion_request'
   ];
   -- ...and the subset a SIGNED-OUT caller may call: the two used before login, and the

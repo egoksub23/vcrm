@@ -51,7 +51,8 @@
     "incidents": "Insiden",
     "userGuide": "Panduan Pengguna",
     "pendingApprovals": "{count} {count, plural, =1 {cadangan} other {cadangan}} menunggu kelulusan",
-    "platform": "Platform"
+    "platform": "Platform",
+    "sign": "Doc Sign"
   },
   "Header": {
     "dashboard": "Papan pemuka",
@@ -76,7 +77,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Profil",
     "menuSettings": "Tetapan",
-    "menuSignOut": "Log keluar"
+    "menuSignOut": "Log keluar",
+    "sign": "Doc Sign"
   },
   "Help": {
     "pageTitle": "Panduan Pengguna",
@@ -5707,7 +5709,8 @@
       "messages_per_month": "Mesej dihantar bulan ini",
       "ai_tokens_per_month": "Token AI bulan ini",
       "storage_mb": "Fail disimpan (MB)",
-      "seats": "Tempat duduk pasukan"
+      "seats": "Tempat duduk pasukan",
+      "sign_documents_per_month": "Dokumen dihantar untuk tandatangan bulan ini"
     },
     "noLimit": "{used} (tiada had)",
     "usedOf": "{used} daripada {limit}",
@@ -6058,6 +6061,30 @@
       "sla_configure": {
         "label": "Konfigurasi SLA dan waktu perniagaan",
         "description": "Buka Tetapan → SLA & waktu perniagaan untuk menyunting jadual waktu perniagaan dan cuti, serta mencipta, menyusun dan menyunting dasar SLA tiket. Semua orang boleh melihat status SLA pada tiket."
+      },
+      "menu_sign": {
+        "label": "Menu: Doc Sign",
+        "description": "Papar Doc Sign dalam bar sisi dan benarkan membuka halamannya serta membaca dokumen, templat dan jejak auditnya. Lalai: Pemilik, Pentadbir dan Ejen."
+      },
+      "sign_send": {
+        "label": "Hantar dokumen untuk ditandatangani",
+        "description": "Sediakan dokumen, tambah penandatangan dan hantar untuk tandatangan, serta padam draf anda sendiri."
+      },
+      "sign_void": {
+        "label": "Batalkan dokumen",
+        "description": "Batalkan dokumen yang telah dihantar, hantar semula atau tukar pautan penandatangan, dan hantar peringatan. Lalai: Pemilik dan Pentadbir."
+      },
+      "sign_templates": {
+        "label": "Urus templat tandatangan",
+        "description": "Cipta, sunting, duplikasi dan arkib templat tandatangan serta borangnya. Lalai: Pemilik dan Pentadbir."
+      },
+      "sign_settings": {
+        "label": "Konfigurasi Doc Sign",
+        "description": "Kategori, add-on, tetapan lalai, perkataan persetujuan, nama dan logo penghantar, serta sijil pengesahan. Lalai: Pemilik dan Pentadbir."
+      },
+      "sign_sign": {
+        "label": "Tandatangan balas dalam Halo",
+        "description": "Tandatangan dokumen sebagai penandatangan ruang kerja sendiri tanpa meninggalkan Halo. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -6072,7 +6099,8 @@
       "ai": "AI",
       "channels": "Saluran dan integrasi",
       "workspace": "Ruang kerja",
-      "people": "Orang"
+      "people": "Orang",
+      "sign": "Doc Sign"
     },
     "preset": {
       "support-manager": {
@@ -6298,7 +6326,13 @@
       "ticket_resolution": "Penyelesaian tiket",
       "ticket_settings": "Tetapan tiket",
       "workspace": "Ruang kerja",
-      "support_access": "Akses sokongan"
+      "support_access": "Akses sokongan",
+      "sign_template": "Templat tandatangan",
+      "sign_category": "Kategori tandatangan",
+      "sign_settings": "Tetapan Doc Sign",
+      "sign_certificate": "Sijil tandatangan",
+      "sign_addon": "Add-on Doc Sign",
+      "sign_document": "Dokumen tandatangan"
     },
     "roleNames": {
       "owner": "Pemilik",

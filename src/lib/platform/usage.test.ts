@@ -5,6 +5,7 @@ import {
   __resetUsageCacheForTests,
   aiAllowance,
   assertCanAddContact,
+  assertCanSendDocument,
   assertCanSendMessage,
   loadAccountUsage,
   usageMeters,
@@ -70,6 +71,16 @@ describe('usageMeters', () => {
   it('is empty without a reading', () => {
     expect(usageMeters(null)).toEqual([])
   })
+
+  it('shows the Doc Sign meter only for a workspace that has a limit on it or has sent something', () => {
+    const keys = (u: AccountUsage) => usageMeters(u).map((m) => m.key)
+    expect(keys(usage())).not.toContain('sign_documents_per_month')
+    expect(keys(usage({ sign_documents_month: 0 }))).not.toContain('sign_documents_per_month')
+    expect(keys(usage({ sign_documents_month: 3 }))).toContain('sign_documents_per_month')
+    expect(keys(usage({ limits: { sign_documents_per_month: 50 } }))).toContain('sign_documents_per_month')
+    const by = Object.fromEntries(usageMeters(usage({ sign_documents_month: 45, limits: { sign_documents_per_month: 50 } })).map((m) => [m.key, m]))
+    expect(by.sign_documents_per_month).toMatchObject({ used: 45, limit: 50, state: 'warn' })
+  })
 })
 
 describe('loadAccountUsage', () => {
@@ -104,6 +115,25 @@ describe('assertCanSendMessage', () => {
     const err = await assertCanSendMessage(fakeDb(usage({ limits: { messages_per_month: 100 } })), 'a').catch((e) => e)
     expect(err).toBeInstanceOf(UsageLimitError)
     expect(err).toMatchObject({ code: 'message_limit_reached', status: 429 })
+  })
+})
+
+describe('assertCanSendDocument', () => {
+  it('lets a send through under the limit, with no limit, or when usage cannot be read', async () => {
+    await expect(assertCanSendDocument(fakeDb(usage({ sign_documents_month: 49, limits: { sign_documents_per_month: 50 } })), 'a')).resolves.toBeUndefined()
+    await expect(assertCanSendDocument(fakeDb(usage({ sign_documents_month: 900 })), 'b')).resolves.toBeUndefined()
+    const down = { rpc: async () => { throw new Error('down') } } as unknown as SupabaseClient
+    await expect(assertCanSendDocument(down, 'c')).resolves.toBeUndefined()
+  })
+
+  it('refuses at the limit with a typed error, and reads the count fresh each time', async () => {
+    const calls = { n: 0 }
+    const db = fakeDb(usage({ sign_documents_month: 50, limits: { sign_documents_per_month: 50 } }), calls)
+    const err = await assertCanSendDocument(db, 'a').catch((e) => e)
+    expect(err).toBeInstanceOf(UsageLimitError)
+    expect(err).toMatchObject({ code: 'sign_limit_reached', status: 429 })
+    await assertCanSendDocument(db, 'a').catch(() => undefined)
+    expect(calls.n).toBe(2)
   })
 })
 

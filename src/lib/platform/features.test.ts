@@ -82,6 +82,20 @@ describe("applyFeatureFlags", () => {
     expect([...out].sort()).toEqual(["incidents.raise", "menu.inbox", "tickets.delete"]);
   });
 
+  it("removes menu.sign and every sign.* capability and nothing else when sign is off", () => {
+    const withSign = new Set([
+      "menu.inbox", "menu.sign", "sign.send", "sign.void", "sign.templates", "sign.settings", "sign.sign", "tickets.delete", "settings.workspace",
+    ]);
+    const out = applyFeatureFlags(withSign, parsePlatformRow({ features: { sign: false } }));
+    expect([...out].sort()).toEqual(["menu.inbox", "settings.workspace", "tickets.delete"]);
+  });
+
+  it("keeps Doc Sign when only the Merchant Registration add-on is off (it has no capability of its own)", () => {
+    const withSign = new Set(["menu.sign", "sign.send", "tickets.delete"]);
+    const out = applyFeatureFlags(withSign, parsePlatformRow({ features: { sign_merchant: false } }));
+    expect([...out].sort()).toEqual(["menu.sign", "sign.send", "tickets.delete"]);
+  });
+
   it("drops both modules together when both are off", () => {
     const both = new Set(["menu.incidents", "jira.link", "tickets.delete"]);
     const out = applyFeatureFlags(both, parsePlatformRow({ features: { incidents: false, jira: false } }));

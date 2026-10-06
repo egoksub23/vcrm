@@ -63,6 +63,13 @@ export const AUDIT_ENTITY_TYPES = [
   // Migrations 153 and 154: a workspace deletion request, and support access granted or ended.
   "workspace",
   "support_access",
+  // Migration 157 (Doc Sign): settings, categories, add-ons, certificates, templates and documents.
+  "sign_template",
+  "sign_category",
+  "sign_settings",
+  "sign_certificate",
+  "sign_addon",
+  "sign_document",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
