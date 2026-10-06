@@ -16,14 +16,18 @@ import {
   declineSigning,
   fetchReview,
   fetchView,
+  finishEnvelope,
+  forwardTo,
   giveConsent,
   isOfflineFailure,
   isRetryableFailure,
   removeUpload,
   requestCode,
   saveAnswers,
+  takeBackPart,
   uploadFile,
   verifyCode,
+  type ForwardResponse,
   type SavedInput,
 } from "@/lib/sign/client/signer-api";
 import {
@@ -61,6 +65,9 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { AnswerInput } from "@/lib/sign/rules";
 import type { SigningView } from "@/lib/sign/service/signing";
 
+/** How often a page waiting for a part it handed over asks whether it is done. */
+const DELEGATE_POLL_MS = 20_000;
+
 export type ActionResult<T = void> = { ok: true; value: T } | { ok: false; error: unknown; /** The page changed because of it, so there is nothing to say about the error. */ handled: boolean };
 
 /** The answers as they will be printed on the form (the review step), or why they are not there. */
@@ -69,14 +76,24 @@ export type ReviewState = { status: "idle" } | { status: "loading" } | { status:
 /** A form this person fills in, as the page holds it; null when there is none or this person's role has no part. */
 const initialFormState = (view: SigningView): FormState | null => (view.content?.form && view.content.form.partKeys.length > 0 ? formStateFromView(view.content.form) : null);
 
+/** An envelope's sitting (migration 171): which document this page is on, how to move to another, and whether to check this one as soon as it opens. */
+export interface EnvelopeSitting {
+  documentId: string;
+  /** Open another document of the envelope; `check` asks it to apply every rule at once and mark what is not ready (after a Finish that stopped there). */
+  go: (documentId: string, opts?: { check?: boolean }) => void;
+  checkOnMount?: boolean;
+}
+
 interface UseSignerArgs {
+  /** The page's scope: the link's token, or `<token>@<document id>` for a document of an envelope (see lib/sign/client/scope.ts). */
   token: string;
   initialView: SigningView;
   initialSessionOk: boolean;
   locale: string;
+  envelope?: EnvelopeSitting;
 }
 
-export function useSigner({ token, initialView, initialSessionOk, locale }: UseSignerArgs) {
+export function useSigner({ token, initialView, initialSessionOk, locale, envelope }: UseSignerArgs) {
   const [view, setView] = useState<SigningView>(initialView);
   const [sessionOk, setSessionOk] = useState(initialSessionOk);
   const [gone, setGone] = useState(false);
@@ -84,6 +101,8 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
   const [rejected, setRejected] = useState<Rejections>({});
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [notice, setNotice] = useState<"session_expired" | null>(null);
+  /** The whole turn was handed to someone else: this link no longer works, and the page says so instead of asking again. */
+  const [forwarded, setForwarded] = useState<{ to: string; delivered: boolean } | null>(null);
 
   // ---- forms in parts ------------------------------------------------------------------------------
   const [formState, setFormState] = useState<FormState | null>(() => initialFormState(initialView));
@@ -326,7 +345,8 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
   }
 
   const form: SignerFormView | null = useMemo(() => (formState ? formViewOf(formState) : null), [formState]);
-  const formStage: "form" | "review" | "document" = formState ? (view.signer.kind === "filler" ? "form" : stage) : "document";
+  // a person who only fills in goes straight from the parts to Submit; so does not a form without a signature, which has a review step of its own (migration 169)
+  const formStage: "form" | "review" | "document" = formState ? (view.signer.kind === "filler" && view.document.mode !== "form" ? "form" : stage) : "document";
 
   // ---- what the person can do --------------------------------------------------------------------
 
@@ -350,6 +370,19 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
       await refresh();
     });
 
+  /** What a failed finish (or check) says is wrong, marked on the fields it is about. */
+  function markProblems(err: unknown): void {
+    if (err instanceof SignApiError && (err.code === "missing_required" || err.code === "invalid_answers" || err.code === "answer_does_not_fit")) showFormIssues(err);
+    if (err instanceof SignApiError && err.code === "invalid_answers") {
+      const dataKeys = new Set(formState?.definition.fields.map((f) => f.key) ?? []);
+      setRejected((prev) => ({ ...prev, ...Object.fromEntries(err.issues.filter((i) => i.field && !dataKeys.has(i.field) && i.code !== "missing_required").map((i) => [i.field as string, i.code])) }));
+    }
+  }
+
+  // An envelope: the documents still to do, in order, and the one after this (null on the last: there the button finishes them all).
+  const stillToDo = view.envelope ? view.envelope.documents.filter((d) => d.state === "active").map((d) => d.id) : [];
+  const nextDocument = envelope ? (stillToDo[stillToDo.indexOf(envelope.documentId) + 1] ?? null) : null;
+
   const finish = () =>
     run(async () => {
       const content = view.content;
@@ -358,17 +391,66 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
       await queue.flush();
       const payload = completionPayload(mine, answers, (key, input) => queue.isSaved(key, input));
       try {
-        await completeSigning(token, payload, locale);
+        if (envelope) {
+          // this document is only CHECKED (every rule applied, nothing changed); the person goes on to the next. On the last one every
+          // document of theirs is completed, in order, by the server: nothing is final before that.
+          await completeSigning(token, payload, locale, { check: true });
+          if (nextDocument) {
+            envelope.go(nextDocument);
+            return;
+          }
+          await finishEnvelope(token, locale);
+        } else {
+          await completeSigning(token, payload, locale);
+        }
       } catch (err) {
-        if (err instanceof SignApiError && (err.code === "missing_required" || err.code === "invalid_answers" || err.code === "answer_does_not_fit")) showFormIssues(err);
-        if (err instanceof SignApiError && err.code === "invalid_answers") {
-          const dataKeys = new Set(formState?.definition.fields.map((f) => f.key) ?? []);
-          setRejected((prev) => ({ ...prev, ...Object.fromEntries(err.issues.filter((i) => i.field && !dataKeys.has(i.field) && i.code !== "missing_required").map((i) => [i.field as string, i.code])) }));
+        markProblems(err);
+        // finishing stopped at another document (the ones before it are signed): the page takes the person there, its problems marked
+        const at = err instanceof SignApiError ? err.issues.find((i) => i.document)?.document : undefined;
+        if (envelope && at && at !== envelope.documentId) {
+          envelope.go(at, { check: true });
+          return;
         }
         throw err;
       }
       const next = await refresh();
       if (!next) setView((cur) => ({ ...cur, state: "signed", signer: { ...cur.signer, status: "signed" } }));
+    });
+
+  // an envelope document opened because a Finish stopped there: apply every rule at once, so what is not ready is marked
+  const checkedOnOpen = useRef(false);
+  useEffect(() => {
+    if (!envelope?.checkOnMount || checkedOnOpen.current || !view.content) return;
+    checkedOnOpen.current = true;
+    void (async () => {
+      const { mine } = signerFields(view.content!.fields, view.signer.roleKey);
+      await queue.flush();
+      try {
+        await completeSigning(token, completionPayload(mine, answers, (key, input) => queue.isSaved(key, input)), locale, { check: true });
+      } catch (err) {
+        markProblems(err);
+        handleChange(err);
+      }
+    })();
+    // once, when the document is open; the answers it checks are the ones now on the page
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [envelope?.checkOnMount, view.content]);
+
+  /** Hand the whole turn (no `part`) or one part of the form to someone else. A part stays on this page, now waiting for them. */
+  const forward = (input: { fullName: string; email: string; note?: string; part?: string }) =>
+    run(async (): Promise<ForwardResponse> => {
+      await queue.flush();
+      const result = await forwardTo(token, input);
+      if (input.part) await refresh();
+      else setForwarded({ to: result.to, delivered: result.delivery.status === "sent" });
+      return result;
+    });
+
+  /** Take a part back from the person it was handed to. */
+  const takeBack = (part: string) =>
+    run(async () => {
+      await takeBackPart(token, part);
+      await refresh();
     });
 
   const decline = (reason: string) =>
@@ -381,7 +463,8 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
   // ---- a document being sealed changes by itself -----------------------------------------------------
 
   const screen: Screen = screenFor(view);
-  const polling = shouldPoll(screen) && !gone;
+  // an envelope that is being sealed changes by itself too (a document of the person's may be sealed while another still is)
+  const polling = (shouldPoll(screen) || view.envelope?.state === "sealing") && !gone;
   useEffect(() => {
     if (!polling) return;
     const started = Date.now();
@@ -397,6 +480,16 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
       if (timer !== undefined) clearTimeout(timer);
     };
   }, [polling, refresh]);
+
+  // a part handed to someone else comes back by itself: ask again now and then, quietly, while the page is open and being waited on
+  const waitingOnDelegate = screen === "fill" && !gone && !forwarded && (view.content?.delegations ?? []).some((d) => !d.done);
+  useEffect(() => {
+    if (!waitingOnDelegate) return;
+    const timer = setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") void refresh();
+    }, DELEGATE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [waitingOnDelegate, refresh]);
 
   return {
     view,
@@ -414,6 +507,9 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
     consent,
     finish,
     decline,
+    forwarded,
+    forward,
+    takeBack,
     retrySave: () => queue.retryNow(),
     // forms in parts
     form,
@@ -429,5 +525,7 @@ export function useSigner({ token, initialView, initialSessionOk, locale }: UseS
     openReview,
     openForm,
     flush: () => void queue.flush(),
+    // an envelope (migration 171)
+    nextDocument,
   };
 }

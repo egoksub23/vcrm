@@ -225,6 +225,15 @@ describe("groupAnswers", () => {
     const old = groups.find((g) => g.partKey === "old");
     expect(old?.rows[0]).toMatchObject({ bySender: true, fromContact: false });
   });
+
+  it("names who types a part that was handed to someone else, and says nothing for a part its own person holds", () => {
+    const base = progress();
+    const withDelegate = progress({ roles: base.roles.map((r) => (r.roleKey === "merchant" ? { ...r, delegations: [{ part: "docs", name: " Siti Aminah ", done: false }] } : r)) });
+    const groups = groupAnswers(withDelegate, "en");
+    expect(groups.find((g) => g.partKey === "docs")?.typedBy).toBe("Siti Aminah");
+    expect(groups.find((g) => g.partKey === "company")).not.toHaveProperty("typedBy");
+    expect(groupAnswers(base, "en").some((g) => "typedBy" in g)).toBe(false);
+  });
 });
 
 describe("issueViews", () => {

@@ -13,6 +13,7 @@ import { stampFields } from "../pdf/stamp";
 import type { FieldValue, FieldValues, PlacedField } from "../pdf/types";
 import type { SignLocale } from "../types";
 import { fieldVisible, factOf } from "./rules";
+import { printedAnswer } from "./sensitive";
 import { displayValue } from "./text";
 import type { AnswerMap, DataField, FormDefinition } from "./types";
 
@@ -22,7 +23,8 @@ export const boundPlacements = (fields: readonly PlacedField[]): PlacedField[] =
 /** The value one bound placement draws, or null when it draws nothing. */
 export function valueForPlacement(placement: PlacedField, field: DataField, answers: AnswerMap, form: FormDefinition, locale: SignLocale): FieldValue | null {
   if (!fieldVisible(form, field, answers)) return null;
-  const answer = answers[field.key];
+  // a sensitive answer may be printed masked, or not at all (`printMasked`); by default it is printed in full
+  const answer = printedAnswer(field, answers[field.key]);
   if (!answer) return null;
 
   if (placement.type === "checkbox") {

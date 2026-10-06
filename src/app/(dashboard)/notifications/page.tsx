@@ -38,6 +38,10 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   sign_completed: FileSignature,
   sign_declined: FileSignature,
   sign_expired: FileSignature,
+  sign_forwarded: FileSignature,
+  sign_certificate_expiring: FileSignature,
+  sign_your_turn: FileSignature,
+  sign_bulk_done: FileSignature,
 };
 
 export default function NotificationsPage() {
@@ -140,6 +144,11 @@ export default function NotificationsPage() {
         router.push(approvalNotificationHref(n.type, n.title));
       } else if (n.type === "jira_reauth_required") {
         router.push("/settings?tab=integrations");
+      } else if (n.type === "sign_certificate_expiring") {
+        router.push("/settings?tab=sign");
+      } else if (n.type === "sign_bulk_done") {
+        // a batch has no document: its screen lists the batches
+        router.push("/sign/bulk");
       } else if (n.ticket_id) {
         router.push(ticketNotificationHref(n));
       } else if (n.sign_document_id) {

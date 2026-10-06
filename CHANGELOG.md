@@ -11,9 +11,43 @@ and polish.
 
 ## [Unreleased]
 
+## [0.78.0] — 2026-10-07
+
+**Migrations required: 162 to 171 and 173, in order (there is no 161 or 172).** Doc Sign is still off until the operator turns it on, and every new part is behind that switch. Apply the migrations BEFORE the new app: the list, template library, public API and CSV export read the new `mode` column, and migrations 166 and 169 replace signing functions the running app calls. Each migration has a `supabase/ci/verify-NNN-*.sql` script; all of them (and the schema guard) passed against the production database inside a rolled-back transaction. Nothing has run end to end on a live server yet.
+
 ### Added
 
 - **Doc Sign: the public verify page.** The QR code on every certificate now leads to `/verify/<document id>` instead of a page that did not exist. It needs no login and shows that the document was completed, when, in whose workspace, with its title and reference, who signed and when (names and times only), and whether the document's history still checks out. A person can choose their copy of the PDF to compare it with the signed original: the fingerprint is worked out in their own browser and nothing is uploaded. An unknown, unfinished or switched-off document all give the same plain "not found" page, and the page is rate limited per address, not indexed by search engines, and sends no referrer. Available in English, Bahasa Melayu, Chinese and Korean. No migration.
+- **Automation.** A new trigger "Doc Sign event" (sent, viewed, completed, declined, expired, voided) and a new step "Send document for signing" (template, recipients from the contact or fixed, merge values with `{{ contact.* }}`). The step skips gently when the monthly limit is reached and never creates a second document on a retry. Two recipes: Merchant onboarding (a contact tag sends the application) and Merchant signed follow-up. `{{ contact.* }}` and `{{ sign.* }}` now work in automation message text.
+- **Webhooks and API.** Outbound webhooks `sign.sent`, `sign.viewed`, `sign.completed`, `sign.declined`, `sign.expired`, `sign.voided` (no emails, phones, tokens or answers in the payload). A public API under `/api/v1/sign` with scopes `sign:read` and `sign:write`: list templates, create and send (idempotent on a caller-chosen `reference`), list, status, send a draft, remind, cancel, download the signed PDF after completion.
+- **Bulk send and export.** Send one template to up to 500 people from a CSV or from contacts, in the background with live progress, per-row results and a "batch finished" notice. Export the documents list to CSV and download selected signed files as a zip. Date range and contact filters on the list.
+- **Option lists and MSIC.** Settings > Doc Sign > Lists: Malaysian states, countries, banks, company ID types, e-invoice phases, tax types and the MSIC 2008 code list (1,174 classes from DOSM open data, English and Malay), with CSV import and export. A form field can use a shared list; long lists are a search on the signer's phone. A sent document keeps the copy of each list it was sent with.
+- **Registration pages.** `/r/<slug>`: a public page that creates a contact, tags it and emails the document (or form) to sign. Anti-abuse: rate limits per address, per email and per form, a daily cap, a hidden field, a signed time-limited form token, and optional Cloudflare Turnstile.
+- **Countersign inside Halo.** A Halo user named as a signer sees "Awaiting my signature" in the Sign list and as a count in the sidebar, is notified when their turn comes, and signs with their Halo login (no code); the history and certificate record "Halo login". New "Needs attention" shortcut. The send wizard can name a Halo user as a signer.
+- **Forwarding and parallel steps.** People who share an order number sign together as one step. A signer can forward their whole turn, or one part of a form, to someone else (off unless the template or document turns it on, recorded, at most twice).
+- **Sensitive form fields.** A question can be marked Sensitive: stored encrypted, shown masked to the team (Reveal records who looked), left out of exports and the API, and printed in full, last four, or not at all on the sealed PDF.
+- **Forms without a signature.** The same form, link and autosave for details only (for example e-invoice details for an existing merchant), ending in a sealed submission record. Available from templates, registration pages, bulk send, automations and the API.
+- **Test mode, attach, replace file, add-on updates.** Send yourself a TEST copy of a template (watermarked, not counted, not announced). Link a document to a ticket or deal, with a Documents panel on both. Replace the file of a draft keeping field positions. Add-ons show "Update available"; Merchant Registration 2.0 uses the shared lists and marks bank account and registration number sensitive.
+- **Envelopes.** Send two to six documents to the same people as one envelope: one message, one link, one code, one visit. Each document is still sealed on its own with its own certificate, and the certificate names its siblings.
+- **Certificate and retention.** Certificate upload checks (expiry, key size, key use, chain) with a runbook for a CA-issued certificate, and expiry notices to admins at 30, 14 and 7 days. A completed document cannot be deleted before its retention date, by anyone; the workspace deletion path is the one exception (what should happen to signed documents when a whole workspace is deleted is still an open decision: see `docs/doc-sign-retention.md`).
+- The audit log knows signing batches, option lists and envelopes.
+
+### Changed
+
+- The cron seals one document at a time within a 20 second budget, at most 4 a minute (it sealed a fixed 2 before), so a heavy document no longer holds up the next and a lease starts only when its work does.
+- Answers of a person who has signed can no longer change in the database (migration 168).
+- Changing a recipient now resets that person's consent, so the new person gives their own.
+- Reminders to one person are limited to once every 24 hours on the server as well as in the screen.
+
+### Fixed
+
+- Long answers in small multi-line boxes could hold the whole server process for minutes at sealing (50 answers of 2,000 characters took 135 s, now under 4 s); a 199 or 200 page document could not be sealed.
+- From the security review (see `docs/doc-sign-security-review.md`): one email could be mailed from many registration pages; the registration daily cap could be exceeded by a burst; a sender could name themselves under someone else's address and countersign as them; an emailed link could be built from the Host header; request bodies were read whole.
+
+### Needs your decision
+
+- A sensitive answer's Reveal needs `sign.send`, but the sealed PDF, the zip and the uploaded files are readable by anyone with the Doc Sign menu (`docs/doc-sign-security-review.md`, finding F8).
+- What happens to signed documents when a workspace is deleted (`docs/doc-sign-retention.md`).
 
 ## [0.77.0] — 2026-10-06
 

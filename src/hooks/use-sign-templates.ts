@@ -12,6 +12,8 @@ export interface ActiveTemplate {
   category_id: string | null;
   pages: number;
   roles: number;
+  /** A form without a signature (migration 169): there are no pages to show. */
+  mode?: "sign" | "form";
 }
 
 interface Loaded {
@@ -34,9 +36,9 @@ export function useActiveTemplates(): { templates: ActiveTemplate[]; loading: bo
     void (async () => {
       try {
         const supabase = createClient();
-        const t = await supabase.from("sign_templates").select("id, name, description, category_id, current_version_id").eq("status", "active").order("name", { ascending: true });
+        const t = await supabase.from("sign_templates").select("id, name, description, category_id, current_version_id, mode").eq("status", "active").order("name", { ascending: true });
         if (t.error) throw t.error;
-        const list = ((t.data as { id: string; name: string; description: string | null; category_id: string | null; current_version_id: string | null }[] | null) ?? []).filter((x) => x.current_version_id);
+        const list = ((t.data as { id: string; name: string; description: string | null; category_id: string | null; current_version_id: string | null; mode?: string | null }[] | null) ?? []).filter((x) => x.current_version_id);
         const versionIds = list.map((x) => x.current_version_id as string);
         const info = new Map<string, { pages: number; roles: number }>();
         if (versionIds.length) {
@@ -50,7 +52,7 @@ export function useActiveTemplates(): { templates: ActiveTemplate[]; loading: bo
         setLoaded({
           accountId,
           error: false,
-          rows: list.map((x) => ({ id: x.id, name: x.name, description: x.description, category_id: x.category_id, pages: info.get(x.current_version_id as string)?.pages ?? 0, roles: info.get(x.current_version_id as string)?.roles ?? 0 })),
+          rows: list.map((x) => ({ id: x.id, name: x.name, description: x.description, category_id: x.category_id, pages: info.get(x.current_version_id as string)?.pages ?? 0, roles: info.get(x.current_version_id as string)?.roles ?? 0, mode: x.mode === "form" ? "form" : "sign" })),
         });
       } catch (err) {
         if (cancelled) return;

@@ -151,6 +151,8 @@ export interface AiStepRuntime {
   vars: Record<string, unknown>
   /** The closure note, when the trigger is `conversation_closed`. */
   closureNote?: string
+  /** The document the event is about, when the trigger is `sign_document_event` (read by {{ sign.* }}). */
+  sign?: Record<string, unknown>
   /** No writes: the plan is returned and nothing is applied. */
   dryRun: boolean
 }

@@ -30,6 +30,8 @@ describe('quick-start templates: AI', () => {
       'ai_first_response',
       'ai_classify_route',
       'ai_close_summary_ticket',
+      'merchant_onboarding',
+      'merchant_signed_followup',
     ])
     expect(getTemplate('ai_first_response')?.slug).toBe('ai_first_response')
   })

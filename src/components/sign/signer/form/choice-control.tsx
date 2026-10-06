@@ -8,12 +8,14 @@
 
 import { useTranslations } from "next-intl";
 
+import { SEARCH_THRESHOLD } from "@/lib/sign/lists/types";
 import { cn } from "@/lib/utils";
 
 import { inputChoices, inputText, type ControlProps } from "./control-props";
 import { useFormText } from "./form-ui";
+import { SearchPicker } from "./search-picker";
 
-/** Up to this many options are shown as rows to tap; more are a menu. */
+/** Up to this many options are shown as rows to tap; more are a menu; beyond SEARCH_THRESHOLD (12) a search box (search-picker.tsx). */
 export const ROW_OPTIONS_MAX = 5;
 
 const ROW =
@@ -26,6 +28,10 @@ export function ChoiceControl({ field, id, input, invalid, describedBy, onInput,
   const value = inputText(input);
   const options = field.options ?? [];
 
+  // a long list (countries, banks) is searched, not scrolled
+  if (options.length > SEARCH_THRESHOLD) {
+    return <SearchPicker id={id} options={options} mode="single" selected={value ? [value] : []} onChange={(v) => onInput({ text: v[0] ?? "" })} onBlur={onBlur} invalid={invalid} describedBy={describedBy} label={text(field.label)} />;
+  }
   if (options.length > ROW_OPTIONS_MAX) {
     return (
       <select
@@ -58,14 +64,17 @@ export function ChoiceControl({ field, id, input, invalid, describedBy, onInput,
   );
 }
 
-export function MultichoiceControl({ field, id, input, onInput, onBlur }: ControlProps) {
+export function MultichoiceControl({ field, id, input, invalid, describedBy, onInput, onBlur }: ControlProps) {
   const text = useFormText();
   const chosen = inputChoices(input);
+  // keep the author's order, whatever order they were ticked in
+  const order = (field.options ?? []).map((o) => o.value);
+  const inOrder = (values: string[]) => [...values].sort((a, b) => order.indexOf(a) - order.indexOf(b));
   function toggle(value: string) {
-    const next = chosen.includes(value) ? chosen.filter((c) => c !== value) : [...chosen, value];
-    // keep the author's order, whatever order they were ticked in
-    const order = (field.options ?? []).map((o) => o.value);
-    onInput({ choices: next.sort((a, b) => order.indexOf(a) - order.indexOf(b)) });
+    onInput({ choices: inOrder(chosen.includes(value) ? chosen.filter((c) => c !== value) : [...chosen, value]) });
+  }
+  if (order.length > SEARCH_THRESHOLD) {
+    return <SearchPicker id={id} options={field.options ?? []} mode="multi" selected={chosen} onChange={(v) => onInput({ choices: inOrder(v) })} onBlur={onBlur} invalid={invalid} describedBy={describedBy} label={text(field.label)} />;
   }
   return (
     <div className="space-y-2">

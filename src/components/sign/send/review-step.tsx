@@ -11,7 +11,7 @@ import { errorKey, problemKey, problemNamespace, problemStep, type DraftStep } f
 import { reviewLines, type SignerRow } from "@/lib/sign/client/signers-form";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
 import type { FormDefinition } from "@/lib/sign/forms/types";
-import type { SignRole } from "@/lib/sign/types";
+import type { SignMode, SignRole } from "@/lib/sign/types";
 import { FormReviewSummary } from "./form-review-summary";
 import { FormProblemText } from "./form-problem-text";
 
@@ -33,14 +33,16 @@ interface Props {
   onGoToStep: (step: DraftStep) => void;
   /** Forms: the document's form, summarised below the people. */
   form?: FormDefinition | null;
+  /** A form without a signature (migration 169): the words say "Send the form" and "submit". */
+  mode?: SignMode;
 }
 
 /** Step 4: what will happen, in plain words, what still stops it, and the Send button. */
-export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep, form }: Props) {
+export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep, form, mode }: Props) {
   const t = useTranslations("Sign.send.review");
   const tProblems = useTranslations("Sign.send");
   const f = useFormatter();
-  const people = reviewLines(rows, roles);
+  const people = reviewLines(rows, roles, options.signInOrder);
   const { single, layoutCount } = splitLayoutIssues(problems);
   const blocked = problems.length > 0;
 
@@ -66,22 +68,26 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
           <p className="text-xs text-muted-foreground">{[categoryName, contactName].filter(Boolean).join(" · ")}</p>
         </div>
 
-        <p className="text-sm text-foreground">{options.signInOrder ? t("orderedIntro") : t("allAtOnce")}</p>
+        <p className="text-sm text-foreground">{options.signInOrder ? t(mode === "form" ? "orderedIntroForm" : "orderedIntro") : t(mode === "form" ? "allAtOnceForm" : "allAtOnce")}</p>
         {people.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("nobody")}</p>
         ) : (
           <ol className="space-y-2">
-            {people.map((p) => (
-              <li key={p.position} className="flex gap-3 text-sm">
-                {options.signInOrder ? <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{p.position}</span> : <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden />}
-                <span className="min-w-0">
-                  <span className="block font-medium text-foreground">{p.name || t("noName")}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {[p.roleLabel, p.kind === "signer" ? t("signs") : t("fillsIn"), p.channel === "whatsapp" ? t("byWhatsapp", { phone: p.phone }) : t("byEmail", { email: p.email })].join(" · ")}
+            {people.map((p) => {
+              const together = options.signInOrder ? people.filter((x) => x.step === p.step).length : 1;
+              return (
+                <li key={p.position} className="flex gap-3 text-sm">
+                  {options.signInOrder ? <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{p.step}</span> : <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden />}
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">{p.name || t("noName")}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {[p.roleLabel, p.kind === "signer" ? t("signs") : t("fillsIn"), p.channel === "whatsapp" ? t("byWhatsapp", { phone: p.phone }) : t("byEmail", { email: p.email })].join(" · ")}
+                    </span>
+                    {together > 1 ? <span className="block text-xs text-muted-foreground">{t("sameStep", { step: p.step, count: together })}</span> : null}
                   </span>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ol>
         )}
 
@@ -91,7 +97,9 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
           <dt className="text-muted-foreground">{t("remindersLabel")}</dt>
           <dd className="text-foreground">{reminders.length ? t("remindersOn", { days: reminders.join(", "), count: reminders.length }) : t("remindersOff")}</dd>
           <dt className="text-muted-foreground">{t("codeLabel")}</dt>
-          <dd className="text-foreground">{options.codeRequired ? t("codeOn") : t("codeOff")}</dd>
+          <dd className="text-foreground">{options.codeRequired ? t(mode === "form" ? "codeOnForm" : "codeOn") : t("codeOff")}</dd>
+          <dt className="text-muted-foreground">{t("forwardingLabel")}</dt>
+          <dd className="text-foreground">{options.allowForwarding ? t("forwardingOn") : t("forwardingOff")}</dd>
           <dt className="text-muted-foreground">{t("languageLabel")}</dt>
           <dd className="text-foreground">{tProblems(`options.lang.${options.locale}`)}</dd>
           {options.message.trim() ? (
@@ -152,9 +160,9 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
       <div className="flex flex-col items-end gap-1.5">
         <Button type="button" size="lg" disabled={!canSend || blocked || checking || sending} onClick={onSend}>
           {sending ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
-          {t("send")}
+          {t(mode === "form" ? "sendForm" : "send")}
         </Button>
-        {!canSend ? <p className="text-xs text-muted-foreground">{t("noPermission")}</p> : blocked && !checking ? <p className="text-xs text-muted-foreground">{t("sendBlocked")}</p> : <p className="text-xs text-muted-foreground">{t("sendNote")}</p>}
+        {!canSend ? <p className="text-xs text-muted-foreground">{t("noPermission")}</p> : blocked && !checking ? <p className="text-xs text-muted-foreground">{t("sendBlocked")}</p> : <p className="text-xs text-muted-foreground">{t(mode === "form" ? "sendNoteForm" : "sendNote")}</p>}
       </div>
     </div>
   );

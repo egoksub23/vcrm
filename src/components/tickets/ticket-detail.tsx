@@ -45,6 +45,7 @@ import type { Ticket, TicketAttachment, TicketMention } from "@/types";
 import { TicketActivitySection } from "./ticket-activity";
 import { TicketAttachmentsSection } from "./ticket-attachments";
 import { CustomFieldsSection } from "./ticket-custom-fields";
+import { TicketDocumentsSection } from "./ticket-documents";
 import { TicketDetailsCard } from "./ticket-details-card";
 import { TicketMentionBanner, type MentionRowAction } from "./ticket-mention-banner";
 import { useResolutionPrompt } from "./ticket-resolution-dialog";
@@ -521,6 +522,7 @@ export function TicketDetail({
               onRemove={(id) => void detail.removeLink(id)}
               onOpenTicket={onOpenTicket}
             />
+            <TicketDocumentsSection ticketId={ticket.id} contactId={ticket.contact_id ?? null} />
             <CustomFieldsSection
               key={ticket.id}
               ticket={ticket}

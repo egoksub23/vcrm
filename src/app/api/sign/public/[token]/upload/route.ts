@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { MAX_UPLOAD_MB } from "@/lib/sign/forms";
 import { json, publicLink, readUpload } from "@/lib/sign/http";
 import { SignError } from "@/lib/sign/service/errors";
+import { codeRequiredFor } from "@/lib/sign/service/signing";
 import { readOwnUpload, removeUpload, uploadFile } from "@/lib/sign/service/uploads";
 
 type Params = { params: Promise<{ token: string }> };
@@ -36,7 +37,7 @@ export async function POST(request: Request, { params }: Params) {
     request,
     params,
     async ({ ctx, lookup, sessionOk }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       const { file, fields } = await readUpload(request, BODY_MAX);
       return json(await uploadFile(ctx, lookup, { field: fields.field ?? "", file }), 201);
     },
@@ -49,7 +50,7 @@ export async function DELETE(request: Request, { params }: Params) {
     request,
     params,
     async ({ ctx, lookup, sessionOk }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       return json(await removeUpload(ctx, lookup, target(request)));
     },
     { rate: { limit: 60, windowMs: 60_000 } },
@@ -58,7 +59,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
 export async function GET(request: Request, { params }: Params) {
   return publicLink(request, params, async ({ ctx, lookup, sessionOk }) => {
-    if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+    if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
     const file = await readOwnUpload(ctx, lookup, target(request));
     return new NextResponse(Buffer.from(file.bytes), {
       status: 200,

@@ -120,7 +120,10 @@ function PartRow({ part, locale }: { part: PartLine; locale: string }) {
         {t(`state.${part.state}`)}
         {part.state === "in_progress" && showsCount(part) ? <span>{` · ${t("count", { done: part.done, total: part.total })}`}</span> : null}
       </span>
-      <span className="col-span-2 text-xs text-muted-foreground sm:col-span-1">{part.lastSavedAt ? t("savedAt", { when: formatWhen(part.lastSavedAt, locale) }) : t("notSaved")}</span>
+      <span className="col-span-2 text-xs text-muted-foreground sm:col-span-1">
+        {part.heldBy ? <span className="mr-2 font-medium text-foreground">{t(part.heldBy.done ? "heldByDone" : "heldBy", { name: part.heldBy.name })}</span> : null}
+        {part.lastSavedAt ? t("savedAt", { when: formatWhen(part.lastSavedAt, locale) }) : t("notSaved")}
+      </span>
     </li>
   );
 }

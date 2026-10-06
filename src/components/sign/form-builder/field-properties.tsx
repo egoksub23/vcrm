@@ -17,6 +17,7 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { SignLocale } from "@/lib/sign/types";
 
 import { ContactSection, PrintedSection, ValueSection } from "./field-sections";
+import { SensitiveSection } from "./sensitive-section";
 import { FormRow, L10nField, NativeSelect, Section } from "./form-bits";
 import { DATA_TYPE_ICONS } from "./type-icons";
 import { RuleEditor } from "./rule-editor";
@@ -153,8 +154,13 @@ export function FieldProperties(p: FieldPropertiesProps) {
         {!field.visibleIf ? <p className="text-[11px] text-muted-foreground">{t("visible.always")}</p> : null}
       </Section>
 
-      <ContactSection field={field} customFields={p.customFields} disabled={readOnly} onChange={change} />
-      <ValueSection field={field} lang={lang} disabled={readOnly} onChange={change} />
+      <SensitiveSection field={field} disabled={readOnly} onChange={change} />
+      {field.sensitive === true ? null : (
+        <>
+          <ContactSection field={field} customFields={p.customFields} disabled={readOnly} onChange={change} />
+          <ValueSection field={field} lang={lang} disabled={readOnly} onChange={change} />
+        </>
+      )}
       <PrintedSection field={field} placements={p.placements} onOpenEditor={p.onOpenEditor} />
 
       {readOnly ? null : (

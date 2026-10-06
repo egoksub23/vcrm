@@ -78,8 +78,14 @@ export interface DataField {
   /** Shown (and asked) only when this rule holds. Hidden answers are ignored. */
   visibleIf?: Rule;
 
-  // choice, multichoice
+  // choice, multichoice, list
   options?: FieldOption[];
+  /**
+   * The key of a shared option list (Settings > Doc Sign > Lists) the options come from, instead of options typed in
+   * here. `resolveFormLists` (lists.ts) copies the list's items into `options` when a template version is saved and a
+   * document is made or sent, so a form and the document made from it are always self-contained.
+   */
+  optionList?: string;
 
   // text, multiline, email, phone, number, list items
   format?: TextFormat;
@@ -112,6 +118,17 @@ export interface DataField {
   defaultValue?: string;
   /** Set by the sender, shown to the signer, not editable by them (for example a reference number). */
   locked?: boolean;
+
+  /**
+   * Sensitive (an ID number, a bank account): the answer is stored encrypted, shown masked to the sender with a logged
+   * "Reveal", left out of every export and of the API, and never written to the contact. See forms/sensitive.ts.
+   */
+  sensitive?: boolean;
+  /**
+   * How a sensitive answer is printed on the sealed PDF. Left out it is printed in full (the signed document shows what was
+   * agreed); `last4` prints only the last four characters; `none` prints nothing.
+   */
+  printMasked?: "last4" | "none";
 }
 
 export interface FormPart {

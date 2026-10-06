@@ -1,4 +1,6 @@
 import type { AutomationTriggerType } from '@/types'
+import { isSignEventName } from './sign-event'
+import { checkSendSignDocument, type SignSetup } from './sign-step'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { MAX_AI_STEPS_PER_RUN, countAiSteps, hasBranches } from './step-kinds'
 import { checkExtractFields } from './ai/parsers'
@@ -36,6 +38,10 @@ export interface ActivationOptions {
    *  the automation has an AI step. Omitted = not checked (the caller has not
    *  looked). The routes look it up only for automations that use AI. */
   aiSetup?: { ok: boolean; message?: string }
+  /** What the Doc Sign step needs from the workspace (Doc Sign on, the template active, its roles). Only consulted
+   *  when the automation has a Send document for signing step; omitted = only the step's own fields are checked.
+   *  See `signSetupForActivation` in ./sign-activation.ts. */
+  signSetup?: SignSetup
 }
 
 export function validateStepsForActivation(
@@ -50,7 +56,7 @@ export function validateStepsForActivation(
     })
     return issues
   }
-  walk(steps, '', issues)
+  walk(steps, '', issues, opts)
 
   // AI guardrails: a cap on AI steps, and AI has to be usable before an
   // automation with AI steps goes live. Saving a draft is always allowed.
@@ -77,18 +83,18 @@ export function stepsUseAi(steps: StepLike[] | undefined): boolean {
   return Array.isArray(steps) && countAiSteps(steps) > 0
 }
 
-function walk(steps: StepLike[], prefix: string, issues: ValidationIssue[]): void {
+function walk(steps: StepLike[], prefix: string, issues: ValidationIssue[], opts: ActivationOptions): void {
   steps.forEach((s, i) => {
     const path = `${prefix}steps[${i}]`
-    validateOne(s, path, issues)
+    validateOne(s, path, issues, opts)
     if (hasBranches(s.step_type) && s.branches) {
-      if (s.branches.yes) walk(s.branches.yes, `${path}.yes.`, issues)
-      if (s.branches.no) walk(s.branches.no, `${path}.no.`, issues)
+      if (s.branches.yes) walk(s.branches.yes, `${path}.yes.`, issues, opts)
+      if (s.branches.no) walk(s.branches.no, `${path}.no.`, issues, opts)
     }
   })
 }
 
-function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): void {
+function validateOne(step: StepLike, path: string, issues: ValidationIssue[], opts: ActivationOptions = {}): void {
   const c = step.step_config ?? {}
   switch (step.step_type) {
     case 'send_message':
@@ -226,6 +232,9 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.priority`, message: 'a valid priority is required' })
       }
       break
+    case 'send_sign_document':
+      issues.push(...checkSendSignDocument(c, path, opts.signSetup))
+      break
     case 'send_webhook':
       if (!nonEmpty(c.url)) {
         issues.push({ path: `${path}.url`, message: 'webhook URL is required' })
@@ -264,6 +273,7 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
 export function validateTriggerForActivation(
   triggerType: AutomationTriggerType | string,
   triggerConfig: unknown,
+  opts: Pick<ActivationOptions, 'signSetup'> = {},
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const cfg = (triggerConfig ?? {}) as Record<string, unknown>
@@ -302,6 +312,22 @@ export function validateTriggerForActivation(
     }
   } else if (triggerType === 'conversation_closed') {
     // No configuration: it fires whenever a conversation is closed.
+  } else if (triggerType === 'sign_document_event') {
+    // Empty events = completed only. Anything listed must be a real event.
+    const ev = cfg.events
+    if (ev !== undefined && ev !== null) {
+      if (!Array.isArray(ev) || ev.some((v) => !isSignEventName(v))) {
+        issues.push({ path: 'trigger.events', message: 'events must be a list of: sent, viewed, completed, declined, expired, voided' })
+      }
+    }
+    for (const k of ['template_id', 'category_id'] as const) {
+      if (cfg[k] !== undefined && cfg[k] !== null && typeof cfg[k] !== 'string') {
+        issues.push({ path: `trigger.${k}`, message: `${k === 'template_id' ? 'template' : 'category'} must be a text id` })
+      }
+    }
+    if (opts.signSetup && !opts.signSetup.enabled) {
+      issues.push({ path: 'trigger', message: 'Doc Sign is not turned on for this workspace, so this trigger would never fire' })
+    }
   } else if (triggerType === 'interactive_reply') {
     const ids = cfg.reply_ids
     if (!Array.isArray(ids) || ids.length === 0) {

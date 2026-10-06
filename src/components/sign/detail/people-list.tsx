@@ -9,15 +9,22 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Bell, Mail, MessageCircle, Pencil, Send, TriangleAlert } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { SignApiError, signRequest } from "@/lib/sign/client/api";
+import { asLocale } from "@/lib/sign/client/progress-logic";
 import { SIGN_STATUS_NAMESPACE, signerBadgeClass, signerStatusKey } from "@/lib/sign/client/status";
 import { roleColorStyle, ROLE_CLASS } from "@/lib/sign/client/colors";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
+import { isDelegate, stepGroups } from "@/lib/sign/forward";
 import type { SignDocumentRow, SignRole, SignSignerRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { formatWhen } from "./format";
-import { signerActions, type DetailCaps } from "./logic";
+import { detailErrorKey, signerActions, type DetailCaps } from "./logic";
 import { SignerActionDialogs, useSignerActions } from "./signer-actions";
 
 interface Props {
@@ -30,19 +37,40 @@ interface Props {
   onChanged: () => Promise<void>;
   /** Forms: the parts a reminder to a person will name, by signer id (so the confirmation can say so). */
   partsFor?: (signerId: string) => string[];
+  /** Forms: the document's form, so a part handed to someone can be named. */
+  form?: FormDefinition | null;
 }
 
-export function PeopleList({ document: doc, signers, undelivered, caps, onChanged, partsFor }: Props) {
+export function PeopleList({ document: doc, signers, undelivered, caps, onChanged, partsFor, form }: Props) {
   const t = useTranslations("Sign.detail");
+  const locale = asLocale(useLocale());
   const actions = useSignerActions(doc.id, onChanged);
 
-  const ordered = [...signers].sort((a, b) => a.order_no - b.order_no || a.created_at.localeCompare(b.created_at));
+  // People who share an order number are one step; a person who was handed a part of someone's form sits under that someone.
+  const holders = signers.filter((s) => !isDelegate(s));
+  const groups = doc.sign_in_order ? stepGroups(holders) : [{ step: 0, orderNo: 0, people: [...holders].sort((a, b) => a.order_no - b.order_no || a.created_at.localeCompare(b.created_at)) }];
+  const partTitle = (key: string) => {
+    const part = form?.parts.find((p) => p.key === key);
+    return part ? pick(part.title, locale) || key : key;
+  };
+  const row = (s: SignSignerRow, nested: boolean) => (
+    <SignerRow key={s.id} document={doc} signer={s} signers={signers} nested={nested} partTitle={partTitle} undelivered={undelivered.has(s.id)} caps={caps} onAction={(kind) => actions.open(kind, s)} onChanged={onChanged} />
+  );
 
   return (
     <>
       <ul className="divide-y divide-border rounded-xl border border-border bg-card" aria-label={t("people.title")}>
-        {ordered.map((s) => (
-          <SignerRow key={s.id} document={doc} signer={s} undelivered={undelivered.has(s.id)} caps={caps} onAction={(kind) => actions.open(kind, s)} />
+        {groups.map((g) => (
+          <li key={`step-${g.step}`} className="list-none">
+            {doc.sign_in_order && (
+              <p className="border-b border-border bg-muted/40 px-4 py-1.5 text-xs font-semibold text-muted-foreground" data-step={g.step}>
+                {t("people.step", { step: g.step, count: g.people.length })}
+              </p>
+            )}
+            <ul className="divide-y divide-border">
+              {g.people.flatMap((s) => [row(s, false), ...signers.filter((d) => d.delegated_by === s.id).map((d) => row(d, true))])}
+            </ul>
+          </li>
         ))}
       </ul>
       <SignerActionDialogs actions={actions} partsFor={partsFor} />
@@ -50,22 +78,43 @@ export function PeopleList({ document: doc, signers, undelivered, caps, onChange
   );
 }
 
-function SignerRow({ document: doc, signer, undelivered, caps, onAction }: { document: SignDocumentRow; signer: SignSignerRow; undelivered: boolean; caps: DetailCaps; onAction: (kind: "remind" | "resend" | "recipient") => void }) {
+interface SignerRowProps {
+  document: SignDocumentRow;
+  signer: SignSignerRow;
+  signers: SignSignerRow[];
+  /** A person handed a part of the form: shown under the person who handed it. */
+  nested: boolean;
+  partTitle: (key: string) => string;
+  undelivered: boolean;
+  caps: DetailCaps;
+  onAction: (kind: "remind" | "resend" | "recipient") => void;
+  onChanged: () => Promise<void>;
+}
+
+function SignerRow({ document: doc, signer, signers, nested, partTitle, undelivered, caps, onAction, onChanged }: SignerRowProps) {
   const t = useTranslations("Sign.detail");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const locale = useLocale();
+  const { user } = useAuth();
   const role: SignRole | undefined = doc.roles_snapshot.find((r) => r.key === signer.role_key);
   // Evaluated on each render: the page re-renders as it is polled, which is often enough for a 24 hour hold.
-  const actions = signerActions(doc.status, signer, caps, new Date());
+  const actions = signerActions(doc.status, signer, caps, new Date(), doc.sign_in_order);
   const ChannelIcon = signer.channel === "whatsapp" ? MessageCircle : Mail;
+  const history = signer.forward_history ?? [];
+  const giver = nested ? signers.find((s) => s.id === signer.delegated_by) : null;
 
   return (
-    <li className="grid gap-3 p-4">
+    <li className={cn("grid gap-3 p-4", nested && "border-l-2 border-l-primary/30 bg-muted/20 pl-6")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-foreground">
-            {doc.sign_in_order && <span className="text-muted-foreground">{signer.order_no} ·</span>}
             <span className="break-words">{signer.full_name}</span>
+            {/* a Halo user (a countersigner): named so the sender knows this place is signed from inside Halo */}
+            {signer.internal_user_id && (
+              <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {t(user?.id === signer.internal_user_id ? "people.haloUserYou" : "people.haloUser")}
+              </span>
+            )}
             {role && (
               <span style={roleColorStyle(role.color)} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", ROLE_CLASS.chip)}>
                 <span className={cn("size-1.5 rounded-full", ROLE_CLASS.dot)} aria-hidden />
@@ -86,6 +135,11 @@ function SignerRow({ document: doc, signer, undelivered, caps, onAction }: { doc
       </div>
 
       {actions.notInvited && <p className="text-xs text-muted-foreground">{t("people.notInvited")}</p>}
+      {actions.move && <MoveStep document={doc} signer={signer} signers={signers} onChanged={onChanged} />}
+      {isDelegate(signer) && (
+        <p className="text-xs text-foreground">{t("people.holdsParts", { count: (signer.part_keys ?? []).length, parts: (signer.part_keys ?? []).map(partTitle).join(", "), name: giver?.full_name ?? "" })}</p>
+      )}
+      {history.length > 0 && <p className="text-xs text-muted-foreground">{t("people.forwardedFrom", { names: history.map((h) => h.name).join(", ") })}</p>}
 
       <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
         {signer.invited_at && <Fact label={t("people.invited")} value={formatWhen(signer.invited_at, locale)} />}
@@ -135,5 +189,44 @@ function Fact({ label, value }: { label: string; value: string }) {
       <dt className="shrink-0">{label}</dt>
       <dd className="text-foreground">{value}</dd>
     </div>
+  );
+}
+
+/** F-70: a person whose step has not begun can be moved to a later step (or to a new last step). */
+function MoveStep({ document: doc, signer, signers, onChanged }: { document: SignDocumentRow; signer: SignSignerRow; signers: SignSignerRow[]; onChanged: () => Promise<void> }) {
+  const t = useTranslations("Sign.detail");
+  const holders = signers.filter((s) => !isDelegate(s));
+  const began = Math.max(0, ...holders.filter((s) => s.status !== "pending").map((s) => s.order_no));
+  const steps = stepGroups(holders).filter((g) => g.orderNo > began);
+  const last = Math.max(0, ...holders.map((s) => s.order_no));
+
+  async function move(orderNo: number) {
+    if (orderNo === signer.order_no) return;
+    try {
+      await signRequest(`/api/sign/documents/${doc.id}/signers/${signer.id}`, { json: { action: "move", orderNo } });
+      toast.success(t("people.moved", { name: signer.full_name }));
+      await onChanged();
+    } catch (err) {
+      toast.error(t(detailErrorKey(err instanceof SignApiError ? err.code : "request_failed")));
+      await onChanged();
+    }
+  }
+
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      {t("people.moveTo")}
+      <select
+        className="h-8 rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        value={signer.order_no}
+        onChange={(e) => void move(Number(e.target.value))}
+      >
+        {steps.map((g) => (
+          <option key={g.orderNo} value={g.orderNo}>
+            {t("people.moveStep", { step: g.step })}
+          </option>
+        ))}
+        <option value={last + 1}>{t("people.moveNew")}</option>
+      </select>
+    </label>
   );
 }

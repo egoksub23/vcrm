@@ -5,7 +5,7 @@ scripts and automations — send messages, manage contacts, launch
 broadcasts — without going through the dashboard UI.
 
 > **Status:** stable. Authentication, scopes, rate limiting, the
-> messages / contacts / conversations / broadcasts endpoints, and
+> messages / contacts / conversations / broadcasts / [Doc Sign](#doc-sign-e-signatures) endpoints, and
 > outbound event [webhooks](#webhooks) all ship now.
 
 ## Authentication
@@ -50,6 +50,8 @@ it. Grant the minimum.
 | `conversations:read` | List and read conversations              |
 | `broadcasts:send`    | Launch broadcast campaigns               |
 | `webhooks:manage`    | Register and manage outbound webhooks    |
+| `sign:read`          | See Doc Sign templates, documents and their status, and download signed copies |
+| `sign:write`         | Send documents for signature, remind signers and cancel documents |
 
 A key with **no scopes** still authenticates and can call
 `GET /api/v1/me` — useful for verifying a key works.
@@ -263,6 +265,349 @@ Broadcast status + counts. Scope: `broadcasts:send`. `status` moves
 `sending` → `sent`; `delivered_count` / `read_count` keep climbing as
 Meta delivery webhooks arrive. `404` for another account's broadcast.
 
+## Doc Sign (e-signatures)
+
+Send documents for electronic signature from your own backend, follow them,
+and download the signed copy. Everything is under `/api/v1/sign`. Scopes:
+`sign:read` for every `GET`, `sign:write` for every `POST`.
+
+**Before you start.** Doc Sign must be switched on for the workspace (the
+platform operator does that). Until it is, every call answers `403` with
+`error.code` `sign_disabled`, whatever the key's scopes. A key sees only its
+own workspace: a document of another workspace is a `404`, exactly like a
+document that does not exist.
+
+| Method and path | Scope | What it does |
+| --- | --- | --- |
+| `GET /api/v1/sign/templates` | `sign:read` | The templates you can send from, with their role keys and merge keys |
+| `POST /api/v1/sign/documents` | `sign:write` | Make a document from a template and (by default) send it, in one call |
+| `GET /api/v1/sign/documents` | `sign:read` | List documents (paginated, filters below) |
+| `GET /api/v1/sign/documents/{id}` | `sign:read` | One document: status, people, progress, timestamps |
+| `POST /api/v1/sign/documents/{id}/send` | `sign:write` | Send a draft made with `send: false` |
+| `POST /api/v1/sign/documents/{id}/void` | `sign:write` | Cancel a document that has not finished |
+| `POST /api/v1/sign/documents/{id}/remind` | `sign:write` | Remind the people who have not signed |
+| `GET /api/v1/sign/documents/{id}/file` | `sign:read` | Download the signed PDF (after completion) |
+
+Instead of polling `GET /documents/{id}`, subscribe to the `sign.*` events (see
+[Webhooks](#webhooks)).
+
+### `GET /api/v1/sign/templates`
+
+Active templates of the workspace. Use it once to learn what to put in `signers`
+and `merge_values`.
+
+```json
+{
+  "data": [
+    {
+      "id": "6f1c…",
+      "name": "Merchant Application",
+      "description": null,
+      "category_id": "…",
+      "version": 3,
+      "page_count": 6,
+      "roles": [
+        { "key": "merchant", "label": "Merchant", "kind": "signer" },
+        { "key": "finance", "label": "Finance contact", "kind": "filler" },
+        { "key": "director", "label": "Director (countersign)", "kind": "signer" }
+      ],
+      "merge_keys": [
+        { "key": "fw_no", "label": "FW no.", "required": false }
+      ],
+      "has_form": true,
+      "defaults": { "expiry_days": 14, "sign_in_order": null, "code_required": null, "locale": null }
+    }
+  ],
+  "meta": { "next_cursor": null }
+}
+```
+
+`roles[].key` is what you put in `signers[].role_key`. A `kind: "filler"` role
+completes its part without signing. `merge_keys` are the values the sender
+fixes before sending (a reference number, a fee); `required: true` means the
+call is refused without it.
+
+### `POST /api/v1/sign/documents`
+
+Makes the document from a template, sets who signs, fills the merge values and,
+unless `send` is `false`, sends it. **All or nothing:** if any step fails (a role
+that does not exist, a document that is not ready, the monthly limit), nothing is
+left behind, so a retry starts clean.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `template_id` | uuid, required | From `GET /templates` |
+| `signers` | array, required | 1 to 20 people, see below |
+| `reference` | string, optional | **Your idempotency key**, 1 to 64 of letters, digits and `. _ : / # -`. Shown on the document and the certificate as its number. It must not look like `SGN-2026-000123` (the system's own numbering) |
+| `title` | string, optional | Up to 200 characters. Default: the template's subject, else its name |
+| `contact_id` | uuid, optional | A contact of this workspace, to link the document to. The API does not create contacts |
+| `merge_values` | object, optional | `{ "fw_no": "FW-2291" }`. Text, numbers and true/false (written as text), up to 2000 characters each. A key the template does not have is a `400` (it would print nothing) |
+| `message` | string, optional | Up to 2000 characters, shown to the signers |
+| `locale` | `en`, `ms`, `zh`, `ko`, optional | Language of the messages and the signed copy. Default: the template's, else the workspace's |
+| `expires_in_days` | integer 1 to 365, optional | Default: the category's, else the workspace's |
+| `sign_in_order` | boolean, optional | Default: the template's |
+| `code_required` | boolean, optional | Ask each signer for a one-time code. Default: the template's |
+| `send` | boolean, default `true` | `false` leaves a draft (see `POST .../send`) |
+
+Each entry of `signers`:
+
+| Field | Notes |
+| --- | --- |
+| `role_key` | Required. A role key of the template |
+| `full_name` | Required, up to 160 characters |
+| `email` | Required, a valid address |
+| `phone` | International number such as `+60123456789` (spaces and dashes are fine). Required for `channel: "whatsapp"` |
+| `channel` | `email` (default) or `whatsapp` |
+| `order_no` | Whole number from 1. Default: the position in the list. Only matters with `sign_in_order`. People who share a number form one step: they are invited together, and the next step begins when all of them have finished |
+
+Fields it does not know are ignored. Wrong or missing fields give a `400` with
+`error.code` `bad_request` and **every** problem in `error.issues`, each naming
+the field:
+
+```json
+{ "error": { "code": "bad_request", "message": "Some fields are missing or not valid. See `issues`.",
+  "issues": [ { "code": "invalid", "field": "signers[0].email", "detail": "must be a valid email address" } ] } }
+```
+
+Problems that need the template (a role or merge key that does not exist, a
+required merge value missing) are a `400` `invalid_request` with `issues` such as
+`unknown_role` (its `detail` lists the valid role keys), `unknown_merge_key` and
+`merge_value_missing`. A document that cannot be sent yet (for example a role
+with fields but nobody assigned) is a `400` `not_ready` with its `issues`.
+
+```bash
+curl -X POST https://your-crm.example.com/api/v1/sign/documents \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template_id": "6f1c…",
+    "reference": "MERCHANT-10231",
+    "merge_values": { "fw_no": "FW-2291" },
+    "signers": [
+      { "role_key": "merchant", "full_name": "Ali bin Ahmad", "email": "ali@kedairuncit.example", "phone": "+60123456789", "channel": "whatsapp" },
+      { "role_key": "director", "full_name": "Gokula Krishnan", "email": "gokula@vircle.example", "order_no": 2 }
+    ],
+    "sign_in_order": true,
+    "expires_in_days": 14
+  }'
+```
+
+`201 Created`, the document (see below) plus `invitations`: for each person, whether
+the message reached them. A message that could not be delivered is reported
+(`failed`, or `not_configured` when the channel is not set up) and the document is
+sent anyway; the signing link is **never** returned by the API. Call
+`POST .../remind` to send a fresh link later.
+
+```json
+{
+  "data": {
+    "id": "0d9e…", "reference": "MERCHANT-10231", "title": "Merchant Application",
+    "status": "sent", "template_id": "6f1c…", "contact_id": null, "locale": "en",
+    "sign_in_order": true, "code_required": false, "page_count": 6,
+    "created_at": "2026-10-07T01:00:00.000Z", "updated_at": "2026-10-07T01:00:02.000Z",
+    "sent_at": "2026-10-07T01:00:02.000Z", "expires_at": "2026-10-21T01:00:02.000Z",
+    "completed_at": null, "void_reason": null, "final_sha256": null, "verify_url": null,
+    "signers": [
+      { "id": "…", "role_key": "merchant", "kind": "signer", "full_name": "Ali bin Ahmad",
+        "email": "ali@kedairuncit.example", "channel": "whatsapp", "order_no": 1,
+        "status": "sent", "invited_at": "2026-10-07T01:00:02.000Z", "viewed_at": null,
+        "signed_at": null, "declined_at": null, "decline_reason": null,
+        "last_reminded_at": null, "reminder_count": 0 }
+    ],
+    "invitations": [ { "signer_id": "…", "role_key": "merchant", "channel": "whatsapp", "status": "sent" } ]
+  }
+}
+```
+
+#### Idempotency
+
+Send the same `reference` again (a retry after a timeout, a job that ran twice)
+and you get **the same document back, never a second one**: `200` (not `201`),
+the header `Idempotent-Replay: true`, no `invitations`, and nothing is sent again.
+The first call decides what the document is: a retry's other fields are ignored.
+Two exceptions: a reference used for a document made from a *different*
+template is a `409` `reference_conflict`; and two calls at the very same moment
+leave one of them to find the other's document (or a `409` `reference_in_use`
+you can simply retry). Without a `reference` there is no idempotency: every call
+makes a new document.
+
+If a call with `send: false` was replayed, you get the draft (`status: "draft"`),
+not a send. Use `POST .../send`.
+
+### `GET /api/v1/sign/documents`
+
+Newest first, paginated like every list ([Pagination](#pagination)). Filters:
+`status` (`draft`, `sent`, `in_progress`, `sealing`, `completed`, `declined`,
+`expired`, `voided`, `failed`), `contact_id`, `template_id`, `reference`
+(exact), `created_after` (a date or an ISO 8601 time). A filter that is not
+valid is a `400`. Each row has the same facts as the single document, without
+the people, plus `signers_total` and `signers_signed`.
+
+Documents a person sent themselves from a template page to try it out (**test documents**, marked TEST on every page) are not listed, and the API never creates one.
+
+```bash
+curl "https://your-crm.example.com/api/v1/sign/documents?status=completed&created_after=2026-10-01&limit=50" \
+  -H "Authorization: Bearer wacrm_live_xxx"
+```
+
+### `GET /api/v1/sign/documents/{id}`
+
+The document with its people. What the fields mean:
+
+- `status`: `draft`, `sent` (waiting, nobody has signed), `in_progress` (some
+  have), `sealing` (everyone signed; the signed copy is being made, usually
+  seconds), `completed`, `declined`, `expired`, `voided`, `failed` (sealing
+  failed and is retried by itself).
+- `mode`: `sign` (an agreement) or `form` (a form without a signature: the
+  people fill it in and submit, nothing is signed). It comes from the template
+  and never changes. For a form, `signers[].signed_at` is when the person
+  submitted, `status` `completed` means everyone has submitted, and the "signed
+  copy" (`GET .../file?kind=signed`) is the sealed submission record, with the
+  same `final_sha256` and `verify_url`. The answers are not in the JSON; they are in the record file (every answer except the ones the form marks sensitive, which are masked).
+- `envelope_id`: the envelope the document is signed in (several documents sent
+  to the same people as one, migration 171), or `null`. Read only: the API does
+  not create or change envelopes yet, and a document of an envelope cannot be
+  sent, cancelled, reminded or have its people changed through the API (the
+  call answers `document_in_envelope`); that is done on the envelope in Halo.
+- `signers[].status`: `pending` (not invited yet: signing order), `sent`
+  (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
+  is when they signed.
+- `final_sha256` and `verify_url` appear once `completed`. `final_sha256` is the
+  SHA-256 of the signed PDF, so you can check what you downloaded.
+  `verify_url` is the public page behind the QR code on the certificate: anyone
+  can open it and check a file against the fingerprint.
+- `progress` is `null` for a document without a form. For a document with a form
+  (such as Merchant Registration) it lists, for each role, `percent` of required
+  answers given, `last_activity_at` and `parts`: `{ key, title, state, done,
+  total }` with `state` `not_started`, `in_progress` or `done`. The answers
+  themselves are not in the API.
+
+Never in any response: a signing link or token, the code sent to a signer, IP
+addresses, device details, storage paths, or the merge values.
+
+### `POST /api/v1/sign/documents/{id}/send`
+
+Sends a draft made with `send: false`. The monthly limit of the workspace
+applies: `429` `sign_limit_reached`. A document that was already sent is a `409`
+`document_not_draft`. Answer: the document with `invitations`.
+
+### `POST /api/v1/sign/documents/{id}/void`
+
+Body `{ "reason": "Wrong fee" }` (required, kept in the document's history). Every
+link then shows the document was cancelled, and people who were waiting are told.
+Cancelling a document that is already cancelled answers `200` unchanged (a retry
+is harmless). A document that completed, expired, was declined, is being sealed or
+failed is a `409` `document_not_open`.
+
+### `POST /api/v1/sign/documents/{id}/remind`
+
+Body `{ "signer_id": "…" }` for one person, or an empty body for everyone who is
+waiting. The rule is the one on the screen: **a person is not reminded again within
+24 hours**. For one person that is a `409` `remind_too_soon` (the message says when
+to try again); for everyone, those held are left out and listed:
+
+```json
+{ "data": {
+  "invitations": [ { "signer_id": "…", "role_key": "director", "channel": "email", "status": "sent" } ],
+  "held": [ { "signer_id": "…", "retry_at": "2026-10-08T03:12:00.000Z" } ]
+} }
+```
+
+Each reminder carries a **fresh link and the earlier one stops working**. A
+document that is not waiting is a `409` `document_not_open`; nobody to remind is a
+`409` `nobody_to_remind`; a person who has signed, declined or was not invited
+yet is `signer_not_open`.
+
+### `GET /api/v1/sign/documents/{id}/file?kind=signed`
+
+Downloads the file as an attachment (`Content-Disposition: attachment`), with the
+header `X-Content-SHA256` (the same as `final_sha256`). The API hands out bytes
+and never an address, so the file cannot be shared by link; every download is
+authenticated and recorded in the document's history.
+
+- `kind=signed` (the default): the sealed PDF, with the certificate pages at the
+  end. **Only once the document is `completed`**; before that it is a `409`
+  `not_completed`, in every state.
+- `kind=certificate`: the certificate is the last pages of the signed PDF, not a
+  separate file, so this answers `404` `no_separate_certificate`. Download `signed`.
+- `kind=original`: the file as it was uploaded, when the document has one
+  (documents made from a template have none: `404` `no_original_file`).
+
+```bash
+curl -L -o MERCHANT-10231-signed.pdf \
+  "https://your-crm.example.com/api/v1/sign/documents/0d9e…/file?kind=signed" \
+  -H "Authorization: Bearer wacrm_live_xxx"
+```
+
+### Errors
+
+Doc Sign errors use the usual `{ "error": { "code", "message" } }` envelope; `issues`
+is added when there are several things to say. Branch on `code`.
+
+| Status | `code` | Meaning |
+| --- | --- | --- |
+| 401 | `unauthorized` | Missing, wrong, revoked or expired key |
+| 403 | `forbidden` | The key lacks `sign:read` or `sign:write` |
+| 403 | `sign_disabled` | Doc Sign is not turned on for the workspace |
+| 429 | `rate_limited` | Too many requests. Calls that send messages (create, send, remind) are limited to 30 a minute per key |
+| 429 | `sign_limit_reached` | The workspace's monthly limit of documents for signature is reached |
+| 400 | `bad_json`, `bad_request`, `invalid_request`, `not_ready` | The body or the filters are not valid; read `issues` |
+| 400 | `contact_not_found` | `contact_id` is not a contact of this workspace |
+| 400 | `reason_required` | `void` without a reason |
+| 404 | `document_not_found` | No such document in this workspace (also for an id that is not a UUID) |
+| 404 | `template_not_found`, `signer_not_found` | Not in this workspace / not on this document |
+| 404 | `no_separate_certificate`, `no_original_file`, `no_final_file` | The file asked for does not exist |
+| 409 | `document_not_draft` | The document was already sent |
+| 409 | `document_not_open` | The document is no longer waiting for signatures |
+| 409 | `template_not_active` | The template is archived or a draft |
+| 409 | `not_completed` | The signed copy exists only after completion |
+| 409 | `remind_too_soon`, `nobody_to_remind`, `signer_not_open` | See remind |
+| 409 | `reference_conflict`, `reference_in_use` | See idempotency |
+| 413 | `body_too_large` | The request body is over 200 KB |
+| 500 | `internal`, `database_error` | Something went wrong on our side; retry, and tell us if it persists |
+
+### Example: a merchant onboarding backend
+
+When a merchant is approved in your system, send the Merchant Registration
+document, then store the signed copy when it completes. The `reference` is your
+own merchant record, so a retried job can never send the merchant a second
+document.
+
+```js
+const BASE = "https://your-crm.example.com/api/v1/sign";
+const headers = { Authorization: `Bearer ${process.env.HALO_API_KEY}`, "Content-Type": "application/json" };
+
+async function sendRegistration(merchant) {
+  const res = await fetch(`${BASE}/documents`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      template_id: process.env.HALO_MERCHANT_TEMPLATE_ID,
+      reference: `MERCHANT-${merchant.id}`, // idempotency: one document per merchant
+      locale: merchant.language ?? "ms",
+      signers: [
+        { role_key: "merchant", full_name: merchant.ownerName, email: merchant.email, phone: merchant.phone, channel: "whatsapp" },
+        { role_key: "director", full_name: "Gokula Krishnan", email: "gokula@vircle.example", order_no: 2 },
+      ],
+      sign_in_order: true,
+    }),
+  });
+  const { data, error } = await res.json();
+  if (!res.ok) throw new Error(`${error.code}: ${error.message}`); // 429 and 5xx are safe to retry
+  return { documentId: data.id, replay: res.headers.get("Idempotent-Replay") === "true" };
+}
+
+// Call this from your sign.completed webhook handler (or poll GET /documents/{id}).
+async function saveSignedCopy(documentId, merchant) {
+  const res = await fetch(`${BASE}/documents/${documentId}/file?kind=signed`, { headers });
+  if (res.status === 409) return; // not completed yet
+  if (!res.ok) throw new Error(`download failed: ${res.status}`);
+  const pdf = Buffer.from(await res.arrayBuffer());
+  const expected = res.headers.get("X-Content-SHA256"); // compare with your own SHA-256 if you like
+  await store(`merchants/${merchant.id}/registration-signed.pdf`, pdf, expected);
+}
+```
+
 ## Pagination
 
 Every list endpoint pages the same way. Request a page size with
@@ -294,6 +639,15 @@ things happen in your account. **Migration required:** apply
 | `message.received`       | An inbound message arrives from a contact         |
 | `message.status_updated` | A message you sent changed delivery status        |
 | `conversation.created`   | A new conversation is opened for a contact        |
+| `sign.sent`              | A Doc Sign document was sent for signing          |
+| `sign.viewed`            | A signer opened their link for the first time     |
+| `sign.completed`         | Everyone signed and the sealed file is ready      |
+| `sign.declined`          | A signer declined                                 |
+| `sign.expired`           | A document passed its expiry date unsigned        |
+| `sign.voided`            | The sender cancelled a document                   |
+
+The `sign.*` events are emitted only for workspaces that have Doc Sign
+switched on. See [Doc Sign events](#doc-sign-events) for their payload.
 
 ### Managing endpoints
 
@@ -340,6 +694,50 @@ delivery uuid you can dedupe on, and `data` varies by `event`:
 ```
 
 Headers: `X-Wacrm-Event`, `X-Wacrm-Webhook-Id`, and `X-Wacrm-Signature`.
+
+### Doc Sign events
+
+`sign.sent`, `sign.viewed`, `sign.completed`, `sign.declined`, `sign.expired`
+and `sign.voided` share one `data` shape. They are sent after the change is
+saved, so `status` is the document's status **after** the event.
+
+```jsonc
+// sign.completed
+{
+  "document_id": "…",
+  "reference": "SGN-2026-000123",
+  "title": "Merchant Application: Kedai Runcit",
+  "status": "completed",
+  "mode": "sign",                // "form" for a form without a signature: signers[].signed_at is when they submitted
+  "template_id": "…",            // null when the document was not made from a template
+  "template_name": "Merchant Application",
+  "category_id": "…",            // null when it has none
+  "category": "Merchant agreements",
+  "contact_id": "…",             // null when it is not linked to a contact
+  "created_at": "2026-10-01T02:00:00.000Z",
+  "sent_at": "2026-10-02T03:10:00.000Z",
+  "completed_at": "2026-10-05T08:01:00.000Z",
+  "signers": [
+    { "name": "Ali bin Ahmad", "role": "Merchant", "role_key": "merchant", "status": "signed", "signed_at": "2026-10-04T06:03:00.000Z" }
+  ],
+  "final_sha256": "ab12…",       // completed only: SHA-256 of the sealed PDF
+  "verify_url": "https://halo.example/verify/<document_id>" // completed only: public page that proves the file
+}
+```
+
+- `sign.viewed` and `sign.declined` add `"signer": { "name": "…", "role": "…" }`,
+  who it was. `viewed` is sent once per signer, the first time they open
+  their link.
+- **Never included:** email addresses, phone numbers, signing-link tokens,
+  file addresses or downloads, IP addresses, merge values, and the reason a
+  signer gave when declining or the sender gave when cancelling. Download
+  the signed file with `GET /api/v1/sign/documents/{id}/file` (see "Doc Sign"
+  above) when you need it.
+- To check a signed file you hold, compare its SHA-256 with `final_sha256`, or
+  open `verify_url` and drop the file on it.
+- Delivery is the same single attempt described below: a receiver that is
+  down misses the event. Dedupe on the envelope `id`, and reconcile with the
+  Doc Sign API when it matters.
 
 ### Verifying the signature
 

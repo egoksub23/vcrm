@@ -15,6 +15,7 @@ import { useAccountMembers } from "@/hooks/use-account-members";
 import { cn } from "@/lib/utils";
 import { asLocale } from "@/lib/sign/client/progress-logic";
 import { pick } from "@/lib/sign/forms/text";
+import { nameResolver } from "@/lib/sign/forward";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignSignerRow } from "@/lib/sign/types";
 
@@ -34,9 +35,11 @@ interface Props {
   form?: FormDefinition | null;
   /** The document's contact: a write-back line links to it. */
   contactId?: string | null;
+  /** `form` for a form without a signature: the history is worded as submitting. */
+  mode?: string | null;
 }
 
-export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical, form, contactId }: Props) {
+export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical, form, contactId, mode }: Props) {
   const t = useTranslations("Sign.detail");
   const locale = useLocale();
   const { nameOf } = useAccountMembers();
@@ -51,6 +54,7 @@ export function HistoryView({ events, chain, loading, failed, signers, signInOrd
       userName: (id: string | null) => (id ? nameOf(id) || null : null),
       someone: t("history.someone"),
       teammate: t("history.teammate"),
+      nameAt: nameResolver(signers, events),
       partTitle: (key: string) => {
         const part = form?.parts.find((p) => p.key === key);
         return part ? pick(part.title, asLocale(locale)) || null : null;
@@ -61,9 +65,10 @@ export function HistoryView({ events, chain, loading, failed, signers, signInOrd
       },
       formatDay: (iso: string) => formatDay(iso, locale) || iso.slice(0, 10),
       contactId,
+      mode,
     };
     return orderEvents(events, newestFirst).map((e) => describeEvent(e, ctx));
-  }, [events, signers, signInOrder, nameOf, newestFirst, t, form, locale, contactId]);
+  }, [events, signers, signInOrder, nameOf, newestFirst, t, form, locale, contactId, mode]);
 
   const shown = lines.filter((l) => showMinor || !l.minor);
   const hasMinor = lines.some((l) => l.minor);

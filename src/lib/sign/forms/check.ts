@@ -140,11 +140,14 @@ export function checkDataAnswer(field: DataField, input: DataAnswerInput | undef
       const raw = strings(input.list, 200);
       if (!raw) return { ok: false, code: "bad_item" };
       const maxItems = field.maxItems ?? 20;
+      // a list whose entries are picked from a shared list (MSIC codes, say) takes nothing else
+      const allowed = field.options && field.options.length > 0 ? new Set(field.options.map((o) => o.value)) : null;
       const items: string[] = [];
       for (const r of raw) {
         const t = clean(r, false);
         if (t === null) return { ok: false, code: "bad_item" };
         if (t === "") continue;
+        if (allowed && !allowed.has(t)) return { ok: false, code: "not_an_option" };
         if (t.length > (field.itemLength ?? 100)) return { ok: false, code: "item_too_long", detail: String(field.itemLength ?? 100) };
         if (field.itemMinLength && t.length < field.itemMinLength) return { ok: false, code: "item_too_short", detail: String(field.itemMinLength) };
         if (!matchesFormat(t, field.itemFormat)) return { ok: false, code: `item_format_${field.itemFormat}` };

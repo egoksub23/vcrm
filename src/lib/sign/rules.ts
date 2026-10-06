@@ -8,8 +8,9 @@
 //   sendProblems                     can this document be sent?
 // ============================================================
 
+import type { FormDefinition } from "./forms/types";
 import { FIELD_TYPES, type FieldType, type PlacedField } from "./pdf/types";
-import type { SignChannel, SignRole, SignerKind } from "./types";
+import type { SignChannel, SignMode, SignRole, SignerKind } from "./types";
 
 export const MAX_FIELDS = 300;
 export const MAX_ROLES = 6;
@@ -19,6 +20,8 @@ export const MAX_SINGLE_LINE = 200;
 export const MAX_IMAGE_BYTES = 400 * 1024;
 
 const KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
+/** The same pattern for the code outside this file that names a role (registration forms). */
+export const KEY_PATTERN = KEY_RE;
 const DATE_FORMAT_RE = /^(?:YYYY|YY|MMMM|MMM|MM|M|DD|D|[ /.,\-])+$/;
 /** The role that owns fields the sender fixes (static text and merge fields). */
 export const SENDER_ROLE = "sender";
@@ -35,6 +38,8 @@ export interface Issue {
   role?: string;
   /** Forms: the part it is about. */
   part?: string;
+  /** Envelopes (migration 171): the document of the envelope it is about. */
+  document?: string;
   detail?: string;
 }
 
@@ -253,7 +258,8 @@ export function normalizePhone(raw: string | null | undefined): string | null {
 
 /**
  * Everything standing between a draft and "Send": a list of problems, empty when it can go.
- * `signInOrder` is the document's "needs signing order" choice.
+ * `signInOrder` is the document's "needs signing order" choice. With it, people who share an order number form
+ * one step: all of them are invited together and the next step begins when every one of them has finished.
  */
 export function sendProblems(args: {
   fields: readonly PlacedField[];
@@ -262,13 +268,17 @@ export function sendProblems(args: {
   signInOrder: boolean;
   pageCount: number;
   hasBaseFile: boolean;
+  /** A form without a signature (migration 169): nobody signs, so nobody is a signer and nothing is a signature. Default `sign`. */
+  mode?: SignMode;
 }): Issue[] {
   const { fields, roles, signers, signInOrder } = args;
+  const formOnly = args.mode === "form";
   const issues: Issue[] = [];
   if (!args.hasBaseFile) issues.push({ code: "no_file" });
-  issues.push(...validateRoles(roles), ...validateFields(fields, roles, args.pageCount));
+  issues.push(...validateRoles(roles), ...validateFields(fields, roles, args.pageCount), ...modeProblems(args.mode, { roles, fields }));
 
-  if (signers.length === 0 || !signers.some((s) => s.kind === "signer")) issues.push({ code: "no_signer" });
+  // an agreement needs a signer; a form needs somebody to fill it in
+  if (signers.length === 0 || (!formOnly && !signers.some((s) => s.kind === "signer"))) issues.push({ code: formOnly ? "no_person" : "no_signer" });
   if (signers.length > MAX_SIGNERS) issues.push({ code: "too_many_signers", detail: String(MAX_SIGNERS) });
   const roleKeys = new Set(roles.map((r) => r.key));
   const rolesWithPeople = new Set(signers.map((s) => s.role_key));
@@ -285,17 +295,37 @@ export function sendProblems(args: {
     if (fieldsForRole(fields, r.key).length > 0 && !rolesWithPeople.has(r.key)) issues.push({ code: "role_without_person", role: r.key });
   }
   // a signer needs something to sign
-  for (const s of signers) {
+  for (const s of formOnly ? [] : signers) {
     if (s.kind === "signer" && !fields.some((f) => f.role === s.role_key && (f.type === "signature" || f.type === "initials"))) {
       issues.push({ code: "signer_without_signature", role: s.role_key });
       break;
     }
   }
   if (signInOrder) {
-    const orders = signers.map((s) => s.order_no);
-    if (new Set(orders).size !== orders.length) issues.push({ code: "order_not_unique" });
+    // People who share an order number form one step and sign at the same time (F-68), so a shared number is no
+    // problem; the same person on the list twice still is (they would be asked for two signatures at once or in turn).
     const emails = signers.map((s) => s.email.trim().toLowerCase());
     if (new Set(emails).size !== emails.length) issues.push({ code: "same_person_twice" });
   }
+  return issues;
+}
+
+// ---- a form without a signature (migration 169) -----------------------------------------
+
+/**
+ * What a form-only document (mode `form`) may not be: it has no signer, so no role that signs, and nothing on the page to
+ * sign or to fill (the answers are asked by the form, in parts, and recorded in the submission record, not placed on a page).
+ * `requireParts`: the form must have at least one part (when a template is made active, and when a document is sent: a
+ * template is saved empty first). A document of mode `sign` has nothing here; its rules are unchanged.
+ */
+export function modeProblems(mode: SignMode | undefined, input: { roles: readonly SignRole[]; fields: readonly PlacedField[]; form?: FormDefinition | null }, opts: { requireParts?: boolean } = {}): Issue[] {
+  if (mode !== "form") return [];
+  const issues: Issue[] = [];
+  for (const r of input.roles) if (r.kind !== "filler") issues.push({ code: "form_mode_signer_role", role: r.key });
+  for (const f of input.fields) {
+    if (SIGNER_ONLY_TYPES.includes(f.type)) issues.push({ code: "form_mode_signature", field: f.key });
+    else issues.push({ code: "form_mode_placement", field: f.key });
+  }
+  if (opts.requireParts && !(input.form && input.form.parts.length > 0)) issues.push({ code: "form_mode_needs_a_form" });
   return issues;
 }

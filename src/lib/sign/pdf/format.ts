@@ -110,10 +110,15 @@ export function formatNumber(value: string, decimals?: number): string {
 /**
  * Break text into lines no wider than `maxWidth`, by words, and by characters inside a word that
  * is wider than a line. Newlines in the text are kept as line breaks.
+ *
+ * `maxLines` stops the work once that many lines are made (the first `maxLines` lines are exactly what the unbounded call gives). A caller
+ * that only has room for a few lines passes it, so the cost follows the size of the box and not the length of an answer: a signer's long
+ * answer in a small box would otherwise be measured to the end at every font size, and a few hundred of them stall the server for minutes.
  */
-export function wrapText(text: string, maxWidth: number, measure: (s: string) => number): string[] {
+export function wrapText(text: string, maxWidth: number, measure: (s: string) => number, maxLines = Infinity): string[] {
   const out: string[] = [];
   for (const para of text.replace(/\r\n?/g, "\n").split("\n")) {
+    if (out.length >= maxLines) return out;
     if (para === "") {
       out.push("");
       continue;
@@ -128,12 +133,14 @@ export function wrapText(text: string, maxWidth: number, measure: (s: string) =>
       if (line !== "") {
         out.push(line.trimEnd());
         line = "";
+        if (out.length >= maxLines) return out;
       }
       // a single word wider than the line: split it by characters
       let chunk = "";
       for (const ch of Array.from(word)) {
         if (measure(chunk + ch) > maxWidth && chunk !== "") {
           out.push(chunk);
+          if (out.length >= maxLines) return out;
           chunk = ch;
         } else {
           chunk += ch;
@@ -181,8 +188,10 @@ export function fitText(
       }
       return null;
     }
-    const lines = wrapText(text, innerW, measure);
-    if (lines.length * lineHeight <= innerH + 0.01) {
+    // only as many lines as the box holds, and one more to know it does not fit
+    const room = Math.max(0, Math.floor((innerH + 0.01) / lineHeight));
+    const lines = wrapText(text, innerW, measure, room + 1);
+    if (lines.length <= room) {
       return { lines, fontSize: size, lineHeight, truncated: false };
     }
     return null;
@@ -191,6 +200,10 @@ export function fitText(
   if (opts.fixedSize) {
     return attempt(opts.fixedSize) ?? cut(text, innerW, innerH, measureAt(opts.fixedSize), opts.fixedSize, !!opts.multiline);
   }
+  // An answer that cannot fit even at the smallest size is cut at once, without trying the sizes above it.
+  if (opts.multiline && clearlyTooLong(text, innerW, innerH, measureAt(MIN_FONT_SIZE))) {
+    return cut(text, innerW, innerH, measureAt(MIN_FONT_SIZE), MIN_FONT_SIZE, true);
+  }
   for (let size = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, innerH / LINE_GAP)); size >= MIN_FONT_SIZE; size -= 0.5) {
     const fit = attempt(size);
     if (fit) return fit;
@@ -198,16 +211,41 @@ export function fitText(
   return cut(text, innerW, innerH, measureAt(MIN_FONT_SIZE), MIN_FONT_SIZE, !!opts.multiline);
 }
 
+/**
+ * Is there no way `text` fits the box, at any size from the smallest up? Every line is at most as wide as the box, and a line break
+ * swallows one space, so a paragraph of width W needs at least (W + space) / (box + space) lines, at any size above the smallest more. When that many
+ * lines of the smallest size are already taller than the box, no size fits. Kerning can make widths not exactly additive, so only a text that
+ * is clearly too long (by a tenth) is judged: a close call takes the ordinary search. One measurement per paragraph, which is what makes a very
+ * long answer cheap to refuse.
+ */
+function clearlyTooLong(text: string, innerW: number, innerH: number, measure: (s: string) => number): boolean {
+  const lineHeight = MIN_FONT_SIZE * LINE_GAP;
+  const space = measure(" ");
+  let lines = 0;
+  for (const para of text.replace(/\r\n?/g, "\n").split("\n")) {
+    lines += para === "" ? 1 : Math.max(1, Math.ceil((((measure(para.trimEnd()) + space) / (innerW + space)) * 0.9) - 1e-9));
+    if (lines * lineHeight > innerH + 0.01) return true;
+  }
+  return false;
+}
+
 function cut(text: string, innerW: number, innerH: number, measure: (s: string) => number, size: number, multiline: boolean): FittedText {
   const lineHeight = size * LINE_GAP;
   if (!multiline) {
-    let s = text.replace(/\s*\n\s*/g, " ");
-    while (s.length > 1 && measure(s + "…") > innerW) s = s.slice(0, -1);
-    return { lines: [s + "…"], fontSize: size, lineHeight, truncated: true };
+    const whole = text.replace(/\s*\n\s*/g, " ");
+    // the longest start that fits with the ellipsis (one character at least), found by halving: dropping a character at a time measured
+    // the whole text again for every character of it
+    let lo = 1;
+    let hi = whole.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (measure(whole.slice(0, mid) + "…") <= innerW) lo = mid;
+      else hi = mid - 1;
+    }
+    return { lines: [whole.slice(0, lo) + "…"], fontSize: size, lineHeight, truncated: true };
   }
-  const all = wrapText(text, innerW, measure);
   const fit = Math.max(1, Math.floor(innerH / lineHeight));
-  const lines = all.slice(0, fit);
+  const lines = wrapText(text, innerW, measure, fit);
   if (lines.length) lines[lines.length - 1] = lines[lines.length - 1].replace(/\s*$/, "") + "…";
   return { lines, fontSize: size, lineHeight, truncated: true };
 }

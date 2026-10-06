@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type DragEvent } from "react";
-import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, ShieldCheck, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,10 @@ interface Props {
   onChange: (patch: Partial<Omit<SignerRow, "key">>) => void;
   onRemove: () => void;
   onMove: (delta: number) => void;
+  /** Give this person a step number: the same number as another person's puts them in that step. */
+  onStep: (step: number) => void;
+  /** Open the list of Halo users to name one for this row. Absent: the row cannot be given a Halo user (the envelope's list). */
+  onChooseHalo?: () => void;
   onDragStart: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
   onDrop: (e: DragEvent) => void;
@@ -40,7 +44,7 @@ interface Props {
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-invalid:border-destructive";
 
 /** One person on the signing list: name, email, role, channel (and a phone number for WhatsApp), with the order handles when order is on. */
-export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
+export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onStep, onChooseHalo, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
   const t = useTranslations("Sign.send.people");
   const [left, setLeft] = useState<ReadonlySet<Field>>(new Set());
   const flags = rowFlags(row, roles);
@@ -50,6 +54,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
   const role = roles.find((r) => r.key === row.roleKey);
   const anyShown = shown("name") || shown("email") || shown("phone") || shown("role") || !!notice?.blocking;
   const ids = `signer-${row.key}`;
+  const halo = !!row.internalUserId;
 
   return (
     <li
@@ -59,7 +64,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
     >
       <div className="flex items-start gap-2">
         {ordered ? (
-          <div className="flex w-8 shrink-0 flex-col items-center gap-0.5 pt-5">
+          <div className="flex w-12 shrink-0 flex-col items-center gap-0.5 pt-5">
             <span
               draggable={!readOnly}
               onDragStart={onDragStart}
@@ -70,9 +75,18 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
             >
               <GripVertical className="size-4" />
             </span>
-            <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground" aria-label={t("orderNumber", { n })}>
-              {n}
-            </span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={count}
+              value={row.step}
+              disabled={readOnly}
+              aria-label={t("stepNumber", { n })}
+              title={t("stepNumberHint")}
+              className="h-7 w-12 px-1 text-center text-xs font-semibold"
+              onChange={(e) => onStep(Number(e.target.value))}
+            />
             <Button type="button" variant="ghost" size="icon-xs" disabled={readOnly || index === 0} aria-label={t("moveUp", { n })} onClick={() => onMove(-1)}>
               <ChevronUp />
             </Button>
@@ -87,14 +101,14 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
             <label htmlFor={`${ids}-name`} className="text-xs font-medium text-muted-foreground">
               {t("fullName")}
             </label>
-            <Input id={`${ids}-name`} value={row.fullName} maxLength={160} autoComplete="off" disabled={readOnly} aria-invalid={shown("name")} onBlur={() => leave("name")} onChange={(e) => onChange({ fullName: e.target.value })} />
+            <Input id={`${ids}-name`} value={row.fullName} maxLength={160} autoComplete="off" disabled={readOnly} aria-invalid={shown("name")} readOnly={halo} onBlur={() => leave("name")} onChange={(e) => onChange({ fullName: e.target.value })} />
             {shown("name") ? <p className="text-xs text-destructive">{t("nameRequired")}</p> : null}
           </div>
           <div className="space-y-1">
             <label htmlFor={`${ids}-email`} className="text-xs font-medium text-muted-foreground">
               {t("email")}
             </label>
-            <Input id={`${ids}-email`} type="email" value={row.email} maxLength={254} autoComplete="off" disabled={readOnly} aria-invalid={shown("email")} onBlur={() => leave("email")} onChange={(e) => onChange({ email: e.target.value })} />
+            <Input id={`${ids}-email`} type="email" value={row.email} maxLength={254} autoComplete="off" disabled={readOnly} aria-invalid={shown("email")} readOnly={halo} onBlur={() => leave("email")} onChange={(e) => onChange({ email: e.target.value })} />
             {shown("email") ? <p className="text-xs text-destructive">{t("emailInvalid")}</p> : null}
           </div>
           <div className="space-y-1">
@@ -123,6 +137,26 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
               <option value="whatsapp">{t("channelWhatsapp")}</option>
             </select>
           </div>
+          {halo ? (
+            // a Halo user signs from inside Halo; the invitation still goes to their email, so the name and email are theirs and are not typed
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-4">
+              <span data-halo-user className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground">
+                <ShieldCheck className="size-3" aria-hidden />
+                {t("haloUserTag")}
+              </span>
+              <span className="text-xs text-muted-foreground">{t("haloUserNote")}</span>
+              <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={() => onChange({ internalUserId: null })}>
+                {t("haloUserRemove")}
+              </Button>
+            </div>
+          ) : onChooseHalo ? (
+            <div className="sm:col-span-2 xl:col-span-4">
+              <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={onChooseHalo}>
+                <ShieldCheck aria-hidden />
+                {t("chooseHaloUser")}
+              </Button>
+            </div>
+          ) : null}
           {row.channel === "whatsapp" ? (
             <div className="space-y-1 sm:col-span-2 xl:col-span-4">
               <label htmlFor={`${ids}-phone`} className="text-xs font-medium text-muted-foreground">

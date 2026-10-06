@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { getTemplate } from '@/lib/automations/templates'
 import { insertSteps, type BuilderStepInput } from '@/lib/automations/steps-tree'
 import { aiSetupForActivation } from '@/lib/automations/ai/activation'
+import { signSetupForActivation, stepsUseSign } from '@/lib/automations/sign-activation'
 import {
   validateStepsForActivation,
   validateTriggerForActivation,
@@ -32,8 +33,9 @@ export async function POST(request: Request) {
   // Creating an automation is a write — the RLS automations_insert policy
   // requires `agent`, but this route inserts via the service-role client
   // which bypasses RLS, so the role must be enforced here.
+  let auth: CapabilityContext
   try {
-    await requireCapability('automations.manage')
+    auth = await requireCapability('automations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
@@ -89,6 +91,16 @@ export async function POST(request: Request) {
     )
   }
 
+  // An automation that sends documents for signing sends them in the workspace's name: only a person who may
+  // send documents themselves can build one.
+  if (stepsUseSign(effectiveSteps as { step_type: string }[] | undefined)) {
+    try {
+      assertCapability(auth, 'sign.send')
+    } catch (err) {
+      return toErrorResponse(err)
+    }
+  }
+
   // Block activation of a clearly broken automation up-front instead of
   // letting every trigger silently produce a failed log row. Drafts
   // (is_active=false) are allowed to be incomplete so users can save
@@ -97,9 +109,11 @@ export async function POST(request: Request) {
     const stepsToCheck = (effectiveSteps ?? []) as unknown as { step_type: string; step_config: Record<string, unknown> }[]
     // AI steps need AI set up before the automation can go live.
     const aiSetup = await aiSetupForActivation(supabaseAdmin(), accountId, stepsToCheck)
+    // Doc Sign steps and the Doc Sign trigger need Doc Sign on and the template active.
+    const signSetup = await signSetupForActivation(supabaseAdmin(), accountId, stepsToCheck, effectiveTriggerType)
     const issues = [
-      ...validateTriggerForActivation(effectiveTriggerType, effectiveTriggerConfig ?? {}),
-      ...validateStepsForActivation(stepsToCheck, { aiSetup }),
+      ...validateTriggerForActivation(effectiveTriggerType, effectiveTriggerConfig ?? {}, { signSetup }),
+      ...validateStepsForActivation(stepsToCheck, { aiSetup, signSetup }),
     ]
     if (issues.length > 0) {
       return NextResponse.json(

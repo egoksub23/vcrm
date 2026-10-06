@@ -55,16 +55,20 @@ export interface FormFlowProps {
   notice?: string | null;
   /** Open on a part (and bring a field into view) instead of the overview. Read once: change the component's `key` to jump again. */
   start?: { part: string; field?: string };
-  /** The last row: "Review and sign" (the default), or "Submit" for a person who only fills in. */
-  finalAction?: "review" | "submit";
+  /** The last row: "Review and sign" (the default), "Submit" for a person who only fills in, or "Review and submit" for a form without a signature (migration 169). */
+  finalAction?: "review" | "submit" | "reviewSubmit";
   /** The signer is leaving a part: send what is waiting now rather than after the short pause. */
   onFlush?: () => void;
+  /** Forwarding (F-95), live page only: the parts handed to someone else, and what can be done about parts. */
+  delegations?: Record<string, { name: string; done: boolean }>;
+  onForwardPart?: (partKey: string) => void;
+  onTakeBack?: (partKey: string) => Promise<void>;
 }
 
 type Screen = { kind: "overview" } | { kind: "part"; key: string; focus?: string };
 
 export function FormFlow(props: FormFlowProps) {
-  const { view, locale, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, onReview, reviewLocked, preview, className, title, saveState, rejected, notice, start, finalAction = "review", onFlush } = props;
+  const { view, locale, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, onReview, reviewLocked, preview, className, title, saveState, rejected, notice, start, finalAction = "review", onFlush, delegations, onForwardPart, onTakeBack } = props;
   return (
     <FormUiProvider value={{ locale }}>
       <Flow
@@ -85,6 +89,9 @@ export function FormFlow(props: FormFlowProps) {
         start={start}
         finalAction={finalAction}
         onFlush={onFlush}
+        delegations={delegations}
+        onForwardPart={onForwardPart}
+        onTakeBack={onTakeBack}
       />
     </FormUiProvider>
   );
@@ -92,7 +99,7 @@ export function FormFlow(props: FormFlowProps) {
 
 const NO_REJECTIONS: FormRejections = {};
 
-function Flow({ view, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, onReview, reviewLocked, preview, className, title, saveState, rejected = NO_REJECTIONS, notice, start, finalAction, onFlush }: Omit<FormFlowProps, "locale">) {
+function Flow({ view, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, onReview, reviewLocked, preview, className, title, saveState, rejected = NO_REJECTIONS, notice, start, finalAction, onFlush, delegations, onForwardPart, onTakeBack }: Omit<FormFlowProps, "locale">) {
   const t = useTranslations("Sign.signerForm");
   const root = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<Drafts>({});
@@ -179,6 +186,7 @@ function Flow({ view, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, o
           rows={rows}
           unlocked={!reviewLocked}
           submit={finalAction === "submit"}
+          reviewSubmit={finalAction === "reviewSubmit"}
           saveState={saveState}
           busy={busy}
           lastSavedAt={lastSavedAt}
@@ -186,6 +194,9 @@ function Flow({ view, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, o
           onFinal={() => {
             if (!reviewLocked) onReview();
           }}
+          delegations={delegations}
+          onForwardPart={onForwardPart}
+          onTakeBack={onTakeBack}
         />
       )}
     </div>

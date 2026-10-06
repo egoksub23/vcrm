@@ -70,6 +70,11 @@ export const AUDIT_ENTITY_TYPES = [
   "sign_certificate",
   "sign_addon",
   "sign_document",
+  // Migrations 162, 163 and 171 (Doc Sign phase 2): bulk batches, option lists and envelopes.
+  // Registration forms (164) log as sign_settings.
+  "sign_bulk_job",
+  "sign_option_list",
+  "sign_envelope",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

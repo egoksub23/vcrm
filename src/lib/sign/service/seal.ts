@@ -8,11 +8,15 @@
 // ============================================================
 
 import { certificateLabels, eventSentence } from "../certificate-words";
-import { boundPlacements, boundValues, type FormDefinition } from "../forms";
+import { boundPlacements, boundValues, pick, type FormDefinition } from "../forms";
+import { isDelegate, nameResolver, stepGroups } from "../forward";
 import { notifyCompleted } from "./outcome";
-import type { CertificateData } from "../pdf/types";
+import { emitSignEvent } from "./outbound";
+import { envelopeCertificateBlock } from "../envelopes";
+import type { CertificateData, CertificateEnvelope } from "../pdf/types";
 import { answerFields } from "../pdf/stamp";
 import { appendCertificate } from "../pdf/certificate";
+import { markTestPages } from "../pdf/testmark";
 import { sealPdf } from "../pdf/seal";
 import { stampFields } from "../pdf/stamp";
 import { sha256Hex } from "../pdf/load";
@@ -20,11 +24,15 @@ import { verifyLink } from "../notify";
 import { decodeImageDataUrl, type StoredAnswer } from "../rules";
 import { documentPath, getFile, putFile, removeFiles } from "../storage";
 import type { FieldValue, FieldValues, PlacedField } from "../pdf/types";
-import type { SignDocumentRow, SignLocale, SignSignerRow } from "../types";
-import { sealingCertificate } from "./certificates";
+import { isFormMode, type SignDocumentRow, type SignLocale, type SignSignerRow } from "../types";
+import { CERTIFICATE_HOLD_CODES, sealingCertificate } from "./certificates";
 import { loadDocument, loadSenderAndWorkspace, loadSettings, loadSigners, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { loadEnvelope, loadEnvelopeDocuments } from "./envelope-data";
+import { settleEnvelope } from "./envelopes";
 import { formOf, formState, type AnswerRow } from "./form-state";
+import { submissionRecord } from "./record";
+import { ANSWER_COLUMNS, openRows, type StoredRow } from "./sensitive";
 
 /** What a stored answer becomes on the page. */
 export function toFieldValue(a: StoredAnswer): FieldValue | null {
@@ -51,7 +59,8 @@ export function valuesFor(
 ): FieldValues {
   const out: Record<string, FieldValue> = {};
   const byRole = new Map<string, SignSignerRow>();
-  for (const s of signers) if (!byRole.has(s.role_key)) byRole.set(s.role_key, s);
+  // the places on the page belong to the signer of the role; a person handed one part of the form only fills that part
+  for (const s of signers) if (!isDelegate(s) && !byRole.has(s.role_key)) byRole.set(s.role_key, s);
   const answerOf = new Map(answers.filter((a) => a.value).map((a) => [`${a.signer_id}:${a.field_key}`, a.value as StoredAnswer]));
   for (const f of answerFields(fields)) {
     const signer = byRole.get(f.role);
@@ -83,15 +92,28 @@ export function certificateData(
   info: { workspaceName: string; senderName: string; timeZone: string },
   origin: string,
   pageCount: number,
+  /** Migration 171: the document is one of an envelope; its certificate lists the documents signed with it. */
+  envelope?: CertificateEnvelope | null,
 ): CertificateData {
-  const nameOf = new Map(signers.map((s) => [s.id, s.full_name]));
   const roleLabel = new Map(doc.roles_snapshot.map((r) => [r.key, r.label]));
+  // who a person was at the time: a turn that was forwarded keeps the forwarder's name on what the forwarder did
+  const nameAt = nameResolver(signers, events);
+  const form = formOf(doc);
+  const partTitle = (key: string) => {
+    const part = form?.parts.find((p) => p.key === key);
+    return part ? pick(part.title, doc.locale) || key : key;
+  };
   const history = events
     .map((e) => {
-      const text = eventSentence(e.type, doc.locale, { actor: e.signer_id ? (nameOf.get(e.signer_id) ?? "") : "", sender: info.senderName }, { detail: e.detail, timeZone: info.timeZone });
+      const text = eventSentence(e.type, doc.locale, { actor: nameAt(e.signer_id, e.created_at) ?? "", sender: info.senderName }, { detail: e.detail, timeZone: info.timeZone, partTitle, mode: doc.mode });
       return text ? { at: new Date(e.created_at), text } : null;
     })
     .filter((e): e is { at: Date; text: string } => !!e);
+  // signers in signing order, people who sign in the same step together, each delegate after the person who handed them a part
+  const steps = doc.sign_in_order ? stepGroups(signers) : [];
+  const stepOf = new Map(steps.flatMap((g) => g.people.map((p) => [p.id, g.step] as const)));
+  const holders = signers.filter((s) => !isDelegate(s));
+  const listed = (doc.sign_in_order ? steps.flatMap((g) => g.people) : holders).flatMap((s) => [s, ...signers.filter((d) => d.delegated_by === s.id)]);
   return {
     title: doc.title,
     reference: doc.reference ?? doc.id,
@@ -103,12 +125,12 @@ export function certificateData(
     sentAt: doc.sent_at ? new Date(doc.sent_at) : undefined,
     completedAt: new Date(),
     timeZone: info.timeZone,
-    labels: certificateLabels(doc.locale),
-    signers: signers.map((s) => ({
+    labels: certificateLabels(doc.locale, doc.mode),
+    signers: listed.map((s) => ({
       name: s.full_name,
       email: s.email,
-      role: roleLabel.get(s.role_key) ?? s.role_key,
-      order: doc.sign_in_order ? s.order_no : undefined,
+      role: isDelegate(s) ? `${roleLabel.get(s.role_key) ?? s.role_key} (${(s.part_keys ?? []).map(partTitle).join(", ")})` : (roleLabel.get(s.role_key) ?? s.role_key),
+      order: doc.sign_in_order && !isDelegate(s) ? stepOf.get(s.id) : undefined,
       status: s.status === "signed" ? "signed" : s.status === "declined" ? "declined" : "pending",
       signedAt: s.signed_at ? new Date(s.signed_at) : undefined,
       ip: s.ip ?? undefined,
@@ -116,6 +138,7 @@ export function certificateData(
       channel: s.channel === "whatsapp" ? "WhatsApp" : "Email",
     })),
     events: history,
+    ...(envelope ? { envelope } : {}),
   };
 }
 
@@ -134,7 +157,7 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
     if (!doc.base_path) throw new SignError("no_base_file", "The document has no file.", 500);
     const [signers, settings, info] = await Promise.all([loadSigners(ctx, documentId), loadSettings(ctx), loadSenderAndWorkspace(ctx, doc.created_by)]);
     void settings;
-    const answersQ = await ctx.admin.from("sign_answers").select("signer_id, field_key, value").eq("document_id", documentId).eq("account_id", ctx.accountId);
+    const answersQ = await ctx.admin.from("sign_answers").select(ANSWER_COLUMNS).eq("document_id", documentId).eq("account_id", ctx.accountId);
     if (answersQ.error) raiseDatabaseError(answersQ.error, "load answers");
     const eventsQ = await ctx.admin
       .from("sign_events")
@@ -144,19 +167,37 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
       .order("doc_seq", { ascending: true });
     if (eventsQ.error) raiseDatabaseError(eventsQ.error, "load events");
 
-    const base = await getFile(ctx.admin, doc.base_path, ctx.accountId);
     const form = formOf(doc);
-    const values = valuesFor(doc.fields_snapshot, signers, (answersQ.data ?? []) as { signer_id: string; field_key: string; value: StoredAnswer | null }[], form ? { definition: form, locale: doc.locale } : undefined);
-    // the places that print the form's answers are stamped with the answers, like any other place a person filled in
-    const places = form ? [...answerFields(doc.fields_snapshot), ...boundPlacements(doc.fields_snapshot)] : answerFields(doc.fields_snapshot);
-    const stamped = await stampFields(base, places, values, { locale: doc.locale, timeZone: info.timeZone });
+    const opened = openRows((answersQ.data ?? []) as unknown as StoredRow[], documentId);
+    // What is sealed. A document to sign: the file that was sent, with what the people entered written on it. A form without a
+    // signature (migration 169): a submission record made from the answers, since there is no document to write on. Either way the
+    // certificate pages follow and the whole file is sealed below, the same way.
+    let body: { bytes: Uint8Array; pageCount: number };
+    if (isFormMode(doc)) {
+      body = await submissionRecord(doc, signers, opened, (eventsQ.data ?? []) as never, info);
+    } else {
+      const base = await getFile(ctx.admin, doc.base_path, ctx.accountId);
+      const values = valuesFor(doc.fields_snapshot, signers, opened as { signer_id: string; field_key: string; value: StoredAnswer | null }[], form ? { definition: form, locale: doc.locale } : undefined);
+      // the places that print the form's answers are stamped with the answers, like any other place a person filled in
+      const places = form ? [...answerFields(doc.fields_snapshot), ...boundPlacements(doc.fields_snapshot)] : answerFields(doc.fields_snapshot);
+      const stamped = await stampFields(base, places, values, { locale: doc.locale, timeZone: info.timeZone });
+      body = { bytes: stamped.bytes, pageCount: doc.page_count ?? 1 };
+    }
 
-    const data = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, doc.page_count ?? 1);
-    const withCertificate = await appendCertificate(stamped.bytes, data, { locale: doc.locale });
+    // an envelope's documents are sealed one by one, each with its own certificate; the certificate says which documents it was signed with
+    let envelope: CertificateEnvelope | null = null;
+    if (doc.envelope_id) {
+      const [env, siblings] = await Promise.all([loadEnvelope(ctx, doc.envelope_id), loadEnvelopeDocuments(ctx, doc.envelope_id)]);
+      envelope = envelopeCertificateBlock(doc.locale, env, siblings, doc.id);
+    }
+    const data = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, body.pageCount, envelope);
+    const withCertificate = await appendCertificate(body.bytes, data, { locale: doc.locale });
+    // a test document (F-10): the pages of the file that was sent carry the TEST mark already (it was put on when it was sent); the certificate pages (and, for a form, the whole submission record) get it now
+    const toSeal = doc.test ? (await markTestPages(withCertificate.bytes, { skipPages: isFormMode(doc) ? 0 : body.pageCount })).bytes : withCertificate.bytes;
 
     const cert = await sealingCertificate(ctx);
-    const sealed = await sealPdf(withCertificate.bytes, cert.p12, cert.passphrase, {
-      reason: `Signed through Halo Doc Sign: ${doc.reference ?? doc.id}`,
+    const sealed = await sealPdf(toSeal, cert.p12, cert.passphrase, {
+      reason: `${isFormMode(doc) ? "Submitted" : "Signed"} through Halo Doc Sign: ${doc.reference ?? doc.id}`,
       name: info.workspaceName,
       location: "",
       signingTime: ctx.now(),
@@ -178,24 +219,53 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
       document_id: documentId,
       kind: "signed",
       path: finalPath,
-      name: `${doc.reference ?? "document"}-signed.pdf`,
+      name: `${doc.reference ?? "document"}-${isFormMode(doc) ? "record" : "signed"}.pdf`,
       mime: "application/pdf",
       size_bytes: sealed.size,
       sha256: sealed.sha256,
     });
-    // tell everyone; a message that fails is recorded, never fatal
-    await notifyCompleted(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, signers, sealed.bytes);
+    // the automation trigger and the webhook (never throws); then tell everyone, a message that fails is recorded, never fatal
+    await emitSignEvent(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, "completed");
+    // a document of an envelope sends no message of its own: when the LAST one is sealed, each person gets ONE message with every signed copy
+    if (doc.envelope_id) await settleEnvelope(ctx, doc.envelope_id);
+    else await notifyCompleted(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, signers, sealed.bytes);
     return { documentId, status: "completed" };
   } catch (err) {
     if (stored) await removeFiles(ctx.admin, [stored]);
     const message = err instanceof Error ? err.message : String(err);
     console.error("[sign] sealing failed for", documentId, message);
-    await ctx.admin.rpc("sign_fail_sealing", { p_document: documentId, p_error: message.slice(0, 400) });
+    // a certificate that cannot be used is not a fault of the document: it waits for a valid one, keeping its attempts
+    const waitsForCertificate = err instanceof SignError && CERTIFICATE_HOLD_CODES.has(err.code);
+    await ctx.admin.rpc(waitsForCertificate ? "sign_hold_sealing" : "sign_fail_sealing", { p_document: documentId, p_error: message.slice(0, 400) });
     return { documentId, status: "retry", error: message.slice(0, 200) };
   }
 }
 
 /** Claim up to `limit` documents and seal them. */
+/**
+ * The cron's sealing step: claim ONE document at a time and seal it, until the tick's time budget is used up or `max` documents are
+ * done. Claiming just before sealing means a lease only starts when the work does (claiming several up front started the lease of the
+ * second while the first was still being sealed), and a budget means a heavy document does not hold the tick up for the others. Sealing
+ * is CPU-bound on the one event loop, so it stays sequential. At 4 a tick and one tick a minute that is 240 an hour (docs/doc-sign-load-notes.md).
+ */
+export async function runSealingWithin(
+  base: Omit<SignCtx, "accountId" | "userId">,
+  opts: { budgetMs?: number; max?: number } = {},
+): Promise<{ claimed: number; completed: number; retry: number }> {
+  const budgetMs = opts.budgetMs ?? 20_000;
+  const max = opts.max ?? 4;
+  const started = Date.now();
+  const total = { claimed: 0, completed: 0, retry: 0 };
+  while (total.claimed < max && Date.now() - started < budgetMs) {
+    const one = await runSealing(base, 1);
+    if (one.claimed === 0) break;
+    total.claimed += one.claimed;
+    total.completed += one.completed;
+    total.retry += one.retry;
+  }
+  return total;
+}
+
 export async function runSealing(base: Omit<SignCtx, "accountId" | "userId">, limit = 2): Promise<{ claimed: number; completed: number; retry: number }> {
   const { data, error } = await base.admin.rpc("sign_claim_sealing", { p_limit: limit, p_lease_seconds: 300, p_max_attempts: 5 });
   if (error) {

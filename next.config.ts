@@ -4,6 +4,44 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /**
+ * The Content-Security-Policy, with the extra addresses a route may reach. Only Doc Sign's public registration
+ * page (/r/<slug>) passes any: it may load Cloudflare Turnstile (its script, its frame and its check) when the
+ * operator has set the Turnstile keys; every other route gets the plain policy.
+ */
+function buildCsp(extra: { script?: string; frame?: string; connect?: string } = {}): string {
+  const list = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(" ");
+  return [
+    "default-src 'self'",
+    // Next.js needs 'unsafe-inline' for its inline hydration script
+    // and 'unsafe-eval' in dev + some production optimisations.
+    // Nonce-based CSP is a later project.
+    list("script-src 'self' 'unsafe-inline' 'unsafe-eval'", extra.script),
+    // Tailwind + inline style attributes on lots of components.
+    "style-src 'self' 'unsafe-inline'",
+    // Supabase public-bucket avatars, contact avatars (arbitrary
+    // https URLs paste-able from the UI), OG images, data URLs for
+    // tiny inline assets.
+    "img-src 'self' data: blob: https:",
+    // Outbound media previews (blob: from MediaRecorder + file picker)
+    // and Supabase public-bucket audio/video the inbox renders.
+    "media-src 'self' blob: https://*.supabase.co",
+    "font-src 'self' data:",
+    // Supabase REST + realtime (WSS). All Meta API calls happen
+    // server-side, so graph.facebook.com does not belong here.
+    list("connect-src 'self' https://*.supabase.co wss://*.supabase.co", extra.connect),
+    // The PDF viewer of Doc Sign (pdfjs) runs its parser in a worker from this site.
+    "worker-src 'self' blob:",
+    // Frames fall back to default-src ('self') unless a route names its own.
+    ...(extra.frame ? [list("frame-src", extra.frame)] : []),
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
+/**
  * Baseline security headers applied to every response.
  *
  * CSP ships as `Content-Security-Policy-Report-Only` so the browser
@@ -37,31 +75,7 @@ const SECURITY_HEADERS = [
   },
   {
     key: "Content-Security-Policy-Report-Only",
-    value: [
-      "default-src 'self'",
-      // Next.js needs 'unsafe-inline' for its inline hydration script
-      // and 'unsafe-eval' in dev + some production optimisations.
-      // Nonce-based CSP is a later project.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      // Tailwind + inline style attributes on lots of components.
-      "style-src 'self' 'unsafe-inline'",
-      // Supabase public-bucket avatars, contact avatars (arbitrary
-      // https URLs paste-able from the UI), OG images, data URLs for
-      // tiny inline assets.
-      "img-src 'self' data: blob: https:",
-      // Outbound media previews (blob: from MediaRecorder + file picker)
-      // and Supabase public-bucket audio/video the inbox renders.
-      "media-src 'self' blob: https://*.supabase.co",
-      "font-src 'self' data:",
-      // Supabase REST + realtime (WSS). All Meta API calls happen
-      // server-side, so graph.facebook.com does not belong here.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-      // The PDF viewer of Doc Sign (pdfjs) runs its parser in a worker from this site.
-      "worker-src 'self' blob:",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
+    value: buildCsp(),
   },
 ] as const;
 
@@ -176,6 +190,19 @@ const nextConfig: NextConfig = {
         // policy don't hurt).
         source: "/:path*",
         headers: [...SECURITY_HEADERS],
+      },
+      {
+        // Doc Sign registration pages (/r/<slug>). Listed last on purpose: for the same header key the last matching
+        // rule wins. Each visit is drawn with its own signed form token, so the page must never be shared from a
+        // cache; and it may load Cloudflare Turnstile (an optional check the operator switches on with two keys).
+        source: "/r/:slug*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: buildCsp({ script: TURNSTILE_ORIGIN, frame: TURNSTILE_ORIGIN, connect: TURNSTILE_ORIGIN }),
+          },
+        ],
       },
     ];
   },

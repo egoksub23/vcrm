@@ -21,6 +21,7 @@ import type { ControlProps } from "./control-props";
 import { FileControl, ImageControl } from "./file-control";
 import { useFormLocale, useFormText, useProblemText } from "./form-ui";
 import { ListControl } from "./list-control";
+import { SensitiveControl } from "./sensitive-control";
 import { TextControl } from "./text-control";
 
 /** These are a set of controls under one heading, not one control under a label. */
@@ -89,6 +90,9 @@ export function FieldRow({ field, input, stored, required, unconfirmed, rejectio
         </div>
       </div>
     );
+  } else if (field.sensitive === true) {
+    // an ID number or a bank account: hidden as it is typed (sensitive-control.tsx)
+    body = <SensitiveControl {...control} />;
   } else {
     switch (field.type) {
       case "choice":

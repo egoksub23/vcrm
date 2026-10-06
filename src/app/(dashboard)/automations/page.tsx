@@ -19,6 +19,8 @@ import {
   Sparkles,
   Route,
   TicketCheck,
+  FileSignature,
+  FileCheck,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -55,7 +57,12 @@ const TEMPLATE_ORDER: TemplateSlug[] = [
   "ai_first_response",
   "ai_classify_route",
   "ai_close_summary_ticket",
+  "merchant_onboarding",
+  "merchant_signed_followup",
 ]
+
+/** Recipes for Doc Sign: only offered where Doc Sign is on. */
+const SIGN_RECIPES: TemplateSlug[] = ["merchant_onboarding", "merchant_signed_followup"]
 
 const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   welcome_message: MessageCircle,
@@ -65,11 +72,14 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   ai_first_response: Sparkles,
   ai_classify_route: Route,
   ai_close_summary_ticket: TicketCheck,
+  merchant_onboarding: FileSignature,
+  merchant_signed_followup: FileCheck,
 }
 
 export default function AutomationsPage() {
   const router = useRouter()
   const canCreate = useCapability("automations.manage")
+  const signOn = useCapability("menu.sign")
   const t = useTranslations("Automations.list")
   const tTemplates = useTranslations("Automations.templates")
   const [automations, setAutomations] = useState<Automation[] | null>(null)
@@ -194,7 +204,7 @@ export default function AutomationsPage() {
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("templatesTitle")}</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {TEMPLATE_ORDER.map((slug) => {
+            {TEMPLATE_ORDER.filter((slug) => signOn || !SIGN_RECIPES.includes(slug)).map((slug) => {
               const def = AUTOMATION_TEMPLATES[slug]
               // Localised name and description; the definition's English is the fallback.
               const t = {

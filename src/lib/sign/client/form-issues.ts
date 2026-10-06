@@ -52,6 +52,17 @@ export const FORM_ISSUE_CODES = [
   "placement_type_mismatch",
   "placement_bound_and_fixed",
   "part_without_person",
+  // shared option lists (forms/lists.ts)
+  "bad_list_key",
+  "list_wrong_type",
+  "unknown_list",
+  "list_and_options",
+  "list_empty",
+  // sensitive fields (forms/sensitive.ts)
+  "bad_sensitive",
+  "sensitive_contact_field",
+  "sensitive_default",
+  "sensitive_in_rule",
 ] as const;
 
 /** The soft warnings: the form is valid but probably not what was meant. Messages are under `warnings.<code>`. */

@@ -89,6 +89,118 @@ These guarantees apply to a deployment with several customers (migration 135):
   The flow sweep reads a page at a time and reports `truncated: true` if it ran
   out of time; the next run continues.
 
+## Doc Sign in automations
+
+Doc Sign can start an automation and an automation can send a document. There is one trigger and one step. Both
+need Doc Sign switched on for the workspace (the operator flag `sign`, see `docs/doc-sign-setup.md`); the Add
+step menu and the trigger list only offer them to people who can see Doc Sign (`menu.sign`).
+
+### The trigger: Doc Sign event (`sign_document_event`)
+
+Fires when a document is **sent, viewed, completed, declined, expired or voided**. Configuration:
+
+| Field | Meaning |
+|---|---|
+| `events` | The events that fire it. Empty or missing means **completed only**. |
+| `template_id` | Only documents made from this template (any when empty). |
+| `category_id` | Only documents in this category (any when empty). |
+
+`viewed` fires once per signer, the first time they open their link. The automation runs for the document's
+contact (`contact_id`); a document with no contact still fires it, and steps that need a contact (adding a tag,
+sending a message) then fail in the run log like they would for any contact-less trigger.
+
+What later steps can read:
+
+| Variable | Value |
+|---|---|
+| `{{ sign.document_id }}` | The document's id. |
+| `{{ sign.reference }}` | Its reference, for example `SGN-2026-000123`. |
+| `{{ sign.title }}` | Its title. |
+| `{{ sign.status }}` | Its status after the change (`sent`, `completed`, ...). |
+| `{{ sign.event }}` | Which event fired it. |
+| `{{ sign.template }}` | The template's name (empty if it was not made from one). |
+| `{{ sign.final_sha256 }}` | The fingerprint of the signed file (completed only). |
+| `{{ sign.verify_url }}` | The public page that proves the signed file is genuine (completed only). |
+
+`{{ contact.name }}`, `{{ contact.first_name }}`, `{{ contact.email }}`, `{{ contact.phone }}` and
+`{{ contact.company }}` now work in **every** step that takes text (Send message, Update contact field, Create
+deal, Send webhook, Create ticket), not only in AI steps. They used to come out empty in Send message.
+
+The trigger cannot be fired by hand through `POST /api/automations/engine`: only Doc Sign fires it, with the
+document's real details.
+
+### The step: Send document for signing (`send_sign_document`)
+
+Makes a draft from a template for the triggering contact, fills it in, puts the people on it and sends it. It
+reuses the same services a person's screens use (`createDraftFromTemplate`, `updateDraft`, `setSigners`,
+`sendDocument`), so the monthly limit, the readiness checks, the audit trail and the invitations are the same.
+
+| Field | Meaning |
+|---|---|
+| `template_id` | An **active** template with a saved version. |
+| `title` | Optional; supports variables. Empty = the template's title. |
+| `recipients` | Each: `role_key`, `source` (`contact` or `fixed`), `channel` (`email` or `whatsapp`), and for `fixed` the `full_name`, `email`, `phone` (variables allowed). Every role the template cannot be sent without needs a person. |
+| `merge_values` | `{ "field": "value" }` for the template's merge fields; values may use `{{ contact.* }}`, `{{ vars.* }}` and `{{ sign.* }}`. |
+| `send` | Default on. Off leaves a draft for a person to check and send. |
+| `message`, `locale` | Optional message to the signers, and the document language. |
+
+After it runs, `{{ vars.sign_document_id }}` and `{{ vars.sign_reference }}` hold the document it made.
+The document is linked to the contact and is "created by" the person who owns the automation.
+
+Behaviour worth knowing:
+
+- **Doc Sign says no, the run goes on.** A limit reached, a document that is not ready, a recipient with no
+  valid email, a template that is no longer active: the step is logged as **skipped** with the reason, and the
+  next steps run. If the document had already been made, it stays as a complete draft linked to the contact so
+  a person can fix the cause and send it. A draft that could never be valid (a role the template lacks, a bad
+  merge value) is removed again. Only an unexpected failure (a bug, the database down) fails the run.
+- **Who may build it.** Saving an automation with this step, or switching one on, needs `sign.send` as well as 
+  `automations.manage` (checked on the server in `POST /api/automations` and `PATCH /api/automations/{id}`): it sends 
+  documents in the workspace's name. Switching one off needs only `automations.manage`.
+- **A contact needs an email address.** Doc Sign requires an email for every signer, even when the link goes by
+  WhatsApp. A contact without one is skipped with that message; use a fixed recipient instead.
+- **No second document on a retry.** The step remembers the document in `vars.sign_document_id` (with the
+  contact and template). If the same run reaches the step again, it reuses that document: a sent one is left
+  alone, a draft is sent. Two different runs (the tag added twice) are two documents; delete or void as needed.
+- **Activation checks.** Activating (or keeping active) an automation with this step, or with the trigger, is
+  refused with a clear message when Doc Sign is off for the workspace, the template is missing or not active, a
+  recipient names a role the template does not have, or a required role has no recipient
+  (`signSetupForActivation` in `src/lib/automations/sign-activation.ts`, on the server). Drafts save freely.
+
+### Loops
+
+An automation started by a Doc Sign event can itself send a document, which is another event. The depth is
+carried in `vars._sign_chain_depth` (the same idea as the tag chain) and the trigger stops being dispatched
+after **3** links. The outbound webhook is not affected.
+
+### Outbound webhooks
+
+The same events also go to the workspace's webhook endpoints as `sign.sent`, `sign.viewed`, `sign.completed`,
+`sign.declined`, `sign.expired` and `sign.voided` (see `docs/public-api.md`, "Webhooks"). One emitter,
+`src/lib/sign/service/outbound.ts`, feeds both, from six places: `sendDocument`, `markViewed`, `sealDocument`,
+`declineSigning`, `runExpiry`, `voidDocument`. It runs after the change is committed, after the response where
+there is one, and never throws: a broken endpoint or automation cannot undo a signature. A workspace without Doc
+Sign never emits. The payload holds ids, dates, status, and each signer's name, role, status and signing time.
+**Never an email address, phone number, link token, file address, decline reason or merge value.**
+
+Webhook delivery is the existing single attempt with a 5 second timeout, and an endpoint is switched off after
+15 failures in a row. It is **not** retried: a receiver that is down misses the event, so reconcile with the
+Doc Sign API when it matters.
+
+### Recipes
+
+Two ready-made automations (Automations > the cards at the top, shown where Doc Sign is on):
+
+1. **Merchant onboarding**: trigger *Tag added*, then *Send document for signing* with the contact as the
+   `merchant`. The builder picks the tag named "Merchant applicant" and the template named "Merchant
+   Application" when the workspace has them; otherwise it shows the suggestion.
+2. **Merchant signed follow-up**: trigger *Doc Sign event* (completed), then *Add tag* "Merchant signed",
+   *Create ticket* "Merchant KYC review" (always opened, not skipped when a ticket is open) and a thank-you
+   *Send message* (last, because it needs an existing conversation with the contact).
+
+The recipe system was extended minimally for this: a seed's trigger or step configuration may carry
+`tag_hint` or `template_hint`, a name the builder looks for and picks. The engine and the validators ignore it.
+
 ## Adding a job
 
 Wrap the route with `cronRoute(name, expectedSeconds, handler)` from

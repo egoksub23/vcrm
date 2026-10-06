@@ -10,7 +10,7 @@ import QRCode from "qrcode";
 import { embedFonts, measureRuns, runsFor, type EngineFonts } from "./fonts";
 import { formatDateTime, wrapText, type EngineLocale } from "./format";
 import { openPdf, savePdf } from "./load";
-import type { CertificateData, CertificateLabels } from "./types";
+import type { CertificateData, CertificateEnvelope, CertificateLabels } from "./types";
 
 const A4 = { w: 595.28, h: 841.89 };
 const MARGIN = 48;
@@ -131,6 +131,23 @@ function keyValue(c: Cursor, key: string, value: string, opts: { mono?: boolean 
   c.y = Math.min(y, top - 12) - 3;
 }
 
+/**
+ * Migration 171: "Part of envelope {reference}": the documents signed together, each with its reference and the fingerprint of the file as
+ * sent. Its own block, drawn between the document's fingerprints and the signers; certificates of documents on their own never reach it.
+ */
+function envelopeBlock(c: Cursor, e: CertificateEnvelope) {
+  section(c, e.heading);
+  paragraph(c, e.note, { size: 8.5, color: MUTED, gap: 4 });
+  for (const d of e.documents) {
+    c.ensure(52);
+    c.y -= 4;
+    paragraph(c, `${d.number}. ${d.title}${d.current ? `  (${e.hereLabel})` : ""}`, { size: 9.5, font: c.fonts.bold });
+    keyValue(c, e.referenceLabel, d.reference);
+    if (d.sha256) keyValue(c, e.sha256Label, d.sha256, { mono: true });
+  }
+  rule(c);
+}
+
 export interface CertificateResult {
   bytes: Uint8Array;
   /** Number of pages added. */
@@ -197,6 +214,8 @@ export async function appendCertificate(
   keyValue(c, L.chainHead, data.chainHead, { mono: true });
   keyValue(c, L.verify, data.verifyUrl);
   rule(c);
+
+  if (data.envelope) envelopeBlock(c, data.envelope);
 
   // Signers
   section(c, L.signers);

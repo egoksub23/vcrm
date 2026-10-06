@@ -12,6 +12,8 @@ import { useApprovalsCount } from "@/hooks/use-approvals-count";
 import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { useMyTicketMentions } from "@/hooks/use-my-ticket-mentions";
 import { TicketsWaitingBadge } from "@/components/tickets/tickets-waiting-badge";
+import { AwaitingBadge } from "@/components/sign/awaiting-badge";
+import { useAwaitingSignature } from "@/hooks/use-sign-shortcuts";
 import { badgeLabel } from "@/lib/approvals/rules";
 import {
   BarChart3,
@@ -204,6 +206,8 @@ export function Sidebar({
   // Tickets where someone asked this person for a response and it is still open
   // (migration 095). Nothing is fetched for a role that cannot open Tickets.
   const { count: ticketsWaiting } = useMyTicketMentions(!capabilitiesLoading && hasCap("menu.tickets"));
+  // Doc Sign documents whose turn it is for this person, who is a Halo user named on them (sign.sign). Nothing is fetched for a role without it.
+  const { count: signAwaiting } = useAwaitingSignature(!capabilitiesLoading && hasCap("menu.sign") && hasCap("sign.sign"));
 
   // Only matters at lg+ — mobile always shows the full drawer regardless
   // of `pinned`. Tracked via matchMedia rather than a CSS-only approach
@@ -433,6 +437,7 @@ export function Sidebar({
                       </span>
                     )}
                     {showTicketsBadge && <TicketsWaitingBadge count={ticketsWaiting} />}
+                    {item.href === "/sign" && signAwaiting > 0 && <AwaitingBadge count={signAwaiting} />}
                   </Link>
                 </li>
               );

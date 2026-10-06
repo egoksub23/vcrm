@@ -16,6 +16,7 @@ import type { SigningView } from "@/lib/sign/service/signing";
 
 import { DocumentIntro } from "./document-intro";
 import { DocumentPages } from "./document-pages";
+import { EnvelopeIntro } from "./envelope-bar";
 import { useErrorText } from "./errors";
 import type { ActionResult } from "./use-signer";
 
@@ -28,6 +29,8 @@ interface ConsentStepProps {
 
 export function ConsentStep({ token, view, onAgree, onDecline }: ConsentStepProps) {
   const t = useTranslations("Sign.signer");
+  // a form without a signature has no document to read first, and nothing to sign (migration 169)
+  const formOnly = view.document.mode === "form";
   const errorText = useErrorText();
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,13 +50,13 @@ export function ConsentStep({ token, view, onAgree, onDecline }: ConsentStepProp
 
   return (
     <div className="space-y-6">
-      <DocumentIntro document={view.document} />
+      {view.envelope ? <EnvelopeIntro envelope={view.envelope} fill={view.document.mode === "form" && view.signer.kind === "filler"} /> : <DocumentIntro document={view.document} />}
 
       <section className="space-y-4 rounded-xl border bg-card p-4" aria-labelledby="consent-title">
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("consent.before")}</p>
           <h2 id="consent-title" className="text-lg font-semibold">
-            {t("consent.title")}
+            {formOnly ? t("consent.titleForm") : t("consent.title")}
           </h2>
         </div>
         <p className="whitespace-pre-line text-sm leading-relaxed">{view.consent.text}</p>
@@ -78,25 +81,30 @@ export function ConsentStep({ token, view, onAgree, onDecline }: ConsentStepProp
         </Button>
       </section>
 
-      <div className="flex flex-col items-start gap-1">
-        <button
-          type="button"
-          aria-expanded={reading}
-          className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-primary underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          onClick={() => setReading((r) => !r)}
-        >
-          {reading ? t("consent.hideDocument") : t("consent.readFirst")}
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-          onClick={onDecline}
-        >
-          {t("fill.decline")}
-        </button>
-      </div>
+      {/* a person handed one part of the form is not shown the document, and cannot end it */}
+      {view.delegate ? null : (
+        <div className="flex flex-col items-start gap-1">
+          {formOnly ? null : (
+            <button
+              type="button"
+              aria-expanded={reading}
+              className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-primary underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              onClick={() => setReading((r) => !r)}
+            >
+              {reading ? t("consent.hideDocument") : t("consent.readFirst")}
+            </button>
+          )}
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={onDecline}
+          >
+            {formOnly ? t("fill.declineForm") : t("fill.decline")}
+          </button>
+        </div>
+      )}
 
-      {reading ? <DocumentPages url={signerFileUrl(token)} /> : null}
+      {reading && !view.delegate && !formOnly ? <DocumentPages url={signerFileUrl(token)} /> : null}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export type LibraryCategory = Pick<SignCategoryRow, "id" | "name" | "archived" |
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; templates: LibraryTemplate[]; categories: LibraryCategory[] };
 
-const TEMPLATE_COLUMNS = "id, name, description, category_id, status, tags, addon_key, addon_version, customised, updated_at";
+const TEMPLATE_COLUMNS = "id, name, description, category_id, status, tags, addon_key, addon_version, customised, updated_at, mode";
 
 export function useTemplateLibrary() {
   const [state, setState] = useState<State>({ status: "loading" });

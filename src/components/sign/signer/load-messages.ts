@@ -17,7 +17,7 @@ const LOCALES: SignerLocale[] = ["en", "ms", "zh", "ko"];
 
 const isTree = (v: unknown): v is Tree => typeof v === "object" && v !== null && !Array.isArray(v);
 
-function signSubtree(catalogue: unknown, name: "signer" | "signerForm" | "verify"): Tree | null {
+function signSubtree(catalogue: unknown, name: "signer" | "signerForm" | "verify" | "register"): Tree | null {
   if (!isTree(catalogue)) return null;
   const sign = catalogue.Sign;
   if (!isTree(sign)) return null;
@@ -34,15 +34,16 @@ async function catalogue(locale: SignerLocale): Promise<unknown> {
 }
 
 /**
- * The page's messages in every language it offers. The verify page (the QR code on a certificate) shares
- * the signing page's frame and error words, and adds its own `Sign.verify` subtree on request, so the
- * signing page does not carry words it never shows.
+ * The page's messages in every language it offers. The verify page (the QR code on a certificate) and the
+ * registration page share the signing page's frame and error words, and add their own `Sign.verify` or
+ * `Sign.register` subtree on request, so the signing page does not carry words it never shows.
  */
-export async function loadSignerMessages(opts: { verify?: boolean } = {}): Promise<Record<SignerLocale, AbstractIntlMessages>> {
+export async function loadSignerMessages(opts: { verify?: boolean; register?: boolean } = {}): Promise<Record<SignerLocale, AbstractIntlMessages>> {
   const en = await catalogue("en");
   const english = signSubtree(en, "signer") ?? {};
   const englishForm = signSubtree(en, "signerForm") ?? {};
   const englishVerify = signSubtree(en, "verify") ?? {};
+  const englishRegister = signSubtree(en, "register") ?? {};
   const out = {} as Record<SignerLocale, AbstractIntlMessages>;
   for (const locale of LOCALES) {
     const other = locale === "en" ? en : await catalogue(locale);
@@ -50,6 +51,7 @@ export async function loadSignerMessages(opts: { verify?: boolean } = {}): Promi
     const signerForm = locale === "en" ? englishForm : mergeMessages(englishForm, signSubtree(other, "signerForm") ?? {});
     const sign: Tree = { signer, signerForm };
     if (opts.verify) sign.verify = locale === "en" ? englishVerify : mergeMessages(englishVerify, signSubtree(other, "verify") ?? {});
+    if (opts.register) sign.register = locale === "en" ? englishRegister : mergeMessages(englishRegister, signSubtree(other, "register") ?? {});
     out[locale] = { Sign: sign } as AbstractIntlMessages;
   }
   return out;

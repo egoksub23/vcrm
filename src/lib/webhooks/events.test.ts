@@ -38,3 +38,24 @@ describe('normalizeEvents', () => {
     expect(normalizeEvents([])).toBeNull();
   });
 });
+
+describe('Doc Sign events', () => {
+  const SIGN = ['sign.sent', 'sign.viewed', 'sign.completed', 'sign.declined', 'sign.expired', 'sign.voided'];
+
+  it('are part of the vocabulary, each with a description', () => {
+    for (const e of SIGN) {
+      expect(isWebhookEvent(e)).toBe(true);
+      expect(WEBHOOK_EVENT_DESCRIPTIONS[e as keyof typeof WEBHOOK_EVENT_DESCRIPTIONS]).toBeTruthy();
+    }
+  });
+
+  it('can be subscribed to, next to the older events', () => {
+    expect(normalizeEvents(['sign.completed', 'message.received', 'sign.completed'])).toEqual(['sign.completed', 'message.received']);
+    expect(normalizeEvents(['sign.opened'])).toBeNull();
+  });
+
+  it('match the names the automation trigger uses, one for one', async () => {
+    const { SIGN_EVENT_NAMES } = await import('@/lib/automations/sign-event');
+    expect(SIGN_EVENT_NAMES.map((n) => `sign.${n}`)).toEqual(SIGN);
+  });
+});

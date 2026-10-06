@@ -9,13 +9,24 @@
 
 import { createHash } from "node:crypto";
 
-import type { SignLocale } from "./types";
+import type { SignLocale, SignMode } from "./types";
 
 export const DEFAULT_CONSENT: Record<SignLocale, string> = {
   en: "I agree to use electronic records and signatures for this document. I confirm that I have read it, that what I enter is correct, and that my electronic signature has the same effect as a handwritten signature to the extent the law allows. If I prefer a paper copy, I will tell the sender.",
   ms: "Saya bersetuju menggunakan rekod dan tandatangan elektronik untuk dokumen ini. Saya mengesahkan bahawa saya telah membacanya, maklumat yang saya masukkan adalah betul, dan tandatangan elektronik saya mempunyai kesan yang sama seperti tandatangan tulisan tangan setakat yang dibenarkan oleh undang-undang. Jika saya lebih suka salinan bercetak, saya akan memaklumkan kepada penghantar.",
   zh: "我同意就本文件使用电子记录和电子签名。我确认已阅读本文件，所填内容准确无误，并且在法律允许的范围内，我的电子签名与手写签名具有同等效力。如需纸质副本，我会告知发件人。",
   ko: "저는 이 문서에 전자 기록과 전자 서명을 사용하는 데 동의합니다. 문서를 읽었고 입력한 내용이 정확하며, 법이 허용하는 범위에서 제 전자 서명이 수기 서명과 같은 효력을 가진다는 점을 확인합니다. 종이 사본을 원하면 발신자에게 알리겠습니다.",
+};
+
+/**
+ * The wording for a form without a signature (migration 169): the person submits details, nothing is signed, so it speaks of
+ * submitting electronically. Same standing as the default above: a starting point, not yet read by counsel.
+ */
+export const DEFAULT_CONSENT_FORM: Record<SignLocale, string> = {
+  en: "I agree to use electronic records to submit this form. I confirm that what I enter is correct and complete, and that my electronic submission has the same effect as a paper form to the extent the law allows. If I prefer a paper form, I will tell the sender.",
+  ms: "Saya bersetuju menggunakan rekod elektronik untuk menghantar borang ini. Saya mengesahkan bahawa maklumat yang saya masukkan adalah betul dan lengkap, dan penghantaran elektronik saya mempunyai kesan yang sama seperti borang bercetak setakat yang dibenarkan oleh undang-undang. Jika saya lebih suka borang bercetak, saya akan memaklumkan kepada penghantar.",
+  zh: "我同意使用电子记录提交本表格。我确认所填内容准确完整，并且在法律允许的范围内，我的电子提交与纸质表格具有同等效力。如需纸质表格，我会告知发件人。",
+  ko: "저는 이 양식을 제출하는 데 전자 기록을 사용하는 데 동의합니다. 입력한 내용이 정확하고 완전하며, 법이 허용하는 범위에서 제 전자 제출이 종이 양식과 같은 효력을 가진다는 점을 확인합니다. 종이 양식을 원하면 발신자에게 알리겠습니다.",
 };
 
 export interface Consent {
@@ -25,11 +36,17 @@ export interface Consent {
   custom: boolean;
 }
 
-/** The wording and version to show for a document in `locale`, given the workspace's own texts if it set any. */
-export function consentFor(custom: Record<string, string> | null | undefined, locale: SignLocale): Consent {
+/**
+ * The wording and version to show for a document in `locale`, given the workspace's own texts if it set any (they apply to both kinds of
+ * document: a workspace that wrote its own wording stands behind it). Without one, a form without a signature (`mode` "form") has its
+ * own default, which says "submit" and not "sign".
+ */
+export function consentFor(custom: Record<string, string> | null | undefined, locale: SignLocale, mode: SignMode = "sign"): Consent {
   const own = custom?.[locale]?.trim();
   if (own) {
     return { text: own, custom: true, version: `custom-${locale}-${createHash("sha256").update(own, "utf8").digest("hex").slice(0, 10)}` };
   }
-  return { text: DEFAULT_CONSENT[locale] ?? DEFAULT_CONSENT.en, custom: false, version: `default-v1-${locale in DEFAULT_CONSENT ? locale : "en"}` };
+  const known = locale in DEFAULT_CONSENT ? locale : "en";
+  if (mode === "form") return { text: DEFAULT_CONSENT_FORM[known], custom: false, version: `default-form-v1-${known}` };
+  return { text: DEFAULT_CONSENT[locale] ?? DEFAULT_CONSENT.en, custom: false, version: `default-v1-${known}` };
 }

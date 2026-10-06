@@ -2,7 +2,7 @@
 title: Prepare the fields
 description: Place signature, text, date and other fields on the pages, give each to a role, and check the layout before sending.
 order: 3
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 Fields are the boxes on the pages that people sign or fill in. You place them once, give each one to a **role**, and then match the roles to real people on the **People** step.
@@ -50,6 +50,23 @@ You can move, resize, copy and delete a field, and nudge it with the arrow keys.
 
 Some values can be filled in before sending, for example from the contact. The **Fields** step shows a panel for these values.
 
+## Replace the file of a draft
+
+Uploaded the wrong version, or the customer sent a corrected file? On a **draft** you do not have to start again. In the Fields step, click **Replace file** and choose the new PDF, Word file or image.
+
+Before anything changes, Doc Sign tells you what would happen:
+
+- how many pages the new file has, and how many the old one had
+- **fields that keep their place**: the page is still there and is the same size, so the field stays exactly where you put it
+- **fields that need a look**: a field whose page is no longer in the new file is moved to the last page so you can still find it; a field on a page that is a different size or shape (A4 became Letter, portrait became landscape) stays where it is but may no longer line up
+
+Click **Replace file** to go ahead, or **Cancel** to change nothing. The roles, the people, the options and the form are not touched. The Problems list in the editor then shows anything left to fix, and nothing can be sent until it is fixed.
+
+> [!IMPORTANT]
+> Only a draft can have its file replaced. Once a document is sent its file is fixed. Cancel it and send a new one.
+
+The replacement is recorded in the document's history ("replaced the file of the draft").
+
 ## Check it before you send
 
 The editor checks the layout as you work. It tells you about a field with no role, a role with no signature field, or a field that falls off the page. On the **Review** step, the same checks stop you from sending until they are fixed.
@@ -67,6 +84,7 @@ Every signer needs a signature or an initials field. A filler does not.
 - **Giving a field to the wrong role.** The person only sees the fields of their own role. Check the colours.
 - **Forgetting a signature field for one of the signers.** The review tells you and takes you back to the fields.
 - **Placing fields on a Word file before checking the converted pages.** Look at every page first: the conversion can move text.
+- **Replacing the file and not checking the flagged fields.** When the new file has fewer pages or other page sizes, open each flagged field and put it right.
 
 ## Related pages
 

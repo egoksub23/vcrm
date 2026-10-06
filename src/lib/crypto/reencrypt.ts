@@ -37,6 +37,8 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedTable[] = [
   { table: 'web_widget_config', pk: 'id', columns: ['identity_secret_enc'] },
   { table: 'vircle_chat_config', pk: 'id', columns: ['signing_secret', 'api_token'] },
   { table: 'sign_certificates', pk: 'id', columns: ['p12_enc', 'passphrase_enc'] },
+  // a form field marked sensitive (migration 168): the answer, encrypted; the other rows of the table have NULL here
+  { table: 'sign_answers', pk: 'id', columns: ['value_enc'] },
 ]
 
 const PAGE = 200

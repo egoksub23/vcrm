@@ -390,7 +390,15 @@ export type NotificationType =
   /** Migration 159: a Doc Sign document the recipient sent was signed by everyone / declined / expired. */
   | 'sign_completed'
   | 'sign_declined'
-  | 'sign_expired';
+  | 'sign_expired'
+  /** Migration 166: a signer on a Doc Sign document the recipient sent forwarded their turn to someone else. */
+  | 'sign_forwarded'
+  /** Migration 165: the sealing certificate a workspace uploaded ends soon (30, 14, 7 days) or has ended; sent to the administrators. */
+  | 'sign_certificate_expiring'
+  /** Migration 167: it is the recipient's turn to sign a Doc Sign document (they are a Halo user on it). */
+  | 'sign_your_turn'
+  /** Migration 173: a bulk batch the recipient started has finished (or was stopped by the system). Carries no document. */
+  | 'sign_bulk_done';
 
 export interface Notification {
   id: string;
@@ -1168,7 +1176,11 @@ export type AutomationTriggerType =
   | 'interactive_reply'
   /** A conversation was closed (by an agent, in bulk, or by an automation).
    *  Dispatched from one server-side place: `closeConversation`. */
-  | 'conversation_closed';
+  | 'conversation_closed'
+  /** A Doc Sign document was sent, viewed, completed, declined, expired or
+   *  voided. Dispatched from one server-side place: `emitSignEvent`
+   *  (src/lib/sign/service/outbound.ts). */
+  | 'sign_document_event';
 
 export type AutomationStepType =
   | 'send_message'
@@ -1195,7 +1207,9 @@ export type AutomationStepType =
   | 'ai_extract'
   | 'ai_summarize'
   | 'ai_translate'
-  | 'create_ticket';
+  | 'create_ticket'
+  /** Prepare and send a Doc Sign document from a template (docs/automations-and-cron.md). */
+  | 'send_sign_document';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -1421,6 +1435,44 @@ export interface CreateTicketStepConfig {
   skip_if_open?: boolean;
 }
 
+/** What happened to a Doc Sign document (the `sign.<event>` webhooks carry the same names). */
+export type SignEventName = 'sent' | 'viewed' | 'completed' | 'declined' | 'expired' | 'voided';
+
+export interface SignDocumentEventTriggerConfig {
+  /** Which events fire it. Empty or missing = completed only. */
+  events?: SignEventName[];
+  /** Only documents made from this template (any when empty). */
+  template_id?: string | null;
+  /** Only documents in this category (any when empty). */
+  category_id?: string | null;
+}
+
+export interface SendSignDocumentRecipient {
+  /** A role of the template, e.g. `merchant`. */
+  role_key: string;
+  /** `contact`: the triggering contact's name, email and phone. `fixed`: the details below. */
+  source: 'contact' | 'fixed';
+  /** Fixed recipients only. Variables such as {{ contact.name }} work. */
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  channel: 'email' | 'whatsapp';
+}
+
+export interface SendSignDocumentStepConfig {
+  template_id: string;
+  /** Document title; supports variables. The template's own title when empty. */
+  title?: string;
+  recipients: SendSignDocumentRecipient[];
+  /** Values for the template's merge fields; values support {{ contact.* }} and {{ vars.* }}. */
+  merge_values: Record<string, string>;
+  /** Send it now (default). Off = leave it as a draft for a person to check and send. */
+  send?: boolean;
+  /** A message shown to the signers; supports variables. */
+  message?: string;
+  locale?: 'en' | 'ms' | 'zh' | 'ko';
+}
+
 export interface SendWebhookStepConfig {
   url: string;
   headers?: Record<string, string>;
@@ -1455,6 +1507,7 @@ export type AutomationStepConfig =
   | AiSummarizeStepConfig
   | AiTranslateStepConfig
   | CreateTicketStepConfig
+  | SendSignDocumentStepConfig
   | Record<string, never>
   | Record<string, unknown>;
 

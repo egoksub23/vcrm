@@ -30,6 +30,8 @@ interface FormStepProps {
   start: { part?: string; field?: string; nonce: number };
   /** The person only fills in: their last step is Submit, and they never see the document to sign. */
   filler: boolean;
+  /** A form without a signature (migration 169): the last step is "Review and submit", and the decline link says so. */
+  formOnly?: boolean;
   onChange: (key: string, input: DataAnswerInput) => void;
   onUpload: (key: string, file: File, onProgress?: (fraction: number) => void) => Promise<void>;
   onRemoveUpload: (key: string, fileId: string) => Promise<void>;
@@ -39,10 +41,15 @@ interface FormStepProps {
   onReview: () => void;
   /** Send the answers (a filler). */
   onSubmit: () => Promise<ActionResult>;
-  onDecline: () => void;
+  /** Absent for a person who was handed a part (they cannot end the document). */
+  onDecline?: () => void;
+  /** Forwarding (F-95): the parts this person handed over, forwarding a part, and taking one back. */
+  delegations?: Record<string, { name: string; done: boolean }>;
+  onForwardPart?: (partKey: string) => void;
+  onTakeBack?: (partKey: string) => Promise<void>;
 }
 
-export function FormStep({ title, form, locale, saveState, rejected, notice, start, filler, onChange, onUpload, onRemoveUpload, onConfirmPart, onFlush, onReview, onSubmit, onDecline }: FormStepProps) {
+export function FormStep({ title, form, locale, saveState, rejected, notice, start, filler, formOnly, onChange, onUpload, onRemoveUpload, onConfirmPart, onFlush, onReview, onSubmit, onDecline, delegations, onForwardPart, onTakeBack }: FormStepProps) {
   const t = useTranslations("Sign.signerForm");
   const ts = useTranslations("Sign.signer");
   const errorText = useErrorText();
@@ -74,7 +81,7 @@ export function FormStep({ title, form, locale, saveState, rejected, notice, sta
         rejected={rejected}
         notice={words}
         start={start.part ? { part: start.part, field: start.field } : undefined}
-        finalAction={filler ? "submit" : "review"}
+        finalAction={formOnly ? "reviewSubmit" : filler ? "submit" : "review"}
         reviewLocked={!form.ready}
         onChange={(key, input) => {
           setSubmitError(null);
@@ -84,17 +91,22 @@ export function FormStep({ title, form, locale, saveState, rejected, notice, sta
         onRemoveUpload={onRemoveUpload}
         onConfirmPart={onConfirmPart}
         onFlush={onFlush}
-        onReview={filler ? () => void submit() : onReview}
+        onReview={filler && !formOnly ? () => void submit() : onReview}
+        delegations={delegations}
+        onForwardPart={onForwardPart}
+        onTakeBack={onTakeBack}
       />
-      <div className="text-center">
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-          onClick={onDecline}
-        >
-          {ts("fill.decline")}
-        </button>
-      </div>
+      {onDecline ? (
+        <div className="text-center">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={onDecline}
+          >
+            {formOnly ? ts("fill.declineForm") : ts("fill.decline")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

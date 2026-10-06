@@ -7,7 +7,8 @@ import type { DocumentStatus } from "../types";
 
 export const PAGE_SIZE = 25;
 
-export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "stopped"] as const;
+// "test" is the documents sent from a template to try it out (F-10): every status, but only the tests. The other groups include them, marked.
+export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "stopped", "test"] as const;
 export type StatusGroup = (typeof STATUS_GROUPS)[number];
 
 /** The statuses in each group; `null` is "every status". */
@@ -18,6 +19,7 @@ export const GROUP_STATUSES: Record<StatusGroup, readonly DocumentStatus[] | nul
   waiting: ["sent", "in_progress", "sealing"],
   completed: ["completed"],
   stopped: ["declined", "expired", "voided", "failed"],
+  test: null,
 };
 
 /** The category filter: every category, none, or one. */
@@ -27,18 +29,41 @@ export interface ListFilters {
   group: StatusGroup;
   category: CategoryFilter;
   search: string;
+  /** `YYYY-MM-DD`: documents made on or after this day (in the workspace's time zone). Empty or absent: no start. */
+  from?: string;
+  /** `YYYY-MM-DD`: documents made on or before this day. Empty or absent: no end. */
+  to?: string;
+  /** Only the documents of this contact. Null or absent: every contact. */
+  contactId?: string | null;
 }
 
 export const EMPTY_FILTERS: ListFilters = { group: "all", category: "all", search: "" };
 
 /** True when anything narrows the list. */
 export function isFiltered(f: ListFilters): boolean {
-  return f.group !== "all" || f.category !== "all" || sanitizeSearch(f.search) !== "";
+  return f.group !== "all" || f.category !== "all" || sanitizeSearch(f.search) !== "" || !!validDay(f.from) || !!validDay(f.to) || !!f.contactId;
 }
+
+const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** A `YYYY-MM-DD` that is a real calendar day, else an empty string (a half-typed or impossible date is no filter). */
+export function validDay(v: string | null | undefined): string {
+  const m = v ? DAY_RE.exec(v) : null;
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]) ? (v as string) : "";
+}
+
+/** True when both days are set and the start is after the end: nothing can match, so the screen says so instead of showing an empty list. */
+export const rangeIsBackwards = (f: Pick<ListFilters, "from" | "to">): boolean => {
+  const a = validDay(f.from);
+  const b = validDay(f.to);
+  return a !== "" && b !== "" && a > b;
+};
 
 /** A stable string for "the same filters", to know when the list must start again. */
 export function filtersKey(f: ListFilters): string {
-  return `${f.group}|${f.category}|${sanitizeSearch(f.search).toLowerCase()}`;
+  return `${f.group}|${f.category}|${sanitizeSearch(f.search).toLowerCase()}|${validDay(f.from)}|${validDay(f.to)}|${f.contactId ?? ""}`;
 }
 
 /**

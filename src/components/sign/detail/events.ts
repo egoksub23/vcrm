@@ -36,6 +36,8 @@ export interface DescribeContext {
   /** Used when a name cannot be found (a signer who was replaced, a teammate who left). */
   someone: string;
   teammate: string;
+  /** Who a person was when the event happened (a turn that was forwarded keeps the forwarder's name on what the forwarder did). */
+  nameAt?: (signerId: string | null, at: string) => string | null;
   /** Forms: the title of a part of the document's form in the reader's language, or null when it is not known. */
   partTitle?: (partKey: string) => string | null;
   /** Forms: the label of a data field of the form, or null. */
@@ -44,6 +46,8 @@ export interface DescribeContext {
   contactId?: string | null;
   /** Forms: a day in the reader's language and time zone (the new expiry). */
   formatDay?: (iso: string) => string;
+  /** `form` for a form without a signature (migration 169): the history says "submitted" and "the form", never "signed". */
+  mode?: string | null;
 }
 
 export type DetailKind = "ip" | "device" | "consent" | "fingerprint" | "channel" | "delivery" | "error";
@@ -80,6 +84,8 @@ export interface EventLine {
 }
 
 const KNOWN: ReadonlySet<string> = new Set<EventType>(EVENT_TYPES);
+/** The events a form without a signature words differently (`events.<type>Form`). */
+const FORM_WORDED: ReadonlySet<string> = new Set(["created", "sent", "viewed", "consented", "submitted", "declined", "sealed", "completed", "downloaded"]);
 const FAILURES: ReadonlySet<string> = new Set(["delivery_failed", "code_failed", "seal_failed", "seal_attempt_failed"]);
 const MINOR: ReadonlySet<string> = new Set(["saved"]);
 /** Events of a form: worded under `Sign.progress.events`. */
@@ -117,17 +123,41 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
   const detail = row.detail ?? {};
   const signer = ctx.signers.find((s) => s.id === row.signer_id) ?? null;
   const person = row.actor_type === "user" ? ctx.userName(row.actor_user_id) : null;
-  const actor = signer?.full_name ?? ctx.someone;
+  const signerName = ctx.nameAt?.(row.signer_id, row.created_at) ?? signer?.full_name ?? null;
+  const actor = signerName ?? ctx.someone;
   const sender = person ?? ctx.teammate;
   const values: Record<string, string> = { actor, sender, type: row.type };
 
   let key = KNOWN.has(row.type) ? `events.${row.type}` : "events.unknown";
-  if (row.type === "invited" && ctx.signInOrder) {
+  // a form without a signature: the same event in its own words (the database also marks `sent` and `consented` with `mode`)
+  if (FORM_WORDED.has(row.type) && (ctx.mode === "form" || ((row.type === "sent" || row.type === "consented") && detail.mode === "form"))) key = `events.${row.type}Form`;
+  if (row.type === "invited" && detail.because === "step_finished") {
+    // a step with several people: invited because the whole previous step finished
+    key = "events.invitedAfterStep";
+  } else if (row.type === "invited" && detail.because === "signer_finished" && text(detail.finished_name, 160)) {
+    key = "events.invitedAfter";
+    values.previous = text(detail.finished_name, 160) as string;
+  } else if (row.type === "invited" && ctx.signInOrder) {
     const before = previousSigner(ctx.signers, row.signer_id);
     if (before) {
       key = "events.invitedAfter";
       values.previous = before.full_name;
     }
+  } else if (row.type === "forwarded" || row.type === "part_forwarded" || row.type === "part_taken_back") {
+    // forwarding (migration 166): names only; the address in the detail is masked and not worded here
+    values.from = text(detail.from_name, 160) ?? actor;
+    values.to = text(detail.to_name, 160) ?? ctx.someone;
+    const partKey = text(detail.part, 80);
+    values.part = partKey ? (ctx.partTitle?.(partKey) ?? partKey) : "";
+  } else if (row.type === "envelope_sent" || row.type === "envelope_completed" || row.type === "envelope_declined") {
+    // an envelope (migration 171): its reference and size, and who declined it; the document's own events are worded as ever
+    values.reference = text(detail.reference, 40) ?? "";
+    values.count = typeof detail.count === "number" ? String(detail.count) : "";
+    values.by = text(detail.by_name, 160) ?? actor;
+  } else if (row.type === "signer_moved") {
+    values.step = typeof detail.to_step === "number" ? String(detail.to_step) : "";
+  } else if (row.type === "forwarding_changed") {
+    if (typeof detail.allow === "boolean") key = detail.allow ? "events.forwarding_on" : "events.forwarding_off";
   } else if (row.type === "recipient_changed") {
     const from = text(detail.from_email, 200);
     const to = text(detail.to_email, 200);
@@ -136,6 +166,9 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
       values.from = from;
       values.to = to;
     }
+  } else if (row.type === "code_verified" && detail.method === "halo_login") {
+    // a Halo user who opened their own turn from inside Halo (service/countersign.ts): identified by their sign-in, no code
+    key = "events.code_verified_halo";
   } else if (row.type === "delivery_failed" && detail.kind === "completed") {
     // A copy for the sender has no signer on the row.
     key = signer ? "events.delivery_failedCompleted" : "events.delivery_failedCompletedSender";
@@ -169,6 +202,14 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     if (row.type === "writeback" && contactId) link = { kind: "contact", id: contactId };
   }
 
+  // a sender revealed a sensitive answer: which field, never what it held (the event carries only the field's key)
+  if (row.type === "sensitive_viewed") {
+    const fieldKey = firstText(detail.field, detail.field_key);
+    const field = fieldKey ? (ctx.fieldLabel?.(fieldKey) ?? fieldKey) : null;
+    values.field = field ?? "";
+    values.hasField = field ? "yes" : "no";
+  }
+
   const details: EventDetail[] = [];
   const add = (kind: DetailKind, value: string | null) => {
     if (value) details.push({ kind, value });
@@ -193,7 +234,7 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     ns: FORM_EVENTS.has(row.type) ? "progress" : "detail",
     values,
     actorType: row.actor_type,
-    actorName: person ?? (row.actor_type === "signer" ? signer?.full_name ?? null : null),
+    actorName: person ?? (row.actor_type === "signer" ? signerName : null),
     failed: FAILURES.has(row.type),
     minor: MINOR.has(row.type),
     reason: row.type === "declined" || row.type === "voided" ? text(detail.reason, 1000) : null,

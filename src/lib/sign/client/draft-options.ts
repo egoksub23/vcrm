@@ -12,6 +12,9 @@ export interface DraftOptions {
   title: string;
   categoryId: string | null;
   contactId: string | null;
+  /** F-51: the ticket and the deal this document is attached to (absent: none). */
+  ticketId?: string | null;
+  dealId?: string | null;
   locale: SignLocale;
   message: string;
   /** `YYYY-MM-DD` in the sender's own calendar, or "" to use the default. */
@@ -20,6 +23,8 @@ export interface DraftOptions {
   reminderText: string;
   codeRequired: boolean;
   signInOrder: boolean;
+  /** Forwarding (F-95): the people on the document may hand their turn, or a part of the form, to someone else. */
+  allowForwarding: boolean;
 }
 
 /** What `PATCH /api/sign/documents/:id` takes (a subset of DraftPatch). */
@@ -27,11 +32,14 @@ export interface OptionsPatch {
   title?: string;
   categoryId?: string | null;
   contactId?: string | null;
+  ticketId?: string | null;
+  dealId?: string | null;
   locale?: string;
   message?: string | null;
   expiresAt?: string | null;
   signInOrder?: boolean;
   codeRequired?: boolean;
+  allowForwarding?: boolean;
   reminderDays?: number[];
 }
 
@@ -68,12 +76,15 @@ export function optionsFromDocument(doc: SignDocumentRow): DraftOptions {
     title: doc.title,
     categoryId: doc.category_id,
     contactId: doc.contact_id,
+    ticketId: doc.ticket_id ?? null,
+    dealId: doc.deal_id ?? null,
     locale: SIGN_LOCALES.includes(doc.locale) ? doc.locale : "en",
     message: doc.message ?? "",
     expiryDate: toDateInput(doc.expires_at),
     reminderText: reminderText(doc.reminder_days),
     codeRequired: doc.code_required,
     signInOrder: doc.sign_in_order,
+    allowForwarding: !!doc.allow_forwarding,
   };
 }
 
@@ -110,6 +121,8 @@ export function optionsPatch(saved: DraftOptions, next: DraftOptions, now: Date)
   if (!flags.title && next.title.trim() !== saved.title.trim()) patch.title = next.title.trim();
   if (next.categoryId !== saved.categoryId) patch.categoryId = next.categoryId;
   if (next.contactId !== saved.contactId) patch.contactId = next.contactId;
+  if ((next.ticketId ?? null) !== (saved.ticketId ?? null)) patch.ticketId = next.ticketId ?? null;
+  if ((next.dealId ?? null) !== (saved.dealId ?? null)) patch.dealId = next.dealId ?? null;
   if (next.locale !== saved.locale) patch.locale = next.locale;
   if (!flags.message && next.message.trim() !== saved.message.trim()) patch.message = next.message.trim() === "" ? null : next.message.trim();
   if (next.expiryDate !== saved.expiryDate) {
@@ -122,6 +135,7 @@ export function optionsPatch(saved: DraftOptions, next: DraftOptions, now: Date)
   }
   if (next.codeRequired !== saved.codeRequired) patch.codeRequired = next.codeRequired;
   if (next.signInOrder !== saved.signInOrder) patch.signInOrder = next.signInOrder;
+  if (next.allowForwarding !== saved.allowForwarding) patch.allowForwarding = next.allowForwarding;
   return patch;
 }
 

@@ -12,7 +12,7 @@ import { AlertTriangle, Ban, CalendarX, CheckCircle2, Clock, Download, ExternalL
 import { useLocale, useTranslations } from "next-intl";
 
 import { signerFileUrl } from "@/lib/sign/client/api";
-import { describeOthers, othersStillToSign, type OtherKind } from "@/lib/sign/client/signer-flow";
+import { describeOthers, othersStillToSign, waitingOnNames, type OtherKind } from "@/lib/sign/client/signer-flow";
 import type { SigningView } from "@/lib/sign/service/signing";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,14 +29,38 @@ interface EndScreenProps {
   canDownload: boolean;
 }
 
+/** "Ali, Siti and Lim" in the reader's language. */
+function joinNames(names: readonly string[], locale: string): string {
+  try {
+    return new Intl.ListFormat(locale, { type: "conjunction", style: "long" }).format(names);
+  } catch {
+    return names.join(", ");
+  }
+}
+
 export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
   const t = useTranslations("Sign.signer");
   const tf = useTranslations("Sign.signerForm");
+  const locale = useLocale();
+  // a form without a signature (migration 169): nothing was signed, the details were submitted
+  const formOnly = view.document.mode === "form";
 
   switch (state) {
     case "signed": {
       const others = view.content?.others ?? [];
       const waiting = othersStillToSign(others) > 0;
+      // the names of the people it waits for, when they have been invited (several when they share a step)
+      const waitingList = waitingOnNames(others);
+      const waitingNames = joinNames(waitingList, locale);
+      if (formOnly) {
+        return (
+          <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={tf("end.submitted.title")}>
+            <p>{tf("end.submitted.thanks", { name: view.signer.name })}</p>
+            <p>{waiting ? tf("end.submitted.waiting") : tf("end.submitted.next")}</p>
+            {others.length > 0 ? <OthersList view={view} /> : null}
+          </Frame>
+        );
+      }
       // a person who only fills in has not signed anything: they have sent their answers
       if (view.signer.kind === "filler") {
         return (
@@ -50,34 +74,44 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
       return (
         <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={t("end.signed.title")}>
           <p>{t("end.signed.thanks", { name: view.signer.name })}</p>
-          <p>{waiting ? t("end.signed.waiting") : t("end.signed.almost")}</p>
+          <p>{waiting ? (waitingNames ? t("end.signed.waitingFor", { count: waitingList.length, name: waitingNames }) : t("end.signed.waiting")) : t("end.signed.almost")}</p>
           {others.length > 0 ? <OthersList view={view} /> : null}
         </Frame>
       );
     }
     case "sealing":
-      return <Sealing />;
+      return <Sealing formOnly={formOnly} />;
     case "completed":
       return (
-        <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={t("end.completed.title")}>
-          <p>{t("end.completed.body")}</p>
-          {canDownload ? (
+        <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={formOnly ? t("end.completedForm.title") : t("end.completed.title")}>
+          <p>{formOnly ? t("end.completedForm.body") : t("end.completed.body")}</p>
+          {view.delegate ? (
+            // a person handed one part of the form does not get the whole document
+            <p className="text-sm text-muted-foreground">{t("end.completed.delegate")}</p>
+          ) : canDownload ? (
             <div className="flex w-full flex-col gap-2 pt-2 sm:flex-row sm:justify-center">
               <a href={signerFileUrl(token, true)} className={cn(buttonVariants(), "h-12 px-5 text-base")}>
                 <Download className="size-4" aria-hidden />
-                {t("end.completed.download")}
+                {formOnly ? t("end.completedForm.download") : t("end.completed.download")}
               </a>
               <a href={signerFileUrl(token)} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "h-12 px-5 text-base")}>
                 <ExternalLink className="size-4" aria-hidden />
-                {t("end.completed.view")}
+                {formOnly ? t("end.completedForm.view") : t("end.completed.view")}
               </a>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("end.completed.byEmail")}</p>
+            <p className="text-sm text-muted-foreground">{formOnly ? t("end.completedForm.byEmail") : t("end.completed.byEmail")}</p>
           )}
         </Frame>
       );
     case "declined":
+      if (formOnly) {
+        return (
+          <Frame icon={<UserX className="size-12 text-muted-foreground" aria-hidden />} title={t("end.declinedForm.title")}>
+            <p>{view.signer.status === "declined" ? t("end.declinedForm.you") : t("end.declinedForm.other")}</p>
+          </Frame>
+        );
+      }
       return (
         <Frame icon={<UserX className="size-12 text-muted-foreground" aria-hidden />} title={t("end.declined.title")}>
           <p>{view.signer.status === "declined" ? t("end.declined.you") : t("end.declined.other")}</p>
@@ -103,11 +137,22 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
       );
     case "not_invited":
       return (
-        <Frame icon={<Clock className="size-12 text-muted-foreground" aria-hidden />} title={t("end.notInvited.title")}>
-          <p>{t("end.notInvited.body")}</p>
+        <Frame icon={<Clock className="size-12 text-muted-foreground" aria-hidden />} title={formOnly ? t("end.notInvitedForm.title") : t("end.notInvited.title")}>
+          <p>{formOnly ? t("end.notInvitedForm.body") : t("end.notInvited.body")}</p>
         </Frame>
       );
   }
+}
+
+/** The whole turn was handed to someone else: this page says so, and that the link no longer works. */
+export function ForwardedScreen({ to, delivered }: { to: string; delivered: boolean }) {
+  const t = useTranslations("Sign.signer");
+  return (
+    <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={t("forward.doneTitle")}>
+      <p>{t("forward.doneBody", { name: to })}</p>
+      {delivered ? null : <p className="text-sm">{t("forward.doneNotSent", { name: to })}</p>}
+    </Frame>
+  );
 }
 
 /** A link that is not valid says nothing about whether a document exists. `busy`: too many requests from this address, try again soon. */
@@ -143,7 +188,7 @@ function Frame({ icon, title, children }: { icon: ReactNode; title: string; chil
 }
 
 /** The document is being sealed: the page asks again by itself (use-signer) and says so; after two minutes it says it is slow. */
-function Sealing() {
+function Sealing({ formOnly }: { formOnly?: boolean }) {
   const t = useTranslations("Sign.signer");
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -151,10 +196,10 @@ function Sealing() {
     return () => clearTimeout(timer);
   }, []);
   return (
-    <Frame icon={<Loader2 className="size-12 text-primary motion-safe:animate-spin" aria-hidden />} title={t("end.sealing.title")}>
+    <Frame icon={<Loader2 className="size-12 text-primary motion-safe:animate-spin" aria-hidden />} title={formOnly ? t("end.sealingForm.title") : t("end.sealing.title")}>
       <div aria-live="polite" className="space-y-3">
-        <p>{t("end.sealing.body")}</p>
-        {slow ? <p className="text-sm">{t("end.sealing.slow")}</p> : null}
+        <p>{formOnly ? t("end.sealingForm.body") : t("end.sealing.body")}</p>
+        {slow ? <p className="text-sm">{formOnly ? t("end.sealingForm.slow") : t("end.sealing.slow")}</p> : null}
       </div>
     </Frame>
   );
@@ -173,15 +218,16 @@ function OthersList({ view }: { view: SigningView }) {
   const t = useTranslations("Sign.signer");
   const locale = useLocale();
   const zone = useBrowserTimeZone();
+  const formOnly = view.document.mode === "form";
   const rows = describeOthers(view.content?.others ?? [], view.document.signInOrder);
 
   return (
     <div className="w-full rounded-xl border bg-card p-3 text-left text-foreground">
-      <h2 className="px-1 pb-2 text-sm font-semibold">{t("others.title")}</h2>
+      <h2 className="px-1 pb-2 text-sm font-semibold">{formOnly ? t("others.titleForm") : t("others.title")}</h2>
       <ul className="divide-y">
         {rows.map((row, i) => {
           const day = row.kind === "signed" ? formatDay(row.signedAt, locale, zone) : "";
-          const label = row.kind === "signed" && row.filler ? t("others.done") : t(`others.${row.kind}`);
+          const label = row.kind === "signed" && row.filler ? t("others.done") : formOnly && row.kind === "invited" ? t("others.invitedForm") : t(`others.${row.kind}`);
           return (
             <li key={`${row.name}-${i}`} className="flex min-h-11 items-center justify-between gap-3 px-1 py-2 text-sm">
               <span className="min-w-0 break-words">{row.name}</span>

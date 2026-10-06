@@ -29,6 +29,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { FieldEditor } from "./field-editor";
+import { TestSendButton } from "./test-send-dialog";
 import { useLeaveGuard } from "@/components/sign/form-builder/leave-guard";
 import { TemplateTabs } from "@/components/sign/form-builder/template-tabs";
 import { FormRow, NativeSelect } from "./form-bits";
@@ -41,6 +42,8 @@ interface TemplateMeta {
   name: string;
   status: Status;
   category_id: string | null;
+  /** Migration 169: a form without a signature has no page to place fields on, so it opens in the form builder. */
+  mode?: "sign" | "form";
 }
 interface VersionItem {
   id: string;
@@ -63,6 +66,13 @@ export function TemplateEditorScreen({ templateId, focus }: { templateId: string
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const t = useTranslations("Sign.editor");
+  const router = useRouter();
+  const formOnly = load.status === "ready" && load.data.template.mode === "form";
+
+  // a form without a signature is edited in the form builder only
+  useEffect(() => {
+    if (formOnly) router.replace(`/sign/templates/${templateId}/form`);
+  }, [formOnly, router, templateId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,7 +88,7 @@ export function TemplateEditorScreen({ templateId, focus }: { templateId: string
     return () => controller.abort();
   }, [templateId, attempt]);
 
-  if (load.status === "loading") return <p className="py-16 text-center text-sm text-muted-foreground">{t("screen.loading")}</p>;
+  if (load.status === "loading" || formOnly) return <p className="py-16 text-center text-sm text-muted-foreground">{t("screen.loading")}</p>;
   if (load.status === "error") {
     return (
       <div role="alert" className="space-y-3 py-16 text-center">
@@ -253,6 +263,8 @@ function Screen({ data, focus }: { data: Loaded; focus: string | null }) {
           </NativeSelect>
         </FormRow>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* F-10: send yourself a document marked TEST, made from the saved version of this template */}
+          {loaded ? <TestSendButton templateId={template.id} roles={loaded.roles} fields={loaded.fields} form={loaded.form ?? null} unsaved={dirty} /> : null}
           <Button type="button" variant={drawer === "defaults" ? "default" : "outline"} size="sm" aria-pressed={drawer === "defaults"} onClick={() => setDrawer((d) => (d === "defaults" ? "none" : "defaults"))}>
             <SlidersHorizontal />
             {t("screen.options")}

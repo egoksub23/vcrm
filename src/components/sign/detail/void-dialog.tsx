@@ -17,14 +17,17 @@ import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import { detailErrorKey } from "./logic";
 
 interface Props {
-  documentId: string;
+  /** The document to cancel. Absent when an envelope is cancelled (migration 171). */
+  documentId?: string;
+  /** Cancel this whole envelope instead of one document: every document that is still open, together. */
+  envelopeId?: string;
   title: string;
   onClose: () => void;
   /** Called after the document was cancelled. */
   onVoided: () => Promise<void>;
 }
 
-export function VoidDialog({ documentId, title, onClose, onVoided }: Props) {
+export function VoidDialog({ documentId, envelopeId, title, onClose, onVoided }: Props) {
   const t = useTranslations("Sign.detail");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,8 +41,8 @@ export function VoidDialog({ documentId, title, onClose, onVoided }: Props) {
     setBusy(true);
     setErrorCode(null);
     try {
-      await signRequest(`/api/sign/documents/${documentId}/void`, { json: { reason: reason.trim() } });
-      toast.success(t("void.done"));
+      await signRequest(envelopeId ? `/api/sign/envelopes/${envelopeId}/void` : `/api/sign/documents/${documentId}/void`, { json: { reason: reason.trim() } });
+      toast.success(t(envelopeId ? "void.envelopeDone" : "void.done"));
       onClose();
       await onVoided();
     } catch (err) {
@@ -61,7 +64,7 @@ export function VoidDialog({ documentId, title, onClose, onVoided }: Props) {
         >
           <DialogHeader>
             <DialogTitle>{t("void.title", { title })}</DialogTitle>
-            <DialogDescription>{t("void.body")}</DialogDescription>
+            <DialogDescription>{t(envelopeId ? "void.envelopeBody" : "void.body")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
             <Label htmlFor="sign-void-reason">{t("void.reason")}</Label>
@@ -83,7 +86,7 @@ export function VoidDialog({ documentId, title, onClose, onVoided }: Props) {
             </Button>
             <Button type="submit" variant="destructive" disabled={busy}>
               {busy && <Loader2 className="animate-spin" aria-hidden />}
-              {t("void.action")}
+              {t(envelopeId ? "void.envelopeAction" : "void.action")}
             </Button>
           </DialogFooter>
         </form>

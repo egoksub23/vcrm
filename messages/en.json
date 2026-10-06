@@ -1438,7 +1438,17 @@
         "skipped": "skipped",
         "failed": "failed",
         "created": "ticket created",
-        "created_with_ai": "ticket created (AI text)"
+        "created_with_ai": "ticket created (AI text)",
+        "sent": "document sent",
+        "draft": "draft made",
+        "already_sent": "already sent",
+        "not_enabled": "Doc Sign is off",
+        "not_configured": "not set up",
+        "no_contact": "no contact",
+        "recipient_email_missing": "contact has no email",
+        "recipient_phone_missing": "contact has no phone",
+        "sign_limit_reached": "monthly limit reached",
+        "not_ready": "not ready to send"
       },
       "tokens": "{count, plural, =1 {# token} other {# tokens}}",
       "back": "Back",
@@ -1485,6 +1495,19 @@
         "seed": {
           "ticketSubject": "Follow-up: {{ contact.name }}"
         }
+      },
+      "merchant_onboarding": {
+        "name": "Merchant onboarding",
+        "description": "When a contact is tagged \"Merchant applicant\", send them the Merchant Application to fill in and sign."
+      },
+      "merchant_signed_followup": {
+        "name": "Merchant signed follow-up",
+        "description": "When a Merchant Application is signed, tag the contact \"Merchant signed\", open a KYC review ticket and send a thank-you.",
+        "seed": {
+          "ticketSubject": "Merchant KYC review",
+          "ticketDescription": "The Merchant Application {{ sign.reference }} from {{ contact.name }} is signed. Check the company details and the documents, then confirm the file is genuine: {{ sign.verify_url }}",
+          "welcomeMessage": "Thank you {{ contact.name }}. We have received your signed Merchant Application ({{ sign.reference }}). Our team will review it and be in touch shortly."
+        }
       }
     },
     "builder": {
@@ -1512,7 +1535,8 @@
         "ai_extract": "AI classify and extract",
         "ai_summarize": "AI summarise",
         "ai_translate": "AI translate",
-        "ai_question": "Ask AI (yes/no)"
+        "ai_question": "Ask AI (yes/no)",
+        "send_sign_document": "Send document for signing"
       },
       "triggers": {
         "new_message_received": {
@@ -1554,6 +1578,10 @@
         "time_based": {
           "label": "Time-Based",
           "hint": "On a recurring schedule"
+        },
+        "sign_document_event": {
+          "label": "Doc Sign event",
+          "hint": "When a Doc Sign document is sent, opened, completed, declined, expired or cancelled"
         }
       },
       "trigger": "Trigger",
@@ -1580,7 +1608,8 @@
       "tags": {
         "select": "Select a tag…",
         "placeholder": "Tag id",
-        "unknown": "{id} (unknown tag)"
+        "unknown": "{id} (unknown tag)",
+        "hint": "Suggested tag: \"{name}\". Create it first (Settings > Tags) if it does not exist yet."
       },
       "fields": {
         "name": "Name",
@@ -1900,6 +1929,73 @@
           "active": "Active",
           "customer": "Customer",
           "churned": "Churned"
+        }
+      },
+      "sign": {
+        "trigger": {
+          "events": "When this happens",
+          "eventsHint": "The automation runs for each event that is ticked.",
+          "event": {
+            "sent": "A document is sent",
+            "viewed": "A signer opens it for the first time",
+            "completed": "Everyone has signed (completed)",
+            "declined": "A signer declines",
+            "expired": "A document expires",
+            "voided": "A document is cancelled"
+          },
+          "template": "Only for this template",
+          "anyTemplate": "Any template",
+          "templateId": "Template id",
+          "unknownTemplate": "(template not found)",
+          "category": "Only for this category",
+          "anyCategory": "Any category"
+        },
+        "step": {
+          "template": "Template",
+          "templateId": "Template id",
+          "selectTemplate": "Choose a template…",
+          "unknownTemplate": "(template not found or not active)",
+          "noTemplates": "No active templates found, or you cannot see them. Publish one under Doc Sign > Templates.",
+          "templateHint": "Suggested template: \"{name}\". Pick it once it exists under Doc Sign > Templates.",
+          "title": "Document title",
+          "titleHint": "Optional. Leave empty to use the template's title. You can insert variables.",
+          "recipients": "Who signs",
+          "recipientsHint": "Each person gets a link. The role says which part of the document they complete. A role marked * must have a person.",
+          "role": "Role",
+          "rolePlaceholder": "Role key, for example merchant",
+          "selectRole": "Choose a role…",
+          "removeRecipient": "Remove this person",
+          "source": "Details come from",
+          "sourceContact": "The contact",
+          "sourceFixed": "A fixed person",
+          "channel": "Send the link by",
+          "channelEmail": "Email",
+          "channelWhatsapp": "WhatsApp",
+          "contactNote": "Uses the contact's name, email and phone. The contact must have an email address, or this step is skipped.",
+          "fullName": "Full name",
+          "email": "Email",
+          "phone": "Phone (with country code)",
+          "requiredRoles": "Still needs a person for: {roles}",
+          "addRecipient": "Add a person",
+          "merge": "Fill in the document",
+          "mergeHint": "Values for the template's merge fields (the parts filled in before sending). Use the variable button above a value to insert the contact's details.",
+          "mergeKey": "Field name",
+          "mergeValue": "Value",
+          "removeMerge": "Remove this value",
+          "addMerge": "Add a value",
+          "message": "Message to the signers",
+          "language": "Language of the document",
+          "languageDefault": "The template's default",
+          "languages": {
+            "en": "English",
+            "ms": "Bahasa Melayu",
+            "zh": "中文",
+            "ko": "한국어"
+          },
+          "send": "Send it now",
+          "sendHint": "Turn off to save the document as a draft for a person to check and send. The signers' links go out only when it is sent.",
+          "summary": "{count, plural, one {# person signs} other {# people sign}}",
+          "summaryEmpty": "Choose a template"
         }
       }
     }
@@ -7061,7 +7157,10 @@
       "sign_settings": "Doc Sign settings",
       "sign_certificate": "Signing certificate",
       "sign_addon": "Doc Sign add-on",
-      "sign_document": "Signing document"
+      "sign_document": "Signing document",
+      "sign_bulk_job": "Signing batch",
+      "sign_option_list": "Signing option list",
+      "sign_envelope": "Signing envelope"
     },
     "roleNames": {
       "owner": "Owner",
@@ -8318,7 +8417,20 @@
         "installedToast": "{name} installed.",
         "repeatedToast": "{name} checked. Nothing you edited was changed.",
         "templatesAdded": "{count, plural, one {# template added as a draft.} other {# templates added as drafts.}}",
-        "footnote": "Installing adds drafts for you to review and never changes templates you have edited. Updating an installed add-on will come in a later version."
+        "footnote": "Installing adds drafts for you to review and never changes templates you have edited. Updating brings the templates you have not edited to the newest version and puts a copy next to the ones you have.",
+        "updateTitle": "What is new in v{version}",
+        "updateIntro": "Templates you have not edited get a new version. A template you have changed is left exactly as it is, and a copy named “… (updated)” is added next to it for you to review. Documents you have already sent never change.",
+        "updateButton": "Update to v{version}",
+        "updatedToast": "{name} updated to v{version}.",
+        "upToDateToast": "{name} is already up to date.",
+        "result": {
+          "title": "{name} is now on v{version}",
+          "updated": "“{name}” got a new version (version {versionNo}). Its name, status and category are unchanged.",
+          "copied": "You had changed “{name}”, so it was left exactly as it is. A new copy, “{copyName}”, was added as a draft for you to review.",
+          "missing": "“{name}” is no longer in your workspace, so nothing was updated for it. Press Install again to add it back.",
+          "current": "“{name}” was already on this version.",
+          "dismiss": "Dismiss"
+        }
       },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
@@ -8330,7 +8442,9 @@
         "consent": "Consent wording",
         "categories": "Categories",
         "addons": "Add-ons",
-        "certificate": "Sealing certificate"
+        "certificate": "Sealing certificate",
+        "lists": "Lists",
+        "registration": "Registration forms"
       },
       "languages": {
         "en": "English",
@@ -8355,7 +8469,7 @@
         "whatsappLanguage": "Template language code",
         "whatsappLanguageHint": "The language the template was approved in, for example en, ms or en_US.",
         "whatsappParams": "The template needs three variables, in this order: the person's name, the document title and the signing link.",
-        "retention": "Keep signed documents for",
+        "retention": "Keep signed documents for (years)",
         "retentionValue": "{count, plural, one {# year} other {# years}}",
         "retentionNote": "Set by the platform for now. It cannot be changed here.",
         "save": "Save",
@@ -8368,8 +8482,15 @@
           "reminders_too_many": "Use at most five reminders.",
           "sender": "Use at most 120 characters.",
           "waName": "Use lower case letters, digits and underscores only.",
-          "waLang": "Use a code such as en, ms or en_US."
-        }
+          "waLang": "Use a code such as en, ms or en_US.",
+          "retention": "Enter a whole number of years from 1 to 50."
+        },
+        "retentionTitle": "Retention",
+        "retentionIntro": "A signed document is kept for this long, counted from the day it is sealed. During that time nobody can delete it, including the workspace owner.",
+        "retentionHint": "A whole number of years, from 1 to 50. 7 is the starting value until your organisation has decided how long it must keep signed records: confirm the period with your lawyer or auditor.",
+        "retentionEffect": "A change applies to documents sealed from now on. A document that is already sealed keeps the date it was given when it was sealed. A category can set its own period (Categories). Documents are never deleted automatically.",
+        "retentionPast": "{count, plural, one {# signed document is past its retention date.} other {# signed documents are past their retention date.}}",
+        "retentionPastNone": "No signed document is past its retention date yet."
       },
       "consent": {
         "intro": "This is what a person agrees to before signing. The standard wording is used unless you write your own for a language. Each wording has a version, and the version a person agreed to is kept with the signed document. Have your own wording read by someone qualified before you rely on it.",
@@ -8429,7 +8550,7 @@
         "expiry": "Expires after (days)",
         "reminders": "Reminders (days after sending)",
         "retention": "Keep signed documents for (years)",
-        "retentionHint": "Leave empty to use the workspace period.",
+        "retentionHint": "Leave empty to use the workspace period. From 1 to 50 years. A change applies to documents sealed from now on.",
         "blankIsDefault": "Leave empty to use the workspace setting.",
         "code": "Ask for a code before signing",
         "codeHint": "The person gets a code by email and enters it to open the document.",
@@ -8456,7 +8577,7 @@
         "intro": "Every completed document is sealed with this certificate. The seal shows whether the document was changed after it was signed.",
         "loading": "Loading certificate…",
         "retry": "Try again",
-        "none": "No certificate yet. The first time a document is sealed, a certificate is made for your workspace.",
+        "none": "No certificate yet. The first time a document is sealed, a certificate is made for your workspace. You can install one from a certificate authority below.",
         "subject": "Subject",
         "validUntil": "Valid until",
         "kind": "Kind",
@@ -8470,7 +8591,69 @@
         "expiredBody": "A new self-signed certificate is made the next time a document is sealed. Documents that are already sealed keep their seal.",
         "selfSignedTitle": "Self-signed: PDF readers will say the signer is not trusted",
         "selfSignedBody": "The seal still shows if a document was changed after signing, but a PDF reader cannot check who made a self-signed certificate, so it shows a warning. This is normal.",
-        "footnote": "Uploading a certificate from a certificate authority is not available on this screen yet. The key is stored encrypted and is never shown."
+        "footnote": "The file is checked before it is kept: the passphrase, the key, the dates, what the certificate may be used for, and a test seal. The key is stored encrypted and is never shown.",
+        "kind_generated": "Made by Halo for this workspace (self-signed)",
+        "kind_uploadedSelfSigned": "Uploaded, self-signed",
+        "kind_authority": "Issued by a certificate authority",
+        "issuer": "Issued by",
+        "serial": "Serial number",
+        "validFrom": "Valid from",
+        "daysLeft": "Time left",
+        "daysLeftValue": "{count, plural, one {# day} other {# days}}",
+        "fingerprint": "SHA-256 fingerprint",
+        "key": "Key",
+        "keyValue": "RSA, {bits} bits",
+        "chain": "In the seal",
+        "chainOne": "This certificate only",
+        "chainMany": "{count} certificates: this one and the authorities above it",
+        "unreadableTitle": "The stored certificate cannot be opened",
+        "unreadableBody": "Install the certificate again below. Until then, documents that everyone has signed wait to be sealed.",
+        "expiredBodyUploaded": "Documents that everyone has signed now wait, unsealed, until you install a valid certificate below. Documents that are already sealed keep their seal.",
+        "warn_chain_missing_title": "The certificate comes without its authority's certificates",
+        "warn_chain_missing_body": "This certificate was issued by an authority, but the file holds nothing above it. A PDF reader may not be able to follow the chain to a trusted authority. Ask the authority for the full chain (the intermediate certificate) and install the file again.",
+        "warn_weak_signature_algorithm_title": "An older signature algorithm",
+        "warn_weak_signature_algorithm_body": "A certificate in the chain is signed with SHA-1, which readers are phasing out. It still works today; ask the authority for a certificate that uses SHA-256.",
+        "warn_chain_certificate_expired_title": "A certificate above this one has expired",
+        "warn_chain_certificate_expired_body": "An authority certificate in the chain is outside its dates, so a reader may refuse to trust the seal. Ask the authority for an up-to-date chain.",
+        "warn_not_for_document_signing_title": "Not marked for signing documents",
+        "warn_not_for_document_signing_body": "This certificate lists purposes that do not include signing documents or email. It was probably issued for something else, such as a website. PDF readers may refuse it; confirm with the authority that it is a document signing certificate.",
+        "readersTitle": "What a PDF reader will show",
+        "readers_generated": "A PDF reader will say the signer's identity could not be verified, because no certificate authority vouches for a self-signed certificate. The seal still shows whether the document was changed after it was signed. To get a trusted result, install a certificate from a certificate authority.",
+        "readers_uploadedSelfSigned": "A PDF reader will say the signer's identity could not be verified, because no certificate authority vouches for a self-signed certificate. The seal still shows whether the document was changed after it was signed.",
+        "readers_authority": "A PDF reader will show who the certificate was issued to and by which authority. Whether it marks the signature as trusted depends on whether that reader trusts the authority: some readers only trust authorities on their own approved list, so confirm with your authority which readers it works in. In every case the seal shows whether the document was changed after it was signed.",
+        "uploadTitle": "Install a certificate",
+        "uploadIntro": "Choose the .p12 or .pfx file your certificate authority gave you and enter its passphrase. Documents sealed from now on use it. Documents that are already sealed are not changed.",
+        "fileLabel": "Certificate file",
+        "fileHint": ".p12 or .pfx, up to 256 KB.",
+        "passphraseLabel": "Passphrase of the file",
+        "passphraseHint": "Used once to open the file, then forgotten. Halo keeps its own passphrase for the stored copy.",
+        "nameLabel": "Name (optional)",
+        "nameHint": "A label for your own use, for example “Company seal 2026”.",
+        "install": "Check and install",
+        "installing": "Checking…",
+        "installed": "Certificate installed. New documents are sealed with it.",
+        "removed": "Certificate removed.",
+        "remove": "Remove this certificate",
+        "removeConfirm": "Remove it? Its key is deleted from Halo. Documents already sealed are not changed. Later documents are sealed with a self-signed certificate Halo makes, unless you install another.",
+        "removeYes": "Yes, remove it",
+        "removeNo": "Keep it",
+        "errors": {
+          "p12_unreadable": "This file is not a certificate file. Choose the .p12 or .pfx file from your certificate authority.",
+          "p12_bad_passphrase": "The passphrase does not open this file. Check it and try again.",
+          "p12_no_key": "This file has certificates but no private key, so it cannot sign. Ask for the .p12 or .pfx that includes the private key.",
+          "p12_expired": "This certificate has expired. Install a current one.",
+          "p12_not_yet_valid": "This certificate is not valid yet. Install it on or after its start date.",
+          "p12_key_too_small": "The key is too small. A sealing certificate needs an RSA key of at least 2048 bits.",
+          "p12_unsupported_algorithm": "This file uses a kind of key or algorithm that is not supported. Only RSA keys are supported; ask the authority for an RSA certificate and make sure the chain holds RSA certificates only.",
+          "p12_key_usage": "This certificate is not allowed to sign: its key usage does not include digital signature or non-repudiation. Ask the authority for a document signing certificate.",
+          "p12_key_mismatch": "The private key in this file does not belong to any certificate in it. Export the file again from the place the certificate was made.",
+          "p12_chain_invalid": "A certificate in this file is not signed by the one above it, so the chain is broken. Ask the authority for the complete chain.",
+          "certificate_file_too_large": "This file is too large to be a certificate file (the limit is 256 KB).",
+          "certificate_chain_too_large": "The certificate chain is too long to fit in a seal. Include only the certificates the authority asks for.",
+          "certificate_self_test_failed": "A test seal made with this certificate failed, so it was not installed. Check the file with your authority.",
+          "certificate_not_found": "That certificate was not found. It may have been removed already.",
+          "no_file": "Choose a certificate file first."
+        }
       },
       "library": {
         "loading": "Loading templates…",
@@ -8536,8 +8719,15 @@
           "noCategory": "No category",
           "cancel": "Cancel",
           "create": "Create and open editor",
-          "creating": "Preparing…"
-        }
+          "creating": "Preparing…",
+          "introForm": "A form without a signature: you build the parts and questions next. Someone fills it in and submits it; nothing is signed.",
+          "kindLegend": "What kind of template",
+          "kindFile": "Agreement to sign",
+          "kindFileHint": "Upload a file and place the signature fields on it.",
+          "kindForm": "Form without a signature",
+          "kindFormHint": "No file. For details someone only needs to fill in and submit."
+        },
+        "formBadge": "Form"
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -8578,7 +8768,179 @@
         "body_too_large": "That request is too large.",
         "bad_json": "The request was not valid. Please try again.",
         "database_error": "Something went wrong. Please try again.",
-        "request_failed": "The request failed. Please try again."
+        "request_failed": "The request failed. Please try again.",
+        "addon_not_installed": "Install this add-on first, then update it.",
+        "form_not_found": "That registration form was not found.",
+        "form_not_ready": "This form cannot be switched on yet. Open it to see why.",
+        "invalid_form": "Some of the form's settings are not valid. Check the name, the people and the wording.",
+        "tag_not_found": "That tag was not found. Choose a contact tag.",
+        "slug_unavailable": "Could not make an address for this form. Please try again."
+      },
+      "registration": {
+        "loading": "Loading registration forms...",
+        "retry": "Try again",
+        "intro": "A registration form is a public page where someone with no login enters a few details. Halo finds or creates their contact and, if you want, emails them a document to sign. Share its address on your website, in a message or as a QR code.",
+        "new": "New registration form",
+        "botCheckOn": "The bot check (Cloudflare Turnstile) is on for these pages.",
+        "botCheckOff": "The bot check (Cloudflare Turnstile) is off. The pages are protected by limits, a hidden field and a signed token. Ask your platform operator to switch it on if you see spam.",
+        "empty": "No registration forms yet. Make one to get a public address.",
+        "footnote": "A form is switched off, never deleted, so the record of who agreed to what stays. The page never shows a link: only the person who receives the email can open the document.",
+        "switchedOn": "The form is taking registrations.",
+        "switchedOff": "The form is switched off.",
+        "cannotSwitchOn": "This form cannot be switched on yet. Open it to see why.",
+        "newAddressMade": "The form has a new address. The old one no longer works.",
+        "copied": "Address copied.",
+        "copyFailed": "Could not copy. Select the address and copy it by hand.",
+        "cancel": "Cancel",
+        "close": "Close",
+        "renew": {
+          "title": "Make a new address?",
+          "body": "The old address stops working at once, and anyone who has it will see a page that is not available. Use this if the address was shared where it should not have been.",
+          "confirm": "Make a new address"
+        },
+        "on": "On",
+        "off": "Off",
+        "needsAttention": "Needs attention",
+        "takeRegistrations": "Take registrations",
+        "takeRegistrationsFor": "Take registrations: {name}",
+        "copy": "Copy",
+        "copyFor": "Copy the address of {name}",
+        "open": "Open",
+        "openFor": "Open {name} in a new tab",
+        "newAddress": "New address",
+        "renewFor": "Make a new address for {name}",
+        "offHint": "Switched off: the address shows a page that is not available.",
+        "sends": "Sends",
+        "noTemplate": "No template chosen",
+        "sendsNothing": "No document: only keeps the details",
+        "today": "Today",
+        "todayValue": "{count} of {cap}",
+        "last30": "Last 30 days",
+        "last30Value": "{accepted} accepted, {failed} could not be completed, {blocked} blocked",
+        "edit": "Edit",
+        "editFor": "Edit {name}",
+        "activity": "Recent activity",
+        "activityFor": "Recent activity of {name}",
+        "activityTitle": "Recent activity: {name}",
+        "activityIntro": "What became of the latest submissions. Addresses and emails are never shown here.",
+        "activityEmpty": "Nothing has been submitted yet.",
+        "openDocument": "Open document",
+        "status": {
+          "accepted": "Accepted",
+          "rejected_spam": "Blocked",
+          "rejected_cap": "Over the daily cap",
+          "failed": "Could not be completed"
+        },
+        "reasons": {
+          "duplicate": "Same email as an open registration today; nothing new was started",
+          "honeypot": "The hidden field was filled (a script)",
+          "token_invalid": "The page's token was not genuine",
+          "token_expired": "The page was open too long",
+          "token_too_fast": "Sent too quickly after the page opened",
+          "captcha_failed": "The bot check was not passed",
+          "daily_cap": "The daily cap was full",
+          "in_progress": "Stopped part way (the server was interrupted)",
+          "contact_limit_reached": "The workspace's contact limit is reached",
+          "sign_limit_reached": "The monthly limit of documents is reached",
+          "form_not_ready": "The form could not send (check its template and people)",
+          "template_not_active": "The template is not active",
+          "delivery_failed": "The document was made but the email could not be delivered",
+          "send_failed": "The document could not be sent",
+          "generic": "See the outcome"
+        },
+        "issues": {
+          "no_template": "Choose the template to send.",
+          "template_not_active": "The template is not active. Make it active in Doc Sign > Templates.",
+          "template_has_no_version": "The template has no saved version yet.",
+          "no_applicant_role": "Choose which role the applicant fills.",
+          "applicant_role_unknown": "The role the applicant fills is not in this template. Choose another.",
+          "signer_role": "A person is named for a role that the template does not have, or for the applicant's own role.",
+          "no_signer": "Nobody signs: make the applicant's role a signing role, or name a person who signs.",
+          "role_without_person": "The role {role} has things to complete but nobody is named for it.",
+          "part_without_person": "A part of the form belongs to a role nobody is named for.",
+          "signer_without_signature": "A role that signs has no signature on the document.",
+          "signer_name": "A person named for another role needs a name.",
+          "signer_email": "A person named for another role needs a valid email.",
+          "signer_phone": "A person named for another role needs a phone number.",
+          "too_many_signers": "There are too many people on this document.",
+          "order_not_unique": "The template needs signing order, but two people have the same turn.",
+          "same_person_twice": "The template needs signing order, but one person is named twice.",
+          "generic": "This form has a problem that stops it working. Check the template and the people named.",
+          "template_mode_mismatch": "The page sends a form without a signature but the template is an agreement to sign, or the other way round. Choose a template of the same kind.",
+          "no_person": "The form needs at least one person who fills it in.",
+          "form_mode_needs_a_form": "The template's form has no part yet. Open the template and add one.",
+          "form_mode_signature": "A form without a signature cannot have a place to sign.",
+          "form_mode_placement": "A form without a signature has nothing placed on a page.",
+          "form_mode_signer_role": "A form without a signature cannot have a role that signs."
+        },
+        "editTitle": "Edit registration form",
+        "newTitle": "New registration form",
+        "dialogIntro": "Choose what the page asks, and what happens when someone submits it.",
+        "name": "Name (only your team sees it)",
+        "addressPreview": "The address will read like {address}. The random end is made when you save.",
+        "addressNow": "Address: {address}",
+        "activeHint": "When off, the address shows a page that is not available.",
+        "documentLegend": "What happens after they submit",
+        "sendDocument": "Send a document to sign",
+        "sendDocumentHint": "Made from a template and emailed to the address they entered. That email also proves the address is theirs.",
+        "noTemplates": "There is no active template with a saved version yet.",
+        "goToTemplates": "Go to templates",
+        "template": "Template",
+        "applicantRole": "The applicant fills the role",
+        "applicantRoleHint": "The role in the template that the person who registers completes.",
+        "others": "People for the other roles",
+        "othersHint": "Leave a role empty if the template does not need anyone for it. For example, the director who countersigns.",
+        "otherName": "{role}: name",
+        "otherEmail": "{role}: email",
+        "detailsOnlyHint": "No document is sent. The details are saved to the contact and the tag below is applied, which can start an automation.",
+        "tag": "Tag for the contact",
+        "tagHint": "Applied when someone registers. A tag can start an automation, for example a welcome message or the merchant onboarding recipe.",
+        "noTag": "No tag",
+        "askLegend": "Details the page asks for",
+        "detail": {
+          "full_name": "Full name",
+          "company": "Company or business",
+          "phone": "Phone number",
+          "email": "Email"
+        },
+        "emailAlways": "Always asked (the document goes here)",
+        "ask": {
+          "required": "Required",
+          "optional": "Optional",
+          "off": "Not asked"
+        },
+        "dailyCap": "Registrations a day",
+        "dailyCapHint": "At most this many in 24 hours; then the page says it is busy.",
+        "defaultLanguage": "Language of the page",
+        "defaultLanguageHint": "Used unless the visitor chooses another.",
+        "wordingTitle": "Wording",
+        "wordingHint": "Leave a language empty to use the product wording. Write '{workspace}' where your workspace name should appear. The agreement words are recorded with every registration.",
+        "consentText": "Agreement",
+        "successMessage": "Thank-you message (added after the default)",
+        "saved": "Form saved.",
+        "created": "Form created.",
+        "save": "Save",
+        "create": "Create form",
+        "problems": {
+          "name": {
+            "required": "Give the form a name.",
+            "too_long": "Use 120 characters or fewer."
+          },
+          "template": {
+            "required": "Choose a template."
+          },
+          "applicantRole": {
+            "required": "Choose a role."
+          },
+          "others": {
+            "incomplete": "Give each person both a name and an email, or leave both empty.",
+            "invalid": "One of the emails is not valid."
+          },
+          "dailyCap": {
+            "invalid": "Enter a whole number from 1 to 5000."
+          }
+        },
+        "templateIsForm": "form"
       }
     },
     "detail": {
@@ -8589,7 +8951,11 @@
         "back": "Doc Sign",
         "inOrder": "Signs in order",
         "codeRequired": "Code required",
-        "reference": "Reference {reference}"
+        "reference": "Reference {reference}",
+        "testChip": "Test",
+        "testNote": "A test document: every page and message says TEST, it does not count toward your monthly limit, no webhook or automation hears about it, and it is kept 30 days after it is signed.",
+        "formChip": "Form",
+        "inOrderForm": "Fills in order"
       },
       "meta": {
         "category": "Category",
@@ -8607,7 +8973,8 @@
         "downloadSigned": "Download signed PDF",
         "view": "View",
         "downloadOriginal": "Download original",
-        "void": "Cancel document"
+        "void": "Cancel document",
+        "downloadRecord": "Download the record"
       },
       "banner": {
         "waiting": "Waiting for {names} ({done} of {total} signed)",
@@ -8631,12 +8998,24 @@
         "cancelledNote": "The links no longer work.",
         "failed": "Could not be sealed: we are looking into it",
         "failedNote": "Nothing is lost. Everyone has signed, and the signed copy will be made as soon as the problem is fixed.",
-        "failedTechnical": "Technical note: {error}"
+        "failedTechnical": "Technical note: {error}",
+        "retainedUntil": "Kept until {date}. Nobody can delete this signed document before then, including the workspace owner.",
+        "retentionEnded": "The retention period ended on {date}.",
+        "waitingForm": "Waiting for {names} ({done} of {total} submitted)",
+        "waitingMoreForm": "Waiting for {names} and {count} more ({done} of {total} submitted)",
+        "waitingNobodyForm": "Waiting for submissions ({done} of {total} submitted)",
+        "sealingForm": "All submitted, sealing the record",
+        "sealingNoteForm": "This takes a moment. The record appears here and is sent to everyone.",
+        "completedOnForm": "Submitted and recorded on {date}",
+        "completedForm": "Submitted and recorded",
+        "completedNoteForm": "Everyone submitted. The sealed record is kept here.",
+        "declinedNoteForm": "Nobody else can fill this form in. Send a new one if it is still needed."
       },
       "tabs": {
         "people": "People ({count})",
         "document": "Document",
-        "history": "History"
+        "history": "History",
+        "record": "Record"
       },
       "channel": {
         "email": "Email",
@@ -8658,7 +9037,16 @@
         "remind": "Remind",
         "resend": "Resend",
         "changeRecipient": "Change recipient",
-        "remindHeld": "A reminder can be sent again after {when}"
+        "remindHeld": "A reminder can be sent again after {when}",
+        "haloUser": "Halo user",
+        "haloUserYou": "Halo user (you)",
+        "step": "Step {step} ({count, plural, one {# person} other {# people}})",
+        "holdsParts": "{count, plural, one {# part} other {# parts}} handed over by {name}: {parts}",
+        "forwardedFrom": "Forwarded from {names}",
+        "moveTo": "Move to",
+        "moveStep": "Step {step}",
+        "moveNew": "A new step at the end",
+        "moved": "{name} was moved to another step."
       },
       "confirm": {
         "cancel": "Cancel",
@@ -8705,7 +9093,8 @@
         "resent": "Invitation sent again to {name}",
         "recipientChanged": "Recipient changed. {name} was sent a new link.",
         "notDelivered": "The message to {name} could not be delivered by {channel}. Copy the link and pass it on yourself.",
-        "notConfigured": "Messages by {channel} are not set up, so nothing was sent to {name}. Copy the link and pass it on yourself."
+        "notConfigured": "Messages by {channel} are not set up, so nothing was sent to {name}. Copy the link and pass it on yourself.",
+        "recipientChangedLater": "{name}'s details were changed. They will be invited when their step begins."
       },
       "void": {
         "title": "Cancel {title}?",
@@ -8714,7 +9103,10 @@
         "reasonRequired": "Say why. The reason is kept in the history.",
         "keep": "Keep the document",
         "action": "Cancel document",
-        "done": "The document was cancelled"
+        "done": "The document was cancelled",
+        "envelopeBody": "Every link of the envelope stops working and the people who were waiting are told once. This cannot be undone. Send a new envelope if you need one.",
+        "envelopeAction": "Cancel envelope",
+        "envelopeDone": "The envelope was cancelled"
       },
       "viewer": {
         "loading": "Loading the pages",
@@ -8726,7 +9118,8 @@
         "signedCopy": "Signed copy",
         "asSent": "As sent",
         "noteSigned": "The signed copy, with every answer and the certificate pages.",
-        "noteSent": "The document as it was sent. Answers are not shown here until everyone has signed."
+        "noteSent": "The document as it was sent. Answers are not shown here until everyone has signed.",
+        "noteRecord": "The sealed submission record: the answers, the people who submitted and the certificate pages."
       },
       "files": {
         "title": "Files",
@@ -8802,7 +9195,32 @@
         "delivery_failed": "A message to {actor} could not be delivered",
         "delivery_failedCompleted": "The signed copy could not be delivered to {actor}",
         "delivery_failedCompletedSender": "The signed copy could not be delivered to the sender",
-        "unknown": "Something happened to the document ({type})"
+        "unknown": "Something happened to the document ({type})",
+        "halo_link": "A signing link was made for {actor} when they opened the document inside Halo",
+        "code_verified_halo": "{actor} was identified by their Halo sign-in (no code needed)",
+        "invitedAfterStep": "{actor} was invited because the previous step finished",
+        "forwarded": "{from} forwarded their turn to {to}",
+        "part_forwarded": "{from} forwarded the part {part} to {to}",
+        "part_taken_back": "{actor} took the part {part} back from {from}",
+        "signer_moved": "{actor} was moved to step {step}",
+        "forwarding_on": "{sender} allowed forwarding",
+        "forwarding_off": "{sender} switched forwarding off",
+        "forwarding_changed": "{sender} changed whether people can forward",
+        "sensitive_viewed": "{sender} revealed {hasField, select, yes {“{field}”} other {a sensitive answer}}",
+        "file_replaced": "{sender} replaced the file of the draft",
+        "createdForm": "{sender} created the form",
+        "sentForm": "{sender} sent the form",
+        "viewedForm": "{actor} opened the form",
+        "consentedForm": "{actor} agreed to submit electronically",
+        "submittedForm": "{actor} submitted their details",
+        "declinedForm": "{actor} declined to complete the form",
+        "sealedForm": "The submission record was sealed",
+        "completedForm": "The submission was recorded",
+        "downloadedForm": "{sender} opened or downloaded the record",
+        "all_submitted": "Everyone had submitted",
+        "envelope_sent": "{sender} sent the envelope {reference} with {count, plural, one {# document} other {# documents}}",
+        "envelope_completed": "The envelope {reference} was completed, all {count, plural, one {# document} other {# documents}} signed",
+        "envelope_declined": "{by} declined the envelope {reference}, so every document that was open stopped"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -8822,7 +9240,18 @@
         "rate_limited": "Too many tries. Wait a minute and try again.",
         "network": "Could not reach the server. Check your connection and try again.",
         "database_error": "Something went wrong. Please try again.",
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "already_on_document": "That person is already on this document.",
+        "step_not_movable": "That person can only be moved to a step that has not begun.",
+        "envelope_not_found": "That envelope was not found.",
+        "envelope_not_sent": "This envelope has not been sent yet.",
+        "envelope_partly_completed": "A document of this envelope was already signed by everyone, so the envelope cannot be cancelled.",
+        "envelope_person_has_signed": "This person has already signed part of the envelope, so they cannot be replaced.",
+        "document_in_envelope": "This document is part of an envelope. Do this on the envelope instead.",
+        "expiry_in_the_past": "The new date must be in the future.",
+        "expiry_not_later": "The new date must be later than the current one.",
+        "expiry_too_far": "That date is too far away. Choose a nearer date.",
+        "bad_expiry": "That date could not be read. Choose it again."
       },
       "contactTab": {
         "tab": "Documents",
@@ -8830,6 +9259,22 @@
         "send": "Send a document",
         "empty": "No documents for this contact yet.",
         "failed": "The documents could not be loaded."
+      },
+      "yourTurn": {
+        "title": "It is your turn to sign this document",
+        "body": "You are named on it as a Halo user. Sign now opens it with your Halo sign-in, so no code is asked."
+      },
+      "forwarding": {
+        "label": "Allow people to forward",
+        "onHint": "People can hand their turn, or a part of the form, to someone else. Each forward is recorded in the history.",
+        "offHint": "Nobody can forward. What was already handed over stays with the person it was handed to.",
+        "nowOn": "Forwarding is on for this document.",
+        "nowOff": "Forwarding is off for this document."
+      },
+      "recordTab": {
+        "emptyTicket": "No documents are attached to this ticket yet.",
+        "emptyDeal": "No documents are attached to this deal yet.",
+        "testBadge": "Test"
       }
     },
     "editor": {
@@ -8870,7 +9315,9 @@
         "code": "Needs a verification code",
         "codeHint": "The signer enters a code sent to them before signing.",
         "subject": "Email subject",
-        "message": "Message to signers"
+        "message": "Message to signers",
+        "forwarding": "Allow forwarding",
+        "forwardingHint": "A document made from this template lets its signers hand their turn, or a part of the form, to someone else. The sender can change it for each document."
       },
       "draft": {
         "loading": "Loading the document...",
@@ -8880,7 +9327,8 @@
         "fromTemplate": "The fields come from the template. Fill in the values below, or choose Edit fields to change the layout.",
         "editFields": "Edit fields",
         "lockFields": "Lock fields",
-        "saveAsTemplate": "Save as template"
+        "saveAsTemplate": "Save as template",
+        "replaceFile": "Replace file"
       },
       "fieldsList": {
         "title": "All fields",
@@ -9118,6 +9566,55 @@
         "missing": "{count, plural, one {# value is empty} other {# values are empty}}",
         "complete": "All values are filled in.",
         "used": "{count, plural, one {used in # field} other {used in # fields}}"
+      },
+      "replaceFile": {
+        "title": "Replace the file",
+        "intro": "Choose a new PDF, Word file or image. The fields you have placed stay where they are when they still fit; you see what would change before anything does.",
+        "checking": "Checking the new file…",
+        "pages": "The new file has {next, plural, one {# page} other {# pages}}; the current one has {old, plural, one {# page} other {# pages}}.",
+        "pagesChanged": "The number of pages is different, so check that every field is still on the right page.",
+        "converted": "The file will be turned into a PDF, and that PDF is what will be signed.",
+        "noFields": "There are no fields on this document yet, so nothing needs to move.",
+        "allKept": "{count, plural, one {The field keeps its place.} other {All # fields keep their place.}}",
+        "flaggedTitle": "{flagged, plural, one {# field needs a look} other {# fields need a look}}; {kept, plural, one {# keeps its place} other {# keep their place}}.",
+        "reason": {
+          "page_missing": "Its page is not in the new file, so it was moved to the last page",
+          "size_changed": "The page is a different size or shape, so it may no longer line up",
+          "outside_page": "It is not inside the page"
+        },
+        "movedLine": "{name}: was on page {from}, now on page {to}",
+        "pageLine": "{name} (page {page})",
+        "afterNote": "After the file is replaced, the Problems list in the editor shows what is left to fix, and nothing is sent until you do.",
+        "unknownField": "A field",
+        "cancel": "Cancel",
+        "confirm": "Replace file",
+        "replacing": "Replacing…"
+      },
+      "testSend": {
+        "button": "Send a test",
+        "title": "Send yourself a test",
+        "intro": "Try this template as a signer would: you get a real email and signing page, and a signed file, all marked TEST.",
+        "sentIntro": "The test is on its way.",
+        "sentTo": "A test document was sent to {email}.",
+        "orderIgnored": "This template signs in order, but one address holds several places, so the test does not follow the order.",
+        "whereToSign": "Open the email, or open the document here and find it under Awaiting my signature to sign from inside Halo.",
+        "notDelivered": "A message could not be delivered. Use these links instead:",
+        "open": "Open the document",
+        "pointMarked": "Every page, the email and the signing page say TEST.",
+        "pointNotCounted": "It does not count toward your monthly limit, and no webhook or automation hears about it.",
+        "pointKept": "After it is signed it is kept for {days} days.",
+        "unsaved": "The test uses the saved version of the template. Save a version first if you want your latest changes in it.",
+        "noRoles": "This template has nobody to sign or fill it in yet. Add a field for a role first.",
+        "emailLabel": "Send the test to",
+        "emailHint": "Your own address is used when this is left empty. To use another inbox of yours, add +something before the @ (for example you+test@company.com).",
+        "emailNotYours": "A test can only go to your own address, or your own address with +something added.",
+        "placesLabel": "Who plays each place",
+        "placesHint": "Leave a place empty to use the address above. Give each place its own +something address to try signing in order.",
+        "cancel": "Cancel",
+        "send": "Send the test",
+        "sending": "Sending…",
+        "rowLabel": "Send a test of {name}",
+        "loadFailed": "The template could not be opened for a test. Try again."
       }
     },
     "formBuilder": {
@@ -9507,7 +10004,16 @@
         "placement_type_mismatch": "The box on page {page} cannot print {field} as this kind of box. Open the placement editor and change it.",
         "placement_bound_and_fixed": "The box on page {page} both prints an answer and is fixed text. Open the placement editor and change it.",
         "part_without_person": "The part {part} has nobody to complete it.",
-        "removeBox": "Remove the box"
+        "removeBox": "Remove the box",
+        "bad_list_key": "The list named by {field} is not a valid list key.",
+        "list_wrong_type": "{field} cannot use a shared list: only a choice, a multiple choice or a list of entries can.",
+        "unknown_list": "{field} uses the list {detail}, which does not exist in this workspace. Choose another list.",
+        "list_and_options": "{field} has both a shared list and options typed in. Use one or the other.",
+        "list_empty": "The list {detail} used by {field} has no active items. Add items to it in Settings or choose another list.",
+        "bad_sensitive": "{field} cannot be marked sensitive. Only typed answers (text, number, email, phone, date, list) can.",
+        "sensitive_contact_field": "{field} is sensitive, so it cannot fill a contact field. Remove one of the two.",
+        "sensitive_default": "{field} is sensitive, so it cannot have a starting value or be locked. Remove the starting value or the lock.",
+        "sensitive_in_rule": "A rule compares the value of {field}, which is sensitive. A rule may only ask whether it is empty."
       },
       "warnings": {
         "unknown": "Something in the form is worth checking.",
@@ -9594,6 +10100,45 @@
         "cannotDeleteRole": "{count, plural, one {This role holds a part of the form. Give it to another role in the Form view before deleting it.} other {This role holds # parts of the form. Give them to another role in the Form view before deleting it.}}",
         "signerNoSignature": "This role signs but has no signature or initials box.",
         "sampleItem": "Entry {n}"
+      },
+      "list": {
+        "source": "Where the options come from",
+        "sourceTyped": "Typed here",
+        "sourceList": "A shared list",
+        "sourceFree": "Anything the signer types",
+        "sourcePicked": "Picked from a shared list",
+        "which": "Shared list",
+        "choose": "Choose a list...",
+        "loading": "Loading lists...",
+        "loadFailed": "The lists could not be loaded.",
+        "unknown": "The list {key} does not exist in this workspace.",
+        "archived": "This list is archived. It still works in this form; choose another list to stop using it.",
+        "stale": "The list has changed since this form was saved. Save to use the new version.",
+        "preview": "{count, plural, one {# option} other {# options}} from the list",
+        "previewMore": "and {count} more",
+        "hint": "A copy of the list goes into the form when you save, and into each document when it is sent. Changing the list later does not change documents already sent. Lists are kept in Settings > Doc Sign > Lists.",
+        "hintPicked": "The signer searches this list by code or by words and adds entries one by one. A copy of the list goes into the form when you save, and into each document when it is sent. Lists are kept in Settings > Doc Sign > Lists."
+      },
+      "sensitive": {
+        "title": "Sensitive data",
+        "label": "Sensitive (encrypted and masked)",
+        "hint": "Stored encrypted. Staff see it masked (for example •••• 1234) and every reveal is logged. It is left out of exports and cannot fill a contact field.",
+        "print": "On the signed PDF",
+        "printHint": "The signed document normally shows what was agreed, so the default is to print it in full. Choose another only if you want it kept off the PDF.",
+        "printFull": "Print in full",
+        "printLast4": "Print only the last 4 characters",
+        "printNone": "Do not print"
+      },
+      "rolesPanel": {
+        "title": "People who fill this in",
+        "hint": "Each person is a role that only fills in; nobody signs. Give each part to one of them in its settings. You name the real people when you send the form.",
+        "nameLabel": "Name of the person",
+        "parts": "{count, plural, one {# part} other {# parts}}",
+        "remove": "Remove {name}",
+        "removeInUse": "A part is given to this person",
+        "removeLast": "A form needs at least one person",
+        "add": "Add a person",
+        "limit": "Up to {max} people"
       }
     },
     "progress": {
@@ -9661,7 +10206,8 @@
         "download": "Download",
         "downloadNamed": "Download {name}",
         "fromContact": "From the contact, not yet confirmed",
-        "bySender": "Set by the sender"
+        "bySender": "Set by the sender",
+        "typedBy": "Typed by {name}, who was handed this part"
       },
       "issues": {
         "title": "{count, plural, one {# thing needs a look} other {# things need a look}}",
@@ -9727,6 +10273,25 @@
         "prefillOn": "The form starts with details from the linked contact ({fields}). The signer checks them and can change them.",
         "noContact": "This form can start with details from a contact ({fields}), but no contact is linked. The signer will fill everything in. You can link a contact in the options step.",
         "noContactFields": "This form does not use details from a contact."
+      },
+      "heldBy": "With {name}",
+      "heldByDone": "Completed by {name}",
+      "sensitive": {
+        "reveal": "Reveal",
+        "hide": "Hide",
+        "revealNamed": "Reveal {name}",
+        "hideNamed": "Hide {name}",
+        "note": "Encrypted. Revealing it is recorded in the history.",
+        "shownNote": "Shown for a short while, then hidden again. This view was recorded in the history.",
+        "errors": {
+          "answer_not_found": "This answer could not be found.",
+          "audit_unavailable": "The view could not be recorded, so the answer was not shown. Try again.",
+          "rate_limited": "Too many requests. Wait a moment and try again.",
+          "forbidden": "You do not have permission to reveal this answer.",
+          "signed_out": "You have been signed out. Sign in again to continue.",
+          "network": "Could not reach the server. Check your connection and try again.",
+          "generic": "That did not work. Try again."
+        }
       }
     },
     "send": {
@@ -9781,7 +10346,8 @@
           "draft": "Draft",
           "waiting": "Waiting for others",
           "completed": "Completed",
-          "stopped": "Stopped"
+          "stopped": "Stopped",
+          "test": "Test"
         },
         "searchLabel": "Search documents",
         "searchPlaceholder": "Search by title, reference or signer",
@@ -9810,7 +10376,63 @@
         "edited": "Edited {when}",
         "completedOn": "Completed {date}",
         "sentOn": "Sent {date}",
-        "expiresOn": "Expires {date}"
+        "expiresOn": "Expires {date}",
+        "shortcuts": {
+          "label": "Shortcuts"
+        },
+        "awaiting": {
+          "tab": "Awaiting my signature",
+          "badge": "{count, plural, one {1 document awaits your signature} other {# documents await your signature}}",
+          "hint": "You are named on these documents as a Halo user and it is your turn. Sign now opens the document with your Halo sign-in, so no code is asked.",
+          "empty": "Nothing is waiting for your signature.",
+          "signNow": "Sign now",
+          "opening": "Opening...",
+          "view": "View",
+          "from": "From {name}",
+          "sent": "Sent {date}",
+          "expires": "Expires {date}",
+          "step": "Step {step}",
+          "role": "As {role}",
+          "errors": {
+            "not_your_turn": "It is not your turn to sign this document yet.",
+            "document_not_open": "This document can no longer be signed.",
+            "already_signed": "You have already signed this document.",
+            "signer_not_open": "You declined this document.",
+            "not_a_signer": "You are not a signer on this document.",
+            "forbidden": "You do not have permission to sign inside Halo.",
+            "signed_out": "Sign in again to continue.",
+            "rate_limited": "Too many tries. Try again in a moment.",
+            "network": "Could not reach the server. Check your connection and try again.",
+            "sign_disabled": "Doc Sign is not switched on for this workspace.",
+            "generic": "The document could not be opened. Try again."
+          }
+        },
+        "attention": {
+          "tab": "Needs attention",
+          "hint": "Documents that were declined, expired in the last 30 days or could not be sealed, and open documents where a message did not arrive. A bounce that the mail provider reports later is not shown.",
+          "empty": "Nothing needs your attention.",
+          "open": "Open",
+          "reason": {
+            "declined": "Declined",
+            "expired": "Expired",
+            "failed": "Could not be sealed",
+            "undelivered": "Message not delivered"
+          },
+          "detail": {
+            "declined": "Declined by {names}",
+            "expired": "Still waiting on {names}",
+            "failed": "The signed copy could not be made yet. Open the document for details.",
+            "undelivered": "Not delivered to {names}"
+          }
+        },
+        "testBadge": "Test",
+        "formBadge": "Form",
+        "progressForm": "{done} of {total} submitted",
+        "envelopeBadge": "Envelope · {count, plural, one {# document} other {# documents}}",
+        "dateFrom": "Made from",
+        "dateTo": "Made until",
+        "contactLabel": "Contact",
+        "rangeBackwards": "The start date is after the end date, so nothing can match."
       },
       "new": {
         "title": "New document",
@@ -9848,7 +10470,8 @@
         "noTemplateMatch": "No templates match your search.",
         "templatesLabel": "Templates",
         "noCategoryGroup": "No category",
-        "templateFacts": "{pages, plural, one {# page} other {# pages}} · {roles, plural, one {# role} other {# roles}}"
+        "templateFacts": "{pages, plural, one {# page} other {# pages}} · {roles, plural, one {# role} other {# roles}}",
+        "templateFactsForm": "Form without a signature · {roles, plural, one {# person} other {# people}}"
       },
       "view": {
         "loading": "Loading the document",
@@ -9882,14 +10505,15 @@
         "people": "People",
         "options": "Options",
         "review": "Review",
-        "complete": "(complete)"
+        "complete": "(complete)",
+        "formFields": "Form"
       },
       "people": {
         "noRolesTitle": "Place the fields first",
         "noRolesBody": "The people come from the roles you give the fields, such as a signer or someone who fills in a part. Place at least one field on the document, then come back here.",
         "goToFields": "Go to fields",
         "needsOrder": "This document needs signing order",
-        "needsOrderOn": "Each person is invited only after the one before has signed. Drag the people or use the arrows to set the order.",
+        "needsOrderOn": "People sign step by step. Everyone in step 1 is invited when you send; the next step is invited once everyone in the step before has finished. Give two people the same step number to let them sign at the same time. Drag a person next to another, or use the arrows, to change the order.",
         "needsOrderOff": "Everyone is invited at once and anyone can sign first. No order numbers are shown.",
         "empty": "Nobody is on the list yet. Add the people who sign or fill in this document.",
         "listLabel": "People on this document",
@@ -9901,7 +10525,7 @@
         "limitReached": "A document can have up to {max} people.",
         "fromContactsTitle": "Add from contacts",
         "fromContactsBody": "Choose a contact. Their name, email and phone fill a new row.",
-        "dragHandle": "Drag to change the order",
+        "dragHandle": "Drag next to another person to change the order",
         "orderNumber": "Number {n}",
         "moveUp": "Move person {n} up",
         "moveDown": "Move person {n} down",
@@ -9921,7 +10545,25 @@
         "phoneInvalid": "Enter the number with its country code, for example +60 12 345 6789.",
         "whatsappNote": "WhatsApp invitations use an approved message template.",
         "whatsappNotSetUp": "WhatsApp invitations need an approved message template, and none is set up yet. This person would not be reached by WhatsApp. Use email, or ask an admin to set it up in Settings.",
-        "remove": "Remove person {n}"
+        "remove": "Remove person {n}",
+        "stepHeading": "Step {step} ({count, plural, one {# person} other {# people}})",
+        "stepNumber": "Step number for person {n}",
+        "stepNumberHint": "People with the same step number sign at the same time.",
+        "emptyForm": "Nobody is on the list yet. Add the people who fill this in.",
+        "needsOrderForm": "People fill this in in order",
+        "needsOrderOnForm": "Each person is invited only after the one before has submitted. Drag the people or use the arrows to set the order.",
+        "needsOrderOffForm": "Everyone is invited at once and anyone can fill in first. No order numbers are shown.",
+        "sameEmailOrderedForm": "{email} appears at numbers {a} and {b}. People who fill this in in order must be different people.",
+        "chooseHaloUser": "Choose a Halo user",
+        "haloUserTitle": "Choose a Halo user",
+        "haloUserBody": "Pick someone from your workspace to sign from inside Halo. They will find the document under Awaiting my signature, and also get the usual invitation by email. They need the permission to sign documents.",
+        "haloUserSearch": "Search by name or email",
+        "haloUserLoading": "Loading people...",
+        "haloUserNone": "No one to choose. Everyone here is already on the list, or nobody matches.",
+        "haloUserList": "People in your workspace",
+        "haloUserTag": "Halo user",
+        "haloUserNote": "Signs from inside Halo. The name and email come from their Halo profile.",
+        "haloUserRemove": "Use someone outside Halo instead"
       },
       "options": {
         "title": "Title",
@@ -9952,11 +10594,19 @@
         "remindersHint": "Days after the invitation, separated by commas, for example 3, 7. Leave empty for no reminders.",
         "remindersBad": "Use whole days from 1 to 60, up to 5 of them.",
         "codeRequired": "Needs a verification code",
-        "codeRequiredHint": "Each signer must enter a one-time code sent to them before they can open the document. Off unless you tick it."
+        "codeRequiredHint": "Each signer must enter a one-time code sent to them before they can open the document. Off unless you tick it.",
+        "allowForwarding": "Allow people to forward",
+        "allowForwardingHint": "A signer can hand their turn, or one part of a form, to someone else. The new person gets a link of their own and agrees to sign for themselves. Every forward is recorded in the history.",
+        "ticket": "Ticket",
+        "ticketHint": "Optional. Shows this document on the ticket.",
+        "ticketHintContact": "Optional. Only tickets of this contact are offered.",
+        "deal": "Deal",
+        "dealHint": "Optional. Shows this document on the deal.",
+        "dealHintContact": "Optional. Only deals of this contact are offered."
       },
       "review": {
         "untitled": "Untitled document",
-        "orderedIntro": "People sign in order. Number 1 is invited when you send; each next person is invited when the one before has signed.",
+        "orderedIntro": "People sign in order. Everyone in step 1 is invited when you send; each next step is invited when everyone in the step before has finished. People in the same step are invited together.",
         "allAtOnce": "Everyone is invited at once, and anyone can sign first.",
         "nobody": "Nobody has been added yet.",
         "noName": "No name yet",
@@ -9988,7 +10638,16 @@
         "send": "Send for signature",
         "noPermission": "You do not have permission to send documents.",
         "sendBlocked": "Fix the things above to send.",
-        "sendNote": "Once sent, the file and the signing order cannot be changed. To change them, void the document and send it again."
+        "sendNote": "Once sent, the file and the signing order cannot be changed. To change them, void the document and send it again.",
+        "sameStep": "Signs together with the others in step {step}",
+        "forwardingLabel": "Forwarding",
+        "forwardingOn": "People can hand their turn, or a part of the form, to someone else",
+        "forwardingOff": "Not allowed",
+        "orderedIntroForm": "People fill this in in order. Number 1 is invited when you send; each next person is invited when the one before has submitted.",
+        "allAtOnceForm": "Everyone is invited at once, and anyone can fill in first.",
+        "codeOnForm": "Each person enters a one-time code first",
+        "sendForm": "Send the form",
+        "sendNoteForm": "Once sent, the form and the order cannot be changed. To change them, void the document and send it again."
       },
       "result": {
         "title": "Sent for signature",
@@ -10012,7 +10671,10 @@
         "copied": "Link copied",
         "copyFailed": "The link could not be copied. Select it and copy it by hand.",
         "privateWarning": "Send this link only to {name}, in private. Anyone who has it can sign as them.",
-        "openDocument": "Open the document"
+        "openDocument": "Open the document",
+        "titleForm": "Form sent",
+        "linkLabelForm": "Link for {name}",
+        "privateWarningForm": "Send this link only to {name}, in private. Anyone who has it can fill in the form as them."
       },
       "problems": {
         "no_file": "The document has no file.",
@@ -10032,7 +10694,12 @@
         "message_long": "The message is longer than 2000 characters.",
         "expiry_past": "The expiry date must be after today.",
         "reminders_bad": "The reminders must be whole days from 1 to 60, up to 5 of them.",
-        "layout": "A field on the document is not placed correctly."
+        "layout": "A field on the document is not placed correctly.",
+        "no_person": "Add at least one person who fills this in.",
+        "form_mode_needs_a_form": "This form has no part to fill in. Open the template and add one.",
+        "form_mode_signature": "A form without a signature cannot have a place to sign.",
+        "form_mode_placement": "A form without a signature has nothing placed on a page.",
+        "form_mode_signer_role": "A form without a signature cannot have a role that signs."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -10088,7 +10755,210 @@
         "rate_limited": "Too many requests. Wait a moment and try again.",
         "body_too_large": "That request is too large.",
         "bad_json": "The request could not be read. Please try again.",
-        "database_error": "Something went wrong on our side. Please try again."
+        "database_error": "Something went wrong on our side. Please try again.",
+        "ticket_not_found": "That ticket was not found.",
+        "deal_not_found": "That deal was not found.",
+        "ticket_contact_mismatch": "That ticket belongs to a different contact than this document. Choose that contact, or another ticket.",
+        "deal_contact_mismatch": "That deal belongs to a different contact than this document. Choose that contact, or another deal.",
+        "test_email_not_yours": "A test can only be sent to your own address, or your own address with +something added.",
+        "test_no_roles": "This template has nobody to sign or fill it in yet. Add a field for a role first.",
+        "test_no_address": "Your account has no email address to send the test to.",
+        "same_file": "This is the file the document already has.",
+        "document_has_no_file": "This document has no file to replace.",
+        "envelope_not_found": "That envelope was not found.",
+        "envelope_not_draft": "This envelope was already sent, so it can no longer be changed.",
+        "envelope_not_sent": "This envelope has not been sent yet.",
+        "envelope_size": "An envelope holds two to six documents.",
+        "envelope_documents": "The documents of this envelope changed while you were working. Open it again and check them.",
+        "envelope_options": "Every document of an envelope must use the same signing order and the same code setting.",
+        "envelope_people": "The list of people of this envelope is not complete. Check it and save it again.",
+        "envelope_person_twice": "A person can have only one role on each document.",
+        "envelope_not_ready": "This envelope is not ready to send. Check the list of things to fix.",
+        "envelope_too_big": "The documents of an envelope can be up to 50 MB in all. Use smaller files.",
+        "envelope_duplicate_template": "Choose each template only once.",
+        "envelope_not_deletable": "Only a draft can be deleted. Cancel an envelope that was sent.",
+        "envelope_frozen": "An envelope that was sent cannot be edited.",
+        "envelope_fixed": "A document cannot be moved out of its envelope.",
+        "envelope_no_forwarding": "The documents of an envelope cannot be forwarded to someone else.",
+        "envelope_no_test": "A test document cannot be part of an envelope.",
+        "document_in_envelope": "This document is part of an envelope. Do this on the envelope instead.",
+        "document_retained": "This signed document must be kept for now, so it cannot be deleted yet."
+      },
+      "records": {
+        "ticketLabel": "Link to a ticket",
+        "dealLabel": "Link to a deal",
+        "ticketPlaceholder": "Search tickets by number or subject",
+        "dealPlaceholder": "Search deals by title",
+        "results": "Matching records",
+        "searching": "Searching…",
+        "none": "Nothing found.",
+        "noneForContact": "This contact has none that match.",
+        "remove": "Remove the link",
+        "loading": "Loading…",
+        "unknown": "A record you cannot see"
+      },
+      "envelope": {
+        "badge": "Envelope · {count, plural, one {# document} other {# documents}}",
+        "new": {
+          "link": "Send several documents as one envelope",
+          "title": "New envelope",
+          "subtitle": "Several documents for the same people, signed in one sitting. Each person gets one message and one link.",
+          "chooseHeading": "Choose the documents",
+          "chooseHint": "Pick templates, or add one file. An envelope holds {min} to {max} documents.",
+          "templatesLabel": "Templates",
+          "fileHeading": "Or add a file",
+          "fileHint": "A PDF or a Word file. You prepare its fields after the envelope is made.",
+          "orderHeading": "Order of the documents ({count})",
+          "nothingChosen": "Nothing chosen yet.",
+          "removeFile": "Remove the file",
+          "moveUp": "Move {title} up",
+          "moveDown": "Move {title} down",
+          "remove": "Remove {title}",
+          "needMore": "Choose at least {min} documents.",
+          "count": "{count} of {max} documents",
+          "titleLabel": "Envelope title",
+          "titlePlaceholder": "For example, Merchant onboarding",
+          "create": "Create the envelope"
+        },
+        "view": {
+          "loading": "Loading the envelope",
+          "notFoundTitle": "This envelope was not found",
+          "failedTitle": "The envelope could not be loaded",
+          "retry": "Try again",
+          "backToDocuments": "Back to documents"
+        },
+        "draft": {
+          "back": "Back to documents",
+          "delete": "Delete the draft",
+          "deleteTitle": "Delete this envelope draft?",
+          "deleteBody": "{count, plural, one {The document in it is deleted too.} other {All # documents in it are deleted too.}} Nothing has been sent. This cannot be undone.",
+          "deleteConfirm": "Delete the draft",
+          "cancel": "Keep it",
+          "deleted": "The envelope draft was deleted",
+          "readOnly": "You can look at this envelope but not change it."
+        },
+        "documents": {
+          "heading": "Documents",
+          "hint": "Prepare the fields of each document here. The people and the options are shared by the whole envelope.",
+          "form": "A form",
+          "pages": "{count, plural, one {# page} other {# pages}}",
+          "problems": "{count, plural, one {# thing to fix} other {# things to fix}}",
+          "ready": "Ready",
+          "edit": "Prepare"
+        },
+        "people": {
+          "heading": "People",
+          "intro": "Add each person once, and say what they are on each document. They get one message and one link for the whole envelope.",
+          "ordered": "People sign one after another",
+          "orderedHint": "Give each person a step. People with the same step sign together, and the next step is invited only when everyone in the step has finished all the documents.",
+          "empty": "Nobody is on the list yet.",
+          "personN": "Person {n}",
+          "remove": "Remove {name}",
+          "removeShort": "Remove",
+          "fullName": "Full name",
+          "email": "Email",
+          "channel": {
+            "label": "Send the link by",
+            "email": "Email",
+            "whatsapp": "WhatsApp"
+          },
+          "whatsappOff": "WhatsApp is not switched on for this workspace.",
+          "phone": "Phone number with country code",
+          "step": "Step",
+          "stepHint": "People with the same step sign together.",
+          "rolesHeading": "What this person is on each document",
+          "roleOn": "Role on {document}",
+          "notOn": "Not on this document",
+          "errors": {
+            "name": "Enter a full name.",
+            "email": "Enter a valid email address.",
+            "phone": "Enter a phone number with its country code.",
+            "noDocument": "Put this person on at least one document, or remove them."
+          },
+          "add": "Add a person",
+          "conflictsLabel": "Things to fix in the list of people"
+        },
+        "options": {
+          "heading": "Options",
+          "hint": "These apply to every document of the envelope."
+        },
+        "review": {
+          "heading": "Review and send",
+          "ordered": "People sign one after another, in the steps you set.",
+          "allAtOnce": "Everyone is invited at the same time.",
+          "counts": "{documents, plural, one {# document} other {# documents}} for {people, plural, one {# person} other {# people}}.",
+          "limit": "This envelope needs room for {needed} documents, but this workspace has room for {remaining} more this month.",
+          "problemsTitle": "{count, plural, one {# thing to fix before sending} other {# things to fix before sending}}",
+          "sharedHeading": "The envelope",
+          "fixDocument": "Open the document",
+          "fixPeople": "Go to people",
+          "fixOptions": "Go to options",
+          "layout": "{count, plural, one {# field is not valid} other {# fields are not valid}}",
+          "ready": "Everything is ready to send.",
+          "openEnvelope": "Open the envelope",
+          "send": "Send {count, plural, one {# document} other {# documents}}",
+          "noPermission": "You do not have permission to send documents.",
+          "sendBlocked": "Fix the things listed above to send.",
+          "sendNote": "Everyone on the list is invited right away. Once it is sent, the documents cannot be edited."
+        },
+        "sent": {
+          "title": "The envelope was sent",
+          "subtitle": "{count, plural, one {# document} other {# documents}} sent. Each person got one message.",
+          "open": "Open the envelope"
+        },
+        "problems": {
+          "envelope_size": "An envelope holds {range} documents.",
+          "envelope_too_many_pages": "An envelope can have up to {range} pages in all.",
+          "duplicate_person": "Person {n} has the same email address as another person.",
+          "person_without_document": "Person {n} is not on any document.",
+          "role_two_people": "The role {role} on {document} has more than one person. Give it to one person."
+        },
+        "banner": {
+          "title": "Document {number} of {count} in an envelope",
+          "open": "Open the envelope",
+          "manageNote": "Reminders, a new link, a new recipient, more time and cancelling are done for the whole envelope, not for one document."
+        },
+        "member": {
+          "backToEnvelope": "Back to the envelope",
+          "banner": "This is document {number} of {count} in the envelope “{title}”. The people, the options and sending are set on the envelope.",
+          "openEnvelope": "Open the envelope"
+        },
+        "detail": {
+          "sentOn": "Sent {date}",
+          "expiresOn": "Expires {date}",
+          "extend": "Give more time",
+          "void": "Cancel the envelope",
+          "banner": {
+            "completed": "All {count, plural, one {# document is} other {# documents are}} signed.",
+            "declinedBy": "{name} declined to sign, so the whole envelope stopped.",
+            "declined": "Someone declined to sign, so the whole envelope stopped.",
+            "expired": "The envelope expired on {date}.",
+            "voided": "The envelope was cancelled.",
+            "failed": "A signed file could not be made. Open the document that failed to see what to do.",
+            "sealing": "Everyone has signed. The signed files are being made.",
+            "waiting": "Waiting for {names}.",
+            "sent": "The envelope was sent. Nobody has been invited yet.",
+            "reason": "Reason: {reason}"
+          },
+          "progress": "{done} of {total} documents are complete.",
+          "partly": "At least one document is already signed by everyone, so this envelope can no longer be cancelled.",
+          "documents": "Documents",
+          "download": "Signed copy",
+          "openDocument": "Open",
+          "people": "{count, plural, one {# person} other {# people}}",
+          "step": "Step {step}",
+          "notInvited": "Not invited yet. Their step has not begun.",
+          "remindHeld": "A reminder can be sent again after {time}.",
+          "cannotReplace": "This person has already signed part of the envelope, so they cannot be replaced.",
+          "extendDialog": {
+            "title": "Give everyone more time",
+            "body": "Choose a later date. It applies to every document that is still open.",
+            "label": "New expiry date",
+            "cancel": "Cancel",
+            "action": "Give more time",
+            "done": "The new date was saved"
+          }
+        }
       }
     },
     "signer": {
@@ -10098,7 +10968,8 @@
         "language": "Language",
         "secured": "Secured by {product}",
         "skipToContent": "Skip to the content",
-        "tryAgain": "Try again"
+        "tryAgain": "Try again",
+        "testBanner": "TEST: this document was sent to try out a template. It is not a real agreement."
       },
       "invalid": {
         "title": "This link is not valid",
@@ -10126,7 +10997,8 @@
         "recorded": "We record your name, email address, network address (IP) and device, the time, and what you do on this page.",
         "agree": "I agree",
         "readFirst": "Read the document first",
-        "hideDocument": "Hide the document"
+        "hideDocument": "Hide the document",
+        "titleForm": "Submit electronically"
       },
       "doc": {
         "reference": "Reference {reference}",
@@ -10151,7 +11023,8 @@
         "zoomOut": "Zoom out",
         "pageLabel": "Page {page} of {total}",
         "openingDocument": "Opening the document...",
-        "documentFailed": "We could not open the document."
+        "documentFailed": "We could not open the document.",
+        "declineForm": "I do not want to fill this in"
       },
       "tap": {
         "signature": "Tap to sign",
@@ -10250,14 +11123,18 @@
         "reasonLabel": "Reason (optional)",
         "reasonHelp": "The sender can read what you write here.",
         "keep": "Go back",
-        "confirm": "Decline to sign"
+        "confirm": "Decline to sign",
+        "titleForm": "Do not complete this form?",
+        "bodyForm": "The person who sent it will be told, and the form will stop here. This cannot be undone.",
+        "confirmForm": "Decline to complete"
       },
       "end": {
         "signed": {
           "title": "You have signed",
           "thanks": "Thank you, {name}.",
           "waiting": "We are waiting for the others to sign. A signed copy will be emailed to you when everyone has finished.",
-          "almost": "Everyone has signed. We are finishing the document, and a signed copy will be emailed to you."
+          "almost": "Everyone has signed. We are finishing the document, and a signed copy will be emailed to you.",
+          "waitingFor": "We are waiting for {name} to finish. The signed copy comes to you by email when everyone is done."
         },
         "sealing": {
           "title": "We are finishing your document",
@@ -10269,7 +11146,8 @@
           "body": "Everyone has signed. You can keep a copy of the signed document.",
           "download": "Download signed PDF",
           "view": "View signed PDF",
-          "byEmail": "A signed copy was sent to your email address."
+          "byEmail": "A signed copy was sent to your email address.",
+          "delegate": "Thank you for filling in your part. The sender has the finished document."
         },
         "declined": {
           "title": "This document was not signed",
@@ -10291,6 +11169,27 @@
         "notInvited": {
           "title": "It is not your turn yet",
           "body": "Someone needs to sign before you. We will message you when it is your turn. You can close this page."
+        },
+        "sealingForm": {
+          "title": "We are recording your submission",
+          "body": "Everyone has submitted. We are putting the record together. This page updates by itself, so you can leave it open.",
+          "slow": "This is taking longer than usual. You can close this page. We will email the record as soon as it is ready."
+        },
+        "completedForm": {
+          "title": "Your submission is recorded",
+          "body": "Everyone has submitted. You can keep a copy of the record of what was submitted.",
+          "download": "Download the record",
+          "view": "View the record",
+          "byEmail": "A copy of the record was sent to your email address."
+        },
+        "declinedForm": {
+          "title": "This form was not completed",
+          "you": "You chose not to complete it. The sender has been told.",
+          "other": "Someone on this form chose not to complete it, so it will not go ahead. You do not need to do anything."
+        },
+        "notInvitedForm": {
+          "title": "It is not your turn yet",
+          "body": "Someone needs to finish before you. We will message you when it is your turn. You can close this page."
         }
       },
       "others": {
@@ -10300,7 +11199,9 @@
         "turn": "Their turn now",
         "invited": "Has not signed yet",
         "waiting": "Waiting for their turn",
-        "done": "Done"
+        "done": "Done",
+        "titleForm": "Who is filling this in",
+        "invitedForm": "Has not finished yet"
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -10321,7 +11222,77 @@
         "missing_required": "Some required fields are still empty.",
         "invalid_answers": "Some answers need a change. They are marked on the page.",
         "body_too_large": "That is too large to send. Use smaller pictures.",
-        "session_unavailable": "Signing is not available right now. Please try again later."
+        "session_unavailable": "Signing is not available right now. Please try again later.",
+        "forward_not_allowed": "Forwarding is not switched on for this document.",
+        "forward_details": "Enter a full name and a valid email address.",
+        "forward_same_person": "That is your own address. Enter the person you are handing this to.",
+        "forward_already_signer": "That person is already on this document.",
+        "forward_limit": "This can only be handed on a couple of times. Ask the sender instead.",
+        "forward_part_unknown": "That part is not yours to forward.",
+        "delegate_cannot_forward": "A part that was handed to you cannot be passed on again.",
+        "delegation_open": "A part you forwarded is not finished yet. Wait for it, or take it back.",
+        "delegate_cannot_decline": "This was handed to you to fill in. Tell the person who sent it to you if you cannot.",
+        "part_already_forwarded": "That part was already handed to someone.",
+        "part_not_forwarded": "That part is not with anyone else.",
+        "part_already_completed": "That part has been completed, so it cannot be taken back."
+      },
+      "forward": {
+        "action": "Forward to someone else",
+        "titleTurn": "Forward your turn",
+        "titlePart": "Forward a part: {part}",
+        "bodyTurn": "The person you choose signs in your place. They get a link of their own and agree to sign for themselves. Your link stops working at once.",
+        "bodyPart": "The person you choose fills in this part only and sees nothing else. They do not sign. You still review and sign yourself once it is done.",
+        "left": "You can forward {count, plural, one {# more time} other {# more times}}.",
+        "name": "Their full name",
+        "email": "Their email",
+        "note": "A note for them (optional)",
+        "noteHelp": "They will read this in the email.",
+        "cancel": "Cancel",
+        "confirmTurn": "Forward my turn",
+        "confirmPart": "Forward this part",
+        "problemDetails": "Enter their full name and a valid email address.",
+        "doneTitle": "Forwarded",
+        "doneBody": "{name} has been sent a link to take your place. You do not need to do anything more, and you can close this page.",
+        "doneNotSent": "The message to {name} could not be delivered. Tell the person who sent you this document.",
+        "fromTurn": "{name} asked you to complete this in their place. You will agree to sign electronically yourself.",
+        "fromPart": "{name} asked you to fill in part of this document. You only see that part."
+      },
+      "envelope": {
+        "next": "Next document",
+        "finish": "Finish and sign everything",
+        "declineNote": "This ends the whole envelope: {count, plural, one {# document} other {all # documents}} stop for everyone.",
+        "listLabel": "The documents of this envelope",
+        "position": "Document {number} of {count}",
+        "open": "Open {title}",
+        "notFinal": "Nothing is final until you finish the last document. You can open the others in any order.",
+        "introTitle": "{count, plural, one {# document} other {# documents}} to sign",
+        "introTitleFill": "{count, plural, one {# document} other {# documents}} to complete",
+        "introBody": "You will go through them one after another in this one visit, and you only need to agree once.",
+        "state": {
+          "active": "To do",
+          "signed": "Done",
+          "sealing": "Being finished",
+          "completed": "Complete",
+          "declined": "Declined",
+          "expired": "Expired",
+          "voided": "Cancelled",
+          "failed": "Problem",
+          "not_invited": "Not your turn yet"
+        },
+        "end": {
+          "completed": {
+            "title": "All {count, plural, one {# document is} other {# documents are}} complete",
+            "body": "Everyone has signed. You can download each signed document below.",
+            "byEmail": "The signed documents were also sent to your email."
+          },
+          "signed": {
+            "title": "You signed all {count, plural, one {# document} other {# documents}}",
+            "body": "Thank you, {name}. Your part is done.",
+            "waiting": "We are waiting for the others. You will get an email with the signed documents when everyone is done."
+          },
+          "download": "Download {title}",
+          "downloadShort": "Download"
+        }
       }
     },
     "signerForm": {
@@ -10333,7 +11304,15 @@
         "progressLabel": "Your progress",
         "percent": "{percent}% complete",
         "counts": "{done} of {total} answered",
-        "continue": "Continue: {part}"
+        "continue": "Continue: {part}",
+        "waitingFor": "Waiting for {name}",
+        "doneBy": "Done by {name}",
+        "takeBack": "Take it back",
+        "takeBackAsk": "Take this part back from {name}? What they have typed so far stays.",
+        "takeBackYes": "Yes, take it back",
+        "takeBackNo": "Keep it with them",
+        "takeBackFailed": "Could not take it back. They may have just finished it.",
+        "forwardPart": "Forward this part to someone else"
       },
       "status": {
         "not_started": "Not started",
@@ -10351,7 +11330,10 @@
         "saving": "Saving your answers. This opens in a moment.",
         "check": "Some answers still need a look. Open a part that is not done.",
         "readySign": "Check the answers on the form, then sign.",
-        "readySubmit": "Everything is filled in. Send your answers when you are ready."
+        "readySubmit": "Everything is filled in. Send your answers when you are ready.",
+        "waitingDelegates": "Waiting for {count, plural, one {# part} other {# parts}} you forwarded.",
+        "reviewSubmit": "Review and submit",
+        "readyReviewSubmit": "Check your answers, then submit."
       },
       "part": {
         "position": "Part {number} of {total}",
@@ -10491,10 +11473,48 @@
           "title": "Your answers are sent",
           "thanks": "Thank you, {name}.",
           "next": "You do not need to do anything else."
+        },
+        "submitted": {
+          "title": "Thank you, your details were sent",
+          "thanks": "Thank you, {name}.",
+          "next": "You do not need to do anything else. A record of what you submitted will be emailed to you.",
+          "waiting": "We are waiting for the others to finish. A record of what was submitted will be emailed to you when everyone has."
         }
       },
       "preview": {
         "note": "This is a preview. Nothing you enter here is saved or sent."
+      },
+      "search": {
+        "label": "Search {label}",
+        "placeholder": "Type to search",
+        "clear": "Clear {label}",
+        "remove": "Remove {item}",
+        "selected": "Chosen ({count})",
+        "count": "{count} of {max}",
+        "limit": "You can add up to {max}.",
+        "results": "{count, plural, one {# match} other {# matches}}",
+        "noMatches": "No matches",
+        "noMatchesFor": "No matches for {query}",
+        "more": "Showing the first {shown}. Type more to narrow the list."
+      },
+      "sensitive": {
+        "note": "This answer is stored encrypted. Staff see it masked.",
+        "showNamed": "Show {label}",
+        "hideNamed": "Hide {label}"
+      },
+      "submitReview": {
+        "title": "Review and submit",
+        "parts": "Your answers, part by part",
+        "body": "Check your answers. When you submit them, they are sent and a record is kept.",
+        "change": "Change",
+        "changePart": "Change the part {part}",
+        "picture": "A picture was attached",
+        "notAnswered": "Not answered",
+        "sensitiveNote": "Details marked private are shown hidden here. They are kept encrypted.",
+        "back": "Back to the parts",
+        "submit": "Submit",
+        "submitting": "Submitting...",
+        "afterwards": "You cannot change your answers once you submit."
       }
     },
     "verify": {
@@ -10504,7 +11524,9 @@
       "reference": "Reference {reference}",
       "signers": {
         "title": "Signed by",
-        "none": "No signatures are listed for this document."
+        "none": "No signatures are listed for this document.",
+        "titleForm": "Submitted by",
+        "noneForm": "No submissions are listed for this document."
       },
       "trail": {
         "intactTitle": "The record of this document is complete and unchanged",
@@ -10526,12 +11548,576 @@
         "differentBody": "It may have been changed, or saved again by another program or a PDF editor. Ask the sender for the signed original.",
         "readError": "We could not read that file. Please choose it again.",
         "unsupported": "This browser cannot check files. Open this page in an up-to-date browser.",
-        "fingerprint": "Fingerprint of the signed original (SHA-256)"
+        "fingerprint": "Fingerprint of the signed original (SHA-256)",
+        "matchTitleForm": "This is the exact sealed record",
+        "matchBodyForm": "Your copy is identical to the sealed record, byte for byte.",
+        "differentTitleForm": "This file is not the sealed record",
+        "differentBodyForm": "It may have been changed, or saved again by another program or a PDF editor. Ask the sender for the sealed record.",
+        "fingerprintForm": "Fingerprint of the sealed record (SHA-256)"
       },
       "readerHint": "To see the electronic signature itself, open the PDF in a PDF reader such as Adobe Acrobat and look at its signature panel.",
       "notFound": {
         "title": "We could not find this document",
         "body": "Check that you scanned the whole code or opened the whole address. If it still does not work, ask the person who sent you the document."
+      },
+      "signedTitleForm": "This submission is recorded",
+      "envelope": "This document was signed together with others, in one envelope of {count, plural, one {# document} other {# documents}}."
+    },
+    "bulk": {
+      "title": "Bulk send",
+      "subtitle": "Send the same template to many people at once. The documents are made and sent in the background.",
+      "backToDocuments": "Back to documents",
+      "noPermission": "You do not have permission to send documents.",
+      "back": "Back",
+      "next": "Next",
+      "steps": {
+        "label": "Bulk send steps",
+        "complete": "complete",
+        "template": "Template",
+        "people": "People",
+        "setup": "Setup",
+        "review": "Check and send"
+      },
+      "template": {
+        "heading": "Which template?",
+        "hint": "Everyone on your list gets their own copy of this template."
+      },
+      "people": {
+        "heading": "Who gets a document?",
+        "sourceLabel": "Where the people come from",
+        "source": {
+          "csv": "Upload a CSV file",
+          "csvHint": "A spreadsheet saved as CSV, up to {max} people.",
+          "contacts": "Choose contacts",
+          "contactsHint": "Pick people from your contacts, up to {max}."
+        },
+        "chooseHint": "Choose a CSV file with up to {max} people, at most {size} MB.",
+        "chooseFile": "Choose a file",
+        "removeFile": "Remove this file",
+        "fileSize": "{size} KB",
+        "fileError": {
+          "too_large": "This file is larger than {size} MB. Split it into smaller files.",
+          "not_csv": "This is not a CSV file. In your spreadsheet, choose Save as and pick CSV (UTF-8).",
+          "unreadable": "This file could not be read. Try saving it again as CSV."
+        },
+        "columnsHint": "The first row must name the columns. full_name and email are required; phone and contact_id are optional.",
+        "valuesHint": "This template also fills in these values, one column each: {keys}.",
+        "sample": "Download a sample file",
+        "contactsNeedFile": "This template fills in values a contact does not have ({keys}). Use a CSV file with a column for each.",
+        "noContacts": "No contacts chosen yet. Search above and pick the people to send to.",
+        "contactCount": "{count, plural, one {# contact chosen} other {# contacts chosen}} (up to {max})",
+        "unnamed": "Unnamed contact",
+        "noEmail": "No email address",
+        "removeContact": "Remove {name}"
+      },
+      "setup": {
+        "loading": "Loading the template",
+        "peopleHeading": "Who receives it, and how",
+        "personRole": "The people on your list fill the role",
+        "personRoleHint": "Each of them signs as this role. Other roles are filled by the fixed people below.",
+        "personRoleMissing": "Choose a role.",
+        "chooseRole": "Choose a role",
+        "channel": "How they are reached",
+        "channels": {
+          "email": "Email",
+          "whatsapp": "WhatsApp"
+        },
+        "whatsappHint": "A WhatsApp message needs a phone number with its country code for every person, for example +60123456789.",
+        "emailHint": "The link to sign is sent to each person's email address.",
+        "fixedHeading": "The other roles",
+        "fixedHint": "The same person fills each of these on every document, for example your own director.",
+        "fixedRequired": "needs a person",
+        "fixedOptional": "optional",
+        "fixedName": "Full name",
+        "fixedEmail": "Email",
+        "fixedChannel": "Reached by",
+        "fixedPhone": "Phone number",
+        "fixedPhoneHint": "With the country code, for example +60123456789.",
+        "fixedIncomplete": "Fill in the name and a valid email for {role}.",
+        "optionsHeading": "What every document shares",
+        "title": "Title of each document",
+        "titleHint": "Use {token} for the person's name. Left empty, the title is the template's name followed by the person's name.",
+        "titlePlaceholder": "Taken from the template and the person",
+        "titleTooLong": "The title can be up to 200 characters.",
+        "category": "Category",
+        "categoryDefault": "The template's category",
+        "language": "Language of the invitation",
+        "languageHint": "The message and the signing page open in this language.",
+        "useDefault": "Use the default",
+        "lang": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "message": "Message to the signers",
+        "messageHint": "Optional. It is shown in every invitation.",
+        "messageTooLong": "The message can be up to 2000 characters.",
+        "expiry": "Days until the link expires",
+        "expiryHint": "Counted from the moment each document is sent. Empty uses the default.",
+        "expiryBad": "Use a whole number of days from 1 to 365.",
+        "reminders": "Reminders",
+        "remindersHint": "Days after sending, separated by commas, for example 3, 7. Type 0 for no reminders. Empty uses the default.",
+        "remindersBad": "Use whole days from 1 to 60, up to 5 of them, or 0 for none.",
+        "code": "Needs a verification code",
+        "codeHint": "Each signer enters a one-time code before opening the document.",
+        "yes": "Yes",
+        "no": "No",
+        "order": "Signing order",
+        "orderHint": "Yes: people sign one after another, in the order of the template's roles."
+      },
+      "review": {
+        "checking": "Checking the list and the template...",
+        "recheck": "Check again",
+        "summaryHeading": "What will happen",
+        "summary": "{template}: {total, plural, one {# person} other {# people}} on the list.",
+        "ready": "Ready",
+        "withProblems": "With a problem",
+        "total": "On the list",
+        "fileProblems": "The list cannot be used yet:",
+        "planProblems": "The setup needs fixing:",
+        "ignoredColumns": "These columns are not used: {columns}. Check their spelling if the template should fill them in.",
+        "headroomFits": "This month {used} of {limit} documents were sent, so {remaining} can still be sent. This batch sends {needed}.",
+        "headroomShort": "This month {used} of {limit} documents were sent, so only {remaining} can still be sent, but this batch needs {needed}. Send fewer people, or ask the account owner to raise the limit.",
+        "skipInvalid": "Send to the {count, plural, one {# person} other {# people}} without a problem and skip the rest",
+        "skipInvalidHint": "The people with a problem are listed as skipped in the results, with the reason.",
+        "peopleHeading": "The people",
+        "onlyProblems": "Only people with a problem",
+        "colRow": "Row",
+        "colName": "Name",
+        "colEmail": "Email",
+        "colProblems": "Problems",
+        "empty": "(empty)",
+        "rowOk": "Ready",
+        "noRows": "No one to show.",
+        "showAll": "Show the other {count}",
+        "start": "Send {count, plural, one {# document} other {# documents}}"
+      },
+      "job": {
+        "title": "Bulk send: {template}",
+        "backToBulk": "Bulk send",
+        "started": "Started {date}",
+        "finished": "Finished {date}.",
+        "loading": "Loading the batch",
+        "progress": "Progress",
+        "answered": "{done} of {total} done",
+        "noteQueued": "It starts within a minute. You can close this page: the documents are sent in the background.",
+        "noteRunning": "Sending in the background. You can close this page; come back to see the results.",
+        "noteDone": "Every document was sent.",
+        "noteDoneWithProblems": "Finished. Some people were not sent a document: see the reason next to each.",
+        "noteCancelled": "Cancelled. Documents already sent stay sent; the rest were skipped.",
+        "noteFailed": "Stopped: {reason}",
+        "refreshFailed": "The latest numbers could not be loaded. Trying again.",
+        "download": "Download results (CSV)",
+        "cancel": "Cancel the rest",
+        "cancelConfirm": "Stop sending to the people still waiting?",
+        "cancelYes": "Yes, stop",
+        "cancelNo": "Keep sending",
+        "openList": "Open the documents list",
+        "people": "The people",
+        "filter": "Show",
+        "filterAll": "All",
+        "colResult": "Result",
+        "colDocument": "Document",
+        "openDocument": "Open",
+        "noRows": "No one to show.",
+        "retryHint": "To send to the people who were not sent a document, fix their rows in your file and start a new bulk send with only those rows."
+      },
+      "state": {
+        "pending": "Waiting",
+        "sending": "Sending",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "status": {
+        "queued": "Waiting to start",
+        "running": "Sending",
+        "done": "Finished",
+        "failed": "Stopped",
+        "cancelled": "Cancelled"
+      },
+      "recent": {
+        "heading": "Recent bulk sends",
+        "counts": "{sent} of {total} sent",
+        "failed": "The recent bulk sends could not be loaded."
+      },
+      "list": {
+        "bulkSend": "Bulk send",
+        "exportCsv": "Export CSV",
+        "selectRow": "Select {title}",
+        "selectAll": "Select all documents on this screen",
+        "selectionBar": "Selected documents",
+        "selected": "{count, plural, one {# document selected} other {# documents selected}}",
+        "downloadZip": "Download selected as zip",
+        "clearSelection": "Clear selection",
+        "zipHint": "Only completed documents have a signed file. Up to {max} at a time.",
+        "zipFull": "{max} is the most at a time. Untick one to choose another.",
+        "zipDone": "{included, plural, one {# signed file} other {# signed files}} downloaded.",
+        "zipDoneSkipped": "{included, plural, one {# signed file} other {# signed files}} downloaded. {skipped, plural, one {# document was} other {# documents were}} left out: see NOT-INCLUDED.txt in the zip."
+      },
+      "problem": {
+        "name_missing": "The name is missing.",
+        "name_too_long": "The name is longer than 160 characters.",
+        "email_missing": "The email address is missing.",
+        "email_invalid": "The email address is not valid.",
+        "email_duplicate": "The same email address is already on row {detail}.",
+        "phone_invalid": "A phone number with its country code is needed for WhatsApp.",
+        "merge_missing": "A value the template needs is missing: {detail}.",
+        "merge_too_long": "A value is too long: {detail}.",
+        "contact_invalid": "The contact id is not valid.",
+        "contact_not_found": "That contact was not found in this workspace.",
+        "same_person_twice": "This person is also one of the fixed people, and signing order is on."
+      },
+      "file": {
+        "empty_file": "The file is empty.",
+        "no_header": "The first row has no column names.",
+        "missing_column": "The file has no column named {detail}.",
+        "duplicate_column": "The column {detail} appears more than once.",
+        "too_many_rows": "The file has {detail} people; the most is 500. Split it into smaller files.",
+        "too_large": "The file is larger than 1 MB. Split it into smaller files.",
+        "no_rows": "The file has a header but no people.",
+        "unknown": "The file could not be used."
+      },
+      "plan": {
+        "template_not_ready": "This template cannot be sent yet ({detail}). Open it in the template editor and fix what is flagged.",
+        "bad_person_role": "The role for the people on your list is not one of the template's roles.",
+        "bad_fixed_signer": "The fixed person for {detail} cannot be used (an unknown role, the same role as the list, or given twice).",
+        "fixed_signer_name": "Enter a full name for the fixed person of {detail}.",
+        "fixed_signer_email": "Enter a valid email for the fixed person of {detail}.",
+        "fixed_signer_phone": "Enter a phone number with its country code for the fixed person of {detail}.",
+        "role_without_person": "The role {detail} has fields to complete but nobody is named for it. Add a fixed person for it.",
+        "signer_without_signature": "The role {detail} signs, but the template has no signature or initials field for it.",
+        "merge_needs_file": "The template fills in values a contact does not have ({detail}). Use a CSV file with a column for each.",
+        "bad_options": "Some of the choices on the setup step are not valid. Go back to the setup step and check them."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "bad_options": "Some of the choices are not valid. Go back and check the setup.",
+        "list_required": "Choose a file or some contacts, not both.",
+        "bulk_file_problems": "The list could not be used. Check it again.",
+        "bulk_not_ready": "The setup is not complete. Check it again.",
+        "rows_have_problems": "{detail} people on the list have a problem. Fix the list, or choose to skip them.",
+        "nothing_to_send": "There is no one to send a document to.",
+        "sign_limit_reached": "This batch is larger than the documents this workspace can still send this month (room left / needed: {detail}). Send fewer people, or ask the account owner to raise the limit.",
+        "too_many_bulk_jobs": "Three bulk sends are already running. Wait for one to finish, then try again.",
+        "template_not_found": "That template was not found.",
+        "template_not_active": "This template is not active. Choose another one or activate it first.",
+        "template_has_no_version": "This template has no saved version yet.",
+        "category_not_found": "That category was not found.",
+        "job_not_found": "That bulk send was not found.",
+        "job_finished": "This bulk send has already finished.",
+        "nothing_to_download": "None of the chosen documents has a signed file yet. Only completed documents do.",
+        "bad_ids": "Choose between 1 and 50 documents.",
+        "sign_disabled": "Doc Sign is not switched on for this workspace.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "signed_out": "You have been signed out. Sign in again to continue.",
+        "forbidden": "You do not have permission to do this.",
+        "rate_limited": "Too many requests. Wait a moment and try again.",
+        "body_too_large": "That request is too large. Use a smaller file."
+      },
+      "reason": {
+        "sign_limit_reached": "The monthly limit of documents was reached.",
+        "cancelled": "The bulk send was cancelled before this document was sent.",
+        "gave_up": "This one did not finish after several tries. Check its document, then send it by hand if needed.",
+        "sign_disabled": "Doc Sign was switched off for this workspace.",
+        "template_not_found": "The template was deleted.",
+        "template_not_active": "The template is no longer active.",
+        "template_has_no_version": "The template has no saved version.",
+        "category_not_found": "The category was not found.",
+        "not_ready": "The document was not ready to send. Open its draft to see what is missing.",
+        "signer_name": "A person's name is not valid.",
+        "signer_email": "A person's email address is not valid.",
+        "signer_phone": "A phone number with its country code is needed for WhatsApp.",
+        "signer_role": "A person's role is not one of the template's roles.",
+        "expiry_in_the_past": "The expiry date is in the past.",
+        "document_not_draft": "The document was already sent.",
+        "database_error": "Something went wrong on our side. Try this person again in a new bulk send.",
+        "row_not_open": "This row was already settled.",
+        "unexpected": "Something went wrong while sending this document.",
+        "unknown": "This one was not sent.",
+        "withMessage": "Not sent: {message}"
+      }
+    },
+    "lists": {
+      "intro": "Lists are sets of choices that forms can use, so a state, a country or a bank is worded once and kept up to date in one place. Some come with Doc Sign; you can add your own. Editing a list never changes a document that was already sent.",
+      "new": "New list",
+      "loading": "Loading lists...",
+      "loadFailed": "The lists could not be loaded.",
+      "retry": "Try again",
+      "showArchived": "Show archived ({count})",
+      "colName": "List",
+      "colType": "Type",
+      "colItems": "Items",
+      "colVersion": "Version",
+      "colActions": "Actions",
+      "archivedBadge": "Archived",
+      "typeSystem": "Comes with Doc Sign",
+      "typeOwn": "Yours",
+      "kindMsic": "MSIC codes",
+      "openList": "Open {name}",
+      "open": "Open",
+      "footnote": "A form that uses a list gets a copy of it when the template is saved, and again when a document is made and when it is sent. A document that has been sent keeps the copy it was sent with.",
+      "created": "List created",
+      "back": "All lists",
+      "versionValue": "Version {version}",
+      "rename": "Rename",
+      "exportCsv": "Export CSV",
+      "importCsv": "Import CSV",
+      "reset": "Reset to default",
+      "archiveList": "Archive list",
+      "restoreList": "Restore list",
+      "listArchived": "List archived",
+      "listRestored": "List restored",
+      "listSaved": "List saved",
+      "systemNote": "This list comes with Doc Sign. You can change the wording and add items; its values stay, so an answer always keeps its meaning. An item you no longer want is archived, which hides it from new forms.",
+      "systemNoteMsic": "The MSIC 2008 business activity codes, as published by the Department of Statistics Malaysia (DOSM). You can change the wording and add codes of your own; the official codes stay. Import a CSV to change many at once.",
+      "usedBy": "{count, plural, =0 {Used by no template} one {Used by 1 template} other {Used by # templates}}",
+      "usedByNone": "No template uses this list yet. Choose it for a field in the form builder.",
+      "usedByHint": "Counted from each template's current version. To change what a template uses, edit its form.",
+      "status": {
+        "draft": "draft",
+        "active": "active",
+        "archived": "archived"
+      },
+      "search": "Search the items",
+      "searchPlaceholder": "Search by value or wording",
+      "searchPlaceholderMsic": "Search by code or description",
+      "addItem": "Add item",
+      "noMatches": "Nothing matches {query}.",
+      "noItems": "This list has no items yet.",
+      "colValue": "Value",
+      "colEnglish": "English",
+      "colMalay": "Bahasa Melayu",
+      "colOther": "Other languages",
+      "colGroup": "Group",
+      "lang": {
+        "zh": "ZH",
+        "ko": "KO"
+      },
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "editItem": "Edit {name}",
+      "archiveItem": "Archive {name}",
+      "restoreItem": "Restore {name}",
+      "pages": "Pages",
+      "showing": "Showing {from} to {to} of {total}",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pages}",
+      "count": "{count, plural, one {# item} other {# items}}",
+      "itemAdded": "Item added",
+      "itemSaved": "Item saved",
+      "cancel": "Cancel",
+      "resetTitle": "Reset {name} to default?",
+      "resetBody": "Every item that comes with Doc Sign goes back to its original wording and place, and archived ones are shown again. Items you added stay, after them. Nothing is deleted, and forms already made are not changed.",
+      "resetConfirm": "Reset to default",
+      "resetDone": "The list is back to its default",
+      "meta": {
+        "newTitle": "New list",
+        "editTitle": "Rename list",
+        "keyMade": "A key is made from the name and never changes after that: a form names a list by its key.",
+        "keyFixed": "Key: {key}. A form names a list by its key, so the key never changes.",
+        "name": "Name",
+        "description": "Description (optional)",
+        "nameRequired": "Enter a name for the list.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create list"
+      },
+      "item": {
+        "newTitle": "Add item",
+        "editTitle": "Edit item",
+        "valueHint": "The value is stored with answers: letters, digits and _ . - only, for example sdn_bhd. It cannot be changed later.",
+        "valueHintMsic": "The five-digit MSIC code, for example 62010. It cannot be changed later.",
+        "valueFixed": "The value is what answers and forms store, so it cannot be changed. Change the wording freely.",
+        "value": "Value",
+        "labelEn": "English (required)",
+        "labelIn": "{language}",
+        "fallsBack": "Left empty, people read the English wording.",
+        "group": "Group (optional)",
+        "groupHint": "A short heading the item sits under, for example a division number. Used for searching and export.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "add": "Add item"
+      },
+      "import": {
+        "title": "Import into {name}",
+        "intro": "Load a CSV file. Columns: value, en (English wording) and, if you like, ms (Bahasa Melayu), zh, ko, group and archived. A row with a problem is left out and listed; the rest are used.",
+        "introMsic": "Load a CSV file of MSIC codes: code, description (English) and, if you like, the description in Bahasa Melayu. A code of four digits that lost its leading zero in a spreadsheet is put back.",
+        "choose": "Choose a CSV file",
+        "chooseOther": "Choose another file",
+        "file": "File: {name}",
+        "format": "Save from Excel as CSV UTF-8. The columns may be separated by a comma, a semicolon or a tab.",
+        "mode": "What to do with the file",
+        "modeMerge": "Add new items and update the ones that are there",
+        "modeMergeHint": "Items that are not in the file stay. A language the file leaves empty is kept.",
+        "modeReplace": "Replace the whole list with the file",
+        "modeReplaceHint": "Items that are not in the file are removed from the list. Forms already made are not changed.",
+        "systemMergeOnly": "A list that comes with Doc Sign can only be added to and updated.",
+        "checking": "Checking the file...",
+        "summary": "{added} to add, {updated} to update, {unchanged} unchanged, {removed} to remove.",
+        "removedWarning": "{count, plural, one {# item will be removed from the list.} other {# items will be removed from the list.}}",
+        "skipped": "{count, plural, one {# row cannot be used and is left out:} other {# rows cannot be used and are left out:}}",
+        "changed": "{count, plural, one {# row was adjusted:} other {# rows were adjusted:}}",
+        "row": "Row {row}:",
+        "moreProblems": "and {count} more",
+        "cancel": "Cancel",
+        "apply": "Import",
+        "done": "Import finished",
+        "problems": {
+          "empty_file": "The file is empty.",
+          "missing_value_column": "The file has no value column. Name the first column value or code.",
+          "missing_en_column": "The file has no English column. Name it en, English or description.",
+          "no_rows": "The file has a heading row but no rows.",
+          "too_many_rows": "The file has more than 5,000 rows.",
+          "empty_value": "no value.",
+          "code_padded": "the code {detail} had lost its leading zero and was put back.",
+          "bad_msic_code": "{detail} is not a five-digit MSIC code.",
+          "bad_value": "{detail} is not a valid value (letters, digits and _ . - only).",
+          "duplicate_value": "{detail} appears more than once; the first one is used.",
+          "empty_label": "no English wording for {detail}.",
+          "label_too_long": "the wording of {detail} is longer than 300 characters.",
+          "group_too_long": "the group of {detail} is longer than 40 characters.",
+          "unknown": "this row cannot be used."
+        }
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "signed_out": "You have been signed out. Sign in again to continue.",
+        "forbidden": "You do not have permission to change lists.",
+        "rate_limited": "Too many requests. Wait a moment and try again.",
+        "request_failed": "The request did not work. Please try again.",
+        "database_error": "Something went wrong on our side. Please try again.",
+        "body_too_large": "That is too large to send. Use a smaller file.",
+        "bad_json": "The request was not understood. Please try again.",
+        "list_not_found": "That list was not found.",
+        "bad_list": "The list is not valid.",
+        "bad_name": "Give the list a name of up to 120 characters.",
+        "bad_description": "The description can be up to 500 characters.",
+        "bad_archived": "Choose whether the list is archived.",
+        "bad_items": "The items are not valid.",
+        "bad_item": "An item is not valid.",
+        "bad_label": "Each item needs an English wording, and each wording can be up to 300 characters.",
+        "bad_group": "A group can be up to 40 characters.",
+        "bad_value": "A value uses letters, digits and the characters _ . - only, starts with a letter or digit, and is up to 60 characters.",
+        "bad_msic_code": "An MSIC code is five digits, for example 62010.",
+        "empty_value": "Enter a value.",
+        "empty_label": "Enter the English wording.",
+        "label_too_long": "A wording can be up to 300 characters.",
+        "group_too_long": "A group can be up to 40 characters.",
+        "duplicate_value": "That value is already in the list.",
+        "too_many_items": "A list holds up to 5,000 items.",
+        "list_values_locked": "A list that comes with Doc Sign keeps every value it has. Archive an item instead of removing it.",
+        "value_removed": "This value cannot be removed.",
+        "system_list_merge_only": "A list that comes with Doc Sign can only be added to or updated, never replaced.",
+        "not_a_system_list": "Only a list that comes with Doc Sign can be reset.",
+        "bad_import": "Choose a CSV file and how to import it.",
+        "import_failed": "Nothing in this file could be imported."
+      }
+    },
+    "register": {
+      "title": "Start your registration",
+      "intro": {
+        "document": "Enter your details below. We will email you the document to read and sign.",
+        "details": "Enter your details below and we will be in touch.",
+        "form": "Enter your details below. We will email you a link to complete the rest."
+      },
+      "optional": "(optional)",
+      "fields": {
+        "full_name": {
+          "label": "Full name"
+        },
+        "company": {
+          "label": "Company or business name"
+        },
+        "email": {
+          "label": "Email address",
+          "hint": "We send the document to this address, so please check it is right."
+        },
+        "phone": {
+          "label": "Phone number",
+          "hint": "With the country code, for example +60 12-345 6789.",
+          "placeholder": "+60 12-345 6789"
+        }
+      },
+      "problems": {
+        "full_name": {
+          "required": "Enter your full name.",
+          "too_long": "That name is too long. Use 120 characters or fewer.",
+          "invalid": "Remove the < and > signs."
+        },
+        "company": {
+          "required": "Enter your company or business name.",
+          "too_long": "That name is too long. Use 160 characters or fewer.",
+          "invalid": "Remove the < and > signs."
+        },
+        "email": {
+          "required": "Enter your email address.",
+          "too_long": "That email address is too long.",
+          "invalid": "Enter a valid email address, for example name@company.com."
+        },
+        "phone": {
+          "required": "Enter your phone number.",
+          "too_long": "That number is too long.",
+          "invalid": "Enter the number with its country code, for example +60 12-345 6789."
+        },
+        "consent": {
+          "required": "Please tick the box to agree before you continue."
+        }
+      },
+      "errors": {
+        "invalid": "Some details need a change. They are marked below.",
+        "token_invalid": "This page is out of date. Please press Send again.",
+        "token_expired": "This page was open for too long. Please press Send again.",
+        "token_too_fast": "Just a moment, then press Send again.",
+        "captcha_failed": "We could not confirm you are a person. Please complete the check and try again.",
+        "rate_limited": "Too many tries from your connection. Please wait a while and try again.",
+        "try_later": "We could not take your details right now. Please try again later.",
+        "generic": "Something went wrong. Please try again.",
+        "network": "No connection. Check your internet and try again."
+      },
+      "captcha": {
+        "waiting": "Checking that you are a person...",
+        "failed": "The check could not load. Reload the page and try again."
+      },
+      "honeypot": "Leave this field empty",
+      "send": "Send",
+      "sending": "Sending...",
+      "success": {
+        "documentTitle": "Check your email",
+        "documentBody": "We sent the document to {email}. Open the email and follow the link to continue.",
+        "spam": "Cannot find it after a few minutes? Look in your spam or junk folder.",
+        "detailsTitle": "Thank you",
+        "detailsBody": "We have your details and will be in touch.",
+        "formBody": "We sent a link to {email}. Open the email and follow the link to complete your details."
+      },
+      "notice": {
+        "form_cap": {
+          "title": "We are very busy today",
+          "body": "This page cannot take any more registrations today. Please try again tomorrow."
+        },
+        "send_failed": {
+          "title": "We could not send it right now",
+          "body": "We have your details and {workspace} will contact you. You do not need to send them again."
+        },
+        "unavailable": {
+          "title": "This page is not available right now",
+          "body": "Please try again later."
+        },
+        "not_found": {
+          "title": "This page is not available",
+          "body": "The link may be wrong, or registration may be closed. Check the link you were given."
+        }
+      },
+      "notFound": {
+        "title": "This page is not available",
+        "body": "The link may be wrong, or registration may be closed. Check the link you were given."
+      },
+      "unavailable": {
+        "title": "This page is not available right now",
+        "body": "Please try again later."
       }
     }
   }

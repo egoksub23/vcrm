@@ -259,6 +259,20 @@ export const RATE_LIMITS = {
   widgetIdentityToken: { limit: 60, windowMs: 10 * 60_000 },
   /** Enquiry submissions, per widget token. */
   widgetEnquiryToken: { limit: 60, windowMs: 60 * 60_000 },
+
+  // ---- Doc Sign registration pages (`/r/<slug>`, `/api/sign/register/<slug>`), checked with
+  // checkSharedRateLimit. The address is kept as a keyed hash, never raw.
+
+  /** Every post to a registration page from one address, valid or not (bounds probing and floods). */
+  signRegisterIpAttempts: { limit: 40, windowMs: 60 * 60_000 },
+  /** Every post to one registration form, whoever sends it. */
+  signRegisterFormAttempts: { limit: 600, windowMs: 60 * 60_000 },
+  /** Submissions with valid details from one address (a person registers once; an office may register a few). */
+  signRegisterIp: { limit: 5, windowMs: 60 * 60_000 },
+  /** Submissions with valid details to one form. The form's own daily cap sits on top of this. */
+  signRegisterForm: { limit: 60, windowMs: 60 * 60_000 },
+  /** Valid submissions that name one email address, across EVERY registration page of every workspace (the address is a keyed hash): a stranger cannot make Halo mail one person from many pages. */
+  signRegisterEmail: { limit: 6, windowMs: 24 * 60 * 60_000 },
 } as const;
 
 /** Window for the per-workspace broadcast recipient cap: the operator's

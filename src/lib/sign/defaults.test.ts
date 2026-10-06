@@ -4,7 +4,7 @@ import { PRODUCT_DEFAULTS, cleanReminderDays, dueReminders, expiryFor, resolveDe
 
 describe("resolveDefaults", () => {
   it("falls back to the product's choices", () => {
-    expect(resolveDefaults({})).toEqual({ expiryDays: 14, reminderDays: [3, 7], signInOrder: false, codeRequired: false, locale: "en" });
+    expect(resolveDefaults({})).toEqual({ expiryDays: 14, reminderDays: [3, 7], signInOrder: false, codeRequired: false, allowForwarding: false, locale: "en" });
   });
 
   it("prefers the template, then the category, then the workspace", () => {
@@ -18,6 +18,13 @@ describe("resolveDefaults", () => {
 
   it("treats null as 'not set', so a category can fall through to the workspace", () => {
     expect(resolveDefaults({ category: { expiry_days: null, code_required: null }, workspace: { default_expiry_days: 10 } })).toMatchObject({ expiryDays: 10, codeRequired: false });
+  });
+
+  it("keeps forwarding off unless the template switches it on", () => {
+    expect(PRODUCT_DEFAULTS.allowForwarding).toBe(false);
+    expect(resolveDefaults({ category: { sign_in_order: true }, workspace: {} }).allowForwarding).toBe(false);
+    expect(resolveDefaults({ template: { allow_forwarding: true } }).allowForwarding).toBe(true);
+    expect(resolveDefaults({ template: { allow_forwarding: false } }).allowForwarding).toBe(false);
   });
 
   it("keeps signing order off unless something asks for it", () => {

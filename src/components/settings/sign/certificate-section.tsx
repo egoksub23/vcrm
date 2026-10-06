@@ -1,39 +1,48 @@
 "use client";
 
-// Settings > Doc Sign > Sealing certificate: a read-only readout of the certificate every completed document
-// is sealed with. The facts come from GET /api/sign/settings/certificate, which never returns the key.
+// Settings > Doc Sign > Sealing certificate: the certificate every completed document is sealed with (its facts
+// come from GET /api/sign/settings/certificate, which never returns the key), what a PDF reader will say about it,
+// and the form to install a certificate from a certificate authority (a .p12 or .pfx file). The file is checked on
+// the server; each way it can be unfit has its own message.
 
-import { useEffect, useState } from "react";
-import { useFormatter, useTranslations } from "next-intl";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { certificateState } from "@/lib/sign/client/admin-settings";
-import { signRequest } from "@/lib/sign/client/api";
+import { Input } from "@/components/ui/input";
+import { useCapability } from "@/hooks/use-can";
+import { SignApiError, signRequest } from "@/lib/sign/client/api";
+import { certificateErrorKey, type CertificateView } from "@/lib/sign/client/certificate-view";
 
-import { Loading, useAdminErrorText } from "./shared";
+import { CertificateFacts } from "./certificate-facts";
+import { Field, Loading, useAdminErrorText } from "./shared";
 
-interface CertificateFacts {
-  name: string;
-  subject: string | null;
-  validUntil: string | null;
-  selfSigned: boolean;
-}
+type Load = { status: "loading" } | { status: "error"; error: unknown } | { status: "ready"; certificate: CertificateView | null; now: Date };
 
-type Load = { status: "loading" } | { status: "error"; error: unknown } | { status: "ready"; certificate: CertificateFacts | null; now: Date };
+/** The most a certificate file can be (the server refuses more): a key and a chain are a few kilobytes. */
+const MAX_FILE_BYTES = 256 * 1024;
 
 export function CertificateSection() {
   const t = useTranslations("Sign.admin.certificate");
-  const format = useFormatter();
   const errorText = useAdminErrorText();
+  const canEdit = useCapability("sign.settings");
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [round, setRound] = useState(0);
 
+  const [file, setFile] = useState<File | null>(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [name, setName] = useState("");
+  const [installing, setInstalling] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     let live = true;
-    signRequest<{ certificate: CertificateFacts | null }>("/api/sign/settings/certificate")
+    signRequest<{ certificate: CertificateView | null }>("/api/sign/settings/certificate")
       .then((r) => {
         if (live) setLoad({ status: "ready", certificate: r.certificate, now: new Date() });
       })
@@ -44,6 +53,55 @@ export function CertificateSection() {
       live = false;
     };
   }, [round]);
+
+  const failureText = (err: unknown): string => {
+    const key = err instanceof SignApiError ? certificateErrorKey(err.code) : null;
+    return key ? t(key) : errorText(err);
+  };
+
+  async function install() {
+    if (!file) {
+      setProblem(t("errors.no_file"));
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setProblem(t("errors.certificate_file_too_large"));
+      return;
+    }
+    setProblem(null);
+    setInstalling(true);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("passphrase", passphrase);
+      if (name.trim()) form.set("name", name.trim());
+      await signRequest("/api/sign/settings/certificate", { method: "POST", form });
+      toast.success(t("installed"));
+      setFile(null);
+      setPassphrase("");
+      setName("");
+      if (fileInput.current) fileInput.current.value = "";
+      setRound((n) => n + 1);
+    } catch (err) {
+      setProblem(failureText(err));
+    } finally {
+      setInstalling(false);
+    }
+  }
+
+  async function remove(id: string) {
+    setRemoving(true);
+    try {
+      await signRequest(`/api/sign/settings/certificate?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      toast.success(t("removed"));
+      setConfirmRemove(false);
+      setRound((n) => n + 1);
+    } catch (err) {
+      toast.error(failureText(err));
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   if (load.status === "loading") return <Loading label={t("loading")} />;
   if (load.status === "error") {
@@ -58,49 +116,80 @@ export function CertificateSection() {
   }
 
   const cert = load.certificate;
-  const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
-  const status = cert ? certificateState(cert.validUntil, load.now) : null;
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-5">
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
-      {cert ? (
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
-            <span className="text-sm font-semibold text-foreground">{cert.name}</span>
-            {status?.state === "valid" ? <Badge variant="secondary">{t("stateValid")}</Badge> : null}
-            {status?.state === "expiring" ? <Badge variant="outline">{t("stateExpiring", { count: Math.max(status.daysLeft ?? 0, 0) })}</Badge> : null}
-            {status?.state === "expired" ? <Badge variant="destructive">{t("stateExpired")}</Badge> : null}
-          </div>
-          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
-            <dt className="text-muted-foreground">{t("subject")}</dt>
-            <dd className="break-words text-foreground">{cert.subject ?? t("unknown")}</dd>
-            <dt className="text-muted-foreground">{t("validUntil")}</dt>
-            <dd className="text-foreground">{cert.validUntil ? date(cert.validUntil) : t("unknown")}</dd>
-            <dt className="text-muted-foreground">{t("kind")}</dt>
-            <dd className="text-foreground">{cert.selfSigned ? t("kindSelfSigned") : t("kindOwn")}</dd>
-          </dl>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{t("none")}</div>
-      )}
+      <CertificateFacts cert={cert} now={load.now} />
 
-      {status?.state === "expired" ? (
-        <Alert variant="destructive">
-          <ShieldAlert aria-hidden />
-          <AlertTitle>{t("expiredTitle")}</AlertTitle>
-          <AlertDescription>{t("expiredBody")}</AlertDescription>
-        </Alert>
+      {canEdit ? (
+        <form
+          className="space-y-4 rounded-xl border border-border p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void install();
+          }}
+        >
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{t("uploadTitle")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t("uploadIntro")}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="cert-file" label={t("fileLabel")} hint={t("fileHint")}>
+              <Input
+                id="cert-file"
+                ref={fileInput}
+                type="file"
+                accept=".p12,.pfx,application/x-pkcs12"
+                disabled={installing}
+                aria-describedby="cert-file-hint"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setProblem(null);
+                }}
+              />
+            </Field>
+            <Field id="cert-pass" label={t("passphraseLabel")} hint={t("passphraseHint")}>
+              <Input id="cert-pass" type="password" autoComplete="off" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} disabled={installing} aria-describedby="cert-pass-hint" />
+            </Field>
+            <Field id="cert-name" label={t("nameLabel")} hint={t("nameHint")} className="sm:col-span-2">
+              <Input id="cert-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} disabled={installing} aria-describedby="cert-name-hint" />
+            </Field>
+          </div>
+          {problem ? (
+            <p role="alert" className="text-sm text-destructive">
+              {problem}
+            </p>
+          ) : null}
+          <Button type="submit" disabled={installing || !file}>
+            {installing ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {installing ? t("installing") : t("install")}
+          </Button>
+        </form>
       ) : null}
 
-      {!cert || cert.selfSigned ? (
-        <Alert>
-          <ShieldAlert aria-hidden />
-          <AlertTitle>{t("selfSignedTitle")}</AlertTitle>
-          <AlertDescription>{t("selfSignedBody")}</AlertDescription>
-        </Alert>
+      {canEdit && cert?.uploaded ? (
+        <div className="space-y-2">
+          {confirmRemove ? (
+            <div className="space-y-3 rounded-xl border border-border p-4">
+              <p className="text-sm text-foreground">{t("removeConfirm")}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="destructive" size="sm" disabled={removing} onClick={() => void remove(cert.id)}>
+                  {removing ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                  {t("removeYes")}
+                </Button>
+                <Button variant="outline" size="sm" disabled={removing} onClick={() => setConfirmRemove(false)}>
+                  {t("removeNo")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setConfirmRemove(true)}>
+              {t("remove")}
+            </Button>
+          )}
+        </div>
       ) : null}
 
       <p className="text-xs text-muted-foreground">{t("footnote")}</p>

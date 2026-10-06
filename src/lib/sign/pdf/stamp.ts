@@ -91,7 +91,18 @@ function drawFittedText(page: PDFPage, field: PlacedField, text: string, g: Page
   if (unsupported > 0) {
     ctx.warnings.push({ field: field.key, code: "unsupported_characters", detail: String(unsupported) });
   }
-  const measureAt = (size: number) => (s: string) => measureRuns(runsFor(s, main, cjk).runs, size);
+  // The size search asks about the same strings at every size, and shaping a string is the costly part (fontkit): a string is shaped once, at a
+  // fixed size, and its width at any other size is that width scaled (a width is exactly proportional to the size).
+  const widths = new Map<string, number>();
+  const REFERENCE_SIZE = 1000;
+  const measureAt = (size: number) => (s: string) => {
+    let w = widths.get(s);
+    if (w === undefined) {
+      w = measureRuns(runsFor(s, main, cjk).runs, REFERENCE_SIZE);
+      widths.set(s, w);
+    }
+    return (w * size) / REFERENCE_SIZE;
+  };
   const display = runs.map((r) => r.text).join("");
   const fit = fitText(display, { w: box.w, h: box.h }, measureAt, {
     multiline: opts.multiline ?? field.multiline,

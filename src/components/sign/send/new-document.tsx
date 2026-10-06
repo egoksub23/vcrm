@@ -15,14 +15,19 @@ import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import { errorKey } from "@/lib/sign/client/errors";
 import { checkUploadFile, isWordFile, titleFromFileName, uploadDraft, type CreatedDraft } from "@/lib/sign/client/upload";
 import { cn } from "@/lib/utils";
+import { linksAfterContactChange, linksAfterRecord } from "@/lib/sign/client/record-links";
 import { ContactPicker } from "./contact-picker";
 import { FileDrop } from "./file-drop";
+import { RecordPicker } from "./record-picker";
 import { TemplatePicker } from "./template-picker";
 
 type Mode = "upload" | "template";
 
 interface Props {
   contactId?: string | null;
+  /** F-51: opened from a ticket or a deal, so the document is attached to it. */
+  ticketId?: string | null;
+  dealId?: string | null;
   templateId?: string | null;
   categoryId?: string | null;
 }
@@ -31,9 +36,11 @@ interface Props {
  * Start a document: from a file (PDF, Word or image) or from an active template, with an optional category,
  * contact and title. Creates the draft and goes to it.
  */
-export function NewDocument({ contactId: initialContact = null, templateId: initialTemplate = null, categoryId: initialCategory = null }: Props) {
+export function NewDocument({ contactId: initialContact = null, ticketId: initialTicket = null, dealId: initialDeal = null, templateId: initialTemplate = null, categoryId: initialCategory = null }: Props) {
   const t = useTranslations("Sign.send.new");
   const tErr = useTranslations("Sign.send");
+  const tRec = useTranslations("Sign.send.records");
+  const tEnv = useTranslations("Sign.send.envelope.new");
   const router = useRouter();
   const canSend = useCapability("sign.send");
   const { live } = useSignCategories();
@@ -47,6 +54,20 @@ export function NewDocument({ contactId: initialContact = null, templateId: init
   // undefined: not chosen yet (a template's own category applies); null: none
   const [chosenCategory, setChosenCategory] = useState<string | null | undefined>(initialCategory ?? undefined);
   const [contactId, setContactId] = useState<string | null>(initialContact);
+  const [ticketId, setTicketId] = useState<string | null>(initialTicket);
+  const [dealId, setDealId] = useState<string | null>(initialDeal);
+  const links = { contactId, ticketId, dealId };
+  const setLinks = (next: { contactId: string | null; ticketId: string | null; dealId: string | null }) => {
+    setContactId(next.contactId);
+    setTicketId(next.ticketId);
+    setDealId(next.dealId);
+  };
+  // the same contact, ticket or deal carries over to an envelope started from here
+  const envelopeQuery = new URLSearchParams();
+  if (contactId) envelopeQuery.set("contactId", contactId);
+  if (ticketId) envelopeQuery.set("ticketId", ticketId);
+  if (dealId) envelopeQuery.set("dealId", dealId);
+  const envelopeHref = envelopeQuery.size > 0 ? `/sign/new/envelope?${envelopeQuery.toString()}` : "/sign/new/envelope";
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -76,10 +97,10 @@ export function NewDocument({ contactId: initialContact = null, templateId: init
     try {
       let created: CreatedDraft;
       if (mode === "upload" && file) {
-        created = await uploadDraft({ file, title, categoryId: chosenCategory ?? null, contactId, onProgress: setProgress });
+        created = await uploadDraft({ file, title, categoryId: chosenCategory ?? null, contactId, ticketId, dealId, onProgress: setProgress });
       } else {
         created = await signRequest<CreatedDraft>("/api/sign/documents", {
-          json: { templateId: template?.id, title: title.trim() || undefined, categoryId: chosenCategory ?? undefined, contactId: contactId ?? undefined },
+          json: { templateId: template?.id, title: title.trim() || undefined, categoryId: chosenCategory ?? undefined, contactId: contactId ?? undefined, ticketId: ticketId ?? undefined, dealId: dealId ?? undefined },
         });
       }
       router.push(`/sign/${created.document.id}`);
@@ -113,6 +134,10 @@ export function NewDocument({ contactId: initialContact = null, templateId: init
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-foreground">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        {/* several documents signed in one sitting (migration 171) */}
+        <Link href={envelopeHref} className="mt-1 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline">
+          {tEnv("link")}
+        </Link>
       </div>
 
       <section aria-labelledby="new-start" className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -193,7 +218,21 @@ export function NewDocument({ contactId: initialContact = null, templateId: init
             <label htmlFor="new-contact" className="text-sm font-medium text-foreground">
               {t("contactLabel")} <span className="font-normal text-muted-foreground">({t("optional")})</span>
             </label>
-            <ContactPicker id="new-contact" contactId={contactId} onChange={(c) => setContactId(c?.id ?? null)} disabled={busy} />
+            <ContactPicker id="new-contact" contactId={contactId} onChange={(c) => setLinks(linksAfterContactChange(links, c?.id ?? null))} disabled={busy} />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="new-ticket" className="text-sm font-medium text-foreground">
+              {tRec("ticketLabel")} <span className="font-normal text-muted-foreground">({t("optional")})</span>
+            </label>
+            <RecordPicker id="new-ticket" kind="ticket" value={ticketId} contactId={contactId} disabled={busy} onChange={(r) => setLinks(linksAfterRecord(links, "ticket", r))} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="new-deal" className="text-sm font-medium text-foreground">
+              {tRec("dealLabel")} <span className="font-normal text-muted-foreground">({t("optional")})</span>
+            </label>
+            <RecordPicker id="new-deal" kind="deal" value={dealId} contactId={contactId} disabled={busy} onChange={(r) => setLinks(linksAfterRecord(links, "deal", r))} />
           </div>
         </div>
       </section>

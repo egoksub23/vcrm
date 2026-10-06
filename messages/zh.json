@@ -1438,7 +1438,17 @@
         "skipped": "已跳过",
         "failed": "失败",
         "created": "已创建工单",
-        "created_with_ai": "已创建工单（AI 撰写）"
+        "created_with_ai": "已创建工单（AI 撰写）",
+        "sent": "文件已发送",
+        "draft": "已生成草稿",
+        "already_sent": "已发送过",
+        "not_enabled": "Doc Sign 未开启",
+        "not_configured": "尚未设置",
+        "no_contact": "没有联系人",
+        "recipient_email_missing": "联系人没有电子邮件",
+        "recipient_phone_missing": "联系人没有电话",
+        "sign_limit_reached": "已达每月上限",
+        "not_ready": "尚不能发送"
       },
       "tokens": "{count, plural, =1 {# 个 token} other {# 个 token}}",
       "back": "返回",
@@ -1485,6 +1495,19 @@
         "seed": {
           "ticketSubject": "跟进：{{ contact.name }}"
         }
+      },
+      "merchant_onboarding": {
+        "name": "商户入驻",
+        "description": "联系人被打上“Merchant applicant”标签时，向其发送商户申请表，供其填写并签署。"
+      },
+      "merchant_signed_followup": {
+        "name": "商户签署后跟进",
+        "description": "商户申请表签署完成后，为联系人添加“Merchant signed”标签，创建 KYC 审核工单并发送感谢消息。",
+        "seed": {
+          "ticketSubject": "商户 KYC 审核",
+          "ticketDescription": "{{ contact.name }} 的商户申请表 {{ sign.reference }} 已签署。请核对公司资料和文件，并确认文件真实有效：{{ sign.verify_url }}",
+          "welcomeMessage": "谢谢您，{{ contact.name }}。我们已收到您签署的商户申请表（{{ sign.reference }}）。我们的团队将进行审核，并会尽快与您联系。"
+        }
       }
     },
     "builder": {
@@ -1512,7 +1535,8 @@
         "ai_extract": "AI 分类与提取",
         "ai_summarize": "AI 总结",
         "ai_translate": "AI 翻译",
-        "ai_question": "询问 AI（是/否）"
+        "ai_question": "询问 AI（是/否）",
+        "send_sign_document": "发送文件签署"
       },
       "triggers": {
         "new_message_received": {
@@ -1554,6 +1578,10 @@
         "time_based": {
           "label": "定时",
           "hint": "按重复计划触发"
+        },
+        "sign_document_event": {
+          "label": "Doc Sign 事件",
+          "hint": "Doc Sign 文件被发送、打开、完成、拒签、过期或作废时"
         }
       },
       "trigger": "触发器",
@@ -1580,7 +1608,8 @@
       "tags": {
         "select": "选择标签…",
         "placeholder": "标签 ID",
-        "unknown": "{id}（未知标签）"
+        "unknown": "{id}（未知标签）",
+        "hint": "建议的标签：“{name}”。若尚未创建，请先在“设置 > 标签”中创建。"
       },
       "fields": {
         "name": "姓名",
@@ -1900,6 +1929,73 @@
           "active": "活跃",
           "customer": "客户",
           "churned": "已流失"
+        }
+      },
+      "sign": {
+        "trigger": {
+          "events": "发生以下情况时",
+          "eventsHint": "每个已勾选的事件都会触发此自动化。",
+          "event": {
+            "sent": "文件已发送",
+            "viewed": "签署人首次打开文件",
+            "completed": "所有人均已签署（已完成）",
+            "declined": "签署人拒绝签署",
+            "expired": "文件已过期",
+            "voided": "文件已作废"
+          },
+          "template": "仅限此模板",
+          "anyTemplate": "任何模板",
+          "templateId": "模板 ID",
+          "unknownTemplate": "（找不到该模板）",
+          "category": "仅限此类别",
+          "anyCategory": "任何类别"
+        },
+        "step": {
+          "template": "模板",
+          "templateId": "模板 ID",
+          "selectTemplate": "选择模板…",
+          "unknownTemplate": "（找不到该模板或未启用）",
+          "noTemplates": "没有找到已启用的模板，或您无权查看。请先在 Doc Sign > 模板中发布一个。",
+          "templateHint": "建议的模板：“{name}”。待它出现在 Doc Sign > 模板后再选择。",
+          "title": "文件标题",
+          "titleHint": "可选。留空则使用模板的标题。可以插入变量。",
+          "recipients": "由谁签署",
+          "recipientsHint": "每个人都会收到一个链接。角色决定他们要完成文件的哪一部分。标有 * 的角色必须指定人员。",
+          "role": "角色",
+          "rolePlaceholder": "角色键，例如 merchant",
+          "selectRole": "选择角色…",
+          "removeRecipient": "移除此人",
+          "source": "资料来源",
+          "sourceContact": "该联系人",
+          "sourceFixed": "固定人员",
+          "channel": "链接发送方式",
+          "channelEmail": "电子邮件",
+          "channelWhatsapp": "WhatsApp",
+          "contactNote": "使用联系人的姓名、电子邮件和电话。联系人必须有电子邮件地址，否则此步骤会被跳过。",
+          "fullName": "全名",
+          "email": "电子邮件",
+          "phone": "电话（含国家区号）",
+          "requiredRoles": "仍需为以下角色指定人员：{roles}",
+          "addRecipient": "添加人员",
+          "merge": "填写文件内容",
+          "mergeHint": "模板合并字段的值（发送前填入的部分）。使用值上方的变量按钮可插入联系人的资料。",
+          "mergeKey": "字段名称",
+          "mergeValue": "值",
+          "removeMerge": "移除此值",
+          "addMerge": "添加值",
+          "message": "给签署人的留言",
+          "language": "文件语言",
+          "languageDefault": "模板默认语言",
+          "languages": {
+            "en": "English",
+            "ms": "Bahasa Melayu",
+            "zh": "中文",
+            "ko": "한국어"
+          },
+          "send": "立即发送",
+          "sendHint": "关闭后，文件将保存为草稿，由人工检查并发送。签署链接只有在文件发送后才会发出。",
+          "summary": "{count} 人签署",
+          "summaryEmpty": "选择模板"
         }
       }
     }
@@ -6332,7 +6428,10 @@
       "sign_settings": "Doc Sign 设置",
       "sign_certificate": "签署证书",
       "sign_addon": "Doc Sign 附加模块",
-      "sign_document": "签署文档"
+      "sign_document": "签署文档",
+      "sign_bulk_job": "批量签署",
+      "sign_option_list": "签署选项列表",
+      "sign_envelope": "签署信封"
     },
     "roleNames": {
       "owner": "所有者",
@@ -6964,7 +7063,20 @@
         "installedToast": "已安装 {name}。",
         "repeatedToast": "已检查 {name}。您编辑过的内容均未更改。",
         "templatesAdded": "{count, plural, other {已以草稿形式添加 # 个模板。}}",
-        "footnote": "安装会添加草稿供您审阅，绝不会更改您已编辑的模板。已安装附加包的更新将在之后的版本中提供。"
+        "footnote": "安装会添加草稿供您审阅，绝不会更改您已编辑的模板。更新会把您未编辑过的模板升级到最新版本，并在您编辑过的模板旁边另存一份副本。",
+        "updateTitle": "v{version} 的新内容",
+        "updateIntro": "您未编辑过的模板会获得一个新版本。您修改过的模板保持原样，并会在它旁边添加一份名为“…（updated）”的副本供您审阅。您已发送的文档不会有任何变化。",
+        "updateButton": "更新至 v{version}",
+        "updatedToast": "{name} 已更新至 v{version}。",
+        "upToDateToast": "{name} 已是最新版本。",
+        "result": {
+          "title": "{name} 现在是 v{version}",
+          "updated": "“{name}”获得了新版本（第 {versionNo} 版）。其名称、状态和类别保持不变。",
+          "copied": "您修改过“{name}”，因此它保持原样。已添加一份新的副本“{copyName}”作为草稿供您审阅。",
+          "missing": "“{name}”已不在您的工作区中，因此没有为它更新任何内容。点击“重新安装”即可把它加回来。",
+          "current": "“{name}”已是此版本。",
+          "dismiss": "关闭"
+        }
       },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
@@ -6976,7 +7088,9 @@
         "consent": "同意措辞",
         "categories": "类别",
         "addons": "附加包",
-        "certificate": "封存证书"
+        "certificate": "封存证书",
+        "lists": "列表",
+        "registration": "注册表单"
       },
       "languages": {
         "en": "English",
@@ -7001,7 +7115,7 @@
         "whatsappLanguage": "模板语言代码",
         "whatsappLanguageHint": "模板获批时使用的语言，例如 en、ms 或 en_US。",
         "whatsappParams": "模板需要三个变量，按以下顺序：对方姓名、文件标题和签署链接。",
-        "retention": "已签署文件保存期限",
+        "retention": "已签署文档保留时长（年）",
         "retentionValue": "{count, plural, other {# 年}}",
         "retentionNote": "目前由平台设定，无法在此更改。",
         "save": "保存",
@@ -7014,8 +7128,15 @@
           "reminders_too_many": "最多使用五个提醒。",
           "sender": "最多 120 个字符。",
           "waName": "只能使用小写字母、数字和下划线。",
-          "waLang": "请使用 en、ms 或 en_US 这样的代码。"
-        }
+          "waLang": "请使用 en、ms 或 en_US 这样的代码。",
+          "retention": "请输入 1 到 50 之间的整数年数。"
+        },
+        "retentionTitle": "保留期限",
+        "retentionIntro": "已签署的文档会保留这么长时间，自封印之日起计算。在此期间任何人都无法删除，包括工作区所有者。",
+        "retentionHint": "整数年数，1 到 50。在贵机构确定签署记录必须保存多久之前，初始值为 7：请向律师或审计师确认该期限。",
+        "retentionEffect": "更改只适用于此后封印的文档。已封印的文档保留其封印时获得的日期。类别可以设置自己的期限（类别）。文档绝不会被自动删除。",
+        "retentionPast": "{count, plural, other {# 份已签署文档已超过保留期限。}}",
+        "retentionPastNone": "目前没有已签署文档超过保留期限。"
       },
       "consent": {
         "intro": "这是对方在签署前同意的内容。除非您为某种语言撰写自己的措辞，否则使用标准措辞。每种措辞都有版本，对方同意的版本会与已签署的文件一起保存。在依赖您自己的措辞之前，请让有资质的人审阅。",
@@ -7075,7 +7196,7 @@
         "expiry": "多少天后到期",
         "reminders": "提醒（发送后的天数）",
         "retention": "已签署文件保存期限（年）",
-        "retentionHint": "留空则使用工作区的期限。",
+        "retentionHint": "留空则使用工作区的期限。1 到 50 年。更改只适用于此后封印的文档。",
         "blankIsDefault": "留空则使用工作区的设置。",
         "code": "签署前要求输入验证码",
         "codeHint": "对方会通过电子邮件收到验证码，输入后才能打开文件。",
@@ -7102,7 +7223,7 @@
         "intro": "每份已完成的文件都用此证书封存。封存可以显示文件在签署后是否被改动。",
         "loading": "正在加载证书…",
         "retry": "重试",
-        "none": "还没有证书。第一次封存文件时，会为您的工作区生成一个证书。",
+        "none": "还没有证书。第一次为文档加盖封印时，会为您的工作区生成一个证书。您也可以在下方安装由证书颁发机构签发的证书。",
         "subject": "主体",
         "validUntil": "有效期至",
         "kind": "类型",
@@ -7116,7 +7237,69 @@
         "expiredBody": "下次封存文件时会生成新的自签名证书。已封存的文件保留其封存。",
         "selfSignedTitle": "自签名：PDF 阅读器会提示签名者不受信任",
         "selfSignedBody": "封存仍能显示文件在签署后是否被改动，但 PDF 阅读器无法核实自签名证书由谁创建，因此会显示警告。这是正常现象。",
-        "footnote": "此页面暂不支持上传证书颁发机构签发的证书。密钥以加密方式存储，不会显示。"
+        "footnote": "文件在保存前会经过检查：口令、密钥、日期、证书的用途以及一次测试封印。密钥加密存储，绝不会显示。",
+        "kind_generated": "由 Halo 为此工作区生成（自签名）",
+        "kind_uploadedSelfSigned": "已上传，自签名",
+        "kind_authority": "由证书颁发机构签发",
+        "issuer": "颁发者",
+        "serial": "序列号",
+        "validFrom": "生效日期",
+        "daysLeft": "剩余时间",
+        "daysLeftValue": "{count, plural, other {# 天}}",
+        "fingerprint": "SHA-256 指纹",
+        "key": "密钥",
+        "keyValue": "RSA，{bits} 位",
+        "chain": "封印中包含",
+        "chainOne": "仅此证书",
+        "chainMany": "{count} 个证书：此证书及其上级机构的证书",
+        "unreadableTitle": "无法打开已保存的证书",
+        "unreadableBody": "请在下方重新安装证书。在此之前，已由所有人签署的文档将等待封印。",
+        "expiredBodyUploaded": "已由所有人签署的文档现在会暂不封印，直到您在下方安装有效的证书。已封印的文档保留其封印。",
+        "warn_chain_missing_title": "证书缺少上级机构的证书",
+        "warn_chain_missing_body": "此证书由证书颁发机构签发，但文件中没有其上级证书。PDF 阅读器可能无法沿证书链找到受信任的机构。请向颁发机构索取完整证书链（中间证书），然后重新安装文件。",
+        "warn_weak_signature_algorithm_title": "较旧的签名算法",
+        "warn_weak_signature_algorithm_body": "证书链中有证书使用 SHA-1 签名，阅读器正在逐步淘汰它。目前仍可使用；请向颁发机构申请使用 SHA-256 的证书。",
+        "warn_chain_certificate_expired_title": "上级证书已过期",
+        "warn_chain_certificate_expired_body": "证书链中有机构证书已超出有效期，阅读器可能拒绝信任封印。请向颁发机构索取最新的证书链。",
+        "warn_not_for_document_signing_title": "未标明可用于签署文档",
+        "warn_not_for_document_signing_body": "此证书列出的用途不包括签署文档或电子邮件，可能是为其他用途（例如网站）签发的。PDF 阅读器可能拒绝它；请向颁发机构确认这是文档签名证书。",
+        "readersTitle": "PDF 阅读器会显示什么",
+        "readers_generated": "PDF 阅读器会提示无法验证签署人的身份，因为没有证书颁发机构为自签名证书担保。封印仍会显示文档在签署后是否被更改。若要获得受信任的结果，请安装由证书颁发机构签发的证书。",
+        "readers_uploadedSelfSigned": "PDF 阅读器会提示无法验证签署人的身份，因为没有证书颁发机构为自签名证书担保。封印仍会显示文档在签署后是否被更改。",
+        "readers_authority": "PDF 阅读器会显示证书签发给谁以及由哪个机构签发。签名是否被标记为受信任，取决于该阅读器是否信任该机构：有些阅读器只信任自己批准名单上的机构，因此请向您的颁发机构确认可在哪些阅读器中使用。无论哪种情况，封印都会显示文档在签署后是否被更改。",
+        "uploadTitle": "安装证书",
+        "uploadIntro": "选择证书颁发机构提供的 .p12 或 .pfx 文件并输入其口令。此后封印的文档将使用它。已封印的文档不受影响。",
+        "fileLabel": "证书文件",
+        "fileHint": ".p12 或 .pfx，最大 256 KB。",
+        "passphraseLabel": "文件口令",
+        "passphraseHint": "仅用于打开文件一次，之后即丢弃。Halo 为保存的副本使用自己的口令。",
+        "nameLabel": "名称（可选）",
+        "nameHint": "供您自己使用的标签，例如“公司印章 2026”。",
+        "install": "检查并安装",
+        "installing": "正在检查…",
+        "installed": "证书已安装。新文档将使用它封印。",
+        "removed": "证书已移除。",
+        "remove": "移除此证书",
+        "removeConfirm": "要移除吗？其密钥将从 Halo 中删除。已封印的文档不受影响。之后的文档将使用 Halo 生成的自签名证书封印，除非您安装另一个证书。",
+        "removeYes": "是，移除",
+        "removeNo": "保留",
+        "errors": {
+          "p12_unreadable": "此文件不是证书文件。请选择证书颁发机构提供的 .p12 或 .pfx 文件。",
+          "p12_bad_passphrase": "口令无法打开此文件。请检查后重试。",
+          "p12_no_key": "此文件包含证书但没有私钥，因此无法签名。请索取包含私钥的 .p12 或 .pfx 文件。",
+          "p12_expired": "此证书已过期。请安装有效的证书。",
+          "p12_not_yet_valid": "此证书尚未生效。请在其生效日期当天或之后安装。",
+          "p12_key_too_small": "密钥太小。封印证书需要至少 2048 位的 RSA 密钥。",
+          "p12_unsupported_algorithm": "此文件使用了不受支持的密钥类型或算法。仅支持 RSA 密钥；请向颁发机构申请 RSA 证书，并确保证书链中只有 RSA 证书。",
+          "p12_key_usage": "此证书不允许签名：其密钥用途不包含数字签名或不可否认性。请向颁发机构申请文档签名证书。",
+          "p12_key_mismatch": "此文件中的私钥不属于其中任何一个证书。请从生成证书的地方重新导出文件。",
+          "p12_chain_invalid": "此文件中的某个证书不是由其上级证书签发的，证书链已断开。请向颁发机构索取完整的证书链。",
+          "certificate_file_too_large": "此文件太大，不可能是证书文件（上限 256 KB）。",
+          "certificate_chain_too_large": "证书链太长，无法放入封印。请只包含颁发机构要求的证书。",
+          "certificate_self_test_failed": "使用此证书进行的测试封印失败，因此未安装。请向颁发机构核实该文件。",
+          "certificate_not_found": "未找到该证书，可能已被移除。",
+          "no_file": "请先选择证书文件。"
+        }
       },
       "library": {
         "loading": "正在加载模板…",
@@ -7182,8 +7365,15 @@
           "noCategory": "无类别",
           "cancel": "取消",
           "create": "创建并打开编辑器",
-          "creating": "正在准备…"
-        }
+          "creating": "正在准备…",
+          "introForm": "无需签署的表格：接下来您来建立各部分和问题。有人填写并提交即可，无需签署任何内容。",
+          "kindLegend": "模板类型",
+          "kindFile": "待签署的协议",
+          "kindFileHint": "上传文件并在其上放置签署栏。",
+          "kindForm": "无需签署的表格",
+          "kindFormHint": "无需文件。适用于只需填写并提交的资料。"
+        },
+        "formBadge": "表格"
       },
       "errors": {
         "generic": "出了点问题。请重试。",
@@ -7224,7 +7414,179 @@
         "body_too_large": "该请求太大。",
         "bad_json": "请求无效。请重试。",
         "database_error": "出了点问题。请重试。",
-        "request_failed": "请求失败。请重试。"
+        "request_failed": "请求失败。请重试。",
+        "addon_not_installed": "请先安装此附加包，然后再更新。",
+        "form_not_found": "找不到该注册表单。",
+        "form_not_ready": "此表单暂时还不能开启。打开它查看原因。",
+        "invalid_form": "表单的部分设置无效。请检查名称、指定的人员和文字。",
+        "tag_not_found": "找不到该标签。请选择联系人标签。",
+        "slug_unavailable": "无法为此表单生成地址，请重试。"
+      },
+      "registration": {
+        "loading": "正在加载注册表单……",
+        "retry": "重试",
+        "intro": "注册表单是一个公开页面，没有账号的人也可以在上面填写几项资料。Halo 会找到或创建他们的联系人，并在您需要时把一份待签署的文件发到他们的邮箱。您可以把地址放在网站上、消息里，或做成二维码。",
+        "new": "新建注册表单",
+        "botCheckOn": "这些页面已开启机器人验证（Cloudflare Turnstile）。",
+        "botCheckOff": "机器人验证（Cloudflare Turnstile）未开启。页面目前靠次数限制、隐藏栏位和签名令牌保护。如发现垃圾提交，请让平台运营方开启。",
+        "empty": "还没有注册表单。新建一个即可获得公开地址。",
+        "footnote": "表单只会被关闭，不会被删除，因此谁同意了什么的记录会一直保留。页面从不显示链接：只有收到邮件的人才能打开文件。",
+        "switchedOn": "表单已开始接受注册。",
+        "switchedOff": "表单已关闭。",
+        "cannotSwitchOn": "此表单暂时还不能开启。打开它查看原因。",
+        "newAddressMade": "表单有了新地址，旧地址已失效。",
+        "copied": "地址已复制。",
+        "copyFailed": "无法复制。请选中地址后手动复制。",
+        "cancel": "取消",
+        "close": "关闭",
+        "renew": {
+          "title": "生成新地址？",
+          "body": "旧地址会立即失效，拿到旧地址的人只会看到“页面无法使用”。如果地址被分享到了不该分享的地方，请使用此功能。",
+          "confirm": "生成新地址"
+        },
+        "on": "开启",
+        "off": "关闭",
+        "needsAttention": "需要处理",
+        "takeRegistrations": "接受注册",
+        "takeRegistrationsFor": "接受注册：{name}",
+        "copy": "复制",
+        "copyFor": "复制 {name} 的地址",
+        "open": "打开",
+        "openFor": "在新标签页中打开 {name}",
+        "newAddress": "新地址",
+        "renewFor": "为 {name} 生成新地址",
+        "offHint": "已关闭：该地址会显示“页面无法使用”。",
+        "sends": "发送内容",
+        "noTemplate": "未选择模板",
+        "sendsNothing": "不发送文件：只保存资料",
+        "today": "今天",
+        "todayValue": "{count} / {cap}",
+        "last30": "近 30 天",
+        "last30Value": "已接受 {accepted}，未能完成 {failed}，已拦截 {blocked}",
+        "edit": "编辑",
+        "editFor": "编辑 {name}",
+        "activity": "最近动态",
+        "activityFor": "{name} 的最近动态",
+        "activityTitle": "最近动态：{name}",
+        "activityIntro": "最近提交的处理结果。这里不会显示地址和邮箱。",
+        "activityEmpty": "还没有人提交。",
+        "openDocument": "打开文件",
+        "status": {
+          "accepted": "已接受",
+          "rejected_spam": "已拦截",
+          "rejected_cap": "超出每日上限",
+          "failed": "未能完成"
+        },
+        "reasons": {
+          "duplicate": "与今天一个未完成的注册使用同一邮箱，未新建任何内容",
+          "honeypot": "隐藏栏位被填写（脚本）",
+          "token_invalid": "页面令牌不是真的",
+          "token_expired": "页面打开时间太久",
+          "token_too_fast": "页面打开后提交得太快",
+          "captcha_failed": "未通过机器人验证",
+          "daily_cap": "每日上限已满",
+          "in_progress": "中途停止（服务器被中断）",
+          "contact_limit_reached": "已达到工作区的联系人上限",
+          "sign_limit_reached": "已达到每月文件数上限",
+          "form_not_ready": "表单无法发送（请检查模板和指定的人员）",
+          "template_not_active": "模板未启用",
+          "delivery_failed": "文件已生成，但邮件无法送达",
+          "send_failed": "文件无法发送",
+          "generic": "请查看处理结果"
+        },
+        "issues": {
+          "no_template": "请选择要发送的模板。",
+          "template_not_active": "模板未启用。请在 Doc Sign > 模板中启用。",
+          "template_has_no_version": "模板还没有已保存的版本。",
+          "no_applicant_role": "请选择申请人填写的角色。",
+          "applicant_role_unknown": "申请人填写的角色不在此模板中，请另选一个。",
+          "signer_role": "有人被指定给模板中不存在的角色，或指定给了申请人自己的角色。",
+          "no_signer": "没有人签署：请把申请人的角色设为签署角色，或指定一位签署人。",
+          "role_without_person": "角色 {role} 有内容需要完成，但没有指定人员。",
+          "part_without_person": "表单的某一部分属于一个没有指定人员的角色。",
+          "signer_without_signature": "需要签署的角色在文件上没有签名位置。",
+          "signer_name": "为其他角色指定的人员需要姓名。",
+          "signer_email": "为其他角色指定的人员需要有效的邮箱。",
+          "signer_phone": "为其他角色指定的人员需要电话号码。",
+          "too_many_signers": "此文件的人员太多。",
+          "order_not_unique": "模板要求按顺序签署，但有两人顺序相同。",
+          "same_person_twice": "模板要求按顺序签署，但同一个人被指定了两次。",
+          "generic": "此表单有问题，无法使用。请检查模板和指定的人员。",
+          "template_mode_mismatch": "此页面发送的是无需签署的表格，但模板是待签署的协议，或者相反。请选择同类型的模板。",
+          "no_person": "表格至少需要一位填写的人。",
+          "form_mode_needs_a_form": "模板的表格还没有任何部分。请打开模板并添加一个。",
+          "form_mode_signature": "无需签署的表格不能有签署位置。",
+          "form_mode_placement": "无需签署的表格在页面上不放置任何内容。",
+          "form_mode_signer_role": "无需签署的表格不能有需要签署的角色。"
+        },
+        "editTitle": "编辑注册表单",
+        "newTitle": "新建注册表单",
+        "dialogIntro": "选择页面要询问的内容，以及有人提交后会发生什么。",
+        "name": "名称（只有您的团队能看到）",
+        "addressPreview": "地址会是类似 {address} 的样子，随机结尾在您保存时生成。",
+        "addressNow": "地址：{address}",
+        "activeHint": "关闭时，该地址会显示“页面无法使用”。",
+        "documentLegend": "提交之后会怎样",
+        "sendDocument": "发送待签署的文件",
+        "sendDocumentHint": "根据模板生成，并发送到对方填写的邮箱。这封邮件同时证明该邮箱属于对方。",
+        "noTemplates": "还没有已保存版本的启用模板。",
+        "goToTemplates": "前往模板",
+        "template": "模板",
+        "applicantRole": "申请人填写的角色",
+        "applicantRoleHint": "模板中由注册人完成的角色。",
+        "others": "其他角色的人员",
+        "othersHint": "如果模板不需要某个角色的人，留空即可。例如负责会签的董事。",
+        "otherName": "{role}：姓名",
+        "otherEmail": "{role}：邮箱",
+        "detailsOnlyHint": "不发送文件。资料会保存到联系人，并加上下面的标签，标签可以触发自动化。",
+        "tag": "联系人标签",
+        "tagHint": "有人注册时添加。标签可以触发自动化，例如欢迎消息或商户入驻流程。",
+        "noTag": "不加标签",
+        "askLegend": "页面询问的资料",
+        "detail": {
+          "full_name": "姓名",
+          "company": "公司或企业",
+          "phone": "电话号码",
+          "email": "邮箱"
+        },
+        "emailAlways": "必问（文件会发到这里）",
+        "ask": {
+          "required": "必填",
+          "optional": "选填",
+          "off": "不询问"
+        },
+        "dailyCap": "每日注册数",
+        "dailyCapHint": "24 小时内最多这么多；超过后页面会提示繁忙。",
+        "defaultLanguage": "页面语言",
+        "defaultLanguageHint": "访问者没有另选语言时使用。",
+        "wordingTitle": "文字",
+        "wordingHint": "某种语言留空则使用产品自带文字。在需要显示工作区名称的位置写 '{workspace}'。每次注册都会记录所同意的文字。",
+        "consentText": "同意声明",
+        "successMessage": "感谢信息（附在默认内容之后）",
+        "saved": "表单已保存。",
+        "created": "表单已创建。",
+        "save": "保存",
+        "create": "创建表单",
+        "problems": {
+          "name": {
+            "required": "请为表单命名。",
+            "too_long": "请不要超过 120 个字符。"
+          },
+          "template": {
+            "required": "请选择模板。"
+          },
+          "applicantRole": {
+            "required": "请选择角色。"
+          },
+          "others": {
+            "incomplete": "每个人都要同时填写姓名和邮箱，或都留空。",
+            "invalid": "其中一个邮箱无效。"
+          },
+          "dailyCap": {
+            "invalid": "请输入 1 到 5000 的整数。"
+          }
+        },
+        "templateIsForm": "表格"
       }
     },
     "detail": {
@@ -7235,7 +7597,11 @@
         "back": "Doc Sign",
         "inOrder": "按顺序签署",
         "codeRequired": "需要验证码",
-        "reference": "编号 {reference}"
+        "reference": "编号 {reference}",
+        "testChip": "测试",
+        "testNote": "这是测试文档：每一页和每条消息都标有 TEST，不计入您的每月额度，不会通知任何 webhook 或自动化，并在签署后保留 30 天。",
+        "formChip": "表格",
+        "inOrderForm": "按顺序填写"
       },
       "meta": {
         "category": "类别",
@@ -7253,7 +7619,8 @@
         "downloadSigned": "下载已签署的 PDF",
         "view": "查看",
         "downloadOriginal": "下载原件",
-        "void": "取消文件"
+        "void": "取消文件",
+        "downloadRecord": "下载记录"
       },
       "banner": {
         "waiting": "正在等待 {names}（已签署 {done}/{total}）",
@@ -7277,12 +7644,24 @@
         "cancelledNote": "链接已失效。",
         "failed": "无法封存：我们正在查明原因",
         "failedNote": "没有任何内容丢失。所有人均已签署，问题解决后会立即生成已签署的副本。",
-        "failedTechnical": "技术说明：{error}"
+        "failedTechnical": "技术说明：{error}",
+        "retainedUntil": "保留至 {date}。在此之前任何人都无法删除这份已签署文档，包括工作区所有者。",
+        "retentionEnded": "保留期限已于 {date} 结束。",
+        "waitingForm": "正在等待 {names}（{done}/{total} 已提交）",
+        "waitingMoreForm": "正在等待 {names} 等另外 {count} 人（{done}/{total} 已提交）",
+        "waitingNobodyForm": "正在等待提交（{done}/{total} 已提交）",
+        "sealingForm": "全部已提交，正在封存记录",
+        "sealingNoteForm": "这需要片刻。记录会显示在此处并发送给所有人。",
+        "completedOnForm": "已于 {date} 提交并记录",
+        "completedForm": "已提交并记录",
+        "completedNoteForm": "所有人均已提交。已封存的记录保存在此处。",
+        "declinedNoteForm": "其他人无法再填写此表格。如仍需要，请发送新的表格。"
       },
       "tabs": {
         "people": "人员（{count}）",
         "document": "文件",
-        "history": "历史记录"
+        "history": "历史记录",
+        "record": "记录"
       },
       "channel": {
         "email": "电子邮件",
@@ -7304,7 +7683,16 @@
         "remind": "提醒",
         "resend": "重新发送",
         "changeRecipient": "更换收件人",
-        "remindHeld": "{when} 之后才能再次发送提醒"
+        "remindHeld": "{when} 之后才能再次发送提醒",
+        "haloUser": "Halo 用户",
+        "haloUserYou": "Halo 用户（您）",
+        "step": "第 {step} 步（{count, plural, other {# 人}}）",
+        "holdsParts": "由 {name} 转交的 {count, plural, other {# 个部分}}：{parts}",
+        "forwardedFrom": "转交自 {names}",
+        "moveTo": "移至",
+        "moveStep": "第 {step} 步",
+        "moveNew": "末尾新增一步",
+        "moved": "{name} 已移至其他步骤。"
       },
       "confirm": {
         "cancel": "取消",
@@ -7351,7 +7739,8 @@
         "resent": "已向 {name} 重新发送邀请",
         "recipientChanged": "收件人已更换，已向 {name} 发送新链接。",
         "notDelivered": "通过{channel}发给 {name} 的消息未能送达。请复制链接并自行转交。",
-        "notConfigured": "尚未设置通过{channel}发送消息，因此没有向 {name} 发送任何内容。请复制链接并自行转交。"
+        "notConfigured": "尚未设置通过{channel}发送消息，因此没有向 {name} 发送任何内容。请复制链接并自行转交。",
+        "recipientChangedLater": "已更改 {name} 的信息。轮到其步骤时会邀请对方。"
       },
       "void": {
         "title": "取消“{title}”？",
@@ -7360,7 +7749,10 @@
         "reasonRequired": "请说明原因。原因会记录在历史记录中。",
         "keep": "保留文件",
         "action": "取消文件",
-        "done": "文件已取消"
+        "done": "文件已取消",
+        "envelopeBody": "文件包的所有链接都会失效,正在等待的人会收到一次通知。此操作无法撤销。如有需要,请重新发送一个新的文件包。",
+        "envelopeAction": "取消文件包",
+        "envelopeDone": "文件包已取消"
       },
       "viewer": {
         "loading": "正在加载页面",
@@ -7372,7 +7764,8 @@
         "signedCopy": "已签署副本",
         "asSent": "发送时的版本",
         "noteSigned": "已签署的副本，包含所有答案和证书页。",
-        "noteSent": "发送时的文件。所有人签署之前，这里不显示答案。"
+        "noteSent": "发送时的文件。所有人签署之前，这里不显示答案。",
+        "noteRecord": "已封存的提交记录：答复、提交人以及证书页。"
       },
       "files": {
         "title": "文件",
@@ -7448,7 +7841,32 @@
         "delivery_failed": "发给 {actor} 的消息未能送达",
         "delivery_failedCompleted": "已签署的副本未能送达给 {actor}",
         "delivery_failedCompletedSender": "已签署的副本未能送达给发送人",
-        "unknown": "文件上发生了一件事（{type}）"
+        "unknown": "文件上发生了一件事（{type}）",
+        "halo_link": "{actor} 在 Halo 内打开文件时，系统为其生成了签署链接",
+        "code_verified_halo": "{actor} 通过 Halo 登录完成身份确认（无需验证码）",
+        "invitedAfterStep": "因上一步骤已完成，已邀请 {actor}",
+        "forwarded": "{from} 将其环节转交给 {to}",
+        "part_forwarded": "{from} 将“{part}”部分转交给 {to}",
+        "part_taken_back": "{actor} 从 {from} 处收回了“{part}”部分",
+        "signer_moved": "{actor} 已移至第 {step} 步",
+        "forwarding_on": "{sender} 允许转交",
+        "forwarding_off": "{sender} 关闭了转交",
+        "forwarding_changed": "{sender} 更改了是否允许转交",
+        "sensitive_viewed": "{sender}查看了{hasField, select, yes {“{field}”} other {一条敏感答案}}的完整内容",
+        "file_replaced": "{sender}替换了草稿的文件",
+        "createdForm": "{sender} 创建了表格",
+        "sentForm": "{sender} 发送了表格",
+        "viewedForm": "{actor} 打开了表格",
+        "consentedForm": "{actor} 同意以电子方式提交",
+        "submittedForm": "{actor} 提交了资料",
+        "declinedForm": "{actor} 拒绝填写表格",
+        "sealedForm": "提交记录已封存",
+        "completedForm": "提交已记录",
+        "downloadedForm": "{sender} 打开或下载了记录",
+        "all_submitted": "所有人均已提交",
+        "envelope_sent": "{sender} 发送了文件包 {reference},共 {count, plural, other {#份文件}}",
+        "envelope_completed": "文件包 {reference} 已完成,全部 {count, plural, other {#份文件}}均已签署",
+        "envelope_declined": "{by} 拒绝了文件包 {reference},因此所有未完成的文件都已停止"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -7468,7 +7886,18 @@
         "rate_limited": "尝试次数过多。请等待一分钟后再试。",
         "network": "无法连接到服务器。请检查网络连接后重试。",
         "database_error": "出了点问题，请重试。",
-        "generic": "出了点问题，请重试。"
+        "generic": "出了点问题，请重试。",
+        "already_on_document": "该人员已在此文档中。",
+        "step_not_movable": "只能把该人员移到尚未开始的步骤。",
+        "envelope_not_found": "找不到该文件包。",
+        "envelope_not_sent": "该文件包尚未发出。",
+        "envelope_partly_completed": "该文件包中已有文件由所有人签署,因此无法取消整个文件包。",
+        "envelope_person_has_signed": "此人已签署了文件包的一部分,因此无法更换。",
+        "document_in_envelope": "该文件属于一个文件包。请在文件包上进行此操作。",
+        "expiry_in_the_past": "新日期必须在将来。",
+        "expiry_not_later": "新日期必须晚于当前日期。",
+        "expiry_too_far": "该日期太遥远。请选择更近的日期。",
+        "bad_expiry": "无法识别该日期。请重新选择。"
       },
       "contactTab": {
         "tab": "文件",
@@ -7476,6 +7905,22 @@
         "send": "发送文件",
         "empty": "此联系人还没有文件。",
         "failed": "无法加载文件。"
+      },
+      "yourTurn": {
+        "title": "轮到您签署此文件了",
+        "body": "您以 Halo 用户身份被列为签署人。点击“立即签署”将使用您的 Halo 登录打开，无需验证码。"
+      },
+      "forwarding": {
+        "label": "允许转交",
+        "onHint": "签署人可以把自己的环节或表单的某个部分转交给他人。每次转交都会记录在历史中。",
+        "offHint": "任何人都不能转交。已经转交的内容仍由接收人处理。",
+        "nowOn": "已为此文档开启转交。",
+        "nowOff": "已为此文档关闭转交。"
+      },
+      "recordTab": {
+        "emptyTicket": "此工单还没有关联文档。",
+        "emptyDeal": "此交易还没有关联文档。",
+        "testBadge": "测试"
       }
     },
     "editor": {
@@ -7516,7 +7961,9 @@
         "code": "需要验证码",
         "codeHint": "签署前，签署人需输入发送给他们的验证码。",
         "subject": "邮件主题",
-        "message": "给签署人的留言"
+        "message": "给签署人的留言",
+        "forwarding": "允许转交",
+        "forwardingHint": "由此模板生成的文档允许签署人把自己的环节或表单的某个部分转交给他人。发件人可以针对每份文档修改。"
       },
       "draft": {
         "loading": "正在加载文档...",
@@ -7526,7 +7973,8 @@
         "fromTemplate": "字段来自模板。请填写下方的值，或选择“编辑字段”来更改布局。",
         "editFields": "编辑字段",
         "lockFields": "锁定字段",
-        "saveAsTemplate": "另存为模板"
+        "saveAsTemplate": "另存为模板",
+        "replaceFile": "替换文件"
       },
       "fieldsList": {
         "title": "所有字段",
@@ -7764,6 +8212,55 @@
         "missing": "{count, plural, other {有 # 个值还是空的}}",
         "complete": "所有值都已填写。",
         "used": "{count, plural, other {用于 # 个字段}}"
+      },
+      "replaceFile": {
+        "title": "替换文件",
+        "intro": "请选择新的 PDF、Word 文件或图片。您已放置的字段在仍然适用时会保持原位；在任何改动发生之前，您会先看到会有哪些变化。",
+        "checking": "正在检查新文件…",
+        "pages": "新文件共 {next, plural, other {# 页}}；当前文件共 {old, plural, other {# 页}}。",
+        "pagesChanged": "页数不同，请确认每个字段仍在正确的页面上。",
+        "converted": "文件将被转换为 PDF，签署的就是这份 PDF。",
+        "noFields": "此文档还没有字段，因此无需移动任何内容。",
+        "allKept": "{count, plural, other {全部 # 个字段保持原位。}}",
+        "flaggedTitle": "{flagged, plural, other {有 # 个字段需要查看}}；{kept, plural, other {# 个保持原位}}。",
+        "reason": {
+          "page_missing": "新文件中没有它所在的页面，因此已移到最后一页",
+          "size_changed": "该页面的尺寸或形状不同，字段可能不再对齐",
+          "outside_page": "它不在页面范围内"
+        },
+        "movedLine": "{name}：原在第 {from} 页，现在第 {to} 页",
+        "pageLine": "{name}（第 {page} 页）",
+        "afterNote": "文件替换后，编辑器中的“问题”列表会显示还需修正的内容，在您修正之前不会发送任何内容。",
+        "unknownField": "一个字段",
+        "cancel": "取消",
+        "confirm": "替换文件",
+        "replacing": "正在替换…"
+      },
+      "testSend": {
+        "button": "发送测试",
+        "title": "给自己发送测试",
+        "intro": "像签署人一样试用此模板：您会收到真实的邮件和签署页面，以及签署后的文件，全部带有“TEST”标记。",
+        "sentIntro": "测试已发出。",
+        "sentTo": "测试文档已发送至 {email}。",
+        "orderIgnored": "此模板按顺序签署，但同一个地址占了多个位置，因此本次测试不按顺序进行。",
+        "whereToSign": "请打开邮件，或在此打开文档，并在“待我签署”下找到它，即可在 Halo 内签署。",
+        "notDelivered": "有一封消息未能送达。请改用以下链接：",
+        "open": "打开文档",
+        "pointMarked": "每一页、邮件和签署页面都标有 TEST。",
+        "pointNotCounted": "它不计入您的每月额度，也不会通知任何 webhook 或自动化。",
+        "pointKept": "签署完成后保留 {days} 天。",
+        "unsaved": "测试使用模板已保存的版本。如果希望包含您最新的修改，请先保存一个版本。",
+        "noRoles": "此模板还没有需要签署或填写的人。请先为某个角色添加字段。",
+        "emailLabel": "将测试发送至",
+        "emailHint": "留空则使用您自己的地址。如需使用您的另一个收件箱，请在 @ 前加上 +任意文字（例如 you+test@company.com）。",
+        "emailNotYours": "测试只能发送到您自己的地址，或在您的地址后加上 +任意文字。",
+        "placesLabel": "每个位置由谁扮演",
+        "placesHint": "留空则使用上方的地址。为每个位置设置各自的 +任意文字 地址，即可试验按顺序签署。",
+        "cancel": "取消",
+        "send": "发送测试",
+        "sending": "正在发送…",
+        "rowLabel": "发送 {name} 的测试",
+        "loadFailed": "无法打开该模板进行测试。请重试。"
       }
     },
     "formBuilder": {
@@ -8153,7 +8650,16 @@
         "placement_type_mismatch": "第 {page} 页的框不能以这种框的类型打印“{field}”。请打开位置编辑器进行更改。",
         "placement_bound_and_fixed": "第 {page} 页的框既打印答案又是固定文字。请打开位置编辑器进行更改。",
         "part_without_person": "部分“{part}”没有人来完成。",
-        "removeBox": "删除该框"
+        "removeBox": "删除该框",
+        "bad_list_key": "{field} 所指定的列表不是有效的列表键。",
+        "list_wrong_type": "{field} 不能使用共享列表：只有单选、多选或条目列表可以使用。",
+        "unknown_list": "{field} 使用的列表 {detail} 在此工作区中不存在。请选择其他列表。",
+        "list_and_options": "{field} 同时设置了共享列表和手动输入的选项。请只使用其中一种。",
+        "list_empty": "{field} 使用的列表 {detail} 没有启用的项目。请在“设置”中为其添加项目，或选择其他列表。",
+        "bad_sensitive": "{field} 不能标记为敏感。只有键入的答案（文本、数字、电子邮件、电话、日期、列表）可以。",
+        "sensitive_contact_field": "{field} 是敏感字段，不能用来填写联系人字段。请去掉其中一个。",
+        "sensitive_default": "{field} 是敏感字段，不能设置初始值或锁定。请去掉初始值或锁定。",
+        "sensitive_in_rule": "有规则在比较 {field} 的值，而它是敏感字段。规则只能判断它是否为空。"
       },
       "warnings": {
         "unknown": "表单中有内容值得检查。",
@@ -8240,6 +8746,45 @@
         "cannotDeleteRole": "{count, plural, other {此角色负责表单的 # 个部分。}}请先在“表单”视图中把这些部分交给其他角色，再删除它。",
         "signerNoSignature": "此角色需要签字，但没有签名或缩写框。",
         "sampleItem": "条目 {n}"
+      },
+      "list": {
+        "source": "选项来源",
+        "sourceTyped": "在此输入",
+        "sourceList": "共享列表",
+        "sourceFree": "签署人自行输入",
+        "sourcePicked": "从共享列表中选择",
+        "which": "共享列表",
+        "choose": "选择列表…",
+        "loading": "正在加载列表…",
+        "loadFailed": "无法加载列表。",
+        "unknown": "此工作区中不存在列表 {key}。",
+        "archived": "此列表已归档。它在此表单中仍可使用；如要停用，请选择其他列表。",
+        "stale": "自保存此表单以来，列表已发生变化。保存后即可使用新版本。",
+        "preview": "来自列表的 {count, plural, other {# 个选项}}",
+        "previewMore": "另有 {count} 个",
+        "hint": "保存时，列表的副本会进入表单；发送文件时，会进入每份文件。之后更改列表不会改变已发送的文件。列表保存在“设置 > Doc Sign > 列表”中。",
+        "hintPicked": "签署人可按代码或关键词搜索此列表，并逐个添加条目。保存时，列表的副本会进入表单；发送文件时，会进入每份文件。列表保存在“设置 > Doc Sign > 列表”中。"
+      },
+      "sensitive": {
+        "title": "敏感数据",
+        "label": "敏感（加密并隐藏）",
+        "hint": "加密存储。工作人员看到的是模糊后的内容（例如 •••• 1234），每次查看完整内容都会被记录。导出时不包含它，也不能用来填写联系人字段。",
+        "print": "已签署的 PDF 上",
+        "printHint": "已签署的文件通常要显示双方同意的内容，所以默认完整打印。只有在不想让它出现在 PDF 上时才选择其他方式。",
+        "printFull": "完整打印",
+        "printLast4": "只打印最后 4 个字符",
+        "printNone": "不打印"
+      },
+      "rolesPanel": {
+        "title": "填写此表格的人",
+        "hint": "每个人是一个只负责填写的角色，无人签署。请在各部分的设置中把它分配给其中一人。发送表格时再填写真实的人员。",
+        "nameLabel": "角色名称",
+        "parts": "{count} 个部分",
+        "remove": "移除 {name}",
+        "removeInUse": "有部分分配给了此人",
+        "removeLast": "表格至少需要一个人",
+        "add": "添加一个人",
+        "limit": "最多 {max} 人"
       }
     },
     "progress": {
@@ -8307,7 +8852,8 @@
         "download": "下载",
         "downloadNamed": "下载 {name}",
         "fromContact": "来自联系人，尚未确认",
-        "bySender": "由发送人设定"
+        "bySender": "由发送人设定",
+        "typedBy": "由 {name} 填写，该部分已交给此人"
       },
       "issues": {
         "title": "{count, plural, other {有 # 项需要查看}}",
@@ -8373,6 +8919,25 @@
         "prefillOn": "表单会先带入所关联联系人的资料（{fields}）。签署人会核对并可以修改。",
         "noContact": "此表单可以先带入联系人的资料（{fields}），但没有关联联系人，所有内容将由签署人自行填写。您可以在选项步骤中关联联系人。",
         "noContactFields": "此表单不使用联系人的资料。"
+      },
+      "heldBy": "由 {name} 处理",
+      "heldByDone": "已由 {name} 完成",
+      "sensitive": {
+        "reveal": "显示",
+        "hide": "隐藏",
+        "revealNamed": "显示{name}",
+        "hideNamed": "隐藏{name}",
+        "note": "已加密。显示完整内容会记录在历史中。",
+        "shownNote": "会短暂显示，然后再次隐藏。此次查看已记录在历史中。",
+        "errors": {
+          "answer_not_found": "找不到这条答案。",
+          "audit_unavailable": "无法记录这次查看，所以没有显示答案。请重试。",
+          "rate_limited": "请求太多。请稍等片刻再试。",
+          "forbidden": "您没有查看此答案的权限。",
+          "signed_out": "您已退出登录。请重新登录后继续。",
+          "network": "无法连接服务器。请检查网络后重试。",
+          "generic": "操作未成功。请重试。"
+        }
       }
     },
     "send": {
@@ -8427,7 +8992,8 @@
           "draft": "草稿",
           "waiting": "等待他人",
           "completed": "已完成",
-          "stopped": "已终止"
+          "stopped": "已终止",
+          "test": "测试"
         },
         "searchLabel": "搜索文档",
         "searchPlaceholder": "按标题、编号或签署人搜索",
@@ -8456,7 +9022,63 @@
         "edited": "{when}编辑",
         "completedOn": "{date}完成",
         "sentOn": "{date}发送",
-        "expiresOn": "{date}到期"
+        "expiresOn": "{date}到期",
+        "shortcuts": {
+          "label": "快捷入口"
+        },
+        "awaiting": {
+          "tab": "等待我签署",
+          "badge": "{count, plural, other {# 份文件等待您签署}}",
+          "hint": "您以 Halo 用户身份被列为这些文件的签署人，现在轮到您了。点击“立即签署”将使用您的 Halo 登录打开文件，无需再输入验证码。",
+          "empty": "没有等待您签署的文件。",
+          "signNow": "立即签署",
+          "opening": "正在打开...",
+          "view": "查看",
+          "from": "来自 {name}",
+          "sent": "发送于 {date}",
+          "expires": "截止 {date}",
+          "step": "第 {step} 步",
+          "role": "角色：{role}",
+          "errors": {
+            "not_your_turn": "还没有轮到您签署此文件。",
+            "document_not_open": "此文件已无法再签署。",
+            "already_signed": "您已经签署过此文件。",
+            "signer_not_open": "您已拒绝此文件。",
+            "not_a_signer": "您不是此文件的签署人。",
+            "forbidden": "您没有在 Halo 内签署的权限。",
+            "signed_out": "请重新登录后继续。",
+            "rate_limited": "尝试次数过多，请稍后再试。",
+            "network": "无法连接服务器，请检查网络后重试。",
+            "sign_disabled": "此工作区未开启 Doc Sign。",
+            "generic": "无法打开文件，请重试。"
+          }
+        },
+        "attention": {
+          "tab": "需要关注",
+          "hint": "已被拒绝、近 30 天内过期或封存失败的文件，以及有消息未送达的进行中文件。邮件服务商事后才报告的退信不会显示在这里。",
+          "empty": "没有需要您关注的内容。",
+          "open": "打开",
+          "reason": {
+            "declined": "已拒绝",
+            "expired": "已过期",
+            "failed": "封存失败",
+            "undelivered": "消息未送达"
+          },
+          "detail": {
+            "declined": "{names} 拒绝了",
+            "expired": "仍在等待 {names}",
+            "failed": "尚未能生成已签署的文件，请打开文件查看详情。",
+            "undelivered": "未能送达 {names}"
+          }
+        },
+        "testBadge": "测试",
+        "formBadge": "表格",
+        "progressForm": "{done}/{total} 已提交",
+        "envelopeBadge": "文件包 · {count, plural, other {#份文件}}",
+        "dateFrom": "创建日期自",
+        "dateTo": "创建日期至",
+        "contactLabel": "联系人",
+        "rangeBackwards": "开始日期晚于结束日期，因此没有任何结果。"
       },
       "new": {
         "title": "新建文档",
@@ -8494,7 +9116,8 @@
         "noTemplateMatch": "没有符合搜索条件的模板。",
         "templatesLabel": "模板",
         "noCategoryGroup": "无类别",
-        "templateFacts": "{pages, plural, other {# 页}} · {roles, plural, other {# 个角色}}"
+        "templateFacts": "{pages, plural, other {# 页}} · {roles, plural, other {# 个角色}}",
+        "templateFactsForm": "无需签署的表格 · {roles} 人"
       },
       "view": {
         "loading": "正在加载文档",
@@ -8528,14 +9151,15 @@
         "people": "人员",
         "options": "选项",
         "review": "核对",
-        "complete": "（已完成）"
+        "complete": "（已完成）",
+        "formFields": "表格"
       },
       "people": {
         "noRolesTitle": "请先放置字段",
         "noRolesBody": "人员来自您为字段指定的角色，例如签署人或负责填写某部分的人。请先在文档上放置至少一个字段，然后再回到这里。",
         "goToFields": "前往字段",
         "needsOrder": "此文档需要按顺序签署",
-        "needsOrderOn": "上一位签署后才会邀请下一位。拖动人员或使用箭头来设置顺序。",
+        "needsOrderOn": "大家按步骤依次签署。发送时会邀请第 1 步中的所有人；上一步的所有人都完成后，才会邀请下一步。给两个人相同的步骤编号，他们就会同时签署。将一个人拖到另一个人旁边，或使用箭头，即可调整顺序。",
         "needsOrderOff": "所有人会同时收到邀请，谁都可以先签。不显示顺序编号。",
         "empty": "名单中还没有人。请添加需要签署或填写此文档的人员。",
         "listLabel": "此文档的人员",
@@ -8547,7 +9171,7 @@
         "limitReached": "一份文档最多可有 {max} 人。",
         "fromContactsTitle": "从联系人添加",
         "fromContactsBody": "选择一位联系人，其姓名、邮箱和电话会填入新的一行。",
-        "dragHandle": "拖动以调整顺序",
+        "dragHandle": "拖到另一个人旁边以调整顺序",
         "orderNumber": "第 {n} 位",
         "moveUp": "将第 {n} 位上移",
         "moveDown": "将第 {n} 位下移",
@@ -8567,7 +9191,25 @@
         "phoneInvalid": "请输入带国家区号的号码，例如 +60 12 345 6789。",
         "whatsappNote": "WhatsApp 邀请使用已获批准的消息模板发送。",
         "whatsappNotSetUp": "WhatsApp 邀请需要已获批准的消息模板，但目前尚未设置。此人将无法通过 WhatsApp 收到邀请。请改用邮件，或请管理员在设置中配置。",
-        "remove": "移除第 {n} 位"
+        "remove": "移除第 {n} 位",
+        "stepHeading": "第 {step} 步（{count, plural, other {# 人}}）",
+        "stepNumber": "第 {n} 位的步骤编号",
+        "stepNumberHint": "步骤编号相同的人会同时签署。",
+        "emptyForm": "名单中还没有人。请添加填写此表格的人。",
+        "needsOrderForm": "按顺序填写",
+        "needsOrderOnForm": "每个人在前一位提交之后才会被邀请。拖动人员或使用箭头设定顺序。",
+        "needsOrderOffForm": "所有人同时被邀请，任何人都可以先填写。不显示顺序编号。",
+        "sameEmailOrderedForm": "{email} 出现在第 {a} 和第 {b} 位。按顺序填写的人必须是不同的人。",
+        "chooseHaloUser": "选择 Halo 用户",
+        "haloUserTitle": "选择 Halo 用户",
+        "haloUserBody": "从您的工作区中选择一位成员，在 Halo 内部签署。对方会在“等待我签署”中看到该文件，同时也会收到常规的电子邮件邀请。对方需要拥有签署文件的权限。",
+        "haloUserSearch": "按姓名或电子邮件搜索",
+        "haloUserLoading": "正在加载人员...",
+        "haloUserNone": "没有可选择的人。这里的人已全部在名单中，或没有匹配项。",
+        "haloUserList": "您工作区中的人员",
+        "haloUserTag": "Halo 用户",
+        "haloUserNote": "在 Halo 内部签署。姓名和电子邮件来自其 Halo 个人资料。",
+        "haloUserRemove": "改用 Halo 以外的人"
       },
       "options": {
         "title": "标题",
@@ -8598,11 +9240,19 @@
         "remindersHint": "邀请后的天数，用逗号分隔，例如 3, 7。留空表示不提醒。",
         "remindersBad": "请使用 1 到 60 的整数天数，最多 5 个。",
         "codeRequired": "需要验证码",
-        "codeRequiredHint": "每位签署人需先输入发送给他们的一次性验证码才能打开文档。除非勾选，否则不启用。"
+        "codeRequiredHint": "每位签署人需先输入发送给他们的一次性验证码才能打开文档。除非勾选，否则不启用。",
+        "allowForwarding": "允许转交",
+        "allowForwardingHint": "签署人可以把自己的环节或表单的某个部分转交给他人。新的接收人会得到专属链接，并自行同意以电子方式签署。每次转交都会记录在历史中。",
+        "ticket": "工单",
+        "ticketHint": "可选。让此文档显示在该工单上。",
+        "ticketHintContact": "可选。只提供此联系人的工单。",
+        "deal": "交易",
+        "dealHint": "可选。让此文档显示在该交易上。",
+        "dealHintContact": "可选。只提供此联系人的交易。"
       },
       "review": {
         "untitled": "未命名文档",
-        "orderedIntro": "按顺序签署。发送时邀请第 1 位；上一位签署后再邀请下一位。",
+        "orderedIntro": "按顺序签署。发送时会邀请第 1 步中的所有人；上一步的所有人都完成后，才会邀请下一步。同一步中的人会同时被邀请。",
         "allAtOnce": "所有人同时收到邀请，谁都可以先签。",
         "nobody": "尚未添加任何人。",
         "noName": "尚无姓名",
@@ -8634,7 +9284,16 @@
         "send": "发送以供签署",
         "noPermission": "您没有发送文档的权限。",
         "sendBlocked": "请先处理上面的问题再发送。",
-        "sendNote": "发送后，文件和签署顺序将无法更改。如需更改，请作废文档后重新发送。"
+        "sendNote": "发送后，文件和签署顺序将无法更改。如需更改，请作废文档后重新发送。",
+        "sameStep": "与第 {step} 步中的其他人同时签署",
+        "forwardingLabel": "转交",
+        "forwardingOn": "签署人可以把自己的环节或表单的某个部分转交给他人",
+        "forwardingOff": "不允许",
+        "orderedIntroForm": "按顺序填写。第 1 位在您发送时被邀请；之后每位在前一位提交后被邀请。",
+        "allAtOnceForm": "所有人同时被邀请，任何人都可以先填写。",
+        "codeOnForm": "每个人需要先输入一次性验证码",
+        "sendForm": "发送表格",
+        "sendNoteForm": "发送后，表格和顺序无法更改。如需更改，请作废该文件并重新发送。"
       },
       "result": {
         "title": "已发送以供签署",
@@ -8658,7 +9317,10 @@
         "copied": "链接已复制",
         "copyFailed": "无法复制链接。请选中后手动复制。",
         "privateWarning": "请仅以私密方式把此链接发给 {name}。任何拿到链接的人都可以冒用其身份签署。",
-        "openDocument": "打开文档"
+        "openDocument": "打开文档",
+        "titleForm": "表格已发送",
+        "linkLabelForm": "{name} 的链接",
+        "privateWarningForm": "此链接只能私下发给 {name}。任何拿到它的人都可以以其身份填写表格。"
       },
       "problems": {
         "no_file": "文档没有文件。",
@@ -8678,7 +9340,12 @@
         "message_long": "留言超过了 2000 个字符。",
         "expiry_past": "到期日期必须在今天之后。",
         "reminders_bad": "提醒必须是 1 到 60 的整数天数，最多 5 个。",
-        "layout": "文档上有字段位置不正确。"
+        "layout": "文档上有字段位置不正确。",
+        "no_person": "请至少添加一位填写此表格的人。",
+        "form_mode_needs_a_form": "此表格没有可填写的部分。请打开模板并添加一个。",
+        "form_mode_signature": "无需签署的表格不能有签署位置。",
+        "form_mode_placement": "无需签署的表格在页面上不放置任何内容。",
+        "form_mode_signer_role": "无需签署的表格不能有需要签署的角色。"
       },
       "errors": {
         "generic": "出了点问题，请重试。",
@@ -8734,7 +9401,210 @@
         "rate_limited": "请求过于频繁。请稍候再试。",
         "body_too_large": "请求内容过大。",
         "bad_json": "无法读取请求，请重试。",
-        "database_error": "我们这边出了问题，请重试。"
+        "database_error": "我们这边出了问题，请重试。",
+        "ticket_not_found": "找不到该工单。",
+        "deal_not_found": "找不到该交易。",
+        "ticket_contact_mismatch": "该工单属于与此文档不同的联系人。请选择该联系人，或选择其他工单。",
+        "deal_contact_mismatch": "该交易属于与此文档不同的联系人。请选择该联系人，或选择其他交易。",
+        "test_email_not_yours": "测试只能发送到您自己的地址，或在您的地址后加上 +任意文字。",
+        "test_no_roles": "此模板还没有需要签署或填写的人。请先为某个角色添加字段。",
+        "test_no_address": "您的账户没有可用于接收测试的邮箱地址。",
+        "same_file": "这就是文档目前使用的文件。",
+        "document_has_no_file": "此文档没有可替换的文件。",
+        "envelope_not_found": "找不到该文件包。",
+        "envelope_not_draft": "该文件包已发出,无法再修改。",
+        "envelope_not_sent": "该文件包尚未发出。",
+        "envelope_size": "一个文件包包含两到六份文件。",
+        "envelope_documents": "您操作期间该文件包中的文件有变化。请重新打开并检查。",
+        "envelope_options": "文件包中的每份文件必须使用相同的签署顺序和验证码设置。",
+        "envelope_people": "该文件包的人员名单不完整。请检查后重新保存。",
+        "envelope_person_twice": "同一个人在每份文件上只能有一个角色。",
+        "envelope_not_ready": "该文件包尚未准备好发送。请查看需要修正的事项。",
+        "envelope_too_big": "一个文件包中的文件总共最大 50 MB。请使用更小的文件。",
+        "envelope_duplicate_template": "每个模板只能选择一次。",
+        "envelope_not_deletable": "只有草稿可以删除。已发出的文件包请取消。",
+        "envelope_frozen": "已发出的文件包无法编辑。",
+        "envelope_fixed": "文件无法从其文件包中移出。",
+        "envelope_no_forwarding": "文件包中的文件不能转交给其他人。",
+        "envelope_no_test": "测试文件不能放入文件包。",
+        "document_in_envelope": "该文件属于一个文件包。请在文件包上进行此操作。",
+        "document_retained": "这份已签署的文件目前必须保留,暂时无法删除。"
+      },
+      "records": {
+        "ticketLabel": "关联工单",
+        "dealLabel": "关联交易",
+        "ticketPlaceholder": "按编号或主题搜索工单",
+        "dealPlaceholder": "按标题搜索交易",
+        "results": "匹配的记录",
+        "searching": "正在搜索…",
+        "none": "没有找到。",
+        "noneForContact": "此联系人没有匹配的记录。",
+        "remove": "移除关联",
+        "loading": "正在加载…",
+        "unknown": "您无权查看的记录"
+      },
+      "envelope": {
+        "badge": "文件包 · {count, plural, other {#份文件}}",
+        "new": {
+          "link": "将多份文件作为一个文件包发送",
+          "title": "新建文件包",
+          "subtitle": "把多份文件发给同一批人,一次签完。每个人只收到一条消息和一个链接。",
+          "chooseHeading": "选择文件",
+          "chooseHint": "选择模板,或添加一个文件。一个文件包包含 {min} 到 {max} 份文件。",
+          "templatesLabel": "模板",
+          "fileHeading": "或添加文件",
+          "fileHint": "PDF 或 Word 文件。文件包创建后再设置它的字段。",
+          "orderHeading": "文件顺序({count})",
+          "nothingChosen": "尚未选择任何内容。",
+          "removeFile": "移除文件",
+          "moveUp": "将 {title} 上移",
+          "moveDown": "将 {title} 下移",
+          "remove": "移除 {title}",
+          "needMore": "请至少选择 {min} 份文件。",
+          "count": "{count} / {max} 份文件",
+          "titleLabel": "文件包标题",
+          "titlePlaceholder": "例如:商户入驻",
+          "create": "创建文件包"
+        },
+        "view": {
+          "loading": "正在加载文件包",
+          "notFoundTitle": "找不到该文件包",
+          "failedTitle": "无法加载该文件包",
+          "retry": "重试",
+          "backToDocuments": "返回文件列表"
+        },
+        "draft": {
+          "back": "返回文件列表",
+          "delete": "删除草稿",
+          "deleteTitle": "删除该文件包草稿?",
+          "deleteBody": "{count, plural, other {其中的 # 份文件也会一并删除。}}尚未发送任何内容。此操作无法撤销。",
+          "deleteConfirm": "删除草稿",
+          "cancel": "保留",
+          "deleted": "文件包草稿已删除",
+          "readOnly": "您可以查看该文件包,但不能修改。"
+        },
+        "documents": {
+          "heading": "文件",
+          "hint": "在这里设置每份文件的字段。人员和选项由整个文件包共用。",
+          "form": "表单",
+          "pages": "{count, plural, other {#页}}",
+          "problems": "{count, plural, other {有 # 项需要修正}}",
+          "ready": "已就绪",
+          "edit": "设置"
+        },
+        "people": {
+          "heading": "人员",
+          "intro": "每个人只需添加一次,并说明他们在每份文件上的角色。他们只会收到一条消息和一个链接,涵盖整个文件包。",
+          "ordered": "按顺序依次签署",
+          "orderedHint": "为每个人指定一个步骤。步骤相同的人一起签署,只有当该步骤中的所有人都完成全部文件后,才会邀请下一步骤的人。",
+          "empty": "名单中还没有人。",
+          "personN": "第 {n} 位",
+          "remove": "移除 {name}",
+          "removeShort": "移除",
+          "fullName": "姓名",
+          "email": "电子邮件",
+          "channel": {
+            "label": "链接发送方式",
+            "email": "电子邮件",
+            "whatsapp": "WhatsApp"
+          },
+          "whatsappOff": "此工作区尚未开启 WhatsApp。",
+          "phone": "含国家代码的电话号码",
+          "step": "步骤",
+          "stepHint": "步骤相同的人一起签署。",
+          "rolesHeading": "此人在每份文件上的角色",
+          "roleOn": "在《{document}》上的角色",
+          "notOn": "不在此文件上",
+          "errors": {
+            "name": "请输入姓名。",
+            "email": "请输入有效的电子邮件地址。",
+            "phone": "请输入含国家代码的电话号码。",
+            "noDocument": "请让此人至少出现在一份文件上,或将其移除。"
+          },
+          "add": "添加人员",
+          "conflictsLabel": "人员名单中需要修正的事项"
+        },
+        "options": {
+          "heading": "选项",
+          "hint": "这些设置适用于文件包中的每份文件。"
+        },
+        "review": {
+          "heading": "检查并发送",
+          "ordered": "按您设定的步骤依次签署。",
+          "allAtOnce": "所有人同时收到邀请。",
+          "counts": "{people, plural, other {#位}}签署人,共 {documents, plural, other {#份文件}}。",
+          "limit": "该文件包需要 {needed} 份文件的额度,但本月此工作区只剩 {remaining} 份。",
+          "problemsTitle": "{count, plural, other {发送前需要修正 # 项}}",
+          "sharedHeading": "文件包",
+          "fixDocument": "打开文件",
+          "fixPeople": "前往人员",
+          "fixOptions": "前往选项",
+          "layout": "{count, plural, other {有 # 个字段无效}}",
+          "ready": "一切准备就绪,可以发送。",
+          "openEnvelope": "打开文件包",
+          "send": "发送 {count, plural, other {#份文件}}",
+          "noPermission": "您没有发送文件的权限。",
+          "sendBlocked": "请先修正上面列出的事项再发送。",
+          "sendNote": "名单中的所有人会立即收到邀请。发送后,文件无法再编辑。"
+        },
+        "sent": {
+          "title": "文件包已发送",
+          "subtitle": "已发送 {count, plural, other {#份文件}}。每个人收到一条消息。",
+          "open": "打开文件包"
+        },
+        "problems": {
+          "envelope_size": "一个文件包包含 {range} 份文件。",
+          "envelope_too_many_pages": "一个文件包总共最多 {range} 页。",
+          "duplicate_person": "第 {n} 位与另一位使用了相同的电子邮件地址。",
+          "person_without_document": "第 {n} 位不在任何文件上。",
+          "role_two_people": "《{document}》上的角色“{role}”有多个人。请只指定一个人。"
+        },
+        "banner": {
+          "title": "文件包中第 {number} 份,共 {count} 份",
+          "open": "打开文件包",
+          "manageNote": "提醒、新链接、更换收件人、延长时间和取消都是针对整个文件包进行的,而不是单份文件。"
+        },
+        "member": {
+          "backToEnvelope": "返回文件包",
+          "banner": "这是文件包“{title}”中的第 {number} 份,共 {count} 份。人员、选项和发送都在文件包上设置。",
+          "openEnvelope": "打开文件包"
+        },
+        "detail": {
+          "sentOn": "发送于 {date}",
+          "expiresOn": "{date} 到期",
+          "extend": "延长时间",
+          "void": "取消文件包",
+          "banner": {
+            "completed": "全部 {count, plural, other {#份文件}}均已签署。",
+            "declinedBy": "{name} 拒绝签署,因此整个文件包已停止。",
+            "declined": "有人拒绝签署,因此整个文件包已停止。",
+            "expired": "文件包已于 {date} 到期。",
+            "voided": "文件包已取消。",
+            "failed": "无法生成已签署的文件。请打开出错的文件查看处理方法。",
+            "sealing": "所有人都已签署,正在生成已签署的文件。",
+            "waiting": "正在等待 {names}。",
+            "sent": "文件包已发送,但还没有人收到邀请。",
+            "reason": "原因:{reason}"
+          },
+          "progress": "{total} 份文件中已完成 {done} 份。",
+          "partly": "至少有一份文件已由所有人签署,因此该文件包无法再取消。",
+          "documents": "文件",
+          "download": "已签署副本",
+          "openDocument": "打开",
+          "people": "{count, plural, other {#位}}人员",
+          "step": "第 {step} 步",
+          "notInvited": "尚未邀请,他们的步骤还没开始。",
+          "remindHeld": "{time} 之后才能再次发送提醒。",
+          "cannotReplace": "此人已签署了文件包的一部分,因此无法更换。",
+          "extendDialog": {
+            "title": "给所有人延长时间",
+            "body": "请选择一个更晚的日期。它适用于所有仍未完成的文件。",
+            "label": "新的到期日期",
+            "cancel": "取消",
+            "action": "延长时间",
+            "done": "新日期已保存"
+          }
+        }
       }
     },
     "signer": {
@@ -8744,7 +9614,8 @@
         "language": "语言",
         "secured": "由 {product} 提供安全保障",
         "skipToContent": "跳到正文",
-        "tryAgain": "重试"
+        "tryAgain": "重试",
+        "testBanner": "TEST：此文档用于试用模板，并非真实的协议。"
       },
       "invalid": {
         "title": "此链接无效",
@@ -8772,7 +9643,8 @@
         "recorded": "我们会记录您的姓名、邮箱地址、网络地址 (IP) 和设备、时间，以及您在此页面上的操作。",
         "agree": "我同意",
         "readFirst": "先阅读文件",
-        "hideDocument": "隐藏文件"
+        "hideDocument": "隐藏文件",
+        "titleForm": "以电子方式提交"
       },
       "doc": {
         "reference": "编号 {reference}",
@@ -8797,7 +9669,8 @@
         "zoomOut": "缩小",
         "pageLabel": "第 {page} 页，共 {total} 页",
         "openingDocument": "正在打开文件...",
-        "documentFailed": "我们无法打开此文件。"
+        "documentFailed": "我们无法打开此文件。",
+        "declineForm": "我不想填写"
       },
       "tap": {
         "signature": "点按以签名",
@@ -8896,14 +9769,18 @@
         "reasonLabel": "原因（选填）",
         "reasonHelp": "发送者可以看到您在此填写的内容。",
         "keep": "返回",
-        "confirm": "拒绝签署"
+        "confirm": "拒绝签署",
+        "titleForm": "不填写此表格？",
+        "bodyForm": "发件人会收到通知，表格将就此终止。此操作无法撤销。",
+        "confirmForm": "拒绝填写"
       },
       "end": {
         "signed": {
           "title": "您已签署",
           "thanks": "谢谢您，{name}。",
           "waiting": "我们正在等待其他人签署。所有人完成后，签署副本将发送到您的邮箱。",
-          "almost": "所有人都已签署。我们正在完成文件，签署副本将发送到您的邮箱。"
+          "almost": "所有人都已签署。我们正在完成文件，签署副本将发送到您的邮箱。",
+          "waitingFor": "我们正在等待 {name} 完成。全部完成后，已签署的副本会通过电子邮件发送给您。"
         },
         "sealing": {
           "title": "我们正在完成您的文件",
@@ -8915,7 +9792,8 @@
           "body": "所有人都已签署。您可以保存一份已签署的文件。",
           "download": "下载已签署的 PDF",
           "view": "查看已签署的 PDF",
-          "byEmail": "签署副本已发送到您的邮箱。"
+          "byEmail": "签署副本已发送到您的邮箱。",
+          "delegate": "感谢您填写所负责的部分。发件人已收到完成的文档。"
         },
         "declined": {
           "title": "此文件未被签署",
@@ -8937,6 +9815,27 @@
         "notInvited": {
           "title": "还没轮到您",
           "body": "需要有人先于您签署。轮到您时，我们会通知您。您可以关闭此页面。"
+        },
+        "sealingForm": {
+          "title": "我们正在记录您的提交",
+          "body": "所有人均已提交。我们正在整理记录。此页面会自动更新，您可以保持打开。",
+          "slow": "耗时比平时长。您可以关闭此页面，记录准备好后我们会通过邮件发送给您。"
+        },
+        "completedForm": {
+          "title": "您的提交已记录",
+          "body": "所有人均已提交。您可以保存一份所提交内容的记录。",
+          "download": "下载记录",
+          "view": "查看记录",
+          "byEmail": "记录副本已发送到您的邮箱。"
+        },
+        "declinedForm": {
+          "title": "此表格未完成",
+          "you": "您选择不填写。发件人已收到通知。",
+          "other": "表格上有人选择不填写，因此不会继续。您无需进行任何操作。"
+        },
+        "notInvitedForm": {
+          "title": "还没轮到您",
+          "body": "需要有人先完成。轮到您时我们会通知您。您可以关闭此页面。"
         }
       },
       "others": {
@@ -8946,7 +9845,9 @@
         "turn": "现在轮到对方",
         "invited": "尚未签署",
         "waiting": "等待轮到对方",
-        "done": "已完成"
+        "done": "已完成",
+        "titleForm": "谁在填写",
+        "invitedForm": "尚未完成"
       },
       "errors": {
         "generic": "出了点问题。请重试。",
@@ -8967,7 +9868,77 @@
         "missing_required": "仍有一些必填项为空。",
         "invalid_answers": "有些内容需要修改，已在页面上标出。",
         "body_too_large": "内容太大，无法发送。请使用较小的图片。",
-        "session_unavailable": "目前无法进行签署。请稍后再试。"
+        "session_unavailable": "目前无法进行签署。请稍后再试。",
+        "forward_not_allowed": "此文档未开启转交。",
+        "forward_details": "请填写姓名和有效的电子邮件地址。",
+        "forward_same_person": "这是您自己的地址。请填写您要转交给的人。",
+        "forward_already_signer": "该人员已在此文档中。",
+        "forward_limit": "转交次数有限，已用完。请直接联系发件人。",
+        "forward_part_unknown": "该部分不能由您转交。",
+        "delegate_cannot_forward": "转交给您的部分不能再次转交。",
+        "delegation_open": "您转交的某个部分尚未完成。请等待，或将其收回。",
+        "delegate_cannot_decline": "这是转交给您填写的内容。如果无法填写，请告知转交给您的人。",
+        "part_already_forwarded": "该部分已转交给他人。",
+        "part_not_forwarded": "该部分不在他人手中。",
+        "part_already_completed": "该部分已完成，无法收回。"
+      },
+      "forward": {
+        "action": "转交给他人",
+        "titleTurn": "转交您的环节",
+        "titlePart": "转交一个部分：{part}",
+        "bodyTurn": "您选择的人将代您签署。对方会收到专属链接，并自行同意以电子方式签署。您的链接会立即失效。",
+        "bodyPart": "您选择的人只填写这一部分，看不到其他任何内容，也不需要签署。完成后仍由您自己查阅并签署。",
+        "left": "您还可以转交 {count, plural, other {# 次}}。",
+        "name": "对方的姓名",
+        "email": "对方的电子邮件",
+        "note": "给对方的留言（可选）",
+        "noteHelp": "对方会在邮件中看到这段留言。",
+        "cancel": "取消",
+        "confirmTurn": "转交我的环节",
+        "confirmPart": "转交此部分",
+        "problemDetails": "请填写对方的姓名和有效的电子邮件地址。",
+        "doneTitle": "已转交",
+        "doneBody": "已向 {name} 发送链接，由对方代您完成。您无需再做任何操作，可以关闭此页面。",
+        "doneNotSent": "发给 {name} 的邮件未能送达。请告知发送此文档给您的人。",
+        "fromTurn": "{name} 请您代其完成此文档。您需要自行同意以电子方式签署。",
+        "fromPart": "{name} 请您填写此文档的一个部分。您只会看到该部分。"
+      },
+      "envelope": {
+        "next": "下一份文件",
+        "finish": "完成并签署全部",
+        "declineNote": "这将终止整个文件包:{count, plural, other {全部 #份文件}}对所有人都会停止。",
+        "listLabel": "该文件包中的文件",
+        "position": "第 {number} 份,共 {count} 份",
+        "open": "打开 {title}",
+        "notFinal": "完成最后一份文件之前,一切都不算最终。其他文件可以按任意顺序打开。",
+        "introTitle": "共 {count, plural, other {#份文件}}待签署",
+        "introTitleFill": "共 {count, plural, other {#份文件}}待填写",
+        "introBody": "您将在这一次访问中依次处理这些文件,只需同意一次。",
+        "state": {
+          "active": "待处理",
+          "signed": "已完成",
+          "sealing": "处理中",
+          "completed": "已完成",
+          "declined": "已拒绝",
+          "expired": "已过期",
+          "voided": "已取消",
+          "failed": "出现问题",
+          "not_invited": "尚未轮到您"
+        },
+        "end": {
+          "completed": {
+            "title": "全部 {count, plural, other {#份文件}}均已完成",
+            "body": "所有人都已签署。您可以在下方下载每份已签署的文件。",
+            "byEmail": "已签署的文件也已发送到您的邮箱。"
+          },
+          "signed": {
+            "title": "您已签署全部 {count, plural, other {#份文件}}",
+            "body": "谢谢您,{name}。您的部分已完成。",
+            "waiting": "我们正在等待其他人。所有人完成后,您会收到一封附有已签署文件的邮件。"
+          },
+          "download": "下载 {title}",
+          "downloadShort": "下载"
+        }
       }
     },
     "signerForm": {
@@ -8979,7 +9950,15 @@
         "progressLabel": "您的进度",
         "percent": "已完成 {percent}%",
         "counts": "已回答 {done} / {total}",
-        "continue": "继续：{part}"
+        "continue": "继续：{part}",
+        "waitingFor": "等待 {name}",
+        "doneBy": "{name} 已完成",
+        "takeBack": "收回",
+        "takeBackAsk": "要从 {name} 处收回这个部分吗？对方已填写的内容会保留。",
+        "takeBackYes": "是，收回",
+        "takeBackNo": "继续由对方处理",
+        "takeBackFailed": "无法收回，对方可能刚刚完成。",
+        "forwardPart": "将此部分转交给他人"
       },
       "status": {
         "not_started": "未开始",
@@ -8997,7 +9976,10 @@
         "saving": "正在保存您的答案，稍后即可打开。",
         "check": "有些答案还需要检查。请打开尚未完成的部分。",
         "readySign": "请核对表格上的答案，然后签署。",
-        "readySubmit": "所有内容都已填写。准备好后即可发送您的答案。"
+        "readySubmit": "所有内容都已填写。准备好后即可发送您的答案。",
+        "waitingDelegates": "正在等待您转交的 {count, plural, other {# 个部分}}。",
+        "reviewSubmit": "查看并提交",
+        "readyReviewSubmit": "请检查您的答复，然后提交。"
       },
       "part": {
         "position": "第 {number} 部分，共 {total} 部分",
@@ -9137,10 +10119,48 @@
           "title": "您的答案已发送",
           "thanks": "谢谢您，{name}。",
           "next": "您无需再做任何事。"
+        },
+        "submitted": {
+          "title": "谢谢，您的资料已发送",
+          "thanks": "谢谢您，{name}。",
+          "next": "您无需再做其他操作。所提交内容的记录将发送到您的邮箱。",
+          "waiting": "我们正在等待其他人完成。所有人完成后，所提交内容的记录将发送到您的邮箱。"
         }
       },
       "preview": {
         "note": "这是预览。您在这里输入的内容不会被保存或发送。"
+      },
+      "search": {
+        "label": "搜索{label}",
+        "placeholder": "输入以搜索",
+        "clear": "清除{label}",
+        "remove": "移除 {item}",
+        "selected": "已选择（{count}）",
+        "count": "{count} / {max}",
+        "limit": "最多可添加 {max} 个。",
+        "results": "{count, plural, other {# 个匹配项}}",
+        "noMatches": "没有匹配项",
+        "noMatchesFor": "没有与 {query} 匹配的内容",
+        "more": "显示前 {shown} 项。继续输入以缩小范围。"
+      },
+      "sensitive": {
+        "note": "此答案以加密方式存储，工作人员看到的是模糊后的内容。",
+        "showNamed": "显示{label}",
+        "hideNamed": "隐藏{label}"
+      },
+      "submitReview": {
+        "title": "查看并提交",
+        "parts": "您的答复（按部分）",
+        "body": "请检查您的答复。提交后，答复将被发送并留存记录。",
+        "change": "修改",
+        "changePart": "修改“{part}”部分",
+        "picture": "已附上一张图片",
+        "notAnswered": "未填写",
+        "sensitiveNote": "标为私密的内容在此处隐藏显示，并加密保存。",
+        "back": "返回各部分",
+        "submit": "提交",
+        "submitting": "正在提交…",
+        "afterwards": "提交后无法再修改答复。"
       }
     },
     "verify": {
@@ -9150,7 +10170,9 @@
       "reference": "编号 {reference}",
       "signers": {
         "title": "签署人",
-        "none": "此文件没有列出任何签署。"
+        "none": "此文件没有列出任何签署。",
+        "titleForm": "提交人",
+        "noneForm": "此文件没有列出任何提交。"
       },
       "trail": {
         "intactTitle": "此文件的记录完整且未被更改",
@@ -9172,12 +10194,576 @@
         "differentBody": "它可能被修改过，或被其他程序或 PDF 编辑器重新保存。请向发送人索取已签署的原件。",
         "readError": "无法读取该文件，请重新选择。",
         "unsupported": "此浏览器无法核对文件。请使用最新版本的浏览器打开本页。",
-        "fingerprint": "已签署原件的指纹（SHA-256）"
+        "fingerprint": "已签署原件的指纹（SHA-256）",
+        "matchTitleForm": "这正是封存的记录文件",
+        "matchBodyForm": "您的副本与封存的记录逐字节完全一致。",
+        "differentTitleForm": "此文件不是封存的记录",
+        "differentBodyForm": "它可能已被修改，或被其他程序或 PDF 编辑器重新保存。请向发件人索取封存的记录。",
+        "fingerprintForm": "封存记录的指纹 (SHA-256)"
       },
       "readerHint": "要查看电子签名本身，请用 Adobe Acrobat 等 PDF 阅读器打开该 PDF，并查看其签名面板。",
       "notFound": {
         "title": "找不到此文件",
         "body": "请确认您扫描了完整的二维码或打开了完整的网址。如仍无法打开，请联系发送文件给您的人。"
+      },
+      "signedTitleForm": "此提交已记录",
+      "envelope": "这份文件与其他文件一起签署,属于一个包含 {count, plural, other {#份文件}}的文件包。"
+    },
+    "bulk": {
+      "title": "批量发送",
+      "subtitle": "把同一个模板一次发给很多人。文件会在后台生成并发送。",
+      "backToDocuments": "返回文件列表",
+      "noPermission": "你没有发送文件的权限。",
+      "back": "上一步",
+      "next": "下一步",
+      "steps": {
+        "label": "批量发送的步骤",
+        "complete": "已完成",
+        "template": "模板",
+        "people": "人员",
+        "setup": "设置",
+        "review": "检查并发送"
+      },
+      "template": {
+        "heading": "使用哪个模板？",
+        "hint": "名单上的每个人都会收到这个模板的一份独立副本。"
+      },
+      "people": {
+        "heading": "谁会收到文件？",
+        "sourceLabel": "人员名单的来源",
+        "source": {
+          "csv": "上传 CSV 文件",
+          "csvHint": "保存为 CSV 的电子表格，最多 {max} 人。",
+          "contacts": "选择联系人",
+          "contactsHint": "从你的联系人中挑选，最多 {max} 人。"
+        },
+        "chooseHint": "请选择最多包含 {max} 人、不超过 {size} MB 的 CSV 文件。",
+        "chooseFile": "选择文件",
+        "removeFile": "移除此文件",
+        "fileSize": "{size} KB",
+        "fileError": {
+          "too_large": "此文件超过 {size} MB。请拆分成较小的文件。",
+          "not_csv": "这不是 CSV 文件。请在电子表格中选择“另存为”，并选 CSV（UTF-8）。",
+          "unreadable": "无法读取此文件。请重新另存为 CSV 再试。"
+        },
+        "columnsHint": "第一行必须写明列名。full_name 和 email 必填；phone 和 contact_id 可选。",
+        "valuesHint": "此模板还会填入以下内容，每项一列：{keys}。",
+        "sample": "下载示例文件",
+        "contactsNeedFile": "此模板要填入联系人没有的内容（{keys}）。请改用 CSV 文件，并为每项提供一列。",
+        "noContacts": "还没有选择联系人。请在上方搜索并选择收件人。",
+        "contactCount": "已选择 {count} 位联系人（最多 {max} 位）",
+        "unnamed": "未命名联系人",
+        "noEmail": "没有电子邮件地址",
+        "removeContact": "移除 {name}"
+      },
+      "setup": {
+        "loading": "正在加载模板",
+        "peopleHeading": "谁来接收，以及如何接收",
+        "personRole": "名单上的人担任的角色",
+        "personRoleHint": "他们每个人都以这个角色签署。其他角色由下面的固定人员担任。",
+        "personRoleMissing": "请选择一个角色。",
+        "chooseRole": "选择角色",
+        "channel": "联系方式",
+        "channels": {
+          "email": "电子邮件",
+          "whatsapp": "WhatsApp"
+        },
+        "whatsappHint": "发送 WhatsApp 消息需要每个人带国家区号的手机号码，例如 +60123456789。",
+        "emailHint": "签署链接会发送到每个人的电子邮件地址。",
+        "fixedHeading": "其他角色",
+        "fixedHint": "这些角色在每份文件上都由同一个人担任，例如贵公司的董事。",
+        "fixedRequired": "必须指定人员",
+        "fixedOptional": "可选",
+        "fixedName": "全名",
+        "fixedEmail": "电子邮件",
+        "fixedChannel": "联系方式",
+        "fixedPhone": "手机号码",
+        "fixedPhoneHint": "需带国家区号，例如 +60123456789。",
+        "fixedIncomplete": "请为 {role} 填写姓名和有效的电子邮件。",
+        "optionsHeading": "每份文件的共同设置",
+        "title": "每份文件的标题",
+        "titleHint": "用 {token} 代表此人的姓名。留空时，标题为模板名称加上此人的姓名。",
+        "titlePlaceholder": "取自模板和此人姓名",
+        "titleTooLong": "标题最多 200 个字符。",
+        "category": "分类",
+        "categoryDefault": "模板的分类",
+        "language": "邀请函的语言",
+        "languageHint": "消息和签署页面将以此语言显示。",
+        "useDefault": "使用默认值",
+        "lang": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "message": "给签署人的留言",
+        "messageHint": "可选。会显示在每封邀请中。",
+        "messageTooLong": "留言最多 2000 个字符。",
+        "expiry": "链接的有效天数",
+        "expiryHint": "从每份文件发出的时刻开始计算。留空则使用默认值。",
+        "expiryBad": "请填写 1 到 365 之间的整数天数。",
+        "reminders": "提醒",
+        "remindersHint": "发出后的天数，用逗号分隔，例如 3, 7。填 0 表示不提醒。留空则使用默认值。",
+        "remindersBad": "请填写 1 到 60 的整数天数，最多 5 个，或填 0 表示不提醒。",
+        "code": "需要验证码",
+        "codeHint": "每位签署人在打开文件前需输入一次性验证码。",
+        "yes": "是",
+        "no": "否",
+        "order": "签署顺序",
+        "orderHint": "选“是”：按模板中角色的顺序，一个接一个签署。"
+      },
+      "review": {
+        "checking": "正在检查名单和模板...",
+        "recheck": "重新检查",
+        "summaryHeading": "接下来会发生什么",
+        "summary": "{template}：名单上共有 {total} 人。",
+        "ready": "可发送",
+        "withProblems": "有问题",
+        "total": "名单总数",
+        "fileProblems": "名单暂时无法使用：",
+        "planProblems": "设置需要修正：",
+        "ignoredColumns": "这些列未被使用：{columns}。如果模板应当填入它们，请检查列名拼写。",
+        "headroomFits": "本月已发送 {used}/{limit} 份文件，还可再发 {remaining} 份。这一批将发送 {needed} 份。",
+        "headroomShort": "本月已发送 {used}/{limit} 份文件，只能再发 {remaining} 份，但这一批需要 {needed} 份。请减少人数，或请账户所有者提高额度。",
+        "skipInvalid": "只发给没有问题的人，跳过其余 {count} 人",
+        "skipInvalidHint": "有问题的人会在结果中列为“已跳过”，并注明原因。",
+        "peopleHeading": "人员名单",
+        "onlyProblems": "只显示有问题的人",
+        "colRow": "行",
+        "colName": "姓名",
+        "colEmail": "电子邮件",
+        "colProblems": "问题",
+        "empty": "（空）",
+        "rowOk": "可发送",
+        "noRows": "没有可显示的人员。",
+        "showAll": "显示其余 {count} 人",
+        "start": "发送 {count} 份文件"
+      },
+      "job": {
+        "title": "批量发送：{template}",
+        "backToBulk": "批量发送",
+        "started": "开始于 {date}",
+        "finished": "结束于 {date}。",
+        "loading": "正在加载批次",
+        "progress": "进度",
+        "answered": "已完成 {done}/{total}",
+        "noteQueued": "将在一分钟内开始。你可以关闭此页面，文件会在后台发送。",
+        "noteRunning": "正在后台发送。你可以关闭此页面，稍后回来查看结果。",
+        "noteDone": "所有文件都已发送。",
+        "noteDoneWithProblems": "已结束。有些人没有收到文件，原因见各行。",
+        "noteCancelled": "已取消。已发出的文件保持已发送，其余的已跳过。",
+        "noteFailed": "已停止：{reason}",
+        "refreshFailed": "无法加载最新数据，正在重试。",
+        "download": "下载结果 (CSV)",
+        "cancel": "取消剩余部分",
+        "cancelConfirm": "停止向仍在等待的人发送吗？",
+        "cancelYes": "是，停止",
+        "cancelNo": "继续发送",
+        "openList": "打开文件列表",
+        "people": "人员名单",
+        "filter": "筛选",
+        "filterAll": "全部",
+        "colResult": "结果",
+        "colDocument": "文件",
+        "openDocument": "打开",
+        "noRows": "没有可显示的人员。",
+        "retryHint": "要给没有收到文件的人重新发送，请在文件中修正他们的行，然后只用这些行重新发起一次批量发送。"
+      },
+      "state": {
+        "pending": "等待中",
+        "sending": "发送中",
+        "sent": "已发送",
+        "failed": "失败",
+        "skipped": "已跳过"
+      },
+      "status": {
+        "queued": "等待开始",
+        "running": "发送中",
+        "done": "已完成",
+        "failed": "已停止",
+        "cancelled": "已取消"
+      },
+      "recent": {
+        "heading": "最近的批量发送",
+        "counts": "已发送 {sent}/{total}",
+        "failed": "无法加载最近的批量发送。"
+      },
+      "list": {
+        "bulkSend": "批量发送",
+        "exportCsv": "导出 CSV",
+        "selectRow": "选择 {title}",
+        "selectAll": "选择本页所有文件",
+        "selectionBar": "已选择的文件",
+        "selected": "已选择 {count} 份文件",
+        "downloadZip": "将所选文件下载为 zip",
+        "clearSelection": "取消选择",
+        "zipHint": "只有已完成的文件才有已签署文件。一次最多 {max} 份。",
+        "zipFull": "一次最多 {max} 份。取消一份后才能选择其他的。",
+        "zipDone": "已下载 {included} 个已签署文件。",
+        "zipDoneSkipped": "已下载 {included} 个已签署文件。有 {skipped} 份文件未包含：详见 zip 中的 NOT-INCLUDED.txt。"
+      },
+      "problem": {
+        "name_missing": "缺少姓名。",
+        "name_too_long": "姓名超过 160 个字符。",
+        "email_missing": "缺少电子邮件地址。",
+        "email_invalid": "电子邮件地址无效。",
+        "email_duplicate": "同一个电子邮件地址已在第 {detail} 行出现。",
+        "phone_invalid": "WhatsApp 需要带国家区号的手机号码。",
+        "merge_missing": "缺少模板所需的内容：{detail}。",
+        "merge_too_long": "有一项内容过长：{detail}。",
+        "contact_invalid": "联系人 ID 无效。",
+        "contact_not_found": "在此工作区中找不到该联系人。",
+        "same_person_twice": "此人同时也是固定人员之一，而签署顺序已开启。"
+      },
+      "file": {
+        "empty_file": "文件是空的。",
+        "no_header": "第一行没有列名。",
+        "missing_column": "文件中没有名为 {detail} 的列。",
+        "duplicate_column": "列 {detail} 出现了不止一次。",
+        "too_many_rows": "文件中有 {detail} 人，最多 500 人。请拆分成较小的文件。",
+        "too_large": "文件超过 1 MB。请拆分成较小的文件。",
+        "no_rows": "文件只有表头，没有人员。",
+        "unknown": "无法使用此文件。"
+      },
+      "plan": {
+        "template_not_ready": "此模板暂时无法发送（{detail}）。请在模板编辑器中打开并修正标出的问题。",
+        "bad_person_role": "名单上的人所担任的角色不在模板的角色中。",
+        "bad_fixed_signer": "无法使用 {detail} 的固定人员（角色不存在、与名单角色相同，或重复指定）。",
+        "fixed_signer_name": "请填写 {detail} 固定人员的全名。",
+        "fixed_signer_email": "请填写 {detail} 固定人员的有效电子邮件。",
+        "fixed_signer_phone": "请填写 {detail} 固定人员带国家区号的手机号码。",
+        "role_without_person": "角色 {detail} 有需要填写的内容，但没有指定人员。请为它添加一位固定人员。",
+        "signer_without_signature": "角色 {detail} 需要签署，但模板中没有为它设置签名或首字母字段。",
+        "merge_needs_file": "模板要填入联系人没有的内容（{detail}）。请改用 CSV 文件，并为每项提供一列。",
+        "bad_options": "设置步骤中的某些选项无效。请返回设置步骤检查。"
+      },
+      "errors": {
+        "generic": "出了点问题，请重试。",
+        "bad_options": "部分选项无效。请返回检查设置。",
+        "list_required": "请选择文件或联系人，二者选一。",
+        "bulk_file_problems": "无法使用此名单。请重新检查。",
+        "bulk_not_ready": "设置尚未完整。请重新检查。",
+        "rows_have_problems": "名单上有 {detail} 人存在问题。请修正名单，或选择跳过他们。",
+        "nothing_to_send": "没有可以发送文件的人。",
+        "sign_limit_reached": "这一批超过了此工作区本月还能发送的文件数（剩余 / 需要：{detail}）。请减少人数，或请账户所有者提高额度。",
+        "too_many_bulk_jobs": "已有三个批量发送正在进行。请等其中一个完成后再试。",
+        "template_not_found": "找不到该模板。",
+        "template_not_active": "此模板未启用。请选择其他模板，或先启用它。",
+        "template_has_no_version": "此模板还没有已保存的版本。",
+        "category_not_found": "找不到该分类。",
+        "job_not_found": "找不到该批量发送。",
+        "job_finished": "此批量发送已经结束。",
+        "nothing_to_download": "所选文件都还没有已签署文件。只有已完成的文件才有。",
+        "bad_ids": "请选择 1 到 50 份文件。",
+        "sign_disabled": "此工作区未开启 Doc Sign。",
+        "network": "无法连接服务器。请检查网络后重试。",
+        "signed_out": "你已退出登录。请重新登录后继续。",
+        "forbidden": "你没有执行此操作的权限。",
+        "rate_limited": "请求过多。请稍等片刻再试。",
+        "body_too_large": "请求内容过大。请使用较小的文件。"
+      },
+      "reason": {
+        "sign_limit_reached": "本月的文件额度已用完。",
+        "cancelled": "在发送这份文件之前，批量发送已被取消。",
+        "gave_up": "这一份尝试多次仍未完成。请检查其文件，必要时手动发送。",
+        "sign_disabled": "此工作区的 Doc Sign 已关闭。",
+        "template_not_found": "模板已被删除。",
+        "template_not_active": "模板已不再启用。",
+        "template_has_no_version": "模板没有已保存的版本。",
+        "category_not_found": "找不到该分类。",
+        "not_ready": "文件尚未准备好发送。请打开其草稿查看缺少什么。",
+        "signer_name": "有人的姓名无效。",
+        "signer_email": "有人的电子邮件地址无效。",
+        "signer_phone": "WhatsApp 需要带国家区号的手机号码。",
+        "signer_role": "有人的角色不在模板的角色中。",
+        "expiry_in_the_past": "到期日期已过。",
+        "document_not_draft": "文件已经发送。",
+        "database_error": "我们这边出了问题。请在新的批量发送中重试这一位。",
+        "row_not_open": "这一行已处理完毕。",
+        "unexpected": "发送这份文件时出了问题。",
+        "unknown": "这一份没有发送。",
+        "withMessage": "未发送：{message}"
+      }
+    },
+    "lists": {
+      "intro": "列表是表单可以使用的一组选项，这样州属、国家或银行只需写一次，并在一个地方保持最新。部分列表随 Doc Sign 提供，您也可以添加自己的列表。编辑列表绝不会更改已发送的文件。",
+      "new": "新建列表",
+      "loading": "正在加载列表…",
+      "loadFailed": "无法加载列表。",
+      "retry": "重试",
+      "showArchived": "显示已归档（{count}）",
+      "colName": "列表",
+      "colType": "类型",
+      "colItems": "项目数",
+      "colVersion": "版本",
+      "colActions": "操作",
+      "archivedBadge": "已归档",
+      "typeSystem": "随 Doc Sign 提供",
+      "typeOwn": "您的列表",
+      "kindMsic": "MSIC 代码",
+      "openList": "打开 {name}",
+      "open": "打开",
+      "footnote": "使用列表的表单会在保存模板时获得该列表的副本，在创建文件和发送文件时再次获得。已发送的文件会保留发送时使用的副本。",
+      "created": "列表已创建",
+      "back": "所有列表",
+      "versionValue": "版本 {version}",
+      "rename": "重命名",
+      "exportCsv": "导出 CSV",
+      "importCsv": "导入 CSV",
+      "reset": "恢复默认",
+      "archiveList": "归档列表",
+      "restoreList": "恢复列表",
+      "listArchived": "列表已归档",
+      "listRestored": "列表已恢复",
+      "listSaved": "列表已保存",
+      "systemNote": "此列表随 Doc Sign 提供。您可以修改措辞并添加项目；它的值保持不变，因此答案始终保留其含义。不再需要的项目请归档，归档后新表单中将不再显示。",
+      "systemNoteMsic": "MSIC 2008 业务活动代码，由马来西亚统计局（DOSM）发布。您可以修改措辞并添加自己的代码；官方代码保持不变。可导入 CSV 一次性更改多项。",
+      "usedBy": "{count, plural, =0 {没有模板使用} other {被 # 个模板使用}}",
+      "usedByNone": "目前没有模板使用此列表。请在表单构建器中为某个字段选择它。",
+      "usedByHint": "按每个模板的当前版本统计。要更改模板使用的内容，请编辑其表单。",
+      "status": {
+        "draft": "草稿",
+        "active": "已启用",
+        "archived": "已归档"
+      },
+      "search": "搜索项目",
+      "searchPlaceholder": "按值或措辞搜索",
+      "searchPlaceholderMsic": "按代码或说明搜索",
+      "addItem": "添加项目",
+      "noMatches": "没有与 {query} 匹配的内容。",
+      "noItems": "此列表还没有项目。",
+      "colValue": "值",
+      "colEnglish": "英文",
+      "colMalay": "马来文",
+      "colOther": "其他语言",
+      "colGroup": "分组",
+      "lang": {
+        "zh": "ZH",
+        "ko": "KO"
+      },
+      "moveUp": "将 {name} 上移",
+      "moveDown": "将 {name} 下移",
+      "editItem": "编辑 {name}",
+      "archiveItem": "归档 {name}",
+      "restoreItem": "恢复 {name}",
+      "pages": "分页",
+      "showing": "显示第 {from} 至 {to} 项，共 {total} 项",
+      "previous": "上一页",
+      "next": "下一页",
+      "pageOf": "第 {page} 页，共 {pages} 页",
+      "count": "{count, plural, other {# 个项目}}",
+      "itemAdded": "项目已添加",
+      "itemSaved": "项目已保存",
+      "cancel": "取消",
+      "resetTitle": "将 {name} 恢复为默认？",
+      "resetBody": "随 Doc Sign 提供的每个项目都会恢复为原来的措辞和位置，已归档的项目会重新显示。您添加的项目会保留在它们之后。不会删除任何内容，已创建的表单也不会改变。",
+      "resetConfirm": "恢复默认",
+      "resetDone": "列表已恢复为默认",
+      "meta": {
+        "newTitle": "新建列表",
+        "editTitle": "重命名列表",
+        "keyMade": "键由名称生成，之后永不改变：表单通过键来指定列表。",
+        "keyFixed": "键：{key}。表单通过键来指定列表，因此键永不改变。",
+        "name": "名称",
+        "description": "说明（可选）",
+        "nameRequired": "请输入列表名称。",
+        "cancel": "取消",
+        "save": "保存",
+        "create": "创建列表"
+      },
+      "item": {
+        "newTitle": "添加项目",
+        "editTitle": "编辑项目",
+        "valueHint": "值会随答案一起保存：只能使用字母、数字以及 _ . -，例如 sdn_bhd。之后无法更改。",
+        "valueHintMsic": "五位数的 MSIC 代码，例如 62010。之后无法更改。",
+        "valueFixed": "值是答案和表单所保存的内容，因此无法更改。措辞可以随意修改。",
+        "value": "值",
+        "labelEn": "英文（必填）",
+        "labelIn": "{language}",
+        "fallsBack": "留空时，人们会看到英文措辞。",
+        "group": "分组（可选）",
+        "groupHint": "项目所属的简短标题，例如分类编号。用于搜索和导出。",
+        "cancel": "取消",
+        "save": "保存",
+        "add": "添加项目"
+      },
+      "import": {
+        "title": "导入到 {name}",
+        "intro": "加载 CSV 文件。列：value、en（英文措辞），另可选 ms（马来文）、zh、ko、group 和 archived。有问题的行会被略过并列出，其余行会被使用。",
+        "introMsic": "加载 MSIC 代码的 CSV 文件：code、description（英文），另可选马来文说明。在电子表格中丢失前导零的四位代码会被补回。",
+        "choose": "选择 CSV 文件",
+        "chooseOther": "选择其他文件",
+        "file": "文件：{name}",
+        "format": "请在 Excel 中另存为 CSV UTF-8。各列可用逗号、分号或制表符分隔。",
+        "mode": "如何处理此文件",
+        "modeMerge": "添加新项目，并更新已有项目",
+        "modeMergeHint": "文件中没有的项目会保留。文件中留空的语言会保留原有内容。",
+        "modeReplace": "用此文件替换整个列表",
+        "modeReplaceHint": "文件中没有的项目会从列表中移除。已创建的表单不会改变。",
+        "systemMergeOnly": "随 Doc Sign 提供的列表只能添加和更新。",
+        "checking": "正在检查文件…",
+        "summary": "待添加 {added} 项，待更新 {updated} 项，未变化 {unchanged} 项，待移除 {removed} 项。",
+        "removedWarning": "{count, plural, other {将从列表中移除 # 个项目。}}",
+        "skipped": "{count, plural, other {# 行无法使用，已略过：}}",
+        "changed": "{count, plural, other {# 行已调整：}}",
+        "row": "第 {row} 行：",
+        "moreProblems": "另有 {count} 项",
+        "cancel": "取消",
+        "apply": "导入",
+        "done": "导入完成",
+        "problems": {
+          "empty_file": "文件是空的。",
+          "missing_value_column": "文件中没有值列。请将第一列命名为 value 或 code。",
+          "missing_en_column": "文件中没有英文列。请将其命名为 en、English 或 description。",
+          "no_rows": "文件只有标题行，没有数据行。",
+          "too_many_rows": "文件超过 5,000 行。",
+          "empty_value": "没有值。",
+          "code_padded": "代码 {detail} 丢失了前导零，已补回。",
+          "bad_msic_code": "{detail} 不是五位数的 MSIC 代码。",
+          "bad_value": "{detail} 不是有效的值（只能使用字母、数字以及 _ . -）。",
+          "duplicate_value": "{detail} 出现多次，使用第一次出现的。",
+          "empty_label": "{detail} 没有英文措辞。",
+          "label_too_long": "{detail} 的措辞超过 300 个字符。",
+          "group_too_long": "{detail} 的分组超过 40 个字符。",
+          "unknown": "此行无法使用。"
+        }
+      },
+      "errors": {
+        "generic": "出了点问题，请重试。",
+        "network": "无法连接服务器。请检查网络后重试。",
+        "signed_out": "您已退出登录。请重新登录后继续。",
+        "forbidden": "您没有更改列表的权限。",
+        "rate_limited": "请求过于频繁。请稍候再试。",
+        "request_failed": "请求未成功，请重试。",
+        "database_error": "我们这边出了点问题，请重试。",
+        "body_too_large": "内容太大，无法发送。请使用较小的文件。",
+        "bad_json": "无法理解该请求，请重试。",
+        "list_not_found": "找不到该列表。",
+        "bad_list": "列表无效。",
+        "bad_name": "请为列表起一个不超过 120 个字符的名称。",
+        "bad_description": "说明最多 500 个字符。",
+        "bad_archived": "请选择该列表是否归档。",
+        "bad_items": "项目无效。",
+        "bad_item": "有一个项目无效。",
+        "bad_label": "每个项目都需要英文措辞，且每条措辞最多 300 个字符。",
+        "bad_group": "分组最多 40 个字符。",
+        "bad_value": "值只能使用字母、数字以及字符 _ . -，须以字母或数字开头，最多 60 个字符。",
+        "bad_msic_code": "MSIC 代码为五位数字，例如 62010。",
+        "empty_value": "请输入值。",
+        "empty_label": "请输入英文措辞。",
+        "label_too_long": "措辞最多 300 个字符。",
+        "group_too_long": "分组最多 40 个字符。",
+        "duplicate_value": "列表中已有该值。",
+        "too_many_items": "一个列表最多可包含 5,000 个项目。",
+        "list_values_locked": "随 Doc Sign 提供的列表会保留它的每个值。请归档项目，而不是移除。",
+        "value_removed": "无法移除此值。",
+        "system_list_merge_only": "随 Doc Sign 提供的列表只能添加或更新，不能被替换。",
+        "not_a_system_list": "只有随 Doc Sign 提供的列表才能恢复默认。",
+        "bad_import": "请选择 CSV 文件和导入方式。",
+        "import_failed": "此文件中没有任何内容可以导入。"
+      }
+    },
+    "register": {
+      "title": "开始注册",
+      "intro": {
+        "document": "请在下方填写您的资料。我们会把文件发到您的邮箱，供您阅读并签署。",
+        "details": "请在下方填写您的资料，我们会与您联系。",
+        "form": "请在下方填写您的资料。我们会通过邮件向您发送一个链接，用于完成其余部分。"
+      },
+      "optional": "（选填）",
+      "fields": {
+        "full_name": {
+          "label": "姓名"
+        },
+        "company": {
+          "label": "公司或企业名称"
+        },
+        "email": {
+          "label": "电子邮箱",
+          "hint": "我们会把文件发送到这个邮箱，请确认填写无误。"
+        },
+        "phone": {
+          "label": "电话号码",
+          "hint": "请带上国家区号，例如 +60 12-345 6789。",
+          "placeholder": "+60 12-345 6789"
+        }
+      },
+      "problems": {
+        "full_name": {
+          "required": "请填写您的姓名。",
+          "too_long": "姓名太长，请不要超过120个字符。",
+          "invalid": "请删除 < 和 > 符号。"
+        },
+        "company": {
+          "required": "请填写公司或企业名称。",
+          "too_long": "名称太长，请不要超过160个字符。",
+          "invalid": "请删除 < 和 > 符号。"
+        },
+        "email": {
+          "required": "请填写电子邮箱。",
+          "too_long": "电子邮箱太长。",
+          "invalid": "请输入有效的电子邮箱，例如 name@company.com。"
+        },
+        "phone": {
+          "required": "请填写电话号码。",
+          "too_long": "号码太长。",
+          "invalid": "请输入带国家区号的号码，例如 +60 12-345 6789。"
+        },
+        "consent": {
+          "required": "请先勾选方框表示同意，再继续。"
+        }
+      },
+      "errors": {
+        "invalid": "部分资料需要修改，已在下方标出。",
+        "token_invalid": "此页面已过期，请再按一次“发送”。",
+        "token_expired": "此页面打开的时间太久，请再按一次“发送”。",
+        "token_too_fast": "请稍等片刻，再按一次“发送”。",
+        "captcha_failed": "我们无法确认您是真人。请完成验证后再试。",
+        "rate_limited": "您的网络请求次数过多，请稍等片刻后再试。",
+        "try_later": "我们暂时无法接收您的资料，请稍后再试。",
+        "generic": "出了点问题，请再试一次。",
+        "network": "没有网络连接。请检查网络后再试。"
+      },
+      "captcha": {
+        "waiting": "正在确认您是真人……",
+        "failed": "验证无法加载。请刷新页面后再试。"
+      },
+      "honeypot": "请将此栏留空",
+      "send": "发送",
+      "sending": "正在发送……",
+      "success": {
+        "documentTitle": "请查看您的邮箱",
+        "documentBody": "我们已把文件发送到 {email}。请打开邮件并点击链接继续。",
+        "spam": "几分钟后仍没看到？请查看垃圾邮件文件夹。",
+        "detailsTitle": "谢谢",
+        "detailsBody": "我们已收到您的资料，会与您联系。",
+        "formBody": "我们已向 {email} 发送了一个链接。请打开邮件并点击链接，完成您的资料。"
+      },
+      "notice": {
+        "form_cap": {
+          "title": "今天太忙了",
+          "body": "此页面今天无法接受更多注册，请明天再试。"
+        },
+        "send_failed": {
+          "title": "暂时无法发送",
+          "body": "我们已保存您的资料，{workspace} 会与您联系，您无需再次提交。"
+        },
+        "unavailable": {
+          "title": "此页面暂时无法使用",
+          "body": "请稍后再试。"
+        },
+        "not_found": {
+          "title": "此页面无法使用",
+          "body": "链接可能有误，或注册已关闭。请核对您收到的链接。"
+        }
+      },
+      "notFound": {
+        "title": "此页面无法使用",
+        "body": "链接可能有误，或注册已关闭。请核对您收到的链接。"
+      },
+      "unavailable": {
+        "title": "此页面暂时无法使用",
+        "body": "请稍后再试。"
       }
     }
   }

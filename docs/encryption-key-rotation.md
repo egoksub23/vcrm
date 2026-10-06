@@ -2,7 +2,9 @@
 
 Halo encrypts the secrets it stores for you: WhatsApp, Gmail, Microsoft 365,
 Messenger, Instagram, TikTok and Jira tokens, AI provider keys, webhook secrets
-and the web widget's identity secret. They are encrypted with AES-256-GCM using
+the web widget's identity secret, the Doc Sign sealing certificates and the answers to
+Doc Sign form fields that a form marks **sensitive** (`sign_answers.value_enc`, an ID
+number or bank account typed into a form). They are encrypted with AES-256-GCM using
 a key from the server's environment, and the key can be rotated without anyone
 reconnecting a channel.
 

@@ -247,6 +247,35 @@ export default function PipelinesPage() {
     setDealFormOpen(true);
   }, []);
 
+  // A link such as /pipelines?deal=<id> (from a Doc Sign document) shows that deal's pipeline and opens the deal once.
+  const [linkedDeal, setLinkedDeal] = useState<Deal | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("deal");
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("deals")
+        .select("*, contact:contacts(*), assignee:profiles!deals_assigned_to_fkey(*)")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setSelectedPipelineId((data as Deal).pipeline_id);
+      setLinkedDeal(data as Deal);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+  // ...once the stages of that pipeline are on screen (the form needs them)
+  useEffect(() => {
+    if (linkedDeal && stages.length > 0 && stages[0].pipeline_id === linkedDeal.pipeline_id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleEditDeal(linkedDeal);
+      setLinkedDeal(null);
+    }
+  }, [linkedDeal, stages, handleEditDeal]);
+
   async function handleCreatePipeline() {
     const name = newPipelineName.trim();
     if (!name) return;

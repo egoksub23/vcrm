@@ -60,6 +60,8 @@ interface DocumentStepProps {
   onAnswer: (field: PlacedField, input: AnswerInput) => void;
   onFinish: () => Promise<ActionResult>;
   onDecline: () => void;
+  /** Migration 171: the words of the last button when the page is a document of an envelope ("Next document", or "Finish" on the last one). */
+  finishLabel?: string;
   /** A form document: the answers printed on the page, the way back to them, and what blocks signing. Absent for a document that is only fields on the page. */
   formReview?: {
     form: SignerFormView;
@@ -72,7 +74,7 @@ interface DocumentStepProps {
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export function DocumentStep({ token, view, content, answers, rejected, saveState, onAnswer, onFinish, onDecline, formReview }: DocumentStepProps) {
+export function DocumentStep({ token, view, content, answers, rejected, saveState, onAnswer, onFinish, onDecline, finishLabel, formReview }: DocumentStepProps) {
   const t = useTranslations("Sign.signer");
   const tf = useTranslations("Sign.signerForm");
   const locale = useLocale() as SignerLocale;
@@ -239,7 +241,7 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
         onClose={() => setOpenKey(null)}
       />
 
-      <StickyBar progress={progress} saveState={saveState} finishing={finishing} finishError={finishError} blockedNote={blockedNote} onNext={next} onFinish={() => void finish()} />
+      <StickyBar progress={progress} saveState={saveState} finishing={finishing} finishError={finishError} blockedNote={blockedNote} finishLabel={finishLabel} onNext={next} onFinish={() => void finish()} />
     </>
   );
 }

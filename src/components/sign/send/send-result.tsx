@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import type { SignChannel, SignRole } from "@/lib/sign/types";
+import type { SignChannel, SignMode, SignRole } from "@/lib/sign/types";
 
 export interface SendResultData {
   documentId: string;
@@ -27,10 +27,14 @@ interface Props {
   roles: readonly SignRole[];
   ordered: boolean;
   onOpenDocument: () => void;
+  /** A form without a signature (migration 169): "Form sent", and the link lets someone fill it in as that person. */
+  mode?: SignMode;
+  /** Migration 171: an envelope's own words for the heading, the line under it and the last button (an envelope is sent as one). */
+  words?: { title: string; subtitle?: string; open: string };
 }
 
 /** After Send: who was invited and whether it got through; a link to pass on, privately, for any that did not. */
-export function SendResult({ result, roles, ordered, onOpenDocument }: Props) {
+export function SendResult({ result, roles, ordered, onOpenDocument, mode, words }: Props) {
   const t = useTranslations("Sign.send.result");
   const failed = result.invited.filter((i) => i.delivery.status !== "sent");
   const linkInputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -52,8 +56,9 @@ export function SendResult({ result, roles, ordered, onOpenDocument }: Props) {
         <div className="mx-auto flex size-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="size-6" aria-hidden />
         </div>
-        <h1 className="text-xl font-semibold text-foreground">{t("title")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{words ? words.title : t(mode === "form" ? "titleForm" : "title")}</h1>
         <p className="text-sm text-muted-foreground">{result.reference ? t("reference", { reference: result.reference }) : null}</p>
+        {words?.subtitle ? <p className="text-sm text-muted-foreground">{words.subtitle}</p> : null}
         {ordered ? <p className="text-sm text-muted-foreground">{t("orderedNote")}</p> : null}
       </div>
 
@@ -83,7 +88,7 @@ export function SendResult({ result, roles, ordered, onOpenDocument }: Props) {
               {!ok && inv.link ? (
                 <div className="space-y-1.5 rounded-lg bg-muted/50 p-3">
                   <label htmlFor={`link-${inv.signerId}`} className="text-xs font-medium text-foreground">
-                    {t("linkLabel", { name: inv.name })}
+                    {t(mode === "form" ? "linkLabelForm" : "linkLabel", { name: inv.name })}
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -101,7 +106,7 @@ export function SendResult({ result, roles, ordered, onOpenDocument }: Props) {
                       {t("copy")}
                     </Button>
                   </div>
-                  <p className="text-xs text-amber-700 dark:text-amber-300">{t("privateWarning", { name: inv.name })}</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{t(mode === "form" ? "privateWarningForm" : "privateWarning", { name: inv.name })}</p>
                 </div>
               ) : null}
             </li>
@@ -111,7 +116,7 @@ export function SendResult({ result, roles, ordered, onOpenDocument }: Props) {
 
       <div className="flex justify-center">
         <Button type="button" size="lg" onClick={onOpenDocument}>
-          {t("openDocument")}
+          {words ? words.open : t("openDocument")}
         </Button>
       </div>
     </div>

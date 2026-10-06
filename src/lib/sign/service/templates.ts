@@ -12,13 +12,15 @@ import { cleanReminderDays } from "../defaults";
 import { staticFitProblems, validateForm, type FormDefinition } from "../forms";
 import type { VersionWarning } from "../forms/api-types";
 import type { PlacedField } from "../pdf/types";
-import { validateFields, validateRoles, type Issue } from "../rules";
+import { blankFormPage } from "../pdf/record";
+import { modeProblems, validateFields, validateRoles, type Issue } from "../rules";
 import { copyFile, getFile, putFile, removeFiles, safeFileName, templatePath } from "../storage";
-import type { SignDocumentRow, SignRole, SignTemplateVersionRow, TemplateDefaults } from "../types";
-import { SIGN_LOCALES } from "../types";
+import type { SignDocumentRow, SignMode, SignRole, SignTemplateVersionRow, TemplateDefaults } from "../types";
+import { SIGN_LOCALES, isFormMode } from "../types";
 import { loadDocument, type SignCtx } from "./context";
 import { prepareOrThrow } from "./drafts";
 import { SignError, raiseDatabaseError } from "./errors";
+import { refreshFormLists, resolveFormForSave } from "./lists";
 
 export interface TemplateRow {
   id: string;
@@ -32,6 +34,8 @@ export interface TemplateRow {
   addon_key: string | null;
   addon_version: string | null;
   customised: boolean;
+  /** Migration 169: an agreement to sign, or a form without a signature. Fixed when the template is made. Absent (an older row) is `sign`. */
+  mode?: SignMode;
 }
 
 const stripExt = (name: string) => name.replace(/\.[A-Za-z0-9]{1,5}$/, "").trim();
@@ -44,6 +48,7 @@ export function cleanDefaults(d: TemplateDefaults | undefined): TemplateDefaults
   if (d.reminder_days) out.reminder_days = cleanReminderDays(d.reminder_days);
   if (typeof d.sign_in_order === "boolean") out.sign_in_order = d.sign_in_order;
   if (typeof d.code_required === "boolean") out.code_required = d.code_required;
+  if (typeof d.allow_forwarding === "boolean") out.allow_forwarding = d.allow_forwarding;
   if (d.locale && SIGN_LOCALES.includes(d.locale)) out.locale = d.locale;
   if (typeof d.subject === "string" && d.subject.trim()) out.subject = d.subject.trim().slice(0, 200);
   if (typeof d.message === "string" && d.message.trim()) out.message = d.message.trim().slice(0, 2000);
@@ -78,14 +83,15 @@ function checkName(name: string): string {
   return n;
 }
 
-/** The form's definition as the database stores it (a JSON object of at most 400 KB). */
-const MAX_FORM_BYTES = 350_000;
+/** The form's definition as the database stores it (a JSON object of at most 2 MB, migration 163). A form that names a big list carries its options: MSIC alone is ~200 KB. */
+const MAX_FORM_BYTES = 1_500_000;
 
-function checkLayout(fields: PlacedField[], roles: SignRole[], pageCount: number, form: FormDefinition | null = null): void {
-  const issues: Issue[] = [...validateRoles(roles), ...validateFields(fields, roles, pageCount)];
+function checkLayout(fields: PlacedField[], roles: SignRole[], pageCount: number, form: FormDefinition | null = null, mode?: SignMode, opts: { requireParts?: boolean } = {}): void {
+  // a form without a signature has no signer and nothing on the page (modeProblems); an agreement is held to what it always was
+  const issues: Issue[] = [...validateRoles(roles), ...validateFields(fields, roles, pageCount), ...modeProblems(mode, { roles, fields, form }, opts)];
   if (form) {
     issues.push(...validateForm(form, roles, fields));
-    if (JSON.stringify(form).length > MAX_FORM_BYTES) issues.push({ code: "form_too_large" });
+    if (Buffer.byteLength(JSON.stringify(form), "utf8") > MAX_FORM_BYTES) issues.push({ code: "form_too_large" });
   } else if (fields.some((f) => f.data !== undefined)) {
     // a placement that prints an answer needs a form to take it from
     issues.push(...validateForm({ version: 1, parts: [], fields: [] }, roles, fields));
@@ -95,7 +101,7 @@ function checkLayout(fields: PlacedField[], roles: SignRole[], pageCount: number
 
 async function insertTemplateWithVersion(
   ctx: SignCtx,
-  args: { id: string; name: string; description?: string | null; categoryId: string | null; tags?: string[]; sourcePath: string; sourceSha: string; originalPath: string | null; originalType: string | null; pageCount: number; fields: PlacedField[]; roles: SignRole[]; form?: FormDefinition | null; defaults: TemplateDefaults; addon?: { key: string; version: string } },
+  args: { id: string; name: string; description?: string | null; categoryId: string | null; tags?: string[]; sourcePath: string; sourceSha: string; originalPath: string | null; originalType: string | null; pageCount: number; fields: PlacedField[]; roles: SignRole[]; form?: FormDefinition | null; defaults: TemplateDefaults; mode?: SignMode; addon?: { key: string; version: string } },
   paths: string[],
 ): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }> {
   const t = await ctx.admin
@@ -108,6 +114,7 @@ async function insertTemplateWithVersion(
       category_id: args.categoryId,
       status: "draft",
       tags: args.tags ?? [],
+      ...(isFormMode(args.mode) ? { mode: "form" } : {}),
       addon_key: args.addon?.key ?? null,
       addon_version: args.addon?.version ?? null,
       created_by: ctx.userId,
@@ -133,6 +140,7 @@ async function insertTemplateWithVersion(
       roles: args.roles,
       // only written when there is one, so a template without a form never depends on the forms columns
       ...(args.form ? { form: args.form } : {}),
+      ...(isFormMode(args.mode) ? { mode: "form" } : {}),
       defaults: args.defaults,
       created_by: ctx.userId,
     })
@@ -186,11 +194,32 @@ export async function createTemplateFromUpload(
   return { template, version, converted: prepared.converted };
 }
 
+/**
+ * A new template for a form without a signature (migration 169, F-97). No file is needed: a form has nothing to sign, so the
+ * template carries the one-page stand-in file every sent document has as its base. It starts with one role that fills the
+ * form in (a filler: nobody signs); the form builder adds the parts, and more roles for a form that several people fill.
+ */
+export async function createFormTemplate(ctx: SignCtx, args: { name: string; categoryId?: string | null }): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }> {
+  const name = checkName(args.name);
+  const categoryId = await assertCategoryId(ctx, args.categoryId);
+  const blank = await blankFormPage();
+  const id = randomUUID();
+  const sourcePath = templatePath(ctx.accountId, id, `v1-${blank.sha256}.pdf`);
+  await putFile(ctx.admin, sourcePath, blank.bytes, "application/pdf");
+  return insertTemplateWithVersion(
+    ctx,
+    { id, name, categoryId, sourcePath, sourceSha: blank.sha256, originalPath: null, originalType: null, pageCount: blank.pageCount, fields: [], roles: [{ key: "applicant", label: "Applicant", kind: "filler", color: 0 }], defaults: {}, mode: "form" },
+    [sourcePath],
+  );
+}
+
 /** "Save as template": copy a prepared draft's file, fields, roles and choices into a new template. */
 export async function createTemplateFromDocument(ctx: SignCtx, documentId: string, args: { name: string; categoryId?: string | null }): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }> {
   const doc: SignDocumentRow = await loadDocument(ctx, documentId);
   if (!doc.base_path || !doc.base_sha256 || !doc.page_count) throw new SignError("document_has_no_file", "This document has no file to save.", 409);
   const categoryId = await assertCategoryId(ctx, args.categoryId ?? doc.category_id);
+  // the lists the form names are read again, so the template starts from today's lists (a list that has gone leaves the field as the document had it)
+  const form = doc.form_snapshot ? await refreshFormLists(ctx, doc.form_snapshot) : null;
   const id = randomUUID();
   const sourcePath = templatePath(ctx.accountId, id, `v1-${doc.base_sha256}.pdf`);
   await copyFile(ctx.admin, doc.base_path, sourcePath, ctx.accountId);
@@ -207,8 +236,9 @@ export async function createTemplateFromDocument(ctx: SignCtx, documentId: strin
       pageCount: doc.page_count,
       fields: doc.fields_snapshot,
       roles: doc.roles_snapshot,
-      form: doc.form_snapshot,
-      defaults: cleanDefaults({ sign_in_order: doc.sign_in_order, code_required: doc.code_required, locale: doc.locale, reminder_days: doc.reminder_days ?? undefined, message: doc.message ?? undefined }),
+      form,
+      mode: doc.mode,
+      defaults: cleanDefaults({ sign_in_order: doc.sign_in_order, code_required: doc.code_required, allow_forwarding: doc.allow_forwarding || undefined, locale: doc.locale, reminder_days: doc.reminder_days ?? undefined, message: doc.message ?? undefined }),
     },
     [sourcePath],
   );
@@ -229,8 +259,14 @@ export interface VersionInput {
 export async function saveTemplateVersion(ctx: SignCtx, templateId: string, input: VersionInput): Promise<{ version: SignTemplateVersionRow; warnings: VersionWarning[] }> {
   const template = await loadTemplate(ctx, templateId);
   const current = await loadVersion(ctx, template.current_version_id);
-  const form = input.form === undefined ? (current.form ?? null) : input.form;
-  checkLayout(input.fields, input.roles, current.page_count, form);
+  const authored = input.form === undefined ? (current.form ?? null) : input.form;
+  // Every list a field names is copied into the field's options: a version is self-contained, and a document made from it likewise.
+  // When the form is being edited, a list that is missing is an error. When it is only carried over (the placement editor saved), a
+  // list that has since gone empty or archived leaves the field as it was, so placing a field never fails over a list.
+  const form = authored ? (input.form === undefined ? await refreshFormLists(ctx, authored) : await resolveFormForSave(ctx, authored)) : null;
+  // the template's mode decides what a version may hold (a form without a signature has nothing on the page, and no signer role)
+  const mode: SignMode = isFormMode(template.mode) ? "form" : "sign";
+  checkLayout(input.fields, input.roles, current.page_count, form, mode);
   const { data, error } = await ctx.admin
     .from("sign_template_versions")
     .insert({
@@ -245,6 +281,7 @@ export async function saveTemplateVersion(ctx: SignCtx, templateId: string, inpu
       fields: input.fields,
       roles: input.roles,
       ...(form ? { form } : {}),
+      ...(mode === "form" ? { mode } : {}),
       defaults: cleanDefaults(input.defaults ?? current.defaults),
       created_by: ctx.userId,
     })
@@ -291,8 +328,11 @@ export async function updateTemplate(ctx: SignCtx, templateId: string, patch: Te
     if (!["draft", "active", "archived"].includes(patch.status)) throw new SignError("bad_status", "That status is not valid.", 400);
     if (patch.status === "active") {
       const v = await loadVersion(ctx, template.current_version_id);
-      checkLayout(v.fields, v.roles, v.page_count, v.form ?? null);
-      if (v.roles.length === 0 || v.fields.length === 0) throw new SignError("template_not_ready", "Add roles and fields before making the template active.", 409);
+      const formOnly = isFormMode(template.mode);
+      checkLayout(v.fields, v.roles, v.page_count, v.form ?? null, formOnly ? "form" : "sign", { requireParts: formOnly });
+      if (formOnly) {
+        if (v.roles.length === 0 || !v.form || v.form.parts.length === 0) throw new SignError("template_not_ready", "Add at least one part to the form before making the template active.", 409);
+      } else if (v.roles.length === 0 || v.fields.length === 0) throw new SignError("template_not_ready", "Add roles and fields before making the template active.", 409);
     }
     update.status = patch.status;
   }
@@ -307,6 +347,7 @@ export async function updateTemplate(ctx: SignCtx, templateId: string, patch: Te
 export async function duplicateTemplate(ctx: SignCtx, templateId: string, name?: string): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }> {
   const source = await loadTemplate(ctx, templateId);
   const v = await loadVersion(ctx, source.current_version_id);
+  const form = v.form ? await refreshFormLists(ctx, v.form) : null;
   const id = randomUUID();
   const sourcePath = templatePath(ctx.accountId, id, `v1-${v.source_sha256}.pdf`);
   const paths = [sourcePath];
@@ -332,7 +373,8 @@ export async function duplicateTemplate(ctx: SignCtx, templateId: string, name?:
       pageCount: v.page_count,
       fields: v.fields,
       roles: v.roles,
-      form: v.form,
+      form,
+      mode: source.mode,
       defaults: v.defaults,
     },
     paths,
@@ -367,4 +409,19 @@ export async function loadTemplateView(ctx: SignCtx, templateId: string): Promis
   const list = await ctx.admin.from("sign_template_versions").select("id, version_no, created_at").eq("template_id", templateId).eq("account_id", ctx.accountId).order("version_no", { ascending: false });
   if (list.error) raiseDatabaseError(list.error, "list template versions");
   return { template, version, versions: (list.data ?? []) as { id: string; version_no: number; created_at: string }[] };
+}
+
+/** The templates a document can be made from (active, with a saved version), each with that version, by name. For the public API. */
+export async function listActiveTemplates(ctx: SignCtx): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }[]> {
+  const t = await ctx.admin.from("sign_templates").select("*").eq("account_id", ctx.accountId).eq("status", "active").order("name", { ascending: true }).limit(200);
+  if (t.error) raiseDatabaseError(t.error, "list templates");
+  const templates = ((t.data ?? []) as TemplateRow[]).filter((x) => !!x.current_version_id);
+  if (templates.length === 0) return [];
+  const v = await ctx.admin.from("sign_template_versions").select("*").eq("account_id", ctx.accountId).in("id", templates.map((x) => x.current_version_id as string));
+  if (v.error) raiseDatabaseError(v.error, "list template versions");
+  const versions = new Map(((v.data ?? []) as SignTemplateVersionRow[]).map((x) => [x.id, x]));
+  return templates.flatMap((template) => {
+    const version = versions.get(template.current_version_id as string);
+    return version ? [{ template, version }] : [];
+  });
 }

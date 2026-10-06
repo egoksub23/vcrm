@@ -4,12 +4,14 @@
 // ============================================================
 
 import { fieldVisible, overallPercent, roleProgress, type L10n } from "../forms";
+import { delegationsOf, isDelegate } from "../forward";
 import type { ExtendExpiryResult, StaffAnswerRow, StaffProgress, StaffRoleProgress } from "../forms/api-types";
 import type { Issue } from "../rules";
 import { getFile } from "../storage";
 import { loadDocument, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
-import { formOf, loadFormState, rolePartsOf, toView } from "./form-state";
+import { formOf, loadFormState, rolePartsOf } from "./form-state";
+import { staffView } from "./sensitive-staff";
 import { fitIssues } from "./signing";
 
 const latest = (...times: (string | null | undefined)[]): string | null => times.filter((t): t is string => !!t).sort().pop() ?? null;
@@ -30,7 +32,9 @@ export async function loadProgress(ctx: SignCtx, documentId: string): Promise<St
   for (const role of doc.roles_snapshot) {
     const parts = rolePartsOf(form, role.key);
     if (parts.length === 0) continue;
-    const signer = signers.find((s) => s.role_key === role.key) ?? null;
+    // the person of the role (not someone handed a part of it), and what they handed over
+    const signer = signers.find((s) => s.role_key === role.key && !isDelegate(s)) ?? null;
+    const delegations = signer ? delegationsOf(signers, signer.id) : [];
     const progress = roleProgress(form, role.key, state.map, state.savedAt);
     const titleOf = new Map<string, L10n>(parts.map((p) => [p.key, p.title]));
     const roleFields = new Set(form.fields.filter((f) => titleOf.has(f.part)).map((f) => f.key));
@@ -40,7 +44,8 @@ export async function loadProgress(ctx: SignCtx, documentId: string): Promise<St
       signer: signer ? { id: signer.id, name: signer.full_name, email: signer.email, status: signer.status } : null,
       parts: progress.map((p) => ({ ...p, title: titleOf.get(p.key) ?? { en: p.key } })),
       percent: overallPercent(progress),
-      lastActivityAt: latest(...[...roleFields].map((k) => state.savedAt[k]), signer ? lastEvent.get(signer.id) : null),
+      lastActivityAt: latest(...[...roleFields].map((k) => state.savedAt[k]), signer ? lastEvent.get(signer.id) : null, ...delegations.map((d) => lastEvent.get(d.signerId))),
+      ...(delegations.length > 0 ? { delegations: delegations.map((d) => ({ part: d.part, name: d.name, done: d.done })) } : {}),
     });
   }
 
@@ -55,7 +60,9 @@ export async function loadProgress(ctx: SignCtx, documentId: string): Promise<St
         part: f.part,
         label: f.label,
         role: roleOfPart.get(f.part) ?? "",
-        value: value ? toView(value) : null,
+        // a sensitive answer is shown masked; "Reveal" asks for it (sensitive-staff.ts)
+        value: value ? staffView(f, value) : null,
+        ...(f.sensitive === true ? { sensitive: true } : {}),
         source: state.source[f.key] ?? "signer",
         savedAt: state.savedAt[f.key] ?? null,
       };
@@ -88,8 +95,10 @@ export const MAX_EXPIRY_AHEAD_DAYS = 365;
  * than now and later than the current expiry. Nothing else is reopened. The guard on the table allows this
  * column to change after sending.
  */
-export async function extendExpiry(ctx: SignCtx, documentId: string, requested: unknown): Promise<ExtendExpiryResult> {
+export async function extendExpiry(ctx: SignCtx, documentId: string, requested: unknown, opts: { viaEnvelope?: boolean } = {}): Promise<ExtendExpiryResult> {
   const doc = await loadDocument(ctx, documentId);
+  // one expiry for the whole envelope: its own function gives every document the same new date
+  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of an envelope. Change the expiry on the envelope.", 409);
   if (doc.status !== "sent" && doc.status !== "in_progress") throw new SignError("document_not_open", "Only a document that is waiting for signatures can be given more time.", 409);
   const at = typeof requested === "string" || typeof requested === "number" ? new Date(requested) : null;
   if (!at || Number.isNaN(at.getTime())) throw new SignError("bad_expiry", "Choose a date and time.", 400);

@@ -28,6 +28,8 @@ vi.mock("@/lib/site-url", () => ({ publicOrigin: () => "https://halo.example" })
 vi.mock("@/lib/sign/service/signing", () => ({
   lookupByToken: async () => state.lookup,
   signerCtx: (_base: unknown, lookup: unknown) => ({ lookup }),
+  codeRequiredFor: (l: { doc: { code_required: boolean } }) => l.doc.code_required,
+  pickDocument: () => null,
   pageState: () => state.pageState,
   markViewed: state.viewed,
   buildView: async (_ctx: unknown, _lookup: unknown, sessionOk: boolean) => {
@@ -45,7 +47,7 @@ import { loadSigning } from "./load";
 // React's cache keeps one answer per token, as it does per request in the app, so each test uses its own token
 let counter = 0;
 const fresh = () => (counter++).toString(16).padStart(64, "0");
-const lookup = (codeRequired: boolean) => ({ signer: { id: "s1", account_id: "a1" }, doc: { code_required: codeRequired }, secret: {} });
+const lookup = (codeRequired: boolean) => ({ signer: { id: "s1", account_id: "a1" }, tokenSigner: { id: "s1" }, party: null, doc: { code_required: codeRequired }, secret: {} });
 
 beforeEach(() => {
   state.rate = true;

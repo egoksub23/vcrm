@@ -36,6 +36,8 @@ export interface PartLine {
   done: number;
   total: number;
   lastSavedAt: string | null;
+  /** The part was handed to someone else (migration 166): who holds it, and whether they have completed it. */
+  heldBy?: { name: string; done: boolean };
 }
 
 export interface RoleView {
@@ -54,6 +56,7 @@ export interface RoleView {
 export function roleViews(progress: Pick<StaffProgress, "form" | "roles">, locale: SignLocale): RoleView[] {
   const numberOf = new Map(progress.form.parts.map((p, i) => [p.key, i + 1]));
   return progress.roles.map((r) => {
+    const held = new Map((r.delegations ?? []).map((d) => [d.part, { name: d.name, done: d.done }]));
     const parts: PartLine[] = r.parts.map((p) => ({
       key: p.key,
       number: numberOf.get(p.key) ?? 0,
@@ -62,6 +65,7 @@ export function roleViews(progress: Pick<StaffProgress, "form" | "roles">, local
       done: p.done,
       total: p.total,
       lastSavedAt: p.lastSavedAt ?? null,
+      ...(held.has(p.key) ? { heldBy: held.get(p.key) } : {}),
     }));
     return {
       roleKey: r.roleKey,
@@ -173,6 +177,10 @@ export interface AnswerRowView {
   key: string;
   label: string;
   display: AnswerDisplay;
+  /** The data field's type (to word a revealed value). */
+  type: DataField["type"];
+  /** A sensitive field: `display` is a mask, and the value is fetched with "Reveal" (never sent with the progress). */
+  sensitive: boolean;
   /** A value taken from the contact that the signer has not confirmed yet. */
   fromContact: boolean;
   /** Entered by the sender (a fixed value), not by the signer. */
@@ -187,6 +195,8 @@ export interface AnswerGroup {
   roleLabel: string;
   rows: AnswerRowView[];
   answered: number;
+  /** Who typed the part's answers, when the part was handed to someone else (migration 166): their name, or the names joined with a comma. Absent when the role's own person holds the part. */
+  typedBy?: string;
 }
 
 /**
@@ -199,6 +209,11 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
   const fieldByKey = new Map(form.fields.map((f) => [f.key, f]));
   const fieldOrder = new Map(form.fields.map((f, i) => [f.key, i]));
   const roleLabel = (roleKey: string) => progress.roles.find((r) => r.roleKey === roleKey)?.roleLabel ?? roleKey;
+  // the people the role handed each part to (a part can be handed to one person at a time; two would be listed)
+  const delegates = (partKey: string): { typedBy?: string } => {
+    const names = [...new Set(progress.roles.flatMap((r) => (r.delegations ?? []).filter((d) => d.part === partKey).map((d) => d.name.trim())).filter(Boolean))];
+    return names.length > 0 ? { typedBy: names.join(", ") } : {};
+  };
   const rowsByPart = new Map<string, StaffAnswerRow[]>();
   for (const a of progress.answers) {
     const list = rowsByPart.get(a.part) ?? [];
@@ -209,6 +224,8 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
     key: a.key,
     label: pick(a.label, locale) || a.key,
     display: describeAnswer(a.type, a.value, fieldByKey.get(a.key), locale),
+    type: a.type,
+    sensitive: a.sensitive === true,
     fromContact: a.source === "contact",
     bySender: a.source === "sender",
     savedAt: a.savedAt,
@@ -218,7 +235,7 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
   const groups: AnswerGroup[] = form.parts.map((p) => {
     const rows = (rowsByPart.get(p.key) ?? []).sort((a, b) => orderOf(a) - orderOf(b)).map(viewOf);
     rowsByPart.delete(p.key);
-    return { partKey: p.key, title: pick(p.title, locale) || p.key, roleLabel: roleLabel(p.role), rows, answered: rows.filter((r) => r.display.kind !== "empty").length };
+    return { partKey: p.key, title: pick(p.title, locale) || p.key, roleLabel: roleLabel(p.role), rows, answered: rows.filter((r) => r.display.kind !== "empty").length, ...delegates(p.key) };
   });
   // answers of a part the form no longer has (a definition cannot change after sending, but a row must never vanish)
   for (const [partKey, list] of rowsByPart) {

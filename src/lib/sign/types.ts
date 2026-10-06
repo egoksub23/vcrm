@@ -19,6 +19,14 @@ export const FINAL_STATUSES: readonly DocumentStatus[] = ["completed", "declined
 export const SIGNER_STATUSES = ["pending", "sent", "viewed", "signed", "declined"] as const;
 export type SignerStatus = (typeof SIGNER_STATUSES)[number];
 
+/**
+ * Migration 169 (F-97): what the people on a template or a document are asked to do. `sign` is an agreement to sign; `form` is a form in parts
+ * with no signature at all (the person fills it in and submits). Fixed when a template is made and copied to each document.
+ */
+export const SIGN_MODES = ["sign", "form"] as const;
+export type SignMode = (typeof SIGN_MODES)[number];
+export const isFormMode = (row: { mode?: SignMode | string | null } | SignMode | string | null | undefined): boolean => (typeof row === "string" ? row : row?.mode) === "form";
+
 export type SignerKind = "signer" | "filler";
 export type SignChannel = "email" | "whatsapp";
 export type SignLocale = "en" | "ms" | "zh" | "ko";
@@ -51,8 +59,17 @@ export interface SignDocumentRow {
   roles_snapshot: SignRole[];
   /** Forms (phase 1B): the form the signers fill in parts; null for a document that is only fields on the page. */
   form_snapshot: FormDefinition | null;
+  /** Migration 169: an agreement to sign, or a form without a signature. Copied from the template version; never changes. */
+  mode: SignMode;
+  /** Migration 170: sent from a template to try it out. Marked TEST, never counted against the limit, never sent to webhooks or automations. Fixed once sent. */
+  test: boolean;
   sign_in_order: boolean;
   code_required: boolean;
+  /** Phase 2 (migration 166): a signer may forward their turn, or a part of the form, to someone else. The sender's switch. */
+  allow_forwarding: boolean;
+  /** Phase 2 (migration 171): the envelope this document is part of, and its place in it (1 to 6); both null for a document on its own. Fixed once set. */
+  envelope_id?: string | null;
+  envelope_position?: number | null;
   locale: SignLocale;
   message: string | null;
   expires_at: string | null;
@@ -102,6 +119,39 @@ export interface SignSignerRow {
   consented_at: string | null;
   last_reminded_at: string | null;
   reminder_count: number;
+  /** Phase 2 (migration 166). A delegate (a filler who was handed parts of a signer's form): the parts they may see and fill; null for everyone else. */
+  part_keys: string[] | null;
+  /** The signer who handed the parts over (set exactly when `part_keys` is). */
+  delegated_by: string | null;
+  /** How many forwards this position has made, a turn or a part. */
+  forward_count: number;
+  /** The names that held this position before a forward, oldest first. */
+  forward_history: { name: string; at: string }[];
+  /** Phase 2 (migration 171): in an envelope, the rows that are one person across its documents share this id; the person's row on their first document (the anchor) has its own id here. Null outside an envelope. */
+  party_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Migration 171: several documents signed in one sitting by the same people. The status is derived from the documents (the words are the documents'). */
+export interface SignEnvelopeRow {
+  id: string;
+  account_id: string;
+  reference: string | null;
+  title: string;
+  status: DocumentStatus;
+  contact_id: string | null;
+  message: string | null;
+  locale: SignLocale;
+  sign_in_order: boolean;
+  code_required: boolean;
+  reminder_days: number[] | null;
+  expires_at: string | null;
+  sent_at: string | null;
+  completed_at: string | null;
+  void_reason: string | null;
+  end_notified_at: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +184,8 @@ export interface SignTemplateVersionRow {
   fields: PlacedField[];
   roles: SignRole[];
   form: FormDefinition | null;
+  /** Migration 169: the mode of the template, carried by each of its versions. */
+  mode: SignMode;
   defaults: TemplateDefaults;
   created_at: string;
 }
@@ -143,6 +195,8 @@ export interface TemplateDefaults {
   reminder_days?: number[];
   sign_in_order?: boolean;
   code_required?: boolean;
+  /** Phase 2: a document made from this version lets its signers forward. Off unless the template says so. */
+  allow_forwarding?: boolean;
   locale?: SignLocale;
   subject?: string;
   message?: string;
@@ -160,6 +214,12 @@ export interface Invitation {
   role_key: string;
   kind: SignerKind;
   order_no: number;
+  /** Set when this invitation is a forward: the name of the person who handed it over. */
+  forwarded_by?: string;
+  /** Set when only a part of a form was handed over. */
+  part?: string;
+  /** Set when this invitation is for a person of an envelope: one link serves all of their documents. */
+  envelope_id?: string;
 }
 
 /** The event types the chain carries. The certificate and the detail screen word each in the reader's language. */
@@ -195,5 +255,23 @@ export const EVENT_TYPES = [
   "upload_removed",
   "writeback",
   "expiry_extended",
+  // phase 2: forwarding, and a person who has not been invited moving to another step
+  "forwarded",
+  "part_forwarded",
+  "part_taken_back",
+  "signer_moved",
+  "forwarding_changed",
+  // phase 2: a Halo user opened their own turn from inside Halo (a new link, not sent anywhere; see service/countersign.ts)
+  "halo_link",
+  // phase 2: a sender asked to see a sensitive answer in full (the field and the document, never the value; see service/sensitive-staff.ts)
+  "sensitive_viewed",
+  // phase 2 (migration 169): in a form without a signature, everyone had submitted
+  "all_submitted",
+  // phase 2 (WP20b): the file of a draft was replaced (never on a sent document); kept in the history, left off the certificate
+  "file_replaced",
+  // phase 2 (migration 171): envelopes. Markers in each document's chain; the document's own events (sent, signed, sealed...) are unchanged.
+  "envelope_sent",
+  "envelope_completed",
+  "envelope_declined",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

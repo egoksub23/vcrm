@@ -50,10 +50,37 @@ export interface AddonTemplateDef {
   tags?: string[];
 }
 
+/**
+ * What a version of the add-on changed, in words an administrator reads before pressing Update: a few plain sentences per language
+ * (English and Bahasa Melayu always, Chinese and Korean where the wording is confident; a missing language reads in English).
+ */
+export interface AddonChange {
+  version: string;
+  items: Partial<Record<SignLocale, string[]>> & { en: string[] };
+}
+
+/** What a template contained in a version that was shipped before: how an update tells a template nobody edited from one that was edited. */
+export interface AddonTemplateShape {
+  name: string;
+  roles: SignRole[];
+  fields: PlacedField[];
+  defaults: TemplateDefaults;
+  form?: FormDefinition;
+}
+
+/** A version of the add-on that has been shipped and replaced, with its templates as they were. Kept so that an update can recognise them. */
+export interface AddonHistoryEntry {
+  version: string;
+  templates: AddonTemplateShape[];
+}
+
 export interface AddonManifest {
   /** `^[a-z][a-z0-9_]{1,40}$`: it is stored in `sign_addons.addon_key`. */
   key: string;
-  /** Semantic version, "1.0". Recorded when installed. */
+  /**
+   * "major.minor", for example "2.0". Recorded when installed, and compared as numbers (`compareVersions`) so "1.10" is newer than "1.9".
+   * Raise it whenever the templates change, add an entry to `changes` for it, and move the version it replaces into `history`.
+   */
   version: string;
   /** Message keys under `Sign.admin.addons`: the card name and its one-line description. */
   nameKey: string;
@@ -61,6 +88,26 @@ export interface AddonManifest {
   requires: AddonRequirement;
   category: AddonCategoryDef;
   templates: AddonTemplateDef[];
+  /** What each version changed, newest last. An update shows the entries newer than the version the workspace has. */
+  changes?: AddonChange[];
+  /** The earlier versions' templates (see AddonHistoryEntry): an update replaces a template only when it still equals one of these. */
+  history?: AddonHistoryEntry[];
+}
+
+/** Compare two "major.minor" versions as numbers: negative when `a` is older, 0 when equal, positive when `a` is newer. Anything unreadable counts as 0.0. */
+export function compareVersions(a: string, b: string): number {
+  const parts = (v: string) => {
+    const [maj, min] = v.split(".");
+    return [Number.parseInt(maj ?? "", 10) || 0, Number.parseInt(min ?? "", 10) || 0] as const;
+  };
+  const [a1, a2] = parts(a);
+  const [b1, b2] = parts(b);
+  return a1 - b1 || a2 - b2;
+}
+
+/** The entries of `changes` that a workspace on `installed` has not had yet, oldest first, up to and including the current version. */
+export function changesSince(m: AddonManifest, installed: string): AddonChange[] {
+  return (m.changes ?? []).filter((c) => compareVersions(c.version, installed) > 0 && compareVersions(c.version, m.version) <= 0).sort((x, y) => compareVersions(x.version, y.version));
 }
 
 export const ADDON_REGISTRY: Record<string, AddonManifest> = {

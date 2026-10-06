@@ -10,6 +10,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Archive, ArchiveRestore, CheckCircle2, Copy, FilePlus2, Loader2, Search, Trash2 } from "lucide-react";
 
+import { TestSendRowButton } from "@/components/sign/editor/test-send-dialog";
 import { Field, Loading, NativeSelect, useAdminErrorText } from "@/components/settings/sign/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -162,10 +163,11 @@ export function TemplateLibrary() {
               {shown.map((row) => (
                 <TableRow key={row.id} className={cn(row.status === "archived" && "opacity-70")}>
                   <TableCell className="min-w-48 whitespace-normal">
-                    <Link href={templateEditorHref(row.id)} className="font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline">
+                    <Link href={templateEditorHref(row.id, row.mode)} className="font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline">
                       {row.name}
                     </Link>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {row.mode === "form" ? <Badge variant="secondary">{t("formBadge")}</Badge> : null}
                       {row.addon_key ? <Badge variant="secondary">{t("addonBadge")}</Badge> : null}
                       {row.addon_key && row.customised ? <Badge variant="outline">{t("customisedBadge")}</Badge> : null}
                       {row.tags.map((tag) => (
@@ -184,7 +186,7 @@ export function TemplateLibrary() {
                   <TableCell>{format.dateTime(new Date(row.updated_at), { dateStyle: "medium" })}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center justify-end gap-1">
-                      <Link href={templateEditorHref(row.id)} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                      <Link href={templateEditorHref(row.id, row.mode)} className={buttonVariants({ variant: "outline", size: "sm" })}>
                         {canManage ? t("openEditor") : t("view")}
                       </Link>
                       {row.status === "active" && canSend ? (
@@ -198,6 +200,7 @@ export function TemplateLibrary() {
                           {t("makeActive")}
                         </Button>
                       ) : null}
+                      {canSend && row.versionCount > 0 && row.status !== "archived" ? <TestSendRowButton templateId={row.id} name={row.name} /> : null}
                       {canManage ? (
                         <>
                           <Button variant="ghost" size="icon-sm" aria-label={t("duplicate", { name: row.name })} disabled={busy === row.id} onClick={() => void duplicate(row)}>

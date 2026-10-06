@@ -9,5 +9,5 @@ function idParam(v: string | string[] | undefined): string | null {
 
 export default async function NewSignDocumentPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const q = await searchParams;
-  return <NewDocument contactId={idParam(q.contactId)} templateId={idParam(q.templateId)} categoryId={idParam(q.categoryId)} />;
+  return <NewDocument contactId={idParam(q.contactId)} ticketId={idParam(q.ticketId)} dealId={idParam(q.dealId)} templateId={idParam(q.templateId)} categoryId={idParam(q.categoryId)} />;
 }

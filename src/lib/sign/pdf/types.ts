@@ -128,6 +128,22 @@ export interface CertificateEvent {
   text: string;
 }
 
+/**
+ * Migration 171: the document is one of an envelope signed in one sitting. An optional block of the certificate (its own drawing function,
+ * `envelopeBlock` in certificate.ts): the envelope and the documents in it with their fingerprints as sent. Every word is already in the
+ * document's language.
+ */
+export interface CertificateEnvelope {
+  /** "Part of envelope ENV-2026-000012 (document 2 of 3)". */
+  heading: string;
+  note: string;
+  referenceLabel: string;
+  sha256Label: string;
+  /** Marks the document the certificate is of, in the list. */
+  hereLabel: string;
+  documents: { number: number; title: string; reference: string; sha256: string; current: boolean }[];
+}
+
 export interface CertificateData {
   title: string;
   reference: string;
@@ -147,6 +163,8 @@ export interface CertificateData {
   /** Words around the table. Defaults are in English. */
   labels?: Partial<CertificateLabels>;
   timeZone?: string;
+  /** Migration 171: present when the document is part of an envelope. */
+  envelope?: CertificateEnvelope;
 }
 
 export interface CertificateLabels {
@@ -210,6 +228,8 @@ export interface VerifyResult {
     notAfter: Date;
     selfSigned: boolean;
   };
+  /** How many certificates the signature carries: the signer's, then any that vouch for it (the chain a reader builds from). */
+  certificateCount?: number;
   signingTime?: Date;
   reason?: string;
   sha256: string;

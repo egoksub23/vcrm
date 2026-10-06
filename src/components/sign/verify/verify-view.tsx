@@ -34,12 +34,14 @@ export function VerifyApp({ view }: { view: VerifyView }) {
   const t = useTranslations("Sign.verify");
   const locale = useLocale();
   const timeZone = useBrowserTimeZone();
+  // a form without a signature (migration 169): the file is a record of what was submitted, not a signed document
+  const formOnly = view.mode === "form";
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col items-center gap-3 text-center" aria-labelledby="verify-title">
         <CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />
         <h1 id="verify-title" className="text-2xl font-semibold leading-snug">
-          {t("signedTitle")}
+          {formOnly ? t("signedTitleForm") : t("signedTitle")}
         </h1>
         <p className="text-lg font-medium break-words">{view.title}</p>
         <p className="text-sm text-muted-foreground">
@@ -47,11 +49,12 @@ export function VerifyApp({ view }: { view: VerifyView }) {
           {view.pageCount ? ` · ${t("pages", { count: view.pageCount })}` : ""}
           {view.reference ? ` · ${t("reference", { reference: view.reference })}` : ""}
         </p>
+        {view.envelope ? <p className="text-sm text-muted-foreground">{t("envelope", { count: view.envelope.documents })}</p> : null}
       </section>
 
-      <Card title={t("signers.title")}>
+      <Card title={formOnly ? t("signers.titleForm") : t("signers.title")}>
         {view.signers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("signers.none")}</p>
+          <p className="text-sm text-muted-foreground">{formOnly ? t("signers.noneForm") : t("signers.none")}</p>
         ) : (
           <ul className="divide-y">
             {view.signers.map((s, i) => (
@@ -66,7 +69,7 @@ export function VerifyApp({ view }: { view: VerifyView }) {
 
       <Trail state={view.chain} events={view.events} />
 
-      <CheckCopy sha256={view.sha256} />
+      <CheckCopy sha256={view.sha256} formOnly={formOnly} />
 
       <p className="text-center text-xs text-muted-foreground">{t("readerHint")}</p>
     </div>
@@ -119,7 +122,7 @@ function Trail({ state, events }: { state: VerifyView["chain"]; events: number |
 
 type CopyState = { kind: "idle" } | { kind: "checking" } | { kind: "error"; why: "read" | "unsupported" } | { kind: "done"; result: CopyCheck; fileName: string };
 
-function CheckCopy({ sha256 }: { sha256: string }) {
+function CheckCopy({ sha256, formOnly }: { sha256: string; formOnly: boolean }) {
   const t = useTranslations("Sign.verify.check");
   const [state, setState] = useState<CopyState>({ kind: "idle" });
   const input = useRef<HTMLInputElement>(null);
@@ -163,8 +166,8 @@ function CheckCopy({ sha256 }: { sha256: string }) {
           <div className="flex gap-3 rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3">
             <FileCheck2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
             <div className="min-w-0">
-              <p className="font-medium">{t("matchTitle")}</p>
-              <p className="text-sm text-muted-foreground">{t("matchBody")}</p>
+              <p className="font-medium">{formOnly ? t("matchTitleForm") : t("matchTitle")}</p>
+              <p className="text-sm text-muted-foreground">{formOnly ? t("matchBodyForm") : t("matchBody")}</p>
               <p className="mt-1 truncate text-xs text-muted-foreground">{state.fileName}</p>
             </div>
           </div>
@@ -173,8 +176,8 @@ function CheckCopy({ sha256 }: { sha256: string }) {
           <div className="flex gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3" role="alert">
             <FileX className="mt-0.5 size-6 shrink-0 text-destructive" aria-hidden />
             <div className="min-w-0">
-              <p className="font-medium">{t("differentTitle")}</p>
-              <p className="text-sm text-muted-foreground">{t("differentBody")}</p>
+              <p className="font-medium">{formOnly ? t("differentTitleForm") : t("differentTitle")}</p>
+              <p className="text-sm text-muted-foreground">{formOnly ? t("differentBodyForm") : t("differentBody")}</p>
               <p className="mt-1 truncate text-xs text-muted-foreground">{state.fileName}</p>
             </div>
           </div>
@@ -187,7 +190,7 @@ function CheckCopy({ sha256 }: { sha256: string }) {
       </div>
 
       <details className="mt-3 text-sm">
-        <summary className="cursor-pointer text-muted-foreground">{t("fingerprint")}</summary>
+        <summary className="cursor-pointer text-muted-foreground">{formOnly ? t("fingerprintForm") : t("fingerprint")}</summary>
         <p className="mt-2 break-all font-mono text-xs">{sha256}</p>
       </details>
     </Card>
