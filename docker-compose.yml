@@ -27,6 +27,10 @@ services:
     ports:
       - '${HOST_PORT:-3000}:3000'
     restart: unless-stopped
+    # The second network reaches the Doc Sign converter below. It has no way out to the internet.
+    networks:
+      - default
+      - sign-internal
     healthcheck:
       test:
         [
@@ -39,3 +43,46 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # Doc Sign: turns an uploaded Word file into a PDF (LibreOffice inside Gotenberg). It is only started
+  # when the `sign` profile is on: add COMPOSE_PROFILES=sign and SIGN_CONVERTER_URL=http://sign-converter:3000
+  # to .env.local. See docs/docker.md ("Doc Sign converter"). Uploaded Word files are untrusted, so the
+  # container is locked down: no internet, no published port, read-only except a temporary folder, no
+  # capabilities, limited memory and processes.
+  sign-converter:
+    profiles: ['sign']
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    networks:
+      - sign-internal
+    command:
+      - gotenberg
+      - --api-port=3000
+      - --api-timeout=60s
+      - --api-disable-health-check-logging=true
+      # Only the Word route is wanted: no web page rendering, no other converters.
+      - --chromium-disable-routes=true
+      - --libreoffice-restart-after=50
+      - --libreoffice-start-timeout=30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=768m,mode=1777
+      - /home/gotenberg:size=256m,uid=1001,gid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 256
+    healthcheck:
+      test: ['CMD', 'curl', '--silent', '--fail', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  # No route out of this network: the converter can be reached by the app and cannot reach anything.
+  sign-internal:
+    internal: true
