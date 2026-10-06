@@ -84,6 +84,9 @@ const nextConfig: NextConfig = {
   // Docker image can run without node_modules or the Next CLI.
   // Harmless outside Docker: `next start` keeps working as before.
   output: "standalone",
+  // The Docker image build skips Next's own type check (SKIP_TYPECHECK=1 in the Dockerfile): it needs more memory than a small server has
+  // (the build was killed at ~2 GB), and `npx tsc --noEmit` already runs in CI and before every release.
+  typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
 
   // Knowledge-base file import reads .docx (mammoth) and PDF (unpdf) on the
   // server. Both are plain Node packages that are loaded lazily; keeping them
