@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import type { Notification } from "@/types";
-import { AlarmClock, AtSign, Bell, Bot, CheckCheck, CheckSquare, ClipboardCheck, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
+import { AlarmClock, AtSign, Bell, Bot, CheckCheck, CheckSquare, ClipboardCheck, FileSignature, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,9 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   sembang_dm_message: MessageSquare,
   sembang_task_comment: MessageSquare,
   sembang_task_mention: AtSign,
+  sign_completed: FileSignature,
+  sign_declined: FileSignature,
+  sign_expired: FileSignature,
 };
 
 export default function NotificationsPage() {
@@ -139,6 +142,8 @@ export default function NotificationsPage() {
         router.push("/settings?tab=integrations");
       } else if (n.ticket_id) {
         router.push(ticketNotificationHref(n));
+      } else if (n.sign_document_id) {
+        router.push(`/sign/${n.sign_document_id}`);
       } else if (n.type === "ai_budget") {
         router.push("/agents");
       } else if (n.sembang_channel_id) {

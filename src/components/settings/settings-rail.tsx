@@ -34,6 +34,8 @@ export function SettingsRail({
   hints?: Partial<Record<SettingsSection, ReactNode>>;
 }) {
   const t = useTranslations('Settings');
+  // the Doc Sign tab's name lives with the rest of Doc Sign's words
+  const tSign = useTranslations('Sign.admin');
   const { capabilities } = useAuth();
   const activeRef = useRef<HTMLButtonElement>(null);
 
@@ -97,7 +99,7 @@ export function SettingsRail({
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  <span className="flex-1">{t(`sections.${s}`)}</span>
+                  <span className="flex-1">{s === 'sign' ? tSign('settingsTab') : t(`sections.${s}`)}</span>
                   {hints?.[s] != null ? (
                     <span
                       className={cn(

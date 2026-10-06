@@ -11,11 +11,22 @@ and polish.
 
 ## [Unreleased]
 
-**Migration required: 157.** Doc Sign groundwork (no screens yet): nothing changes for any workspace.
+## [0.76.0] — 2026-10-06
+
+**Migrations required: 157, 158, 159.** Add one crontab line (see `docs/automations-and-cron.md`): `/api/sign/jobs-cron`, every minute. Optional: the document converter container for Word files (`COMPOSE_PROFILES=sign`, `SIGN_CONVERTER_URL`; see `docs/doc-sign-setup.md`). **Doc Sign is off for every workspace** until the operator turns the `sign` switch on in the Platform console.
 
 ### Added
 
-- **Doc Sign foundation** (electronic signing, built in stages; see `docs/vircle-sign-plan.md`). The database tables for categories, add-ons, templates and their immutable versions, documents, signers, answers and an append-only, hash-chained audit trail; a private storage bucket only the server can touch; the permissions `menu.sign`, `sign.send`, `sign.void`, `sign.templates`, `sign.settings` and `sign.sign`; and the operator switches `sign` and `sign_merchant`, **off for every workspace** until the operator turns them on, plus the limit `sign_documents_per_month` in the Platform console. The database enforces the document status moves, freezes a document once it has been sent, writes the sealed file once, and refuses to let anything attach across workspaces.
+- **Doc Sign: electronic signing inside Halo.** Send any PDF, Word file or picture, or a saved template, to the people who must sign it; they sign on their phone from a link, with no account. Everything is kept in the document's own history and the finished file is sealed.
+  - **Prepare**: a field editor with signature, initials, name, date, text, number, tick box, choice list, upload and fixed-text fields; roles with colours; fields filled from values the sender types in; preview; undo; saved as a version when it is a template. Word and picture files are converted to PDF first.
+  - **Send**: a signing list with full name, email and role. **"This document needs signing order"** is off by default (everyone is invited at once); ticked, people are invited one after another. A **verification code** is asked only when the document needs one. Invitations go by email, or by WhatsApp when the sender chooses it for a person. Reminders go out on the days set in Settings.
+  - **Sign**: a mobile-first page in the signer's language (English, Bahasa Melayu, Chinese or Korean) with the workspace's logo and name, saved as they go, with draw, type or upload signatures, and a way to decline. The signer can download the finished copy only once everyone has signed.
+  - **Seal**: when the last person signs, the PDF gets certificate pages (who, when, from where, the history and a fingerprint) and a digital signature, and is checked before it is filed. Until a certificate from an authority is uploaded, the workspace's own self-signed one is used, which PDF readers will call "not trusted".
+  - **Manage**: a documents list with filters, a detail page with the people and their status, the history, void, remind, resend and change recipient, downloads, a Documents tab on each contact, and an in-app notification when a document is signed by everyone, declined or expires.
+  - **Templates, categories and add-ons**: a template library, categories with their own defaults (expiry, reminders, code, signing order, wording, retention), and an add-on mechanism (Merchant Registration is listed; its templates arrive in a later update).
+  - **Settings > Doc Sign**, the User Guide section "Doc Sign", `docs/doc-sign-setup.md`, the `sign_documents_per_month` limit and usage meter, and the sealing job in the operator's job list.
+- Migrations: 157 (tables, permissions, flags, audit trail, bucket), 158 (the steps of a document in flight: send, sign, decline, void, expire, resend, sealing), 159 (notifications and live refresh).
+- Not in this release: the public verification page the certificate's QR code points to, Chinese and Korean typed signatures (a font file is needed on the server: `SIGN_CJK_FONT_PATH`), forms in parts, automation and API.
 
 ## [0.75.2] — 2026-10-05
 

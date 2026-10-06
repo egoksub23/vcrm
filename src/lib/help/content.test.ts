@@ -42,6 +42,18 @@ const EXPECTED: Record<string, string[]> = {
     "search-notifications-and-access",
   ],
   "working-together": ["notifications", "approvals", "broadcasts", "reports"],
+  "doc-sign": [
+    "doc-sign-overview",
+    "send-a-document",
+    "prepare-fields",
+    "signing-order",
+    "what-the-signer-sees",
+    "remind-resend-and-cancel",
+    "templates",
+    "categories-and-add-ons",
+    "audit-trail-and-sealed-pdf",
+    "settings-and-whatsapp",
+  ],
   help: ["troubleshooting", "whats-new"],
 };
 

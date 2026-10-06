@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Coins,
+  FileSignature,
   History,
   KeyRound,
   LayoutGrid,
@@ -48,6 +49,7 @@ export const SETTINGS_SECTIONS = [
   'response-time',
   'sla',
   'incidents',
+  'sign',
   'status-colors',
   'team',
   'roles',
@@ -94,6 +96,9 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   // Migration 122/123: Settings > Incidents (incidents.manage) — escalation
   // timers/recipients and the 24/7 incident contact.
   incidents: { id: 'incidents', label: 'Incidents', icon: ShieldAlert, group: 'workspace', capability: 'incidents.manage' },
+  // Doc Sign (migration 157): Settings > Doc Sign (sign.settings). The operator's `sign` flag removes
+  // every sign.* capability, so the tab is absent for a workspace that does not have Doc Sign.
+  sign: { id: 'sign', label: 'Doc Sign', icon: FileSignature, group: 'workspace', capability: 'sign.settings' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },

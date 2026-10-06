@@ -61,6 +61,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { contactHandle } from '@/lib/whatsapp/wa-identity';
 import { CreateTicketDialog } from '@/components/tickets/create-ticket-dialog';
+import { ContactDocuments } from '@/components/sign/detail/contact-documents';
 
 interface ContactDetailViewProps {
   open: boolean;
@@ -76,6 +77,7 @@ export function ContactDetailView({
   onUpdated,
 }: ContactDetailViewProps) {
   const t = useTranslations('Contacts.detailView');
+  const tSign = useTranslations('Sign.detail');
   const supabase = createClient();
   const { accountId, defaultCurrency } = useAuth();
   // Edits, tags, notes and custom values: contacts.edit. Sending a template is a
@@ -84,6 +86,8 @@ export function ContactDetailView({
   const canSend = useCapability('messages.send');
   const canWorkTickets = useCapability('tickets.work');
   const canMerge = useCapability('contacts.merge');
+  // Doc Sign's Documents tab: only with menu.sign (which is also off when the workspace has Doc Sign off).
+  const canSeeDocuments = useCapability('menu.sign');
   const editHint = canEdit ? undefined : readOnlyTitle('edit contacts');
 
   const [contact, setContact] = useState<Contact | null>(null);
@@ -602,6 +606,14 @@ export function ContactDetailView({
                 >
                   {t('tabs.deals')}
                 </TabsTrigger>
+                {canSeeDocuments && (
+                  <TabsTrigger
+                    value="documents"
+                    className="data-active:bg-muted data-active:text-primary text-muted-foreground"
+                  >
+                    {tSign('contactTab.tab')}
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Details Tab */}
@@ -885,6 +897,13 @@ export function ContactDetailView({
                   </div>
                 )}
               </TabsContent>
+
+              {/* Documents Tab (Doc Sign) */}
+              {canSeeDocuments && (
+                <TabsContent value="documents" className="flex-1 overflow-y-auto px-4 py-3">
+                  <ContactDocuments contactId={contact.id} />
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         )}

@@ -163,7 +163,7 @@ function PdfPageView({ doc, index, size, width, children, className, label }: Pd
   return (
     <div
       ref={holder}
-      role="img"
+      role="group"
       aria-label={label}
       data-page={index}
       className={cn("relative mx-auto overflow-hidden bg-white shadow-sm ring-1 ring-black/10", className)}

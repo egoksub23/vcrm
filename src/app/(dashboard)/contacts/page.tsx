@@ -247,6 +247,15 @@ export default function ContactsPage() {
     fetchContacts();
   }, [fetchContacts]);
 
+  // A link such as /contacts?contact=<id> (from a Doc Sign document) opens that contact's panel once.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('contact');
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) {
+      setDetailContactId(id);
+      setDetailOpen(true);
+    }
+  }, []);
+
   const fetchDeletedContacts = useCallback(async () => {
     setLoadingDeleted(true);
     try {

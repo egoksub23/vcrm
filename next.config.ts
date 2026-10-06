@@ -56,6 +56,8 @@ const SECURITY_HEADERS = [
       // Supabase REST + realtime (WSS). All Meta API calls happen
       // server-side, so graph.facebook.com does not belong here.
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      // The PDF viewer of Doc Sign (pdfjs) runs its parser in a worker from this site.
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -83,7 +85,7 @@ const nextConfig: NextConfig = {
     "/help/[...slug]": ["./content/help/**/*", "./public/help/**/*"],
     "/help/search-index.json": ["./content/help/**/*"],
     // Doc Sign's PDF engine reads its fonts from disk (src/lib/sign/pdf/assets) when it stamps and seals.
-    "/api/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
+    "/api/sign/**/*": ["./src/lib/sign/pdf/assets/**/*", "./src/lib/sign/addons/**/*"],
     "/api/v1/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
   },
 

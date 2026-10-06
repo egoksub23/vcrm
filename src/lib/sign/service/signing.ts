@@ -123,11 +123,19 @@ async function loadAllSigners(ctx: SignCtx, documentId: string): Promise<SignSig
   return (data ?? []) as SignSignerRow[];
 }
 
+/** The consent wording that applies to a document: its category's own text over the workspace's. */
+async function consentTexts(ctx: SignCtx, doc: SignDocumentRow, settings: SignSettingsRow): Promise<Record<string, string>> {
+  if (!doc.category_id) return settings.consent_texts ?? {};
+  const { data } = await ctx.admin.from("sign_categories").select("consent_text").eq("id", doc.category_id).eq("account_id", ctx.accountId).maybeSingle();
+  const own = (data as { consent_text?: Record<string, string> | null } | null)?.consent_text;
+  return { ...(settings.consent_texts ?? {}), ...(own && typeof own === "object" ? own : {}) };
+}
+
 export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean): Promise<SigningView> {
   const { doc, signer } = lookup;
   const [settings, info] = await Promise.all([loadSettings(ctx), loadSenderAndWorkspace(ctx, doc.created_by)]);
   const state = pageState(doc, signer);
-  const consent = consentFor(settings.consent_texts, signer.locale ?? doc.locale);
+  const consent = consentFor(await consentTexts(ctx, doc, settings), signer.locale ?? doc.locale);
   const needsCode = doc.code_required && !sessionOk && (state === "active" || state === "signed");
   const base: SigningView = {
     state,
@@ -183,7 +191,9 @@ export type CodeSendResult = { ok: true; delivery: Delivery } | { ok: false; rea
 /** Make a code and send it by email to the address the document was sent to. */
 export async function sendCode(ctx: SignCtx, lookup: Lookup, rateLimit: (key: string, limit: number, windowMs: number) => Promise<boolean>): Promise<CodeSendResult> {
   const { doc, signer } = lookup;
-  if (!doc.code_required || pageState(doc, signer) !== "active" && pageState(doc, signer) !== "signed") return { ok: false, reason: "not_needed" };
+  const state = pageState(doc, signer);
+  // a code is also asked for when a finished document is opened, to download the signed copy
+  if (!doc.code_required || (state !== "active" && state !== "signed" && state !== "completed")) return { ok: false, reason: "not_needed" };
   if (!(await rateLimit(`sign:code:${signer.id}`, CODE_SENDS_PER_HOUR, 3600_000))) return { ok: false, reason: "rate_limited" };
   const code = generateCode();
   const { error } = await ctx.admin
@@ -217,7 +227,7 @@ export async function verifyCode(ctx: SignCtx, lookup: Lookup, entered: string, 
 
 export async function recordConsent(ctx: SignCtx, lookup: Lookup, locale: string | null, ip: string | null, device: string | null): Promise<void> {
   const settings = await loadSettings(ctx);
-  const consent = consentFor(settings.consent_texts, lookup.signer.locale ?? lookup.doc.locale);
+  const consent = consentFor(await consentTexts(ctx, lookup.doc, settings), lookup.signer.locale ?? lookup.doc.locale);
   const { error } = await ctx.admin.rpc("sign_record_consent", { p_signer: lookup.signer.id, p_version: consent.version, p_locale: locale, p_ip: ip, p_device: device });
   if (error) raiseDatabaseError(error, "record consent");
 }
@@ -309,7 +319,7 @@ export async function completeSigning(
   if (missing.length) throw new SignError("missing_required", "Some required fields are not filled in.", 400, missing.map((f) => ({ code: "missing_required", field: f.key })));
 
   const settings = await loadSettings(ctx);
-  const consent = consentFor(settings.consent_texts, lookup.signer.locale ?? lookup.doc.locale);
+  const consent = consentFor(await consentTexts(ctx, lookup.doc, settings), lookup.signer.locale ?? lookup.doc.locale);
   const { data, error } = await ctx.admin.rpc("sign_complete_signer", {
     p_signer: lookup.signer.id,
     p_ip: meta.ip,

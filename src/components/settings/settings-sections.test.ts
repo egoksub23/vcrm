@@ -86,6 +86,7 @@ describe("settings sections and capabilities", () => {
         s !== "integrations" &&
         s !== "sla" &&
         s !== "incidents" &&
+        s !== "sign" &&
         s !== "workspace",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
@@ -95,7 +96,7 @@ describe("settings sections and capabilities", () => {
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
       visibleSections(
-        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage", "settings.workspace"),
+        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage", "sign.settings", "settings.workspace"),
       ),
     ).toEqual([
       ...SETTINGS_SECTIONS,
@@ -142,6 +143,17 @@ describe("the merged Team section", () => {
     expect(resolveTeamView("team", "templates")).toBe("members");
     expect(resolveTeamView("teams", "templates")).toBe("teams");
     expect(resolveTeamView(null, null)).toBe("members");
+  });
+
+  it("registers Doc Sign in the workspace group behind sign.settings, so the operator's switch hides it", () => {
+    expect(SECTION_META.sign.group).toBe("workspace");
+    expect(SECTION_META.sign.capability).toBe("sign.settings");
+    expect(resolveSection("sign")).toBe("sign");
+    expect(canSeeSection("sign", holds())).toBe(false);
+    expect(canSeeSection("sign", holds("menu.sign"))).toBe(false);
+    expect(canSeeSection("sign", holds("sign.settings"))).toBe(true);
+    expect(visibleSections(holds())).not.toContain("sign");
+    expect(visibleSections(holds("sign.settings"))).toContain("sign");
   });
 });
 

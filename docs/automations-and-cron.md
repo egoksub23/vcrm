@@ -28,6 +28,7 @@ curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/autom
 | `/api/sla/cron` | Notifies when a conversation has waited longer than its workspace's response-time target. | every 5 min | No "response time exceeded" alerts. |
 | `/api/sla/tickets-cron` | Marks ticket SLA breaches and sends at-risk and breached notices. | every minute | Ticket SLA state is shown live but never stored or notified. |
 | `/api/incidents/escalation-cron` | Escalates unacknowledged incidents up the levels. | every minute | Incidents never auto-escalate. |
+| `/api/sign/jobs-cron` | Doc Sign: seals documents everyone has signed, expires documents past their date, sends due reminders. | every minute | Signed documents stay in "Finishing", and no reminders or expiries happen. See `docs/doc-sign-setup.md`. |
 | `/api/integrations/jira/cron` | Jira job queue, catch-up poll, webhook renewal. | every 1 to 2 min | Jira links stop syncing. |
 | `/api/messages/sweep-cron` | Marks a send stuck in "sending" as failed after 10 min so it can be resent. | every 5 min | A crashed send stays "sending" forever. |
 | `/api/email/subscription-renew` | Renews each Microsoft 365 mailbox's change-notification subscription. | daily | Inbound mail stops after about 3 days. |
@@ -40,6 +41,7 @@ Example crontab (replace `YOUR-APP`):
 ```cron
 * * * * *   curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/sla/tickets-cron
 * * * * *   curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/incidents/escalation-cron
+* * * * *   curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/sign/jobs-cron
 */2 * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/integrations/jira/cron
 */5 * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/automations/cron
 */5 * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/sla/cron
@@ -57,7 +59,7 @@ set `AUTOMATION_CRON_SECRET=...` at the top of the crontab file.
 ## Checking that they run
 
 Each job records a heartbeat every time it is called. Sign in as a platform
-operator and open **Platform**: the **Background jobs** card lists all nine
+operator and open **Platform**: the **Background jobs** card lists every job
 with the time of the last run.
 
 - **On time**: ran within three expected intervals.

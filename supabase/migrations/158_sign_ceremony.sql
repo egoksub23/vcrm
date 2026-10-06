@@ -549,7 +549,10 @@ BEGIN
   UPDATE public.sign_documents
      SET status = 'completed', final_path = p_final_path, final_sha256 = p_final_sha256, seal_error = NULL,
          retain_until = COALESCE(retain_until,
-           now() + make_interval(years => COALESCE((SELECT st.retention_years FROM public.sign_settings st WHERE st.account_id = d.account_id), 7)))
+           now() + make_interval(years => COALESCE(
+             (SELECT c.retention_years FROM public.sign_categories c WHERE c.id = d.category_id AND c.account_id = d.account_id),
+             (SELECT st.retention_years FROM public.sign_settings st WHERE st.account_id = d.account_id),
+             7)))
    WHERE id = p_document;
   PERFORM public.sign_log(p_document, 'sealed', 'system', NULL, NULL, jsonb_build_object('final_sha256', p_final_sha256));
   PERFORM public.sign_log(p_document, 'completed', 'system');

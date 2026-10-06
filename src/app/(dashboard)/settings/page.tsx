@@ -31,6 +31,7 @@ import { ApprovalsPanel } from '@/components/settings/approvals/approvals-panel'
 import { IntegrationsPanel } from '@/components/settings/integrations/integrations-panel';
 import { SlaPanel } from '@/components/settings/sla/sla-panel';
 import { IncidentsSettingsPanel } from '@/components/settings/incidents/incidents-settings-panel';
+import { SignSettingsPanel } from '@/components/settings/sign/sign-settings-panel';
 import { useApprovalsCount } from '@/hooks/use-approvals-count';
 import { badgeLabel } from '@/lib/approvals/rules';
 import { NoAccess } from '@/components/auth/no-access';
@@ -119,6 +120,7 @@ function SettingsPageInner() {
     workspace: <WorkspacePanel />,
     sla: <SlaPanel />,
     incidents: <IncidentsSettingsPanel />,
+    sign: <SignSettingsPanel />,
     'status-colors': <StatusColorsTab />,
     team: <TeamSection />,
     roles: <RolesPermissionsTab />,

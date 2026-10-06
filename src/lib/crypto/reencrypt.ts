@@ -36,6 +36,7 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedTable[] = [
   { table: 'jira_connection_secrets', pk: 'connection_id', columns: ['access_token_enc', 'refresh_token_enc'] },
   { table: 'web_widget_config', pk: 'id', columns: ['identity_secret_enc'] },
   { table: 'vircle_chat_config', pk: 'id', columns: ['signing_secret', 'api_token'] },
+  { table: 'sign_certificates', pk: 'id', columns: ['p12_enc', 'passphrase_enc'] },
 ]
 
 const PAGE = 200

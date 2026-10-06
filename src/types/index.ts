@@ -386,7 +386,11 @@ export type NotificationType =
   /** Migration 121: a comment on a Sembang task you're assigned to. */
   | 'sembang_task_comment'
   /** Migration 126: an @mention in a Sembang task comment. */
-  | 'sembang_task_mention';
+  | 'sembang_task_mention'
+  /** Migration 159: a Doc Sign document the recipient sent was signed by everyone / declined / expired. */
+  | 'sign_completed'
+  | 'sign_declined'
+  | 'sign_expired';
 
 export interface Notification {
   id: string;
@@ -405,6 +409,8 @@ export interface Notification {
   sembang_message_id?: string;
   /** Migration 099. Set on sembang_task_assigned notifications. */
   sembang_task_id?: string;
+  /** Migration 159. The Doc Sign document a sign_* notification is about. */
+  sign_document_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;
