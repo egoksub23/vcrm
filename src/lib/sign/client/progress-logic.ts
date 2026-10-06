@@ -195,6 +195,8 @@ export interface AnswerGroup {
   roleLabel: string;
   rows: AnswerRowView[];
   answered: number;
+  /** Who typed the part's answers, when the part was handed to someone else (migration 166): their name, or the names joined with a comma. Absent when the role's own person holds the part. */
+  typedBy?: string;
 }
 
 /**
@@ -207,6 +209,11 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
   const fieldByKey = new Map(form.fields.map((f) => [f.key, f]));
   const fieldOrder = new Map(form.fields.map((f, i) => [f.key, i]));
   const roleLabel = (roleKey: string) => progress.roles.find((r) => r.roleKey === roleKey)?.roleLabel ?? roleKey;
+  // the people the role handed each part to (a part can be handed to one person at a time; two would be listed)
+  const delegates = (partKey: string): { typedBy?: string } => {
+    const names = [...new Set(progress.roles.flatMap((r) => (r.delegations ?? []).filter((d) => d.part === partKey).map((d) => d.name.trim())).filter(Boolean))];
+    return names.length > 0 ? { typedBy: names.join(", ") } : {};
+  };
   const rowsByPart = new Map<string, StaffAnswerRow[]>();
   for (const a of progress.answers) {
     const list = rowsByPart.get(a.part) ?? [];
@@ -228,7 +235,7 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
   const groups: AnswerGroup[] = form.parts.map((p) => {
     const rows = (rowsByPart.get(p.key) ?? []).sort((a, b) => orderOf(a) - orderOf(b)).map(viewOf);
     rowsByPart.delete(p.key);
-    return { partKey: p.key, title: pick(p.title, locale) || p.key, roleLabel: roleLabel(p.role), rows, answered: rows.filter((r) => r.display.kind !== "empty").length };
+    return { partKey: p.key, title: pick(p.title, locale) || p.key, roleLabel: roleLabel(p.role), rows, answered: rows.filter((r) => r.display.kind !== "empty").length, ...delegates(p.key) };
   });
   // answers of a part the form no longer has (a definition cannot change after sending, but a row must never vanish)
   for (const [partKey, list] of rowsByPart) {

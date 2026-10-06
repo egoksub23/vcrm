@@ -49,6 +49,8 @@ beforeEach(() => {
   h.caller = { userId: DIRECTOR, accountId: ACCT };
   db.seed("sign_documents", [{ id: DOC, account_id: ACCT, title: "Agreement", status: "sent", expires_at: new Date(Date.now() + 86_400_000).toISOString(), code_required: true, roles_snapshot: [], created_by: null }]);
   db.seed("sign_signers", [{ id: SIGNER, account_id: ACCT, document_id: DOC, role_key: "director", kind: "signer", full_name: "Director", email: "d@example.com", order_no: 1, status: "sent", internal_user_id: DIRECTOR, created_at: "2026-10-01T00:00:00Z" }]);
+  // the person's own address: a Halo sign-in opens only a place addressed to it
+  db.seed("profiles", [{ user_id: DIRECTOR, account_id: ACCT, full_name: "Director", email: "d@example.com" }]);
   db.rpcHandlers.sign_log = async () => ({ data: null, error: null });
   db.rpcHandlers.sign_rotate_token = async () => ({ data: { signer_id: SIGNER, token: "ab".repeat(32) }, error: null });
 });

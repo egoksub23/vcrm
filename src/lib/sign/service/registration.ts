@@ -268,7 +268,8 @@ export async function submitRegistration(env: SubmitEnv, req: SubmitRequest): Pr
   const found = await loadPublicForm(env.admin, req.slug, env.origin);
   if (!found) return { kind: "not_found" };
   const { form, workspace } = found;
-  if (!registrationConfigured()) return { kind: "not_configured" };
+  // no key to sign the page's token with, or no public address of our own to put on the emailed link: the page cannot be taken
+  if (!registrationConfigured() || !env.origin) return { kind: "not_configured" };
 
   const now = env.now();
   const ipHash = hashIp(req.ip);
@@ -276,7 +277,7 @@ export async function submitRegistration(env: SubmitEnv, req: SubmitRequest): Pr
   const base = { ip_hash: ipHash, user_agent: ua };
 
   // 1. how often: every post counts here, valid or not
-  const { signRegisterIpAttempts, signRegisterFormAttempts, signRegisterIp, signRegisterForm } = RATE_LIMITS;
+  const { signRegisterIpAttempts, signRegisterFormAttempts, signRegisterIp, signRegisterForm, signRegisterEmail } = RATE_LIMITS;
   if (ipHash && !(await env.limit(`sign-reg:att:ip:${shortHash(ipHash)}`, signRegisterIpAttempts.limit, signRegisterIpAttempts.windowMs))) return { kind: "rate_limited" };
   if (!(await env.limit(`sign-reg:att:form:${form.id}`, signRegisterFormAttempts.limit, signRegisterFormAttempts.windowMs))) return { kind: "rate_limited" };
 
@@ -317,6 +318,8 @@ export async function submitRegistration(env: SubmitEnv, req: SubmitRequest): Pr
   }
   if (ipHash && !(await env.limit(`sign-reg:sub:ip:${shortHash(ipHash)}`, signRegisterIp.limit, signRegisterIp.windowMs))) return { kind: "rate_limited" };
   if (!(await env.limit(`sign-reg:sub:form:${form.id}`, signRegisterForm.limit, signRegisterForm.windowMs))) return { kind: "rate_limited" };
+  // one address cannot be mailed from many pages: the budget follows the (hashed) email, not the form, so it holds across every form and workspace
+  if (emailHash && !(await env.limit(`sign-reg:sub:email:${shortHash(emailHash)}`, signRegisterEmail.limit, signRegisterEmail.windowMs))) return { kind: "rate_limited" };
 
   // 5. claim the submission, then decide what it is
   const claim = await insertEntry(env.admin, form.account_id, form.id, entryBase, { status: "failed", reason: "in_progress" });
@@ -335,7 +338,13 @@ export async function submitRegistration(env: SubmitEnv, req: SubmitRequest): Pr
     const since = new Date(now.getTime() - DAY_MS).toISOString();
     const today = await env.admin.from("sign_registrations").select("id", { count: "exact", head: true }).eq("account_id", form.account_id).eq("form_id", form.id).eq("status", "accepted").is("reason", null).gte("created_at", since);
     if (today.error) throw new Error(`cap check failed: ${today.error.message}`);
-    if ((today.count ?? 0) >= form.daily_cap) {
+    // Requests that are being handled at this very moment have not been settled yet, so the count above does not see them: several posts
+    // arriving together would all read "one place left". Every claim that began before this one (the same order the repeat check uses) counts,
+    // so at most the places that are left get through, however many arrive at once.
+    const inflight = await env.admin.from("sign_registrations").select("id, created_at").eq("account_id", form.account_id).eq("form_id", form.id).eq("reason", "in_progress").gte("created_at", new Date(now.getTime() - CLAIM_MS).toISOString()).limit(1000);
+    if (inflight.error) throw new Error(`cap check failed: ${inflight.error.message}`);
+    const ahead = ((inflight.data ?? []) as { id: string; created_at: string }[]).filter((x) => x.id !== claim.id && (x.created_at < claim.created_at || (x.created_at === claim.created_at && x.id < claim.id))).length;
+    if ((today.count ?? 0) + ahead >= form.daily_cap) {
       await settle({ status: "rejected_cap", reason: "daily_cap" });
       return { kind: "cap" };
     }

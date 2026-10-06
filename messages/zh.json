@@ -6428,7 +6428,10 @@
       "sign_settings": "Doc Sign 设置",
       "sign_certificate": "签署证书",
       "sign_addon": "Doc Sign 附加模块",
-      "sign_document": "签署文档"
+      "sign_document": "签署文档",
+      "sign_bulk_job": "批量签署",
+      "sign_option_list": "签署选项列表",
+      "sign_envelope": "签署信封"
     },
     "roleNames": {
       "owner": "所有者",
@@ -8255,7 +8258,9 @@
         "placesHint": "留空则使用上方的地址。为每个位置设置各自的 +任意文字 地址，即可试验按顺序签署。",
         "cancel": "取消",
         "send": "发送测试",
-        "sending": "正在发送…"
+        "sending": "正在发送…",
+        "rowLabel": "发送 {name} 的测试",
+        "loadFailed": "无法打开该模板进行测试。请重试。"
       }
     },
     "formBuilder": {
@@ -8847,7 +8852,8 @@
         "download": "下载",
         "downloadNamed": "下载 {name}",
         "fromContact": "来自联系人，尚未确认",
-        "bySender": "由发送人设定"
+        "bySender": "由发送人设定",
+        "typedBy": "由 {name} 填写，该部分已交给此人"
       },
       "issues": {
         "title": "{count, plural, other {有 # 项需要查看}}",
@@ -9068,7 +9074,11 @@
         "testBadge": "测试",
         "formBadge": "表格",
         "progressForm": "{done}/{total} 已提交",
-        "envelopeBadge": "文件包 · {count, plural, other {#份文件}}"
+        "envelopeBadge": "文件包 · {count, plural, other {#份文件}}",
+        "dateFrom": "创建日期自",
+        "dateTo": "创建日期至",
+        "contactLabel": "联系人",
+        "rangeBackwards": "开始日期晚于结束日期，因此没有任何结果。"
       },
       "new": {
         "title": "新建文档",
@@ -9189,7 +9199,17 @@
         "needsOrderForm": "按顺序填写",
         "needsOrderOnForm": "每个人在前一位提交之后才会被邀请。拖动人员或使用箭头设定顺序。",
         "needsOrderOffForm": "所有人同时被邀请，任何人都可以先填写。不显示顺序编号。",
-        "sameEmailOrderedForm": "{email} 出现在第 {a} 和第 {b} 位。按顺序填写的人必须是不同的人。"
+        "sameEmailOrderedForm": "{email} 出现在第 {a} 和第 {b} 位。按顺序填写的人必须是不同的人。",
+        "chooseHaloUser": "选择 Halo 用户",
+        "haloUserTitle": "选择 Halo 用户",
+        "haloUserBody": "从您的工作区中选择一位成员，在 Halo 内部签署。对方会在“等待我签署”中看到该文件，同时也会收到常规的电子邮件邀请。对方需要拥有签署文件的权限。",
+        "haloUserSearch": "按姓名或电子邮件搜索",
+        "haloUserLoading": "正在加载人员...",
+        "haloUserNone": "没有可选择的人。这里的人已全部在名单中，或没有匹配项。",
+        "haloUserList": "您工作区中的人员",
+        "haloUserTag": "Halo 用户",
+        "haloUserNote": "在 Halo 内部签署。姓名和电子邮件来自其 Halo 个人资料。",
+        "haloUserRemove": "改用 Halo 以外的人"
       },
       "options": {
         "title": "标题",

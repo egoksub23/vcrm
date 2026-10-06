@@ -13,10 +13,10 @@ import { exportQuery, type ExportFilters } from "@/lib/sign/export/documents";
 import { cn } from "@/lib/utils";
 
 /**
- * Above the documents list: "Export CSV" (the documents the filters on screen ask for, as a spreadsheet file) and
+ * Above the documents list: "Export CSV" (the documents the filters on screen ask for, dates and contact included, as a spreadsheet file) and
  * "Bulk send" (one template to a list of people).
  */
-export function ListActions({ filters, canSend }: { filters: Pick<ExportFilters, "group" | "category" | "search">; canSend: boolean }) {
+export function ListActions({ filters, canSend }: { filters: Pick<ExportFilters, "group" | "category" | "search"> & Partial<Pick<ExportFilters, "from" | "to" | "contactId">>; canSend: boolean }) {
   const t = useTranslations("Sign.bulk");
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);

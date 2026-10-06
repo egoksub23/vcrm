@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
-import { addRow, dropOnRow, duplicateEmails, groupByStep, moveStep, removeRow, rolesWithoutPeople, setStep, updateRow, type SignerRow } from "@/lib/sign/client/signers-form";
+import { addRow, asHaloUser, dropOnRow, duplicateEmails, groupByStep, moveStep, removeRow, rolesWithoutPeople, setStep, updateRow, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignMode, SignRole } from "@/lib/sign/types";
 import { ContactPicker } from "./contact-picker";
 import { FormRolesCard } from "./form-roles-card";
+import { HaloUserPicker } from "./halo-user-picker";
 import { SignerRowEditor } from "./signer-row";
 
 interface Props {
@@ -39,6 +40,8 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
   const [contactsOpen, setContactsOpen] = useState(false);
+  /** The row a Halo user is being chosen for. */
+  const [haloFor, setHaloFor] = useState<string | null>(null);
 
   if (roles.length === 0) {
     return (
@@ -120,6 +123,7 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
                   onRemove={() => onRows(removeRow(rows, row.key))}
                   onMove={(delta) => onRows(moveStep(rows, row.key, delta < 0 ? -1 : 1))}
                   onStep={(step) => onRows(setStep(rows, row.key, step))}
+                  onChooseHalo={() => setHaloFor(row.key)}
                   onDragStart={(e) => {
                     e.dataTransfer.effectAllowed = "move";
                     e.dataTransfer.setData("text/plain", row.key);
@@ -158,6 +162,24 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
         </Button>
         {full ? <p className="text-xs text-muted-foreground">{t("limitReached", { max: MAX_SIGNERS })}</p> : null}
       </div>
+
+      <Dialog open={haloFor !== null} onOpenChange={(open) => !open && setHaloFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("haloUserTitle")}</DialogTitle>
+            <DialogDescription>{t("haloUserBody")}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-64">
+            <HaloUserPicker
+              rows={rows}
+              onPick={(member) => {
+                if (haloFor) onRows(updateRow(rows, haloFor, asHaloUser(member)));
+                setHaloFor(null);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={contactsOpen} onOpenChange={setContactsOpen}>
         <DialogContent>

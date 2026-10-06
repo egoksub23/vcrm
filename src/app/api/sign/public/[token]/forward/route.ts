@@ -14,6 +14,7 @@
 // ============================================================
 import { json, publicLink, readJson, sharedLimit } from "@/lib/sign/http";
 import { SignError } from "@/lib/sign/service/errors";
+import { codeRequiredFor } from "@/lib/sign/service/signing";
 import { forwardFromLink, takeBackFromLink } from "@/lib/sign/service/forward";
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -21,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     request,
     params,
     async ({ ctx, lookup, sessionOk, ip, device }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       const body = await readJson<{ fullName?: unknown; email?: unknown; note?: unknown; part?: unknown }>(request, 6000);
       if (typeof body.fullName !== "string" || typeof body.email !== "string") throw new SignError("forward_details", "Enter a full name and a valid email.", 400);
       if (body.part !== undefined && body.part !== null && typeof body.part !== "string") throw new SignError("forward_part_unknown", "Choose a part.", 400);
@@ -37,7 +38,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ t
     request,
     params,
     async ({ ctx, lookup, sessionOk, ip, device }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       const body = await readJson<{ part?: unknown }>(request, 2000);
       if (typeof body.part !== "string" || !body.part) throw new SignError("forward_part_unknown", "Choose a part.", 400);
       return json(await takeBackFromLink(ctx, lookup, body.part, { ip, device }));

@@ -118,7 +118,7 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
         )}
         {links.deal && (
           <Meta label={t("meta.deal")}>
-            <Link href="/pipelines" className="text-primary hover:underline">
+            <Link href={`/pipelines?deal=${links.deal.id}`} className="text-primary hover:underline">
               {links.deal.title}
             </Link>
           </Meta>

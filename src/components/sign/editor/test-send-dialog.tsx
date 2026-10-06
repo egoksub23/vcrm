@@ -10,6 +10,7 @@
 // ============================================================
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { FlaskConical, Loader2 } from "lucide-react";
@@ -26,6 +27,7 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { TestSendResult } from "@/lib/sign/service/test-mode";
 import { isOwnAddress, rolesNeedingPeople, TEST_RETENTION_DAYS } from "@/lib/sign/test-mode";
 import type { SignRole } from "@/lib/sign/types";
+import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   templateId: string;
@@ -49,6 +51,48 @@ export function TestSendButton(props: Props) {
         {t("testSend.button")}
       </Button>
       <TestSendDialog {...props} open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+/**
+ * "Send a test" on a row of the template library: the template's saved (latest) version is read when the button is pressed, then the
+ * same dialog opens as in the editor. Offered by the caller only for a template that has a version.
+ */
+export function TestSendRowButton({ templateId, name }: { templateId: string; name: string }) {
+  const t = useTranslations("Sign.editor");
+  const canSend = useCapability("sign.send");
+  const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState<Pick<Props, "roles" | "fields" | "form"> | null>(null);
+  const [open, setOpen] = useState(false);
+  if (!canSend) return null;
+
+  const start = async () => {
+    if (busy) return;
+    if (version) {
+      setOpen(true);
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data, error } = await createClient().from("sign_template_versions").select("roles, fields, form").eq("template_id", templateId).order("version_no", { ascending: false }).limit(1).maybeSingle();
+      if (error || !data) throw error ?? new Error("no version");
+      const v = data as { roles: SignRole[]; fields: PlacedField[]; form: FormDefinition | null };
+      setVersion({ roles: v.roles ?? [], fields: v.fields ?? [], form: v.form ?? null });
+      setOpen(true);
+    } catch {
+      toast.error(t("testSend.loadFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button type="button" variant="ghost" size="icon-sm" disabled={busy} aria-label={t("testSend.rowLabel", { name })} title={t("testSend.button")} onClick={() => void start()}>
+        {busy ? <Loader2 className="animate-spin" aria-hidden /> : <FlaskConical aria-hidden />}
+      </Button>
+      {version ? <TestSendDialog {...version} templateId={templateId} unsaved={false} open={open} onOpenChange={setOpen} /> : null}
     </>
   );
 }

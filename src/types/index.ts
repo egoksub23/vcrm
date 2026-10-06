@@ -396,7 +396,9 @@ export type NotificationType =
   /** Migration 165: the sealing certificate a workspace uploaded ends soon (30, 14, 7 days) or has ended; sent to the administrators. */
   | 'sign_certificate_expiring'
   /** Migration 167: it is the recipient's turn to sign a Doc Sign document (they are a Halo user on it). */
-  | 'sign_your_turn';
+  | 'sign_your_turn'
+  /** Migration 173: a bulk batch the recipient started has finished (or was stopped by the system). Carries no document. */
+  | 'sign_bulk_done';
 
 export interface Notification {
   id: string;

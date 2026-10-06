@@ -271,6 +271,8 @@ export const RATE_LIMITS = {
   signRegisterIp: { limit: 5, windowMs: 60 * 60_000 },
   /** Submissions with valid details to one form. The form's own daily cap sits on top of this. */
   signRegisterForm: { limit: 60, windowMs: 60 * 60_000 },
+  /** Valid submissions that name one email address, across EVERY registration page of every workspace (the address is a keyed hash): a stranger cannot make Halo mail one person from many pages. */
+  signRegisterEmail: { limit: 6, windowMs: 24 * 60 * 60_000 },
 } as const;
 
 /** Window for the per-workspace broadcast recipient cap: the operator's

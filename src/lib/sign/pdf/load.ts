@@ -11,6 +11,11 @@ import { normalizeRotation, pageShownSize } from "./geometry";
 import type { PdfInfo } from "./types";
 
 export const MAX_PAGES = 200;
+/**
+ * Pages the engine adds after the file was accepted (the certificate and the audit trail). Opening the file again to seal it allows them: a
+ * document of 199 or 200 pages was accepted at the door and then could never be sealed, five times over, for being too long by the pages we added.
+ */
+export const SEAL_EXTRA_PAGES = 40;
 /** The most a single uploaded or generated file may weigh (matches the storage bucket). */
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
@@ -44,7 +49,7 @@ export function isPdf(bytes: Uint8Array): boolean {
 }
 
 /** Open a PDF, refusing what the product does not handle. */
-export async function openPdf(bytes: Uint8Array): Promise<PDFDocument> {
+export async function openPdf(bytes: Uint8Array, opts: { maxPages?: number } = {}): Promise<PDFDocument> {
   if (bytes.byteLength > MAX_FILE_BYTES) throw new PdfError("pdf_too_large", PDF_ERROR_MESSAGES.pdf_too_large);
   if (!isPdf(bytes)) throw new PdfError("pdf_invalid", PDF_ERROR_MESSAGES.pdf_invalid);
   let doc: PDFDocument;
@@ -64,7 +69,7 @@ export async function openPdf(bytes: Uint8Array): Promise<PDFDocument> {
     throw new PdfError("pdf_invalid", PDF_ERROR_MESSAGES.pdf_invalid);
   }
   if (n === 0) throw new PdfError("pdf_empty", PDF_ERROR_MESSAGES.pdf_empty);
-  if (n > MAX_PAGES) throw new PdfError("pdf_too_many_pages", PDF_ERROR_MESSAGES.pdf_too_many_pages);
+  if (n > (opts.maxPages ?? MAX_PAGES)) throw new PdfError("pdf_too_many_pages", PDF_ERROR_MESSAGES.pdf_too_many_pages);
   return doc;
 }
 

@@ -7,15 +7,22 @@
 
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 
-import { originOf, sharedLimit } from "../http";
+import { publicOrigin } from "@/lib/site-url";
+
+import { sharedLimit } from "../http";
 import { realDeps } from "../notify";
 import { turnstileEnabled, verifyTurnstile } from "../registration/turnstile";
 import type { SubmitEnv } from "./registration";
 
-export function registrationEnv(request: Request): SubmitEnv {
+/**
+ * The address on the links the registration emails carry is the deployment's own (NEXT_PUBLIC_SITE_URL), never the one the request arrived on:
+ * this route has no login, so a caller who chose the Host header would otherwise choose where a stranger's emailed link points.
+ * With no address configured `origin` is empty and the service answers "not available".
+ */
+export function registrationEnv(): SubmitEnv {
   return {
     admin: supabaseAdmin(),
-    origin: originOf(request),
+    origin: publicOrigin(),
     deps: realDeps,
     now: () => new Date(),
     limit: sharedLimit,

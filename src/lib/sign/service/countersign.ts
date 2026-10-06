@@ -18,6 +18,7 @@
 
 import { signersWithUndelivered } from "@/components/sign/detail/logic";
 
+import { isOwnAddress, normalizeEmail } from "../test-mode";
 import { createSession } from "../tokens";
 import { turnState, type TurnState } from "../turn";
 import type { Invitation, SignDocumentRow, SignSignerRow } from "../types";
@@ -119,6 +120,22 @@ export async function listAwaitingMe(ctx: SignCtx): Promise<AwaitingItem[]> {
 
 // ---- opening the signer page from Halo ----------------------------------------------------------
 
+/** The addresses a signed-in person is known by: the one on their profile in this workspace and the one they sign in with (when the sign-in record can be read). */
+async function loginAddresses(ctx: SignCtx, userId: string): Promise<string[]> {
+  const found = new Set<string>();
+  const p = await ctx.admin.from("profiles").select("email").eq("user_id", userId).eq("account_id", ctx.accountId).maybeSingle();
+  const profile = (p.data as { email?: string | null } | null)?.email;
+  if (profile?.trim()) found.add(normalizeEmail(profile));
+  try {
+    const u = await ctx.admin.auth.admin.getUserById(userId);
+    const email = u.data?.user?.email;
+    if (email) found.add(normalizeEmail(email));
+  } catch {
+    // the profile's address is enough when the sign-in record cannot be read
+  }
+  return [...found];
+}
+
 export interface CountersignOpened {
   signerId: string;
   /** The fresh link token, for the caller to build the address from. Never logged. */
@@ -143,10 +160,16 @@ export async function openCountersign(ctx: SignCtx, documentId: string, meta: { 
   if (found.error) raiseDatabaseError(found.error, "load my place");
   const mine = ((found.data ?? []) as SignSignerRow[]).sort((a, b) => a.order_no - b.order_no || a.created_at.localeCompare(b.created_at));
   if (mine.length === 0) throw new SignError("not_a_signer", "You are not a signer on this document.", 403);
+  // A Halo sign-in stands in for the emailed link and code, so it must be the person the place is ADDRESSED to. Whoever sent the document
+  // chose which workspace member a place belongs to; without this, a sender could name themselves for someone else's name and address and
+  // sign as them without ever having that person's mailbox. Only a place addressed to the person's own address (or that address with a +tag) opens.
+  const addresses = await loginAddresses(ctx, userId);
+  const addressed = mine.filter((signer) => isOwnAddress(signer.email, addresses));
+  if (addressed.length === 0) throw new SignError("countersign_other_address", "This place is addressed to an email address that is not yours. Open the link that was sent to that address.", 403);
 
   const doc = await loadDocument(ctx, documentId);
   const now = ctx.now();
-  const states = mine.map((signer) => ({ signer, state: turnState(doc, signer, now) }));
+  const states = addressed.map((signer) => ({ signer, state: turnState(doc, signer, now) }));
   const chosen = states.find((x) => x.state === "open");
   if (!chosen) {
     // Say the most useful thing about the person's places: waiting is better news than finished, which is better than closed.
@@ -159,13 +182,19 @@ export async function openCountersign(ctx: SignCtx, documentId: string, meta: { 
 
   // The same call a reminder makes, so the old link dies and nobody else's link is touched. The reason is its own event
   // type, so the history never says a message was sent when none was.
-  const { data, error } = await ctx.admin.rpc("sign_rotate_token", { p_signer: signer.id, p_actor: userId, p_reason: "halo_link" });
+  // A document of an envelope is reached through the link of the person's first document (the anchor): the link and the session belong to that row
+  // (a link made for any other row of the person would be a link to nothing).
+  const anchorId = signer.party_id && signer.party_id !== signer.id ? signer.party_id : null;
+  const { data, error } = signer.party_id
+    ? await ctx.admin.rpc("sign_envelope_rotate_token", { p_anchor: signer.party_id, p_actor: userId, p_reason: "halo_link" })
+    : await ctx.admin.rpc("sign_rotate_token", { p_signer: signer.id, p_actor: userId, p_reason: "halo_link" });
   if (error || !data) raiseDatabaseError(error, "open countersign");
   const token = (data as Invitation).token;
   if (!token) throw new SignError("database_error", "Something went wrong. Please try again.", 500);
 
   await logEvent(ctx, documentId, "code_verified", { actor: "signer", signerId: signer.id, userId, ip: meta.ip, device: meta.device, detail: { method: HALO_LOGIN_METHOD } });
-  return { signerId: signer.id, token, session: createSession(signer.id, now) };
+  const linkOwner = anchorId ?? signer.id;
+  return { signerId: linkOwner, token, session: createSession(linkOwner, now) };
 }
 
 // ---- the people a sender names ------------------------------------------------------------------

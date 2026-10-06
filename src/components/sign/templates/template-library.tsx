@@ -10,6 +10,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Archive, ArchiveRestore, CheckCircle2, Copy, FilePlus2, Loader2, Search, Trash2 } from "lucide-react";
 
+import { TestSendRowButton } from "@/components/sign/editor/test-send-dialog";
 import { Field, Loading, NativeSelect, useAdminErrorText } from "@/components/settings/sign/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -199,6 +200,7 @@ export function TemplateLibrary() {
                           {t("makeActive")}
                         </Button>
                       ) : null}
+                      {canSend && row.versionCount > 0 && row.status !== "archived" ? <TestSendRowButton templateId={row.id} name={row.name} /> : null}
                       {canManage ? (
                         <>
                           <Button variant="ghost" size="icon-sm" aria-label={t("duplicate", { name: row.name })} disabled={busy === row.id} onClick={() => void duplicate(row)}>

@@ -66,6 +66,7 @@ function AnswerGroupView({ documentId, group, number, defaultOpen, canReveal }: 
             {group.title}
           </span>
           <span className="block text-xs text-muted-foreground">{t("answers.groupSummary", { role: group.roleLabel, count: group.answered })}</span>
+          {group.typedBy ? <span className="block text-xs text-muted-foreground">{t("answers.typedBy", { name: group.typedBy })}</span> : null}
         </span>
         <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden />
       </button>

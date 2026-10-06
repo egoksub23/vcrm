@@ -79,7 +79,8 @@ export function parseCsv(input: string): string[][] {
 export function csvCell(value: string): string {
   let v = value;
   // a spreadsheet would run text that starts like a formula; a leading apostrophe makes it plain text (and is removed on import)
-  if (/^[=+\-@]/.test(v) && !/^[+-]?\d/.test(v)) v = `'${v}`;
+  // (only a plain number is left alone: "-2+3+cmd|' /C calc'!A0" starts like a number and is not one)
+  if (/^[=+\-@\t\r]/.test(v) && !/^[+-]?\d+(\.\d+)?$/.test(v)) v = `'${v}`;
   return /[",;\r\n\t]/.test(v) || v !== v.trim() ? `"${v.replace(/"/g, '""')}"` : v;
 }
 

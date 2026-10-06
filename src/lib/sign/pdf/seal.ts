@@ -9,7 +9,7 @@ import { P12Signer } from "@signpdf/signer-p12";
 import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
 
 import { assertValidNow, readP12 } from "./p12";
-import { openPdf, savePdf, sha256Hex } from "./load";
+import { MAX_PAGES, SEAL_EXTRA_PAGES, openPdf, savePdf, sha256Hex } from "./load";
 import type { SealOptions, SealedInfo } from "./types";
 
 /** Room for the signature (hex characters are two per byte). A certificate chain of a few links fits. */
@@ -34,7 +34,8 @@ export async function sealPdf(
   // Refuse early, with a clear message, rather than fail inside the signing library.
   assertValidNow(readP12(p12, passphrase), options.signingTime ?? new Date());
 
-  const doc = await openPdf(input);
+  // the file here already has its certificate pages: it may be longer than a file that is accepted
+  const doc = await openPdf(input, { maxPages: MAX_PAGES + SEAL_EXTRA_PAGES });
   const signingTime = options.signingTime ?? new Date();
   pdflibAddPlaceholder({
     pdfDoc: doc,

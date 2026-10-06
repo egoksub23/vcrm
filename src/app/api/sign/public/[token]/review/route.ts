@@ -8,6 +8,7 @@
 // ============================================================
 import { json, publicLink } from "@/lib/sign/http";
 import { SignError } from "@/lib/sign/service/errors";
+import { codeRequiredFor } from "@/lib/sign/service/signing";
 import { reviewFor } from "@/lib/sign/service/review";
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -15,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     request,
     params,
     async ({ ctx, lookup, sessionOk }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       return json(await reviewFor(ctx, lookup));
     },
     { rate: { limit: 60, windowMs: 60_000 } },

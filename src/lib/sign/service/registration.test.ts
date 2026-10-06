@@ -203,6 +203,26 @@ describe("a registration page that is not there", () => {
     expect(await submitRegistration(env(), { slug: SLUG, body: b, ip: IP, userAgent: null })).toEqual({ kind: "not_configured" });
     expect(entries()).toHaveLength(0);
   });
+
+  // WP25 review: the emailed link is built on the deployment's own address; a caller cannot choose it through the Host header
+  it("cannot take submissions when the deployment has no public address of its own to put on the emailed link", async () => {
+    await setup();
+    const noOrigin = { ...env(), origin: "" };
+    expect(await submitRegistration(noOrigin, { slug: SLUG, body: body(), ip: IP, userAgent: null })).toEqual({ kind: "not_configured" });
+    expect(entries()).toHaveLength(0);
+    expect(db.rows("contacts")).toHaveLength(0);
+    expect(mail).toHaveLength(0);
+  });
+
+  it("puts only the deployment's address on what it emails, whatever address the request came in on", async () => {
+    await setup();
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(mail.length).toBeGreaterThan(0);
+    for (const m of mail) {
+      expect(m.text).toContain("https://halo.test/s/");
+      expect(m.text).not.toMatch(/https?:\/\/(?!halo\.test)/);
+    }
+  });
 });
 
 describe("what the page is drawn with", () => {
@@ -600,6 +620,51 @@ describe("the daily cap", () => {
     await submit();
     expect(await submit({ token: token() })).toEqual({ kind: "ok" });
     expect(await submit({ email: "second@kedai.example", token: token() })).toEqual({ kind: "cap" });
+  });
+
+  // WP25 review: posts that arrive together all read "one place left", because nobody has settled yet
+  it("counts the claims that are still being handled, so a burst cannot go past the cap", async () => {
+    await setup({ daily_cap: 1 });
+    db.seed("sign_registrations", [
+      // another person's request that began a moment ago and has not been settled: it holds the last place
+      { id: "00000000-0000-4000-8000-000000000001", account_id: ACCT, form_id: FORM, status: "failed", reason: "in_progress", email_hash: "e".repeat(64), created_at: new Date(Date.now() - 5000).toISOString() },
+    ]);
+    expect(await submit({ email: "burst@kedai.example" })).toEqual({ kind: "cap" });
+    expect(db.rows("contacts")).toHaveLength(0);
+    expect(db.rows("sign_documents")).toHaveLength(0);
+  });
+
+  it("does not let a claim that began later, or one that died long ago, hold a place", async () => {
+    await setup({ daily_cap: 1 });
+    db.seed("sign_registrations", [
+      { id: "ffffffff-ffff-4fff-8fff-ffffffffffff", account_id: ACCT, form_id: FORM, status: "failed", reason: "in_progress", email_hash: "d".repeat(64), created_at: new Date(Date.now() + 60_000).toISOString() },
+      { id: "00000000-0000-4000-8000-000000000002", account_id: ACCT, form_id: FORM, status: "failed", reason: "in_progress", email_hash: "c".repeat(64), created_at: new Date(Date.now() - 10 * 60_000).toISOString() },
+      // another form's claim is not this form's business
+      { id: "00000000-0000-4000-8000-000000000003", account_id: ACCT, form_id: "other-form", status: "failed", reason: "in_progress", email_hash: "b".repeat(64), created_at: new Date(Date.now() - 1000).toISOString() },
+    ]);
+    expect(await submit({ email: "later@kedai.example" })).toEqual({ kind: "ok" });
+    expect(db.rows("sign_documents")).toHaveLength(1);
+  });
+});
+
+describe("one person's address cannot be mailed from many pages (WP25)", () => {
+  it("is limited by the hashed email alone, not by the form or the workspace, and refuses before anything is made", async () => {
+    await setup();
+    denyKey = (k) => k.startsWith("sign-reg:sub:email:");
+    expect(await submit({ email: "Victim@Kedai.example" })).toEqual({ kind: "rate_limited" });
+    expect(db.rows("contacts")).toHaveLength(0);
+    expect(db.rows("sign_documents")).toHaveLength(0);
+    expect(mail).toHaveLength(0);
+    const call = calls.find((c) => c.key.startsWith("sign-reg:sub:email:"))!;
+    expect(call.limit).toBe(RATE_LIMITS.signRegisterEmail.limit);
+    // the key follows the address in any case, and carries neither the form, the workspace nor the address itself
+    expect(call.key).not.toContain(FORM);
+    expect(call.key).not.toContain(ACCT);
+    expect(call.key.toLowerCase()).not.toContain("victim");
+    calls.length = 0;
+    denyKey = () => false;
+    await submit({ email: "VICTIM@kedai.example", token: token() });
+    expect(calls.find((c) => c.key.startsWith("sign-reg:sub:email:"))?.key).toBe(call.key);
   });
 });
 

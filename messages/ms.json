@@ -6428,7 +6428,10 @@
       "sign_settings": "Tetapan Doc Sign",
       "sign_certificate": "Sijil tandatangan",
       "sign_addon": "Add-on Doc Sign",
-      "sign_document": "Dokumen tandatangan"
+      "sign_document": "Dokumen tandatangan",
+      "sign_bulk_job": "Kelompok tandatangan",
+      "sign_option_list": "Senarai pilihan tandatangan",
+      "sign_envelope": "Sampul tandatangan"
     },
     "roleNames": {
       "owner": "Pemilik",
@@ -8255,7 +8258,9 @@
         "placesHint": "Biarkan sesuatu tempat kosong untuk menggunakan alamat di atas. Beri setiap tempat alamat +sesuatu tersendiri untuk mencuba tandatangan mengikut urutan.",
         "cancel": "Batal",
         "send": "Hantar ujian",
-        "sending": "Menghantar…"
+        "sending": "Menghantar…",
+        "rowLabel": "Hantar ujian bagi {name}",
+        "loadFailed": "Templat tidak dapat dibuka untuk ujian. Cuba lagi."
       }
     },
     "formBuilder": {
@@ -8847,7 +8852,8 @@
         "download": "Muat turun",
         "downloadNamed": "Muat turun {name}",
         "fromContact": "Daripada kenalan, belum disahkan",
-        "bySender": "Ditetapkan oleh penghantar"
+        "bySender": "Ditetapkan oleh penghantar",
+        "typedBy": "Ditaip oleh {name}, yang diberi bahagian ini"
       },
       "issues": {
         "title": "{count, plural, other {# perkara perlu disemak}}",
@@ -9068,7 +9074,11 @@
         "testBadge": "Ujian",
         "formBadge": "Borang",
         "progressForm": "{done} daripada {total} telah menghantar",
-        "envelopeBadge": "Sampul · {count, plural, other {# dokumen}}"
+        "envelopeBadge": "Sampul · {count, plural, other {# dokumen}}",
+        "dateFrom": "Dibuat dari",
+        "dateTo": "Dibuat hingga",
+        "contactLabel": "Kenalan",
+        "rangeBackwards": "Tarikh mula selepas tarikh akhir, jadi tiada yang boleh sepadan."
       },
       "new": {
         "title": "Dokumen baharu",
@@ -9189,7 +9199,17 @@
         "needsOrderForm": "Orang mengisi mengikut urutan",
         "needsOrderOnForm": "Setiap orang dijemput hanya selepas orang sebelumnya menghantar. Seret orang atau guna anak panah untuk menetapkan urutan.",
         "needsOrderOffForm": "Semua orang dijemput serentak dan sesiapa boleh mengisi dahulu. Nombor urutan tidak dipaparkan.",
-        "sameEmailOrderedForm": "{email} muncul pada nombor {a} dan {b}. Orang yang mengisi mengikut urutan mestilah orang yang berbeza."
+        "sameEmailOrderedForm": "{email} muncul pada nombor {a} dan {b}. Orang yang mengisi mengikut urutan mestilah orang yang berbeza.",
+        "chooseHaloUser": "Pilih pengguna Halo",
+        "haloUserTitle": "Pilih pengguna Halo",
+        "haloUserBody": "Pilih seseorang daripada ruang kerja anda untuk menandatangani dari dalam Halo. Mereka akan menemui dokumen di bawah Menunggu tandatangan saya, dan juga menerima jemputan biasa melalui e-mel. Mereka perlu mempunyai kebenaran untuk menandatangani dokumen.",
+        "haloUserSearch": "Cari mengikut nama atau e-mel",
+        "haloUserLoading": "Memuatkan orang...",
+        "haloUserNone": "Tiada sesiapa untuk dipilih. Semua orang di sini sudah ada dalam senarai, atau tiada yang sepadan.",
+        "haloUserList": "Orang dalam ruang kerja anda",
+        "haloUserTag": "Pengguna Halo",
+        "haloUserNote": "Menandatangani dari dalam Halo. Nama dan e-mel diambil daripada profil Halo mereka.",
+        "haloUserRemove": "Guna orang di luar Halo sebaliknya"
       },
       "options": {
         "title": "Tajuk",

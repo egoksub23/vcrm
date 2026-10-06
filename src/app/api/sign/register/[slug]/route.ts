@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: Params) {
     if (!early.success) return rateLimitResponse(early);
     const { slug } = await params;
     const body = await readJson(request, 20_000);
-    return respond(await submitRegistration(registrationEnv(request), { slug, body, ip, userAgent: request.headers.get("user-agent") }));
+    return respond(await submitRegistration(registrationEnv(), { slug, body, ip, userAgent: request.headers.get("user-agent") }));
   } catch (err) {
     return failure(err);
   }

@@ -184,7 +184,8 @@ describe("what is stored", () => {
       expect(row.sensitive).toBe(true);
       expect(row.value).toBeNull();
       expect(typeof row.value_enc).toBe("string");
-      expect(row.value_enc).not.toContain("1234");
+      // not "1234": four hex digits turn up in a ciphertext by chance now and then, which made this test flaky
+      expect(row.value_enc).not.toContain("900101");
     }
     expect(JSON.stringify(t.db.rows("sign_answers"))).not.toMatch(/900101|998877|1234567890123/);
     const plain = answerRow("legalName")!;

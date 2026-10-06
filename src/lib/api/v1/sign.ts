@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 
 import type { ApiKeyContext } from '@/lib/auth/api-context';
+import { bytesForChars, readBodyCapped } from '@/lib/net/read-capped';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { publicOrigin } from '@/lib/site-url';
 import { signEnabled } from '@/lib/sign/feature';
@@ -86,7 +87,10 @@ export function documentIdOf(id: string): string {
 export async function readApiJson(request: Request, maxBytes = 200_000): Promise<Record<string, unknown>> {
   const declared = Number(request.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) throw new SignError('body_too_large', 'That request is too large.', 413);
-  const text = await request.text();
+  // read a piece at a time and stop at the cap (a body sent chunked is not stopped by its declared length)
+  const raw = await readBodyCapped(request, bytesForChars(maxBytes));
+  if (raw === null) throw new SignError('body_too_large', 'That request is too large.', 413);
+  const text = new TextDecoder().decode(raw);
   if (text.length > maxBytes) throw new SignError('body_too_large', 'That request is too large.', 413);
   if (text.trim() === '') return {};
   try {

@@ -12,10 +12,12 @@ import {
   pageRange,
   sanitizeSearch,
   searchClause,
+  validDay,
   signerSearchClause,
   type ListFilters,
   type StatusGroup,
 } from "@/lib/sign/client/list-filters";
+import { createdRange } from "@/lib/sign/export/documents";
 import { envelopesIncluded, envelopeToRow, mergeNewestFirst, type EnvelopeListRaw, type EnvelopeRowExtras } from "@/lib/sign/client/list-merge";
 import type { DocumentStatus, SignerKind } from "@/lib/sign/types";
 import { createClient } from "@/lib/supabase/client";
@@ -69,9 +71,24 @@ interface Filterable {
   is(column: string, value: null): Filterable;
   eq(column: string, value: string): Filterable;
   or(filters: string): Filterable;
+  gte(column: string, value: string): Filterable;
+  lt(column: string, value: string): Filterable;
 }
 
-function narrow<T>(query: T, group: StatusGroup | null, f: ListFilters, clause: string | null): T {
+/** The days of the date range as instants in the workspace's time zone (the day a document was made), as the export reads them. */
+type Range = { gte: string | null; lt: string | null };
+export const rangeOf = (f: ListFilters, timeZone: string): Range => createdRange({ from: validDay(f.from) || null, to: validDay(f.to) || null }, timeZone);
+
+/** What documents and envelopes share: the contact and the day the row was made. */
+export function narrowShared<T>(query: T, f: ListFilters, range: Range): T {
+  let q = query as unknown as Filterable;
+  if (f.contactId) q = q.eq("contact_id", f.contactId);
+  if (range.gte) q = q.gte("created_at", range.gte);
+  if (range.lt) q = q.lt("created_at", range.lt);
+  return q as unknown as T;
+}
+
+export function narrow<T>(query: T, group: StatusGroup | null, f: ListFilters, clause: string | null, range: Range): T {
   let q = query as unknown as Filterable;
   const statuses = group ? GROUP_STATUSES[group] : null;
   if (statuses) q = q.in("status", statuses);
@@ -79,6 +96,7 @@ function narrow<T>(query: T, group: StatusGroup | null, f: ListFilters, clause: 
   if (group === "test") q = q.eq("test", "true");
   if (f.category === "none") q = q.is("category_id", null);
   else if (f.category !== "all") q = q.eq("category_id", f.category);
+  q = narrowShared(q, f, range) as unknown as Filterable;
   if (clause) q = q.or(clause);
   return q as unknown as T;
 }
@@ -106,16 +124,17 @@ async function searchClauses(search: string): Promise<{ docs: string | null; env
  * The first `want` rows newest first: the documents that are on their own and the envelopes (each ONE row), read together and cut.
  * A document of an envelope is not a row of its own (it is on its envelope's row).
  */
-async function fetchRows(f: ListFilters, clauses: { docs: string | null; envs: string | null }, want: number): Promise<{ rows: SignListRow[]; hasMore: boolean }> {
+async function fetchRows(f: ListFilters, clauses: { docs: string | null; envs: string | null }, want: number, range: Range): Promise<{ rows: SignListRow[]; hasMore: boolean }> {
   const supabase = createClient();
   const docQuery = supabase.from("sign_documents").select(SELECT).is("envelope_id", null).order("created_at", { ascending: false }).order("id", { ascending: false });
-  const { data, error } = await narrow(docQuery, f.group, f, clauses.docs).range(0, want - 1);
+  const { data, error } = await narrow(docQuery, f.group, f, clauses.docs, range).range(0, want - 1);
   if (error) throw error;
   let envs: SignListRow[] = [];
   if (envelopesIncluded(f)) {
     let q = supabase.from("sign_envelopes").select(ENVELOPE_SELECT).order("created_at", { ascending: false }).order("id", { ascending: false }) as unknown as Filterable;
     const statuses = GROUP_STATUSES[f.group];
     if (statuses) q = q.in("status", statuses);
+    q = narrowShared(q, f, range);
     if (clauses.envs) q = q.or(clauses.envs);
     const res = await (q as unknown as { range(from: number, to: number): PromiseLike<{ data: unknown; error: unknown }> }).range(0, want - 1);
     if (res.error) throw res.error;
@@ -124,18 +143,19 @@ async function fetchRows(f: ListFilters, clauses: { docs: string | null; envs: s
   return mergeNewestFirst((data as unknown as SignListRow[]) ?? [], envs, want);
 }
 
-async function fetchCounts(f: ListFilters, clauses: { docs: string | null; envs: string | null }): Promise<StatusCounts> {
+async function fetchCounts(f: ListFilters, clauses: { docs: string | null; envs: string | null }, range: Range): Promise<StatusCounts> {
   const supabase = createClient();
   const withEnvelopes = envelopesIncluded(f);
   const entries = await Promise.all(
     STATUS_GROUPS.map(async (g) => {
-      const { count, error } = await narrow(supabase.from("sign_documents").select("id", { count: "exact", head: true }).is("envelope_id", null), g, f, clauses.docs);
+      const { count, error } = await narrow(supabase.from("sign_documents").select("id", { count: "exact", head: true }).is("envelope_id", null), g, f, clauses.docs, range);
       if (error) throw error;
       let extra = 0;
       if (withEnvelopes && g !== "test") {
         let q = supabase.from("sign_envelopes").select("id", { count: "exact", head: true }) as unknown as Filterable;
         const statuses = GROUP_STATUSES[g];
         if (statuses) q = q.in("status", statuses);
+        q = narrowShared(q, f, range);
         if (clauses.envs) q = q.or(clauses.envs);
         const res = await (q as unknown as PromiseLike<{ count: number | null; error: unknown }>);
         if (res.error) throw res.error;
@@ -161,9 +181,11 @@ interface Loaded {
  * Read through row level security with the browser client (menu.sign).
  */
 export function useSignDocuments(filters: ListFilters) {
-  const { accountId } = useAuth();
-  const { group, category, search } = filters;
-  const key = filtersKey({ group, category, search });
+  const { accountId, account } = useAuth();
+  const { group, category, search, from, to, contactId } = filters;
+  const key = filtersKey({ group, category, search, from, to, contactId });
+  // the days of the range are days in the workspace's time zone
+  const timeZone = account?.timezone || "UTC";
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreFailed, setLoadMoreFailed] = useState(false);
@@ -174,12 +196,13 @@ export function useSignDocuments(filters: ListFilters) {
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
-    const f: ListFilters = { group, category, search };
+    const f: ListFilters = { group, category, search, from, to, contactId };
+    const range = rangeOf(f, timeZone);
     const want = shown.current.key === key ? Math.max(PAGE_SIZE, shown.current.count) : PAGE_SIZE;
     void (async () => {
       try {
         const clauses = await searchClauses(search);
-        const [page, counts] = await Promise.all([fetchRows(f, clauses, want), fetchCounts(f, clauses)]);
+        const [page, counts] = await Promise.all([fetchRows(f, clauses, want, range), fetchCounts(f, clauses, range)]);
         if (cancelled) return;
         shown.current = { key, count: page.rows.length };
         setLoaded({ key, rows: page.rows, counts, hasMore: page.hasMore, error: false });
@@ -192,7 +215,7 @@ export function useSignDocuments(filters: ListFilters) {
     return () => {
       cancelled = true;
     };
-  }, [accountId, group, category, search, key, tick]);
+  }, [accountId, group, category, search, from, to, contactId, timeZone, key, tick]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
@@ -237,10 +260,10 @@ export function useSignDocuments(filters: ListFilters) {
     setLoadingMore(true);
     setLoadMoreFailed(false);
     try {
-      const f: ListFilters = { group, category, search };
+      const f: ListFilters = { group, category, search, from, to, contactId };
       const clauses = await searchClauses(search);
       // two sources are merged by date, so the next page is read again from the start up to the new length (nothing is added out of order)
-      const page = await fetchRows(f, clauses, pageRange(0, current.rows.length + PAGE_SIZE).to + 1);
+      const page = await fetchRows(f, clauses, pageRange(0, current.rows.length + PAGE_SIZE).to + 1, rangeOf(f, timeZone));
       setLoaded((prev) => {
         if (!prev || prev.key !== key) return prev;
         shown.current = { key, count: page.rows.length };
@@ -252,7 +275,7 @@ export function useSignDocuments(filters: ListFilters) {
     } finally {
       setLoadingMore(false);
     }
-  }, [current, loadingMore, group, category, search, key]);
+  }, [current, loadingMore, group, category, search, from, to, contactId, timeZone, key]);
 
   // while the next filters load, the last result stays on screen (dimmed by the screen) instead of flashing empty
   const visible = current ?? loaded;

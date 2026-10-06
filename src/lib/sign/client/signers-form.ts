@@ -25,6 +25,8 @@ export interface SignerRow {
   channel: SignChannel;
   /** The step the person signs in (people who share a number sign together). Only meaningful when the document needs signing order. */
   step: number;
+  /** Set when the person is a Halo user of this workspace (a countersigner): the name and email are theirs and are not typed. */
+  internalUserId?: string | null;
 }
 
 /** What the server's signing-list route takes for one person. */
@@ -36,6 +38,8 @@ export interface SignerPayload {
   phone: string | null;
   channel: SignChannel;
   orderNo: number;
+  /** Only present for a Halo user (a countersigner). */
+  internalUserId?: string;
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -56,7 +60,7 @@ export function rowsFromSigners(signers: readonly SignSignerRow[]): SignerRow[] 
   return normalizeSteps(
     [...signers]
       .sort((a, b) => a.order_no - b.order_no || a.created_at.localeCompare(b.created_at))
-      .map((s) => ({ key: newRowKey(), roleKey: s.role_key, fullName: s.full_name, email: s.email, phone: s.phone ?? "", channel: s.channel, step: s.order_no })),
+      .map((s) => ({ key: newRowKey(), roleKey: s.role_key, fullName: s.full_name, email: s.email, phone: s.phone ?? "", channel: s.channel, step: s.order_no, ...(s.internal_user_id ? { internalUserId: s.internal_user_id } : {}) })),
   );
 }
 
@@ -228,6 +232,7 @@ export function toPayload(rows: readonly SignerRow[], roles: readonly SignRole[]
     phone: r.channel === "whatsapp" ? (normalizePhone(r.phone) ?? null) : r.phone.trim() || null,
     channel: r.channel,
     orderNo: numbers[i],
+    ...(r.internalUserId ? { internalUserId: r.internalUserId } : {}),
   }));
 }
 
@@ -261,6 +266,30 @@ export function duplicateEmails(rows: readonly { email: string }[]): { email: st
   });
   return [...seen.values()].filter((e) => e.positions.length > 1);
 }
+
+// ---- Halo users ------------------------------------------------------------------------------
+
+/** A member of the workspace, as the Halo user picker needs to know them. */
+export interface HaloMember {
+  user_id: string;
+  full_name: string;
+  email: string;
+}
+
+/** The members the sender can still choose: not already on the list as a Halo user, and matching what was typed (name or email, any case). */
+export function pickableMembers(members: readonly HaloMember[], rows: readonly SignerRow[], query: string): HaloMember[] {
+  const taken = new Set(rows.map((r) => r.internalUserId).filter((x): x is string => !!x));
+  const q = query.trim().toLowerCase();
+  return members.filter((m) => !taken.has(m.user_id) && (q === "" || m.full_name.toLowerCase().includes(q) || (m.email ?? "").toLowerCase().includes(q)));
+}
+
+/** What choosing a member does to a row: their name and email, and the link to them. A phone number typed before is dropped with the channel back to email (a Halo user is reached by email). */
+export function asHaloUser(member: HaloMember): Partial<Omit<SignerRow, "key">> {
+  return { fullName: member.full_name.trim() || member.email, email: member.email.trim(), phone: "", channel: "email", internalUserId: member.user_id };
+}
+
+/** Un-choose the Halo user: the row keeps the name and email shown, as plain typed values the sender can now change. */
+export const asOutsidePerson: Partial<Omit<SignerRow, "key">> = { internalUserId: null };
 
 /** Roles that have fields to complete but nobody on them yet (by key). */
 export function rolesWithoutPeople(rows: readonly SignerRow[], roles: readonly SignRole[]): SignRole[] {

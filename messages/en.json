@@ -7157,7 +7157,10 @@
       "sign_settings": "Doc Sign settings",
       "sign_certificate": "Signing certificate",
       "sign_addon": "Doc Sign add-on",
-      "sign_document": "Signing document"
+      "sign_document": "Signing document",
+      "sign_bulk_job": "Signing batch",
+      "sign_option_list": "Signing option list",
+      "sign_envelope": "Signing envelope"
     },
     "roleNames": {
       "owner": "Owner",
@@ -9609,7 +9612,9 @@
         "placesHint": "Leave a place empty to use the address above. Give each place its own +something address to try signing in order.",
         "cancel": "Cancel",
         "send": "Send the test",
-        "sending": "Sending…"
+        "sending": "Sending…",
+        "rowLabel": "Send a test of {name}",
+        "loadFailed": "The template could not be opened for a test. Try again."
       }
     },
     "formBuilder": {
@@ -10201,7 +10206,8 @@
         "download": "Download",
         "downloadNamed": "Download {name}",
         "fromContact": "From the contact, not yet confirmed",
-        "bySender": "Set by the sender"
+        "bySender": "Set by the sender",
+        "typedBy": "Typed by {name}, who was handed this part"
       },
       "issues": {
         "title": "{count, plural, one {# thing needs a look} other {# things need a look}}",
@@ -10422,7 +10428,11 @@
         "testBadge": "Test",
         "formBadge": "Form",
         "progressForm": "{done} of {total} submitted",
-        "envelopeBadge": "Envelope · {count, plural, one {# document} other {# documents}}"
+        "envelopeBadge": "Envelope · {count, plural, one {# document} other {# documents}}",
+        "dateFrom": "Made from",
+        "dateTo": "Made until",
+        "contactLabel": "Contact",
+        "rangeBackwards": "The start date is after the end date, so nothing can match."
       },
       "new": {
         "title": "New document",
@@ -10543,7 +10553,17 @@
         "needsOrderForm": "People fill this in in order",
         "needsOrderOnForm": "Each person is invited only after the one before has submitted. Drag the people or use the arrows to set the order.",
         "needsOrderOffForm": "Everyone is invited at once and anyone can fill in first. No order numbers are shown.",
-        "sameEmailOrderedForm": "{email} appears at numbers {a} and {b}. People who fill this in in order must be different people."
+        "sameEmailOrderedForm": "{email} appears at numbers {a} and {b}. People who fill this in in order must be different people.",
+        "chooseHaloUser": "Choose a Halo user",
+        "haloUserTitle": "Choose a Halo user",
+        "haloUserBody": "Pick someone from your workspace to sign from inside Halo. They will find the document under Awaiting my signature, and also get the usual invitation by email. They need the permission to sign documents.",
+        "haloUserSearch": "Search by name or email",
+        "haloUserLoading": "Loading people...",
+        "haloUserNone": "No one to choose. Everyone here is already on the list, or nobody matches.",
+        "haloUserList": "People in your workspace",
+        "haloUserTag": "Halo user",
+        "haloUserNote": "Signs from inside Halo. The name and email come from their Halo profile.",
+        "haloUserRemove": "Use someone outside Halo instead"
       },
       "options": {
         "title": "Title",

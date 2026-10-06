@@ -15,7 +15,7 @@ import { remindEnvelopePerson } from "./envelopes";
 import { notifyExpired } from "./outcome";
 import { emitSignEvent } from "./outbound";
 import { remindSigner } from "./send";
-import { runSealing } from "./seal";
+import { runSealingWithin } from "./seal";
 
 type Base = Omit<SignCtx, "accountId" | "userId">;
 
@@ -87,7 +87,7 @@ export async function runReminders(base: Base, limit = 100): Promise<{ checked: 
 }
 
 export async function runAll(base: Base): Promise<Record<string, number>> {
-  const seal = await runSealing(base, 2);
+  const seal = await runSealingWithin(base);
   const expiry = await runExpiry(base);
   const reminders = await runReminders(base);
   // a certificate that is about to end is told to the administrators in good time (30, 14, 7 days, and when it has ended)

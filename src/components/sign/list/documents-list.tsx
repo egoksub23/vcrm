@@ -13,9 +13,10 @@ import { useSignCategories } from "@/hooks/use-sign-categories";
 import { useSignDocuments } from "@/hooks/use-sign-documents";
 import { useAwaitingSignature, useNeedsAttention } from "@/hooks/use-sign-shortcuts";
 import type { ListView } from "@/lib/sign/client/countersign";
-import { EMPTY_FILTERS, STATUS_GROUPS, filtersKey, isFiltered, type ListFilters, type StatusGroup } from "@/lib/sign/client/list-filters";
+import { EMPTY_FILTERS, STATUS_GROUPS, filtersKey, isFiltered, rangeIsBackwards, type ListFilters, type StatusGroup } from "@/lib/sign/client/list-filters";
 import { ZIP_MAX_DOCUMENTS } from "@/lib/sign/export/zip";
 import { cn } from "@/lib/utils";
+import { ContactPicker } from "../send/contact-picker";
 import { DocumentCards, DocumentTable } from "./document-rows";
 import { ListActions } from "./list-actions";
 import { SelectionBar } from "./selection-bar";
@@ -36,6 +37,9 @@ export function DocumentsList() {
   const attention = useNeedsAttention(true);
   const [group, setGroup] = useState<StatusGroup>("all");
   const [category, setCategory] = useState<string>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [contactId, setContactId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   useEffect(() => {
@@ -43,12 +47,15 @@ export function DocumentsList() {
     return () => clearTimeout(handle);
   }, [searchInput]);
 
-  const filters: ListFilters = { group, category, search };
+  const filters: ListFilters = { group, category, search, from, to, contactId };
   const { rows, counts, loading, refreshing, error, hasMore, loadingMore, loadMoreFailed, loadMore, reload } = useSignDocuments(filters);
   const filtered = isFiltered(filters) || searchInput.trim() !== "";
   const clearFilters = () => {
     setGroup(EMPTY_FILTERS.group);
     setCategory(EMPTY_FILTERS.category);
+    setFrom("");
+    setTo("");
+    setContactId(null);
     setSearchInput("");
     setSearch("");
   };
@@ -59,7 +66,7 @@ export function DocumentsList() {
 
   return (
     <div className="space-y-4">
-      <ListActions filters={filters} canSend={canSend} />
+      <ListActions filters={{ group, category, search, from: from || null, to: to || null, contactId }} canSend={canSend} />
       {selection.count > 0 ? <SelectionBar ids={selection.ids} max={ZIP_MAX_DOCUMENTS} onClear={selection.clear} /> : null}
       {!nothingAtAll || awaiting.count > 0 || attention.count > 0 ? (
         <ShortcutBar view={view} onView={setView} showAwaiting={canCountersign} awaitingCount={awaiting.count} attentionCount={attention.count} />
@@ -108,6 +115,32 @@ export function DocumentsList() {
               {category !== "all" && category !== "none" && !live.some((c) => c.id === category) ? <option value={category}>{categories.find((c) => c.id === category)?.name ?? category}</option> : null}
             </select>
           </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="space-y-1">
+              <label htmlFor="list-from" className="text-xs font-medium text-muted-foreground">
+                {t("dateFrom")}
+              </label>
+              <Input id="list-from" type="date" max={to || undefined} value={from} aria-invalid={rangeIsBackwards({ from, to })} className="h-9 w-full sm:w-40" onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="list-to" className="text-xs font-medium text-muted-foreground">
+                {t("dateTo")}
+              </label>
+              <Input id="list-to" type="date" min={from || undefined} value={to} aria-invalid={rangeIsBackwards({ from, to })} className="h-9 w-full sm:w-40" onChange={(e) => setTo(e.target.value)} />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1 sm:max-w-sm">
+              <label htmlFor="list-contact" className="text-xs font-medium text-muted-foreground">
+                {t("contactLabel")}
+              </label>
+              <ContactPicker id="list-contact" contactId={contactId} onChange={(c) => setContactId(c?.id ?? null)} />
+            </div>
+          </div>
+          {rangeIsBackwards({ from, to }) ? (
+            <p role="alert" className="text-xs text-destructive">
+              {t("rangeBackwards")}
+            </p>
+          ) : null}
         </>
       ) : null}
 

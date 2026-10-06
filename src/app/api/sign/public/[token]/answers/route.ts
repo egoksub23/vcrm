@@ -10,7 +10,7 @@
 // ============================================================
 import { json, publicLink, readJson } from "@/lib/sign/http";
 import { SignError } from "@/lib/sign/service/errors";
-import { saveAnswers } from "@/lib/sign/service/signing";
+import { saveAnswers, codeRequiredFor } from "@/lib/sign/service/signing";
 import type { AnyAnswerInput } from "@/lib/sign/service/signing";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -18,7 +18,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ toke
     request,
     params,
     async ({ ctx, lookup, sessionOk }) => {
-      if (lookup.doc.code_required && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
+      if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       const body = await readJson<{ answers?: unknown; confirmParts?: unknown }>(request, 2_500_000);
       if (typeof body.answers !== "object" || body.answers === null || Array.isArray(body.answers)) throw new SignError("bad_answers", "The answers are not valid.", 400);
       if (body.confirmParts !== undefined && (!Array.isArray(body.confirmParts) || body.confirmParts.length > 20 || body.confirmParts.some((p) => typeof p !== "string"))) {

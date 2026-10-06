@@ -8,6 +8,7 @@
 // and the sealing then run through the normal signer page and endpoints.
 //
 //   403 not_a_signer         the caller is not a Halo-user signer on this document (also when it does not exist)
+//   403 countersign_other_address  the place is addressed to an email that is not the caller's own (their sign-in or profile address, or the same mailbox with a +tag)
 //   409 not_your_turn        their step has not begun
 //   409 document_not_open    the document is finished, voided, expired or not sent
 //   409 already_signed       they have signed (409 signer_not_open when they declined)

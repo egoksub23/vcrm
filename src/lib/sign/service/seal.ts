@@ -242,6 +242,30 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
 }
 
 /** Claim up to `limit` documents and seal them. */
+/**
+ * The cron's sealing step: claim ONE document at a time and seal it, until the tick's time budget is used up or `max` documents are
+ * done. Claiming just before sealing means a lease only starts when the work does (claiming several up front started the lease of the
+ * second while the first was still being sealed), and a budget means a heavy document does not hold the tick up for the others. Sealing
+ * is CPU-bound on the one event loop, so it stays sequential. At 4 a tick and one tick a minute that is 240 an hour (docs/doc-sign-load-notes.md).
+ */
+export async function runSealingWithin(
+  base: Omit<SignCtx, "accountId" | "userId">,
+  opts: { budgetMs?: number; max?: number } = {},
+): Promise<{ claimed: number; completed: number; retry: number }> {
+  const budgetMs = opts.budgetMs ?? 20_000;
+  const max = opts.max ?? 4;
+  const started = Date.now();
+  const total = { claimed: 0, completed: 0, retry: 0 };
+  while (total.claimed < max && Date.now() - started < budgetMs) {
+    const one = await runSealing(base, 1);
+    if (one.claimed === 0) break;
+    total.claimed += one.claimed;
+    total.completed += one.completed;
+    total.retry += one.retry;
+  }
+  return total;
+}
+
 export async function runSealing(base: Omit<SignCtx, "accountId" | "userId">, limit = 2): Promise<{ claimed: number; completed: number; retry: number }> {
   const { data, error } = await base.admin.rpc("sign_claim_sealing", { p_limit: limit, p_lease_seconds: 300, p_max_attempts: 5 });
   if (error) {

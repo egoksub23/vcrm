@@ -65,8 +65,8 @@ beforeEach(() => {
   events = [];
   db.seed("profiles", [
     { user_id: SENDER, account_id: ACCT, full_name: "Gokula" },
-    { user_id: DIRECTOR, account_id: ACCT, full_name: "Director" },
-    { user_id: SOMEONE, account_id: ACCT, full_name: "Someone" },
+    { user_id: DIRECTOR, account_id: ACCT, full_name: "Director", email: "dir@example.com" },
+    { user_id: SOMEONE, account_id: ACCT, full_name: "Someone", email: "someone@example.com" },
   ]);
   // The real function (migration 158) refuses a signer who is not invited or finished, and makes a new token for that one signer only.
   db.rpcHandlers.sign_rotate_token = async (args) => {
@@ -206,6 +206,48 @@ describe("openCountersign", () => {
     expect(tokens.get("s2")).toBe("keep-2");
     expect(tokens.get("s3")).toBe("keep-3");
     expect(hashToken(tokens.get("s1")!)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  // WP25 review: the Halo sign-in replaces the emailed link and code, so it must be the person the place is addressed to
+  it("refuses a place that is addressed to someone else's email, even when the sender named this Halo user for it", async () => {
+    db.seed("sign_documents", [doc("d1")]);
+    // a sender (SOMEONE) put themselves on a place with a client's name and address: they hold no key to that mailbox
+    db.seed("sign_signers", [signer("forged", "d1", { internal_user_id: SOMEONE, full_name: "Mr Client", email: "client@bigcorp.example" })]);
+    tokens.set("forged", "the-clients-link");
+    expect(await code(openCountersign(ctxFor(SOMEONE), "d1", meta))).toEqual({ code: "countersign_other_address", status: 403 });
+    expect(tokens.get("forged")).toBe("the-clients-link");
+    expect(db.rpcCalls.filter((c) => c.name === "sign_rotate_token")).toHaveLength(0);
+    expect(events).toEqual([]);
+  });
+
+  it("opens a place addressed to the person's own address in any case, or the same mailbox with a +tag (the test mode's way)", async () => {
+    db.seed("sign_documents", [doc("d1"), doc("d2")]);
+    db.seed("sign_signers", [signer("a", "d1", { email: "DIR@Example.com" }), signer("b", "d2", { email: "dir+director@example.com" })]);
+    expect((await openCountersign(ctxFor(DIRECTOR), "d1", meta)).signerId).toBe("a");
+    expect((await openCountersign(ctxFor(DIRECTOR), "d2", meta)).signerId).toBe("b");
+  });
+
+  it("opens the one place that is addressed to them when they hold two on a document", async () => {
+    db.seed("sign_documents", [doc("d1")]);
+    db.seed("sign_signers", [signer("x", "d1", { role_key: "merchant", email: "client@bigcorp.example", order_no: 1 }), signer("y", "d1", { email: "dir@example.com", order_no: 2 })]);
+    expect((await openCountersign(ctxFor(DIRECTOR), "d1", meta)).signerId).toBe("y");
+  });
+
+  it("for a person of an envelope rotates the link of the person's first document and sets the session for that row, never for another row of theirs", async () => {
+    db.seed("sign_documents", [doc("d1", { envelope_id: "env1", envelope_position: 1 }), doc("d2", { envelope_id: "env1", envelope_position: 2 })]);
+    db.seed("sign_signers", [signer("anchor", "d1", { party_id: "anchor" }), signer("second", "d2", { party_id: "anchor" })]);
+    db.rpcHandlers.sign_envelope_rotate_token = async (args) => {
+      tokens.set(String(args.p_anchor), "anchors-new-link");
+      return { data: { signer_id: args.p_anchor, token: "anchors-new-link", envelope_id: "env1" }, error: null };
+    };
+    // asked from the second document: the link and the session still belong to the anchor, which is what the link's page looks the person up by
+    const opened = await openCountersign(ctxFor(DIRECTOR), "d2", meta);
+    expect(opened.signerId).toBe("anchor");
+    expect(opened.token).toBe("anchors-new-link");
+    expect(verifySession(opened.session!.value, "anchor", NOW)).toBe(true);
+    expect(verifySession(opened.session!.value, "second", NOW)).toBe(false);
+    expect(db.rpcCalls.filter((c) => c.name === "sign_envelope_rotate_token")).toHaveLength(1);
+    expect(db.rpcCalls.filter((c) => c.name === "sign_rotate_token")).toHaveLength(0);
   });
 
   it("works when the document asks for no code, and when the server has no key to sign a session with (the page then asks for the code)", async () => {

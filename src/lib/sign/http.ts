@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { requireCapability, toErrorResponse, type CapabilityContext } from "@/lib/auth/account";
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { clientIp } from "@/lib/net/client-ip";
+import { bytesForChars, readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { checkSharedRateLimit } from "@/lib/rate-limit-shared";
 import { publicOrigin } from "@/lib/site-url";
@@ -49,7 +50,10 @@ export function json(body: unknown, status = 200): NextResponse {
 export async function readJson<T = Record<string, unknown>>(request: Request, maxBytes = 1_500_000): Promise<T> {
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) throw new SignError("body_too_large", "That request is too large.", 413);
-  const text = await request.text();
+  // read a piece at a time and stop at the cap: a body sent chunked, or one that lies about its length, never fills the server's memory
+  const raw = await readBodyCapped(request, bytesForChars(maxBytes));
+  if (raw === null) throw new SignError("body_too_large", "That request is too large.", 413);
+  const text = new TextDecoder().decode(raw);
   if (text.length > maxBytes) throw new SignError("body_too_large", "That request is too large.", 413);
   try {
     const v = JSON.parse(text || "{}");
@@ -165,7 +169,10 @@ export async function readUpload(request: Request, maxBytes: number = MAX_UPLOAD
   const declared = Number(request.headers.get("content-length"));
   const limitMb = Math.round(maxBytes / (1024 * 1024));
   if (Number.isFinite(declared) && declared > maxBytes) throw new SignError("upload_too_large", `This file is larger than ${maxBytes === MAX_UPLOAD_BODY ? 25 : limitMb} MB.`, 413);
-  const form = await request.formData().catch(() => null);
+  // the same cap on what is actually received, whatever the request declared
+  const raw = await readBodyCapped(request, maxBytes);
+  if (raw === null) throw new SignError("upload_too_large", `This file is larger than ${maxBytes === MAX_UPLOAD_BODY ? 25 : limitMb} MB.`, 413);
+  const form = await new Response(raw as unknown as BodyInit, { headers: { "content-type": request.headers.get("content-type") ?? "" } }).formData().catch(() => null);
   if (!form) throw new SignError("bad_upload", "The upload could not be read.", 400);
   const fields: Record<string, string> = {};
   let file: { bytes: Uint8Array; name: string } | null = null;
