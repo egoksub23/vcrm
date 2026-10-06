@@ -41,7 +41,7 @@ Nothing. The retention date is fixed on the day a document is sealed. If you cha
 
 - **Drafts and documents that were never sealed.** A draft can be deleted by anyone who can send documents. A document that was sent but not completed (declined, expired or cancelled) is not deleted either; cancel it instead. See [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel).
 - **Copies outside Halo.** The signed PDF you or the signers downloaded or received by email is yours to keep or delete. Retention applies to the copy kept in Doc Sign.
-- **Deleting your whole workspace.** This is the one exception. When a workspace is deleted, everything in it is removed, signed documents included, so export your workspace data first (the owner can do this in Settings, under the workspace's data and deletion options). Whether signed documents should outlive a deleted workspace is still to be decided by Vircle together with legal advice; until then, they do not.
+- **Deleting your whole workspace.** This is the one exception. When a workspace is deleted, everything in it is removed, signed documents included, so export your workspace data first (the owner can do this in Settings, under the workspace's data and deletion options). Whether signed documents should outlive a deleted workspace is still to be decided together with legal advice; until then, they do not.
 
 ## Tips
 

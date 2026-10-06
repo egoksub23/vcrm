@@ -47,6 +47,9 @@ const FAMILIES: Record<string, string[]> = {
   tap: ["signature", "initials", "text", "number", "date", "dropdown", "checkbox", "upload"],
   status: ["todo", "optional", "done", "invalid", "system"],
   save: ["saving", "saved", "offline", "error"],
+  // an envelope's page: words picked with a condition or a variable (migration 171)
+  envelope: ["next", "finish", "introTitle", "introTitleFill"],
+  "envelope.state": ["active", "signed", "sealing", "completed", "declined", "expired", "voided", "failed", "not_invited"],
   others: ["signed", "declined", "turn", "invited", "waiting", "done", "title"],
   "sheet.signature": ["drawFailed", "pictureTooBig", "pictureUnreadable"],
   "sheet.picture": ["pictureTooBig", "pictureUnreadable"],
@@ -115,7 +118,7 @@ run("Sign.signer messages", () => {
       for (const [key, english] of en) {
         const translator = (m: Tree, loc: string) => createTranslator({ locale: loc, messages: m as never, namespace: undefined, onError: () => {} });
         // the placeholders are the argument names in the message: each must work with the same values
-        const values = { count: 2, done: 1, total: 3, page: 1, name: "Ali", part: "Bank details", workspace: "Kedai", product: "Halo", time: "0:42", to: "a***@x.test", reference: "R-1", date: "20 Oct 2026", value: "06 Oct 2026" };
+        const values = { count: 2, done: 1, total: 3, page: 1, name: "Ali", part: "Bank details", workspace: "Kedai", product: "Halo", time: "0:42", to: "a***@x.test", reference: "R-1", date: "20 Oct 2026", value: "06 Oct 2026", number: 2, title: "Fee schedule" };
         const asEn = translator(messages!.en, "en") as unknown as (k: string, v: object) => string;
         const asOther = translator(messages![locale], locale) as unknown as (k: string, v: object) => string;
         const a = asEn(key, values);

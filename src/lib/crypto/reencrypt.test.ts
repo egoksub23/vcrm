@@ -166,7 +166,7 @@ describe('ENCRYPTED_COLUMNS covers what the app writes', () => {
   // Names that hold encrypt() output on its way to a listed column (the p_* ones are RPC parameters
   // saved into jira_connection_secrets), the re-encrypt job's own variable, or a short-lived row.
   const NOT_COLUMNS = new Set([
-    'encryptedAccessToken', 'encryptedVerifyToken', 'encryptedKey', 'enc', 'blob', 'next', 'p_access_enc', 'p_refresh_enc',
+    'encryptedAccessToken', 'encryptedVerifyToken', 'encryptedKey', 'enc', 'blob', 'next', 'p_access_enc', 'p_refresh_enc', 'p_p12_enc', 'p_passphrase_enc',
   ])
 
   function* sourceFiles(dir: string): Generator<string> {
