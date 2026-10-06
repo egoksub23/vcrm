@@ -82,6 +82,9 @@ const nextConfig: NextConfig = {
     "/help": ["./content/help/**/*", "./public/help/**/*"],
     "/help/[...slug]": ["./content/help/**/*", "./public/help/**/*"],
     "/help/search-index.json": ["./content/help/**/*"],
+    // Doc Sign's PDF engine reads its fonts from disk (src/lib/sign/pdf/assets) when it stamps and seals.
+    "/api/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
+    "/api/v1/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
   },
 
   /**
