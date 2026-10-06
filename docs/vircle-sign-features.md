@@ -1,6 +1,6 @@
 ---
 title: "Vircle Doc Sign: feature set"
-subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026 (second revision)"
+subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026 (third revision)"
 ---
 
 # 1. Purpose and how to review this document
@@ -19,16 +19,22 @@ any-document editing are needed, and signers are listed with full name, email an
 signing order (sections 3.1, 3.2, 3.9, 3.10, 3.11).*
 
 *Second revision, after the sample Merchant Application Form and your online e-invoice form: the
-commercial terms differ by merchant group (template families, section 3.13), the e-invoice tax
+commercial terms differ by merchant group (handled as separate templates, section 3.13), the e-invoice tax
 details are added to the application, and the merchant fills the application **in parts, over
 several sittings, from one link** (forms, section 3.12). Appendix A maps every field.*
+
+*Third revision, after your answers: signing order is an optional checkbox per document, the code
+and WhatsApp are used only when chosen, Word files are converted to PDF and the PDF is what is
+worked on, the starting categories are Merchant, NDA, Partnership and Sales, and merchant groups are
+simply separate templates you select (the template families and variants of the second revision are
+removed). Section 10 lists what is confirmed, parked and still open.*
 
 Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "drop F-22". Priority:
 
 - **P1** first release (Phase 1), enough to run real merchant agreements.
 - **P2** second release (Phase 2), automation, API and scale.
-- **P1b** Phase 1B, straight after the core: forms filled in parts, template families and merchant
-  groups. The Merchant Registration add-on goes live when P1b is done.
+- **P1b** Phase 1B, straight after the core: forms filled in parts, and the Merchant Registration
+  content. The add-on goes live when P1b is done.
 - **P3** third release (Phase 3), trusted certificate, verify page, retention, hardening.
 - **Later** parked, not planned.
 
@@ -37,12 +43,14 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 1. First release is **Vircle only**: an operator switch `sign`, off for new workspaces and on for
    Vircle, like Jira and Incident Reporting. The design is multi-tenant from day one, so offering it
    to customers later is switching it on.
-2. Signers use **email or WhatsApp** links; no SMS.
+2. Signers use **email or WhatsApp** links; no SMS. Email is the default; WhatsApp only when the
+   sender chooses it for a signer.
 3. Signer languages at launch: **English and Bahasa Melayu**. Halo's Korean and Chinese files are
    also used for the signer page, because the strings already exist in the Halo language setup.
 4. Input is **PDF, Word (.docx, .doc) and images (JPG, PNG)**. Word files are converted to PDF by a
-   conversion service and the converted PDF is what is signed; the original is kept. Exact page
-   layout of a Word file depends on its fonts; where it must be exact, upload a PDF.
+   conversion service and the converted PDF is what is edited and signed, as other signing tools do
+   (confirmed); the original is kept. Exact page layout of a Word file depends on its fonts; where
+   it must be exact, upload a PDF.
 5. The signature is an **advanced electronic signature with audit trail** under an organisational
    certificate. A licensed certificate-authority signature is a P3 option, pending legal advice.
 6. Signed documents are **kept for a configurable period** (proposed default 7 years), even if the
@@ -72,7 +80,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | F-01 | Upload a PDF, Word file or image as a template or as a one-off document (up to 25 MB, 50 pages). Reject password-protected, corrupt or unsupported files with a clear message. | P1 |
 | F-02 | Field editor: click or drag on a page to place fields; move, resize, copy, align, delete; keyboard nudging; page thumbnails; zoom. | P1 |
 | F-03 | Field types: signature, initials, full name, **date signed (automatic)**, **date the signer picks**, text, multi-line text, email, phone, **number (decimals, currency symbol, minimum and maximum)**, checkbox, dropdown, radio group, **static text the sender writes on the document**, and **file upload by signer** (for example business registration certificate, ID copy). | P1 |
-| F-04 | **Signer roles** per template or document (for example Merchant, Director). Each field belongs to a role. Up to 6 roles. Roles are filled from the signing list (F-66). | P1 |
+| F-04 | **Signer roles** per template or document (for example Merchant, Director). Each field belongs to a role. Up to 6 roles. A role is either a **signer** or a **filler** (completes fields but does not sign). Roles are filled from the signing list (F-66). | P1 |
 | F-05 | Field properties: required or optional, label and help text, placeholder, default value, validation (length, email, phone, a regular expression such as an IC number), read-only. | P1 |
 | F-06 | **Merge fields**: a field can be filled before sending from a contact or workspace value (name, email, phone, company, country, any custom field, document reference, today's date). Merge keys are chosen from a list, not typed. From P1b every value is a **data field** (F-82) and merge fields are data fields that came from the contact. | P1 |
 | F-07 | Template **versions**: editing a template used by sent documents creates a new version. A document always keeps the exact version it was sent with. | P1 |
@@ -100,7 +108,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | Id | Requirement | Pri |
 |---|---|---|
 | F-21 | Invitation by email using the workspace's sender identity (name and reply-to), with the message, a button and the expiry date. | P1 |
-| F-22 | Invitation by WhatsApp using an approved template message that carries the link. Counts toward the monthly message limit. | P1 |
+| F-22 | Invitation by WhatsApp, only when the sender chooses WhatsApp for that signer, using an approved template message that carries the link. Counts toward the monthly message limit. | P1 |
 | F-23 | When signing follows an order, the next step is invited automatically when the previous one finishes (see F-67 to F-69). | P1 |
 | F-24 | Automatic reminders on a schedule (for example day 3 and day 7) and an expiry date. Reminders stop when the document is completed, declined, voided or expired. | P2 |
 | F-25 | Manual "Remind now" with a rate limit (once per 24 hours per signer). | P1 |
@@ -111,12 +119,12 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | Id | Requirement | Pri |
 |---|---|---|
 | F-27 | A private one-time link per signer; the page works on a phone first, and on tablets and computers. | P1 |
-| F-28 | Optional **verification code** (6 digits by email or WhatsApp, 10 minutes, 5 tries) before the document opens. Set per template or per document. | P1 |
+| F-28 | Optional **verification code** (6 digits by email or WhatsApp, 10 minutes, 5 tries) before the document opens. Used only when chosen, per template or per document; off by default. | P1 |
 | F-29 | Language picker on the page (English, Bahasa Melayu; Korean and Chinese available). Defaults to the contact's or workspace language. | P1 |
 | F-30 | **Consent to electronic signing** shown before the first signature, in the signer's language. The wording, version and time of consent are stored. | P1 |
 | F-31 | Guided filling: progress ("3 of 5 required fields done"), a Next button that jumps to the next unfinished field, and clear errors on the field. | P1 |
 | F-32 | Adopt a signature by **drawing**, **typing** (several script styles) or **uploading an image**; the same choice can be reused for initials. | P1 |
-| F-33 | The signer sees what earlier signers already completed. They can **download the document** at any time (unsigned or in-progress copy), and the **signed copy** when finished. | P1 |
+| F-33 | The signer sees what earlier signers already completed. They can download the **signed copy once the document is completed**, and not before. | P1 |
 | F-34 | **Decline** with a reason. The sender is told and the document stops. | P1 |
 | F-35 | Save and resume: a signer who closes the page can return to the same link and continue until it expires. | P1 |
 | F-36 | Friendly end states: finished (with download), already signed, declined, expired, voided, link replaced. None reveal any other document's data. | P1 |
@@ -175,12 +183,12 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | Id | Requirement | Pri |
 |---|---|---|
 | F-66 | **Signing list** on every document: one row per signer with **full name** and **email** (both required), phone (required only when WhatsApp is chosen), role, and an **order number**. Rows can be added, removed and dragged into a new order before sending; picking a Halo contact fills a row in one click. | P1 |
-| F-67 | **Sign in order** switch, chosen when the document is created. **On:** the document follows the list order; only the first step is invited; each next step is invited automatically when the one before is complete; before their turn a signer's link shows "Waiting for {name} to sign first" and no document content. **Off:** everyone is invited at once, anyone can sign first, and the order numbers are ignored. | P1 |
-| F-68 | Signers who share an order number form one **step** and sign in parallel; the next step starts when every signer in the step has finished. | P1 |
+| F-67 | **"This document needs signing order"** checkbox, shown where the signers are listed, as in other signing tools. **Unticked (the default):** everyone is invited at once, anyone can sign first, and no order numbers are shown. **Ticked:** order numbers and drag handles appear; only the first signer is invited; each next signer is invited automatically when the one before has signed; before their turn a signer's link shows "Waiting for {name} to sign first" and no document content. The choice is made for each document; a template or category can only preset the checkbox. | P1 |
+| F-68 | Signers who share an order number form one **step** and sign in parallel; the next step starts when every signer in the step has finished. (Considered for later; until then each order number holds one signer.) | P2 |
 | F-69 | While order is on: reminders go only to the current step's signers; a decline stops the chain and tells the sender; expiry applies to the whole document; a countersigner inside Halo sees the document under "Awaiting my signature" only when their step begins. | P1 |
 | F-70 | After sending: a signer not yet invited can be renamed, re-addressed or moved to a later position; the current or a finished signer can only be replaced with "change recipient" (new link, same position). The order switch itself cannot be flipped after sending: void and send again. | P1 |
 | F-71 | The list and the order are recorded in the sealed record: the completion certificate lists signers in signing order with their times, and the audit trail records each invitation as "invited because {name} finished". | P1 |
-| F-72 | A template stores its roles and default order and switch setting; the wizard prefills them and the sender may change them for this document. A role can be an internal Halo user (countersigner). | P1 |
+| F-72 | A template stores its roles and an optional preset for the signing-order checkbox; the wizard prefills them and the sender may change them for this document. A role can be an internal Halo user (countersigner). | P1 |
 
 ## 3.10 Any document: upload, Word, prepare
 
@@ -196,17 +204,17 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 
 | Id | Requirement | Pri |
 |---|---|---|
-| F-78 | **Categories.** Every template and document has a category (for example Merchant agreements, Employment, Vendors, General). Workspaces create, rename and archive their own. Lists filter by category. A category carries defaults that override the workspace defaults: expiry, reminders, code required, sign-in-order on or off, consent wording, retention. | P1 |
+| F-78 | **Categories.** Every template and document has a category (the starting set is **Merchant agreements, NDA, Partnership and Sales**). Workspaces create, rename and archive their own. Lists filter by category. A category carries defaults that override the workspace defaults: expiry, reminders, code required, a preset for the signing-order checkbox, consent wording, retention. The four starting categories exist for every workspace using Doc Sign; Merchant agreements is filled by the Merchant Registration add-on and the others start empty for the workspace's own templates. | P1 |
 | F-79 | **Add-ons** are ready-made packs for a business process. Each can contain a category, templates, contact fields, wording and, later, an automation recipe and a registration form. The first add-on is **Merchant Registration**. | P1 |
 | F-80 | **Operator control.** Which add-ons a workspace may use is switched in the Platform console. A workspace Owner or Admin installs an available add-on from Settings > Doc Sign > Add-ons. Installing again never overwrites what the workspace has changed. | P1 |
 | F-81 | **Add-on updates.** A new version shows as "Update available" with a list of changes; applying it creates new template versions and never alters sent documents. | P2 |
 
-**What the Merchant Registration add-on contains:** the category *Merchant agreements*; the family
-*Merchant Application* with variants for Merchant group A, B and C (you provide the real files and
-terms); the form with its parts and data fields (Appendix A), including the new **e-invoice and tax
-details** part; the template *Data Processing Terms*; contact fields for every mapped answer;
-English and Bahasa Melayu wording. Phase 2 adds the onboarding automation recipe and the option
-lists; Phase 3 the public registration entry.
+**What the Merchant Registration add-on contains:** the category *Merchant agreements*; the template
+*Merchant Application*, built from your sample, with the form and its parts (Appendix A) including
+the new **e-invoice and tax details** part; contact fields for every mapped answer; English and
+Bahasa Melayu wording. A template with other fees or terms is made by duplicating it (section 3.13).
+Phase 2 adds the onboarding automation recipe and the option lists; Phase 3 the public registration
+entry.
 
 ## 3.12 Forms: fill in parts, over several sittings, with one link
 
@@ -228,19 +236,20 @@ rarely finish in one go. P1b makes the document a **form first, then a signature
 | F-92 | **Sender's progress view:** per part status, last activity, the answers so far (read only), a reminder that names the unfinished parts, and "extend expiry". | P1b |
 | F-93 | **Write-back.** Mapped answers update the contact's and company's fields when the application is submitted; each change is logged with the old and new value. | P1b |
 | F-94 | **Form builder** for people with `sign.templates`: add and reorder parts, add data fields, set rules and validation, set text in each language, preview as a signer. | P1b |
-| F-95 | **Share a part.** The signer can send one part's link to a colleague (for example finance, for bank and tax details). The colleague sees only that part and cannot sign; their name and email are recorded. | P2 |
+| F-95 | **Forward.** During signing, a signer may forward their turn, or one part of the form, to another person (name and email). The new person sees only what was handed to them; forwarding the whole turn makes them the signer for that role. Every forward is recorded in the audit trail, and the sender can switch forwarding off for a template or a document. | P2 |
 | F-96 | **Option lists** kept in Settings and shared by all forms: Malaysian states, banks, company registration ID types, tax types, e-invoice phases. A searchable **MSIC code** picker. | P2 |
+| F-103 | **Assign in advance.** When preparing, the sender assigns each field, and each part of a form, to a role and names who holds each role, so it is known before sending who signs and who fills what. | P1b |
 | F-97 | **Form without signature.** The same form and link used on its own (for example e-invoice details for an existing merchant), with the answers written back. | P3 |
 
-## 3.13 Template families and merchant groups
+## 3.13 Templates for different terms (merchant groups)
 
 | Id | Requirement | Pri |
 |---|---|---|
-| F-98 | **Template family with variants.** A family (for example Merchant Application) has variants (Merchant group A, B, C). Each variant is a full template with its own wording, fees and key terms. All variants share the family's form and data fields, so tax details and contacts are identical everywhere. | P1b |
-| F-99 | **Choosing the variant.** When sending, the sender picks the merchant group; from a contact that already has a merchant group the variant is chosen automatically. | P1b |
-| F-100 | **Commercial values as data fields** with each variant's defaults (platform fee for FPX, credit card and debit card, payment channel note, notice period, settlement schedule, free usage period). They print on the document. Changing them for one merchant is off by default and needs an explicit workspace setting. | P1b |
-| F-101 | **Variant management:** duplicate a variant, compare two variants side by side, copy fields from another variant by matching labels. Changing terms creates a new version; documents already sent keep theirs. | P1b |
-| F-102 | The sealed record states the group, variant and version, and the terms as printed. | P1b |
+| F-98 | **Different terms are different templates.** A merchant group, or any case with other fees or clauses, is simply another template in the same category. The sender selects the template when starting a signing process. | P1 |
+| F-99 | **Duplicate template** copies the file, fields, form and placements into a new draft with a new name, so a variant takes minutes to make. | P1 |
+| F-100 | Fees and other commercial wording are ordinary text in the template, or **static text the sender writes** on the document when the template is set up that way (F-03). | P1 |
+| F-101 | The sealed record names the template, its version and the terms as printed. | P1 |
+| F-102 | Compare two templates side by side, and a shared library of form parts reused across templates (for example the e-invoice part). | Later |
 
 **Until P1b is built**, a merchant can fill the application directly on the document (F-35 save and
 resume), and the e-invoice tax details are an extra page on the template. P1b replaces that with the
@@ -257,10 +266,11 @@ signer (the P3 certificate is for sealing, not per person).
 
 0. The workspace has the **Merchant Registration add-on** installed (section 3.11).
 1. An agent creates the contact (P1), or a merchant enters through a public registration page
-   (P3). The contact receives the tag "Merchant applicant" and a **merchant group**.
-2. The automation "Merchant onboarding" (P2) starts: it sends the **Merchant Application** variant
-   for that group to the merchant by WhatsApp and email, with the signing list Merchant first,
-   Director second and sign-in-order on. (Before P2 an agent sends it by hand.)
+   (P3). The contact receives the tag "Merchant applicant".
+2. The automation "Merchant onboarding" (P2) starts: it sends the chosen **Merchant Application**
+   template (the one for that merchant's terms) to the merchant, by email and, if chosen, WhatsApp,
+   with the signers listed and the signing-order checkbox as set on the template. (Before P2 an
+   agent does this by hand from the contact page.)
 3. The merchant opens the single link on their phone, enters the code and sees the **parts**:
    company and tax information, invoicing and contact details, e-invoice input, bank account,
    documents, commercial terms, then review and sign. They fill some parts now and come back to the
@@ -336,8 +346,8 @@ and screen-reader checks, and strings exist in four languages.
 page, returns on a computer through the same link and finds their answers, finishes the remaining
 parts, and signs; the answers are printed on the agreement, including the e-invoice tax details; a
 conditional field (SST) and a conditional upload (company type) appear and disappear correctly; the
-sender sees progress per part; answers are written to the contact; and two merchants of different
-groups receive different fees and terms from the same family.
+sender sees progress per part; answers are written to the contact; and a second template with
+different fees, made by duplicating the first, is sent the same way.
 
 **Phase 2 is accepted when** the merchant onboarding automation runs from a contact tag to a
 completed, filed, notified document with no manual step, reminders and expiry run on time, the
@@ -348,31 +358,38 @@ as trusted in common readers, the verify page confirms an untouched file and rej
 retention blocks early removal, and a load test of 200 documents in an hour completes within the
 agreed time.
 
-# 10. Questions for you
+# 10. Decisions
 
-1. Confirm or change the six assumptions in section 1.
-2. Merchant agreement: please supply the real agreement as Word and as PDF, say how many pages and
-   signers it has, and name the fonts it uses (they must be available to the converter).
-3. Which fields must a merchant fill, and which of them are sensitive (IC, bank account)?
-4. Who is the countersigner, and must they sign before or after the merchant?
-5. Is WhatsApp the main channel? If so, are you able to get a WhatsApp utility template approved
-   for the invitation message?
-6. Retention period and the deletion exception (section 6).
-7. Should sign-in-order be on by default for the Merchant agreements category (Merchant first,
-   Director second)?
-8. Which other categories do you want at the start besides Merchant agreements?
-9. Merchant groups: how many (A, B, C and more), what exactly differs between them (fees only, or
-   clauses too), and who may change fees on one merchant?
-10. The sample application has "Company Name" and "Company Registered Name (If Different)", and your
-    online form has "Company Legal Name (as per SSM)". Proposal: ask the legal name once and ask a
-    trading name only if different. Confirm.
-11. The application has "GST No." and the online form has "SST Registration Number". Replace GST
-    with SST? Keep both?
-12. Please supply the option lists: company registration ID types, e-invoice compliance phases, tax
-    types, and whether the bank list is a fixed list of Malaysian banks.
-13. Should the official company stamp be mandatory, and is an uploaded image of the stamp acceptable?
-14. Which parts can a merchant pass to a colleague (finance for bank and tax)?
-15. Does Vircle sign the application too (countersign), or only the merchant?
+**Confirmed by you (6 Oct 2026)**
+
+| Topic | Decision |
+|---|---|
+| Merchant agreement | It is a template. Your sample Merchant Application Form is the starting point, with the e-invoice tax details added. |
+| Signing order | Chosen for each document with a checkbox "This document needs signing order", as in other signing tools. Off unless ticked. No fixed order is assumed for the merchant or the director. |
+| Signers sharing a step | Can be considered later (Phase 2). |
+| Countersigner | Same rule: signing order is the sender's choice for each document. |
+| Verification code | Used only when chosen for a template or document. |
+| WhatsApp | Used only when the sender chooses it for a signer. Email is the default. |
+| Word files | Converted to PDF; the PDF version is what is edited and signed. |
+| Starting categories | Merchant agreements, NDA, Partnership, Sales. |
+| Merchant groups | No special mechanism. Different terms are different templates, selected when starting a signing process. |
+| Who fills and who signs | The sender can say in advance which fields and parts are filled or signed by whom (roles), and a signer can forward their turn or a part to someone else (the sender may switch forwarding off). |
+| Signer's download | Only after the document is completed. |
+| Signing page look | Workspace logo and name (my suggestion, accepted). |
+| Name in the sidebar | "Doc Sign". |
+
+**Parked or not needed now:** order of the application parts (as drawn in the UX document); asking the legal name once and a trading name only if different (both fields as on your sample); anything else missing from the screens (none for now).
+
+**Still open, because they affect the start:**
+
+1. Retention period for signed contracts, and whether they may outlive a deleted workspace.
+2. Ordering the sealing certificate, and whether a certificate-authority one is needed at launch
+   (legal read on Malaysian e-signature requirements for merchant contracts).
+3. VPS memory and CPU, or permission to measure them.
+4. Option lists for the form: company registration ID types, e-invoice compliance phases, tax
+   types, the bank list. (Needed before the form is built; until then they are free choices.)
+5. Is the official company stamp mandatory? (Default: optional upload.)
+6. WhatsApp template approval, only if WhatsApp will be used for invitations.
 
 # Appendix A. Merchant Application: data fields
 
@@ -433,12 +450,12 @@ Fields that exist in both are asked once.
 | Photocopy of director or owner ID | Always | Yes |
 | Up to 3 pictures of the business premise | Always | At least 1 (to confirm) |
 
-**Part 5. Commercial terms** (read only, from the merchant group's variant; the merchant ticks "I have read and accept")
+**Part 5. Commercial terms** (read only, from the chosen template's own wording; the merchant ticks "I have read and accept")
 
 Platform fee for FPX, credit card and debit card; the payment channel note; the nine key terms
 (partner, right to decline, information requests, account access, refund and void, termination
 notice of 60 days, binding effect of the merchant terms, hardware, settlement twice weekly).
-Fees, notice period and settlement schedule are data fields with each variant's defaults (F-100).
+Different fees or terms mean a different template (F-98); the values are ordinary text in the template.
 
 **Part 6. Review and sign**
 

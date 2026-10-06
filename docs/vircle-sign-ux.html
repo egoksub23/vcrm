@@ -119,14 +119,16 @@ pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius
 </nav>
 
 <main>
-<p class="meta">DOCUMENT 3 OF 3 &middot; SECOND REVISION 6 OCT 2026 &middot; ALL PEOPLE AND AMOUNTS ARE EXAMPLES</p>
+<p class="meta">DOCUMENT 3 OF 3 &middot; THIRD REVISION 6 OCT 2026 &middot; ALL PEOPLE AND AMOUNTS ARE EXAMPLES</p>
 <h1>Vircle Doc Sign: screens and flows</h1>
 <p class="lede">What each person sees, in the order they meet it. These are wireframes in Halo's own layout, not final visuals: they fix what is on each screen and what each control does, so the build matches what you approved. Numbers on a screen match the notes beside it. Requirement ids (F-12 and so on) refer to document 1.</p>
 <p class="note"><b>Reading tip.</b> Violet marks the first signer's fields and teal the second's, everywhere in this document, the same way they appear in the editor and on the signing page. Amber means something the signer still has to do. All screens work on a phone for the signer; the sender's screens are designed for a computer first and stack on a tablet.</p>
 
 <p class="note"><b>Revised.</b> Merchant agreement is now an <b>add-on</b> and a <b>category</b>, not the whole product. Any PDF, Word file or image can be uploaded and prepared (S2, S2b). Every document has a <b>signing list</b> with full name, email and an optional <b>signing order</b>: with order on, each step is invited only after the one before has signed (S2, S3, signer screens). New screens: S2b, A1b (categories and add-ons).</p>
 
-<p class="note"><b>Second revision.</b> After the sample Merchant Application and your online e-invoice form: the merchant fills the application <b>in parts, over several sittings, from one link</b> (section "Forms in parts"); commercial terms come from a <b>merchant group</b> variant (Group A, B, C); and the <b>e-invoice tax details</b> are a part of the form. Group B and C values on these screens are illustrative only.</p>
+<p class="note"><b>Second revision.</b> After the sample Merchant Application and your online e-invoice form: the merchant fills the application <b>in parts, over several sittings, from one link</b> (section "Forms in parts"); commercial terms differ by merchant group, which became separate templates in the third revision; and the <b>e-invoice tax details</b> are a part of the form. Group B and C values on these screens are illustrative only.</p>
+
+<p class="note"><b>Third revision, after your answers.</b> Signing order is now a checkbox <b>"This document needs signing order"</b>, off by default; order numbers and drag handles appear only when it is ticked. Merchant groups are just <b>separate templates</b> you duplicate and pick (the variant and compare screens are gone). Starting categories are Merchant agreements, NDA, Partnership and Sales. The signer cannot download until the document is completed. Fields and form parts can be assigned to roles in advance, and a signer can forward their turn (Phase 2). The questions at the end are replaced by what is confirmed and what is still open.</p>
 
 <!-- ============ PRINCIPLES ============ -->
 <h2 id="principles">Principles and map</h2>
@@ -173,7 +175,7 @@ sequenceDiagram
   H->>M: Link by email and WhatsApp
   M->>H: Open link, enter code, consent
   M->>H: Fill fields, adopt signature, finish
-  Note over H,D: With sign in order on, each step is invited only when the one before has signed
+  Note over H,D: Only if "needs signing order" is ticked, each person is invited when the one before has signed
   H->>D: "Awaiting your signature" in Halo
   D->>H: Review and sign
   H->>H: Seal PDF, add certificate, record fingerprint
@@ -191,7 +193,7 @@ flowchart TD
   G --> H[Adopt signature]
   H --> I[Finish]
   F --> X[Decline with a reason]
-  I --> J[Download signed copy]
+  I --> J[Signed copy by email once the document is complete]
 </pre>
 <h3>Any document, from upload to invitations</h3>
 <pre class="mermaid">
@@ -202,18 +204,18 @@ flowchart LR
   C --> D[Place fields and choose who fills each]
   D --> T[Save as template, optional]
   D --> E[Signing list: name, email, order]
-  E --> F{Sign in order?}
-  F -- on --> G[Invite step 1, then each next step]
-  F -- off --> H[Invite everyone now]
+  E --> F{Needs signing order ticked?}
+  F -- yes --> G[Invite number 1, then each next one]
+  F -- no, the default --> H[Invite everyone now]
 </pre>
-<h3>Signing order, step by step</h3>
+<h3>Signing order, when the checkbox is ticked</h3>
 <pre class="mermaid">
 flowchart TD
-  S[Send] --> A["Step 1: Merchant invited"]
-  A --> B{Everyone in step 1 signed?}
+  S[Send] --> A["Number 1: Merchant invited"]
+  A --> B{Signer 1 signed?}
   B -- no --> A
-  B -- yes --> C["Step 2: Director invited and notified"]
-  C --> D{Everyone in step 2 signed?}
+  B -- yes --> C["Number 2: Director invited and notified"]
+  C --> D{Signer 2 signed?}
   D -- yes --> Z[Seal and complete]
   W["Before their turn, a later signer sees: Waiting for Ali to sign first"] -.-> C
   X[Decline, void or expiry] -.-> STOP[Chain stops, sender told]
@@ -306,18 +308,19 @@ stateDiagram-v2
 <div class="stack"><div class="grid2">
  <div class="wf"><div class="cap">Step 1 &middot; Document</div><div class="pane">
   <div class="steps"><span class="on"><b>1</b> Document</span><span><b>2</b> Signers</span><span><b>3</b> Prepare</span><span><b>4</b> Send</span></div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="chip a">All</span><span class="chip">Merchant agreements</span><span class="chip">General</span></div>
-  <div class="card" style="border-color:var(--accent)"><b>Merchant Application</b> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">Form in 7 parts &middot; 4 pages &middot; 3 variants</span><div class="lbl">Merchant group</div><div class="in v">Group A (from the contact) &#9662;</div></div>
-  <div class="card" style="margin-top:6px"><b>Data Processing Terms</b> <span class="chip">v1</span> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">2 pages &middot; 1 role &middot; 4 fields</span></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="chip a">All</span><span class="chip">Merchant agreements</span><span class="chip">NDA</span><span class="chip">Partnership</span><span class="chip">Sales</span></div>
+  <div class="card" style="border-color:var(--accent)"><b>Merchant Application</b> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">Form in 7 parts &middot; 4 pages &middot; v3</span></div>
+  <div class="card" style="margin-top:6px"><b>Merchant Application, Group B</b> <span class="chip">v1</span> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">A duplicate with other fees &middot; 4 pages</span></div>
+  <div class="card" style="margin-top:6px"><b>Mutual NDA</b> <span class="chip">v2</span> <span class="chip">NDA</span><br><span style="color:var(--muted)">2 pages &middot; 2 roles &middot; 5 fields</span></div>
   <div class="card" style="margin-top:8px;border-style:dashed;text-align:center"><b>Upload a file</b><br><span style="color:var(--muted)">PDF, Word or image &middot; up to 25 MB<br>Drop it here or <u>choose</u></span></div></div></div>
  <div class="wf"><div class="cap">Step 2 &middot; Signing list</div><div class="pane">
   <div class="steps"><span class="done"><b>&#10003;</b> Document</span><span class="on"><b>2</b> Signers</span><span><b>3</b> Prepare</span><span><b>4</b> Send</span></div>
-  <div class="card" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span><b>Sign in order</b><br><span style="color:var(--muted)">Each person is invited only after the one before has signed.</span></span><span style="display:inline-block;width:30px;height:16px;border-radius:99px;background:var(--accent);position:relative;vertical-align:middle"><i style="position:absolute;right:2px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--accent-ink)"></i></span></div>
+  <div class="card" style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 16px;height:16px;margin-top:1px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:3px;text-align:center;font:700 11px/13px var(--mono)">&#10003;</span><span><b>This document needs signing order</b><br><span style="color:var(--muted)">Each person is invited only after the one before has signed. Unticked, everyone is invited at once and no numbers are shown.</span></span></div>
   <div class="tbl" style="margin-top:6px"><div class="r h" style="grid-template-columns:18px 1.2fr 1.6fr .9fr 12px"><span>#</span><span>Full name</span><span>Email</span><span>Role</span><span></span></div>
    <div class="r" style="grid-template-columns:18px 1.2fr 1.6fr .9fr 12px"><span>&#8942;1</span><span>Ali bin Ahmad</span><span>ali@kedairuncit.example</span><span><span class="chip a">Merchant</span></span><span>&times;</span></div>
    <div class="r" style="grid-template-columns:18px 1.2fr 1.6fr .9fr 12px"><span>&#8942;2</span><span>Gokula</span><span>gokula@example.com</span><span><span class="chip" style="background:var(--role-b-soft);color:var(--role-b)">Director</span></span><span>&times;</span></div></div>
   <div style="display:flex;gap:6px;margin-top:6px"><span class="btn">+ Add signer</span><span class="btn">+ From contacts</span></div>
-  <div class="lbl">Merchant: send by</div><span class="chip a">Email</span> <span class="chip a">WhatsApp</span> <span class="chip">Code required</span> <span class="in" style="display:inline-block;margin-left:4px">+60 12-345 6789</span></div></div>
+  <div class="lbl">Merchant: send by</div><span class="chip a">Email</span> <span class="chip">WhatsApp</span> <span class="chip">Code required</span> <span style="color:var(--muted);font-size:11px">Email is the default. Choose WhatsApp (phone number then required) or a code only when you want them.</span></div></div>
  <div class="wf"><div class="cap">Step 3 &middot; Prepare (template: check values)</div><div class="pane">
   <div class="steps"><span class="done"><b>&#10003;</b> Document</span><span class="done"><b>&#10003;</b> Signers</span><span class="on"><b>3</b> Prepare</span><span><b>4</b> Send</span></div>
   <div class="lbl">Prefilled from the contact (edit if wrong)</div>
@@ -332,16 +335,16 @@ stateDiagram-v2
   <div class="lbl">Opens the full editor (S2b)</div><span class="btn p">Place fields</span> <span class="btn">Save as template</span></div></div>
  <div class="wf"><div class="cap">Step 4 &middot; Review and send</div><div class="pane">
   <div class="steps"><span class="done"><b>&#10003;</b> Document</span><span class="done"><b>&#10003;</b> Signers</span><span class="done"><b>&#10003;</b> Prepare</span><span class="on"><b>4</b> Send</span></div>
-  <div class="card"><b>Merchant Agreement</b> v3 &middot; Merchant agreements<br><b>Signing order:</b> 1 Ali bin Ahmad (email, WhatsApp), then 2 Gokula<br>Expires: 20 Oct 2026 (14 days) &middot; Reminders: day 3, day 7</div>
+  <div class="card"><b>Merchant Agreement</b> v3 &middot; Merchant agreements<br><b>Signing order:</b> 1 Ali bin Ahmad (email), then 2 Gokula<br>Expires: 20 Oct 2026 (14 days) &middot; Reminders: day 3, day 7</div>
   <div class="card" style="margin-top:6px"><div class="lbl" style="margin-top:0">Preview</div><div class="ln"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:85%"></div></div>
   <p style="color:var(--muted)">This counts as 1 of 200 documents this month.</p>
   <div style="display:flex;gap:6px;justify-content:space-between"><span class="btn">Save draft</span><span class="btn p">Send for signature</span></div></div></div>
 </div>
 <ol class="callouts"><li><span class="n">1</span><span><b>Step 1</b> offers templates (filtered by category) and an <b>Upload a file</b> area for any PDF, Word file or image. Opened from a contact, the contact is already chosen.</span></li>
-<li><span class="n">2</span><span><b>Step 2, the signing list:</b> one row per signer with full name and email (both required), role, and the order shown by the number and drag handle. Rows outlined in red cannot be sent. WhatsApp also needs a phone number.</span></li>
-<li><span class="n">3</span><span><b>Sign in order</b> is chosen here and fixed once sent. <b>On:</b> only step 1 is invited, the rest are invited as each step finishes. <b>Off:</b> everyone is invited now and the numbers are ignored. Rows with the same number sign together.</span></li>
+<li><span class="n">2</span><span><b>Step 2, the signing list:</b> one row per signer with full name and email (both required) and a role. A role is a <b>signer</b> or a <b>filler</b> (completes fields, does not sign). Order numbers and drag handles show only when the checkbox is ticked. Rows outlined in red cannot be sent. WhatsApp, if chosen, needs a phone number.</span></li>
+<li><span class="n">3</span><span><b>"This document needs signing order"</b> is chosen here and fixed once sent. <b>Ticked:</b> only number 1 is invited, the rest as each person signs. <b>Unticked (default):</b> everyone is invited now. One person per number for now; signing together can be added later. A template can preset the checkbox. Which fields belong to which role is set in advance in Step 3 or the editor, so it is known who fills and who signs what before sending.</span></li>
 <li><span class="n">4</span><span><b>Step 3</b> depends on the source. A template shows prefilled values to check (missing ones amber, or "merchant will fill"). An uploaded file opens the editor.</span></li>
-<li><span class="n">5</span><span><b>Step 4</b> says exactly what will happen: who, in which order, by which channel, when it expires, and the monthly count so a limit never surprises anyone.</span></li></ol></div>
+<li><span class="n">5</span><span><b>Step 4</b> says exactly what will happen: who, in which order (if ordered), by which channel, when it expires, and the monthly count so a limit never surprises anyone.</span></li></ol></div>
 
 <h3>S2b. Upload and prepare any document</h3>
 <p class="tag">F-73 to F-76, F-03</p>
@@ -384,7 +387,7 @@ stateDiagram-v2
    <ul class="tl" style="margin-top:8px"><li>Completed fields and signed<small>Ali bin Ahmad &middot; 10:42 &middot; Android, Kuala Lumpur network</small></li><li>Code verified<small>10:38</small></li><li>Viewed<small>10:36</small></li><li>Sent by email and WhatsApp<small>Gokula &middot; 09:10</small></li><li class="m">Created<small>Gokula &middot; 09:04</small></li></ul></div>
  </div></div></div>
 <ol class="callouts"><li><span class="n">1</span><span>Actions that apply to this state only: Remind and Resend while waiting; Download once complete; Void in the menu (asks for a reason).</span></li>
-<li><span class="n">2</span><span>Signers are listed in signing order with name, email, role and status. While order is on, later signers show "Not invited yet" until their step begins. "Change recipient" reissues the link, kills the old one and keeps the position.</span></li>
+<li><span class="n">2</span><span>Signers are listed in signing order with name, email, role and status. While the document needs signing order, later signers show "Not invited yet" until their turn begins. "Change recipient" reissues the link, kills the old one and keeps the position.</span></li>
 <li><span class="n">3</span><span>The audit trail reads newest first, in plain language. "Intact" is the live chain check. Each line opens the device and network detail.</span></li>
 <li><span class="n">4</span><span>Merchant uploads (for example a certificate) appear under Files with a preview.</span></li></ol></div>
 
@@ -404,7 +407,7 @@ stateDiagram-v2
 <p class="tag">F-07, F-09</p>
 <div class="two"><div class="wf"><div class="cap">Sign &rsaquo; Templates</div><div class="pane">
  <div class="hd"><b>Templates</b><span class="btn p">Upload file</span></div>
- <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="tag">Category</span><span class="chip a">All</span><span class="chip">Merchant agreements</span><span class="chip">General</span><span class="chip">+ New category</span></div>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="tag">Category</span><span class="chip a">All</span><span class="chip">Merchant agreements</span><span class="chip">NDA</span><span class="chip">Partnership</span><span class="chip">Sales</span><span class="chip">+ New category</span></div>
  <div class="tbl"><div class="r h" style="grid-template-columns:2fr .8fr 1fr 1fr"><span>Name</span><span>Version</span><span>Used</span><span>Edited</span></div>
  <div class="r" style="grid-template-columns:2fr .8fr 1fr 1fr"><span><b>Merchant Agreement</b> <span class="chip g">Active</span> <span class="chip a">Add-on</span></span><span>v3</span><span>41 documents</span><span>2 Oct</span></div>
  <div class="r" style="grid-template-columns:2fr .8fr 1fr 1fr"><span><b>Data Processing Terms</b> <span class="chip g">Active</span> <span class="chip a">Add-on</span></span><span>v1</span><span>12 documents</span><span>28 Sep</span></div>
@@ -469,7 +472,7 @@ stateDiagram-v2
    <div class="fld done" style="left:8%;top:40%;width:60%;height:7%">Ali bin Ahmad &#10003;</div>
    <div class="fld todo" style="left:8%;top:54%;width:60%;height:12%">Tap to sign</div>
    <div class="fld todo" style="left:8%;top:72%;width:60%;height:7%">Upload certificate</div></div></div></div>
-  <div class="foot"><span class="btn p">Next required field</span><span style="text-align:center;font-size:11px;color:var(--muted)">Download &middot; Save and finish later</span></div></div>
+  <div class="foot"><span class="btn p">Next required field</span><span style="text-align:center;font-size:11px;color:var(--muted)">Save and finish later</span></div></div>
  <div class="phone"><div class="top"><span>Your signature</span><span>&times;</span></div><div class="body">
   <div class="seg"><i class="on">Draw</i><i>Type</i><i>Upload</i></div>
   <div class="pad">Sign here with your finger</div>
@@ -480,13 +483,13 @@ stateDiagram-v2
   <div style="width:44px;height:44px;border-radius:50%;background:var(--good-soft);color:var(--good);margin:0 auto;line-height:44px;font-size:22px">&#10003;</div>
   <b style="font:700 16px var(--display)">You have signed</b>
   <span style="color:var(--muted)">Waiting for the director to sign. A signed copy will be emailed to ali@kedairuncit.example.</span></div>
-  <div class="foot"><span class="btn p">Download my copy</span></div></div>
+  <div class="foot"><span class="btn p">Done</span></div></div>
 </div>
 <ol class="callouts"><li><span class="n">1</span><span><b>Code screen</b> (only if the template asks): 6 digits, countdown to resend, switch channel, after 5 wrong tries a clear lock message.</span></li>
 <li><span class="n">2</span><span><b>Consent</b> before the first signature, with what is recorded. The wording and version are stored. "Decline to sign" is always reachable.</span></li>
-<li><span class="n">3</span><span><b>Fill screen:</b> progress, the page, amber fields still to do, green fields done. "Next required field" scrolls and focuses the next one. Download and "finish later" stay in reach.</span></li>
+<li><span class="n">3</span><span><b>Fill screen:</b> progress, the page, amber fields still to do, green fields done. "Next required field" scrolls and focuses the next one. "Save and finish later" stays in reach. There is no download until the document is completed.</span></li>
 <li><span class="n">4</span><span><b>Signature sheet:</b> draw, type (several scripts) or upload. One adopted signature serves initials as well.</span></li>
-<li><span class="n">5</span><span><b>Done:</b> says what happens next (waiting for the next signer, or the signed copy is on its way) and offers a download.</span></li></ol>
+<li><span class="n">5</span><span><b>Done:</b> says what happens next (waiting for the next signer, or the signed copy is on its way) and says the signed copy will arrive by email when everyone has finished. Download is offered only once the document is complete.</span></li></ol>
 
 <h3>On a computer, and the other end states</h3>
 <div class="grid2">
@@ -497,15 +500,15 @@ stateDiagram-v2
   <div class="card"><span class="chip a">Not your turn yet</span> Waiting for Ali bin Ahmad to sign first. We will message you when it is your turn.</div>
   <div class="card"><span class="chip b">Expired</span> This link has expired. Ask Gokula to send it again.</div>
   <div class="card"><span class="chip">Voided</span> The sender has cancelled this document. You do not need to do anything.</div>
-  <div class="card"><span class="chip g">Already signed</span> You signed this on 6 Oct 2026. <u>Download your copy</u></div>
+  <div class="card"><span class="chip g">Already signed</span> You signed this on 6 Oct 2026. The signed copy is sent when everyone has finished.</div>
   <div class="card"><span class="chip w">Link replaced</span> A newer link was sent to you. Please use the latest message.</div></div></div>
 </div>
 <p>On wider screens the list of fields sits beside the page; on any screen the page is zoomable and fields remain tappable. Nothing on an end-state page reveals another signer's data or whether other documents exist.</p>
 
 <!-- ============ FORMS ============ -->
-<h2 id="forms">Forms in parts, and merchant groups</h2>
+<h2 id="forms">Forms in parts</h2>
 <p>The merchant opens one link and sees their application as parts. Answers save as they type; they can close the page and come back through the same link, on any device. Review and sign unlocks when every required part is done. The parts and fields below come from your sample application and your online e-invoice form (Appendix A of the feature document).</p>
-<p class="tag">F-82 to F-94, F-98 to F-102</p>
+<p class="tag">F-82 to F-94, F-95, F-98 to F-103</p>
 <div class="phones" role="group" aria-label="Merchant application on a phone">
  <div class="phone"><div class="top"><span>Kedai Runcit Ali</span><span class="chip">EN &#9662;</span></div><div class="body">
   <b style="font:700 16px var(--display)">Your merchant application</b>
@@ -586,22 +589,29 @@ stateDiagram-v2
 <ol class="callouts"><li><span class="n">1</span><span>The sender sees exactly where the merchant is stuck, without asking them.</span></li>
 <li><span class="n">2</span><span>"Remind" sends a message such as "You have 4 parts left: e-Invoice input, Bank account, Documents, Commercial terms. Continue here."</span></li></ol></div>
 
-<h3>Merchant groups: variants of one application</h3>
+<h3>Different terms are different templates</h3>
 <p class="tag">F-98 to F-102</p>
-<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; Templates &rsaquo; Merchant Application &rsaquo; Compare Group A and Group B</div><div class="pane">
- <div class="hd"><span><b>Merchant Application</b> <span class="chip">Merchant agreements</span></span><span><span class="btn">Duplicate variant</span> <span class="btn p">Compare</span></span></div>
- <div style="display:flex;gap:6px;margin-bottom:8px"><span class="chip a">Group A v3</span><span class="chip">Group B v2</span><span class="chip">Group C v1</span></div>
- <div class="tbl"><div class="r h" style="grid-template-columns:1.4fr 1fr 1fr"><span>Term</span><span>Group A</span><span>Group B (example)</span></div>
- <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Platform fee, FPX</span><span>RM 1 per collection</span><span>RM 0.80 per collection</span></div>
- <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Credit card</span><span>1.8%</span><span>1.6%</span></div>
- <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Debit card</span><span>1.2%</span><span>1.0%</span></div>
- <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Termination notice</span><span>60 days</span><span>30 days</span></div>
- <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Settlement</span><span>2 times a week</span><span>Weekly</span></div>
- <div class="r sel" style="grid-template-columns:1.4fr 1fr 1fr"><span>Key term 8 (hardware)</span><span>Included</span><span><span class="chip w">Different wording</span></span></div></div>
- <p style="color:var(--muted);margin-top:6px">Everything else, including the whole form and the e-invoice part, is shared by all variants.</p></div></div>
-<ol class="callouts"><li><span class="n">1</span><span>One family, one variant per merchant group. The sender picks the group in the wizard; a contact that already has a group picks it automatically.</span></li>
-<li><span class="n">2</span><span>Fees and terms are fields with the variant's defaults. Changing them for one merchant is off unless the workspace allows it.</span></li>
-<li><span class="n">3</span><span>Compare shows what differs. "Duplicate variant" starts a new group from an existing one. A new version never alters documents already sent.</span></li></ol></div>
+<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; Templates &rsaquo; Merchant agreements</div><div class="pane">
+ <div class="hd"><b>Templates</b><span class="btn p">New template</span></div>
+ <div class="tbl"><div class="r h" style="grid-template-columns:1.6fr .8fr .6fr .9fr"><span>Name</span><span>Category</span><span>Version</span><span></span></div>
+ <div class="r" style="grid-template-columns:1.6fr .8fr .6fr .9fr"><span><b>Merchant Application</b></span><span>Merchant agreements</span><span>v3</span><span><span class="btn">Duplicate</span></span></div>
+ <div class="r sel" style="grid-template-columns:1.6fr .8fr .6fr .9fr"><span><b>Merchant Application, Group B</b></span><span>Merchant agreements</span><span>v1</span><span><span class="btn">Duplicate</span></span></div>
+ <div class="r" style="grid-template-columns:1.6fr .8fr .6fr .9fr"><span><b>Merchant Application, Group C</b></span><span>Merchant agreements</span><span>v2</span><span><span class="btn">Duplicate</span></span></div></div>
+ <p style="color:var(--muted);margin-top:6px">Names and versions are examples. Each is a complete template with its own fees and terms as ordinary text.</p></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>A merchant group is simply another template. The sender picks the one for that merchant when starting a signing process.</span></li>
+<li><span class="n">2</span><span>"Duplicate" copies the file, fields, form and placements into a new draft, so a new group takes minutes to make. Fees and terms are edited as text in the file, or written by the sender where the template uses static text.</span></li>
+<li><span class="n">3</span><span>A new version never alters documents already sent; the sealed record names the template, version and the terms as printed. Comparing two templates is parked.</span></li></ol></div>
+
+<h3>Assign in advance, and forward</h3>
+<p class="tag">F-95, F-103</p>
+<div class="two"><div class="wf"><div class="cap">Editor &rsaquo; Roles</div><div class="pane">
+ <div class="tbl"><div class="r h" style="grid-template-columns:1fr .8fr 1.4fr"><span>Role</span><span>Kind</span><span>Holds</span></div>
+ <div class="r" style="grid-template-columns:1fr .8fr 1.4fr"><span><span class="chip a">Merchant</span></span><span>Signer</span><span>Parts 1 to 4, 6 and signature</span></div>
+ <div class="r" style="grid-template-columns:1fr .8fr 1.4fr"><span><span class="chip" style="background:var(--role-b-soft);color:var(--role-b)">Finance</span></span><span>Filler</span><span>Part 5, bank and tax</span></div>
+ <div class="r" style="grid-template-columns:1fr .8fr 1.4fr"><span><span class="chip" style="background:var(--role-b-soft);color:var(--role-b)">Director</span></span><span>Signer</span><span>Countersignature</span></div></div>
+ <p style="color:var(--muted);margin-top:6px">The signing list then names who holds each role.</p></div></div>
+<ol class="callouts"><li><span class="n">1</span><span><b>In advance (Phase 1B):</b> the sender assigns each field, and each part of a form, to a role. A filler gets a link and sees only their parts; they never reach the sign step.</span></li>
+<li><span class="n">2</span><span><b>Forward (Phase 2):</b> a signer can hand their whole turn, or one part, to another person by name and email. The new person sees only what was handed over, and every forward is in the audit trail. The sender can switch forwarding off for a template or a document.</span></li></ol></div>
 
 <!-- ============ ADMIN ============ -->
 <h2 id="admin">Admin and automation</h2>
@@ -623,13 +633,14 @@ stateDiagram-v2
 <div class="grid2">
  <div class="wf"><div class="cap">Categories</div><div class="pane">
   <div class="hd"><b>Categories</b><span class="btn p">New category</span></div>
-  <div class="tbl"><div class="r h" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span>Name</span><span>Expires</span><span>Code</span><span>In order</span></div>
-   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>Merchant agreements</b> <span class="chip a">Add-on</span></span><span>14 days</span><span>On</span><span>On</span></div>
-   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>General</b></span><span>Workspace default</span><span>Off</span><span>Off</span></div>
-   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>Employment</b></span><span>7 days</span><span>On</span><span>On</span></div></div>
-  <p style="color:var(--muted);margin-top:6px">A category's choices override the workspace defaults; the sender can still change them on a document.</p></div></div>
+  <div class="tbl"><div class="r h" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span>Name</span><span>Expires</span><span>Code</span><span>Order preset</span></div>
+   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>Merchant agreements</b> <span class="chip a">Add-on</span></span><span>14 days</span><span>Off</span><span>Off</span></div>
+   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>NDA</b></span><span>Workspace default</span><span>Off</span><span>Off</span></div>
+   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>Partnership</b></span><span>Workspace default</span><span>Off</span><span>On</span></div>
+   <div class="r" style="grid-template-columns:1.4fr .8fr .8fr .8fr"><span><b>Sales</b></span><span>Workspace default</span><span>Off</span><span>Off</span></div></div>
+  <p style="color:var(--muted);margin-top:6px">A category presets the choices (code is used only when chosen, order is the sender's tick); the sender can change them on every document.</p></div></div>
  <div class="wf"><div class="cap">Add-ons</div><div class="pane">
-  <div class="card"><b>Merchant Registration</b> <span class="chip g">Installed v1.0</span><br><span style="color:var(--muted)">Category Merchant agreements &middot; templates Merchant Agreement, Data Processing Terms &middot; 5 contact fields &middot; EN and BM wording</span><br><span class="chip">Onboarding automation: coming</span> <span class="chip">Registration form: coming</span></div>
+  <div class="card"><b>Merchant Registration</b> <span class="chip g">Installed v1.0</span><br><span style="color:var(--muted)">Category Merchant agreements &middot; template Merchant Application, with its form &middot; 5 contact fields &middot; EN and BM wording</span><br><span class="chip">Onboarding automation: coming</span> <span class="chip">Registration form: coming</span></div>
   <div class="card" style="margin-top:8px;border-style:dashed"><b>More add-ons</b><br><span style="color:var(--muted)">None available for this workspace.</span></div>
   <p style="color:var(--muted);margin-top:6px">Installing adds drafts for you to review and never changes templates you have edited. Only the platform operator can make an add-on available.</p></div></div>
 </div>
@@ -690,7 +701,7 @@ stateDiagram-v2
 <tr><td>Upload fails (password, corrupt, too big)</td><td>Names the problem and the limit: "This PDF is password protected. Remove the password and upload it again."</td></tr>
 <tr><td>Word conversion unavailable</td><td>"Word conversion is not available right now. Upload a PDF instead." Other file types keep working.</td></tr>
 <tr><td>Signing list incomplete</td><td>"Add a full name and an email for every signer before sending." Rows with a missing value are outlined; Send stays disabled.</td></tr>
-<tr><td>Same email twice in an ordered list</td><td>"{email} appears in steps 1 and 2. Signers must be different people." (Allowed when order is off, with a warning.)</td></tr>
+<tr><td>Same email twice in an ordered list</td><td>"{email} appears at numbers 1 and 2. Signers must be different people." (Allowed when order is not ticked, with a warning.)</td></tr>
 <tr><td>Recipient email bounces</td><td>Document appears under Needs attention; the signer row shows "Email not delivered. Change recipient."</td></tr>
 <tr><td>Monthly limit reached</td><td>Send button replaced by "Your workspace has used all 200 documents this month." with the limit and who to contact.</td></tr>
 <tr><td>Sealing failed</td><td>"We could not finish the signed file. It will retry; nothing is lost." A Retry button for Admins.</td></tr>
@@ -708,24 +719,33 @@ stateDiagram-v2
 </tbody></table>
 
 <!-- ============ REVIEW ============ -->
-<h2 id="review">For your review</h2>
-<p>Please mark anything you want changed by its id or screen name (S1, T2, signer screen 3). The questions that most change the build:</p>
+<h2 id="review">Decisions and what is open</h2>
+<p>Please still mark anything you want changed by its id or screen name (S1, T2, signer screen 3).</p>
+<h3>Confirmed (6 Oct 2026)</h3>
+<ul>
+<li>Merchant agreement is a template, built from your sample, with the e-invoice tax details added.</li>
+<li>Signing order is a checkbox on each document, off by default; the same rule applies to the director. Signing together can be considered later.</li>
+<li>The code is used only when chosen. WhatsApp is used only when chosen; email is the default.</li>
+<li>Word files are converted to PDF and the PDF is what is edited and signed.</li>
+<li>Starting categories: Merchant agreements, NDA, Partnership, Sales.</li>
+<li>Merchant groups are separate templates, selected when starting a signing process.</li>
+<li>Fields and parts can be assigned to roles in advance; a signer can forward their turn or a part (Phase 2).</li>
+<li>The signer can download only after the document is completed.</li>
+<li>The signing page shows the workspace logo and name. The sidebar says "Doc Sign".</li>
+</ul>
+<h3>Parked for now</h3>
+<ul>
+<li>The order of the application parts as drawn; the legal name and trading name fields stay as on your sample.</li>
+<li>Anything else missing from the screens: none for now.</li>
+</ul>
+<h3>Still open</h3>
 <ol>
-<li><b>Merchant agreement fields (S2 step 3).</b> Which fields must the merchant fill and which do we know in advance? Which are sensitive?</li>
-<li><b>Signing order default.</b> Should Merchant agreements start with sign-in-order on (Merchant first, Director second)? Should General start off?</li>
-<li><b>Signers sharing a step.</b> Same order number means "sign together" (as drawn). Is that the behaviour you want?</li>
-<li><b>Countersign.</b> Does the director sign after the merchant (as drawn), before, or both at once?</li>
-<li><b>Code by default?</b> Should the verification code be on for every merchant document, or only when chosen?</li>
-<li><b>Word files.</b> Is a conversion preview ("this is exactly what will be signed") acceptable, given exact layout depends on fonts? Please supply the real agreement as Word and PDF.</li>
-<li><b>Categories.</b> Which categories do you want at the start besides Merchant agreements?</li>
-<li><b>Merchant groups.</b> How many groups, and what differs: fees only, or clauses too? Who may change a fee for one merchant?</li>
-<li><b>Application parts.</b> Are the seven parts in the right order, and should any be merged or split?</li>
-<li><b>Company name fields.</b> Ask the legal name once and a trading name only if different? GST No. replaced by SST registration number?</li>
-<li><b>Colleague links.</b> Which part may a merchant pass to a colleague (finance for bank and tax)?</li>
-<li><b>Name in the sidebar.</b> "Doc Sign" as drawn, or "Documents"?</li>
-<li><b>Signer's download.</b> Allowed at any time (as drawn), or only after completion?</li>
-<li><b>Signing page look.</b> Workspace logo and name only (as drawn), or a colour as well?</li>
-<li><b>Anything missing</b> from the screens: a view you expected, a button you would press that is not here.</li>
+<li>Retention period for signed contracts, and whether they may outlive a deleted workspace.</li>
+<li>Ordering the sealing certificate, and whether a certificate-authority one is needed at launch.</li>
+<li>VPS memory and CPU, or permission to measure them.</li>
+<li>Option lists: company ID types, e-invoice phases, tax types, banks.</li>
+<li>Is the official company stamp mandatory? (Default: optional upload.)</li>
+<li>WhatsApp template approval, only if WhatsApp will be used.</li>
 </ol>
 <p class="meta">Wireframes only. Visual design, icons and exact spacing follow Halo's existing components when built.</p>
 </main>
