@@ -77,9 +77,9 @@ export async function logEvent(
 export async function loadSenderAndWorkspace(
   ctx: SignCtx,
   createdBy: string | null,
-): Promise<{ workspaceName: string; senderName: string; senderEmail: string | null; timeZone: string }> {
-  const acct = await ctx.admin.from("accounts").select("name, brand_name, timezone").eq("id", ctx.accountId).maybeSingle();
-  const a = acct.data as { name?: string; brand_name?: string; timezone?: string } | null;
+): Promise<{ workspaceName: string; senderName: string; senderEmail: string | null; timeZone: string; logoUrl: string | null }> {
+  const acct = await ctx.admin.from("accounts").select("name, brand_name, timezone, brand_logo_url").eq("id", ctx.accountId).maybeSingle();
+  const a = acct.data as { name?: string; brand_name?: string; timezone?: string; brand_logo_url?: string | null } | null;
   const workspaceName = a?.brand_name?.trim() || a?.name || "Halo";
   const timeZone = a?.timezone || "UTC";
   let senderName = workspaceName;
@@ -90,5 +90,7 @@ export async function loadSenderAndWorkspace(
     if (row?.full_name?.trim()) senderName = row.full_name.trim();
     senderEmail = row?.email?.trim() || null;
   }
-  return { workspaceName, senderName, senderEmail, timeZone };
+  // Workspace logos are public files (the public-assets bucket), so the link can go to a signer as it is.
+  const logoUrl = a?.brand_logo_url && /^https:\/\//.test(a.brand_logo_url) ? a.brand_logo_url : null;
+  return { workspaceName, senderName, senderEmail, timeZone, logoUrl };
 }

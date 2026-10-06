@@ -120,6 +120,7 @@ export const CRON_INTERVALS = {
   'sla-conversations': 300,
   'sla-tickets': 60,
   'incident-escalation': 60,
+  'sign-jobs': 60,
   jira: 120,
   'message-sweep': 300,
   'mailbox-renew': 86_400,

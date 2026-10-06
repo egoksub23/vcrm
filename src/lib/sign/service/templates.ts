@@ -324,3 +324,12 @@ export async function templateFile(ctx: SignCtx, templateId: string): Promise<{ 
   const version = await loadVersion(ctx, template.current_version_id);
   return { bytes: await getFile(ctx.admin, version.source_path, ctx.accountId), version };
 }
+
+/** A template with its current version and the list of versions, for the editor. */
+export async function loadTemplateView(ctx: SignCtx, templateId: string): Promise<{ template: TemplateRow; version: SignTemplateVersionRow | null; versions: { id: string; version_no: number; created_at: string }[] }> {
+  const template = await loadTemplate(ctx, templateId);
+  const version = template.current_version_id ? await loadVersion(ctx, template.current_version_id) : null;
+  const list = await ctx.admin.from("sign_template_versions").select("id, version_no, created_at").eq("template_id", templateId).eq("account_id", ctx.accountId).order("version_no", { ascending: false });
+  if (list.error) raiseDatabaseError(list.error, "list template versions");
+  return { template, version, versions: (list.data ?? []) as { id: string; version_no: number; created_at: string }[] };
+}

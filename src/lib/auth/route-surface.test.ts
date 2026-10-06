@@ -29,6 +29,8 @@ const AUTH_MARKER = new RegExp(
     'requireCapability', 'requireAnyCapability', 'requireApiKey', 'requirePlatformAdmin',
     'getCurrentAccount', 'requireAdmin', 'auth\\.getUser', 'getUser\\(', 'cronRoute',
     'checkCronSecret', 'Signature', 'verifyVisitorJwt', 'requireUser', 'requireSession',
+    // Doc Sign's staff() wrapper (lib/sign/http.ts): requireCapability, then a rate limit
+    'staff\\(',
   ].join('|'),
 )
 const ADMIN_CLIENT = /supabaseAdmin|createAdminClient|SUPABASE_SERVICE_ROLE_KEY|admin-client|supabase\/admin/
@@ -58,6 +60,14 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'widget/message': 'web chat visitor; bearer visitor JWT verified in lib/widget/visitor-auth.ts, same-account checks',
   'widget/receipt': 'web chat visitor; visitor JWT',
   'widget/upload-url': 'web chat visitor; visitor JWT',
+  'sign/public/[token]': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
+  'sign/public/[token]/code': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; sends a code to the address the document went to, five an hour',
+  'sign/public/[token]/code/verify': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; every try counted in the database, five tries per code, signed session cookie on success',
+  'sign/public/[token]/consent': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
+  'sign/public/[token]/answers': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
+  'sign/public/[token]/complete': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
+  'sign/public/[token]/decline': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
+  'sign/public/[token]/file': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; shows only the document as sent, or the sealed copy once complete, and only after the code when one is required',
 }
 
 /** Use the service-role client with no account in scope: jobs over every workspace, provider webhooks. */
@@ -67,6 +77,7 @@ const SYSTEM_ROUTES: Record<string, { why: string; mustContain: string }> = {
   'usage/snapshot-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'platform/deletion-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'sla/tickets-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
+  'sign/jobs-cron': { why: 'system-wide job (seal, expire, remind, across workspaces)', mustContain: 'cronRoute' },
   'tiktok/webhook': { why: 'provider webhook, matched to a workspace by the connected account id', mustContain: 'verifyTikTokSignature' },
 }
 

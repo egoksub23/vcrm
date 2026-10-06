@@ -18,6 +18,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { checkSharedRateLimit } from "@/lib/rate-limit-shared";
 import { publicOrigin } from "@/lib/site-url";
 
+import { signEnabled } from "./feature";
 import { realDeps } from "./notify";
 import { SignError } from "./service/errors";
 import type { SignCtx } from "./service/context";
@@ -130,7 +131,8 @@ export async function publicLink(
     if (!isPlausibleToken(token)) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
     const admin = supabaseAdmin();
     const lookup = await lookupByToken(admin, token);
-    if (!lookup) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
+    // A workspace whose Doc Sign is switched off (or that is suspended) shows no document at all.
+    if (!lookup || !(await signEnabled(admin, lookup.signer.account_id))) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
     const ctx = signerCtx({ admin, origin: originOf(request), deps: realDeps, now: () => new Date() }, lookup);
     const sessionOk = !lookup.doc.code_required || verifySession(readCookie(request.headers.get("cookie"), sessionCookieName(lookup.signer.id)), lookup.signer.id);
     const device = (request.headers.get("user-agent") ?? "").slice(0, 300) || null;

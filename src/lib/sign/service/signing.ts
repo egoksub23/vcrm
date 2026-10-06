@@ -96,7 +96,7 @@ export interface SigningView {
     signInOrder: boolean;
     codeRequired: boolean;
   };
-  workspace: { name: string };
+  workspace: { name: string; logoUrl: string | null };
   signer: { name: string; roleKey: string; kind: "signer" | "filler"; status: SignSignerRow["status"] };
   /** Present once the code (if any) is entered and the document can be shown. */
   content: null | {
@@ -144,7 +144,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
       signInOrder: doc.sign_in_order,
       codeRequired: doc.code_required,
     },
-    workspace: { name: info.workspaceName },
+    workspace: { name: info.workspaceName, logoUrl: info.logoUrl },
     signer: { name: signer.full_name, roleKey: signer.role_key, kind: signer.kind, status: signer.status },
     content: null,
   };
