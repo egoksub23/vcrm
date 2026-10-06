@@ -6,10 +6,15 @@ import type { SignRole, SignSignerRow } from "../types";
 import {
   addRow,
   defaultRoleFor,
+  dropOnRow,
   duplicateEmails,
   emptyRow,
+  groupByStep,
   moveRow,
   moveRowBy,
+  moveStep,
+  normalizeSteps,
+  orderNumbers,
   payloadKey,
   removeRow,
   reviewLines,
@@ -19,6 +24,8 @@ import {
   rowIsComplete,
   rowsForRoles,
   rowsFromSigners,
+  setStep,
+  stepSizes,
   toDrafts,
   toPayload,
   updateRow,
@@ -196,3 +203,82 @@ describe("helpers for the screen", () => {
     ]);
   });
 });
+
+describe("steps (people who share a number sign together)", () => {
+  const named = (name: string, step: number, roleKey = "merchant"): SignerRow => ({ ...row({ fullName: name, email: `${name.toLowerCase()}@example.com`, roleKey }), step });
+  const names = (rows: readonly SignerRow[]) => rows.map((r) => `${r.fullName}:${r.step}`);
+
+  it("starts each added person in a step of their own, after everyone", () => {
+    const rows = addRow(addRow([], roles), roles);
+    expect(rows.map((r) => r.step)).toEqual([1, 2]);
+    expect(rowsForRoles(roles).map((r) => r.step)).toEqual([1, 2, 3]);
+  });
+
+  it("reads the saved order numbers as steps and keeps them 1, 2, 3 with no gap", () => {
+    const saved = (id: string, order_no: number, created_at: string) => ({ id, role_key: "merchant", full_name: id, email: `${id}@x.com`, phone: null, channel: "email", order_no, created_at }) as unknown as SignSignerRow;
+    const rows = rowsFromSigners([saved("c", 5, "3"), saved("a", 2, "1"), saved("b", 2, "2")]);
+    expect(names(rows)).toEqual(["a:1", "b:1", "c:2"]);
+  });
+
+  it("gives two people the same number to put them in one step, and closes the gap they leave", () => {
+    const rows = [named("A", 1), named("B", 2), named("C", 3)];
+    expect(names(setStep(rows, rows[2].key, 2))).toEqual(["A:1", "B:2", "C:2"]);
+    expect(names(setStep(rows, rows[0].key, 3))).toEqual(["B:1", "A:2", "C:2"]);
+    expect(stepSizes(setStep(rows, rows[2].key, 2)).get(2)).toBe(2);
+    // a number outside the list is clamped, and nonsense is step 1
+    expect(setStep(rows, rows[1].key, 99).find((r) => r.fullName === "B")!.step).toBeLessThanOrEqual(3);
+    expect(setStep(rows, rows[1].key, Number.NaN).find((r) => r.fullName === "B")!.step).toBe(1);
+  });
+
+  it("moves a person out of a shared step into a step of their own, or past a whole step when alone", () => {
+    const rows = [named("A", 1), named("B", 1), named("C", 2)];
+    // B leaves the shared step 1 and goes after it, alone
+    expect(names(moveStep(rows, rows[1].key, 1))).toEqual(["A:1", "B:2", "C:3"]);
+    // C alone in step 3 passes the step before it
+    const apart = [named("A", 1), named("B", 2), named("C", 3)];
+    expect(names(moveStep(apart, apart[2].key, -1))).toEqual(["A:1", "C:2", "B:3"]);
+    // at the ends nothing moves
+    expect(names(moveStep(apart, apart[0].key, -1))).toEqual(["A:1", "B:2", "C:3"]);
+    expect(names(moveStep(apart, apart[2].key, 1))).toEqual(["A:1", "B:2", "C:3"]);
+  });
+
+  it("drops a person next to another: a step of their own just before the other's if they came from below, after it if from above", () => {
+    const rows = [named("A", 1), named("B", 2), named("C", 3)];
+    expect(names(dropOnRow(rows, rows[2].key, rows[0].key))).toEqual(["C:1", "A:2", "B:3"]);
+    expect(names(dropOnRow(rows, rows[0].key, rows[2].key))).toEqual(["B:1", "C:2", "A:3"]);
+    // onto someone in the same step: nothing to do
+    const together = [named("A", 1), named("B", 1)];
+    expect(names(dropOnRow(together, together[0].key, together[1].key))).toEqual(["A:1", "B:1"]);
+  });
+
+  it("groups the rows step by step in signing order", () => {
+    const groups = groupByStep([named("C", 3), named("A", 1), named("B", 1)]);
+    expect(groups.map((g) => [g.step, g.rows.map((r) => r.fullName)])).toEqual([
+      [1, ["A", "B"]],
+      [3, ["C"]],
+    ]);
+    expect(names(normalizeSteps([named("C", 3), named("A", 1)]))).toEqual(["A:1", "C:2"]);
+  });
+
+  it("saves people who share a step with the same order number, and without signing order numbers them by position as before", () => {
+    const rows = [named("A", 1), named("B", 1, "director"), named("C", 2, "witness")];
+    expect(toPayload(rows, roles, true).map((p) => p.orderNo)).toEqual([1, 1, 2]);
+    expect(toPayload(rows, roles, false).map((p) => p.orderNo)).toEqual([1, 2, 3]);
+    expect(toPayload(rows, roles).map((p) => p.orderNo)).toEqual([1, 2, 3]);
+    expect(toDrafts(rows, roles, true).map((d) => d.order_no)).toEqual([1, 1, 2]);
+    expect(orderNumbers([named("A", 4), named("B", 4), named("C", 9)], true)).toEqual([1, 1, 2]);
+    expect(reviewLines(rows, roles, true).map((l) => l.step)).toEqual([1, 1, 2]);
+  });
+
+  it("agrees with the server: a shared step is a sound list, the same person twice is still not", () => {
+    const fields: PlacedField[] = [
+      { key: "f1", type: "signature", role: "merchant", page: 0, x: 0.1, y: 0.1, w: 0.2, h: 0.05, required: true },
+      { key: "f2", type: "signature", role: "director", page: 0, x: 0.1, y: 0.3, w: 0.2, h: 0.05, required: true },
+    ];
+    const rows = [named("A", 1), named("B", 1, "director")];
+    const codes = (r: SignerRow[]) => sendProblems({ fields, roles, signers: toDrafts(r, roles, true), signInOrder: true, pageCount: 1, hasBaseFile: true }).map((i) => i.code);
+    expect(codes(rows)).toEqual([]);
+    expect(codes([named("A", 1), { ...named("B", 1, "director"), email: "A@example.com" }])).toContain("same_person_twice");
+  });
+});
+

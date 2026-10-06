@@ -11,6 +11,8 @@ import {
   fieldVisible,
   fitProblems,
   formSendProblems,
+  listProblems,
+  sensitiveProblems,
   missingFormRequired,
   roleProgress,
   staticFitProblems,
@@ -20,14 +22,21 @@ import {
   type DataField,
   type FormValue,
 } from "../../forms";
+import { SYSTEM_LIST_KEYS } from "../../lists/keys";
+import { SYSTEM_LISTS } from "../../lists/system-lists";
 import { A4, scribblePng } from "../../pdf/fixtures";
 import { stampFields, staticValues } from "../../pdf/stamp";
 import type { FieldValue } from "../../pdf/types";
 import { validateFields, validateRoles } from "../../rules";
 import { merchantAddon } from "../merchant";
-import { DIRECTOR_ROLE, FINANCE_ROLE, MERCHANT_FORM, MERCHANT_ROLE, MERCHANT_ROLES, TERM_HEADINGS, merchantForm } from "./form";
+import { resolvedWithSystemLists } from "../fixtures";
+import { DIRECTOR_ROLE, FINANCE_ROLE, LIST_FIELDS, MERCHANT_FORM as SHIPPED_FORM, MERCHANT_FORM_V1, MERCHANT_ROLE, MERCHANT_ROLES, SENSITIVE_FIELDS, TERM_HEADINGS, merchantForm } from "./form";
 import { MERCHANT_PLACEMENTS, buildMerchantLayout } from "./layout";
 import { buildMerchantAssets, renderMerchantPdf, summarize, summarySha256 } from "./render";
+
+// What a document carries: the form the add-on ships (its choices name shared lists) with the lists' items copied in, as a template version
+// stores it. Everything below that fills in or prints an answer runs on this; the shipped form itself is checked in "generation 2".
+const MERCHANT_FORM = resolvedWithSystemLists(SHIPPED_FORM);
 
 const DIR = path.join(process.cwd(), "src", "lib", "sign", "addons", "merchant");
 const PDF_FILE = path.join(DIR, "assets", "merchant-application.pdf");
@@ -101,7 +110,7 @@ describe("the form is sound and follows Appendix A", () => {
   });
 
   it("also passes when the bank part is given to the finance filler", () => {
-    const form = merchantForm({ bankRole: "finance" });
+    const form = resolvedWithSystemLists(merchantForm({ bankRole: "finance" }));
     expect(form.parts.find((p) => p.key === "bank")?.role).toBe(FINANCE_ROLE);
     expect(validateForm(form, MERCHANT_ROLES, placements)).toEqual([]);
     // the finance person must then be named; by default nobody is needed for that role
@@ -162,10 +171,9 @@ describe("the form is sound and follows Appendix A", () => {
     expect(ok("contact_email", { text: "Siti@Example.com" })).toEqual({ ok: true, value: { text: "siti@example.com" } });
     expect(ok("contact_email", { text: "not an email" })).toMatchObject({ ok: false, code: "bad_email" });
     expect(ok("msic_codes", { list: ["47111", "47211"] })).toMatchObject({ ok: true });
-    expect(ok("msic_codes", { list: ["4711"] })).toMatchObject({ ok: false, code: "item_too_short" });
-    expect(ok("msic_codes", { list: ["471112"] })).toMatchObject({ ok: false, code: "item_too_long" });
-    expect(ok("msic_codes", { list: ["47x11"] })).toMatchObject({ ok: false, code: "item_format_digits" });
-    expect(ok("msic_codes", { list: Array.from({ length: 11 }, (_, i) => String(47000 + i)) })).toMatchObject({ ok: false, code: "too_many_items" });
+    // the codes are picked from the shared MSIC list, so a code that is not in it (too short, too long, not digits, not a class) is "not an option"
+    for (const bad of ["4711", "471112", "47x11", "00000"]) expect(ok("msic_codes", { list: [bad] }), bad).toMatchObject({ ok: false, code: "not_an_option" });
+    expect(ok("msic_codes", { list: (field("msic_codes").options ?? []).slice(0, 11).map((o) => o.value) })).toMatchObject({ ok: false, code: "too_many_items" });
     expect(ok("state", { text: "selangor" })).toMatchObject({ ok: true });
     expect(ok("state", { text: "Atlantis" })).toMatchObject({ ok: false, code: "not_an_option" });
     expect(ok("bank_account", { text: "5123 4567" })).toMatchObject({ ok: false });
@@ -373,9 +381,79 @@ describe("on the real engine", () => {
     const t = merchantAddon.templates[0];
     expect(t.name).toBe("Merchant Application");
     expect(t.fields).toBe(MERCHANT_PLACEMENTS);
-    expect(t.form).toBe(MERCHANT_FORM);
+    expect(t.form).toBe(SHIPPED_FORM);
     expect(t.roles).toBe(MERCHANT_ROLES);
     expect(t.defaults).toEqual({ code_required: false, sign_in_order: false, locale: "en", expiry_days: 30, reminder_days: [3, 7] });
     expect(merchantAddon.category).toMatchObject({ key: "merchant_agreements", name: "Merchant agreements" });
+  });
+});
+
+// ---- generation 2 (add-on 2.0): shared option lists and sensitive answers ---------------------------------------------------------
+
+describe("generation 2 of the form: shared lists and sensitive answers", () => {
+  const authored = (k: string): DataField => SHIPPED_FORM.fields.find((f) => f.key === k)!;
+  const old = (k: string): DataField => MERCHANT_FORM_V1.fields.find((f) => f.key === k)!;
+
+  it("names a shared list for each choice that has one, and carries no typed-in options beside it", () => {
+    for (const [key, list] of Object.entries(LIST_FIELDS)) {
+      expect(authored(key), key).toMatchObject({ optionList: list });
+      expect(authored(key).options, key).toBeUndefined();
+    }
+    // the five kinds of business are the add-on's own and stay typed in
+    expect(authored("business_type").optionList).toBeUndefined();
+    expect(authored("business_type").options).toHaveLength(5);
+    // the list-bound fields are the ones that had options typed in before (plus the MSIC codes, which were typed digits)
+    const hadOptions = MERCHANT_FORM_V1.fields.filter((f) => f.options && f.key !== "business_type").map((f) => f.key);
+    expect(Object.keys(LIST_FIELDS).sort()).toEqual([...hadOptions, "msic_codes"].sort());
+  });
+
+  it("is sound as authored: every named list exists and no field has both a list and options (listProblems, validateForm)", () => {
+    expect(listProblems(SHIPPED_FORM, { known: new Set(SYSTEM_LIST_KEYS), authored: true })).toEqual([]);
+    expect(validateForm(SHIPPED_FORM, MERCHANT_ROLES, placements)).toEqual([]);
+    expect(sensitiveProblems(SHIPPED_FORM)).toEqual([]);
+  });
+
+  it("keeps every value an answer to the first generation could hold, so a document made with 1.1 still reads", () => {
+    const catalogue = Object.fromEntries(SYSTEM_LISTS.map((l) => [l.key, new Set(l.items.map((i) => i.value))]));
+    for (const [key, list] of Object.entries(LIST_FIELDS)) {
+      for (const o of old(key).options ?? []) expect(catalogue[list].has(o.value), `${key}: ${o.value} is in ${list}`).toBe(true);
+    }
+    // and the default country is in its list
+    expect(catalogue.countries.has(authored("country").defaultValue!)).toBe(true);
+  });
+
+  it("marks the bank account and the business registration number sensitive, prints the account as its last four, and leaves the tax number open", () => {
+    expect(Object.keys(SENSITIVE_FIELDS).sort()).toEqual(["bank_account", "brn"]);
+    expect(authored("bank_account")).toMatchObject({ sensitive: true, printMasked: "last4" });
+    expect(authored("brn")).toMatchObject({ sensitive: true });
+    expect(authored("brn").printMasked).toBeUndefined();
+    const flagged = SHIPPED_FORM.fields.filter((f) => f.sensitive).map((f) => f.key);
+    expect(flagged.sort()).toEqual(["bank_account", "brn"]);
+    // nothing sensitive fills the contact, carries a default, or is compared by a rule: the checks above would say so
+    for (const f of SHIPPED_FORM.fields.filter((x) => x.sensitive)) expect([f.contactField, f.writeBack, f.defaultValue, f.locked]).toEqual([undefined, undefined, undefined, undefined]);
+  });
+
+  it("leaves generation 1 exactly as version 1.1 shipped it, so an update can recognise it", () => {
+    expect(MERCHANT_FORM_V1.fields.some((f) => f.optionList !== undefined || f.sensitive !== undefined)).toBe(false);
+    expect(old("state").options).toHaveLength(16);
+    expect(merchantForm({ generation: 1 })).toEqual(MERCHANT_FORM_V1);
+    expect(merchantForm({ generation: 2 })).toEqual(SHIPPED_FORM);
+    // same parts, same fields, same labels, in the same order
+    expect(SHIPPED_FORM.fields.map((f) => [f.key, f.type, f.part])).toEqual(MERCHANT_FORM_V1.fields.map((f) => [f.key, f.type, f.part]));
+    expect(SHIPPED_FORM.parts).toEqual(MERCHANT_FORM_V1.parts);
+  });
+
+  it("changes nothing on the page: the template file is drawn from generation 1, so the committed PDF still matches", () => {
+    // (the drift tests above compare the committed PDF and layout summary with what the code draws now: this one says why they hold)
+    expect(buildMerchantLayout().placements).toEqual(MERCHANT_PLACEMENTS);
+    expect(merchantAddon.version).toBe("2.0");
+    expect(merchantAddon.history?.map((h) => h.version)).toEqual(["1.1"]);
+  });
+
+  it("prints the bank account as its last four digits on the sealed file, and the registration number in full", async () => {
+    const answers: AnswerMap = { bank_account: { text: "5123456789" }, brn: { text: "201901012345" } };
+    const bound = boundValues(placements, MERCHANT_FORM, answers, "en");
+    expect(bound.p_bank_account.text).toBe("**** 6789");
+    expect(bound.p_brn.text).toBe("201901012345");
   });
 });

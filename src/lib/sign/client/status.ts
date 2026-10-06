@@ -87,7 +87,11 @@ export function waitingSummary(documentStatus: string, signers: readonly Waiting
   return { names: waiting.slice(0, max).map((s) => s.full_name), more: Math.max(0, waiting.length - max) };
 }
 
-/** How many of the people on a document have finished (signed, or filled in), and how many there are. */
-export function signerProgress(signers: readonly { status: string }[]): { done: number; total: number } {
-  return { done: signers.filter((s) => s.status === "signed").length, total: signers.length };
+/**
+ * How many of the people on a document have finished (signed, or filled in), and how many there are. A person who was
+ * handed one part of someone's form is part of that person's turn, not another person of the document.
+ */
+export function signerProgress(signers: readonly { status: string; part_keys?: string[] | null }[]): { done: number; total: number } {
+  const people = signers.filter((s) => !(s.part_keys && s.part_keys.length > 0));
+  return { done: people.filter((s) => s.status === "signed").length, total: people.length };
 }

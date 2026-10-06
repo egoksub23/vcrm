@@ -7,8 +7,8 @@ import { AlarmClock, Ban, CircleCheck, CircleX, Hourglass, LoaderCircle, Triangl
 
 import { cn } from "@/lib/utils";
 
-import { formatWhen, joinNames } from "./format";
-import { bannerTone, type Banner, type BannerTone } from "./logic";
+import { formatDay, formatWhen, joinNames } from "./format";
+import { bannerTone, retentionState, type Banner, type BannerTone } from "./logic";
 
 const TONE: Record<BannerTone, string> = {
   info: "border-sky-500/30 bg-sky-500/10",
@@ -34,27 +34,35 @@ export function StatusBanner({ banner }: { banner: Banner }) {
   let Icon = Hourglass;
   let title = "";
   let note: string | null = null;
+  let retention: string | null = null;
 
   switch (banner.kind) {
     case "waiting": {
       const progress = { done: banner.done, total: banner.total };
+      const f = banner.form ? "Form" : "";
       title =
         banner.names.length === 0
-          ? t("banner.waitingNobody", progress)
+          ? t(`banner.waitingNobody${f}`, progress)
           : banner.more > 0
-            ? t("banner.waitingMore", { names: joinNames(banner.names, locale, true), count: banner.more, ...progress })
-            : t("banner.waiting", { names: joinNames(banner.names, locale, false), ...progress });
+            ? t(`banner.waitingMore${f}`, { names: joinNames(banner.names, locale, true), count: banner.more, ...progress })
+            : t(`banner.waiting${f}`, { names: joinNames(banner.names, locale, false), ...progress });
       break;
     }
     case "sealing":
       Icon = LoaderCircle;
-      title = t("banner.sealing");
-      note = t("banner.sealingNote");
+      title = t(banner.form ? "banner.sealingForm" : "banner.sealing");
+      note = t(banner.form ? "banner.sealingNoteForm" : "banner.sealingNote");
       break;
     case "completed":
       Icon = CircleCheck;
-      title = banner.at ? t("banner.completedOn", { date: formatWhen(banner.at, locale) }) : t("banner.completed");
-      note = t("banner.completedNote");
+      title = banner.at ? t(banner.form ? "banner.completedOnForm" : "banner.completedOn", { date: formatWhen(banner.at, locale) }) : t(banner.form ? "banner.completedForm" : "banner.completed");
+      note = t(banner.form ? "banner.completedNoteForm" : "banner.completedNote");
+      // how long it is kept: a signed document cannot be deleted before its date, by anyone
+      if (banner.retainUntil) {
+        const state = retentionState(banner.retainUntil, new Date());
+        const date = formatDay(banner.retainUntil, locale);
+        retention = state === "kept" ? t("banner.retainedUntil", { date }) : t("banner.retentionEnded", { date });
+      }
       break;
     case "declined":
       Icon = CircleX;
@@ -66,7 +74,7 @@ export function StatusBanner({ banner }: { banner: Banner }) {
             : banner.reason
               ? t("banner.declinedReason", { reason: banner.reason })
               : t("banner.declined");
-      note = t("banner.declinedNote");
+      note = t(banner.form ? "banner.declinedNoteForm" : "banner.declinedNote");
       break;
     case "expired":
       Icon = AlarmClock;
@@ -92,6 +100,7 @@ export function StatusBanner({ banner }: { banner: Banner }) {
       <div className="min-w-0">
         <p className="font-medium text-foreground break-words">{title}</p>
         {note && <p className="mt-0.5 text-sm text-muted-foreground break-words">{note}</p>}
+        {retention && <p className="mt-1 text-sm text-muted-foreground break-words">{retention}</p>}
       </div>
     </div>
   );

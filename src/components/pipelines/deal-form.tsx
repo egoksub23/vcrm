@@ -24,6 +24,7 @@ import { readOnlyTitle } from "@/components/ui/gated-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordDocuments } from "@/components/sign/detail/contact-documents";
 import {
   Check,
   X,
@@ -61,6 +62,8 @@ export function DealForm({
   const canOpenInbox = useCapability("menu.inbox");
   // Creating, editing, closing and deleting deals: deals.manage.
   const canManageDeals = useCapability("deals.manage");
+  // The Doc Sign documents of this deal (F-51): menu.sign.
+  const canSeeDocuments = useCapability("menu.sign");
   const readOnlyHint = canManageDeals ? undefined : readOnlyTitle("manage deals");
 
   const [title, setTitle] = useState("");
@@ -440,6 +443,13 @@ export function DealForm({
                 )}
               </div>
             )}
+
+            {/* Doc Sign documents attached to this deal (F-51), for people who can see Doc Sign */}
+            {deal && canSeeDocuments ? (
+              <div className="border-t border-border/50 pt-4">
+                <RecordDocuments kind="deal" id={deal.id} contactId={deal.contact_id ?? null} />
+              </div>
+            ) : null}
           </fieldset>
 
           <div className="border-t border-border/50 bg-popover/80 p-4" title={readOnlyHint}>

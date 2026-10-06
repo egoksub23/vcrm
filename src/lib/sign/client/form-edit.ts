@@ -7,6 +7,7 @@
 // ============================================================
 
 import { ruleFields } from "../forms/rules";
+import { canBeSensitive } from "../forms/sensitive";
 import { MAX_DATA_FIELDS, MAX_PARTS, type DataField, type DataFieldType, type FormDefinition, type FormPart, type L10n, type Rule } from "../forms/types";
 import { keyFromLabel, optionValueFromLabel, takenPartKeys } from "./form-keys";
 
@@ -340,13 +341,18 @@ export function retypeField(field: DataField, type: DataFieldType, seeds: FormSe
   for (const k of ["help", "placeholder", "requiredIf", "visibleIf", "writeBack", "locked"] as const) {
     if (field[k] !== undefined) Object.assign(next, { [k]: field[k] });
   }
-  if (field.contactField !== undefined && contactCapable(type)) next.contactField = field.contactField;
+  if (field.sensitive === true && canBeSensitive(type)) {
+    // a sensitive field stays sensitive (and keeps how it prints) when it becomes another kind of text; it fills no contact field
+    next.sensitive = true;
+    if (field.printMasked !== undefined) next.printMasked = field.printMasked;
+  } else if (field.contactField !== undefined && contactCapable(type)) next.contactField = field.contactField;
   if ((type === "text" || type === "multiline") && (field.type === "text" || field.type === "multiline")) {
     for (const k of ["format", "minLength", "maxLength"] as const) if (field[k] !== undefined) Object.assign(next, { [k]: field[k] });
   }
   if (TEXT_LIKE.includes(type) && TEXT_LIKE.includes(field.type) && field.defaultValue !== undefined) next.defaultValue = field.defaultValue;
   if ((type === "choice" || type === "multichoice") && (field.type === "choice" || field.type === "multichoice") && field.options) {
     next.options = field.options;
+    if (field.optionList !== undefined) next.optionList = field.optionList;
     if (field.defaultValue !== undefined && type === "choice") next.defaultValue = field.defaultValue;
   }
   if (type === "acknowledge") next.required = true;

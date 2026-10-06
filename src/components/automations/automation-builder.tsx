@@ -38,6 +38,7 @@ import {
   Milestone,
   Sparkles,
   TicketPlus,
+  FileSignature,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -82,7 +83,7 @@ import {
   type ParentScope,
   type StepPath,
 } from "@/lib/automations/builder-tree"
-import { hasBranches, usesAi } from "@/lib/automations/step-kinds"
+import { flattenSteps, hasBranches, usesAi } from "@/lib/automations/step-kinds"
 import {
   AiFlowProvider,
   AiReplyEditor,
@@ -95,6 +96,7 @@ import {
   TestStepPanel,
   type AiEditorSlots,
 } from "./ai-steps"
+import { SendSignDocumentEditor, SignResourcesProvider, SignTriggerConfig } from "./sign-steps"
 import { cn } from "@/lib/utils"
 
 // ------------------------------------------------------------
@@ -150,6 +152,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   set_priority: { label: "set_priority", icon: Flag, border: "border-l-primary" },
   set_lifecycle_stage: { label: "set_lifecycle_stage", icon: Milestone, border: "border-l-primary" },
   create_ticket: { label: "create_ticket", icon: TicketPlus, border: "border-l-primary" },
+  send_sign_document: { label: "send_sign_document", icon: FileSignature, border: "border-l-primary" },
   // AI steps: a sparkle icon and a violet accent so they read as one family.
   ai_reply: { label: "ai_reply", icon: Sparkles, border: "border-l-violet-500" },
   ai_extract: { label: "ai_extract", icon: Sparkles, border: "border-l-violet-500" },
@@ -174,6 +177,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "update_contact_field",
   "create_deal",
   "create_ticket",
+  "send_sign_document",
   "wait",
   "condition",
   "send_webhook",
@@ -192,6 +196,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "tag_added" },
   { value: "conversation_label_added" },
   { value: "conversation_closed" },
+  { value: "sign_document_event" },
   { value: "time_based" },
 ]
 
@@ -253,6 +258,14 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { stage: "active" }
     case "create_ticket":
       return { category: "general", priority: "normal", subject: "", description: "", skip_if_open: true }
+    case "send_sign_document":
+      return {
+        template_id: "",
+        title: "",
+        recipients: [{ role_key: "", source: "contact", channel: "email" }],
+        merge_values: {},
+        send: true,
+      }
     case "ai_reply":
       return { mode: "send", language: "match", instructions: "", on_failure: "skip" }
     case "ai_extract":
@@ -403,24 +416,42 @@ function TagSelect({
   value,
   onChange,
   t,
+  hint,
 }: {
   value: string
   onChange: (v: string) => void
   t: ReturnType<typeof useTranslations>
+  /** A recipe's suggested tag name: picked for you when the workspace has a tag of that name. */
+  hint?: string
 }) {
   const { tags } = useResources()
+  const hinted = hint
+    ? tags.find((tg) => tg.name.trim().toLowerCase() === hint.trim().toLowerCase())
+    : undefined
+  useEffect(() => {
+    if (!value && hinted) onChange(hinted.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, hinted?.id])
+  const suggestion =
+    hint && !value && !hinted ? (
+      <p className="mt-1 text-[11px] text-muted-foreground">{t("tags.hint", { name: hint })}</p>
+    ) : null
   if (tags.length === 0) {
     return (
-      <Input
-        placeholder={t("tags.placeholder")}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-muted text-foreground"
-      />
+      <>
+        <Input
+          placeholder={t("tags.placeholder")}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="bg-muted text-foreground"
+        />
+        {suggestion}
+      </>
     )
   }
   const selected = tags.find((t) => t.id === value)
   return (
+    <>
     <div className="flex items-center gap-2">
       <span
         className="h-3 w-3 shrink-0 rounded-full border border-border"
@@ -445,6 +476,8 @@ function TagSelect({
         )}
       </select>
     </div>
+    {suggestion}
+    </>
   )
 }
 
@@ -968,6 +1001,12 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle,var(--border)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
         <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-4 py-10">
           <ResourcesProvider>
+            <SignResourcesProvider
+              needed={
+                state.trigger_type === "sign_document_event" ||
+                flattenSteps(state.steps).some((s) => s.step_type === "send_sign_document")
+              }
+            >
             <AiStatusProvider>
               <AiFlowProvider value={{ steps: state.steps, triggerType: state.trigger_type }}>
                 <TriggerCard
@@ -992,6 +1031,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
                 />
               </AiFlowProvider>
             </AiStatusProvider>
+            </SignResourcesProvider>
           </ResourcesProvider>
         </div>
       </div>
@@ -1020,6 +1060,8 @@ function TriggerCard({
   t: ReturnType<typeof useTranslations>
 }) {
   const [open, setOpen] = useState(false)
+  // Doc Sign events are offered where Doc Sign is on for the person (menu.sign follows the operator's switch).
+  const signOn = useCapability("menu.sign")
   return (
     // Card width: full on mobile, fixed 320px on sm+. The canvas wrapper
     // (max-w-2xl + px-4) keeps this tidy on tablet/desktop.
@@ -1057,7 +1099,9 @@ function TriggerCard({
                 onChange={(e) => onTypeChange(e.target.value as AutomationTriggerType)}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
               >
-                {TRIGGER_OPTIONS.map((o) => (
+                {TRIGGER_OPTIONS.filter(
+                  (o) => o.value !== "sign_document_event" || signOn || type === "sign_document_event",
+                ).map((o) => (
                   <option key={o.value} value={o.value}>
                     {t(`triggers.${o.value}.label`)}
                   </option>
@@ -1086,8 +1130,12 @@ function TriggerCard({
                   value={(config.tag_id as string) ?? ""}
                   onChange={(v) => onConfigChange({ ...config, tag_id: v })}
                   t={t}
+                  hint={typeof config.tag_hint === "string" ? config.tag_hint : undefined}
                 />
               </div>
+            )}
+            {type === "sign_document_event" && (
+              <SignTriggerConfig config={config} onChange={onConfigChange} />
             )}
             {type === "conversation_label_added" && (
               <div>
@@ -1524,6 +1572,7 @@ function AddButton({
   disabled?: boolean
 }) {
   const t = useTranslations("Automations.builder")
+  const signOn = useCapability("menu.sign")
   return (
     <div className="relative flex flex-col items-center">
       <div className="h-4 w-[2px] bg-border" aria-hidden />
@@ -1540,7 +1589,7 @@ function AddButton({
           align="start"
           className="max-h-80 min-w-56 overflow-y-auto border-border bg-popover"
         >
-          {ADDABLE_STEPS.map((tp) => {
+          {ADDABLE_STEPS.filter((tp) => tp !== "send_sign_document" || signOn).map((tp) => {
             const Icon = STEP_META[tp].icon
             return (
               <DropdownMenuItem key={tp} onClick={() => onPick(tp)}>
@@ -1610,6 +1659,8 @@ function StepEditor({
       return <AiTranslateEditor {...aiProps} />
     case "create_ticket":
       return <CreateTicketEditor {...aiProps} />
+    case "send_sign_document":
+      return <SendSignDocumentEditor cid={step.cid} config={cfg} set={set} />
     case "send_message":
       return (
         <FieldBlock label={t("config.messageText")}>
@@ -1652,6 +1703,7 @@ function StepEditor({
             value={(cfg.tag_id as string) ?? ""}
             onChange={(v) => set({ tag_id: v })}
             t={t}
+            hint={typeof cfg.tag_hint === "string" ? cfg.tag_hint : undefined}
           />
         </FieldBlock>
       )
@@ -1966,6 +2018,12 @@ function previewFor(step: BuilderStep, t: ReturnType<typeof useTranslations>): s
       return (c.subject as string)
         ? t("ai.summary.ticket", { subject: c.subject as string })
         : t("ai.summary.ticketEmpty")
+    case "send_sign_document": {
+      const n = Array.isArray(c.recipients) ? c.recipients.length : 0
+      return c.template_id
+        ? t("sign.step.summary", { count: n })
+        : t("sign.step.summaryEmpty")
+    }
     case "condition":
       if (c.subject === "ai_question") {
         return (c.operand as string)

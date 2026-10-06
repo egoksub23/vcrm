@@ -15,9 +15,13 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SignNowButton } from "@/components/sign/countersign/sign-now-button";
+import { EnvelopeBanner } from "@/components/sign/envelope/envelope-banner";
+import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
-import { documentFileUrl, SignApiError } from "@/lib/sign/client/api";
+import { documentFileUrl, signRequest, SignApiError } from "@/lib/sign/client/api";
 import { hasFormParts } from "@/lib/sign/client/progress-logic";
+import { myOpenPlace } from "@/lib/sign/turn";
 
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
@@ -41,6 +45,8 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
   const canSettings = useCapability("sign.settings");
+  const canCountersign = useCapability("sign.sign");
+  const { user } = useAuth();
   const caps: DetailCaps = { send: canSend, void: canVoid, settings: canSettings };
 
   const { data, error, loading, version, reload } = useDocumentDetail(documentId);
@@ -53,6 +59,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const [viewChoice, setViewChoice] = useState<"final" | "base" | null>(null);
   const [downloading, setDownloading] = useState<DownloadKind | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [forwardingBusy, setForwardingBusy] = useState(false);
 
   if (loading) {
     return (
@@ -77,15 +84,30 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
 
   const withForm = hasFormParts(doc.form_snapshot);
   const tab: TabKey = chosenTab === "progress" && !withForm ? "people" : (chosenTab ?? (withForm ? "progress" : "people"));
-  const actions = documentActions(doc, caps);
+  // a document of an envelope is cancelled, reminded and changed with its envelope: those actions are the envelope's (migration 171)
+  const inEnvelope = !!doc.envelope_id && !!data.envelope;
+  const actions = inEnvelope ? { ...documentActions(doc, caps), void: false } : documentActions(doc, caps);
   const banner = bannerFor(doc, data.signers, caps);
   const undelivered = signersWithUndelivered(events.events ?? []);
   const viewKind = viewChoice && viewChoice === "base" && doc.base_path ? "base" : viewChoice === "final" && actions.downloadSigned ? "final" : actions.viewKind;
 
+  async function changeForwarding(allow: boolean) {
+    setForwardingBusy(true);
+    try {
+      await signRequest(`/api/sign/documents/${documentId}/forwarding`, { json: { allow } });
+      toast.success(t(allow ? "forwarding.nowOn" : "forwarding.nowOff"));
+      await reload();
+    } catch (err) {
+      toast.error(t(detailErrorKey(err instanceof SignApiError ? err.code : "request_failed")));
+    } finally {
+      setForwardingBusy(false);
+    }
+  }
+
   async function download(kind: DownloadKind) {
     setDownloading(kind);
     try {
-      await downloadFile(documentFileUrl(documentId, kind, true), kind === "final" ? `${doc?.reference ?? "document"}-signed.pdf` : `${doc?.reference ?? "document"}-original`);
+      await downloadFile(documentFileUrl(documentId, kind, true), kind === "final" ? `${doc?.reference ?? "document"}-${doc?.mode === "form" ? "record" : "signed"}.pdf` : `${doc?.reference ?? "document"}-original`);
     } catch (err) {
       toast.error(t(detailErrorKey(err instanceof SignApiError ? err.code : "request_failed")));
     } finally {
@@ -103,9 +125,23 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         onView={() => setTab("document")}
         onDownload={(k) => void download(k)}
         onVoid={() => setVoiding(true)}
+        forwarding={canSend && !inEnvelope && (doc.status === "sent" || doc.status === "in_progress") ? { allowed: doc.allow_forwarding, busy: forwardingBusy, onChange: (allow) => void changeForwarding(allow) } : undefined}
       />
 
       <StatusBanner banner={banner} />
+
+      {inEnvelope && data.envelope ? <EnvelopeBanner envelope={data.envelope} documentId={documentId} /> : null}
+
+      {/* a Halo user named on this document, and it is their turn */}
+      {canCountersign && myOpenPlace(doc, data.signers, user?.id, new Date()) ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{t("yourTurn.title")}</p>
+            <p className="text-sm text-muted-foreground">{t("yourTurn.body")}</p>
+          </div>
+          <SignNowButton documentId={documentId} size="default" onRefused={() => void reload()} />
+        </div>
+      ) : null}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList variant="line" className="w-full justify-start border-b border-border">
@@ -118,7 +154,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
             {t("tabs.people", { count: data.signers.length })}
           </TabsTrigger>
           <TabsTrigger value="document" className="flex-none px-3" disabled={!actions.viewKind}>
-            {t("tabs.document")}
+            {t(doc.mode === "form" ? "tabs.record" : "tabs.document")}
           </TabsTrigger>
           <TabsTrigger value="history" className="flex-none px-3">
             {t("tabs.history")}
@@ -132,7 +168,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         )}
 
         <TabsContent value="people" className="grid gap-6 pt-4">
-          <PeopleList document={doc} signers={data.signers} undelivered={undelivered} caps={caps} onChanged={reload} />
+          <PeopleList document={doc} signers={data.signers} undelivered={undelivered} caps={inEnvelope ? { ...caps, send: false } : caps} onChanged={reload} form={doc.form_snapshot} />
           <FilesList files={data.files} />
         </TabsContent>
 
@@ -149,14 +185,14 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">{t(viewKind === "final" ? "viewer.noteSigned" : "viewer.noteSent")}</p>
+              <p className="text-xs text-muted-foreground">{t(viewKind === "final" ? (doc.mode === "form" ? "viewer.noteRecord" : "viewer.noteSigned") : "viewer.noteSent")}</p>
               <DocumentViewer documentId={documentId} kind={viewKind} version={`${viewKind}|${viewKind === "final" ? doc.final_path : doc.base_path}`} />
             </>
           )}
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
-          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} form={doc.form_snapshot} contactId={doc.contact_id} />
+          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} form={doc.form_snapshot} contactId={doc.contact_id} mode={doc.mode} />
         </TabsContent>
       </Tabs>
 

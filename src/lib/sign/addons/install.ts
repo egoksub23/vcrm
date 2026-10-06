@@ -8,7 +8,8 @@
 //   * Each template is created as a DRAFT to review, with its layout and, when it carries one, its form (phase
 //     1B) stored on the version. A template of the same name that already exists for the add-on is skipped,
 //     edited or not ("customised" ones are never touched), so installing again never replaces a form either.
-//   * The installed version is recorded in `sign_addons` once everything above worked.
+//   * The installed version is recorded in `sign_addons` once everything above worked. Installing again never moves an older recorded
+//     version forward: only Update (update.ts) does, because only Update brings the templates up to it.
 //
 // The audit log is written by the database: triggers on sign_addons, sign_categories and sign_templates
 // (migration 157) record each row this creates, with the person in `installed_by` / `created_by`.
@@ -25,7 +26,7 @@ import { signEnabled, signMerchantEnabled } from "../feature";
 import { SignError, raiseDatabaseError } from "../service/errors";
 import type { SignCtx } from "../service/context";
 import { createTemplateFromUpload, deleteTemplate, saveTemplateVersion } from "../service/templates";
-import { ADDON_REGISTRY, getAddon, installableTemplates, listAddons, type AddonManifest, type AddonRegistry } from "./index";
+import { ADDON_REGISTRY, changesSince, compareVersions, getAddon, installableTemplates, listAddons, type AddonChange, type AddonManifest, type AddonRegistry, type AddonTemplateDef } from "./index";
 
 export interface InstallOptions {
   registry?: AddonRegistry;
@@ -49,7 +50,7 @@ export async function addonAllowed(ctx: Pick<SignCtx, "admin" | "accountId">, ma
   return manifest.requires === "sign_merchant" ? signMerchantEnabled(ctx.admin, ctx.accountId) : signEnabled(ctx.admin, ctx.accountId);
 }
 
-async function defaultReadSource(addonKey: string, relativePath: string): Promise<Uint8Array> {
+export async function defaultReadSource(addonKey: string, relativePath: string): Promise<Uint8Array> {
   const base = path.resolve(process.cwd(), "src", "lib", "sign", "addons", addonKey);
   const full = path.resolve(base, relativePath);
   // a manifest is code we wrote, but a path that climbs out of the add-on's folder is a mistake either way
@@ -65,7 +66,7 @@ interface CategoryRow {
   position: number;
 }
 
-async function ensureCategory(ctx: SignCtx, m: AddonManifest): Promise<{ row: CategoryRow; outcome: CategoryOutcome }> {
+export async function ensureCategory(ctx: SignCtx, m: AddonManifest): Promise<{ row: CategoryRow; outcome: CategoryOutcome }> {
   const found = await ctx.admin.from("sign_categories").select("id, key, addon_key, archived, position").eq("account_id", ctx.accountId).eq("key", m.category.key).maybeSingle();
   if (found.error) raiseDatabaseError(found.error, "load add-on category");
   if (found.data) {
@@ -111,33 +112,19 @@ async function ensureCategory(ctx: SignCtx, m: AddonManifest): Promise<{ row: Ca
   return { row: ins.data as CategoryRow, outcome: "created" };
 }
 
-/** Install (or repeat the install of) an add-on for the workspace. */
-export async function installAddon(ctx: SignCtx, key: string, opts: InstallOptions = {}): Promise<InstallResult> {
-  const registry = opts.registry ?? ADDON_REGISTRY;
-  const manifest = getAddon(key, registry);
-  if (!manifest) throw new SignError("addon_not_found", "That add-on does not exist.", 404);
-  if (!(await addonAllowed(ctx, manifest))) {
-    throw new SignError("addon_not_available", "This add-on is not available for your workspace. Ask the platform operator to switch it on.", 403);
-  }
-  const readSource = opts.readSource ?? defaultReadSource;
-
-  const before = await ctx.admin.from("sign_addons").select("installed_version, status").eq("account_id", ctx.accountId).eq("addon_key", manifest.key).maybeSingle();
-  if (before.error) raiseDatabaseError(before.error, "load add-on state");
-  const previous = before.data as { installed_version: string; status: string } | null;
-
-  const { row: category, outcome } = await ensureCategory(ctx, manifest);
-
-  const existing = await ctx.admin.from("sign_templates").select("id, name").eq("account_id", ctx.accountId).eq("addon_key", manifest.key);
-  if (existing.error) raiseDatabaseError(existing.error, "load add-on templates");
-  const have = new Set(((existing.data ?? []) as { name: string }[]).map((t) => t.name.trim().toLowerCase()));
-
-  const created: string[] = [];
-  const skipped: string[] = [];
-  for (const def of installableTemplates(manifest)) {
-    if (have.has(def.name.trim().toLowerCase())) {
-      skipped.push(def.name);
-      continue;
-    }
+/**
+ * Make one template of an add-on in the workspace: a draft from the add-on's file, with its layout and form stored as the next version,
+ * then marked as the add-on's and not customised. `name` is the template's name when it is not the add-on's own (an update that makes a
+ * new copy next to a template the workspace edited). Leaves nothing half-made behind if the layout or the form is refused.
+ */
+export async function createAddonTemplate(
+  ctx: SignCtx,
+  manifest: AddonManifest,
+  def: AddonTemplateDef,
+  categoryId: string,
+  readSource: (addonKey: string, relativePath: string) => Promise<Uint8Array>,
+  name: string = def.name,
+): Promise<{ templateId: string }> {
     let bytes: Uint8Array;
     try {
       bytes = await readSource(manifest.key, def.source as string);
@@ -145,7 +132,7 @@ export async function installAddon(ctx: SignCtx, key: string, opts: InstallOptio
       console.error(`[sign] add-on ${manifest.key}: cannot read ${def.source}:`, err instanceof Error ? err.message : err);
       throw new SignError("addon_source_missing", "A file this add-on needs is missing from the server. Please contact support.", 500);
     }
-    const { template } = await createTemplateFromUpload(ctx, { bytes, filename: path.basename(def.source as string), name: def.name, categoryId: category.id });
+    const { template } = await createTemplateFromUpload(ctx, { bytes, filename: path.basename(def.source as string), name, categoryId });
     // The layout and the form go in as the next version, before the template is marked as the add-on's (saving
     // a version of an add-on's template marks it customised, which this is not). The service checks the layout
     // and the form together, so an add-on that ships an unsound form fails here and installs nothing more.
@@ -164,17 +151,54 @@ export async function installAddon(ctx: SignCtx, key: string, opts: InstallOptio
       .eq("id", template.id)
       .eq("account_id", ctx.accountId);
     if (mark.error) raiseDatabaseError(mark.error, "mark add-on template");
+    return { templateId: template.id };
+}
+
+/** Install (or repeat the install of) an add-on for the workspace. */
+export async function installAddon(ctx: SignCtx, key: string, opts: InstallOptions = {}): Promise<InstallResult> {
+  const registry = opts.registry ?? ADDON_REGISTRY;
+  const manifest = getAddon(key, registry);
+  if (!manifest) throw new SignError("addon_not_found", "That add-on does not exist.", 404);
+  if (!(await addonAllowed(ctx, manifest))) {
+    throw new SignError("addon_not_available", "This add-on is not available for your workspace. Ask the platform operator to switch it on.", 403);
+  }
+  const readSource = opts.readSource ?? defaultReadSource;
+
+  const before = await ctx.admin.from("sign_addons").select("installed_version, status").eq("account_id", ctx.accountId).eq("addon_key", manifest.key).maybeSingle();
+  if (before.error) raiseDatabaseError(before.error, "load add-on state");
+  const previous = before.data as { installed_version: string; status: string } | null;
+
+  const { row: category, outcome } = await ensureCategory(ctx, manifest);
+
+  const existing = await ctx.admin.from("sign_templates").select("id, name, addon_version").eq("account_id", ctx.accountId).eq("addon_key", manifest.key);
+  if (existing.error) raiseDatabaseError(existing.error, "load add-on templates");
+  const owned = (existing.data ?? []) as { name: string; addon_version: string | null }[];
+  const have = new Set(owned.map((t) => t.name.trim().toLowerCase()));
+
+  const created: string[] = [];
+  const skipped: string[] = [];
+  for (const def of installableTemplates(manifest)) {
+    if (have.has(def.name.trim().toLowerCase())) {
+      skipped.push(def.name);
+      continue;
+    }
+    await createAddonTemplate(ctx, manifest, def, category.id, readSource);
     created.push(def.name);
   }
 
+  // A workspace that has templates of an older version stays on that version: only Update brings them to the new one, and records it.
+  // (One with nothing of the add-on's yet, the category-only 1.0 say, has nothing to update, so it moves forward with what was just added.)
+  const stays =
+    previous?.status === "installed" && compareVersions(previous.installed_version, manifest.version) < 0 && owned.some((t) => !t.addon_version || compareVersions(t.addon_version, manifest.version) < 0);
+  const version = stays ? (previous as { installed_version: string }).installed_version : manifest.version;
   const record = await ctx.admin
     .from("sign_addons")
-    .upsert({ account_id: ctx.accountId, addon_key: manifest.key, installed_version: manifest.version, status: "installed", installed_by: ctx.userId }, { onConflict: "account_id,addon_key" });
+    .upsert({ account_id: ctx.accountId, addon_key: manifest.key, installed_version: version, status: "installed", installed_by: ctx.userId }, { onConflict: "account_id,addon_key" });
   if (record.error) raiseDatabaseError(record.error, "record add-on");
 
   return {
     key: manifest.key,
-    version: manifest.version,
+    version,
     previousVersion: previous?.status === "installed" ? previous.installed_version : null,
     category: { key: manifest.category.key, outcome },
     templates: { created, skipped },
@@ -192,8 +216,10 @@ export interface AddonCard {
   /** The operator allows this workspace to install it. */
   available: boolean;
   installed: { version: string; installedAt: string } | null;
-  /** A newer version than the installed one exists (applying updates is a later update). */
+  /** A newer version than the installed one exists: Update (update.ts) brings the templates to it. */
   updateAvailable: boolean;
+  /** What the versions after the installed one changed, oldest first, in every language the add-on has words for; empty when there is no update. */
+  changes: AddonChange[];
   category: { key: string; name: string };
   /** Templates that install now, and templates announced but not shipped yet. */
   templates: { installable: number; announced: number };
@@ -214,7 +240,8 @@ export async function listAddonCards(ctx: Pick<SignCtx, "admin" | "accountId">, 
       requires: m.requires,
       available: await addonAllowed(ctx, m),
       installed: inst ? { version: inst.installed_version, installedAt: inst.installed_at } : null,
-      updateAvailable: !!inst && inst.installed_version !== m.version,
+      updateAvailable: !!inst && compareVersions(inst.installed_version, m.version) < 0,
+      changes: inst && compareVersions(inst.installed_version, m.version) < 0 ? changesSince(m, inst.installed_version) : [],
       category: { key: m.category.key, name: m.category.name },
       templates: { installable: installableTemplates(m).length, announced: m.templates.length - installableTemplates(m).length },
     });

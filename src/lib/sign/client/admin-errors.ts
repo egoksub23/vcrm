@@ -8,6 +8,7 @@ export const ADMIN_ERROR_CODES = [
   // add-ons
   "addon_not_available",
   "addon_not_found",
+  "addon_not_installed",
   "addon_source_missing",
   // an uploaded file
   "upload_empty",
@@ -38,6 +39,12 @@ export const ADMIN_ERROR_CODES = [
   "category_not_found",
   "bad_name",
   "invalid_layout",
+  // registration forms
+  "form_not_found",
+  "form_not_ready",
+  "invalid_form",
+  "tag_not_found",
+  "slug_unavailable",
   // the edge
   "network",
   "signed_out",

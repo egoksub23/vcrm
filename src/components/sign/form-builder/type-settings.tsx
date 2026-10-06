@@ -12,6 +12,7 @@ import { FILE_KINDS, MAX_FILES_PER_FIELD, MAX_UPLOAD_MB, TEXT_FORMATS, type Data
 import type { SignLocale } from "@/lib/sign/types";
 
 import { FormRow, NativeSelect, NumberField } from "./form-bits";
+import { ListSource } from "./list-source";
 import { OptionsEditor } from "./options-editor";
 
 interface TypeSettingsProps {
@@ -86,16 +87,26 @@ export function TypeSettings({ field, lang, disabled, lockedOptionValues, onChan
       return <p className="text-xs text-muted-foreground">{t("type.acknowledgeHint")}</p>;
     case "choice":
     case "multichoice":
-      return <OptionsEditor options={field.options ?? []} lang={lang} disabled={disabled} lockedValues={lockedOptionValues} coalesceKey={`options:${k}`} onChange={(options, key) => onChange({ options }, key)} />;
+      return (
+        <div className="space-y-3">
+          <ListSource field={field} lang={lang} disabled={disabled} onChange={onChange} />
+          {field.optionList === undefined ? <OptionsEditor options={field.options ?? []} lang={lang} disabled={disabled} lockedValues={lockedOptionValues} coalesceKey={`options:${k}`} onChange={(options, key) => onChange({ options }, key)} /> : null}
+        </div>
+      );
     case "list":
       return (
         <div className="space-y-2">
+          <ListSource field={field} lang={lang} disabled={disabled} onChange={onChange} />
           <div className="grid grid-cols-2 gap-2">
             <NumberField label={t("type.minItems")} value={field.minItems} integer min={0} max={5000} disabled={disabled} onChange={(v) => set("minItems", v, "minItems")} />
             <NumberField label={t("type.maxItems")} value={field.maxItems} integer min={0} max={5000} disabled={disabled} placeholder="20" onChange={(v) => set("maxItems", v, "maxItems")} />
           </div>
-          {formatSelect(`ifmt-${k}`, t("type.itemFormat"), field.itemFormat, (v) => set("itemFormat", v))}
-          <NumberField label={t("type.itemLength")} value={field.itemLength} integer min={0} max={5000} disabled={disabled} placeholder="100" hint={t("type.itemLengthHint")} onChange={(v) => set("itemLength", v, "itemLength")} />
+          {field.optionList === undefined ? (
+            <>
+              {formatSelect(`ifmt-${k}`, t("type.itemFormat"), field.itemFormat, (v) => set("itemFormat", v))}
+              <NumberField label={t("type.itemLength")} value={field.itemLength} integer min={0} max={5000} disabled={disabled} placeholder="100" hint={t("type.itemLengthHint")} onChange={(v) => set("itemLength", v, "itemLength")} />
+            </>
+          ) : null}
         </div>
       );
     case "file": {

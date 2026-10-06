@@ -215,7 +215,7 @@ export function AiNotices({ cid }: { cid: string }) {
 // Insert variable
 // ------------------------------------------------------------
 
-function PromptField({
+export function PromptField({
   cid,
   label,
   value,

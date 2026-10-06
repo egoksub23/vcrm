@@ -31,7 +31,7 @@ Everyone on the document gets the signed copy by email. You can also download it
 
 ## What the seal tells you
 
-If anyone changes the PDF after sealing, a PDF reader can tell. A seal made with an organisation's own certificate from a certificate authority shows as valid. A seal made with the certificate Doc Sign made for your workspace is **self-signed**, and PDF readers show a warning that the signer is not trusted. The seal still shows whether the file changed, but the reader cannot check who made the certificate. This is normal for a self-signed certificate. You can see which one your workspace uses under **Settings**, **Doc Sign**, **Sealing certificate**.
+If anyone changes the PDF after sealing, a PDF reader can tell. A seal made with a certificate from a certificate authority shows who the certificate was issued to and by whom, and a reader that trusts that authority marks it as trusted (see [The sealing certificate](/help/doc-sign/sealing-certificate)). A seal made with the certificate Doc Sign made for your workspace is **self-signed**, and PDF readers show a warning that the signer is not trusted. The seal still shows whether the file changed, but the reader cannot check who made the certificate. This is normal for a self-signed certificate. You can see which one your workspace uses under **Settings**, **Doc Sign**, **Sealing certificate**.
 
 ## Checking a document from its QR code
 

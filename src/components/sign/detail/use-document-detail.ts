@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
+import type { EnvelopeBrief } from "@/lib/sign/service/envelopes";
 import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
 
 import { POLL_MS, shouldPoll } from "./logic";
@@ -27,6 +28,8 @@ export interface DocumentDetailData {
   document: SignDocumentRow;
   signers: SignSignerRow[];
   files: DetailFile[];
+  /** Migration 171: the envelope this document is one of, with its siblings' titles and states; null for a document on its own. */
+  envelope?: EnvelopeBrief | null;
 }
 
 interface Result {
@@ -53,9 +56,9 @@ export function useDocumentDetail(documentId: string) {
     async (force = false): Promise<void> => {
       const mine = ++sequence.current;
       try {
-        const body = await signRequest<{ document: SignDocumentRow; signers: SignSignerRow[]; files: DetailFile[] }>(`/api/sign/documents/${documentId}`);
+        const body = await signRequest<{ document: SignDocumentRow; signers: SignSignerRow[]; files: DetailFile[]; envelope?: EnvelopeBrief | null }>(`/api/sign/documents/${documentId}`);
         if (mine !== sequence.current) return;
-        const data: DocumentDetailData = { document: body.document, signers: body.signers ?? [], files: body.files ?? [] };
+        const data: DocumentDetailData = { document: body.document, signers: body.signers ?? [], files: body.files ?? [], envelope: body.envelope ?? null };
         const print = dataFingerprint(data);
         if (force || print !== printRef.current) {
           printRef.current = print;

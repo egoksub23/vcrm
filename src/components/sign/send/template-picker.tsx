@@ -94,7 +94,7 @@ export function TemplatePicker({ templates, loading, error, selectedId, onSelect
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{tpl.name}</span>
                     {tpl.description ? <span className="block truncate text-xs text-muted-foreground">{tpl.description}</span> : null}
-                    <span className="block text-xs text-muted-foreground">{t("templateFacts", { pages: tpl.pages, roles: tpl.roles })}</span>
+                    <span className="block text-xs text-muted-foreground">{tpl.mode === "form" ? t("templateFactsForm", { roles: tpl.roles }) : t("templateFacts", { pages: tpl.pages, roles: tpl.roles })}</span>
                   </span>
                 </label>
               );

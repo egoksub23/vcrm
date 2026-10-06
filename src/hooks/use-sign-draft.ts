@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { SignApiError, signRequest, type SignIssue } from "@/lib/sign/client/api";
+import type { EnvelopeBrief } from "@/lib/sign/service/envelopes";
 import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
 
 export interface DraftData {
@@ -11,6 +12,8 @@ export interface DraftData {
   files: { id: string; kind: string; name: string; mime: string | null; size_bytes: number }[];
   /** What stops the draft being sent, as the server saw it when this was read. */
   problems: SignIssue[];
+  /** Migration 171: the envelope this draft is a document of, with its siblings (their titles and states); null for a document on its own. */
+  envelope?: EnvelopeBrief | null;
 }
 
 interface Slot {

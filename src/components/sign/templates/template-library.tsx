@@ -162,10 +162,11 @@ export function TemplateLibrary() {
               {shown.map((row) => (
                 <TableRow key={row.id} className={cn(row.status === "archived" && "opacity-70")}>
                   <TableCell className="min-w-48 whitespace-normal">
-                    <Link href={templateEditorHref(row.id)} className="font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline">
+                    <Link href={templateEditorHref(row.id, row.mode)} className="font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline">
                       {row.name}
                     </Link>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {row.mode === "form" ? <Badge variant="secondary">{t("formBadge")}</Badge> : null}
                       {row.addon_key ? <Badge variant="secondary">{t("addonBadge")}</Badge> : null}
                       {row.addon_key && row.customised ? <Badge variant="outline">{t("customisedBadge")}</Badge> : null}
                       {row.tags.map((tag) => (
@@ -184,7 +185,7 @@ export function TemplateLibrary() {
                   <TableCell>{format.dateTime(new Date(row.updated_at), { dateStyle: "medium" })}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center justify-end gap-1">
-                      <Link href={templateEditorHref(row.id)} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                      <Link href={templateEditorHref(row.id, row.mode)} className={buttonVariants({ variant: "outline", size: "sm" })}>
                         {canManage ? t("openEditor") : t("view")}
                       </Link>
                       {row.status === "active" && canSend ? (

@@ -20,6 +20,8 @@ export interface LibraryTemplate {
   updated_at: string;
   /** How many versions have been saved. */
   versionCount: number;
+  /** Migration 169: `form` for a form without a signature. Absent is an agreement to sign. */
+  mode?: "sign" | "form";
 }
 
 export interface LibraryFilters {
@@ -72,5 +74,5 @@ export const templateStatusBadgeClass = (status: string): string => TEMPLATE_STA
 export const templateStatusKey = (status: string): string => (TEMPLATE_STATUSES.includes(status as TemplateStatus) ? `statusValue.${status}` : "statusValue.unknown");
 
 /** The links a row offers. The editor and the new-document screen are other screens. */
-export const templateEditorHref = (id: string): string => `/sign/templates/${id}`;
+export const templateEditorHref = (id: string, mode?: string | null): string => (mode === "form" ? `/sign/templates/${id}/form` : `/sign/templates/${id}`);
 export const newDocumentFromTemplateHref = (id: string): string => `/sign/new?templateId=${id}`;

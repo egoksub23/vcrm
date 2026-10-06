@@ -5,9 +5,12 @@
 // ============================================================
 
 import type { PlacedField } from "../pdf/types";
+import { MAX_ITEM_LABEL, MAX_LIST_ITEMS } from "../lists/types";
 import { SENDER_ROLE, type Issue } from "../rules";
 import type { SignRole } from "../types";
+import { listProblems, takesOptions, type ListProblemOptions } from "./lists";
 import { dependencyCycle, ruleProblems } from "./rules";
+import { sensitiveProblems } from "./sensitive";
 import { CONTACT_FIELDS, DATA_FIELD_TYPES, FILE_KINDS, MAX_DATA_FIELDS, MAX_FILES_PER_FIELD, MAX_OPTIONS, MAX_PARTS, MAX_UPLOAD_MB, TEXT_FORMATS, type DataField, type FormDefinition, type L10n } from "./types";
 
 const KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
@@ -50,9 +53,10 @@ export function isFormDefinition(v: unknown): v is FormDefinition {
 
 /**
  * Problems with a form and the placements that print it. `placements` are the document's placed fields
- * (to check each `data` binding); `roles` are the template's roles.
+ * (to check each `data` binding); `roles` are the template's roles. `lists` says which shared option lists exist (so a reference to
+ * a missing one is a problem) and whether the form is as authored (a field then names a list or carries options, never both).
  */
-export function validateForm(form: FormDefinition, roles: readonly SignRole[], placements: readonly PlacedField[] = []): Issue[] {
+export function validateForm(form: FormDefinition, roles: readonly SignRole[], placements: readonly PlacedField[] = [], lists: ListProblemOptions = {}): Issue[] {
   const issues: Issue[] = [];
   if (!isFormDefinition(form)) return [{ code: "form_shape" }];
   if (form.parts.length > MAX_PARTS) issues.push({ code: "too_many_parts", detail: String(MAX_PARTS) });
@@ -91,9 +95,15 @@ export function validateForm(form: FormDefinition, roles: readonly SignRole[], p
     if (f.help !== undefined && !l10nOk(f.help, 600)) issues.push({ code: "bad_data_help", ...at });
     if (f.placeholder !== undefined && !l10nOk(f.placeholder, 120)) issues.push({ code: "bad_data_placeholder", ...at });
 
-    if (f.type === "choice" || f.type === "multichoice") {
+    if (takesOptions(f.type)) {
       const o = f.options ?? [];
-      if (o.length === 0 || o.length > MAX_OPTIONS || o.some((x) => !OPTION_RE.test(x.value) || !l10nOk(x.label, 120)) || new Set(o.map((x) => x.value)).size !== o.length) {
+      // a field that names a shared list gets its options from it (a form not yet resolved has none); a list
+      // field without options is free text. What a list put in is as sound as an inline option, with room for a long list.
+      const fromList = f.optionList !== undefined;
+      const cap = fromList ? MAX_LIST_ITEMS : MAX_OPTIONS;
+      const optional = fromList ? o.length === 0 : f.type === "list";
+      const labelMax = fromList ? MAX_ITEM_LABEL : 120;
+      if (!(optional && o.length === 0) && (o.length === 0 || o.length > cap || o.some((x) => !OPTION_RE.test(x.value) || !l10nOk(x.label, labelMax)) || new Set(o.map((x) => x.value)).size !== o.length)) {
         issues.push({ code: "bad_options", ...at });
       }
     }
@@ -130,6 +140,8 @@ export function validateForm(form: FormDefinition, roles: readonly SignRole[], p
   }
   const cycle = dependencyCycle(form);
   if (cycle) issues.push({ code: "rule_cycle", field: cycle });
+  issues.push(...listProblems(form, lists));
+  issues.push(...sensitiveProblems(form));
 
   // the placements that print data
   const byKey = new Map(form.fields.map((f) => [f.key, f]));

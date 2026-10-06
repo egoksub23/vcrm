@@ -12,10 +12,12 @@ interface Props {
   current: DraftStepId;
   done: Readonly<Record<DraftStepId, boolean>>;
   onGo: (step: DraftStepId) => void;
+  /** A form without a signature (migration 169): the first step is the form, not fields on a page. */
+  formOnly?: boolean;
 }
 
 /** The four steps of preparing a draft. Any step can be opened; a tick (not only a colour) says it is complete. */
-export function StepsNav({ current, done, onGo }: Props) {
+export function StepsNav({ current, done, onGo, formOnly }: Props) {
   const t = useTranslations("Sign.send.steps");
   return (
     <nav aria-label={t("label")}>
@@ -42,7 +44,7 @@ export function StepsNav({ current, done, onGo }: Props) {
                 >
                   {done[step] && !isCurrent ? <Check className="size-3" aria-hidden /> : i + 1}
                 </span>
-                <span className={cn(!isCurrent && "hidden sm:inline")}>{t(step)}</span>
+                <span className={cn(!isCurrent && "hidden sm:inline")}>{t(formOnly && step === "fields" ? "formFields" : step)}</span>
                 {done[step] ? <span className="sr-only">{t("complete")}</span> : null}
               </button>
             </li>

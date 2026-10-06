@@ -105,7 +105,9 @@ export interface OtherRow {
  */
 export function describeOthers(others: readonly OtherSigner[], signInOrder: boolean): OtherRow[] {
   const sorted = [...others].sort((a, b) => a.orderNo - b.orderNo);
-  let turnGiven = false;
+  // people who share an order number are one step and take their turn together: it is the turn of every invited
+  // person in the first step that still has someone to finish
+  const turnStep = sorted.find((o) => o.status === "sent" || o.status === "viewed")?.orderNo ?? null;
   return sorted.map((o) => {
     const filler = o.kind === "filler";
     let kind: OtherKind;
@@ -113,12 +115,14 @@ export function describeOthers(others: readonly OtherSigner[], signInOrder: bool
     else if (o.status === "declined") kind = "declined";
     else if (o.status === "pending") kind = "waiting";
     else if (!signInOrder) kind = "invited";
-    else if (!turnGiven) {
-      kind = "turn";
-      turnGiven = true;
-    } else kind = "waiting";
+    else kind = o.orderNo === turnStep ? "turn" : "waiting";
     return { name: o.name, filler, kind, signedAt: o.signedAt };
   });
+}
+
+/** The names the page is waiting for: everyone who has been invited and has not finished (a whole step when several share one). */
+export function waitingOnNames(others: readonly OtherSigner[]): string[] {
+  return others.filter((o) => o.status === "sent" || o.status === "viewed").map((o) => o.name);
 }
 
 /** How many of the others have not finished (and have not declined). */

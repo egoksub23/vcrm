@@ -36,6 +36,8 @@ export interface PartLine {
   done: number;
   total: number;
   lastSavedAt: string | null;
+  /** The part was handed to someone else (migration 166): who holds it, and whether they have completed it. */
+  heldBy?: { name: string; done: boolean };
 }
 
 export interface RoleView {
@@ -54,6 +56,7 @@ export interface RoleView {
 export function roleViews(progress: Pick<StaffProgress, "form" | "roles">, locale: SignLocale): RoleView[] {
   const numberOf = new Map(progress.form.parts.map((p, i) => [p.key, i + 1]));
   return progress.roles.map((r) => {
+    const held = new Map((r.delegations ?? []).map((d) => [d.part, { name: d.name, done: d.done }]));
     const parts: PartLine[] = r.parts.map((p) => ({
       key: p.key,
       number: numberOf.get(p.key) ?? 0,
@@ -62,6 +65,7 @@ export function roleViews(progress: Pick<StaffProgress, "form" | "roles">, local
       done: p.done,
       total: p.total,
       lastSavedAt: p.lastSavedAt ?? null,
+      ...(held.has(p.key) ? { heldBy: held.get(p.key) } : {}),
     }));
     return {
       roleKey: r.roleKey,
@@ -173,6 +177,10 @@ export interface AnswerRowView {
   key: string;
   label: string;
   display: AnswerDisplay;
+  /** The data field's type (to word a revealed value). */
+  type: DataField["type"];
+  /** A sensitive field: `display` is a mask, and the value is fetched with "Reveal" (never sent with the progress). */
+  sensitive: boolean;
   /** A value taken from the contact that the signer has not confirmed yet. */
   fromContact: boolean;
   /** Entered by the sender (a fixed value), not by the signer. */
@@ -209,6 +217,8 @@ export function groupAnswers(progress: Pick<StaffProgress, "form" | "answers" | 
     key: a.key,
     label: pick(a.label, locale) || a.key,
     display: describeAnswer(a.type, a.value, fieldByKey.get(a.key), locale),
+    type: a.type,
+    sensitive: a.sensitive === true,
     fromContact: a.source === "contact",
     bySender: a.source === "sender",
     savedAt: a.savedAt,

@@ -19,6 +19,8 @@ interface Props {
   roles: readonly SignRole[];
   readOnly: boolean;
   onChanged: () => void;
+  /** A form without a signature (migration 169): nothing is printed on a page, so there is no placement editor to open. */
+  formOnly?: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  * the field editor. The form belongs to the template. "Edit fields" opens the editor to change where the answers
  * print on the pages, never the form.
  */
-export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged }: Props) {
+export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, formOnly }: Props) {
   const t = useTranslations("Sign.progress.formStep");
   const locale = asLocale(useLocale());
   const [editing, setEditing] = useState(false);
@@ -67,6 +69,7 @@ export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged }:
         <p className="text-xs text-muted-foreground">{t("belongsToTemplate")}</p>
       </section>
 
+      {formOnly ? null : (
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant={editing ? "secondary" : "outline"} aria-expanded={editing} disabled={readOnly} onClick={() => setEditing((v) => !v)}>
           <Pencil aria-hidden />
@@ -74,8 +77,9 @@ export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged }:
         </Button>
         <p className="text-xs text-muted-foreground">{t("editFieldsNote")}</p>
       </div>
+      )}
 
-      {editing ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} /> : null}
+      {editing && !formOnly ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} /> : null}
     </div>
   );
 }

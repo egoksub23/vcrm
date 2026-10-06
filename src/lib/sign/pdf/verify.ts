@@ -167,6 +167,7 @@ export function verifySealed(pdf: Uint8Array): VerifyResult {
     result.signatureValid = (cert.publicKey as forge.pki.rsa.PublicKey).verify(sigMd.digest().getBytes(), signature);
     if (!result.signatureValid) problems.push("The signature does not verify against its certificate.");
 
+    result.certificateCount = certs.length;
     result.signer = {
       subject: nameString(cert.subject.attributes),
       issuer: nameString(cert.issuer.attributes),

@@ -2,7 +2,7 @@
 title: Templates
 description: Prepare a document once and use it again: create, version, duplicate, activate, archive and delete templates.
 order: 7
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 A template is a document prepared once, with its pages, fields, roles and starting choices. You use it again and again, so a new document takes a minute.
@@ -51,6 +51,10 @@ A draft needs at least one role and one field before it can be made active. Clic
 
 Click **Use this template** on an active template, or choose **Use a template** when you start a new document. The draft starts with the template's fields, roles and defaults. See [Send a document for signature](/help/doc-sign/send-a-document).
 
+## Send yourself a test
+
+Click **Send a test** at the top of the template editor to try the template as a signer would. You get a real email and signing page, and a signed file, all marked **TEST**; it does not count toward your limits and goes only to you. It works on a draft template too. See [Send yourself a test](/help/doc-sign/test-mode).
+
 ## Versions
 
 Editing a template saves a new **version**. Documents already sent keep the exact version they were sent with, so what the signers saw never changes. The library shows how many versions each template has.
@@ -65,7 +69,7 @@ If another group of customers has other fees or other clauses, make another temp
 - **Delete** removes the template and its versions for good. Documents already made from it keep their own copy and do not change. If you might need it again, archive it instead.
 
 > [!NOTE]
-> A template that came from an add-on shows an **Add-on** label. When you edit it, it also shows **Customised**, and later add-on installs leave it alone. See [Categories and add-ons](/help/doc-sign/categories-and-add-ons).
+> A template that came from an add-on shows an **Add-on** label. When you edit it, it also shows **Customised**, and later add-on installs and updates leave it alone: an update adds a copy next to it instead. See [Categories and add-ons](/help/doc-sign/categories-and-add-ons).
 
 ## Tips
 
@@ -75,6 +79,7 @@ If another group of customers has other fees or other clauses, make another temp
 ## Common mistakes
 
 - **Expecting a change to reach documents already sent.** It does not. Only new documents use the new version.
+- **Sending a template to a customer without trying it.** Use **Send a test** first.
 - **Deleting a template to hide it.** Archive it instead.
 
 ## Related pages

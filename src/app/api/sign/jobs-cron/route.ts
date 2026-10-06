@@ -6,8 +6,9 @@ import { publicOrigin } from '@/lib/site-url'
 
 /**
  * The scheduled work of Doc Sign, once a minute: seal documents that every signer has finished (two at
- * a time, oldest first), expire documents past their date, and send due reminders. Each part works on a
- * small batch, so one workspace's backlog cannot starve another's.
+ * a time, oldest first), expire documents past their date, send due reminders, and send the documents of bulk
+ * batches (a fair share per workspace, within a time budget). Each part works on a small batch, so one
+ * workspace's backlog cannot starve another's.
  *
  * Auth: the same `AUTOMATION_CRON_SECRET` / `x-cron-secret` header as the other jobs.
  *

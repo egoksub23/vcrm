@@ -211,6 +211,7 @@ async function scopeFor(rt: AiStepRuntime, ...templates: (string | undefined)[])
     message: { text: rt.messageText },
     vars: rt.vars,
     closure: rt.closureNote ? { note: rt.closureNote } : undefined,
+    sign: rt.sign,
   }
   if (!needsContactScope(...templates)) return scope
   if (rt.conversationId) scope.conversation = { id: rt.conversationId }

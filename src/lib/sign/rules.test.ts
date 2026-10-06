@@ -245,10 +245,10 @@ describe("sendProblems", () => {
     expect(problems({ fields: [f({ key: "name", type: "name" })], roles: [roles[0]], signers: [signer()] })).toContain("signer_without_signature");
   });
 
-  it("with signing order needs one person per number and no one twice", () => {
+  it("with signing order lets two people share a number (one step) but not be on the list twice", () => {
     const two = [signer(), signer({ role_key: "director", email: "g@vircle.example", order_no: 1 })];
-    expect(problems({ signers: two, signInOrder: true })).toContain("order_not_unique");
-    expect(problems({ signers: two, signInOrder: false })).not.toContain("order_not_unique");
+    expect(problems({ signers: two, signInOrder: true })).toEqual([]);
+    expect(problems({ signers: two, signInOrder: false })).toEqual([]);
     const same = [signer(), signer({ role_key: "director", order_no: 2 })];
     expect(problems({ signers: same, signInOrder: true })).toContain("same_person_twice");
     expect(problems({ signers: same, signInOrder: false })).not.toContain("same_person_twice");

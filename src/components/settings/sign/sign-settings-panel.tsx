@@ -2,7 +2,8 @@
 
 // Settings > Doc Sign (sign.settings). The tab is only offered when the platform operator has Doc Sign switched
 // on for the workspace: the operator's flag removes every sign.* capability, and the Settings rail and page
-// both check this one. Five sections: General, Consent wording, Categories, Add-ons and the sealing certificate.
+// both check this one. Sections: General, Consent wording, Categories, Registration forms, Add-ons and the sealing
+// certificate.
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -16,10 +17,12 @@ import { CategoriesSection } from "./categories-section";
 import { CertificateSection } from "./certificate-section";
 import { ConsentSection } from "./consent-section";
 import { GeneralSection } from "./general-section";
+import { ListsSection } from "./lists-section";
+import { RegistrationSection } from "./registration-section";
 import { Loading, useAdminErrorText } from "./shared";
 import { useSignSettings } from "./use-sign-settings";
 
-const TABS = ["general", "consent", "categories", "addons", "certificate"] as const;
+const TABS = ["general", "consent", "categories", "lists", "registration", "addons", "certificate"] as const;
 type Tab = (typeof TABS)[number];
 
 export function SignSettingsPanel() {
@@ -56,6 +59,8 @@ export function SignSettingsPanel() {
           {tab === "general" ? <GeneralSection settings={state.data.settings} onSaved={replaceSettings} /> : null}
           {tab === "consent" ? <ConsentSection data={state.data} onSaved={reload} /> : null}
           {tab === "categories" ? <CategoriesSection /> : null}
+          {tab === "lists" ? <ListsSection /> : null}
+          {tab === "registration" ? <RegistrationSection /> : null}
           {tab === "addons" ? <AddonsSection /> : null}
           {tab === "certificate" ? <CertificateSection /> : null}
         </>

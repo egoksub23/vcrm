@@ -22,11 +22,13 @@ interface StickyBarProps {
   finishError: string | null;
   /** Something other than the person's own fields stands in the way of finishing (a form's answer too long for its place); in words. */
   blockedNote?: string | null;
+  /** The words of the last button when they are not "Finish" (an envelope's "Next document"). */
+  finishLabel?: string;
   onNext: () => void;
   onFinish: () => void;
 }
 
-export function StickyBar({ progress, saveState, finishing, finishError, blockedNote = null, onNext, onFinish }: StickyBarProps) {
+export function StickyBar({ progress, saveState, finishing, finishError, blockedNote = null, finishLabel, onNext, onFinish }: StickyBarProps) {
   const t = useTranslations("Sign.signer");
   const { required, done, attention, canFinish } = progress;
   const percent = required === 0 ? 100 : Math.round((done / required) * 100);
@@ -65,7 +67,7 @@ export function StickyBar({ progress, saveState, finishing, finishError, blocked
           ) : null}
           <Button type="button" className="h-11 flex-1 px-4 text-base sm:flex-none" disabled={!canFinish || blocked || finishing} onClick={onFinish} aria-describedby={!canFinish ? "sign-left" : blocked ? "sign-blocked" : undefined}>
             {finishing ? <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden /> : null}
-            {finishing ? t("fill.finishing") : t("fill.finish")}
+            {finishing ? t("fill.finishing") : (finishLabel ?? t("fill.finish"))}
           </Button>
         </div>
         <span id="sign-left" className="sr-only">

@@ -2,7 +2,8 @@
 
 // Settings > Doc Sign > Add-ons: the catalogue of ready-made packs, with each one's state for this workspace.
 // Only the platform operator can make an add-on available; an Owner or Admin installs it. Installing is safe to
-// repeat and never changes what the workspace has edited (lib/sign/addons/install.ts).
+// repeat and never changes what the workspace has edited (lib/sign/addons/install.ts). A newer version shows what changed and an Update
+// button (F-81): templates nobody edited get a new version, edited ones get a copy beside them (lib/sign/addons/update.ts).
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -14,7 +15,9 @@ import { Button } from "@/components/ui/button";
 import { useCapability } from "@/hooks/use-can";
 import { signRequest } from "@/lib/sign/client/api";
 import type { AddonCard, InstallResult } from "@/lib/sign/addons/install";
+import type { UpdateResult } from "@/lib/sign/addons/update";
 
+import { UpdatePanel, UpdateResultNote } from "./addon-update";
 import { Loading, useAdminErrorText } from "./shared";
 
 type Load = { status: "loading" } | { status: "error"; error: unknown } | { status: "ready"; cards: AddonCard[] };
@@ -27,6 +30,8 @@ export function AddonsSection() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [round, setRound] = useState(0);
   const [installing, setInstalling] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [updated, setUpdated] = useState<{ key: string; result: UpdateResult } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -62,6 +67,20 @@ export function AddonsSection() {
     }
   };
 
+  const update = async (card: AddonCard) => {
+    setUpdating(card.key);
+    try {
+      const { result } = await signRequest<{ result: UpdateResult }>("/api/sign/addons", { method: "POST", json: { key: card.key, action: "update" } });
+      toast.success(result.upToDate ? t("upToDateToast", { name: t(card.nameKey) }) : t("updatedToast", { name: t(card.nameKey), version: result.toVersion }));
+      if (!result.upToDate) setUpdated({ key: card.key, result });
+      reload();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   if (load.status === "loading") return <Loading label={t("loading")} />;
   if (load.status === "error") {
     return (
@@ -77,10 +96,18 @@ export function AddonsSection() {
   return (
     <div className="space-y-4">
       <p className="max-w-[62ch] text-sm text-muted-foreground">{t("intro")}</p>
+      {updated ? <UpdateResultNote name={t(load.cards.find((c) => c.key === updated.key)?.nameKey ?? "merchant.name")} result={updated.result} onDismiss={() => setUpdated(null)} /> : null}
       <ul className="grid gap-3 lg:grid-cols-2">
         {load.cards.map((card) => (
           <li key={card.key}>
-            <AddonCardView card={card} busy={installing === card.key} disabled={!canEdit || installing !== null} onInstall={() => void install(card)} />
+            <AddonCardView
+              card={card}
+              busy={installing === card.key}
+              updating={updating === card.key}
+              disabled={!canEdit || installing !== null || updating !== null}
+              onInstall={() => void install(card)}
+              onUpdate={() => void update(card)}
+            />
           </li>
         ))}
       </ul>
@@ -90,7 +117,7 @@ export function AddonsSection() {
   );
 }
 
-function AddonCardView({ card, busy, disabled, onInstall }: { card: AddonCard; busy: boolean; disabled: boolean; onInstall: () => void }) {
+function AddonCardView({ card, busy, updating, disabled, onInstall, onUpdate }: { card: AddonCard; busy: boolean; updating: boolean; disabled: boolean; onInstall: () => void; onUpdate: () => void }) {
   const t = useTranslations("Sign.admin.addons");
   const installed = card.installed !== null;
   return (
@@ -123,6 +150,8 @@ function AddonCardView({ card, busy, disabled, onInstall }: { card: AddonCard; b
           {card.templates.installable > 0 ? t("adds.templates", { count: card.templates.installable }) : t("adds.templatesLater")}
         </li>
       </ul>
+
+      {card.available ? <UpdatePanel card={card} busy={updating} disabled={disabled} onUpdate={onUpdate} /> : null}
 
       <div className="mt-auto flex flex-wrap items-center gap-3 pt-1">
         {card.available ? (

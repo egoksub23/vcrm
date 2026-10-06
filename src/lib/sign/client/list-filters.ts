@@ -7,7 +7,8 @@ import type { DocumentStatus } from "../types";
 
 export const PAGE_SIZE = 25;
 
-export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "stopped"] as const;
+// "test" is the documents sent from a template to try it out (F-10): every status, but only the tests. The other groups include them, marked.
+export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "stopped", "test"] as const;
 export type StatusGroup = (typeof STATUS_GROUPS)[number];
 
 /** The statuses in each group; `null` is "every status". */
@@ -18,6 +19,7 @@ export const GROUP_STATUSES: Record<StatusGroup, readonly DocumentStatus[] | nul
   waiting: ["sent", "in_progress", "sealing"],
   completed: ["completed"],
   stopped: ["declined", "expired", "voided", "failed"],
+  test: null,
 };
 
 /** The category filter: every category, none, or one. */

@@ -22,6 +22,8 @@ interface ActionResult {
   name: string;
   delivery: { channel: SignChannel; status: "sent" | "failed" | "not_configured"; detail?: string };
   link?: string;
+  /** The person's step has not begun: their details changed and nothing was sent. */
+  notInvitedYet?: boolean;
 }
 
 export type OpenDialog = { kind: "remind" | "resend"; signer: SignSignerRow } | { kind: "recipient"; signer: SignSignerRow } | null;
@@ -50,7 +52,9 @@ export function useSignerActions(documentId: string, onChanged: () => Promise<vo
     try {
       const { result } = await signRequest<{ result: ActionResult }>(`/api/sign/documents/${documentId}/signers/${signer.id}`, { json: body });
       setDialog(null);
-      if (result.delivery.status === "sent" || !result.link) {
+      if (result.notInvitedYet) {
+        toast.success(t("toasts.recipientChangedLater", { name: result.name || signer.full_name }));
+      } else if (result.delivery.status === "sent" || !result.link) {
         toast.success(t(`toasts.${done}`, { name: result.name || signer.full_name }));
       } else {
         // The message did not arrive: say so, and hand over the link once.

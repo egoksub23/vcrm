@@ -54,7 +54,11 @@ WhatsApp also needs your WhatsApp channel to be connected. See [Roles and permis
 
 ## Sealing certificate
 
-The **Sealing certificate** tab shows the certificate your documents are sealed with: its name, subject, the date it is valid until, and whether it is self-signed. It is read only. See [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf).
+The **Sealing certificate** tab shows the certificate your documents are sealed with: its name, subject, the date it is valid until, and whether it is self-signed. You can install a certificate from a certificate authority there. See [The sealing certificate](/help/doc-sign/sealing-certificate) and [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf).
+
+## Retention
+
+On the **General** tab, **Retention** is how many years a signed document is kept, from 1 to 50. See [How long signed documents are kept](/help/doc-sign/retention).
 
 ## Tips
 

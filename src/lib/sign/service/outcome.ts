@@ -4,8 +4,9 @@
 // document is already in its final state.
 // ============================================================
 
+import { isDelegate } from "../forward";
 import { deliverCompleted, deliverOutcome } from "../notify";
-import type { SignDocumentRow, SignSignerRow } from "../types";
+import { isFormMode, type SignDocumentRow, type SignSignerRow } from "../types";
 import { docFacts } from "./send";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
 
@@ -14,13 +15,13 @@ async function workspace(ctx: SignCtx, doc: SignDocumentRow) {
   return { info, w: { name: info.workspaceName, senderName: info.senderName, settings, timeZone: info.timeZone } };
 }
 
-/** The signed copy to every signer and to the sender, attached when small enough. */
+/** The signed copy to every signer and to the sender, attached when small enough. Not to a person who was handed only a part of someone's form: the copy holds the whole document. */
 export async function notifyCompleted(ctx: SignCtx, doc: SignDocumentRow, signers: readonly SignSignerRow[], pdf: Uint8Array): Promise<void> {
   try {
     const { info, w } = await workspace(ctx, doc);
     const facts = docFacts(doc, ctx);
-    const file = { bytes: pdf, filename: `${doc.reference ?? "document"}-signed.pdf` };
-    const people = signers.map((s) => ({ name: s.full_name, email: s.email, channel: s.channel, locale: s.locale ?? doc.locale, signerId: s.id as string | null }));
+    const file = { bytes: pdf, filename: `${doc.reference ?? "document"}-${isFormMode(doc) ? "record" : "signed"}.pdf` };
+    const people = signers.filter((s) => !isDelegate(s)).map((s) => ({ name: s.full_name, email: s.email, channel: s.channel, locale: s.locale ?? doc.locale, signerId: s.id as string | null }));
     if (info.senderEmail && !people.some((p) => p.email.toLowerCase() === info.senderEmail!.toLowerCase())) {
       people.push({ name: info.senderName, email: info.senderEmail, channel: "email", locale: doc.locale, signerId: null });
     }

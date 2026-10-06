@@ -38,6 +38,8 @@ interface BuilderToolbarProps {
   problems: number;
   warnings: number;
   onShowProblems: () => void;
+  /** A form without a signature (migration 169): there is no page editor to switch to. */
+  formOnly?: boolean;
 }
 
 export function BuilderToolbar(p: BuilderToolbarProps) {
@@ -52,7 +54,7 @@ export function BuilderToolbar(p: BuilderToolbarProps) {
         <h1 className="min-w-0 max-w-sm truncate text-base font-semibold" title={p.templateName}>
           {p.templateName}
         </h1>
-        <TemplateTabs templateId={p.templateId} current="form" onNavigate={p.onNavigate} />
+        <TemplateTabs templateId={p.templateId} current="form" onNavigate={p.onNavigate} formOnly={p.formOnly} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="icon" disabled={!p.canUndo || p.readOnly} aria-label={t("screen.undo")} title={t("screen.undo")} onClick={p.onUndo}>
             <Undo2 />

@@ -14,6 +14,8 @@ export interface TemplateMeta {
   name: string;
   status: "draft" | "active" | "archived";
   category_id: string | null;
+  /** Migration 169: `form` for a form without a signature (no page editor, people who only fill in). Absent is `sign`. */
+  mode?: "sign" | "form";
 }
 
 export interface VersionItem {

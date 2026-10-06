@@ -6,7 +6,7 @@
 // from a template opens with the layout locked (only the values change); "Edit fields" unlocks it.
 // ============================================================
 
-import { LayoutTemplate, Lock, LockOpen } from "lucide-react";
+import { FileUp, LayoutTemplate, Lock, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -22,6 +22,7 @@ import type { SignDocumentRow, SignRole } from "@/lib/sign/types";
 
 import { DraftValuesPanel } from "./draft-values-panel";
 import { FieldEditor } from "./field-editor";
+import { ReplaceFileDialog } from "./replace-file-dialog";
 import { SaveAsTemplateDialog } from "./save-as-template-dialog";
 import { SaveStatus } from "./save-status";
 import { useSaveQueue } from "./use-save-queue";
@@ -52,6 +53,9 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [unlocked, setUnlocked] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  // bumped when the file was replaced (F-77): the page viewer starts again on the new file
+  const [fileVersion, setFileVersion] = useState(0);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -144,6 +148,12 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
           {unlocked ? t("draft.lockFields") : t("draft.editFields")}
         </Button>
       ) : null}
+      {isDraft && canSend ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => setReplaceOpen(true)}>
+          <FileUp />
+          {t("draft.replaceFile")}
+        </Button>
+      ) : null}
       {canTemplates && isDraft ? (
         <Button type="button" variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
           <LayoutTemplate />
@@ -168,6 +178,7 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
       ) : null}
       <DraftValuesPanel fields={fields} values={values} readOnly={locked} onChange={onValue} />
       <FieldEditor
+        key={fileVersion}
         pdfUrl={documentFileUrl(documentId)}
         fields={fields}
         roles={roles}
@@ -178,6 +189,20 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
         className="h-[78vh] min-h-[520px]"
         toolbarExtra={extra}
       />
+      {isDraft && canSend ? (
+        <ReplaceFileDialog
+          documentId={documentId}
+          fields={fields}
+          open={replaceOpen}
+          onOpenChange={setReplaceOpen}
+          beforeStart={flushAll}
+          onReplaced={() => {
+            setFileVersion((v) => v + 1);
+            setAttempt((a) => a + 1);
+            changed();
+          }}
+        />
+      ) : null}
       {canTemplates && isDraft ? <SaveAsTemplateDialog documentId={documentId} defaultName={title} open={templateOpen} onOpenChange={setTemplateOpen} beforeSubmit={flushAll} /> : null}
     </div>
   );

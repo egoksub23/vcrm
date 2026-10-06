@@ -4,6 +4,8 @@
 // dropdown in the builder. Pure and client-safe.
 // ------------------------------------------------------------
 
+import { SIGN_VARIABLES } from '../sign-event'
+
 export interface VarOption {
   /** What goes into the text, e.g. `{{ vars.summary }}`. */
   token: string
@@ -34,6 +36,8 @@ export function varsProducedBy(step: { step_type: string; step_config: Record<st
     const fields = Array.isArray(c.fields) ? (c.fields as { key?: unknown }[]) : []
     return fields.map((f) => (typeof f?.key === 'string' ? f.key : '')).filter((k) => KEY_RE.test(k))
   }
+  // Send document for signing: the document it made, for the steps after it.
+  if (step.step_type === 'send_sign_document') return ['sign_document_id', 'sign_reference']
   const fallback = DEFAULT_KEYS[step.step_type]
   if (!fallback) return []
   const k = typeof c.save_to === 'string' ? c.save_to.trim() : ''
@@ -54,6 +58,10 @@ export function variablesFor(
     { token: '{{ message.text }}', group: 'trigger', name: 'message.text' },
     ...(opts.triggerType === 'conversation_closed'
       ? [{ token: '{{ closure.note }}', group: 'trigger' as const, name: 'closure.note' }]
+      : []),
+    // sign_document_event: the document the event is about.
+    ...(opts.triggerType === 'sign_document_event'
+      ? SIGN_VARIABLES.map((k) => ({ token: `{{ sign.${k} }}`, group: 'trigger' as const, name: `sign.${k}` }))
       : []),
     { token: '{{ contact.name }}', group: 'contact', name: 'contact.name' },
     { token: '{{ contact.first_name }}', group: 'contact', name: 'contact.first_name' },

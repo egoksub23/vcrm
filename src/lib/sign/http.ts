@@ -22,7 +22,7 @@ import { signEnabled } from "./feature";
 import { realDeps } from "./notify";
 import { SignError } from "./service/errors";
 import type { SignCtx } from "./service/context";
-import { lookupByToken, signerCtx, type Lookup } from "./service/signing";
+import { codeRequiredFor, lookupByToken, pickDocument, signerCtx, type Lookup } from "./service/signing";
 import { isPlausibleToken, sessionCookieName, verifySession } from "./tokens";
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -116,6 +116,10 @@ export const sharedLimit = async (key: string, limit: number, windowMs: number):
 /**
  * Run a route a signer reaches with the token in the address. A token that is not a live link answers
  * 404 and nothing else: the answer never says whether a document exists.
+ *
+ * An envelope's link (migration 171) serves every document of the person: `?doc=<document id>` makes the route act on the person's own
+ * row on that document. A document the person is not a signer of, a document id on a link that is not an envelope's, and anything that
+ * is not an id all answer the same 404 as a bad link. The code's session belongs to the link itself, so one code opens every document.
  */
 export async function publicLink(
   request: Request,
@@ -130,11 +134,18 @@ export async function publicLink(
     const { token } = await params;
     if (!isPlausibleToken(token)) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
     const admin = supabaseAdmin();
-    const lookup = await lookupByToken(admin, token);
+    const own = await lookupByToken(admin, token);
     // A workspace whose Doc Sign is switched off (or that is suspended) shows no document at all.
-    if (!lookup || !(await signEnabled(admin, lookup.signer.account_id))) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
+    if (!own || !(await signEnabled(admin, own.signer.account_id))) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
+    let lookup = own;
+    const wanted = new URL(request.url).searchParams.get("doc");
+    if (wanted !== null) {
+      const picked = UUID_RE.test(wanted) ? pickDocument(own, wanted) : null;
+      if (!picked) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
+      lookup = picked;
+    }
     const ctx = signerCtx({ admin, origin: originOf(request), deps: realDeps, now: () => new Date() }, lookup);
-    const sessionOk = !lookup.doc.code_required || verifySession(readCookie(request.headers.get("cookie"), sessionCookieName(lookup.signer.id)), lookup.signer.id);
+    const sessionOk = !codeRequiredFor(own) || verifySession(readCookie(request.headers.get("cookie"), sessionCookieName(own.tokenSigner.id)), own.tokenSigner.id);
     const device = (request.headers.get("user-agent") ?? "").slice(0, 300) || null;
     return await handler({ ctx, lookup, sessionOk, ip: ip === "unknown" ? null : ip, device });
   } catch (err) {

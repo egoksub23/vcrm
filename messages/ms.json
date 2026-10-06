@@ -1438,7 +1438,17 @@
         "skipped": "dilangkau",
         "failed": "gagal",
         "created": "tiket dicipta",
-        "created_with_ai": "tiket dicipta (teks AI)"
+        "created_with_ai": "tiket dicipta (teks AI)",
+        "sent": "dokumen dihantar",
+        "draft": "draf dibuat",
+        "already_sent": "sudah dihantar",
+        "not_enabled": "Doc Sign dimatikan",
+        "not_configured": "belum disediakan",
+        "no_contact": "tiada kenalan",
+        "recipient_email_missing": "kenalan tiada e-mel",
+        "recipient_phone_missing": "kenalan tiada telefon",
+        "sign_limit_reached": "had bulanan dicapai",
+        "not_ready": "belum sedia dihantar"
       },
       "tokens": "{count, plural, =1 {# token} other {# token}}",
       "back": "Kembali",
@@ -1485,6 +1495,19 @@
         "seed": {
           "ticketSubject": "Susulan: {{ contact.name }}"
         }
+      },
+      "merchant_onboarding": {
+        "name": "Pendaftaran peniaga",
+        "description": "Apabila kenalan ditanda \"Merchant applicant\", hantar Borang Permohonan Peniaga untuk diisi dan ditandatangani."
+      },
+      "merchant_signed_followup": {
+        "name": "Susulan peniaga telah menandatangani",
+        "description": "Apabila Permohonan Peniaga ditandatangani, tandakan kenalan \"Merchant signed\", buka tiket semakan KYC dan hantar ucapan terima kasih.",
+        "seed": {
+          "ticketSubject": "Semakan KYC peniaga",
+          "ticketDescription": "Permohonan Peniaga {{ sign.reference }} daripada {{ contact.name }} telah ditandatangani. Semak butiran syarikat dan dokumen, kemudian sahkan fail itu tulen: {{ sign.verify_url }}",
+          "welcomeMessage": "Terima kasih {{ contact.name }}. Kami telah menerima Permohonan Peniaga anda yang telah ditandatangani ({{ sign.reference }}). Pasukan kami akan menyemaknya dan menghubungi anda tidak lama lagi."
+        }
       }
     },
     "builder": {
@@ -1512,7 +1535,8 @@
         "ai_extract": "AI klasifikasi dan ekstrak",
         "ai_summarize": "Ringkasan AI",
         "ai_translate": "Terjemahan AI",
-        "ai_question": "Tanya AI (ya/tidak)"
+        "ai_question": "Tanya AI (ya/tidak)",
+        "send_sign_document": "Hantar dokumen untuk ditandatangani"
       },
       "triggers": {
         "new_message_received": {
@@ -1554,6 +1578,10 @@
         "time_based": {
           "label": "Berasaskan Masa",
           "hint": "Pada jadual berulang"
+        },
+        "sign_document_event": {
+          "label": "Peristiwa Doc Sign",
+          "hint": "Apabila dokumen Doc Sign dihantar, dibuka, selesai, ditolak, tamat tempoh atau dibatalkan"
         }
       },
       "trigger": "Pencetus",
@@ -1580,7 +1608,8 @@
       "tags": {
         "select": "Pilih teg…",
         "placeholder": "ID teg",
-        "unknown": "{id} (teg tidak diketahui)"
+        "unknown": "{id} (teg tidak diketahui)",
+        "hint": "Teg dicadangkan: \"{name}\". Cipta dahulu (Tetapan > Teg) jika belum ada."
       },
       "fields": {
         "name": "Nama",
@@ -1900,6 +1929,73 @@
           "active": "Aktif",
           "customer": "Pelanggan",
           "churned": "Berhenti"
+        }
+      },
+      "sign": {
+        "trigger": {
+          "events": "Apabila ini berlaku",
+          "eventsHint": "Automasi berjalan bagi setiap peristiwa yang ditanda.",
+          "event": {
+            "sent": "Dokumen dihantar",
+            "viewed": "Penandatangan membukanya buat kali pertama",
+            "completed": "Semua orang telah menandatangani (selesai)",
+            "declined": "Penandatangan menolak",
+            "expired": "Dokumen tamat tempoh",
+            "voided": "Dokumen dibatalkan"
+          },
+          "template": "Hanya untuk templat ini",
+          "anyTemplate": "Mana-mana templat",
+          "templateId": "ID templat",
+          "unknownTemplate": "(templat tidak dijumpai)",
+          "category": "Hanya untuk kategori ini",
+          "anyCategory": "Mana-mana kategori"
+        },
+        "step": {
+          "template": "Templat",
+          "templateId": "ID templat",
+          "selectTemplate": "Pilih templat…",
+          "unknownTemplate": "(templat tidak dijumpai atau tidak aktif)",
+          "noTemplates": "Tiada templat aktif ditemui, atau anda tidak dapat melihatnya. Terbitkan satu di Doc Sign > Templat.",
+          "templateHint": "Templat dicadangkan: \"{name}\". Pilih apabila ia sudah ada di Doc Sign > Templat.",
+          "title": "Tajuk dokumen",
+          "titleHint": "Pilihan. Biarkan kosong untuk guna tajuk templat. Anda boleh menyisipkan pemboleh ubah.",
+          "recipients": "Siapa yang menandatangani",
+          "recipientsHint": "Setiap orang menerima pautan. Peranan menentukan bahagian dokumen yang mereka lengkapkan. Peranan bertanda * mesti ada orang.",
+          "role": "Peranan",
+          "rolePlaceholder": "Kunci peranan, contohnya merchant",
+          "selectRole": "Pilih peranan…",
+          "removeRecipient": "Buang orang ini",
+          "source": "Butiran datang daripada",
+          "sourceContact": "Kenalan",
+          "sourceFixed": "Orang tetap",
+          "channel": "Hantar pautan melalui",
+          "channelEmail": "E-mel",
+          "channelWhatsapp": "WhatsApp",
+          "contactNote": "Menggunakan nama, e-mel dan telefon kenalan. Kenalan mesti mempunyai alamat e-mel, jika tidak langkah ini dilangkau.",
+          "fullName": "Nama penuh",
+          "email": "E-mel",
+          "phone": "Telefon (dengan kod negara)",
+          "requiredRoles": "Masih memerlukan orang untuk: {roles}",
+          "addRecipient": "Tambah orang",
+          "merge": "Isi dokumen",
+          "mergeHint": "Nilai bagi medan cantum templat (bahagian yang diisi sebelum dihantar). Guna butang pemboleh ubah di atas nilai untuk menyisipkan butiran kenalan.",
+          "mergeKey": "Nama medan",
+          "mergeValue": "Nilai",
+          "removeMerge": "Buang nilai ini",
+          "addMerge": "Tambah nilai",
+          "message": "Mesej kepada penandatangan",
+          "language": "Bahasa dokumen",
+          "languageDefault": "Lalai templat",
+          "languages": {
+            "en": "English",
+            "ms": "Bahasa Melayu",
+            "zh": "中文",
+            "ko": "한국어"
+          },
+          "send": "Hantar sekarang",
+          "sendHint": "Matikan untuk menyimpan dokumen sebagai draf supaya seseorang menyemak dan menghantarnya. Pautan penandatangan hanya dihantar apabila dokumen dihantar.",
+          "summary": "{count} orang menandatangani",
+          "summaryEmpty": "Pilih templat"
         }
       }
     }
@@ -6964,7 +7060,20 @@
         "installedToast": "{name} dipasang.",
         "repeatedToast": "{name} disemak. Tiada apa yang anda edit telah diubah.",
         "templatesAdded": "{count, plural, one {# templat ditambah sebagai draf.} other {# templat ditambah sebagai draf.}}",
-        "footnote": "Pemasangan menambah draf untuk anda semak dan tidak pernah mengubah templat yang telah anda edit. Pengemaskinian add-on yang telah dipasang akan datang dalam versi kemudian."
+        "footnote": "Pemasangan menambah draf untuk anda semak dan tidak pernah mengubah templat yang telah anda edit. Kemas kini membawa templat yang belum anda edit ke versi terkini dan meletakkan satu salinan di sebelah templat yang telah anda edit.",
+        "updateTitle": "Perkara baharu dalam v{version}",
+        "updateIntro": "Templat yang belum anda edit mendapat versi baharu. Templat yang telah anda ubah dibiarkan seperti sedia ada, dan satu salinan bernama “… (updated)” ditambah di sebelahnya untuk anda semak. Dokumen yang telah anda hantar tidak pernah berubah.",
+        "updateButton": "Kemas kini ke v{version}",
+        "updatedToast": "{name} dikemas kini ke v{version}.",
+        "upToDateToast": "{name} sudah yang terkini.",
+        "result": {
+          "title": "{name} kini pada v{version}",
+          "updated": "“{name}” mendapat versi baharu (versi {versionNo}). Nama, status dan kategorinya tidak berubah.",
+          "copied": "Anda telah mengubah “{name}”, jadi ia dibiarkan seperti sedia ada. Satu salinan baharu, “{copyName}”, ditambah sebagai draf untuk anda semak.",
+          "missing": "“{name}” tiada lagi dalam ruang kerja anda, jadi tiada apa yang dikemas kini untuknya. Tekan Pasang semula untuk menambahnya kembali.",
+          "current": "“{name}” sudah pada versi ini.",
+          "dismiss": "Tutup"
+        }
       },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
@@ -6976,7 +7085,9 @@
         "consent": "Perkataan persetujuan",
         "categories": "Kategori",
         "addons": "Add-on",
-        "certificate": "Sijil pengesahan"
+        "certificate": "Sijil pengesahan",
+        "lists": "Senarai",
+        "registration": "Borang pendaftaran"
       },
       "languages": {
         "en": "English",
@@ -7001,7 +7112,7 @@
         "whatsappLanguage": "Kod bahasa templat",
         "whatsappLanguageHint": "Bahasa templat itu diluluskan, contohnya en, ms atau en_US.",
         "whatsappParams": "Templat memerlukan tiga pemboleh ubah, mengikut urutan ini: nama orang itu, tajuk dokumen dan pautan tandatangan.",
-        "retention": "Simpan dokumen bertandatangan selama",
+        "retention": "Simpan dokumen yang ditandatangani selama (tahun)",
         "retentionValue": "{count, plural, one {# tahun} other {# tahun}}",
         "retentionNote": "Ditetapkan oleh platform buat masa ini. Tidak boleh diubah di sini.",
         "save": "Simpan",
@@ -7014,8 +7125,15 @@
           "reminders_too_many": "Gunakan paling banyak lima peringatan.",
           "sender": "Gunakan paling banyak 120 aksara.",
           "waName": "Gunakan huruf kecil, nombor dan garis bawah sahaja.",
-          "waLang": "Gunakan kod seperti en, ms atau en_US."
-        }
+          "waLang": "Gunakan kod seperti en, ms atau en_US.",
+          "retention": "Masukkan bilangan tahun yang bulat dari 1 hingga 50."
+        },
+        "retentionTitle": "Pengekalan",
+        "retentionIntro": "Dokumen yang ditandatangani disimpan selama tempoh ini, dikira dari hari ia dimeterai. Dalam tempoh itu tiada sesiapa boleh memadamnya, termasuk pemilik ruang kerja.",
+        "retentionHint": "Nombor bulat tahun, dari 1 hingga 50. 7 ialah nilai permulaan sehingga organisasi anda memutuskan berapa lama rekod bertandatangan mesti disimpan: sahkan tempoh itu dengan peguam atau juruaudit anda.",
+        "retentionEffect": "Perubahan terpakai untuk dokumen yang dimeterai mulai sekarang. Dokumen yang sudah dimeterai kekal dengan tarikh yang diberikan semasa ia dimeterai. Kategori boleh menetapkan tempohnya sendiri (Kategori). Dokumen tidak pernah dipadam secara automatik.",
+        "retentionPast": "{count, plural, one {# dokumen bertandatangan telah melepasi tarikh pengekalannya.} other {# dokumen bertandatangan telah melepasi tarikh pengekalannya.}}",
+        "retentionPastNone": "Belum ada dokumen bertandatangan yang melepasi tarikh pengekalannya."
       },
       "consent": {
         "intro": "Inilah yang dipersetujui seseorang sebelum menandatangani. Perkataan standard digunakan melainkan anda menulis perkataan sendiri untuk sesuatu bahasa. Setiap perkataan mempunyai versi, dan versi yang dipersetujui seseorang disimpan bersama dokumen bertandatangan. Minta perkataan anda sendiri disemak oleh orang yang bertauliah sebelum anda bergantung kepadanya.",
@@ -7075,7 +7193,7 @@
         "expiry": "Tamat tempoh selepas (hari)",
         "reminders": "Peringatan (hari selepas dihantar)",
         "retention": "Simpan dokumen bertandatangan selama (tahun)",
-        "retentionHint": "Biarkan kosong untuk menggunakan tempoh ruang kerja.",
+        "retentionHint": "Biarkan kosong untuk menggunakan tempoh ruang kerja. Dari 1 hingga 50 tahun. Perubahan terpakai untuk dokumen yang dimeterai mulai sekarang.",
         "blankIsDefault": "Biarkan kosong untuk menggunakan tetapan ruang kerja.",
         "code": "Minta kod sebelum menandatangani",
         "codeHint": "Orang itu menerima kod melalui e-mel dan memasukkannya untuk membuka dokumen.",
@@ -7102,7 +7220,7 @@
         "intro": "Setiap dokumen yang selesai dimeterai dengan sijil ini. Meterai menunjukkan sama ada dokumen telah diubah selepas ditandatangani.",
         "loading": "Memuatkan sijil…",
         "retry": "Cuba lagi",
-        "none": "Belum ada sijil. Apabila dokumen dimeterai buat kali pertama, sebuah sijil akan dibuat untuk ruang kerja anda.",
+        "none": "Belum ada sijil. Apabila dokumen pertama dimeterai, satu sijil dibuat untuk ruang kerja anda. Anda boleh memasang sijil daripada pihak berkuasa pensijilan di bawah.",
         "subject": "Subjek",
         "validUntil": "Sah sehingga",
         "kind": "Jenis",
@@ -7116,7 +7234,69 @@
         "expiredBody": "Sijil tandatangan sendiri yang baharu akan dibuat apabila dokumen dimeterai seterusnya. Dokumen yang telah dimeterai kekal dengan meterainya.",
         "selfSignedTitle": "Tandatangan sendiri: pembaca PDF akan mengatakan penandatangan tidak dipercayai",
         "selfSignedBody": "Meterai masih menunjukkan jika dokumen diubah selepas ditandatangani, tetapi pembaca PDF tidak dapat menyemak siapa yang membuat sijil tandatangan sendiri, jadi ia memaparkan amaran. Ini perkara biasa.",
-        "footnote": "Memuat naik sijil daripada pihak berkuasa sijil belum tersedia pada skrin ini. Kunci disimpan dalam bentuk disulitkan dan tidak pernah dipaparkan."
+        "footnote": "Fail disemak sebelum disimpan: frasa laluan, kunci, tarikh, kegunaan sijil dan satu meterai ujian. Kunci disimpan dalam bentuk disulitkan dan tidak pernah dipaparkan.",
+        "kind_generated": "Dibuat oleh Halo untuk ruang kerja ini (ditandatangani sendiri)",
+        "kind_uploadedSelfSigned": "Dimuat naik, ditandatangani sendiri",
+        "kind_authority": "Dikeluarkan oleh pihak berkuasa pensijilan",
+        "issuer": "Dikeluarkan oleh",
+        "serial": "Nombor siri",
+        "validFrom": "Sah bermula",
+        "daysLeft": "Baki tempoh",
+        "daysLeftValue": "{count, plural, one {# hari} other {# hari}}",
+        "fingerprint": "Cap jari SHA-256",
+        "key": "Kunci",
+        "keyValue": "RSA, {bits} bit",
+        "chain": "Dalam meterai",
+        "chainOne": "Sijil ini sahaja",
+        "chainMany": "{count} sijil: sijil ini dan pihak berkuasa di atasnya",
+        "unreadableTitle": "Sijil yang disimpan tidak dapat dibuka",
+        "unreadableBody": "Pasang semula sijil di bawah. Selagi itu, dokumen yang sudah ditandatangani semua pihak menunggu untuk dimeterai.",
+        "expiredBodyUploaded": "Dokumen yang sudah ditandatangani semua pihak kini menunggu, tanpa meterai, sehingga anda memasang sijil yang sah di bawah. Dokumen yang sudah dimeterai kekal dengan meterainya.",
+        "warn_chain_missing_title": "Sijil ini tiada sijil pihak berkuasa di atasnya",
+        "warn_chain_missing_body": "Sijil ini dikeluarkan oleh pihak berkuasa, tetapi fail ini tidak mengandungi apa-apa di atasnya. Pembaca PDF mungkin tidak dapat mengikuti rantaian sehingga pihak berkuasa yang dipercayai. Minta rantaian penuh (sijil perantara) daripada pihak berkuasa dan pasang semula failnya.",
+        "warn_weak_signature_algorithm_title": "Algoritma tandatangan yang lebih lama",
+        "warn_weak_signature_algorithm_body": "Satu sijil dalam rantaian ditandatangani dengan SHA-1, yang sedang dihentikan oleh pembaca. Ia masih berfungsi sekarang; minta sijil yang menggunakan SHA-256 daripada pihak berkuasa.",
+        "warn_chain_certificate_expired_title": "Satu sijil di atas sijil ini telah tamat tempoh",
+        "warn_chain_certificate_expired_body": "Satu sijil pihak berkuasa dalam rantaian berada di luar tarikh sahnya, jadi pembaca mungkin enggan mempercayai meterai. Minta rantaian terkini daripada pihak berkuasa.",
+        "warn_not_for_document_signing_title": "Tidak ditandakan untuk menandatangani dokumen",
+        "warn_not_for_document_signing_body": "Sijil ini menyenaraikan tujuan yang tidak termasuk menandatangani dokumen atau e-mel. Ia mungkin dikeluarkan untuk perkara lain, seperti laman web. Pembaca PDF mungkin menolaknya; sahkan dengan pihak berkuasa bahawa ia sijil tandatangan dokumen.",
+        "readersTitle": "Apa yang akan ditunjukkan oleh pembaca PDF",
+        "readers_generated": "Pembaca PDF akan menyatakan bahawa identiti penandatangan tidak dapat disahkan, kerana tiada pihak berkuasa pensijilan yang menjamin sijil yang ditandatangani sendiri. Meterai masih menunjukkan sama ada dokumen diubah selepas ditandatangani. Untuk mendapat keputusan yang dipercayai, pasang sijil daripada pihak berkuasa pensijilan.",
+        "readers_uploadedSelfSigned": "Pembaca PDF akan menyatakan bahawa identiti penandatangan tidak dapat disahkan, kerana tiada pihak berkuasa pensijilan yang menjamin sijil yang ditandatangani sendiri. Meterai masih menunjukkan sama ada dokumen diubah selepas ditandatangani.",
+        "readers_authority": "Pembaca PDF akan menunjukkan kepada siapa sijil dikeluarkan dan oleh pihak berkuasa yang mana. Sama ada tandatangan ditandakan sebagai dipercayai bergantung pada sama ada pembaca itu mempercayai pihak berkuasa tersebut: sesetengah pembaca hanya mempercayai pihak berkuasa dalam senarai lulus mereka sendiri, jadi sahkan dengan pihak berkuasa anda pembaca mana yang boleh digunakan. Dalam semua kes, meterai menunjukkan sama ada dokumen diubah selepas ditandatangani.",
+        "uploadTitle": "Pasang sijil",
+        "uploadIntro": "Pilih fail .p12 atau .pfx yang diberikan oleh pihak berkuasa pensijilan anda dan masukkan frasa laluannya. Dokumen yang dimeterai selepas ini menggunakannya. Dokumen yang sudah dimeterai tidak berubah.",
+        "fileLabel": "Fail sijil",
+        "fileHint": ".p12 atau .pfx, sehingga 256 KB.",
+        "passphraseLabel": "Frasa laluan fail",
+        "passphraseHint": "Digunakan sekali untuk membuka fail, kemudian dilupakan. Halo menyimpan frasa laluannya sendiri untuk salinan yang disimpan.",
+        "nameLabel": "Nama (pilihan)",
+        "nameHint": "Label untuk kegunaan anda sendiri, contohnya “Meterai syarikat 2026”.",
+        "install": "Semak dan pasang",
+        "installing": "Menyemak…",
+        "installed": "Sijil dipasang. Dokumen baharu dimeterai dengannya.",
+        "removed": "Sijil dibuang.",
+        "remove": "Buang sijil ini",
+        "removeConfirm": "Buang sijil ini? Kuncinya dipadam daripada Halo. Dokumen yang sudah dimeterai tidak berubah. Dokumen seterusnya dimeterai dengan sijil ditandatangani sendiri yang dibuat oleh Halo, kecuali anda memasang yang lain.",
+        "removeYes": "Ya, buang",
+        "removeNo": "Simpan",
+        "errors": {
+          "p12_unreadable": "Fail ini bukan fail sijil. Pilih fail .p12 atau .pfx daripada pihak berkuasa pensijilan anda.",
+          "p12_bad_passphrase": "Frasa laluan tidak dapat membuka fail ini. Semak dan cuba lagi.",
+          "p12_no_key": "Fail ini mengandungi sijil tetapi tiada kunci peribadi, jadi ia tidak boleh menandatangani. Minta fail .p12 atau .pfx yang merangkumi kunci peribadi.",
+          "p12_expired": "Sijil ini telah tamat tempoh. Pasang yang masih sah.",
+          "p12_not_yet_valid": "Sijil ini belum sah. Pasang pada atau selepas tarikh mula sahnya.",
+          "p12_key_too_small": "Kunci terlalu kecil. Sijil pemeteraian memerlukan kunci RSA sekurang-kurangnya 2048 bit.",
+          "p12_unsupported_algorithm": "Fail ini menggunakan jenis kunci atau algoritma yang tidak disokong. Hanya kunci RSA disokong; minta sijil RSA daripada pihak berkuasa dan pastikan rantaian hanya mengandungi sijil RSA.",
+          "p12_key_usage": "Sijil ini tidak dibenarkan menandatangani: penggunaan kuncinya tidak termasuk tandatangan digital atau tanpa penafian. Minta sijil tandatangan dokumen daripada pihak berkuasa.",
+          "p12_key_mismatch": "Kunci peribadi dalam fail ini bukan milik mana-mana sijil di dalamnya. Eksport semula fail daripada tempat sijil itu dibuat.",
+          "p12_chain_invalid": "Satu sijil dalam fail ini tidak ditandatangani oleh sijil di atasnya, jadi rantaian terputus. Minta rantaian lengkap daripada pihak berkuasa.",
+          "certificate_file_too_large": "Fail ini terlalu besar untuk menjadi fail sijil (had 256 KB).",
+          "certificate_chain_too_large": "Rantaian sijil terlalu panjang untuk dimuatkan dalam meterai. Sertakan hanya sijil yang diminta oleh pihak berkuasa.",
+          "certificate_self_test_failed": "Meterai ujian yang dibuat dengan sijil ini gagal, jadi ia tidak dipasang. Semak fail dengan pihak berkuasa anda.",
+          "certificate_not_found": "Sijil itu tidak ditemui. Mungkin ia sudah dibuang.",
+          "no_file": "Pilih fail sijil dahulu."
+        }
       },
       "library": {
         "loading": "Memuatkan templat…",
@@ -7182,8 +7362,15 @@
           "noCategory": "Tiada kategori",
           "cancel": "Batal",
           "create": "Cipta dan buka editor",
-          "creating": "Menyediakan…"
-        }
+          "creating": "Menyediakan…",
+          "introForm": "Borang tanpa tandatangan: anda membina bahagian dan soalan seterusnya. Seseorang mengisi dan menghantarnya; tiada apa-apa ditandatangani.",
+          "kindLegend": "Jenis templat",
+          "kindFile": "Perjanjian untuk ditandatangani",
+          "kindFileHint": "Muat naik fail dan letakkan medan tandatangan padanya.",
+          "kindForm": "Borang tanpa tandatangan",
+          "kindFormHint": "Tiada fail. Untuk butiran yang hanya perlu diisi dan dihantar."
+        },
+        "formBadge": "Borang"
       },
       "errors": {
         "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
@@ -7224,7 +7411,179 @@
         "body_too_large": "Permintaan itu terlalu besar.",
         "bad_json": "Permintaan tidak sah. Sila cuba lagi.",
         "database_error": "Sesuatu telah berlaku. Sila cuba lagi.",
-        "request_failed": "Permintaan gagal. Sila cuba lagi."
+        "request_failed": "Permintaan gagal. Sila cuba lagi.",
+        "addon_not_installed": "Pasang add-on ini dahulu, kemudian kemas kininya.",
+        "form_not_found": "Borang pendaftaran itu tidak dijumpai.",
+        "form_not_ready": "Borang ini belum boleh dihidupkan. Buka untuk melihat sebabnya.",
+        "invalid_form": "Sesetengah tetapan borang tidak sah. Semak nama, orang yang dinamakan dan perkataan.",
+        "tag_not_found": "Tag itu tidak dijumpai. Pilih tag kenalan.",
+        "slug_unavailable": "Tidak dapat membuat alamat untuk borang ini. Sila cuba lagi."
+      },
+      "registration": {
+        "loading": "Memuatkan borang pendaftaran...",
+        "retry": "Cuba lagi",
+        "intro": "Borang pendaftaran ialah halaman awam di mana seseorang tanpa log masuk memasukkan beberapa butiran. Halo mencari atau mencipta kenalan mereka dan, jika anda mahu, menghantar dokumen untuk ditandatangani melalui e-mel. Kongsikan alamatnya di laman web anda, dalam mesej atau sebagai kod QR.",
+        "new": "Borang pendaftaran baharu",
+        "botCheckOn": "Semakan bot (Cloudflare Turnstile) dihidupkan untuk halaman ini.",
+        "botCheckOff": "Semakan bot (Cloudflare Turnstile) dimatikan. Halaman dilindungi oleh had, ruang tersembunyi dan token bertandatangan. Minta pengendali platform menghidupkannya jika anda melihat spam.",
+        "empty": "Belum ada borang pendaftaran. Buat satu untuk mendapatkan alamat awam.",
+        "footnote": "Borang dimatikan, tidak pernah dipadam, supaya rekod siapa yang bersetuju dengan apa kekal. Halaman tidak pernah menunjukkan pautan: hanya orang yang menerima e-mel boleh membuka dokumen.",
+        "switchedOn": "Borang kini menerima pendaftaran.",
+        "switchedOff": "Borang telah dimatikan.",
+        "cannotSwitchOn": "Borang ini belum boleh dihidupkan. Buka untuk melihat sebabnya.",
+        "newAddressMade": "Borang mempunyai alamat baharu. Alamat lama tidak lagi berfungsi.",
+        "copied": "Alamat disalin.",
+        "copyFailed": "Tidak dapat menyalin. Pilih alamat dan salin secara manual.",
+        "cancel": "Batal",
+        "close": "Tutup",
+        "renew": {
+          "title": "Buat alamat baharu?",
+          "body": "Alamat lama berhenti berfungsi serta-merta, dan sesiapa yang memilikinya akan melihat halaman yang tidak tersedia. Gunakan ini jika alamat dikongsi di tempat yang tidak sepatutnya.",
+          "confirm": "Buat alamat baharu"
+        },
+        "on": "Hidup",
+        "off": "Mati",
+        "needsAttention": "Perlu perhatian",
+        "takeRegistrations": "Terima pendaftaran",
+        "takeRegistrationsFor": "Terima pendaftaran: {name}",
+        "copy": "Salin",
+        "copyFor": "Salin alamat {name}",
+        "open": "Buka",
+        "openFor": "Buka {name} dalam tab baharu",
+        "newAddress": "Alamat baharu",
+        "renewFor": "Buat alamat baharu untuk {name}",
+        "offHint": "Dimatikan: alamat menunjukkan halaman yang tidak tersedia.",
+        "sends": "Menghantar",
+        "noTemplate": "Tiada templat dipilih",
+        "sendsNothing": "Tiada dokumen: hanya menyimpan butiran",
+        "today": "Hari ini",
+        "todayValue": "{count} daripada {cap}",
+        "last30": "30 hari lepas",
+        "last30Value": "{accepted} diterima, {failed} tidak dapat dilengkapkan, {blocked} disekat",
+        "edit": "Sunting",
+        "editFor": "Sunting {name}",
+        "activity": "Aktiviti terkini",
+        "activityFor": "Aktiviti terkini {name}",
+        "activityTitle": "Aktiviti terkini: {name}",
+        "activityIntro": "Apa yang berlaku kepada penghantaran terkini. Alamat dan e-mel tidak pernah ditunjukkan di sini.",
+        "activityEmpty": "Belum ada yang dihantar.",
+        "openDocument": "Buka dokumen",
+        "status": {
+          "accepted": "Diterima",
+          "rejected_spam": "Disekat",
+          "rejected_cap": "Melebihi had harian",
+          "failed": "Tidak dapat dilengkapkan"
+        },
+        "reasons": {
+          "duplicate": "E-mel sama dengan pendaftaran terbuka hari ini; tiada yang baharu dimulakan",
+          "honeypot": "Ruang tersembunyi diisi (skrip)",
+          "token_invalid": "Token halaman tidak tulen",
+          "token_expired": "Halaman terbuka terlalu lama",
+          "token_too_fast": "Dihantar terlalu cepat selepas halaman dibuka",
+          "captcha_failed": "Semakan bot tidak lulus",
+          "daily_cap": "Had harian sudah penuh",
+          "in_progress": "Terhenti di tengah jalan (pelayan terganggu)",
+          "contact_limit_reached": "Had kenalan ruang kerja telah dicapai",
+          "sign_limit_reached": "Had dokumen bulanan telah dicapai",
+          "form_not_ready": "Borang tidak dapat menghantar (semak templat dan orang yang dinamakan)",
+          "template_not_active": "Templat tidak aktif",
+          "delivery_failed": "Dokumen telah dibuat tetapi e-mel tidak dapat dihantar",
+          "send_failed": "Dokumen tidak dapat dihantar",
+          "generic": "Lihat hasilnya"
+        },
+        "issues": {
+          "no_template": "Pilih templat yang hendak dihantar.",
+          "template_not_active": "Templat tidak aktif. Aktifkannya di Doc Sign > Templat.",
+          "template_has_no_version": "Templat belum mempunyai versi yang disimpan.",
+          "no_applicant_role": "Pilih peranan yang diisi oleh pemohon.",
+          "applicant_role_unknown": "Peranan yang diisi oleh pemohon tiada dalam templat ini. Pilih yang lain.",
+          "signer_role": "Seseorang dinamakan untuk peranan yang tiada dalam templat, atau untuk peranan pemohon sendiri.",
+          "no_signer": "Tiada siapa menandatangani: jadikan peranan pemohon peranan penandatangan, atau namakan seorang penandatangan.",
+          "role_without_person": "Peranan {role} mempunyai perkara untuk dilengkapkan tetapi tiada siapa dinamakan.",
+          "part_without_person": "Satu bahagian borang milik peranan yang tiada siapa dinamakan.",
+          "signer_without_signature": "Peranan yang menandatangani tiada tandatangan pada dokumen.",
+          "signer_name": "Orang yang dinamakan untuk peranan lain memerlukan nama.",
+          "signer_email": "Orang yang dinamakan untuk peranan lain memerlukan e-mel yang sah.",
+          "signer_phone": "Orang yang dinamakan untuk peranan lain memerlukan nombor telefon.",
+          "too_many_signers": "Terlalu ramai orang pada dokumen ini.",
+          "order_not_unique": "Templat memerlukan susunan menandatangani, tetapi dua orang mempunyai giliran yang sama.",
+          "same_person_twice": "Templat memerlukan susunan menandatangani, tetapi seorang dinamakan dua kali.",
+          "generic": "Borang ini mempunyai masalah yang menghalangnya berfungsi. Semak templat dan orang yang dinamakan.",
+          "template_mode_mismatch": "Halaman ini menghantar borang tanpa tandatangan tetapi templatnya perjanjian untuk ditandatangani, atau sebaliknya. Pilih templat yang sama jenis.",
+          "no_person": "Borang memerlukan sekurang-kurangnya seorang yang mengisinya.",
+          "form_mode_needs_a_form": "Borang templat belum mempunyai bahagian. Buka templat dan tambah satu.",
+          "form_mode_signature": "Borang tanpa tandatangan tidak boleh mempunyai tempat untuk menandatangani.",
+          "form_mode_placement": "Borang tanpa tandatangan tidak mempunyai apa-apa yang diletakkan pada halaman.",
+          "form_mode_signer_role": "Borang tanpa tandatangan tidak boleh mempunyai peranan yang menandatangani."
+        },
+        "editTitle": "Sunting borang pendaftaran",
+        "newTitle": "Borang pendaftaran baharu",
+        "dialogIntro": "Pilih apa yang ditanya oleh halaman, dan apa yang berlaku apabila seseorang menghantarnya.",
+        "name": "Nama (hanya pasukan anda melihatnya)",
+        "addressPreview": "Alamat akan kelihatan seperti {address}. Hujung rawak dibuat apabila anda menyimpan.",
+        "addressNow": "Alamat: {address}",
+        "activeHint": "Apabila dimatikan, alamat menunjukkan halaman yang tidak tersedia.",
+        "documentLegend": "Apa yang berlaku selepas mereka menghantar",
+        "sendDocument": "Hantar dokumen untuk ditandatangani",
+        "sendDocumentHint": "Dibuat daripada templat dan dihantar melalui e-mel ke alamat yang mereka masukkan. E-mel itu juga membuktikan alamat itu milik mereka.",
+        "noTemplates": "Belum ada templat aktif yang mempunyai versi disimpan.",
+        "goToTemplates": "Pergi ke templat",
+        "template": "Templat",
+        "applicantRole": "Pemohon mengisi peranan",
+        "applicantRoleHint": "Peranan dalam templat yang dilengkapkan oleh orang yang mendaftar.",
+        "others": "Orang untuk peranan lain",
+        "othersHint": "Biarkan peranan kosong jika templat tidak memerlukan sesiapa untuknya. Contohnya, pengarah yang menandatangani bersama.",
+        "otherName": "{role}: nama",
+        "otherEmail": "{role}: e-mel",
+        "detailsOnlyHint": "Tiada dokumen dihantar. Butiran disimpan pada kenalan dan tag di bawah dikenakan, yang boleh memulakan automasi.",
+        "tag": "Tag untuk kenalan",
+        "tagHint": "Dikenakan apabila seseorang mendaftar. Tag boleh memulakan automasi, contohnya mesej alu-aluan atau resipi orientasi pedagang.",
+        "noTag": "Tiada tag",
+        "askLegend": "Butiran yang ditanya oleh halaman",
+        "detail": {
+          "full_name": "Nama penuh",
+          "company": "Syarikat atau perniagaan",
+          "phone": "Nombor telefon",
+          "email": "E-mel"
+        },
+        "emailAlways": "Sentiasa ditanya (dokumen dihantar ke sini)",
+        "ask": {
+          "required": "Wajib",
+          "optional": "Pilihan",
+          "off": "Tidak ditanya"
+        },
+        "dailyCap": "Pendaftaran sehari",
+        "dailyCapHint": "Setinggi-tingginya sebanyak ini dalam 24 jam; selepas itu halaman memberitahu ia sibuk.",
+        "defaultLanguage": "Bahasa halaman",
+        "defaultLanguageHint": "Digunakan melainkan pelawat memilih bahasa lain.",
+        "wordingTitle": "Perkataan",
+        "wordingHint": "Biarkan sesuatu bahasa kosong untuk menggunakan perkataan produk. Tulis '{workspace}' di tempat nama ruang kerja anda patut muncul. Perkataan persetujuan direkodkan bersama setiap pendaftaran.",
+        "consentText": "Persetujuan",
+        "successMessage": "Mesej terima kasih (ditambah selepas yang lalai)",
+        "saved": "Borang disimpan.",
+        "created": "Borang dibuat.",
+        "save": "Simpan",
+        "create": "Buat borang",
+        "problems": {
+          "name": {
+            "required": "Beri nama kepada borang.",
+            "too_long": "Gunakan tidak lebih daripada 120 aksara."
+          },
+          "template": {
+            "required": "Pilih templat."
+          },
+          "applicantRole": {
+            "required": "Pilih peranan."
+          },
+          "others": {
+            "incomplete": "Beri setiap orang nama dan e-mel, atau biarkan kedua-duanya kosong.",
+            "invalid": "Salah satu e-mel tidak sah."
+          },
+          "dailyCap": {
+            "invalid": "Masukkan nombor bulat dari 1 hingga 5000."
+          }
+        },
+        "templateIsForm": "borang"
       }
     },
     "detail": {
@@ -7235,7 +7594,11 @@
         "back": "Doc Sign",
         "inOrder": "Ditandatangani mengikut urutan",
         "codeRequired": "Kod diperlukan",
-        "reference": "Rujukan {reference}"
+        "reference": "Rujukan {reference}",
+        "testChip": "Ujian",
+        "testNote": "Dokumen ujian: setiap halaman dan mesej tertulis TEST, ia tidak dikira dalam had bulanan anda, tiada webhook atau automasi yang mengetahuinya, dan ia disimpan selama 30 hari selepas ditandatangani.",
+        "formChip": "Borang",
+        "inOrderForm": "Mengisi mengikut urutan"
       },
       "meta": {
         "category": "Kategori",
@@ -7253,7 +7616,8 @@
         "downloadSigned": "Muat turun PDF bertandatangan",
         "view": "Lihat",
         "downloadOriginal": "Muat turun fail asal",
-        "void": "Batalkan dokumen"
+        "void": "Batalkan dokumen",
+        "downloadRecord": "Muat turun rekod"
       },
       "banner": {
         "waiting": "Menunggu {names} ({done} daripada {total} telah menandatangani)",
@@ -7277,12 +7641,24 @@
         "cancelledNote": "Pautan tidak lagi berfungsi.",
         "failed": "Tidak dapat dimeterai: kami sedang menyiasatnya",
         "failedNote": "Tiada apa yang hilang. Semua telah menandatangani, dan salinan bertandatangan akan dibuat sebaik sahaja masalah ini diselesaikan.",
-        "failedTechnical": "Nota teknikal: {error}"
+        "failedTechnical": "Nota teknikal: {error}",
+        "retainedUntil": "Disimpan sehingga {date}. Tiada sesiapa boleh memadam dokumen bertandatangan ini sebelum itu, termasuk pemilik ruang kerja.",
+        "retentionEnded": "Tempoh pengekalan tamat pada {date}.",
+        "waitingForm": "Menunggu {names} ({done} daripada {total} telah menghantar)",
+        "waitingMoreForm": "Menunggu {names} dan {count} lagi ({done} daripada {total} telah menghantar)",
+        "waitingNobodyForm": "Menunggu penghantaran ({done} daripada {total} telah menghantar)",
+        "sealingForm": "Semua telah menghantar, rekod sedang dimeterai",
+        "sealingNoteForm": "Ini mengambil sedikit masa. Rekod akan muncul di sini dan dihantar kepada semua orang.",
+        "completedOnForm": "Dihantar dan direkodkan pada {date}",
+        "completedForm": "Dihantar dan direkodkan",
+        "completedNoteForm": "Semua pihak telah menghantar. Rekod yang dimeterai disimpan di sini.",
+        "declinedNoteForm": "Tiada orang lain boleh mengisi borang ini. Hantar yang baharu jika masih diperlukan."
       },
       "tabs": {
         "people": "Orang ({count})",
         "document": "Dokumen",
-        "history": "Sejarah"
+        "history": "Sejarah",
+        "record": "Rekod"
       },
       "channel": {
         "email": "E-mel",
@@ -7304,7 +7680,16 @@
         "remind": "Ingatkan",
         "resend": "Hantar semula",
         "changeRecipient": "Tukar penerima",
-        "remindHeld": "Peringatan boleh dihantar semula selepas {when}"
+        "remindHeld": "Peringatan boleh dihantar semula selepas {when}",
+        "haloUser": "Pengguna Halo",
+        "haloUserYou": "Pengguna Halo (anda)",
+        "step": "Langkah {step} ({count, plural, other {# orang}})",
+        "holdsParts": "{count, plural, other {# bahagian}} diserahkan oleh {name}: {parts}",
+        "forwardedFrom": "Diserahkan daripada {names}",
+        "moveTo": "Pindah ke",
+        "moveStep": "Langkah {step}",
+        "moveNew": "Langkah baharu di hujung",
+        "moved": "{name} dipindahkan ke langkah lain."
       },
       "confirm": {
         "cancel": "Batal",
@@ -7351,7 +7736,8 @@
         "resent": "Jemputan dihantar semula kepada {name}",
         "recipientChanged": "Penerima ditukar. Pautan baharu dihantar kepada {name}.",
         "notDelivered": "Mesej kepada {name} tidak dapat dihantar melalui {channel}. Salin pautan dan berikan sendiri.",
-        "notConfigured": "Mesej melalui {channel} belum disediakan, jadi tiada apa dihantar kepada {name}. Salin pautan dan berikan sendiri."
+        "notConfigured": "Mesej melalui {channel} belum disediakan, jadi tiada apa dihantar kepada {name}. Salin pautan dan berikan sendiri.",
+        "recipientChangedLater": "Butiran {name} telah diubah. Mereka akan dijemput apabila langkah mereka bermula."
       },
       "void": {
         "title": "Batalkan {title}?",
@@ -7360,7 +7746,10 @@
         "reasonRequired": "Nyatakan sebabnya. Sebab itu disimpan dalam sejarah.",
         "keep": "Kekalkan dokumen",
         "action": "Batalkan dokumen",
-        "done": "Dokumen telah dibatalkan"
+        "done": "Dokumen telah dibatalkan",
+        "envelopeBody": "Setiap pautan sampul berhenti berfungsi dan orang yang menunggu dimaklumkan sekali. Ini tidak boleh dibuat asal. Hantar sampul baharu jika perlu.",
+        "envelopeAction": "Batalkan sampul",
+        "envelopeDone": "Sampul telah dibatalkan"
       },
       "viewer": {
         "loading": "Memuatkan halaman",
@@ -7372,7 +7761,8 @@
         "signedCopy": "Salinan bertandatangan",
         "asSent": "Seperti dihantar",
         "noteSigned": "Salinan bertandatangan, dengan setiap jawapan dan halaman perakuan.",
-        "noteSent": "Dokumen seperti yang dihantar. Jawapan tidak dipaparkan di sini sehingga semua orang telah menandatangani."
+        "noteSent": "Dokumen seperti yang dihantar. Jawapan tidak dipaparkan di sini sehingga semua orang telah menandatangani.",
+        "noteRecord": "Rekod penghantaran yang dimeterai: jawapan, orang yang menghantar dan halaman perakuan."
       },
       "files": {
         "title": "Fail",
@@ -7448,7 +7838,32 @@
         "delivery_failed": "Mesej kepada {actor} tidak dapat dihantar",
         "delivery_failedCompleted": "Salinan bertandatangan tidak dapat dihantar kepada {actor}",
         "delivery_failedCompletedSender": "Salinan bertandatangan tidak dapat dihantar kepada penghantar",
-        "unknown": "Sesuatu berlaku pada dokumen ({type})"
+        "unknown": "Sesuatu berlaku pada dokumen ({type})",
+        "halo_link": "Pautan tandatangan dibuat untuk {actor} apabila beliau membuka dokumen di dalam Halo",
+        "code_verified_halo": "{actor} dikenal pasti melalui log masuk Halo (tiada kod diperlukan)",
+        "invitedAfterStep": "{actor} dijemput kerana langkah sebelumnya telah selesai",
+        "forwarded": "{from} menyerahkan gilirannya kepada {to}",
+        "part_forwarded": "{from} menyerahkan bahagian {part} kepada {to}",
+        "part_taken_back": "{actor} mengambil semula bahagian {part} daripada {from}",
+        "signer_moved": "{actor} dipindahkan ke langkah {step}",
+        "forwarding_on": "{sender} membenarkan penyerahan kepada orang lain",
+        "forwarding_off": "{sender} menutup penyerahan kepada orang lain",
+        "forwarding_changed": "{sender} menukar sama ada orang boleh menyerahkan kepada orang lain",
+        "sensitive_viewed": "{sender} menunjukkan {hasField, select, yes {“{field}”} other {satu jawapan sensitif}}",
+        "file_replaced": "{sender} menggantikan fail draf",
+        "createdForm": "{sender} mencipta borang",
+        "sentForm": "{sender} menghantar borang",
+        "viewedForm": "{actor} membuka borang",
+        "consentedForm": "{actor} bersetuju menghantar secara elektronik",
+        "submittedForm": "{actor} menghantar butirannya",
+        "declinedForm": "{actor} enggan melengkapkan borang",
+        "sealedForm": "Rekod penghantaran dimeterai",
+        "completedForm": "Penghantaran direkodkan",
+        "downloadedForm": "{sender} membuka atau memuat turun rekod",
+        "all_submitted": "Semua pihak telah menghantar",
+        "envelope_sent": "{sender} menghantar sampul {reference} dengan {count, plural, other {# dokumen}}",
+        "envelope_completed": "Sampul {reference} telah selesai, kesemua {count, plural, other {# dokumen}} ditandatangani",
+        "envelope_declined": "{by} menolak sampul {reference}, jadi setiap dokumen yang masih terbuka dihentikan"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -7468,7 +7883,18 @@
         "rate_limited": "Terlalu banyak percubaan. Tunggu seminit dan cuba lagi.",
         "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
         "database_error": "Sesuatu telah tidak kena. Sila cuba lagi.",
-        "generic": "Sesuatu telah tidak kena. Sila cuba lagi."
+        "generic": "Sesuatu telah tidak kena. Sila cuba lagi.",
+        "already_on_document": "Orang itu sudah ada pada dokumen ini.",
+        "step_not_movable": "Orang itu hanya boleh dipindahkan ke langkah yang belum bermula.",
+        "envelope_not_found": "Sampul itu tidak ditemui.",
+        "envelope_not_sent": "Sampul ini belum dihantar.",
+        "envelope_partly_completed": "Satu dokumen dalam sampul ini telah ditandatangani oleh semua orang, jadi sampul tidak boleh dibatalkan.",
+        "envelope_person_has_signed": "Orang ini sudah menandatangani sebahagian daripada sampul, jadi mereka tidak boleh diganti.",
+        "document_in_envelope": "Dokumen ini sebahagian daripada sampul. Lakukan ini pada sampulnya.",
+        "expiry_in_the_past": "Tarikh baharu mesti pada masa hadapan.",
+        "expiry_not_later": "Tarikh baharu mesti lebih lewat daripada tarikh semasa.",
+        "expiry_too_far": "Tarikh itu terlalu jauh. Pilih tarikh yang lebih dekat.",
+        "bad_expiry": "Tarikh itu tidak dapat dibaca. Pilih semula."
       },
       "contactTab": {
         "tab": "Dokumen",
@@ -7476,6 +7902,22 @@
         "send": "Hantar dokumen",
         "empty": "Belum ada dokumen untuk kenalan ini.",
         "failed": "Dokumen tidak dapat dimuatkan."
+      },
+      "yourTurn": {
+        "title": "Sudah giliran anda menandatangani dokumen ini",
+        "body": "Anda dinamakan padanya sebagai pengguna Halo. Tandatangan sekarang membukanya dengan log masuk Halo anda, jadi tiada kod diminta."
+      },
+      "forwarding": {
+        "label": "Benarkan orang menyerahkan kepada orang lain",
+        "onHint": "Orang boleh menyerahkan giliran mereka, atau satu bahagian borang, kepada orang lain. Setiap penyerahan direkodkan dalam sejarah.",
+        "offHint": "Tiada siapa boleh menyerahkan kepada orang lain. Apa yang telah diserahkan kekal pada penerimanya.",
+        "nowOn": "Penyerahan dibenarkan untuk dokumen ini.",
+        "nowOff": "Penyerahan ditutup untuk dokumen ini."
+      },
+      "recordTab": {
+        "emptyTicket": "Belum ada dokumen dilampirkan pada tiket ini.",
+        "emptyDeal": "Belum ada dokumen dilampirkan pada tawaran ini.",
+        "testBadge": "Ujian"
       }
     },
     "editor": {
@@ -7516,7 +7958,9 @@
         "code": "Memerlukan kod pengesahan",
         "codeHint": "Penandatangan memasukkan kod yang dihantar kepada mereka sebelum menandatangani.",
         "subject": "Subjek e-mel",
-        "message": "Mesej kepada penandatangan"
+        "message": "Mesej kepada penandatangan",
+        "forwarding": "Benarkan penyerahan kepada orang lain",
+        "forwardingHint": "Dokumen yang dibuat daripada templat ini membenarkan penandatangannya menyerahkan giliran, atau satu bahagian borang, kepada orang lain. Penghantar boleh mengubahnya bagi setiap dokumen."
       },
       "draft": {
         "loading": "Memuatkan dokumen...",
@@ -7526,7 +7970,8 @@
         "fromTemplate": "Medan datang daripada templat. Isikan nilai di bawah, atau pilih Edit medan untuk mengubah susun atur.",
         "editFields": "Edit medan",
         "lockFields": "Kunci medan",
-        "saveAsTemplate": "Simpan sebagai templat"
+        "saveAsTemplate": "Simpan sebagai templat",
+        "replaceFile": "Gantikan fail"
       },
       "fieldsList": {
         "title": "Semua medan",
@@ -7764,6 +8209,53 @@
         "missing": "{count, plural, one {# nilai kosong} other {# nilai kosong}}",
         "complete": "Semua nilai telah diisi.",
         "used": "{count, plural, one {digunakan dalam # medan} other {digunakan dalam # medan}}"
+      },
+      "replaceFile": {
+        "title": "Gantikan fail",
+        "intro": "Pilih fail PDF, fail Word atau imej yang baharu. Medan yang telah anda letakkan kekal di tempatnya jika masih muat; anda melihat apa yang akan berubah sebelum apa-apa berubah.",
+        "checking": "Menyemak fail baharu…",
+        "pages": "Fail baharu mempunyai {next, plural, other {# halaman}}; fail semasa mempunyai {old, plural, other {# halaman}}.",
+        "pagesChanged": "Bilangan halaman berbeza, jadi semak bahawa setiap medan masih berada pada halaman yang betul.",
+        "converted": "Fail akan ditukar kepada PDF, dan PDF itulah yang akan ditandatangani.",
+        "noFields": "Belum ada medan pada dokumen ini, jadi tiada apa yang perlu dialihkan.",
+        "allKept": "{count, plural, other {Semua # medan kekal di tempatnya.}}",
+        "flaggedTitle": "{flagged, plural, other {# medan perlu disemak}}; {kept, plural, other {# kekal di tempatnya}}.",
+        "reason": {
+          "page_missing": "Halamannya tiada dalam fail baharu, jadi ia dialihkan ke halaman terakhir",
+          "size_changed": "Halaman itu berbeza saiz atau bentuk, jadi ia mungkin tidak lagi sejajar",
+          "outside_page": "Ia tidak berada di dalam halaman"
+        },
+        "movedLine": "{name}: dahulu di halaman {from}, kini di halaman {to}",
+        "pageLine": "{name} (halaman {page})",
+        "afterNote": "Selepas fail digantikan, senarai Masalah dalam editor menunjukkan apa yang tinggal untuk dibetulkan, dan tiada apa dihantar sehingga anda membetulkannya.",
+        "unknownField": "Satu medan",
+        "cancel": "Batal",
+        "confirm": "Gantikan fail",
+        "replacing": "Menggantikan…"
+      },
+      "testSend": {
+        "button": "Hantar ujian",
+        "title": "Hantar ujian kepada diri sendiri",
+        "intro": "Cuba templat ini seperti seorang penandatangan: anda menerima e-mel dan halaman tandatangan sebenar, serta fail bertandatangan, semuanya bertanda TEST.",
+        "sentIntro": "Ujian sedang dalam perjalanan.",
+        "sentTo": "Dokumen ujian telah dihantar kepada {email}.",
+        "orderIgnored": "Templat ini ditandatangani mengikut urutan, tetapi satu alamat memegang beberapa tempat, jadi ujian ini tidak mengikut urutan.",
+        "whereToSign": "Buka e-mel itu, atau buka dokumen di sini dan cari di bawah Menunggu tandatangan saya untuk menandatangani dari dalam Halo.",
+        "notDelivered": "Satu mesej tidak dapat dihantar. Gunakan pautan ini sebaliknya:",
+        "open": "Buka dokumen",
+        "pointMarked": "Setiap halaman, e-mel dan halaman tandatangan tertulis TEST.",
+        "pointNotCounted": "Ia tidak dikira dalam had bulanan anda, dan tiada webhook atau automasi yang mengetahuinya.",
+        "pointKept": "Selepas ditandatangani, ia disimpan selama {days} hari.",
+        "unsaved": "Ujian menggunakan versi templat yang telah disimpan. Simpan satu versi dahulu jika anda mahu perubahan terkini dimasukkan.",
+        "noRoles": "Templat ini belum mempunyai sesiapa untuk menandatangani atau mengisinya. Tambah medan untuk satu peranan dahulu.",
+        "emailLabel": "Hantar ujian kepada",
+        "emailHint": "Alamat anda sendiri digunakan jika ini dibiarkan kosong. Untuk menggunakan peti mel anda yang lain, tambah +sesuatu sebelum @ (contohnya anda+ujian@syarikat.com).",
+        "emailNotYours": "Ujian hanya boleh dihantar ke alamat anda sendiri, atau alamat anda sendiri dengan +sesuatu ditambah.",
+        "placesLabel": "Siapa memegang setiap tempat",
+        "placesHint": "Biarkan sesuatu tempat kosong untuk menggunakan alamat di atas. Beri setiap tempat alamat +sesuatu tersendiri untuk mencuba tandatangan mengikut urutan.",
+        "cancel": "Batal",
+        "send": "Hantar ujian",
+        "sending": "Menghantar…"
       }
     },
     "formBuilder": {
@@ -8153,7 +8645,16 @@
         "placement_type_mismatch": "Kotak di halaman {page} tidak boleh mencetak {field} sebagai jenis kotak ini. Buka editor penempatan dan ubahnya.",
         "placement_bound_and_fixed": "Kotak di halaman {page} mencetak jawapan dan juga teks tetap. Buka editor penempatan dan ubahnya.",
         "part_without_person": "Bahagian {part} tiada sesiapa untuk melengkapkannya.",
-        "removeBox": "Buang kotak itu"
+        "removeBox": "Buang kotak itu",
+        "bad_list_key": "Senarai yang dinamakan oleh {field} bukan kunci senarai yang sah.",
+        "list_wrong_type": "{field} tidak boleh menggunakan senarai kongsi: hanya pilihan, pilihan berbilang atau senarai entri yang boleh.",
+        "unknown_list": "{field} menggunakan senarai {detail}, yang tidak wujud dalam ruang kerja ini. Pilih senarai lain.",
+        "list_and_options": "{field} mempunyai kedua-dua senarai kongsi dan pilihan yang ditaip. Gunakan satu sahaja.",
+        "list_empty": "Senarai {detail} yang digunakan oleh {field} tiada item aktif. Tambah item padanya dalam Tetapan atau pilih senarai lain.",
+        "bad_sensitive": "{field} tidak boleh ditanda sebagai sensitif. Hanya jawapan yang ditaip (teks, nombor, e-mel, telefon, tarikh, senarai) boleh.",
+        "sensitive_contact_field": "{field} sensitif, jadi ia tidak boleh mengisi medan kenalan. Buang salah satu.",
+        "sensitive_default": "{field} sensitif, jadi ia tidak boleh mempunyai nilai permulaan atau dikunci. Buang nilai permulaan atau kunci itu.",
+        "sensitive_in_rule": "Satu peraturan membandingkan nilai {field}, yang sensitif. Peraturan hanya boleh bertanya sama ada ia kosong."
       },
       "warnings": {
         "unknown": "Sesuatu dalam borang patut disemak.",
@@ -8240,6 +8741,45 @@
         "cannotDeleteRole": "{count, plural, one {Peranan ini memegang satu bahagian borang.} other {Peranan ini memegang # bahagian borang.}} Serahkannya kepada peranan lain dalam paparan Borang sebelum memadamnya.",
         "signerNoSignature": "Peranan ini menandatangani tetapi tiada kotak tandatangan atau inisial.",
         "sampleItem": "Entri {n}"
+      },
+      "list": {
+        "source": "Dari mana pilihan datang",
+        "sourceTyped": "Ditaip di sini",
+        "sourceList": "Senarai kongsi",
+        "sourceFree": "Apa sahaja yang ditaip penandatangan",
+        "sourcePicked": "Dipilih daripada senarai kongsi",
+        "which": "Senarai kongsi",
+        "choose": "Pilih senarai...",
+        "loading": "Memuatkan senarai...",
+        "loadFailed": "Senarai tidak dapat dimuatkan.",
+        "unknown": "Senarai {key} tidak wujud dalam ruang kerja ini.",
+        "archived": "Senarai ini diarkibkan. Ia masih berfungsi dalam borang ini; pilih senarai lain untuk berhenti menggunakannya.",
+        "stale": "Senarai telah berubah sejak borang ini disimpan. Simpan untuk menggunakan versi baharu.",
+        "preview": "{count, plural, other {# pilihan}} daripada senarai",
+        "previewMore": "dan {count} lagi",
+        "hint": "Salinan senarai masuk ke dalam borang apabila anda menyimpan, dan ke dalam setiap dokumen apabila ia dihantar. Mengubah senarai kemudian tidak mengubah dokumen yang telah dihantar. Senarai disimpan dalam Tetapan > Doc Sign > Senarai.",
+        "hintPicked": "Penandatangan mencari senarai ini mengikut kod atau perkataan dan menambah entri satu demi satu. Salinan senarai masuk ke dalam borang apabila anda menyimpan, dan ke dalam setiap dokumen apabila ia dihantar. Senarai disimpan dalam Tetapan > Doc Sign > Senarai."
+      },
+      "sensitive": {
+        "title": "Data sensitif",
+        "label": "Sensitif (disulitkan dan disembunyikan)",
+        "hint": "Disimpan secara disulitkan. Kakitangan melihatnya bertopeng (contohnya •••• 1234) dan setiap paparan penuh direkodkan. Ia tidak dimasukkan dalam eksport dan tidak boleh mengisi medan kenalan.",
+        "print": "Pada PDF yang ditandatangani",
+        "printHint": "Dokumen yang ditandatangani biasanya menunjukkan apa yang dipersetujui, jadi lalai ialah mencetaknya sepenuhnya. Pilih yang lain hanya jika anda mahu ia tidak dicetak pada PDF.",
+        "printFull": "Cetak sepenuhnya",
+        "printLast4": "Cetak 4 aksara terakhir sahaja",
+        "printNone": "Jangan cetak"
+      },
+      "rolesPanel": {
+        "title": "Orang yang mengisi borang ini",
+        "hint": "Setiap orang ialah satu peranan yang hanya mengisi; tiada sesiapa menandatangani. Berikan setiap bahagian kepada salah seorang daripada mereka dalam tetapannya. Anda menamakan orang sebenar apabila menghantar borang.",
+        "nameLabel": "Nama peranan",
+        "parts": "{count} bahagian",
+        "remove": "Buang {name}",
+        "removeInUse": "Satu bahagian diberikan kepada orang ini",
+        "removeLast": "Borang memerlukan sekurang-kurangnya seorang",
+        "add": "Tambah orang",
+        "limit": "Sehingga {max} orang"
       }
     },
     "progress": {
@@ -8373,6 +8913,25 @@
         "prefillOn": "Borang bermula dengan butiran daripada kenalan yang dipautkan ({fields}). Penandatangan menyemaknya dan boleh mengubahnya.",
         "noContact": "Borang ini boleh bermula dengan butiran daripada kenalan ({fields}), tetapi tiada kenalan dipautkan. Penandatangan akan mengisi semuanya. Anda boleh memautkan kenalan dalam langkah pilihan.",
         "noContactFields": "Borang ini tidak menggunakan butiran daripada kenalan."
+      },
+      "heldBy": "Bersama {name}",
+      "heldByDone": "Dilengkapkan oleh {name}",
+      "sensitive": {
+        "reveal": "Tunjukkan",
+        "hide": "Sembunyikan",
+        "revealNamed": "Tunjukkan {name}",
+        "hideNamed": "Sembunyikan {name}",
+        "note": "Disulitkan. Memaparkannya direkodkan dalam sejarah.",
+        "shownNote": "Dipaparkan seketika, kemudian disembunyikan semula. Paparan ini telah direkodkan dalam sejarah.",
+        "errors": {
+          "answer_not_found": "Jawapan ini tidak ditemui.",
+          "audit_unavailable": "Paparan tidak dapat direkodkan, jadi jawapan tidak dipaparkan. Cuba lagi.",
+          "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+          "forbidden": "Anda tiada kebenaran untuk menunjukkan jawapan ini.",
+          "signed_out": "Anda telah log keluar. Log masuk semula untuk meneruskan.",
+          "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+          "generic": "Itu tidak berjaya. Cuba lagi."
+        }
       }
     },
     "send": {
@@ -8427,7 +8986,8 @@
           "draft": "Draf",
           "waiting": "Menunggu orang lain",
           "completed": "Selesai",
-          "stopped": "Dihentikan"
+          "stopped": "Dihentikan",
+          "test": "Ujian"
         },
         "searchLabel": "Cari dokumen",
         "searchPlaceholder": "Cari mengikut tajuk, rujukan atau penandatangan",
@@ -8456,7 +9016,59 @@
         "edited": "Diedit {when}",
         "completedOn": "Selesai {date}",
         "sentOn": "Dihantar {date}",
-        "expiresOn": "Tamat tempoh {date}"
+        "expiresOn": "Tamat tempoh {date}",
+        "shortcuts": {
+          "label": "Pintasan"
+        },
+        "awaiting": {
+          "tab": "Menunggu tandatangan saya",
+          "badge": "{count, plural, other {# dokumen menunggu tandatangan anda}}",
+          "hint": "Anda dinamakan pada dokumen ini sebagai pengguna Halo dan kini giliran anda. Tandatangan sekarang membuka dokumen dengan log masuk Halo anda, jadi tiada kod diminta.",
+          "empty": "Tiada dokumen menunggu tandatangan anda.",
+          "signNow": "Tandatangan sekarang",
+          "opening": "Membuka...",
+          "view": "Lihat",
+          "from": "Daripada {name}",
+          "sent": "Dihantar {date}",
+          "expires": "Tamat tempoh {date}",
+          "step": "Langkah {step}",
+          "role": "Sebagai {role}",
+          "errors": {
+            "not_your_turn": "Belum giliran anda menandatangani dokumen ini.",
+            "document_not_open": "Dokumen ini tidak lagi boleh ditandatangani.",
+            "already_signed": "Anda sudah menandatangani dokumen ini.",
+            "signer_not_open": "Anda telah menolak dokumen ini.",
+            "not_a_signer": "Anda bukan penandatangan dokumen ini.",
+            "forbidden": "Anda tidak mempunyai kebenaran untuk menandatangani di dalam Halo.",
+            "signed_out": "Log masuk semula untuk meneruskan.",
+            "rate_limited": "Terlalu banyak percubaan. Cuba lagi sebentar lagi.",
+            "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+            "sign_disabled": "Doc Sign tidak dihidupkan untuk ruang kerja ini.",
+            "generic": "Dokumen tidak dapat dibuka. Cuba lagi."
+          }
+        },
+        "attention": {
+          "tab": "Perlu perhatian",
+          "hint": "Dokumen yang ditolak, tamat tempoh dalam 30 hari lepas atau gagal dimeterai, dan dokumen terbuka yang mesejnya tidak sampai. Lantunan e-mel yang dilaporkan kemudian oleh pembekal e-mel tidak dipaparkan.",
+          "empty": "Tiada apa yang memerlukan perhatian anda.",
+          "open": "Buka",
+          "reason": {
+            "declined": "Ditolak",
+            "expired": "Tamat tempoh",
+            "failed": "Gagal dimeterai",
+            "undelivered": "Mesej tidak sampai"
+          },
+          "detail": {
+            "declined": "Ditolak oleh {names}",
+            "expired": "Masih menunggu {names}",
+            "failed": "Salinan bertandatangan belum dapat dibuat. Buka dokumen untuk butiran.",
+            "undelivered": "Tidak sampai kepada {names}"
+          }
+        },
+        "testBadge": "Ujian",
+        "formBadge": "Borang",
+        "progressForm": "{done} daripada {total} telah menghantar",
+        "envelopeBadge": "Sampul · {count, plural, other {# dokumen}}"
       },
       "new": {
         "title": "Dokumen baharu",
@@ -8494,7 +9106,8 @@
         "noTemplateMatch": "Tiada templat sepadan dengan carian anda.",
         "templatesLabel": "Templat",
         "noCategoryGroup": "Tiada kategori",
-        "templateFacts": "{pages, plural, one {# halaman} other {# halaman}} · {roles, plural, one {# peranan} other {# peranan}}"
+        "templateFacts": "{pages, plural, one {# halaman} other {# halaman}} · {roles, plural, one {# peranan} other {# peranan}}",
+        "templateFactsForm": "Borang tanpa tandatangan · {roles} orang"
       },
       "view": {
         "loading": "Memuatkan dokumen",
@@ -8528,14 +9141,15 @@
         "people": "Orang",
         "options": "Pilihan",
         "review": "Semak",
-        "complete": "(lengkap)"
+        "complete": "(lengkap)",
+        "formFields": "Borang"
       },
       "people": {
         "noRolesTitle": "Letakkan medan dahulu",
         "noRolesBody": "Orang ditentukan oleh peranan yang anda berikan kepada medan, seperti penandatangan atau seseorang yang mengisi sesuatu bahagian. Letakkan sekurang-kurangnya satu medan pada dokumen, kemudian kembali ke sini.",
         "goToFields": "Pergi ke medan",
         "needsOrder": "Dokumen ini memerlukan susunan menandatangan",
-        "needsOrderOn": "Setiap orang dijemput hanya selepas orang sebelumnya menandatangani. Seret orang atau guna anak panah untuk menetapkan susunan.",
+        "needsOrderOn": "Orang menandatangani langkah demi langkah. Semua orang dalam langkah 1 dijemput apabila anda menghantar; langkah seterusnya dijemput selepas semua orang dalam langkah sebelumnya selesai. Berikan dua orang nombor langkah yang sama supaya mereka menandatangani serentak. Seret seseorang ke sebelah orang lain, atau guna anak panah, untuk menukar susunan.",
         "needsOrderOff": "Semua orang dijemput serentak dan sesiapa sahaja boleh menandatangani dahulu. Tiada nombor susunan dipaparkan.",
         "empty": "Belum ada sesiapa dalam senarai. Tambah orang yang menandatangani atau mengisi dokumen ini.",
         "listLabel": "Orang pada dokumen ini",
@@ -8547,7 +9161,7 @@
         "limitReached": "Satu dokumen boleh mempunyai sehingga {max} orang.",
         "fromContactsTitle": "Tambah daripada kenalan",
         "fromContactsBody": "Pilih kenalan. Nama, e-mel dan telefon mereka mengisi baris baharu.",
-        "dragHandle": "Seret untuk menukar susunan",
+        "dragHandle": "Seret ke sebelah orang lain untuk menukar susunan",
         "orderNumber": "Nombor {n}",
         "moveUp": "Alihkan orang {n} ke atas",
         "moveDown": "Alihkan orang {n} ke bawah",
@@ -8567,7 +9181,15 @@
         "phoneInvalid": "Masukkan nombor bersama kod negara, contohnya +60 12 345 6789.",
         "whatsappNote": "Jemputan WhatsApp menggunakan templat mesej yang telah diluluskan.",
         "whatsappNotSetUp": "Jemputan WhatsApp memerlukan templat mesej yang diluluskan dan belum ada yang disediakan. Orang ini tidak akan dapat dihubungi melalui WhatsApp. Gunakan e-mel, atau minta pentadbir menyediakannya dalam Tetapan.",
-        "remove": "Buang orang {n}"
+        "remove": "Buang orang {n}",
+        "stepHeading": "Langkah {step} ({count, plural, other {# orang}})",
+        "stepNumber": "Nombor langkah untuk orang {n}",
+        "stepNumberHint": "Orang yang mempunyai nombor langkah yang sama menandatangani pada masa yang sama.",
+        "emptyForm": "Belum ada sesiapa dalam senarai. Tambah orang yang mengisi borang ini.",
+        "needsOrderForm": "Orang mengisi mengikut urutan",
+        "needsOrderOnForm": "Setiap orang dijemput hanya selepas orang sebelumnya menghantar. Seret orang atau guna anak panah untuk menetapkan urutan.",
+        "needsOrderOffForm": "Semua orang dijemput serentak dan sesiapa boleh mengisi dahulu. Nombor urutan tidak dipaparkan.",
+        "sameEmailOrderedForm": "{email} muncul pada nombor {a} dan {b}. Orang yang mengisi mengikut urutan mestilah orang yang berbeza."
       },
       "options": {
         "title": "Tajuk",
@@ -8598,11 +9220,19 @@
         "remindersHint": "Hari selepas jemputan, dipisahkan dengan koma, contohnya 3, 7. Biarkan kosong jika tiada peringatan.",
         "remindersBad": "Gunakan hari penuh dari 1 hingga 60, sehingga 5 hari.",
         "codeRequired": "Memerlukan kod pengesahan",
-        "codeRequiredHint": "Setiap penandatangan mesti memasukkan kod sekali guna yang dihantar kepada mereka sebelum boleh membuka dokumen. Tidak aktif melainkan anda menandakannya."
+        "codeRequiredHint": "Setiap penandatangan mesti memasukkan kod sekali guna yang dihantar kepada mereka sebelum boleh membuka dokumen. Tidak aktif melainkan anda menandakannya.",
+        "allowForwarding": "Benarkan orang menyerahkan kepada orang lain",
+        "allowForwardingHint": "Penandatangan boleh menyerahkan giliran mereka, atau satu bahagian borang, kepada orang lain. Orang baharu itu mendapat pautan tersendiri dan bersetuju menandatangani untuk diri sendiri. Setiap penyerahan direkodkan dalam sejarah.",
+        "ticket": "Tiket",
+        "ticketHint": "Pilihan. Memaparkan dokumen ini pada tiket.",
+        "ticketHintContact": "Pilihan. Hanya tiket kenalan ini ditawarkan.",
+        "deal": "Tawaran",
+        "dealHint": "Pilihan. Memaparkan dokumen ini pada tawaran.",
+        "dealHintContact": "Pilihan. Hanya tawaran kenalan ini ditawarkan."
       },
       "review": {
         "untitled": "Dokumen tanpa tajuk",
-        "orderedIntro": "Orang menandatangani mengikut susunan. Nombor 1 dijemput apabila anda menghantar; setiap orang seterusnya dijemput apabila orang sebelumnya telah menandatangani.",
+        "orderedIntro": "Orang menandatangani mengikut susunan. Semua orang dalam langkah 1 dijemput apabila anda menghantar; setiap langkah seterusnya dijemput apabila semua orang dalam langkah sebelumnya selesai. Orang dalam langkah yang sama dijemput serentak.",
         "allAtOnce": "Semua orang dijemput serentak, dan sesiapa sahaja boleh menandatangani dahulu.",
         "nobody": "Belum ada sesiapa ditambah.",
         "noName": "Belum ada nama",
@@ -8634,7 +9264,16 @@
         "send": "Hantar untuk ditandatangani",
         "noPermission": "Anda tidak mempunyai kebenaran untuk menghantar dokumen.",
         "sendBlocked": "Betulkan perkara di atas untuk menghantar.",
-        "sendNote": "Setelah dihantar, fail dan susunan menandatangani tidak boleh diubah. Untuk mengubahnya, batalkan dokumen dan hantar semula."
+        "sendNote": "Setelah dihantar, fail dan susunan menandatangani tidak boleh diubah. Untuk mengubahnya, batalkan dokumen dan hantar semula.",
+        "sameStep": "Menandatangani bersama orang lain dalam langkah {step}",
+        "forwardingLabel": "Penyerahan kepada orang lain",
+        "forwardingOn": "Orang boleh menyerahkan giliran mereka, atau satu bahagian borang, kepada orang lain",
+        "forwardingOff": "Tidak dibenarkan",
+        "orderedIntroForm": "Orang mengisi mengikut urutan. Nombor 1 dijemput apabila anda menghantar; setiap orang seterusnya dijemput apabila orang sebelumnya telah menghantar.",
+        "allAtOnceForm": "Semua orang dijemput serentak, dan sesiapa boleh mengisi dahulu.",
+        "codeOnForm": "Setiap orang memasukkan kod sekali guna dahulu",
+        "sendForm": "Hantar borang",
+        "sendNoteForm": "Setelah dihantar, borang dan urutan tidak boleh diubah. Untuk mengubahnya, batalkan dokumen dan hantar semula."
       },
       "result": {
         "title": "Telah dihantar untuk ditandatangani",
@@ -8658,7 +9297,10 @@
         "copied": "Pautan disalin",
         "copyFailed": "Pautan tidak dapat disalin. Pilih dan salinnya secara manual.",
         "privateWarning": "Hantar pautan ini kepada {name} sahaja, secara peribadi. Sesiapa yang memilikinya boleh menandatangani bagi pihak mereka.",
-        "openDocument": "Buka dokumen"
+        "openDocument": "Buka dokumen",
+        "titleForm": "Borang dihantar",
+        "linkLabelForm": "Pautan untuk {name}",
+        "privateWarningForm": "Hantar pautan ini hanya kepada {name}, secara peribadi. Sesiapa yang memilikinya boleh mengisi borang sebagai orang itu."
       },
       "problems": {
         "no_file": "Dokumen tidak mempunyai fail.",
@@ -8678,7 +9320,12 @@
         "message_long": "Mesej melebihi 2000 aksara.",
         "expiry_past": "Tarikh tamat tempoh mestilah selepas hari ini.",
         "reminders_bad": "Peringatan mestilah hari penuh dari 1 hingga 60, sehingga 5 hari.",
-        "layout": "Satu medan pada dokumen tidak diletakkan dengan betul."
+        "layout": "Satu medan pada dokumen tidak diletakkan dengan betul.",
+        "no_person": "Tambah sekurang-kurangnya seorang yang mengisi borang ini.",
+        "form_mode_needs_a_form": "Borang ini tiada bahagian untuk diisi. Buka templat dan tambah satu.",
+        "form_mode_signature": "Borang tanpa tandatangan tidak boleh mempunyai tempat untuk menandatangani.",
+        "form_mode_placement": "Borang tanpa tandatangan tidak mempunyai apa-apa yang diletakkan pada halaman.",
+        "form_mode_signer_role": "Borang tanpa tandatangan tidak boleh mempunyai peranan yang menandatangani."
       },
       "errors": {
         "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
@@ -8734,7 +9381,210 @@
         "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
         "body_too_large": "Permintaan itu terlalu besar.",
         "bad_json": "Permintaan tidak dapat dibaca. Sila cuba lagi.",
-        "database_error": "Berlaku masalah di pihak kami. Sila cuba lagi."
+        "database_error": "Berlaku masalah di pihak kami. Sila cuba lagi.",
+        "ticket_not_found": "Tiket itu tidak ditemui.",
+        "deal_not_found": "Tawaran itu tidak ditemui.",
+        "ticket_contact_mismatch": "Tiket itu milik kenalan lain daripada dokumen ini. Pilih kenalan itu, atau tiket lain.",
+        "deal_contact_mismatch": "Tawaran itu milik kenalan lain daripada dokumen ini. Pilih kenalan itu, atau tawaran lain.",
+        "test_email_not_yours": "Ujian hanya boleh dihantar ke alamat anda sendiri, atau alamat anda sendiri dengan +sesuatu ditambah.",
+        "test_no_roles": "Templat ini belum mempunyai sesiapa untuk menandatangani atau mengisinya. Tambah medan untuk satu peranan dahulu.",
+        "test_no_address": "Akaun anda tidak mempunyai alamat e-mel untuk menerima ujian.",
+        "same_file": "Ini ialah fail yang sudah ada pada dokumen.",
+        "document_has_no_file": "Dokumen ini tiada fail untuk digantikan.",
+        "envelope_not_found": "Sampul itu tidak ditemui.",
+        "envelope_not_draft": "Sampul ini sudah dihantar, jadi ia tidak boleh diubah lagi.",
+        "envelope_not_sent": "Sampul ini belum dihantar.",
+        "envelope_size": "Satu sampul mengandungi dua hingga enam dokumen.",
+        "envelope_documents": "Dokumen dalam sampul ini berubah semasa anda bekerja. Buka semula dan semaknya.",
+        "envelope_options": "Setiap dokumen dalam sampul mesti menggunakan susunan menandatangani dan tetapan kod yang sama.",
+        "envelope_people": "Senarai orang dalam sampul ini tidak lengkap. Semak dan simpan semula.",
+        "envelope_person_twice": "Seseorang hanya boleh mempunyai satu peranan pada setiap dokumen.",
+        "envelope_not_ready": "Sampul ini belum sedia untuk dihantar. Semak senarai perkara yang perlu dibetulkan.",
+        "envelope_too_big": "Dokumen dalam satu sampul boleh sehingga 50 MB kesemuanya. Gunakan fail yang lebih kecil.",
+        "envelope_duplicate_template": "Pilih setiap templat sekali sahaja.",
+        "envelope_not_deletable": "Hanya draf yang boleh dipadam. Batalkan sampul yang sudah dihantar.",
+        "envelope_frozen": "Sampul yang sudah dihantar tidak boleh disunting.",
+        "envelope_fixed": "Dokumen tidak boleh dikeluarkan daripada sampulnya.",
+        "envelope_no_forwarding": "Dokumen dalam sampul tidak boleh dikemukakan kepada orang lain.",
+        "envelope_no_test": "Dokumen ujian tidak boleh menjadi sebahagian daripada sampul.",
+        "document_in_envelope": "Dokumen ini sebahagian daripada sampul. Lakukan ini pada sampulnya.",
+        "document_retained": "Dokumen bertandatangan ini mesti disimpan buat masa ini, jadi ia belum boleh dipadam."
+      },
+      "records": {
+        "ticketLabel": "Pautkan ke tiket",
+        "dealLabel": "Pautkan ke tawaran",
+        "ticketPlaceholder": "Cari tiket mengikut nombor atau subjek",
+        "dealPlaceholder": "Cari tawaran mengikut tajuk",
+        "results": "Rekod yang sepadan",
+        "searching": "Mencari…",
+        "none": "Tiada yang ditemui.",
+        "noneForContact": "Kenalan ini tiada yang sepadan.",
+        "remove": "Buang pautan",
+        "loading": "Memuatkan…",
+        "unknown": "Rekod yang tidak dapat anda lihat"
+      },
+      "envelope": {
+        "badge": "Sampul · {count, plural, other {# dokumen}}",
+        "new": {
+          "link": "Hantar beberapa dokumen sebagai satu sampul",
+          "title": "Sampul baharu",
+          "subtitle": "Beberapa dokumen untuk orang yang sama, ditandatangani sekali gus. Setiap orang menerima satu mesej dan satu pautan.",
+          "chooseHeading": "Pilih dokumen",
+          "chooseHint": "Pilih templat, atau tambah satu fail. Satu sampul mengandungi {min} hingga {max} dokumen.",
+          "templatesLabel": "Templat",
+          "fileHeading": "Atau tambah fail",
+          "fileHint": "Fail PDF atau Word. Anda menyediakan medannya selepas sampul dibuat.",
+          "orderHeading": "Susunan dokumen ({count})",
+          "nothingChosen": "Belum ada yang dipilih.",
+          "removeFile": "Buang fail",
+          "moveUp": "Alihkan {title} ke atas",
+          "moveDown": "Alihkan {title} ke bawah",
+          "remove": "Buang {title}",
+          "needMore": "Pilih sekurang-kurangnya {min} dokumen.",
+          "count": "{count} daripada {max} dokumen",
+          "titleLabel": "Tajuk sampul",
+          "titlePlaceholder": "Contohnya, Pendaftaran peniaga",
+          "create": "Cipta sampul"
+        },
+        "view": {
+          "loading": "Memuatkan sampul",
+          "notFoundTitle": "Sampul ini tidak ditemui",
+          "failedTitle": "Sampul tidak dapat dimuatkan",
+          "retry": "Cuba lagi",
+          "backToDocuments": "Kembali ke dokumen"
+        },
+        "draft": {
+          "back": "Kembali ke dokumen",
+          "delete": "Padam draf",
+          "deleteTitle": "Padam draf sampul ini?",
+          "deleteBody": "{count, plural, other {Kesemua # dokumen di dalamnya turut dipadam.}} Tiada apa-apa yang telah dihantar. Ini tidak boleh dibuat asal.",
+          "deleteConfirm": "Padam draf",
+          "cancel": "Simpan",
+          "deleted": "Draf sampul telah dipadam",
+          "readOnly": "Anda boleh melihat sampul ini tetapi tidak boleh mengubahnya."
+        },
+        "documents": {
+          "heading": "Dokumen",
+          "hint": "Sediakan medan setiap dokumen di sini. Orang dan pilihan dikongsi oleh seluruh sampul.",
+          "form": "Borang",
+          "pages": "{count, plural, other {# halaman}}",
+          "problems": "{count, plural, other {# perkara perlu dibetulkan}}",
+          "ready": "Sedia",
+          "edit": "Sediakan"
+        },
+        "people": {
+          "heading": "Orang",
+          "intro": "Tambah setiap orang sekali sahaja, dan nyatakan peranan mereka pada setiap dokumen. Mereka menerima satu mesej dan satu pautan untuk seluruh sampul.",
+          "ordered": "Orang menandatangani satu demi satu",
+          "orderedHint": "Berikan setiap orang satu langkah. Orang dengan langkah yang sama menandatangani bersama, dan langkah seterusnya dijemput hanya apabila semua orang dalam langkah itu telah menyelesaikan semua dokumen.",
+          "empty": "Belum ada sesiapa dalam senarai.",
+          "personN": "Orang {n}",
+          "remove": "Buang {name}",
+          "removeShort": "Buang",
+          "fullName": "Nama penuh",
+          "email": "E-mel",
+          "channel": {
+            "label": "Hantar pautan melalui",
+            "email": "E-mel",
+            "whatsapp": "WhatsApp"
+          },
+          "whatsappOff": "WhatsApp belum dihidupkan untuk ruang kerja ini.",
+          "phone": "Nombor telefon dengan kod negara",
+          "step": "Langkah",
+          "stepHint": "Orang dengan langkah yang sama menandatangani bersama.",
+          "rolesHeading": "Peranan orang ini pada setiap dokumen",
+          "roleOn": "Peranan pada {document}",
+          "notOn": "Tiada pada dokumen ini",
+          "errors": {
+            "name": "Masukkan nama penuh.",
+            "email": "Masukkan alamat e-mel yang sah.",
+            "phone": "Masukkan nombor telefon dengan kod negaranya.",
+            "noDocument": "Letakkan orang ini pada sekurang-kurangnya satu dokumen, atau buang mereka."
+          },
+          "add": "Tambah seorang",
+          "conflictsLabel": "Perkara yang perlu dibetulkan dalam senarai orang"
+        },
+        "options": {
+          "heading": "Pilihan",
+          "hint": "Ini terpakai untuk setiap dokumen dalam sampul."
+        },
+        "review": {
+          "heading": "Semak dan hantar",
+          "ordered": "Orang menandatangani satu demi satu, mengikut langkah yang anda tetapkan.",
+          "allAtOnce": "Semua orang dijemput serentak.",
+          "counts": "{documents, plural, other {# dokumen}} untuk {people, plural, other {# orang}}.",
+          "limit": "Sampul ini memerlukan ruang untuk {needed} dokumen, tetapi ruang kerja ini hanya mempunyai ruang untuk {remaining} lagi bulan ini.",
+          "problemsTitle": "{count, plural, other {# perkara perlu dibetulkan sebelum menghantar}}",
+          "sharedHeading": "Sampul",
+          "fixDocument": "Buka dokumen",
+          "fixPeople": "Pergi ke orang",
+          "fixOptions": "Pergi ke pilihan",
+          "layout": "{count, plural, other {# medan tidak sah}}",
+          "ready": "Semuanya sedia untuk dihantar.",
+          "openEnvelope": "Buka sampul",
+          "send": "Hantar {count, plural, other {# dokumen}}",
+          "noPermission": "Anda tidak mempunyai kebenaran untuk menghantar dokumen.",
+          "sendBlocked": "Betulkan perkara yang disenaraikan di atas untuk menghantar.",
+          "sendNote": "Semua orang dalam senarai dijemput serta-merta. Selepas dihantar, dokumen tidak boleh disunting."
+        },
+        "sent": {
+          "title": "Sampul telah dihantar",
+          "subtitle": "{count, plural, other {# dokumen}} dihantar. Setiap orang menerima satu mesej.",
+          "open": "Buka sampul"
+        },
+        "problems": {
+          "envelope_size": "Satu sampul mengandungi {range} dokumen.",
+          "envelope_too_many_pages": "Satu sampul boleh mempunyai sehingga {range} halaman kesemuanya.",
+          "duplicate_person": "Orang {n} mempunyai alamat e-mel yang sama dengan orang lain.",
+          "person_without_document": "Orang {n} tidak berada pada mana-mana dokumen.",
+          "role_two_people": "Peranan {role} pada {document} mempunyai lebih daripada seorang. Berikan kepada seorang sahaja."
+        },
+        "banner": {
+          "title": "Dokumen {number} daripada {count} dalam satu sampul",
+          "open": "Buka sampul",
+          "manageNote": "Peringatan, pautan baharu, penerima baharu, masa tambahan dan pembatalan dilakukan untuk seluruh sampul, bukan untuk satu dokumen."
+        },
+        "member": {
+          "backToEnvelope": "Kembali ke sampul",
+          "banner": "Ini ialah dokumen {number} daripada {count} dalam sampul “{title}”. Orang, pilihan dan penghantaran ditetapkan pada sampul.",
+          "openEnvelope": "Buka sampul"
+        },
+        "detail": {
+          "sentOn": "Dihantar {date}",
+          "expiresOn": "Tamat tempoh {date}",
+          "extend": "Beri lebih masa",
+          "void": "Batalkan sampul",
+          "banner": {
+            "completed": "Kesemua {count, plural, other {# dokumen}} telah ditandatangani.",
+            "declinedBy": "{name} enggan menandatangani, jadi seluruh sampul dihentikan.",
+            "declined": "Seseorang enggan menandatangani, jadi seluruh sampul dihentikan.",
+            "expired": "Sampul telah tamat tempoh pada {date}.",
+            "voided": "Sampul telah dibatalkan.",
+            "failed": "Fail bertandatangan tidak dapat dibuat. Buka dokumen yang gagal untuk melihat apa yang perlu dilakukan.",
+            "sealing": "Semua orang telah menandatangani. Fail bertandatangan sedang dibuat.",
+            "waiting": "Menunggu {names}.",
+            "sent": "Sampul telah dihantar. Belum ada sesiapa yang dijemput.",
+            "reason": "Sebab: {reason}"
+          },
+          "progress": "{done} daripada {total} dokumen telah selesai.",
+          "partly": "Sekurang-kurangnya satu dokumen telah ditandatangani oleh semua orang, jadi sampul ini tidak boleh dibatalkan lagi.",
+          "documents": "Dokumen",
+          "download": "Salinan bertandatangan",
+          "openDocument": "Buka",
+          "people": "{count, plural, other {# orang}}",
+          "step": "Langkah {step}",
+          "notInvited": "Belum dijemput. Langkah mereka belum bermula.",
+          "remindHeld": "Peringatan boleh dihantar semula selepas {time}.",
+          "cannotReplace": "Orang ini sudah menandatangani sebahagian daripada sampul, jadi mereka tidak boleh diganti.",
+          "extendDialog": {
+            "title": "Beri semua orang lebih masa",
+            "body": "Pilih tarikh yang lebih lewat. Ia terpakai untuk setiap dokumen yang masih terbuka.",
+            "label": "Tarikh tamat tempoh baharu",
+            "cancel": "Batal",
+            "action": "Beri lebih masa",
+            "done": "Tarikh baharu telah disimpan"
+          }
+        }
       }
     },
     "signer": {
@@ -8744,7 +9594,8 @@
         "language": "Bahasa",
         "secured": "Dilindungi oleh {product}",
         "skipToContent": "Langkau ke kandungan",
-        "tryAgain": "Cuba lagi"
+        "tryAgain": "Cuba lagi",
+        "testBanner": "TEST: dokumen ini dihantar untuk mencuba satu templat. Ia bukan perjanjian sebenar."
       },
       "invalid": {
         "title": "Pautan ini tidak sah",
@@ -8772,7 +9623,8 @@
         "recorded": "Kami merekodkan nama, alamat e-mel, alamat rangkaian (IP) dan peranti anda, masa, serta apa yang anda lakukan pada halaman ini.",
         "agree": "Saya bersetuju",
         "readFirst": "Baca dokumen dahulu",
-        "hideDocument": "Sembunyikan dokumen"
+        "hideDocument": "Sembunyikan dokumen",
+        "titleForm": "Hantar secara elektronik"
       },
       "doc": {
         "reference": "Rujukan {reference}",
@@ -8797,7 +9649,8 @@
         "zoomOut": "Zum keluar",
         "pageLabel": "Halaman {page} daripada {total}",
         "openingDocument": "Sedang membuka dokumen...",
-        "documentFailed": "Kami tidak dapat membuka dokumen ini."
+        "documentFailed": "Kami tidak dapat membuka dokumen ini.",
+        "declineForm": "Saya tidak mahu mengisi ini"
       },
       "tap": {
         "signature": "Ketik untuk tandatangan",
@@ -8896,14 +9749,18 @@
         "reasonLabel": "Sebab (pilihan)",
         "reasonHelp": "Penghantar boleh membaca apa yang anda tulis di sini.",
         "keep": "Kembali",
-        "confirm": "Tolak untuk menandatangani"
+        "confirm": "Tolak untuk menandatangani",
+        "titleForm": "Jangan lengkapkan borang ini?",
+        "bodyForm": "Orang yang menghantarnya akan dimaklumkan, dan borang ini akan berhenti di sini. Tindakan ini tidak boleh dibatalkan.",
+        "confirmForm": "Enggan melengkapkan"
       },
       "end": {
         "signed": {
           "title": "Anda telah menandatangani",
           "thanks": "Terima kasih, {name}.",
           "waiting": "Kami menunggu orang lain menandatangani. Salinan bertandatangan akan dihantar ke e-mel anda apabila semua orang selesai.",
-          "almost": "Semua orang telah menandatangani. Kami sedang menyiapkan dokumen, dan salinan bertandatangan akan dihantar ke e-mel anda."
+          "almost": "Semua orang telah menandatangani. Kami sedang menyiapkan dokumen, dan salinan bertandatangan akan dihantar ke e-mel anda.",
+          "waitingFor": "Kami menunggu {name} selesai. Salinan yang ditandatangani akan dihantar kepada anda melalui e-mel apabila semua pihak selesai."
         },
         "sealing": {
           "title": "Kami sedang menyiapkan dokumen anda",
@@ -8915,7 +9772,8 @@
           "body": "Semua orang telah menandatangani. Anda boleh menyimpan salinan dokumen bertandatangan.",
           "download": "Muat turun PDF bertandatangan",
           "view": "Lihat PDF bertandatangan",
-          "byEmail": "Salinan bertandatangan telah dihantar ke alamat e-mel anda."
+          "byEmail": "Salinan bertandatangan telah dihantar ke alamat e-mel anda.",
+          "delegate": "Terima kasih kerana melengkapkan bahagian anda. Penghantar mempunyai dokumen yang telah siap."
         },
         "declined": {
           "title": "Dokumen ini tidak ditandatangani",
@@ -8937,6 +9795,27 @@
         "notInvited": {
           "title": "Belum tiba giliran anda",
           "body": "Seseorang perlu menandatangani sebelum anda. Kami akan menghubungi anda apabila tiba giliran anda. Anda boleh menutup halaman ini."
+        },
+        "sealingForm": {
+          "title": "Kami sedang merekodkan penghantaran anda",
+          "body": "Semua pihak telah menghantar. Kami sedang menyusun rekod. Halaman ini dikemas kini sendiri, jadi anda boleh membiarkannya terbuka.",
+          "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar rekod melalui e-mel sebaik sahaja siap."
+        },
+        "completedForm": {
+          "title": "Penghantaran anda telah direkodkan",
+          "body": "Semua pihak telah menghantar. Anda boleh menyimpan salinan rekod apa yang dihantar.",
+          "download": "Muat turun rekod",
+          "view": "Lihat rekod",
+          "byEmail": "Salinan rekod telah dihantar ke alamat e-mel anda."
+        },
+        "declinedForm": {
+          "title": "Borang ini tidak dilengkapkan",
+          "you": "Anda memilih untuk tidak melengkapkannya. Penghantar telah dimaklumkan.",
+          "other": "Seseorang pada borang ini memilih untuk tidak melengkapkannya, jadi ia tidak akan diteruskan. Anda tidak perlu berbuat apa-apa."
+        },
+        "notInvitedForm": {
+          "title": "Belum giliran anda",
+          "body": "Seseorang perlu selesai sebelum anda. Kami akan menghantar mesej apabila tiba giliran anda. Anda boleh menutup halaman ini."
         }
       },
       "others": {
@@ -8946,7 +9825,9 @@
         "turn": "Sekarang giliran mereka",
         "invited": "Belum menandatangani",
         "waiting": "Menunggu giliran mereka",
-        "done": "Selesai"
+        "done": "Selesai",
+        "titleForm": "Siapa yang sedang mengisi",
+        "invitedForm": "Belum selesai"
       },
       "errors": {
         "generic": "Sesuatu tidak kena. Sila cuba lagi.",
@@ -8967,7 +9848,77 @@
         "missing_required": "Beberapa medan wajib masih kosong.",
         "invalid_answers": "Beberapa jawapan perlu diubah. Ia ditandakan pada halaman.",
         "body_too_large": "Itu terlalu besar untuk dihantar. Gunakan gambar yang lebih kecil.",
-        "session_unavailable": "Penandatanganan tidak tersedia sekarang. Sila cuba lagi kemudian."
+        "session_unavailable": "Penandatanganan tidak tersedia sekarang. Sila cuba lagi kemudian.",
+        "forward_not_allowed": "Penyerahan kepada orang lain tidak dibenarkan untuk dokumen ini.",
+        "forward_details": "Masukkan nama penuh dan alamat e-mel yang sah.",
+        "forward_same_person": "Itu alamat anda sendiri. Masukkan orang yang hendak anda serahkan kepadanya.",
+        "forward_already_signer": "Orang itu sudah ada pada dokumen ini.",
+        "forward_limit": "Ini hanya boleh diserahkan beberapa kali. Sebaliknya, minta penghantar.",
+        "forward_part_unknown": "Bahagian itu bukan untuk anda serahkan.",
+        "delegate_cannot_forward": "Bahagian yang diserahkan kepada anda tidak boleh diserahkan lagi.",
+        "delegation_open": "Satu bahagian yang anda serahkan belum selesai. Tunggu, atau ambil semula.",
+        "delegate_cannot_decline": "Ini diserahkan kepada anda untuk dilengkapkan. Beritahu orang yang menyerahkannya jika anda tidak dapat.",
+        "part_already_forwarded": "Bahagian itu sudah diserahkan kepada seseorang.",
+        "part_not_forwarded": "Bahagian itu tidak berada pada orang lain.",
+        "part_already_completed": "Bahagian itu sudah dilengkapkan, jadi tidak boleh diambil semula."
+      },
+      "forward": {
+        "action": "Serahkan kepada orang lain",
+        "titleTurn": "Serahkan giliran anda",
+        "titlePart": "Serahkan satu bahagian: {part}",
+        "bodyTurn": "Orang yang anda pilih menandatangani bagi pihak anda. Mereka mendapat pautan tersendiri dan bersetuju menandatangani untuk diri sendiri. Pautan anda berhenti berfungsi serta-merta.",
+        "bodyPart": "Orang yang anda pilih hanya melengkapkan bahagian ini dan tidak melihat apa-apa yang lain. Mereka tidak menandatangani. Anda tetap menyemak dan menandatangani sendiri selepas ia selesai.",
+        "left": "Anda boleh menyerahkan {count, plural, other {# kali lagi}}.",
+        "name": "Nama penuh mereka",
+        "email": "E-mel mereka",
+        "note": "Nota untuk mereka (pilihan)",
+        "noteHelp": "Mereka akan membaca ini dalam e-mel.",
+        "cancel": "Batal",
+        "confirmTurn": "Serahkan giliran saya",
+        "confirmPart": "Serahkan bahagian ini",
+        "problemDetails": "Masukkan nama penuh mereka dan alamat e-mel yang sah.",
+        "doneTitle": "Telah diserahkan",
+        "doneBody": "{name} telah dihantar pautan untuk mengambil tempat anda. Anda tidak perlu berbuat apa-apa lagi, dan boleh menutup halaman ini.",
+        "doneNotSent": "Mesej kepada {name} tidak dapat dihantar. Beritahu orang yang menghantar dokumen ini kepada anda.",
+        "fromTurn": "{name} meminta anda melengkapkan ini bagi pihaknya. Anda akan bersetuju menandatangani secara elektronik sendiri.",
+        "fromPart": "{name} meminta anda melengkapkan sebahagian daripada dokumen ini. Anda hanya melihat bahagian itu."
+      },
+      "envelope": {
+        "next": "Dokumen seterusnya",
+        "finish": "Selesai dan tandatangani semua",
+        "declineNote": "Ini menamatkan keseluruhan sampul: {count, plural, other {kesemua # dokumen}} dihentikan untuk semua orang.",
+        "listLabel": "Dokumen dalam sampul ini",
+        "position": "Dokumen {number} daripada {count}",
+        "open": "Buka {title}",
+        "notFinal": "Tiada apa yang muktamad sehingga anda menyelesaikan dokumen terakhir. Anda boleh membuka yang lain dalam sebarang susunan.",
+        "introTitle": "{count, plural, other {# dokumen}} untuk ditandatangani",
+        "introTitleFill": "{count, plural, other {# dokumen}} untuk dilengkapkan",
+        "introBody": "Anda akan melalui semuanya satu demi satu dalam satu lawatan ini, dan anda hanya perlu bersetuju sekali.",
+        "state": {
+          "active": "Perlu dibuat",
+          "signed": "Selesai",
+          "sealing": "Sedang disiapkan",
+          "completed": "Lengkap",
+          "declined": "Ditolak",
+          "expired": "Tamat tempoh",
+          "voided": "Dibatalkan",
+          "failed": "Masalah",
+          "not_invited": "Belum giliran anda"
+        },
+        "end": {
+          "completed": {
+            "title": "Kesemua {count, plural, other {# dokumen}} telah lengkap",
+            "body": "Semua orang telah menandatangani. Anda boleh memuat turun setiap dokumen bertandatangan di bawah.",
+            "byEmail": "Dokumen bertandatangan juga dihantar ke e-mel anda."
+          },
+          "signed": {
+            "title": "Anda telah menandatangani kesemua {count, plural, other {# dokumen}}",
+            "body": "Terima kasih, {name}. Bahagian anda telah selesai.",
+            "waiting": "Kami sedang menunggu orang lain. Anda akan menerima e-mel dengan dokumen bertandatangan apabila semua orang selesai."
+          },
+          "download": "Muat turun {title}",
+          "downloadShort": "Muat turun"
+        }
       }
     },
     "signerForm": {
@@ -8979,7 +9930,15 @@
         "progressLabel": "Kemajuan anda",
         "percent": "{percent}% selesai",
         "counts": "{done} daripada {total} dijawab",
-        "continue": "Teruskan: {part}"
+        "continue": "Teruskan: {part}",
+        "waitingFor": "Menunggu {name}",
+        "doneBy": "Disiapkan oleh {name}",
+        "takeBack": "Ambil semula",
+        "takeBackAsk": "Ambil semula bahagian ini daripada {name}? Apa yang telah mereka taip akan kekal.",
+        "takeBackYes": "Ya, ambil semula",
+        "takeBackNo": "Biarkan pada mereka",
+        "takeBackFailed": "Tidak dapat mengambil semula. Mungkin mereka baru sahaja selesai.",
+        "forwardPart": "Serahkan bahagian ini kepada orang lain"
       },
       "status": {
         "not_started": "Belum bermula",
@@ -8997,7 +9956,10 @@
         "saving": "Sedang menyimpan jawapan anda. Ini akan dibuka sebentar lagi.",
         "check": "Sesetengah jawapan masih perlu disemak. Buka bahagian yang belum selesai.",
         "readySign": "Semak jawapan pada borang, kemudian tandatangani.",
-        "readySubmit": "Semuanya telah diisi. Hantar jawapan anda apabila anda sudah bersedia."
+        "readySubmit": "Semuanya telah diisi. Hantar jawapan anda apabila anda sudah bersedia.",
+        "waitingDelegates": "Menunggu {count, plural, other {# bahagian}} yang anda serahkan.",
+        "reviewSubmit": "Semak dan hantar",
+        "readyReviewSubmit": "Semak jawapan anda, kemudian hantar."
       },
       "part": {
         "position": "Bahagian {number} daripada {total}",
@@ -9137,10 +10099,48 @@
           "title": "Jawapan anda telah dihantar",
           "thanks": "Terima kasih, {name}.",
           "next": "Anda tidak perlu berbuat apa-apa lagi."
+        },
+        "submitted": {
+          "title": "Terima kasih, butiran anda telah dihantar",
+          "thanks": "Terima kasih, {name}.",
+          "next": "Anda tidak perlu berbuat apa-apa lagi. Rekod apa yang anda hantar akan dihantar kepada anda melalui e-mel.",
+          "waiting": "Kami menunggu pihak lain selesai. Rekod apa yang dihantar akan dihantar kepada anda melalui e-mel apabila semua telah selesai."
         }
       },
       "preview": {
         "note": "Ini ialah pratonton. Tiada apa yang anda masukkan di sini akan disimpan atau dihantar."
+      },
+      "search": {
+        "label": "Cari {label}",
+        "placeholder": "Taip untuk mencari",
+        "clear": "Kosongkan {label}",
+        "remove": "Buang {item}",
+        "selected": "Dipilih ({count})",
+        "count": "{count} daripada {max}",
+        "limit": "Anda boleh menambah sehingga {max}.",
+        "results": "{count, plural, other {# padanan}}",
+        "noMatches": "Tiada padanan",
+        "noMatchesFor": "Tiada padanan untuk {query}",
+        "more": "Menunjukkan {shown} yang pertama. Taip lagi untuk mempersempitkan senarai."
+      },
+      "sensitive": {
+        "note": "Jawapan ini disimpan secara disulitkan. Kakitangan melihatnya bertopeng.",
+        "showNamed": "Tunjukkan {label}",
+        "hideNamed": "Sembunyikan {label}"
+      },
+      "submitReview": {
+        "title": "Semak dan hantar",
+        "parts": "Jawapan anda, bahagian demi bahagian",
+        "body": "Semak jawapan anda. Apabila anda menghantarnya, ia dihantar dan satu rekod disimpan.",
+        "change": "Ubah",
+        "changePart": "Ubah bahagian {part}",
+        "picture": "Satu gambar dilampirkan",
+        "notAnswered": "Tidak dijawab",
+        "sensitiveNote": "Butiran yang ditandakan peribadi dipaparkan tersembunyi di sini. Ia disimpan dengan penyulitan.",
+        "back": "Kembali ke bahagian",
+        "submit": "Hantar",
+        "submitting": "Menghantar...",
+        "afterwards": "Anda tidak boleh mengubah jawapan selepas menghantar."
       }
     },
     "verify": {
@@ -9150,7 +10150,9 @@
       "reference": "Rujukan {reference}",
       "signers": {
         "title": "Ditandatangani oleh",
-        "none": "Tiada tandatangan disenaraikan untuk dokumen ini."
+        "none": "Tiada tandatangan disenaraikan untuk dokumen ini.",
+        "titleForm": "Dihantar oleh",
+        "noneForm": "Tiada penghantaran disenaraikan untuk dokumen ini."
       },
       "trail": {
         "intactTitle": "Rekod dokumen ini lengkap dan tidak berubah",
@@ -9172,12 +10174,576 @@
         "differentBody": "Ia mungkin telah diubah, atau disimpan semula oleh program lain atau penyunting PDF. Minta dokumen asal yang ditandatangani daripada pengirim.",
         "readError": "Kami tidak dapat membaca fail itu. Sila pilih semula.",
         "unsupported": "Pelayar ini tidak dapat menyemak fail. Buka halaman ini dalam pelayar yang terkini.",
-        "fingerprint": "Cap jari dokumen asal yang ditandatangani (SHA-256)"
+        "fingerprint": "Cap jari dokumen asal yang ditandatangani (SHA-256)",
+        "matchTitleForm": "Ini ialah rekod bermeterai yang tepat",
+        "matchBodyForm": "Salinan anda serupa dengan rekod bermeterai, bait demi bait.",
+        "differentTitleForm": "Fail ini bukan rekod bermeterai",
+        "differentBodyForm": "Ia mungkin telah diubah, atau disimpan semula oleh atur cara lain atau penyunting PDF. Minta rekod bermeterai daripada penghantar.",
+        "fingerprintForm": "Cap jari rekod bermeterai (SHA-256)"
       },
       "readerHint": "Untuk melihat tandatangan elektronik itu sendiri, buka PDF dalam pembaca PDF seperti Adobe Acrobat dan lihat panel tandatangannya.",
       "notFound": {
         "title": "Kami tidak menemui dokumen ini",
         "body": "Pastikan anda mengimbas keseluruhan kod atau membuka keseluruhan alamat. Jika masih tidak berfungsi, tanya orang yang menghantar dokumen itu kepada anda."
+      },
+      "signedTitleForm": "Penghantaran ini direkodkan",
+      "envelope": "Dokumen ini ditandatangani bersama dokumen lain, dalam satu sampul yang mengandungi {count, plural, other {# dokumen}}."
+    },
+    "bulk": {
+      "title": "Hantar pukal",
+      "subtitle": "Hantar templat yang sama kepada ramai orang sekali gus. Dokumen disediakan dan dihantar di latar belakang.",
+      "backToDocuments": "Kembali ke dokumen",
+      "noPermission": "Anda tiada kebenaran untuk menghantar dokumen.",
+      "back": "Kembali",
+      "next": "Seterusnya",
+      "steps": {
+        "label": "Langkah hantar pukal",
+        "complete": "selesai",
+        "template": "Templat",
+        "people": "Orang",
+        "setup": "Tetapan",
+        "review": "Semak dan hantar"
+      },
+      "template": {
+        "heading": "Templat yang mana?",
+        "hint": "Setiap orang dalam senarai anda menerima salinan templat ini sendiri."
+      },
+      "people": {
+        "heading": "Siapa yang menerima dokumen?",
+        "sourceLabel": "Dari mana senarai orang diambil",
+        "source": {
+          "csv": "Muat naik fail CSV",
+          "csvHint": "Hamparan yang disimpan sebagai CSV, sehingga {max} orang.",
+          "contacts": "Pilih kenalan",
+          "contactsHint": "Pilih orang daripada kenalan anda, sehingga {max}."
+        },
+        "chooseHint": "Pilih fail CSV dengan sehingga {max} orang, tidak melebihi {size} MB.",
+        "chooseFile": "Pilih fail",
+        "removeFile": "Buang fail ini",
+        "fileSize": "{size} KB",
+        "fileError": {
+          "too_large": "Fail ini lebih besar daripada {size} MB. Pecahkan kepada fail yang lebih kecil.",
+          "not_csv": "Ini bukan fail CSV. Dalam hamparan anda, pilih Save as dan pilih CSV (UTF-8).",
+          "unreadable": "Fail ini tidak dapat dibaca. Cuba simpan semula sebagai CSV."
+        },
+        "columnsHint": "Baris pertama mesti menamakan lajur. full_name dan email diperlukan; phone dan contact_id adalah pilihan.",
+        "valuesHint": "Templat ini juga mengisi nilai berikut, satu lajur untuk setiap nilai: {keys}.",
+        "sample": "Muat turun fail contoh",
+        "contactsNeedFile": "Templat ini mengisi nilai yang tiada pada kenalan ({keys}). Gunakan fail CSV dengan satu lajur untuk setiap nilai.",
+        "noContacts": "Belum ada kenalan dipilih. Cari di atas dan pilih orang yang akan dihantar.",
+        "contactCount": "{count} kenalan dipilih (sehingga {max})",
+        "unnamed": "Kenalan tanpa nama",
+        "noEmail": "Tiada alamat e-mel",
+        "removeContact": "Buang {name}"
+      },
+      "setup": {
+        "loading": "Memuatkan templat",
+        "peopleHeading": "Siapa yang menerima, dan bagaimana",
+        "personRole": "Orang dalam senarai anda mengisi peranan",
+        "personRoleHint": "Setiap seorang menandatangani sebagai peranan ini. Peranan lain diisi oleh orang tetap di bawah.",
+        "personRoleMissing": "Pilih satu peranan.",
+        "chooseRole": "Pilih peranan",
+        "channel": "Cara menghubungi mereka",
+        "channels": {
+          "email": "E-mel",
+          "whatsapp": "WhatsApp"
+        },
+        "whatsappHint": "Mesej WhatsApp memerlukan nombor telefon beserta kod negara untuk setiap orang, contohnya +60123456789.",
+        "emailHint": "Pautan untuk menandatangani dihantar ke alamat e-mel setiap orang.",
+        "fixedHeading": "Peranan lain",
+        "fixedHint": "Orang yang sama mengisi setiap peranan ini pada semua dokumen, contohnya pengarah anda sendiri.",
+        "fixedRequired": "perlu seorang",
+        "fixedOptional": "pilihan",
+        "fixedName": "Nama penuh",
+        "fixedEmail": "E-mel",
+        "fixedChannel": "Dihubungi melalui",
+        "fixedPhone": "Nombor telefon",
+        "fixedPhoneHint": "Beserta kod negara, contohnya +60123456789.",
+        "fixedIncomplete": "Isi nama dan e-mel yang sah untuk {role}.",
+        "optionsHeading": "Perkara yang sama pada setiap dokumen",
+        "title": "Tajuk setiap dokumen",
+        "titleHint": "Guna {token} untuk nama orang itu. Jika dibiarkan kosong, tajuk ialah nama templat diikuti nama orang itu.",
+        "titlePlaceholder": "Diambil daripada templat dan nama orang itu",
+        "titleTooLong": "Tajuk boleh sehingga 200 aksara.",
+        "category": "Kategori",
+        "categoryDefault": "Kategori templat",
+        "language": "Bahasa jemputan",
+        "languageHint": "Mesej dan halaman tandatangan dibuka dalam bahasa ini.",
+        "useDefault": "Guna lalai",
+        "lang": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "message": "Mesej kepada penandatangan",
+        "messageHint": "Pilihan. Ia dipaparkan dalam setiap jemputan.",
+        "messageTooLong": "Mesej boleh sehingga 2000 aksara.",
+        "expiry": "Hari sebelum pautan tamat tempoh",
+        "expiryHint": "Dikira dari saat setiap dokumen dihantar. Kosongkan untuk guna lalai.",
+        "expiryBad": "Gunakan bilangan hari bulat dari 1 hingga 365.",
+        "reminders": "Peringatan",
+        "remindersHint": "Hari selepas dihantar, dipisahkan koma, contohnya 3, 7. Taip 0 jika tiada peringatan. Kosongkan untuk guna lalai.",
+        "remindersBad": "Gunakan hari bulat dari 1 hingga 60, sehingga 5, atau 0 jika tiada.",
+        "code": "Perlukan kod pengesahan",
+        "codeHint": "Setiap penandatangan memasukkan kod sekali guna sebelum membuka dokumen.",
+        "yes": "Ya",
+        "no": "Tidak",
+        "order": "Susunan menandatangani",
+        "orderHint": "Ya: orang menandatangani satu demi satu, mengikut susunan peranan dalam templat."
+      },
+      "review": {
+        "checking": "Menyemak senarai dan templat...",
+        "recheck": "Semak semula",
+        "summaryHeading": "Perkara yang akan berlaku",
+        "summary": "{template}: {total} orang dalam senarai.",
+        "ready": "Sedia",
+        "withProblems": "Ada masalah",
+        "total": "Dalam senarai",
+        "fileProblems": "Senarai belum boleh digunakan:",
+        "planProblems": "Tetapan perlu dibetulkan:",
+        "ignoredColumns": "Lajur ini tidak digunakan: {columns}. Semak ejaannya jika templat sepatutnya mengisinya.",
+        "headroomFits": "Bulan ini {used} daripada {limit} dokumen telah dihantar, jadi {remaining} lagi boleh dihantar. Kumpulan ini menghantar {needed}.",
+        "headroomShort": "Bulan ini {used} daripada {limit} dokumen telah dihantar, jadi hanya {remaining} lagi boleh dihantar, tetapi kumpulan ini memerlukan {needed}. Hantar kepada lebih sedikit orang, atau minta pemilik akaun menaikkan had.",
+        "skipInvalid": "Hantar kepada orang yang tiada masalah dan langkau {count} orang yang lain",
+        "skipInvalidHint": "Orang yang bermasalah disenaraikan sebagai dilangkau dalam keputusan, beserta sebabnya.",
+        "peopleHeading": "Senarai orang",
+        "onlyProblems": "Hanya orang yang bermasalah",
+        "colRow": "Baris",
+        "colName": "Nama",
+        "colEmail": "E-mel",
+        "colProblems": "Masalah",
+        "empty": "(kosong)",
+        "rowOk": "Sedia",
+        "noRows": "Tiada sesiapa untuk dipaparkan.",
+        "showAll": "Papar {count} lagi",
+        "start": "Hantar {count} dokumen"
+      },
+      "job": {
+        "title": "Hantar pukal: {template}",
+        "backToBulk": "Hantar pukal",
+        "started": "Bermula {date}",
+        "finished": "Tamat {date}.",
+        "loading": "Memuatkan kumpulan",
+        "progress": "Kemajuan",
+        "answered": "{done} daripada {total} selesai",
+        "noteQueued": "Ia bermula dalam masa seminit. Anda boleh menutup halaman ini: dokumen dihantar di latar belakang.",
+        "noteRunning": "Sedang dihantar di latar belakang. Anda boleh menutup halaman ini; kembali untuk melihat keputusan.",
+        "noteDone": "Semua dokumen telah dihantar.",
+        "noteDoneWithProblems": "Selesai. Sebahagian orang tidak menerima dokumen: lihat sebab di sebelah setiap nama.",
+        "noteCancelled": "Dibatalkan. Dokumen yang sudah dihantar kekal dihantar; selebihnya dilangkau.",
+        "noteFailed": "Dihentikan: {reason}",
+        "refreshFailed": "Angka terkini tidak dapat dimuatkan. Mencuba semula.",
+        "download": "Muat turun keputusan (CSV)",
+        "cancel": "Batalkan selebihnya",
+        "cancelConfirm": "Hentikan penghantaran kepada orang yang masih menunggu?",
+        "cancelYes": "Ya, hentikan",
+        "cancelNo": "Teruskan menghantar",
+        "openList": "Buka senarai dokumen",
+        "people": "Senarai orang",
+        "filter": "Papar",
+        "filterAll": "Semua",
+        "colResult": "Keputusan",
+        "colDocument": "Dokumen",
+        "openDocument": "Buka",
+        "noRows": "Tiada sesiapa untuk dipaparkan.",
+        "retryHint": "Untuk menghantar kepada orang yang belum menerima dokumen, betulkan baris mereka dalam fail anda dan mulakan hantar pukal baharu dengan baris tersebut sahaja."
+      },
+      "state": {
+        "pending": "Menunggu",
+        "sending": "Sedang dihantar",
+        "sent": "Dihantar",
+        "failed": "Gagal",
+        "skipped": "Dilangkau"
+      },
+      "status": {
+        "queued": "Menunggu untuk bermula",
+        "running": "Sedang dihantar",
+        "done": "Selesai",
+        "failed": "Dihentikan",
+        "cancelled": "Dibatalkan"
+      },
+      "recent": {
+        "heading": "Hantar pukal terkini",
+        "counts": "{sent} daripada {total} dihantar",
+        "failed": "Hantar pukal terkini tidak dapat dimuatkan."
+      },
+      "list": {
+        "bulkSend": "Hantar pukal",
+        "exportCsv": "Eksport CSV",
+        "selectRow": "Pilih {title}",
+        "selectAll": "Pilih semua dokumen pada skrin ini",
+        "selectionBar": "Dokumen yang dipilih",
+        "selected": "{count} dokumen dipilih",
+        "downloadZip": "Muat turun yang dipilih sebagai zip",
+        "clearSelection": "Kosongkan pilihan",
+        "zipHint": "Hanya dokumen yang telah lengkap mempunyai fail bertandatangan. Sehingga {max} sekali gus.",
+        "zipFull": "{max} ialah jumlah maksimum sekali gus. Nyahtanda satu untuk memilih yang lain.",
+        "zipDone": "{included} fail bertandatangan dimuat turun.",
+        "zipDoneSkipped": "{included} fail bertandatangan dimuat turun. {skipped} dokumen ditinggalkan: lihat NOT-INCLUDED.txt dalam zip."
+      },
+      "problem": {
+        "name_missing": "Nama tiada.",
+        "name_too_long": "Nama lebih panjang daripada 160 aksara.",
+        "email_missing": "Alamat e-mel tiada.",
+        "email_invalid": "Alamat e-mel tidak sah.",
+        "email_duplicate": "Alamat e-mel yang sama sudah ada pada baris {detail}.",
+        "phone_invalid": "Nombor telefon beserta kod negara diperlukan untuk WhatsApp.",
+        "merge_missing": "Nilai yang diperlukan templat tiada: {detail}.",
+        "merge_too_long": "Satu nilai terlalu panjang: {detail}.",
+        "contact_invalid": "ID kenalan tidak sah.",
+        "contact_not_found": "Kenalan itu tidak ditemui dalam ruang kerja ini.",
+        "same_person_twice": "Orang ini juga salah seorang daripada orang tetap, dan susunan menandatangani dihidupkan."
+      },
+      "file": {
+        "empty_file": "Fail ini kosong.",
+        "no_header": "Baris pertama tiada nama lajur.",
+        "missing_column": "Fail ini tiada lajur bernama {detail}.",
+        "duplicate_column": "Lajur {detail} muncul lebih daripada sekali.",
+        "too_many_rows": "Fail ini mempunyai {detail} orang; maksimum ialah 500. Pecahkan kepada fail yang lebih kecil.",
+        "too_large": "Fail ini lebih besar daripada 1 MB. Pecahkan kepada fail yang lebih kecil.",
+        "no_rows": "Fail ini ada pengepala tetapi tiada orang.",
+        "unknown": "Fail ini tidak dapat digunakan."
+      },
+      "plan": {
+        "template_not_ready": "Templat ini belum boleh dihantar ({detail}). Buka dalam penyunting templat dan betulkan apa yang ditandakan.",
+        "bad_person_role": "Peranan untuk orang dalam senarai anda bukan salah satu peranan templat.",
+        "bad_fixed_signer": "Orang tetap untuk {detail} tidak boleh digunakan (peranan tidak dikenali, peranan yang sama dengan senarai, atau diberi dua kali).",
+        "fixed_signer_name": "Masukkan nama penuh untuk orang tetap bagi {detail}.",
+        "fixed_signer_email": "Masukkan e-mel yang sah untuk orang tetap bagi {detail}.",
+        "fixed_signer_phone": "Masukkan nombor telefon beserta kod negara untuk orang tetap bagi {detail}.",
+        "role_without_person": "Peranan {detail} mempunyai medan untuk diisi tetapi tiada sesiapa dinamakan. Tambah orang tetap untuknya.",
+        "signer_without_signature": "Peranan {detail} menandatangani, tetapi templat tiada medan tandatangan atau inisial untuknya.",
+        "merge_needs_file": "Templat mengisi nilai yang tiada pada kenalan ({detail}). Gunakan fail CSV dengan satu lajur untuk setiap nilai.",
+        "bad_options": "Sebahagian pilihan pada langkah tetapan tidak sah. Kembali ke langkah tetapan dan semaknya."
+      },
+      "errors": {
+        "generic": "Sesuatu telah tidak kena. Sila cuba lagi.",
+        "bad_options": "Sebahagian pilihan tidak sah. Kembali dan semak tetapan.",
+        "list_required": "Pilih fail atau beberapa kenalan, bukan kedua-duanya.",
+        "bulk_file_problems": "Senarai tidak dapat digunakan. Semak semula.",
+        "bulk_not_ready": "Tetapan belum lengkap. Semak semula.",
+        "rows_have_problems": "{detail} orang dalam senarai bermasalah. Betulkan senarai, atau pilih untuk melangkau mereka.",
+        "nothing_to_send": "Tiada sesiapa untuk dihantar dokumen.",
+        "sign_limit_reached": "Kumpulan ini lebih besar daripada dokumen yang masih boleh dihantar oleh ruang kerja ini bulan ini (baki / diperlukan: {detail}). Hantar kepada lebih sedikit orang, atau minta pemilik akaun menaikkan had.",
+        "too_many_bulk_jobs": "Tiga hantar pukal sedang berjalan. Tunggu satu selesai, kemudian cuba lagi.",
+        "template_not_found": "Templat itu tidak ditemui.",
+        "template_not_active": "Templat ini tidak aktif. Pilih yang lain atau aktifkannya dahulu.",
+        "template_has_no_version": "Templat ini belum mempunyai versi yang disimpan.",
+        "category_not_found": "Kategori itu tidak ditemui.",
+        "job_not_found": "Hantar pukal itu tidak ditemui.",
+        "job_finished": "Hantar pukal ini sudah selesai.",
+        "nothing_to_download": "Tiada satu pun dokumen yang dipilih mempunyai fail bertandatangan lagi. Hanya dokumen yang lengkap mempunyainya.",
+        "bad_ids": "Pilih antara 1 hingga 50 dokumen.",
+        "sign_disabled": "Doc Sign tidak dihidupkan untuk ruang kerja ini.",
+        "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+        "signed_out": "Anda telah dilog keluar. Log masuk semula untuk meneruskan.",
+        "forbidden": "Anda tiada kebenaran untuk melakukan ini.",
+        "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+        "body_too_large": "Permintaan itu terlalu besar. Gunakan fail yang lebih kecil."
+      },
+      "reason": {
+        "sign_limit_reached": "Had dokumen bulanan telah dicapai.",
+        "cancelled": "Hantar pukal dibatalkan sebelum dokumen ini dihantar.",
+        "gave_up": "Yang ini tidak selesai selepas beberapa percubaan. Semak dokumennya, kemudian hantar secara manual jika perlu.",
+        "sign_disabled": "Doc Sign telah dimatikan untuk ruang kerja ini.",
+        "template_not_found": "Templat telah dipadam.",
+        "template_not_active": "Templat tidak lagi aktif.",
+        "template_has_no_version": "Templat tiada versi yang disimpan.",
+        "category_not_found": "Kategori tidak ditemui.",
+        "not_ready": "Dokumen belum sedia untuk dihantar. Buka drafnya untuk melihat apa yang kurang.",
+        "signer_name": "Nama seseorang tidak sah.",
+        "signer_email": "Alamat e-mel seseorang tidak sah.",
+        "signer_phone": "Nombor telefon beserta kod negara diperlukan untuk WhatsApp.",
+        "signer_role": "Peranan seseorang bukan salah satu peranan templat.",
+        "expiry_in_the_past": "Tarikh tamat tempoh sudah berlalu.",
+        "document_not_draft": "Dokumen sudah dihantar.",
+        "database_error": "Sesuatu tidak kena di pihak kami. Cuba orang ini sekali lagi dalam hantar pukal baharu.",
+        "row_not_open": "Baris ini sudah diselesaikan.",
+        "unexpected": "Sesuatu tidak kena semasa menghantar dokumen ini.",
+        "unknown": "Yang ini tidak dihantar.",
+        "withMessage": "Tidak dihantar: {message}"
+      }
+    },
+    "lists": {
+      "intro": "Senarai ialah set pilihan yang boleh digunakan oleh borang, supaya negeri, negara atau bank dinyatakan sekali sahaja dan dikemas kini di satu tempat. Sebahagiannya disertakan dengan Doc Sign; anda boleh menambah senarai sendiri. Menyunting senarai tidak pernah mengubah dokumen yang telah dihantar.",
+      "new": "Senarai baharu",
+      "loading": "Memuatkan senarai...",
+      "loadFailed": "Senarai tidak dapat dimuatkan.",
+      "retry": "Cuba lagi",
+      "showArchived": "Tunjukkan yang diarkibkan ({count})",
+      "colName": "Senarai",
+      "colType": "Jenis",
+      "colItems": "Item",
+      "colVersion": "Versi",
+      "colActions": "Tindakan",
+      "archivedBadge": "Diarkibkan",
+      "typeSystem": "Disertakan dengan Doc Sign",
+      "typeOwn": "Milik anda",
+      "kindMsic": "Kod MSIC",
+      "openList": "Buka {name}",
+      "open": "Buka",
+      "footnote": "Borang yang menggunakan senarai mendapat salinannya apabila templat disimpan, dan sekali lagi apabila dokumen dibuat dan apabila ia dihantar. Dokumen yang telah dihantar kekal dengan salinan yang dihantar bersamanya.",
+      "created": "Senarai dicipta",
+      "back": "Semua senarai",
+      "versionValue": "Versi {version}",
+      "rename": "Namakan semula",
+      "exportCsv": "Eksport CSV",
+      "importCsv": "Import CSV",
+      "reset": "Tetapkan semula kepada lalai",
+      "archiveList": "Arkibkan senarai",
+      "restoreList": "Pulihkan senarai",
+      "listArchived": "Senarai diarkibkan",
+      "listRestored": "Senarai dipulihkan",
+      "listSaved": "Senarai disimpan",
+      "systemNote": "Senarai ini disertakan dengan Doc Sign. Anda boleh mengubah perkataan dan menambah item; nilainya kekal, jadi jawapan sentiasa mengekalkan maknanya. Item yang tidak lagi diperlukan diarkibkan, yang menyembunyikannya daripada borang baharu.",
+      "systemNoteMsic": "Kod aktiviti perniagaan MSIC 2008, seperti yang diterbitkan oleh Jabatan Perangkaan Malaysia (DOSM). Anda boleh mengubah perkataan dan menambah kod anda sendiri; kod rasmi kekal. Import CSV untuk mengubah banyak sekali gus.",
+      "usedBy": "{count, plural, =0 {Tidak digunakan oleh mana-mana templat} one {Digunakan oleh 1 templat} other {Digunakan oleh # templat}}",
+      "usedByNone": "Belum ada templat yang menggunakan senarai ini. Pilihnya untuk satu medan dalam pembina borang.",
+      "usedByHint": "Dikira daripada versi semasa setiap templat. Untuk mengubah apa yang digunakan oleh sesuatu templat, sunting borangnya.",
+      "status": {
+        "draft": "draf",
+        "active": "aktif",
+        "archived": "diarkibkan"
+      },
+      "search": "Cari item",
+      "searchPlaceholder": "Cari mengikut nilai atau perkataan",
+      "searchPlaceholderMsic": "Cari mengikut kod atau huraian",
+      "addItem": "Tambah item",
+      "noMatches": "Tiada yang sepadan dengan {query}.",
+      "noItems": "Senarai ini belum mempunyai item.",
+      "colValue": "Nilai",
+      "colEnglish": "Bahasa Inggeris",
+      "colMalay": "Bahasa Melayu",
+      "colOther": "Bahasa lain",
+      "colGroup": "Kumpulan",
+      "lang": {
+        "zh": "ZH",
+        "ko": "KO"
+      },
+      "moveUp": "Alih {name} ke atas",
+      "moveDown": "Alih {name} ke bawah",
+      "editItem": "Sunting {name}",
+      "archiveItem": "Arkibkan {name}",
+      "restoreItem": "Pulihkan {name}",
+      "pages": "Halaman",
+      "showing": "Menunjukkan {from} hingga {to} daripada {total}",
+      "previous": "Sebelumnya",
+      "next": "Seterusnya",
+      "pageOf": "Halaman {page} daripada {pages}",
+      "count": "{count, plural, other {# item}}",
+      "itemAdded": "Item ditambah",
+      "itemSaved": "Item disimpan",
+      "cancel": "Batal",
+      "resetTitle": "Tetapkan semula {name} kepada lalai?",
+      "resetBody": "Setiap item yang disertakan dengan Doc Sign kembali kepada perkataan dan kedudukan asalnya, dan item yang diarkibkan ditunjukkan semula. Item yang anda tambah kekal, selepasnya. Tiada apa yang dipadam, dan borang yang telah dibuat tidak diubah.",
+      "resetConfirm": "Tetapkan semula kepada lalai",
+      "resetDone": "Senarai telah kembali kepada lalai",
+      "meta": {
+        "newTitle": "Senarai baharu",
+        "editTitle": "Namakan semula senarai",
+        "keyMade": "Kunci dibuat daripada nama dan tidak pernah berubah selepas itu: borang menamakan senarai mengikut kuncinya.",
+        "keyFixed": "Kunci: {key}. Borang menamakan senarai mengikut kuncinya, jadi kunci tidak pernah berubah.",
+        "name": "Nama",
+        "description": "Huraian (pilihan)",
+        "nameRequired": "Masukkan nama untuk senarai.",
+        "cancel": "Batal",
+        "save": "Simpan",
+        "create": "Cipta senarai"
+      },
+      "item": {
+        "newTitle": "Tambah item",
+        "editTitle": "Sunting item",
+        "valueHint": "Nilai disimpan bersama jawapan: huruf, digit dan _ . - sahaja, contohnya sdn_bhd. Ia tidak boleh diubah kemudian.",
+        "valueHintMsic": "Kod MSIC lima digit, contohnya 62010. Ia tidak boleh diubah kemudian.",
+        "valueFixed": "Nilai ialah apa yang disimpan oleh jawapan dan borang, jadi ia tidak boleh diubah. Ubahlah perkataan dengan bebas.",
+        "value": "Nilai",
+        "labelEn": "Bahasa Inggeris (wajib)",
+        "labelIn": "{language}",
+        "fallsBack": "Jika dibiarkan kosong, orang membaca perkataan Bahasa Inggeris.",
+        "group": "Kumpulan (pilihan)",
+        "groupHint": "Tajuk pendek tempat item itu berada, contohnya nombor bahagian. Digunakan untuk carian dan eksport.",
+        "cancel": "Batal",
+        "save": "Simpan",
+        "add": "Tambah item"
+      },
+      "import": {
+        "title": "Import ke dalam {name}",
+        "intro": "Muatkan fail CSV. Lajur: value, en (perkataan Bahasa Inggeris) dan, jika mahu, ms (Bahasa Melayu), zh, ko, group dan archived. Baris yang bermasalah ditinggalkan dan disenaraikan; selebihnya digunakan.",
+        "introMsic": "Muatkan fail CSV kod MSIC: code, description (Bahasa Inggeris) dan, jika mahu, huraian dalam Bahasa Melayu. Kod empat digit yang kehilangan sifar di hadapan dalam hamparan dikembalikan.",
+        "choose": "Pilih fail CSV",
+        "chooseOther": "Pilih fail lain",
+        "file": "Fail: {name}",
+        "format": "Simpan daripada Excel sebagai CSV UTF-8. Lajur boleh dipisahkan dengan koma, koma bertitik atau tab.",
+        "mode": "Apa yang perlu dilakukan dengan fail",
+        "modeMerge": "Tambah item baharu dan kemas kini yang sedia ada",
+        "modeMergeHint": "Item yang tiada dalam fail kekal. Bahasa yang dibiarkan kosong oleh fail dikekalkan.",
+        "modeReplace": "Gantikan keseluruhan senarai dengan fail",
+        "modeReplaceHint": "Item yang tiada dalam fail dibuang daripada senarai. Borang yang telah dibuat tidak diubah.",
+        "systemMergeOnly": "Senarai yang disertakan dengan Doc Sign hanya boleh ditambah dan dikemas kini.",
+        "checking": "Menyemak fail...",
+        "summary": "{added} untuk ditambah, {updated} untuk dikemas kini, {unchanged} tidak berubah, {removed} untuk dibuang.",
+        "removedWarning": "{count, plural, other {# item akan dibuang daripada senarai.}}",
+        "skipped": "{count, plural, other {# baris tidak dapat digunakan dan ditinggalkan:}}",
+        "changed": "{count, plural, other {# baris telah dilaraskan:}}",
+        "row": "Baris {row}:",
+        "moreProblems": "dan {count} lagi",
+        "cancel": "Batal",
+        "apply": "Import",
+        "done": "Import selesai",
+        "problems": {
+          "empty_file": "Fail ini kosong.",
+          "missing_value_column": "Fail ini tiada lajur nilai. Namakan lajur pertama value atau code.",
+          "missing_en_column": "Fail ini tiada lajur Bahasa Inggeris. Namakannya en, English atau description.",
+          "no_rows": "Fail ini mempunyai baris tajuk tetapi tiada baris.",
+          "too_many_rows": "Fail ini mempunyai lebih daripada 5,000 baris.",
+          "empty_value": "tiada nilai.",
+          "code_padded": "kod {detail} telah kehilangan sifar di hadapan dan dikembalikan.",
+          "bad_msic_code": "{detail} bukan kod MSIC lima digit.",
+          "bad_value": "{detail} bukan nilai yang sah (huruf, digit dan _ . - sahaja).",
+          "duplicate_value": "{detail} muncul lebih daripada sekali; yang pertama digunakan.",
+          "empty_label": "tiada perkataan Bahasa Inggeris untuk {detail}.",
+          "label_too_long": "perkataan {detail} melebihi 300 aksara.",
+          "group_too_long": "kumpulan {detail} melebihi 40 aksara.",
+          "unknown": "baris ini tidak dapat digunakan."
+        }
+      },
+      "errors": {
+        "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
+        "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+        "signed_out": "Anda telah dilog keluar. Log masuk semula untuk meneruskan.",
+        "forbidden": "Anda tidak mempunyai kebenaran untuk mengubah senarai.",
+        "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+        "request_failed": "Permintaan tidak berjaya. Sila cuba lagi.",
+        "database_error": "Sesuatu berlaku di pihak kami. Sila cuba lagi.",
+        "body_too_large": "Terlalu besar untuk dihantar. Gunakan fail yang lebih kecil.",
+        "bad_json": "Permintaan tidak difahami. Sila cuba lagi.",
+        "list_not_found": "Senarai itu tidak ditemui.",
+        "bad_list": "Senarai tidak sah.",
+        "bad_name": "Beri senarai nama sehingga 120 aksara.",
+        "bad_description": "Huraian boleh sehingga 500 aksara.",
+        "bad_archived": "Pilih sama ada senarai diarkibkan.",
+        "bad_items": "Item tidak sah.",
+        "bad_item": "Satu item tidak sah.",
+        "bad_label": "Setiap item memerlukan perkataan Bahasa Inggeris, dan setiap perkataan boleh sehingga 300 aksara.",
+        "bad_group": "Kumpulan boleh sehingga 40 aksara.",
+        "bad_value": "Nilai hanya menggunakan huruf, digit dan aksara _ . -, bermula dengan huruf atau digit, dan sehingga 60 aksara.",
+        "bad_msic_code": "Kod MSIC ialah lima digit, contohnya 62010.",
+        "empty_value": "Masukkan nilai.",
+        "empty_label": "Masukkan perkataan Bahasa Inggeris.",
+        "label_too_long": "Perkataan boleh sehingga 300 aksara.",
+        "group_too_long": "Kumpulan boleh sehingga 40 aksara.",
+        "duplicate_value": "Nilai itu sudah ada dalam senarai.",
+        "too_many_items": "Senarai memuatkan sehingga 5,000 item.",
+        "list_values_locked": "Senarai yang disertakan dengan Doc Sign mengekalkan setiap nilainya. Arkibkan item dan bukannya membuangnya.",
+        "value_removed": "Nilai ini tidak boleh dibuang.",
+        "system_list_merge_only": "Senarai yang disertakan dengan Doc Sign hanya boleh ditambah atau dikemas kini, tidak pernah diganti.",
+        "not_a_system_list": "Hanya senarai yang disertakan dengan Doc Sign boleh ditetapkan semula.",
+        "bad_import": "Pilih fail CSV dan cara mengimportnya.",
+        "import_failed": "Tiada apa-apa dalam fail ini yang dapat diimport."
+      }
+    },
+    "register": {
+      "title": "Mulakan pendaftaran anda",
+      "intro": {
+        "document": "Masukkan butiran anda di bawah. Kami akan menghantar dokumen kepada anda melalui e-mel untuk dibaca dan ditandatangani.",
+        "details": "Masukkan butiran anda di bawah dan kami akan menghubungi anda.",
+        "form": "Masukkan butiran anda di bawah. Kami akan menghantar pautan kepada anda melalui e-mel untuk melengkapkan selebihnya."
+      },
+      "optional": "(pilihan)",
+      "fields": {
+        "full_name": {
+          "label": "Nama penuh"
+        },
+        "company": {
+          "label": "Nama syarikat atau perniagaan"
+        },
+        "email": {
+          "label": "Alamat e-mel",
+          "hint": "Kami menghantar dokumen ke alamat ini, jadi sila pastikan ia betul."
+        },
+        "phone": {
+          "label": "Nombor telefon",
+          "hint": "Dengan kod negara, contohnya +60 12-345 6789.",
+          "placeholder": "+60 12-345 6789"
+        }
+      },
+      "problems": {
+        "full_name": {
+          "required": "Masukkan nama penuh anda.",
+          "too_long": "Nama itu terlalu panjang. Gunakan tidak lebih daripada 120 aksara.",
+          "invalid": "Buang tanda < dan >."
+        },
+        "company": {
+          "required": "Masukkan nama syarikat atau perniagaan anda.",
+          "too_long": "Nama itu terlalu panjang. Gunakan tidak lebih daripada 160 aksara.",
+          "invalid": "Buang tanda < dan >."
+        },
+        "email": {
+          "required": "Masukkan alamat e-mel anda.",
+          "too_long": "Alamat e-mel itu terlalu panjang.",
+          "invalid": "Masukkan alamat e-mel yang sah, contohnya nama@syarikat.com."
+        },
+        "phone": {
+          "required": "Masukkan nombor telefon anda.",
+          "too_long": "Nombor itu terlalu panjang.",
+          "invalid": "Masukkan nombor dengan kod negara, contohnya +60 12-345 6789."
+        },
+        "consent": {
+          "required": "Sila tandakan kotak untuk bersetuju sebelum meneruskan."
+        }
+      },
+      "errors": {
+        "invalid": "Beberapa butiran perlu diubah. Ia ditandakan di bawah.",
+        "token_invalid": "Halaman ini sudah lapuk. Sila tekan Hantar sekali lagi.",
+        "token_expired": "Halaman ini terbuka terlalu lama. Sila tekan Hantar sekali lagi.",
+        "token_too_fast": "Sebentar sahaja, kemudian tekan Hantar sekali lagi.",
+        "captcha_failed": "Kami tidak dapat mengesahkan bahawa anda seorang manusia. Sila lengkapkan semakan dan cuba lagi.",
+        "rate_limited": "Terlalu banyak percubaan daripada sambungan anda. Sila tunggu sebentar dan cuba lagi.",
+        "try_later": "Kami tidak dapat menerima butiran anda sekarang. Sila cuba lagi kemudian.",
+        "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
+        "network": "Tiada sambungan. Semak internet anda dan cuba lagi."
+      },
+      "captcha": {
+        "waiting": "Menyemak bahawa anda seorang manusia...",
+        "failed": "Semakan tidak dapat dimuatkan. Muat semula halaman dan cuba lagi."
+      },
+      "honeypot": "Biarkan ruang ini kosong",
+      "send": "Hantar",
+      "sending": "Menghantar...",
+      "success": {
+        "documentTitle": "Semak e-mel anda",
+        "documentBody": "Kami telah menghantar dokumen ke {email}. Buka e-mel itu dan ikut pautan untuk meneruskan.",
+        "spam": "Tidak jumpa selepas beberapa minit? Semak folder spam atau sampah anda.",
+        "detailsTitle": "Terima kasih",
+        "detailsBody": "Kami telah menerima butiran anda dan akan menghubungi anda.",
+        "formBody": "Kami telah menghantar pautan ke {email}. Buka e-mel itu dan ikut pautan untuk melengkapkan butiran anda."
+      },
+      "notice": {
+        "form_cap": {
+          "title": "Kami sangat sibuk hari ini",
+          "body": "Halaman ini tidak dapat menerima lebih banyak pendaftaran hari ini. Sila cuba lagi esok."
+        },
+        "send_failed": {
+          "title": "Kami tidak dapat menghantarnya sekarang",
+          "body": "Kami telah menyimpan butiran anda dan {workspace} akan menghubungi anda. Anda tidak perlu menghantarnya semula."
+        },
+        "unavailable": {
+          "title": "Halaman ini tidak tersedia sekarang",
+          "body": "Sila cuba lagi kemudian."
+        },
+        "not_found": {
+          "title": "Halaman ini tidak tersedia",
+          "body": "Pautan mungkin salah, atau pendaftaran mungkin sudah ditutup. Semak pautan yang diberikan kepada anda."
+        }
+      },
+      "notFound": {
+        "title": "Halaman ini tidak tersedia",
+        "body": "Pautan mungkin salah, atau pendaftaran mungkin sudah ditutup. Semak pautan yang diberikan kepada anda."
+      },
+      "unavailable": {
+        "title": "Halaman ini tidak tersedia sekarang",
+        "body": "Sila cuba lagi kemudian."
       }
     }
   }

@@ -1438,7 +1438,17 @@
         "skipped": "건너뜀",
         "failed": "실패",
         "created": "티켓 생성됨",
-        "created_with_ai": "티켓 생성됨 (AI 작성)"
+        "created_with_ai": "티켓 생성됨 (AI 작성)",
+        "sent": "문서 발송됨",
+        "draft": "초안 생성됨",
+        "already_sent": "이미 발송됨",
+        "not_enabled": "Doc Sign 꺼짐",
+        "not_configured": "설정 안 됨",
+        "no_contact": "연락처 없음",
+        "recipient_email_missing": "연락처에 이메일 없음",
+        "recipient_phone_missing": "연락처에 전화번호 없음",
+        "sign_limit_reached": "월 한도 도달",
+        "not_ready": "발송 준비 안 됨"
       },
       "tokens": "토큰 {count}개",
       "back": "뒤로",
@@ -1485,6 +1495,19 @@
         "seed": {
           "ticketSubject": "후속 조치: {{ contact.name }}"
         }
+      },
+      "merchant_onboarding": {
+        "name": "가맹점 온보딩",
+        "description": "연락처에 \"Merchant applicant\" 태그가 붙으면 가맹점 신청서를 보내 작성하고 서명하게 합니다."
+      },
+      "merchant_signed_followup": {
+        "name": "가맹점 서명 후 후속 조치",
+        "description": "가맹점 신청서가 서명되면 연락처에 \"Merchant signed\" 태그를 달고, KYC 검토 티켓을 만들고, 감사 메시지를 보냅니다.",
+        "seed": {
+          "ticketSubject": "가맹점 KYC 검토",
+          "ticketDescription": "{{ contact.name }}님의 가맹점 신청서 {{ sign.reference }}가 서명되었습니다. 회사 정보와 서류를 확인한 뒤 파일이 진본인지 확인하세요: {{ sign.verify_url }}",
+          "welcomeMessage": "{{ contact.name }}님, 감사합니다. 서명된 가맹점 신청서({{ sign.reference }})를 받았습니다. 저희 팀이 검토한 후 곧 연락드리겠습니다."
+        }
       }
     },
     "builder": {
@@ -1512,7 +1535,8 @@
         "ai_extract": "AI 분류 및 추출",
         "ai_summarize": "AI 요약",
         "ai_translate": "AI 번역",
-        "ai_question": "AI에게 묻기 (예/아니요)"
+        "ai_question": "AI에게 묻기 (예/아니요)",
+        "send_sign_document": "서명용 문서 보내기"
       },
       "triggers": {
         "new_message_received": {
@@ -1554,6 +1578,10 @@
         "time_based": {
           "label": "시간 기반",
           "hint": "반복 일정에 따라"
+        },
+        "sign_document_event": {
+          "label": "Doc Sign 이벤트",
+          "hint": "Doc Sign 문서가 발송, 열람, 완료, 거절, 만료 또는 취소되었을 때"
         }
       },
       "trigger": "트리거",
@@ -1580,7 +1608,8 @@
       "tags": {
         "select": "태그 선택…",
         "placeholder": "태그 id",
-        "unknown": "{id} (알 수 없는 태그)"
+        "unknown": "{id} (알 수 없는 태그)",
+        "hint": "추천 태그: \"{name}\". 아직 없다면 먼저 설정 > 태그에서 만드세요."
       },
       "fields": {
         "name": "이름",
@@ -1900,6 +1929,73 @@
           "active": "활성",
           "customer": "고객",
           "churned": "이탈"
+        }
+      },
+      "sign": {
+        "trigger": {
+          "events": "다음이 발생했을 때",
+          "eventsHint": "선택한 각 이벤트마다 자동화가 실행됩니다.",
+          "event": {
+            "sent": "문서가 발송됨",
+            "viewed": "서명자가 처음 문서를 열었을 때",
+            "completed": "모두 서명함(완료)",
+            "declined": "서명자가 거절함",
+            "expired": "문서가 만료됨",
+            "voided": "문서가 취소됨"
+          },
+          "template": "이 템플릿만",
+          "anyTemplate": "모든 템플릿",
+          "templateId": "템플릿 id",
+          "unknownTemplate": "(템플릿을 찾을 수 없음)",
+          "category": "이 카테고리만",
+          "anyCategory": "모든 카테고리"
+        },
+        "step": {
+          "template": "템플릿",
+          "templateId": "템플릿 id",
+          "selectTemplate": "템플릿 선택…",
+          "unknownTemplate": "(템플릿을 찾을 수 없거나 활성 상태가 아님)",
+          "noTemplates": "활성 템플릿이 없거나 볼 수 있는 권한이 없습니다. Doc Sign > 템플릿에서 먼저 게시하세요.",
+          "templateHint": "추천 템플릿: \"{name}\". Doc Sign > 템플릿에 생기면 선택하세요.",
+          "title": "문서 제목",
+          "titleHint": "선택 사항. 비워 두면 템플릿의 제목을 사용합니다. 변수를 삽입할 수 있습니다.",
+          "recipients": "서명할 사람",
+          "recipientsHint": "각 사람에게 링크가 전달됩니다. 역할은 문서에서 그 사람이 작성할 부분을 정합니다. *가 붙은 역할에는 반드시 사람이 있어야 합니다.",
+          "role": "역할",
+          "rolePlaceholder": "역할 키, 예: merchant",
+          "selectRole": "역할 선택…",
+          "removeRecipient": "이 사람 삭제",
+          "source": "정보 출처",
+          "sourceContact": "해당 연락처",
+          "sourceFixed": "지정한 사람",
+          "channel": "링크 전송 방법",
+          "channelEmail": "이메일",
+          "channelWhatsapp": "WhatsApp",
+          "contactNote": "연락처의 이름, 이메일, 전화번호를 사용합니다. 연락처에 이메일 주소가 없으면 이 단계는 건너뜁니다.",
+          "fullName": "이름",
+          "email": "이메일",
+          "phone": "전화번호(국가 번호 포함)",
+          "requiredRoles": "다음 역할에 아직 사람이 필요합니다: {roles}",
+          "addRecipient": "사람 추가",
+          "merge": "문서 내용 채우기",
+          "mergeHint": "템플릿 병합 필드의 값(발송 전에 채우는 부분)입니다. 값 위의 변수 버튼으로 연락처 정보를 삽입할 수 있습니다.",
+          "mergeKey": "필드 이름",
+          "mergeValue": "값",
+          "removeMerge": "이 값 삭제",
+          "addMerge": "값 추가",
+          "message": "서명자에게 보내는 메시지",
+          "language": "문서 언어",
+          "languageDefault": "템플릿 기본값",
+          "languages": {
+            "en": "English",
+            "ms": "Bahasa Melayu",
+            "zh": "中文",
+            "ko": "한국어"
+          },
+          "send": "바로 보내기",
+          "sendHint": "끄면 문서가 초안으로 저장되어 사람이 확인한 뒤 보냅니다. 서명자 링크는 문서가 발송될 때만 전달됩니다.",
+          "summary": "{count}명 서명",
+          "summaryEmpty": "템플릿 선택"
         }
       }
     }
@@ -8318,7 +8414,20 @@
         "installedToast": "{name}을(를) 설치했습니다.",
         "repeatedToast": "{name}을(를) 확인했습니다. 직접 수정한 내용은 바뀌지 않았습니다.",
         "templatesAdded": "{count, plural, other {템플릿 #개를 초안으로 추가했습니다.}}",
-        "footnote": "설치하면 검토할 초안이 추가되며, 직접 수정한 템플릿은 절대 바뀌지 않습니다. 설치된 애드온의 업데이트는 이후 버전에서 제공됩니다."
+        "footnote": "설치하면 검토할 초안이 추가되며, 직접 수정한 템플릿은 절대 바뀌지 않습니다. 업데이트는 수정하지 않은 템플릿을 최신 버전으로 올리고, 수정한 템플릿 옆에는 사본을 하나 추가합니다.",
+        "updateTitle": "v{version}의 새로운 내용",
+        "updateIntro": "수정하지 않은 템플릿은 새 버전을 받습니다. 직접 바꾼 템플릿은 그대로 두고, 그 옆에 “… (updated)”라는 이름의 사본을 추가해 검토하실 수 있게 합니다. 이미 발송한 문서는 바뀌지 않습니다.",
+        "updateButton": "v{version}(으)로 업데이트",
+        "updatedToast": "{name}이(가) v{version}(으)로 업데이트되었습니다.",
+        "upToDateToast": "{name}은(는) 이미 최신 버전입니다.",
+        "result": {
+          "title": "{name}이(가) 이제 v{version}입니다",
+          "updated": "“{name}”이(가) 새 버전({versionNo}번째 버전)을 받았습니다. 이름, 상태, 카테고리는 그대로입니다.",
+          "copied": "“{name}”을(를) 직접 수정하셨기 때문에 그대로 두었습니다. 새 사본 “{copyName}”이(가) 초안으로 추가되었으니 검토해 주세요.",
+          "missing": "“{name}”이(가) 워크스페이스에 더 이상 없어서 업데이트할 것이 없습니다. 다시 설치를 누르면 다시 추가됩니다.",
+          "current": "“{name}”은(는) 이미 이 버전입니다.",
+          "dismiss": "닫기"
+        }
       },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
@@ -8330,7 +8439,9 @@
         "consent": "동의 문구",
         "categories": "카테고리",
         "addons": "애드온",
-        "certificate": "봉인 인증서"
+        "certificate": "봉인 인증서",
+        "lists": "목록",
+        "registration": "등록 양식"
       },
       "languages": {
         "en": "English",
@@ -8355,7 +8466,7 @@
         "whatsappLanguage": "템플릿 언어 코드",
         "whatsappLanguageHint": "템플릿이 승인된 언어입니다. 예: en, ms, en_US.",
         "whatsappParams": "템플릿에는 변수가 세 개 필요하며 순서는 상대방 이름, 문서 제목, 서명 링크입니다.",
-        "retention": "서명된 문서 보관 기간",
+        "retention": "서명된 문서 보관 기간(년)",
         "retentionValue": "{count, plural, other {#년}}",
         "retentionNote": "현재는 플랫폼에서 정합니다. 여기서는 바꿀 수 없습니다.",
         "save": "저장",
@@ -8368,8 +8479,15 @@
           "reminders_too_many": "알림은 최대 5개까지 사용할 수 있습니다.",
           "sender": "120자 이내로 입력해 주세요.",
           "waName": "소문자, 숫자, 밑줄만 사용해 주세요.",
-          "waLang": "en, ms, en_US 같은 코드를 사용해 주세요."
-        }
+          "waLang": "en, ms, en_US 같은 코드를 사용해 주세요.",
+          "retention": "1에서 50 사이의 정수(년)를 입력하세요."
+        },
+        "retentionTitle": "보관 기간",
+        "retentionIntro": "서명된 문서는 봉인된 날부터 이 기간 동안 보관됩니다. 이 기간에는 워크스페이스 소유자를 포함해 누구도 삭제할 수 없습니다.",
+        "retentionHint": "1에서 50 사이의 정수(년)입니다. 서명 기록을 얼마나 보관해야 하는지 조직이 정하기 전까지 시작값은 7입니다. 기간은 변호사나 감사인에게 확인하세요.",
+        "retentionEffect": "변경은 지금부터 봉인되는 문서에 적용됩니다. 이미 봉인된 문서는 봉인될 때 받은 날짜를 그대로 유지합니다. 카테고리별로 자체 기간을 정할 수 있습니다(카테고리). 문서는 자동으로 삭제되지 않습니다.",
+        "retentionPast": "{count, plural, other {#건의 서명된 문서가 보관 기간을 지났습니다.}}",
+        "retentionPastNone": "보관 기간이 지난 서명된 문서가 아직 없습니다."
       },
       "consent": {
         "intro": "서명하기 전에 상대방이 동의하는 내용입니다. 언어별로 직접 문구를 작성하지 않으면 표준 문구를 사용합니다. 각 문구에는 버전이 있으며, 상대방이 동의한 버전은 서명된 문서와 함께 보관됩니다. 직접 작성한 문구는 사용하기 전에 전문가에게 검토를 받으세요.",
@@ -8429,7 +8547,7 @@
         "expiry": "만료까지 일수",
         "reminders": "알림(발송 후 일수)",
         "retention": "서명된 문서 보관 기간(년)",
-        "retentionHint": "비워 두면 워크스페이스 기간을 사용합니다.",
+        "retentionHint": "비워 두면 워크스페이스 기간을 사용합니다. 1~50년. 변경은 지금부터 봉인되는 문서에 적용됩니다.",
         "blankIsDefault": "비워 두면 워크스페이스 설정을 사용합니다.",
         "code": "서명 전에 코드 요구",
         "codeHint": "상대방이 이메일로 코드를 받고, 그 코드를 입력해야 문서를 열 수 있습니다.",
@@ -8456,7 +8574,7 @@
         "intro": "완료된 모든 문서는 이 인증서로 봉인됩니다. 봉인을 보면 문서가 서명된 뒤에 바뀌었는지 알 수 있습니다.",
         "loading": "인증서를 불러오는 중…",
         "retry": "다시 시도",
-        "none": "아직 인증서가 없습니다. 문서를 처음 봉인할 때 워크스페이스용 인증서가 만들어집니다.",
+        "none": "아직 인증서가 없습니다. 문서가 처음 봉인될 때 워크스페이스용 인증서가 만들어집니다. 아래에서 인증 기관이 발급한 인증서를 설치할 수도 있습니다.",
         "subject": "주체",
         "validUntil": "유효 기간",
         "kind": "종류",
@@ -8470,7 +8588,69 @@
         "expiredBody": "다음에 문서를 봉인할 때 새 자체 서명 인증서가 만들어집니다. 이미 봉인된 문서는 기존 봉인이 유지됩니다.",
         "selfSignedTitle": "자체 서명: PDF 뷰어에서 서명자를 신뢰할 수 없다고 표시됩니다",
         "selfSignedBody": "봉인은 서명 후 문서가 바뀌었는지 여전히 보여 주지만, PDF 뷰어는 자체 서명 인증서를 누가 만들었는지 확인할 수 없어 경고를 표시합니다. 이는 정상입니다.",
-        "footnote": "인증 기관에서 발급받은 인증서를 업로드하는 기능은 아직 이 화면에서 제공되지 않습니다. 키는 암호화되어 저장되며 화면에 표시되지 않습니다."
+        "footnote": "파일은 저장하기 전에 암호, 키, 날짜, 인증서 용도, 테스트 봉인을 확인합니다. 키는 암호화되어 저장되며 표시되지 않습니다.",
+        "kind_generated": "Halo가 이 워크스페이스용으로 생성 (자체 서명)",
+        "kind_uploadedSelfSigned": "업로드됨, 자체 서명",
+        "kind_authority": "인증 기관 발급",
+        "issuer": "발급자",
+        "serial": "일련번호",
+        "validFrom": "유효 시작일",
+        "daysLeft": "남은 기간",
+        "daysLeftValue": "{count, plural, other {#일}}",
+        "fingerprint": "SHA-256 지문",
+        "key": "키",
+        "keyValue": "RSA, {bits}비트",
+        "chain": "봉인에 포함",
+        "chainOne": "이 인증서만",
+        "chainMany": "인증서 {count}개: 이 인증서와 그 위 인증 기관의 인증서",
+        "unreadableTitle": "저장된 인증서를 열 수 없습니다",
+        "unreadableBody": "아래에서 인증서를 다시 설치해 주세요. 그때까지 모든 사람이 서명한 문서는 봉인되지 않고 대기합니다.",
+        "expiredBodyUploaded": "모든 사람이 서명한 문서는 아래에서 유효한 인증서를 설치할 때까지 봉인되지 않은 채 대기합니다. 이미 봉인된 문서는 봉인이 그대로 유지됩니다.",
+        "warn_chain_missing_title": "인증 기관의 인증서가 없습니다",
+        "warn_chain_missing_body": "이 인증서는 인증 기관이 발급했지만 파일에는 그 위의 인증서가 없습니다. PDF 리더가 신뢰할 수 있는 기관까지 체인을 따라가지 못할 수 있습니다. 인증 기관에 전체 체인(중간 인증서)을 요청해 파일을 다시 설치해 주세요.",
+        "warn_weak_signature_algorithm_title": "오래된 서명 알고리즘",
+        "warn_weak_signature_algorithm_body": "체인의 인증서 하나가 SHA-1로 서명되어 있으며, 리더들이 이를 단계적으로 폐지하고 있습니다. 지금은 작동하지만, 인증 기관에 SHA-256을 사용하는 인증서를 요청해 주세요.",
+        "warn_chain_certificate_expired_title": "상위 인증서가 만료되었습니다",
+        "warn_chain_certificate_expired_body": "체인에 있는 인증 기관 인증서가 유효 기간을 벗어나 리더가 봉인을 신뢰하지 않을 수 있습니다. 인증 기관에 최신 체인을 요청해 주세요.",
+        "warn_not_for_document_signing_title": "문서 서명용으로 표시되어 있지 않습니다",
+        "warn_not_for_document_signing_body": "이 인증서의 용도에는 문서 또는 이메일 서명이 포함되어 있지 않습니다. 웹사이트 등 다른 용도로 발급된 것일 수 있습니다. PDF 리더가 거부할 수 있으니, 문서 서명 인증서가 맞는지 인증 기관에 확인해 주세요.",
+        "readersTitle": "PDF 리더에 표시되는 내용",
+        "readers_generated": "자체 서명 인증서는 어떤 인증 기관도 보증하지 않으므로, PDF 리더는 서명자의 신원을 확인할 수 없다고 표시합니다. 봉인은 서명 이후 문서가 변경되었는지 여전히 보여 줍니다. 신뢰할 수 있는 결과를 얻으려면 인증 기관이 발급한 인증서를 설치하세요.",
+        "readers_uploadedSelfSigned": "자체 서명 인증서는 어떤 인증 기관도 보증하지 않으므로, PDF 리더는 서명자의 신원을 확인할 수 없다고 표시합니다. 봉인은 서명 이후 문서가 변경되었는지 여전히 보여 줍니다.",
+        "readers_authority": "PDF 리더는 인증서가 누구에게 어느 기관에서 발급되었는지 표시합니다. 서명을 신뢰할 수 있는 것으로 표시할지는 해당 리더가 그 기관을 신뢰하는지에 달려 있습니다. 일부 리더는 자체 승인 목록에 있는 기관만 신뢰하므로, 어떤 리더에서 사용할 수 있는지 인증 기관에 확인하세요. 어느 경우든 봉인은 서명 이후 문서가 변경되었는지 보여 줍니다.",
+        "uploadTitle": "인증서 설치",
+        "uploadIntro": "인증 기관에서 받은 .p12 또는 .pfx 파일을 선택하고 암호를 입력하세요. 이후에 봉인되는 문서부터 이 인증서를 사용합니다. 이미 봉인된 문서는 바뀌지 않습니다.",
+        "fileLabel": "인증서 파일",
+        "fileHint": ".p12 또는 .pfx, 최대 256KB.",
+        "passphraseLabel": "파일 암호",
+        "passphraseHint": "파일을 여는 데 한 번만 사용하고 보관하지 않습니다. Halo는 저장된 사본에 자체 암호를 사용합니다.",
+        "nameLabel": "이름(선택)",
+        "nameHint": "직접 알아보기 위한 이름입니다. 예: “회사 봉인 2026”.",
+        "install": "확인 후 설치",
+        "installing": "확인 중…",
+        "installed": "인증서를 설치했습니다. 새 문서는 이 인증서로 봉인됩니다.",
+        "removed": "인증서를 삭제했습니다.",
+        "remove": "이 인증서 삭제",
+        "removeConfirm": "삭제할까요? 키가 Halo에서 삭제됩니다. 이미 봉인된 문서는 바뀌지 않습니다. 이후 문서는 다른 인증서를 설치하지 않는 한 Halo가 만든 자체 서명 인증서로 봉인됩니다.",
+        "removeYes": "예, 삭제",
+        "removeNo": "유지",
+        "errors": {
+          "p12_unreadable": "인증서 파일이 아닙니다. 인증 기관에서 받은 .p12 또는 .pfx 파일을 선택하세요.",
+          "p12_bad_passphrase": "암호로 이 파일을 열 수 없습니다. 확인 후 다시 시도하세요.",
+          "p12_no_key": "이 파일에는 인증서만 있고 개인 키가 없어 서명할 수 없습니다. 개인 키가 포함된 .p12 또는 .pfx 파일을 요청하세요.",
+          "p12_expired": "이 인증서는 만료되었습니다. 유효한 인증서를 설치하세요.",
+          "p12_not_yet_valid": "이 인증서는 아직 유효하지 않습니다. 유효 시작일 이후에 설치하세요.",
+          "p12_key_too_small": "키가 너무 작습니다. 봉인 인증서에는 2048비트 이상의 RSA 키가 필요합니다.",
+          "p12_unsupported_algorithm": "지원하지 않는 키 유형 또는 알고리즘입니다. RSA 키만 지원합니다. 인증 기관에 RSA 인증서를 요청하고 체인에 RSA 인증서만 있는지 확인하세요.",
+          "p12_key_usage": "이 인증서는 서명할 수 없습니다. 키 용도에 디지털 서명이나 부인 방지가 없습니다. 인증 기관에 문서 서명 인증서를 요청하세요.",
+          "p12_key_mismatch": "이 파일의 개인 키가 파일 안의 어떤 인증서와도 맞지 않습니다. 인증서를 만든 곳에서 파일을 다시 내보내세요.",
+          "p12_chain_invalid": "이 파일의 인증서가 그 위 인증서로 서명되지 않아 체인이 끊어졌습니다. 인증 기관에 전체 체인을 요청하세요.",
+          "certificate_file_too_large": "인증서 파일로 보기에는 파일이 너무 큽니다(최대 256KB).",
+          "certificate_chain_too_large": "인증서 체인이 너무 길어 봉인에 들어가지 않습니다. 인증 기관이 요구하는 인증서만 포함하세요.",
+          "certificate_self_test_failed": "이 인증서로 만든 테스트 봉인이 실패하여 설치하지 않았습니다. 인증 기관에 파일을 확인하세요.",
+          "certificate_not_found": "인증서를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.",
+          "no_file": "먼저 인증서 파일을 선택하세요."
+        }
       },
       "library": {
         "loading": "템플릿을 불러오는 중…",
@@ -8536,8 +8716,15 @@
           "noCategory": "카테고리 없음",
           "cancel": "취소",
           "create": "만들고 편집기 열기",
-          "creating": "준비 중…"
-        }
+          "creating": "준비 중…",
+          "introForm": "서명 없는 양식입니다. 다음 화면에서 부분과 질문을 만듭니다. 누군가 작성해 제출하면 되며 서명할 것은 없습니다.",
+          "kindLegend": "템플릿 종류",
+          "kindFile": "서명할 계약",
+          "kindFileHint": "파일을 올리고 그 위에 서명 칸을 배치합니다.",
+          "kindForm": "서명 없는 양식",
+          "kindFormHint": "파일이 필요 없습니다. 작성해서 제출하기만 하면 되는 정보에 적합합니다."
+        },
+        "formBadge": "양식"
       },
       "errors": {
         "generic": "문제가 생겼습니다. 다시 시도해 주세요.",
@@ -8578,7 +8765,179 @@
         "body_too_large": "요청이 너무 큽니다.",
         "bad_json": "요청이 올바르지 않습니다. 다시 시도해 주세요.",
         "database_error": "문제가 생겼습니다. 다시 시도해 주세요.",
-        "request_failed": "요청에 실패했습니다. 다시 시도해 주세요."
+        "request_failed": "요청에 실패했습니다. 다시 시도해 주세요.",
+        "addon_not_installed": "먼저 이 애드온을 설치한 다음 업데이트해 주세요.",
+        "form_not_found": "해당 등록 양식을 찾을 수 없습니다.",
+        "form_not_ready": "이 양식은 아직 켤 수 없습니다. 열어서 이유를 확인해 주세요.",
+        "invalid_form": "양식의 일부 설정이 올바르지 않습니다. 이름, 지정한 사람, 문구를 확인해 주세요.",
+        "tag_not_found": "해당 태그를 찾을 수 없습니다. 연락처 태그를 선택해 주세요.",
+        "slug_unavailable": "이 양식의 주소를 만들 수 없습니다. 다시 시도해 주세요."
+      },
+      "registration": {
+        "loading": "등록 양식을 불러오는 중…",
+        "retry": "다시 시도",
+        "intro": "등록 양식은 로그인하지 않은 사람이 몇 가지 정보를 입력하는 공개 페이지입니다. Halo가 그 사람의 연락처를 찾거나 만들고, 원하면 서명할 문서를 이메일로 보냅니다. 주소를 웹사이트, 메시지 또는 QR 코드로 공유하세요.",
+        "new": "새 등록 양식",
+        "botCheckOn": "이 페이지들에는 봇 확인(Cloudflare Turnstile)이 켜져 있습니다.",
+        "botCheckOff": "봇 확인(Cloudflare Turnstile)이 꺼져 있습니다. 페이지는 횟수 제한, 숨겨진 칸, 서명된 토큰으로 보호됩니다. 스팸이 보이면 플랫폼 운영자에게 켜 달라고 요청하세요.",
+        "empty": "아직 등록 양식이 없습니다. 하나 만들면 공개 주소가 생깁니다.",
+        "footnote": "양식은 삭제되지 않고 꺼지기만 하므로 누가 무엇에 동의했는지의 기록이 남습니다. 페이지는 링크를 보여 주지 않으며, 이메일을 받은 사람만 문서를 열 수 있습니다.",
+        "switchedOn": "양식이 등록을 받고 있습니다.",
+        "switchedOff": "양식이 꺼졌습니다.",
+        "cannotSwitchOn": "이 양식은 아직 켤 수 없습니다. 열어서 이유를 확인해 주세요.",
+        "newAddressMade": "양식에 새 주소가 생겼습니다. 이전 주소는 더 이상 작동하지 않습니다.",
+        "copied": "주소를 복사했습니다.",
+        "copyFailed": "복사하지 못했습니다. 주소를 선택해 직접 복사해 주세요.",
+        "cancel": "취소",
+        "close": "닫기",
+        "renew": {
+          "title": "새 주소를 만들까요?",
+          "body": "이전 주소는 즉시 작동하지 않게 되며, 그 주소를 가진 사람은 사용할 수 없는 페이지를 보게 됩니다. 주소가 공유되면 안 되는 곳에 공유되었을 때 사용하세요.",
+          "confirm": "새 주소 만들기"
+        },
+        "on": "켜짐",
+        "off": "꺼짐",
+        "needsAttention": "확인 필요",
+        "takeRegistrations": "등록 받기",
+        "takeRegistrationsFor": "등록 받기: {name}",
+        "copy": "복사",
+        "copyFor": "{name} 주소 복사",
+        "open": "열기",
+        "openFor": "{name}을(를) 새 탭에서 열기",
+        "newAddress": "새 주소",
+        "renewFor": "{name}의 새 주소 만들기",
+        "offHint": "꺼짐: 이 주소는 사용할 수 없는 페이지를 보여 줍니다.",
+        "sends": "보내는 것",
+        "noTemplate": "템플릿을 선택하지 않음",
+        "sendsNothing": "문서 없음: 정보만 저장",
+        "today": "오늘",
+        "todayValue": "{count} / {cap}",
+        "last30": "최근 30일",
+        "last30Value": "접수 {accepted}건, 완료하지 못함 {failed}건, 차단 {blocked}건",
+        "edit": "편집",
+        "editFor": "{name} 편집",
+        "activity": "최근 활동",
+        "activityFor": "{name}의 최근 활동",
+        "activityTitle": "최근 활동: {name}",
+        "activityIntro": "최근 제출이 어떻게 처리되었는지 보여 줍니다. 주소와 이메일은 여기에 표시되지 않습니다.",
+        "activityEmpty": "아직 제출된 것이 없습니다.",
+        "openDocument": "문서 열기",
+        "status": {
+          "accepted": "접수됨",
+          "rejected_spam": "차단됨",
+          "rejected_cap": "일일 한도 초과",
+          "failed": "완료하지 못함"
+        },
+        "reasons": {
+          "duplicate": "오늘 진행 중인 등록과 같은 이메일이라 새로 시작하지 않았습니다",
+          "honeypot": "숨겨진 칸이 채워졌습니다 (스크립트)",
+          "token_invalid": "페이지 토큰이 올바르지 않았습니다",
+          "token_expired": "페이지가 너무 오래 열려 있었습니다",
+          "token_too_fast": "페이지가 열린 직후 너무 빨리 제출되었습니다",
+          "captcha_failed": "봇 확인을 통과하지 못했습니다",
+          "daily_cap": "일일 한도가 가득 찼습니다",
+          "in_progress": "중간에 멈췄습니다 (서버가 중단됨)",
+          "contact_limit_reached": "워크스페이스의 연락처 한도에 도달했습니다",
+          "sign_limit_reached": "월간 문서 한도에 도달했습니다",
+          "form_not_ready": "양식이 문서를 보낼 수 없었습니다 (템플릿과 지정한 사람을 확인하세요)",
+          "template_not_active": "템플릿이 활성화되어 있지 않습니다",
+          "delivery_failed": "문서는 만들어졌지만 이메일을 전달하지 못했습니다",
+          "send_failed": "문서를 보내지 못했습니다",
+          "generic": "처리 결과를 확인하세요"
+        },
+        "issues": {
+          "no_template": "보낼 템플릿을 선택해 주세요.",
+          "template_not_active": "템플릿이 활성화되어 있지 않습니다. Doc Sign > 템플릿에서 활성화해 주세요.",
+          "template_has_no_version": "템플릿에 저장된 버전이 아직 없습니다.",
+          "no_applicant_role": "신청자가 채우는 역할을 선택해 주세요.",
+          "applicant_role_unknown": "신청자가 채우는 역할이 이 템플릿에 없습니다. 다른 역할을 선택해 주세요.",
+          "signer_role": "템플릿에 없는 역할이나 신청자 본인의 역할에 사람이 지정되어 있습니다.",
+          "no_signer": "서명할 사람이 없습니다. 신청자의 역할을 서명 역할로 하거나 서명할 사람을 지정해 주세요.",
+          "role_without_person": "{role} 역할에는 작성할 내용이 있지만 지정된 사람이 없습니다.",
+          "part_without_person": "양식의 한 부분이 지정된 사람이 없는 역할에 속해 있습니다.",
+          "signer_without_signature": "서명하는 역할에 문서의 서명 위치가 없습니다.",
+          "signer_name": "다른 역할에 지정한 사람에게는 이름이 필요합니다.",
+          "signer_email": "다른 역할에 지정한 사람에게는 올바른 이메일이 필요합니다.",
+          "signer_phone": "다른 역할에 지정한 사람에게는 전화번호가 필요합니다.",
+          "too_many_signers": "이 문서에 지정된 사람이 너무 많습니다.",
+          "order_not_unique": "템플릿은 서명 순서를 요구하지만 두 사람의 차례가 같습니다.",
+          "same_person_twice": "템플릿은 서명 순서를 요구하지만 한 사람이 두 번 지정되어 있습니다.",
+          "generic": "이 양식에 작동을 막는 문제가 있습니다. 템플릿과 지정한 사람을 확인해 주세요.",
+          "template_mode_mismatch": "이 페이지는 서명 없는 양식을 보내지만 템플릿은 서명할 계약이거나 그 반대입니다. 같은 종류의 템플릿을 선택하세요.",
+          "no_person": "양식에는 작성할 사람이 한 명 이상 필요합니다.",
+          "form_mode_needs_a_form": "템플릿의 양식에 아직 부분이 없습니다. 템플릿을 열어 하나 추가하세요.",
+          "form_mode_signature": "서명 없는 양식에는 서명 위치를 둘 수 없습니다.",
+          "form_mode_placement": "서명 없는 양식은 페이지에 아무것도 배치하지 않습니다.",
+          "form_mode_signer_role": "서명 없는 양식에는 서명하는 역할을 둘 수 없습니다."
+        },
+        "editTitle": "등록 양식 편집",
+        "newTitle": "새 등록 양식",
+        "dialogIntro": "페이지가 묻는 내용과 누군가 제출했을 때 일어나는 일을 선택하세요.",
+        "name": "이름 (팀원에게만 보입니다)",
+        "addressPreview": "주소는 {address} 처럼 만들어집니다. 무작위 끝부분은 저장할 때 만들어집니다.",
+        "addressNow": "주소: {address}",
+        "activeHint": "꺼져 있으면 이 주소는 사용할 수 없는 페이지를 보여 줍니다.",
+        "documentLegend": "제출 후 일어나는 일",
+        "sendDocument": "서명할 문서 보내기",
+        "sendDocumentHint": "템플릿으로 만들어 상대가 입력한 이메일로 보냅니다. 이 이메일은 그 주소가 상대의 것임을 확인하는 역할도 합니다.",
+        "noTemplates": "저장된 버전이 있는 활성 템플릿이 아직 없습니다.",
+        "goToTemplates": "템플릿으로 이동",
+        "template": "템플릿",
+        "applicantRole": "신청자가 채우는 역할",
+        "applicantRoleHint": "등록하는 사람이 완성하는 템플릿의 역할입니다.",
+        "others": "다른 역할의 사람",
+        "othersHint": "템플릿에 필요하지 않은 역할은 비워 두세요. 예를 들어 연서명하는 이사입니다.",
+        "otherName": "{role}: 이름",
+        "otherEmail": "{role}: 이메일",
+        "detailsOnlyHint": "문서를 보내지 않습니다. 정보는 연락처에 저장되고 아래 태그가 적용되며, 태그로 자동화를 시작할 수 있습니다.",
+        "tag": "연락처 태그",
+        "tagHint": "누군가 등록하면 적용됩니다. 태그로 자동화를 시작할 수 있습니다. 예: 환영 메시지, 가맹점 온보딩 레시피.",
+        "noTag": "태그 없음",
+        "askLegend": "페이지가 묻는 정보",
+        "detail": {
+          "full_name": "이름",
+          "company": "회사 또는 사업체",
+          "phone": "전화번호",
+          "email": "이메일"
+        },
+        "emailAlways": "항상 묻습니다 (문서가 여기로 갑니다)",
+        "ask": {
+          "required": "필수",
+          "optional": "선택",
+          "off": "묻지 않음"
+        },
+        "dailyCap": "하루 등록 수",
+        "dailyCapHint": "24시간 동안 최대 이만큼이며, 넘으면 페이지가 바쁘다고 안내합니다.",
+        "defaultLanguage": "페이지 언어",
+        "defaultLanguageHint": "방문자가 다른 언어를 고르지 않으면 이 언어를 사용합니다.",
+        "wordingTitle": "문구",
+        "wordingHint": "언어를 비워 두면 제품 기본 문구를 사용합니다. 워크스페이스 이름이 들어갈 자리에 '{workspace}'를 쓰세요. 동의 문구는 모든 등록과 함께 기록됩니다.",
+        "consentText": "동의 문구",
+        "successMessage": "감사 메시지 (기본 문구 뒤에 추가)",
+        "saved": "양식을 저장했습니다.",
+        "created": "양식을 만들었습니다.",
+        "save": "저장",
+        "create": "양식 만들기",
+        "problems": {
+          "name": {
+            "required": "양식에 이름을 지어 주세요.",
+            "too_long": "120자 이하로 입력해 주세요."
+          },
+          "template": {
+            "required": "템플릿을 선택해 주세요."
+          },
+          "applicantRole": {
+            "required": "역할을 선택해 주세요."
+          },
+          "others": {
+            "incomplete": "각 사람에게 이름과 이메일을 모두 입력하거나 둘 다 비워 두세요.",
+            "invalid": "이메일 중 하나가 올바르지 않습니다."
+          },
+          "dailyCap": {
+            "invalid": "1에서 5000 사이의 정수를 입력해 주세요."
+          }
+        },
+        "templateIsForm": "양식"
       }
     },
     "detail": {
@@ -8589,7 +8948,11 @@
         "back": "Doc Sign",
         "inOrder": "순서대로 서명",
         "codeRequired": "인증 코드 필요",
-        "reference": "문서 번호 {reference}"
+        "reference": "문서 번호 {reference}",
+        "testChip": "테스트",
+        "testNote": "테스트 문서입니다. 모든 페이지와 메시지에 TEST가 표시되고, 월 한도에 포함되지 않으며, 웹훅이나 자동화에 전달되지 않고, 서명 후 30일 동안 보관됩니다.",
+        "formChip": "양식",
+        "inOrderForm": "순서대로 작성"
       },
       "meta": {
         "category": "분류",
@@ -8607,7 +8970,8 @@
         "downloadSigned": "서명된 PDF 다운로드",
         "view": "보기",
         "downloadOriginal": "원본 다운로드",
-        "void": "문서 취소"
+        "void": "문서 취소",
+        "downloadRecord": "기록 내려받기"
       },
       "banner": {
         "waiting": "{names}님을 기다리는 중입니다 ({total}명 중 {done}명 서명)",
@@ -8631,12 +8995,24 @@
         "cancelledNote": "링크가 더 이상 작동하지 않습니다.",
         "failed": "봉인하지 못했습니다. 원인을 확인하고 있습니다",
         "failedNote": "잃어버린 것은 없습니다. 모두 서명을 마쳤으며, 문제가 해결되는 대로 서명된 사본이 만들어집니다.",
-        "failedTechnical": "기술 메모: {error}"
+        "failedTechnical": "기술 메모: {error}",
+        "retainedUntil": "{date}까지 보관됩니다. 그전에는 워크스페이스 소유자를 포함해 누구도 이 서명된 문서를 삭제할 수 없습니다.",
+        "retentionEnded": "보관 기간이 {date}에 끝났습니다.",
+        "waitingForm": "{names}님을 기다리는 중 ({total}명 중 {done}명 제출)",
+        "waitingMoreForm": "{names}님 외 {count}명을 기다리는 중 ({total}명 중 {done}명 제출)",
+        "waitingNobodyForm": "제출을 기다리는 중 ({total}명 중 {done}명 제출)",
+        "sealingForm": "모두 제출했으며 기록을 봉인하는 중",
+        "sealingNoteForm": "잠시 걸립니다. 기록이 여기에 나타나며 모든 분께 전송됩니다.",
+        "completedOnForm": "{date}에 제출 및 기록됨",
+        "completedForm": "제출 및 기록됨",
+        "completedNoteForm": "모든 분이 제출했습니다. 봉인된 기록이 여기에 보관됩니다.",
+        "declinedNoteForm": "다른 사람은 이 양식을 더 이상 작성할 수 없습니다. 필요하면 새로 보내세요."
       },
       "tabs": {
         "people": "참여자 ({count})",
         "document": "문서",
-        "history": "이력"
+        "history": "이력",
+        "record": "기록"
       },
       "channel": {
         "email": "이메일",
@@ -8658,7 +9034,16 @@
         "remind": "알림 보내기",
         "resend": "다시 보내기",
         "changeRecipient": "수신자 변경",
-        "remindHeld": "{when} 이후에 알림을 다시 보낼 수 있습니다"
+        "remindHeld": "{when} 이후에 알림을 다시 보낼 수 있습니다",
+        "haloUser": "Halo 사용자",
+        "haloUserYou": "Halo 사용자(본인)",
+        "step": "{step}단계 ({count, plural, other {#명}})",
+        "holdsParts": "{name}님이 넘긴 {count, plural, other {#개 부분}}: {parts}",
+        "forwardedFrom": "{names}님에게서 전달됨",
+        "moveTo": "이동",
+        "moveStep": "{step}단계",
+        "moveNew": "맨 끝의 새 단계",
+        "moved": "{name}님이 다른 단계로 이동되었습니다."
       },
       "confirm": {
         "cancel": "취소",
@@ -8705,7 +9090,8 @@
         "resent": "{name}님에게 초대를 다시 보냈습니다",
         "recipientChanged": "수신자를 변경했습니다. {name}님에게 새 링크를 보냈습니다.",
         "notDelivered": "{name}님에게 {channel}로 보낸 메시지를 전달하지 못했습니다. 링크를 복사해 직접 전달하세요.",
-        "notConfigured": "{channel} 발송이 설정되어 있지 않아 {name}님에게 아무것도 보내지 못했습니다. 링크를 복사해 직접 전달하세요."
+        "notConfigured": "{channel} 발송이 설정되어 있지 않아 {name}님에게 아무것도 보내지 못했습니다. 링크를 복사해 직접 전달하세요.",
+        "recipientChangedLater": "{name}님의 정보가 변경되었습니다. 해당 단계가 시작되면 초대됩니다."
       },
       "void": {
         "title": "“{title}” 문서를 취소할까요?",
@@ -8714,7 +9100,10 @@
         "reasonRequired": "이유를 입력하세요. 이유는 이력에 보관됩니다.",
         "keep": "문서 유지",
         "action": "문서 취소",
-        "done": "문서를 취소했습니다"
+        "done": "문서를 취소했습니다",
+        "envelopeBody": "봉투의 모든 링크가 작동하지 않게 되고, 기다리던 사람들에게 한 번 알림이 갑니다. 되돌릴 수 없습니다. 필요하면 새 봉투를 보내세요.",
+        "envelopeAction": "봉투 취소",
+        "envelopeDone": "봉투가 취소되었습니다"
       },
       "viewer": {
         "loading": "페이지를 불러오는 중",
@@ -8726,7 +9115,8 @@
         "signedCopy": "서명된 사본",
         "asSent": "발송 당시",
         "noteSigned": "모든 답변과 증명서 페이지가 포함된 서명된 사본입니다.",
-        "noteSent": "발송 당시의 문서입니다. 모두 서명하기 전에는 답변이 표시되지 않습니다."
+        "noteSent": "발송 당시의 문서입니다. 모두 서명하기 전에는 답변이 표시되지 않습니다.",
+        "noteRecord": "봉인된 제출 기록: 답변, 제출한 사람, 증명서 페이지가 들어 있습니다."
       },
       "files": {
         "title": "파일",
@@ -8802,7 +9192,32 @@
         "delivery_failed": "{actor}님에게 보낸 메시지를 전달하지 못했습니다",
         "delivery_failedCompleted": "서명된 사본을 {actor}님에게 전달하지 못했습니다",
         "delivery_failedCompletedSender": "서명된 사본을 발송자에게 전달하지 못했습니다",
-        "unknown": "문서에 어떤 일이 있었습니다 ({type})"
+        "unknown": "문서에 어떤 일이 있었습니다 ({type})",
+        "halo_link": "{actor}님이 Halo 안에서 문서를 열 때 서명 링크를 만들었습니다",
+        "code_verified_halo": "{actor}님이 Halo 로그인으로 본인 확인을 했습니다(코드 불필요)",
+        "invitedAfterStep": "이전 단계가 끝나서 {actor}님을 초대했습니다",
+        "forwarded": "{from}님이 자신의 차례를 {to}님에게 넘겼습니다",
+        "part_forwarded": "{from}님이 {part} 부분을 {to}님에게 넘겼습니다",
+        "part_taken_back": "{actor}님이 {part} 부분을 {from}님에게서 되찾았습니다",
+        "signer_moved": "{actor}님이 {step}단계로 옮겨졌습니다",
+        "forwarding_on": "{sender}님이 전달을 허용했습니다",
+        "forwarding_off": "{sender}님이 전달을 껐습니다",
+        "forwarding_changed": "{sender}님이 전달 허용 여부를 변경했습니다",
+        "sensitive_viewed": "{sender}님이 {hasField, select, yes {“{field}”} other {민감한 답변}}을(를) 표시했습니다",
+        "file_replaced": "{sender}님이 초안의 파일을 교체했습니다",
+        "createdForm": "{sender}님이 양식을 만들었습니다",
+        "sentForm": "{sender}님이 양식을 발송했습니다",
+        "viewedForm": "{actor}님이 양식을 열었습니다",
+        "consentedForm": "{actor}님이 전자 제출에 동의했습니다",
+        "submittedForm": "{actor}님이 정보를 제출했습니다",
+        "declinedForm": "{actor}님이 양식 작성을 거부했습니다",
+        "sealedForm": "제출 기록이 봉인되었습니다",
+        "completedForm": "제출이 기록되었습니다",
+        "downloadedForm": "{sender}님이 기록을 열었거나 내려받았습니다",
+        "all_submitted": "모든 분이 제출을 마쳤습니다",
+        "envelope_sent": "{sender}님이 문서 {count, plural, other {#개}}가 든 봉투 {reference}를 보냈습니다",
+        "envelope_completed": "봉투 {reference} 완료: 문서 {count, plural, other {#개}}가 모두 서명되었습니다",
+        "envelope_declined": "{by}님이 봉투 {reference}를 거절하여 열려 있던 모든 문서가 중단되었습니다"
       },
       "errors": {
         "document_not_found": "해당 문서를 찾을 수 없습니다.",
@@ -8822,7 +9237,18 @@
         "rate_limited": "시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요.",
         "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
         "database_error": "문제가 발생했습니다. 다시 시도해 주세요.",
-        "generic": "문제가 발생했습니다. 다시 시도해 주세요."
+        "generic": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "already_on_document": "이미 이 문서에 있는 사람입니다.",
+        "step_not_movable": "아직 시작되지 않은 단계로만 옮길 수 있습니다.",
+        "envelope_not_found": "해당 봉투를 찾을 수 없습니다.",
+        "envelope_not_sent": "이 봉투는 아직 발송되지 않았습니다.",
+        "envelope_partly_completed": "이 봉투의 문서 하나가 이미 모든 사람의 서명을 마쳐서 봉투를 취소할 수 없습니다.",
+        "envelope_person_has_signed": "이 사람은 이미 봉투의 일부에 서명했으므로 교체할 수 없습니다.",
+        "document_in_envelope": "이 문서는 봉투에 속해 있습니다. 봉투에서 처리해 주세요.",
+        "expiry_in_the_past": "새 날짜는 미래여야 합니다.",
+        "expiry_not_later": "새 날짜는 현재 날짜보다 늦어야 합니다.",
+        "expiry_too_far": "날짜가 너무 멉니다. 더 가까운 날짜를 고르세요.",
+        "bad_expiry": "날짜를 읽을 수 없습니다. 다시 선택해 주세요."
       },
       "contactTab": {
         "tab": "문서",
@@ -8830,6 +9256,22 @@
         "send": "문서 보내기",
         "empty": "이 연락처에는 아직 문서가 없습니다.",
         "failed": "문서를 불러오지 못했습니다."
+      },
+      "yourTurn": {
+        "title": "이 문서에 서명할 차례입니다",
+        "body": "Halo 사용자로 서명자에 지정되어 있습니다. ‘지금 서명’을 누르면 Halo 로그인으로 열리므로 인증 코드를 묻지 않습니다."
+      },
+      "forwarding": {
+        "label": "전달 허용",
+        "onHint": "참여자가 자신의 차례나 양식의 한 부분을 다른 사람에게 넘길 수 있습니다. 모든 전달은 이력에 기록됩니다.",
+        "offHint": "아무도 전달할 수 없습니다. 이미 넘겨진 것은 받은 사람에게 그대로 남습니다.",
+        "nowOn": "이 문서의 전달이 켜졌습니다.",
+        "nowOff": "이 문서의 전달이 꺼졌습니다."
+      },
+      "recordTab": {
+        "emptyTicket": "이 티켓에 연결된 문서가 아직 없습니다.",
+        "emptyDeal": "이 거래에 연결된 문서가 아직 없습니다.",
+        "testBadge": "테스트"
       }
     },
     "editor": {
@@ -8870,7 +9312,9 @@
         "code": "인증 코드 필요",
         "codeHint": "서명하기 전에 서명자가 전달받은 코드를 입력합니다.",
         "subject": "이메일 제목",
-        "message": "서명자에게 보내는 메시지"
+        "message": "서명자에게 보내는 메시지",
+        "forwarding": "전달 허용",
+        "forwardingHint": "이 템플릿으로 만든 문서에서는 서명자가 자신의 차례나 양식의 한 부분을 다른 사람에게 넘길 수 있습니다. 발신자가 문서마다 바꿀 수 있습니다."
       },
       "draft": {
         "loading": "문서를 불러오는 중입니다...",
@@ -8880,7 +9324,8 @@
         "fromTemplate": "필드는 템플릿에서 가져왔습니다. 아래 값을 입력하거나, 레이아웃을 바꾸려면 필드 편집을 선택해 주세요.",
         "editFields": "필드 편집",
         "lockFields": "필드 잠금",
-        "saveAsTemplate": "템플릿으로 저장"
+        "saveAsTemplate": "템플릿으로 저장",
+        "replaceFile": "파일 교체"
       },
       "fieldsList": {
         "title": "모든 필드",
@@ -9118,6 +9563,53 @@
         "missing": "{count, plural, other {비어 있는 값이 #개 있습니다}}",
         "complete": "모든 값이 입력되었습니다.",
         "used": "{count, plural, other {필드 #개에서 사용}}"
+      },
+      "replaceFile": {
+        "title": "파일 교체",
+        "intro": "새 PDF, Word 파일 또는 이미지를 선택하세요. 이미 배치한 필드는 맞는 경우 제자리에 남으며, 무엇이 바뀔지는 실제로 바뀌기 전에 먼저 보여 드립니다.",
+        "checking": "새 파일을 확인하는 중입니다…",
+        "pages": "새 파일은 {next, plural, other {#쪽}}이고, 현재 파일은 {old, plural, other {#쪽}}입니다.",
+        "pagesChanged": "쪽수가 다르므로 모든 필드가 여전히 올바른 페이지에 있는지 확인해 주세요.",
+        "converted": "파일은 PDF로 변환되며, 서명되는 것은 그 PDF입니다.",
+        "noFields": "이 문서에는 아직 필드가 없으므로 옮길 것이 없습니다.",
+        "allKept": "{count, plural, other {필드 #개가 모두 제자리에 남습니다.}}",
+        "flaggedTitle": "{flagged, plural, other {필드 #개를 확인해야 합니다}}. {kept, plural, other {#개는 제자리에 남습니다}}.",
+        "reason": {
+          "page_missing": "해당 페이지가 새 파일에 없어 마지막 페이지로 옮겼습니다",
+          "size_changed": "페이지 크기나 모양이 달라 위치가 맞지 않을 수 있습니다",
+          "outside_page": "페이지 안에 있지 않습니다"
+        },
+        "movedLine": "{name}: {from}쪽에 있었고 지금은 {to}쪽에 있습니다",
+        "pageLine": "{name} ({page}쪽)",
+        "afterNote": "파일을 교체한 뒤 편집기의 문제 목록에 남은 수정 사항이 표시되며, 수정하기 전에는 아무것도 발송되지 않습니다.",
+        "unknownField": "필드",
+        "cancel": "취소",
+        "confirm": "파일 교체",
+        "replacing": "교체하는 중…"
+      },
+      "testSend": {
+        "button": "테스트 보내기",
+        "title": "나에게 테스트 보내기",
+        "intro": "서명자처럼 이 템플릿을 체험해 보세요. 실제와 같은 이메일과 서명 페이지, 서명된 파일을 받으며 모두 TEST로 표시됩니다.",
+        "sentIntro": "테스트를 보냈습니다.",
+        "sentTo": "테스트 문서를 {email}(으)로 보냈습니다.",
+        "orderIgnored": "이 템플릿은 순서대로 서명하지만 한 주소가 여러 자리를 맡고 있어 테스트는 순서를 따르지 않습니다.",
+        "whereToSign": "이메일을 열거나, 여기서 문서를 열어 ‘내 서명 대기’에서 찾으면 Halo 안에서 바로 서명할 수 있습니다.",
+        "notDelivered": "메시지 하나를 전달하지 못했습니다. 대신 이 링크를 사용하세요:",
+        "open": "문서 열기",
+        "pointMarked": "모든 페이지, 이메일, 서명 페이지에 TEST라고 표시됩니다.",
+        "pointNotCounted": "월 한도에 포함되지 않으며, 웹훅이나 자동화에도 전달되지 않습니다.",
+        "pointKept": "서명이 끝나면 {days}일 동안 보관됩니다.",
+        "unsaved": "테스트는 템플릿에 저장된 버전을 사용합니다. 최신 변경 사항을 포함하려면 먼저 버전을 저장하세요.",
+        "noRoles": "이 템플릿에는 아직 서명하거나 작성할 사람이 없습니다. 먼저 역할에 필드를 추가하세요.",
+        "emailLabel": "테스트를 받을 주소",
+        "emailHint": "비워 두면 내 주소를 사용합니다. 내 다른 받은편지함을 쓰려면 @ 앞에 +원하는글자를 붙이세요(예: you+test@company.com).",
+        "emailNotYours": "테스트는 내 주소 또는 내 주소에 +원하는글자를 붙인 주소로만 보낼 수 있습니다.",
+        "placesLabel": "각 자리를 맡는 사람",
+        "placesHint": "비워 두면 위 주소를 사용합니다. 순서대로 서명하는 것을 시험하려면 자리마다 서로 다른 +원하는글자 주소를 입력하세요.",
+        "cancel": "취소",
+        "send": "테스트 보내기",
+        "sending": "보내는 중…"
       }
     },
     "formBuilder": {
@@ -9507,7 +9999,16 @@
         "placement_type_mismatch": "{page}페이지의 칸은 이 종류의 칸으로 {field}을(를) 인쇄할 수 없습니다. 배치 편집기를 열어 변경해 주세요.",
         "placement_bound_and_fixed": "{page}페이지의 칸이 답변 인쇄와 고정 문구를 동시에 지정하고 있습니다. 배치 편집기를 열어 변경해 주세요.",
         "part_without_person": "파트 {part}을(를) 작성할 사람이 없습니다.",
-        "removeBox": "칸 삭제"
+        "removeBox": "칸 삭제",
+        "bad_list_key": "{field}이(가) 지정한 목록이 올바른 목록 키가 아닙니다.",
+        "list_wrong_type": "{field}은(는) 공유 목록을 사용할 수 없습니다. 단일 선택, 다중 선택, 항목 목록만 사용할 수 있습니다.",
+        "unknown_list": "{field}이(가) 사용하는 {detail} 목록이 이 워크스페이스에 없습니다. 다른 목록을 선택하세요.",
+        "list_and_options": "{field}에 공유 목록과 직접 입력한 선택지가 모두 있습니다. 하나만 사용하세요.",
+        "list_empty": "{field}이(가) 사용하는 {detail} 목록에 활성 항목이 없습니다. 설정에서 항목을 추가하거나 다른 목록을 선택하세요.",
+        "bad_sensitive": "{field}은(는) 민감으로 표시할 수 없습니다. 입력하는 답변(텍스트, 숫자, 이메일, 전화, 날짜, 목록)만 가능합니다.",
+        "sensitive_contact_field": "{field}은(는) 민감 항목이므로 연락처 필드를 채울 수 없습니다. 둘 중 하나를 해제하세요.",
+        "sensitive_default": "{field}은(는) 민감 항목이므로 시작값을 두거나 잠글 수 없습니다. 시작값 또는 잠금을 해제하세요.",
+        "sensitive_in_rule": "규칙이 민감 항목인 {field}의 값을 비교합니다. 규칙은 비어 있는지만 확인할 수 있습니다."
       },
       "warnings": {
         "unknown": "양식에 확인해 볼 부분이 있습니다.",
@@ -9594,6 +10095,45 @@
         "cannotDeleteRole": "{count, plural, other {이 역할은 양식 파트 #개를 맡고 있습니다.}} 삭제하기 전에 양식 보기에서 해당 파트를 다른 역할에 넘겨 주세요.",
         "signerNoSignature": "이 역할은 서명하지만 서명 또는 이니셜 칸이 없습니다.",
         "sampleItem": "항목 {n}"
+      },
+      "list": {
+        "source": "선택지를 가져오는 곳",
+        "sourceTyped": "여기에 직접 입력",
+        "sourceList": "공유 목록",
+        "sourceFree": "서명자가 자유롭게 입력",
+        "sourcePicked": "공유 목록에서 선택",
+        "which": "공유 목록",
+        "choose": "목록 선택...",
+        "loading": "목록을 불러오는 중...",
+        "loadFailed": "목록을 불러오지 못했습니다.",
+        "unknown": "이 워크스페이스에는 {key} 목록이 없습니다.",
+        "archived": "이 목록은 보관되어 있습니다. 이 양식에서는 계속 작동하며, 사용을 중단하려면 다른 목록을 선택하세요.",
+        "stale": "이 양식을 저장한 뒤 목록이 바뀌었습니다. 저장하면 새 버전을 사용합니다.",
+        "preview": "목록에서 가져온 {count, plural, other {선택지 #개}}",
+        "previewMore": "외 {count}개",
+        "hint": "저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 나중에 목록을 바꿔도 이미 발송된 문서는 바뀌지 않습니다. 목록은 설정 > Doc Sign > 목록에서 관리합니다.",
+        "hintPicked": "서명자는 코드나 단어로 이 목록을 검색해 항목을 하나씩 추가합니다. 저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 목록은 설정 > Doc Sign > 목록에서 관리합니다."
+      },
+      "sensitive": {
+        "title": "민감 정보",
+        "label": "민감 (암호화 및 마스킹)",
+        "hint": "암호화하여 저장합니다. 직원에게는 마스킹된 형태(예: •••• 1234)로 표시되며, 전체 내용을 확인할 때마다 기록됩니다. 내보내기에는 포함되지 않고 연락처 필드를 채울 수도 없습니다.",
+        "print": "서명된 PDF에서",
+        "printHint": "서명된 문서는 보통 합의한 내용을 보여야 하므로 기본값은 전체 인쇄입니다. PDF에 남기고 싶지 않을 때만 다른 방식을 선택하세요.",
+        "printFull": "전체 인쇄",
+        "printLast4": "마지막 4자만 인쇄",
+        "printNone": "인쇄하지 않음"
+      },
+      "rolesPanel": {
+        "title": "이 양식을 작성하는 사람",
+        "hint": "각 사람은 작성만 하는 역할이며 서명하는 사람은 없습니다. 각 부분의 설정에서 이들 중 한 명에게 부분을 배정하세요. 실제 사람은 양식을 보낼 때 정합니다.",
+        "nameLabel": "역할 이름",
+        "parts": "{count}개 부분",
+        "remove": "{name} 제거",
+        "removeInUse": "이 사람에게 배정된 부분이 있습니다",
+        "removeLast": "양식에는 최소 한 명이 필요합니다",
+        "add": "사람 추가",
+        "limit": "최대 {max}명"
       }
     },
     "progress": {
@@ -9727,6 +10267,25 @@
         "prefillOn": "양식이 연결된 연락처의 정보({fields})로 먼저 채워져요. 서명자가 확인하고 바꿀 수 있어요.",
         "noContact": "이 양식은 연락처의 정보({fields})로 먼저 채울 수 있지만 연결된 연락처가 없어요. 서명자가 모두 직접 입력해요. 옵션 단계에서 연락처를 연결할 수 있어요.",
         "noContactFields": "이 양식은 연락처의 정보를 사용하지 않아요."
+      },
+      "heldBy": "{name}님이 작성 중",
+      "heldByDone": "{name}님이 완료",
+      "sensitive": {
+        "reveal": "표시",
+        "hide": "숨기기",
+        "revealNamed": "{name} 표시",
+        "hideNamed": "{name} 숨기기",
+        "note": "암호화됨. 전체 내용을 표시하면 기록에 남습니다.",
+        "shownNote": "잠시 표시된 뒤 다시 숨겨집니다. 이 조회는 기록에 남았습니다.",
+        "errors": {
+          "answer_not_found": "이 답변을 찾을 수 없습니다.",
+          "audit_unavailable": "조회를 기록할 수 없어 답변을 표시하지 않았습니다. 다시 시도하세요.",
+          "rate_limited": "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+          "forbidden": "이 답변을 표시할 권한이 없습니다.",
+          "signed_out": "로그아웃되었습니다. 다시 로그인해 계속하세요.",
+          "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+          "generic": "작업이 실패했습니다. 다시 시도하세요."
+        }
       }
     },
     "send": {
@@ -9781,7 +10340,8 @@
           "draft": "초안",
           "waiting": "다른 사람 대기 중",
           "completed": "완료됨",
-          "stopped": "중단됨"
+          "stopped": "중단됨",
+          "test": "테스트"
         },
         "searchLabel": "문서 검색",
         "searchPlaceholder": "제목, 참조 번호 또는 서명자로 검색",
@@ -9810,7 +10370,59 @@
         "edited": "{when} 수정",
         "completedOn": "{date} 완료",
         "sentOn": "{date} 발송",
-        "expiresOn": "{date} 만료"
+        "expiresOn": "{date} 만료",
+        "shortcuts": {
+          "label": "바로가기"
+        },
+        "awaiting": {
+          "tab": "내 서명 대기",
+          "badge": "{count, plural, other {서명을 기다리는 문서 #건}}",
+          "hint": "이 문서들에는 Halo 사용자로 서명자가 지정되어 있고 지금이 본인 차례입니다. ‘지금 서명’을 누르면 Halo 로그인으로 문서가 열리므로 인증 코드를 따로 입력하지 않아도 됩니다.",
+          "empty": "서명을 기다리는 문서가 없습니다.",
+          "signNow": "지금 서명",
+          "opening": "여는 중...",
+          "view": "보기",
+          "from": "보낸 사람 {name}",
+          "sent": "발송 {date}",
+          "expires": "만료 {date}",
+          "step": "{step}단계",
+          "role": "역할: {role}",
+          "errors": {
+            "not_your_turn": "아직 이 문서에 서명할 차례가 아닙니다.",
+            "document_not_open": "이 문서는 더 이상 서명할 수 없습니다.",
+            "already_signed": "이미 이 문서에 서명하셨습니다.",
+            "signer_not_open": "이 문서를 거부하셨습니다.",
+            "not_a_signer": "이 문서의 서명자가 아닙니다.",
+            "forbidden": "Halo에서 서명할 권한이 없습니다.",
+            "signed_out": "다시 로그인한 후 계속하세요.",
+            "rate_limited": "시도 횟수가 너무 많습니다. 잠시 후 다시 시도하세요.",
+            "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+            "sign_disabled": "이 워크스페이스에서는 Doc Sign이 켜져 있지 않습니다.",
+            "generic": "문서를 열 수 없습니다. 다시 시도하세요."
+          }
+        },
+        "attention": {
+          "tab": "확인 필요",
+          "hint": "거부되었거나 최근 30일 안에 만료되었거나 봉인에 실패한 문서, 그리고 메시지가 전달되지 않은 진행 중 문서입니다. 메일 제공업체가 나중에 알려 주는 반송은 표시되지 않습니다.",
+          "empty": "확인이 필요한 항목이 없습니다.",
+          "open": "열기",
+          "reason": {
+            "declined": "거부됨",
+            "expired": "만료됨",
+            "failed": "봉인 실패",
+            "undelivered": "메시지 미전달"
+          },
+          "detail": {
+            "declined": "{names}님이 거부함",
+            "expired": "{names}님을 아직 기다리는 중",
+            "failed": "서명된 파일을 아직 만들지 못했습니다. 문서를 열어 자세한 내용을 확인하세요.",
+            "undelivered": "{names}님에게 전달되지 않음"
+          }
+        },
+        "testBadge": "테스트",
+        "formBadge": "양식",
+        "progressForm": "{total}명 중 {done}명 제출",
+        "envelopeBadge": "봉투 · {count, plural, other {문서 #개}}"
       },
       "new": {
         "title": "새 문서",
@@ -9848,7 +10460,8 @@
         "noTemplateMatch": "검색과 일치하는 템플릿이 없습니다.",
         "templatesLabel": "템플릿",
         "noCategoryGroup": "카테고리 없음",
-        "templateFacts": "{pages, plural, other {#페이지}} · {roles, plural, other {역할 #개}}"
+        "templateFacts": "{pages, plural, other {#페이지}} · {roles, plural, other {역할 #개}}",
+        "templateFactsForm": "서명 없는 양식 · {roles}명"
       },
       "view": {
         "loading": "문서를 불러오는 중",
@@ -9882,14 +10495,15 @@
         "people": "사람",
         "options": "옵션",
         "review": "검토",
-        "complete": "(완료)"
+        "complete": "(완료)",
+        "formFields": "양식"
       },
       "people": {
         "noRolesTitle": "먼저 입력란을 배치하세요",
         "noRolesBody": "사람은 입력란에 지정한 역할(서명자 또는 일부를 작성하는 사람 등)에서 정해집니다. 문서에 입력란을 하나 이상 배치한 뒤 이곳으로 돌아오세요.",
         "goToFields": "입력란으로 이동",
         "needsOrder": "이 문서는 서명 순서가 필요합니다",
-        "needsOrderOn": "앞사람이 서명한 뒤에야 다음 사람을 초대합니다. 사람을 끌어다 놓거나 화살표로 순서를 정하세요.",
+        "needsOrderOn": "서명은 단계별로 진행됩니다. 발송하면 1단계의 모든 사람이 초대되고, 앞 단계의 모든 사람이 마치면 다음 단계가 초대됩니다. 두 사람에게 같은 단계 번호를 주면 동시에 서명합니다. 사람을 다른 사람 옆으로 끌어 놓거나 화살표를 사용해 순서를 바꾸세요.",
         "needsOrderOff": "모든 사람을 한꺼번에 초대하며 누구든 먼저 서명할 수 있습니다. 순서 번호는 표시되지 않습니다.",
         "empty": "아직 목록에 아무도 없습니다. 이 문서에 서명하거나 작성할 사람을 추가하세요.",
         "listLabel": "이 문서의 사람 목록",
@@ -9901,7 +10515,7 @@
         "limitReached": "한 문서에는 최대 {max}명까지 넣을 수 있습니다.",
         "fromContactsTitle": "연락처에서 추가",
         "fromContactsBody": "연락처를 선택하면 이름, 이메일, 전화번호가 새 줄에 채워집니다.",
-        "dragHandle": "끌어서 순서 바꾸기",
+        "dragHandle": "다른 사람 옆으로 끌어 순서를 바꾸세요",
         "orderNumber": "{n}번",
         "moveUp": "{n}번 사람을 위로 이동",
         "moveDown": "{n}번 사람을 아래로 이동",
@@ -9921,7 +10535,15 @@
         "phoneInvalid": "국가 번호를 포함해 입력하세요. 예: +60 12 345 6789",
         "whatsappNote": "WhatsApp 초대는 승인된 메시지 템플릿으로 전송됩니다.",
         "whatsappNotSetUp": "WhatsApp 초대에는 승인된 메시지 템플릿이 필요한데 아직 설정되어 있지 않습니다. 이 사람에게는 WhatsApp으로 전달되지 않습니다. 이메일을 사용하거나 관리자에게 설정에서 구성해 달라고 요청하세요.",
-        "remove": "{n}번 사람 지우기"
+        "remove": "{n}번 사람 지우기",
+        "stepHeading": "{step}단계 ({count, plural, other {#명}})",
+        "stepNumber": "{n}번째 사람의 단계 번호",
+        "stepNumberHint": "단계 번호가 같은 사람들은 동시에 서명합니다.",
+        "emptyForm": "목록에 아직 아무도 없습니다. 이 양식을 작성할 사람을 추가하세요.",
+        "needsOrderForm": "순서대로 작성",
+        "needsOrderOnForm": "각 사람은 앞 사람이 제출한 뒤에야 초대됩니다. 사람을 끌거나 화살표로 순서를 정하세요.",
+        "needsOrderOffForm": "모두 한꺼번에 초대되며 누구든 먼저 작성할 수 있습니다. 순서 번호는 표시되지 않습니다.",
+        "sameEmailOrderedForm": "{email}이(가) {a}번과 {b}번에 있습니다. 순서대로 작성하는 사람은 서로 달라야 합니다."
       },
       "options": {
         "title": "제목",
@@ -9952,11 +10574,19 @@
         "remindersHint": "초대 후 며칠째인지 쉼표로 구분해 입력하세요. 예: 3, 7. 비워 두면 알림을 보내지 않습니다.",
         "remindersBad": "1에서 60 사이의 정수 일수를 최대 5개까지 입력하세요.",
         "codeRequired": "인증 코드 필요",
-        "codeRequiredHint": "각 서명자는 문서를 열기 전에 전송된 일회용 코드를 입력해야 합니다. 선택하지 않으면 사용하지 않습니다."
+        "codeRequiredHint": "각 서명자는 문서를 열기 전에 전송된 일회용 코드를 입력해야 합니다. 선택하지 않으면 사용하지 않습니다.",
+        "allowForwarding": "전달 허용",
+        "allowForwardingHint": "서명자가 자신의 차례나 양식의 한 부분을 다른 사람에게 넘길 수 있습니다. 새 사람은 전용 링크를 받고 직접 서명에 동의합니다. 모든 전달은 이력에 기록됩니다.",
+        "ticket": "티켓",
+        "ticketHint": "선택 사항입니다. 이 문서를 티켓에 표시합니다.",
+        "ticketHintContact": "선택 사항입니다. 이 연락처의 티켓만 보여 줍니다.",
+        "deal": "거래",
+        "dealHint": "선택 사항입니다. 이 문서를 거래에 표시합니다.",
+        "dealHintContact": "선택 사항입니다. 이 연락처의 거래만 보여 줍니다."
       },
       "review": {
         "untitled": "제목 없는 문서",
-        "orderedIntro": "순서대로 서명합니다. 보내면 1번이 초대되고, 앞사람이 서명하면 다음 사람이 초대됩니다.",
+        "orderedIntro": "순서대로 서명합니다. 발송하면 1단계의 모든 사람이 초대되고, 앞 단계의 모든 사람이 마치면 다음 단계가 초대됩니다. 같은 단계의 사람들은 함께 초대됩니다.",
         "allAtOnce": "모든 사람을 한꺼번에 초대하며 누구든 먼저 서명할 수 있습니다.",
         "nobody": "아직 추가된 사람이 없습니다.",
         "noName": "이름 없음",
@@ -9988,7 +10618,16 @@
         "send": "서명 요청 보내기",
         "noPermission": "문서를 보낼 권한이 없습니다.",
         "sendBlocked": "위 항목을 고치면 보낼 수 있습니다.",
-        "sendNote": "보낸 뒤에는 파일과 서명 순서를 바꿀 수 없습니다. 바꾸려면 문서를 무효 처리한 뒤 다시 보내세요."
+        "sendNote": "보낸 뒤에는 파일과 서명 순서를 바꿀 수 없습니다. 바꾸려면 문서를 무효 처리한 뒤 다시 보내세요.",
+        "sameStep": "{step}단계의 다른 사람들과 함께 서명",
+        "forwardingLabel": "전달",
+        "forwardingOn": "참여자가 자신의 차례나 양식의 한 부분을 다른 사람에게 넘길 수 있습니다",
+        "forwardingOff": "허용 안 함",
+        "orderedIntroForm": "순서대로 작성합니다. 1번은 발송할 때 초대되고, 이후 각 사람은 앞 사람이 제출하면 초대됩니다.",
+        "allAtOnceForm": "모두 한꺼번에 초대되며 누구든 먼저 작성할 수 있습니다.",
+        "codeOnForm": "각 사람이 먼저 일회용 코드를 입력합니다",
+        "sendForm": "양식 보내기",
+        "sendNoteForm": "발송한 후에는 양식과 순서를 바꿀 수 없습니다. 바꾸려면 문서를 무효화하고 다시 보내세요."
       },
       "result": {
         "title": "서명 요청을 보냈습니다",
@@ -10012,7 +10651,10 @@
         "copied": "링크를 복사했습니다",
         "copyFailed": "링크를 복사하지 못했습니다. 선택해서 직접 복사해 주세요.",
         "privateWarning": "이 링크는 {name}님에게만 비공개로 보내세요. 링크를 가진 사람은 누구든 그분 대신 서명할 수 있습니다.",
-        "openDocument": "문서 열기"
+        "openDocument": "문서 열기",
+        "titleForm": "양식 발송됨",
+        "linkLabelForm": "{name}님의 링크",
+        "privateWarningForm": "이 링크는 {name}님에게만 비공개로 보내세요. 링크를 가진 사람은 누구나 그분으로서 양식을 작성할 수 있습니다."
       },
       "problems": {
         "no_file": "문서에 파일이 없습니다.",
@@ -10032,7 +10674,12 @@
         "message_long": "메시지가 2000자를 넘습니다.",
         "expiry_past": "만료일은 오늘 이후여야 합니다.",
         "reminders_bad": "알림은 1에서 60 사이의 정수 일수여야 하며 최대 5개입니다.",
-        "layout": "문서의 입력란 하나가 올바르게 배치되지 않았습니다."
+        "layout": "문서의 입력란 하나가 올바르게 배치되지 않았습니다.",
+        "no_person": "이 양식을 작성할 사람을 한 명 이상 추가하세요.",
+        "form_mode_needs_a_form": "이 양식에는 작성할 부분이 없습니다. 템플릿을 열어 하나 추가하세요.",
+        "form_mode_signature": "서명 없는 양식에는 서명 위치를 둘 수 없습니다.",
+        "form_mode_placement": "서명 없는 양식은 페이지에 아무것도 배치하지 않습니다.",
+        "form_mode_signer_role": "서명 없는 양식에는 서명하는 역할을 둘 수 없습니다."
       },
       "errors": {
         "generic": "문제가 생겼습니다. 다시 시도해 주세요.",
@@ -10088,7 +10735,210 @@
         "rate_limited": "요청이 너무 많습니다. 잠시 기다린 뒤 다시 시도해 주세요.",
         "body_too_large": "요청이 너무 큽니다.",
         "bad_json": "요청을 읽지 못했습니다. 다시 시도해 주세요.",
-        "database_error": "저희 쪽에서 문제가 생겼습니다. 다시 시도해 주세요."
+        "database_error": "저희 쪽에서 문제가 생겼습니다. 다시 시도해 주세요.",
+        "ticket_not_found": "해당 티켓을 찾을 수 없습니다.",
+        "deal_not_found": "해당 거래를 찾을 수 없습니다.",
+        "ticket_contact_mismatch": "그 티켓은 이 문서와 다른 연락처의 것입니다. 해당 연락처를 선택하거나 다른 티켓을 선택하세요.",
+        "deal_contact_mismatch": "그 거래는 이 문서와 다른 연락처의 것입니다. 해당 연락처를 선택하거나 다른 거래를 선택하세요.",
+        "test_email_not_yours": "테스트는 내 주소 또는 내 주소에 +원하는글자를 붙인 주소로만 보낼 수 있습니다.",
+        "test_no_roles": "이 템플릿에는 아직 서명하거나 작성할 사람이 없습니다. 먼저 역할에 필드를 추가하세요.",
+        "test_no_address": "계정에 테스트를 받을 이메일 주소가 없습니다.",
+        "same_file": "문서가 이미 가지고 있는 파일입니다.",
+        "document_has_no_file": "이 문서에는 교체할 파일이 없습니다.",
+        "envelope_not_found": "해당 봉투를 찾을 수 없습니다.",
+        "envelope_not_draft": "이 봉투는 이미 발송되어 더 이상 수정할 수 없습니다.",
+        "envelope_not_sent": "이 봉투는 아직 발송되지 않았습니다.",
+        "envelope_size": "봉투 하나에는 문서를 2개에서 6개까지 담을 수 있습니다.",
+        "envelope_documents": "작업하는 동안 이 봉투의 문서가 바뀌었습니다. 다시 열어 확인해 주세요.",
+        "envelope_options": "봉투의 모든 문서는 같은 서명 순서와 같은 코드 설정을 사용해야 합니다.",
+        "envelope_people": "이 봉투의 사람 목록이 완전하지 않습니다. 확인한 뒤 다시 저장해 주세요.",
+        "envelope_person_twice": "한 사람은 각 문서에서 역할을 하나만 가질 수 있습니다.",
+        "envelope_not_ready": "이 봉투는 아직 발송할 준비가 되지 않았습니다. 고쳐야 할 항목을 확인해 주세요.",
+        "envelope_too_big": "봉투의 문서는 모두 합쳐 최대 50MB까지입니다. 더 작은 파일을 사용해 주세요.",
+        "envelope_duplicate_template": "각 템플릿은 한 번만 선택해 주세요.",
+        "envelope_not_deletable": "초안만 삭제할 수 있습니다. 이미 발송한 봉투는 취소해 주세요.",
+        "envelope_frozen": "이미 발송한 봉투는 편집할 수 없습니다.",
+        "envelope_fixed": "문서를 봉투에서 꺼낼 수 없습니다.",
+        "envelope_no_forwarding": "봉투의 문서는 다른 사람에게 전달할 수 없습니다.",
+        "envelope_no_test": "테스트 문서는 봉투에 포함할 수 없습니다.",
+        "document_in_envelope": "이 문서는 봉투에 속해 있습니다. 봉투에서 처리해 주세요.",
+        "document_retained": "서명이 완료된 이 문서는 아직 보관해야 하므로 삭제할 수 없습니다."
+      },
+      "records": {
+        "ticketLabel": "티켓에 연결",
+        "dealLabel": "거래에 연결",
+        "ticketPlaceholder": "번호나 제목으로 티켓 검색",
+        "dealPlaceholder": "제목으로 거래 검색",
+        "results": "일치하는 항목",
+        "searching": "검색하는 중…",
+        "none": "찾을 수 없습니다.",
+        "noneForContact": "이 연락처에는 일치하는 항목이 없습니다.",
+        "remove": "연결 해제",
+        "loading": "불러오는 중…",
+        "unknown": "볼 수 없는 항목"
+      },
+      "envelope": {
+        "badge": "봉투 · {count, plural, other {문서 #개}}",
+        "new": {
+          "link": "여러 문서를 하나의 봉투로 보내기",
+          "title": "새 봉투",
+          "subtitle": "같은 사람들에게 보내는 여러 문서를 한 번에 서명합니다. 각 사람은 메시지와 링크를 하나씩만 받습니다.",
+          "chooseHeading": "문서 선택",
+          "chooseHint": "템플릿을 고르거나 파일을 하나 추가하세요. 봉투 하나에는 문서를 {min}개에서 {max}개까지 담을 수 있습니다.",
+          "templatesLabel": "템플릿",
+          "fileHeading": "또는 파일 추가",
+          "fileHint": "PDF 또는 Word 파일입니다. 봉투를 만든 뒤에 입력란을 준비합니다.",
+          "orderHeading": "문서 순서 ({count})",
+          "nothingChosen": "아직 선택한 것이 없습니다.",
+          "removeFile": "파일 제거",
+          "moveUp": "{title} 위로 이동",
+          "moveDown": "{title} 아래로 이동",
+          "remove": "{title} 제거",
+          "needMore": "문서를 {min}개 이상 선택해 주세요.",
+          "count": "문서 {count}/{max}개",
+          "titleLabel": "봉투 제목",
+          "titlePlaceholder": "예: 가맹점 등록",
+          "create": "봉투 만들기"
+        },
+        "view": {
+          "loading": "봉투를 불러오는 중",
+          "notFoundTitle": "이 봉투를 찾을 수 없습니다",
+          "failedTitle": "봉투를 불러오지 못했습니다",
+          "retry": "다시 시도",
+          "backToDocuments": "문서로 돌아가기"
+        },
+        "draft": {
+          "back": "문서로 돌아가기",
+          "delete": "초안 삭제",
+          "deleteTitle": "이 봉투 초안을 삭제할까요?",
+          "deleteBody": "{count, plural, other {안에 있는 문서 #개도 함께 삭제됩니다.}} 아직 아무것도 발송되지 않았습니다. 되돌릴 수 없습니다.",
+          "deleteConfirm": "초안 삭제",
+          "cancel": "유지",
+          "deleted": "봉투 초안을 삭제했습니다",
+          "readOnly": "이 봉투를 볼 수는 있지만 수정할 수는 없습니다."
+        },
+        "documents": {
+          "heading": "문서",
+          "hint": "여기서 각 문서의 입력란을 준비하세요. 사람과 옵션은 봉투 전체에서 함께 쓰입니다.",
+          "form": "양식",
+          "pages": "{count, plural, other {#쪽}}",
+          "problems": "{count, plural, other {고칠 항목 #개}}",
+          "ready": "준비됨",
+          "edit": "준비하기"
+        },
+        "people": {
+          "heading": "사람",
+          "intro": "각 사람을 한 번만 추가하고 문서마다 어떤 역할인지 정하세요. 봉투 전체에 대해 메시지와 링크를 하나씩만 받습니다.",
+          "ordered": "순서대로 한 명씩 서명",
+          "orderedHint": "사람마다 단계를 정하세요. 같은 단계의 사람은 함께 서명하며, 그 단계의 모든 사람이 모든 문서를 마친 뒤에야 다음 단계에 초대합니다.",
+          "empty": "아직 목록에 아무도 없습니다.",
+          "personN": "{n}번째 사람",
+          "remove": "{name} 제거",
+          "removeShort": "제거",
+          "fullName": "이름",
+          "email": "이메일",
+          "channel": {
+            "label": "링크 보내는 방법",
+            "email": "이메일",
+            "whatsapp": "WhatsApp"
+          },
+          "whatsappOff": "이 워크스페이스에서는 WhatsApp이 켜져 있지 않습니다.",
+          "phone": "국가 번호를 포함한 전화번호",
+          "step": "단계",
+          "stepHint": "같은 단계의 사람은 함께 서명합니다.",
+          "rolesHeading": "이 사람이 각 문서에서 맡는 역할",
+          "roleOn": "{document}에서의 역할",
+          "notOn": "이 문서에는 없음",
+          "errors": {
+            "name": "이름을 입력해 주세요.",
+            "email": "올바른 이메일 주소를 입력해 주세요.",
+            "phone": "국가 번호를 포함한 전화번호를 입력해 주세요.",
+            "noDocument": "이 사람을 문서 하나 이상에 넣거나 제거해 주세요."
+          },
+          "add": "사람 추가",
+          "conflictsLabel": "사람 목록에서 고칠 항목"
+        },
+        "options": {
+          "heading": "옵션",
+          "hint": "봉투의 모든 문서에 적용됩니다."
+        },
+        "review": {
+          "heading": "검토 및 발송",
+          "ordered": "설정한 단계에 따라 순서대로 서명합니다.",
+          "allAtOnce": "모든 사람에게 동시에 초대를 보냅니다.",
+          "counts": "{people, plural, other {#명}}에게 보내는 문서 {documents, plural, other {#개}}입니다.",
+          "limit": "이 봉투에는 문서 {needed}개 분량이 필요하지만, 이번 달 이 워크스페이스에는 {remaining}개만 남아 있습니다.",
+          "problemsTitle": "{count, plural, other {발송 전에 고칠 항목 #개}}",
+          "sharedHeading": "봉투",
+          "fixDocument": "문서 열기",
+          "fixPeople": "사람으로 이동",
+          "fixOptions": "옵션으로 이동",
+          "layout": "{count, plural, other {유효하지 않은 입력란 #개}}",
+          "ready": "모든 준비가 끝났습니다. 발송할 수 있습니다.",
+          "openEnvelope": "봉투 열기",
+          "send": "문서 {count, plural, other {#개}} 보내기",
+          "noPermission": "문서를 보낼 권한이 없습니다.",
+          "sendBlocked": "위에 나온 항목을 고치면 보낼 수 있습니다.",
+          "sendNote": "목록에 있는 모든 사람에게 바로 초대가 갑니다. 발송한 뒤에는 문서를 편집할 수 없습니다."
+        },
+        "sent": {
+          "title": "봉투를 보냈습니다",
+          "subtitle": "문서 {count, plural, other {#개}}를 보냈습니다. 각 사람은 메시지를 하나씩 받았습니다.",
+          "open": "봉투 열기"
+        },
+        "problems": {
+          "envelope_size": "봉투 하나에는 문서를 {range}개 담을 수 있습니다.",
+          "envelope_too_many_pages": "봉투는 모두 합쳐 최대 {range}쪽까지 가능합니다.",
+          "duplicate_person": "{n}번째 사람의 이메일 주소가 다른 사람과 같습니다.",
+          "person_without_document": "{n}번째 사람이 어떤 문서에도 들어 있지 않습니다.",
+          "role_two_people": "{document}의 역할 {role}에 사람이 두 명 이상입니다. 한 사람에게만 맡겨 주세요."
+        },
+        "banner": {
+          "title": "봉투 안의 문서 {number}/{count}",
+          "open": "봉투 열기",
+          "manageNote": "알림, 새 링크, 수신자 변경, 기한 연장, 취소는 문서 하나가 아니라 봉투 전체에 대해 처리합니다."
+        },
+        "member": {
+          "backToEnvelope": "봉투로 돌아가기",
+          "banner": "봉투 “{title}”의 문서 {number}/{count}입니다. 사람, 옵션, 발송은 봉투에서 설정합니다.",
+          "openEnvelope": "봉투 열기"
+        },
+        "detail": {
+          "sentOn": "{date} 발송",
+          "expiresOn": "{date} 만료",
+          "extend": "기한 연장",
+          "void": "봉투 취소",
+          "banner": {
+            "completed": "문서 {count, plural, other {#개}}가 모두 서명되었습니다.",
+            "declinedBy": "{name}님이 서명을 거절하여 봉투 전체가 중단되었습니다.",
+            "declined": "누군가 서명을 거절하여 봉투 전체가 중단되었습니다.",
+            "expired": "봉투가 {date}에 만료되었습니다.",
+            "voided": "봉투가 취소되었습니다.",
+            "failed": "서명된 파일을 만들지 못했습니다. 실패한 문서를 열어 어떻게 해야 하는지 확인하세요.",
+            "sealing": "모두 서명했습니다. 서명된 파일을 만드는 중입니다.",
+            "waiting": "{names}님을 기다리는 중입니다.",
+            "sent": "봉투를 보냈습니다. 아직 초대된 사람이 없습니다.",
+            "reason": "사유: {reason}"
+          },
+          "progress": "문서 {total}개 중 {done}개가 완료되었습니다.",
+          "partly": "문서가 하나 이상 모든 사람의 서명을 마쳤으므로 이 봉투는 더 이상 취소할 수 없습니다.",
+          "documents": "문서",
+          "download": "서명본",
+          "openDocument": "열기",
+          "people": "{count, plural, other {#명}}",
+          "step": "{step}단계",
+          "notInvited": "아직 초대하지 않았습니다. 이 사람의 단계가 아직 시작되지 않았습니다.",
+          "remindHeld": "{time} 이후에 알림을 다시 보낼 수 있습니다.",
+          "cannotReplace": "이 사람은 이미 봉투의 일부에 서명했으므로 교체할 수 없습니다.",
+          "extendDialog": {
+            "title": "모든 사람에게 기한 연장",
+            "body": "더 늦은 날짜를 고르세요. 아직 열려 있는 모든 문서에 적용됩니다.",
+            "label": "새 만료일",
+            "cancel": "취소",
+            "action": "기한 연장",
+            "done": "새 날짜를 저장했습니다"
+          }
+        }
       }
     },
     "signer": {
@@ -10098,7 +10948,8 @@
         "language": "언어",
         "secured": "{product}이(가) 보호합니다",
         "skipToContent": "본문으로 건너뛰기",
-        "tryAgain": "다시 시도"
+        "tryAgain": "다시 시도",
+        "testBanner": "TEST: 이 문서는 템플릿을 시험해 보기 위해 발송되었습니다. 실제 계약이 아닙니다."
       },
       "invalid": {
         "title": "유효하지 않은 링크예요",
@@ -10126,7 +10977,8 @@
         "recorded": "이름, 이메일 주소, 네트워크 주소(IP)와 기기, 시간, 그리고 이 페이지에서 하신 작업을 기록해요.",
         "agree": "동의합니다",
         "readFirst": "먼저 문서 읽기",
-        "hideDocument": "문서 숨기기"
+        "hideDocument": "문서 숨기기",
+        "titleForm": "전자 방식으로 제출"
       },
       "doc": {
         "reference": "참조 번호 {reference}",
@@ -10151,7 +11003,8 @@
         "zoomOut": "축소",
         "pageLabel": "{total}쪽 중 {page}쪽",
         "openingDocument": "문서를 여는 중...",
-        "documentFailed": "문서를 열 수 없었어요."
+        "documentFailed": "문서를 열 수 없었어요.",
+        "declineForm": "작성하고 싶지 않습니다"
       },
       "tap": {
         "signature": "눌러서 서명",
@@ -10250,14 +11103,18 @@
         "reasonLabel": "사유 (선택)",
         "reasonHelp": "여기에 쓴 내용은 보낸 분이 볼 수 있어요.",
         "keep": "돌아가기",
-        "confirm": "서명 거절"
+        "confirm": "서명 거절",
+        "titleForm": "이 양식을 작성하지 않으시겠어요?",
+        "bodyForm": "보낸 사람에게 알려지며, 양식은 여기서 중단됩니다. 되돌릴 수 없습니다.",
+        "confirmForm": "작성 거부"
       },
       "end": {
         "signed": {
           "title": "서명을 마쳤어요",
           "thanks": "{name}님, 감사합니다.",
           "waiting": "다른 분들의 서명을 기다리고 있어요. 모두 마치면 서명된 사본을 이메일로 보내 드려요.",
-          "almost": "모든 분이 서명했어요. 문서를 마무리하고 있으며, 서명된 사본을 이메일로 보내 드려요."
+          "almost": "모든 분이 서명했어요. 문서를 마무리하고 있으며, 서명된 사본을 이메일로 보내 드려요.",
+          "waitingFor": "{name}님이 마치기를 기다리고 있습니다. 모두 끝나면 서명본을 이메일로 보내 드립니다."
         },
         "sealing": {
           "title": "문서를 마무리하고 있어요",
@@ -10269,7 +11126,8 @@
           "body": "모든 분이 서명했어요. 서명된 문서의 사본을 보관하실 수 있어요.",
           "download": "서명된 PDF 다운로드",
           "view": "서명된 PDF 보기",
-          "byEmail": "서명된 사본을 이메일 주소로 보냈어요."
+          "byEmail": "서명된 사본을 이메일 주소로 보냈어요.",
+          "delegate": "맡으신 부분을 작성해 주셔서 감사합니다. 완성된 문서는 발신자가 보관합니다."
         },
         "declined": {
           "title": "서명되지 않은 문서예요",
@@ -10291,6 +11149,27 @@
         "notInvited": {
           "title": "아직 차례가 아니에요",
           "body": "먼저 서명해야 하는 분이 있어요. 차례가 되면 메시지로 알려 드릴게요. 이 페이지는 닫으셔도 돼요."
+        },
+        "sealingForm": {
+          "title": "제출 내용을 기록하고 있습니다",
+          "body": "모든 분이 제출을 마쳤습니다. 기록을 정리하고 있습니다. 이 페이지는 저절로 갱신되므로 열어 두셔도 됩니다.",
+          "slow": "평소보다 오래 걸리고 있습니다. 이 페이지를 닫으셔도 됩니다. 기록이 준비되는 대로 이메일로 보내 드리겠습니다."
+        },
+        "completedForm": {
+          "title": "제출이 기록되었습니다",
+          "body": "모든 분이 제출을 마쳤습니다. 제출한 내용의 기록 사본을 보관하실 수 있습니다.",
+          "download": "기록 내려받기",
+          "view": "기록 보기",
+          "byEmail": "기록 사본이 이메일 주소로 전송되었습니다."
+        },
+        "declinedForm": {
+          "title": "이 양식은 작성되지 않았습니다",
+          "you": "작성하지 않기로 하셨습니다. 보낸 사람에게 알렸습니다.",
+          "other": "이 양식의 누군가가 작성하지 않기로 하여 더 이상 진행되지 않습니다. 하실 일은 없습니다."
+        },
+        "notInvitedForm": {
+          "title": "아직 차례가 아닙니다",
+          "body": "먼저 끝내야 하는 분이 있습니다. 차례가 되면 메시지를 보내 드립니다. 이 페이지는 닫으셔도 됩니다."
         }
       },
       "others": {
@@ -10300,7 +11179,9 @@
         "turn": "지금 차례예요",
         "invited": "아직 서명하지 않음",
         "waiting": "차례를 기다리는 중",
-        "done": "완료"
+        "done": "완료",
+        "titleForm": "작성 중인 사람",
+        "invitedForm": "아직 마치지 않음"
       },
       "errors": {
         "generic": "문제가 생겼어요. 다시 시도해 주세요.",
@@ -10321,7 +11202,77 @@
         "missing_required": "아직 비어 있는 필수 항목이 있어요.",
         "invalid_answers": "수정이 필요한 항목이 있어요. 페이지에 표시해 두었어요.",
         "body_too_large": "보내기에는 너무 커요. 더 작은 사진을 사용해 주세요.",
-        "session_unavailable": "지금은 서명할 수 없어요. 나중에 다시 시도해 주세요."
+        "session_unavailable": "지금은 서명할 수 없어요. 나중에 다시 시도해 주세요.",
+        "forward_not_allowed": "이 문서는 전달이 허용되지 않습니다.",
+        "forward_details": "이름과 올바른 이메일 주소를 입력하세요.",
+        "forward_same_person": "본인의 주소입니다. 넘길 상대방의 주소를 입력하세요.",
+        "forward_already_signer": "이미 이 문서에 있는 사람입니다.",
+        "forward_limit": "전달 횟수에 제한이 있습니다. 대신 발신자에게 문의하세요.",
+        "forward_part_unknown": "이 부분은 전달할 수 없습니다.",
+        "delegate_cannot_forward": "넘겨받은 부분은 다시 넘길 수 없습니다.",
+        "delegation_open": "넘긴 부분이 아직 끝나지 않았습니다. 기다리거나 되찾으세요.",
+        "delegate_cannot_decline": "작성하도록 넘겨받은 것입니다. 할 수 없다면 넘겨준 사람에게 알려 주세요.",
+        "part_already_forwarded": "이 부분은 이미 다른 사람에게 넘겨졌습니다.",
+        "part_not_forwarded": "이 부분은 다른 사람에게 있지 않습니다.",
+        "part_already_completed": "이 부분은 이미 완료되어 되찾을 수 없습니다."
+      },
+      "forward": {
+        "action": "다른 사람에게 전달",
+        "titleTurn": "내 차례 전달",
+        "titlePart": "한 부분 전달: {part}",
+        "bodyTurn": "선택한 사람이 대신 서명합니다. 그 사람은 전용 링크를 받고 직접 서명에 동의합니다. 내 링크는 즉시 작동하지 않게 됩니다.",
+        "bodyPart": "선택한 사람은 이 부분만 작성하며 다른 내용은 볼 수 없습니다. 서명은 하지 않습니다. 작성이 끝나면 직접 검토하고 서명하세요.",
+        "left": "앞으로 {count, plural, other {#번}} 더 전달할 수 있습니다.",
+        "name": "상대방 이름",
+        "email": "상대방 이메일",
+        "note": "상대방에게 남길 메모 (선택)",
+        "noteHelp": "상대방이 이메일에서 읽게 됩니다.",
+        "cancel": "취소",
+        "confirmTurn": "내 차례 전달",
+        "confirmPart": "이 부분 전달",
+        "problemDetails": "상대방의 이름과 올바른 이메일 주소를 입력하세요.",
+        "doneTitle": "전달했습니다",
+        "doneBody": "{name}님에게 대신 진행할 링크를 보냈습니다. 더 하실 일은 없으며 이 페이지를 닫으셔도 됩니다.",
+        "doneNotSent": "{name}님에게 보낸 메시지를 전달하지 못했습니다. 이 문서를 보낸 사람에게 알려 주세요.",
+        "fromTurn": "{name}님이 대신 작성해 달라고 요청했습니다. 직접 전자 서명에 동의하게 됩니다.",
+        "fromPart": "{name}님이 이 문서의 한 부분을 작성해 달라고 요청했습니다. 해당 부분만 볼 수 있습니다."
+      },
+      "envelope": {
+        "next": "다음 문서",
+        "finish": "마치고 모두 서명",
+        "declineNote": "이 선택은 봉투 전체를 끝냅니다. 모든 사람에게 {count, plural, other {문서 #개}}가 중단됩니다.",
+        "listLabel": "이 봉투의 문서",
+        "position": "문서 {number}/{count}",
+        "open": "{title} 열기",
+        "notFinal": "마지막 문서를 마칠 때까지는 아무것도 확정되지 않습니다. 다른 문서는 어떤 순서로든 열 수 있습니다.",
+        "introTitle": "서명할 문서 {count, plural, other {#개}}",
+        "introTitleFill": "작성할 문서 {count, plural, other {#개}}",
+        "introBody": "이번 한 번의 방문에서 차례로 모두 진행하며, 동의는 한 번만 하면 됩니다.",
+        "state": {
+          "active": "해야 함",
+          "signed": "완료",
+          "sealing": "마무리 중",
+          "completed": "완료됨",
+          "declined": "거절됨",
+          "expired": "만료됨",
+          "voided": "취소됨",
+          "failed": "문제 있음",
+          "not_invited": "아직 차례가 아님"
+        },
+        "end": {
+          "completed": {
+            "title": "문서 {count, plural, other {#개}}가 모두 완료되었습니다",
+            "body": "모든 사람이 서명했습니다. 아래에서 서명된 문서를 각각 내려받을 수 있습니다.",
+            "byEmail": "서명된 문서는 이메일로도 보냈습니다."
+          },
+          "signed": {
+            "title": "문서 {count, plural, other {#개}}에 모두 서명했습니다",
+            "body": "감사합니다, {name}님. 맡으신 부분을 마쳤습니다.",
+            "waiting": "다른 사람들을 기다리고 있습니다. 모두 마치면 서명된 문서가 담긴 이메일을 받게 됩니다."
+          },
+          "download": "{title} 내려받기",
+          "downloadShort": "내려받기"
+        }
       }
     },
     "signerForm": {
@@ -10333,7 +11284,15 @@
         "progressLabel": "진행 상황",
         "percent": "{percent}% 완료",
         "counts": "{total}개 중 {done}개 답변함",
-        "continue": "계속하기: {part}"
+        "continue": "계속하기: {part}",
+        "waitingFor": "{name}님을 기다리는 중",
+        "doneBy": "{name}님이 완료",
+        "takeBack": "되찾기",
+        "takeBackAsk": "이 부분을 {name}님에게서 되찾을까요? 지금까지 입력한 내용은 그대로 남습니다.",
+        "takeBackYes": "예, 되찾기",
+        "takeBackNo": "계속 맡기기",
+        "takeBackFailed": "되찾지 못했습니다. 방금 완료했을 수 있습니다.",
+        "forwardPart": "이 부분을 다른 사람에게 전달"
       },
       "status": {
         "not_started": "시작 전",
@@ -10351,7 +11310,10 @@
         "saving": "답변을 저장하고 있어요. 곧 열려요.",
         "check": "아직 확인이 필요한 답변이 있어요. 완료되지 않은 부분을 열어 보세요.",
         "readySign": "양식에 적힌 답변을 확인한 뒤 서명해 주세요.",
-        "readySubmit": "모두 채워졌어요. 준비되면 답변을 보내세요."
+        "readySubmit": "모두 채워졌어요. 준비되면 답변을 보내세요.",
+        "waitingDelegates": "넘긴 {count, plural, other {#개 부분}}을(를) 기다리는 중입니다.",
+        "reviewSubmit": "검토 후 제출",
+        "readyReviewSubmit": "답변을 확인한 다음 제출하세요."
       },
       "part": {
         "position": "{total}개 중 {number}번째 부분",
@@ -10491,10 +11453,48 @@
           "title": "답변을 보냈어요",
           "thanks": "{name}님, 감사합니다.",
           "next": "더 하실 일은 없어요."
+        },
+        "submitted": {
+          "title": "감사합니다. 정보가 전송되었습니다",
+          "thanks": "감사합니다, {name}님.",
+          "next": "더 하실 일은 없습니다. 제출한 내용의 기록이 이메일로 전송됩니다.",
+          "waiting": "다른 분들이 마치기를 기다리고 있습니다. 모든 분이 마치면 제출된 내용의 기록이 이메일로 전송됩니다."
         }
       },
       "preview": {
         "note": "미리 보기예요. 여기에 입력한 내용은 저장되거나 전송되지 않아요."
+      },
+      "search": {
+        "label": "{label} 검색",
+        "placeholder": "입력하여 검색",
+        "clear": "{label} 지우기",
+        "remove": "{item} 제거",
+        "selected": "선택됨 ({count})",
+        "count": "{count}/{max}",
+        "limit": "최대 {max}개까지 추가할 수 있습니다.",
+        "results": "{count, plural, other {#개 일치}}",
+        "noMatches": "일치하는 항목이 없습니다",
+        "noMatchesFor": "{query}와(과) 일치하는 항목이 없습니다",
+        "more": "처음 {shown}개를 표시합니다. 더 입력해서 범위를 좁히세요."
+      },
+      "sensitive": {
+        "note": "이 답변은 암호화되어 저장되며 직원에게는 마스킹된 형태로 표시됩니다.",
+        "showNamed": "{label} 표시",
+        "hideNamed": "{label} 숨기기"
+      },
+      "submitReview": {
+        "title": "검토 후 제출",
+        "parts": "답변 (부분별)",
+        "body": "답변을 확인하세요. 제출하면 전송되고 기록이 보관됩니다.",
+        "change": "변경",
+        "changePart": "{part} 부분 변경",
+        "picture": "그림이 첨부되었습니다",
+        "notAnswered": "답변 없음",
+        "sensitiveNote": "비공개로 표시된 정보는 여기에서 가려서 표시되며 암호화되어 보관됩니다.",
+        "back": "부분 목록으로 돌아가기",
+        "submit": "제출",
+        "submitting": "제출 중...",
+        "afterwards": "제출한 후에는 답변을 바꿀 수 없습니다."
       }
     },
     "verify": {
@@ -10504,7 +11504,9 @@
       "reference": "참조 번호 {reference}",
       "signers": {
         "title": "서명한 사람",
-        "none": "이 문서에 표시할 서명이 없습니다."
+        "none": "이 문서에 표시할 서명이 없습니다.",
+        "titleForm": "제출자",
+        "noneForm": "이 문서에 등록된 제출이 없습니다."
       },
       "trail": {
         "intactTitle": "이 문서의 기록은 완전하며 변경되지 않았습니다",
@@ -10526,12 +11528,576 @@
         "differentBody": "내용이 바뀌었거나 다른 프로그램이나 PDF 편집기로 다시 저장되었을 수 있습니다. 보낸 사람에게 서명된 원본을 요청하세요.",
         "readError": "파일을 읽을 수 없습니다. 다시 선택해 주세요.",
         "unsupported": "이 브라우저는 파일을 확인할 수 없습니다. 최신 브라우저에서 이 페이지를 열어 주세요.",
-        "fingerprint": "서명된 원본의 지문(SHA-256)"
+        "fingerprint": "서명된 원본의 지문(SHA-256)",
+        "matchTitleForm": "봉인된 기록과 정확히 같은 파일입니다",
+        "matchBodyForm": "가지고 계신 사본이 봉인된 기록과 바이트 단위로 같습니다.",
+        "differentTitleForm": "봉인된 기록이 아닌 파일입니다",
+        "differentBodyForm": "변경되었거나 다른 프로그램 또는 PDF 편집기로 다시 저장되었을 수 있습니다. 보낸 사람에게 봉인된 기록을 요청하세요.",
+        "fingerprintForm": "봉인된 기록의 지문 (SHA-256)"
       },
       "readerHint": "전자 서명 자체를 보려면 Adobe Acrobat 같은 PDF 리더로 PDF를 열고 서명 패널을 확인하세요.",
       "notFound": {
         "title": "이 문서를 찾을 수 없습니다",
         "body": "코드 전체를 스캔했는지, 주소 전체를 열었는지 확인해 주세요. 그래도 열리지 않으면 문서를 보내 준 사람에게 문의하세요."
+      },
+      "signedTitleForm": "이 제출은 기록되었습니다",
+      "envelope": "이 문서는 다른 문서와 함께 서명되었으며, 문서 {count, plural, other {#개}}가 든 하나의 봉투에 속해 있습니다."
+    },
+    "bulk": {
+      "title": "일괄 발송",
+      "subtitle": "같은 템플릿을 여러 사람에게 한 번에 보냅니다. 문서는 백그라운드에서 만들어 발송됩니다.",
+      "backToDocuments": "문서 목록으로 돌아가기",
+      "noPermission": "문서를 보낼 권한이 없습니다.",
+      "back": "이전",
+      "next": "다음",
+      "steps": {
+        "label": "일괄 발송 단계",
+        "complete": "완료",
+        "template": "템플릿",
+        "people": "대상자",
+        "setup": "설정",
+        "review": "확인 및 발송"
+      },
+      "template": {
+        "heading": "어떤 템플릿을 사용할까요?",
+        "hint": "목록에 있는 모든 사람이 이 템플릿의 사본을 각각 받습니다."
+      },
+      "people": {
+        "heading": "누가 문서를 받나요?",
+        "sourceLabel": "대상자 목록의 출처",
+        "source": {
+          "csv": "CSV 파일 업로드",
+          "csvHint": "CSV로 저장한 스프레드시트, 최대 {max}명.",
+          "contacts": "연락처 선택",
+          "contactsHint": "연락처에서 대상자를 고릅니다. 최대 {max}명."
+        },
+        "chooseHint": "최대 {max}명, {size}MB 이하의 CSV 파일을 선택하세요.",
+        "chooseFile": "파일 선택",
+        "removeFile": "이 파일 제거",
+        "fileSize": "{size} KB",
+        "fileError": {
+          "too_large": "이 파일이 {size}MB보다 큽니다. 더 작은 파일로 나누세요.",
+          "not_csv": "CSV 파일이 아닙니다. 스프레드시트에서 다른 이름으로 저장을 눌러 CSV(UTF-8)를 선택하세요.",
+          "unreadable": "파일을 읽을 수 없습니다. CSV로 다시 저장해 보세요."
+        },
+        "columnsHint": "첫 번째 행에는 열 이름이 있어야 합니다. full_name과 email은 필수이고 phone과 contact_id는 선택입니다.",
+        "valuesHint": "이 템플릿은 다음 값도 채웁니다. 값마다 열이 하나씩 필요합니다: {keys}.",
+        "sample": "샘플 파일 다운로드",
+        "contactsNeedFile": "이 템플릿은 연락처에 없는 값({keys})을 채웁니다. 값마다 열이 있는 CSV 파일을 사용하세요.",
+        "noContacts": "아직 선택한 연락처가 없습니다. 위에서 검색해 보낼 사람을 고르세요.",
+        "contactCount": "연락처 {count}명 선택됨 (최대 {max}명)",
+        "unnamed": "이름 없는 연락처",
+        "noEmail": "이메일 주소 없음",
+        "removeContact": "{name} 제거"
+      },
+      "setup": {
+        "loading": "템플릿을 불러오는 중",
+        "peopleHeading": "누가, 어떻게 받나요",
+        "personRole": "목록에 있는 사람이 맡을 역할",
+        "personRoleHint": "각자 이 역할로 서명합니다. 다른 역할은 아래의 고정 담당자가 맡습니다.",
+        "personRoleMissing": "역할을 선택하세요.",
+        "chooseRole": "역할 선택",
+        "channel": "연락 방법",
+        "channels": {
+          "email": "이메일",
+          "whatsapp": "WhatsApp"
+        },
+        "whatsappHint": "WhatsApp 메시지에는 모든 사람의 국가 코드가 포함된 전화번호가 필요합니다. 예: +60123456789.",
+        "emailHint": "서명 링크가 각자의 이메일 주소로 발송됩니다.",
+        "fixedHeading": "다른 역할",
+        "fixedHint": "이 역할은 모든 문서에서 같은 사람이 맡습니다. 예: 귀사의 이사.",
+        "fixedRequired": "담당자 필요",
+        "fixedOptional": "선택",
+        "fixedName": "이름",
+        "fixedEmail": "이메일",
+        "fixedChannel": "연락 방법",
+        "fixedPhone": "전화번호",
+        "fixedPhoneHint": "국가 코드를 포함하세요. 예: +60123456789.",
+        "fixedIncomplete": "{role}의 이름과 올바른 이메일을 입력하세요.",
+        "optionsHeading": "모든 문서에 공통인 설정",
+        "title": "각 문서의 제목",
+        "titleHint": "{token}은(는) 받는 사람의 이름으로 바뀝니다. 비워 두면 템플릿 이름 뒤에 받는 사람의 이름이 붙습니다.",
+        "titlePlaceholder": "템플릿과 받는 사람 이름에서 가져옴",
+        "titleTooLong": "제목은 최대 200자입니다.",
+        "category": "분류",
+        "categoryDefault": "템플릿의 분류",
+        "language": "초대장 언어",
+        "languageHint": "메시지와 서명 페이지가 이 언어로 열립니다.",
+        "useDefault": "기본값 사용",
+        "lang": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "message": "서명자에게 보내는 메시지",
+        "messageHint": "선택 사항입니다. 모든 초대장에 표시됩니다.",
+        "messageTooLong": "메시지는 최대 2000자입니다.",
+        "expiry": "링크 만료까지 일수",
+        "expiryHint": "각 문서를 보낸 시점부터 계산합니다. 비우면 기본값을 씁니다.",
+        "expiryBad": "1에서 365 사이의 정수로 입력하세요.",
+        "reminders": "리마인더",
+        "remindersHint": "발송 후 경과 일수를 쉼표로 구분해 입력하세요. 예: 3, 7. 리마인더를 끄려면 0을 입력하세요. 비우면 기본값을 씁니다.",
+        "remindersBad": "1에서 60 사이의 정수를 최대 5개까지 입력하거나, 없으면 0을 입력하세요.",
+        "code": "인증 코드 필요",
+        "codeHint": "각 서명자는 문서를 열기 전에 일회용 코드를 입력합니다.",
+        "yes": "예",
+        "no": "아니요",
+        "order": "서명 순서",
+        "orderHint": "예: 템플릿의 역할 순서대로 한 사람씩 차례로 서명합니다."
+      },
+      "review": {
+        "checking": "목록과 템플릿을 확인하는 중...",
+        "recheck": "다시 확인",
+        "summaryHeading": "이렇게 진행됩니다",
+        "summary": "{template}: 목록에 {total}명이 있습니다.",
+        "ready": "발송 가능",
+        "withProblems": "문제 있음",
+        "total": "목록 전체",
+        "fileProblems": "목록을 아직 사용할 수 없습니다:",
+        "planProblems": "설정을 고쳐야 합니다:",
+        "ignoredColumns": "다음 열은 사용되지 않습니다: {columns}. 템플릿이 채워야 하는 값이라면 철자를 확인하세요.",
+        "headroomFits": "이번 달에 {limit}건 중 {used}건을 보냈으므로 {remaining}건을 더 보낼 수 있습니다. 이번 일괄 발송은 {needed}건입니다.",
+        "headroomShort": "이번 달에 {limit}건 중 {used}건을 보냈으므로 {remaining}건만 더 보낼 수 있지만 이번 일괄 발송에는 {needed}건이 필요합니다. 인원을 줄이거나 계정 소유자에게 한도를 올려 달라고 요청하세요.",
+        "skipInvalid": "문제가 없는 사람에게만 보내고 나머지 {count}명은 건너뛰기",
+        "skipInvalidHint": "문제가 있는 사람은 결과에 건너뜀으로 표시되고 이유가 함께 기록됩니다.",
+        "peopleHeading": "대상자",
+        "onlyProblems": "문제 있는 사람만 보기",
+        "colRow": "행",
+        "colName": "이름",
+        "colEmail": "이메일",
+        "colProblems": "문제",
+        "empty": "(비어 있음)",
+        "rowOk": "발송 가능",
+        "noRows": "표시할 사람이 없습니다.",
+        "showAll": "나머지 {count}명 보기",
+        "start": "{count}건 발송"
+      },
+      "job": {
+        "title": "일괄 발송: {template}",
+        "backToBulk": "일괄 발송",
+        "started": "{date}에 시작됨",
+        "finished": "{date}에 끝남.",
+        "loading": "일괄 발송을 불러오는 중",
+        "progress": "진행 상황",
+        "answered": "{total}건 중 {done}건 완료",
+        "noteQueued": "1분 안에 시작됩니다. 이 페이지를 닫아도 됩니다. 문서는 백그라운드에서 발송됩니다.",
+        "noteRunning": "백그라운드에서 발송 중입니다. 이 페이지를 닫고 나중에 결과를 확인해도 됩니다.",
+        "noteDone": "모든 문서를 발송했습니다.",
+        "noteDoneWithProblems": "끝났습니다. 일부는 문서를 받지 못했습니다. 각 행 옆의 이유를 확인하세요.",
+        "noteCancelled": "취소되었습니다. 이미 보낸 문서는 그대로 발송된 상태이고 나머지는 건너뛰었습니다.",
+        "noteFailed": "중단됨: {reason}",
+        "refreshFailed": "최신 수치를 불러오지 못했습니다. 다시 시도합니다.",
+        "download": "결과 다운로드 (CSV)",
+        "cancel": "나머지 취소",
+        "cancelConfirm": "아직 대기 중인 사람에게 보내는 것을 중단할까요?",
+        "cancelYes": "예, 중단",
+        "cancelNo": "계속 발송",
+        "openList": "문서 목록 열기",
+        "people": "대상자",
+        "filter": "보기",
+        "filterAll": "전체",
+        "colResult": "결과",
+        "colDocument": "문서",
+        "openDocument": "열기",
+        "noRows": "표시할 사람이 없습니다.",
+        "retryHint": "문서를 받지 못한 사람에게 다시 보내려면 파일에서 해당 행을 고친 뒤, 그 행만으로 새 일괄 발송을 시작하세요."
+      },
+      "state": {
+        "pending": "대기 중",
+        "sending": "발송 중",
+        "sent": "발송됨",
+        "failed": "실패",
+        "skipped": "건너뜀"
+      },
+      "status": {
+        "queued": "시작 대기 중",
+        "running": "발송 중",
+        "done": "완료",
+        "failed": "중단됨",
+        "cancelled": "취소됨"
+      },
+      "recent": {
+        "heading": "최근 일괄 발송",
+        "counts": "{total}건 중 {sent}건 발송",
+        "failed": "최근 일괄 발송을 불러오지 못했습니다."
+      },
+      "list": {
+        "bulkSend": "일괄 발송",
+        "exportCsv": "CSV 내보내기",
+        "selectRow": "{title} 선택",
+        "selectAll": "이 화면의 모든 문서 선택",
+        "selectionBar": "선택한 문서",
+        "selected": "문서 {count}건 선택됨",
+        "downloadZip": "선택한 문서를 zip으로 다운로드",
+        "clearSelection": "선택 해제",
+        "zipHint": "완료된 문서만 서명된 파일이 있습니다. 한 번에 최대 {max}건.",
+        "zipFull": "한 번에 최대 {max}건입니다. 다른 문서를 고르려면 하나를 해제하세요.",
+        "zipDone": "서명된 파일 {included}개를 다운로드했습니다.",
+        "zipDoneSkipped": "서명된 파일 {included}개를 다운로드했습니다. 문서 {skipped}건은 제외되었습니다. zip 안의 NOT-INCLUDED.txt를 확인하세요."
+      },
+      "problem": {
+        "name_missing": "이름이 없습니다.",
+        "name_too_long": "이름이 160자를 넘습니다.",
+        "email_missing": "이메일 주소가 없습니다.",
+        "email_invalid": "이메일 주소가 올바르지 않습니다.",
+        "email_duplicate": "같은 이메일 주소가 {detail}행에 이미 있습니다.",
+        "phone_invalid": "WhatsApp에는 국가 코드가 포함된 전화번호가 필요합니다.",
+        "merge_missing": "템플릿에 필요한 값이 없습니다: {detail}.",
+        "merge_too_long": "값이 너무 깁니다: {detail}.",
+        "contact_invalid": "연락처 ID가 올바르지 않습니다.",
+        "contact_not_found": "이 워크스페이스에서 해당 연락처를 찾을 수 없습니다.",
+        "same_person_twice": "이 사람은 고정 담당자이기도 하며 서명 순서가 켜져 있습니다."
+      },
+      "file": {
+        "empty_file": "파일이 비어 있습니다.",
+        "no_header": "첫 번째 행에 열 이름이 없습니다.",
+        "missing_column": "파일에 {detail}라는 열이 없습니다.",
+        "duplicate_column": "{detail} 열이 두 번 이상 나옵니다.",
+        "too_many_rows": "파일에 {detail}명이 있습니다. 최대 500명입니다. 더 작은 파일로 나누세요.",
+        "too_large": "파일이 1MB보다 큽니다. 더 작은 파일로 나누세요.",
+        "no_rows": "파일에 머리글만 있고 사람이 없습니다.",
+        "unknown": "이 파일을 사용할 수 없습니다."
+      },
+      "plan": {
+        "template_not_ready": "이 템플릿은 아직 발송할 수 없습니다({detail}). 템플릿 편집기에서 열어 표시된 문제를 고치세요.",
+        "bad_person_role": "목록에 있는 사람의 역할이 템플릿의 역할에 없습니다.",
+        "bad_fixed_signer": "{detail}의 고정 담당자를 사용할 수 없습니다(없는 역할, 목록과 같은 역할, 또는 중복 지정).",
+        "fixed_signer_name": "{detail}의 고정 담당자 이름을 입력하세요.",
+        "fixed_signer_email": "{detail}의 고정 담당자의 올바른 이메일을 입력하세요.",
+        "fixed_signer_phone": "{detail}의 고정 담당자의 국가 코드가 포함된 전화번호를 입력하세요.",
+        "role_without_person": "{detail} 역할에는 작성할 항목이 있지만 지정된 사람이 없습니다. 고정 담당자를 추가하세요.",
+        "signer_without_signature": "{detail} 역할은 서명해야 하지만 템플릿에 서명 또는 이니셜 필드가 없습니다.",
+        "merge_needs_file": "템플릿이 연락처에 없는 값({detail})을 채웁니다. 값마다 열이 있는 CSV 파일을 사용하세요.",
+        "bad_options": "설정 단계의 일부 선택이 올바르지 않습니다. 설정 단계로 돌아가 확인하세요."
+      },
+      "errors": {
+        "generic": "문제가 발생했습니다. 다시 시도하세요.",
+        "bad_options": "일부 선택이 올바르지 않습니다. 돌아가 설정을 확인하세요.",
+        "list_required": "파일 또는 연락처 중 하나만 선택하세요.",
+        "bulk_file_problems": "목록을 사용할 수 없습니다. 다시 확인하세요.",
+        "bulk_not_ready": "설정이 완료되지 않았습니다. 다시 확인하세요.",
+        "rows_have_problems": "목록에 문제가 있는 사람이 {detail}명 있습니다. 목록을 고치거나 건너뛰기를 선택하세요.",
+        "nothing_to_send": "문서를 보낼 사람이 없습니다.",
+        "sign_limit_reached": "이번 일괄 발송이 이 워크스페이스가 이번 달에 더 보낼 수 있는 문서 수를 넘습니다(남은 수 / 필요한 수: {detail}). 인원을 줄이거나 계정 소유자에게 한도를 올려 달라고 요청하세요.",
+        "too_many_bulk_jobs": "이미 일괄 발송 3건이 진행 중입니다. 하나가 끝난 뒤 다시 시도하세요.",
+        "template_not_found": "템플릿을 찾을 수 없습니다.",
+        "template_not_active": "이 템플릿은 활성 상태가 아닙니다. 다른 템플릿을 고르거나 먼저 활성화하세요.",
+        "template_has_no_version": "이 템플릿에는 저장된 버전이 아직 없습니다.",
+        "category_not_found": "분류를 찾을 수 없습니다.",
+        "job_not_found": "해당 일괄 발송을 찾을 수 없습니다.",
+        "job_finished": "이 일괄 발송은 이미 끝났습니다.",
+        "nothing_to_download": "선택한 문서 중 서명된 파일이 있는 것이 아직 없습니다. 완료된 문서만 해당됩니다.",
+        "bad_ids": "문서를 1건에서 50건 사이로 선택하세요.",
+        "sign_disabled": "이 워크스페이스에는 Doc Sign이 켜져 있지 않습니다.",
+        "network": "서버에 연결할 수 없습니다. 연결을 확인한 뒤 다시 시도하세요.",
+        "signed_out": "로그아웃되었습니다. 계속하려면 다시 로그인하세요.",
+        "forbidden": "이 작업을 할 권한이 없습니다.",
+        "rate_limited": "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+        "body_too_large": "요청이 너무 큽니다. 더 작은 파일을 사용하세요."
+      },
+      "reason": {
+        "sign_limit_reached": "월 문서 한도에 도달했습니다.",
+        "cancelled": "이 문서를 보내기 전에 일괄 발송이 취소되었습니다.",
+        "gave_up": "여러 번 시도했지만 끝나지 않았습니다. 문서를 확인하고 필요하면 직접 보내세요.",
+        "sign_disabled": "이 워크스페이스의 Doc Sign이 꺼졌습니다.",
+        "template_not_found": "템플릿이 삭제되었습니다.",
+        "template_not_active": "템플릿이 더 이상 활성 상태가 아닙니다.",
+        "template_has_no_version": "템플릿에 저장된 버전이 없습니다.",
+        "category_not_found": "분류를 찾을 수 없습니다.",
+        "not_ready": "문서를 보낼 준비가 되지 않았습니다. 초안을 열어 부족한 부분을 확인하세요.",
+        "signer_name": "이름이 올바르지 않습니다.",
+        "signer_email": "이메일 주소가 올바르지 않습니다.",
+        "signer_phone": "WhatsApp에는 국가 코드가 포함된 전화번호가 필요합니다.",
+        "signer_role": "역할이 템플릿의 역할에 없습니다.",
+        "expiry_in_the_past": "만료일이 이미 지났습니다.",
+        "document_not_draft": "문서가 이미 발송되었습니다.",
+        "database_error": "저희 쪽에서 문제가 발생했습니다. 새 일괄 발송에서 이 사람을 다시 시도하세요.",
+        "row_not_open": "이 행은 이미 처리되었습니다.",
+        "unexpected": "이 문서를 보내는 중 문제가 발생했습니다.",
+        "unknown": "이 문서는 발송되지 않았습니다.",
+        "withMessage": "발송되지 않음: {message}"
+      }
+    },
+    "lists": {
+      "intro": "목록은 양식에서 사용할 수 있는 선택지 모음으로, 주나 국가, 은행을 한 번만 적어 두고 한 곳에서 최신 상태로 관리할 수 있습니다. 일부는 Doc Sign에 기본으로 들어 있으며, 직접 추가할 수도 있습니다. 목록을 수정해도 이미 발송된 문서는 바뀌지 않습니다.",
+      "new": "새 목록",
+      "loading": "목록을 불러오는 중...",
+      "loadFailed": "목록을 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "showArchived": "보관된 목록 표시 ({count})",
+      "colName": "목록",
+      "colType": "유형",
+      "colItems": "항목 수",
+      "colVersion": "버전",
+      "colActions": "작업",
+      "archivedBadge": "보관됨",
+      "typeSystem": "Doc Sign 기본 제공",
+      "typeOwn": "내 목록",
+      "kindMsic": "MSIC 코드",
+      "openList": "{name} 열기",
+      "open": "열기",
+      "footnote": "목록을 사용하는 양식은 템플릿을 저장할 때 그 목록의 사본을 받고, 문서를 만들 때와 발송할 때 다시 받습니다. 이미 발송된 문서는 발송 당시의 사본을 그대로 유지합니다.",
+      "created": "목록을 만들었습니다",
+      "back": "모든 목록",
+      "versionValue": "버전 {version}",
+      "rename": "이름 변경",
+      "exportCsv": "CSV 내보내기",
+      "importCsv": "CSV 가져오기",
+      "reset": "기본값으로 되돌리기",
+      "archiveList": "목록 보관",
+      "restoreList": "목록 복원",
+      "listArchived": "목록을 보관했습니다",
+      "listRestored": "목록을 복원했습니다",
+      "listSaved": "목록을 저장했습니다",
+      "systemNote": "이 목록은 Doc Sign에 기본으로 들어 있습니다. 표현을 바꾸고 항목을 추가할 수 있으며, 값은 그대로 유지되므로 응답의 의미가 항상 보존됩니다. 더 이상 필요 없는 항목은 보관하면 새 양식에서 숨겨집니다.",
+      "systemNoteMsic": "말레이시아 통계청(DOSM)이 발표한 MSIC 2008 사업 활동 코드입니다. 표현을 바꾸고 직접 코드를 추가할 수 있으며, 공식 코드는 그대로 유지됩니다. CSV를 가져오면 한 번에 많이 바꿀 수 있습니다.",
+      "usedBy": "{count, plural, =0 {사용하는 템플릿 없음} other {템플릿 #개에서 사용 중}}",
+      "usedByNone": "아직 이 목록을 사용하는 템플릿이 없습니다. 양식 빌더에서 필드에 이 목록을 선택하세요.",
+      "usedByHint": "각 템플릿의 현재 버전을 기준으로 센 것입니다. 템플릿이 사용하는 목록을 바꾸려면 해당 양식을 수정하세요.",
+      "status": {
+        "draft": "초안",
+        "active": "활성",
+        "archived": "보관됨"
+      },
+      "search": "항목 검색",
+      "searchPlaceholder": "값 또는 표현으로 검색",
+      "searchPlaceholderMsic": "코드 또는 설명으로 검색",
+      "addItem": "항목 추가",
+      "noMatches": "{query}와(과) 일치하는 항목이 없습니다.",
+      "noItems": "이 목록에는 아직 항목이 없습니다.",
+      "colValue": "값",
+      "colEnglish": "영어",
+      "colMalay": "말레이어",
+      "colOther": "다른 언어",
+      "colGroup": "그룹",
+      "lang": {
+        "zh": "ZH",
+        "ko": "KO"
+      },
+      "moveUp": "{name} 위로 이동",
+      "moveDown": "{name} 아래로 이동",
+      "editItem": "{name} 수정",
+      "archiveItem": "{name} 보관",
+      "restoreItem": "{name} 복원",
+      "pages": "페이지",
+      "showing": "{total}개 중 {from}~{to}번째 표시",
+      "previous": "이전",
+      "next": "다음",
+      "pageOf": "{pages}페이지 중 {page}페이지",
+      "count": "{count, plural, other {항목 #개}}",
+      "itemAdded": "항목을 추가했습니다",
+      "itemSaved": "항목을 저장했습니다",
+      "cancel": "취소",
+      "resetTitle": "{name}을(를) 기본값으로 되돌릴까요?",
+      "resetBody": "Doc Sign에 기본으로 들어 있는 모든 항목이 원래의 표현과 위치로 돌아가며, 보관된 항목은 다시 표시됩니다. 직접 추가한 항목은 그 뒤에 그대로 남습니다. 삭제되는 것은 없으며, 이미 만든 양식도 바뀌지 않습니다.",
+      "resetConfirm": "기본값으로 되돌리기",
+      "resetDone": "목록을 기본값으로 되돌렸습니다",
+      "meta": {
+        "newTitle": "새 목록",
+        "editTitle": "목록 이름 변경",
+        "keyMade": "키는 이름에서 만들어지며 이후에는 바뀌지 않습니다. 양식은 키로 목록을 지정합니다.",
+        "keyFixed": "키: {key}. 양식은 키로 목록을 지정하므로 키는 바뀌지 않습니다.",
+        "name": "이름",
+        "description": "설명 (선택)",
+        "nameRequired": "목록 이름을 입력하세요.",
+        "cancel": "취소",
+        "save": "저장",
+        "create": "목록 만들기"
+      },
+      "item": {
+        "newTitle": "항목 추가",
+        "editTitle": "항목 수정",
+        "valueHint": "값은 응답과 함께 저장됩니다. 영문자, 숫자, _ . - 만 사용할 수 있으며 예를 들어 sdn_bhd 와 같습니다. 나중에 바꿀 수 없습니다.",
+        "valueHintMsic": "다섯 자리 MSIC 코드입니다. 예: 62010. 나중에 바꿀 수 없습니다.",
+        "valueFixed": "값은 응답과 양식이 저장하는 내용이므로 바꿀 수 없습니다. 표현은 자유롭게 바꿀 수 있습니다.",
+        "value": "값",
+        "labelEn": "영어 (필수)",
+        "labelIn": "{language}",
+        "fallsBack": "비워 두면 사람들은 영어 표현을 보게 됩니다.",
+        "group": "그룹 (선택)",
+        "groupHint": "항목이 속하는 짧은 제목입니다. 예: 분류 번호. 검색과 내보내기에 사용됩니다.",
+        "cancel": "취소",
+        "save": "저장",
+        "add": "항목 추가"
+      },
+      "import": {
+        "title": "{name}에 가져오기",
+        "intro": "CSV 파일을 불러옵니다. 열: value, en(영어 표현), 그리고 필요하면 ms(말레이어), zh, ko, group, archived. 문제가 있는 행은 제외되고 목록으로 표시되며, 나머지는 사용됩니다.",
+        "introMsic": "MSIC 코드 CSV 파일을 불러옵니다: code, description(영어), 그리고 필요하면 말레이어 설명. 스프레드시트에서 앞의 0이 사라진 네 자리 코드는 다시 채워집니다.",
+        "choose": "CSV 파일 선택",
+        "chooseOther": "다른 파일 선택",
+        "file": "파일: {name}",
+        "format": "Excel에서 CSV UTF-8로 저장하세요. 열은 쉼표, 세미콜론 또는 탭으로 구분할 수 있습니다.",
+        "mode": "파일 처리 방법",
+        "modeMerge": "새 항목을 추가하고 기존 항목을 업데이트",
+        "modeMergeHint": "파일에 없는 항목은 그대로 남습니다. 파일에서 비워 둔 언어는 유지됩니다.",
+        "modeReplace": "파일로 목록 전체를 바꾸기",
+        "modeReplaceHint": "파일에 없는 항목은 목록에서 제거됩니다. 이미 만든 양식은 바뀌지 않습니다.",
+        "systemMergeOnly": "Doc Sign 기본 목록은 추가와 업데이트만 할 수 있습니다.",
+        "checking": "파일을 확인하는 중...",
+        "summary": "추가 {added}개, 업데이트 {updated}개, 변경 없음 {unchanged}개, 제거 {removed}개.",
+        "removedWarning": "{count, plural, other {항목 #개가 목록에서 제거됩니다.}}",
+        "skipped": "{count, plural, other {#개 행을 사용할 수 없어 제외했습니다:}}",
+        "changed": "{count, plural, other {#개 행이 조정되었습니다:}}",
+        "row": "{row}행:",
+        "moreProblems": "외 {count}개",
+        "cancel": "취소",
+        "apply": "가져오기",
+        "done": "가져오기를 마쳤습니다",
+        "problems": {
+          "empty_file": "파일이 비어 있습니다.",
+          "missing_value_column": "파일에 값 열이 없습니다. 첫 번째 열의 이름을 value 또는 code로 지정하세요.",
+          "missing_en_column": "파일에 영어 열이 없습니다. 이름을 en, English 또는 description으로 지정하세요.",
+          "no_rows": "파일에 제목 행만 있고 데이터 행이 없습니다.",
+          "too_many_rows": "파일의 행이 5,000개를 넘습니다.",
+          "empty_value": "값이 없습니다.",
+          "code_padded": "코드 {detail}의 앞자리 0이 사라져 다시 채웠습니다.",
+          "bad_msic_code": "{detail}은(는) 다섯 자리 MSIC 코드가 아닙니다.",
+          "bad_value": "{detail}은(는) 올바른 값이 아닙니다 (영문자, 숫자, _ . - 만 사용 가능).",
+          "duplicate_value": "{detail}이(가) 여러 번 나옵니다. 처음 것을 사용합니다.",
+          "empty_label": "{detail}에 영어 표현이 없습니다.",
+          "label_too_long": "{detail}의 표현이 300자를 넘습니다.",
+          "group_too_long": "{detail}의 그룹이 40자를 넘습니다.",
+          "unknown": "이 행은 사용할 수 없습니다."
+        }
+      },
+      "errors": {
+        "generic": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "network": "서버에 연결할 수 없습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+        "signed_out": "로그아웃되었습니다. 계속하려면 다시 로그인하세요.",
+        "forbidden": "목록을 변경할 권한이 없습니다.",
+        "rate_limited": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+        "request_failed": "요청이 처리되지 않았습니다. 다시 시도해 주세요.",
+        "database_error": "당사 쪽에서 문제가 발생했습니다. 다시 시도해 주세요.",
+        "body_too_large": "보내기에는 너무 큽니다. 더 작은 파일을 사용하세요.",
+        "bad_json": "요청을 이해하지 못했습니다. 다시 시도해 주세요.",
+        "list_not_found": "해당 목록을 찾을 수 없습니다.",
+        "bad_list": "목록이 올바르지 않습니다.",
+        "bad_name": "목록 이름은 120자 이내로 입력하세요.",
+        "bad_description": "설명은 500자까지 입력할 수 있습니다.",
+        "bad_archived": "목록을 보관할지 선택하세요.",
+        "bad_items": "항목이 올바르지 않습니다.",
+        "bad_item": "올바르지 않은 항목이 있습니다.",
+        "bad_label": "각 항목에는 영어 표현이 필요하며, 각 표현은 300자까지 입력할 수 있습니다.",
+        "bad_group": "그룹은 40자까지 입력할 수 있습니다.",
+        "bad_value": "값은 영문자, 숫자, 문자 _ . - 만 사용할 수 있고, 영문자나 숫자로 시작해야 하며, 60자까지 입력할 수 있습니다.",
+        "bad_msic_code": "MSIC 코드는 다섯 자리 숫자입니다. 예: 62010.",
+        "empty_value": "값을 입력하세요.",
+        "empty_label": "영어 표현을 입력하세요.",
+        "label_too_long": "표현은 300자까지 입력할 수 있습니다.",
+        "group_too_long": "그룹은 40자까지 입력할 수 있습니다.",
+        "duplicate_value": "이미 목록에 있는 값입니다.",
+        "too_many_items": "목록에는 항목을 5,000개까지 넣을 수 있습니다.",
+        "list_values_locked": "Doc Sign 기본 목록은 모든 값을 그대로 유지합니다. 항목을 제거하지 말고 보관하세요.",
+        "value_removed": "이 값은 제거할 수 없습니다.",
+        "system_list_merge_only": "Doc Sign 기본 목록은 추가나 업데이트만 가능하며 교체할 수 없습니다.",
+        "not_a_system_list": "Doc Sign 기본 목록만 기본값으로 되돌릴 수 있습니다.",
+        "bad_import": "CSV 파일과 가져오는 방법을 선택하세요.",
+        "import_failed": "이 파일에서는 가져올 수 있는 내용이 없습니다."
+      }
+    },
+    "register": {
+      "title": "등록 시작하기",
+      "intro": {
+        "document": "아래에 정보를 입력해 주세요. 읽고 서명하실 수 있도록 문서를 이메일로 보내 드립니다.",
+        "details": "아래에 정보를 입력해 주세요. 저희가 연락드리겠습니다.",
+        "form": "아래에 정보를 입력해 주세요. 나머지를 작성하실 수 있도록 링크를 이메일로 보내 드립니다."
+      },
+      "optional": "(선택)",
+      "fields": {
+        "full_name": {
+          "label": "이름"
+        },
+        "company": {
+          "label": "회사 또는 사업체 이름"
+        },
+        "email": {
+          "label": "이메일 주소",
+          "hint": "문서를 이 주소로 보내 드리니 맞는지 확인해 주세요."
+        },
+        "phone": {
+          "label": "전화번호",
+          "hint": "국가 번호를 포함해 입력해 주세요. 예: +60 12-345 6789",
+          "placeholder": "+60 12-345 6789"
+        }
+      },
+      "problems": {
+        "full_name": {
+          "required": "이름을 입력해 주세요.",
+          "too_long": "이름이 너무 깁니다. 120자 이하로 입력해 주세요.",
+          "invalid": "< 와 > 기호를 지워 주세요."
+        },
+        "company": {
+          "required": "회사 또는 사업체 이름을 입력해 주세요.",
+          "too_long": "이름이 너무 깁니다. 160자 이하로 입력해 주세요.",
+          "invalid": "< 와 > 기호를 지워 주세요."
+        },
+        "email": {
+          "required": "이메일 주소를 입력해 주세요.",
+          "too_long": "이메일 주소가 너무 깁니다.",
+          "invalid": "올바른 이메일 주소를 입력해 주세요. 예: name@company.com"
+        },
+        "phone": {
+          "required": "전화번호를 입력해 주세요.",
+          "too_long": "번호가 너무 깁니다.",
+          "invalid": "국가 번호를 포함해 입력해 주세요. 예: +60 12-345 6789"
+        },
+        "consent": {
+          "required": "계속하려면 동의 상자에 체크해 주세요."
+        }
+      },
+      "errors": {
+        "invalid": "일부 정보를 고쳐야 합니다. 아래에 표시되어 있습니다.",
+        "token_invalid": "이 페이지가 오래되었습니다. ‘보내기’를 다시 눌러 주세요.",
+        "token_expired": "이 페이지가 너무 오래 열려 있었습니다. ‘보내기’를 다시 눌러 주세요.",
+        "token_too_fast": "잠시 후 ‘보내기’를 다시 눌러 주세요.",
+        "captcha_failed": "사람인지 확인하지 못했습니다. 확인을 마치고 다시 시도해 주세요.",
+        "rate_limited": "현재 연결에서 시도가 너무 많았습니다. 잠시 기다린 후 다시 시도해 주세요.",
+        "try_later": "지금은 정보를 받을 수 없습니다. 나중에 다시 시도해 주세요.",
+        "generic": "문제가 생겼습니다. 다시 시도해 주세요.",
+        "network": "연결되지 않았습니다. 인터넷을 확인하고 다시 시도해 주세요."
+      },
+      "captcha": {
+        "waiting": "사람인지 확인하는 중…",
+        "failed": "확인 창을 불러오지 못했습니다. 페이지를 새로고침한 후 다시 시도해 주세요."
+      },
+      "honeypot": "이 칸은 비워 두세요",
+      "send": "보내기",
+      "sending": "보내는 중…",
+      "success": {
+        "documentTitle": "이메일을 확인해 주세요",
+        "documentBody": "{email}(으)로 문서를 보냈습니다. 이메일을 열고 링크를 따라 계속해 주세요.",
+        "spam": "몇 분이 지나도 보이지 않나요? 스팸 메일함을 확인해 보세요.",
+        "detailsTitle": "감사합니다",
+        "detailsBody": "정보를 받았습니다. 곧 연락드리겠습니다.",
+        "formBody": "{email}(으)로 링크를 보냈습니다. 이메일을 열고 링크를 따라 정보를 완성해 주세요."
+      },
+      "notice": {
+        "form_cap": {
+          "title": "오늘은 매우 바쁩니다",
+          "body": "이 페이지는 오늘 더 이상 등록을 받을 수 없습니다. 내일 다시 시도해 주세요."
+        },
+        "send_failed": {
+          "title": "지금은 보낼 수 없습니다",
+          "body": "정보는 저장되었으며 {workspace}에서 연락드립니다. 다시 보내실 필요는 없습니다."
+        },
+        "unavailable": {
+          "title": "지금은 이 페이지를 사용할 수 없습니다",
+          "body": "나중에 다시 시도해 주세요."
+        },
+        "not_found": {
+          "title": "이 페이지를 사용할 수 없습니다",
+          "body": "링크가 잘못되었거나 등록이 마감되었을 수 있습니다. 받은 링크를 확인해 주세요."
+        }
+      },
+      "notFound": {
+        "title": "이 페이지를 사용할 수 없습니다",
+        "body": "링크가 잘못되었거나 등록이 마감되었을 수 있습니다. 받은 링크를 확인해 주세요."
+      },
+      "unavailable": {
+        "title": "지금은 이 페이지를 사용할 수 없습니다",
+        "body": "나중에 다시 시도해 주세요."
       }
     }
   }

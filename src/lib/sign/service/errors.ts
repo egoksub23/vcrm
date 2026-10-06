@@ -33,6 +33,48 @@ const DB_CODES: Record<string, { code: string; status: number; message: string }
   document_not_sealing: { code: "document_not_sealing", status: 409, message: "This document is not being sealed." },
   invalid_sign_status_move: { code: "invalid_status_move", status: 409, message: "That change is not allowed in the document's current state." },
   sign_document_is_frozen: { code: "document_frozen", status: 409, message: "A document that was sent cannot be edited." },
+  // retention (migration 165): a signed document is kept until its date, and the date only moves later
+  sign_document_retained: { code: "document_retained", status: 409, message: "This signed document is kept until its retention date and cannot be deleted before then." },
+  sign_document_cannot_be_deleted: { code: "document_cannot_be_deleted", status: 409, message: "Only a draft can be deleted. Void a document that was sent." },
+  sign_retention_cannot_shorten: { code: "retention_cannot_shorten", status: 409, message: "The retention date of a document can be extended, never shortened." },
+  // forwarding and steps (migration 166)
+  forward_not_allowed: { code: "forward_not_allowed", status: 403, message: "Forwarding is not switched on for this document." },
+  delegate_cannot_forward: { code: "delegate_cannot_forward", status: 403, message: "A part that was handed to you cannot be passed on again." },
+  forward_limit: { code: "forward_limit", status: 400, message: "This can only be handed on a couple of times. Ask the sender instead." },
+  forward_details: { code: "forward_details", status: 400, message: "Enter a full name and a valid email." },
+  forward_same_person: { code: "forward_same_person", status: 400, message: "That is your own address. Enter the person you are handing this to." },
+  forward_already_signer: { code: "forward_already_signer", status: 400, message: "That person is already on this document." },
+  forward_part_unknown: { code: "forward_part_unknown", status: 400, message: "That part is not yours to forward." },
+  part_already_forwarded: { code: "part_already_forwarded", status: 409, message: "That part was already handed to someone." },
+  part_not_forwarded: { code: "part_not_forwarded", status: 409, message: "That part is not with anyone else." },
+  part_already_completed: { code: "part_already_completed", status: 409, message: "That part has been completed, so it cannot be taken back." },
+  delegation_open: { code: "delegation_open", status: 409, message: "A part you forwarded is not finished yet. Wait for it, or take it back." },
+  step_not_movable: { code: "step_not_movable", status: 409, message: "That person can only be moved to a step that has not begun." },
+  // test documents and attached records (migration 170)
+  sign_document_test_is_fixed: { code: "test_is_fixed", status: 409, message: "Whether a document is a test cannot change once it is sent." },
+  sign_document_ticket_not_in_workspace: { code: "link_not_found", status: 400, message: "That ticket was not found." },
+  sign_document_deal_not_in_workspace: { code: "link_not_found", status: 400, message: "That deal was not found." },
+  // envelopes (migration 171)
+  envelope_not_found: { code: "envelope_not_found", status: 404, message: "That envelope was not found." },
+  envelope_not_draft: { code: "envelope_not_draft", status: 409, message: "This envelope was already sent." },
+  envelope_not_sent: { code: "envelope_not_sent", status: 409, message: "This envelope has not been sent." },
+  envelope_needs_2_to_6_documents: { code: "envelope_size", status: 400, message: "An envelope has two to six documents." },
+  envelope_documents_mismatch: { code: "envelope_documents", status: 409, message: "The documents of this envelope changed. Open it again." },
+  envelope_options_differ: { code: "envelope_options", status: 400, message: "Every document of an envelope must use the same signing order and code." },
+  envelope_person_without_party: { code: "envelope_people", status: 400, message: "Every person of an envelope must be on its signing list." },
+  envelope_person_twice_on_a_document: { code: "envelope_person_twice", status: 400, message: "A person can have only one role on each document of an envelope." },
+  envelope_person_steps_differ: { code: "envelope_people", status: 400, message: "A person must be in the same step on every document." },
+  envelope_person_anchor_wrong: { code: "envelope_people", status: 400, message: "The signing list of this envelope is not sound. Save it again." },
+  envelope_partly_completed: { code: "envelope_partly_completed", status: 409, message: "A document of this envelope was already signed by everyone, so the envelope cannot be cancelled." },
+  envelope_person_has_signed: { code: "envelope_person_has_signed", status: 409, message: "This person has already signed a document of the envelope, so they cannot be replaced." },
+  document_in_envelope: { code: "document_in_envelope", status: 409, message: "This document is part of an envelope. Do this on the envelope." },
+  sign_envelope_no_forwarding: { code: "envelope_no_forwarding", status: 409, message: "Documents of an envelope cannot be forwarded." },
+  sign_envelope_no_test: { code: "envelope_no_test", status: 409, message: "A test document cannot be part of an envelope." },
+  sign_envelope_is_frozen: { code: "envelope_frozen", status: 409, message: "An envelope that was sent cannot be edited." },
+  sign_document_envelope_is_fixed: { code: "envelope_fixed", status: 409, message: "A document cannot be moved out of its envelope." },
+  sign_envelope_not_open_for_documents: { code: "envelope_not_draft", status: 409, message: "This envelope was already sent." },
+  // the unique (account_id, reference) of sign_documents: only a caller that chose its own reference (the public API) can hit it
+  sign_documents_reference: { code: "reference_in_use", status: 409, message: "That reference is already used by another document." },
 };
 
 /** Turn an error from the database (a function that raised, or a trigger) into a SignError when it is one we expect. */

@@ -15,7 +15,8 @@
 
 import type { PlacedField } from "../../pdf/types";
 import { SENDER_ROLE } from "../../rules";
-import { DIRECTOR_ROLE, MERCHANT_FORM, MERCHANT_ROLE, PART, TERM_HEADINGS } from "./form";
+// The page is drawn from the generation-1 form: its tick boxes need the options typed in, and the PDF must not change when a field moves to a shared list.
+import { DIRECTOR_ROLE, MERCHANT_FORM_V1 as MERCHANT_FORM, MERCHANT_ROLE, PART, TERM_HEADINGS } from "./form";
 
 export const PAGE = { w: 595.28, h: 841.89 } as const;
 const M = 40;

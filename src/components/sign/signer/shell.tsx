@@ -25,10 +25,12 @@ interface ShellProps {
   wide?: boolean;
   /** The sticky bar of the document screen needs room at the bottom. */
   bottomSpace?: boolean;
+  /** A document sent to try a template out (F-10): a red band under the header says so on every screen. */
+  test?: boolean;
   children: ReactNode;
 }
 
-export function Shell({ workspace, locale, onLocaleChange, product, wide, bottomSpace, children }: ShellProps) {
+export function Shell({ workspace, locale, onLocaleChange, product, wide, bottomSpace, test, children }: ShellProps) {
   const t = useTranslations("Sign.signer");
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -48,6 +50,11 @@ export function Shell({ workspace, locale, onLocaleChange, product, wide, bottom
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
         </div>
       </header>
+      {test ? (
+        <p role="note" className="border-b border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-semibold text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {t("common.testBanner")}
+        </p>
+      ) : null}
       <main id="sign-main" tabIndex={-1} className={cn("mx-auto w-full flex-1 outline-none", wide ? "max-w-6xl" : "max-w-2xl px-3 py-6", bottomSpace && "pb-28")}>
         {children}
       </main>

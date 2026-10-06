@@ -18,21 +18,25 @@ import { FieldError } from "./sheet-parts";
 interface DeclineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** A form without a signature (migration 169): the words say "complete", not "sign". */
+  formOnly?: boolean;
+  /** Migration 171: this is an envelope of that many documents; declining ends every one that is not yet fully signed, and the words say so. */
+  envelopeCount?: number;
   /** Decline with the reason (may be empty). Resolves to the words of what went wrong, or null when it worked. */
   onConfirm: (reason: string) => Promise<string | null>;
 }
 
-export function DeclineDialog({ open, onOpenChange, onConfirm }: DeclineDialogProps) {
+export function DeclineDialog({ open, onOpenChange, onConfirm, formOnly, envelopeCount }: DeclineDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="motion-reduce:animate-none motion-reduce:duration-0 sm:max-w-md">
-        {open ? <DeclineForm onCancel={() => onOpenChange(false)} onConfirm={onConfirm} /> : null}
+        {open ? <DeclineForm onCancel={() => onOpenChange(false)} onConfirm={onConfirm} formOnly={formOnly} envelopeCount={envelopeCount} /> : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DeclineForm({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (reason: string) => Promise<string | null> }) {
+function DeclineForm({ onCancel, onConfirm, formOnly, envelopeCount }: { onCancel: () => void; onConfirm: (reason: string) => Promise<string | null>; formOnly?: boolean; envelopeCount?: number }) {
   const t = useTranslations("Sign.signer");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,8 +56,9 @@ function DeclineForm({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-lg leading-snug">{t("decline.title")}</DialogTitle>
-        <DialogDescription>{t("decline.body")}</DialogDescription>
+        <DialogTitle className="text-lg leading-snug">{formOnly ? t("decline.titleForm") : t("decline.title")}</DialogTitle>
+        <DialogDescription>{formOnly ? t("decline.bodyForm") : t("decline.body")}</DialogDescription>
+        {envelopeCount ? <p className="text-sm font-medium">{t("envelope.declineNote", { count: envelopeCount })}</p> : null}
       </DialogHeader>
       <div className="space-y-2">
         <label htmlFor={reasonId} className="block text-sm font-medium">
@@ -77,7 +82,7 @@ function DeclineForm({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
         </Button>
         <Button type="button" className="h-11 bg-red-700 text-base text-white hover:bg-red-800 focus-visible:ring-red-500/50" onClick={() => void confirm()} disabled={busy}>
           {busy ? <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden /> : null}
-          {t("decline.confirm")}
+          {formOnly ? t("decline.confirmForm") : t("decline.confirm")}
         </Button>
       </div>
     </>

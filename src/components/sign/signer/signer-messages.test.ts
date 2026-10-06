@@ -71,6 +71,19 @@ const FAMILIES: Record<string, string[]> = {
     "invalid_answers",
     "body_too_large",
     "session_unavailable",
+    // forwarding a turn or a part (migration 166)
+    "forward_not_allowed",
+    "forward_details",
+    "forward_same_person",
+    "forward_already_signer",
+    "forward_limit",
+    "forward_part_unknown",
+    "delegate_cannot_forward",
+    "delegation_open",
+    "delegate_cannot_decline",
+    "part_already_forwarded",
+    "part_not_forwarded",
+    "part_already_completed",
   ],
   // every code checkAnswer can give, and the page's own
   problems: ["text_too_long", "not_a_number", "not_a_date", "not_an_option", "not_a_checkbox", "bad_image", "bad_typed_signature", "not_your_field", "missing_required", "generic"],
@@ -102,7 +115,7 @@ run("Sign.signer messages", () => {
       for (const [key, english] of en) {
         const translator = (m: Tree, loc: string) => createTranslator({ locale: loc, messages: m as never, namespace: undefined, onError: () => {} });
         // the placeholders are the argument names in the message: each must work with the same values
-        const values = { count: 2, done: 1, total: 3, page: 1, name: "Ali", workspace: "Kedai", product: "Halo", time: "0:42", to: "a***@x.test", reference: "R-1", date: "20 Oct 2026", value: "06 Oct 2026" };
+        const values = { count: 2, done: 1, total: 3, page: 1, name: "Ali", part: "Bank details", workspace: "Kedai", product: "Halo", time: "0:42", to: "a***@x.test", reference: "R-1", date: "20 Oct 2026", value: "06 Oct 2026" };
         const asEn = translator(messages!.en, "en") as unknown as (k: string, v: object) => string;
         const asOther = translator(messages![locale], locale) as unknown as (k: string, v: object) => string;
         const a = asEn(key, values);

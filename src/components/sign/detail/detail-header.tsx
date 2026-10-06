@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChevronRight, Download, Eye, FileDown, Loader2, Ban } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { documentBadgeClass, documentStatusKey, SIGN_STATUS_NAMESPACE } from "@/lib/sign/client/status";
 import type { SignDocumentRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
@@ -26,9 +27,11 @@ interface Props {
   onView: () => void;
   onDownload: (kind: DownloadKind) => void;
   onVoid: () => void;
+  /** F-95: the sender's switch for forwarding, while the document is open (absent when it cannot change). */
+  forwarding?: { allowed: boolean; busy: boolean; onChange: (allow: boolean) => void };
 }
 
-export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid }: Props) {
+export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid, forwarding }: Props) {
   const t = useTranslations("Sign.detail");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const locale = useLocale();
@@ -50,17 +53,20 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="min-w-0 break-words text-2xl font-bold text-foreground">{doc.title}</h1>
             <span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium", documentBadgeClass(doc.status))}>{ts(documentStatusKey(doc.status))}</span>
-            {doc.sign_in_order && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.inOrder")}</span>}
+            {doc.test && <span className="inline-flex h-6 items-center rounded-full bg-red-100 px-2.5 text-xs font-bold tracking-wide text-red-700 uppercase dark:bg-red-950 dark:text-red-300">{t("header.testChip")}</span>}
+            {doc.mode === "form" && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.formChip")}</span>}
+            {doc.sign_in_order && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t(doc.mode === "form" ? "header.inOrderForm" : "header.inOrder")}</span>}
             {doc.code_required && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.codeRequired")}</span>}
           </div>
           {doc.reference && <p className="mt-1 text-sm text-muted-foreground">{t("header.reference", { reference: doc.reference })}</p>}
+          {doc.test && <p className="mt-1 max-w-[70ch] text-sm text-red-700 dark:text-red-300">{t("header.testNote")}</p>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {actions.downloadSigned && (
             <Button onClick={() => onDownload("final")} disabled={downloading !== null}>
               {downloading === "final" ? <Loader2 className="animate-spin" aria-hidden /> : <Download aria-hidden />}
-              {t("actions.downloadSigned")}
+              {t(doc.mode === "form" ? "actions.downloadRecord" : "actions.downloadSigned")}
             </Button>
           )}
           {actions.viewKind && (
@@ -83,6 +89,16 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
           )}
         </div>
       </div>
+
+      {forwarding && (
+        <label className="flex w-fit cursor-pointer items-start gap-2.5 text-sm">
+          <Checkbox className="mt-0.5" checked={forwarding.allowed} disabled={forwarding.busy} onCheckedChange={(c) => forwarding.onChange(c === true)} />
+          <span>
+            <span className="block font-medium text-foreground">{t("forwarding.label")}</span>
+            <span className="block text-xs text-muted-foreground">{t(forwarding.allowed ? "forwarding.onHint" : "forwarding.offHint")}</span>
+          </span>
+        </label>
+      )}
 
       <dl className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
         {links.category && <Meta label={t("meta.category")}>{links.category}</Meta>}

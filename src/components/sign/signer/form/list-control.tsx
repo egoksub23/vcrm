@@ -6,7 +6,7 @@
 // left out when the answer is saved, so a blank row costs nothing.
 // ============================================================
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -16,12 +16,20 @@ import { formatKey, listLimit } from "@/lib/sign/client/signer-form";
 
 import { inputList, type ControlProps } from "./control-props";
 import { useFormText } from "./form-ui";
+import { SearchPicker } from "./search-picker";
+import { RevealButton } from "./reveal-button";
 
-export function ListControl({ field, id, input, invalid, describedBy, onInput, onBlur }: ControlProps) {
+/** `secret`: a sensitive list; the entries are hidden as they are typed, with one button to show them (sensitive-control.tsx). */
+export function ListControl({ field, id, input, invalid, describedBy, onInput, onBlur, secret = false }: ControlProps & { secret?: boolean }) {
   const t = useTranslations("Sign.signerForm");
   const text = useFormText();
+  const [shownSecret, setShownSecret] = useState(false);
   const rows = useRef<Array<HTMLInputElement | null>>([]);
   const entries = inputList(input);
+  // entries picked from a shared list (the MSIC codes): a search box that adds one at a time, not free text
+  if (field.options && field.options.length > 0) {
+    return <SearchPicker id={id} options={field.options} mode="multi" selected={entries} onChange={(v) => onInput({ list: v })} onBlur={onBlur} invalid={invalid} describedBy={describedBy} label={text(field.label)} showCode max={listLimit(field)} />;
+  }
   // always one row to type in
   const shown = entries.length > 0 ? entries : [""];
   const limit = listLimit(field);
@@ -69,6 +77,7 @@ export function ListControl({ field, id, input, invalid, describedBy, onInput, o
                 rows.current[i] = el;
               }}
               value={entry}
+              type={secret && !shownSecret ? "password" : "text"}
               inputMode={digits ? "numeric" : "text"}
               autoComplete="off"
               maxLength={Math.min(field.itemLength ?? 100, 100)}
@@ -100,6 +109,7 @@ export function ListControl({ field, id, input, invalid, describedBy, onInput, o
           <Plus className="size-4" aria-hidden />
           {t("list.add")}
         </Button>
+        {secret ? <RevealButton shown={shownSecret} onToggle={() => setShownSecret((v) => !v)} controls={id} label={text(field.label)} /> : null}
         <p className="text-xs text-muted-foreground">{hints.join(" · ")}</p>
       </div>
     </div>

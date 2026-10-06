@@ -18,6 +18,15 @@
 // are sensible Malaysian values marked "to confirm" in the report. Values are stable keys; change a label
 // freely, never a value that answers already use.
 //
+// Two generations of the form (add-on version 1.1 and 2.0, see ../merchant.ts)
+//   1  every option typed in below, nothing marked sensitive: what version 1.1 installed. It is kept (MERCHANT_FORM_V1) because the
+//      template file is DRAWN from it (the tick boxes need the options, so the PDF does not change) and because an update must
+//      recognise a template that still equals it.
+//   2  (the default, MERCHANT_FORM) the choices take their options from the workspace's shared lists (Settings > Doc Sign > Lists:
+//      states, countries, banks, company ID types, e-invoice phases, tax types, MSIC), so an admin who relabels or adds a bank
+//      changes it once; and the answers that identify a person or an account are sensitive (encrypted, masked on the sender's screen,
+//      left out of exports and the API, never written to the contact): see SENSITIVE_FIELDS for which and why.
+//
 // What the shared module cannot say per field (a custom validation message) is worded once per error code
 // by the signing page; the help texts below tell the person the shape that is expected.
 // ============================================================
@@ -149,6 +158,8 @@ export const BANKS: FieldOption[] = [
 export interface MerchantFormOptions {
   /** Who completes the bank part. Default the merchant; "finance" hands it to the optional finance filler. */
   bankRole?: typeof MERCHANT_ROLE | typeof FINANCE_ROLE;
+  /** 1: the form of add-on 1.1 (options typed in). 2 (default): shared option lists and sensitive answers. */
+  generation?: 1 | 2;
 }
 
 export const PART = {
@@ -627,10 +638,59 @@ function fields(): DataField[] {
   ];
 }
 
-/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler. */
+/** The choices that take their options from a shared list in generation 2, and which list. `business_type` stays typed in: it is this add-on's own five. */
+export const LIST_FIELDS: Readonly<Record<string, string>> = {
+  brn_type: "company_id_types",
+  einvoice_phase: "einvoice_phases",
+  tax_type: "tax_types",
+  state: "states_my",
+  country: "countries",
+  bank_name: "banks_my",
+  msic_codes: "msic",
+};
+
+/**
+ * The answers generation 2 marks sensitive (encrypted at rest, shown masked to the sender with a logged "Reveal", never in an export
+ * or the API, never copied to the contact), and how each is printed on the sealed PDF. DECIDED, to confirm with the owner:
+ *   bank_account  sensitive; printed as the last four digits only. A payout account number is the one answer here that lets someone
+ *                 move money, and the sealed agreement is emailed to every signer.
+ *   brn           sensitive; printed in full. It is a company's registration number (public on the SSM register) but, when the type is
+ *                 NRIC or passport, a person's identity number, and the form cannot tell which. The signed agreement has to name the
+ *                 contracting party, so it is not masked there. Turn the switch off in the template editor for a workspace that only
+ *                 signs up companies.
+ *   tin           NOT sensitive. The tax identification number is shared on every e-invoice by design, and staff need it in full to
+ *                 set the merchant up for e-invoicing.
+ * There is no separate identity-card or passport field in this form (the director's ID is an uploaded file, which a file cannot mask).
+ */
+export const SENSITIVE_FIELDS: Readonly<Record<string, Pick<DataField, "printMasked">>> = {
+  bank_account: { printMasked: "last4" },
+  brn: {},
+};
+
+/** Generation 2 of the data fields: the list-bound choices drop their typed-in options, the sensitive ones are flagged. */
+function generation2(list: DataField[]): DataField[] {
+  return list.map((f) => {
+    let out = f;
+    const key = LIST_FIELDS[f.key];
+    if (key) {
+      const { options: _typedIn, ...rest } = f;
+      void _typedIn;
+      out = { ...rest, optionList: key };
+    }
+    const sensitive = SENSITIVE_FIELDS[f.key];
+    if (sensitive) out = { ...out, sensitive: true, ...sensitive };
+    return out;
+  });
+}
+
+/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler, `{ generation: 1 }` for the form of add-on 1.1. */
 export function merchantForm(opts: MerchantFormOptions = {}): FormDefinition {
-  return { version: 1, parts: parts(opts), fields: fields() };
+  const base = fields();
+  return { version: 1, parts: parts(opts), fields: opts.generation === 1 ? base : generation2(base) };
 }
 
 /** The default form: the merchant fills every part. */
 export const MERCHANT_FORM: FormDefinition = merchantForm();
+
+/** The form of add-on version 1.1 (options typed in, nothing sensitive): the template file is drawn from it, and an update recognises it. */
+export const MERCHANT_FORM_V1: FormDefinition = merchantForm({ generation: 1 });

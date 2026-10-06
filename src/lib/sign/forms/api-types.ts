@@ -66,7 +66,10 @@ export interface StaffAnswerRow {
   label: L10n;
   /** The role that completes the part. */
   role: string;
+  /** A sensitive answer arrives masked (`•••• 1234`); the value itself comes only from the reveal route. */
   value: FormValueView | null;
+  /** True for a field the form marks sensitive: the value is a mask and the screen offers "Reveal". */
+  sensitive?: boolean;
   /** `contact` while it is a value from the contact the signer has not confirmed; otherwise `signer`. */
   source: "signer" | "contact" | "sender" | "forwarded";
   savedAt: string | null;
@@ -80,6 +83,8 @@ export interface StaffRoleProgress {
   /** 0 to 100, of required answers given. */
   percent: number;
   lastActivityAt: string | null;
+  /** Parts this person handed to someone else (migration 166): who holds each and whether they have completed it. */
+  delegations?: { part: string; name: string; done: boolean }[];
 }
 
 /** GET /api/sign/documents/[id]/progress (menu.sign) — a document with a form, seen by the sender. */
@@ -91,6 +96,12 @@ export interface StaffProgress {
   lastActivityAt: string | null;
   /** Problems the sender should know (an answer too long for where it prints, for instance). */
   issues: Issue[];
+}
+
+/** POST /api/sign/documents/[id]/sensitive (sign.send) — body `{ field }`; answer `{ field, value }`. Writes a `sensitive_viewed` event first. */
+export interface RevealSensitiveResult {
+  field: string;
+  value: FormValueView;
 }
 
 /** POST /api/sign/documents/[id]/expiry (sign.send) — body `{ expiresAt }` an ISO time in the future; answer `{ expiresAt }`. */

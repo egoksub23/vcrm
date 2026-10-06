@@ -22,6 +22,8 @@ import type {
   SetPriorityStepConfig,
   SetLifecycleStageStepConfig,
   CreateTicketStepConfig,
+  SendSignDocumentStepConfig,
+  SignDocumentEventTriggerConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { isAccountActive } from '@/lib/platform/active'
@@ -32,7 +34,9 @@ import { executeAiStep, describeResult, type PlannedStepType } from './ai/run'
 import { applyEffects } from './ai/apply'
 import { planCreateTicket, applyCreateTicket } from './ai/create-ticket'
 import { AI_LOG_OUTPUT_CHARS, type AiStepResult, type AiStepRuntime } from './ai/types'
-import { clip } from './ai/parsers'
+import { clip, interpolatePlain, needsContactScope } from './ai/parsers'
+import { signEventMatches, type SignEventContext } from './sign-event'
+import { runSendSignDocument } from './send-sign-document'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import {
   addConversationLabelIfAbsent,
@@ -69,6 +73,8 @@ export interface AutomationContext {
   interactive_reply_id?: string
   /** The closing note, for conversation_closed. */
   closure_note?: string
+  /** The document and the event, for sign_document_event. Read by {{ sign.* }}; never holds an email, a phone number or a token. */
+  sign?: SignEventContext
 }
 
 export interface DispatchInput {
@@ -301,6 +307,8 @@ interface ExecuteArgs {
   startPosition: number
   logId: string | null
   triggerEvent: string
+  /** The contact's name, email, phone and company, loaded the first time a step's text needs {{ contact.* }}. */
+  contact?: Record<string, unknown>
 }
 
 async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
@@ -451,6 +459,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
     case 'send_message': {
       const cfg = step.step_config as SendMessageStepConfig
       if (!args.contactId) throw new Error('send_message needs a contact')
+      await loadContactScope(args, cfg.text)
       const text = interpolate(cfg.text, args)
       if (!text.trim()) throw new Error('send_message has empty text')
       const conversationId = await resolveConversationId(args)
@@ -732,6 +741,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
       if (!args.contactId) throw new Error('update_contact_field needs a contact')
       // Resolve workflow variables ({{ vars.* }}, {{ message.text }}) so custom
       // values can be populated dynamically from the triggering context.
+      await loadContactScope(args, cfg.value)
       const value = interpolate(cfg.value, args)
 
       // Custom fields are encoded as `custom:<custom_field_id>`; anything else
@@ -776,12 +786,14 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
         .update({ [cfg.field]: value, updated_at: new Date().toISOString() })
         .eq('id', args.contactId)
         .eq('account_id', args.automation.account_id)
+      args.contact = undefined // changed: read it again if a later step needs it
       return `${cfg.field} updated`
     }
 
     case 'create_deal': {
       const cfg = step.step_config as CreateDealStepConfig
       if (!cfg.pipeline_id || !cfg.stage_id) throw new Error('create_deal needs pipeline + stage')
+      await loadContactScope(args, cfg.title)
       // Match the account's configured default currency rather than
       // the static `deals.currency` DB default — keeps automation-
       // created deals consistent with the one-currency-per-account
@@ -817,6 +829,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
       if (!(await isDeliverableUrl(cfg.url))) {
         throw new Error('send_webhook: destination not allowed')
       }
+      await loadContactScope(args, cfg.body_template)
       const body = cfg.body_template ? interpolate(cfg.body_template, args) : JSON.stringify(args.context)
       const res = await pinnedFetch(cfg.url, {
         method: 'POST',
@@ -885,6 +898,31 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
         output: clip(plan.subject, AI_LOG_OUTPUT_CHARS),
         detail: `ticket ${ticket.key} created${plan.usedAi ? ' (text written by AI)' : ''}${extra}`,
       }
+    }
+
+    case 'send_sign_document': {
+      const cfg = step.step_config as unknown as SendSignDocumentStepConfig
+      // Everything the step can template: the contact's details are read once for all of it.
+      await loadContactScope(
+        args,
+        cfg.title,
+        cfg.message,
+        ...Object.values(cfg.merge_values ?? {}),
+        ...(cfg.recipients ?? []).flatMap((r) => [r.full_name, r.email, r.phone]),
+        '{{ contact.name }}',
+      )
+      const out = await runSendSignDocument({
+        cfg,
+        accountId: args.automation.account_id,
+        ownerUserId: args.automation.user_id,
+        automation: { id: args.automation.id, name: args.automation.name },
+        contactId: args.contactId,
+        contact: args.contact ?? null,
+        vars: args.context.vars ?? {},
+        text: (t) => interpolate(t, args),
+      })
+      if (Object.keys(out.varsPatch).length > 0) args.context.vars = { ...(args.context.vars ?? {}), ...out.varsPatch }
+      return out.step
     }
 
     case 'set_priority': {
@@ -959,6 +997,7 @@ async function buildAiRuntime(args: ExecuteArgs, dryRun: boolean): Promise<AiSte
     messageText: args.context.message_text,
     vars,
     closureNote: args.context.closure_note ?? (typeof vars.closure_note === 'string' ? vars.closure_note : undefined),
+    sign: args.context.sign as unknown as Record<string, unknown> | undefined,
     dryRun,
   }
 }
@@ -1139,6 +1178,10 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
     return Boolean(tagId && cfg?.tag_id && cfg.tag_id === tagId)
   }
 
+  if (automation.trigger_type === 'sign_document_event') {
+    return signEventMatches(automation.trigger_config as SignDocumentEventTriggerConfig, ctx?.sign)
+  }
+
   return true
 }
 
@@ -1199,15 +1242,33 @@ function waitMs(cfg: WaitStepConfig): number {
   return Math.max(1_000, cfg.amount * unitMs)
 }
 
+/**
+ * Fill {{ message.text }}, {{ vars.x }}, {{ closure.note }}, {{ sign.reference }} and
+ * {{ contact.name }} (the contact is read by `loadContactScope` before the step runs).
+ * One implementation with the AI steps' text (interpolatePlain); unknown names become empty.
+ */
 function interpolate(s: string, args: ExecuteArgs): string {
-  return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
-    const [ns, prop] = String(key).split('.')
-    if (ns === 'message' && prop === 'text') return String(args.context.message_text ?? '')
-    if (ns === 'vars' && prop) return String(args.context.vars?.[prop] ?? '')
-    // conversation_closed: the note the conversation was closed with.
-    if (ns === 'closure' && prop === 'note') return String(args.context.closure_note ?? '')
-    return ''
+  return interpolatePlain(s, {
+    message: { text: String(args.context.message_text ?? '') },
+    vars: args.context.vars,
+    closure: { note: String(args.context.closure_note ?? '') },
+    contact: args.contact,
+    sign: args.context.sign as unknown as Record<string, unknown> | undefined,
   })
+}
+
+/** Read the contact once, only when a text of the step mentions {{ contact.* }}. */
+async function loadContactScope(args: ExecuteArgs, ...templates: (string | undefined)[]): Promise<void> {
+  if (args.contact || !args.contactId || !needsContactScope(...templates)) return
+  const { data } = await supabaseAdmin()
+    .from('contacts')
+    .select('name, email, company, phone')
+    .eq('id', args.contactId)
+    .eq('account_id', args.automation.account_id)
+    .maybeSingle()
+  const c = (data ?? {}) as Record<string, unknown>
+  const name = typeof c.name === 'string' ? c.name : ''
+  args.contact = { ...c, first_name: name.split(/\s+/)[0] ?? '' }
 }
 
 async function appendResults(

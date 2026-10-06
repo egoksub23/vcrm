@@ -31,6 +31,7 @@ import {
   touchRects,
   systemFieldText,
   typedAnswer,
+  waitingOnNames,
   type AutosaveOptions,
   type SaveResponse,
   type SaveState,
@@ -124,6 +125,17 @@ describe("describeOthers", () => {
       ["B", "turn"],
       ["C", "waiting"],
     ]);
+  });
+  it("names everyone invited in the step whose turn it is, when people share a step", () => {
+    const rows = describeOthers([o("A", 1, "signed"), o("B", 2, "sent"), o("C", 2, "viewed"), o("D", 2, "signed"), o("E", 3, "pending")], true);
+    expect(rows.map((r) => [r.name, r.kind])).toEqual([
+      ["A", "signed"],
+      ["B", "turn"],
+      ["C", "turn"],
+      ["D", "signed"],
+      ["E", "waiting"],
+    ]);
+    expect(waitingOnNames([o("A", 1, "signed"), o("B", 2, "sent"), o("C", 2, "viewed"), o("E", 3, "pending")])).toEqual(["B", "C"]);
   });
   it("does not name a turn without an order", () => {
     const rows = describeOthers([o("A", 1, "viewed"), o("B", 1, "sent")], false);

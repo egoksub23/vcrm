@@ -2,6 +2,8 @@
 
 // New template from a file: drop or choose a PDF, a Word file or an image, optionally name it and put it in a
 // category, and the server makes the template (a draft with no fields). Then the editor opens.
+// Or a form WITHOUT a signature (migration 169): no file, a name, and the form builder opens. The choice is made here, once:
+// a template is an agreement to sign or a form for good.
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,6 +37,7 @@ function NewTemplateForm({ categories, onClose }: { categories: LibraryCategory[
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
 
+  const [kind, setKind] = useState<"file" | "form">("file");
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -59,7 +62,21 @@ function NewTemplateForm({ categories, onClose }: { categories: LibraryCategory[
   };
 
   const submit = async () => {
-    if (!file || busy) return;
+    if (busy) return;
+    if (kind === "form") {
+      if (!name.trim()) return;
+      setBusy(true);
+      setProblem(null);
+      try {
+        const { template } = await signRequest<{ template: { id: string } }>("/api/sign/templates", { json: { mode: "form", name: name.trim(), ...(categoryId ? { categoryId } : {}) } });
+        router.push(templateEditorHref(template.id, "form"));
+      } catch (err) {
+        setProblem(err instanceof SignApiError ? errorText(err) : tErr("errors.generic"));
+        setBusy(false);
+      }
+      return;
+    }
+    if (!file) return;
     setBusy(true);
     setProblem(null);
     try {
@@ -87,10 +104,23 @@ function NewTemplateForm({ categories, onClose }: { categories: LibraryCategory[
     >
       <DialogHeader>
         <DialogTitle>{t("title")}</DialogTitle>
-        <DialogDescription>{t("intro")}</DialogDescription>
+        <DialogDescription>{t(kind === "form" ? "introForm" : "intro")}</DialogDescription>
       </DialogHeader>
 
-      {file ? (
+      <fieldset className="grid gap-2 sm:grid-cols-2" disabled={busy}>
+        <legend className="sr-only">{t("kindLegend")}</legend>
+        {(["file", "form"] as const).map((k) => (
+          <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring", kind === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40")}>
+            <span className="flex items-center gap-2 font-medium text-foreground">
+              <input type="radio" name="new-template-kind" className="size-4" checked={kind === k} onChange={() => setKind(k)} />
+              {t(k === "form" ? "kindForm" : "kindFile")}
+            </span>
+            <span className="pl-6 text-xs text-muted-foreground">{t(k === "form" ? "kindFormHint" : "kindFileHint")}</span>
+          </label>
+        ))}
+      </fieldset>
+
+      {kind === "form" ? null : file ? (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
           <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           <div className="min-w-0 flex-1">
@@ -138,10 +168,10 @@ function NewTemplateForm({ categories, onClose }: { categories: LibraryCategory[
         </div>
       )}
 
-      {file && isWordFile(file.name) ? <p className="text-xs text-muted-foreground">{t("wordNote")}</p> : null}
+      {kind === "file" && file && isWordFile(file.name) ? <p className="text-xs text-muted-foreground">{t("wordNote")}</p> : null}
 
       <Field id="new-template-name" label={t("name")} hint={t("nameHint")}>
-        <Input id="new-template-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={160} placeholder={file ? titleFromFileName(file.name) : ""} disabled={busy} aria-describedby="new-template-name-hint" />
+        <Input id="new-template-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={160} placeholder={kind === "file" && file ? titleFromFileName(file.name) : ""} disabled={busy} aria-describedby="new-template-name-hint" />
       </Field>
       <Field id="new-template-category" label={t("category")}>
         <NativeSelect id="new-template-category" value={categoryId} onChange={setCategoryId} options={options} disabled={busy} />
@@ -157,7 +187,7 @@ function NewTemplateForm({ categories, onClose }: { categories: LibraryCategory[
         <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
           {t("cancel")}
         </Button>
-        <Button type="submit" disabled={!file || busy}>
+        <Button type="submit" disabled={busy || (kind === "form" ? !name.trim() : !file)}>
           {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
           {busy ? t("creating") : t("create")}
         </Button>

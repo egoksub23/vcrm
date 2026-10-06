@@ -8,8 +8,9 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
-export function TemplateTabs({ templateId, current, onNavigate, className }: { templateId: string; current: "layout" | "form"; onNavigate: (href: string) => void; className?: string }) {
+export function TemplateTabs({ templateId, current, onNavigate, className, formOnly }: { templateId: string; current: "layout" | "form"; onNavigate: (href: string) => void; className?: string; /** A form without a signature has no page to place fields on: one view, so no tabs. */ formOnly?: boolean }) {
   const t = useTranslations("Sign.formBuilder");
+  if (formOnly) return null;
   const tabs = [
     { key: "layout", href: `/sign/templates/${templateId}`, label: t("tabs.layout") },
     { key: "form", href: `/sign/templates/${templateId}/form`, label: t("tabs.form") },

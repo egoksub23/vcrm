@@ -78,6 +78,13 @@ export function TemplateDefaultsPanel({ defaults, readOnly, onChange }: Template
             <span className="block text-xs text-muted-foreground">{t("defaults.codeHint")}</span>
           </span>
         </label>
+        <label className="flex items-start gap-2 text-sm">
+          <Checkbox className="mt-0.5" checked={!!defaults.allow_forwarding} disabled={readOnly} onCheckedChange={(v) => onChange(patchDefaults(defaults, { allow_forwarding: v === true ? true : undefined }))} />
+          <span>
+            {t("defaults.forwarding")}
+            <span className="block text-xs text-muted-foreground">{t("defaults.forwardingHint")}</span>
+          </span>
+        </label>
       </div>
       <FormRow label={t("defaults.subject")} htmlFor="sign-def-subject" className="sm:col-span-1">
         <Input id="sign-def-subject" value={defaults.subject ?? ""} disabled={readOnly} maxLength={200} onChange={(e) => onChange(patchDefaults(defaults, { subject: e.target.value }))} />

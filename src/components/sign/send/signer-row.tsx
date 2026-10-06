@@ -31,6 +31,8 @@ interface Props {
   onChange: (patch: Partial<Omit<SignerRow, "key">>) => void;
   onRemove: () => void;
   onMove: (delta: number) => void;
+  /** Give this person a step number: the same number as another person's puts them in that step. */
+  onStep: (step: number) => void;
   onDragStart: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
   onDrop: (e: DragEvent) => void;
@@ -40,7 +42,7 @@ interface Props {
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-invalid:border-destructive";
 
 /** One person on the signing list: name, email, role, channel (and a phone number for WhatsApp), with the order handles when order is on. */
-export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
+export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onStep, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
   const t = useTranslations("Sign.send.people");
   const [left, setLeft] = useState<ReadonlySet<Field>>(new Set());
   const flags = rowFlags(row, roles);
@@ -59,7 +61,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
     >
       <div className="flex items-start gap-2">
         {ordered ? (
-          <div className="flex w-8 shrink-0 flex-col items-center gap-0.5 pt-5">
+          <div className="flex w-12 shrink-0 flex-col items-center gap-0.5 pt-5">
             <span
               draggable={!readOnly}
               onDragStart={onDragStart}
@@ -70,9 +72,18 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
             >
               <GripVertical className="size-4" />
             </span>
-            <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground" aria-label={t("orderNumber", { n })}>
-              {n}
-            </span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={count}
+              value={row.step}
+              disabled={readOnly}
+              aria-label={t("stepNumber", { n })}
+              title={t("stepNumberHint")}
+              className="h-7 w-12 px-1 text-center text-xs font-semibold"
+              onChange={(e) => onStep(Number(e.target.value))}
+            />
             <Button type="button" variant="ghost" size="icon-xs" disabled={readOnly || index === 0} aria-label={t("moveUp", { n })} onClick={() => onMove(-1)}>
               <ChevronUp />
             </Button>

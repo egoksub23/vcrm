@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Row = Record<string, unknown>;
-type Result = { data: unknown; error: { message: string; details?: string } | null };
+type Result = { data: unknown; error: { message: string; details?: string } | null; count?: number };
 type Filter = (r: Row) => boolean;
 
 export class FakeDb {
@@ -18,6 +18,8 @@ export class FakeDb {
   rpcHandlers: Record<string, (args: Record<string, unknown>) => Result | Promise<Result>> = {};
   /** Make a table's next write fail. */
   failNext: Record<string, string> = {};
+  /** What the database fills in for a table's new row (its column defaults and triggers): merged under what the insert gives. */
+  insertDefaults: Record<string, (given: Row) => Row> = {};
 
   seed(table: string, rows: Row[]): this {
     this.tables[table] = [...(this.tables[table] ?? []), ...rows.map((r) => ({ ...r }))];
@@ -71,14 +73,20 @@ class Query implements PromiseLike<Result> {
   private filters: Filter[] = [];
   private orders: { col: string; asc: boolean }[] = [];
   private max: number | null = null;
+  private from = 0;
   private wantRows = false;
+  /** select(cols, { count: "exact", head: true }): the number of matching rows, and no rows when `head`. */
+  private counting = false;
+  private headOnly = false;
   private mode: "single" | "maybe" | null = null;
   private conflict: string[] = [];
   private ignoreDuplicates = false;
 
   constructor(private db: FakeDb, private table: string) {}
 
-  select(_cols?: string): this {
+  select(_cols?: string, opts?: { count?: "exact" | "planned" | "estimated"; head?: boolean }): this {
+    this.counting = !!opts?.count;
+    this.headOnly = !!opts?.head;
     if (this.op !== "select") this.wantRows = true;
     return this;
   }
@@ -119,6 +127,42 @@ class Query implements PromiseLike<Result> {
     this.filters.push((r) => (v === null ? r[col] === null || r[col] === undefined : r[col] === v));
     return this;
   }
+  gte(col: string, v: unknown): this {
+    this.filters.push((r) => r[col] != null && String(r[col]) >= String(v));
+    return this;
+  }
+  gt(col: string, v: unknown): this {
+    this.filters.push((r) => r[col] != null && String(r[col]) > String(v));
+    return this;
+  }
+  lte(col: string, v: unknown): this {
+    this.filters.push((r) => r[col] != null && String(r[col]) <= String(v));
+    return this;
+  }
+  lt(col: string, v: unknown): this {
+    this.filters.push((r) => r[col] != null && String(r[col]) < String(v));
+    return this;
+  }
+  /** LIKE with % and _ (a backslash escapes either); `ilike` ignores case. */
+  like(col: string, pattern: string): this {
+    return this.pattern(col, pattern, false);
+  }
+  ilike(col: string, pattern: string): this {
+    return this.pattern(col, pattern, true);
+  }
+  private pattern(col: string, pattern: string, ignoreCase: boolean): this {
+    let source = "";
+    for (let i = 0; i < pattern.length; i++) {
+      const c = pattern[i];
+      if (c === "\\" && i + 1 < pattern.length) source += pattern[++i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      else if (c === "%") source += ".*";
+      else if (c === "_") source += ".";
+      else source += c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    const re = new RegExp(`^${source}$`, ignoreCase ? "is" : "s");
+    this.filters.push((r) => typeof r[col] === "string" && re.test(r[col] as string));
+    return this;
+  }
   not(col: string, _op: string, v: unknown): this {
     this.filters.push((r) => (v === null ? r[col] !== null && r[col] !== undefined : r[col] !== v));
     return this;
@@ -129,6 +173,12 @@ class Query implements PromiseLike<Result> {
   }
   limit(n: number): this {
     this.max = n;
+    return this;
+  }
+  /** PostgREST's inclusive row range, after the ordering. */
+  range(from: number, to: number): this {
+    this.from = from;
+    this.max = to - from + 1;
     return this;
   }
   single(): this {
@@ -164,7 +214,7 @@ class Query implements PromiseLike<Result> {
     } else if (this.op === "insert" || this.op === "upsert") {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
       for (const p of list) {
-        const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...p };
+        const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...(this.db.insertDefaults[this.table]?.(p) ?? {}), ...p };
         if (this.op === "upsert") {
           const existing = rows.find((r) => this.conflict.every((c) => r[c] === row[c]));
           if (existing && this.ignoreDuplicates) continue;
@@ -189,10 +239,12 @@ class Query implements PromiseLike<Result> {
     }
 
     for (const { col, asc } of [...this.orders].reverse()) {
-      out = [...out].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")) * (asc ? 1 : -1));
+      out = [...out].sort((a, b) => (typeof a[col] === "number" && typeof b[col] === "number" ? (a[col] as number) - (b[col] as number) : String(a[col] ?? "").localeCompare(String(b[col] ?? ""))) * (asc ? 1 : -1));
     }
-    if (this.max !== null) out = out.slice(0, this.max);
+    const total = out.length;
+    if (this.max !== null) out = out.slice(this.from, this.from + this.max);
     out = out.map((r) => ({ ...r }));
+    if (this.counting) return { data: this.headOnly ? null : out, error: null, count: total };
 
     const returnsRows = this.op === "select" || this.wantRows;
     if (this.mode === "single") {

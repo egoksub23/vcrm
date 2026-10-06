@@ -8,13 +8,24 @@ import { isExpiringSoon } from "@/lib/sign/client/list-filters";
 import { signerProgress, waitingSummary } from "@/lib/sign/client/status";
 import { cn } from "@/lib/utils";
 
+/** The red "TEST" mark of a document sent to try a template out. Words from `Sign.send.list.testBadge`. */
+export function TestBadge({ className }: { className?: string }) {
+  const t = useTranslations("Sign.send.list");
+  return <span className={cn("inline-flex h-4 items-center rounded bg-red-100 px-1.5 text-[10px] font-bold tracking-wide text-red-700 uppercase dark:bg-red-950 dark:text-red-300", className)}>{t("testBadge")}</span>;
+}
+
 /** The line under a title: reference, category, contact. */
 export function MetaLine({ row, categories, className }: { row: SignListRow; categories: readonly SignCategory[]; className?: string }) {
   const t = useTranslations("Sign.send.list");
   const category = row.category_id ? categories.find((c) => c.id === row.category_id)?.name : null;
-  const parts = [row.reference, category, row.contacts?.name].filter((x): x is string => !!x);
-  if (parts.length === 0) return <p className={cn("truncate text-xs text-muted-foreground", className)}>{t("noReference")}</p>;
-  return <p className={cn("truncate text-xs text-muted-foreground", className)}>{parts.join(" · ")}</p>;
+  // a form without a signature says so (migration 169); an agreement to sign needs no label
+  // an envelope says how many documents it holds (migration 171)
+  const envelopeMark = row.kind === "envelope" ? t("envelopeBadge", { count: row.envelope_documents?.length ?? 0 }) : null;
+  const parts = [envelopeMark, row.mode === "form" ? t("formBadge") : null, row.reference, category, row.contacts?.name].filter((x): x is string => !!x);
+  // a document sent from a template to try it out says so, in a mark that cannot be missed (F-10)
+  const testMark = row.test ? <TestBadge className="mr-1.5 align-middle" /> : null;
+  if (parts.length === 0) return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{t("noReference")}</p>;
+  return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{parts.join(" · ")}</p>;
 }
 
 /** Who the document is waiting on, and how many have signed. */
@@ -30,7 +41,7 @@ export function WaitingText({ row, className }: { row: SignListRow; className?: 
       ) : (
         <p className="text-muted-foreground">{t("nobodyWaiting")}</p>
       )}
-      {total > 0 && row.status !== "draft" ? <p className="text-xs text-muted-foreground">{t("progress", { done, total })}</p> : null}
+      {total > 0 && row.status !== "draft" ? <p className="text-xs text-muted-foreground">{t(row.mode === "form" ? "progressForm" : "progress", { done, total })}</p> : null}
     </div>
   );
 }

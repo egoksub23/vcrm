@@ -7,7 +7,7 @@
 import { formSendProblems } from "../forms/validate";
 import type { FormDefinition } from "../forms/types";
 import { sendProblems } from "../rules";
-import type { SignRole } from "../types";
+import type { SignMode, SignRole } from "../types";
 import type { PlacedField } from "../pdf/types";
 import type { SignIssue } from "./api";
 import { optionsFlags, type DraftOptions } from "./draft-options";
@@ -21,6 +21,8 @@ export interface DraftFacts {
   hasBaseFile: boolean;
   /** Forms: the document's form. A part whose role has nobody on the list stops it being sent. */
   form?: FormDefinition | null;
+  /** A form without a signature (migration 169). Absent is an agreement to sign. */
+  mode?: SignMode;
 }
 
 /** The problems with a draft, each once. Without any roles the only news is that fields (which make the roles) are still to place. */
@@ -32,15 +34,18 @@ export function draftProblems(args: { facts: DraftFacts; rows: readonly SignerRo
   const found: SignIssue[] = sendProblems({
     fields: facts.fields,
     roles: facts.roles,
-    signers: toDrafts(rows, facts.roles),
+    signers: toDrafts(rows, facts.roles, options.signInOrder),
     signInOrder: options.signInOrder,
     pageCount: facts.pageCount,
     hasBaseFile: facts.hasBaseFile,
+    mode: facts.mode,
   });
+  // a form without a signature is only a form: no part, nothing to fill in
+  if (facts.mode === "form" && !(facts.form && facts.form.parts.length > 0)) found.push({ code: "form_mode_needs_a_form" });
   if (facts.form) {
     // One problem for each role that has parts and nobody (the server says it once per part: the same problem, shown once).
     const already = new Set(found.filter((i) => i.code === "role_without_person").map((i) => i.role));
-    for (const p of formSendProblems(facts.form, toDrafts(rows, facts.roles))) {
+    for (const p of formSendProblems(facts.form, toDrafts(rows, facts.roles, options.signInOrder))) {
       if (!already.has(p.role)) {
         found.push({ code: p.code, role: p.role });
         already.add(p.role);

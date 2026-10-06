@@ -7,10 +7,14 @@
 // sent yet, the list of issues (each a code with the field, role or position it is about).
 // ============================================================
 
+import { publicPath } from "./scope";
+
 export interface SignIssue {
   code: string;
   field?: string;
   role?: string;
+  /** Envelopes: the document of the envelope the problem is about. */
+  document?: string;
   detail?: string;
 }
 
@@ -74,5 +78,5 @@ export const documentFileUrl = (documentId: string, kind: "base" | "final" | "or
 
 export const templateFileUrl = (templateId: string) => `/api/sign/templates/${templateId}/file`;
 
-/** The address of the file on a signer's link. */
-export const signerFileUrl = (token: string, download = false) => `/api/sign/public/${token}/file${download ? "?download=1" : ""}`;
+/** The address of the file on a signer's link; `scope` is the token, or `<token>@<document id>` for one document of an envelope (see ./scope.ts). */
+export const signerFileUrl = (scope: string, download = false) => publicPath(scope, "/file", { query: download ? "download=1" : "" });

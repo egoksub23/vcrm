@@ -10,6 +10,8 @@ export const PRODUCT_DEFAULTS = {
   reminderDays: [3, 7] as number[],
   signInOrder: false,
   codeRequired: false,
+  /** Forwarding (F-95) is off unless the template, or the sender for one document, switches it on. */
+  allowForwarding: false,
   locale: "en" as SignLocale,
 };
 
@@ -31,6 +33,7 @@ export interface ResolvedDefaults {
   reminderDays: number[];
   signInOrder: boolean;
   codeRequired: boolean;
+  allowForwarding: boolean;
   locale: SignLocale;
 }
 
@@ -48,6 +51,7 @@ export function resolveDefaults(args: { template?: TemplateDefaults | null; cate
     reminderDays: cleanReminderDays(pick(template?.reminder_days, category?.reminder_days, workspace?.reminder_days) ?? PRODUCT_DEFAULTS.reminderDays),
     signInOrder: pick(template?.sign_in_order, category?.sign_in_order) ?? PRODUCT_DEFAULTS.signInOrder,
     codeRequired: pick(template?.code_required, category?.code_required) ?? PRODUCT_DEFAULTS.codeRequired,
+    allowForwarding: pick(template?.allow_forwarding) ?? PRODUCT_DEFAULTS.allowForwarding,
     locale: pick(template?.locale, workspace?.default_language) ?? PRODUCT_DEFAULTS.locale,
   };
 }
@@ -59,6 +63,17 @@ export function expiryFor(now: Date, defaultDays: number, chosen?: string | Date
     if (!Number.isNaN(d.getTime())) return d;
   }
   return new Date(now.getTime() + defaultDays * 24 * 3600 * 1000);
+}
+
+/** A reminder to the same person is held back for this long (features F-25): the screen and the API both keep it. */
+export const REMIND_GAP_MS = 24 * 60 * 60 * 1000;
+
+/** When a manual reminder to someone last reminded at `last` may go out again, or null when it may go now. */
+export function remindHeldUntil(last: string | null | undefined, now: Date): Date | null {
+  const at = last ? new Date(last) : null;
+  if (!at || Number.isNaN(at.getTime())) return null;
+  const until = new Date(at.getTime() + REMIND_GAP_MS);
+  return until.getTime() > now.getTime() ? until : null;
 }
 
 export interface ReminderSubject {

@@ -2,15 +2,19 @@
 // /api/sign/documents/[id]
 //
 //   GET     (menu.sign)  the document, its signers and files, and what stops a draft being sent
-//   PATCH   (sign.send)  change a draft: title, category, contact, message, language, expiry, signing order,
+//   PATCH   (sign.send)  change a draft: title, category, contact, ticket and deal (attach or detach, F-51), message, language, expiry, signing order,
 //                        code, reminders, values to fill in, fields and roles
-//   DELETE  (sign.send)  delete a draft and its files (a document that was sent is voided, not deleted)
+//   DELETE  (sign.send)  delete a draft and its files; or, with sign.settings as well, a signed document whose retention
+//                        date has passed (409 document_retained, with the date, before that). A document that was sent
+//                        is voided, never deleted.
 // ============================================================
+import { assertCapability } from "@/lib/auth/account";
 import { UUID_RE, json, readJson, staff } from "@/lib/sign/http";
 import { sendProblems } from "@/lib/sign/rules";
 import { SignError } from "@/lib/sign/service/errors";
-import { deleteDraft, updateDraft, type DraftPatch } from "@/lib/sign/service/drafts";
+import { deleteDocument, updateDraft, type DraftPatch } from "@/lib/sign/service/drafts";
 import { loadDocument, loadSigners } from "@/lib/sign/service/context";
+import { envelopeBrief } from "@/lib/sign/service/envelopes";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,7 +41,8 @@ export async function GET(request: Request, { params }: Params) {
             hasBaseFile: !!doc.base_path,
           })
         : [];
-    return json({ document: doc, signers, files: files.data ?? [], problems });
+    // a document of an envelope says which, and what its siblings are (their titles and states only)
+    return json({ document: doc, signers, files: files.data ?? [], problems, envelope: await envelopeBrief(ctx, doc.envelope_id) });
   });
 }
 
@@ -45,14 +50,22 @@ export async function PATCH(request: Request, { params }: Params) {
   return staff("sign.send", request, async ({ ctx }) => {
     const id = await idOf(params);
     const body = await readJson<DraftPatch>(request);
+    // an id that is not an id is "not found", not a database error (the ticket and the deal are checked against the workspace by the service)
+    for (const [key, code] of [["ticketId", "ticket_not_found"], ["dealId", "deal_not_found"]] as const) {
+      const v = body[key];
+      if (v !== undefined && v !== null && !(typeof v === "string" && UUID_RE.test(v))) throw new SignError(code, key === "ticketId" ? "That ticket was not found." : "That deal was not found.", 400);
+    }
     const document = await updateDraft(ctx, id, body);
     return json({ document });
   });
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  return staff("sign.send", request, async ({ ctx }) => {
-    await deleteDraft(ctx, await idOf(params));
+  return staff("sign.send", request, async ({ ctx, auth }) => {
+    const id = await idOf(params);
+    // a signed document is a record: whoever may delete a draft may not delete that; it takes sign.settings, and the retention date
+    if ((await loadDocument(ctx, id)).status !== "draft") assertCapability(auth, "sign.settings");
+    await deleteDocument(ctx, id);
     return json({ deleted: true });
   });
 }

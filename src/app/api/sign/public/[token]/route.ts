@@ -8,12 +8,12 @@
 // The first time an active link is opened is recorded as "viewed".
 // ============================================================
 import { json, publicLink } from "@/lib/sign/http";
-import { buildView, markViewed, pageState } from "@/lib/sign/service/signing";
+import { buildView, codeRequiredFor, markViewed, pageState } from "@/lib/sign/service/signing";
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   return publicLink(request, params, async ({ ctx, lookup, sessionOk, ip, device }) => {
-    const needsCode = lookup.doc.code_required && !sessionOk;
-    if (!needsCode && pageState(lookup.doc, lookup.signer) === "active") await markViewed(ctx, lookup, ip, device);
+    const needsCode = codeRequiredFor(lookup) && !sessionOk;
+    if (!needsCode && (lookup.party ? lookup.party.members.some((m) => pageState(m.doc, m.signer) === "active") : pageState(lookup.doc, lookup.signer) === "active")) await markViewed(ctx, lookup, ip, device);
     return json(await buildView(ctx, lookup, sessionOk));
   });
 }

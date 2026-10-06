@@ -20,10 +20,12 @@ import { fieldVisible, FILE_KINDS, MAX_UPLOAD_MB, type DataField, type FileKind,
 import type { RemoveUploadResult, UploadResult } from "../forms/api-types";
 import { sha256Hex } from "../pdf/load";
 import { documentPath, getFile, putFile, removeFiles, safeFileName } from "../storage";
+import { isDelegate } from "../forward";
 import type { SignDocumentRow, SignSignerRow } from "../types";
-import { logEvent, type SignCtx } from "./context";
+import { loadSigners, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
-import { formOf, loadFormState, ownDataFields, recordPartChanges, standing, type FormState } from "./form-state";
+import { formOf, loadFormState, ownDataFieldsFor, recordPartChanges, standing, type FormState } from "./form-state";
+import { ANSWER_COLUMNS, openAnswer, sealAnswer, type StoredRow } from "./sensitive";
 import { assertConsented, assertOpen, type Lookup } from "./signing";
 
 export const MAX_DOCUMENT_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -47,6 +49,7 @@ interface Target {
   form: FormDefinition;
   field: DataField;
   state: FormState;
+  signers: SignSignerRow[];
 }
 
 /** The file field a signer may touch, with the document's answers as they stand. Throws a SignError otherwise. */
@@ -57,12 +60,13 @@ async function ownFileField(ctx: SignCtx, lookup: Lookup, fieldKey: string, opts
   const form = formOf(doc);
   const field = form?.fields.find((f) => f.key === fieldKey);
   if (!form || !field) throw new SignError("not_your_field", "That field is not yours to fill in.", 403);
-  if (!ownDataFields(form, signer.role_key).has(field.key)) throw new SignError("not_your_field", "That field is not yours to fill in.", 403);
+  const { state, signers } = await loadFormState(ctx, doc, form);
+  // a part handed to someone else is theirs to fill, and a delegate may only fill the parts they hold
+  if (!ownDataFieldsFor(form, signer, signers).has(field.key)) throw new SignError("not_your_field", "That field is not yours to fill in.", 403);
   if (field.type !== "file") throw new SignError("not_a_file_field", "That field does not take a file.", 400);
   if (field.locked) throw new SignError("locked", "That field cannot be changed.", 403);
-  const { state } = await loadFormState(ctx, doc, form);
   if (opts.shown && !fieldVisible(form, field, state.map)) throw new SignError("not_shown", "That field is not shown.", 409);
-  return { doc, signer, form, field, state };
+  return { doc, signer, form, field, state, signers };
 }
 
 const filesOf = (state: FormState, key: string): StoredFile[] => {
@@ -79,14 +83,14 @@ async function writeFiles(ctx: SignCtx, doc: SignDocumentRow, signer: SignSigner
   }
   const { error } = await ctx.admin
     .from("sign_answers")
-    .upsert({ account_id: ctx.accountId, document_id: doc.id, signer_id: signer.id, field_key: key, value: { files }, source: "signer", saved_at: ctx.now().toISOString() }, { onConflict: "document_id,signer_id,field_key" });
+    .upsert({ account_id: ctx.accountId, document_id: doc.id, signer_id: signer.id, field_key: key, ...sealAnswer(null, { files }, { documentId: doc.id, fieldKey: key }), source: isDelegate(signer) ? "forwarded" : "signer", saved_at: ctx.now().toISOString() }, { onConflict: "document_id,signer_id,field_key" });
   if (error) raiseDatabaseError(error, "save files");
 }
 
 async function currentFiles(ctx: SignCtx, doc: SignDocumentRow, signer: SignSignerRow, key: string): Promise<StoredFile[]> {
-  const { data, error } = await ctx.admin.from("sign_answers").select("value").eq("document_id", doc.id).eq("signer_id", signer.id).eq("field_key", key).maybeSingle();
+  const { data, error } = await ctx.admin.from("sign_answers").select(ANSWER_COLUMNS).eq("document_id", doc.id).eq("signer_id", signer.id).eq("field_key", key).maybeSingle();
   if (error) raiseDatabaseError(error, "read files");
-  const v = (data as { value?: { files?: StoredFile[] } } | null)?.value;
+  const v = data ? (openAnswer(data as unknown as StoredRow, doc.id) as { files?: StoredFile[] } | null) : null;
   return Array.isArray(v?.files) ? v.files : [];
 }
 
@@ -138,9 +142,9 @@ export async function uploadFile(ctx: SignCtx, lookup: Lookup, args: { field: st
   }
 
   await logEvent(ctx, doc.id, "uploaded", { actor: "signer", signerId: signer.id, detail: { field: field.key, name, size: bytes.byteLength, hash: sha256.slice(0, 16) } });
-  const after = (await loadFormState(ctx, doc, form)).state;
-  await recordPartChanges(ctx, doc, signer, form, state, after);
-  const { progress, ready } = standing(form, signer.role_key, after);
+  const afterLoaded = await loadFormState(ctx, doc, form);
+  await recordPartChanges(ctx, doc, signer, form, state, afterLoaded.state);
+  const { progress, ready } = standing(form, signer, afterLoaded.state, afterLoaded.signers);
   return { file: { id, name, mime: stored.mime, size: stored.size, sha256 }, progress, ready };
 }
 
@@ -156,9 +160,9 @@ export async function removeUpload(ctx: SignCtx, lookup: Lookup, args: { field: 
   await removeFiles(ctx.admin, [gone.path]);
 
   await logEvent(ctx, doc.id, "upload_removed", { actor: "signer", signerId: signer.id, detail: { field: field.key, name: gone.name, hash: gone.sha256.slice(0, 16) } });
-  const after = (await loadFormState(ctx, doc, form)).state;
-  await recordPartChanges(ctx, doc, signer, form, state, after);
-  const { progress, ready } = standing(form, signer.role_key, after);
+  const afterLoaded = await loadFormState(ctx, doc, form);
+  await recordPartChanges(ctx, doc, signer, form, state, afterLoaded.state);
+  const { progress, ready } = standing(form, signer, afterLoaded.state, afterLoaded.signers);
   return { progress, ready };
 }
 
@@ -167,7 +171,7 @@ export async function readOwnUpload(ctx: SignCtx, lookup: Lookup, args: { field:
   const { doc, signer } = lookup;
   const form = formOf(doc);
   const field = form?.fields.find((f) => f.key === args.field);
-  if (!form || !field || field.type !== "file" || !ownDataFields(form, signer.role_key).has(field.key)) throw new SignError("not_your_field", "That field is not yours to fill in.", 403);
+  if (!form || !field || field.type !== "file" || !ownDataFieldsFor(form, signer, await loadSigners(ctx, doc.id)).has(field.key)) throw new SignError("not_your_field", "That field is not yours to fill in.", 403);
   const file = (await currentFiles(ctx, doc, signer, field.key)).find((f) => f.id === args.id);
   if (!file || !file.path.startsWith(`account-${ctx.accountId}/${doc.id}/upload/`)) throw new SignError("file_not_found", "That file was not found.", 404);
   return { bytes: await getFile(ctx.admin, file.path, ctx.accountId), mime: file.mime, name: file.name };

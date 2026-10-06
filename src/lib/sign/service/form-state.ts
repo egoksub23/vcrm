@@ -5,10 +5,12 @@
 // the sender's screen is allowed to see (a stored file's path never leaves the server).
 // ============================================================
 
-import { isFormDefinition, partsForRole, roleProgress, ruleFields, signReady, type DataField, type FileSummary, type FormDefinition, type FormPart, type FormValue, type FormValueView, type PartProgress, type SignerFormView } from "../forms";
+import { isFormDefinition, missingFormRequired, partsForRole, presenceOnly, roleProgress, ruleFields, sensitiveKeysOf, unsoundAnswers, type DataField, type FileSummary, type FormDefinition, type FormPart, type FormValue, type FormValueView, type PartProgress, type SignerFormView } from "../forms";
+import { heldParts, isDelegate, mayAnswerPart, openDelegations, partsAnswered, partsShown, type SignerLike } from "../forward";
 import type { SignDocumentRow, SignSignerRow } from "../types";
 import { loadSigners, logEvent, type SignCtx } from "./context";
 import { raiseDatabaseError } from "./errors";
+import { ANSWER_COLUMNS, openRows, type StoredRow } from "./sensitive";
 
 export type AnswerSource = "signer" | "sender" | "contact" | "forwarded";
 
@@ -37,10 +39,34 @@ export function ownDataFields(form: FormDefinition, roleKey: string): Map<string
   return new Map(form.fields.filter((f) => parts.has(f.part)).map((f) => [f.key, f]));
 }
 
+/**
+ * The data fields a person answers themselves: their role's, less any part they handed to a delegate, and for a
+ * delegate only the parts they were handed. `signers` are the people of the document (to know which parts are handed over).
+ */
+export function ownDataFieldsFor(form: FormDefinition, signer: Pick<SignerLike, "role_key" | "part_keys">, signers: readonly Pick<SignerLike, "part_keys">[] = []): Map<string, DataField> {
+  const parts = new Set(partsAnswered(form, signer, signers).map((p) => p.key));
+  return new Map(form.fields.filter((f) => parts.has(f.part)).map((f) => [f.key, f]));
+}
+
+/** The required fields this person has not answered: for a delegate only those of the parts they hold. */
+export function missingFor(form: FormDefinition, signer: Pick<SignerLike, "role_key" | "part_keys">, map: FormState["map"]): DataField[] {
+  const all = missingFormRequired(form, signer.role_key, map);
+  return isDelegate(signer) ? all.filter((f) => (signer.part_keys ?? []).includes(f.part)) : all;
+}
+
+/** Answers of this person's parts that are no longer sound; for a delegate only those of the parts they hold. */
+export function unsoundFor(form: FormDefinition, signer: Pick<SignerLike, "role_key" | "part_keys">, map: FormState["map"]): { field: string; code: string }[] {
+  const all = unsoundAnswers(form, signer.role_key, map);
+  if (!isDelegate(signer)) return all;
+  const mine = new Set(form.fields.filter((f) => (signer.part_keys ?? []).includes(f.part)).map((f) => f.key));
+  return all.filter((u) => mine.has(u.field));
+}
+
+/** The answers of a document, any signer's. A sensitive answer is opened here (in memory only); whoever shows it to a person masks it first (sensitive-staff.ts). */
 export async function loadAnswerRows(ctx: SignCtx, documentId: string): Promise<AnswerRow[]> {
-  const { data, error } = await ctx.admin.from("sign_answers").select("signer_id, field_key, value, source, saved_at").eq("document_id", documentId).eq("account_id", ctx.accountId);
+  const { data, error } = await ctx.admin.from("sign_answers").select(ANSWER_COLUMNS).eq("document_id", documentId).eq("account_id", ctx.accountId);
   if (error) raiseDatabaseError(error, "load answers");
-  return (data ?? []) as AnswerRow[];
+  return openRows((data ?? []) as unknown as StoredRow[], documentId);
 }
 
 // ---- the answers of a whole document ------------------------------------------------------------------
@@ -55,19 +81,23 @@ export interface FormState {
 
 /**
  * Gather the stored answers into one map keyed by data field. A data field belongs to the role of its part;
- * only an answer written by a person of that role counts, whatever else is in the table.
+ * only an answer written by a person of that role counts, whatever else is in the table. A part handed to a
+ * delegate (migration 166) is answered by the delegate alone: what the signer typed before handing it over, and
+ * what anyone else of the role writes, is not the part's answer.
  */
-export function formState(form: FormDefinition, signers: readonly Pick<SignSignerRow, "id" | "role_key">[], rows: readonly AnswerRow[]): FormState {
-  const roleOf = new Map(signers.map((s) => [s.id, s.role_key]));
-  const owner = new Map<string, string>();
+export function formState(form: FormDefinition, signers: readonly Pick<SignerLike, "id" | "role_key" | "part_keys">[], rows: readonly AnswerRow[]): FormState {
+  const who = new Map(signers.map((s) => [s.id, s]));
+  const held = heldParts(signers);
+  const owner = new Map<string, FormPart>();
   for (const f of form.fields) {
     const part = form.parts.find((p) => p.key === f.part);
-    if (part) owner.set(f.key, part.role);
+    if (part) owner.set(f.key, part);
   }
   const state: FormState = { map: {}, savedAt: {}, source: {} };
   for (const r of rows) {
-    const role = owner.get(r.field_key);
-    if (!role || roleOf.get(r.signer_id) !== role) continue;
+    const part = owner.get(r.field_key);
+    const person = who.get(r.signer_id);
+    if (!part || !person || !mayAnswerPart(person, part, held)) continue;
     if (!r.value || typeof r.value !== "object") continue;
     const prev = state.savedAt[r.field_key];
     if (prev && r.saved_at && prev > r.saved_at) continue; // two people in one role: the later answer wins
@@ -103,10 +133,12 @@ function redacted(value: FormValue): FormValueView {
 
 /**
  * The form as one signer's page gets it: their role's parts and fields, plus any other field a rule of theirs
- * refers to (with its answer, because the rule needs it). Nothing else of the other roles is sent.
+ * refers to (with its answer, because the rule needs it). Nothing else of the other roles is sent. A delegate is
+ * sent only the parts they were handed; a signer who handed a part over still sees it (read only), and cannot
+ * sign while a delegate is open. `signers` are the people of the document.
  */
-export function signerFormView(form: FormDefinition, signer: Pick<SignSignerRow, "role_key">, state: FormState): SignerFormView {
-  const parts = rolePartsOf(form, signer.role_key);
+export function signerFormView(form: FormDefinition, signer: Pick<SignerLike, "id" | "role_key" | "part_keys">, state: FormState, signers: readonly SignerLike[] = []): SignerFormView {
+  const parts = partsShown(form, signer);
   const partKeys = parts.map((p) => p.key);
   const own = new Set(partKeys);
   const ownFields = form.fields.filter((f) => own.has(f.part));
@@ -122,7 +154,9 @@ export function signerFormView(form: FormDefinition, signer: Pick<SignSignerRow,
 
   const answers: Record<string, FormValueView> = {};
   for (const k of ownKeys) if (state.map[k]) answers[k] = toView(state.map[k]);
-  for (const k of foreignKeys) if (state.map[k]) answers[k] = redacted(state.map[k]);
+  // another role's sensitive answer is never sent to this person: a rule of theirs may still ask whether there is one
+  const secret = sensitiveKeysOf(form);
+  for (const k of foreignKeys) if (state.map[k]) answers[k] = secret.has(k) ? presenceOnly(state.map[k]) : redacted(state.map[k]);
 
   const unconfirmed = [...ownKeys].filter((k) => state.map[k] && state.source[k] === "contact");
   return {
@@ -130,9 +164,18 @@ export function signerFormView(form: FormDefinition, signer: Pick<SignSignerRow,
     partKeys,
     answers,
     unconfirmed,
-    progress: roleProgress(form, signer.role_key, state.map, state.savedAt),
-    ready: signReady(form, signer.role_key, state.map),
+    progress: roleProgress(form, signer.role_key, state.map, state.savedAt).filter((p) => own.has(p.key)),
+    ready: readyFor(form, signer, state, signers),
   };
+}
+
+/**
+ * May this person's sign step (or Submit, for a filler) open? Every required answer of the parts they hold is in,
+ * and, for a signer, no part they handed over is still with a delegate.
+ */
+export function readyFor(form: FormDefinition, signer: Pick<SignerLike, "id" | "role_key" | "part_keys">, state: FormState, signers: readonly SignerLike[] = []): boolean {
+  if (missingFor(form, signer, state.map).length > 0) return false;
+  return isDelegate(signer) || openDelegations(signers, signer.id).length === 0;
 }
 
 export interface Standing {
@@ -141,12 +184,13 @@ export interface Standing {
   unconfirmed: string[];
 }
 
-/** Where one role stands: part progress, whether the sign step may open, and the answers still to be confirmed. */
-export function standing(form: FormDefinition, roleKey: string, state: FormState): Standing {
-  const own = ownDataFields(form, roleKey);
+/** Where one person stands: progress of the parts they see, whether the sign step may open, and the answers still to be confirmed. */
+export function standing(form: FormDefinition, signer: Pick<SignerLike, "id" | "role_key" | "part_keys">, state: FormState, signers: readonly SignerLike[] = []): Standing {
+  const shown = new Set(partsShown(form, signer).map((p) => p.key));
+  const own = ownDataFieldsFor(form, signer, signers);
   return {
-    progress: roleProgress(form, roleKey, state.map, state.savedAt),
-    ready: signReady(form, roleKey, state.map),
+    progress: roleProgress(form, signer.role_key, state.map, state.savedAt).filter((p) => shown.has(p.key)),
+    ready: readyFor(form, signer, state, signers),
     unconfirmed: [...own.keys()].filter((k) => state.map[k] && state.source[k] === "contact"),
   };
 }
@@ -157,7 +201,7 @@ export function standing(form: FormDefinition, roleKey: string, state: FormState
 export async function recordPartChanges(ctx: SignCtx, doc: SignDocumentRow, signer: SignSignerRow, form: FormDefinition, before: FormState, after: FormState): Promise<void> {
   const was = new Map(roleProgress(form, signer.role_key, before.map, before.savedAt).map((p) => [p.key, p.state]));
   const now = new Map(roleProgress(form, signer.role_key, after.map, after.savedAt).map((p) => [p.key, p.state]));
-  for (const part of rolePartsOf(form, signer.role_key)) {
+  for (const part of partsShown(form, signer)) {
     const a = was.get(part.key) === "done";
     const b = now.get(part.key);
     if (!a && b === "done") await logEvent(ctx, doc.id, "part_completed", { actor: "signer", signerId: signer.id, detail: { part: part.key } });
@@ -187,8 +231,13 @@ export async function recordSaved(ctx: SignCtx, doc: SignDocumentRow, signer: Si
   await logEvent(ctx, doc.id, "saved", { actor: "signer", signerId: signer.id, detail: { fields: count } });
 }
 
-/** Titles of the parts a signer has not finished, in the document's language order. */
-export function unfinishedParts(form: FormDefinition, roleKey: string, state: FormState): FormPart[] {
+/**
+ * The parts a signer has not finished, in the form's order. With `signer` and `signers` the parts handed to a delegate
+ * are not the signer's to finish (a reminder names only what the person can do), and a delegate is named only the
+ * parts they hold.
+ */
+export function unfinishedParts(form: FormDefinition, roleKey: string, state: FormState, who?: { signer: Pick<SignerLike, "role_key" | "part_keys">; signers: readonly SignerLike[] }): FormPart[] {
   const progress = new Map(roleProgress(form, roleKey, state.map, state.savedAt).map((p) => [p.key, p.state]));
-  return partsForRole(form, roleKey, state.map).filter((p) => progress.get(p.key) !== "done");
+  const mine = who ? new Set(partsAnswered(form, who.signer, who.signers).map((p) => p.key)) : null;
+  return partsForRole(form, roleKey, state.map).filter((p) => progress.get(p.key) !== "done" && (!mine || mine.has(p.key)));
 }

@@ -4,12 +4,13 @@
 // gathers the document's answers, of every role, and keeps the signer from a review before their parts are done.
 // ============================================================
 
-import { boundPlacements, boundValues, fitProblems, missingFormRequired, signReady } from "../forms";
+import { boundPlacements, boundValues, fitProblems } from "../forms";
 import type { PrintedValue, ReviewResult } from "../forms/api-types";
+import { isDelegate } from "../forward";
 import { getFile } from "../storage";
 import type { SignCtx } from "./context";
 import { SignError } from "./errors";
-import { formOf, loadFormState } from "./form-state";
+import { formOf, loadFormState, missingFor, readyFor } from "./form-state";
 import { assertConsented, assertOpen, type Lookup } from "./signing";
 
 export async function reviewFor(ctx: SignCtx, lookup: Lookup): Promise<ReviewResult> {
@@ -18,14 +19,16 @@ export async function reviewFor(ctx: SignCtx, lookup: Lookup): Promise<ReviewRes
   const { doc, signer } = lookup;
   const form = formOf(doc);
   if (!form) return { printed: {}, fitProblems: [] };
+  // the whole document's answers are printed here: a person handed one part of it sees that part and nothing more
+  if (isDelegate(signer)) throw new SignError("forbidden", "You do not have access to this.", 403);
 
-  const { state } = await loadFormState(ctx, doc, form);
-  if (!signReady(form, signer.role_key, state.map)) {
+  const { state, signers } = await loadFormState(ctx, doc, form);
+  if (!readyFor(form, signer, state, signers)) {
     throw new SignError(
       "form_incomplete",
       "Answer every required question before you review.",
       409,
-      missingFormRequired(form, signer.role_key, state.map).map((f) => ({ code: "missing_required", field: f.key })),
+      missingFor(form, signer, state.map).map((f) => ({ code: "missing_required", field: f.key })),
     );
   }
 

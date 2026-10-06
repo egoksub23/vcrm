@@ -126,6 +126,7 @@ export async function planCreateTicket(cfg: CreateTicketStepConfig, rt: AiStepRu
     message: { text: rt.messageText },
     vars: rt.vars,
     closure: rt.closureNote ? { note: rt.closureNote } : undefined,
+    sign: rt.sign,
     conversation: conversationId ? { id: conversationId } : undefined,
   }
   if (/\{\{\s*contact\./.test(`${cfg.subject} ${cfg.description ?? ''}`)) {

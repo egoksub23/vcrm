@@ -40,6 +40,17 @@ export const KNOWN_ERROR_CODES = [
   "template_not_ready",
   "category_not_found",
   "contact_not_found",
+  // attaching a ticket or a deal (F-51)
+  "ticket_not_found",
+  "deal_not_found",
+  "ticket_contact_mismatch",
+  "deal_contact_mismatch",
+  // a test sent from a template (F-10) and a replaced file (F-77)
+  "test_email_not_yours",
+  "test_no_roles",
+  "test_no_address",
+  "same_file",
+  "document_has_no_file",
   // changing a draft
   "document_not_found",
   "document_not_draft",
@@ -59,6 +70,25 @@ export const KNOWN_ERROR_CODES = [
   "not_ready",
   "no_signer",
   "sign_limit_reached",
+  // envelopes (migration 171)
+  "envelope_not_found",
+  "envelope_not_draft",
+  "envelope_not_sent",
+  "envelope_size",
+  "envelope_documents",
+  "envelope_options",
+  "envelope_people",
+  "envelope_person_twice",
+  "envelope_not_ready",
+  "envelope_too_big",
+  "envelope_duplicate_template",
+  "envelope_not_deletable",
+  "envelope_frozen",
+  "envelope_fixed",
+  "envelope_no_forwarding",
+  "envelope_no_test",
+  "document_in_envelope",
+  "document_retained",
   // the edge
   "save_failed",
   "network",
@@ -84,7 +114,7 @@ export type DraftStep = "fields" | "people" | "options" | "review";
 
 /** Problems only the browser knows about (the draft's own options as typed), fixed in the options step. */
 const OPTION_PROBLEMS = new Set(["title_required", "message_long", "expiry_past", "reminders_bad"]);
-const PEOPLE_PROBLEMS = new Set(["no_signer", "too_many_signers", "signer_name", "signer_email", "signer_phone", "signer_role", "signer_order", "order_not_unique", "same_person_twice", "role_without_person", "part_without_person"]);
+const PEOPLE_PROBLEMS = new Set(["no_signer", "no_person", "too_many_signers", "signer_name", "signer_email", "signer_phone", "signer_role", "signer_order", "order_not_unique", "same_person_twice", "role_without_person", "part_without_person"]);
 
 /** Problems of a document with a form (phase 1B). Their words are in `Sign.progress.problems`, not `Sign.send.problems`. */
 const FORM_PROBLEMS: ReadonlySet<string> = new Set(["part_without_person"]);
@@ -93,6 +123,12 @@ const FORM_PROBLEMS: ReadonlySet<string> = new Set(["part_without_person"]);
 const PROBLEM_MESSAGES: ReadonlySet<string> = new Set([
   "no_file",
   "no_signer",
+  // a form without a signature (migration 169)
+  "no_person",
+  "form_mode_needs_a_form",
+  "form_mode_signature",
+  "form_mode_placement",
+  "form_mode_signer_role",
   "too_many_signers",
   "signer_name",
   "signer_email",

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import {
   loadStepsTree,
@@ -12,6 +12,7 @@ import {
   validateTriggerForActivation,
 } from '@/lib/automations/validate'
 import { aiSetupForActivation } from '@/lib/automations/ai/activation'
+import { signSetupForActivation, stepsUseSign } from '@/lib/automations/sign-activation'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -61,10 +62,22 @@ export async function PATCH(
   // requires `agent`, but this route mutates via the service-role client
   // which bypasses RLS, so enforce the role here.
   let accountId: string
+  let auth: CapabilityContext
   try {
-    ;({ accountId } = await requireCapability('automations.manage'))
+    auth = await requireCapability('automations.manage')
+    accountId = auth.accountId
   } catch (err) {
     return toErrorResponse(err)
+  }
+  // An automation that sends documents for signing sends them in the workspace's name: only a person who may
+  // send documents themselves can save one, or keep one active.
+  const needSignSend = (): NextResponse | null => {
+    try {
+      assertCapability(auth, 'sign.send')
+      return null
+    } catch (err) {
+      return toErrorResponse(err)
+    }
   }
 
   const user = await requireUser()
@@ -103,6 +116,10 @@ export async function PATCH(
   // are still allowed to be incomplete.
   const willBeActive =
     typeof update.is_active === 'boolean' ? update.is_active : existing.is_active
+  if (Array.isArray(body.steps) && stepsUseSign(body.steps)) {
+    const denied = needSignSend()
+    if (denied) return denied
+  }
   if (willBeActive) {
     const mergedTriggerType = (update.trigger_type ?? existing.trigger_type) as string
     const mergedTriggerConfig = update.trigger_config ?? existing.trigger_config
@@ -110,10 +127,16 @@ export async function PATCH(
       ? (body.steps as { step_type: string; step_config: Record<string, unknown> }[])
       : await loadStepsTree(id)
     // AI steps need AI set up before the automation can stay (or go) live.
+    if (stepsUseSign(mergedSteps)) {
+      const denied = needSignSend()
+      if (denied) return denied
+    }
     const aiSetup = await aiSetupForActivation(admin, accountId, mergedSteps)
+    // Doc Sign steps and the Doc Sign trigger need Doc Sign on and the template active.
+    const signSetup = await signSetupForActivation(admin, accountId, mergedSteps, mergedTriggerType)
     const issues = [
-      ...validateTriggerForActivation(mergedTriggerType, mergedTriggerConfig),
-      ...validateStepsForActivation(mergedSteps, { aiSetup }),
+      ...validateTriggerForActivation(mergedTriggerType, mergedTriggerConfig, { signSetup }),
+      ...validateStepsForActivation(mergedSteps, { aiSetup, signSetup }),
     ]
     if (issues.length > 0) {
       return NextResponse.json(

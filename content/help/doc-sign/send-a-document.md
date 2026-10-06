@@ -2,7 +2,7 @@
 title: Send a document for signature
 description: Start a document from a file or a template, set who signs, check it and send it.
 order: 2
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 This page walks through sending one document, from choosing the file to pressing **Send for signature**.
@@ -31,8 +31,14 @@ The draft opens in a workspace with four steps along the top. Your work is saved
 
 1. **Fields** shows the pages. Place the fields people have to fill in or sign, and give each to a role. See [Prepare the fields](/help/doc-sign/prepare-fields). When you started from a template this is done already; check it.
 2. **People** is the signing list: who signs or fills in. Add each person with their name, email, role and how to reach them (email or WhatsApp). You can add a person straight from your contacts. See [Signing order](/help/doc-sign/signing-order).
-3. **Options** sets the title, category, contact, the language of the invitation, a message to the signers, the expiry date, the reminders, and whether each signer needs a verification code. Anything you leave alone follows the category and then the workspace settings.
+3. **Options** sets the title, category, contact, an optional **ticket** and **deal** to attach the document to, the language of the invitation, a message to the signers, the expiry date, the reminders, and whether each signer needs a verification code. Anything you leave alone follows the category and then the workspace settings.
 4. **Review** shows everything in one place. If something is missing, it lists what to fix and takes you to the right step.
+
+## Attach it to a ticket or a deal
+
+On the Options step (and when you start a document) you can link it to a **ticket** or a **deal**. With a contact chosen, only that contact's tickets and deals are offered; without one, choosing a ticket or deal fills in its contact. A ticket and a deal must belong to the document's contact, so changing the contact detaches them.
+
+The document then shows under **Documents** on that ticket page and in that deal's panel (open the deal from the pipeline), with its status and a link, and on the contact's **Documents** tab. Both pages have a **Send a document** button that opens a new document already attached.
 
 ## Send
 
@@ -50,6 +56,7 @@ If you tick **Needs a verification code** on the Options step, each signer must 
 - Check the email address of each person twice. A wrong address means the link goes to someone else.
 - Use the message box to say why you are sending it and what you need from them.
 - If a document you often send has the same fields, [save it as a template](/help/doc-sign/templates#save-a-prepared-document-as-a-template).
+- Uploaded the wrong file? On a draft you can [replace the file](/help/doc-sign/prepare-fields#replace-the-file-of-a-draft) and keep your fields.
 
 ## Common mistakes
 

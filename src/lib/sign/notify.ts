@@ -13,9 +13,11 @@ import { isResendConfigured, sendEmail, type EmailAttachment, type EmailIdentity
 import { sendTemplateMessage } from "@/lib/whatsapp/meta-api";
 import { decrypt } from "@/lib/whatsapp/encryption";
 
-import { codeEmail, completedEmail, declinedEmail, expiredEmail, invitationEmail, reminderEmail, voidedEmail, type Rendered } from "./messages";
+import { codeEmail, completedEmail, declinedEmail, expiredEmail, forwardEmail, forwardNoticeEmail, invitationEmail, reminderEmail, voidedEmail, type Rendered } from "./messages";
+import { envelopeCompletedEmail, envelopeInvitationEmail, envelopeReminderEmail } from "./envelope-messages";
+import { ENVELOPE_ATTACH_BYTES } from "./envelopes/status";
 import { normalizePhone } from "./rules";
-import type { Invitation, SignChannel, SignLocale, SignSettingsRow } from "./types";
+import type { Invitation, SignChannel, SignLocale, SignMode, SignSettingsRow } from "./types";
 
 export type DeliveryStatus = "sent" | "failed" | "not_configured";
 
@@ -100,6 +102,8 @@ export interface DocFacts {
   expiresAt: Date | null;
   codeRequired: boolean;
   message: string | null;
+  /** A form without a signature: every message says "complete your details" and "submitted", never "sign". Absent is an agreement to sign. */
+  mode?: SignMode;
 }
 
 export interface Workspace {
@@ -147,16 +151,45 @@ export async function deliverInvitation(
     expiresAt: doc.expiresAt,
     codeRequired: doc.codeRequired,
     fill: opts.fill,
+    mode: doc.mode,
     timeZone: w.timeZone,
   });
   return viaEmail(deps, doc.accountId, inv.email, m, displayFrom(w));
+}
+
+/**
+ * Invite the person a turn, or a part of a form, was forwarded to. Always by email (a forward carries a name and an
+ * address only), with the forwarder's name and note. The person gets a link of their own and agrees for themselves.
+ */
+export async function deliverForward(deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation, opts: { forwarder: string; note?: string | null; part?: string | null }): Promise<Delivery> {
+  const m = forwardEmail({
+    locale: doc.locale,
+    workspace: w.name,
+    sender: w.senderName,
+    signerName: inv.name,
+    title: doc.title,
+    link: signerLink(origin, inv.token),
+    expiresAt: doc.expiresAt,
+    codeRequired: doc.codeRequired,
+    mode: doc.mode,
+    timeZone: w.timeZone,
+    forwarder: opts.forwarder,
+    note: opts.note,
+    part: opts.part,
+  });
+  return viaEmail(deps, doc.accountId, inv.email, m, displayFrom(w));
+}
+
+/** The sender is told by email that a signer passed their turn on. */
+export async function deliverForwardNotice(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, info: { name: string; to: string }): Promise<Delivery> {
+  return viaEmail(deps, doc.accountId, to.email, forwardNoticeEmail({ locale: to.locale, workspace: w.name, title: doc.title, name: info.name, to: info.to }), displayFrom(w));
 }
 
 /** `partsLeft` (forms): the titles of the parts this person has not finished, named in an email reminder. */
 export async function deliverReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation, partsLeft?: string[]): Promise<Delivery> {
   const link = signerLink(origin, inv.token);
   if (inv.channel === "whatsapp") return deliverInvitation(admin, deps, origin, doc, w, inv);
-  const m = reminderEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, signerName: inv.name, title: doc.title, link, expiresAt: doc.expiresAt, codeRequired: doc.codeRequired, timeZone: w.timeZone, partsLeft });
+  const m = reminderEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, signerName: inv.name, title: doc.title, link, expiresAt: doc.expiresAt, codeRequired: doc.codeRequired, mode: doc.mode, timeZone: w.timeZone, partsLeft });
   return viaEmail(deps, doc.accountId, inv.email, m, displayFrom(w));
 }
 
@@ -168,7 +201,7 @@ export async function deliverCode(deps: NotifyDeps, doc: DocFacts, w: Workspace,
 /** The signed copy, to a signer or the sender: attached when it fits, always with a link. */
 export async function deliverCompleted(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, pdf: { bytes: Uint8Array; filename: string } | null, downloadUrl?: string): Promise<Delivery> {
   const attachable = pdf && pdf.bytes.byteLength <= 20 * 1024 * 1024;
-  const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: !!attachable, downloadUrl });
+  const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: !!attachable, downloadUrl, mode: doc.mode });
   const attachments = attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined;
   return viaEmail(deps, doc.accountId, to.email, m, displayFrom(w), attachments);
 }
@@ -179,9 +212,94 @@ export type Outcome = { kind: "declined"; by: string; reason?: string | null } |
 export async function deliverOutcome(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, outcome: Outcome): Promise<Delivery> {
   const m =
     outcome.kind === "declined"
-      ? declinedEmail({ locale: to.locale, workspace: w.name, name: outcome.by, title: doc.title, reason: outcome.reason })
+      ? declinedEmail({ locale: to.locale, workspace: w.name, name: outcome.by, title: doc.title, reason: outcome.reason, mode: doc.mode })
       : outcome.kind === "expired"
-        ? expiredEmail({ locale: to.locale, workspace: w.name, title: doc.title })
+        ? expiredEmail({ locale: to.locale, workspace: w.name, title: doc.title, mode: doc.mode })
         : voidedEmail({ locale: to.locale, workspace: w.name, title: doc.title });
   return viaEmail(deps, doc.accountId, to.email, m, displayFrom(w));
+}
+
+// ---- envelopes (migration 171) -----------------------------------------------------------------------
+// One invitation, one reminder and one completion message for each person of an envelope, whatever the number of documents.
+
+/** What an envelope's messages say: its own title, language, expiry, code and note, and the titles of its documents in order. */
+export interface EnvelopeFacts {
+  accountId: string;
+  title: string;
+  reference: string | null;
+  locale: SignLocale;
+  expiresAt: Date | null;
+  codeRequired: boolean;
+  message: string | null;
+  /** Every document is a form without a signature. */
+  mode?: SignMode;
+  documents: string[];
+}
+
+/** Invite a person of an envelope: by the channel the sender chose, with ONE link that opens every document of theirs. */
+export async function deliverEnvelopeInvitation(admin: SupabaseClient, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation, opts: { fill?: boolean } = {}): Promise<Delivery> {
+  const link = signerLink(origin, inv.token);
+  if (inv.channel === "whatsapp") {
+    const to = normalizePhone(inv.phone);
+    const template = w.settings?.whatsapp_template_name;
+    if (!to) return { channel: "whatsapp", status: "failed", detail: "no valid phone number" };
+    if (!template) return { channel: "whatsapp", status: "not_configured", detail: "no WhatsApp template is set in Doc Sign settings" };
+    try {
+      await deps.sendWhatsApp(admin, { accountId: env.accountId, to, templateName: template, language: w.settings?.whatsapp_template_language ?? "en", params: [inv.name, env.title, link] });
+      return { channel: "whatsapp", status: "sent" };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "send failed";
+      return { channel: "whatsapp", status: msg.startsWith("whatsapp_") ? "not_configured" : "failed", detail: msg.slice(0, 200) };
+    }
+  }
+  const m = envelopeInvitationEmail({
+    locale: env.locale,
+    workspace: w.name,
+    sender: w.senderName,
+    signerName: inv.name,
+    title: env.title,
+    documents: env.documents,
+    message: env.message,
+    link,
+    expiresAt: env.expiresAt,
+    codeRequired: env.codeRequired,
+    fill: opts.fill ?? env.mode === "form",
+    timeZone: w.timeZone,
+  });
+  return viaEmail(deps, env.accountId, inv.email, m, displayFrom(w));
+}
+
+/** A reminder for a person of an envelope; `env.documents` are the titles of what they have not finished. The earlier link no longer works. */
+export async function deliverEnvelopeReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation): Promise<Delivery> {
+  if (inv.channel === "whatsapp") return deliverEnvelopeInvitation(admin, deps, origin, env, w, inv);
+  const m = envelopeReminderEmail({
+    locale: env.locale,
+    workspace: w.name,
+    sender: w.senderName,
+    signerName: inv.name,
+    title: env.title,
+    documents: env.documents,
+    link: signerLink(origin, inv.token),
+    expiresAt: env.expiresAt,
+    codeRequired: env.codeRequired,
+    fill: env.mode === "form",
+    timeZone: w.timeZone,
+  });
+  return viaEmail(deps, env.accountId, inv.email, m, displayFrom(w));
+}
+
+/**
+ * The signed copies of every document, in ONE message to a person or the sender. The files are attached in the envelope's order while
+ * they fit in ENVELOPE_ATTACH_BYTES in all; the message says how many were attached and sends the rest to the person's own link.
+ */
+export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFacts, w: Workspace, to: Party, pdfs: readonly { bytes: Uint8Array; filename: string }[]): Promise<Delivery> {
+  let budget = ENVELOPE_ATTACH_BYTES;
+  const attached: { filename: string; content: string }[] = [];
+  for (const f of pdfs) {
+    if (f.bytes.byteLength > budget) continue;
+    budget -= f.bytes.byteLength;
+    attached.push({ filename: f.filename, content: Buffer.from(f.bytes).toString("base64") });
+  }
+  const m = envelopeCompletedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: env.title, count: env.documents.length, attachedCount: attached.length, mode: env.mode });
+  return viaEmail(deps, env.accountId, to.email, m, displayFrom(w), attached.length ? attached : undefined);
 }

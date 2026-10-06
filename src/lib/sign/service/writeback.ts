@@ -15,6 +15,7 @@ import { checkDataAnswer, displayValue, fieldVisible, type DataAnswerInput, type
 import type { SignDocumentRow, SignSignerRow } from "../types";
 import { logEvent, type SignCtx } from "./context";
 import { ownDataFields, type AnswerRow, type FormState } from "./form-state";
+import { sealAnswer } from "./sensitive";
 
 const COLUMNS = ["name", "email", "company"] as const;
 type Column = (typeof COLUMNS)[number];
@@ -113,7 +114,7 @@ export async function prefillAnswers(ctx: SignCtx, doc: SignDocumentRow, signer:
     }
     if (rows.length === 0) return [];
     const { error } = await ctx.admin.from("sign_answers").upsert(
-      rows.map((r) => ({ account_id: ctx.accountId, document_id: doc.id, ...r })),
+      rows.map((r) => ({ account_id: ctx.accountId, document_id: doc.id, ...r, ...sealAnswer(own.get(r.field_key), r.value, { documentId: doc.id, fieldKey: r.field_key }) })),
       { onConflict: "document_id,signer_id,field_key", ignoreDuplicates: true },
     );
     if (error) {
@@ -142,7 +143,8 @@ export async function writeBackToContact(ctx: SignCtx, doc: SignDocumentRow, sig
   try {
     if (!doc.contact_id) return changes;
     const own = ownDataFields(form, signer.role_key);
-    const mapped = [...own.values()].filter((f) => f.contactField && state.map[f.key] && state.source[f.key] === "signer" && fieldVisible(form, f, state.map));
+    // a sensitive answer never goes to the contact, whatever the form says (the builder refuses the pair; this is the last line)
+    const mapped = [...own.values()].filter((f) => f.contactField && !f.sensitive && state.map[f.key] && state.source[f.key] === "signer" && fieldVisible(form, f, state.map));
     if (mapped.length === 0) return changes;
     const contact = await loadContact(ctx, doc.contact_id);
     if (!contact) return changes;

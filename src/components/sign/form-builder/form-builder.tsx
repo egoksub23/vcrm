@@ -25,11 +25,12 @@ import { pick } from "@/lib/sign/forms/text";
 import type { DataFieldType } from "@/lib/sign/forms/types";
 import { validateForm } from "@/lib/sign/forms/validate";
 import type { Issue } from "@/lib/sign/rules";
-import type { SignLocale } from "@/lib/sign/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { BuilderToolbar } from "./builder-toolbar";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { FormRolesPanel } from "./form-roles-panel";
 import { FieldProperties } from "./field-properties";
 import { FieldsPanel } from "./fields-panel";
 import { FormIssuesPanel } from "./form-issues-panel";
@@ -38,6 +39,7 @@ import { PartSettings } from "./part-settings";
 import { PartsPanel } from "./parts-panel";
 import { PreviewAsSigner } from "./preview-as-signer";
 import { useFormModel } from "./use-form-model";
+import { useOptionLists } from "./use-option-lists";
 import { useCustomContactFields, useTemplateUsed } from "./use-workspace-lookups";
 
 type Load = { status: "loading" } | { status: "error"; code: string } | { status: "ready"; data: LoadedTemplate };
@@ -96,7 +98,10 @@ export function BuilderScreen({ data }: { data: LoadedTemplate }) {
   const [snapshot, setSnapshot] = useState<VersionSnapshot | null>(version ? snapshotOf(version) : null);
   const [versionNo, setVersionNo] = useState(version?.version_no ?? 0);
   const [versionIds, setVersionIds] = useState<string[]>(data.versions.map((v: VersionItem) => v.id));
-  const roles = useMemo(() => snapshot?.roles ?? [], [snapshot]);
+  // a form without a signature (migration 169): the people who fill it in are edited here (there is no page editor to do it in)
+  const formOnly = template.mode === "form";
+  const [formRoles, setFormRoles] = useState<SignRole[]>(snapshot?.roles ?? []);
+  const roles = useMemo(() => (formOnly ? formRoles : (snapshot?.roles ?? [])), [formOnly, formRoles, snapshot]);
   const readOnly = !canEdit || !snapshot;
 
   const seeds = useMemo<FormSeeds>(
@@ -108,9 +113,13 @@ export function BuilderScreen({ data }: { data: LoadedTemplate }) {
 
   // what was last saved, to know what has changed and which keys are no longer the sender's to change
   const [saved, setSaved] = useState(() => ({ form: snapshot?.form ?? emptyForm(), json: JSON.stringify([snapshot?.form ?? emptyForm(), snapshot?.fields ?? []]) }));
-  const dirty = useMemo(() => JSON.stringify([form, placements]) !== saved.json, [form, placements, saved.json]);
+  const rolesChanged = useMemo(() => formOnly && JSON.stringify(formRoles) !== JSON.stringify(snapshot?.roles ?? []), [formOnly, formRoles, snapshot]);
+  const dirty = useMemo(() => rolesChanged || JSON.stringify([form, placements]) !== saved.json, [rolesChanged, form, placements, saved.json]);
   const used = useTemplateUsed(versionIds);
   const customFields = useCustomContactFields();
+  const optionLists = useOptionLists();
+  // a field that names a list the workspace does not have is reported while the lists are known (not while they are still loading)
+  const knownLists = useMemo(() => (optionLists.status === "ready" ? { known: new Set(optionLists.lists.map((l) => l.key)) } : {}), [optionLists]);
 
   const [lang, setLang] = useState<SignLocale>((AUTHOR_LOCALES as readonly string[]).includes(uiLocale) ? (uiLocale as SignLocale) : "en");
   const [partKey, setPartKey] = useState<string | null>(null);
@@ -134,7 +143,7 @@ export function BuilderScreen({ data }: { data: LoadedTemplate }) {
   const counts = useMemo(() => printCounts(placements), [placements]);
   const texts = useMemo(() => Object.fromEntries(AUTHOR_LOCALES.map((l) => [l, coverage(form, l)])), [form]);
 
-  const liveIssues = useMemo(() => validateForm(form, roles, placements), [form, roles, placements]);
+  const liveIssues = useMemo(() => validateForm(form, roles, placements, knownLists), [form, roles, placements, knownLists]);
   const issues = useMemo(() => {
     const extra = serverIssues.filter((s) => !liveIssues.some((i) => i.code === s.code && i.field === s.field && i.part === s.part && i.role === s.role));
     return extra.length > 0 ? [...liveIssues, ...extra] : liveIssues;
@@ -297,15 +306,18 @@ export function BuilderScreen({ data }: { data: LoadedTemplate }) {
     try {
       const latest = await loadTemplate(template.id);
       if (!latest.version) throw new SignApiError("template_has_no_version", "The template has no version.", 409);
-      const plan = planFormSave({ loaded: snapshot, latest: snapshotOf(latest.version), form, placements, ops: model.doc.ops });
+      const plan = planFormSave({ loaded: snapshot, latest: snapshotOf(latest.version), form, placements, ops: model.doc.ops, roles: formOnly ? formRoles : undefined });
       if (plan.kind === "conflict") {
         setError("changed_elsewhere");
         return;
       }
       const result = await postVersion(template.id, plan.body);
-      const next: VersionSnapshot = { id: result.version.id, fields: plan.body.fields, roles: plan.body.roles, defaults: plan.body.defaults, form: plan.body.form };
-      const nextForm = plan.body.form ?? emptyForm();
+      // the server's form, not the one posted: it carries the options of every shared list a field names, copied in as of now
+      const savedForm = result.version.form ?? plan.body.form;
+      const next: VersionSnapshot = { id: result.version.id, fields: plan.body.fields, roles: plan.body.roles, defaults: plan.body.defaults, form: savedForm };
+      const nextForm = savedForm ?? emptyForm();
       setSnapshot(next);
+      if (formOnly) setFormRoles(plan.body.roles);
       setVersionNo(result.version.version_no);
       setVersionIds((ids) => [result.version.id, ...ids]);
       setSaved({ form: nextForm, json: JSON.stringify([nextForm, plan.body.fields]) });
@@ -422,13 +434,16 @@ export function BuilderScreen({ data }: { data: LoadedTemplate }) {
         errorText={errorText}
         problems={issues.length}
         warnings={warnings.length}
+        formOnly={formOnly}
         onShowProblems={() => {
           setRight("issues");
           setPane("right");
         }}
       />
 
-      {!hasForm ? (
+      {formOnly ? <FormRolesPanel roles={formRoles} form={form} readOnly={readOnly} onChange={setFormRoles} /> : null}
+
+      {!hasForm && !formOnly ? (
         <p role="note" className="rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           {t("screen.overlayHint")}
         </p>

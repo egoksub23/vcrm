@@ -11,17 +11,29 @@ import { useNow } from "@/hooks/use-now";
 import { useCapability } from "@/hooks/use-can";
 import { useSignCategories } from "@/hooks/use-sign-categories";
 import { useSignDocuments } from "@/hooks/use-sign-documents";
-import { EMPTY_FILTERS, STATUS_GROUPS, isFiltered, type ListFilters, type StatusGroup } from "@/lib/sign/client/list-filters";
+import { useAwaitingSignature, useNeedsAttention } from "@/hooks/use-sign-shortcuts";
+import type { ListView } from "@/lib/sign/client/countersign";
+import { EMPTY_FILTERS, STATUS_GROUPS, filtersKey, isFiltered, type ListFilters, type StatusGroup } from "@/lib/sign/client/list-filters";
+import { ZIP_MAX_DOCUMENTS } from "@/lib/sign/export/zip";
 import { cn } from "@/lib/utils";
 import { DocumentCards, DocumentTable } from "./document-rows";
+import { ListActions } from "./list-actions";
+import { SelectionBar } from "./selection-bar";
+import { AttentionPanel, AwaitingPanel, ShortcutBar } from "./shortcut-panels";
+import { useSelection } from "./use-selection";
 
 /** The Documents tab: filter chips with counts, category and search, then the documents 25 at a time. */
 export function DocumentsList() {
   const t = useTranslations("Sign.send.list");
   const canSend = useCapability("sign.send");
+  const canCountersign = useCapability("sign.sign");
   const now = useNow(60_000);
   const { categories, live } = useSignCategories();
 
+  // the two shortcuts (Awaiting my signature, Needs attention) take the place of the documents below while one is chosen
+  const [view, setView] = useState<ListView>("documents");
+  const awaiting = useAwaitingSignature(canCountersign);
+  const attention = useNeedsAttention(true);
   const [group, setGroup] = useState<StatusGroup>("all");
   const [category, setCategory] = useState<string>("all");
   const [searchInput, setSearchInput] = useState("");
@@ -42,13 +54,23 @@ export function DocumentsList() {
   };
   const total = counts?.[group] ?? rows.length;
   const nothingAtAll = !loading && !error && rows.length === 0 && !filtered;
+  // ticked documents (for the zip of their signed files); other filters mean other documents, so it starts again
+  const selection = useSelection(filtersKey(filters), ZIP_MAX_DOCUMENTS);
 
   return (
     <div className="space-y-4">
-      {!nothingAtAll ? (
+      <ListActions filters={filters} canSend={canSend} />
+      {selection.count > 0 ? <SelectionBar ids={selection.ids} max={ZIP_MAX_DOCUMENTS} onClear={selection.clear} /> : null}
+      {!nothingAtAll || awaiting.count > 0 || attention.count > 0 ? (
+        <ShortcutBar view={view} onView={setView} showAwaiting={canCountersign} awaitingCount={awaiting.count} attentionCount={attention.count} />
+      ) : null}
+      {view === "awaiting" && canCountersign ? <AwaitingPanel items={awaiting.items} loading={awaiting.loading} failed={awaiting.failed} reload={awaiting.reload} /> : null}
+      {view === "attention" ? <AttentionPanel items={attention.items} loading={attention.loading} failed={attention.failed} reload={attention.reload} /> : null}
+      {view !== "documents" ? null : !nothingAtAll ? (
         <>
           <div role="group" aria-label={t("filterByStatus")} className="flex flex-wrap gap-2">
-            {STATUS_GROUPS.map((g) => (
+            {/* the Test group is offered only while there are tests (or it is the one chosen) */}
+            {STATUS_GROUPS.filter((g) => g !== "test" || group === "test" || (counts?.test ?? 0) > 0).map((g) => (
               <button
                 key={g}
                 type="button"
@@ -89,7 +111,7 @@ export function DocumentsList() {
         </>
       ) : null}
 
-      {loading ? (
+      {view !== "documents" ? null : loading ? (
         <div className="space-y-2" role="status" aria-label={t("loading")}>
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-muted/40" />
@@ -126,8 +148,8 @@ export function DocumentsList() {
         </div>
       ) : (
         <div aria-busy={refreshing} className={cn("space-y-4 transition-opacity", refreshing && "opacity-60")}>
-          <DocumentTable rows={rows} categories={categories} now={now} />
-          <DocumentCards rows={rows} categories={categories} now={now} />
+          <DocumentTable rows={rows} categories={categories} now={now} selection={selection} />
+          <DocumentCards rows={rows} categories={categories} now={now} selection={selection} />
           <div className="flex flex-col items-center gap-2 pt-1">
             <p className="text-xs text-muted-foreground" aria-live="polite">
               {t("showing", { shown: rows.length, total: Math.max(total, rows.length) })}

@@ -150,8 +150,9 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("ai/summary", "POST", "agent", "ai.use"),
 
   // ---- automations / flows ----
-  row("automations", "POST", "agent", "automations.manage"),
-  row("automations/[id]", "PATCH", "agent", "automations.manage"),
+  // Doc Sign (WP13): an automation with a Send document for signing step also needs sign.send (checked in the route, only when the step is there).
+  row("automations", "POST", "agent", ["automations.manage", "sign.send"], "also sign.send when the automation sends documents for signing"),
+  row("automations/[id]", "PATCH", "agent", ["automations.manage", "sign.send"], "also sign.send when the automation sends documents for signing"),
   row("automations/[id]", "DELETE", "agent", "automations.manage"),
   row("automations/[id]/duplicate", "POST", "agent", "automations.manage"),
   row("automations/engine", "POST", "agent", "automations.manage"),
@@ -460,8 +461,8 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   // Migration 157: Doc Sign is a brand new feature, no earlier floor to compare against. The
   // reading gate and the write guards are database-tier (has_capability() in every sign_*
   // policy); void and sign act through server routes.
+  // sign.send is not here: POST /api/automations and PATCH /api/automations/[id] require it above (the Send document for signing step).
   "menu.sign",
-  "sign.send",
   "sign.void",
   "sign.templates",
   "sign.settings",

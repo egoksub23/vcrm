@@ -184,6 +184,23 @@ export async function assertCanSendDocument(db: SupabaseClient, accountId: strin
 }
 
 /**
+ * How many more documents the workspace can send for signing this month, for a batch that must know up front
+ * whether it fits (Doc Sign bulk send). `limit` is null when there is none, and `remaining` is then null
+ * (unlimited). Reads the live count, and fails open like the other checks: no reading means no limit.
+ */
+export async function signSendHeadroom(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<{ limit: number | null; used: number; remaining: number | null }> {
+  forgetAccountUsage(accountId)
+  const usage = await loadAccountUsage(db, accountId)
+  if (!usage) return { limit: null, used: 0, remaining: null }
+  const limit = limitOf(usage.limits, 'sign_documents_per_month')
+  const used = Number(usage.sign_documents_month) || 0
+  return { limit, used, remaining: limit === null ? null : Math.max(0, limit - used) }
+}
+
+/**
  * Throws when adding one more contact by hand or through the API would go over
  * the workspace's contact limit. People adding contacts in the browser are
  * stopped by the database (contacts_limit_guard); this covers the API, which

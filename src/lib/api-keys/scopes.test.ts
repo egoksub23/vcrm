@@ -61,3 +61,12 @@ describe('SCOPE_DESCRIPTIONS', () => {
     }
   });
 });
+
+describe('Doc Sign scopes', () => {
+  it('are valid scopes a key can be given, with plain-words descriptions', () => {
+    expect(normalizeScopes(['sign:read', 'sign:write'])).toEqual(['sign:read', 'sign:write']);
+    expect(isApiScope('sign:send')).toBe(false);
+    expect(SCOPE_DESCRIPTIONS['sign:read']).toMatch(/download/i);
+    expect(SCOPE_DESCRIPTIONS['sign:write']).toMatch(/send/i);
+  });
+});

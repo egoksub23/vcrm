@@ -17,6 +17,10 @@ export interface SignCtx {
   origin: string;
   deps: NotifyDeps;
   now: () => Date;
+  /** How the call arrived when it was not a person at a screen, for example `api_key:<key id>`. Added to the events the services log. */
+  via?: string;
+  /** How many Doc Sign events deep an automation run is that made this call (loop guard, see outbound.ts). Absent for a person or a job. */
+  chainDepth?: number;
 }
 
 export async function loadDocument(ctx: SignCtx, documentId: string): Promise<SignDocumentRow> {
@@ -50,26 +54,31 @@ export async function loadSettings(ctx: SignCtx): Promise<SignSettingsRow> {
   return again.data as SignSettingsRow;
 }
 
-/** Add an event to a document's audit chain. Never throws: a log write must not undo what it records. */
+/**
+ * Add an event to a document's audit chain. Never throws: a log write must not undo what it records. With `strict` it does
+ * throw when the event was not recorded, for an act that must not happen unrecorded (revealing a sensitive answer).
+ */
 export async function logEvent(
   ctx: SignCtx,
   documentId: string,
   type: string,
-  opts: { actor: "user" | "signer" | "system"; signerId?: string | null; userId?: string | null; detail?: Record<string, unknown>; ip?: string | null; device?: string | null },
+  opts: { actor: "user" | "signer" | "system"; signerId?: string | null; userId?: string | null; detail?: Record<string, unknown>; ip?: string | null; device?: string | null; strict?: boolean },
 ): Promise<void> {
   try {
-    await ctx.admin.rpc("sign_log", {
+    const logged = await ctx.admin.rpc("sign_log", {
       p_document: documentId,
       p_type: type,
       p_actor_type: opts.actor,
       p_signer: opts.signerId ?? null,
       p_user: opts.userId ?? null,
-      p_detail: opts.detail ?? {},
+      p_detail: ctx.via ? { ...(opts.detail ?? {}), via: ctx.via } : (opts.detail ?? {}),
       p_ip: opts.ip ?? null,
       p_device: opts.device ?? null,
     });
+    if (opts.strict && logged.error) throw new Error(logged.error.message);
   } catch (err) {
     console.error("[sign] could not log event", type, err instanceof Error ? err.message : err);
+    if (opts.strict) throw new SignError("audit_unavailable", "The action could not be recorded, so it was not done. Try again.", 503);
   }
 }
 

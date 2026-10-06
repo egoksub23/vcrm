@@ -18,13 +18,16 @@ import { cn } from "@/lib/utils";
 
 import { downloadFile } from "../download";
 import { formatSize } from "../format";
+import { SensitiveAnswer } from "./sensitive-answer";
 
 interface Props {
   documentId: string;
   groups: AnswerGroup[];
+  /** The reader may reveal a sensitive answer (sign.send); everyone with the menu sees it masked. */
+  canReveal?: boolean;
 }
 
-export function AnswersView({ documentId, groups }: Props) {
+export function AnswersView({ documentId, groups, canReveal = false }: Props) {
   const t = useTranslations("Sign.progress");
   return (
     <section aria-labelledby="sign-answers-title" className="grid gap-3">
@@ -36,14 +39,14 @@ export function AnswersView({ documentId, groups }: Props) {
       </div>
       <ul className="grid gap-2">
         {groups.map((g, i) => (
-          <AnswerGroupView key={g.partKey} documentId={documentId} group={g} number={i + 1} defaultOpen={g.answered > 0} />
+          <AnswerGroupView key={g.partKey} documentId={documentId} group={g} number={i + 1} defaultOpen={g.answered > 0} canReveal={canReveal} />
         ))}
       </ul>
     </section>
   );
 }
 
-function AnswerGroupView({ documentId, group, number, defaultOpen }: { documentId: string; group: AnswerGroup; number: number; defaultOpen: boolean }) {
+function AnswerGroupView({ documentId, group, number, defaultOpen, canReveal }: { documentId: string; group: AnswerGroup; number: number; defaultOpen: boolean; canReveal: boolean }) {
   const t = useTranslations("Sign.progress");
   // A part with answers starts open. Read once when the group first appears: the sender's own opening and closing is kept as the page polls.
   const [open, setOpen] = useState(defaultOpen);
@@ -73,7 +76,7 @@ function AnswerGroupView({ documentId, group, number, defaultOpen }: { documentI
           ) : (
             <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
               {group.rows.map((row) => (
-                <AnswerRow key={row.key} documentId={documentId} row={row} />
+                <AnswerRow key={row.key} documentId={documentId} row={row} canReveal={canReveal} />
               ))}
             </dl>
           )}
@@ -83,13 +86,13 @@ function AnswerGroupView({ documentId, group, number, defaultOpen }: { documentI
   );
 }
 
-function AnswerRow({ documentId, row }: { documentId: string; row: AnswerRowView }) {
+function AnswerRow({ documentId, row, canReveal }: { documentId: string; row: AnswerRowView; canReveal: boolean }) {
   const t = useTranslations("Sign.progress");
   return (
     <>
       <dt className="text-xs font-medium text-muted-foreground sm:pt-0.5">{row.label}</dt>
       <dd className="min-w-0 text-sm text-foreground">
-        <AnswerValue documentId={documentId} label={row.label} display={row.display} />
+        {row.sensitive ? <SensitiveAnswer documentId={documentId} row={row} canReveal={canReveal} /> : <AnswerValue documentId={documentId} label={row.label} display={row.display} />}
         {row.fromContact && <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">{t("answers.fromContact")}</span>}
         {row.bySender && <span className="mt-1 block text-xs text-muted-foreground">{t("answers.bySender")}</span>}
       </dd>

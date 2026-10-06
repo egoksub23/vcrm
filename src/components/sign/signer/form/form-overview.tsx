@@ -8,7 +8,8 @@
 // open in any order.
 // ============================================================
 
-import { AlertCircle, Check, ChevronRight, CircleDashed, CircleDot, FileSignature, Loader2, Lock, Send } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle, Check, ChevronRight, CircleDashed, CircleDot, FileSignature, Hourglass, Loader2, Lock, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -59,27 +60,101 @@ interface FormOverviewProps {
   unlocked: boolean;
   /** The last step sends the answers (a person who only fills in) instead of going on to sign. */
   submit: boolean;
+  /** A form without a signature: the last step is a look at everything, then Submit (migration 169). */
+  reviewSubmit?: boolean;
   saveState?: SaveState;
   busy?: boolean;
   lastSavedAt: string | null;
   onOpen: (partKey: string) => void;
   onFinal: () => void;
+  /** Forwarding (F-95): the parts this person handed to someone else, by part key. */
+  delegations?: Record<string, { name: string; done: boolean }>;
+  /** A part that is not with anyone else can be forwarded. */
+  onForwardPart?: (partKey: string) => void;
+  /** A part that is with someone who has not completed it can be taken back. */
+  onTakeBack?: (partKey: string) => Promise<void>;
 }
 
-export function FormOverview({ title, rows, unlocked, submit, saveState, busy, lastSavedAt, onOpen, onFinal }: FormOverviewProps) {
+/** The person has handed this part to someone else: it says who holds it, and can be taken back until they complete it. */
+function HeldRow({ row, held, onTakeBack }: { row: PartRow; held: { name: string; done: boolean }; onTakeBack?: (partKey: string) => Promise<void> }) {
+  const t = useTranslations("Sign.signerForm");
+  const text = useFormText();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
+      <div className="flex min-h-11 items-center gap-3">
+        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+          {row.number}
+        </span>
+        <span className="min-w-0 flex-1 break-words text-base font-medium leading-snug">{text(row.part.title)}</span>
+        {held.done ? <Chip status="done">{t("overview.doneBy", { name: held.name })}</Chip> : <Chip icon={Hourglass} tone="bg-amber-500/15 text-foreground">{t("overview.waitingFor", { name: held.name })}</Chip>}
+      </div>
+      {!held.done && onTakeBack ? (
+        asking ? (
+          <div role="group" className="space-y-2 rounded-lg bg-background p-3 text-sm">
+            <p>{t("overview.takeBackAsk", { name: held.name })}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                className="h-11"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setFailed(false);
+                  try {
+                    await onTakeBack(row.part.key);
+                  } catch {
+                    // the page is brought up to date by the caller (they may have just finished it)
+                    setFailed(true);
+                  } finally {
+                    setBusy(false);
+                    setAsking(false);
+                  }
+                }}
+              >
+                {busy ? <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden /> : null}
+                {t("overview.takeBackYes")}
+              </Button>
+              <Button type="button" variant="outline" className="h-11" disabled={busy} onClick={() => setAsking(false)}>
+                {t("overview.takeBackNo")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => setAsking(true)}>
+            {t("overview.takeBack")}
+          </button>
+        )
+      ) : null}
+      {failed ? (
+        <p role="alert" className="text-sm font-medium text-red-700 dark:text-red-400">
+          {t("overview.takeBackFailed")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function FormOverview({ title, rows, unlocked, submit, reviewSubmit, saveState, busy, lastSavedAt, onOpen, onFinal, delegations, onForwardPart, onTakeBack }: FormOverviewProps) {
   const t = useTranslations("Sign.signerForm");
   const text = useFormText();
   const savedWords = useSavedWords();
   const done = rows.filter((r) => r.state === "done").length;
   const percent = overallPercent(rows);
-  const next = firstUnfinished(rows);
-  const left = partsLeft(rows);
+  // the parts handed to someone else are theirs to complete: "Continue" and "parts left" are about what this person does
+  const heldOf = (row: PartRow) => delegations?.[row.part.key];
+  const mine = rows.filter((r) => !heldOf(r));
+  const waiting = rows.filter((r) => heldOf(r) && !heldOf(r)?.done).length;
+  const next = firstUnfinished(mine);
+  const left = partsLeft(mine);
   const saving = !!busy || saveState === "saving";
 
-  const leftWords = submit ? t("final.leftSubmit", { count: left }) : t("final.leftSign", { count: left });
-  const lockedWhy = left > 0 ? leftWords : saving ? t("final.saving") : t("final.check");
-  const finalTitle = submit ? t("final.submit") : t("final.review");
-  const readyWhy = submit ? t("final.readySubmit") : t("final.readySign");
+  const leftWords = submit || reviewSubmit ? t("final.leftSubmit", { count: left }) : t("final.leftSign", { count: left });
+  const lockedWhy = left > 0 ? leftWords : waiting > 0 ? t("final.waitingDelegates", { count: waiting }) : saving ? t("final.saving") : t("final.check");
+  const finalTitle = reviewSubmit ? t("final.reviewSubmit") : submit ? t("final.submit") : t("final.review");
+  const readyWhy = reviewSubmit ? t("final.readyReviewSubmit") : submit ? t("final.readySubmit") : t("final.readySign");
 
   return (
     <div className="space-y-5">
@@ -103,6 +178,14 @@ export function FormOverview({ title, rows, unlocked, submit, saveState, busy, l
 
       <ol className="space-y-2" aria-label={t("overview.parts")}>
         {rows.map((row) => {
+          const held = heldOf(row);
+          if (held) {
+            return (
+              <li key={row.part.key}>
+                <HeldRow row={row} held={held} onTakeBack={onTakeBack} />
+              </li>
+            );
+          }
           const status = rowStatus(row);
           const saved = savedWords(row.lastSavedAt ?? null);
           const counts = row.total > 0 && row.state !== "not_started" ? t("overview.counts", { done: row.done, total: row.total }) : null;
@@ -119,6 +202,11 @@ export function FormOverview({ title, rows, unlocked, submit, saveState, busy, l
                 <Chip status={status}>{t(`status.${status}`)}</Chip>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden />
               </button>
+              {onForwardPart && row.state !== "done" ? (
+                <button type="button" className="mt-1 inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => onForwardPart(row.part.key)}>
+                  {t("overview.forwardPart")}
+                </button>
+              ) : null}
             </li>
           );
         })}
@@ -133,7 +221,7 @@ export function FormOverview({ title, rows, unlocked, submit, saveState, busy, l
             }}
           >
             <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
-              {submit ? <Send className="size-4" /> : <FileSignature className="size-4" />}
+              {submit || reviewSubmit ? <Send className="size-4" /> : <FileSignature className="size-4" />}
             </span>
             <span className="min-w-0 flex-1">
               <span className={cn("block break-words text-base font-medium leading-snug", unlocked && "text-foreground")}>{finalTitle}</span>

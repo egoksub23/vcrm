@@ -15,6 +15,9 @@ export type TemplateSlug =
   | 'ai_first_response'
   | 'ai_classify_route'
   | 'ai_close_summary_ticket'
+  // Doc Sign recipes (docs/automations-and-cron.md). Offered where Doc Sign is on.
+  | 'merchant_onboarding'
+  | 'merchant_signed_followup'
 
 export interface TemplateStepSeed {
   step_type: AutomationStepType
@@ -220,6 +223,64 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
         i18n: { subject: 'ticketSubject' },
       },
       { step_type: 'add_conversation_label', step_config: { tag_id: '' } },
+    ],
+  },
+  // Doc Sign recipe 1. A contact gets the tag (a form, an agent or another automation adds it), the Merchant
+  // Application goes to them for signing. Two pickers are left for the person who starts from the recipe: the
+  // tag and the template. `tag_hint` / `template_hint` are the names the builder looks for and picks when the
+  // workspace has them ("Merchant applicant", and the "Merchant Application" template the add-on installs);
+  // they are ignored by the engine and by validation.
+  merchant_onboarding: {
+    slug: 'merchant_onboarding',
+    name: 'Merchant onboarding',
+    description: 'When a contact is tagged "Merchant applicant", send them the Merchant Application to fill in and sign.',
+    trigger_type: 'tag_added',
+    trigger_config: { tag_id: '', tag_hint: 'Merchant applicant' },
+    steps: [
+      {
+        step_type: 'send_sign_document',
+        step_config: {
+          template_id: '',
+          template_hint: 'Merchant Application',
+          title: '',
+          recipients: [{ role_key: 'merchant', source: 'contact', channel: 'email' }],
+          merge_values: {},
+          send: true,
+        },
+      },
+    ],
+  },
+  // Doc Sign recipe 2. The other half: when a Merchant Application is signed, mark the contact, open the KYC
+  // review for the team, and thank the merchant. The welcome message goes last: it needs an existing
+  // conversation with the contact, and the first two steps must not depend on that.
+  merchant_signed_followup: {
+    slug: 'merchant_signed_followup',
+    name: 'Merchant signed follow-up',
+    description: 'When a Merchant Application is signed, tag the contact "Merchant signed", open a KYC review ticket and send a thank-you.',
+    trigger_type: 'sign_document_event',
+    trigger_config: { events: ['completed'], template_id: '', template_hint: 'Merchant Application' },
+    steps: [
+      { step_type: 'add_tag', step_config: { tag_id: '', tag_hint: 'Merchant signed' } },
+      {
+        step_type: 'create_ticket',
+        step_config: {
+          category: 'account',
+          priority: 'normal',
+          subject: 'Merchant KYC review',
+          description:
+            'The Merchant Application {{ sign.reference }} from {{ contact.name }} is signed. Check the company details and the documents, then confirm the file is genuine: {{ sign.verify_url }}',
+          // a signed document is not a conversation: always open the review
+          skip_if_open: false,
+        },
+        i18n: { subject: 'ticketSubject', description: 'ticketDescription' },
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Thank you {{ contact.name }}. We have received your signed Merchant Application ({{ sign.reference }}). Our team will review it and be in touch shortly.',
+        },
+        i18n: { text: 'welcomeMessage' },
+      },
     ],
   },
 }

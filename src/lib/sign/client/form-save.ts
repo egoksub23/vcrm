@@ -7,6 +7,7 @@
 // Pure: no React, no I/O.
 // ============================================================
 
+import { stripListOptions } from "../forms/lists";
 import type { FormDefinition } from "../forms/types";
 import type { PlacedField } from "../pdf/types";
 import type { SignRole, TemplateDefaults } from "../types";
@@ -31,8 +32,11 @@ export interface VersionSnapshot {
 
 const same = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-/** A form with no parts and no fields is no form: the template goes back to placing fields on the page. */
-export const formForSave = (form: FormDefinition): FormDefinition | null => (form.parts.length === 0 && form.fields.length === 0 ? null : form);
+/**
+ * A form with no parts and no fields is no form: the template goes back to placing fields on the page. A field that names a shared list
+ * is posted as the key only: the server copies the list's items in (a large list is not sent back and forth).
+ */
+export const formForSave = (form: FormDefinition): FormDefinition | null => (form.parts.length === 0 && form.fields.length === 0 ? null : stripListOptions(form));
 
 export type SavePlan = { kind: "ok"; body: VersionBody; merged: boolean } | { kind: "conflict" };
 
@@ -40,14 +44,25 @@ export type SavePlan = { kind: "ok"; body: VersionBody; merged: boolean } | { ki
  * The form builder saving. `loaded` is the version it was opened on, `latest` what the server has now. The builder owns the form and
  * the placements' bindings; it never changes roles or defaults, so those come from `latest`.
  */
-export function planFormSave(input: { loaded: VersionSnapshot; latest: VersionSnapshot; form: FormDefinition; placements: readonly PlacedField[]; ops: readonly PlacementOp[] }): SavePlan {
+export function planFormSave(input: {
+  loaded: VersionSnapshot;
+  latest: VersionSnapshot;
+  form: FormDefinition;
+  placements: readonly PlacedField[];
+  ops: readonly PlacementOp[];
+  /** A form without a signature (migration 169) edits the people who fill it in here; every other template leaves the roles to the page editor. */
+  roles?: readonly SignRole[];
+}): SavePlan {
   const { loaded, latest } = input;
+  const roles = input.roles ? [...input.roles] : latest.roles;
   if (latest.id === loaded.id) {
-    return { kind: "ok", merged: false, body: { fields: [...input.placements], roles: latest.roles, defaults: latest.defaults, form: formForSave(input.form) } };
+    return { kind: "ok", merged: false, body: { fields: [...input.placements], roles, defaults: latest.defaults, form: formForSave(input.form) } };
   }
   // someone saved since: only safe when they did not touch the form this screen is editing
   if (!same(latest.form, loaded.form)) return { kind: "conflict" };
-  return { kind: "ok", merged: true, body: { fields: applyPlacementOps(latest.fields, input.ops), roles: latest.roles, defaults: latest.defaults, form: formForSave(input.form) } };
+  // (the roles this screen edits win only when it edited them, and only when nobody else changed them since)
+  if (input.roles && !same(latest.roles, loaded.roles)) return { kind: "conflict" };
+  return { kind: "ok", merged: true, body: { fields: applyPlacementOps(latest.fields, input.ops), roles, defaults: latest.defaults, form: formForSave(input.form) } };
 }
 
 /**

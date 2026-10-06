@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DraftFieldsEditor } from "@/components/sign/editor/draft-fields-editor";
+import { EnvelopeMemberWorkspace } from "@/components/sign/envelope/member-workspace";
 import { hasFormParts } from "@/lib/sign/client/progress-logic";
 import { useCapability } from "@/hooks/use-can";
 import { useNow } from "@/hooks/use-now";
@@ -21,8 +22,8 @@ import { resolveDefaults } from "@/lib/sign/defaults";
 import { isEmptyPatch, optionsFromDocument, optionsPatch, type DraftOptions } from "@/lib/sign/client/draft-options";
 import { draftProblems } from "@/lib/sign/client/draft-problems";
 import { errorKey, problemStep, type DraftStep } from "@/lib/sign/client/errors";
-import { payloadKey, rowHasInput, rowIsComplete, rowsForRoles, rowsFromSigners, toPayload, type SignerRow } from "@/lib/sign/client/signers-form";
-import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
+import { normalizeSteps, payloadKey, rowHasInput, rowIsComplete, rowsForRoles, rowsFromSigners, toPayload, type SignerRow } from "@/lib/sign/client/signers-form";
+import { isFormMode, type SignDocumentRow, type SignSignerRow } from "@/lib/sign/types";
 import { FormFieldsStep } from "./form-fields-step";
 import { OptionsStep } from "./options-step";
 import { PeopleStep } from "./people-step";
@@ -80,11 +81,14 @@ export function DraftWorkspace({ documentId, onOpenDocument }: Props) {
       </div>
     );
   }
+  // a document of an envelope: its fields and values are prepared here, the people, the options and sending are the envelope's (migration 171)
+  if (data.document.envelope_id) return <EnvelopeMemberWorkspace key={documentId} documentId={documentId} data={data} reload={reload} />;
   return <LoadedWorkspace key={documentId} documentId={documentId} data={data} reload={reload} setDocument={setDocument} onOpenDocument={onOpenDocument} />;
 }
 
 function initialStep(doc: SignDocumentRow, signers: readonly SignSignerRow[]): DraftStepId {
-  if (doc.fields_snapshot.length === 0 || doc.roles_snapshot.length === 0) return "fields";
+  // a form without a signature has no fields on a page: its people are what it needs first
+  if ((!isFormMode(doc) && doc.fields_snapshot.length === 0) || doc.roles_snapshot.length === 0) return "fields";
   return signers.length === 0 ? "people" : "review";
 }
 
@@ -113,7 +117,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
     const saved = rowsFromSigners(data.signers);
     return {
       rows: saved.length > 0 ? saved : rowsForRoles(doc.roles_snapshot),
-      savedPeopleKey: payloadKey(toPayload(saved, doc.roles_snapshot)),
+      savedPeopleKey: payloadKey(toPayload(saved, doc.roles_snapshot, doc.sign_in_order)),
       options: optionsFromDocument(doc),
       step: initialStep(doc, data.signers),
     };
@@ -144,7 +148,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
   const people = useAutosave(async () => {
     if (deleted.current) return;
-    const payload = toPayload(rowsRef.current, rolesRef.current);
+    const payload = toPayload(rowsRef.current, rolesRef.current, optionsRef.current.signInOrder);
     const key = payloadKey(payload);
     if (key === savedPeopleKey.current) return;
     try {
@@ -174,7 +178,9 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
   const flushAll = async (): Promise<boolean> => (await Promise.all([people.flush(), optionsSave.flush()])).every(Boolean);
 
-  const changeRows = (next: SignerRow[]) => {
+  const changeRows = (list: SignerRow[]) => {
+    // with signing order the steps are kept 1, 2, 3 with no gap, listed in step order
+    const next = optionsRef.current.signInOrder ? normalizeSteps(list) : list;
     rowsRef.current = next;
     setRows(next);
     people.touch();
@@ -184,18 +190,22 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
     optionsRef.current = next;
     setOptions(next);
     optionsSave.touch();
+    // the order numbers saved with the people depend on whether the document needs signing order
+    if (patch.signInOrder !== undefined) changeRows(rowsRef.current);
   };
 
   const categoryId = options.categoryId;
   const defaults = resolveDefaults({ category: categories.find((c) => c.id === categoryId) ?? null, workspace: settings });
   const form = hasFormParts(doc.form_snapshot) ? doc.form_snapshot : null;
-  const facts = { fields: doc.fields_snapshot, roles, pageCount: doc.page_count ?? 0, hasBaseFile: !!doc.base_path, form };
+  const formOnly = isFormMode(doc);
+  const mode = formOnly ? ("form" as const) : ("sign" as const);
+  const facts = { fields: doc.fields_snapshot, roles, pageCount: doc.page_count ?? 0, hasBaseFile: !!doc.base_path, form, mode };
   const nowDate = new Date(now);
   const liveProblems = draftProblems({ facts, rows, options, now: nowDate });
   const reviewProblems = draftProblems({ facts, rows, options, serverProblems: data.problems, now: nowDate });
   const noProblemsAt = (s: DraftStep) => !liveProblems.some((p) => problemStep(p.code) === s);
   const done = {
-    fields: roles.length > 0 && doc.fields_snapshot.length > 0 && noProblemsAt("fields"),
+    fields: roles.length > 0 && (formOnly || doc.fields_snapshot.length > 0) && noProblemsAt("fields"),
     people: rows.length > 0 && noProblemsAt("people"),
     options: noProblemsAt("options"),
     review: false,
@@ -259,7 +269,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
   };
 
   if (result) {
-    return <SendResult result={result} roles={roles} ordered={options.signInOrder} onOpenDocument={onOpenDocument} />;
+    return <SendResult result={result} roles={roles} ordered={options.signInOrder} onOpenDocument={onOpenDocument} mode={mode} />;
   }
 
   const saveState = combineSaveStates([people.state, optionsSave.state]);
@@ -307,12 +317,12 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
         </p>
       ) : null}
 
-      <StepsNav current={step} done={done} onGo={goStep} />
+      <StepsNav current={step} done={done} onGo={goStep} formOnly={formOnly} />
 
       <div>
         {step === "fields" ? (
           form ? (
-            <FormFieldsStep documentId={documentId} form={form} roles={roles} readOnly={!canSend} onChanged={() => void reload()} />
+            <FormFieldsStep documentId={documentId} form={form} roles={roles} readOnly={!canSend} onChanged={() => void reload()} formOnly={formOnly} />
           ) : (
             <DraftFieldsEditor documentId={documentId} onChanged={() => void reload()} />
           )
@@ -329,6 +339,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               onSignInOrder={(v) => changeOptions({ signInOrder: v })}
               onGoToFields={() => goStep("fields")}
               form={form}
+              mode={mode}
             />
             {unsavedPeople > 0 ? <p className="mt-3 text-xs text-muted-foreground">{t("unsavedPeople", { count: unsavedPeople })}</p> : null}
           </>
@@ -352,6 +363,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               onSend={() => void send()}
               onGoToStep={goStep}
               form={form}
+              mode={mode}
             />
             {sendErrorCode === "document_not_draft" ? (
               <div className="mt-3 flex justify-end">

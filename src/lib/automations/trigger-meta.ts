@@ -41,6 +41,9 @@ export const TRIGGER_META: Record<AutomationTriggerType, TriggerMeta> = {
   conversation_closed: {
     pillClass: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
   },
+  sign_document_event: {
+    pillClass: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300',
+  },
 }
 
 export function isKnownTrigger(t: string): t is AutomationTriggerType {

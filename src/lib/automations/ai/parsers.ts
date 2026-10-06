@@ -241,13 +241,15 @@ export interface InterpolationScope {
   contact?: Record<string, unknown>
   conversation?: Record<string, unknown>
   closure?: { note?: string }
+  /** sign_document_event: the document the event is about (never an email, a phone number or a token). */
+  sign?: Record<string, unknown>
 }
 
 const MAX_SUBSTITUTED_CHARS = 1000
 
 /**
  * Fill `{{ message.text }}`, `{{ vars.x }}`, `{{ contact.name }}`,
- * `{{ conversation.id }}` and `{{ closure.note }}`. Everything substituted came
+ * `{{ conversation.id }}`, `{{ closure.note }}` and `{{ sign.reference }}`. Everything substituted came
  * from a customer or an earlier step, so it goes in wrapped in « » and cut to
  * 1,000 characters: the prompts tell the model text between « » is data. A
  * value that itself contains « or » has them removed so it cannot fake the
@@ -262,6 +264,7 @@ export function interpolateSafe(template: string, scope: InterpolationScope): st
     else if (ns === 'contact' && prop) value = scope.contact?.[prop]
     else if (ns === 'conversation' && prop) value = scope.conversation?.[prop]
     else if (ns === 'closure' && prop === 'note') value = scope.closure?.note
+    else if (ns === 'sign' && prop) value = scope.sign?.[prop]
     if (value === undefined || value === null || value === '') return ''
     const s = typeof value === 'object' ? JSON.stringify(value) : String(value)
     return `«${clip(s.replace(/[«»]/g, ''), MAX_SUBSTITUTED_CHARS)}»`
@@ -279,6 +282,7 @@ export function interpolatePlain(template: string, scope: InterpolationScope): s
     else if (ns === 'contact' && prop) value = scope.contact?.[prop]
     else if (ns === 'conversation' && prop) value = scope.conversation?.[prop]
     else if (ns === 'closure' && prop === 'note') value = scope.closure?.note
+    else if (ns === 'sign' && prop) value = scope.sign?.[prop]
     if (value === undefined || value === null) return ''
     return typeof value === 'object' ? JSON.stringify(value) : String(value)
   })
