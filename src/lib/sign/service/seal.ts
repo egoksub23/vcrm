@@ -8,6 +8,7 @@
 // ============================================================
 
 import { certificateLabels, eventSentence } from "../certificate-words";
+import { boundPlacements, boundValues, type FormDefinition } from "../forms";
 import { notifyCompleted } from "./outcome";
 import type { CertificateData } from "../pdf/types";
 import { answerFields } from "../pdf/stamp";
@@ -19,10 +20,11 @@ import { verifyLink } from "../notify";
 import { decodeImageDataUrl, type StoredAnswer } from "../rules";
 import { documentPath, getFile, putFile, removeFiles } from "../storage";
 import type { FieldValue, FieldValues, PlacedField } from "../pdf/types";
-import type { SignDocumentRow, SignSignerRow } from "../types";
+import type { SignDocumentRow, SignLocale, SignSignerRow } from "../types";
 import { sealingCertificate } from "./certificates";
 import { loadDocument, loadSenderAndWorkspace, loadSettings, loadSigners, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { formOf, formState, type AnswerRow } from "./form-state";
 
 /** What a stored answer becomes on the page. */
 export function toFieldValue(a: StoredAnswer): FieldValue | null {
@@ -38,12 +40,14 @@ export function toFieldValue(a: StoredAnswer): FieldValue | null {
 
 /**
  * The values to write for every answerable field: each signer's answers for the fields of their role,
- * their name on name fields and their signing time on signing-date fields.
+ * their name on name fields and their signing time on signing-date fields. For a document with a form, what
+ * the answers to the form print on the places bound to them (in the document's language) goes on top.
  */
 export function valuesFor(
   fields: readonly PlacedField[],
   signers: readonly SignSignerRow[],
   answers: readonly { signer_id: string; field_key: string; value: StoredAnswer | null }[],
+  form?: { definition: FormDefinition; locale: SignLocale },
 ): FieldValues {
   const out: Record<string, FieldValue> = {};
   const byRole = new Map<string, SignSignerRow>();
@@ -61,6 +65,10 @@ export function valuesFor(
       const v = a ? toFieldValue(a) : null;
       if (v) out[f.key] = v;
     }
+  }
+  if (form) {
+    const state = formState(form.definition, signers, answers as unknown as AnswerRow[]);
+    Object.assign(out, boundValues(fields, form.definition, state.map, form.locale));
   }
   return out;
 }
@@ -80,7 +88,7 @@ export function certificateData(
   const roleLabel = new Map(doc.roles_snapshot.map((r) => [r.key, r.label]));
   const history = events
     .map((e) => {
-      const text = eventSentence(e.type, doc.locale, { actor: e.signer_id ? (nameOf.get(e.signer_id) ?? "") : "", sender: info.senderName });
+      const text = eventSentence(e.type, doc.locale, { actor: e.signer_id ? (nameOf.get(e.signer_id) ?? "") : "", sender: info.senderName }, { detail: e.detail, timeZone: info.timeZone });
       return text ? { at: new Date(e.created_at), text } : null;
     })
     .filter((e): e is { at: Date; text: string } => !!e);
@@ -137,8 +145,11 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
     if (eventsQ.error) raiseDatabaseError(eventsQ.error, "load events");
 
     const base = await getFile(ctx.admin, doc.base_path, ctx.accountId);
-    const values = valuesFor(doc.fields_snapshot, signers, (answersQ.data ?? []) as { signer_id: string; field_key: string; value: StoredAnswer | null }[]);
-    const stamped = await stampFields(base, answerFields(doc.fields_snapshot), values, { locale: doc.locale, timeZone: info.timeZone });
+    const form = formOf(doc);
+    const values = valuesFor(doc.fields_snapshot, signers, (answersQ.data ?? []) as { signer_id: string; field_key: string; value: StoredAnswer | null }[], form ? { definition: form, locale: doc.locale } : undefined);
+    // the places that print the form's answers are stamped with the answers, like any other place a person filled in
+    const places = form ? [...answerFields(doc.fields_snapshot), ...boundPlacements(doc.fields_snapshot)] : answerFields(doc.fields_snapshot);
+    const stamped = await stampFields(base, places, values, { locale: doc.locale, timeZone: info.timeZone });
 
     const data = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, doc.page_count ?? 1);
     const withCertificate = await appendCertificate(stamped.bytes, data, { locale: doc.locale });

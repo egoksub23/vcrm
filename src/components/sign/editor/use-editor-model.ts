@@ -34,6 +34,8 @@ import {
   type NudgeDirection,
   type Rect,
 } from "@/lib/sign/client/layout";
+import { createBoundPlacement } from "@/lib/sign/client/form-printing";
+import type { DataField } from "@/lib/sign/forms/types";
 import type { FieldType, PlacedField } from "@/lib/sign/pdf/types";
 import { MAX_FIELDS, SENDER_ROLE } from "@/lib/sign/rules";
 import type { SignerKind, SignRole } from "@/lib/sign/types";
@@ -148,6 +150,22 @@ export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelIn
     return field.key;
   });
 
+  /**
+   * Forms: place a field that prints a data field's answer, already bound (it belongs to the sender and asks nothing of a signer).
+   * `centre` is where its middle goes, as fractions of the page; `avoid` are keys it must not take (the form's data field keys).
+   * Returns the new key, or null at the maximum or for a data field that cannot be printed (a file).
+   */
+  const placeBound = useStableCallback((input: { field: DataField; page: number; centre: { x: number; y: number }; aspect: number; dataValue?: string; avoid?: ReadonlySet<string> }): string | null => {
+    const { fields: fs, roles: rs } = state();
+    if (fs.length >= MAX_FIELDS) return null;
+    const taken = keysOf(fs);
+    for (const k of input.avoid ?? []) taken.add(k);
+    const placement = createBoundPlacement({ field: input.field, page: input.page, centre: input.centre, aspect: input.aspect, taken, dataValue: input.dataValue });
+    if (!placement) return null;
+    commit({ fields: [...fs, placement], roles: rs });
+    return placement.key;
+  });
+
   const remove = useStableCallback((keys: readonly string[]) => {
     if (keys.length === 0) return;
     const drop = new Set(keys);
@@ -216,6 +234,7 @@ export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelIn
     setRect,
     nudge,
     place,
+    placeBound,
     remove,
     duplicate,
     copyToEveryPage,

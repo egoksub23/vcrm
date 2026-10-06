@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import type { SignIssue } from "@/lib/sign/client/api";
 import { defaultExpiryDate, fromDateInput, parseReminderDays, type DraftOptions } from "@/lib/sign/client/draft-options";
 import { splitLayoutIssues } from "@/lib/sign/client/draft-problems";
-import { errorKey, problemKey, problemStep, type DraftStep } from "@/lib/sign/client/errors";
+import { errorKey, problemKey, problemNamespace, problemStep, type DraftStep } from "@/lib/sign/client/errors";
 import { reviewLines, type SignerRow } from "@/lib/sign/client/signers-form";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignRole } from "@/lib/sign/types";
+import { FormReviewSummary } from "./form-review-summary";
+import { FormProblemText } from "./form-problem-text";
 
 interface Props {
   roles: readonly SignRole[];
@@ -28,10 +31,12 @@ interface Props {
   sendErrorCode: string | null;
   onSend: () => void;
   onGoToStep: (step: DraftStep) => void;
+  /** Forms: the document's form, summarised below the people. */
+  form?: FormDefinition | null;
 }
 
 /** Step 4: what will happen, in plain words, what still stops it, and the Send button. */
-export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep }: Props) {
+export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep, form }: Props) {
   const t = useTranslations("Sign.send.review");
   const tProblems = useTranslations("Sign.send");
   const f = useFormatter();
@@ -98,6 +103,8 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
         </dl>
       </section>
 
+      {form && form.parts.length > 0 ? <FormReviewSummary form={form} roles={roles} rows={rows} contactId={options.contactId} /> : null}
+
       {checking ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
           <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -112,7 +119,7 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
           <ul className="space-y-1.5">
             {single.map((issue, i) => (
               <li key={`${issue.code}-${issue.detail ?? ""}-${issue.role ?? ""}-${i}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span className="text-foreground">{problemText(issue)}</span>
+                <span className="text-foreground">{problemNamespace(issue.code) === "Sign.progress" ? <FormProblemText issue={issue} roleLabel={roles.find((r) => r.key === issue.role)?.label ?? issue.role ?? ""} /> : problemText(issue)}</span>
                 <Button type="button" variant="outline" size="xs" onClick={() => onGoToStep(problemStep(issue.code))}>
                   {t(`fix.${problemStep(issue.code)}`)}
                 </Button>

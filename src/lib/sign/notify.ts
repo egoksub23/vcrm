@@ -152,10 +152,11 @@ export async function deliverInvitation(
   return viaEmail(deps, doc.accountId, inv.email, m, displayFrom(w));
 }
 
-export async function deliverReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation): Promise<Delivery> {
+/** `partsLeft` (forms): the titles of the parts this person has not finished, named in an email reminder. */
+export async function deliverReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation, partsLeft?: string[]): Promise<Delivery> {
   const link = signerLink(origin, inv.token);
   if (inv.channel === "whatsapp") return deliverInvitation(admin, deps, origin, doc, w, inv);
-  const m = reminderEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, signerName: inv.name, title: doc.title, link, expiresAt: doc.expiresAt, codeRequired: doc.codeRequired, timeZone: w.timeZone });
+  const m = reminderEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, signerName: inv.name, title: doc.title, link, expiresAt: doc.expiresAt, codeRequired: doc.codeRequired, timeZone: w.timeZone, partsLeft });
   return viaEmail(deps, doc.accountId, inv.email, m, displayFrom(w));
 }
 

@@ -48,6 +48,7 @@ describe("errorKey", () => {
 
 describe("problems", () => {
   it("send each kind to the step that fixes it", () => {
+    expect(problemStep("part_without_person")).toBe("people");
     expect(problemStep("signer_email")).toBe("people");
     expect(problemStep("same_person_twice")).toBe("people");
     expect(problemStep("role_without_person")).toBe("people");

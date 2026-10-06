@@ -31,6 +31,8 @@ interface Words {
   reminderSubject: string; // {title}
   reminderIntro: string; // {name} {title}
   reminderNewLink: string;
+  reminderPartsOne: string; // {parts}
+  reminderPartsMany: string; // {count} {parts}
   codeSubject: string;
   codeIntro: string; // {title}
   codeValid: string;
@@ -64,6 +66,8 @@ const EN: Words = {
   reminderSubject: "Reminder: please sign {title}",
   reminderIntro: "Hello {name}, this is a reminder that “{title}” is waiting for you.",
   reminderNewLink: "Use this link: any earlier link for this document no longer works.",
+  reminderPartsOne: "You still have 1 part to complete: {parts}.",
+  reminderPartsMany: "You still have {count} parts to complete: {parts}.",
   codeSubject: "Your verification code",
   codeIntro: "Your code to open “{title}” is:",
   codeValid: "It works for 10 minutes.",
@@ -97,6 +101,8 @@ const MS: Words = {
   reminderSubject: "Peringatan: sila tandatangani {title}",
   reminderIntro: "Helo {name}, ini peringatan bahawa “{title}” sedang menunggu anda.",
   reminderNewLink: "Gunakan pautan ini: pautan terdahulu untuk dokumen ini tidak lagi berfungsi.",
+  reminderPartsOne: "Anda masih ada 1 bahagian untuk dilengkapkan: {parts}.",
+  reminderPartsMany: "Anda masih ada {count} bahagian untuk dilengkapkan: {parts}.",
   codeSubject: "Kod pengesahan anda",
   codeIntro: "Kod anda untuk membuka “{title}” ialah:",
   codeValid: "Kod ini sah selama 10 minit.",
@@ -130,6 +136,8 @@ const ZH: Words = {
   reminderSubject: "提醒：请签署 {title}",
   reminderIntro: "{name}，您好。《{title}》仍在等待您处理。",
   reminderNewLink: "请使用此链接：此文档之前的链接已失效。",
+  reminderPartsOne: "您还有 1 个部分需要填写：{parts}。",
+  reminderPartsMany: "您还有 {count} 个部分需要填写：{parts}。",
   codeSubject: "您的验证码",
   codeIntro: "打开《{title}》的验证码是：",
   codeValid: "验证码 10 分钟内有效。",
@@ -163,6 +171,8 @@ const KO: Words = {
   reminderSubject: "알림: {title}에 서명해 주세요",
   reminderIntro: "{name}님, “{title}”이(가) 기다리고 있습니다.",
   reminderNewLink: "이 링크를 사용하세요. 이 문서의 이전 링크는 더 이상 작동하지 않습니다.",
+  reminderPartsOne: "작성해야 할 부분이 1개 남아 있습니다: {parts}",
+  reminderPartsMany: "작성해야 할 부분이 {count}개 남아 있습니다: {parts}",
   codeSubject: "인증 코드",
   codeIntro: "“{title}”을(를) 열기 위한 코드:",
   codeValid: "10분 동안 유효합니다.",
@@ -273,13 +283,22 @@ export function invitationEmail(a: InvitationArgs): Rendered {
   return { subject, html, text: lines.join("\n") };
 }
 
-export function reminderEmail(a: Omit<InvitationArgs, "message" | "fill">): Rendered {
+/** Part titles as one phrase: Chinese uses its own list comma. */
+const joinParts = (parts: readonly string[], locale: SignLocale) => parts.join(locale === "zh" ? "、" : ", ");
+
+/**
+ * A reminder. For a document with a form, `partsLeft` names the parts the person has not finished (by title, in
+ * the document's language), so the reminder says what is left rather than only that something is.
+ */
+export function reminderEmail(a: Omit<InvitationArgs, "message" | "fill"> & { partsLeft?: string[] }): Rendered {
   const w = wordsFor(a.locale);
   const v = { name: a.signerName, sender: a.sender, workspace: a.workspace, title: a.title };
   const intro = fill(w.reminderIntro, v);
+  const parts = (a.partsLeft ?? []).map((p) => p.trim()).filter(Boolean);
+  const left = parts.length === 0 ? "" : fill(parts.length === 1 ? w.reminderPartsOne : w.reminderPartsMany, { count: String(parts.length), parts: joinParts(parts, a.locale) });
   const expiry = a.expiresAt ? fill(w.expires, { date: longDate(a.expiresAt, a.locale, a.timeZone) }) : "";
-  const text = [intro, "", `${w.invitationButton}: ${a.link}`, w.reminderNewLink, ...(expiry ? ["", expiry] : []), "", fill(w.footer, { workspace: a.workspace })].join("\n");
-  const html = frame([para(intro), button(w.invitationButton, a.link), small(w.reminderNewLink), expiry ? small(expiry) : "", `<p style="font-size: 12px; color: #999; word-break: break-all;">${escapeHtml(a.link)}</p>`].join("\n"), w, a.workspace);
+  const text = [intro, ...(left ? [left] : []), "", `${w.invitationButton}: ${a.link}`, w.reminderNewLink, ...(expiry ? ["", expiry] : []), "", fill(w.footer, { workspace: a.workspace })].join("\n");
+  const html = frame([para(intro), left ? para(left) : "", button(w.invitationButton, a.link), small(w.reminderNewLink), expiry ? small(expiry) : "", `<p style="font-size: 12px; color: #999; word-break: break-all;">${escapeHtml(a.link)}</p>`].join("\n"), w, a.workspace);
   return { subject: fill(w.reminderSubject, v), html, text };
 }
 

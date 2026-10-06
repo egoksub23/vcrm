@@ -146,10 +146,14 @@ export async function publicLink(
 
 export const MAX_UPLOAD_BODY = 26 * 1024 * 1024 + 256 * 1024;
 
-/** Read a multipart upload: one file and its text fields. Refuses a body that is too large before reading it. */
-export async function readUpload(request: Request): Promise<{ file: { bytes: Uint8Array; name: string } | null; fields: Record<string, string> }> {
+/**
+ * Read a multipart upload: one file and its text fields. Refuses a body that is too large before reading it.
+ * A caller that has its own, tighter limit (a signer's upload) passes `maxBytes`.
+ */
+export async function readUpload(request: Request, maxBytes: number = MAX_UPLOAD_BODY): Promise<{ file: { bytes: Uint8Array; name: string } | null; fields: Record<string, string> }> {
   const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_UPLOAD_BODY) throw new SignError("upload_too_large", "This file is larger than 25 MB.", 413);
+  const limitMb = Math.round(maxBytes / (1024 * 1024));
+  if (Number.isFinite(declared) && declared > maxBytes) throw new SignError("upload_too_large", `This file is larger than ${maxBytes === MAX_UPLOAD_BODY ? 25 : limitMb} MB.`, 413);
   const form = await request.formData().catch(() => null);
   if (!form) throw new SignError("bad_upload", "The upload could not be read.", 400);
   const fields: Record<string, string> = {};

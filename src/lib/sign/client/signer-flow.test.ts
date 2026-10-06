@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PlacedField } from "../pdf/types";
+import type { DataAnswerInput } from "../forms/types";
+import type { AnswerInput } from "../rules";
 import type { OtherSigner } from "../service/signing";
 import {
   AutosaveQueue,
@@ -29,6 +31,7 @@ import {
   touchRects,
   systemFieldText,
   typedAnswer,
+  type AutosaveOptions,
   type SaveResponse,
   type SaveState,
 } from "./signer-flow";
@@ -313,9 +316,9 @@ describe("AutosaveQueue", () => {
   const network = () => new SignApiError("network", "offline", 0);
   const retryable = (e: unknown) => e instanceof SignApiError && (e.code === "network" || e.status >= 500);
 
-  function make(send: (b: Record<string, { text?: unknown }>) => Promise<SaveResponse>, extra: Partial<ConstructorParameters<typeof AutosaveQueue>[0]> = {}) {
+  function make(send: (b: Record<string, AnswerInput>) => Promise<SaveResponse>, extra: Partial<AutosaveOptions> = {}) {
     const states: SaveState[] = [];
-    const queue = new AutosaveQueue({ send, isRetryable: retryable, isOffline: (e) => e instanceof SignApiError && e.code === "network", onState: (s) => states.push(s), ...extra });
+    const queue = new AutosaveQueue<AnswerInput>({ send, isRetryable: retryable, isOffline: (e) => e instanceof SignApiError && e.code === "network", onState: (s) => states.push(s), ...extra });
     return { queue, states };
   }
 
@@ -480,5 +483,93 @@ describe("AutosaveQueue", () => {
     queue.dispose();
     await vi.advanceTimersByTimeAsync(5000);
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("AutosaveQueue, for the answers of a form", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  type Input = AnswerInput | DataAnswerInput;
+  const ok = (over: Partial<SaveResponse> = {}): SaveResponse => ({ saved: [], rejected: [], ...over });
+  const network = () => new SignApiError("network", "offline", 0);
+  const retryable = (e: unknown) => e instanceof SignApiError && (e.code === "network" || e.status >= 500);
+
+  function make(send: (b: Record<string, Input>, confirm?: string[]) => Promise<SaveResponse>, extra: Partial<AutosaveOptions<Input>> = {}) {
+    const queue = new AutosaveQueue<Input>({ send, isRetryable: retryable, isOffline: (e) => e instanceof SignApiError && e.code === "network", ...extra });
+    return queue;
+  }
+
+  it("carries a field on the page and a data field of the form in one request", async () => {
+    const send = vi.fn(async () => ok());
+    const queue = make(send);
+    queue.set("sig", { typed: "Ali" });
+    queue.set("msic", { list: ["47111", "47211"] });
+    queue.set("tags", { choices: ["a", "b"] });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ sig: { typed: "Ali" }, msic: { list: ["47111", "47211"] }, tags: { choices: ["a", "b"] } });
+  });
+
+  it("tells what the server answered about the form's progress", async () => {
+    const progress = [{ key: "p1", state: "done" as const, done: 1, total: 1, visible: 1, lastSavedAt: "2026-10-06T10:00:00Z" }];
+    const send = vi.fn(async () => ok({ saved: ["a"], progress, ready: true, unconfirmed: ["b"] }));
+    const onSaved = vi.fn();
+    const queue = make(send, { onSaved });
+    queue.set("a", { text: "1" });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ ready: true, progress, unconfirmed: ["b"] }));
+  });
+
+  it("passes the reason and the number a rejection carries", async () => {
+    const send = vi.fn(async () => ok({ rejected: [{ field: "a", code: "text_too_long", detail: "50" }] }));
+    const onRejected = vi.fn();
+    const queue = make(send, { onRejected });
+    queue.set("a", { text: "x" });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onRejected).toHaveBeenCalledWith([{ field: "a", code: "text_too_long", detail: "50" }]);
+  });
+
+  it("sends a confirmed part at once with whatever is waiting, and only then names the parts", async () => {
+    const send = vi.fn(async () => ok());
+    const queue = make(send);
+    queue.set("a", { text: "1" });
+    queue.confirmPart("company");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ a: { text: "1" } }, ["company"]);
+    queue.set("b", { text: "2" });
+    await vi.advanceTimersByTimeAsync(1000);
+    // no part to confirm: the call is the plain one
+    expect(send).toHaveBeenLastCalledWith({ b: { text: "2" } });
+  });
+
+  it("can confirm with nothing else to send, and says it is saved afterwards", async () => {
+    const send = vi.fn(async () => ok());
+    const states: string[] = [];
+    const queue = make(send, { onState: (s) => states.push(s) });
+    queue.confirmPart("tax");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledWith({}, ["tax"]);
+    expect(states).toEqual(["saving", "saved"]);
+    expect(await queue.flush()).toBe(true);
+  });
+
+  it("keeps a confirmation while offline and sends it when the connection is back", async () => {
+    let fail = true;
+    const send = vi.fn(async () => {
+      if (fail) throw network();
+      return ok();
+    });
+    const queue = make(send);
+    queue.confirmPart("tax");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(queue.state).toBe("offline");
+    expect(await queue.flush().catch(() => false)).toBe(false);
+    fail = false;
+    queue.retryNow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenLastCalledWith({}, ["tax"]);
+    expect(queue.state).toBe("saved");
   });
 });

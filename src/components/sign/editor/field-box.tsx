@@ -34,6 +34,8 @@ export interface FieldBoxProps {
   preview: boolean;
   sampleCtx: SampleContext;
   hasIssue: boolean;
+  /** Forms: the label of the data field this placement prints (undefined for an ordinary field). */
+  dataLabel?: string;
   pageWidth: number;
   pageHeight: number;
   pxPerPt: number;
@@ -73,16 +75,17 @@ function paint(el: HTMLElement, r: Rect) {
   el.style.height = `${r.h * 100}%`;
 }
 
-function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly, toolArmed, preview, sampleCtx, hasIssue, pageWidth, pageHeight, pxPerPt, siblings, callbacks }: FieldBoxProps) {
+function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly, toolArmed, preview, sampleCtx, hasIssue, dataLabel, pageWidth, pageHeight, pxPerPt, siblings, callbacks }: FieldBoxProps) {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
 
   const roleLabel = role ? role.label : senderLabel;
   const style = useMemo(() => roleColorStyle(role ? role.color : null, "light"), [role]);
   const sample = useMemo(() => (preview || field.merge ? sampleValue(field, sampleCtx) : null), [preview, field, sampleCtx]);
+  const bound = dataLabel !== undefined;
   const widthPx = field.w * pageWidth;
   const heightPx = field.h * pageHeight;
-  const caption = field.label?.trim() || (field.merge ? sample?.text || `{{${field.merge}}}` : field.type === "static_text" ? field.text || typeLabel : typeLabel);
+  const caption = (bound ? dataLabel : "") || field.label?.trim() || (field.merge ? sample?.text || `{{${field.merge}}}` : field.type === "static_text" ? field.text || typeLabel : typeLabel);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || toolArmed) return;
@@ -183,12 +186,14 @@ function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly,
       role="button"
       tabIndex={selected ? 0 : -1}
       aria-pressed={selected}
-      aria-label={`${typeLabel}, ${roleLabel}${field.label ? `, ${field.label}` : ""}`}
+      aria-label={`${typeLabel}, ${roleLabel}${bound ? `, ${dataLabel}` : field.label ? `, ${field.label}` : ""}`}
       data-field={field.key}
-      title={`${typeLabel} · ${roleLabel}`}
+      data-bound={bound ? "" : undefined}
+      title={bound ? `${typeLabel} · ${dataLabel}` : `${typeLabel} · ${roleLabel}`}
       className={cn(
         "absolute box-border rounded-[3px] border outline-none",
         filled ? "border-dashed bg-transparent" : "bg-clip-padding",
+        bound && !filled && "border-dashed",
         "border-[color:var(--rc-solid)]",
         !filled && "bg-[var(--rc-fill)] text-[color:var(--rc-text)]",
         filled && "text-slate-900",
@@ -205,7 +210,7 @@ function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly,
       onPointerCancel={(e) => finish(e, true)}
       onKeyDown={onKeyDown}
     >
-      <FieldVisual field={field} caption={caption} roleLabel={roleLabel} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} sample={preview ? sample : null} hasIssue={hasIssue} />
+      <FieldVisual field={field} caption={caption} roleLabel={roleLabel} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} sample={preview ? sample : null} hasIssue={hasIssue} dataLabel={dataLabel} />
       {selected && !readOnly
         ? HANDLES.map((h) => (
             <span

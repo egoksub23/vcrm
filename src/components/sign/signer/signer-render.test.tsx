@@ -19,14 +19,14 @@ import { FieldList } from "./field-list";
 import { InvalidLinkRoot, SignerRoot, type SignerMessages } from "./signer-root";
 import { SignatureEditor } from "./signature-editor";
 import { StickyBar } from "./sticky-bar";
-import { readSignerMessages, SIGNER_LOCALES } from "./signer-test-messages";
+import { readPageMessages, SIGNER_LOCALES } from "./signer-test-messages";
 
-const found = readSignerMessages();
+const found = readPageMessages();
 const run = found ? describe : describe.skip;
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-const all = (found ? Object.fromEntries(SIGNER_LOCALES.map((l) => [l, { Sign: { signer: found[l] } }])) : {}) as unknown as SignerMessages;
+const all = (found ?? {}) as unknown as SignerMessages;
 
 const fields: PlacedField[] = [
   { key: "sig", type: "signature", role: "merchant", page: 0, x: 0.1, y: 0.8, w: 0.3, h: 0.06, required: true },

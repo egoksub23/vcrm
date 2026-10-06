@@ -31,11 +31,22 @@ interface EndScreenProps {
 
 export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
   const t = useTranslations("Sign.signer");
+  const tf = useTranslations("Sign.signerForm");
 
   switch (state) {
     case "signed": {
       const others = view.content?.others ?? [];
       const waiting = othersStillToSign(others) > 0;
+      // a person who only fills in has not signed anything: they have sent their answers
+      if (view.signer.kind === "filler") {
+        return (
+          <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={tf("end.filler.title")}>
+            <p>{tf("end.filler.thanks", { name: view.signer.name })}</p>
+            <p>{tf("end.filler.next")}</p>
+            {others.length > 0 ? <OthersList view={view} /> : null}
+          </Frame>
+        );
+      }
       return (
         <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={t("end.signed.title")}>
           <p>{t("end.signed.thanks", { name: view.signer.name })}</p>

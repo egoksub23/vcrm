@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { EVENT_TYPES } from "@/lib/sign/types";
 
-import { chainState, describeEvent, orderEvents, visibleDetails, type DescribeContext, type SignEventRow } from "./events";
+import { chainState, describeEvent, latestWriteback, orderEvents, visibleDetails, type DescribeContext, type SignEventRow } from "./events";
 
 const ctx = (over: Partial<DescribeContext> = {}): DescribeContext => ({
   signers: [
@@ -105,6 +105,66 @@ describe("describeEvent", () => {
     expect(line.failed).toBe(true);
     expect(visibleDetails(line, false)).toEqual([]);
     expect(visibleDetails(line, true)).toEqual([{ kind: "error", value: "font missing" }]);
+  });
+});
+
+describe("the events of a form", () => {
+  const form = ctx({
+    partTitle: (k) => (k === "company" ? "Company and tax" : null),
+    fieldLabel: (k) => (k === "ssm" ? "Form 9" : null),
+    formatDay: (iso) => iso.slice(0, 10),
+    contactId: "c1",
+  });
+
+  it("are worded under Sign.progress, the first phase's events stay under Sign.detail", () => {
+    for (const type of ["part_completed", "part_reopened", "uploaded", "upload_removed", "writeback", "expiry_extended"]) {
+      const line = describeEvent(row({ type }), form);
+      expect(line.ns, type).toBe("progress");
+      expect(line.key, type).toBe(`events.${type}`);
+    }
+    for (const type of ["sent", "signed", "saved", "something_new"]) expect(describeEvent(row({ type }), form).ns).toBe("detail");
+  });
+
+  it("names the part, in the reader's language, and says so when it cannot", () => {
+    const named = describeEvent(row({ type: "part_completed", actor_type: "signer", signer_id: "s1", detail: { part: "company" } }), form);
+    expect(named.values).toMatchObject({ actor: "Ali", part: "Company and tax", hasPart: "yes" });
+    // a part the form does not know reads as its key; no part reads as a general sentence
+    expect(describeEvent(row({ type: "part_reopened", signer_id: "s1", actor_type: "signer", detail: { part: "gone" } }), form).values).toMatchObject({ part: "gone", hasPart: "yes" });
+    expect(describeEvent(row({ type: "part_completed", signer_id: "s1", actor_type: "signer", detail: {} }), form).values).toMatchObject({ part: "", hasPart: "no" });
+  });
+
+  it("names an uploaded file and the answer it is for", () => {
+    const line = describeEvent(row({ type: "uploaded", actor_type: "signer", signer_id: "s2", detail: { field: "ssm", name: "form9.pdf", size: 1200, hash: "ab" } }), form);
+    expect(line.values).toMatchObject({ actor: "Siti", file: "form9.pdf", hasFile: "yes", field: "Form 9", hasField: "yes" });
+    expect(describeEvent(row({ type: "upload_removed", actor_type: "signer", signer_id: "s2", detail: {} }), form).values).toMatchObject({ hasFile: "no", hasField: "no" });
+  });
+
+  it("says that the answers updated the contact, with which fields and a link, never the old or new values", () => {
+    const line = describeEvent(row({ type: "writeback", actor_type: "signer", signer_id: "s1", detail: { field: "email", old: "old@example.com", new: "new@example.com" } }), form);
+    expect(line.contactFields).toEqual(["email"]);
+    expect(line.values).toMatchObject({ fields: "email", hasFields: "yes" });
+    expect(line.link).toEqual({ kind: "contact", id: "c1" });
+    const text = JSON.stringify([line.values, line.details, line.reason]);
+    expect(text).not.toContain("old@example.com");
+    expect(text).not.toContain("new@example.com");
+    // a combined event, a document with no contact, and an event with no field
+    expect(describeEvent(row({ type: "writeback", detail: { fields: ["name", { field: "custom:Branch" }, "name"] } }), form).contactFields).toEqual(["name", "custom:Branch"]);
+    expect(describeEvent(row({ type: "writeback", detail: { field: "name" } }), ctx()).link).toBeNull();
+    expect(describeEvent(row({ type: "writeback", detail: {} }), form).values.hasFields).toBe("no");
+  });
+
+  it("words the new expiry as a day when the event carries one", () => {
+    const line = describeEvent(row({ type: "expiry_extended", actor_user_id: "u1", detail: { expires_at: "2026-10-20T15:59:00Z" } }), form);
+    expect(line.values).toMatchObject({ sender: "Gokula", date: "2026-10-20", hasDate: "yes" });
+    expect(describeEvent(row({ type: "expiry_extended", actor_user_id: "u1", detail: {} }), form).values.hasDate).toBe("no");
+    expect(describeEvent(row({ type: "expiry_extended", detail: { expires_at: "not a date" } }), form).values.hasDate).toBe("no");
+  });
+
+  it("finds the latest write-back for the progress view", () => {
+    const rows = [row({ type: "writeback", doc_seq: 4, created_at: "2026-10-06T10:00:00Z" }), row({ type: "sent", doc_seq: 5 }), row({ type: "writeback", doc_seq: 9, created_at: "2026-10-07T10:00:00Z" })];
+    expect(latestWriteback(rows)).toEqual({ at: "2026-10-07T10:00:00Z", count: 2 });
+    expect(latestWriteback([row({ type: "sent" })])).toBeNull();
+    expect(latestWriteback(null)).toBeNull();
   });
 });
 

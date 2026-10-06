@@ -84,7 +84,10 @@ export type DraftStep = "fields" | "people" | "options" | "review";
 
 /** Problems only the browser knows about (the draft's own options as typed), fixed in the options step. */
 const OPTION_PROBLEMS = new Set(["title_required", "message_long", "expiry_past", "reminders_bad"]);
-const PEOPLE_PROBLEMS = new Set(["no_signer", "too_many_signers", "signer_name", "signer_email", "signer_phone", "signer_role", "signer_order", "order_not_unique", "same_person_twice", "role_without_person"]);
+const PEOPLE_PROBLEMS = new Set(["no_signer", "too_many_signers", "signer_name", "signer_email", "signer_phone", "signer_role", "signer_order", "order_not_unique", "same_person_twice", "role_without_person", "part_without_person"]);
+
+/** Problems of a document with a form (phase 1B). Their words are in `Sign.progress.problems`, not `Sign.send.problems`. */
+const FORM_PROBLEMS: ReadonlySet<string> = new Set(["part_without_person"]);
 
 /** The messages written for `sendProblems` codes. Layout codes from validateFields/validateRoles share one message. */
 const PROBLEM_MESSAGES: ReadonlySet<string> = new Set([
@@ -97,6 +100,7 @@ const PROBLEM_MESSAGES: ReadonlySet<string> = new Set([
   "signer_role",
   "signer_order",
   "role_without_person",
+  "part_without_person",
   "signer_without_signature",
   "order_not_unique",
   "same_person_twice",
@@ -109,6 +113,11 @@ const PROBLEM_MESSAGES: ReadonlySet<string> = new Set([
 
 export function problemKey(code: string): string {
   return PROBLEM_MESSAGES.has(code) ? `problems.${code}` : "problems.layout";
+}
+
+/** The messages namespace `problemKey(code)` is in: the problems of a form are worded with the rest of the form's words. */
+export function problemNamespace(code: string): "Sign.send" | "Sign.progress" {
+  return FORM_PROBLEMS.has(code) ? "Sign.progress" : "Sign.send";
 }
 
 /** Which step fixes a problem. Layout problems, a missing signature and a missing role are fixed in the fields editor. */

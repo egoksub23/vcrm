@@ -8,14 +8,18 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 import { ArrowDownUp, CircleAlert, Loader2, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { cn } from "@/lib/utils";
+import { asLocale } from "@/lib/sign/client/progress-logic";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignSignerRow } from "@/lib/sign/types";
 
 import { describeEvent, orderEvents, visibleDetails, type ChainState, type EventLine, type SignEventRow } from "./events";
-import { formatWhen } from "./format";
+import { formatDay, formatWhen } from "./format";
 
 interface Props {
   events: SignEventRow[] | null;
@@ -26,9 +30,13 @@ interface Props {
   signInOrder: boolean;
   /** May see technical notes (sign.settings). */
   technical: boolean;
+  /** Forms: the document's form, so a line can name the part or the answer it is about. */
+  form?: FormDefinition | null;
+  /** The document's contact: a write-back line links to it. */
+  contactId?: string | null;
 }
 
-export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical }: Props) {
+export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical, form, contactId }: Props) {
   const t = useTranslations("Sign.detail");
   const locale = useLocale();
   const { nameOf } = useAccountMembers();
@@ -43,9 +51,19 @@ export function HistoryView({ events, chain, loading, failed, signers, signInOrd
       userName: (id: string | null) => (id ? nameOf(id) || null : null),
       someone: t("history.someone"),
       teammate: t("history.teammate"),
+      partTitle: (key: string) => {
+        const part = form?.parts.find((p) => p.key === key);
+        return part ? pick(part.title, asLocale(locale)) || null : null;
+      },
+      fieldLabel: (key: string) => {
+        const field = form?.fields.find((f) => f.key === key);
+        return field ? pick(field.label, asLocale(locale)) || null : null;
+      },
+      formatDay: (iso: string) => formatDay(iso, locale) || iso.slice(0, 10),
+      contactId,
     };
     return orderEvents(events, newestFirst).map((e) => describeEvent(e, ctx));
-  }, [events, signers, signInOrder, nameOf, newestFirst, t]);
+  }, [events, signers, signInOrder, nameOf, newestFirst, t, form, locale, contactId]);
 
   const shown = lines.filter((l) => showMinor || !l.minor);
   const hasMinor = lines.some((l) => l.minor);
@@ -131,6 +149,30 @@ function ChainBadge({ chain, loading }: { chain: ChainState | null; loading: boo
   );
 }
 
+/** The sentence of an event of a form (its words are in `Sign.progress`). Only what changed is said, never an old or new value. */
+function FormEventText({ line }: { line: EventLine }) {
+  const t = useTranslations("Sign.progress");
+  const values = { ...line.values };
+  if (line.contactFields.length > 0) {
+    // "name" and "email" read in the reader's language; a custom field reads as its own name
+    const word = (f: string) => (f === "name" || f === "email" || f === "company" ? t(`contactFields.${f}`) : f.startsWith("custom:") ? f.slice(7) : f);
+    values.fields = line.contactFields.map(word).join(", ");
+  }
+  return (
+    <>
+      {t(line.key, values)}
+      {line.link && (
+        <>
+          {" "}
+          <Link href={`/contacts?contact=${line.link.id}`} className="text-primary hover:underline">
+            {t("openContact")}
+          </Link>
+        </>
+      )}
+    </>
+  );
+}
+
 function HistoryItem({ line, locale, technical }: { line: EventLine; locale: string; technical: boolean }) {
   const t = useTranslations("Sign.detail");
   const details = visibleDetails(line, technical);
@@ -139,7 +181,7 @@ function HistoryItem({ line, locale, technical }: { line: EventLine; locale: str
       <p className={cn("flex items-start gap-2 text-sm text-foreground", line.minor && "text-muted-foreground")}>
         {line.failed && <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />}
         <span className="min-w-0 break-words">
-          {t(line.key, line.values)}
+          {line.ns === "progress" ? <FormEventText line={line} /> : t(line.key, line.values)}
           {line.failed && <span className="ml-2 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">{t("history.problem")}</span>}
         </span>
       </p>

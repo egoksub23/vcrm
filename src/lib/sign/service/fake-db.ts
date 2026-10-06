@@ -74,6 +74,7 @@ class Query implements PromiseLike<Result> {
   private wantRows = false;
   private mode: "single" | "maybe" | null = null;
   private conflict: string[] = [];
+  private ignoreDuplicates = false;
 
   constructor(private db: FakeDb, private table: string) {}
 
@@ -86,10 +87,11 @@ class Query implements PromiseLike<Result> {
     this.payload = p;
     return this;
   }
-  upsert(p: Row | Row[], opts?: { onConflict?: string }): this {
+  upsert(p: Row | Row[], opts?: { onConflict?: string; ignoreDuplicates?: boolean }): this {
     this.op = "upsert";
     this.payload = p;
     this.conflict = (opts?.onConflict ?? "id").split(",").map((s) => s.trim());
+    this.ignoreDuplicates = !!opts?.ignoreDuplicates;
     return this;
   }
   update(p: Row): this {
@@ -165,6 +167,7 @@ class Query implements PromiseLike<Result> {
         const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...p };
         if (this.op === "upsert") {
           const existing = rows.find((r) => this.conflict.every((c) => r[c] === row[c]));
+          if (existing && this.ignoreDuplicates) continue;
           if (existing) {
             Object.assign(existing, p, { updated_at: now });
             out.push(existing);

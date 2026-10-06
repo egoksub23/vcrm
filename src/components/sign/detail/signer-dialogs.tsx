@@ -6,7 +6,7 @@
 //   - the link, when the message could not be delivered: shown once, never kept.
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Check, Copy, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,11 +27,13 @@ interface ConfirmProps {
   busy: boolean;
   /** A failure code from the last try. */
   errorCode: string | null;
+  /** Forms: the titles of the parts the reminder will name (only for a reminder about a form). */
+  parts?: string[];
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export function ConfirmSignerStep({ step, signer, busy, errorCode, onConfirm, onClose }: ConfirmProps) {
+export function ConfirmSignerStep({ step, signer, busy, errorCode, parts, onConfirm, onClose }: ConfirmProps) {
   const t = useTranslations("Sign.detail");
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
@@ -40,6 +42,7 @@ export function ConfirmSignerStep({ step, signer, busy, errorCode, onConfirm, on
           <DialogTitle>{t(`confirm.${step}.title`, { name: signer.full_name })}</DialogTitle>
           <DialogDescription>{t(`confirm.${step}.body`, { name: signer.full_name, channel: t(`channel.${signer.channel}`) })}</DialogDescription>
         </DialogHeader>
+        {parts && parts.length > 0 && <ReminderParts parts={parts} />}
         {errorCode && (
           <p role="alert" className="text-sm text-destructive">
             {t(detailErrorKey(errorCode))}
@@ -153,6 +156,24 @@ export function ChangeRecipientDialog({ signer, busy, errorCode, onSubmit, onClo
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Forms: the parts a reminder names, so the sender knows what the person will read. */
+export function ReminderParts({ parts }: { parts: string[] }) {
+  const t = useTranslations("Sign.progress");
+  const locale = useLocale();
+  let listed: string;
+  try {
+    listed = new Intl.ListFormat(locale, { type: "conjunction", style: "long" }).format(parts);
+  } catch {
+    listed = parts.join(", ");
+  }
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">
+      <p className="font-medium">{t("remind.namesParts", { count: parts.length })}</p>
+      <p className="mt-1 break-words text-muted-foreground">{listed}</p>
+    </div>
   );
 }
 

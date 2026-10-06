@@ -10,6 +10,7 @@
 
 import { assertCanSendDocument, forgetAccountUsage, UsageLimitError } from "@/lib/platform/usage";
 
+import { formSendProblems, pick, validateForm } from "../forms";
 import { deliverInvitation, deliverReminder, deliverOutcome, type Delivery, type DocFacts, type Workspace } from "../notify";
 import { freezeBase } from "../pdf/stamp";
 import { resolveDefaults, expiryFor } from "../defaults";
@@ -18,6 +19,7 @@ import { documentPath, getFile, putFile, removeFiles } from "../storage";
 import type { Invitation, SignDocumentRow, SignSignerRow } from "../types";
 import { loadDocument, loadSenderAndWorkspace, loadSettings, loadSigners, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { formOf, loadFormState, unfinishedParts } from "./form-state";
 
 const toDraft = (s: SignSignerRow): SignerDraft => ({ role_key: s.role_key, kind: s.kind, full_name: s.full_name, email: s.email, phone: s.phone, channel: s.channel, order_no: s.order_no });
 
@@ -53,12 +55,12 @@ export const docFacts = (doc: SignDocumentRow, ctx: SignCtx): DocFacts => ({
 });
 
 /** Deliver a batch of fresh invitations, record failures, and build what the caller shows. */
-async function deliverAll(ctx: SignCtx, doc: SignDocumentRow, w: Workspace, invited: Invitation[], reminder = false): Promise<InvitationResult[]> {
+async function deliverAll(ctx: SignCtx, doc: SignDocumentRow, w: Workspace, invited: Invitation[], reminder = false, partsLeft?: string[]): Promise<InvitationResult[]> {
   const facts = docFacts(doc, ctx);
   const out: InvitationResult[] = [];
   for (const inv of invited) {
     const delivery = reminder
-      ? await deliverReminder(ctx.admin, ctx.deps, ctx.origin, facts, w, inv)
+      ? await deliverReminder(ctx.admin, ctx.deps, ctx.origin, facts, w, inv, partsLeft)
       : await deliverInvitation(ctx.admin, ctx.deps, ctx.origin, facts, w, inv, { fill: inv.kind === "filler" });
     if (delivery.status !== "sent") {
       await logEvent(ctx, doc.id, "delivery_failed", { actor: "system", signerId: inv.signer_id, detail: { channel: delivery.channel, status: delivery.status, reason: delivery.detail ?? null } });
@@ -87,6 +89,10 @@ export async function sendDocument(ctx: SignCtx, documentId: string): Promise<Se
     pageCount: doc.page_count ?? 0,
     hasBaseFile: !!doc.base_path,
   });
+  // a form must be sound with the placements that print it, and every part needs a person to complete it
+  const form = formOf(doc);
+  if (form) problems.push(...validateForm(form, doc.roles_snapshot, doc.fields_snapshot), ...formSendProblems(form, signers));
+  else if (doc.fields_snapshot.some((f) => f.data !== undefined)) problems.push(...validateForm({ version: 1, parts: [], fields: [] }, doc.roles_snapshot, doc.fields_snapshot));
   if (problems.length) throw new SignError("not_ready", "This document is not ready to send.", 400, problems);
 
   try {
@@ -167,13 +173,26 @@ export async function resendSigner(ctx: SignCtx, documentId: string, signerId: s
   return r;
 }
 
+/** For a document with a form: the titles, in the document's language, of the parts this person has not finished. */
+async function partsLeftFor(ctx: SignCtx, doc: SignDocumentRow, signer: SignSignerRow): Promise<string[] | undefined> {
+  const form = formOf(doc);
+  if (!form) return undefined;
+  try {
+    const { state } = await loadFormState(ctx, doc, form);
+    return unfinishedParts(form, signer.role_key, state).map((p) => pick(p.title, doc.locale));
+  } catch (err) {
+    console.error("[sign] could not list unfinished parts:", err instanceof Error ? err.message : err);
+    return undefined;
+  }
+}
+
 /** A reminder is a message with a fresh link, recorded as its own event. */
 export async function remindSigner(ctx: SignCtx, documentId: string, signerId: string): Promise<InvitationResult> {
   const { doc, signer } = await ownSigner(ctx, documentId, signerId);
   const { data, error } = await ctx.admin.rpc("sign_rotate_token", { p_signer: signerId, p_actor: ctx.userId, p_reason: "reminded" });
   if (error || !data) raiseDatabaseError(error, "remind");
   const w = await workspaceFor(ctx, doc);
-  const [r] = await deliverAll(ctx, doc, w, [data as Invitation], true);
+  const [r] = await deliverAll(ctx, doc, w, [data as Invitation], true, await partsLeftFor(ctx, doc, signer));
   await ctx.admin
     .from("sign_signers")
     .update({ last_reminded_at: ctx.now().toISOString(), reminder_count: signer.reminder_count + 1 })

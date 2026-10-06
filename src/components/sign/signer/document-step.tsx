@@ -12,6 +12,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 
 import { signerFileUrl } from "@/lib/sign/client/api";
+import { printedPreviews, reviewGate } from "@/lib/sign/client/signer-form";
+import type { SignerFormView } from "@/lib/sign/forms/types";
 import {
   checkboxAnswer,
   clearedAnswer,
@@ -39,8 +41,10 @@ import { useErrorText } from "./errors";
 import { FieldLayer, type MyFieldView } from "./field-layer";
 import { FieldList } from "./field-list";
 import { FieldSheet } from "./field-sheet";
+import { useFormErrorText } from "./form/form-errors";
+import { ReviewPanel } from "./form/review-panel";
 import { StickyBar } from "./sticky-bar";
-import type { ActionResult } from "./use-signer";
+import type { ActionResult, ReviewState } from "./use-signer";
 
 const ZOOMS = [1, 1.5, 2, 3] as const;
 
@@ -56,15 +60,25 @@ interface DocumentStepProps {
   onAnswer: (field: PlacedField, input: AnswerInput) => void;
   onFinish: () => Promise<ActionResult>;
   onDecline: () => void;
+  /** A form document: the answers printed on the page, the way back to them, and what blocks signing. Absent for a document that is only fields on the page. */
+  formReview?: {
+    form: SignerFormView;
+    review: ReviewState;
+    onChangeAnswer: () => void;
+    onOpenAnswer: (partKey: string, fieldKey: string) => void;
+    onRetry: () => void;
+  };
 }
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export function DocumentStep({ token, view, content, answers, rejected, saveState, onAnswer, onFinish, onDecline }: DocumentStepProps) {
+export function DocumentStep({ token, view, content, answers, rejected, saveState, onAnswer, onFinish, onDecline, formReview }: DocumentStepProps) {
   const t = useTranslations("Sign.signer");
+  const tf = useTranslations("Sign.signerForm");
   const locale = useLocale() as SignerLocale;
   const zone = useBrowserTimeZone();
   const errorText = useErrorText();
+  const formErrorText = useFormErrorText();
   const [now] = useState(() => new Date());
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [lastKey, setLastKey] = useState<string | null>(null);
@@ -83,10 +97,16 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
   const progress = useMemo(() => computeProgress(mine, answers, rejected), [mine, answers, rejected]);
 
   const systemViews = useMemo(() => system.map((field) => ({ field, text: systemFieldText(field, view.signer.name, now, locale, zone) })), [system, view.signer.name, now, locale, zone]);
-  const othersViews = useMemo(
-    () => content.fields.filter((f) => f.role !== view.signer.roleKey && content.othersAnswers[f.key]).map((field) => ({ field, input: inputFromStored(content.othersAnswers[field.key]) })),
-    [content.fields, content.othersAnswers, view.signer.roleKey],
-  );
+  const review = formReview?.review;
+  const reviewForm = formReview?.form;
+  // what earlier signers entered, and what the form's answers print: both drawn read only, the same way
+  const othersViews = useMemo(() => {
+    const others = content.fields.filter((f) => f.role !== view.signer.roleKey && !f.data && content.othersAnswers[f.key]).map((field) => ({ field, input: inputFromStored(content.othersAnswers[field.key]) }));
+    const printed = review?.status === "ready" ? printedPreviews(content.fields, review.printed, reviewForm ?? null) : [];
+    return [...others, ...printed];
+  }, [content.fields, content.othersAnswers, view.signer.roleKey, review, reviewForm]);
+  const gate = formReview ? reviewGate(review ?? { status: "idle" }) : null;
+  const blockedNote = !gate || gate.canFinish ? null : review?.status === "loading" ? tf("review.preparingShort") : review?.status === "error" ? tf("review.failedShort") : tf("review.blocked", { count: gate.fitCount });
 
   // the field that was just pointed at pulses for a moment
   useEffect(() => {
@@ -131,7 +151,7 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
     const result = await onFinish();
     // on success the page moves on and this screen goes with it
     setFinishing(false);
-    if (!result.ok && !result.handled) setFinishError(errorText(result.error));
+    if (!result.ok && !result.handled) setFinishError(formErrorText(result.error) ?? errorText(result.error));
   }
 
   const zoom = ZOOMS[zoomIndex];
@@ -141,6 +161,9 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
       <div className="mx-auto w-full max-w-6xl px-3 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
         <div className="min-w-0 space-y-4">
           <DocumentIntro document={view.document} />
+          {formReview ? (
+            <ReviewPanel review={formReview.review} form={formReview.form} locale={locale} onChangeAnswer={formReview.onChangeAnswer} onOpenAnswer={formReview.onOpenAnswer} onRetry={formReview.onRetry} />
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
@@ -216,7 +239,7 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
         onClose={() => setOpenKey(null)}
       />
 
-      <StickyBar progress={progress} saveState={saveState} finishing={finishing} finishError={finishError} onNext={next} onFinish={() => void finish()} />
+      <StickyBar progress={progress} saveState={saveState} finishing={finishing} finishError={finishError} blockedNote={blockedNote} onNext={next} onFinish={() => void finish()} />
     </>
   );
 }

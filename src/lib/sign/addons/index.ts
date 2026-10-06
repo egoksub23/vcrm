@@ -11,6 +11,7 @@
 // installed yet (the card says so).
 // ============================================================
 
+import type { FormDefinition } from "../forms/types";
 import type { PlacedField } from "../pdf/types";
 import type { SignLocale, SignRole, TemplateDefaults } from "../types";
 import { merchantAddon } from "./merchant";
@@ -44,6 +45,8 @@ export interface AddonTemplateDef {
   roles: SignRole[];
   fields: PlacedField[];
   defaults: TemplateDefaults;
+  /** Forms (phase 1B): the parts and data fields the signers fill. Stored on the template's first version. */
+  form?: FormDefinition;
   tags?: string[];
 }
 

@@ -6938,6 +6938,34 @@
   },
   "Sign": {
     "admin": {
+      "addons": {
+        "merchant": {
+          "about": "用于签署商户协议的套件：包含“Merchant agreements”类别，以及商户分部分填写并签署的“Merchant Application”（商户申请）模板，附英文和马来文。使用前请先加入您自己的费用和条款。",
+          "name": "商户注册",
+          "description": "用于签署商户协议的套件：目前提供一个对应的类别，之后会加入商户申请模板及其表单。"
+        },
+        "intro": "附加包是为某项业务流程准备好的套件。安装后，其内容会以草稿形式添加，供您审阅。它不会更改您已编辑的模板，您可以放心地重复安装。只有平台运营方才能开放某个附加包。",
+        "loading": "正在加载附加包…",
+        "retry": "重试",
+        "none": "没有可用的附加包。",
+        "installedVersion": "已安装 v{version}",
+        "notInstalled": "未安装",
+        "unavailableBadge": "不可用",
+        "updateAvailable": "可更新至 v{version}",
+        "adds": {
+          "category": "添加类别“{name}”。",
+          "templates": "{count, plural, other {以草稿形式添加 # 个模板。}}",
+          "templatesLater": "模板将在之后的更新中添加。"
+        },
+        "install": "安装",
+        "installAgain": "重新安装",
+        "installAgainHint": "补充缺失的内容，不会更改您已编辑的内容。",
+        "needsOperator": "需要平台运营方为您的工作区开启此附加包，您才能安装。",
+        "installedToast": "已安装 {name}。",
+        "repeatedToast": "已检查 {name}。您编辑过的内容均未更改。",
+        "templatesAdded": "{count, plural, other {已以草稿形式添加 # 个模板。}}",
+        "footnote": "安装会添加草稿供您审阅，绝不会更改您已编辑的模板。已安装附加包的更新将在之后的版本中提供。"
+      },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
       "description": "电子签名的默认设置、签署措辞、类别、附加包和封存证书。",
@@ -7069,33 +7097,6 @@
           "reminders_too_many": "最多使用五个提醒。",
           "retention_invalid": "请输入 1 至 50 之间的整数年数，或留空。"
         }
-      },
-      "addons": {
-        "intro": "附加包是为某项业务流程准备好的套件。安装后，其内容会以草稿形式添加，供您审阅。它不会更改您已编辑的模板，您可以放心地重复安装。只有平台运营方才能开放某个附加包。",
-        "loading": "正在加载附加包…",
-        "retry": "重试",
-        "none": "没有可用的附加包。",
-        "merchant": {
-          "name": "商户注册",
-          "description": "用于签署商户协议的套件：目前提供一个对应的类别，之后会加入商户申请模板及其表单。"
-        },
-        "installedVersion": "已安装 v{version}",
-        "notInstalled": "未安装",
-        "unavailableBadge": "不可用",
-        "updateAvailable": "可更新至 v{version}",
-        "adds": {
-          "category": "添加类别“{name}”。",
-          "templates": "{count, plural, other {以草稿形式添加 # 个模板。}}",
-          "templatesLater": "模板将在之后的更新中添加。"
-        },
-        "install": "安装",
-        "installAgain": "重新安装",
-        "installAgainHint": "补充缺失的内容，不会更改您已编辑的内容。",
-        "needsOperator": "需要平台运营方为您的工作区开启此附加包，您才能安装。",
-        "installedToast": "已安装 {name}。",
-        "repeatedToast": "已检查 {name}。您编辑过的内容均未更改。",
-        "templatesAdded": "{count, plural, other {已以草稿形式添加 # 个模板。}}",
-        "footnote": "安装会添加草稿供您审阅，绝不会更改您已编辑的模板。已安装附加包的更新将在之后的版本中提供。"
       },
       "certificate": {
         "intro": "每份已完成的文件都用此证书封存。封存可以显示文件在签署后是否被改动。",
@@ -7765,6 +7766,615 @@
         "used": "{count, plural, other {用于 # 个字段}}"
       }
     },
+    "formBuilder": {
+      "lang": {
+        "label": "文字的语言",
+        "short": {
+          "en": "EN",
+          "ms": "BM",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "long": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "简体中文",
+          "ko": "한국어"
+        },
+        "coverage": "{language}：已翻译 {done} / {total} 段文字",
+        "fallback": "留空：签署人将看到英文文字。",
+        "englishRequired": "必须填写英文文字。"
+      },
+      "tabs": {
+        "label": "此模板的视图",
+        "layout": "位置编辑器",
+        "form": "表单"
+      },
+      "leave": {
+        "title": "不保存就离开？",
+        "body": "您有尚未保存的更改。现在离开，这些更改将会丢失。",
+        "stay": "留在此处",
+        "leave": "离开"
+      },
+      "screen": {
+        "loading": "正在加载表单……",
+        "retry": "重试",
+        "back": "模板",
+        "undo": "撤销",
+        "redo": "重做",
+        "preview": "以签署人身份预览",
+        "save": "保存",
+        "saving": "正在保存……",
+        "savedVersion": "已保存为版本 {n}。",
+        "savedMerged": "已保存为版本 {n}，叠加在别处保存的较新版本之上。",
+        "savedWithWarnings": "已保存为版本 {n}，有 {count, plural, other {# 条警告}}。",
+        "readOnly": "您可以查看此表单，但不能修改。",
+        "unsaved": "有未保存的更改",
+        "allSaved": "所有更改已保存（版本 {n}）",
+        "problems": "{count, plural, other {有 # 个问题需要修复}}",
+        "warnings": "{count, plural, other {有 # 项需要检查}}",
+        "overlayHint": "此模板还没有表单：签署人填写放置在页面上的框。添加一个部分即可将其变为表单模板，签署人按部分回答问题，答案会打印在页面上。",
+        "panes": "部分、字段和属性",
+        "pane": {
+          "parts": "部分",
+          "fields": "字段",
+          "right": "详情"
+        },
+        "rightTabs": "属性和问题",
+        "tab": {
+          "props": "属性",
+          "issues": "问题"
+        },
+        "noParts": "表单由多个部分组成，每个部分是给某个角色的一组问题（数据字段）。",
+        "needRoles": "角色需在位置编辑器中创建。请先在那里至少添加一个角色。",
+        "openEditorRoles": "打开位置编辑器"
+      },
+      "seeds": {
+        "newPart": "新部分",
+        "newField": "新字段",
+        "option": "选项 {n}",
+        "acknowledgeText": "我已阅读并同意。",
+        "copySuffix": "（副本）"
+      },
+      "parts": {
+        "title": "部分",
+        "empty": "还没有部分。",
+        "unnamed": "未命名的部分",
+        "hasIssue": "此部分有问题",
+        "noRole": "无角色",
+        "fieldCount": "{count, plural, other {# 个字段}}",
+        "conditional": "由规则控制显示",
+        "up": "将 {name} 上移",
+        "down": "将 {name} 下移",
+        "delete": "删除 {name}",
+        "add": "添加部分",
+        "needRole": "请先在位置编辑器中添加角色。",
+        "max": "一个表单最多可有 {count} 个部分。"
+      },
+      "partSettings": {
+        "title": "部分标题",
+        "description": "部分说明（可选）",
+        "descriptionHint": "签署人打开该部分时显示在标题下方。",
+        "role": "由谁完成",
+        "roleSigner": "签署人：此人同时也要签字。",
+        "roleFiller": "填写人：此人只填写自己的部分，不签字。",
+        "roleMissing": "此角色已不存在，请选择其他角色。",
+        "kindSigner": "签署人",
+        "kindFiller": "填写人",
+        "ifTitle": "仅在以下条件下显示此部分",
+        "delete": "删除 {name} 及其字段",
+        "show": "部分设置",
+        "hide": "隐藏设置"
+      },
+      "fields": {
+        "title": "数据字段",
+        "empty": "此部分还没有字段。请在下方添加。",
+        "hasIssue": "此字段有问题",
+        "required": "必填",
+        "requiredSometimes": "部分情况下必填",
+        "optional": "可选",
+        "showIf": "当 {rule} 时显示",
+        "places": "{count, plural, other {打印在 # 处}}",
+        "notPrinted": "未打印在页面上",
+        "fillsContact": "填入联系人字段",
+        "up": "将 {name} 上移",
+        "down": "将 {name} 下移",
+        "duplicate": "复制 {name}",
+        "delete": "删除 {name}",
+        "add": "添加数据字段",
+        "max": "一个表单最多可有 {count} 个数据字段。",
+        "pickType": "新字段的类型"
+      },
+      "types": {
+        "text": "短文本",
+        "multiline": "长文本",
+        "number": "数字",
+        "email": "电子邮件地址",
+        "phone": "电话号码",
+        "choice": "单选",
+        "multichoice": "多选",
+        "yesno": "是或否",
+        "date": "日期",
+        "list": "条目列表",
+        "file": "上传文件",
+        "image": "图片",
+        "acknowledge": "阅读并同意"
+      },
+      "typeHints": {
+        "text": "一行文字，例如公司名称",
+        "multiline": "多行文字，例如地址",
+        "number": "数字，可设置范围",
+        "email": "电子邮件地址，会检查格式",
+        "phone": "电话号码；马来西亚号码带或不带 +60 均可",
+        "choice": "从列表中选一项",
+        "multichoice": "从列表中选任意几项",
+        "yesno": "回答“是”或“否”",
+        "date": "日历日期",
+        "list": "一个或多个简短条目，例如行业代码",
+        "file": "一个或多个文件，例如 PDF 或照片",
+        "image": "签署人绘制或上传的图片，例如公司印章",
+        "acknowledge": "签署人必须阅读并同意的文字"
+      },
+      "props": {
+        "unnamed": "未命名的字段",
+        "type": "类型",
+        "part": "所属部分",
+        "duplicate": "复制",
+        "delete": "删除",
+        "none": "请选择一个字段进行编辑，或添加新字段。"
+      },
+      "texts": {
+        "title": "文字",
+        "hintOther": "此处留空的文字将以英文显示。",
+        "label": "标签",
+        "help": "帮助文字（可选）",
+        "helpHint": "显示在问题下方的一行简短说明。",
+        "placeholder": "输入框中的示例（可选）",
+        "acknowledge": "需阅读并同意的文字",
+        "acknowledgeHint": "签署人阅读后勾选方框表示同意。"
+      },
+      "key": {
+        "title": "键名",
+        "label": "键名（用于保存答案）",
+        "hint": "字母、数字和下划线，以字母开头。答案会保存在此键名下。",
+        "follows": "由英文标签生成。在此手动编辑之前，它会随标签变化。",
+        "locked": "已有文档使用此模板创建，因此无法再更改此键名。",
+        "bad": "请使用字母、数字和下划线，以字母开头（最多 40 个字符）。",
+        "taken": "另一个字段或框已在使用此键名。"
+      },
+      "type": {
+        "title": "{type}设置",
+        "format": "文字允许的形式",
+        "formats": {
+          "any": "不限",
+          "digits": "仅数字",
+          "letters": "仅字母",
+          "alnum": "字母和数字",
+          "upper_alnum": "大写字母和数字",
+          "postcode_my": "马来西亚邮政编码（5 位数字）"
+        },
+        "minLength": "最短（字符数）",
+        "maxLength": "最长（字符数）",
+        "min": "最小值",
+        "max": "最大值",
+        "decimals": "小数位数",
+        "decimalsAny": "最多 6 位",
+        "emailHint": "签署人输入电子邮件地址，会检查其格式。",
+        "phoneHint": "马来西亚号码可以以 0、60 或 +60 开头，并保存为 +60 格式。",
+        "dateHint": "签署人选择日历日期。",
+        "yesnoHint": "签署人回答“是”或“否”。",
+        "imageHint": "签署人绘制或上传图片，例如公司印章。",
+        "acknowledgeHint": "签署人必须勾选以同意该文字。此字段始终为必填。",
+        "minItems": "最少条目数",
+        "maxItems": "最多条目数",
+        "itemFormat": "每个条目允许的形式",
+        "itemLength": "条目最长（字符数）",
+        "itemLengthHint": "例如，五位行业代码填 5。",
+        "accept": "接受的文件",
+        "acceptNone": "请至少选择一种文件类型。",
+        "acceptHint": "会根据文件内容而不仅是文件名来检查。",
+        "kinds": {
+          "pdf": "PDF",
+          "jpg": "JPG 照片",
+          "png": "PNG 图片"
+        },
+        "maxMb": "最大大小（MB）",
+        "maxFiles": "最多文件数",
+        "minFiles": "最少文件数",
+        "fileLimits": "单个文件最大 {mb} MB，每份文档的文件总计最大 50 MB。"
+      },
+      "options": {
+        "title": "选项（{count}）",
+        "none": "请至少添加一个选项。",
+        "label": "选项 {n} 的标签（{language}）",
+        "labelPlaceholder": "英文标签",
+        "up": "将选项 {n} 上移",
+        "down": "将选项 {n} 下移",
+        "remove": "删除选项 {n}",
+        "value": "保存的值",
+        "valueLocked": "此值无法再更改：已有文档使用此模板创建。",
+        "valueDuplicate": "有两个选项的保存值相同。",
+        "valueBad": "请使用字母、数字、下划线、点或连字符。",
+        "addLabel": "新选项（英文）",
+        "addPlaceholder": "新选项（英文）。可粘贴列表一次添加多项，每行一个。",
+        "add": "添加",
+        "addHint": "保存的值由英文标签生成。按 Enter 添加。",
+        "max": "最多 {count} 个选项。"
+      },
+      "required": {
+        "title": "必填",
+        "label": "签署人必须回答此项",
+        "acknowledge": "需同意的文字始终为必填。",
+        "ifTitle": "仅在以下条件下必填"
+      },
+      "visible": {
+        "title": "可见性",
+        "ifTitle": "仅在以下条件下显示此字段",
+        "always": "始终显示。"
+      },
+      "rule": {
+        "add": "添加条件",
+        "remove": "删除规则",
+        "noFields": "请先添加其他字段：规则依据其他字段的答案判断。",
+        "inWords": "用文字表述",
+        "showWhen": "仅当{rule}时显示。",
+        "requiredWhen": "仅当{rule}时必填。",
+        "partShowWhen": "仅当{rule}时显示此部分。",
+        "addCondition": "条件",
+        "addGroup": "条件组",
+        "joinLabel": "条件的组合方式",
+        "joinAnd": "以下全部成立",
+        "joinOr": "以下任一成立",
+        "removeGroup": "删除此条件组",
+        "removeCondition": "删除此条件",
+        "notHeading": "以下情况不成立",
+        "unwrapNot": "去掉“非”",
+        "limit": "一条规则最多 20 个条件，条件组最多嵌套 4 层。",
+        "fieldLabel": "字段",
+        "operatorLabel": "比较方式",
+        "valueLabel": "值",
+        "valuesLabel": "值",
+        "valuePlaceholder": "值",
+        "pickValue": "选择一个值",
+        "staleValue": "{value}（已不是选项）",
+        "missingField": "{field}（缺失）",
+        "noOptions": "此字段还没有选项。",
+        "completeThis": "请完善此条件。",
+        "fieldGone": "此字段已不存在，或就是该规则所属的字段。请选择其他字段。",
+        "and": "并且",
+        "or": "或者",
+        "not": "非（{rule}）",
+        "ops": {
+          "eq": "是",
+          "ne": "不是",
+          "in": "是以下之一",
+          "empty": "为空",
+          "notEmpty": "不为空",
+          "eq_many": "包含",
+          "ne_many": "不包含",
+          "in_many": "包含以下任一项",
+          "empty_file": "没有文件",
+          "notEmpty_file": "有文件"
+        },
+        "leaf": {
+          "eq": "{field}是 {value}",
+          "ne": "{field}不是 {value}",
+          "in": "{field}是 {value}",
+          "empty": "{field}为空",
+          "notEmpty": "{field}不为空",
+          "eq_many": "{field}包含 {value}",
+          "ne_many": "{field}不包含 {value}",
+          "in_many": "{field}包含 {value}",
+          "empty_file": "{field}没有文件",
+          "notEmpty_file": "{field}有文件",
+          "unknown": "一个已不存在的字段"
+        }
+      },
+      "contact": {
+        "title": "填入联系人",
+        "hint": "签署人签字后，此答案可以写入其联系人资料。",
+        "field": "联系人字段",
+        "none": "不填入联系人字段",
+        "builtIn": "联系人",
+        "custom": "您的联系人字段",
+        "unknown": "{name}（已不是联系人字段）",
+        "base": {
+          "name": "姓名",
+          "email": "电子邮件",
+          "company": "公司"
+        },
+        "writeBack": "联系人已有值时",
+        "mode": {
+          "always": "替换原值",
+          "if_empty": "仅在为空时填入"
+        },
+        "modeHint": {
+          "always": "签署人已看到并确认此答案，所以它是最新的。",
+          "if_empty": "保留联系人已有的内容。"
+        },
+        "noCustom": "您在“联系人”中创建自己的联系人字段后，会显示在这里。"
+      },
+      "value": {
+        "title": "初始值与锁定",
+        "default": "初始值",
+        "defaultHint": "签署人打开该部分时显示在框中，他们可以修改。",
+        "noDefault": "无",
+        "staleDefault": "{value}（已不是选项）",
+        "locked": "已锁定：由您设置，签署人不能修改",
+        "lockedHint": "用于您在发送时填写的值，例如参考编号。"
+      },
+      "printed": {
+        "title": "打印在表单上的位置",
+        "file": "上传的文件与文档一起保存，不会打印在页面上。",
+        "none": "尚未打印在页面上。",
+        "summary": "{pageCount, plural, other {第 {pages} 页}}，{count, plural, other {# 处}}",
+        "places": "位置",
+        "openPlace": "第 {page} 页",
+        "open": "在位置编辑器中打开",
+        "openToPlace": "在位置编辑器中放置",
+        "placeHint": "在位置编辑器中打开“数据”标签，点击此字段旁的“放置”。"
+      },
+      "issues": {
+        "title": "问题",
+        "none": "没有发现问题。",
+        "warningsTitle": "需要检查",
+        "unknown": "表单中有无效内容（{code}）。",
+        "form_shape": "表单的结构不是此版本能够理解的。",
+        "too_many_parts": "一个表单最多可有 {detail} 个部分。",
+        "too_many_data_fields": "一个表单最多可有 {detail} 个数据字段。",
+        "bad_part_key": "有一个部分的键名不被允许。",
+        "duplicate_part_key": "有两个部分使用了相同的键名。",
+        "bad_part_title": "部分“{part}”需要英文标题（最多 120 个字符）。",
+        "bad_part_description": "部分“{part}”的说明过长，或没有英文文字。",
+        "part_unknown_role": "部分“{part}”所属的角色不存在。请选择其他角色。",
+        "bad_data_key": "“{field}”的键名不被允许。请使用字母、数字和下划线，并以字母开头。",
+        "duplicate_data_key": "有两个数据字段使用了“{field}”的键名。",
+        "data_key_is_placement_key": "“{field}”的键名已被页面上的某个框使用。请更改键名。",
+        "bad_data_type": "“{field}”的类型未知。",
+        "data_unknown_part": "“{field}”所属的部分不存在。请将其移到其他部分。",
+        "bad_data_label": "“{field}”需要英文标签（最多 200 个字符）。",
+        "bad_data_help": "“{field}”的帮助文字过长，或没有英文文字。",
+        "bad_data_placeholder": "“{field}”的示例文字过长，或没有英文文字。",
+        "bad_options": "“{field}”至少需要一个选项，每个选项都要有英文标签和各自的保存值。",
+        "bad_format": "“{field}”的文字形式未知。",
+        "bad_limit": "“{field}”的限制不被允许：须为整数，且最小值不能大于最大值。",
+        "bad_file_types": "“{field}”必须至少接受一种文件类型。",
+        "bad_file_size": "“{field}”的最大大小必须大于 0 且不超过 {detail} MB。",
+        "bad_acknowledge_text": "“{field}”需要英文的阅读并同意文字。",
+        "bad_contact_field": "“{field}”不能填入该联系人字段。请选择其他字段，或不填入。",
+        "rule_shape": "“{subject}”上的规则不完整。",
+        "rule_too_deep": "“{subject}”上的规则条件组层数过多。",
+        "rule_unknown_field": "“{subject}”上的规则引用了一个不存在的字段。",
+        "rule_value": "“{subject}”上的规则所比较的值为空或过长。",
+        "rule_too_big": "“{subject}”上的规则条件过多。",
+        "rule_refers_to_itself": "控制“{field}”显示的规则引用了“{field}”自身。",
+        "rule_cycle": "“{field}”的规则彼此循环依赖。请删除其中一条。",
+        "placement_unknown_data": "第 {page} 页的一个框打印的数据字段不存在。请打开位置编辑器选择其他字段，或删除该框。",
+        "placement_type_mismatch": "第 {page} 页的框不能以这种框的类型打印“{field}”。请打开位置编辑器进行更改。",
+        "placement_bound_and_fixed": "第 {page} 页的框既打印答案又是固定文字。请打开位置编辑器进行更改。",
+        "part_without_person": "部分“{part}”没有人来完成。",
+        "removeBox": "删除该框"
+      },
+      "warnings": {
+        "unknown": "表单中有内容值得检查。",
+        "part_empty": "部分“{part}”还没有字段。",
+        "rule_value_not_option": "“{subject}”上的规则与 {detail} 比较，但它已不是该字段的选项。",
+        "rule_blank_value": "“{subject}”上的规则中有一个条件还没有值。",
+        "default_not_option": "“{field}”的初始值不是它的选项之一。",
+        "placement_option_missing": "第 {page} 页的勾选框关联的“{field}”选项已不存在。",
+        "role_signer_no_signature": "“{role}”需要签字，但模板中没有为“{role}”设置签名或缩写框。",
+        "static_text_does_not_fit": "第 {page} 页的框中固定文字放不下，会被截断。请打开位置编辑器放大该框。"
+      },
+      "errors": {
+        "generic": "出了点问题，请重试。",
+        "network": "无法连接服务器。请检查网络后重试。",
+        "signed_out": "您已退出登录。请重新登录后继续。",
+        "forbidden": "您没有修改模板的权限。",
+        "rate_limited": "请求过于频繁。请稍等片刻再试。",
+        "invalid_layout": "服务器在表单或布局中发现了问题。请查看“问题”标签。",
+        "bad_layout": "服务器在表单或布局中发现了问题。请查看“问题”标签。",
+        "bad_form": "服务器在表单中发现了问题。请查看“问题”标签。",
+        "template_not_found": "找不到该模板。",
+        "template_has_no_version": "此模板还没有文件，因此无法构建表单。",
+        "changed_elsewhere": "此模板的较新版本已在别处保存，因此您的更改未保存。请重新加载页面查看。您输入的内容会保留在此页面，直到您离开。",
+        "fix_problems": "保存前请先{count, plural, other {修复 # 个问题}}（见“问题”标签）。",
+        "request_failed": "出了点问题，请重试。"
+      },
+      "removed": {
+        "field": "字段已删除。",
+        "part": "{count, plural, other {已删除该部分及其 # 个字段。}}",
+        "places": "{count, plural, other {页面上打印它的 # 个框已被删除。}}",
+        "rules": "{count, plural, other {使用它的 # 条规则已被修改。}}",
+        "typeBoxes": "{count, plural, other {页面上有 # 个框无法打印新的类型，已被删除。}}"
+      },
+      "confirm": {
+        "partTitle": "删除部分“{name}”？",
+        "fieldTitle": "删除字段“{name}”？",
+        "body": "这也会改变依赖于它的内容。保存之前，您可以撤销。",
+        "fields": "{count, plural, other {该部分中的 # 个字段将被删除。}}",
+        "places": "{count, plural, other {页面上打印它的 # 个框将被删除。}}",
+        "rules": "{count, plural, other {引用它的 # 条规则将失去该条件。}}",
+        "undo": "可使用顶部的“撤销”恢复。",
+        "cancel": "取消",
+        "delete": "删除"
+      },
+      "preview": {
+        "title": "以签署人身份预览",
+        "intro": "这就是签署人所看到的表单，使用测试答案。不会保存或发送任何内容。",
+        "noParts": "目前没有角色负责任何部分，因此无可预览。",
+        "role": "预览身份",
+        "language": "语言",
+        "loading": "正在加载……",
+        "progress": "已提供 {percent}% 的必填答案",
+        "reset": "清除答案",
+        "testNote": "此处的答案是测试答案，不会保留。",
+        "refused": "“{field}”的答案将被拒绝（{code}）。",
+        "reviewReached": "签署人接下来将进入“查看并签字”。",
+        "printedTitle": "将打印在页面上的内容",
+        "printedHint": "随您作答实时更新。",
+        "printedEmpty": "目前没有内容可打印。请回答一些问题。",
+        "noPlaces": "页面上还没有打印答案的框。请使用位置编辑器的“数据”标签来放置。",
+        "page": "第 {page} 页",
+        "ticked": "已勾选",
+        "picture": "（图片）"
+      },
+      "editor": {
+        "panelData": "数据",
+        "dataEmpty": "表单还没有数据字段。请在“表单”视图中添加。",
+        "dataIntro": "“放置”会把字段的答案打印在您当前查看的页面上。",
+        "notPrintable": "不打印在页面上",
+        "prints": "{count, plural, other {打印在 # 处}}",
+        "printsNone": "尚未打印",
+        "show": "显示“{name}”的打印位置",
+        "placeFor": "在页面上放置“{name}”",
+        "place": "放置",
+        "placeFailed": "无法放置该框。模板可能已达到允许的框数量上限。",
+        "fillWith": "填入答案",
+        "fillNone": "无（普通字段）",
+        "fillOption": "答案为以下选项时勾选",
+        "fillHint": "在此处打印表单中某个问题的答案，而不是在页面上让签署人填写。",
+        "boundNote": "此框打印答案，归发送人所有，不能被作答或设为必填。",
+        "fillMissing": "{key}（已不在表单中）",
+        "holds": "{count, plural, other {负责的部分：{parts}}}",
+        "holdsNone": "不负责表单的任何部分。",
+        "cannotDeleteRole": "{count, plural, other {此角色负责表单的 # 个部分。}}请先在“表单”视图中把这些部分交给其他角色，再删除它。",
+        "signerNoSignature": "此角色需要签字，但没有签名或缩写框。",
+        "sampleItem": "条目 {n}"
+      }
+    },
+    "progress": {
+      "tabs": {
+        "progress": "进度"
+      },
+      "loading": "正在加载进度",
+      "failed": "无法加载进度。",
+      "title": "申请进度",
+      "partsOf": "{total, plural, other {共 # 个部分}}，已完成 {done} 个",
+      "percent": "已提供 {percent}% 的必填答案",
+      "barLabel": "{name} 的进度",
+      "overallLabel": "总体进度",
+      "lastActivity": "最近活动：{when}",
+      "lastActivityFrom": "最近活动：{when}，使用{device}",
+      "noActivity": "暂无活动",
+      "device": {
+        "phone": "手机",
+        "tablet": "平板电脑",
+        "computer": "电脑"
+      },
+      "nobodyAssigned": "尚未指定人员",
+      "partsList": "{name} 的部分",
+      "rolesList": "各人员的进度",
+      "fillerNote": "此人只填写自己的部分，不负责签署。",
+      "state": {
+        "not_started": "未开始",
+        "in_progress": "进行中",
+        "done": "已完成"
+      },
+      "count": "{done}/{total}",
+      "savedAt": "保存于 {when}",
+      "notSaved": "尚未保存任何内容",
+      "remind": {
+        "button": "提醒未完成的部分",
+        "held": "{when} 之后才能再次发送提醒。",
+        "namesParts": "消息会写明仍未完成的{count, plural, other {部分}}："
+      },
+      "expiry": {
+        "button": "延长有效期",
+        "title": "延长有效期",
+        "current": "目前的到期日期是 {date}。",
+        "noCurrent": "此文档还没有到期日期。",
+        "newDate": "新的到期日期",
+        "note": "请选择晚于当前到期日的一天。当天结束前仍可签署。",
+        "problems": {
+          "required": "请选择一个日期。",
+          "past": "请选择一个未来的日期。",
+          "not_later": "请选择晚于当前到期日的一天。"
+        },
+        "cancel": "取消",
+        "action": "延长有效期",
+        "done": "文档现在的到期日期是 {date}。",
+        "expires": "到期：{date}"
+      },
+      "answers": {
+        "title": "目前的答案",
+        "note": "只读。这里显示的是对方填写的原样答案。被规则隐藏的答案不会显示。",
+        "groupSummary": "{role} · {count, plural, other {# 个答案}}",
+        "none": "此部分还没有答案。",
+        "notAnswered": "尚未回答",
+        "accepted": "已接受",
+        "notAccepted": "未接受",
+        "pictureGiven": "已提供图片",
+        "download": "下载",
+        "downloadNamed": "下载 {name}",
+        "fromContact": "来自联系人，尚未确认",
+        "bySender": "由发送人设定"
+      },
+      "issues": {
+        "title": "{count, plural, other {有 # 项需要查看}}",
+        "doesNotFit": "“{field}”的答案太长，放不进打印位置。签署前会请签署人缩短它。",
+        "invalid": "“{field}”的答案已不符合表单规则。",
+        "generic": "有一项需要查看（{code}）。"
+      },
+      "writeback": {
+        "note": "答案已更新联系人（{count, plural, other {# 个字段}}），最近一次在 {when}。"
+      },
+      "openContact": "打开联系人",
+      "contactFields": {
+        "name": "姓名",
+        "email": "电子邮件",
+        "company": "公司"
+      },
+      "events": {
+        "part_completed": "{actor} 完成了{hasPart, select, yes {“{part}”部分} other {表单的一个部分}}。",
+        "part_reopened": "{actor} 回到了{hasPart, select, yes {“{part}”部分} other {表单的一个部分}}，该部分不再是完成状态。",
+        "uploaded": "{actor} 上传了{hasFile, select, yes {“{file}”} other {一个文件}}{hasField, select, yes {，用于“{field}”} other {}}。",
+        "upload_removed": "{actor} 删除了{hasFile, select, yes {“{file}”} other {一个文件}}{hasField, select, yes {（来自“{field}”）} other {}}。",
+        "writeback": "答案已更新联系人{hasFields, select, yes {（{fields}）} other {}}。",
+        "expiry_extended": "{sender} 延长了有效期{hasDate, select, yes {至 {date}} other {}}。"
+      },
+      "errors": {
+        "document_not_found": "找不到此文档。",
+        "document_not_open": "文档已不再开放，因此无法执行此操作。",
+        "expiry_in_the_past": "请选择一个未来的日期。",
+        "expiry_not_later": "请选择晚于当前到期日的一天。",
+        "bad_expiry": "无法使用该日期，请另选一天。",
+        "file_not_found": "找不到此文件。",
+        "forbidden": "您没有执行此操作的权限。",
+        "signed_out": "您已退出登录。请重新登录后继续。",
+        "rate_limited": "请求过多。请稍等片刻再试。",
+        "network": "无法连接到服务器。请检查网络后重试。",
+        "database_error": "我们这边出了问题。请稍后再试。",
+        "generic": "操作未成功。请再试一次。"
+      },
+      "problems": {
+        "part_without_person": "{role} 有表单部分需要填写，但还没有指定人员。"
+      },
+      "formStep": {
+        "title": "表单",
+        "summary": "共 {parts, plural, other {# 个部分}}，{fields, plural, other {# 个字段}}。",
+        "partsList": "表单的各个部分",
+        "fieldCount": "{count, plural, other {# 个字段}}",
+        "belongsToTemplate": "此表单属于模板，不能在这里修改。如需更改，请编辑模板并发送新的文档。",
+        "editFields": "编辑字段",
+        "hideEditor": "关闭字段编辑器",
+        "editFieldsNote": "“编辑字段”只会更改答案在页面上的打印位置，不会更改表单。"
+      },
+      "peopleStep": {
+        "title": "谁负责什么",
+        "note": "每个部分由一个角色完成。请为下面的每个角色添加人员。",
+        "range": "{from} 至 {to}",
+        "holds": "{mode, select, partsSign {{role}：{count, plural, other {第 {parts} 部分}}，并负责签署} partsFill {{role}：{count, plural, other {第 {parts} 部分}}，仅填写} signOnly {{role}：仅签署} other {{role}：表单中没有内容}}",
+        "nobody": "尚未为 {role} 指定人员。"
+      },
+      "reviewStep": {
+        "title": "表单",
+        "summary": "共 {parts, plural, other {# 个部分}}，{fields, plural, other {# 个字段}}。",
+        "holds": "{mode, select, partsSign {{role}：{count, plural, other {第 {parts} 部分}}，并负责签署} partsFill {{role}：{count, plural, other {第 {parts} 部分}}，仅填写} signOnly {{role}：仅签署} other {{role}：表单中没有内容}}",
+        "prefillOn": "表单会先带入所关联联系人的资料（{fields}）。签署人会核对并可以修改。",
+        "noContact": "此表单可以先带入联系人的资料（{fields}），但没有关联联系人，所有内容将由签署人自行填写。您可以在选项步骤中关联联系人。",
+        "noContactFields": "此表单不使用联系人的资料。"
+      }
+    },
     "send": {
       "shell": {
         "title": "文档签署",
@@ -8358,6 +8968,179 @@
         "invalid_answers": "有些内容需要修改，已在页面上标出。",
         "body_too_large": "内容太大，无法发送。请使用较小的图片。",
         "session_unavailable": "目前无法进行签署。请稍后再试。"
+      }
+    },
+    "signerForm": {
+      "overview": {
+        "title": "您的资料",
+        "intro": "可按任意顺序填写各个部分。您的答案会随时保存，您可以离开，之后用同一个链接回来继续。",
+        "parts": "表格的各个部分",
+        "partsDone": "已完成 {done} / {total, plural, other {# 个部分}}",
+        "progressLabel": "您的进度",
+        "percent": "已完成 {percent}%",
+        "counts": "已回答 {done} / {total}",
+        "continue": "继续：{part}"
+      },
+      "status": {
+        "not_started": "未开始",
+        "in_progress": "进行中",
+        "done": "已完成",
+        "needs_change": "需要修改",
+        "locked": "已锁定",
+        "ready": "可进行"
+      },
+      "final": {
+        "review": "查看并签署",
+        "submit": "提交您的答案",
+        "leftSign": "{count, plural, other {再完成 # 个部分即可开始签署}}",
+        "leftSubmit": "{count, plural, other {再完成 # 个部分即可提交}}",
+        "saving": "正在保存您的答案，稍后即可打开。",
+        "check": "有些答案还需要检查。请打开尚未完成的部分。",
+        "readySign": "请核对表格上的答案，然后签署。",
+        "readySubmit": "所有内容都已填写。准备好后即可发送您的答案。"
+      },
+      "part": {
+        "position": "第 {number} 部分，共 {total} 部分",
+        "back": "返回概览",
+        "saveNext": "保存并进入下一部分",
+        "saveLast": "保存并返回概览",
+        "left": "{count, plural, other {本部分还有 # 项必填答案}}",
+        "complete": "本部分已完成。",
+        "needsChange": "有些答案需要修改，已在下方标出。",
+        "empty": "这里暂时没有需要填写的内容。",
+        "confirmTitle": "请核对这些答案",
+        "confirmBody": "我们根据已有记录填写了部分答案。请逐项核对，修改有误之处，然后确认。",
+        "confirm": "确认本部分"
+      },
+      "field": {
+        "required": "必填",
+        "optional": "选填",
+        "choose": "请选择...",
+        "yes": "是",
+        "no": "否",
+        "accept": "我已阅读并接受",
+        "fromRecords": "来自我们的记录，请核对",
+        "locked": "这一项已为您填写，无法在此更改。",
+        "pictureAdded": "已添加图片",
+        "phoneHint": "以 0 或 +60 开头，例如 012-345 6789。其他国家的号码请以 + 和国家区号开头。",
+        "phonePlaceholder": "012-345 6789"
+      },
+      "list": {
+        "add": "再添加一项",
+        "entryLabel": "{label}，第 {number} 项",
+        "removeEntry": "删除第 {number} 项",
+        "limit": "最多 {max} 项",
+        "itemLength": "每项最多 {max} 个字符"
+      },
+      "format": {
+        "digits": "仅限数字",
+        "letters": "仅限字母",
+        "alnum": "仅限字母和数字",
+        "upper_alnum": "仅限大写字母和数字",
+        "postcode_my": "5 位数字"
+      },
+      "file": {
+        "choose": "选择文件",
+        "addAnother": "再添加文件",
+        "takePhoto": "拍照",
+        "remove": "删除",
+        "removeNamed": "删除 {name}",
+        "uploading": "正在上传 {name}...",
+        "hint": "接受格式：{types}。每个文件最大 {mb} MB。",
+        "count": "已添加 {count} 个，最多 {max} 个文件。"
+      },
+      "image": {
+        "choose": "选择图片",
+        "chooseAnother": "选择其他图片",
+        "remove": "删除图片",
+        "hint": "拍一张照片，或从手机中选择。支持 PNG 或 JPEG。",
+        "preparing": "正在处理图片...",
+        "alt": "{label}：您添加的图片",
+        "pictureTooBig": "这张图片太大，无法使用。请换一张较小的。",
+        "pictureUnreadable": "无法读取这张图片。请试试 PNG 或 JPEG。"
+      },
+      "problems": {
+        "bad_text": "这里有无法使用的字符，请删除。",
+        "text_too_long": "内容太长，最多 {detail} 个字符。",
+        "text_too_short": "内容太短，至少 {detail} 个字符。",
+        "format_digits": "请只输入数字。",
+        "format_letters": "请只输入字母。",
+        "format_alnum": "请只输入字母和数字。",
+        "format_upper_alnum": "请只输入大写字母和数字。",
+        "format_postcode_my": "请输入 5 位数字的邮政编码。",
+        "bad_email": "请输入电子邮件地址，例如 name@example.com。",
+        "bad_phone": "请输入电话号码，例如 012-345 6789。",
+        "not_a_number": "请输入数字，例如 1250 或 12.50。",
+        "too_many_decimals": "小数点后最多 {detail, plural, other {# 位}}。",
+        "number_too_small": "不能小于 {detail}。",
+        "number_too_big": "不能大于 {detail}。",
+        "not_a_date": "请选择有效的日期。",
+        "not_an_option": "请选择其中一个选项。",
+        "not_yes_no": "请选择“是”或“否”。",
+        "bad_item": "有一项无法使用，请逐项检查。",
+        "item_too_long": "有一项太长，每项最多 {detail} 个字符。",
+        "item_too_short": "有一项太短，每项至少需要 {detail} 个字符。",
+        "too_many_items": "最多可添加 {detail} 项。",
+        "too_few_items": "至少需要添加 {detail} 项。",
+        "duplicate_item": "有一项重复了，请删除一个。",
+        "bad_image": "无法使用这张图片，请换一张。",
+        "use_upload": "请使用上方的按钮添加文件。",
+        "file_type": "不接受这种类型的文件。请查看上方列出的格式。",
+        "file_too_large": "这个文件太大，上限为 {detail} MB。",
+        "file_empty": "这个文件是空的，请选择其他文件。",
+        "document_upload_limit": "这份文件的上传文件数量已达上限。请先删除一个文件，再添加新的。",
+        "too_many_files": "最多可添加 {detail} 个文件。",
+        "too_few_files": "至少需要添加 {detail} 个文件。",
+        "upload_failed": "无法上传这个文件，请再试一次。",
+        "network": "没有网络连接。请检查网络后重试。",
+        "rate_limited": "尝试次数过多。请等待一分钟后再试。",
+        "not_your_field": "这一项不需要由您填写。",
+        "not_shown": "这个答案不需要填写。",
+        "missing_required": "这一项必须填写。",
+        "answer_does_not_fit": "这个答案对于打印位置来说太长，请缩短它。",
+        "generic": "无法保存。请修改后再试。"
+      },
+      "save": {
+        "saving": "正在保存...",
+        "saved": "已保存",
+        "savedNow": "刚刚已保存",
+        "savedAgo": "{when}已保存",
+        "offline": "没有网络连接。您的修改已保留。",
+        "error": "无法保存。您的修改已保留。"
+      },
+      "review": {
+        "title": "核对您的答案",
+        "body": "这是签署时的文件，您的答案已打印在上面。如有错误，请修改答案。",
+        "change": "修改答案",
+        "preparing": "正在把您的答案放到文件上...",
+        "preparingShort": "正在准备文件...",
+        "failed": "无法把您的答案放到文件上。请检查网络后重试。",
+        "failedShort": "文件还没有准备好。",
+        "retry": "重试",
+        "fitTitle": "{count, plural, other {# 个答案太长，无法打印}}",
+        "fitItem": "这个答案对于打印位置来说太长：{label}。请缩短它。",
+        "fixAnswer": "修改此答案",
+        "fixAnswerLabel": "修改此答案：{label}",
+        "blocked": "{count, plural, other {缩短 # 个答案后即可完成}}"
+      },
+      "notice": {
+        "missing_required": "有些必填答案仍然为空，已在下方标出。",
+        "invalid_answers": "有些答案需要修改，已在下方标出。",
+        "answer_does_not_fit": "有些答案太长，无法打印到指定位置，已在下方标出。"
+      },
+      "errors": {
+        "answer_does_not_fit": "有答案太长，无法打印到指定位置。请缩短后再试。",
+        "form_incomplete": "有些必填答案仍然为空。"
+      },
+      "end": {
+        "filler": {
+          "title": "您的答案已发送",
+          "thanks": "谢谢您，{name}。",
+          "next": "您无需再做任何事。"
+        }
+      },
+      "preview": {
+        "note": "这是预览。您在这里输入的内容不会被保存或发送。"
       }
     }
   }

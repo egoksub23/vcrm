@@ -99,10 +99,11 @@ export function validateForm(form: FormDefinition, roles: readonly SignRole[], p
     }
     if (f.format !== undefined && !TEXT_FORMATS.includes(f.format)) issues.push({ code: "bad_format", ...at });
     if (f.itemFormat !== undefined && !TEXT_FORMATS.includes(f.itemFormat)) issues.push({ code: "bad_format", ...at });
-    for (const n of [f.minLength, f.maxLength, f.itemLength, f.maxItems, f.minItems, f.decimals]) {
+    for (const n of [f.minLength, f.maxLength, f.itemLength, f.itemMinLength, f.maxItems, f.minItems, f.decimals]) {
       if (n !== undefined && (!Number.isInteger(n) || n < 0 || n > 5000)) issues.push({ code: "bad_limit", ...at });
     }
     if (f.minLength !== undefined && f.maxLength !== undefined && f.minLength > f.maxLength) issues.push({ code: "bad_limit", ...at });
+    if (f.itemMinLength !== undefined && f.itemLength !== undefined && f.itemMinLength > f.itemLength) issues.push({ code: "bad_limit", ...at });
     if (f.min !== undefined && f.max !== undefined && f.min > f.max) issues.push({ code: "bad_limit", ...at });
     if (f.decimals !== undefined && f.decimals > 6) issues.push({ code: "bad_limit", ...at });
     if (f.type === "file") {

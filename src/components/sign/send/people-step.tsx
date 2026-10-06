@@ -9,8 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
 import { addRow, duplicateEmails, moveRow, moveRowBy, removeRow, rolesWithoutPeople, updateRow, type SignerRow } from "@/lib/sign/client/signers-form";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignRole } from "@/lib/sign/types";
 import { ContactPicker } from "./contact-picker";
+import { FormRolesCard } from "./form-roles-card";
 import { SignerRowEditor } from "./signer-row";
 
 interface Props {
@@ -24,10 +26,12 @@ interface Props {
   onRows: (next: SignerRow[]) => void;
   onSignInOrder: (value: boolean) => void;
   onGoToFields: () => void;
+  /** Forms: the document's form, so each role shows the parts it holds. */
+  form?: FormDefinition | null;
 }
 
 /** Step 2: who signs. A row for each person, the order switch, and the people to add from the contacts. */
-export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConfigured, readOnly, onRows, onSignInOrder, onGoToFields }: Props) {
+export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConfigured, readOnly, onRows, onSignInOrder, onGoToFields, form }: Props) {
   const t = useTranslations("Sign.send.people");
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
@@ -79,6 +83,8 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
           </span>
         </label>
       </div>
+
+      {form && form.parts.length > 0 ? <FormRolesCard form={form} roles={roles} rows={rows} /> : null}
 
       {rows.length === 0 ? <p className="text-sm text-muted-foreground">{t("empty")}</p> : null}
 

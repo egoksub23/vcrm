@@ -8,7 +8,9 @@ import { roleColorStyle } from "@/lib/sign/client/colors";
 import { readingOrder } from "@/lib/sign/client/layout";
 import type { FieldType, PlacedField } from "@/lib/sign/pdf/types";
 import { SENDER_ROLE } from "@/lib/sign/rules";
-import type { SignRole } from "@/lib/sign/types";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { FIELD_ICONS } from "./field-icons";
@@ -20,11 +22,14 @@ interface FieldsListProps {
   issueKeys: ReadonlySet<string>;
   typeLabels: Record<FieldType, string>;
   senderLabel: string;
+  /** Forms: so a placement that prints a data field is named after it. */
+  form?: FormDefinition | null;
+  labelLocale?: SignLocale;
   onSelect: (key: string) => void;
 }
 
 /** Every field in reading order: the way to reach a field without the mouse. */
-export function FieldsList({ fields, roles, selectedKey, issueKeys, typeLabels, senderLabel, onSelect }: FieldsListProps) {
+export function FieldsList({ fields, roles, selectedKey, issueKeys, typeLabels, senderLabel, form, labelLocale = "en", onSelect }: FieldsListProps) {
   const t = useTranslations("Sign.editor");
   const ordered = useMemo(() => readingOrder(fields), [fields]);
   if (ordered.length === 0) return <p className="p-3 text-sm text-muted-foreground">{t("fieldsList.empty")}</p>;
@@ -33,7 +38,8 @@ export function FieldsList({ fields, roles, selectedKey, issueKeys, typeLabels, 
       {ordered.map((f) => {
         const role = f.role === SENDER_ROLE ? null : roles.find((r) => r.key === f.role);
         const Icon = FIELD_ICONS[f.type];
-        const name = f.label?.trim() || (f.merge ? `{{${f.merge}}}` : typeLabels[f.type]);
+        const data = f.data ? form?.fields.find((x) => x.key === f.data) : undefined;
+        const name = f.data ? (data ? pick(data.label, labelLocale) || data.key : `{{${f.data}}}`) : f.label?.trim() || (f.merge ? `{{${f.merge}}}` : typeLabels[f.type]);
         return (
           <li key={f.key}>
             <button

@@ -20,6 +20,7 @@ import { DeclineDialog } from "./decline-dialog";
 import { DocumentStep } from "./document-step";
 import { EndScreen, InvalidLink } from "./end-screens";
 import { useErrorText } from "./errors";
+import { FormStep } from "./form/form-step";
 import { Shell } from "./shell";
 import { useSigner } from "./use-signer";
 
@@ -39,18 +40,20 @@ export function SignerApp({ token, initialView, initialSessionOk, locale, onLoca
   const { view, screen, gone } = signer;
   const [declineOpen, setDeclineOpen] = useState(false);
 
-  // When the screen changes, the new screen's heading is read out and the page starts at its top.
-  const shown = useRef(screen);
+  // When the screen changes (the form, its review, the document: all are "fill"), the new screen's heading is read out and the page starts at its top.
+  const { form, formStage } = signer;
+  const place = screen === "fill" ? `fill:${formStage}` : screen;
+  const shown = useRef(place);
   useEffect(() => {
-    if (shown.current === screen) return;
-    shown.current = screen;
+    if (shown.current === place) return;
+    shown.current = place;
     const heading = document.querySelector<HTMLElement>("#sign-main h1");
     if (heading) {
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
     }
     window.scrollTo({ top: 0 });
-  }, [screen]);
+  }, [place]);
 
   const content = view.content;
   const canDecline = !gone && (screen === "consent" || screen === "fill");
@@ -60,7 +63,26 @@ export function SignerApp({ token, initialView, initialSessionOk, locale, onLoca
   else if (screen === "code") body = <CodeStep title={view.document.title} sessionExpired={signer.notice === "session_expired"} onSend={signer.sendCode} onVerify={signer.checkCode} />;
   else if (screen === "consent") body = <ConsentStep token={token} view={view} onAgree={signer.consent} onDecline={() => setDeclineOpen(true)} />;
   else if (screen === "fill") {
-    body = content ? (
+    body = content && form && formStage === "form" ? (
+      <FormStep
+        title={view.document.title}
+        form={form}
+        locale={locale}
+        saveState={signer.saveState}
+        rejected={signer.formRejected}
+        notice={signer.formNotice}
+        start={signer.formStart}
+        filler={view.signer.kind === "filler"}
+        onChange={signer.setFormAnswer}
+        onUpload={signer.uploadFormFile}
+        onRemoveUpload={signer.removeFormFile}
+        onConfirmPart={signer.confirmFormPart}
+        onFlush={signer.flush}
+        onReview={() => void signer.openReview()}
+        onSubmit={signer.finish}
+        onDecline={() => setDeclineOpen(true)}
+      />
+    ) : content ? (
       <DocumentStep
         token={token}
         view={view}
@@ -71,6 +93,11 @@ export function SignerApp({ token, initialView, initialSessionOk, locale, onLoca
         onAnswer={signer.setAnswer}
         onFinish={signer.finish}
         onDecline={() => setDeclineOpen(true)}
+        formReview={
+          form && formStage === "review"
+            ? { form, review: signer.review, onChangeAnswer: () => signer.openForm(), onOpenAnswer: (part, field) => signer.openForm({ part, field }), onRetry: () => void signer.openReview() }
+            : undefined
+        }
       />
     ) : (
       <div role="status" className="flex flex-col items-center gap-3 py-16 text-sm text-muted-foreground">
@@ -87,7 +114,7 @@ export function SignerApp({ token, initialView, initialSessionOk, locale, onLoca
 
   return (
     <>
-      <Shell workspace={gone ? null : view.workspace} locale={locale} onLocaleChange={onLocaleChange} product={product} wide={screen === "fill" && !gone} bottomSpace={screen === "fill" && !gone}>
+      <Shell workspace={gone ? null : view.workspace} locale={locale} onLocaleChange={onLocaleChange} product={product} wide={screen === "fill" && formStage !== "form" && !gone} bottomSpace={screen === "fill" && formStage !== "form" && !gone}>
         {body}
       </Shell>
       {canDecline ? (

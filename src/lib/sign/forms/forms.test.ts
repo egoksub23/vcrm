@@ -121,6 +121,7 @@ describe("checkDataAnswer", () => {
     expect(checkDataAnswer(f("msic"), { list: ["47111", " 47211 ", ""] })).toEqual({ ok: true, value: { list: ["47111", "47211"] } });
     expect(checkDataAnswer(f("msic"), { list: ["47111", "abcde"] })).toMatchObject({ ok: false, code: "item_format_digits" });
     expect(checkDataAnswer(f("msic"), { list: ["47111", "47111"] })).toMatchObject({ ok: false, code: "duplicate_item" });
+    expect(checkDataAnswer({ ...f("msic"), itemMinLength: 5 }, { list: ["4711"] })).toMatchObject({ ok: false, code: "item_too_short" });
     expect(checkDataAnswer(f("msic"), { list: ["1", "2", "3", "4", "5", "6"] })).toMatchObject({ ok: false, code: "too_many_items" });
     expect(checkDataAnswer(f("ssm"), { text: "x" })).toMatchObject({ ok: false, code: "use_upload" });
   });

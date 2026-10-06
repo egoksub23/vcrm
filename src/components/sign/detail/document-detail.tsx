@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCapability } from "@/hooks/use-can";
 import { documentFileUrl, SignApiError } from "@/lib/sign/client/api";
+import { hasFormParts } from "@/lib/sign/client/progress-logic";
 
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
@@ -25,16 +26,18 @@ import { FilesList } from "./files-list";
 import { HistoryView } from "./history-view";
 import { bannerFor, detailErrorKey, documentActions, signersWithUndelivered, type DetailCaps } from "./logic";
 import { PeopleList } from "./people-list";
+import { ProgressTab } from "./progress/progress-tab";
 import { StatusBanner } from "./status-banner";
 import { useDocumentDetail } from "./use-document-detail";
 import { useDocumentEvents } from "./use-document-events";
 import { useDocumentLinks } from "./use-document-links";
 import { VoidDialog } from "./void-dialog";
 
-type TabKey = "people" | "document" | "history";
+type TabKey = "people" | "progress" | "document" | "history";
 
 export function DocumentDetail({ documentId }: { documentId: string }) {
   const t = useTranslations("Sign.detail");
+  const tp = useTranslations("Sign.progress");
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
   const canSettings = useCapability("sign.settings");
@@ -45,7 +48,8 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const doc = data?.document ?? null;
   const links = useDocumentLinks(doc ? { categoryId: doc.category_id, contactId: doc.contact_id, ticketId: doc.ticket_id, dealId: doc.deal_id } : null);
 
-  const [tab, setTab] = useState<TabKey>("people");
+  // A document with a form opens on its progress; a choice the reader makes is kept.
+  const [chosenTab, setTab] = useState<TabKey | null>(null);
   const [viewChoice, setViewChoice] = useState<"final" | "base" | null>(null);
   const [downloading, setDownloading] = useState<DownloadKind | null>(null);
   const [voiding, setVoiding] = useState(false);
@@ -71,6 +75,8 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
     );
   }
 
+  const withForm = hasFormParts(doc.form_snapshot);
+  const tab: TabKey = chosenTab === "progress" && !withForm ? "people" : (chosenTab ?? (withForm ? "progress" : "people"));
   const actions = documentActions(doc, caps);
   const banner = bannerFor(doc, data.signers, caps);
   const undelivered = signersWithUndelivered(events.events ?? []);
@@ -103,6 +109,11 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList variant="line" className="w-full justify-start border-b border-border">
+          {withForm && (
+            <TabsTrigger value="progress" className="flex-none px-3">
+              {tp("tabs.progress")}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="people" className="flex-none px-3">
             {t("tabs.people", { count: data.signers.length })}
           </TabsTrigger>
@@ -113,6 +124,12 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
             {t("tabs.history")}
           </TabsTrigger>
         </TabsList>
+
+        {withForm && (
+          <TabsContent value="progress" className="pt-4">
+            <ProgressTab document={doc} signers={data.signers} events={events.events} caps={caps} active={tab === "progress"} onDocumentChanged={reload} />
+          </TabsContent>
+        )}
 
         <TabsContent value="people" className="grid gap-6 pt-4">
           <PeopleList document={doc} signers={data.signers} undelivered={undelivered} caps={caps} onChanged={reload} />
@@ -139,7 +156,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
-          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} />
+          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} form={doc.form_snapshot} contactId={doc.contact_id} />
         </TabsContent>
       </Tabs>
 

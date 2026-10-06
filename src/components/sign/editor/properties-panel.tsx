@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ANSWERED_TYPES, SENDER_ROLE } from "@/lib/sign/rules";
 import { DATE_FORMAT_PRESETS, applyMerge, canMerge, isValidDateFormat, roleKindAllows, sanitizeKey, suggestMergeKey } from "@/lib/sign/client/layout";
+import { bindPlacement, bindableFields, takesOptionValue, unbindPlacement } from "@/lib/sign/client/form-printing";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { FieldType, PlacedField } from "@/lib/sign/pdf/types";
-import type { SignRole } from "@/lib/sign/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 
 import { FIELD_ICONS } from "./field-icons";
 import { FormRow, NativeSelect } from "./form-bits";
@@ -39,20 +42,26 @@ interface PropertiesPanelProps {
   mergeKeys: readonly string[];
   pageCount: number;
   senderLabel: string;
+  /** Forms: the template's form; when there is one, a placement can be made to print one of its data fields. */
+  form?: FormDefinition | null;
+  /** The language the data field labels are shown in. */
+  labelLocale?: SignLocale;
   onChange: (change: FieldChange, coalesceKey?: string) => void;
   onDuplicate: () => void;
   onCopyToPages: () => void;
   onDelete: () => void;
 }
 
-export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, mergeKeys, pageCount, senderLabel, onChange, onDuplicate, onCopyToPages, onDelete }: PropertiesPanelProps) {
+export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, mergeKeys, pageCount, senderLabel, form, labelLocale = "en", onChange, onDuplicate, onCopyToPages, onDelete }: PropertiesPanelProps) {
   const t = useTranslations("Sign.editor");
+  const tf = useTranslations("Sign.formBuilder");
   if (!field) return <p className="p-3 text-sm text-muted-foreground">{t("props.none")}</p>;
 
   const Icon = FIELD_ICONS[field.type];
   const id = (name: string) => `prop-${name}-${field.key}`;
-  const senderFixed = field.type === "static_text" || !!field.merge;
-  const answered = ANSWERED_TYPES.includes(field.type) && !field.merge;
+  const bound = !!field.data;
+  const senderFixed = field.type === "static_text" || !!field.merge || bound;
+  const answered = ANSWERED_TYPES.includes(field.type) && !field.merge && !bound;
   const mergeable = canMerge(field.type);
   const patch = (p: Partial<PlacedField>, coalesce?: string) => onChange(p, coalesce);
   const set = <K extends keyof PlacedField>(key: K, value: PlacedField[K] | undefined, coalesce?: string) => onChange((f) => setProp(f, key, value), coalesce);
@@ -81,11 +90,27 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
         )}
       </FormRow>
 
+      {form && (bound || bindableFields(form, field).length > 0) ? (
+        <FillWithAnswer
+          field={field}
+          form={form}
+          roles={roles}
+          disabled={readOnly}
+          locale={labelLocale}
+          onChange={onChange}
+          label={tf("editor.fillWith")}
+          noneLabel={tf("editor.fillNone")}
+          optionLabel={tf("editor.fillOption")}
+          hint={bound ? tf("editor.boundNote") : tf("editor.fillHint")}
+          missing={(key) => tf("editor.fillMissing", { key })}
+        />
+      ) : null}
+
       {field.type === "static_text" && !field.merge ? (
         <FormRow label={t("props.staticText")} htmlFor={id("text")}>
           <Textarea id={id("text")} rows={3} value={field.text ?? ""} disabled={readOnly} maxLength={2000} onChange={(e) => set("text", e.target.value, `text:${field.key}`)} aria-invalid={!field.text} />
         </FormRow>
-      ) : (
+      ) : bound ? null : (
         <FormRow label={t("props.label")} htmlFor={id("label")} hint={answered ? t("props.labelHint") : undefined}>
           <Input id={id("label")} value={field.label ?? ""} disabled={readOnly} maxLength={100} onChange={(e) => set("label", e.target.value || undefined, `label:${field.key}`)} />
         </FormRow>
@@ -98,7 +123,7 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
         </label>
       ) : null}
 
-      {field.type === "dropdown" ? <OptionsEditor key={field.key} id={id("options")} options={field.options ?? []} disabled={readOnly} onChange={(o) => set("options", o, `options:${field.key}`)} /> : null}
+      {field.type === "dropdown" && !bound ? <OptionsEditor key={field.key} id={id("options")} options={field.options ?? []} disabled={readOnly} onChange={(o) => set("options", o, `options:${field.key}`)} /> : null}
 
       {field.type === "date" || field.type === "date_signed" ? <DateFormatControl key={field.key} id={id("dateformat")} value={field.dateFormat} disabled={readOnly} onChange={(v) => set("dateFormat", v)} /> : null}
 
@@ -145,7 +170,7 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
         </div>
       ) : null}
 
-      {mergeable ? (
+      {mergeable && !bound ? (
         <MergeControl
           key={field.key}
           field={field}
@@ -175,6 +200,63 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Forms: "Fill with answer": which data field of the form this box prints, and for a tick box which option it ticks for. */
+function FillWithAnswer({ field, form, roles, disabled, locale, onChange, label, noneLabel, optionLabel, hint, missing }: { field: PlacedField; form: FormDefinition; roles: readonly SignRole[]; disabled: boolean; locale: SignLocale; onChange: (change: FieldChange, coalesceKey?: string) => void; label: string; noneLabel: string; optionLabel: string; hint: string; missing: (key: string) => string }) {
+  const options = bindableFields(form, field);
+  const target = field.data ? form.fields.find((f) => f.key === field.data) : undefined;
+  const id = `prop-fill-${field.key}`;
+  const labelOf = (key: string) => {
+    const f = form.fields.find((x) => x.key === key);
+    return f ? pick(f.label, locale) || f.key : key;
+  };
+  return (
+    <div className="space-y-2 rounded-lg border bg-muted/40 p-2.5">
+      <FormRow label={label} htmlFor={id} hint={hint}>
+        <NativeSelect
+          id={id}
+          value={field.data ?? ""}
+          disabled={disabled}
+          onChange={(e) => {
+            const key = e.target.value;
+            const df = form.fields.find((f) => f.key === key);
+            if (!df) onChange((f) => unbindPlacement(f, roles, roles[0]?.key));
+            else onChange((f) => bindPlacement(f, df, takesOptionValue(df, f.type) ? df.options?.[0]?.value : undefined));
+          }}
+        >
+          <option value="">{noneLabel}</option>
+          {field.data && !target ? <option value={field.data}>{missing(field.data)}</option> : null}
+          {target && !options.some((o) => o.key === target.key) ? <option value={target.key}>{labelOf(target.key)}</option> : null}
+          {form.parts.map((part) => {
+            const inPart = options.filter((o) => o.part === part.key);
+            if (inPart.length === 0) return null;
+            return (
+              <optgroup key={part.key} label={pick(part.title, locale) || part.key}>
+                {inPart.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {pick(o.label, locale) || o.key}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </NativeSelect>
+      </FormRow>
+      {target && takesOptionValue(target, field.type) ? (
+        <FormRow label={optionLabel} htmlFor={`${id}-option`}>
+          <NativeSelect id={`${id}-option`} value={field.dataValue ?? ""} disabled={disabled} onChange={(e) => onChange({ dataValue: e.target.value || undefined })}>
+            {(target.options ?? []).map((o) => (
+              <option key={o.value} value={o.value}>
+                {pick(o.label, locale) || o.value}
+              </option>
+            ))}
+            {field.dataValue !== undefined && !(target.options ?? []).some((o) => o.value === field.dataValue) ? <option value={field.dataValue}>{field.dataValue}</option> : null}
+          </NativeSelect>
+        </FormRow>
+      ) : null}
     </div>
   );
 }

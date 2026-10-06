@@ -7,10 +7,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROLE_COLORS, roleColorStyle } from "@/lib/sign/client/colors";
+import { partsOfRole } from "@/lib/sign/client/form-edit";
 import { canAddRole, countRoleFields, roleKindAllows } from "@/lib/sign/client/layout";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { PlacedField } from "@/lib/sign/pdf/types";
 import { MAX_ROLES } from "@/lib/sign/rules";
-import type { SignerKind, SignRole } from "@/lib/sign/types";
+import type { SignLocale, SignerKind, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { FormRow, NativeSelect } from "./form-bits";
@@ -18,20 +21,23 @@ import { FormRow, NativeSelect } from "./form-bits";
 interface RolesPanelProps {
   roles: readonly SignRole[];
   fields: readonly PlacedField[];
+  /** Forms: the template's form, to show which parts each role holds. */
+  form?: FormDefinition | null;
+  labelLocale?: SignLocale;
   readOnly: boolean;
   onAdd: (kind: SignerKind) => void;
   onPatch: (key: string, patch: Partial<Pick<SignRole, "label" | "kind" | "color">>) => void;
   onDelete: (key: string, reassignTo: string | null) => void;
 }
 
-export function RolesPanel({ roles, fields, readOnly, onAdd, onPatch, onDelete }: RolesPanelProps) {
+export function RolesPanel({ roles, fields, form, labelLocale, readOnly, onAdd, onPatch, onDelete }: RolesPanelProps) {
   const t = useTranslations("Sign.editor");
   return (
     <div className="space-y-3 p-3">
       <p className="text-xs text-muted-foreground">{t("roles.intro")}</p>
       <ul className="space-y-3">
         {roles.map((role) => (
-          <RoleCard key={role.key} role={role} roles={roles} fields={fields} readOnly={readOnly} onPatch={onPatch} onDelete={onDelete} />
+          <RoleCard key={role.key} role={role} roles={roles} fields={fields} form={form} labelLocale={labelLocale} readOnly={readOnly} onPatch={onPatch} onDelete={onDelete} />
         ))}
         <li className="flex items-center gap-2 rounded-lg border border-dashed p-2" style={roleColorStyle(null)}>
           <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-[var(--rc-solid)]" />
@@ -54,14 +60,19 @@ export function RolesPanel({ roles, fields, readOnly, onAdd, onPatch, onDelete }
   );
 }
 
-function RoleCard({ role, roles, fields, readOnly, onPatch, onDelete }: { role: SignRole; roles: readonly SignRole[]; fields: readonly PlacedField[]; readOnly: boolean } & Pick<RolesPanelProps, "onPatch" | "onDelete">) {
+function RoleCard({ role, roles, fields, form, labelLocale = "en", readOnly, onPatch, onDelete }: { role: SignRole; roles: readonly SignRole[]; fields: readonly PlacedField[]; form?: FormDefinition | null; labelLocale?: SignLocale; readOnly: boolean } & Pick<RolesPanelProps, "onPatch" | "onDelete">) {
   const t = useTranslations("Sign.editor");
+  const tf = useTranslations("Sign.formBuilder");
   const [confirming, setConfirming] = useState(false);
   const [target, setTarget] = useState<string>("");
   const count = countRoleFields(fields, role.key);
   const others = roles.filter((r) => r.key !== role.key);
   // fields that cannot belong to a filler: the signing ones
   const blocked = role.kind === "filler" ? fields.filter((f) => f.role === role.key && !roleKindAllows("filler", f.type)).length : 0;
+  // forms: the parts this role completes. A role holding parts cannot be deleted from here (its parts would have nobody),
+  // and a signer who holds parts but has nothing to sign is named (a filler never signs, so is never named)
+  const parts = form ? partsOfRole(form, role.key) : [];
+  const noSignature = role.kind === "signer" && parts.length > 0 && !fields.some((f) => f.role === role.key && (f.type === "signature" || f.type === "initials"));
 
   const startDelete = () => {
     if (count === 0) onDelete(role.key, null);
@@ -80,7 +91,7 @@ function RoleCard({ role, roles, fields, readOnly, onPatch, onDelete }: { role: 
         </label>
         <Input id={`role-label-${role.key}`} value={role.label} maxLength={60} disabled={readOnly} onChange={(e) => onPatch(role.key, { label: e.target.value })} aria-invalid={role.label.trim().length === 0} className="h-8" />
         {readOnly ? null : (
-          <Button type="button" variant="ghost" size="icon" onClick={startDelete} aria-label={t("roles.delete", { name: role.label })} title={t("roles.delete", { name: role.label })}>
+          <Button type="button" variant="ghost" size="icon" disabled={parts.length > 0} onClick={startDelete} aria-label={t("roles.delete", { name: role.label })} title={parts.length > 0 ? tf("editor.cannotDeleteRole", { count: parts.length }) : t("roles.delete", { name: role.label })}>
             <Trash2 />
           </Button>
         )}
@@ -118,6 +129,13 @@ function RoleCard({ role, roles, fields, readOnly, onPatch, onDelete }: { role: 
         {role.kind === "filler" ? t("roles.fillerHint") : t("roles.signerHint")} · {t("roles.fieldCount", { count })}
       </p>
       {blocked > 0 ? <p className="text-xs text-destructive">{t("roles.fillerBlocked", { count: blocked })}</p> : null}
+      {form ? (
+        <div className="space-y-0.5 text-xs">
+          <p className="text-muted-foreground">{parts.length > 0 ? tf("editor.holds", { parts: parts.map((p) => pick(p.title, labelLocale) || p.key).join(", "), count: parts.length }) : tf("editor.holdsNone")}</p>
+          {parts.length > 0 ? <p className="text-muted-foreground">{tf("editor.cannotDeleteRole", { count: parts.length })}</p> : null}
+          {noSignature ? <p className="text-destructive">{tf("editor.signerNoSignature")}</p> : null}
+        </div>
+      ) : null}
       {confirming ? (
         <div className="space-y-2 rounded-md bg-muted p-2" role="group" aria-label={t("roles.deleteTitle", { name: role.label })}>
           <p className="text-xs">{t("roles.deleteFields", { count, name: role.label })}</p>

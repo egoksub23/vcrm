@@ -68,6 +68,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'sign/public/[token]/complete': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
   'sign/public/[token]/decline': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404',
   'sign/public/[token]/file': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; shows only the document as sent, or the sealed copy once complete, and only after the code when one is required',
+  'sign/public/[token]/upload': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; a signer\'s own file for a field of their own part only: the kind is decided from the bytes, the field\'s limits and 50 MB per document apply, the code is required when the document asks for one, and the storage path never leaves the server',
+  'sign/public/[token]/review': 'the link a signer is sent: a random token whose SHA-256 is looked up (publicLink in lib/sign/http.ts), a rate limit per caller address, a workspace with Doc Sign off answers 404; read only: the answers as they will be printed, after the code when one is required, and only once the signer\'s own parts are complete',
 }
 
 /** Use the service-role client with no account in scope: jobs over every workspace, provider webhooks. */

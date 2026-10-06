@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { ConvertError, ImageError, UploadError, prepareUpload, type ConvertOptions, type PreparedUpload } from "../convert";
 import { PdfError } from "../pdf/load";
 import { resolveDefaults, cleanReminderDays } from "../defaults";
+import { validateForm } from "../forms";
 import type { PlacedField } from "../pdf/types";
 import { SENDER_ROLE, normalizePhone, validateFields, validateRoles, type Issue } from "../rules";
 import { copyFile, documentPath, putFile, removeFiles, safeFileName } from "../storage";
@@ -174,6 +175,8 @@ export async function createDraftFromTemplate(ctx: SignCtx, args: DraftLinks & {
       deal_id: args.dealId ?? null,
       fields_snapshot: version.fields,
       roles_snapshot: version.roles,
+      // the form is the template's; the draft keeps its own frozen copy, and only when there is one
+      ...(version.form ? { form_snapshot: version.form } : {}),
       message: version.defaults.message ?? null,
       sign_in_order: defaults.signInOrder,
       code_required: defaults.codeRequired,
@@ -260,6 +263,9 @@ export async function updateDraft(ctx: SignCtx, documentId: string, patch: Draft
     const fields = patch.fields ?? doc.fields_snapshot;
     const roles = patch.roles ?? doc.roles_snapshot;
     const issues: Issue[] = [...validateRoles(roles), ...validateFields(fields, roles, doc.page_count ?? 1)];
+    // the form belongs to the template and is not editable here, but the placements must still print it soundly
+    if (doc.form_snapshot) issues.push(...validateForm(doc.form_snapshot, roles, fields));
+    else if (fields.some((f) => f.data !== undefined)) issues.push(...validateForm({ version: 1, parts: [], fields: [] }, roles, fields));
     if (issues.length) throw new SignError("invalid_layout", "The fields on this document are not valid.", 400, issues);
     if (patch.fields !== undefined) update.fields_snapshot = fields;
     if (patch.roles !== undefined) update.roles_snapshot = roles;

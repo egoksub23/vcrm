@@ -25,7 +25,8 @@ function leaves(node: unknown, path = ""): Map<string, string> {
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) return sources(p);
+    // the form in parts (the form/ folder) has its own words, checked in signer-form-messages.test.ts
+    if (statSync(p).isDirectory()) return name === "form" ? [] : sources(p);
     return /\.(ts|tsx)$/.test(name) && !/\.test\./.test(name) ? [p] : [];
   });
 }

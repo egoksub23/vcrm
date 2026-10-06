@@ -8292,6 +8292,34 @@
   },
   "Sign": {
     "admin": {
+      "addons": {
+        "merchant": {
+          "about": "가맹점 계약서에 서명하기 위한 묶음입니다. 'Merchant agreements' 카테고리와, 가맹점이 나누어 작성하고 서명하는 'Merchant Application'(가맹점 신청서) 템플릿이 들어 있으며 영어와 말레이어로 되어 있습니다. 사용하기 전에 수수료와 약관을 직접 추가하세요.",
+          "name": "가맹점 등록",
+          "description": "가맹점 계약서에 서명하기 위한 묶음입니다. 지금은 해당 카테고리를 제공하며, 이후에 양식이 포함된 가맹점 신청서 템플릿이 추가됩니다."
+        },
+        "intro": "애드온은 특정 업무 절차를 위해 미리 만들어 둔 묶음입니다. 설치하면 들어 있는 내용이 초안으로 추가되어 검토할 수 있습니다. 직접 수정한 템플릿은 절대 바꾸지 않으며, 안전하게 다시 설치할 수 있습니다. 애드온을 사용할 수 있게 하는 것은 플랫폼 운영자만 할 수 있습니다.",
+        "loading": "애드온을 불러오는 중…",
+        "retry": "다시 시도",
+        "none": "사용할 수 있는 애드온이 없습니다.",
+        "installedVersion": "v{version} 설치됨",
+        "notInstalled": "설치 안 됨",
+        "unavailableBadge": "사용할 수 없음",
+        "updateAvailable": "v{version}(으)로 업데이트 가능",
+        "adds": {
+          "category": "{name} 카테고리를 추가합니다.",
+          "templates": "{count, plural, other {템플릿 #개를 초안으로 추가합니다.}}",
+          "templatesLater": "템플릿은 이후 업데이트에서 추가됩니다."
+        },
+        "install": "설치",
+        "installAgain": "다시 설치",
+        "installAgainHint": "빠진 항목만 추가하며, 직접 수정한 내용은 바꾸지 않습니다.",
+        "needsOperator": "설치하려면 플랫폼 운영자가 워크스페이스에서 이 애드온을 켜 주어야 합니다.",
+        "installedToast": "{name}을(를) 설치했습니다.",
+        "repeatedToast": "{name}을(를) 확인했습니다. 직접 수정한 내용은 바뀌지 않았습니다.",
+        "templatesAdded": "{count, plural, other {템플릿 #개를 초안으로 추가했습니다.}}",
+        "footnote": "설치하면 검토할 초안이 추가되며, 직접 수정한 템플릿은 절대 바뀌지 않습니다. 설치된 애드온의 업데이트는 이후 버전에서 제공됩니다."
+      },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
       "description": "전자 서명을 위한 기본값, 서명 문구, 카테고리, 애드온, 봉인 인증서를 설정합니다.",
@@ -8423,33 +8451,6 @@
           "reminders_too_many": "알림은 최대 5개까지 사용할 수 있습니다.",
           "retention_invalid": "1에서 50 사이의 정수로 연수를 입력하거나 비워 두세요."
         }
-      },
-      "addons": {
-        "intro": "애드온은 특정 업무 절차를 위해 미리 만들어 둔 묶음입니다. 설치하면 들어 있는 내용이 초안으로 추가되어 검토할 수 있습니다. 직접 수정한 템플릿은 절대 바꾸지 않으며, 안전하게 다시 설치할 수 있습니다. 애드온을 사용할 수 있게 하는 것은 플랫폼 운영자만 할 수 있습니다.",
-        "loading": "애드온을 불러오는 중…",
-        "retry": "다시 시도",
-        "none": "사용할 수 있는 애드온이 없습니다.",
-        "merchant": {
-          "name": "가맹점 등록",
-          "description": "가맹점 계약서에 서명하기 위한 묶음입니다. 지금은 해당 카테고리를 제공하며, 이후에 양식이 포함된 가맹점 신청서 템플릿이 추가됩니다."
-        },
-        "installedVersion": "v{version} 설치됨",
-        "notInstalled": "설치 안 됨",
-        "unavailableBadge": "사용할 수 없음",
-        "updateAvailable": "v{version}(으)로 업데이트 가능",
-        "adds": {
-          "category": "{name} 카테고리를 추가합니다.",
-          "templates": "{count, plural, other {템플릿 #개를 초안으로 추가합니다.}}",
-          "templatesLater": "템플릿은 이후 업데이트에서 추가됩니다."
-        },
-        "install": "설치",
-        "installAgain": "다시 설치",
-        "installAgainHint": "빠진 항목만 추가하며, 직접 수정한 내용은 바꾸지 않습니다.",
-        "needsOperator": "설치하려면 플랫폼 운영자가 워크스페이스에서 이 애드온을 켜 주어야 합니다.",
-        "installedToast": "{name}을(를) 설치했습니다.",
-        "repeatedToast": "{name}을(를) 확인했습니다. 직접 수정한 내용은 바뀌지 않았습니다.",
-        "templatesAdded": "{count, plural, other {템플릿 #개를 초안으로 추가했습니다.}}",
-        "footnote": "설치하면 검토할 초안이 추가되며, 직접 수정한 템플릿은 절대 바뀌지 않습니다. 설치된 애드온의 업데이트는 이후 버전에서 제공됩니다."
       },
       "certificate": {
         "intro": "완료된 모든 문서는 이 인증서로 봉인됩니다. 봉인을 보면 문서가 서명된 뒤에 바뀌었는지 알 수 있습니다.",
@@ -9119,6 +9120,615 @@
         "used": "{count, plural, other {필드 #개에서 사용}}"
       }
     },
+    "formBuilder": {
+      "lang": {
+        "label": "문구 언어",
+        "short": {
+          "en": "EN",
+          "ms": "BM",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "long": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "简体中文",
+          "ko": "한국어"
+        },
+        "coverage": "{language}: 문구 {total}개 중 {done}개 번역됨",
+        "fallback": "비어 있으면 서명자에게 영어 문구가 표시됩니다.",
+        "englishRequired": "영어 문구는 필수입니다."
+      },
+      "tabs": {
+        "label": "이 템플릿의 보기",
+        "layout": "배치 편집기",
+        "form": "양식"
+      },
+      "leave": {
+        "title": "저장하지 않고 나가시겠어요?",
+        "body": "저장하지 않은 변경 사항이 있습니다. 지금 나가면 사라집니다.",
+        "stay": "계속 편집",
+        "leave": "나가기"
+      },
+      "screen": {
+        "loading": "양식을 불러오는 중...",
+        "retry": "다시 시도",
+        "back": "템플릿",
+        "undo": "실행 취소",
+        "redo": "다시 실행",
+        "preview": "서명자 화면 미리보기",
+        "save": "저장",
+        "saving": "저장하는 중...",
+        "savedVersion": "버전 {n}(으)로 저장했습니다.",
+        "savedMerged": "다른 곳에서 저장된 최신 버전 위에 버전 {n}(으)로 저장했습니다.",
+        "savedWithWarnings": "버전 {n}(으)로 저장했습니다. {count, plural, other {경고 #개가 있습니다.}}",
+        "readOnly": "이 양식은 볼 수만 있고 변경할 수 없습니다.",
+        "unsaved": "저장하지 않은 변경 사항",
+        "allSaved": "모든 변경 사항이 저장되었습니다(버전 {n})",
+        "problems": "{count, plural, other {해결할 문제 #개}}",
+        "warnings": "{count, plural, other {확인할 항목 #개}}",
+        "overlayHint": "이 템플릿에는 아직 양식이 없습니다. 서명자는 페이지에 배치된 칸을 채웁니다. 파트를 추가하면 양식 템플릿이 되어, 서명자가 파트별로 질문에 답하고 답변이 페이지에 인쇄됩니다.",
+        "panes": "파트, 필드, 속성",
+        "pane": {
+          "parts": "파트",
+          "fields": "필드",
+          "right": "상세"
+        },
+        "rightTabs": "속성 및 문제",
+        "tab": {
+          "props": "속성",
+          "issues": "문제"
+        },
+        "noParts": "양식은 여러 파트로 구성되며, 각 파트는 한 역할을 위한 질문(데이터 필드) 목록입니다.",
+        "needRoles": "역할은 배치 편집기에서 만듭니다. 먼저 그곳에서 역할을 하나 이상 추가해 주세요.",
+        "openEditorRoles": "배치 편집기 열기"
+      },
+      "seeds": {
+        "newPart": "새 파트",
+        "newField": "새 필드",
+        "option": "옵션 {n}",
+        "acknowledgeText": "내용을 읽고 동의합니다.",
+        "copySuffix": " (복사본)"
+      },
+      "parts": {
+        "title": "파트",
+        "empty": "아직 파트가 없습니다.",
+        "unnamed": "제목 없는 파트",
+        "hasIssue": "이 파트에 문제가 있습니다",
+        "noRole": "역할 없음",
+        "fieldCount": "{count, plural, other {필드 #개}}",
+        "conditional": "규칙에 따라 표시",
+        "up": "{name} 위로 이동",
+        "down": "{name} 아래로 이동",
+        "delete": "{name} 삭제",
+        "add": "파트 추가",
+        "needRole": "먼저 배치 편집기에서 역할을 추가해 주세요.",
+        "max": "양식에는 파트를 최대 {count}개까지 둘 수 있습니다."
+      },
+      "partSettings": {
+        "title": "파트 제목",
+        "description": "파트 설명(선택)",
+        "descriptionHint": "서명자가 파트를 열면 제목 아래에 표시됩니다.",
+        "role": "작성하는 사람",
+        "roleSigner": "서명자: 이 사람은 서명도 합니다.",
+        "roleFiller": "작성자: 이 사람은 자기 파트만 작성하고 서명하지 않습니다.",
+        "roleMissing": "이 역할은 더 이상 없습니다. 다른 역할을 선택해 주세요.",
+        "kindSigner": "서명자",
+        "kindFiller": "작성자",
+        "ifTitle": "다음 조건일 때만 이 파트 표시",
+        "delete": "{name}과(와) 그 필드 삭제",
+        "show": "파트 설정",
+        "hide": "설정 숨기기"
+      },
+      "fields": {
+        "title": "데이터 필드",
+        "empty": "이 파트에는 아직 필드가 없습니다. 아래에서 추가해 주세요.",
+        "hasIssue": "이 필드에 문제가 있습니다",
+        "required": "필수",
+        "requiredSometimes": "경우에 따라 필수",
+        "optional": "선택",
+        "showIf": "{rule}일 때 표시",
+        "places": "{count, plural, other {#곳에 인쇄}}",
+        "notPrinted": "페이지에 인쇄되지 않음",
+        "fillsContact": "연락처 필드에 채움",
+        "up": "{name} 위로 이동",
+        "down": "{name} 아래로 이동",
+        "duplicate": "{name} 복제",
+        "delete": "{name} 삭제",
+        "add": "데이터 필드 추가",
+        "max": "양식에는 데이터 필드를 최대 {count}개까지 둘 수 있습니다.",
+        "pickType": "새 필드 유형"
+      },
+      "types": {
+        "text": "짧은 텍스트",
+        "multiline": "긴 텍스트",
+        "number": "숫자",
+        "email": "이메일 주소",
+        "phone": "전화번호",
+        "choice": "선택(하나)",
+        "multichoice": "선택(여러 개)",
+        "yesno": "예 또는 아니요",
+        "date": "날짜",
+        "list": "항목 목록",
+        "file": "파일 업로드",
+        "image": "그림",
+        "acknowledge": "읽고 동의"
+      },
+      "typeHints": {
+        "text": "회사 이름 같은 한 줄 텍스트",
+        "multiline": "주소 같은 여러 줄 텍스트",
+        "number": "숫자(원하면 범위 제한 가능)",
+        "email": "형식을 확인하는 이메일 주소",
+        "phone": "전화번호. 말레이시아 번호는 +60 유무와 관계없이 사용 가능",
+        "choice": "목록에서 하나 선택",
+        "multichoice": "목록에서 여러 개 선택",
+        "yesno": "예 또는 아니요 답변",
+        "date": "달력 날짜",
+        "list": "업종 코드 같은 짧은 항목 하나 이상",
+        "file": "PDF나 사진 같은 파일 하나 이상",
+        "image": "서명자가 그리거나 업로드하는 그림(예: 회사 도장)",
+        "acknowledge": "서명자가 반드시 읽고 동의해야 하는 문구"
+      },
+      "props": {
+        "unnamed": "제목 없는 필드",
+        "type": "유형",
+        "part": "파트",
+        "duplicate": "복제",
+        "delete": "삭제",
+        "none": "편집할 필드를 선택하거나 새로 추가해 주세요."
+      },
+      "texts": {
+        "title": "문구",
+        "hintOther": "여기서 비워 둔 문구는 영어로 표시됩니다.",
+        "label": "라벨",
+        "help": "도움말(선택)",
+        "helpHint": "질문 아래에 표시되는 짧은 한 줄입니다.",
+        "placeholder": "입력란에 보이는 예시(선택)",
+        "acknowledge": "읽고 동의할 문구",
+        "acknowledgeHint": "서명자가 이 내용을 읽고 체크 박스를 선택해 동의합니다."
+      },
+      "key": {
+        "title": "키",
+        "label": "키(답변을 저장하는 데 사용)",
+        "hint": "영문자, 숫자, 밑줄을 쓰고 영문자로 시작해야 합니다. 답변은 이 키로 저장됩니다.",
+        "follows": "영어 라벨에서 만들어집니다. 여기서 직접 수정하기 전까지는 라벨을 따라 바뀝니다.",
+        "locked": "이 템플릿으로 만든 문서가 있어 이 키는 더 이상 바꿀 수 없습니다.",
+        "bad": "영문자, 숫자, 밑줄을 쓰고 영문자로 시작해 주세요(최대 40자).",
+        "taken": "다른 필드나 칸이 이미 이 키를 사용하고 있습니다."
+      },
+      "type": {
+        "title": "{type} 설정",
+        "format": "허용되는 텍스트 형식",
+        "formats": {
+          "any": "제한 없음",
+          "digits": "숫자만",
+          "letters": "문자만",
+          "alnum": "문자와 숫자",
+          "upper_alnum": "대문자와 숫자",
+          "postcode_my": "말레이시아 우편번호(5자리)"
+        },
+        "minLength": "최소 길이(글자 수)",
+        "maxLength": "최대 길이(글자 수)",
+        "min": "최솟값",
+        "max": "최댓값",
+        "decimals": "소수 자릿수",
+        "decimalsAny": "최대 6자리",
+        "emailHint": "서명자가 이메일 주소를 입력하며, 형식이 확인됩니다.",
+        "phoneHint": "말레이시아 번호는 앞에 0, 60 또는 +60이 있어도 되며 +60 형식으로 저장됩니다.",
+        "dateHint": "서명자가 달력에서 날짜를 선택합니다.",
+        "yesnoHint": "서명자가 예 또는 아니요로 답합니다.",
+        "imageHint": "서명자가 회사 도장 같은 그림을 그리거나 업로드합니다.",
+        "acknowledgeHint": "서명자는 문구에 동의하려면 반드시 체크해야 합니다. 이 필드는 항상 필수입니다.",
+        "minItems": "최소 항목 수",
+        "maxItems": "최대 항목 수",
+        "itemFormat": "각 항목에 허용되는 형식",
+        "itemLength": "항목 최대 길이(글자 수)",
+        "itemLengthHint": "예를 들어 다섯 자리 업종 코드라면 5입니다.",
+        "accept": "허용되는 파일",
+        "acceptNone": "파일 형식을 하나 이상 선택해 주세요.",
+        "acceptHint": "파일은 이름뿐 아니라 내용으로도 확인됩니다.",
+        "kinds": {
+          "pdf": "PDF",
+          "jpg": "JPG 사진",
+          "png": "PNG 그림"
+        },
+        "maxMb": "최대 크기(MB)",
+        "maxFiles": "최대 파일 수",
+        "minFiles": "최소 파일 수",
+        "fileLimits": "파일 하나는 최대 {mb}MB이고, 문서 하나당 전체 50MB까지입니다."
+      },
+      "options": {
+        "title": "옵션({count})",
+        "none": "옵션을 하나 이상 추가해 주세요.",
+        "label": "옵션 {n} 라벨({language})",
+        "labelPlaceholder": "영어 라벨",
+        "up": "옵션 {n} 위로 이동",
+        "down": "옵션 {n} 아래로 이동",
+        "remove": "옵션 {n} 삭제",
+        "value": "저장 값",
+        "valueLocked": "이 템플릿으로 만든 문서가 있어 이 값은 더 이상 바꿀 수 없습니다.",
+        "valueDuplicate": "두 옵션의 저장 값이 같습니다.",
+        "valueBad": "영문자, 숫자, 밑줄, 마침표, 하이픈만 사용할 수 있습니다.",
+        "addLabel": "새 옵션(영어)",
+        "addPlaceholder": "새 옵션(영어). 목록을 붙여넣으면 한 줄에 하나씩 여러 개를 한 번에 추가합니다.",
+        "add": "추가",
+        "addHint": "저장 값은 영어 라벨에서 만들어집니다. Enter 키를 눌러 추가하세요.",
+        "max": "옵션은 최대 {count}개입니다."
+      },
+      "required": {
+        "title": "필수 여부",
+        "label": "서명자가 반드시 답해야 함",
+        "acknowledge": "동의할 문구는 항상 필수입니다.",
+        "ifTitle": "다음 조건일 때만 필수"
+      },
+      "visible": {
+        "title": "표시 조건",
+        "ifTitle": "다음 조건일 때만 이 필드 표시",
+        "always": "항상 표시됩니다."
+      },
+      "rule": {
+        "add": "조건 추가",
+        "remove": "규칙 삭제",
+        "noFields": "먼저 다른 필드를 추가해 주세요. 규칙은 다른 필드의 답변을 보고 판단합니다.",
+        "inWords": "문장으로 보기",
+        "showWhen": "{rule}일 때만 표시됩니다.",
+        "requiredWhen": "{rule}일 때만 필수입니다.",
+        "partShowWhen": "{rule}일 때만 이 파트가 표시됩니다.",
+        "addCondition": "조건",
+        "addGroup": "그룹",
+        "joinLabel": "조건을 묶는 방식",
+        "joinAnd": "다음이 모두 참",
+        "joinOr": "다음 중 하나라도 참",
+        "removeGroup": "이 그룹 삭제",
+        "removeCondition": "이 조건 삭제",
+        "notHeading": "다음이 아님",
+        "unwrapNot": "\"아님\" 제거",
+        "limit": "규칙 하나에는 조건을 최대 20개까지, 그룹은 최대 4단계까지 둘 수 있습니다.",
+        "fieldLabel": "필드",
+        "operatorLabel": "비교 방식",
+        "valueLabel": "값",
+        "valuesLabel": "값",
+        "valuePlaceholder": "값",
+        "pickValue": "값 선택",
+        "staleValue": "{value}(더 이상 옵션이 아님)",
+        "missingField": "{field}(없음)",
+        "noOptions": "이 필드에는 아직 옵션이 없습니다.",
+        "completeThis": "이 조건을 완성해 주세요.",
+        "fieldGone": "이 필드는 더 이상 없거나 규칙이 속한 필드 자신입니다. 다른 필드를 선택해 주세요.",
+        "and": "그리고",
+        "or": "또는",
+        "not": "~이(가) 아님({rule})",
+        "ops": {
+          "eq": "다음과 같음",
+          "ne": "다음과 같지 않음",
+          "in": "다음 중 하나",
+          "empty": "비어 있음",
+          "notEmpty": "비어 있지 않음",
+          "eq_many": "다음을 포함",
+          "ne_many": "다음을 포함하지 않음",
+          "in_many": "다음 중 하나를 포함",
+          "empty_file": "파일 없음",
+          "notEmpty_file": "파일 있음"
+        },
+        "leaf": {
+          "eq": "{field}이(가) {value}임",
+          "ne": "{field}이(가) {value}이(가) 아님",
+          "in": "{field}이(가) {value} 중 하나임",
+          "empty": "{field}이(가) 비어 있음",
+          "notEmpty": "{field}이(가) 비어 있지 않음",
+          "eq_many": "{field}에 {value} 포함",
+          "ne_many": "{field}에 {value} 미포함",
+          "in_many": "{field}에 {value} 중 하나 포함",
+          "empty_file": "{field}에 파일이 없음",
+          "notEmpty_file": "{field}에 파일이 있음",
+          "unknown": "더 이상 없는 필드"
+        }
+      },
+      "contact": {
+        "title": "연락처에 채우기",
+        "hint": "서명자가 서명하면 이 답변을 해당 연락처에 기록할 수 있습니다.",
+        "field": "연락처 필드",
+        "none": "연락처 필드에 채우지 않음",
+        "builtIn": "연락처",
+        "custom": "내 연락처 필드",
+        "unknown": "{name}(더 이상 연락처 필드가 아님)",
+        "base": {
+          "name": "이름",
+          "email": "이메일",
+          "company": "회사"
+        },
+        "writeBack": "연락처에 이미 값이 있을 때",
+        "mode": {
+          "always": "덮어쓰기",
+          "if_empty": "비어 있을 때만 채우기"
+        },
+        "modeHint": {
+          "always": "서명자가 이 답변을 보고 확인했으므로 가장 최신 값입니다.",
+          "if_empty": "연락처에 이미 있는 값은 그대로 둡니다."
+        },
+        "noCustom": "연락처에서 직접 만든 연락처 필드가 있으면 여기에 표시됩니다."
+      },
+      "value": {
+        "title": "기본값 및 잠금",
+        "default": "기본값",
+        "defaultHint": "서명자가 파트를 열면 입력란에 표시됩니다. 서명자가 바꿀 수 있습니다.",
+        "noDefault": "없음",
+        "staleDefault": "{value}(더 이상 옵션이 아님)",
+        "locked": "잠금: 내가 설정하며 서명자는 수정할 수 없음",
+        "lockedHint": "참조 번호처럼 발송할 때 내가 채우는 값에 사용합니다."
+      },
+      "printed": {
+        "title": "양식에 인쇄되는 위치",
+        "file": "업로드한 파일은 문서와 함께 보관되며 페이지에는 인쇄되지 않습니다.",
+        "none": "아직 페이지에 인쇄되지 않습니다.",
+        "summary": "{pageCount, plural, other {{pages}페이지}}, {count, plural, other {#곳}}",
+        "places": "위치",
+        "openPlace": "{page}페이지",
+        "open": "배치 편집기에서 열기",
+        "openToPlace": "배치 편집기에서 배치하기",
+        "placeHint": "배치 편집기에서 데이터 탭을 열고 이 필드 옆의 배치를 누르세요."
+      },
+      "issues": {
+        "title": "문제",
+        "none": "발견된 문제가 없습니다.",
+        "warningsTitle": "확인할 항목",
+        "unknown": "양식에 올바르지 않은 부분이 있습니다({code}).",
+        "form_shape": "이 버전에서 이해할 수 없는 양식 구조입니다.",
+        "too_many_parts": "양식에는 파트를 최대 {detail}개까지 둘 수 있습니다.",
+        "too_many_data_fields": "양식에는 데이터 필드를 최대 {detail}개까지 둘 수 있습니다.",
+        "bad_part_key": "허용되지 않는 키를 가진 파트가 있습니다.",
+        "duplicate_part_key": "두 파트가 같은 키를 사용합니다.",
+        "bad_part_title": "파트 {part}에는 영어 제목이 필요합니다(최대 120자).",
+        "bad_part_description": "파트 {part}의 설명이 너무 길거나 영어 문구가 없습니다.",
+        "part_unknown_role": "파트 {part}이(가) 존재하지 않는 역할에 속해 있습니다. 다른 역할을 선택해 주세요.",
+        "bad_data_key": "{field}의 키가 허용되지 않습니다. 영문자, 숫자, 밑줄을 쓰고 영문자로 시작해 주세요.",
+        "duplicate_data_key": "두 데이터 필드가 {field}의 키를 함께 사용합니다.",
+        "data_key_is_placement_key": "{field}의 키를 페이지의 칸이 이미 사용하고 있습니다. 키를 바꿔 주세요.",
+        "bad_data_type": "{field}의 유형을 알 수 없습니다.",
+        "data_unknown_part": "{field}이(가) 존재하지 않는 파트에 속해 있습니다. 다른 파트로 옮겨 주세요.",
+        "bad_data_label": "{field}에는 영어 라벨이 필요합니다(최대 200자).",
+        "bad_data_help": "{field}의 도움말이 너무 길거나 영어 문구가 없습니다.",
+        "bad_data_placeholder": "{field}의 예시 문구가 너무 길거나 영어 문구가 없습니다.",
+        "bad_options": "{field}에는 옵션이 하나 이상 필요하며, 각 옵션에 영어 라벨과 고유한 저장 값이 있어야 합니다.",
+        "bad_format": "{field}의 텍스트 형식을 알 수 없습니다.",
+        "bad_limit": "{field}의 제한이 허용되지 않습니다. 정수여야 하고 최솟값이 최댓값보다 클 수 없습니다.",
+        "bad_file_types": "{field}은(는) 파일 형식을 하나 이상 허용해야 합니다.",
+        "bad_file_size": "{field}의 최대 크기는 0보다 크고 {detail}MB 이하여야 합니다.",
+        "bad_acknowledge_text": "{field}에는 읽고 동의할 영어 문구가 필요합니다.",
+        "bad_contact_field": "{field}은(는) 그 연락처 필드에 채울 수 없습니다. 다른 필드를 선택하거나 선택하지 마세요.",
+        "rule_shape": "{subject}의 규칙이 완성되지 않았습니다.",
+        "rule_too_deep": "{subject}의 규칙에 그룹 단계가 너무 많습니다.",
+        "rule_unknown_field": "{subject}의 규칙이 존재하지 않는 필드를 참조합니다.",
+        "rule_value": "{subject}의 규칙이 비어 있거나 너무 긴 값과 비교합니다.",
+        "rule_too_big": "{subject}의 규칙에 조건이 너무 많습니다.",
+        "rule_refers_to_itself": "{field}을(를) 표시하는 규칙이 {field} 자신을 참조합니다.",
+        "rule_cycle": "{field}의 규칙들이 서로를 순환하며 의존합니다. 그중 하나를 삭제해 주세요.",
+        "placement_unknown_data": "{page}페이지의 칸이 존재하지 않는 데이터 필드를 인쇄합니다. 배치 편집기를 열어 다른 필드를 선택하거나 칸을 삭제해 주세요.",
+        "placement_type_mismatch": "{page}페이지의 칸은 이 종류의 칸으로 {field}을(를) 인쇄할 수 없습니다. 배치 편집기를 열어 변경해 주세요.",
+        "placement_bound_and_fixed": "{page}페이지의 칸이 답변 인쇄와 고정 문구를 동시에 지정하고 있습니다. 배치 편집기를 열어 변경해 주세요.",
+        "part_without_person": "파트 {part}을(를) 작성할 사람이 없습니다.",
+        "removeBox": "칸 삭제"
+      },
+      "warnings": {
+        "unknown": "양식에 확인해 볼 부분이 있습니다.",
+        "part_empty": "파트 {part}에는 아직 필드가 없습니다.",
+        "rule_value_not_option": "{subject}의 규칙이 {detail}와(과) 비교하는데, 이 값은 더 이상 해당 필드의 옵션이 아닙니다.",
+        "rule_blank_value": "{subject}의 규칙에 아직 값이 없는 조건이 있습니다.",
+        "default_not_option": "{field}의 기본값이 옵션 중 하나가 아닙니다.",
+        "placement_option_missing": "{page}페이지의 체크 박스가 더 이상 없는 {field}의 옵션과 연결되어 있습니다.",
+        "role_signer_no_signature": "{role}은(는) 서명하지만 템플릿에 {role}의 서명 또는 이니셜 칸이 없습니다.",
+        "static_text_does_not_fit": "{page}페이지 칸의 고정 문구가 들어가지 않아 잘립니다. 배치 편집기를 열어 칸을 키워 주세요."
+      },
+      "errors": {
+        "generic": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "network": "서버에 연결할 수 없습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+        "signed_out": "로그아웃되었습니다. 계속하려면 다시 로그인해 주세요.",
+        "forbidden": "템플릿을 변경할 권한이 없습니다.",
+        "rate_limited": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+        "invalid_layout": "서버에서 양식 또는 배치의 문제를 발견했습니다. 문제 탭을 확인해 주세요.",
+        "bad_layout": "서버에서 양식 또는 배치의 문제를 발견했습니다. 문제 탭을 확인해 주세요.",
+        "bad_form": "서버에서 양식의 문제를 발견했습니다. 문제 탭을 확인해 주세요.",
+        "template_not_found": "해당 템플릿을 찾을 수 없습니다.",
+        "template_has_no_version": "이 템플릿에는 아직 파일이 없어 양식을 만들 수 없습니다.",
+        "changed_elsewhere": "다른 곳에서 이 템플릿의 최신 버전이 저장되어 변경 사항을 저장하지 못했습니다. 페이지를 새로고침해 확인해 주세요. 입력한 내용은 이 페이지를 떠나기 전까지 남아 있습니다.",
+        "fix_problems": "저장하기 전에 {count, plural, other {문제 #개를 해결해}} 주세요(문제 탭 참고).",
+        "request_failed": "문제가 발생했습니다. 다시 시도해 주세요."
+      },
+      "removed": {
+        "field": "필드를 삭제했습니다.",
+        "part": "{count, plural, other {파트와 필드 #개를 삭제했습니다.}}",
+        "places": "{count, plural, other {이 필드를 인쇄하던 페이지의 칸 #개를 삭제했습니다.}}",
+        "rules": "{count, plural, other {이 필드를 사용하던 규칙 #개를 수정했습니다.}}",
+        "typeBoxes": "{count, plural, other {새 유형을 인쇄할 수 없는 페이지의 칸 #개를 삭제했습니다.}}"
+      },
+      "confirm": {
+        "partTitle": "파트 {name}을(를) 삭제하시겠어요?",
+        "fieldTitle": "필드 {name}을(를) 삭제하시겠어요?",
+        "body": "이 필드에 의존하는 항목도 함께 바뀝니다. 저장하기 전에는 실행 취소할 수 있습니다.",
+        "fields": "{count, plural, other {이 파트의 필드 #개가 삭제됩니다.}}",
+        "places": "{count, plural, other {이 필드를 인쇄하는 페이지의 칸 #개가 삭제됩니다.}}",
+        "rules": "{count, plural, other {이 필드를 참조하는 규칙 #개에서 해당 조건이 사라집니다.}}",
+        "undo": "위쪽의 실행 취소로 되돌릴 수 있습니다.",
+        "cancel": "취소",
+        "delete": "삭제"
+      },
+      "preview": {
+        "title": "서명자 화면 미리보기",
+        "intro": "테스트 답변으로 서명자가 보는 양식을 그대로 보여 줍니다. 아무것도 저장하거나 보내지 않습니다.",
+        "noParts": "파트를 맡은 역할이 아직 없어 미리볼 내용이 없습니다.",
+        "role": "미리보기 대상",
+        "language": "언어",
+        "loading": "불러오는 중...",
+        "progress": "필수 답변의 {percent}%를 입력했습니다",
+        "reset": "답변 지우기",
+        "testNote": "여기의 답변은 테스트용이며 저장되지 않습니다.",
+        "refused": "{field}의 답변은 거부됩니다({code}).",
+        "reviewReached": "서명자는 이제 검토 및 서명 단계로 넘어갑니다.",
+        "printedTitle": "페이지에 인쇄될 내용",
+        "printedHint": "답변하는 대로 업데이트됩니다.",
+        "printedEmpty": "아직 인쇄할 내용이 없습니다. 몇 가지 질문에 답해 보세요.",
+        "noPlaces": "답변을 인쇄하는 칸이 아직 페이지에 없습니다. 배치 편집기의 데이터 탭에서 배치해 주세요.",
+        "page": "{page}페이지",
+        "ticked": "체크됨",
+        "picture": "(그림)"
+      },
+      "editor": {
+        "panelData": "데이터",
+        "dataEmpty": "양식에 아직 데이터 필드가 없습니다. 양식 보기에서 추가해 주세요.",
+        "dataIntro": "배치를 누르면 필드의 답변이 지금 보고 있는 페이지에 인쇄되도록 놓습니다.",
+        "notPrintable": "페이지에 인쇄되지 않음",
+        "prints": "{count, plural, other {#곳에 인쇄됨}}",
+        "printsNone": "아직 인쇄되지 않음",
+        "show": "{name}이(가) 인쇄되는 위치 보기",
+        "placeFor": "{name}을(를) 페이지에 배치",
+        "place": "배치",
+        "placeFailed": "칸을 배치하지 못했습니다. 템플릿이 허용되는 최대 칸 수에 이미 도달했을 수 있습니다.",
+        "fillWith": "답변으로 채우기",
+        "fillNone": "없음(일반 필드)",
+        "fillOption": "답변이 다음일 때 체크",
+        "fillHint": "페이지에서 서명자에게 입력받는 대신, 양식 질문의 답변을 여기에 인쇄합니다.",
+        "boundNote": "이 칸은 답변을 인쇄합니다. 발송자 소유이며 답변하거나 필수로 지정할 수 없습니다.",
+        "fillMissing": "{key}(양식에 더 이상 없음)",
+        "holds": "{count, plural, other {담당 파트: {parts}}}",
+        "holdsNone": "맡은 양식 파트가 없습니다.",
+        "cannotDeleteRole": "{count, plural, other {이 역할은 양식 파트 #개를 맡고 있습니다.}} 삭제하기 전에 양식 보기에서 해당 파트를 다른 역할에 넘겨 주세요.",
+        "signerNoSignature": "이 역할은 서명하지만 서명 또는 이니셜 칸이 없습니다.",
+        "sampleItem": "항목 {n}"
+      }
+    },
+    "progress": {
+      "tabs": {
+        "progress": "진행 상황"
+      },
+      "loading": "진행 상황을 불러오는 중",
+      "failed": "진행 상황을 불러오지 못했어요.",
+      "title": "신청 진행 상황",
+      "partsOf": "{total, plural, other {파트 #개}} 중 {done}개 완료",
+      "percent": "필수 답변의 {percent}%를 입력했어요",
+      "barLabel": "{name}님의 진행 상황",
+      "overallLabel": "전체 진행 상황",
+      "lastActivity": "마지막 활동: {when}",
+      "lastActivityFrom": "마지막 활동: {when}, {device}에서",
+      "noActivity": "아직 활동이 없어요",
+      "device": {
+        "phone": "휴대폰",
+        "tablet": "태블릿",
+        "computer": "컴퓨터"
+      },
+      "nobodyAssigned": "지정된 사람이 없어요",
+      "partsList": "{name}님의 파트",
+      "rolesList": "사람별 진행 상황",
+      "fillerNote": "이 사람은 자기 파트만 작성하고 서명하지 않아요.",
+      "state": {
+        "not_started": "시작 전",
+        "in_progress": "진행 중",
+        "done": "완료"
+      },
+      "count": "{done}/{total}",
+      "savedAt": "{when}에 저장됨",
+      "notSaved": "아직 저장된 내용이 없어요",
+      "remind": {
+        "button": "끝내지 않은 파트 알림 보내기",
+        "held": "{when} 이후에 다시 알림을 보낼 수 있어요.",
+        "namesParts": "메시지에 아직 끝내지 않은 {count, plural, other {파트}}가 적혀요:"
+      },
+      "expiry": {
+        "button": "만료일 연장",
+        "title": "만료일 연장",
+        "current": "현재 {date}에 만료돼요.",
+        "noCurrent": "이 문서에는 아직 만료일이 없어요.",
+        "newDate": "새 만료일",
+        "note": "현재 만료일 이후의 날짜를 선택하세요. 그날이 끝날 때까지 서명할 수 있어요.",
+        "problems": {
+          "required": "날짜를 선택하세요.",
+          "past": "미래의 날짜를 선택하세요.",
+          "not_later": "현재 만료일 이후의 날짜를 선택하세요."
+        },
+        "cancel": "취소",
+        "action": "만료일 연장",
+        "done": "이제 문서는 {date}에 만료돼요.",
+        "expires": "만료일 {date}"
+      },
+      "answers": {
+        "title": "지금까지의 답변",
+        "note": "읽기 전용이에요. 입력한 그대로 보여 드려요. 규칙에 따라 숨겨진 답변은 표시되지 않아요.",
+        "groupSummary": "{role} · {count, plural, other {답변 #개}}",
+        "none": "이 파트에는 아직 답변이 없어요.",
+        "notAnswered": "아직 답변하지 않음",
+        "accepted": "동의함",
+        "notAccepted": "동의하지 않음",
+        "pictureGiven": "사진이 제출됨",
+        "download": "다운로드",
+        "downloadNamed": "{name} 다운로드",
+        "fromContact": "연락처에서 가져옴, 아직 확인 전",
+        "bySender": "보낸 사람이 설정함"
+      },
+      "issues": {
+        "title": "{count, plural, other {확인이 필요한 항목 #개}}",
+        "doesNotFit": "“{field}”의 답변이 인쇄되는 자리에 비해 너무 길어요. 서명하기 전에 서명자에게 줄여 달라고 안내돼요.",
+        "invalid": "“{field}”의 답변이 더 이상 양식의 규칙에 맞지 않아요.",
+        "generic": "확인이 필요한 항목이 있어요({code})."
+      },
+      "writeback": {
+        "note": "답변으로 연락처가 업데이트됐어요({count, plural, other {항목 #개}}). 가장 최근은 {when}이에요."
+      },
+      "openContact": "연락처 열기",
+      "contactFields": {
+        "name": "이름",
+        "email": "이메일",
+        "company": "회사"
+      },
+      "events": {
+        "part_completed": "{actor}님이 {hasPart, select, yes {“{part}” 파트를} other {양식의 한 파트를}} 완료했어요.",
+        "part_reopened": "{actor}님이 {hasPart, select, yes {“{part}” 파트로} other {양식의 한 파트로}} 돌아가서 더 이상 완료 상태가 아니에요.",
+        "uploaded": "{actor}님이 {hasFile, select, yes {“{file}” 파일을} other {파일을}} 업로드했어요{hasField, select, yes {(“{field}”)} other {}}.",
+        "upload_removed": "{actor}님이 {hasFile, select, yes {“{file}” 파일을} other {파일을}} 삭제했어요{hasField, select, yes {(“{field}”)} other {}}.",
+        "writeback": "답변으로 연락처가 업데이트됐어요{hasFields, select, yes {({fields})} other {}}.",
+        "expiry_extended": "{sender}님이 만료일을 연장했어요{hasDate, select, yes {({date}까지)} other {}}."
+      },
+      "errors": {
+        "document_not_found": "이 문서를 찾을 수 없어요.",
+        "document_not_open": "문서가 더 이상 열려 있지 않아서 이 작업을 할 수 없어요.",
+        "expiry_in_the_past": "미래의 날짜를 선택하세요.",
+        "expiry_not_later": "현재 만료일 이후의 날짜를 선택하세요.",
+        "bad_expiry": "이 날짜는 사용할 수 없어요. 다른 날짜를 선택하세요.",
+        "file_not_found": "이 파일을 찾을 수 없어요.",
+        "forbidden": "이 작업을 할 권한이 없어요.",
+        "signed_out": "로그아웃되었어요. 다시 로그인해서 계속하세요.",
+        "rate_limited": "요청이 너무 많아요. 잠시 후 다시 시도하세요.",
+        "network": "서버에 연결할 수 없어요. 연결 상태를 확인하고 다시 시도하세요.",
+        "database_error": "저희 쪽에 문제가 생겼어요. 잠시 후 다시 시도하세요.",
+        "generic": "작업이 완료되지 않았어요. 다시 시도하세요."
+      },
+      "problems": {
+        "part_without_person": "{role}에 작성할 양식 파트가 있지만 지정된 사람이 없어요."
+      },
+      "formStep": {
+        "title": "양식",
+        "summary": "{parts, plural, other {파트 #개}}, 항목은 모두 {fields, plural, other {#개}}예요.",
+        "partsList": "양식의 파트",
+        "fieldCount": "{count, plural, other {항목 #개}}",
+        "belongsToTemplate": "이 양식은 템플릿에 속해 있어서 여기서 바꿀 수 없어요. 바꾸려면 템플릿을 수정하고 새 문서를 보내세요.",
+        "editFields": "필드 편집",
+        "hideEditor": "필드 편집기 닫기",
+        "editFieldsNote": "필드 편집은 답변이 페이지에 인쇄되는 위치만 바꾸고 양식은 바꾸지 않아요."
+      },
+      "peopleStep": {
+        "title": "누가 무엇을 작성하나요",
+        "note": "각 파트는 하나의 역할이 완료해요. 아래의 모든 역할에 사람을 추가하세요.",
+        "range": "{from}~{to}",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, other {{parts}번 파트}} 작성 및 서명} partsFill {{role}: {count, plural, other {{parts}번 파트}}만 작성} signOnly {{role}: 서명만} other {{role}: 양식에 맡은 내용 없음}}",
+        "nobody": "{role}에 지정된 사람이 아직 없어요."
+      },
+      "reviewStep": {
+        "title": "양식",
+        "summary": "{parts, plural, other {파트 #개}}, 항목은 모두 {fields, plural, other {#개}}예요.",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, other {{parts}번 파트}} 작성 및 서명} partsFill {{role}: {count, plural, other {{parts}번 파트}}만 작성} signOnly {{role}: 서명만} other {{role}: 양식에 맡은 내용 없음}}",
+        "prefillOn": "양식이 연결된 연락처의 정보({fields})로 먼저 채워져요. 서명자가 확인하고 바꿀 수 있어요.",
+        "noContact": "이 양식은 연락처의 정보({fields})로 먼저 채울 수 있지만 연결된 연락처가 없어요. 서명자가 모두 직접 입력해요. 옵션 단계에서 연락처를 연결할 수 있어요.",
+        "noContactFields": "이 양식은 연락처의 정보를 사용하지 않아요."
+      }
+    },
     "send": {
       "shell": {
         "title": "문서 서명",
@@ -9712,6 +10322,179 @@
         "invalid_answers": "수정이 필요한 항목이 있어요. 페이지에 표시해 두었어요.",
         "body_too_large": "보내기에는 너무 커요. 더 작은 사진을 사용해 주세요.",
         "session_unavailable": "지금은 서명할 수 없어요. 나중에 다시 시도해 주세요."
+      }
+    },
+    "signerForm": {
+      "overview": {
+        "title": "내 정보",
+        "intro": "각 부분은 원하는 순서대로 채워도 돼요. 답변은 입력하는 대로 저장되니, 나갔다가 같은 링크로 다시 와도 돼요.",
+        "parts": "양식의 각 부분",
+        "partsDone": "{total, plural, other {#개 부분}} 중 {done}개 완료",
+        "progressLabel": "진행 상황",
+        "percent": "{percent}% 완료",
+        "counts": "{total}개 중 {done}개 답변함",
+        "continue": "계속하기: {part}"
+      },
+      "status": {
+        "not_started": "시작 전",
+        "in_progress": "작성 중",
+        "done": "완료",
+        "needs_change": "수정 필요",
+        "locked": "잠김",
+        "ready": "준비됨"
+      },
+      "final": {
+        "review": "검토하고 서명",
+        "submit": "답변 제출",
+        "leftSign": "{count, plural, other {#개 부분을 더 마치면 서명할 수 있어요}}",
+        "leftSubmit": "{count, plural, other {#개 부분을 더 마치면 제출할 수 있어요}}",
+        "saving": "답변을 저장하고 있어요. 곧 열려요.",
+        "check": "아직 확인이 필요한 답변이 있어요. 완료되지 않은 부분을 열어 보세요.",
+        "readySign": "양식에 적힌 답변을 확인한 뒤 서명해 주세요.",
+        "readySubmit": "모두 채워졌어요. 준비되면 답변을 보내세요."
+      },
+      "part": {
+        "position": "{total}개 중 {number}번째 부분",
+        "back": "개요로 돌아가기",
+        "saveNext": "저장하고 다음 부분으로",
+        "saveLast": "저장하고 개요로 가기",
+        "left": "{count, plural, other {이 부분에 필수 답변이 #개 남았어요}}",
+        "complete": "이 부분은 모두 채웠어요.",
+        "needsChange": "수정해야 할 답변이 있어요. 아래에 표시했어요.",
+        "empty": "지금은 여기서 채울 내용이 없어요.",
+        "confirmTitle": "이 답변을 확인해 주세요",
+        "confirmBody": "저희 기록을 바탕으로 일부 답변을 채웠어요. 하나씩 확인하고, 틀린 것은 고친 뒤 확정해 주세요.",
+        "confirm": "이 부분 확정"
+      },
+      "field": {
+        "required": "필수",
+        "optional": "선택",
+        "choose": "선택하세요...",
+        "yes": "예",
+        "no": "아니요",
+        "accept": "읽고 동의합니다",
+        "fromRecords": "저희 기록에서 가져왔어요. 확인해 주세요",
+        "locked": "미리 채워진 항목이라 여기서 바꿀 수 없어요.",
+        "pictureAdded": "사진을 추가했어요",
+        "phoneHint": "0 또는 +60으로 시작해 주세요. 예: 012-345 6789. 다른 나라 번호는 +와 국가 번호로 시작해 주세요.",
+        "phonePlaceholder": "012-345 6789"
+      },
+      "list": {
+        "add": "하나 더 추가",
+        "entryLabel": "{label}, {number}번째 항목",
+        "removeEntry": "{number}번째 항목 삭제",
+        "limit": "최대 {max}개",
+        "itemLength": "항목당 최대 {max}자"
+      },
+      "format": {
+        "digits": "숫자만",
+        "letters": "글자만",
+        "alnum": "글자와 숫자만",
+        "upper_alnum": "대문자와 숫자만",
+        "postcode_my": "숫자 5자리"
+      },
+      "file": {
+        "choose": "파일 선택",
+        "addAnother": "파일 더 추가",
+        "takePhoto": "사진 찍기",
+        "remove": "삭제",
+        "removeNamed": "{name} 삭제",
+        "uploading": "{name} 업로드하는 중...",
+        "hint": "가능한 형식: {types}. 파일당 최대 {mb}MB.",
+        "count": "최대 {max}개 중 {count}개 추가했어요."
+      },
+      "image": {
+        "choose": "사진 선택",
+        "chooseAnother": "다른 사진 선택",
+        "remove": "사진 삭제",
+        "hint": "사진을 찍거나 휴대폰에서 선택하세요. PNG 또는 JPEG.",
+        "preparing": "사진을 준비하는 중...",
+        "alt": "{label}: 추가한 사진",
+        "pictureTooBig": "이 사진은 너무 커서 쓸 수 없어요. 더 작은 사진을 써 주세요.",
+        "pictureUnreadable": "이 사진을 읽을 수 없어요. PNG나 JPEG를 써 보세요."
+      },
+      "problems": {
+        "bad_text": "사용할 수 없는 문자가 있어요. 지워 주세요.",
+        "text_too_long": "너무 길어요. 최대 {detail}자까지 쓸 수 있어요.",
+        "text_too_short": "너무 짧아요. 최소 {detail}자 이상 써 주세요.",
+        "format_digits": "숫자만 입력해 주세요.",
+        "format_letters": "글자만 입력해 주세요.",
+        "format_alnum": "글자와 숫자만 입력해 주세요.",
+        "format_upper_alnum": "대문자와 숫자만 입력해 주세요.",
+        "format_postcode_my": "5자리 우편번호를 입력해 주세요.",
+        "bad_email": "name@example.com 같은 이메일 주소를 입력해 주세요.",
+        "bad_phone": "012-345 6789 같은 전화번호를 입력해 주세요.",
+        "not_a_number": "1250이나 12.50 같은 숫자를 입력해 주세요.",
+        "too_many_decimals": "소수점 아래는 최대 {detail, plural, other {#자리}}까지 쓸 수 있어요.",
+        "number_too_small": "{detail} 이상이어야 해요.",
+        "number_too_big": "{detail} 이하여야 해요.",
+        "not_a_date": "올바른 날짜를 선택해 주세요.",
+        "not_an_option": "선택지 중에서 골라 주세요.",
+        "not_yes_no": "예 또는 아니요를 선택해 주세요.",
+        "bad_item": "사용할 수 없는 항목이 있어요. 하나씩 확인해 주세요.",
+        "item_too_long": "너무 긴 항목이 있어요. 항목당 최대 {detail}자까지 쓸 수 있어요.",
+        "item_too_short": "너무 짧은 항목이 있어요. 항목당 최소 {detail}자가 필요해요.",
+        "too_many_items": "최대 {detail}개까지 추가할 수 있어요.",
+        "too_few_items": "최소 {detail}개 이상 추가해 주세요.",
+        "duplicate_item": "같은 항목이 두 번 있어요. 하나를 지워 주세요.",
+        "bad_image": "이 사진을 쓸 수 없어요. 다른 사진을 골라 주세요.",
+        "use_upload": "위의 버튼으로 파일을 추가해 주세요.",
+        "file_type": "이 형식의 파일은 받을 수 없어요. 위에 적힌 형식을 확인해 주세요.",
+        "file_too_large": "파일이 너무 커요. 최대 {detail}MB까지 가능해요.",
+        "file_empty": "비어 있는 파일이에요. 다른 파일을 골라 주세요.",
+        "document_upload_limit": "이 문서의 파일 업로드 한도에 도달했어요. 파일을 하나 삭제한 뒤 추가해 주세요.",
+        "too_many_files": "파일은 최대 {detail}개까지 추가할 수 있어요.",
+        "too_few_files": "파일을 최소 {detail}개 이상 추가해 주세요.",
+        "upload_failed": "이 파일을 업로드하지 못했어요. 다시 시도해 주세요.",
+        "network": "연결이 없어요. 인터넷을 확인하고 다시 시도해 주세요.",
+        "rate_limited": "시도 횟수가 너무 많아요. 잠시 후 다시 시도해 주세요.",
+        "not_your_field": "이 항목은 직접 채우는 항목이 아니에요.",
+        "not_shown": "이 답변은 필요하지 않아요.",
+        "missing_required": "필수 항목이에요.",
+        "answer_does_not_fit": "이 답변은 인쇄될 자리에 비해 너무 길어요. 줄여 주세요.",
+        "generic": "저장하지 못했어요. 내용을 바꾼 뒤 다시 시도해 주세요."
+      },
+      "save": {
+        "saving": "저장하는 중...",
+        "saved": "저장됨",
+        "savedNow": "방금 저장됨",
+        "savedAgo": "{when} 저장됨",
+        "offline": "연결이 없어요. 변경 내용은 그대로 보관돼요.",
+        "error": "저장할 수 없었어요. 변경 내용은 그대로 보관돼요."
+      },
+      "review": {
+        "title": "답변 확인",
+        "body": "서명하게 될 문서예요. 답변이 문서에 인쇄돼 있어요. 틀린 것이 있으면 답변을 바꿔 주세요.",
+        "change": "답변 바꾸기",
+        "preparing": "답변을 문서에 넣는 중...",
+        "preparingShort": "문서를 준비하는 중...",
+        "failed": "답변을 문서에 넣지 못했어요. 연결을 확인하고 다시 시도해 주세요.",
+        "failedShort": "문서가 아직 준비되지 않았어요.",
+        "retry": "다시 시도",
+        "fitTitle": "{count, plural, other {답변 #개가 너무 길어서 인쇄할 수 없어요}}",
+        "fitItem": "이 답변은 인쇄될 자리에 비해 너무 길어요: {label}. 더 짧게 줄여 주세요.",
+        "fixAnswer": "이 답변 바꾸기",
+        "fixAnswerLabel": "이 답변 바꾸기: {label}",
+        "blocked": "{count, plural, other {답변 #개를 줄이면 마칠 수 있어요}}"
+      },
+      "notice": {
+        "missing_required": "필수 답변 중 비어 있는 것이 있어요. 아래에 표시했어요.",
+        "invalid_answers": "수정해야 할 답변이 있어요. 아래에 표시했어요.",
+        "answer_does_not_fit": "인쇄될 자리에 비해 너무 긴 답변이 있어요. 아래에 표시했어요."
+      },
+      "errors": {
+        "answer_does_not_fit": "인쇄될 자리에 비해 너무 긴 답변이 있어요. 줄인 뒤 다시 시도해 주세요.",
+        "form_incomplete": "필수 답변 중 비어 있는 것이 있어요."
+      },
+      "end": {
+        "filler": {
+          "title": "답변을 보냈어요",
+          "thanks": "{name}님, 감사합니다.",
+          "next": "더 하실 일은 없어요."
+        }
+      },
+      "preview": {
+        "note": "미리 보기예요. 여기에 입력한 내용은 저장되거나 전송되지 않아요."
       }
     }
   }

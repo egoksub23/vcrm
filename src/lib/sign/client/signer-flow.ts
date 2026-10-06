@@ -15,6 +15,7 @@ import { formatDate } from "../pdf/format";
 import type { PlacedField } from "../pdf/types";
 import { checkAnswer, fieldsForRole, type AnswerInput, type StoredAnswer } from "../rules";
 import type { OtherSigner, PageState } from "../service/signing";
+import type { PartProgress } from "../forms/types";
 import { checkImageDataUrl } from "./signer-images";
 
 // ---- language -----------------------------------------------------------------------------------
@@ -379,19 +380,25 @@ export type SaveState = "idle" | "saving" | "saved" | "offline" | "error";
 
 export interface SaveResponse {
   saved: string[];
-  rejected: { field: string; code: string }[];
+  rejected: { field: string; code: string; detail?: string }[];
+  /** A document with a form: where each of the signer's parts stands now, whether signing may open, and the answers still from the contact. */
+  progress?: PartProgress[];
+  ready?: boolean;
+  unconfirmed?: string[];
 }
 
-export interface AutosaveOptions {
-  /** Send a batch. Throws when the request fails. */
-  send: (batch: Record<string, AnswerInput>) => Promise<SaveResponse>;
+export interface AutosaveOptions<V extends object = AnswerInput> {
+  /** Send a batch (and, only when there are any, the parts the signer confirmed). Throws when the request fails. */
+  send: (batch: Record<string, V>, confirmParts?: string[]) => Promise<SaveResponse>;
   /** Is this failure worth another try (no connection, a busy or broken server)? */
   isRetryable: (err: unknown) => boolean;
   /** Is it specifically "no connection"? Shown as offline rather than as an error. */
   isOffline?: (err: unknown) => boolean;
   onState?: (state: SaveState) => void;
   /** Values the server turned down, with the reason. They are not sent again until they change. */
-  onRejected?: (rejected: { field: string; code: string }[]) => void;
+  onRejected?: (rejected: { field: string; code: string; detail?: string }[]) => void;
+  /** The server accepted a batch: what it answered (progress of a form's parts, whether signing may open). */
+  onSaved?: (result: SaveResponse) => void;
   /** A failure that trying again will not fix (the session ended, the link is gone). The values stay queued. */
   onFailure?: (err: unknown) => void;
   /** Wait after the last change before sending (default one second). */
@@ -408,17 +415,19 @@ const DEFAULT_RETRY_DELAYS = [2_000, 5_000, 10_000, 20_000, 30_000];
  * The newest value of each changed field, sent together after a short pause. A failed send is tried again
  * (a value changed meanwhile keeps its newer value); nothing is lost while the connection is down.
  */
-export class AutosaveQueue {
-  private readonly opts: AutosaveOptions;
-  private readonly pending = new Map<string, AnswerInput>();
-  private readonly lastSaved = new Map<string, AnswerInput>();
+export class AutosaveQueue<V extends object = AnswerInput> {
+  private readonly opts: AutosaveOptions<V>;
+  private readonly pending = new Map<string, V>();
+  private readonly lastSaved = new Map<string, V>();
+  /** Parts of a form the signer confirmed (their answers from the contact are now theirs), sent with the next batch. */
+  private readonly confirms = new Set<string>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running: Promise<void> | null = null;
   private failures = 0;
   private disposed = false;
   private current: SaveState = "idle";
 
-  constructor(opts: AutosaveOptions) {
+  constructor(opts: AutosaveOptions<V>) {
     this.opts = opts;
   }
 
@@ -431,7 +440,7 @@ export class AutosaveQueue {
   }
 
   /** The value of `key` is now `input`. */
-  set(key: string, input: AnswerInput): void {
+  set(key: string, input: V): void {
     if (this.disposed) return;
     this.pending.set(key, input);
     this.lastSaved.delete(key);
@@ -441,20 +450,29 @@ export class AutosaveQueue {
   }
 
   /** Has the server been given exactly this value for `key`? */
-  isSaved(key: string, input: AnswerInput): boolean {
+  isSaved(key: string, input: V): boolean {
     return this.lastSaved.get(key) === input;
+  }
+
+  /** The signer confirmed a part: its answers that came from the contact are saved as theirs, at once, with whatever else is waiting. */
+  confirmPart(partKey: string): void {
+    if (this.disposed) return;
+    this.confirms.add(partKey);
+    if (this.current !== "offline" && this.current !== "error") this.setState("saving");
+    this.clearTimer();
+    void this.drain();
   }
 
   /** Send everything now. True when nothing is left unsaved. */
   async flush(): Promise<boolean> {
     this.clearTimer();
     await this.drain();
-    return this.pending.size === 0;
+    return this.pending.size === 0 && this.confirms.size === 0;
   }
 
   /** Try again at once (the connection came back, the signer entered the code again). */
   retryNow(): void {
-    if (this.pending.size === 0) return;
+    if (this.pending.size === 0 && this.confirms.size === 0) return;
     this.failures = 0;
     this.clearTimer();
     void this.drain();
@@ -468,7 +486,7 @@ export class AutosaveQueue {
   /** Work again after `dispose` (React runs an effect's cleanup and then the effect again in development). */
   revive(): void {
     this.disposed = false;
-    if (this.pending.size > 0) this.schedule(this.opts.debounceMs ?? 1000);
+    if (this.pending.size > 0 || this.confirms.size > 0) this.schedule(this.opts.debounceMs ?? 1000);
   }
 
   private setState(state: SaveState): void {
@@ -492,7 +510,7 @@ export class AutosaveQueue {
 
   private async drain(): Promise<void> {
     while (this.running) await this.running;
-    if (this.disposed || this.pending.size === 0) return;
+    if (this.disposed || (this.pending.size === 0 && this.confirms.size === 0)) return;
     this.running = this.run();
     try {
       await this.running;
@@ -502,9 +520,9 @@ export class AutosaveQueue {
   }
 
   /** Take the oldest values that fit one request out of the queue. */
-  private takeBatch(): Map<string, AnswerInput> {
+  private takeBatch(): Map<string, V> {
     const max = this.opts.maxBatchChars ?? 1_800_000;
-    const batch = new Map<string, AnswerInput>();
+    const batch = new Map<string, V>();
     let size = 0;
     for (const [key, input] of this.pending) {
       const length = JSON.stringify(input).length;
@@ -517,18 +535,22 @@ export class AutosaveQueue {
   }
 
   private async run(): Promise<void> {
-    while (!this.disposed && this.pending.size > 0) {
+    while (!this.disposed && (this.pending.size > 0 || this.confirms.size > 0)) {
       const batch = this.takeBatch();
+      const confirmed = [...this.confirms];
+      this.confirms.clear();
       this.setState("saving");
       try {
-        const result = await this.opts.send(Object.fromEntries(batch));
+        const result = confirmed.length > 0 ? await this.opts.send(Object.fromEntries(batch), confirmed) : await this.opts.send(Object.fromEntries(batch));
         this.failures = 0;
         const refused = new Set(result.rejected.map((r) => r.field));
         for (const [key, input] of batch) if (!refused.has(key) && !this.pending.has(key)) this.lastSaved.set(key, input);
         if (result.rejected.length > 0) this.opts.onRejected?.(result.rejected);
+        this.opts.onSaved?.(result);
       } catch (err) {
         // put the values back, unless a newer one has been entered meanwhile
         for (const [key, input] of batch) if (!this.pending.has(key)) this.pending.set(key, input);
+        for (const part of confirmed) this.confirms.add(part);
         this.failures++;
         if (this.opts.isRetryable(err)) {
           this.setState(this.opts.isOffline?.(err) ? "offline" : "error");
@@ -541,6 +563,6 @@ export class AutosaveQueue {
         return;
       }
     }
-    if (!this.disposed && this.pending.size === 0) this.setState("saved");
+    if (!this.disposed && this.pending.size === 0 && this.confirms.size === 0) this.setState("saved");
   }
 }

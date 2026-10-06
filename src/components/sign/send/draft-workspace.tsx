@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DraftFieldsEditor } from "@/components/sign/editor/draft-fields-editor";
+import { hasFormParts } from "@/lib/sign/client/progress-logic";
 import { useCapability } from "@/hooks/use-can";
 import { useNow } from "@/hooks/use-now";
 import { useSignCategories, useSignSettings } from "@/hooks/use-sign-categories";
@@ -22,6 +23,7 @@ import { draftProblems } from "@/lib/sign/client/draft-problems";
 import { errorKey, problemStep, type DraftStep } from "@/lib/sign/client/errors";
 import { payloadKey, rowHasInput, rowIsComplete, rowsForRoles, rowsFromSigners, toPayload, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
+import { FormFieldsStep } from "./form-fields-step";
 import { OptionsStep } from "./options-step";
 import { PeopleStep } from "./people-step";
 import { ReviewStep } from "./review-step";
@@ -186,7 +188,8 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
   const categoryId = options.categoryId;
   const defaults = resolveDefaults({ category: categories.find((c) => c.id === categoryId) ?? null, workspace: settings });
-  const facts = { fields: doc.fields_snapshot, roles, pageCount: doc.page_count ?? 0, hasBaseFile: !!doc.base_path };
+  const form = hasFormParts(doc.form_snapshot) ? doc.form_snapshot : null;
+  const facts = { fields: doc.fields_snapshot, roles, pageCount: doc.page_count ?? 0, hasBaseFile: !!doc.base_path, form };
   const nowDate = new Date(now);
   const liveProblems = draftProblems({ facts, rows, options, now: nowDate });
   const reviewProblems = draftProblems({ facts, rows, options, serverProblems: data.problems, now: nowDate });
@@ -308,7 +311,11 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
       <div>
         {step === "fields" ? (
-          <DraftFieldsEditor documentId={documentId} onChanged={() => void reload()} />
+          form ? (
+            <FormFieldsStep documentId={documentId} form={form} roles={roles} readOnly={!canSend} onChanged={() => void reload()} />
+          ) : (
+            <DraftFieldsEditor documentId={documentId} onChanged={() => void reload()} />
+          )
         ) : step === "people" ? (
           <>
             <PeopleStep
@@ -321,6 +328,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               onRows={changeRows}
               onSignInOrder={(v) => changeOptions({ signInOrder: v })}
               onGoToFields={() => goStep("fields")}
+              form={form}
             />
             {unsavedPeople > 0 ? <p className="mt-3 text-xs text-muted-foreground">{t("unsavedPeople", { count: unsavedPeople })}</p> : null}
           </>
@@ -343,6 +351,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               sendErrorCode={sendErrorCode}
               onSend={() => void send()}
               onGoToStep={goStep}
+              form={form}
             />
             {sendErrorCode === "document_not_draft" ? (
               <div className="mt-3 flex justify-end">

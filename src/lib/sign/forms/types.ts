@@ -94,6 +94,8 @@ export interface DataField {
   minItems?: number;
   itemFormat?: TextFormat;
   itemLength?: number;
+  /** Each entry must have at least this many characters (for example a code of exactly 5 digits: 5 and 5). */
+  itemMinLength?: number;
   // file
   accept?: FileKind[];
   maxMb?: number;

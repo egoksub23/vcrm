@@ -3,22 +3,28 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { formIssueMessageKey, issueParams } from "@/lib/sign/client/form-issues";
 import { issueMessageKey } from "@/lib/sign/client/layout";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { FieldType, PlacedField } from "@/lib/sign/pdf/types";
 import type { Issue } from "@/lib/sign/rules";
-import type { SignRole } from "@/lib/sign/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 
 interface IssuesPanelProps {
   issues: readonly Issue[];
   fields: readonly PlacedField[];
   roles: readonly SignRole[];
   typeLabels: Record<FieldType, string>;
+  /** Forms: so the problems of a placement that prints a data field (`placement_*`) are worded. */
+  form?: FormDefinition | null;
+  labelLocale?: SignLocale;
   onSelectField: (key: string) => void;
   onSelectRole: (key: string | undefined) => void;
 }
 
-export function IssuesPanel({ issues, fields, roles, typeLabels, onSelectField, onSelectRole }: IssuesPanelProps) {
+export function IssuesPanel({ issues, fields, roles, typeLabels, form, labelLocale = "en", onSelectField, onSelectRole }: IssuesPanelProps) {
   const t = useTranslations("Sign.editor");
+  const tf = useTranslations("Sign.formBuilder");
   const fieldByKey = new Map(fields.map((f) => [f.key, f]));
   const roleByKey = new Map(roles.map((r) => [r.key, r]));
 
@@ -35,7 +41,7 @@ export function IssuesPanel({ issues, fields, roles, typeLabels, onSelectField, 
       {issues.map((issue, i) => {
         const f = issue.field ? fieldByKey.get(issue.field) : undefined;
         const role = issue.role ? roleByKey.get(issue.role) : undefined;
-        const message = t(issueMessageKey(issue.code), {
+        const message = form && issue.code.startsWith("placement_") ? tf(formIssueMessageKey(issue.code), { ...issueParams(issue, { form, roles, placements: fields, locale: labelLocale }), code: issue.code }) : t(issueMessageKey(issue.code), {
           field: f ? `${f.label?.trim() || typeLabels[f.type]} (${t("issues.onPage", { page: f.page + 1 })})` : "",
           role: role?.label ?? issue.role ?? "",
           detail: issue.detail ?? "",

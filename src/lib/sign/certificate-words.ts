@@ -5,7 +5,7 @@
 
 import { DEFAULT_CERTIFICATE_LABELS } from "./pdf/certificate";
 import type { CertificateLabels } from "./pdf/types";
-import { fill } from "./messages";
+import { fill, longDate } from "./messages";
 import type { SignLocale } from "./types";
 
 const MS: CertificateLabels = {
@@ -122,6 +122,10 @@ const EVENTS: Record<SignLocale, EventWords> = {
     voided: "{sender} cancelled the document",
     expired: "The document expired",
     delivery_failed: "A message to {actor} could not be delivered",
+    uploaded: "{actor} uploaded {name} (fingerprint {hash})",
+    upload_removed: "{actor} removed the upload {name}",
+    expiry_extended: "{sender} extended the expiry date to {date}",
+    expiry_extended_plain: "{sender} extended the expiry date",
   },
   ms: {
     created: "{sender} mencipta dokumen",
@@ -144,6 +148,10 @@ const EVENTS: Record<SignLocale, EventWords> = {
     voided: "{sender} membatalkan dokumen",
     expired: "Dokumen tamat tempoh",
     delivery_failed: "Mesej kepada {actor} tidak dapat dihantar",
+    uploaded: "{actor} memuat naik {name} (cap jari {hash})",
+    upload_removed: "{actor} mengalih keluar muat naik {name}",
+    expiry_extended: "{sender} melanjutkan tarikh tamat tempoh kepada {date}",
+    expiry_extended_plain: "{sender} melanjutkan tarikh tamat tempoh",
   },
   zh: {
     created: "{sender} 创建了文件",
@@ -166,6 +174,10 @@ const EVENTS: Record<SignLocale, EventWords> = {
     voided: "{sender} 取消了文件",
     expired: "文件已过期",
     delivery_failed: "发给 {actor} 的消息未能送达",
+    uploaded: "{actor} 上传了 {name}（指纹 {hash}）",
+    upload_removed: "{actor} 删除了上传的 {name}",
+    expiry_extended: "{sender} 将截止日期延长至 {date}",
+    expiry_extended_plain: "{sender} 延长了截止日期",
   },
   ko: {
     created: "{sender}님이 문서를 만들었습니다",
@@ -188,16 +200,44 @@ const EVENTS: Record<SignLocale, EventWords> = {
     voided: "{sender}님이 문서를 취소했습니다",
     expired: "문서가 만료되었습니다",
     delivery_failed: "{actor}님에게 보낸 메시지를 전달하지 못했습니다",
+    uploaded: "{actor}님이 {name}을(를) 업로드했습니다 (지문 {hash})",
+    upload_removed: "{actor}님이 업로드한 {name}을(를) 삭제했습니다",
+    expiry_extended: "{sender}님이 만료일을 {date}(으)로 연장했습니다",
+    expiry_extended_plain: "{sender}님이 만료일을 연장했습니다",
   },
 };
 
-/** Events that are noise on a certificate: retries and autosaves. */
-export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_failed", "downloaded"]);
+/**
+ * Events that are noise on a certificate: retries and autosaves, a part's progress and the contact being updated
+ * (the last carries personal data and belongs in the audit trail, not on a page that is sent to everyone).
+ */
+export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_failed", "downloaded", "part_completed", "part_reopened", "writeback"]);
 
-/** One line of history, or null for an event the certificate leaves out. */
-export function eventSentence(type: string, locale: SignLocale, names: { actor: string; sender: string }): string | null {
+/** What an event's own detail adds to its sentence. */
+export interface EventExtras {
+  detail?: Record<string, unknown>;
+  /** The time zone dates in a sentence are written in. */
+  timeZone?: string;
+}
+
+/** A short piece of text from an event's detail (fill() puts it on one line). */
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+/**
+ * One line of history, or null for an event the certificate leaves out. An upload names the file and the start of
+ * its fingerprint (the file itself is not appended: the certificate lists it); an extended expiry names the new date.
+ */
+export function eventSentence(type: string, locale: SignLocale, names: { actor: string; sender: string }, extras: EventExtras = {}): string | null {
   if (HIDDEN_EVENTS.has(type)) return null;
   const words = EVENTS[locale] ?? EVENTS.en;
-  const template = words[type] ?? EVENTS.en[type];
-  return template ? fill(template, names) : null;
+  const detail = extras.detail ?? {};
+  let key = type;
+  const values: Record<string, string> = { ...names, name: text(detail.name, 80) || "-", hash: text(detail.hash, 16) || "-", date: "" };
+  if (type === "expiry_extended") {
+    const at = typeof detail.new === "string" ? new Date(detail.new) : null;
+    if (at && !Number.isNaN(at.getTime())) values.date = longDate(at, locale, extras.timeZone);
+    else key = "expiry_extended_plain";
+  }
+  const template = words[key] ?? EVENTS.en[key];
+  return template ? fill(template, values) : null;
 }

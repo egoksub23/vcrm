@@ -20,20 +20,28 @@ interface StickyBarProps {
   finishing: boolean;
   /** Words for a failed Finish. */
   finishError: string | null;
+  /** Something other than the person's own fields stands in the way of finishing (a form's answer too long for its place); in words. */
+  blockedNote?: string | null;
   onNext: () => void;
   onFinish: () => void;
 }
 
-export function StickyBar({ progress, saveState, finishing, finishError, onNext, onFinish }: StickyBarProps) {
+export function StickyBar({ progress, saveState, finishing, finishError, blockedNote = null, onNext, onFinish }: StickyBarProps) {
   const t = useTranslations("Sign.signer");
   const { required, done, attention, canFinish } = progress;
   const percent = required === 0 ? 100 : Math.round((done / required) * 100);
+  const blocked = blockedNote !== null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" role="region" aria-label={t("fill.barLabel")}>
       {finishError ? (
         <p role="alert" className="border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm font-medium text-red-700 dark:text-red-400">
           {finishError}
+        </p>
+      ) : null}
+      {blockedNote ? (
+        <p role="status" id="sign-blocked" className="border-b border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-sm font-medium text-foreground">
+          {blockedNote}
         </p>
       ) : null}
       <div className="mx-auto w-full max-w-6xl px-3 py-2 sm:flex sm:items-center sm:gap-3">
@@ -55,7 +63,7 @@ export function StickyBar({ progress, saveState, finishing, finishError, onNext,
               {t("fill.next")}
             </Button>
           ) : null}
-          <Button type="button" className="h-11 flex-1 px-4 text-base sm:flex-none" disabled={!canFinish || finishing} onClick={onFinish} aria-describedby={!canFinish ? "sign-left" : undefined}>
+          <Button type="button" className="h-11 flex-1 px-4 text-base sm:flex-none" disabled={!canFinish || blocked || finishing} onClick={onFinish} aria-describedby={!canFinish ? "sign-left" : blocked ? "sign-blocked" : undefined}>
             {finishing ? <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden /> : null}
             {finishing ? t("fill.finishing") : t("fill.finish")}
           </Button>

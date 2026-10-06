@@ -29,6 +29,30 @@ describe("eventSentence", () => {
     for (const t of HIDDEN_EVENTS) expect(eventSentence(t, "en", names)).toBeNull();
   });
 
+  it("lists an upload by the file's name and the start of its fingerprint, in every language", () => {
+    const detail = { field: "ssm", name: "Company Extract.pdf", size: 1234, hash: "0123456789abcdef" };
+    expect(eventSentence("uploaded", "en", names, { detail })).toBe("Ali bin Ahmad uploaded Company Extract.pdf (fingerprint 0123456789abcdef)");
+    expect(eventSentence("uploaded", "ms", names, { detail })).toBe("Ali bin Ahmad memuat naik Company Extract.pdf (cap jari 0123456789abcdef)");
+    expect(eventSentence("uploaded", "zh", names, { detail })).toContain("Company Extract.pdf");
+    expect(eventSentence("uploaded", "ko", names, { detail })).toContain("0123456789abcdef");
+    expect(eventSentence("upload_removed", "en", names, { detail })).toBe("Ali bin Ahmad removed the upload Company Extract.pdf");
+    // a name with a line break stays on one line
+    expect(eventSentence("uploaded", "en", names, { detail: { ...detail, name: "a\nb.pdf" } })).not.toContain("\n");
+  });
+
+  it("words an extended expiry with the new date in the workspace's time zone, or plainly without one", () => {
+    const detail = { old: "2026-10-20T08:00:00.000Z", new: "2026-10-27T20:00:00.000Z" };
+    expect(eventSentence("expiry_extended", "en", names, { detail, timeZone: "Asia/Kuala_Lumpur" })).toBe("Gokula extended the expiry date to 28 Oct 2026");
+    expect(eventSentence("expiry_extended", "en", names)).toBe("Gokula extended the expiry date");
+    expect(eventSentence("expiry_extended", "ms", names, { detail })).toContain("Gokula melanjutkan tarikh tamat tempoh kepada");
+  });
+
+  it("keeps progress, saves and the contact being updated off the certificate", () => {
+    for (const type of ["saved", "part_completed", "part_reopened", "writeback"]) {
+      for (const l of SIGN_LOCALES) expect(eventSentence(type, l, names, { detail: { field: "company", old: "Secret", new: "Other" } }), `${l}.${type}`).toBeNull();
+    }
+  });
+
   it("has a sentence in every language for every event a certificate can show", () => {
     for (const type of EVENT_TYPES) {
       if (HIDDEN_EVENTS.has(type)) continue;

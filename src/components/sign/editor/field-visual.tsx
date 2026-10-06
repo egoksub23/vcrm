@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ImageUp, TriangleAlert } from "lucide-react";
+import { Check, ImageUp, Link2, TriangleAlert } from "lucide-react";
 
 import type { Sample } from "@/lib/sign/client/editor-preview";
 import type { PlacedField } from "@/lib/sign/pdf/types";
@@ -26,15 +26,28 @@ export interface FieldVisualProps {
   /** In preview, what the field would show. Null in the editor. */
   sample: Sample | null;
   hasIssue: boolean;
+  /** Forms: the label of the data field this placement prints; the box then shows it as a badge. */
+  dataLabel?: string;
 }
 
 /** The inside of a field box: the editor's icon and label, or the preview's sample value. */
-export function FieldVisual({ field, caption, roleLabel, widthPx, heightPx, pxPerPt, sample, hasIssue }: FieldVisualProps) {
+export function FieldVisual({ field, caption, roleLabel, widthPx, heightPx, pxPerPt, sample, hasIssue, dataLabel }: FieldVisualProps) {
   const align = field.align ?? "left";
   if (sample) return <PreviewContent field={field} sample={sample} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} align={align} />;
 
   const Icon = FIELD_ICONS[field.type];
   const iconOnly = widthPx < 54 || heightPx < 16;
+  if (dataLabel !== undefined) {
+    return (
+      <div className={cn("flex h-full w-full min-w-0 items-center overflow-hidden px-0.5", iconOnly && "justify-center")} aria-hidden>
+        {hasIssue ? <TriangleAlert className="mr-0.5 size-3 shrink-0 text-destructive" /> : null}
+        <span data-data-badge className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-[3px] bg-[var(--rc-solid)] px-1 py-0.5 text-[10px] leading-none font-medium text-white">
+          <Link2 className="size-3 shrink-0" />
+          {iconOnly ? null : <span className="truncate">{dataLabel}</span>}
+        </span>
+      </div>
+    );
+  }
   const showRole = !iconOnly && heightPx >= 34;
   return (
     <div className="flex h-full w-full min-w-0 flex-col justify-center overflow-hidden px-1 leading-tight" aria-hidden>

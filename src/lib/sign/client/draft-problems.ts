@@ -4,6 +4,8 @@
 // refused for, and what the server last said. Pure and tested.
 // ============================================================
 
+import { formSendProblems } from "../forms/validate";
+import type { FormDefinition } from "../forms/types";
 import { sendProblems } from "../rules";
 import type { SignRole } from "../types";
 import type { PlacedField } from "../pdf/types";
@@ -17,6 +19,8 @@ export interface DraftFacts {
   roles: readonly SignRole[];
   pageCount: number;
   hasBaseFile: boolean;
+  /** Forms: the document's form. A part whose role has nobody on the list stops it being sent. */
+  form?: FormDefinition | null;
 }
 
 /** The problems with a draft, each once. Without any roles the only news is that fields (which make the roles) are still to place. */
@@ -33,6 +37,16 @@ export function draftProblems(args: { facts: DraftFacts; rows: readonly SignerRo
     pageCount: facts.pageCount,
     hasBaseFile: facts.hasBaseFile,
   });
+  if (facts.form) {
+    // One problem for each role that has parts and nobody (the server says it once per part: the same problem, shown once).
+    const already = new Set(found.filter((i) => i.code === "role_without_person").map((i) => i.role));
+    for (const p of formSendProblems(facts.form, toDrafts(rows, facts.roles))) {
+      if (!already.has(p.role)) {
+        found.push({ code: p.code, role: p.role });
+        already.add(p.role);
+      }
+    }
+  }
   const flags = optionsFlags(options, now);
   if (flags.title) found.push({ code: "title_required" });
   if (flags.message) found.push({ code: "message_long" });

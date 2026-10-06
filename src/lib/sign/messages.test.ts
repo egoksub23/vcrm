@@ -88,6 +88,30 @@ describe("the other messages", () => {
     expect(m.text).toContain(base.link);
   });
 
+  it("names the parts still to complete in a form reminder, in the right number and language", () => {
+    const one = reminderEmail({ ...base, locale: "en", partsLeft: ["Company details"] });
+    expect(one.text).toContain("You still have 1 part to complete: Company details.");
+    expect(one.html).toContain("You still have 1 part to complete: Company details.");
+    const many = reminderEmail({ ...base, locale: "en", partsLeft: ["Company details", "Tax", "Bank"] });
+    expect(many.text).toContain("You still have 3 parts to complete: Company details, Tax, Bank.");
+    expect(reminderEmail({ ...base, locale: "ms", partsLeft: ["A", "B"] }).text).toContain("Anda masih ada 2 bahagian untuk dilengkapkan: A, B.");
+    expect(reminderEmail({ ...base, locale: "ms", partsLeft: ["A"] }).text).toContain("Anda masih ada 1 bahagian untuk dilengkapkan: A.");
+    expect(reminderEmail({ ...base, locale: "zh", partsLeft: ["甲", "乙"] }).text).toContain("您还有 2 个部分需要填写：甲、乙。");
+    expect(reminderEmail({ ...base, locale: "ko", partsLeft: ["가", "나"] }).text).toContain("작성해야 할 부분이 2개 남아 있습니다: 가, 나");
+    expect(reminderEmail({ ...base, locale: "ko", partsLeft: ["가"] }).text).toContain("작성해야 할 부분이 1개 남아 있습니다: 가");
+  });
+
+  it("says nothing about parts when there are none left or the document has no form, and escapes titles", () => {
+    for (const partsLeft of [undefined, [], ["  "]]) {
+      const m = reminderEmail({ ...base, locale: "en", partsLeft });
+      expect(m.text).not.toContain("part");
+      expect(m.text).toBe(reminderEmail({ ...base, locale: "en" }).text);
+    }
+    const m = reminderEmail({ ...base, locale: "en", partsLeft: ["<b>Tax</b>"] });
+    expect(m.html).not.toContain("<b>");
+    expect(m.html).toContain("&lt;b&gt;Tax&lt;/b&gt;");
+  });
+
   it("sends a code, large, with its lifetime", () => {
     const m = codeEmail({ locale: "en", workspace: "Vircle", title: "Doc", code: "042917" });
     expect(m.text).toContain("042917");

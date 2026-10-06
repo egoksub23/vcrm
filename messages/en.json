@@ -8292,6 +8292,34 @@
   },
   "Sign": {
     "admin": {
+      "addons": {
+        "merchant": {
+          "about": "A pack for signing merchant agreements: the category Merchant agreements and the Merchant Application template, which merchants fill in parts and sign, in English and Bahasa Melayu. Add your own fees and terms before you use it.",
+          "name": "Merchant Registration",
+          "description": "A pack for signing merchant agreements: a category for them now, and later the Merchant Application template with its form."
+        },
+        "intro": "Add-ons are ready-made packs for a business process. Installing one adds what it contains as drafts for you to review. It never changes a template you have edited, and you can install it again safely. Only the platform operator can make an add-on available.",
+        "loading": "Loading add-ons…",
+        "retry": "Try again",
+        "none": "No add-ons are available.",
+        "installedVersion": "Installed v{version}",
+        "notInstalled": "Not installed",
+        "unavailableBadge": "Not available",
+        "updateAvailable": "Update to v{version} available",
+        "adds": {
+          "category": "Adds the category {name}.",
+          "templates": "{count, plural, one {Adds # template as a draft.} other {Adds # templates as drafts.}}",
+          "templatesLater": "Templates are added in a later update."
+        },
+        "install": "Install",
+        "installAgain": "Install again",
+        "installAgainHint": "Adds anything that is missing and changes nothing you edited.",
+        "needsOperator": "Your platform operator needs to switch this add-on on for your workspace before you can install it.",
+        "installedToast": "{name} installed.",
+        "repeatedToast": "{name} checked. Nothing you edited was changed.",
+        "templatesAdded": "{count, plural, one {# template added as a draft.} other {# templates added as drafts.}}",
+        "footnote": "Installing adds drafts for you to review and never changes templates you have edited. Updating an installed add-on will come in a later version."
+      },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
       "description": "Defaults, signing wording, categories, add-ons and the sealing certificate for electronic signing.",
@@ -8423,33 +8451,6 @@
           "reminders_too_many": "Use at most five reminders.",
           "retention_invalid": "Enter a whole number of years from 1 to 50, or leave it empty."
         }
-      },
-      "addons": {
-        "intro": "Add-ons are ready-made packs for a business process. Installing one adds what it contains as drafts for you to review. It never changes a template you have edited, and you can install it again safely. Only the platform operator can make an add-on available.",
-        "loading": "Loading add-ons…",
-        "retry": "Try again",
-        "none": "No add-ons are available.",
-        "merchant": {
-          "name": "Merchant Registration",
-          "description": "A pack for signing merchant agreements: a category for them now, and later the Merchant Application template with its form."
-        },
-        "installedVersion": "Installed v{version}",
-        "notInstalled": "Not installed",
-        "unavailableBadge": "Not available",
-        "updateAvailable": "Update to v{version} available",
-        "adds": {
-          "category": "Adds the category {name}.",
-          "templates": "{count, plural, one {Adds # template as a draft.} other {Adds # templates as drafts.}}",
-          "templatesLater": "Templates are added in a later update."
-        },
-        "install": "Install",
-        "installAgain": "Install again",
-        "installAgainHint": "Adds anything that is missing and changes nothing you edited.",
-        "needsOperator": "Your platform operator needs to switch this add-on on for your workspace before you can install it.",
-        "installedToast": "{name} installed.",
-        "repeatedToast": "{name} checked. Nothing you edited was changed.",
-        "templatesAdded": "{count, plural, one {# template added as a draft.} other {# templates added as drafts.}}",
-        "footnote": "Installing adds drafts for you to review and never changes templates you have edited. Updating an installed add-on will come in a later version."
       },
       "certificate": {
         "intro": "Every completed document is sealed with this certificate. The seal shows whether the document was changed after it was signed.",
@@ -9119,6 +9120,615 @@
         "used": "{count, plural, one {used in # field} other {used in # fields}}"
       }
     },
+    "formBuilder": {
+      "lang": {
+        "label": "Language of the texts",
+        "short": {
+          "en": "EN",
+          "ms": "BM",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "long": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "简体中文",
+          "ko": "한국어"
+        },
+        "coverage": "{language}: {done} of {total} texts translated",
+        "fallback": "Empty: the signer sees the English text.",
+        "englishRequired": "The English text is required."
+      },
+      "tabs": {
+        "label": "Views of this template",
+        "layout": "Placement editor",
+        "form": "Form"
+      },
+      "leave": {
+        "title": "Leave without saving?",
+        "body": "You have changes that are not saved. If you leave now they are lost.",
+        "stay": "Stay here",
+        "leave": "Leave"
+      },
+      "screen": {
+        "loading": "Loading the form...",
+        "retry": "Try again",
+        "back": "Templates",
+        "undo": "Undo",
+        "redo": "Redo",
+        "preview": "Preview as signer",
+        "save": "Save",
+        "saving": "Saving...",
+        "savedVersion": "Saved as version {n}.",
+        "savedMerged": "Saved as version {n}, on top of a newer version saved elsewhere.",
+        "savedWithWarnings": "Saved as version {n}, with {count, plural, one {# warning} other {# warnings}}.",
+        "readOnly": "You can look at this form but not change it.",
+        "unsaved": "Unsaved changes",
+        "allSaved": "All changes saved (version {n})",
+        "problems": "{count, plural, one {# problem to fix} other {# problems to fix}}",
+        "warnings": "{count, plural, one {# thing to check} other {# things to check}}",
+        "overlayHint": "This template has no form yet: signers fill in boxes placed on the pages. Add a part to turn it into a form template, where signers answer questions in parts and the answers are printed on the pages.",
+        "panes": "Parts, fields and properties",
+        "pane": {
+          "parts": "Parts",
+          "fields": "Fields",
+          "right": "Details"
+        },
+        "rightTabs": "Properties and problems",
+        "tab": {
+          "props": "Properties",
+          "issues": "Problems"
+        },
+        "noParts": "A form is made of parts, and each part is a list of questions (data fields) for one role.",
+        "needRoles": "Roles are made in the placement editor. Add at least one role there first.",
+        "openEditorRoles": "Open the placement editor"
+      },
+      "seeds": {
+        "newPart": "New part",
+        "newField": "New field",
+        "option": "Option {n}",
+        "acknowledgeText": "I have read and agree.",
+        "copySuffix": " (copy)"
+      },
+      "parts": {
+        "title": "Parts",
+        "empty": "No parts yet.",
+        "unnamed": "Untitled part",
+        "hasIssue": "This part has a problem",
+        "noRole": "No role",
+        "fieldCount": "{count, plural, one {# field} other {# fields}}",
+        "conditional": "shown by a rule",
+        "up": "Move {name} up",
+        "down": "Move {name} down",
+        "delete": "Delete {name}",
+        "add": "Add part",
+        "needRole": "Add a role in the placement editor first.",
+        "max": "A form can have at most {count} parts."
+      },
+      "partSettings": {
+        "title": "Part title",
+        "description": "Part description (optional)",
+        "descriptionHint": "Shown under the title when the signer opens the part.",
+        "role": "Completed by",
+        "roleSigner": "A signer: this person also signs.",
+        "roleFiller": "A filler: this person only fills in their part and never signs.",
+        "roleMissing": "This role no longer exists. Choose another.",
+        "kindSigner": "signer",
+        "kindFiller": "filler",
+        "ifTitle": "Show this part only if",
+        "delete": "Delete {name} and its fields",
+        "show": "Part settings",
+        "hide": "Hide settings"
+      },
+      "fields": {
+        "title": "Data fields",
+        "empty": "This part has no fields yet. Add one below.",
+        "hasIssue": "This field has a problem",
+        "required": "Required",
+        "requiredSometimes": "Required in some cases",
+        "optional": "Optional",
+        "showIf": "Shown if {rule}",
+        "places": "{count, plural, one {Printed in # place} other {Printed in # places}}",
+        "notPrinted": "Not printed on the pages",
+        "fillsContact": "Fills a contact field",
+        "up": "Move {name} up",
+        "down": "Move {name} down",
+        "duplicate": "Duplicate {name}",
+        "delete": "Delete {name}",
+        "add": "Add data field",
+        "max": "A form can have at most {count} data fields.",
+        "pickType": "Type of the new field"
+      },
+      "types": {
+        "text": "Short text",
+        "multiline": "Long text",
+        "number": "Number",
+        "email": "Email address",
+        "phone": "Phone number",
+        "choice": "Choice (one)",
+        "multichoice": "Choice (several)",
+        "yesno": "Yes or no",
+        "date": "Date",
+        "list": "List of entries",
+        "file": "File upload",
+        "image": "Picture",
+        "acknowledge": "Read and accept"
+      },
+      "typeHints": {
+        "text": "One line, such as a company name",
+        "multiline": "Several lines, such as an address",
+        "number": "A number, with limits if you want",
+        "email": "An email address, checked for its shape",
+        "phone": "A phone number; Malaysian numbers work with or without +60",
+        "choice": "Pick one from a list",
+        "multichoice": "Pick any number from a list",
+        "yesno": "A yes or no answer",
+        "date": "A calendar date",
+        "list": "One or more short entries, such as industry codes",
+        "file": "One or more files, such as a PDF or a photo",
+        "image": "A picture the signer draws or uploads, such as a stamp",
+        "acknowledge": "A text the signer must read and accept"
+      },
+      "props": {
+        "unnamed": "Untitled field",
+        "type": "Type",
+        "part": "Part",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "none": "Choose a field to edit it, or add one."
+      },
+      "texts": {
+        "title": "Texts",
+        "hintOther": "Texts you leave empty here are shown in English.",
+        "label": "Label",
+        "help": "Help text (optional)",
+        "helpHint": "A short line under the question.",
+        "placeholder": "Example shown in the box (optional)",
+        "acknowledge": "Text to read and accept",
+        "acknowledgeHint": "The signer reads this and ticks a box to accept."
+      },
+      "key": {
+        "title": "Key",
+        "label": "Key (used to store the answer)",
+        "hint": "Letters, digits and underscores, starting with a letter. Answers are kept under this key.",
+        "follows": "Made from the English label. It changes with the label until you edit it here.",
+        "locked": "Documents have been made from this template, so this key can no longer change.",
+        "bad": "Use letters, digits and underscores, starting with a letter (up to 40).",
+        "taken": "Another field or box already uses this key."
+      },
+      "type": {
+        "title": "{type} settings",
+        "format": "What the text may look like",
+        "formats": {
+          "any": "Anything",
+          "digits": "Digits only",
+          "letters": "Letters only",
+          "alnum": "Letters and digits",
+          "upper_alnum": "Capital letters and digits",
+          "postcode_my": "Malaysian postcode (5 digits)"
+        },
+        "minLength": "Shortest (characters)",
+        "maxLength": "Longest (characters)",
+        "min": "Smallest value",
+        "max": "Largest value",
+        "decimals": "Decimal places",
+        "decimalsAny": "Up to 6",
+        "emailHint": "The signer types an email address. It is checked for its shape.",
+        "phoneHint": "Malaysian numbers are accepted with a leading 0, 60 or +60 and stored as +60.",
+        "dateHint": "The signer picks a calendar date.",
+        "yesnoHint": "The signer answers Yes or No.",
+        "imageHint": "The signer draws or uploads a picture, such as a company stamp.",
+        "acknowledgeHint": "The signer must tick to accept the text. This field is always required.",
+        "minItems": "Fewest entries",
+        "maxItems": "Most entries",
+        "itemFormat": "What each entry may look like",
+        "itemLength": "Longest entry (characters)",
+        "itemLengthHint": "For example 5 for five-digit industry codes.",
+        "accept": "Accepted files",
+        "acceptNone": "Choose at least one kind of file.",
+        "acceptHint": "The file is checked by its content, not only by its name.",
+        "kinds": {
+          "pdf": "PDF",
+          "jpg": "JPG photo",
+          "png": "PNG picture"
+        },
+        "maxMb": "Largest size (MB)",
+        "maxFiles": "Most files",
+        "minFiles": "Fewest files",
+        "fileLimits": "A file can be at most {mb} MB, and 50 MB in all for one document."
+      },
+      "options": {
+        "title": "Options ({count})",
+        "none": "Add at least one option.",
+        "label": "Option {n} label ({language})",
+        "labelPlaceholder": "English label",
+        "up": "Move option {n} up",
+        "down": "Move option {n} down",
+        "remove": "Remove option {n}",
+        "value": "Stored value",
+        "valueLocked": "This value can no longer change: documents have been made from this template.",
+        "valueDuplicate": "Two options have the same stored value.",
+        "valueBad": "Use letters, digits, underscore, dot or dash.",
+        "addLabel": "New option (English)",
+        "addPlaceholder": "New option (English). Paste a list to add several, one per line.",
+        "add": "Add",
+        "addHint": "The stored value is made from the English label. Press Enter to add.",
+        "max": "At most {count} options."
+      },
+      "required": {
+        "title": "Required",
+        "label": "The signer must answer this",
+        "acknowledge": "A text to accept is always required.",
+        "ifTitle": "Required only if"
+      },
+      "visible": {
+        "title": "Visibility",
+        "ifTitle": "Show this field only if",
+        "always": "Always shown."
+      },
+      "rule": {
+        "add": "Add a condition",
+        "remove": "Remove rule",
+        "noFields": "Add other fields first: a rule looks at the answers to other fields.",
+        "inWords": "In words",
+        "showWhen": "Shown only when {rule}.",
+        "requiredWhen": "Required only when {rule}.",
+        "partShowWhen": "This part is shown only when {rule}.",
+        "addCondition": "Condition",
+        "addGroup": "Group",
+        "joinLabel": "How the conditions combine",
+        "joinAnd": "All of these are true",
+        "joinOr": "Any of these is true",
+        "removeGroup": "Remove this group",
+        "removeCondition": "Remove this condition",
+        "notHeading": "Not the following",
+        "unwrapNot": "Remove the \"not\"",
+        "limit": "A rule can have up to 20 conditions, in groups up to 4 levels deep.",
+        "fieldLabel": "Field",
+        "operatorLabel": "Comparison",
+        "valueLabel": "Value",
+        "valuesLabel": "Values",
+        "valuePlaceholder": "Value",
+        "pickValue": "Choose a value",
+        "staleValue": "{value} (not an option any more)",
+        "missingField": "{field} (missing)",
+        "noOptions": "This field has no options yet.",
+        "completeThis": "Complete this condition.",
+        "fieldGone": "This field does not exist any more, or is the field the rule belongs to. Choose another.",
+        "and": "and",
+        "or": "or",
+        "not": "not ({rule})",
+        "ops": {
+          "eq": "is",
+          "ne": "is not",
+          "in": "is one of",
+          "empty": "is empty",
+          "notEmpty": "is not empty",
+          "eq_many": "includes",
+          "ne_many": "does not include",
+          "in_many": "includes any of",
+          "empty_file": "has no file",
+          "notEmpty_file": "has a file"
+        },
+        "leaf": {
+          "eq": "{field} is {value}",
+          "ne": "{field} is not {value}",
+          "in": "{field} is {value}",
+          "empty": "{field} is empty",
+          "notEmpty": "{field} is not empty",
+          "eq_many": "{field} includes {value}",
+          "ne_many": "{field} does not include {value}",
+          "in_many": "{field} includes {value}",
+          "empty_file": "{field} has no file",
+          "notEmpty_file": "{field} has a file",
+          "unknown": "a field that does not exist any more"
+        }
+      },
+      "contact": {
+        "title": "Fills a contact",
+        "hint": "When the signer signs, this answer can be written to their contact.",
+        "field": "Contact field",
+        "none": "Does not fill a contact field",
+        "builtIn": "Contact",
+        "custom": "Your contact fields",
+        "unknown": "{name} (no longer a contact field)",
+        "base": {
+          "name": "Name",
+          "email": "Email",
+          "company": "Company"
+        },
+        "writeBack": "When the contact already has a value",
+        "mode": {
+          "always": "Replace it",
+          "if_empty": "Only fill it when empty"
+        },
+        "modeHint": {
+          "always": "The signer saw and confirmed this answer, so it is the newest.",
+          "if_empty": "Keeps what the contact already has."
+        },
+        "noCustom": "Your own contact fields appear here once you have made some in Contacts."
+      },
+      "value": {
+        "title": "Starting value and lock",
+        "default": "Starting value",
+        "defaultHint": "Shown in the box when the signer opens the part. They can change it.",
+        "noDefault": "None",
+        "staleDefault": "{value} (not an option any more)",
+        "locked": "Locked: set by you, not editable by the signer",
+        "lockedHint": "For a value you fill in when sending, such as a reference number."
+      },
+      "printed": {
+        "title": "Printed on the form",
+        "file": "Uploaded files are kept with the document and are not printed on the pages.",
+        "none": "Not printed on the pages yet.",
+        "summary": "{pageCount, plural, one {Page {pages}} other {Pages {pages}}}, {count, plural, one {# place} other {# places}}",
+        "places": "Places",
+        "openPlace": "Page {page}",
+        "open": "Open in the placement editor",
+        "openToPlace": "Place it in the placement editor",
+        "placeHint": "In the placement editor, open the Data tab and press Place next to this field."
+      },
+      "issues": {
+        "title": "Problems",
+        "none": "No problems found.",
+        "warningsTitle": "Things to check",
+        "unknown": "Something in the form is not valid ({code}).",
+        "form_shape": "The form is not in a shape this version understands.",
+        "too_many_parts": "A form can have at most {detail} parts.",
+        "too_many_data_fields": "A form can have at most {detail} data fields.",
+        "bad_part_key": "A part has a key that is not allowed.",
+        "duplicate_part_key": "Two parts share the same key.",
+        "bad_part_title": "The part {part} needs a title in English (up to 120 characters).",
+        "bad_part_description": "The description of the part {part} is too long, or has no English text.",
+        "part_unknown_role": "The part {part} belongs to a role that does not exist. Choose another role.",
+        "bad_data_key": "The key of {field} is not allowed. Use letters, digits and underscores, starting with a letter.",
+        "duplicate_data_key": "Two data fields share the key of {field}.",
+        "data_key_is_placement_key": "The key of {field} is already used by a box on the pages. Change the key.",
+        "bad_data_type": "{field} has a type that is not known.",
+        "data_unknown_part": "{field} belongs to a part that does not exist. Move it to another part.",
+        "bad_data_label": "{field} needs a label in English (up to 200 characters).",
+        "bad_data_help": "The help text of {field} is too long, or has no English text.",
+        "bad_data_placeholder": "The example text of {field} is too long, or has no English text.",
+        "bad_options": "{field} needs at least one option, each with an English label and its own stored value.",
+        "bad_format": "{field} has a text shape that is not known.",
+        "bad_limit": "{field} has a limit that is not allowed: whole numbers, with the smallest not above the largest.",
+        "bad_file_types": "{field} must accept at least one kind of file.",
+        "bad_file_size": "The largest size of {field} must be above 0 and at most {detail} MB.",
+        "bad_acknowledge_text": "{field} needs the text to read and accept, in English.",
+        "bad_contact_field": "{field} cannot fill that contact field. Choose another, or none.",
+        "rule_shape": "The rule on {subject} is not complete.",
+        "rule_too_deep": "The rule on {subject} has too many levels of groups.",
+        "rule_unknown_field": "The rule on {subject} looks at a field that does not exist.",
+        "rule_value": "The rule on {subject} compares with a value that is empty or too long.",
+        "rule_too_big": "The rule on {subject} has too many conditions.",
+        "rule_refers_to_itself": "The rule that shows {field} looks at {field} itself.",
+        "rule_cycle": "The rules of {field} depend on each other in a circle. Remove one of them.",
+        "placement_unknown_data": "A box on page {page} prints a data field that does not exist. Open the placement editor and choose another, or remove the box.",
+        "placement_type_mismatch": "The box on page {page} cannot print {field} as this kind of box. Open the placement editor and change it.",
+        "placement_bound_and_fixed": "The box on page {page} both prints an answer and is fixed text. Open the placement editor and change it.",
+        "part_without_person": "The part {part} has nobody to complete it.",
+        "removeBox": "Remove the box"
+      },
+      "warnings": {
+        "unknown": "Something in the form is worth checking.",
+        "part_empty": "The part {part} has no fields yet.",
+        "rule_value_not_option": "The rule on {subject} compares with {detail}, which is not an option of that field any more.",
+        "rule_blank_value": "A condition in the rule on {subject} has no value yet.",
+        "default_not_option": "The starting value of {field} is not one of its options.",
+        "placement_option_missing": "The tick box on page {page} is tied to an option of {field} that no longer exists.",
+        "role_signer_no_signature": "{role} signs, but the template has no signature or initials box for {role}.",
+        "static_text_does_not_fit": "The fixed text in the box on page {page} does not fit and would be cut. Open the placement editor and make the box bigger."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "signed_out": "You have been signed out. Sign in again to continue.",
+        "forbidden": "You do not have permission to change templates.",
+        "rate_limited": "Too many requests. Wait a moment and try again.",
+        "invalid_layout": "The server found problems in the form or the layout. See the Problems tab.",
+        "bad_layout": "The server found problems in the form or the layout. See the Problems tab.",
+        "bad_form": "The server found problems in the form. See the Problems tab.",
+        "template_not_found": "That template was not found.",
+        "template_has_no_version": "This template has no file yet, so there is no form to build.",
+        "changed_elsewhere": "A newer version of this template was saved somewhere else, so your changes were not saved. Reload the page to see it. What you typed stays on this page until you leave.",
+        "fix_problems": "{count, plural, one {Fix # problem} other {Fix # problems}} (see the Problems tab) before saving.",
+        "request_failed": "Something went wrong. Please try again."
+      },
+      "removed": {
+        "field": "Field deleted.",
+        "part": "{count, plural, one {Part deleted with # field.} other {Part deleted with # fields.}}",
+        "places": "{count, plural, one {# box on the pages that printed it was removed.} other {# boxes on the pages that printed it were removed.}}",
+        "rules": "{count, plural, one {# rule that used it was changed.} other {# rules that used it were changed.}}",
+        "typeBoxes": "{count, plural, one {# box on the pages could not print the new type and was removed.} other {# boxes on the pages could not print the new type and were removed.}}"
+      },
+      "confirm": {
+        "partTitle": "Delete the part {name}?",
+        "fieldTitle": "Delete the field {name}?",
+        "body": "This also changes what depends on it. You can undo it until you save.",
+        "fields": "{count, plural, one {# field in the part is deleted.} other {# fields in the part are deleted.}}",
+        "places": "{count, plural, one {# box on the pages that prints it is removed.} other {# boxes on the pages that print it are removed.}}",
+        "rules": "{count, plural, one {# rule that looks at it loses that condition.} other {# rules that look at it lose that condition.}}",
+        "undo": "Use Undo at the top to bring it back.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "preview": {
+        "title": "Preview as signer",
+        "intro": "This is the form exactly as the signer sees it, with test answers. Nothing is saved or sent.",
+        "noParts": "No role holds a part yet, so there is nothing to preview.",
+        "role": "Preview as",
+        "language": "Language",
+        "loading": "Loading...",
+        "progress": "{percent}% of the required answers given",
+        "reset": "Clear answers",
+        "testNote": "Answers here are test answers and are not kept.",
+        "refused": "The answer to {field} would be refused ({code}).",
+        "reviewReached": "The signer would now go on to Review and sign.",
+        "printedTitle": "What would print on the pages",
+        "printedHint": "Updates as you answer.",
+        "printedEmpty": "Nothing prints yet. Answer some questions.",
+        "noPlaces": "No box on the pages prints an answer yet. Use the Data tab of the placement editor to place them.",
+        "page": "Page {page}",
+        "ticked": "Ticked",
+        "picture": "(picture)"
+      },
+      "editor": {
+        "panelData": "Data",
+        "dataEmpty": "The form has no data fields yet. Add them in the Form view.",
+        "dataIntro": "Place prints a field's answer on the page you are looking at.",
+        "notPrintable": "not printed on pages",
+        "prints": "{count, plural, one {printed in # place} other {printed in # places}}",
+        "printsNone": "not printed yet",
+        "show": "Show where {name} is printed",
+        "placeFor": "Place {name} on the page",
+        "place": "Place",
+        "placeFailed": "The box could not be placed. The template may already have the most boxes allowed.",
+        "fillWith": "Fill with answer",
+        "fillNone": "Nothing (an ordinary field)",
+        "fillOption": "Ticked when the answer is",
+        "fillHint": "Print the answer to a question of the form here instead of asking the signer in the page.",
+        "boundNote": "This box prints the answer. It belongs to the sender and cannot be answered or made required.",
+        "fillMissing": "{key} (no longer in the form)",
+        "holds": "{count, plural, one {Holds the part: {parts}} other {Holds the parts: {parts}}}",
+        "holdsNone": "Holds no parts of the form.",
+        "cannotDeleteRole": "{count, plural, one {This role holds a part of the form. Give it to another role in the Form view before deleting it.} other {This role holds # parts of the form. Give them to another role in the Form view before deleting it.}}",
+        "signerNoSignature": "This role signs but has no signature or initials box.",
+        "sampleItem": "Entry {n}"
+      }
+    },
+    "progress": {
+      "tabs": {
+        "progress": "Progress"
+      },
+      "loading": "Loading progress",
+      "failed": "Could not load the progress.",
+      "title": "Application progress",
+      "partsOf": "{done} of {total, plural, one {# part} other {# parts}} done",
+      "percent": "{percent}% of the required answers given",
+      "barLabel": "Progress of {name}",
+      "overallLabel": "Overall progress",
+      "lastActivity": "Last activity {when}",
+      "lastActivityFrom": "Last activity {when} from {device}",
+      "noActivity": "No activity yet",
+      "device": {
+        "phone": "a phone",
+        "tablet": "a tablet",
+        "computer": "a computer"
+      },
+      "nobodyAssigned": "Nobody assigned",
+      "partsList": "Parts for {name}",
+      "rolesList": "Progress by person",
+      "fillerNote": "This person fills in their parts only. They do not sign.",
+      "state": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "done": "Done"
+      },
+      "count": "{done} of {total}",
+      "savedAt": "Saved {when}",
+      "notSaved": "Nothing saved yet",
+      "remind": {
+        "button": "Remind about unfinished parts",
+        "held": "A reminder can be sent again after {when}.",
+        "namesParts": "The message names the {count, plural, one {part} other {parts}} still open:"
+      },
+      "expiry": {
+        "button": "Extend expiry",
+        "title": "Extend the expiry",
+        "current": "It now expires on {date}.",
+        "noCurrent": "This document has no expiry date yet.",
+        "newDate": "New expiry date",
+        "note": "Choose a day after the current expiry. People can sign until the end of that day.",
+        "problems": {
+          "required": "Choose a date.",
+          "past": "Choose a day in the future.",
+          "not_later": "Choose a day after the current expiry."
+        },
+        "cancel": "Cancel",
+        "action": "Extend expiry",
+        "done": "The document now expires on {date}.",
+        "expires": "Expires {date}"
+      },
+      "answers": {
+        "title": "Answers so far",
+        "note": "Read only. These are the answers as the person gave them. Answers that a rule hides are not shown.",
+        "groupSummary": "{role} · {count, plural, one {# answer} other {# answers}}",
+        "none": "No answers in this part yet.",
+        "notAnswered": "Not answered yet",
+        "accepted": "Accepted",
+        "notAccepted": "Not accepted",
+        "pictureGiven": "Picture provided",
+        "download": "Download",
+        "downloadNamed": "Download {name}",
+        "fromContact": "From the contact, not yet confirmed",
+        "bySender": "Set by the sender"
+      },
+      "issues": {
+        "title": "{count, plural, one {# thing needs a look} other {# things need a look}}",
+        "doesNotFit": "The answer to “{field}” is too long for the place where it prints. The signer is asked to shorten it before signing.",
+        "invalid": "The answer to “{field}” no longer fits the rules of the form.",
+        "generic": "Something needs a look ({code})."
+      },
+      "writeback": {
+        "note": "The answers updated the contact ({count, plural, one {# field} other {# fields}}), most recently {when}."
+      },
+      "openContact": "Open the contact",
+      "contactFields": {
+        "name": "name",
+        "email": "email",
+        "company": "company"
+      },
+      "events": {
+        "part_completed": "{actor} completed {hasPart, select, yes {the part “{part}”} other {a part of the form}}.",
+        "part_reopened": "{actor} went back to {hasPart, select, yes {the part “{part}”} other {a part of the form}}, which is no longer complete.",
+        "uploaded": "{actor} uploaded {hasFile, select, yes {“{file}”} other {a file}}{hasField, select, yes { for “{field}”} other {}}.",
+        "upload_removed": "{actor} removed {hasFile, select, yes {“{file}”} other {a file}}{hasField, select, yes { from “{field}”} other {}}.",
+        "writeback": "The answers updated the contact{hasFields, select, yes { ({fields})} other {}}.",
+        "expiry_extended": "{sender} extended the expiry{hasDate, select, yes { to {date}} other {}}."
+      },
+      "errors": {
+        "document_not_found": "This document could not be found.",
+        "document_not_open": "The document is no longer open, so this cannot be done.",
+        "expiry_in_the_past": "Choose a day in the future.",
+        "expiry_not_later": "Choose a day after the current expiry.",
+        "bad_expiry": "That date cannot be used. Choose another day.",
+        "file_not_found": "This file could not be found.",
+        "forbidden": "You do not have permission to do this.",
+        "signed_out": "You have been signed out. Sign in again to continue.",
+        "rate_limited": "Too many requests. Wait a moment and try again.",
+        "network": "Could not reach the server. Check your connection and try again.",
+        "database_error": "Something went wrong on our side. Try again in a moment.",
+        "generic": "That did not work. Try again."
+      },
+      "problems": {
+        "part_without_person": "{role} has parts of the form to complete, but nobody is assigned to it."
+      },
+      "formStep": {
+        "title": "The form",
+        "summary": "{parts, plural, one {# part} other {# parts}} with {fields, plural, one {# field} other {# fields}} in all.",
+        "partsList": "Parts of the form",
+        "fieldCount": "{count, plural, one {# field} other {# fields}}",
+        "belongsToTemplate": "This form belongs to the template. It cannot be changed here. To change it, edit the template and send a new document.",
+        "editFields": "Edit fields",
+        "hideEditor": "Close the field editor",
+        "editFieldsNote": "Edit fields only changes where the answers print on the pages, not the form."
+      },
+      "peopleStep": {
+        "title": "Who completes what",
+        "note": "Each part is completed by one role. Add a person for every role below.",
+        "range": "{from} to {to}",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, one {part {parts}} other {parts {parts}}} and signs} partsFill {{role}: {count, plural, one {part {parts}} other {parts {parts}}}, fills in only} signOnly {{role}: signs only} other {{role}: nothing in the form}}",
+        "nobody": "Nobody is assigned to {role} yet."
+      },
+      "reviewStep": {
+        "title": "The form",
+        "summary": "{parts, plural, one {# part} other {# parts}} with {fields, plural, one {# field} other {# fields}} in all.",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, one {part {parts}} other {parts {parts}}} and signs} partsFill {{role}: {count, plural, one {part {parts}} other {parts {parts}}}, fills in only} signOnly {{role}: signs only} other {{role}: nothing in the form}}",
+        "prefillOn": "The form starts with details from the linked contact ({fields}). The signer checks them and can change them.",
+        "noContact": "This form can start with details from a contact ({fields}), but no contact is linked. The signer will fill everything in. You can link a contact in the options step.",
+        "noContactFields": "This form does not use details from a contact."
+      }
+    },
     "send": {
       "shell": {
         "title": "Doc Sign",
@@ -9712,6 +10322,179 @@
         "invalid_answers": "Some answers need a change. They are marked on the page.",
         "body_too_large": "That is too large to send. Use smaller pictures.",
         "session_unavailable": "Signing is not available right now. Please try again later."
+      }
+    },
+    "signerForm": {
+      "overview": {
+        "title": "Your details",
+        "intro": "Fill in the parts in any order. Your answers are saved as you go, so you can leave and come back to this same link.",
+        "parts": "Parts of the form",
+        "partsDone": "{done} of {total, plural, one {# part} other {# parts}} done",
+        "progressLabel": "Your progress",
+        "percent": "{percent}% complete",
+        "counts": "{done} of {total} answered",
+        "continue": "Continue: {part}"
+      },
+      "status": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "done": "Done",
+        "needs_change": "Needs a change",
+        "locked": "Locked",
+        "ready": "Ready"
+      },
+      "final": {
+        "review": "Review and sign",
+        "submit": "Submit your answers",
+        "leftSign": "{count, plural, one {Finish # more part to unlock signing} other {Finish # more parts to unlock signing}}",
+        "leftSubmit": "{count, plural, one {Finish # more part to unlock Submit} other {Finish # more parts to unlock Submit}}",
+        "saving": "Saving your answers. This opens in a moment.",
+        "check": "Some answers still need a look. Open a part that is not done.",
+        "readySign": "Check the answers on the form, then sign.",
+        "readySubmit": "Everything is filled in. Send your answers when you are ready."
+      },
+      "part": {
+        "position": "Part {number} of {total}",
+        "back": "Back to overview",
+        "saveNext": "Save and next part",
+        "saveLast": "Save and go to overview",
+        "left": "{count, plural, one {# required answer left in this part} other {# required answers left in this part}}",
+        "complete": "This part is complete.",
+        "needsChange": "Some answers need a change. They are marked below.",
+        "empty": "There is nothing to fill in here for now.",
+        "confirmTitle": "Please check these answers",
+        "confirmBody": "We filled in some answers from our records. Check each one, change anything that is wrong, then confirm.",
+        "confirm": "Confirm this part"
+      },
+      "field": {
+        "required": "required",
+        "optional": "optional",
+        "choose": "Choose...",
+        "yes": "Yes",
+        "no": "No",
+        "accept": "I have read and accept",
+        "fromRecords": "From our records, please check",
+        "locked": "This was filled in for you. It cannot be changed here.",
+        "pictureAdded": "Picture added",
+        "phoneHint": "Start with 0 or +60, for example 012-345 6789. For a number from another country, start with + and the country code.",
+        "phonePlaceholder": "012-345 6789"
+      },
+      "list": {
+        "add": "Add another",
+        "entryLabel": "{label}, entry {number}",
+        "removeEntry": "Remove entry {number}",
+        "limit": "Up to {max} entries",
+        "itemLength": "Up to {max} characters each"
+      },
+      "format": {
+        "digits": "Digits only",
+        "letters": "Letters only",
+        "alnum": "Letters and numbers only",
+        "upper_alnum": "Capital letters and numbers only",
+        "postcode_my": "5 digits"
+      },
+      "file": {
+        "choose": "Choose a file",
+        "addAnother": "Add another file",
+        "takePhoto": "Take a photo",
+        "remove": "Remove",
+        "removeNamed": "Remove {name}",
+        "uploading": "Uploading {name}...",
+        "hint": "Accepted: {types}. Up to {mb} MB each.",
+        "count": "{count} of up to {max} files added."
+      },
+      "image": {
+        "choose": "Choose a picture",
+        "chooseAnother": "Choose another picture",
+        "remove": "Remove picture",
+        "hint": "Take a photo or choose one from your phone. PNG or JPEG.",
+        "preparing": "Preparing the picture...",
+        "alt": "{label}: the picture you added",
+        "pictureTooBig": "This picture is too large to use. Try a smaller one.",
+        "pictureUnreadable": "We could not read this picture. Try a PNG or JPEG."
+      },
+      "problems": {
+        "bad_text": "This has a character we cannot use. Please remove it.",
+        "text_too_long": "This is too long. Use at most {detail} characters.",
+        "text_too_short": "This is too short. Use at least {detail} characters.",
+        "format_digits": "Use digits only.",
+        "format_letters": "Use letters only.",
+        "format_alnum": "Use letters and numbers only.",
+        "format_upper_alnum": "Use capital letters and numbers only.",
+        "format_postcode_my": "Enter a 5-digit postcode.",
+        "bad_email": "Enter an email address like name@example.com.",
+        "bad_phone": "Enter a phone number, for example 012-345 6789.",
+        "not_a_number": "Enter a number, for example 1250 or 12.50.",
+        "too_many_decimals": "Use at most {detail, plural, one {# decimal place} other {# decimal places}}.",
+        "number_too_small": "This must be {detail} or more.",
+        "number_too_big": "This must be {detail} or less.",
+        "not_a_date": "Choose a real date.",
+        "not_an_option": "Choose one of the options.",
+        "not_yes_no": "Choose yes or no.",
+        "bad_item": "One of the entries cannot be used. Check each one.",
+        "item_too_long": "An entry is too long. Use at most {detail} characters each.",
+        "item_too_short": "An entry is too short. Each needs at least {detail} characters.",
+        "too_many_items": "You can add up to {detail} entries.",
+        "too_few_items": "Add at least {detail} entries.",
+        "duplicate_item": "The same entry is there twice. Remove one.",
+        "bad_image": "We could not use this picture. Try another.",
+        "use_upload": "Add a file with the button above.",
+        "file_type": "This type of file is not accepted. Check the types listed above.",
+        "file_too_large": "This file is too large. The limit is {detail} MB.",
+        "file_empty": "This file is empty. Choose another one.",
+        "document_upload_limit": "This document has reached its limit for uploaded files. Remove a file before adding another.",
+        "too_many_files": "You can add up to {detail} files.",
+        "too_few_files": "Add at least {detail} files.",
+        "upload_failed": "We could not upload this file. Please try again.",
+        "network": "No connection. Check your internet and try again.",
+        "rate_limited": "Too many tries. Please wait a minute and try again.",
+        "not_your_field": "This is not yours to fill in.",
+        "not_shown": "This answer is not needed.",
+        "missing_required": "This is required.",
+        "answer_does_not_fit": "This answer is too long for where it prints. Shorten it.",
+        "generic": "This could not be saved. Please change it and try again."
+      },
+      "save": {
+        "saving": "Saving...",
+        "saved": "Saved",
+        "savedNow": "Saved just now",
+        "savedAgo": "Saved {when}",
+        "offline": "No connection. Your changes are kept.",
+        "error": "Could not save. Your changes are kept."
+      },
+      "review": {
+        "title": "Check your answers",
+        "body": "This is the document as it will be signed, with your answers printed on it. If something is wrong, change an answer.",
+        "change": "Change an answer",
+        "preparing": "Putting your answers on the document...",
+        "preparingShort": "Getting the document ready...",
+        "failed": "We could not put your answers on the document. Check your connection and try again.",
+        "failedShort": "The document is not ready yet.",
+        "retry": "Try again",
+        "fitTitle": "{count, plural, one {# answer is too long to print} other {# answers are too long to print}}",
+        "fitItem": "This answer is too long for where it prints: {label}. Shorten it.",
+        "fixAnswer": "Change this answer",
+        "fixAnswerLabel": "Change this answer: {label}",
+        "blocked": "{count, plural, one {Shorten # answer to finish} other {Shorten # answers to finish}}"
+      },
+      "notice": {
+        "missing_required": "Some required answers are still empty. They are marked below.",
+        "invalid_answers": "Some answers need a change. They are marked below.",
+        "answer_does_not_fit": "Some answers are too long for where they print. They are marked below."
+      },
+      "errors": {
+        "answer_does_not_fit": "An answer is too long for where it prints. Shorten it, then try again.",
+        "form_incomplete": "Some required answers are still empty."
+      },
+      "end": {
+        "filler": {
+          "title": "Your answers are sent",
+          "thanks": "Thank you, {name}.",
+          "next": "You do not need to do anything else."
+        }
+      },
+      "preview": {
+        "note": "This is a preview. Nothing you enter here is saved or sent."
       }
     }
   }

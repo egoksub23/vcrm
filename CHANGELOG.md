@@ -11,6 +11,23 @@ and polish.
 
 ## [Unreleased]
 
+## [0.77.0] — 2026-10-06
+
+**Migration required: 160.** Nothing changes for a workspace that does not use forms. Doc Sign is still off until the operator turns it on.
+
+### Added
+
+- **Doc Sign forms in parts.** A template can carry a form: ordered parts (for example Company and tax, Address and contacts, Bank account, Documents, Commercial terms), each assigned to a role, each a list of fields that are asked once and printed on the PDF in as many places as needed. The signer opens one link, sees their parts with "Not started / In progress / Done" and a percentage, fills them in any order over several sittings (every change is saved on the server, the same link resumes on any device), then reviews the real document with the answers printed on it and signs. Review and sign stays locked until every required answer is given, and the server checks the whole answer set again when the signature arrives.
+  - **Field types**: text, multi-line, number, email, phone (+60 by default), single and multiple choice, yes or no, date, list of entries, file upload (PDF, JPG, PNG, checked by their contents), picture (for a company stamp) and a read-only text to accept. A field can appear, or be required, only when another answer says so (for example tax percentage only when the tax type is SST), and has its own wording in English, Bahasa Melayu, Chinese and Korean.
+  - **Roles**: a part can belong to a filler (who completes it and never signs) or to a signer, so it is known before sending who fills what.
+  - **Contact link**: an answer can fill a contact field when the form is submitted (the contact's own values are offered first, for the signer to check), and each change is recorded.
+  - **Too long to print**: if an answer cannot fit where it is printed, the signer is told which one to shorten before they can sign.
+  - **Builder**: Sign > Templates > a template > Form: parts and fields, rules chosen from lists (never code), validation, wording per language, "Printed on the form" with a jump to the placement, and "Preview as signer".
+  - **Sender**: a Progress tab on each sent document (per part status, the answers so far read-only, files with a download), reminders that name the unfinished parts, and Extend expiry.
+  - Uploaded files are stored with their SHA-256 and listed in the certificate; they are not appended to the sealed PDF.
+- **Merchant Registration add-on** now installs a Merchant Application template (4 pages) and its 6-part form in English and Bahasa Melayu: company and tax (with the e-invoice details), address and contacts, bank account, documents (which depend on the type of business), commercial terms and review and sign, plus the director's countersignature. The commercial terms carry the nine key-term headings with a placeholder line for your agreed wording; the fees are text the sender writes, so different merchant groups are different templates.
+- Migration 160 stores the form on template versions and documents and freezes it when a document is sent.
+
 ## [0.76.0] — 2026-10-06
 
 **Migrations required: 157, 158, 159.** Add one crontab line (see `docs/automations-and-cron.md`): `/api/sign/jobs-cron`, every minute. Optional: the document converter container for Word files (`COMPOSE_PROFILES=sign`, `SIGN_CONVERTER_URL`; see `docs/doc-sign-setup.md`). **Doc Sign is off for every workspace** until the operator turns the `sign` switch on in the Platform console.

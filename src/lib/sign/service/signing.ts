@@ -5,7 +5,9 @@
 // ============================================================
 
 import { consentFor } from "../consent";
-import type { SignerFormView } from "../forms/types";
+import { boundPlacements, checkDataAnswer, fieldVisible, fitProblems, missingFormRequired, unsoundAnswers, type DataAnswerInput, type DataField, type FormDefinition, type FormValue, type SignerFormView } from "../forms";
+import type { RejectedAnswer, SaveAnswersResult } from "../forms/api-types";
+import type { Issue } from "../rules";
 import { checkCode, CODE_SENDS_PER_HOUR, CODE_TTL_MS, generateCode, hashCode, hashToken, isPlausibleToken, type CodeCheck } from "../tokens";
 import { deliverCode, deliverOutcome, deliverInvitation, type Delivery } from "../notify";
 import type { PlacedField } from "../pdf/types";
@@ -15,6 +17,8 @@ import type { Invitation, SignDocumentRow, SignSettingsRow, SignSignerRow } from
 import { docFacts } from "./send";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { formOf, formState, loadAnswerRows, loadFormState, ownDataFields, recordPartChanges, recordSaved, rolePartsOf, roleHasParts, signerFormView, standing, type FormState } from "./form-state";
+import { prefillAnswers, writeBackToContact } from "./writeback";
 
 export interface Lookup {
   signer: SignSignerRow;
@@ -114,12 +118,6 @@ export interface SigningView {
   };
 }
 
-async function loadAnswers(ctx: SignCtx, documentId: string): Promise<{ signer_id: string; field_key: string; value: StoredAnswer | null }[]> {
-  const { data, error } = await ctx.admin.from("sign_answers").select("signer_id, field_key, value").eq("document_id", documentId).eq("account_id", ctx.accountId);
-  if (error) raiseDatabaseError(error, "load answers");
-  return (data ?? []) as { signer_id: string; field_key: string; value: StoredAnswer | null }[];
-}
-
 async function loadAllSigners(ctx: SignCtx, documentId: string): Promise<SignSignerRow[]> {
   const { data, error } = await ctx.admin.from("sign_signers").select("*").eq("document_id", documentId).eq("account_id", ctx.accountId).order("order_no").order("created_at");
   if (error) raiseDatabaseError(error, "load signers");
@@ -161,14 +159,22 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
   };
   if (needsCode || state === "not_invited") return base;
 
-  const [answers, signers] = await Promise.all([loadAnswers(ctx, doc.id), loadAllSigners(ctx, doc.id)]);
+  const form = formOf(doc);
+  const dataKeys = new Set(form ? form.fields.map((f) => f.key) : []);
+  const [rows, signers] = await Promise.all([loadAnswerRows(ctx, doc.id), loadAllSigners(ctx, doc.id)]);
+  // the first time a signer with a form is shown it, their unanswered fields start from the contact and the defaults
+  if (form && roleHasParts(form, signer.role_key) && state === "active" && !signer.viewed_at) {
+    rows.push(...(await prefillAnswers(ctx, doc, signer, form, formState(form, signers, rows))));
+  }
+
   const mine: Record<string, StoredAnswer> = {};
   const others: Record<string, StoredAnswer> = {};
   const signedIds = new Set(signers.filter((s) => s.status === "signed").map((s) => s.id));
-  for (const a of answers) {
-    if (!a.value) continue;
-    if (a.signer_id === signer.id) mine[a.field_key] = a.value;
-    else if (signedIds.has(a.signer_id)) others[a.field_key] = a.value;
+  for (const a of rows) {
+    if (!a.value || dataKeys.has(a.field_key)) continue; // a form's answers go through `form`, never as placed-field answers
+    const value = a.value as StoredAnswer;
+    if (a.signer_id === signer.id) mine[a.field_key] = value;
+    else if (signedIds.has(a.signer_id)) others[a.field_key] = value;
   }
   const answered = new Set(Object.keys(mine));
   base.content = {
@@ -177,7 +183,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
     othersAnswers: others,
     others: signers.filter((s) => s.id !== signer.id).map((s) => ({ name: s.full_name, roleKey: s.role_key, kind: s.kind, status: s.status, orderNo: s.order_no, signedAt: s.signed_at })),
     missing: missingRequired(doc.fields_snapshot, signer.role_key, answered).map((f) => f.key),
-    form: null,
+    form: form && roleHasParts(form, signer.role_key) ? signerFormView(form, signer, formState(form, signers, rows)) : null,
   };
   return base;
 }
@@ -238,8 +244,12 @@ export async function recordConsent(ctx: SignCtx, lookup: Lookup, locale: string
 
 // ---- answers --------------------------------------------------------------------------------------
 
-function assertOpen(lookup: Lookup): void {
+export function assertOpen(lookup: Lookup): void {
   if (pageState(lookup.doc, lookup.signer) !== "active") throw new SignError("signer_not_open", "This document can no longer be completed.", 409);
+}
+
+export function assertConsented(lookup: Lookup): void {
+  if (!lookup.signer.consented_at) throw new SignError("consent_required", "Agree to sign electronically first.", 409);
 }
 
 /** The fields this signer may answer, by key. */
@@ -247,51 +257,118 @@ function answerableFields(doc: SignDocumentRow, signer: SignSignerRow): Map<stri
   return new Map(fieldsForRole(doc.fields_snapshot, signer.role_key).map((f) => [f.key, f]));
 }
 
+/** What a browser may send for one key: a placed field's answer or a form data field's. */
+export type AnyAnswerInput = AnswerInput & DataAnswerInput;
+
+interface PendingData {
+  key: string;
+  field: DataField;
+  value: FormValue | null;
+}
+
 /**
  * Save entered values (autosave). Each is validated for its field; an empty value clears the answer.
- * Returns the keys that were rejected, with the reason, so the screen can mark them.
+ * Keys are the placed fields of the signer's role and, for a document with a form, the data fields of the
+ * parts of their role (checked by the shared module, and only while shown). Returns the keys that were
+ * rejected, with the reason, so the screen can mark them. `confirmParts` re-saves a part's answers that came
+ * from the contact as the signer's own.
  */
-export async function saveAnswers(ctx: SignCtx, lookup: Lookup, input: Record<string, AnswerInput>): Promise<{ saved: string[]; rejected: { field: string; code: string }[] }> {
+export async function saveAnswers(ctx: SignCtx, lookup: Lookup, input: Record<string, AnyAnswerInput>, opts: { confirmParts?: readonly string[] } = {}): Promise<SaveAnswersResult> {
   assertOpen(lookup);
-  if (!lookup.signer.consented_at) throw new SignError("consent_required", "Agree to sign electronically first.", 409);
-  const fields = answerableFields(lookup.doc, lookup.signer);
+  assertConsented(lookup);
+  const { doc, signer } = lookup;
+  const form = formOf(doc);
+  const fields = answerableFields(doc, signer);
+  const own = form ? ownDataFields(form, signer.role_key) : new Map<string, DataField>();
+  const dataKeys = new Set(form ? form.fields.map((f) => f.key) : []);
+  const before = form ? (await loadFormState(ctx, doc, form)).state : null;
+
   const saved: string[] = [];
-  const rejected: { field: string; code: string }[] = [];
+  const rejected: RejectedAnswer[] = [];
   const upserts: Record<string, unknown>[] = [];
   const clears: string[] = [];
+  const pending: PendingData[] = [];
+  const row = (key: string, value: unknown) => ({ account_id: ctx.accountId, document_id: doc.id, signer_id: signer.id, field_key: key, value, source: "signer", saved_at: ctx.now().toISOString() });
+
   for (const [key, raw] of Object.entries(input).slice(0, 400)) {
     const field = fields.get(key);
-    if (!field) {
+    if (field) {
+      const r = checkAnswer(field, raw);
+      if (!r.ok) {
+        rejected.push({ field: key, code: r.code });
+        continue;
+      }
+      if (r.value === null) clears.push(key);
+      else upserts.push(row(key, r.value));
+      saved.push(key);
+      continue;
+    }
+    const data = form && dataKeys.has(key) ? own.get(key) : undefined;
+    if (!data) {
       rejected.push({ field: key, code: "not_your_field" });
       continue;
     }
-    const r = checkAnswer(field, raw);
-    if (!r.ok) {
-      rejected.push({ field: key, code: r.code });
+    if (data.locked) {
+      rejected.push({ field: key, code: "locked" });
       continue;
     }
-    if (r.value === null) clears.push(key);
-    else
-      upserts.push({
-        account_id: ctx.accountId,
-        document_id: lookup.doc.id,
-        signer_id: lookup.signer.id,
-        field_key: key,
-        value: r.value,
-        source: "signer",
-        saved_at: ctx.now().toISOString(),
-      });
-    saved.push(key);
+    const r = checkDataAnswer(data, raw);
+    if (!r.ok) {
+      rejected.push({ field: key, code: r.code, ...(r.detail ? { detail: r.detail } : {}) });
+      continue;
+    }
+    pending.push({ key, field: data, value: r.value });
   }
+
+  // A data field is only answerable while it is shown, judged by the answers as they will be once this batch is saved.
+  if (form && before) {
+    let live = pending;
+    for (;;) {
+      const next: Record<string, FormValue> = { ...before.map };
+      for (const p of live) {
+        if (p.value === null) delete next[p.key];
+        else next[p.key] = p.value;
+      }
+      const hidden = live.filter((p) => p.value !== null && !fieldVisible(form, p.field, next));
+      if (hidden.length === 0) break;
+      for (const p of hidden) rejected.push({ field: p.key, code: "not_shown" });
+      live = live.filter((p) => !hidden.includes(p));
+    }
+    for (const p of live) {
+      if (p.value === null) clears.push(p.key);
+      else upserts.push(row(p.key, p.value));
+      saved.push(p.key);
+    }
+  }
+
   if (upserts.length) {
     const { error } = await ctx.admin.from("sign_answers").upsert(upserts, { onConflict: "document_id,signer_id,field_key" });
     if (error) raiseDatabaseError(error, "save answers");
   }
   if (clears.length) {
-    const { error } = await ctx.admin.from("sign_answers").delete().eq("document_id", lookup.doc.id).eq("signer_id", lookup.signer.id).in("field_key", clears);
+    const { error } = await ctx.admin.from("sign_answers").delete().eq("document_id", doc.id).eq("signer_id", signer.id).in("field_key", clears);
     if (error) raiseDatabaseError(error, "clear answers");
   }
-  return { saved, rejected };
+
+  let confirmed = 0;
+  if (form) {
+    for (const partKey of (opts.confirmParts ?? []).slice(0, 20)) {
+      if (!rolePartsOf(form, signer.role_key).some((p) => p.key === partKey)) {
+        rejected.push({ field: String(partKey), code: "not_your_part" });
+        continue;
+      }
+      const keys = form.fields.filter((f) => f.part === partKey).map((f) => f.key);
+      const { error } = await ctx.admin.from("sign_answers").update({ source: "signer" }).eq("document_id", doc.id).eq("signer_id", signer.id).eq("source", "contact").in("field_key", keys);
+      if (error) raiseDatabaseError(error, "confirm part");
+      confirmed++;
+    }
+  }
+
+  if (saved.length || confirmed) await recordSaved(ctx, doc, signer, saved.length);
+  if (!form || !before) return { saved, rejected };
+  const after = (await loadFormState(ctx, doc, form)).state;
+  await recordPartChanges(ctx, doc, signer, form, before, after);
+  return { saved, rejected, ...standing(form, signer.role_key, after) };
 }
 
 // ---- finishing ------------------------------------------------------------------------------------
@@ -303,29 +380,59 @@ export interface CompleteResult {
 }
 
 /**
+ * The answers of a form that cannot be printed where the document puts them. A signer is held to every answer
+ * (the document is theirs to sign as printed); a filler only to their own, since they are the only one who
+ * can shorten them.
+ */
+export async function fitIssues(ctx: SignCtx, doc: SignDocumentRow, form: FormDefinition, state: FormState, only?: ReadonlySet<string>): Promise<Issue[]> {
+  if (!doc.base_path || boundPlacements(doc.fields_snapshot).length === 0) return [];
+  const base = await getFile(ctx.admin, doc.base_path, ctx.accountId);
+  const problems = await fitProblems(base, doc.fields_snapshot, form, state.map, doc.locale);
+  return problems.filter((p) => !only || only.has(p.field)).map((p) => ({ code: "answer_does_not_fit", field: p.field, detail: p.placement }));
+}
+
+/**
  * Finish: the last answers are saved, every required field must be answered, then the database marks
- * the signer done and decides what comes next (the next step, or sealing).
+ * the signer done and decides what comes next (the next step, or sealing). For a document with a form the
+ * server decides again, from the stored answers alone, that the signer's parts are complete and sound and
+ * that what is printed on the page fits; a browser's idea of "ready" is never trusted. Once the signature is
+ * recorded, the answers the signer confirmed are written back to the contact.
  */
 export async function completeSigning(
   ctx: SignCtx,
   lookup: Lookup,
-  input: Record<string, AnswerInput>,
+  input: Record<string, AnyAnswerInput>,
   meta: { ip: string | null; device: string | null; locale: string | null },
 ): Promise<CompleteResult> {
   assertOpen(lookup);
-  if (!lookup.signer.consented_at) throw new SignError("consent_required", "Agree to sign electronically first.", 409);
+  assertConsented(lookup);
+  const { doc, signer } = lookup;
   const { rejected } = await saveAnswers(ctx, lookup, input);
-  if (rejected.length) throw new SignError("invalid_answers", "Some answers are not valid.", 400, rejected.map((r) => ({ code: r.code, field: r.field })));
+  if (rejected.length) throw new SignError("invalid_answers", "Some answers are not valid.", 400, rejected.map((r) => ({ code: r.code, field: r.field, ...(r.detail ? { detail: r.detail } : {}) })));
 
-  const answers = await loadAnswers(ctx, lookup.doc.id);
-  const answered = new Set(answers.filter((a) => a.signer_id === lookup.signer.id && a.value).map((a) => a.field_key));
-  const missing = missingRequired(lookup.doc.fields_snapshot, lookup.signer.role_key, answered);
-  if (missing.length) throw new SignError("missing_required", "Some required fields are not filled in.", 400, missing.map((f) => ({ code: "missing_required", field: f.key })));
+  const form = formOf(doc);
+  const rows = await loadAnswerRows(ctx, doc.id);
+  const answered = new Set(rows.filter((a) => a.signer_id === signer.id && a.value).map((a) => a.field_key));
+  const missing: Issue[] = missingRequired(doc.fields_snapshot, signer.role_key, answered).map((f) => ({ code: "missing_required", field: f.key }));
+  let state: FormState | null = null;
+  if (form) {
+    state = formState(form, await loadAllSigners(ctx, doc.id), rows);
+    missing.push(...missingFormRequired(form, signer.role_key, state.map).map((f) => ({ code: "missing_required", field: f.key })));
+  }
+  if (missing.length) throw new SignError("missing_required", "Some required fields are not filled in.", 400, missing);
+
+  if (form && state) {
+    const unsound = unsoundAnswers(form, signer.role_key, state.map);
+    if (unsound.length) throw new SignError("invalid_answers", "Some answers are not valid.", 400, unsound.map((u) => ({ code: u.code, field: u.field })));
+    const own = signer.kind === "signer" ? undefined : new Set(ownDataFields(form, signer.role_key).keys());
+    const unfit = await fitIssues(ctx, doc, form, state, own);
+    if (unfit.length) throw new SignError("answer_does_not_fit", "Some answers are too long for the place they are printed.", 400, unfit);
+  }
 
   const settings = await loadSettings(ctx);
-  const consent = consentFor(await consentTexts(ctx, lookup.doc, settings), lookup.signer.locale ?? lookup.doc.locale);
+  const consent = consentFor(await consentTexts(ctx, doc, settings), signer.locale ?? doc.locale);
   const { data, error } = await ctx.admin.rpc("sign_complete_signer", {
-    p_signer: lookup.signer.id,
+    p_signer: signer.id,
     p_ip: meta.ip,
     p_device: meta.device,
     p_locale: meta.locale,
@@ -334,14 +441,17 @@ export async function completeSigning(
   if (error || !data) raiseDatabaseError(error, "complete signer");
   const out = data as { sealing: boolean; invited: Invitation[] };
 
-  const info = await loadSenderAndWorkspace(ctx, lookup.doc.created_by);
+  // The signature stands; the contact is updated afterwards and a failure there never undoes it.
+  if (form && state) await writeBackToContact(ctx, doc, signer, form, state);
+
+  const info = await loadSenderAndWorkspace(ctx, doc.created_by);
   const w = { name: info.workspaceName, senderName: info.senderName, settings, timeZone: info.timeZone };
-  const facts = docFacts(lookup.doc, ctx);
+  const facts = docFacts(doc, ctx);
   const invited: CompleteResult["invited"] = [];
   for (const inv of out.invited ?? []) {
     const delivery = await deliverInvitation(ctx.admin, ctx.deps, ctx.origin, facts, w, inv, { fill: inv.kind === "filler" });
     if (delivery.status !== "sent") {
-      await logEvent(ctx, lookup.doc.id, "delivery_failed", { actor: "system", signerId: inv.signer_id, detail: { channel: delivery.channel, status: delivery.status, reason: delivery.detail ?? null } });
+      await logEvent(ctx, doc.id, "delivery_failed", { actor: "system", signerId: inv.signer_id, detail: { channel: delivery.channel, status: delivery.status, reason: delivery.detail ?? null } });
     }
     invited.push({ name: inv.name, delivery });
   }

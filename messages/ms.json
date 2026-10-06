@@ -6938,6 +6938,34 @@
   },
   "Sign": {
     "admin": {
+      "addons": {
+        "merchant": {
+          "about": "Pek untuk menandatangani perjanjian pedagang: kategori Merchant agreements dan templat Merchant Application (Permohonan Peniaga), yang diisi pedagang bahagian demi bahagian lalu ditandatangani, dalam bahasa Inggeris dan Bahasa Melayu. Tambahkan yuran dan terma anda sendiri sebelum menggunakannya.",
+          "name": "Pendaftaran Pedagang",
+          "description": "Pek untuk menandatangani perjanjian pedagang: sebuah kategori untuknya sekarang, dan kemudian templat Permohonan Pedagang beserta borangnya."
+        },
+        "intro": "Add-on ialah pek siap sedia untuk sesuatu proses perniagaan. Memasang satu add-on akan menambah kandungannya sebagai draf untuk anda semak. Ia tidak pernah mengubah templat yang telah anda edit, dan anda boleh memasangnya semula dengan selamat. Hanya pengendali platform yang boleh menjadikan sesuatu add-on tersedia.",
+        "loading": "Memuatkan add-on…",
+        "retry": "Cuba lagi",
+        "none": "Tiada add-on yang tersedia.",
+        "installedVersion": "Dipasang v{version}",
+        "notInstalled": "Belum dipasang",
+        "unavailableBadge": "Tidak tersedia",
+        "updateAvailable": "Kemas kini ke v{version} tersedia",
+        "adds": {
+          "category": "Menambah kategori {name}.",
+          "templates": "{count, plural, one {Menambah # templat sebagai draf.} other {Menambah # templat sebagai draf.}}",
+          "templatesLater": "Templat akan ditambah dalam kemas kini kemudian."
+        },
+        "install": "Pasang",
+        "installAgain": "Pasang semula",
+        "installAgainHint": "Menambah apa-apa yang tiada dan tidak mengubah apa yang telah anda edit.",
+        "needsOperator": "Pengendali platform anda perlu menghidupkan add-on ini untuk ruang kerja anda sebelum anda boleh memasangnya.",
+        "installedToast": "{name} dipasang.",
+        "repeatedToast": "{name} disemak. Tiada apa yang anda edit telah diubah.",
+        "templatesAdded": "{count, plural, one {# templat ditambah sebagai draf.} other {# templat ditambah sebagai draf.}}",
+        "footnote": "Pemasangan menambah draf untuk anda semak dan tidak pernah mengubah templat yang telah anda edit. Pengemaskinian add-on yang telah dipasang akan datang dalam versi kemudian."
+      },
       "settingsTab": "Doc Sign",
       "title": "Doc Sign",
       "description": "Tetapan lalai, perkataan persetujuan, kategori, add-on dan sijil pengesahan untuk tandatangan elektronik.",
@@ -7069,33 +7097,6 @@
           "reminders_too_many": "Gunakan paling banyak lima peringatan.",
           "retention_invalid": "Masukkan bilangan tahun yang bulat daripada 1 hingga 50, atau biarkan kosong."
         }
-      },
-      "addons": {
-        "intro": "Add-on ialah pek siap sedia untuk sesuatu proses perniagaan. Memasang satu add-on akan menambah kandungannya sebagai draf untuk anda semak. Ia tidak pernah mengubah templat yang telah anda edit, dan anda boleh memasangnya semula dengan selamat. Hanya pengendali platform yang boleh menjadikan sesuatu add-on tersedia.",
-        "loading": "Memuatkan add-on…",
-        "retry": "Cuba lagi",
-        "none": "Tiada add-on yang tersedia.",
-        "merchant": {
-          "name": "Pendaftaran Pedagang",
-          "description": "Pek untuk menandatangani perjanjian pedagang: sebuah kategori untuknya sekarang, dan kemudian templat Permohonan Pedagang beserta borangnya."
-        },
-        "installedVersion": "Dipasang v{version}",
-        "notInstalled": "Belum dipasang",
-        "unavailableBadge": "Tidak tersedia",
-        "updateAvailable": "Kemas kini ke v{version} tersedia",
-        "adds": {
-          "category": "Menambah kategori {name}.",
-          "templates": "{count, plural, one {Menambah # templat sebagai draf.} other {Menambah # templat sebagai draf.}}",
-          "templatesLater": "Templat akan ditambah dalam kemas kini kemudian."
-        },
-        "install": "Pasang",
-        "installAgain": "Pasang semula",
-        "installAgainHint": "Menambah apa-apa yang tiada dan tidak mengubah apa yang telah anda edit.",
-        "needsOperator": "Pengendali platform anda perlu menghidupkan add-on ini untuk ruang kerja anda sebelum anda boleh memasangnya.",
-        "installedToast": "{name} dipasang.",
-        "repeatedToast": "{name} disemak. Tiada apa yang anda edit telah diubah.",
-        "templatesAdded": "{count, plural, one {# templat ditambah sebagai draf.} other {# templat ditambah sebagai draf.}}",
-        "footnote": "Pemasangan menambah draf untuk anda semak dan tidak pernah mengubah templat yang telah anda edit. Pengemaskinian add-on yang telah dipasang akan datang dalam versi kemudian."
       },
       "certificate": {
         "intro": "Setiap dokumen yang selesai dimeterai dengan sijil ini. Meterai menunjukkan sama ada dokumen telah diubah selepas ditandatangani.",
@@ -7765,6 +7766,615 @@
         "used": "{count, plural, one {digunakan dalam # medan} other {digunakan dalam # medan}}"
       }
     },
+    "formBuilder": {
+      "lang": {
+        "label": "Bahasa teks",
+        "short": {
+          "en": "EN",
+          "ms": "BM",
+          "zh": "中文",
+          "ko": "한국어"
+        },
+        "long": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "简体中文",
+          "ko": "한국어"
+        },
+        "coverage": "{language}: {done} daripada {total} teks telah diterjemahkan",
+        "fallback": "Kosong: penandatangan akan melihat teks bahasa Inggeris.",
+        "englishRequired": "Teks bahasa Inggeris diperlukan."
+      },
+      "tabs": {
+        "label": "Paparan templat ini",
+        "layout": "Editor penempatan",
+        "form": "Borang"
+      },
+      "leave": {
+        "title": "Keluar tanpa menyimpan?",
+        "body": "Anda mempunyai perubahan yang belum disimpan. Jika anda keluar sekarang, perubahan itu akan hilang.",
+        "stay": "Kekal di sini",
+        "leave": "Keluar"
+      },
+      "screen": {
+        "loading": "Memuatkan borang...",
+        "retry": "Cuba lagi",
+        "back": "Templat",
+        "undo": "Buat asal",
+        "redo": "Ulang semula",
+        "preview": "Pratonton sebagai penandatangan",
+        "save": "Simpan",
+        "saving": "Menyimpan...",
+        "savedVersion": "Disimpan sebagai versi {n}.",
+        "savedMerged": "Disimpan sebagai versi {n}, di atas versi lebih baharu yang disimpan di tempat lain.",
+        "savedWithWarnings": "Disimpan sebagai versi {n}, dengan {count, plural, one {# amaran} other {# amaran}}.",
+        "readOnly": "Anda boleh melihat borang ini tetapi tidak boleh mengubahnya.",
+        "unsaved": "Perubahan belum disimpan",
+        "allSaved": "Semua perubahan telah disimpan (versi {n})",
+        "problems": "{count, plural, one {# masalah perlu dibetulkan} other {# masalah perlu dibetulkan}}",
+        "warnings": "{count, plural, one {# perkara untuk disemak} other {# perkara untuk disemak}}",
+        "overlayHint": "Templat ini belum mempunyai borang: penandatangan mengisi kotak yang diletakkan pada halaman. Tambah satu bahagian untuk menjadikannya templat borang, di mana penandatangan menjawab soalan mengikut bahagian dan jawapan dicetak pada halaman.",
+        "panes": "Bahagian, medan dan sifat",
+        "pane": {
+          "parts": "Bahagian",
+          "fields": "Medan",
+          "right": "Butiran"
+        },
+        "rightTabs": "Sifat dan masalah",
+        "tab": {
+          "props": "Sifat",
+          "issues": "Masalah"
+        },
+        "noParts": "Borang terdiri daripada bahagian, dan setiap bahagian ialah senarai soalan (medan data) untuk satu peranan.",
+        "needRoles": "Peranan dibuat dalam editor penempatan. Tambah sekurang-kurangnya satu peranan di sana dahulu.",
+        "openEditorRoles": "Buka editor penempatan"
+      },
+      "seeds": {
+        "newPart": "Bahagian baharu",
+        "newField": "Medan baharu",
+        "option": "Pilihan {n}",
+        "acknowledgeText": "Saya telah membaca dan bersetuju.",
+        "copySuffix": " (salinan)"
+      },
+      "parts": {
+        "title": "Bahagian",
+        "empty": "Belum ada bahagian.",
+        "unnamed": "Bahagian tanpa tajuk",
+        "hasIssue": "Bahagian ini mempunyai masalah",
+        "noRole": "Tiada peranan",
+        "fieldCount": "{count, plural, one {# medan} other {# medan}}",
+        "conditional": "dipaparkan oleh peraturan",
+        "up": "Alihkan {name} ke atas",
+        "down": "Alihkan {name} ke bawah",
+        "delete": "Padam {name}",
+        "add": "Tambah bahagian",
+        "needRole": "Tambah peranan dalam editor penempatan dahulu.",
+        "max": "Satu borang boleh mempunyai paling banyak {count} bahagian."
+      },
+      "partSettings": {
+        "title": "Tajuk bahagian",
+        "description": "Penerangan bahagian (pilihan)",
+        "descriptionHint": "Dipaparkan di bawah tajuk apabila penandatangan membuka bahagian ini.",
+        "role": "Dilengkapkan oleh",
+        "roleSigner": "Penandatangan: orang ini juga menandatangani.",
+        "roleFiller": "Pengisi: orang ini hanya mengisi bahagiannya dan tidak pernah menandatangani.",
+        "roleMissing": "Peranan ini sudah tiada. Pilih peranan lain.",
+        "kindSigner": "penandatangan",
+        "kindFiller": "pengisi",
+        "ifTitle": "Paparkan bahagian ini hanya jika",
+        "delete": "Padam {name} dan medannya",
+        "show": "Tetapan bahagian",
+        "hide": "Sembunyikan tetapan"
+      },
+      "fields": {
+        "title": "Medan data",
+        "empty": "Bahagian ini belum mempunyai medan. Tambah satu di bawah.",
+        "hasIssue": "Medan ini mempunyai masalah",
+        "required": "Wajib",
+        "requiredSometimes": "Wajib dalam sesetengah keadaan",
+        "optional": "Pilihan",
+        "showIf": "Dipaparkan jika {rule}",
+        "places": "{count, plural, one {Dicetak di # tempat} other {Dicetak di # tempat}}",
+        "notPrinted": "Tidak dicetak pada halaman",
+        "fillsContact": "Mengisi medan kenalan",
+        "up": "Alihkan {name} ke atas",
+        "down": "Alihkan {name} ke bawah",
+        "duplicate": "Gandakan {name}",
+        "delete": "Padam {name}",
+        "add": "Tambah medan data",
+        "max": "Satu borang boleh mempunyai paling banyak {count} medan data.",
+        "pickType": "Jenis medan baharu"
+      },
+      "types": {
+        "text": "Teks pendek",
+        "multiline": "Teks panjang",
+        "number": "Nombor",
+        "email": "Alamat e-mel",
+        "phone": "Nombor telefon",
+        "choice": "Pilihan (satu)",
+        "multichoice": "Pilihan (beberapa)",
+        "yesno": "Ya atau tidak",
+        "date": "Tarikh",
+        "list": "Senarai entri",
+        "file": "Muat naik fail",
+        "image": "Gambar",
+        "acknowledge": "Baca dan setuju"
+      },
+      "typeHints": {
+        "text": "Satu baris, seperti nama syarikat",
+        "multiline": "Beberapa baris, seperti alamat",
+        "number": "Nombor, dengan had jika anda mahu",
+        "email": "Alamat e-mel, disemak bentuknya",
+        "phone": "Nombor telefon; nombor Malaysia diterima dengan atau tanpa +60",
+        "choice": "Pilih satu daripada senarai",
+        "multichoice": "Pilih beberapa daripada senarai",
+        "yesno": "Jawapan ya atau tidak",
+        "date": "Tarikh kalendar",
+        "list": "Satu atau lebih entri pendek, seperti kod industri",
+        "file": "Satu atau lebih fail, seperti PDF atau foto",
+        "image": "Gambar yang dilukis atau dimuat naik oleh penandatangan, seperti cop",
+        "acknowledge": "Teks yang mesti dibaca dan disetujui oleh penandatangan"
+      },
+      "props": {
+        "unnamed": "Medan tanpa tajuk",
+        "type": "Jenis",
+        "part": "Bahagian",
+        "duplicate": "Gandakan",
+        "delete": "Padam",
+        "none": "Pilih medan untuk mengeditnya, atau tambah satu."
+      },
+      "texts": {
+        "title": "Teks",
+        "hintOther": "Teks yang anda biarkan kosong di sini dipaparkan dalam bahasa Inggeris.",
+        "label": "Label",
+        "help": "Teks bantuan (pilihan)",
+        "helpHint": "Satu baris pendek di bawah soalan.",
+        "placeholder": "Contoh dalam kotak (pilihan)",
+        "acknowledge": "Teks untuk dibaca dan disetujui",
+        "acknowledgeHint": "Penandatangan membaca ini dan menanda kotak untuk bersetuju."
+      },
+      "key": {
+        "title": "Kunci",
+        "label": "Kunci (untuk menyimpan jawapan)",
+        "hint": "Huruf, digit dan garis bawah, bermula dengan huruf. Jawapan disimpan di bawah kunci ini.",
+        "follows": "Dibuat daripada label bahasa Inggeris. Ia berubah mengikut label sehingga anda mengeditnya di sini.",
+        "locked": "Dokumen telah dibuat daripada templat ini, jadi kunci ini tidak boleh diubah lagi.",
+        "bad": "Gunakan huruf, digit dan garis bawah, bermula dengan huruf (sehingga 40).",
+        "taken": "Medan atau kotak lain sudah menggunakan kunci ini."
+      },
+      "type": {
+        "title": "Tetapan {type}",
+        "format": "Bentuk teks yang dibenarkan",
+        "formats": {
+          "any": "Apa-apa sahaja",
+          "digits": "Digit sahaja",
+          "letters": "Huruf sahaja",
+          "alnum": "Huruf dan digit",
+          "upper_alnum": "Huruf besar dan digit",
+          "postcode_my": "Poskod Malaysia (5 digit)"
+        },
+        "minLength": "Terpendek (aksara)",
+        "maxLength": "Terpanjang (aksara)",
+        "min": "Nilai terkecil",
+        "max": "Nilai terbesar",
+        "decimals": "Tempat perpuluhan",
+        "decimalsAny": "Sehingga 6",
+        "emailHint": "Penandatangan menaip alamat e-mel. Bentuknya disemak.",
+        "phoneHint": "Nombor Malaysia diterima dengan 0, 60 atau +60 di hadapan dan disimpan sebagai +60.",
+        "dateHint": "Penandatangan memilih tarikh kalendar.",
+        "yesnoHint": "Penandatangan menjawab Ya atau Tidak.",
+        "imageHint": "Penandatangan melukis atau memuat naik gambar, seperti cop syarikat.",
+        "acknowledgeHint": "Penandatangan mesti menanda untuk bersetuju dengan teks. Medan ini sentiasa wajib.",
+        "minItems": "Entri paling sedikit",
+        "maxItems": "Entri paling banyak",
+        "itemFormat": "Bentuk setiap entri yang dibenarkan",
+        "itemLength": "Entri terpanjang (aksara)",
+        "itemLengthHint": "Contohnya 5 untuk kod industri lima digit.",
+        "accept": "Fail yang diterima",
+        "acceptNone": "Pilih sekurang-kurangnya satu jenis fail.",
+        "acceptHint": "Fail disemak berdasarkan kandungannya, bukan hanya namanya.",
+        "kinds": {
+          "pdf": "PDF",
+          "jpg": "Foto JPG",
+          "png": "Gambar PNG"
+        },
+        "maxMb": "Saiz terbesar (MB)",
+        "maxFiles": "Fail paling banyak",
+        "minFiles": "Fail paling sedikit",
+        "fileLimits": "Satu fail boleh sehingga {mb} MB, dan 50 MB keseluruhannya untuk satu dokumen."
+      },
+      "options": {
+        "title": "Pilihan ({count})",
+        "none": "Tambah sekurang-kurangnya satu pilihan.",
+        "label": "Label pilihan {n} ({language})",
+        "labelPlaceholder": "Label bahasa Inggeris",
+        "up": "Alihkan pilihan {n} ke atas",
+        "down": "Alihkan pilihan {n} ke bawah",
+        "remove": "Buang pilihan {n}",
+        "value": "Nilai disimpan",
+        "valueLocked": "Nilai ini tidak boleh diubah lagi: dokumen telah dibuat daripada templat ini.",
+        "valueDuplicate": "Dua pilihan mempunyai nilai disimpan yang sama.",
+        "valueBad": "Gunakan huruf, digit, garis bawah, titik atau sempang.",
+        "addLabel": "Pilihan baharu (bahasa Inggeris)",
+        "addPlaceholder": "Pilihan baharu (bahasa Inggeris). Tampal senarai untuk menambah beberapa sekali gus, satu setiap baris.",
+        "add": "Tambah",
+        "addHint": "Nilai disimpan dibuat daripada label bahasa Inggeris. Tekan Enter untuk menambah.",
+        "max": "Paling banyak {count} pilihan."
+      },
+      "required": {
+        "title": "Wajib",
+        "label": "Penandatangan mesti menjawab ini",
+        "acknowledge": "Teks untuk disetujui sentiasa wajib.",
+        "ifTitle": "Wajib hanya jika"
+      },
+      "visible": {
+        "title": "Keterlihatan",
+        "ifTitle": "Paparkan medan ini hanya jika",
+        "always": "Sentiasa dipaparkan."
+      },
+      "rule": {
+        "add": "Tambah syarat",
+        "remove": "Buang peraturan",
+        "noFields": "Tambah medan lain dahulu: peraturan melihat jawapan kepada medan lain.",
+        "inWords": "Dalam perkataan",
+        "showWhen": "Dipaparkan hanya apabila {rule}.",
+        "requiredWhen": "Wajib hanya apabila {rule}.",
+        "partShowWhen": "Bahagian ini dipaparkan hanya apabila {rule}.",
+        "addCondition": "Syarat",
+        "addGroup": "Kumpulan",
+        "joinLabel": "Cara syarat digabungkan",
+        "joinAnd": "Semua ini benar",
+        "joinOr": "Salah satu ini benar",
+        "removeGroup": "Buang kumpulan ini",
+        "removeCondition": "Buang syarat ini",
+        "notHeading": "Bukan yang berikut",
+        "unwrapNot": "Buang \"bukan\"",
+        "limit": "Satu peraturan boleh mempunyai sehingga 20 syarat, dalam kumpulan sehingga 4 peringkat.",
+        "fieldLabel": "Medan",
+        "operatorLabel": "Perbandingan",
+        "valueLabel": "Nilai",
+        "valuesLabel": "Nilai",
+        "valuePlaceholder": "Nilai",
+        "pickValue": "Pilih nilai",
+        "staleValue": "{value} (bukan lagi pilihan)",
+        "missingField": "{field} (tiada)",
+        "noOptions": "Medan ini belum mempunyai pilihan.",
+        "completeThis": "Lengkapkan syarat ini.",
+        "fieldGone": "Medan ini sudah tiada, atau ia ialah medan yang memiliki peraturan ini. Pilih yang lain.",
+        "and": "dan",
+        "or": "atau",
+        "not": "bukan ({rule})",
+        "ops": {
+          "eq": "ialah",
+          "ne": "bukan",
+          "in": "ialah salah satu daripada",
+          "empty": "kosong",
+          "notEmpty": "tidak kosong",
+          "eq_many": "termasuk",
+          "ne_many": "tidak termasuk",
+          "in_many": "termasuk mana-mana daripada",
+          "empty_file": "tiada fail",
+          "notEmpty_file": "ada fail"
+        },
+        "leaf": {
+          "eq": "{field} ialah {value}",
+          "ne": "{field} bukan {value}",
+          "in": "{field} ialah {value}",
+          "empty": "{field} kosong",
+          "notEmpty": "{field} tidak kosong",
+          "eq_many": "{field} termasuk {value}",
+          "ne_many": "{field} tidak termasuk {value}",
+          "in_many": "{field} termasuk {value}",
+          "empty_file": "{field} tiada fail",
+          "notEmpty_file": "{field} ada fail",
+          "unknown": "medan yang sudah tiada"
+        }
+      },
+      "contact": {
+        "title": "Mengisi kenalan",
+        "hint": "Apabila penandatangan menandatangani, jawapan ini boleh ditulis ke kenalan mereka.",
+        "field": "Medan kenalan",
+        "none": "Tidak mengisi medan kenalan",
+        "builtIn": "Kenalan",
+        "custom": "Medan kenalan anda",
+        "unknown": "{name} (bukan lagi medan kenalan)",
+        "base": {
+          "name": "Nama",
+          "email": "E-mel",
+          "company": "Syarikat"
+        },
+        "writeBack": "Apabila kenalan sudah mempunyai nilai",
+        "mode": {
+          "always": "Gantikannya",
+          "if_empty": "Isi hanya apabila kosong"
+        },
+        "modeHint": {
+          "always": "Penandatangan telah melihat dan mengesahkan jawapan ini, jadi ia yang terbaharu.",
+          "if_empty": "Mengekalkan apa yang kenalan sudah ada."
+        },
+        "noCustom": "Medan kenalan anda sendiri akan muncul di sini selepas anda membuatnya dalam Kenalan."
+      },
+      "value": {
+        "title": "Nilai permulaan dan kunci",
+        "default": "Nilai permulaan",
+        "defaultHint": "Dipaparkan dalam kotak apabila penandatangan membuka bahagian ini. Mereka boleh mengubahnya.",
+        "noDefault": "Tiada",
+        "staleDefault": "{value} (bukan lagi pilihan)",
+        "locked": "Dikunci: ditetapkan oleh anda, tidak boleh diedit oleh penandatangan",
+        "lockedHint": "Untuk nilai yang anda isi semasa menghantar, seperti nombor rujukan."
+      },
+      "printed": {
+        "title": "Dicetak pada borang",
+        "file": "Fail yang dimuat naik disimpan bersama dokumen dan tidak dicetak pada halaman.",
+        "none": "Belum dicetak pada halaman.",
+        "summary": "{pageCount, plural, one {Halaman {pages}} other {Halaman {pages}}}, {count, plural, one {# tempat} other {# tempat}}",
+        "places": "Tempat",
+        "openPlace": "Halaman {page}",
+        "open": "Buka dalam editor penempatan",
+        "openToPlace": "Letakkan dalam editor penempatan",
+        "placeHint": "Dalam editor penempatan, buka tab Data dan tekan Letak di sebelah medan ini."
+      },
+      "issues": {
+        "title": "Masalah",
+        "none": "Tiada masalah ditemui.",
+        "warningsTitle": "Perkara untuk disemak",
+        "unknown": "Sesuatu dalam borang tidak sah ({code}).",
+        "form_shape": "Borang tidak dalam bentuk yang difahami oleh versi ini.",
+        "too_many_parts": "Satu borang boleh mempunyai paling banyak {detail} bahagian.",
+        "too_many_data_fields": "Satu borang boleh mempunyai paling banyak {detail} medan data.",
+        "bad_part_key": "Satu bahagian mempunyai kunci yang tidak dibenarkan.",
+        "duplicate_part_key": "Dua bahagian berkongsi kunci yang sama.",
+        "bad_part_title": "Bahagian {part} memerlukan tajuk dalam bahasa Inggeris (sehingga 120 aksara).",
+        "bad_part_description": "Penerangan bahagian {part} terlalu panjang, atau tiada teks bahasa Inggeris.",
+        "part_unknown_role": "Bahagian {part} milik peranan yang tidak wujud. Pilih peranan lain.",
+        "bad_data_key": "Kunci {field} tidak dibenarkan. Gunakan huruf, digit dan garis bawah, bermula dengan huruf.",
+        "duplicate_data_key": "Dua medan data berkongsi kunci {field}.",
+        "data_key_is_placement_key": "Kunci {field} sudah digunakan oleh satu kotak pada halaman. Tukar kunci itu.",
+        "bad_data_type": "{field} mempunyai jenis yang tidak dikenali.",
+        "data_unknown_part": "{field} milik bahagian yang tidak wujud. Alihkan ke bahagian lain.",
+        "bad_data_label": "{field} memerlukan label dalam bahasa Inggeris (sehingga 200 aksara).",
+        "bad_data_help": "Teks bantuan {field} terlalu panjang, atau tiada teks bahasa Inggeris.",
+        "bad_data_placeholder": "Teks contoh {field} terlalu panjang, atau tiada teks bahasa Inggeris.",
+        "bad_options": "{field} memerlukan sekurang-kurangnya satu pilihan, setiap satu dengan label bahasa Inggeris dan nilai disimpan sendiri.",
+        "bad_format": "{field} mempunyai bentuk teks yang tidak dikenali.",
+        "bad_limit": "{field} mempunyai had yang tidak dibenarkan: nombor bulat, dengan yang terkecil tidak melebihi yang terbesar.",
+        "bad_file_types": "{field} mesti menerima sekurang-kurangnya satu jenis fail.",
+        "bad_file_size": "Saiz terbesar {field} mesti melebihi 0 dan paling banyak {detail} MB.",
+        "bad_acknowledge_text": "{field} memerlukan teks untuk dibaca dan disetujui, dalam bahasa Inggeris.",
+        "bad_contact_field": "{field} tidak boleh mengisi medan kenalan itu. Pilih yang lain, atau tiada.",
+        "rule_shape": "Peraturan pada {subject} belum lengkap.",
+        "rule_too_deep": "Peraturan pada {subject} mempunyai terlalu banyak peringkat kumpulan.",
+        "rule_unknown_field": "Peraturan pada {subject} melihat medan yang tidak wujud.",
+        "rule_value": "Peraturan pada {subject} membandingkan dengan nilai yang kosong atau terlalu panjang.",
+        "rule_too_big": "Peraturan pada {subject} mempunyai terlalu banyak syarat.",
+        "rule_refers_to_itself": "Peraturan yang memaparkan {field} melihat {field} itu sendiri.",
+        "rule_cycle": "Peraturan {field} bergantung antara satu sama lain secara bulatan. Buang salah satu.",
+        "placement_unknown_data": "Satu kotak di halaman {page} mencetak medan data yang tidak wujud. Buka editor penempatan dan pilih yang lain, atau buang kotak itu.",
+        "placement_type_mismatch": "Kotak di halaman {page} tidak boleh mencetak {field} sebagai jenis kotak ini. Buka editor penempatan dan ubahnya.",
+        "placement_bound_and_fixed": "Kotak di halaman {page} mencetak jawapan dan juga teks tetap. Buka editor penempatan dan ubahnya.",
+        "part_without_person": "Bahagian {part} tiada sesiapa untuk melengkapkannya.",
+        "removeBox": "Buang kotak itu"
+      },
+      "warnings": {
+        "unknown": "Sesuatu dalam borang patut disemak.",
+        "part_empty": "Bahagian {part} belum mempunyai medan.",
+        "rule_value_not_option": "Peraturan pada {subject} membandingkan dengan {detail}, yang bukan lagi pilihan medan itu.",
+        "rule_blank_value": "Satu syarat dalam peraturan pada {subject} belum mempunyai nilai.",
+        "default_not_option": "Nilai permulaan {field} bukan salah satu pilihannya.",
+        "placement_option_missing": "Kotak tanda di halaman {page} terikat pada pilihan {field} yang sudah tiada.",
+        "role_signer_no_signature": "{role} menandatangani, tetapi templat tiada kotak tandatangan atau inisial untuk {role}.",
+        "static_text_does_not_fit": "Teks tetap dalam kotak di halaman {page} tidak muat dan akan terpotong. Buka editor penempatan dan besarkan kotak itu."
+      },
+      "errors": {
+        "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
+        "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+        "signed_out": "Anda telah dilog keluar. Log masuk semula untuk meneruskan.",
+        "forbidden": "Anda tidak mempunyai kebenaran untuk mengubah templat.",
+        "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+        "invalid_layout": "Pelayan menemui masalah dalam borang atau susun atur. Lihat tab Masalah.",
+        "bad_layout": "Pelayan menemui masalah dalam borang atau susun atur. Lihat tab Masalah.",
+        "bad_form": "Pelayan menemui masalah dalam borang. Lihat tab Masalah.",
+        "template_not_found": "Templat itu tidak ditemui.",
+        "template_has_no_version": "Templat ini belum mempunyai fail, jadi tiada borang untuk dibina.",
+        "changed_elsewhere": "Versi templat ini yang lebih baharu telah disimpan di tempat lain, jadi perubahan anda tidak disimpan. Muat semula halaman untuk melihatnya. Apa yang anda taip kekal di halaman ini sehingga anda keluar.",
+        "fix_problems": "{count, plural, one {Betulkan # masalah} other {Betulkan # masalah}} (lihat tab Masalah) sebelum menyimpan.",
+        "request_failed": "Sesuatu telah berlaku. Sila cuba lagi."
+      },
+      "removed": {
+        "field": "Medan dipadam.",
+        "part": "{count, plural, one {Bahagian dipadam bersama # medan.} other {Bahagian dipadam bersama # medan.}}",
+        "places": "{count, plural, one {# kotak pada halaman yang mencetaknya telah dibuang.} other {# kotak pada halaman yang mencetaknya telah dibuang.}}",
+        "rules": "{count, plural, one {# peraturan yang menggunakannya telah diubah.} other {# peraturan yang menggunakannya telah diubah.}}",
+        "typeBoxes": "{count, plural, one {# kotak pada halaman tidak dapat mencetak jenis baharu dan telah dibuang.} other {# kotak pada halaman tidak dapat mencetak jenis baharu dan telah dibuang.}}"
+      },
+      "confirm": {
+        "partTitle": "Padam bahagian {name}?",
+        "fieldTitle": "Padam medan {name}?",
+        "body": "Ini juga mengubah apa yang bergantung padanya. Anda boleh membuat asal sehingga anda menyimpan.",
+        "fields": "{count, plural, one {# medan dalam bahagian ini dipadam.} other {# medan dalam bahagian ini dipadam.}}",
+        "places": "{count, plural, one {# kotak pada halaman yang mencetaknya dibuang.} other {# kotak pada halaman yang mencetaknya dibuang.}}",
+        "rules": "{count, plural, one {# peraturan yang melihatnya kehilangan syarat itu.} other {# peraturan yang melihatnya kehilangan syarat itu.}}",
+        "undo": "Gunakan Buat asal di bahagian atas untuk mengembalikannya.",
+        "cancel": "Batal",
+        "delete": "Padam"
+      },
+      "preview": {
+        "title": "Pratonton sebagai penandatangan",
+        "intro": "Ini ialah borang tepat seperti yang dilihat oleh penandatangan, dengan jawapan ujian. Tiada apa yang disimpan atau dihantar.",
+        "noParts": "Belum ada peranan yang memegang bahagian, jadi tiada apa untuk dipratonton.",
+        "role": "Pratonton sebagai",
+        "language": "Bahasa",
+        "loading": "Memuatkan...",
+        "progress": "{percent}% daripada jawapan wajib telah diberikan",
+        "reset": "Kosongkan jawapan",
+        "testNote": "Jawapan di sini ialah jawapan ujian dan tidak disimpan.",
+        "refused": "Jawapan kepada {field} akan ditolak ({code}).",
+        "reviewReached": "Penandatangan kini akan meneruskan ke Semak dan tandatangan.",
+        "printedTitle": "Apa yang akan dicetak pada halaman",
+        "printedHint": "Dikemas kini semasa anda menjawab.",
+        "printedEmpty": "Belum ada yang dicetak. Jawab beberapa soalan.",
+        "noPlaces": "Belum ada kotak pada halaman yang mencetak jawapan. Gunakan tab Data dalam editor penempatan untuk meletakkannya.",
+        "page": "Halaman {page}",
+        "ticked": "Ditanda",
+        "picture": "(gambar)"
+      },
+      "editor": {
+        "panelData": "Data",
+        "dataEmpty": "Borang belum mempunyai medan data. Tambahkannya dalam paparan Borang.",
+        "dataIntro": "Letak mencetak jawapan sesuatu medan pada halaman yang sedang anda lihat.",
+        "notPrintable": "tidak dicetak pada halaman",
+        "prints": "{count, plural, one {dicetak di # tempat} other {dicetak di # tempat}}",
+        "printsNone": "belum dicetak",
+        "show": "Tunjukkan tempat {name} dicetak",
+        "placeFor": "Letakkan {name} pada halaman",
+        "place": "Letak",
+        "placeFailed": "Kotak tidak dapat diletakkan. Templat mungkin sudah mempunyai bilangan kotak maksimum.",
+        "fillWith": "Isi dengan jawapan",
+        "fillNone": "Tiada (medan biasa)",
+        "fillOption": "Ditanda apabila jawapannya",
+        "fillHint": "Cetak jawapan kepada soalan dalam borang di sini, bukannya meminta penandatangan menjawab pada halaman.",
+        "boundNote": "Kotak ini mencetak jawapan. Ia milik pengirim dan tidak boleh dijawab atau dijadikan wajib.",
+        "fillMissing": "{key} (tiada lagi dalam borang)",
+        "holds": "{count, plural, one {Memegang bahagian: {parts}} other {Memegang bahagian: {parts}}}",
+        "holdsNone": "Tidak memegang bahagian borang.",
+        "cannotDeleteRole": "{count, plural, one {Peranan ini memegang satu bahagian borang.} other {Peranan ini memegang # bahagian borang.}} Serahkannya kepada peranan lain dalam paparan Borang sebelum memadamnya.",
+        "signerNoSignature": "Peranan ini menandatangani tetapi tiada kotak tandatangan atau inisial.",
+        "sampleItem": "Entri {n}"
+      }
+    },
+    "progress": {
+      "tabs": {
+        "progress": "Kemajuan"
+      },
+      "loading": "Memuatkan kemajuan",
+      "failed": "Kemajuan tidak dapat dimuatkan.",
+      "title": "Kemajuan permohonan",
+      "partsOf": "{done} daripada {total, plural, other {# bahagian}} selesai",
+      "percent": "{percent}% jawapan wajib telah diberikan",
+      "barLabel": "Kemajuan {name}",
+      "overallLabel": "Kemajuan keseluruhan",
+      "lastActivity": "Aktiviti terakhir {when}",
+      "lastActivityFrom": "Aktiviti terakhir {when} dari {device}",
+      "noActivity": "Belum ada aktiviti",
+      "device": {
+        "phone": "telefon",
+        "tablet": "tablet",
+        "computer": "komputer"
+      },
+      "nobodyAssigned": "Belum ada orang ditetapkan",
+      "partsList": "Bahagian untuk {name}",
+      "rolesList": "Kemajuan mengikut orang",
+      "fillerNote": "Orang ini hanya mengisi bahagiannya. Mereka tidak menandatangani.",
+      "state": {
+        "not_started": "Belum bermula",
+        "in_progress": "Sedang diisi",
+        "done": "Selesai"
+      },
+      "count": "{done} daripada {total}",
+      "savedAt": "Disimpan {when}",
+      "notSaved": "Belum ada yang disimpan",
+      "remind": {
+        "button": "Ingatkan tentang bahagian yang belum selesai",
+        "held": "Peringatan boleh dihantar semula selepas {when}.",
+        "namesParts": "Mesej itu menyebut {count, plural, other {bahagian}} yang masih terbuka:"
+      },
+      "expiry": {
+        "button": "Lanjutkan tarikh luput",
+        "title": "Lanjutkan tarikh luput",
+        "current": "Dokumen ini kini luput pada {date}.",
+        "noCurrent": "Dokumen ini belum mempunyai tarikh luput.",
+        "newDate": "Tarikh luput baharu",
+        "note": "Pilih hari selepas tarikh luput semasa. Orang boleh menandatangani sehingga akhir hari itu.",
+        "problems": {
+          "required": "Pilih satu tarikh.",
+          "past": "Pilih hari pada masa hadapan.",
+          "not_later": "Pilih hari selepas tarikh luput semasa."
+        },
+        "cancel": "Batal",
+        "action": "Lanjutkan tarikh luput",
+        "done": "Dokumen ini kini luput pada {date}.",
+        "expires": "Luput pada {date}"
+      },
+      "answers": {
+        "title": "Jawapan setakat ini",
+        "note": "Baca sahaja. Ini ialah jawapan seperti yang diberikan oleh orang itu. Jawapan yang disembunyikan oleh peraturan tidak dipaparkan.",
+        "groupSummary": "{role} · {count, plural, other {# jawapan}}",
+        "none": "Belum ada jawapan dalam bahagian ini.",
+        "notAnswered": "Belum dijawab",
+        "accepted": "Diterima",
+        "notAccepted": "Tidak diterima",
+        "pictureGiven": "Gambar telah diberikan",
+        "download": "Muat turun",
+        "downloadNamed": "Muat turun {name}",
+        "fromContact": "Daripada kenalan, belum disahkan",
+        "bySender": "Ditetapkan oleh penghantar"
+      },
+      "issues": {
+        "title": "{count, plural, other {# perkara perlu disemak}}",
+        "doesNotFit": "Jawapan untuk “{field}” terlalu panjang untuk tempat ia dicetak. Penandatangan akan diminta memendekkannya sebelum menandatangani.",
+        "invalid": "Jawapan untuk “{field}” tidak lagi menepati peraturan borang.",
+        "generic": "Ada perkara yang perlu disemak ({code})."
+      },
+      "writeback": {
+        "note": "Jawapan telah mengemas kini kenalan ({count, plural, other {# medan}}), yang terkini pada {when}."
+      },
+      "openContact": "Buka kenalan",
+      "contactFields": {
+        "name": "nama",
+        "email": "e-mel",
+        "company": "syarikat"
+      },
+      "events": {
+        "part_completed": "{actor} melengkapkan {hasPart, select, yes {bahagian “{part}”} other {satu bahagian borang}}.",
+        "part_reopened": "{actor} kembali ke {hasPart, select, yes {bahagian “{part}”} other {satu bahagian borang}}, yang tidak lagi lengkap.",
+        "uploaded": "{actor} memuat naik {hasFile, select, yes {“{file}”} other {satu fail}}{hasField, select, yes { untuk “{field}”} other {}}.",
+        "upload_removed": "{actor} mengalih keluar {hasFile, select, yes {“{file}”} other {satu fail}}{hasField, select, yes { daripada “{field}”} other {}}.",
+        "writeback": "Jawapan telah mengemas kini kenalan{hasFields, select, yes { ({fields})} other {}}.",
+        "expiry_extended": "{sender} melanjutkan tarikh luput{hasDate, select, yes { hingga {date}} other {}}."
+      },
+      "errors": {
+        "document_not_found": "Dokumen ini tidak dijumpai.",
+        "document_not_open": "Dokumen ini tidak lagi terbuka, jadi tindakan ini tidak boleh dibuat.",
+        "expiry_in_the_past": "Pilih hari pada masa hadapan.",
+        "expiry_not_later": "Pilih hari selepas tarikh luput semasa.",
+        "bad_expiry": "Tarikh itu tidak boleh digunakan. Pilih hari lain.",
+        "file_not_found": "Fail ini tidak dijumpai.",
+        "forbidden": "Anda tidak mempunyai kebenaran untuk melakukan ini.",
+        "signed_out": "Anda telah log keluar. Log masuk semula untuk meneruskan.",
+        "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+        "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+        "database_error": "Berlaku masalah di pihak kami. Cuba lagi sebentar nanti.",
+        "generic": "Tindakan itu tidak berjaya. Cuba lagi."
+      },
+      "problems": {
+        "part_without_person": "{role} mempunyai bahagian borang untuk dilengkapkan, tetapi tiada orang ditetapkan."
+      },
+      "formStep": {
+        "title": "Borang",
+        "summary": "{parts, plural, other {# bahagian}} dengan {fields, plural, other {# medan}} kesemuanya.",
+        "partsList": "Bahagian borang",
+        "fieldCount": "{count, plural, other {# medan}}",
+        "belongsToTemplate": "Borang ini milik templat. Ia tidak boleh diubah di sini. Untuk mengubahnya, sunting templat dan hantar dokumen baharu.",
+        "editFields": "Sunting medan",
+        "hideEditor": "Tutup penyunting medan",
+        "editFieldsNote": "Sunting medan hanya mengubah tempat jawapan dicetak pada halaman, bukan borang."
+      },
+      "peopleStep": {
+        "title": "Siapa melengkapkan apa",
+        "note": "Setiap bahagian dilengkapkan oleh satu peranan. Tambah seorang untuk setiap peranan di bawah.",
+        "range": "{from} hingga {to}",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, other {bahagian {parts}}} dan menandatangani} partsFill {{role}: {count, plural, other {bahagian {parts}}}, hanya mengisi} signOnly {{role}: hanya menandatangani} other {{role}: tiada bahagian dalam borang}}",
+        "nobody": "Belum ada orang ditetapkan untuk {role}."
+      },
+      "reviewStep": {
+        "title": "Borang",
+        "summary": "{parts, plural, other {# bahagian}} dengan {fields, plural, other {# medan}} kesemuanya.",
+        "holds": "{mode, select, partsSign {{role}: {count, plural, other {bahagian {parts}}} dan menandatangani} partsFill {{role}: {count, plural, other {bahagian {parts}}}, hanya mengisi} signOnly {{role}: hanya menandatangani} other {{role}: tiada bahagian dalam borang}}",
+        "prefillOn": "Borang bermula dengan butiran daripada kenalan yang dipautkan ({fields}). Penandatangan menyemaknya dan boleh mengubahnya.",
+        "noContact": "Borang ini boleh bermula dengan butiran daripada kenalan ({fields}), tetapi tiada kenalan dipautkan. Penandatangan akan mengisi semuanya. Anda boleh memautkan kenalan dalam langkah pilihan.",
+        "noContactFields": "Borang ini tidak menggunakan butiran daripada kenalan."
+      }
+    },
     "send": {
       "shell": {
         "title": "Doc Sign",
@@ -8358,6 +8968,179 @@
         "invalid_answers": "Beberapa jawapan perlu diubah. Ia ditandakan pada halaman.",
         "body_too_large": "Itu terlalu besar untuk dihantar. Gunakan gambar yang lebih kecil.",
         "session_unavailable": "Penandatanganan tidak tersedia sekarang. Sila cuba lagi kemudian."
+      }
+    },
+    "signerForm": {
+      "overview": {
+        "title": "Butiran anda",
+        "intro": "Isi bahagian mengikut urutan yang anda suka. Jawapan anda disimpan semasa anda mengisi, jadi anda boleh keluar dan kembali melalui pautan yang sama.",
+        "parts": "Bahagian borang",
+        "partsDone": "{done} daripada {total, plural, one {# bahagian} other {# bahagian}} selesai",
+        "progressLabel": "Kemajuan anda",
+        "percent": "{percent}% selesai",
+        "counts": "{done} daripada {total} dijawab",
+        "continue": "Teruskan: {part}"
+      },
+      "status": {
+        "not_started": "Belum bermula",
+        "in_progress": "Sedang diisi",
+        "done": "Selesai",
+        "needs_change": "Perlu diubah",
+        "locked": "Berkunci",
+        "ready": "Sedia"
+      },
+      "final": {
+        "review": "Semak dan tandatangani",
+        "submit": "Hantar jawapan anda",
+        "leftSign": "{count, plural, one {Selesaikan # bahagian lagi untuk membuka penandatanganan} other {Selesaikan # bahagian lagi untuk membuka penandatanganan}}",
+        "leftSubmit": "{count, plural, one {Selesaikan # bahagian lagi untuk membuka butang Hantar} other {Selesaikan # bahagian lagi untuk membuka butang Hantar}}",
+        "saving": "Sedang menyimpan jawapan anda. Ini akan dibuka sebentar lagi.",
+        "check": "Sesetengah jawapan masih perlu disemak. Buka bahagian yang belum selesai.",
+        "readySign": "Semak jawapan pada borang, kemudian tandatangani.",
+        "readySubmit": "Semuanya telah diisi. Hantar jawapan anda apabila anda sudah bersedia."
+      },
+      "part": {
+        "position": "Bahagian {number} daripada {total}",
+        "back": "Kembali ke ringkasan",
+        "saveNext": "Simpan dan bahagian seterusnya",
+        "saveLast": "Simpan dan pergi ke ringkasan",
+        "left": "{count, plural, one {# jawapan wajib lagi dalam bahagian ini} other {# jawapan wajib lagi dalam bahagian ini}}",
+        "complete": "Bahagian ini sudah lengkap.",
+        "needsChange": "Sesetengah jawapan perlu diubah. Ia ditandakan di bawah.",
+        "empty": "Tiada apa-apa untuk diisi di sini buat masa ini.",
+        "confirmTitle": "Sila semak jawapan ini",
+        "confirmBody": "Kami telah mengisi beberapa jawapan daripada rekod kami. Semak setiap satu, ubah apa yang salah, kemudian sahkan.",
+        "confirm": "Sahkan bahagian ini"
+      },
+      "field": {
+        "required": "wajib",
+        "optional": "pilihan",
+        "choose": "Pilih...",
+        "yes": "Ya",
+        "no": "Tidak",
+        "accept": "Saya telah membaca dan bersetuju",
+        "fromRecords": "Daripada rekod kami, sila semak",
+        "locked": "Ini telah diisi untuk anda dan tidak boleh diubah di sini.",
+        "pictureAdded": "Gambar telah ditambah",
+        "phoneHint": "Mulakan dengan 0 atau +60, contohnya 012-345 6789. Untuk nombor dari negara lain, mulakan dengan + dan kod negara.",
+        "phonePlaceholder": "012-345 6789"
+      },
+      "list": {
+        "add": "Tambah lagi",
+        "entryLabel": "{label}, entri {number}",
+        "removeEntry": "Buang entri {number}",
+        "limit": "Sehingga {max} entri",
+        "itemLength": "Sehingga {max} aksara setiap satu"
+      },
+      "format": {
+        "digits": "Digit sahaja",
+        "letters": "Huruf sahaja",
+        "alnum": "Huruf dan nombor sahaja",
+        "upper_alnum": "Huruf besar dan nombor sahaja",
+        "postcode_my": "5 digit"
+      },
+      "file": {
+        "choose": "Pilih fail",
+        "addAnother": "Tambah fail lain",
+        "takePhoto": "Ambil gambar",
+        "remove": "Buang",
+        "removeNamed": "Buang {name}",
+        "uploading": "Memuat naik {name}...",
+        "hint": "Diterima: {types}. Sehingga {mb} MB setiap satu.",
+        "count": "{count} daripada sehingga {max} fail ditambah."
+      },
+      "image": {
+        "choose": "Pilih gambar",
+        "chooseAnother": "Pilih gambar lain",
+        "remove": "Buang gambar",
+        "hint": "Ambil gambar atau pilih satu daripada telefon anda. PNG atau JPEG.",
+        "preparing": "Menyediakan gambar...",
+        "alt": "{label}: gambar yang anda tambah",
+        "pictureTooBig": "Gambar ini terlalu besar untuk digunakan. Cuba yang lebih kecil.",
+        "pictureUnreadable": "Kami tidak dapat membaca gambar ini. Cuba PNG atau JPEG."
+      },
+      "problems": {
+        "bad_text": "Terdapat aksara yang tidak boleh digunakan. Sila buangnya.",
+        "text_too_long": "Terlalu panjang. Gunakan paling banyak {detail} aksara.",
+        "text_too_short": "Terlalu pendek. Gunakan sekurang-kurangnya {detail} aksara.",
+        "format_digits": "Gunakan digit sahaja.",
+        "format_letters": "Gunakan huruf sahaja.",
+        "format_alnum": "Gunakan huruf dan nombor sahaja.",
+        "format_upper_alnum": "Gunakan huruf besar dan nombor sahaja.",
+        "format_postcode_my": "Masukkan poskod 5 digit.",
+        "bad_email": "Masukkan alamat e-mel seperti nama@contoh.com.",
+        "bad_phone": "Masukkan nombor telefon, contohnya 012-345 6789.",
+        "not_a_number": "Masukkan nombor, contohnya 1250 atau 12.50.",
+        "too_many_decimals": "Gunakan paling banyak {detail, plural, one {# tempat perpuluhan} other {# tempat perpuluhan}}.",
+        "number_too_small": "Nilai ini mestilah {detail} atau lebih.",
+        "number_too_big": "Nilai ini mestilah {detail} atau kurang.",
+        "not_a_date": "Pilih tarikh yang sebenar.",
+        "not_an_option": "Pilih salah satu pilihan.",
+        "not_yes_no": "Pilih ya atau tidak.",
+        "bad_item": "Salah satu entri tidak boleh digunakan. Semak setiap entri.",
+        "item_too_long": "Terdapat entri yang terlalu panjang. Gunakan paling banyak {detail} aksara setiap satu.",
+        "item_too_short": "Terdapat entri yang terlalu pendek. Setiap satu memerlukan sekurang-kurangnya {detail} aksara.",
+        "too_many_items": "Anda boleh menambah sehingga {detail} entri.",
+        "too_few_items": "Tambah sekurang-kurangnya {detail} entri.",
+        "duplicate_item": "Entri yang sama ada dua kali. Buang satu.",
+        "bad_image": "Kami tidak dapat menggunakan gambar ini. Cuba yang lain.",
+        "use_upload": "Tambah fail menggunakan butang di atas.",
+        "file_type": "Jenis fail ini tidak diterima. Semak jenis yang disenaraikan di atas.",
+        "file_too_large": "Fail ini terlalu besar. Hadnya ialah {detail} MB.",
+        "file_empty": "Fail ini kosong. Pilih fail lain.",
+        "document_upload_limit": "Dokumen ini telah mencapai had untuk fail yang dimuat naik. Buang satu fail sebelum menambah yang lain.",
+        "too_many_files": "Anda boleh menambah sehingga {detail} fail.",
+        "too_few_files": "Tambah sekurang-kurangnya {detail} fail.",
+        "upload_failed": "Kami tidak dapat memuat naik fail ini. Sila cuba lagi.",
+        "network": "Tiada sambungan. Semak internet anda dan cuba lagi.",
+        "rate_limited": "Terlalu banyak percubaan. Sila tunggu seminit dan cuba lagi.",
+        "not_your_field": "Ini bukan untuk anda isi.",
+        "not_shown": "Jawapan ini tidak diperlukan.",
+        "missing_required": "Ini wajib diisi.",
+        "answer_does_not_fit": "Jawapan ini terlalu panjang untuk tempat ia dicetak. Pendekkannya.",
+        "generic": "Ini tidak dapat disimpan. Sila ubah dan cuba lagi."
+      },
+      "save": {
+        "saving": "Sedang menyimpan...",
+        "saved": "Disimpan",
+        "savedNow": "Disimpan sebentar tadi",
+        "savedAgo": "Disimpan {when}",
+        "offline": "Tiada sambungan. Perubahan anda disimpan.",
+        "error": "Tidak dapat menyimpan. Perubahan anda masih ada."
+      },
+      "review": {
+        "title": "Semak jawapan anda",
+        "body": "Ini ialah dokumen seperti yang akan ditandatangani, dengan jawapan anda dicetak padanya. Jika ada yang salah, ubah jawapan itu.",
+        "change": "Ubah jawapan",
+        "preparing": "Meletakkan jawapan anda pada dokumen...",
+        "preparingShort": "Menyediakan dokumen...",
+        "failed": "Kami tidak dapat meletakkan jawapan anda pada dokumen. Semak sambungan anda dan cuba lagi.",
+        "failedShort": "Dokumen belum sedia.",
+        "retry": "Cuba lagi",
+        "fitTitle": "{count, plural, one {# jawapan terlalu panjang untuk dicetak} other {# jawapan terlalu panjang untuk dicetak}}",
+        "fitItem": "Jawapan ini terlalu panjang untuk tempat ia dicetak: {label}. Pendekkannya.",
+        "fixAnswer": "Ubah jawapan ini",
+        "fixAnswerLabel": "Ubah jawapan ini: {label}",
+        "blocked": "{count, plural, one {Pendekkan # jawapan untuk selesai} other {Pendekkan # jawapan untuk selesai}}"
+      },
+      "notice": {
+        "missing_required": "Sesetengah jawapan wajib masih kosong. Ia ditandakan di bawah.",
+        "invalid_answers": "Sesetengah jawapan perlu diubah. Ia ditandakan di bawah.",
+        "answer_does_not_fit": "Sesetengah jawapan terlalu panjang untuk tempat ia dicetak. Ia ditandakan di bawah."
+      },
+      "errors": {
+        "answer_does_not_fit": "Ada jawapan yang terlalu panjang untuk tempat ia dicetak. Pendekkannya, kemudian cuba lagi.",
+        "form_incomplete": "Sesetengah jawapan wajib masih kosong."
+      },
+      "end": {
+        "filler": {
+          "title": "Jawapan anda telah dihantar",
+          "thanks": "Terima kasih, {name}.",
+          "next": "Anda tidak perlu berbuat apa-apa lagi."
+        }
+      },
+      "preview": {
+        "note": "Ini ialah pratonton. Tiada apa yang anda masukkan di sini akan disimpan atau dihantar."
       }
     }
   }

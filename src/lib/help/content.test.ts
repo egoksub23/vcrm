@@ -53,6 +53,7 @@ const EXPECTED: Record<string, string[]> = {
     "categories-and-add-ons",
     "audit-trail-and-sealed-pdf",
     "settings-and-whatsapp",
+    "forms-in-parts",
   ],
   help: ["troubleshooting", "whats-new"],
 };

@@ -146,6 +146,7 @@ export function checkDataAnswer(field: DataField, input: DataAnswerInput | undef
         if (t === null) return { ok: false, code: "bad_item" };
         if (t === "") continue;
         if (t.length > (field.itemLength ?? 100)) return { ok: false, code: "item_too_long", detail: String(field.itemLength ?? 100) };
+        if (field.itemMinLength && t.length < field.itemMinLength) return { ok: false, code: "item_too_short", detail: String(field.itemMinLength) };
         if (!matchesFormat(t, field.itemFormat)) return { ok: false, code: `item_format_${field.itemFormat}` };
         items.push(t);
       }

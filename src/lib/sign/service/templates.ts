@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 
 import type { ConvertOptions } from "../convert";
 import { cleanReminderDays } from "../defaults";
+import { staticFitProblems, validateForm, type FormDefinition } from "../forms";
+import type { VersionWarning } from "../forms/api-types";
 import type { PlacedField } from "../pdf/types";
 import { validateFields, validateRoles, type Issue } from "../rules";
 import { copyFile, getFile, putFile, removeFiles, safeFileName, templatePath } from "../storage";
@@ -76,14 +78,24 @@ function checkName(name: string): string {
   return n;
 }
 
-function checkLayout(fields: PlacedField[], roles: SignRole[], pageCount: number): void {
+/** The form's definition as the database stores it (a JSON object of at most 400 KB). */
+const MAX_FORM_BYTES = 350_000;
+
+function checkLayout(fields: PlacedField[], roles: SignRole[], pageCount: number, form: FormDefinition | null = null): void {
   const issues: Issue[] = [...validateRoles(roles), ...validateFields(fields, roles, pageCount)];
+  if (form) {
+    issues.push(...validateForm(form, roles, fields));
+    if (JSON.stringify(form).length > MAX_FORM_BYTES) issues.push({ code: "form_too_large" });
+  } else if (fields.some((f) => f.data !== undefined)) {
+    // a placement that prints an answer needs a form to take it from
+    issues.push(...validateForm({ version: 1, parts: [], fields: [] }, roles, fields));
+  }
   if (issues.length) throw new SignError("invalid_layout", "The fields on this template are not valid.", 400, issues);
 }
 
 async function insertTemplateWithVersion(
   ctx: SignCtx,
-  args: { id: string; name: string; description?: string | null; categoryId: string | null; tags?: string[]; sourcePath: string; sourceSha: string; originalPath: string | null; originalType: string | null; pageCount: number; fields: PlacedField[]; roles: SignRole[]; defaults: TemplateDefaults; addon?: { key: string; version: string } },
+  args: { id: string; name: string; description?: string | null; categoryId: string | null; tags?: string[]; sourcePath: string; sourceSha: string; originalPath: string | null; originalType: string | null; pageCount: number; fields: PlacedField[]; roles: SignRole[]; form?: FormDefinition | null; defaults: TemplateDefaults; addon?: { key: string; version: string } },
   paths: string[],
 ): Promise<{ template: TemplateRow; version: SignTemplateVersionRow }> {
   const t = await ctx.admin
@@ -119,6 +131,8 @@ async function insertTemplateWithVersion(
       page_count: args.pageCount,
       fields: args.fields,
       roles: args.roles,
+      // only written when there is one, so a template without a form never depends on the forms columns
+      ...(args.form ? { form: args.form } : {}),
       defaults: args.defaults,
       created_by: ctx.userId,
     })
@@ -193,6 +207,7 @@ export async function createTemplateFromDocument(ctx: SignCtx, documentId: strin
       pageCount: doc.page_count,
       fields: doc.fields_snapshot,
       roles: doc.roles_snapshot,
+      form: doc.form_snapshot,
       defaults: cleanDefaults({ sign_in_order: doc.sign_in_order, code_required: doc.code_required, locale: doc.locale, reminder_days: doc.reminder_days ?? undefined, message: doc.message ?? undefined }),
     },
     [sourcePath],
@@ -203,13 +218,19 @@ export interface VersionInput {
   fields: PlacedField[];
   roles: SignRole[];
   defaults?: TemplateDefaults;
+  /** The form: undefined keeps the current version's form, null removes it, a definition replaces it. */
+  form?: FormDefinition | null;
 }
 
-/** Save the editor: a new immutable version, made current. */
-export async function saveTemplateVersion(ctx: SignCtx, templateId: string, input: VersionInput): Promise<SignTemplateVersionRow> {
+/**
+ * Save the editor: a new immutable version, made current. The layout and the form are validated together
+ * (`invalid_layout` with the issues). Fixed text that cannot fit its box is reported as a warning and never blocks.
+ */
+export async function saveTemplateVersion(ctx: SignCtx, templateId: string, input: VersionInput): Promise<{ version: SignTemplateVersionRow; warnings: VersionWarning[] }> {
   const template = await loadTemplate(ctx, templateId);
   const current = await loadVersion(ctx, template.current_version_id);
-  checkLayout(input.fields, input.roles, current.page_count);
+  const form = input.form === undefined ? (current.form ?? null) : input.form;
+  checkLayout(input.fields, input.roles, current.page_count, form);
   const { data, error } = await ctx.admin
     .from("sign_template_versions")
     .insert({
@@ -223,6 +244,7 @@ export async function saveTemplateVersion(ctx: SignCtx, templateId: string, inpu
       page_count: current.page_count,
       fields: input.fields,
       roles: input.roles,
+      ...(form ? { form } : {}),
       defaults: cleanDefaults(input.defaults ?? current.defaults),
       created_by: ctx.userId,
     })
@@ -235,7 +257,19 @@ export async function saveTemplateVersion(ctx: SignCtx, templateId: string, inpu
   if (template.addon_key) patch.customised = true;
   const u = await ctx.admin.from("sign_templates").update(patch).eq("id", templateId).eq("account_id", ctx.accountId);
   if (u.error) raiseDatabaseError(u.error, "set current version");
-  return version;
+  return { version, warnings: await staticTextWarnings(ctx, current.source_path, input.fields) };
+}
+
+/** Fixed text that will not fit its box at the smallest size. Never throws: a warning is not worth a failed save. */
+async function staticTextWarnings(ctx: SignCtx, sourcePath: string, fields: PlacedField[]): Promise<VersionWarning[]> {
+  if (!fields.some((f) => f.type === "static_text" && f.text && !f.merge)) return [];
+  try {
+    const pdf = await getFile(ctx.admin, sourcePath, ctx.accountId);
+    return (await staticFitProblems(pdf, fields)).map((field) => ({ code: "static_text_does_not_fit", field }));
+  } catch (err) {
+    console.error("[sign] could not check fixed text:", err instanceof Error ? err.message : err);
+    return [];
+  }
 }
 
 export interface TemplatePatch {
@@ -257,7 +291,7 @@ export async function updateTemplate(ctx: SignCtx, templateId: string, patch: Te
     if (!["draft", "active", "archived"].includes(patch.status)) throw new SignError("bad_status", "That status is not valid.", 400);
     if (patch.status === "active") {
       const v = await loadVersion(ctx, template.current_version_id);
-      checkLayout(v.fields, v.roles, v.page_count);
+      checkLayout(v.fields, v.roles, v.page_count, v.form ?? null);
       if (v.roles.length === 0 || v.fields.length === 0) throw new SignError("template_not_ready", "Add roles and fields before making the template active.", 409);
     }
     update.status = patch.status;
@@ -298,6 +332,7 @@ export async function duplicateTemplate(ctx: SignCtx, templateId: string, name?:
       pageCount: v.page_count,
       fields: v.fields,
       roles: v.roles,
+      form: v.form,
       defaults: v.defaults,
     },
     paths,

@@ -19,13 +19,18 @@ import { useCapability } from "@/hooks/use-can";
 import { SignApiError, signRequest, templateFileUrl } from "@/lib/sign/client/api";
 import type { EditorState } from "@/lib/sign/client/editor-history";
 import { errorMessageKey } from "@/lib/sign/client/layout";
+import { loadTemplate, postVersion, snapshotOf } from "@/lib/sign/client/form-api";
+import { planEditorSave, type VersionSnapshot } from "@/lib/sign/client/form-save";
 import { sameDefaults } from "@/lib/sign/client/template-defaults";
+import { validateForm } from "@/lib/sign/forms/validate";
 import { validateFields, validateRoles } from "@/lib/sign/rules";
 import type { SignTemplateVersionRow, TemplateDefaults } from "@/lib/sign/types";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { FieldEditor } from "./field-editor";
+import { useLeaveGuard } from "@/components/sign/form-builder/leave-guard";
+import { TemplateTabs } from "@/components/sign/form-builder/template-tabs";
 import { FormRow, NativeSelect } from "./form-bits";
 import { TemplateDefaultsPanel } from "./template-defaults-panel";
 import { useStableCallback } from "./use-editor-model";
@@ -54,7 +59,7 @@ interface Category {
 type Load = { status: "loading" } | { status: "error"; code: string } | { status: "ready"; data: Loaded };
 type Drawer = "none" | "defaults" | "versions";
 
-export function TemplateEditorScreen({ templateId }: { templateId: string }) {
+export function TemplateEditorScreen({ templateId, focus }: { templateId: string; /** Open on this placement (the form builder's "Printed on the form" link). */ focus?: string | null }) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const t = useTranslations("Sign.editor");
@@ -84,11 +89,12 @@ export function TemplateEditorScreen({ templateId }: { templateId: string }) {
       </div>
     );
   }
-  return <Screen key={`${templateId}:${attempt}`} data={load.data} />;
+  return <Screen key={`${templateId}:${attempt}`} data={load.data} focus={focus ?? null} />;
 }
 
-function Screen({ data }: { data: Loaded }) {
+function Screen({ data, focus }: { data: Loaded; focus: string | null }) {
   const t = useTranslations("Sign.editor");
+  const tf = useTranslations("Sign.formBuilder");
   const locale = useLocale();
   const router = useRouter();
   const canEdit = useCapability("sign.templates");
@@ -99,6 +105,9 @@ function Screen({ data }: { data: Loaded }) {
   const [layout, setLayout] = useState<EditorState>({ fields: version?.fields ?? [], roles: version?.roles ?? [] });
   const [defaults, setDefaults] = useState<TemplateDefaults>(version?.defaults ?? {});
   const [baseline, setBaseline] = useState({ fields: layout.fields, roles: layout.roles, defaults });
+  // forms: the version this screen is on, as the server last gave it (the form it carries is never changed here)
+  const [loaded, setLoaded] = useState<VersionSnapshot | null>(version ? snapshotOf(version) : null);
+  const form = loaded?.form ?? null;
   const [versions, setVersions] = useState<VersionItem[]>(data.versions);
   const [categories, setCategories] = useState<Category[]>([]);
   const [drawer, setDrawer] = useState<Drawer>("none");
@@ -107,7 +116,10 @@ function Screen({ data }: { data: Loaded }) {
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const dirty = layout.fields !== baseline.fields || layout.roles !== baseline.roles || !sameDefaults(defaults, baseline.defaults);
-  const problems = useMemo(() => validateRoles(layout.roles).length + validateFields(layout.fields, layout.roles, version?.page_count ?? 1).length, [layout, version]);
+  const problems = useMemo(
+    () => validateRoles(layout.roles).length + validateFields(layout.fields, layout.roles, version?.page_count ?? 1).length + (form ? validateForm(form, layout.roles, layout.fields).length : 0),
+    [layout, version, form],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -153,10 +165,19 @@ function Screen({ data }: { data: Loaded }) {
     setError(null);
     const snapshot = { fields: layout.fields, roles: layout.roles, defaults };
     try {
-      const res = await signRequest<{ version: VersionItem }>(`/api/sign/templates/${template.id}/versions`, { json: { fields: snapshot.fields, roles: snapshot.roles, defaults: snapshot.defaults } });
+      // the form builder is the other view of this version: take the latest first, and carry its form over unchanged
+      const latest = await loadTemplate(template.id);
+      if (!latest.version || !loaded) throw new SignApiError("template_has_no_version", "The template has no version.", 409);
+      const plan = planEditorSave({ loaded, latest: snapshotOf(latest.version), fields: snapshot.fields, roles: snapshot.roles, defaults: snapshot.defaults });
+      if (plan.kind === "conflict") {
+        setError("changed_elsewhere");
+        return;
+      }
+      const res = await postVersion(template.id, plan.body);
       setBaseline(snapshot);
+      setLoaded({ id: res.version.id, fields: plan.body.fields, roles: plan.body.roles, defaults: plan.body.defaults, form: plan.body.form });
       setVersions((v) => [{ id: res.version.id, version_no: res.version.version_no, created_at: res.version.created_at }, ...v]);
-      toast.success(t("screen.savedVersion", { n: res.version.version_no }));
+      toast.success(plan.merged ? tf("screen.savedMerged", { n: res.version.version_no }) : t("screen.savedVersion", { n: res.version.version_no }));
     } catch (err) {
       setError(err instanceof SignApiError ? err.code : "request_failed");
     } finally {
@@ -196,10 +217,12 @@ function Screen({ data }: { data: Loaded }) {
     if (dirty) setLeaveOpen(true);
     else router.push("/sign/templates");
   };
+  // the other view of this template (the form builder): ask first when there is unsaved work
+  const guard = useLeaveGuard(dirty);
 
   const when = (iso: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const readOnly = !canEdit || !version;
-  const errorText = error === "fix_problems" ? t("screen.fixProblems", { count: problems }) : error === "save_first" ? t("screen.saveFirst") : error ? t(errorMessageKey(error)) : null;
+  const errorText = error === "fix_problems" ? t("screen.fixProblems", { count: problems }) : error === "save_first" ? t("screen.saveFirst") : error === "changed_elsewhere" ? tf("errors.changed_elsewhere") : error ? t(errorMessageKey(error)) : null;
 
   return (
     <div className="flex h-[calc(100dvh-8rem)] min-h-[560px] flex-col gap-2">
@@ -208,6 +231,7 @@ function Screen({ data }: { data: Loaded }) {
           <ArrowLeft />
           {t("screen.back")}
         </Button>
+        <TemplateTabs templateId={template.id} current="layout" onNavigate={guard.go} className="self-end" />
         <FormRow label={t("screen.name")} htmlFor="sign-tpl-name" className="min-w-48 flex-1 sm:max-w-sm">
           <Input id="sign-tpl-name" value={nameDraft ?? meta.name} disabled={!canEdit} maxLength={160} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => void commitName()} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
         </FormRow>
@@ -287,6 +311,8 @@ function Screen({ data }: { data: Loaded }) {
           mode="template"
           readOnly={readOnly}
           onChange={setLayout}
+          form={form}
+          focusKey={focus}
           className={cn("min-h-0 flex-1")}
         />
       ) : (
@@ -311,6 +337,7 @@ function Screen({ data }: { data: Loaded }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {guard.dialog}
     </div>
   );
 }

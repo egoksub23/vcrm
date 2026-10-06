@@ -113,7 +113,29 @@ step: there is no screen or route to upload one yet.
 | Verification code | 6 digits, 10 minutes, 5 tries, 5 codes an hour |
 | Retention of signed files | 7 years by default (`sign_settings.retention_years`, set by the operator for now) |
 
-## 8. Troubleshooting
+## 8. Forms
+
+A template can carry a **form**: parts, each assigned to a role, each a list of questions. The signer opens one link, fills their parts over as many sittings as they like (their answers are saved on the server as they go), reviews the document with the answers printed on it, and signs. A part can belong to a filler role, who completes it without signing. Answers can also fill the contact when the signer submits.
+
+Needs migration `160_sign_forms.sql` (adds `sign_template_versions.form` and `sign_documents.form_snapshot`). Apply it before a template with a form is saved; templates and documents without a form do not depend on it.
+
+| Item | Limit or behaviour |
+|---|---|
+| Kinds of file a signer may upload | PDF, JPEG and PNG, decided from the file's first bytes, never its name. A field can narrow the list. |
+| Size of one uploaded file | 5 MB unless the field says otherwise, at most 10 MB |
+| Files in one field | 1 unless the field says otherwise, at most 10 |
+| Uploads on one document | 50 MB in total, all roles together |
+| Parts, questions | 20 parts, 200 questions per form |
+
+**Where uploaded files are kept.** In the private `sign-documents` bucket, under the document's own folder: `account-<workspace id>/<document id>/upload/<file id>-<name>`. Each upload is also a row in `sign_document_files` (kind `signer_upload`) with its SHA-256, and an entry in the answer to its question. The path never reaches a browser: the signer sees their own file through their link, and staff download it from the document (the download is recorded).
+
+**Uploads are listed in the certificate, not appended.** The certificate pages carry one line for each upload (who, the file name, the first 16 characters of its SHA-256) and one for each removal. The files themselves are not added to the signed PDF; they stay in storage with their fingerprints.
+
+**Write-back.** A question can be tied to a contact field (name, email, company or a custom field). After the signer has signed, the answers they typed or confirmed are written to the document's contact, in the same workspace only, and only when the value differs; a question set to "only if empty" never overwrites. Every change is an audit event (`writeback`) with the old and the new value, which is personal data and is kept in the audit trail only, never on the certificate. A write-back that fails is logged (`[sign] write-back`) and never undoes the signature. Answers the signer never confirmed are not written back.
+
+**More time.** The sender can push the expiry of a document that is still open (`POST /api/sign/documents/[id]/expiry`): later than now and later than the current expiry, at most a year ahead. It is recorded as `expiry_extended`.
+
+## 9. Troubleshooting
 
 | What you see | Likely cause and fix |
 |---|---|
@@ -123,6 +145,7 @@ step: there is no screen or route to upload one yet.
 | Document shows "Could not finish" | Sealing failed. It is retried by itself; the server log has `[sign]` lines with the reason. Check the certificate and `ENCRYPTION_KEY`. |
 | "Word conversion is not available right now" | `SIGN_CONVERTER_URL` is empty, or the container is not running or not healthy (section 3). |
 | A Word file "took too long" or "could not be converted" | Ask for a PDF. Large or unusual files can fail; the converter keeps no state. |
+| A signer cannot upload a file | It is not a PDF, JPEG or PNG, or it is over the field's limit (section 8), or the document has reached 50 MB of uploads. |
 | Nobody receives invitations | `RESEND_API_KEY` is missing, or the mail is in spam. The document's page says when a message could not be delivered. |
 | WhatsApp invitation not delivered | The workspace has no approved message template set in Settings > Doc Sign > General, or its WhatsApp channel is off. |
 | Chinese or Korean text appears as `?` | No CJK font (section 5). |

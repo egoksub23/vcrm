@@ -5,10 +5,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { SampleContext } from "@/lib/sign/client/editor-preview";
+import { pick } from "@/lib/sign/forms/text";
+import type { FormDefinition } from "@/lib/sign/forms/types";
 import { clampRect, rectForDraw, rectFromPoints, type Rect } from "@/lib/sign/client/layout";
 import { FIELD_TYPES, type FieldType, type PlacedField } from "@/lib/sign/pdf/types";
 import { SENDER_ROLE } from "@/lib/sign/rules";
-import type { SignRole } from "@/lib/sign/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { FieldBox, type FieldBoxCallbacks } from "./field-box";
@@ -36,6 +38,10 @@ export interface PageOverlayProps {
   pxPerPt: number;
   typeLabels: Record<FieldType, string>;
   senderLabel: string;
+  /** Forms: the template's form, so a placement that prints a data field can show that field's label. */
+  form?: FormDefinition | null;
+  /** The language the data labels are shown in. */
+  labelLocale?: SignLocale;
   callbacks: PageOverlayCallbacks;
 }
 
@@ -46,7 +52,7 @@ interface Drawing {
   moved: boolean;
 }
 
-function PageOverlayImpl({ page, fields, roles, selectedKey, tool, readOnly, preview, sampleCtx, issueKeys, pageWidth, pageHeight, pxPerPt, typeLabels, senderLabel, callbacks }: PageOverlayProps) {
+function PageOverlayImpl({ page, fields, roles, selectedKey, tool, readOnly, preview, sampleCtx, issueKeys, pageWidth, pageHeight, pxPerPt, typeLabels, senderLabel, form, labelLocale = "en", callbacks }: PageOverlayProps) {
   const siblings = useRef<readonly PlacedField[]>(fields);
   useEffect(() => {
     siblings.current = fields;
@@ -188,6 +194,7 @@ function PageOverlayImpl({ page, fields, roles, selectedKey, tool, readOnly, pre
           preview={preview}
           sampleCtx={sampleCtx}
           hasIssue={issueKeys.has(f.key)}
+          dataLabel={f.data ? dataLabelOf(form, f.data, labelLocale) : undefined}
           pageWidth={pageWidth}
           pageHeight={pageHeight}
           pxPerPt={pxPerPt}
@@ -200,6 +207,12 @@ function PageOverlayImpl({ page, fields, roles, selectedKey, tool, readOnly, pre
       <div ref={ghost} className="pointer-events-none absolute z-30 hidden border border-dashed border-primary bg-primary/10" aria-hidden />
     </div>
   );
+}
+
+/** The label a bound placement shows: its data field's, or "{{key}}" when the field is gone. */
+function dataLabelOf(form: FormDefinition | null | undefined, key: string, locale: SignLocale): string {
+  const field = form?.fields.find((x) => x.key === key);
+  return field ? pick(field.label, locale) || field.key : `{{${key}}}`;
 }
 
 export const PageOverlay = memo(PageOverlayImpl);

@@ -5,8 +5,9 @@
 //   * The category is created if missing (marked with the add-on's key). A category with the same key that
 //     the workspace already has (the starting "Merchant agreements", say) is kept as it is: its presets are
 //     never overwritten, it is only marked as belonging to the add-on, and un-archived if it was archived.
-//   * Each template is created as a DRAFT to review. A template of the same name that already exists for the
-//     add-on is skipped, edited or not ("customised" ones are never touched).
+//   * Each template is created as a DRAFT to review, with its layout and, when it carries one, its form (phase
+//     1B) stored on the version. A template of the same name that already exists for the add-on is skipped,
+//     edited or not ("customised" ones are never touched), so installing again never replaces a form either.
 //   * The installed version is recorded in `sign_addons` once everything above worked.
 //
 // The audit log is written by the database: triggers on sign_addons, sign_categories and sign_templates
@@ -23,7 +24,7 @@ import path from "node:path";
 import { signEnabled, signMerchantEnabled } from "../feature";
 import { SignError, raiseDatabaseError } from "../service/errors";
 import type { SignCtx } from "../service/context";
-import { createTemplateFromUpload, saveTemplateVersion } from "../service/templates";
+import { createTemplateFromUpload, deleteTemplate, saveTemplateVersion } from "../service/templates";
 import { ADDON_REGISTRY, getAddon, installableTemplates, listAddons, type AddonManifest, type AddonRegistry } from "./index";
 
 export interface InstallOptions {
@@ -145,10 +146,17 @@ export async function installAddon(ctx: SignCtx, key: string, opts: InstallOptio
       throw new SignError("addon_source_missing", "A file this add-on needs is missing from the server. Please contact support.", 500);
     }
     const { template } = await createTemplateFromUpload(ctx, { bytes, filename: path.basename(def.source as string), name: def.name, categoryId: category.id });
-    // The layout goes in as the next version, before the template is marked as the add-on's (saving a
-    // version of an add-on's template marks it customised, which this is not).
-    if (def.fields.length > 0 || def.roles.length > 0) {
-      await saveTemplateVersion(ctx, template.id, { fields: def.fields, roles: def.roles, defaults: def.defaults });
+    // The layout and the form go in as the next version, before the template is marked as the add-on's (saving
+    // a version of an add-on's template marks it customised, which this is not). The service checks the layout
+    // and the form together, so an add-on that ships an unsound form fails here and installs nothing more.
+    if (def.fields.length > 0 || def.roles.length > 0 || def.form) {
+      try {
+        await saveTemplateVersion(ctx, template.id, { fields: def.fields, roles: def.roles, defaults: def.defaults, ...(def.form ? { form: def.form } : {}) });
+      } catch (err) {
+        // leave no half-made draft behind: a retry would otherwise make a second one
+        await deleteTemplate(ctx, template.id).catch(() => undefined);
+        throw err;
+      }
     }
     const mark = await ctx.admin
       .from("sign_templates")

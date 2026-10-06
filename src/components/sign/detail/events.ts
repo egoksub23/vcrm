@@ -36,6 +36,14 @@ export interface DescribeContext {
   /** Used when a name cannot be found (a signer who was replaced, a teammate who left). */
   someone: string;
   teammate: string;
+  /** Forms: the title of a part of the document's form in the reader's language, or null when it is not known. */
+  partTitle?: (partKey: string) => string | null;
+  /** Forms: the label of a data field of the form, or null. */
+  fieldLabel?: (fieldKey: string) => string | null;
+  /** Forms: the document's contact (the write-back's line links to it). */
+  contactId?: string | null;
+  /** Forms: a day in the reader's language and time zone (the new expiry). */
+  formatDay?: (iso: string) => string;
 }
 
 export type DetailKind = "ip" | "device" | "consent" | "fingerprint" | "channel" | "delivery" | "error";
@@ -50,8 +58,10 @@ export interface EventLine {
   seq: number;
   at: string;
   type: string;
-  /** Message key under `Sign.detail`. */
+  /** Message key under the namespace `ns`. */
   key: string;
+  /** Which messages the key is in: `Sign.detail` (the first phase) or `Sign.progress` (events of a form). */
+  ns: "detail" | "progress";
   values: Record<string, string>;
   actorType: SignEventRow["actor_type"];
   /** Who did it, when it was a person; null for the system. */
@@ -63,13 +73,37 @@ export interface EventLine {
   /** The reason a person gave (declined, cancelled). */
   reason: string | null;
   details: EventDetail[];
+  /** Forms (write-back): the contact fields that changed, as stored ("name", "email", "custom:Branch"); never their values. */
+  contactFields: string[];
+  /** Something the line can link to (the contact whose record the answers updated). */
+  link: { kind: "contact"; id: string } | null;
 }
 
 const KNOWN: ReadonlySet<string> = new Set<EventType>(EVENT_TYPES);
 const FAILURES: ReadonlySet<string> = new Set(["delivery_failed", "code_failed", "seal_failed", "seal_attempt_failed"]);
 const MINOR: ReadonlySet<string> = new Set(["saved"]);
+/** Events of a form: worded under `Sign.progress.events`. */
+const FORM_EVENTS: ReadonlySet<string> = new Set(["part_completed", "part_reopened", "uploaded", "upload_removed", "writeback", "expiry_extended"]);
 
 const text = (v: unknown, max = 500): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+
+const firstText = (...values: unknown[]): string | null => {
+  for (const v of values) {
+    const t = text(v, 300);
+    if (t) return t;
+  }
+  return null;
+};
+
+/** The contact fields a write-back names, from `fields` or `changes` (names only: the values stay in the audit chain). */
+function writebackFields(detail: Record<string, unknown>): string[] {
+  // One event per contact field changed carries `field`; a combined event may carry `fields` or `changes`.
+  const list = Array.isArray(detail.fields) ? detail.fields : Array.isArray(detail.changes) ? detail.changes : detail.field !== undefined ? [detail.field] : [];
+  const names = list
+    .map((x) => (typeof x === "string" ? x : x && typeof x === "object" ? firstText((x as Record<string, unknown>).contactField, (x as Record<string, unknown>).contact_field, (x as Record<string, unknown>).field) : null))
+    .filter((x): x is string => !!x && x.trim() !== "");
+  return [...new Set(names)];
+}
 
 /** The signer who was invited just before this one, for "invited because X finished". */
 function previousSigner(signers: readonly EventSigner[], signerId: string | null): EventSigner | null {
@@ -107,6 +141,34 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     key = signer ? "events.delivery_failedCompleted" : "events.delivery_failedCompletedSender";
   }
 
+  // The events of a form. Only what changed is worded, never the values: a write-back's old and new values are in the
+  // audit chain for those who need them.
+  let link: EventLine["link"] = null;
+  let contactFields: string[] = [];
+  if (FORM_EVENTS.has(row.type)) {
+    const partKey = firstText(detail.part, detail.part_key, detail.partKey);
+    const part = partKey ? (ctx.partTitle?.(partKey) ?? partKey) : null;
+    const fileName = firstText(detail.name, detail.file_name, detail.filename, detail.file);
+    const fieldKey = row.type === "uploaded" || row.type === "upload_removed" ? firstText(detail.field, detail.field_key) : null;
+    const field = fieldKey ? (ctx.fieldLabel?.(fieldKey) ?? fieldKey) : null;
+    const fields = row.type === "writeback" ? writebackFields(detail) : [];
+    contactFields = fields;
+    const until = firstText(detail.expires_at, detail.expiresAt, detail.to, detail.until);
+    values.part = part ?? "";
+    values.hasPart = part ? "yes" : "no";
+    values.file = fileName ?? "";
+    values.hasFile = fileName ? "yes" : "no";
+    values.field = field ?? "";
+    values.hasField = field ? "yes" : "no";
+    values.fields = fields.join(", ");
+    values.hasFields = fields.length ? "yes" : "no";
+    const day = until && !Number.isNaN(new Date(until).getTime()) ? (ctx.formatDay?.(until) ?? until.slice(0, 10)) : null;
+    values.date = day ?? "";
+    values.hasDate = day ? "yes" : "no";
+    const contactId = firstText(detail.contact_id, detail.contactId) ?? ctx.contactId ?? null;
+    if (row.type === "writeback" && contactId) link = { kind: "contact", id: contactId };
+  }
+
   const details: EventDetail[] = [];
   const add = (kind: DetailKind, value: string | null) => {
     if (value) details.push({ kind, value });
@@ -128,6 +190,7 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     at: row.created_at,
     type: row.type,
     key,
+    ns: FORM_EVENTS.has(row.type) ? "progress" : "detail",
     values,
     actorType: row.actor_type,
     actorName: person ?? (row.actor_type === "signer" ? signer?.full_name ?? null : null),
@@ -135,7 +198,15 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     minor: MINOR.has(row.type),
     reason: row.type === "declined" || row.type === "voided" ? text(detail.reason, 1000) : null,
     details,
+    contactFields,
+    link,
   };
+}
+
+/** The latest time the answers updated the contact, and how many contact fields changed in all; null when they never did. */
+export function latestWriteback(rows: readonly Pick<SignEventRow, "type" | "doc_seq" | "created_at">[] | null): { at: string; count: number } | null {
+  const all = (rows ?? []).filter((r) => r.type === "writeback").sort((a, b) => b.doc_seq - a.doc_seq);
+  return all.length ? { at: all[0].created_at, count: all.length } : null;
 }
 
 /** The history in the order the reader wants it; the chain's own sequence number decides, then time. */

@@ -15,10 +15,12 @@ import { PdfPages, usePdf, useElementWidth } from "@/components/sign/pdf-pages";
 import { groupFieldsByPage, fieldsOnPage, pageAtOffset, pageHeights, pageTops, pageWidthPx, percentOfWidth, type Zoom } from "@/lib/sign/client/editor-pages";
 import type { EditorState } from "@/lib/sign/client/editor-history";
 import type { SampleContext } from "@/lib/sign/client/editor-preview";
-import { mergeKeysOf } from "@/lib/sign/client/layout";
+import { mergeKeysOf, readingOrder } from "@/lib/sign/client/layout";
+import type { FormDefinition } from "@/lib/sign/forms/types";
+import { validateForm } from "@/lib/sign/forms/validate";
 import { FIELD_TYPES, type FieldType, type PlacedField } from "@/lib/sign/pdf/types";
 import { MAX_FIELDS, validateFields, validateRoles } from "@/lib/sign/rules";
-import type { SignRole } from "@/lib/sign/types";
+import type { SignLocale, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { EditorToolbar } from "./editor-toolbar";
@@ -42,14 +44,23 @@ export interface FieldEditorProps {
   className?: string;
   /** Extra controls at the right end of the toolbar. */
   toolbarExtra?: ReactNode;
+  /**
+   * Forms: the template's form. With one, a placement can print the answer to one of its data fields ("Fill with answer"), the side panel
+   * lists the data fields with a Place action, and the roles panel shows which parts each role holds. The editor never changes the form.
+   */
+  form?: FormDefinition | null;
+  /** Select this placement and scroll to it once the pages are loaded (the form builder's "Printed on the form" link). */
+  focusKey?: string | null;
 }
 
 const PAGE_GAP = 16;
 const PAD = 16;
 
-export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra }: FieldEditorProps) {
+export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey }: FieldEditorProps) {
   const t = useTranslations("Sign.editor");
+  const tf = useTranslations("Sign.formBuilder");
   const locale = useLocale();
+  const labelLocale = (["en", "ms", "zh", "ko"].includes(locale) ? locale : "en") as SignLocale;
   const pdf = usePdf(pdfUrl, pdfVersion);
   const [rootRef, rootWidth] = useElementWidth<HTMLDivElement>();
   const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
@@ -68,9 +79,9 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
     [t],
   );
   const model = useEditorModel({ fields, roles, onChange, seeds });
-  const { update, setRect, nudge, place, remove, duplicate, copyToEveryPage, copy, paste, addRole, patchRole, deleteRole, undo, redo } = model;
+  const { update, setRect, nudge, place, placeBound, remove, duplicate, copyToEveryPage, copy, paste, addRole, patchRole, deleteRole, undo, redo } = model;
 
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(focusKey ?? null);
   const [tool, setTool] = useState<FieldType | null>(null);
   const [activeRoleKey, setActiveRoleKey] = useState<string | null>(null);
   const [zoom, setZoom] = useState<Zoom>("fit");
@@ -94,15 +105,23 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
 
   const ready = pdf.status === "ready" ? pdf : null;
   const pageCount = ready?.pages.length ?? 0;
-  const issues = useMemo(() => [...validateRoles(roles), ...(ready ? validateFields(fields, roles, pageCount) : [])], [fields, roles, ready, pageCount]);
+  const issues = useMemo(
+    () => [
+      ...validateRoles(roles),
+      ...(ready ? validateFields(fields, roles, pageCount) : []),
+      // forms: a placement that prints a data field the form no longer has, or of a type that cannot show it
+      ...(form ? validateForm(form, roles, fields).filter((i) => i.code.startsWith("placement_")) : []),
+    ],
+    [fields, roles, ready, pageCount, form],
+  );
   const issueKeys = useMemo(() => new Set(issues.map((i) => i.field).filter((k): k is string => !!k)), [issues]);
   const mergeKeys = useMemo(() => mergeKeysOf(fields).map((m) => m.key), [fields]);
 
   const typeLabels = useMemo(() => Object.fromEntries(FIELD_TYPES.map((ty) => [ty, t(`types.${ty}`)])) as Record<FieldType, string>, [t]);
   const senderLabel = t("roles.sender");
   const sampleCtx = useMemo<SampleContext>(
-    () => ({ mergeValues, now, locale, signerName: t("preview.signerName"), textPlaceholder: t("preview.text") }),
-    [mergeValues, now, locale, t],
+    () => ({ mergeValues, now, locale, signerName: t("preview.signerName"), textPlaceholder: t("preview.text"), form, sampleItem: (n: number) => tf("editor.sampleItem", { n }) }),
+    [mergeValues, now, locale, t, tf, form],
   );
 
   // ---- geometry of the column of pages -------------------------------------------------------------------
@@ -152,7 +171,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
     if (key) {
       const f = fields.find((x) => x.key === key);
       if (f && f.role !== "sender") setActiveRoleKey(f.role);
-      setTab((cur) => (cur === "fields" || cur === "issues" ? cur : "field"));
+      setTab((cur) => (cur === "fields" || cur === "issues" || cur === "data" ? cur : "field"));
     }
   });
 
@@ -173,8 +192,57 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
       goto(f.page, f.y);
       if (compact) setPanelOpen(true);
     }
-    setTab((cur) => (cur === "fields" || cur === "issues" ? cur : "field"));
+    setTab((cur) => (cur === "fields" || cur === "issues" || cur === "data" ? cur : "field"));
   });
+
+  // forms: put a box that prints a data field at the middle of the part of the page in view, already bound
+  const placeData = (dataKey: string) => {
+    const df = form?.fields.find((f) => f.key === dataKey);
+    const el = scrollRef.current;
+    if (!form || !df || !ready || !el || locked || tops.length === 0) return;
+    const page = pageAtOffset(tops, heights, el.scrollTop, el.clientHeight);
+    const midY = el.scrollTop + el.clientHeight / 2;
+    const cy = Math.min(0.92, Math.max(0.08, (midY - tops[page]) / Math.max(1, heights[page])));
+    const wide = pageWidth + PAD * 2 > el.clientWidth;
+    const cx = wide ? Math.min(0.9, Math.max(0.1, (el.scrollLeft + el.clientWidth / 2 - PAD) / pageWidth)) : 0.5;
+    const size = ready.pages[page];
+    const key = placeBound({ field: df, page, centre: { x: cx, y: cy }, aspect: size ? size.height / size.width : 1.4142, avoid: new Set(form.fields.map((f) => f.key)) });
+    if (!key) {
+      toast.error(tf("editor.placeFailed"));
+      return;
+    }
+    setSelectedKey(key);
+    setTab("field");
+    focusField(key);
+  };
+
+  // forms: move to a place that prints a data field (again to go to the next one)
+  const showData = (dataKey: string) => {
+    const list = readingOrder(fields.filter((p) => p.data === dataKey));
+    if (list.length === 0) return;
+    const i = list.findIndex((p) => p.key === selectedKey);
+    revealField(list[(i + 1) % list.length].key);
+  };
+
+  // forms: open on a given placement once the pages are there. The pages settle (the page list appears, the width is measured) for a moment
+  // after they load, which moves everything; the scroll is repeated for each change in that moment, and left alone as soon as the
+  // reader scrolls for themselves.
+  const focusUntil = useRef(0);
+  const stopFocusing = () => {
+    focusUntil.current = -1;
+  };
+  useEffect(() => {
+    if (!focusKey || !ready || scrollWidth <= 0) return;
+    if (focusUntil.current === 0) focusUntil.current = Date.now() + 4000;
+    if (focusUntil.current < 0 || Date.now() > focusUntil.current) return;
+    const f = fields.find((x) => x.key === focusKey);
+    if (!f) return;
+    const frame = requestAnimationFrame(() => {
+      goto(f.page, f.y, false);
+      rootRef.current?.querySelector<HTMLElement>(`[data-field="${focusKey}"]`)?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusKey, ready, scrollWidth, pageWidth, fields, goto, rootRef]);
 
   const overlayCallbacks = useMemo<PageOverlayCallbacks>(() => ({ select: onSelect, commitRect: (key, rect) => setRect(key, rect), place: onPlace }), [onSelect, setRect, onPlace]);
 
@@ -276,6 +344,8 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
           pxPerPt={pxPerPt}
           typeLabels={typeLabels}
           senderLabel={senderLabel}
+          form={form}
+          labelLocale={labelLocale}
           callbacks={overlayCallbacks}
         />
       )}
@@ -308,6 +378,11 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
       }}
       onPatchRole={patchRole}
       onDeleteRole={deleteRole}
+      form={form}
+      labelLocale={labelLocale}
+      canPlaceData={!!ready && fields.length < MAX_FIELDS}
+      onPlaceData={placeData}
+      onShowData={showData}
     />
   );
 
@@ -348,7 +423,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
             <PageList pages={ready.pages} groups={groups} roles={roles} current={currentPage} onGoto={(i) => goto(i)} />
           </aside>
         ) : null}
-        <div ref={scrollRef} tabIndex={-1} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto bg-muted/50 p-4 outline-none" aria-label={t("canvas.label")}>
+        <div ref={scrollRef} tabIndex={-1} onScroll={onScroll} onWheel={stopFocusing} onPointerDown={stopFocusing} onTouchStart={stopFocusing} className="min-w-0 flex-1 overflow-auto bg-muted/50 p-4 outline-none" aria-label={t("canvas.label")}>
           {pdf.status === "loading" ? <p className="py-16 text-center text-sm text-muted-foreground">{t("canvas.loading")}</p> : null}
           {pdf.status === "error" ? (
             <p role="alert" className="py-16 text-center text-sm text-destructive">
