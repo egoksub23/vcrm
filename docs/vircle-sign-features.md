@@ -1,15 +1,22 @@
 ---
-title: "Halo Sign: feature set"
-subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, 6 Oct 2026"
+title: "Vircle Doc Sign: feature set"
+subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026"
 ---
 
 # 1. Purpose and how to review this document
 
-Halo Sign is a native document-signing module inside Halo. It lets a workspace turn a form or
-contract into a template, send it to one or more people for electronic signature, store the signed
-result safely, and manage documents afterwards. The first use is **merchant registration**: a
-merchant applies, receives an agreement prefilled with their details, signs on their phone, and the
-signed file lands on their record in Halo with no manual handling.
+Vircle Doc Sign is a native document-signing module inside Halo. It works on **any document**: upload
+a PDF, a Word file or an image, place signing locations, text, date and number fields on it, name
+the people who must sign (in a set order if you wish), send it for electronic signature, store the
+signed result safely, and manage documents afterwards. Documents are organised into **categories**,
+and ready-made packs for a business process come as **add-ons**. The first add-on is **Merchant
+Registration**: a merchant applies, receives the merchant agreement prefilled with their details,
+signs on their phone, and the signed file lands on their record in Halo with no manual handling. A
+workspace without an add-on still has the whole core product.
+
+*Revised after your note that the merchant agreement is an add-on template and category, that Word
+files and any-document editing are needed, and that signers are listed with full name, email and an
+optional signing order. Changes are in sections 3.1, 3.2, 3.9, 3.10 and 3.11.*
 
 Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "drop F-22". Priority:
 
@@ -26,18 +33,24 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 2. Signers use **email or WhatsApp** links; no SMS.
 3. Signer languages at launch: **English and Bahasa Melayu**. Halo's Korean and Chinese files are
    also used for the signer page, because the strings already exist in the Halo language setup.
-4. Input is **PDF only**. Word files are not accepted in v1 (convert before uploading).
+4. Input is **PDF, Word (.docx, .doc) and images (JPG, PNG)**. Word files are converted to PDF by a
+   conversion service and the converted PDF is what is signed; the original is kept. Exact page
+   layout of a Word file depends on its fonts; where it must be exact, upload a PDF.
 5. The signature is an **advanced electronic signature with audit trail** under an organisational
    certificate. A licensed certificate-authority signature is a P3 option, pending legal advice.
 6. Signed documents are **kept for a configurable period** (proposed default 7 years), even if the
    workspace is deleted, as an explicit exception. This needs your decision.
+7. The product name is **Vircle Doc Sign**; the sidebar says "Doc Sign". Customer-facing pages and
+   emails use the workspace's name and "Halo". Because Halo's help pages must not name Vircle, the
+   Doc Sign help pages are owner-only while the module is Vircle-only. If it is later sold to
+   customers, the brand on customer-facing wording is a decision to take then.
 
 # 2. Who uses it
 
 | Person | What they do | Where |
 |---|---|---|
-| **Sender** (onboarding or sales agent) | Sends documents, follows progress, resends, voids | Halo, Sign section and contact page |
-| **Template owner** (operations lead) | Builds and versions templates, fixes field positions and merge keys | Halo, Sign > Templates |
+| **Sender** (onboarding or sales agent) | Uploads or picks a document, lists the signers, sends, follows progress, resends, voids | Halo, Doc Sign section and contact page |
+| **Template owner** (operations lead) | Builds and versions templates, fixes field positions and merge keys | Halo, Doc Sign > Templates |
 | **Signer** (merchant, no account) | Opens a link, reviews, fills fields, signs, downloads a copy | A public page on a phone or computer |
 | **Countersigner** (Vircle director) | Signs after the merchant, inside Halo | Halo, "Awaiting my signature" |
 | **Reviewer** (compliance, audit) | Reads the audit trail, verifies a document is untampered | Halo and the public verify page |
@@ -49,14 +62,14 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 
 | Id | Requirement | Pri |
 |---|---|---|
-| F-01 | Upload a PDF as a template (up to 25 MB, 50 pages). Reject password-protected or corrupt files with a clear message. | P1 |
+| F-01 | Upload a PDF, Word file or image as a template or as a one-off document (up to 25 MB, 50 pages). Reject password-protected, corrupt or unsupported files with a clear message. | P1 |
 | F-02 | Field editor: click or drag on a page to place fields; move, resize, copy, align, delete; keyboard nudging; page thumbnails; zoom. | P1 |
-| F-03 | Field types: signature, initials, full name, date signed (automatic), text, multi-line text, email, phone, number, checkbox, dropdown, radio group, **file upload by signer** (for example business registration certificate, ID copy). | P1 |
-| F-04 | **Signer roles** per template (for example Merchant, Vircle Director). Each field belongs to a role. Up to 6 roles. | P1 |
+| F-03 | Field types: signature, initials, full name, **date signed (automatic)**, **date the signer picks**, text, multi-line text, email, phone, **number (decimals, currency symbol, minimum and maximum)**, checkbox, dropdown, radio group, **static text the sender writes on the document**, and **file upload by signer** (for example business registration certificate, ID copy). | P1 |
+| F-04 | **Signer roles** per template or document (for example Merchant, Director). Each field belongs to a role. Up to 6 roles. Roles are filled from the signing list (F-66). | P1 |
 | F-05 | Field properties: required or optional, label and help text, placeholder, default value, validation (length, email, phone, a regular expression such as an IC number), read-only. | P1 |
 | F-06 | **Merge fields**: a field can be filled before sending from a contact or workspace value (name, email, phone, company, country, any custom field, document reference, today's date). Merge keys are chosen from a list, not typed. | P1 |
 | F-07 | Template **versions**: editing a template used by sent documents creates a new version. A document always keeps the exact version it was sent with. | P1 |
-| F-08 | Template defaults: signing order (parallel or in sequence), expiry in days, reminder schedule, email subject and message, which language to open in. | P1 |
+| F-08 | Template defaults: roles and their order, whether signing follows the order, expiry in days, reminder schedule, email subject and message, which language to open in, and the category. | P1 |
 | F-09 | Template library: search, tags, archive and restore, duplicate, preview as a signer, who changed what and when. | P1 |
 | F-10 | Template test mode: send yourself a preview document that is clearly marked TEST and does not count toward limits. | P2 |
 | F-11 | Conditional fields (show a field only if another is ticked). | Later |
@@ -67,8 +80,8 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 |---|---|---|
 | F-12 | New document from a template through a short wizard: choose template, add recipients, check prefilled values, review, send. | P1 |
 | F-13 | **New document from the contact page**: the contact is chosen already and recipients and merge values are prefilled from the contact. | P1 |
-| F-14 | Recipients: name, email, phone, role, channel (email, WhatsApp or both) and order. A recipient can be a Halo contact. | P1 |
-| F-15 | One-off document: upload a PDF and place fields without saving a template. | P1 |
+| F-14 | Recipients are entered in the **signing list** (F-66 to F-72): full name, email, role, channel (email, WhatsApp or both) and order. A recipient can be a Halo contact. | P1 |
+| F-15 | One-off document: upload any supported file, place fields and send without saving a template (see F-73). | P1 |
 | F-16 | Annexes: attach extra files to the document (read-only, listed in the signing page and included in the sealed packet). | P1 |
 | F-17 | Send now or save as draft; resend; change a recipient's email or phone and reissue the link (the old link stops working). | P1 |
 | F-18 | Envelope: several documents signed in one sitting (for example Agreement + Fee schedule + Data processing terms), one audit trail. | P2 |
@@ -81,7 +94,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 |---|---|---|
 | F-21 | Invitation by email using the workspace's sender identity (name and reply-to), with the message, a button and the expiry date. | P1 |
 | F-22 | Invitation by WhatsApp using an approved template message that carries the link. Counts toward the monthly message limit. | P1 |
-| F-23 | Next signer is notified automatically when the previous one finishes (sequential signing). | P1 |
+| F-23 | When signing follows an order, the next step is invited automatically when the previous one finishes (see F-67 to F-69). | P1 |
 | F-24 | Automatic reminders on a schedule (for example day 3 and day 7) and an expiry date. Reminders stop when the document is completed, declined, voided or expired. | P2 |
 | F-25 | Manual "Remind now" with a rate limit (once per 24 hours per signer). | P1 |
 | F-26 | Copies: cc and bcc on completion; sender and chosen Halo users are notified in Halo when a document is viewed, signed, declined or expired. | P1 |
@@ -150,19 +163,58 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | F-64 | The module appears in the workspace export (files and records) and in teardown. | P1 |
 | F-65 | User Guide pages and four-language strings (en, ko, ms, zh). | P1 |
 
+## 3.9 The signing list and order
+
+| Id | Requirement | Pri |
+|---|---|---|
+| F-66 | **Signing list** on every document: one row per signer with **full name** and **email** (both required), phone (required only when WhatsApp is chosen), role, and an **order number**. Rows can be added, removed and dragged into a new order before sending; picking a Halo contact fills a row in one click. | P1 |
+| F-67 | **Sign in order** switch, chosen when the document is created. **On:** the document follows the list order; only the first step is invited; each next step is invited automatically when the one before is complete; before their turn a signer's link shows "Waiting for {name} to sign first" and no document content. **Off:** everyone is invited at once, anyone can sign first, and the order numbers are ignored. | P1 |
+| F-68 | Signers who share an order number form one **step** and sign in parallel; the next step starts when every signer in the step has finished. | P1 |
+| F-69 | While order is on: reminders go only to the current step's signers; a decline stops the chain and tells the sender; expiry applies to the whole document; a countersigner inside Halo sees the document under "Awaiting my signature" only when their step begins. | P1 |
+| F-70 | After sending: a signer not yet invited can be renamed, re-addressed or moved to a later position; the current or a finished signer can only be replaced with "change recipient" (new link, same position). The order switch itself cannot be flipped after sending: void and send again. | P1 |
+| F-71 | The list and the order are recorded in the sealed record: the completion certificate lists signers in signing order with their times, and the audit trail records each invitation as "invited because {name} finished". | P1 |
+| F-72 | A template stores its roles and default order and switch setting; the wizard prefills them and the sender may change them for this document. A role can be an internal Halo user (countersigner). | P1 |
+
+## 3.10 Any document: upload, Word, prepare
+
+| Id | Requirement | Pri |
+|---|---|---|
+| F-73 | **Upload and prepare any document.** From Doc Sign, a contact or a ticket, upload a PDF, Word file or image, place fields with the full editor and send, with no template. "Save as template" is one click at any point. | P1 |
+| F-74 | **Word files are converted to PDF** before preparing. The editor shows the converted pages with the notice "This is exactly what will be signed"; the original Word file is kept with the document. If conversion fails, the message tells the sender to save as PDF and upload that. | P1 |
+| F-75 | Images become one-page PDFs (a photographed form, a scan). | P1 |
+| F-76 | Insert signing locations, text, dates, numbers and the other field types in F-03 anywhere on any page of any uploaded document. | P1 |
+| F-77 | **Replace file** on a draft keeps field positions where page count and size match and flags fields that no longer fit. | P2 |
+
+## 3.11 Categories and add-ons
+
+| Id | Requirement | Pri |
+|---|---|---|
+| F-78 | **Categories.** Every template and document has a category (for example Merchant agreements, Employment, Vendors, General). Workspaces create, rename and archive their own. Lists filter by category. A category carries defaults that override the workspace defaults: expiry, reminders, code required, sign-in-order on or off, consent wording, retention. | P1 |
+| F-79 | **Add-ons** are ready-made packs for a business process. Each can contain a category, templates, contact fields, wording and, later, an automation recipe and a registration form. The first add-on is **Merchant Registration**. | P1 |
+| F-80 | **Operator control.** Which add-ons a workspace may use is switched in the Platform console. A workspace Owner or Admin installs an available add-on from Settings > Doc Sign > Add-ons. Installing again never overwrites what the workspace has changed. | P1 |
+| F-81 | **Add-on updates.** A new version shows as "Update available" with a list of changes; applying it creates new template versions and never alters sent documents. | P2 |
+
+**What the Merchant Registration add-on contains:** the category *Merchant agreements*; the templates
+*Merchant Agreement* and *Data Processing Terms* (Vircle supplies the wording; you provide the
+files); contact fields for business registration number, authorised person's IC number, bank name,
+bank account and outlet address; English and Bahasa Melayu invitation wording. Phase 2 adds the
+onboarding automation recipe and Phase 3 the public registration form.
+
 # 4. Out of scope for now
 
-In-person (hand-over device) signing, Word and Excel input, SMS delivery, face or ID-card
+In-person (hand-over device) signing, Excel and PowerPoint input (Word is supported), editing the text of the underlying document (change the Word file and upload it again), SMS delivery, face or ID-card
 verification (eKYC), conditional fields, payment fields, per-tenant custom domains for the signing
 page, embedding the editor in other sites, and signatures by licensed certificate authority per
 signer (the P3 certificate is for sealing, not per person).
 
 # 5. Merchant registration: the target end-to-end flow
 
+0. The workspace has the **Merchant Registration add-on** installed (section 3.11).
 1. A merchant fills the **registration form** (P3) or an agent creates the contact (P1). The
    contact receives the tag "Merchant applicant" and the business details in custom fields.
 2. The automation "Merchant onboarding" (P2) starts: it sends **Merchant Agreement** to the
-   merchant by WhatsApp and email. Fields the merchant must complete: signature, company registration
+   merchant by WhatsApp and email, with the signing list Merchant first, Director second and
+   sign-in-order on. Fields the merchant must complete: signature, company registration
    number, authorised person's IC number, bank account, upload of the business registration
    certificate and an ID copy.
 3. The merchant opens the link on their phone, enters the code, reads, fills, signs.
@@ -212,8 +264,8 @@ Halo's four roles are Viewer, Agent, Admin and Owner. The read-only stakeholder 
 
 | Item | Default |
 |---|---|
-| Template or document file | 25 MB, 50 pages |
-| Signers per document | 6 |
+| Template or document file | 25 MB, 50 pages; a Word file must convert within 60 seconds |
+| Signers per document | 6 (any number of them can share an order step) |
 | Fields per document | 300 |
 | Signer upload per file | 10 MB, PDF, JPG, PNG |
 | Link and code | link valid until the document expires; code 10 minutes, 5 tries |
@@ -226,7 +278,7 @@ Halo's four roles are Viewer, Agent, Admin and Owner. The read-only stakeholder 
 
 **Phase 1 is accepted when** a real agreement can be sent from a contact page, signed on an Android
 phone and an iPhone by a person with no account, and the sealed PDF opens in a standard PDF reader
-with a valid signature (accepting that the certificate is not CA-trusted yet), shows the
+with a valid signature (accepting that the certificate is not CA-trusted yet), starting from either an uploaded PDF or an uploaded Word file, with signers listed by name and email and, when order is on, invited strictly one step after another. It shows the
 certificate page, appears on the contact, and cannot be altered or deleted. The audit trail is
 complete and chained, an unrelated workspace cannot see any of it, the signer page passes keyboard
 and screen-reader checks, and strings exist in four languages.
@@ -243,10 +295,13 @@ agreed time.
 # 10. Questions for you
 
 1. Confirm or change the six assumptions in section 1.
-2. Which documents will you send first (name them and say how many pages and signers), so the first
-   template is built from the real thing?
+2. Merchant agreement: please supply the real agreement as Word and as PDF, say how many pages and
+   signers it has, and name the fonts it uses (they must be available to the converter).
 3. Which fields must a merchant fill, and which of them are sensitive (IC, bank account)?
 4. Who is the countersigner, and must they sign before or after the merchant?
 5. Is WhatsApp the main channel? If so, are you able to get a WhatsApp utility template approved
    for the invitation message?
 6. Retention period and the deletion exception (section 6).
+7. Should sign-in-order be on by default for the Merchant agreements category (Merchant first,
+   Director second)?
+8. Which other categories do you want at the start besides Merchant agreements?

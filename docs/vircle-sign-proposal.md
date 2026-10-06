@@ -141,8 +141,8 @@ to the merchant backend.
 - **Retention versus erasure.** Halo deletes everything when a workspace is deleted. Signed contracts
   may need to be kept; that would be a deliberate exception.
 - **PDF handling cost.** Stamping large PDFs is CPU heavy; run it in a bounded queue.
-- **DOCX input.** OpenSign uses LibreOffice. Native Halo should accept PDF, and generate PDFs from
-  its own templates, rather than carry LibreOffice.
+- **Word input.** Needed (owner, 6 Oct). Native Halo converts Word to PDF in a separate, isolated
+  conversion service (Gotenberg, which runs LibreOffice) and signs the converted PDF; see the plan.
 - **CSP.** Halo's CSP is report-only today. Signing is a public page, not an iframe, so no change is
   needed unless the editor is later embedded elsewhere.
 
