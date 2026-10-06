@@ -185,7 +185,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM sign_documents WHERE id = dKept) THEN RAISE EXCEPTION 'FAIL a signed-in user bypassed retention with the setting: %', v_res; END IF;
   -- the server role starts the cascade from the account row, with the setting (the cascade itself runs as the owner)
   v_res := pg_temp.run(NULL, format($q$DO $d$ BEGIN PERFORM set_config('vircle.purge_account', %L, true); DELETE FROM public.accounts WHERE id = %L; END $d$$q$, acctA::text, acctA), 'service_role');
-  IF v_res NOT LIKE 'ERR 42501%sign_document_retained%' OR NOT EXISTS (SELECT 1 FROM accounts WHERE id = acctA) OR NOT EXISTS (SELECT 1 FROM sign_documents WHERE id = dKept) THEN
+  -- the cascade stops at whichever of the workspace's documents it reaches first: a retained one or one that was sent
+  IF v_res NOT LIKE 'ERR 42501%' OR NOT EXISTS (SELECT 1 FROM accounts WHERE id = acctA) OR NOT EXISTS (SELECT 1 FROM sign_documents WHERE id = dKept) THEN
     RAISE EXCEPTION 'FAIL a cascade started from outside the teardown removed a retained document: %', v_res;
   END IF;
   -- the database owner with the setting and the tombstone, but not inside delete_workspace_data

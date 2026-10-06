@@ -131,7 +131,9 @@ BEGIN
   SELECT version INTO v_ver FROM sign_option_lists WHERE id = states_id;
   IF v_ver < 3 THEN RAISE EXCEPTION 'FAIL the version should have moved on with each change (found %)', v_ver; END IF;
   v_res := pg_temp.run(uA, format($q$DELETE FROM sign_option_lists WHERE id = %L$q$, states_id));
-  IF v_res NOT LIKE 'ERR 42501%' THEN RAISE EXCEPTION 'FAIL a list could be deleted by a person: %', v_res; END IF;
+  -- the platform's default privileges may let the API role try a DELETE; with no delete policy it removes nothing (or is refused outright)
+  IF v_res NOT LIKE 'ERR 42501%' AND v_res <> 'OK' THEN RAISE EXCEPTION 'FAIL unexpected answer to a person deleting a list: %', v_res; END IF;
+  IF NOT EXISTS (SELECT 1 FROM sign_option_lists WHERE id = states_id) THEN RAISE EXCEPTION 'FAIL a list could be deleted by a person'; END IF;
 
   -- 4. A person makes ordinary lists only.
   v_res := pg_temp.run(uAg, format($q$INSERT INTO sign_option_lists (account_id, key, name, items) VALUES (%L, 'suppliers', 'Suppliers', '[]')$q$, acctA));
