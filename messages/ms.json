@@ -9142,6 +9142,43 @@
       "preview": {
         "note": "Ini ialah pratonton. Tiada apa yang anda masukkan di sini akan disimpan atau dihantar."
       }
+    },
+    "verify": {
+      "signedTitle": "Dokumen ini telah ditandatangani",
+      "completedOn": "Selesai pada {date}",
+      "pages": "{count, plural, other {# halaman}}",
+      "reference": "Rujukan {reference}",
+      "signers": {
+        "title": "Ditandatangani oleh",
+        "none": "Tiada tandatangan disenaraikan untuk dokumen ini."
+      },
+      "trail": {
+        "intactTitle": "Rekod dokumen ini lengkap dan tidak berubah",
+        "intactBody": "Setiap langkah ditulis dalam rekod yang tidak boleh diubah tanpa meninggalkan kesan.",
+        "intactBodyCount": "{count, plural, other {Rekod mengandungi # langkah dan sepadan dengan yang disimpan.}}",
+        "brokenTitle": "Rekod dokumen ini tidak sepadan",
+        "brokenBody": "Sesuatu dalam rekod tentang apa yang berlaku pada dokumen ini telah berubah. Jangan bergantung pada dokumen ini dan maklumkan kepada pengirim.",
+        "unknownTitle": "Rekod tidak dapat disemak",
+        "unknownBody": "Kami tidak dapat menyemak rekod sekarang. Cuba lagi dalam beberapa minit."
+      },
+      "check": {
+        "title": "Semak salinan anda",
+        "intro": "Pilih PDF yang diberikan kepada anda. Ia dibandingkan pada peranti anda dan tidak dimuat naik.",
+        "choose": "Pilih PDF",
+        "checking": "Sedang menyemak...",
+        "matchTitle": "Ini ialah fail bertandatangan yang tepat",
+        "matchBody": "Salinan anda sama dengan dokumen asal yang ditandatangani, bait demi bait.",
+        "differentTitle": "Fail ini bukan dokumen asal yang ditandatangani",
+        "differentBody": "Ia mungkin telah diubah, atau disimpan semula oleh program lain atau penyunting PDF. Minta dokumen asal yang ditandatangani daripada pengirim.",
+        "readError": "Kami tidak dapat membaca fail itu. Sila pilih semula.",
+        "unsupported": "Pelayar ini tidak dapat menyemak fail. Buka halaman ini dalam pelayar yang terkini.",
+        "fingerprint": "Cap jari dokumen asal yang ditandatangani (SHA-256)"
+      },
+      "readerHint": "Untuk melihat tandatangan elektronik itu sendiri, buka PDF dalam pembaca PDF seperti Adobe Acrobat dan lihat panel tandatangannya.",
+      "notFound": {
+        "title": "Kami tidak menemui dokumen ini",
+        "body": "Pastikan anda mengimbas keseluruhan kod atau membuka keseluruhan alamat. Jika masih tidak berfungsi, tanya orang yang menghantar dokumen itu kepada anda."
+      }
     }
   }
 }

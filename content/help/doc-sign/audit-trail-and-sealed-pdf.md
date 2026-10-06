@@ -33,6 +33,16 @@ Everyone on the document gets the signed copy by email. You can also download it
 
 If anyone changes the PDF after sealing, a PDF reader can tell. A seal made with an organisation's own certificate from a certificate authority shows as valid. A seal made with the certificate Doc Sign made for your workspace is **self-signed**, and PDF readers show a warning that the signer is not trusted. The seal still shows whether the file changed, but the reader cannot check who made the certificate. This is normal for a self-signed certificate. You can see which one your workspace uses under **Settings**, **Doc Sign**, **Sealing certificate**.
 
+## Checking a document from its QR code
+
+Every certificate page carries a QR code and a short address that lead to a public **Check a signed document** page. Anyone who holds the PDF can open it without a login, for example a bank or a merchant you sent the signed copy to.
+
+The page shows that the document was completed, when, in whose workspace, its title and reference, and the names and times of the people who signed. It does not show email addresses, phone numbers, network addresses or devices. It also shows whether the document's history still checks out.
+
+To check a file, choose the PDF on that page. Its fingerprint is worked out on your own device, so the file is never uploaded, and compared with the fingerprint of the signed original. **This is the exact signed file** means your copy is identical to what was sealed. **This file is not the signed original** means it differs: it may have been changed, or saved again by another program or a PDF editor.
+
+The page says nothing for a document that is not completed, was cancelled, or belongs to a workspace that no longer has Doc Sign. It then reads "We could not find this document".
+
 ## Where the files are kept
 
 The original, the signed copy and the certificate are kept in private storage. Only the server writes to it. You and the signers get short-lived links to download.

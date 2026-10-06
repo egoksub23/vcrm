@@ -10496,6 +10496,43 @@
       "preview": {
         "note": "미리 보기예요. 여기에 입력한 내용은 저장되거나 전송되지 않아요."
       }
+    },
+    "verify": {
+      "signedTitle": "서명이 완료된 문서입니다",
+      "completedOn": "{date}에 완료됨",
+      "pages": "{count, plural, other {#쪽}}",
+      "reference": "참조 번호 {reference}",
+      "signers": {
+        "title": "서명한 사람",
+        "none": "이 문서에 표시할 서명이 없습니다."
+      },
+      "trail": {
+        "intactTitle": "이 문서의 기록은 완전하며 변경되지 않았습니다",
+        "intactBody": "모든 단계가 기록에 남아 있으며, 기록을 바꾸면 흔적이 남습니다.",
+        "intactBodyCount": "{count, plural, other {기록에는 #단계가 있으며 저장된 내용과 일치합니다.}}",
+        "brokenTitle": "이 문서의 기록이 일치하지 않습니다",
+        "brokenBody": "이 문서에 일어난 일의 기록 중 일부가 바뀌었습니다. 이 문서를 신뢰하지 말고 보낸 사람에게 알려 주세요.",
+        "unknownTitle": "기록을 확인할 수 없습니다",
+        "unknownBody": "지금은 기록을 확인할 수 없습니다. 몇 분 후에 다시 시도해 주세요."
+      },
+      "check": {
+        "title": "가지고 있는 사본 확인",
+        "intro": "받은 PDF를 선택하세요. 확인은 기기에서 이루어지며 파일은 업로드되지 않습니다.",
+        "choose": "PDF 선택",
+        "checking": "확인 중...",
+        "matchTitle": "서명된 원본과 정확히 같은 파일입니다",
+        "matchBody": "사본이 서명된 원본과 바이트 단위로 완전히 같습니다.",
+        "differentTitle": "서명된 원본이 아닌 파일입니다",
+        "differentBody": "내용이 바뀌었거나 다른 프로그램이나 PDF 편집기로 다시 저장되었을 수 있습니다. 보낸 사람에게 서명된 원본을 요청하세요.",
+        "readError": "파일을 읽을 수 없습니다. 다시 선택해 주세요.",
+        "unsupported": "이 브라우저는 파일을 확인할 수 없습니다. 최신 브라우저에서 이 페이지를 열어 주세요.",
+        "fingerprint": "서명된 원본의 지문(SHA-256)"
+      },
+      "readerHint": "전자 서명 자체를 보려면 Adobe Acrobat 같은 PDF 리더로 PDF를 열고 서명 패널을 확인하세요.",
+      "notFound": {
+        "title": "이 문서를 찾을 수 없습니다",
+        "body": "코드 전체를 스캔했는지, 주소 전체를 열었는지 확인해 주세요. 그래도 열리지 않으면 문서를 보내 준 사람에게 문의하세요."
+      }
     }
   }
 }

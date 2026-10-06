@@ -11,6 +11,10 @@ and polish.
 
 ## [Unreleased]
 
+### Added
+
+- **Doc Sign: the public verify page.** The QR code on every certificate now leads to `/verify/<document id>` instead of a page that did not exist. It needs no login and shows that the document was completed, when, in whose workspace, with its title and reference, who signed and when (names and times only), and whether the document's history still checks out. A person can choose their copy of the PDF to compare it with the signed original: the fingerprint is worked out in their own browser and nothing is uploaded. An unknown, unfinished or switched-off document all give the same plain "not found" page, and the page is rate limited per address, not indexed by search engines, and sends no referrer. Available in English, Bahasa Melayu, Chinese and Korean. No migration.
+
 ## [0.77.0] — 2026-10-06
 
 **Migration required: 160.** Nothing changes for a workspace that does not use forms. Doc Sign is still off until the operator turns it on.

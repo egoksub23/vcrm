@@ -10496,6 +10496,43 @@
       "preview": {
         "note": "This is a preview. Nothing you enter here is saved or sent."
       }
+    },
+    "verify": {
+      "signedTitle": "This document is signed",
+      "completedOn": "Completed {date}",
+      "pages": "{count, plural, one {# page} other {# pages}}",
+      "reference": "Reference {reference}",
+      "signers": {
+        "title": "Signed by",
+        "none": "No signatures are listed for this document."
+      },
+      "trail": {
+        "intactTitle": "The record of this document is complete and unchanged",
+        "intactBody": "Every step is written in a record that cannot be changed without it showing.",
+        "intactBodyCount": "{count, plural, one {The record holds # step and it matches what was stored.} other {The record holds # steps and it matches what was stored.}}",
+        "brokenTitle": "The record of this document does not match",
+        "brokenBody": "Something in the record of what happened to this document has changed. Do not rely on this document, and tell the sender.",
+        "unknownTitle": "The record could not be checked",
+        "unknownBody": "We could not check the record just now. Try again in a few minutes."
+      },
+      "check": {
+        "title": "Check your copy",
+        "intro": "Choose the PDF you were given. It is compared on your device and is not uploaded.",
+        "choose": "Choose the PDF",
+        "checking": "Checking...",
+        "matchTitle": "This is the exact signed file",
+        "matchBody": "Your copy is identical to the signed original, byte for byte.",
+        "differentTitle": "This file is not the signed original",
+        "differentBody": "It may have been changed, or saved again by another program or a PDF editor. Ask the sender for the signed original.",
+        "readError": "We could not read that file. Please choose it again.",
+        "unsupported": "This browser cannot check files. Open this page in an up-to-date browser.",
+        "fingerprint": "Fingerprint of the signed original (SHA-256)"
+      },
+      "readerHint": "To see the electronic signature itself, open the PDF in a PDF reader such as Adobe Acrobat and look at its signature panel.",
+      "notFound": {
+        "title": "We could not find this document",
+        "body": "Check that you scanned the whole code or opened the whole address. If it still does not work, ask the person who sent you the document."
+      }
     }
   }
 }

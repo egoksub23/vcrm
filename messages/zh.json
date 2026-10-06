@@ -9142,6 +9142,43 @@
       "preview": {
         "note": "这是预览。您在这里输入的内容不会被保存或发送。"
       }
+    },
+    "verify": {
+      "signedTitle": "此文件已签署",
+      "completedOn": "完成于 {date}",
+      "pages": "{count, plural, other {# 页}}",
+      "reference": "编号 {reference}",
+      "signers": {
+        "title": "签署人",
+        "none": "此文件没有列出任何签署。"
+      },
+      "trail": {
+        "intactTitle": "此文件的记录完整且未被更改",
+        "intactBody": "每一步都写入一份记录，任何更改都会留下痕迹。",
+        "intactBodyCount": "{count, plural, other {记录共有 # 步，与保存的内容一致。}}",
+        "brokenTitle": "此文件的记录不一致",
+        "brokenBody": "此文件的处理记录中有内容已被更改。请勿依赖此文件，并告知发送人。",
+        "unknownTitle": "无法核对记录",
+        "unknownBody": "我们暂时无法核对记录。请几分钟后再试。"
+      },
+      "check": {
+        "title": "核对您手上的文件",
+        "intro": "请选择您收到的 PDF。核对在您的设备上进行，文件不会被上传。",
+        "choose": "选择 PDF",
+        "checking": "正在核对…",
+        "matchTitle": "这正是已签署的原文件",
+        "matchBody": "您的文件与已签署的原件逐字节完全一致。",
+        "differentTitle": "此文件不是已签署的原件",
+        "differentBody": "它可能被修改过，或被其他程序或 PDF 编辑器重新保存。请向发送人索取已签署的原件。",
+        "readError": "无法读取该文件，请重新选择。",
+        "unsupported": "此浏览器无法核对文件。请使用最新版本的浏览器打开本页。",
+        "fingerprint": "已签署原件的指纹（SHA-256）"
+      },
+      "readerHint": "要查看电子签名本身，请用 Adobe Acrobat 等 PDF 阅读器打开该 PDF，并查看其签名面板。",
+      "notFound": {
+        "title": "找不到此文件",
+        "body": "请确认您扫描了完整的二维码或打开了完整的网址。如仍无法打开，请联系发送文件给您的人。"
+      }
     }
   }
 }
