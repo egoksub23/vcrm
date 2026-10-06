@@ -109,7 +109,7 @@ What to know:
 - **It cannot reach the internet and has no published port.** It sits on a Docker network marked
   `internal`, shared only with the app, and the app is the only thing that talks to it. Uploaded Word
   files are untrusted, so the container is also read-only (apart from a temporary folder), has no extra
-  privileges, and is limited to about 1 GB of memory, 1.5 CPUs and 256 processes.
+  privileges, and is limited to about 1 GB of memory, 1 CPU and 256 processes.
 - **Size.** The image is large (on the order of 1.5 GB) and peaks at several hundred MB of memory while it
   converts one file; it converts one at a time and gives up after 60 seconds. Measure on the real server
   (`docker stats sign-converter` during a conversion, and `docker system df`). It is part of the weekly
