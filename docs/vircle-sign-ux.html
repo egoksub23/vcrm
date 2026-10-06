@@ -1,0 +1,505 @@
+<title>Halo Sign UX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: a review sheet. Sticky section index on the left on wide screens, wireframes drawn with the same
+   tokens as the page so both themes work. Wireframes mimic Halo: sidebar, lavender accent, soft cards. */
+:root{
+  --bg:#f6f5fb; --surface:#ffffff; --surface2:#f0eef9; --ink:#1b1a2b; --muted:#66657d; --line:#e2e0ee;
+  --accent:#6a4cf0; --accent-ink:#ffffff; --accent-soft:#ece8fd;
+  --good:#1b8f63; --good-soft:#dff3ea; --warn:#a96a06; --warn-soft:#fbefd6; --bad:#c83048; --bad-soft:#fbe2e6;
+  --role-a:#6a4cf0; --role-b:#0f8f94; --role-a-soft:#ece8fd; --role-b-soft:#d8f1f2;
+  --display:'Schibsted Grotesk',system-ui,sans-serif; --body:'Public Sans',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#13121d; --surface:#1c1b2b; --surface2:#25243a; --ink:#ecebf7; --muted:#a09fb8; --line:#34334c;
+  --accent:#9b84ff; --accent-ink:#12101f; --accent-soft:#2b2650;
+  --good:#4fc79a; --good-soft:#173a2e; --warn:#e3a94a; --warn-soft:#3d2f12; --bad:#ff7d92; --bad-soft:#47202a;
+  --role-a:#9b84ff; --role-b:#4fc7cc; --role-a-soft:#2b2650; --role-b-soft:#16393b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13121d; --surface:#1c1b2b; --surface2:#25243a; --ink:#ecebf7; --muted:#a09fb8; --line:#34334c;
+  --accent:#9b84ff; --accent-ink:#12101f; --accent-soft:#2b2650;
+  --good:#4fc79a; --good-soft:#173a2e; --warn:#e3a94a; --warn-soft:#3d2f12; --bad:#ff7d92; --bad-soft:#47202a;
+  --role-a:#9b84ff; --role-b:#4fc7cc; --role-a-soft:#2b2650; --role-b-soft:#16393b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0}
+.shell{max-width:1240px;margin:0 auto;padding:0 16px;padding-block:20px 80px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:32px}
+nav.index{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;padding-top:8px;font-size:13px}
+nav.index b{display:block;font:700 15px var(--display);margin-bottom:10px}
+nav.index a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;border-left:2px solid var(--line);padding-left:12px}
+nav.index a:hover,nav.index a:focus-visible{color:var(--ink);border-color:var(--accent);outline:none}
+main{min-width:0}
+h1{font:700 clamp(28px,4vw,40px)/1.1 var(--display);margin:6px 0 10px;text-wrap:balance}
+h2{font:700 26px/1.2 var(--display);margin:56px 0 6px;text-wrap:balance;scroll-margin-top:16px}
+h3{font:700 17px/1.3 var(--display);margin:30px 0 4px}
+p{margin:6px 0;max-width:68ch}
+.lede{color:var(--muted);font-size:16px;max-width:64ch}
+.meta{font:500 12px var(--mono);color:var(--muted);letter-spacing:.02em}
+.note{background:var(--accent-soft);border-radius:8px;padding:10px 14px;font-size:13.5px;max-width:78ch}
+.tag{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);gap:20px;align-items:start;margin-top:12px}
+.stack{display:grid;gap:16px;margin-top:12px}
+.callouts{margin:0;padding:0;list-style:none;font-size:13.5px;display:grid;gap:10px}
+.callouts li{display:grid;grid-template-columns:22px 1fr;gap:8px}
+.callouts .n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:600 11px/20px var(--mono);text-align:center}
+.pin{display:inline-block;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:600 10px/18px var(--mono);text-align:center;margin-right:4px;vertical-align:middle}
+.scroll{overflow-x:auto;border-radius:10px}
+table.doc{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:10px}
+table.doc th,table.doc td{text-align:left;border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+table.doc th{font:600 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;margin:12px 0}
+/* ---- wireframe primitives ---- */
+.wf{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;color:var(--ink)}
+.wf .cap{padding:6px 10px;border-bottom:1px solid var(--line);font:500 11px var(--mono);color:var(--muted);background:var(--surface2)}
+.app{display:grid;grid-template-columns:118px minmax(0,1fr);min-height:300px}
+.side{background:var(--surface2);padding:10px 8px;display:grid;gap:3px;align-content:start;border-right:1px solid var(--line)}
+.side i{font-style:normal;padding:5px 8px;border-radius:6px;color:var(--muted)}
+.side i.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.pane{padding:12px;min-width:0}
+.hd{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.hd b{font:700 14px var(--display)}
+.btn{display:inline-block;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:11.5px;color:var(--ink)}
+.btn.p{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.d{color:var(--bad);border-color:var(--bad)}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:600;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.chip.g{background:var(--good-soft);color:var(--good)} .chip.w{background:var(--warn-soft);color:var(--warn)}
+.chip.b{background:var(--bad-soft);color:var(--bad)} .chip.a{background:var(--accent-soft);color:var(--accent)}
+.tbl{display:grid;font-size:11.5px}
+.tbl .r{display:grid;gap:8px;padding:7px 6px;border-bottom:1px solid var(--line);align-items:center}
+.tbl .r.h{color:var(--muted);font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.tbl .r.sel{background:var(--accent-soft)}
+.ln{height:6px;border-radius:3px;background:var(--line);margin:5px 0}
+.in{border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--muted);background:var(--surface);font-size:11.5px}
+.in.v{color:var(--ink)} .lbl{font-size:10.5px;color:var(--muted);margin:8px 0 3px;font-weight:600}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px} .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.steps{display:flex;gap:6px;align-items:center;font-size:10.5px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
+.steps b{width:18px;height:18px;border-radius:50%;background:var(--surface2);display:inline-block;text-align:center;line-height:18px;font:600 10px/18px var(--mono)}
+.steps .on b{background:var(--accent);color:var(--accent-ink)} .steps .on{color:var(--ink);font-weight:600} .steps .done b{background:var(--good);color:var(--accent-ink)}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:700 10px/22px var(--display);text-align:center;display:inline-block}
+.tl{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.tl li{display:grid;grid-template-columns:10px 1fr;gap:8px;font-size:11.5px}
+.tl li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:4px}
+.tl li.m::before{background:var(--line)} .tl li small{display:block;color:var(--muted);font-size:10.5px}
+.pdf{background:var(--surface2);padding:12px;display:grid;justify-items:center;min-height:300px}
+.page{width:100%;max-width:260px;aspect-ratio:210/297;background:var(--surface);border:1px solid var(--line);padding:12px;position:relative;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+.page .ln{margin:7px 0} .page h6{margin:0 0 8px;font:700 10px var(--display)}
+.fld{position:absolute;border:1.5px solid var(--role-a);background:var(--role-a-soft);border-radius:3px;font:500 8.5px/1.2 var(--mono);color:var(--role-a);padding:2px 4px;display:flex;align-items:center}
+.fld.b{border-color:var(--role-b);background:var(--role-b-soft);color:var(--role-b)}
+.fld.sel{outline:2px solid var(--ink);outline-offset:1px} .fld.done{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.fld.todo{box-shadow:0 0 0 3px var(--warn-soft);border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.phones{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 12px}
+.phone{flex:0 0 232px;border:6px solid var(--ink);border-radius:26px;background:var(--surface);overflow:hidden;display:grid;grid-template-rows:auto 1fr auto;min-height:420px;font-size:12px}
+.phone .top{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.phone .body{padding:12px;display:grid;gap:8px;align-content:start}
+.phone .foot{padding:10px 12px;border-top:1px solid var(--line);display:grid;gap:6px}
+.phone .btn{text-align:center;padding:9px 10px;font-size:12.5px;border-radius:8px}
+.prog{height:5px;border-radius:3px;background:var(--line);overflow:hidden}.prog i{display:block;height:100%;background:var(--accent)}
+.sheet{border-top:1px solid var(--line);padding:10px 12px;background:var(--surface);display:grid;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden;text-align:center}
+.seg i{font-style:normal;padding:6px 2px;font-size:11px;color:var(--muted)} .seg i.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.pad{height:78px;border:1.5px dashed var(--line);border-radius:8px;display:grid;place-items:center;color:var(--muted);font-size:11px}
+.script{font:italic 700 26px/1 'Brush Script MT','Segoe Script',cursive;color:var(--ink);text-align:center;padding:10px}
+@media (max-width:900px){.shell{grid-template-columns:minmax(0,1fr)}nav.index{display:none}.two{grid-template-columns:minmax(0,1fr)}.app{grid-template-columns:minmax(0,1fr)}.side{display:none}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="shell">
+<nav class="index" aria-label="Sections">
+  <b>Halo Sign UX</b>
+  <a href="#principles">Principles and map</a>
+  <a href="#flows">Flows</a>
+  <a href="#send">Sending</a>
+  <a href="#templates">Templates</a>
+  <a href="#signer">Signer pages</a>
+  <a href="#admin">Admin and automation</a>
+  <a href="#copy">Copy and states</a>
+  <a href="#review">For your review</a>
+</nav>
+
+<main>
+<p class="meta">DOCUMENT 3 OF 3 &middot; 6 OCT 2026 &middot; ALL PEOPLE AND AMOUNTS ARE EXAMPLES</p>
+<h1>Halo Sign: screens and flows</h1>
+<p class="lede">What each person sees, in the order they meet it. These are wireframes in Halo's own layout, not final visuals: they fix what is on each screen and what each control does, so the build matches what you approved. Numbers on a screen match the notes beside it. Requirement ids (F-12 and so on) refer to document 1.</p>
+<p class="note"><b>Reading tip.</b> Violet marks the first signer's fields and teal the second's, everywhere in this document, the same way they appear in the editor and on the signing page. Amber means something the signer still has to do. All screens work on a phone for the signer; the sender's screens are designed for a computer first and stack on a tablet.</p>
+
+<!-- ============ PRINCIPLES ============ -->
+<h2 id="principles">Principles and map</h2>
+<table class="doc"><thead><tr><th>Principle</th><th>What it means on screen</th></tr></thead><tbody>
+<tr><td>The signer is a stranger on a phone</td><td>No login, no jargon, one thing per screen, a visible Next. Thumb-reachable buttons at the bottom.</td></tr>
+<tr><td>The sender starts from the contact</td><td>Most documents are sent from a contact page; nothing is typed that Halo already knows.</td></tr>
+<tr><td>Status is always visible</td><td>Every list and detail screen answers "where is it, who is it waiting on" without opening anything.</td></tr>
+<tr><td>Nothing silent</td><td>Every action says what happened (a toast, an audit line). Destructive actions ask once and ask for a reason.</td></tr>
+<tr><td>Proof is a feature</td><td>The audit trail, the certificate page and "audit trail intact" are shown, not hidden in a menu.</td></tr>
+<tr><td>Neutral wording</td><td>Customer-facing pages say the workspace's name and "Halo"; the supplier's name never appears.</td></tr>
+</tbody></table>
+
+<h3>Where it lives in Halo</h3>
+<pre class="mermaid">
+flowchart LR
+  subgraph Halo["Halo, signed-in"]
+    S[Sign in sidebar] --> D[Documents]
+    S --> T[Templates]
+    S --> F["Forms (later)"]
+    C[Contact page] --> CD[Documents tab]
+    ST[Settings] --> SS[Sign settings]
+    PL[Platform console] --> PF[Switch and limit]
+    AU[Automations] --> AS[Send for signature step]
+  end
+  subgraph Public["Public, no login"]
+    L["Signing page /sign/token"]
+    V["Verify page /verify"]
+  end
+  D --> L
+</pre>
+
+<!-- ============ FLOWS ============ -->
+<h2 id="flows">Flows</h2>
+<h3>One document, start to finish</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant S as Sender
+  participant H as Halo
+  participant M as Merchant
+  participant D as Director
+  S->>H: Pick template, recipients, check values, Send
+  H->>H: Freeze file, record fingerprint, log "sent"
+  H->>M: Link by email and WhatsApp
+  M->>H: Open link, enter code, consent
+  M->>H: Fill fields, adopt signature, finish
+  H->>D: "Awaiting your signature" in Halo
+  D->>H: Review and sign
+  H->>H: Seal PDF, add certificate, record fingerprint
+  H->>S: Completed (bell and email)
+  H->>M: Signed copy by email
+</pre>
+<h3>The signer's path</h3>
+<pre class="mermaid">
+flowchart TD
+  A[Open link] --> B{Code needed?}
+  B -- yes --> C[Enter 6-digit code] --> E
+  B -- no --> E[Agree to sign electronically]
+  E --> F[Read the document]
+  F --> G[Fill required fields]
+  G --> H[Adopt signature]
+  H --> I[Finish]
+  F --> X[Decline with a reason]
+  I --> J[Download signed copy]
+</pre>
+<h3>Merchant onboarding, the target</h3>
+<pre class="mermaid">
+flowchart LR
+  A[Registration form or agent adds contact] --> B[Contact tagged Merchant applicant]
+  B --> C[Automation sends agreement]
+  C --> D[Merchant signs on phone]
+  D --> E[Director countersigns]
+  E --> F[Sealed PDF filed on contact]
+  F --> G[Stage becomes Merchant signed]
+  F --> H[Ticket Merchant KYC review opened]
+  F --> I[Webhook tells merchant backend]
+  F --> J[Welcome message with signed copy]
+</pre>
+<h3>Document and signer states</h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Sent
+  Sent --> InProgress: first view or signature
+  InProgress --> Sealing: last signer done
+  Sealing --> Completed
+  Sealing --> Failed: retry available
+  Sent --> Declined
+  InProgress --> Declined
+  Sent --> Expired
+  InProgress --> Expired
+  Draft --> Voided
+  Sent --> Voided
+  InProgress --> Voided
+  Completed --> [*]
+</pre>
+
+<!-- ============ SENDING ============ -->
+<h2 id="send">Sending and managing</h2>
+
+<h3>S1. Documents list</h3>
+<p class="tag">F-48, F-52</p>
+<div class="two"><div class="wf"><div class="cap">Halo &rsaquo; Sign &rsaquo; Documents</div>
+<div class="app"><div class="side"><i>Dashboard</i><i>Inbox</i><i>Contacts</i><i>Tickets</i><i class="on">Sign</i><i>Settings</i></div>
+<div class="pane">
+ <div class="hd"><b>Documents</b><span><span class="btn">Templates</span> <span class="btn p">New document</span></span></div>
+ <div class="card" style="background:var(--warn-soft);border-color:var(--warn);margin-bottom:8px"><b>Needs attention</b> &nbsp;<span class="chip b">1 declined</span> <span class="chip w">2 expiring in 2 days</span> <span class="chip a">1 awaiting my signature</span></div>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="chip a">All 48</span><span class="chip">Sent 9</span><span class="chip">In progress 4</span><span class="chip">Completed 31</span><span class="chip">Declined 1</span><span class="chip">Expired 2</span><span class="chip">Voided 1</span></div>
+ <div class="in" style="margin-bottom:8px">Search by title, reference or signer</div>
+ <div class="tbl">
+  <div class="r h" style="grid-template-columns:2.2fr 1.4fr 1fr 1fr"><span>Document</span><span>Waiting on</span><span>Status</span><span>Updated</span></div>
+  <div class="r" style="grid-template-columns:2.2fr 1.4fr 1fr 1fr"><span><b>Merchant Agreement</b><br><small style="color:var(--muted)">Kedai Runcit Ali &middot; SGN-2026-000123</small></span><span>Ali bin Ahmad</span><span><span class="chip w">In progress</span></span><span>2 h ago</span></div>
+  <div class="r" style="grid-template-columns:2.2fr 1.4fr 1fr 1fr"><span><b>Merchant Agreement</b><br><small style="color:var(--muted)">Warung Siti &middot; SGN-2026-000122</small></span><span>Director</span><span><span class="chip a">Awaiting me</span></span><span>Yesterday</span></div>
+  <div class="r" style="grid-template-columns:2.2fr 1.4fr 1fr 1fr"><span><b>Data Processing Terms</b><br><small style="color:var(--muted)">Pasar Mini Lim &middot; SGN-2026-000120</small></span><span>&mdash;</span><span><span class="chip g">Completed</span></span><span>3 days ago</span></div>
+  <div class="r" style="grid-template-columns:2.2fr 1.4fr 1fr 1fr"><span><b>Merchant Agreement</b><br><small style="color:var(--muted)">Kafe Hijau &middot; SGN-2026-000118</small></span><span>Nur Aina</span><span><span class="chip b">Declined</span></span><span>5 days ago</span></div>
+ </div></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>The strip at the top is the daily work list: declined, about to expire, waiting for me. Each chip filters the list.</span></li>
+<li><span class="n">2</span><span>One row per document: title, contact and reference, who it is waiting on, status, last change. Click opens the detail.</span></li>
+<li><span class="n">3</span><span>"New document" opens the wizard (S2). "Templates" is a second tab of the same section.</span></li>
+<li><span class="n">4</span><span>People without <code>sign.view</code> do not see Sign in the sidebar at all.</span></li></ol></div>
+
+<h3>S2. New document, four steps</h3>
+<p class="tag">F-12, F-13, F-14, F-16, F-17</p>
+<div class="stack"><div class="grid2">
+ <div class="wf"><div class="cap">Step 1 &middot; Choose</div><div class="pane">
+  <div class="steps"><span class="on"><b>1</b> Template</span><span><b>2</b> People</span><span><b>3</b> Details</span><span><b>4</b> Send</span></div>
+  <div class="in v" style="margin-bottom:8px">Search templates</div>
+  <div class="card" style="border-color:var(--accent)"><b>Merchant Agreement</b> <span class="chip a">v3</span><br><span style="color:var(--muted)">4 pages &middot; 2 roles &middot; 14 fields</span></div>
+  <div class="card" style="margin-top:6px"><b>Data Processing Terms</b> <span class="chip">v1</span><br><span style="color:var(--muted)">2 pages &middot; 1 role &middot; 4 fields</span></div>
+  <p style="color:var(--muted);margin-top:8px">or <u>upload a one-off PDF</u></p>
+  <div style="text-align:right"><span class="btn p">Next</span></div></div></div>
+ <div class="wf"><div class="cap">Step 2 &middot; People</div><div class="pane">
+  <div class="steps"><span class="done"><b>&#10003;</b> Template</span><span class="on"><b>2</b> People</span><span><b>3</b> Details</span><span><b>4</b> Send</span></div>
+  <div class="card"><span class="chip a">Merchant</span> <span class="chip">1st</span><div class="lbl">Contact</div><div class="in v">Ali bin Ahmad &middot; Kedai Runcit Ali</div><div class="grid2"><div><div class="lbl">Email</div><div class="in v">ali@kedairuncit.example</div></div><div><div class="lbl">Phone</div><div class="in v">+60 12-345 6789</div></div></div><div class="lbl">Send by</div><span class="chip a">Email</span> <span class="chip a">WhatsApp</span> <span class="chip">Code required</span></div>
+  <div class="card" style="margin-top:6px"><span class="chip" style="background:var(--role-b-soft);color:var(--role-b)">Vircle Director</span> <span class="chip">2nd</span><div class="lbl">Halo user</div><div class="in v">Gokula (signs inside Halo)</div></div></div></div>
+ <div class="wf"><div class="cap">Step 3 &middot; Details</div><div class="pane">
+  <div class="steps"><span class="done"><b>&#10003;</b> Template</span><span class="done"><b>&#10003;</b> People</span><span class="on"><b>3</b> Details</span><span><b>4</b> Send</span></div>
+  <div class="lbl">Prefilled from the contact (edit if wrong)</div>
+  <div class="grid2"><div><div class="lbl">Business name</div><div class="in v">Kedai Runcit Ali Sdn Bhd</div></div><div><div class="lbl">Registration no.</div><div class="in v">202401012345</div></div></div>
+  <div class="grid2"><div><div class="lbl">Address</div><div class="in v">12 Jalan Maju, KL</div></div><div><div class="lbl">Bank account <span class="chip w">missing</span></div><div class="in" style="border-color:var(--warn)">Merchant will fill</div></div></div>
+  <div class="lbl">Attach extra files</div><div class="in">+ Fee schedule.pdf (read-only annex)</div>
+  <div class="lbl">Message to signers</div><div class="in v">Please review and sign your merchant agreement.</div></div></div>
+ <div class="wf"><div class="cap">Step 4 &middot; Review and send</div><div class="pane">
+  <div class="steps"><span class="done"><b>&#10003;</b> Template</span><span class="done"><b>&#10003;</b> People</span><span class="done"><b>&#10003;</b> Details</span><span class="on"><b>4</b> Send</span></div>
+  <div class="card"><b>Merchant Agreement</b> v3<br>To: Ali bin Ahmad (email, WhatsApp), then Gokula<br>Expires: 20 Oct 2026 (14 days) &middot; Reminders: day 3, day 7</div>
+  <div class="card" style="margin-top:6px"><div class="lbl" style="margin-top:0">Preview</div><div class="ln"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:85%"></div></div>
+  <p style="color:var(--muted)">This counts as 1 of 200 documents this month.</p>
+  <div style="display:flex;gap:6px;justify-content:space-between"><span class="btn">Save draft</span><span class="btn p">Send for signature</span></div></div></div>
+</div>
+<ol class="callouts"><li><span class="n">1</span><span>Opened from a contact, step 2 already holds that contact's name, email and phone, and step 3 is prefilled from their fields.</span></li>
+<li><span class="n">2</span><span>Step 3 shows missing values as amber, and lets the sender choose "merchant will fill" so it is not a blocker.</span></li>
+<li><span class="n">3</span><span>Step 4 shows what will happen: who, by which channel, when it expires, and the monthly count so a limit never surprises anyone. At 100 percent the button is replaced by a message and the operator's contact line.</span></li>
+<li><span class="n">4</span><span>Back and Next keep entered values. Closing the wizard saves a draft.</span></li></ol></div>
+
+<h3>S3. Document detail</h3>
+<p class="tag">F-33, F-41, F-49</p>
+<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; SGN-2026-000123</div><div class="pane">
+ <div class="hd"><span><b>Merchant Agreement</b> &nbsp;<span class="chip w">In progress</span></span><span><span class="btn">Remind</span> <span class="btn">Download</span> <span class="btn">&#8943;</span></span></div>
+ <div class="grid2">
+  <div>
+   <div class="card"><b>Signers</b>
+    <div class="tbl"><div class="r" style="grid-template-columns:1.6fr 1fr 1fr"><span>Ali bin Ahmad<br><small style="color:var(--muted)">Merchant &middot; email, WhatsApp</small></span><span><span class="chip g">Signed</span></span><span>10:42</span></div>
+    <div class="r" style="grid-template-columns:1.6fr 1fr 1fr"><span>Gokula<br><small style="color:var(--muted)">Director &middot; in Halo</small></span><span><span class="chip a">Waiting</span></span><span>&mdash;</span></div></div></div>
+   <div class="card" style="margin-top:8px"><b>Files</b><div class="lbl" style="margin-top:4px">Agreement (4 pages) &middot; Fee schedule (annex) &middot; Business registration.pdf (from merchant)</div></div>
+   <div class="card" style="margin-top:8px"><b>Prefilled values</b><div class="lbl" style="margin-top:4px">Business name, address, registration no.</div></div>
+  </div>
+  <div class="card"><b>Audit trail</b> <span class="chip g">Intact</span>
+   <ul class="tl" style="margin-top:8px"><li>Completed fields and signed<small>Ali bin Ahmad &middot; 10:42 &middot; Android, Kuala Lumpur network</small></li><li>Code verified<small>10:38</small></li><li>Viewed<small>10:36</small></li><li>Sent by email and WhatsApp<small>Gokula &middot; 09:10</small></li><li class="m">Created<small>Gokula &middot; 09:04</small></li></ul></div>
+ </div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>Actions that apply to this state only: Remind and Resend while waiting; Download once complete; Void in the menu (asks for a reason).</span></li>
+<li><span class="n">2</span><span>Signers show status and time. "Change recipient" in a signer's row reissues the link and kills the old one.</span></li>
+<li><span class="n">3</span><span>The audit trail reads newest first, in plain language. "Intact" is the live chain check. Each line opens the device and network detail.</span></li>
+<li><span class="n">4</span><span>Merchant uploads (for example a certificate) appear under Files with a preview.</span></li></ol></div>
+
+<h3>S4. Contact page, Documents tab</h3>
+<p class="tag">F-13, F-50</p>
+<div class="two"><div class="wf"><div class="cap">Contacts &rsaquo; Ali bin Ahmad</div><div class="pane">
+ <div style="display:flex;gap:14px;border-bottom:1px solid var(--line);margin-bottom:10px;font-weight:600"><span style="color:var(--muted)">Overview</span><span style="color:var(--muted)">Notes</span><span style="color:var(--muted)">Deals</span><span style="color:var(--accent);border-bottom:2px solid var(--accent)">Documents <span class="chip a">2</span></span></div>
+ <div class="hd"><b>Documents</b><span class="btn p">Send a document</span></div>
+ <div class="tbl"><div class="r" style="grid-template-columns:2fr 1fr 1fr"><span><b>Merchant Agreement</b><br><small style="color:var(--muted)">SGN-2026-000123</small></span><span><span class="chip w">In progress</span></span><span>2 h ago</span></div>
+ <div class="r" style="grid-template-columns:2fr 1fr 1fr"><span><b>Data Processing Terms</b><br><small style="color:var(--muted)">SGN-2026-000101</small></span><span><span class="chip g">Completed</span></span><span>2 Oct</span></div></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>Every document for this contact, with the same status chips. "Send a document" starts the wizard at step 2.</span></li>
+<li><span class="n">2</span><span>Sent, signed and declined also appear on the contact's timeline, next to messages and notes.</span></li></ol></div>
+
+<!-- ============ TEMPLATES ============ -->
+<h2 id="templates">Templates</h2>
+<h3>T1. Template library</h3>
+<p class="tag">F-07, F-09</p>
+<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; Templates</div><div class="pane">
+ <div class="hd"><b>Templates</b><span class="btn p">Upload PDF</span></div>
+ <div class="tbl"><div class="r h" style="grid-template-columns:2fr .8fr 1fr 1fr"><span>Name</span><span>Version</span><span>Used</span><span>Edited</span></div>
+ <div class="r" style="grid-template-columns:2fr .8fr 1fr 1fr"><span><b>Merchant Agreement</b> <span class="chip g">Active</span></span><span>v3</span><span>41 documents</span><span>2 Oct</span></div>
+ <div class="r" style="grid-template-columns:2fr .8fr 1fr 1fr"><span><b>Data Processing Terms</b> <span class="chip g">Active</span></span><span>v1</span><span>12 documents</span><span>28 Sep</span></div>
+ <div class="r" style="grid-template-columns:2fr .8fr 1fr 1fr"><span><b>Merchant Agreement (BM)</b> <span class="chip">Draft</span></span><span>v1</span><span>0</span><span>Today</span></div></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>"Used" shows why a template cannot be deleted, only archived. Editing an active template makes a new version; sent documents keep theirs.</span></li>
+<li><span class="n">2</span><span>A row opens the editor. "Preview as signer" and "Duplicate" sit in the row menu.</span></li></ol></div>
+
+<h3>T2. Template editor</h3>
+<p class="tag">F-02 to F-08</p>
+<div class="two"><div class="wf"><div class="cap">Merchant Agreement &middot; v4 draft &middot; page 4 of 4</div>
+<div class="app" style="grid-template-columns:70px minmax(0,1fr) 150px">
+ <div class="side" style="gap:8px"><div class="card" style="padding:4px;text-align:center">1</div><div class="card" style="padding:4px;text-align:center">2</div><div class="card" style="padding:4px;text-align:center">3</div><div class="card" style="padding:4px;text-align:center;border-color:var(--accent)">4</div></div>
+ <div class="pdf"><div class="page"><h6>Schedule of Signatures</h6><div class="ln"></div><div class="ln" style="width:80%"></div><div class="ln" style="width:90%"></div><div class="ln" style="width:60%"></div>
+  <div class="fld sel" style="left:8%;top:52%;width:38%;height:12%">Signature &middot; Merchant</div>
+  <div class="fld" style="left:8%;top:68%;width:38%;height:6%">Full name &middot; merge</div>
+  <div class="fld" style="left:54%;top:68%;width:30%;height:6%">Date signed</div>
+  <div class="fld b" style="left:8%;top:82%;width:38%;height:10%">Signature &middot; Director</div></div></div>
+ <div style="padding:10px;border-left:1px solid var(--line);display:grid;gap:4px;align-content:start;font-size:11px">
+  <b>Signature</b><span class="chip a">Merchant</span>
+  <div class="lbl">Label</div><div class="in v">Merchant signature</div>
+  <div class="lbl">Required</div><div class="in v">Yes</div>
+  <div class="lbl">Fill from</div><div class="in">Signer enters</div>
+  <div class="lbl">Help text</div><div class="in">Sign inside the box</div>
+ </div></div>
+ <div style="padding:8px 12px;border-top:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap"><span class="chip">Signature</span><span class="chip">Initials</span><span class="chip">Name</span><span class="chip">Date</span><span class="chip">Text</span><span class="chip">Checkbox</span><span class="chip">Dropdown</span><span class="chip">Upload</span></div></div>
+<ol class="callouts"><li><span class="n">1</span><span><b>Left:</b> page thumbnails. <b>Middle:</b> the page. <b>Right:</b> properties of the selected field.</span></li>
+<li><span class="n">2</span><span><b>Bottom palette:</b> click a type then click the page, or drag it. Fields are coloured by signer role, as the signer will see them.</span></li>
+<li><span class="n">3</span><span>Selected field has handles; arrow keys nudge by 1, shift by 10. Copy, paste and delete work as expected. Alignment guides snap to other fields.</span></li>
+<li><span class="n">4</span><span>"Fill from" chooses between the signer entering a value or a merge field (T3).</span></li>
+<li><span class="n">5</span><span>Top bar (not drawn): role selector, Preview as signer, Save draft, Publish version.</span></li></ol></div>
+
+<h3>T3. Choosing a merge field</h3>
+<p class="tag">F-06</p>
+<div class="two"><div class="wf"><div class="cap">Fill from &rsaquo; Contact and workspace values</div><div class="pane">
+ <div class="in v" style="margin-bottom:8px">Search values</div>
+ <div class="grid2"><div class="card"><b>Contact</b><div class="lbl">Name</div><div class="lbl">Email</div><div class="lbl">Phone</div><div class="lbl">Company</div><div class="lbl">Country</div></div>
+ <div class="card"><b>Custom fields</b><div class="lbl">Business registration no.</div><div class="lbl">Bank name</div><div class="lbl">Bank account</div><div class="lbl">Outlet address</div></div></div>
+ <div class="card" style="margin-top:8px"><b>Document</b><div class="lbl">Reference</div><div class="lbl">Today's date</div><div class="lbl">Sender name</div></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>Values are picked, never typed, so a typo cannot break a template. Custom fields appear by their names.</span></li>
+<li><span class="n">2</span><span>If a chosen value is empty for a contact, the wizard flags it at step 3.</span></li></ol></div>
+
+<!-- ============ SIGNER ============ -->
+<h2 id="signer">The signing pages</h2>
+<p>Public, no login, English and Bahasa Melayu (Korean and Chinese available), phone first. The page header shows the workspace's logo and name; the footer says "Secured by Halo".</p>
+<p class="tag">F-27 to F-37</p>
+<div class="phones" role="group" aria-label="Signer screens on a phone">
+ <div class="phone"><div class="top"><span>Kedai Runcit Ali</span><span class="chip">EN &#9662;</span></div><div class="body">
+  <b style="font:700 16px var(--display)">Merchant Agreement</b>
+  <span style="color:var(--muted)">Sent by Gokula for Ali bin Ahmad. Expires 20 Oct 2026.</span>
+  <div class="lbl">Enter the 6-digit code we sent to your WhatsApp</div>
+  <div style="display:flex;gap:4px"><div class="in v" style="flex:1;text-align:center">4</div><div class="in v" style="flex:1;text-align:center">8</div><div class="in v" style="flex:1;text-align:center">1</div><div class="in" style="flex:1;text-align:center">&nbsp;</div><div class="in" style="flex:1;text-align:center">&nbsp;</div><div class="in" style="flex:1;text-align:center">&nbsp;</div></div>
+  <span style="color:var(--muted);font-size:11px">Send again in 0:42 &middot; Use email instead</span></div><div class="foot"><span class="btn p">Continue</span></div></div>
+ <div class="phone"><div class="top"><span>Before you start</span><span class="chip">1 of 3</span></div><div class="body">
+  <b>Sign electronically</b>
+  <span style="font-size:11.5px">I agree to use electronic records and signatures for this document. I can ask for a paper copy from Kedai Runcit Ali's contact.</span>
+  <div class="card" style="font-size:11px;color:var(--muted)">We record your name, email, phone, network address and device, the time, and what you do on this page.</div>
+  <label style="display:flex;gap:8px;align-items:center"><span class="in" style="width:18px;height:18px;padding:0;text-align:center;color:var(--accent)">&#10003;</span> I agree</label></div>
+  <div class="foot"><span class="btn p">Review document</span><span class="btn">Decline to sign</span></div></div>
+ <div class="phone"><div class="top"><span>Merchant Agreement</span><span class="chip a">2 of 5</span></div><div class="body" style="padding:8px">
+  <div class="prog"><i style="width:40%"></i></div>
+  <div class="pdf" style="min-height:230px;padding:6px"><div class="page" style="max-width:190px"><h6>Schedule of Signatures</h6><div class="ln"></div><div class="ln" style="width:70%"></div>
+   <div class="fld done" style="left:8%;top:40%;width:60%;height:7%">Ali bin Ahmad &#10003;</div>
+   <div class="fld todo" style="left:8%;top:54%;width:60%;height:12%">Tap to sign</div>
+   <div class="fld todo" style="left:8%;top:72%;width:60%;height:7%">Upload certificate</div></div></div></div>
+  <div class="foot"><span class="btn p">Next required field</span><span style="text-align:center;font-size:11px;color:var(--muted)">Download &middot; Save and finish later</span></div></div>
+ <div class="phone"><div class="top"><span>Your signature</span><span>&times;</span></div><div class="body">
+  <div class="seg"><i class="on">Draw</i><i>Type</i><i>Upload</i></div>
+  <div class="pad">Sign here with your finger</div>
+  <div class="script" style="font-size:20px;color:var(--muted)">Ali bin Ahmad</div>
+  <span style="font-size:11px;color:var(--muted)">Use this signature for initials too</span></div>
+  <div class="foot"><span class="btn p">Apply</span><span class="btn">Clear</span></div></div>
+ <div class="phone"><div class="top"><span>Kedai Runcit Ali</span><span class="chip g">Done</span></div><div class="body" style="text-align:center;padding-top:30px">
+  <div style="width:44px;height:44px;border-radius:50%;background:var(--good-soft);color:var(--good);margin:0 auto;line-height:44px;font-size:22px">&#10003;</div>
+  <b style="font:700 16px var(--display)">You have signed</b>
+  <span style="color:var(--muted)">Waiting for the director to sign. A signed copy will be emailed to ali@kedairuncit.example.</span></div>
+  <div class="foot"><span class="btn p">Download my copy</span></div></div>
+</div>
+<ol class="callouts"><li><span class="n">1</span><span><b>Code screen</b> (only if the template asks): 6 digits, countdown to resend, switch channel, after 5 wrong tries a clear lock message.</span></li>
+<li><span class="n">2</span><span><b>Consent</b> before the first signature, with what is recorded. The wording and version are stored. "Decline to sign" is always reachable.</span></li>
+<li><span class="n">3</span><span><b>Fill screen:</b> progress, the page, amber fields still to do, green fields done. "Next required field" scrolls and focuses the next one. Download and "finish later" stay in reach.</span></li>
+<li><span class="n">4</span><span><b>Signature sheet:</b> draw, type (several scripts) or upload. One adopted signature serves initials as well.</span></li>
+<li><span class="n">5</span><span><b>Done:</b> says what happens next (waiting for the next signer, or the signed copy is on its way) and offers a download.</span></li></ol>
+
+<h3>On a computer, and the other end states</h3>
+<div class="grid2">
+ <div class="wf"><div class="cap">Desktop signing layout</div><div class="pane" style="display:grid;grid-template-columns:150px 1fr;gap:10px">
+  <div><div class="card"><b>To do</b><div class="lbl">&#9744; Signature</div><div class="lbl">&#9744; Upload certificate</div><div class="lbl">&#9745; Name</div></div><div style="margin-top:8px"><span class="btn p">Finish</span></div></div>
+  <div class="pdf" style="min-height:180px"><div class="page" style="max-width:180px"><div class="ln"></div><div class="ln" style="width:70%"></div><div class="fld todo" style="left:8%;top:52%;width:60%;height:12%">Sign</div></div></div></div></div>
+ <div class="wf"><div class="cap">End states (same layout, no document data)</div><div class="pane" style="display:grid;gap:8px">
+  <div class="card"><span class="chip b">Expired</span> This link has expired. Ask Gokula to send it again.</div>
+  <div class="card"><span class="chip">Voided</span> The sender has cancelled this document. You do not need to do anything.</div>
+  <div class="card"><span class="chip g">Already signed</span> You signed this on 6 Oct 2026. <u>Download your copy</u></div>
+  <div class="card"><span class="chip w">Link replaced</span> A newer link was sent to you. Please use the latest message.</div></div></div>
+</div>
+<p>On wider screens the list of fields sits beside the page; on any screen the page is zoomable and fields remain tappable. Nothing on an end-state page reveals another signer's data or whether other documents exist.</p>
+
+<!-- ============ ADMIN ============ -->
+<h2 id="admin">Admin and automation</h2>
+<h3>A1. Settings &rsaquo; Sign</h3>
+<p class="tag">F-61</p>
+<div class="two"><div class="wf"><div class="cap">Settings &rsaquo; Sign</div><div class="pane">
+ <div class="hd"><b>Signing defaults</b><span class="btn p">Save</span></div>
+ <div class="grid2"><div><div class="lbl">Expires after (days)</div><div class="in v">14</div></div><div><div class="lbl">Reminders (days after sending)</div><div class="in v">3, 7</div></div></div>
+ <div class="grid2"><div><div class="lbl">Default language</div><div class="in v">Bahasa Melayu</div></div><div><div class="lbl">Sender name on invitations</div><div class="in v">Kedai Runcit Support</div></div></div>
+ <div class="lbl">Consent wording (per language)</div><div class="in v">I agree to use electronic records and signatures for this document.</div>
+ <div class="grid2"><div><div class="lbl">Logo on the signing page</div><div class="in">Upload PNG</div></div><div><div class="lbl">Keep signed documents for</div><div class="in v">7 years</div></div></div>
+ <div class="card" style="margin-top:10px"><b>Sealing certificate</b> <span class="chip g">Valid to 31 Dec 2027</span><br><span style="color:var(--muted)">Organisational certificate &middot; used to seal every completed document</span><br><span class="btn" style="margin-top:6px">Replace certificate</span></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>Everything has a safe default; an Owner or Admin can change them. Changes are written to the audit log.</span></li>
+<li><span class="n">2</span><span>The certificate is uploaded once and stored encrypted; the page shows only its name and expiry and warns 60 days before it ends.</span></li>
+<li><span class="n">3</span><span>Retention cannot be shortened below documents already kept.</span></li></ol></div>
+
+<h3>A2. Platform console and roles</h3>
+<p class="tag">F-60, F-62</p>
+<div class="grid2">
+ <div class="wf"><div class="cap">Platform &rsaquo; workspace &rsaquo; modules and limits</div><div class="pane">
+  <div class="card"><b>Sign</b> <span class="chip g">On</span><br><span style="color:var(--muted)">Electronic document signing for this workspace</span></div>
+  <div class="lbl">Documents sent per month</div><div class="in v">200</div>
+  <div class="lbl">Usage this month</div><div class="prog"><i style="width:36%"></i></div><span style="color:var(--muted)">72 of 200 &middot; warns at 160, stops at 200</span></div></div>
+ <div class="wf"><div class="cap">Settings &rsaquo; Roles &rsaquo; Sign</div><div class="pane">
+  <div class="tbl"><div class="r h" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>Permission</span><span>Agent</span><span>Admin</span><span>Owner</span></div>
+  <div class="r" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>View documents</span><span>&#10003;</span><span>&#10003;</span><span>&#10003;</span></div>
+  <div class="r" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>Send and remind</span><span>&#10003;</span><span>&#10003;</span><span>&#10003;</span></div>
+  <div class="r" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>Void, change recipient</span><span>&mdash;</span><span>&#10003;</span><span>&#10003;</span></div>
+  <div class="r" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>Manage templates</span><span>&mdash;</span><span>&#10003;</span><span>&#10003;</span></div>
+  <div class="r" style="grid-template-columns:1.6fr .6fr .6fr .6fr"><span>Sign inside Halo</span><span>&mdash;</span><span>&#10003;</span><span>&#10003;</span></div></div></div></div>
+</div>
+
+<h3>A3. Automation step (Phase 2)</h3>
+<p class="tag">F-54, F-55</p>
+<div class="two"><div class="wf"><div class="cap">Automation &rsaquo; Merchant onboarding</div><div class="pane">
+ <div class="card"><span class="chip a">Trigger</span> Contact gets tag <b>Merchant applicant</b></div>
+ <div style="text-align:center;color:var(--muted)">&darr;</div>
+ <div class="card" style="border-color:var(--accent)"><span class="chip a">Send for signature</span>
+  <div class="grid2"><div><div class="lbl">Template</div><div class="in v">Merchant Agreement v3</div></div><div><div class="lbl">Merchant role is</div><div class="in v">This contact</div></div></div>
+  <div class="grid2"><div><div class="lbl">Send by</div><div class="in v">WhatsApp and email</div></div><div><div class="lbl">Director role is</div><div class="in v">Gokula</div></div></div></div>
+ <div style="text-align:center;color:var(--muted)">&darr; when completed</div>
+ <div class="card"><span class="chip">Move stage</span> Merchant signed &nbsp; <span class="chip">Create ticket</span> Merchant KYC review &nbsp; <span class="chip">Webhook</span> merchant backend</div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>"Send for signature" is a normal step in the existing builder. Merge values come from the contact automatically.</span></li>
+<li><span class="n">2</span><span>New triggers: sent, viewed, completed, declined, expired. The "completed" branch carries the document reference and download link into later steps.</span></li></ol></div>
+
+<!-- ============ COPY ============ -->
+<h2 id="copy">Copy, states and rules</h2>
+<h3>Words the signer reads</h3>
+<p>Bahasa Melayu is a first draft for a native speaker to review before launch.</p>
+<div class="scroll"><table class="doc"><thead><tr><th>Where</th><th>English</th><th>Bahasa Melayu (draft)</th></tr></thead><tbody>
+<tr><td>Email subject</td><td>Kedai Runcit Support sent you "Merchant Agreement" to sign</td><td>Kedai Runcit Support menghantar "Merchant Agreement" untuk anda tandatangani</td></tr>
+<tr><td>Email button</td><td>Review and sign</td><td>Semak dan tandatangani</td></tr>
+<tr><td>WhatsApp invitation</td><td>Hello Ali, please review and sign your Merchant Agreement: {link}. It expires on 20 Oct.</td><td>Helo Ali, sila semak dan tandatangani Merchant Agreement anda: {link}. Tamat tempoh pada 20 Okt.</td></tr>
+<tr><td>Consent</td><td>I agree to use electronic records and signatures for this document.</td><td>Saya bersetuju menggunakan rekod dan tandatangan elektronik untuk dokumen ini.</td></tr>
+<tr><td>Decline</td><td>Decline to sign</td><td>Tolak untuk menandatangani</td></tr>
+<tr><td>Finished</td><td>You have signed. A signed copy will be emailed to you.</td><td>Anda telah menandatangani. Salinan bertandatangan akan dihantar ke e-mel anda.</td></tr>
+<tr><td>Expired</td><td>This link has expired. Ask {sender} to send it again.</td><td>Pautan ini telah tamat tempoh. Minta {sender} menghantarnya semula.</td></tr>
+<tr><td>Wrong code</td><td>That code is not right. You have 3 tries left.</td><td>Kod itu tidak betul. Anda ada 3 percubaan lagi.</td></tr>
+</tbody></table></div>
+
+<h3>Sender-side empty states and errors</h3>
+<table class="doc"><thead><tr><th>Situation</th><th>What the screen says and offers</th></tr></thead><tbody>
+<tr><td>No documents yet</td><td>"Nothing sent yet. Send your first document from a contact or from here." Button: New document.</td></tr>
+<tr><td>No templates yet</td><td>"Upload a PDF to make your first template." Button: Upload PDF. Link: how templates work.</td></tr>
+<tr><td>Upload fails (password, corrupt, too big)</td><td>Names the problem and the limit: "This PDF is password protected. Remove the password and upload it again."</td></tr>
+<tr><td>Recipient email bounces</td><td>Document appears under Needs attention; the signer row shows "Email not delivered. Change recipient."</td></tr>
+<tr><td>Monthly limit reached</td><td>Send button replaced by "Your workspace has used all 200 documents this month." with the limit and who to contact.</td></tr>
+<tr><td>Sealing failed</td><td>"We could not finish the signed file. It will retry; nothing is lost." A Retry button for Admins.</td></tr>
+<tr><td>Download blocked (fingerprint mismatch)</td><td>"This file does not match its record, so it was not downloaded." Raised to Admins as an alert.</td></tr>
+</tbody></table>
+
+<h3>Responsive and accessibility rules</h3>
+<table class="doc"><thead><tr><th>Area</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Signing page</td><td>Designed at 360 px wide first. Touch targets at least 44 px. Pinch zoom allowed. Works to 200 percent zoom without sideways scroll.</td></tr>
+<tr><td>Keyboard</td><td>Every control reachable and visibly focused; Next required field on Enter; editor fields movable by arrow keys.</td></tr>
+<tr><td>Screen readers</td><td>Every field has a label and a "required" state; progress is announced; errors are announced and linked to the field. Typed signature is an alternative to drawing.</td></tr>
+<tr><td>Colour</td><td>Status is never colour alone: always a word. Contrast meets WCAG AA in light and dark.</td></tr>
+<tr><td>Language</td><td>All text comes from the four Halo language files; no text baked into images; dates and numbers follow the signer's language.</td></tr>
+<tr><td>Sender screens</td><td>Computer first; lists stack to cards on a tablet; the template editor asks to be opened on a larger screen on a phone.</td></tr>
+</tbody></table>
+
+<!-- ============ REVIEW ============ -->
+<h2 id="review">For your review</h2>
+<p>Please mark anything you want changed by its id or screen name (S1, T2, signer screen 3). The questions that most change the build:</p>
+<ol>
+<li><b>Merchant agreement fields (S2 step 3).</b> Which fields must the merchant fill and which do we know in advance? Which are sensitive?</li>
+<li><b>Countersign.</b> Does the director sign after the merchant (as drawn), before, or both at once?</li>
+<li><b>Code by default?</b> Should the verification code be on for every merchant document, or only when you choose?</li>
+<li><b>Name in the sidebar.</b> "Sign" as drawn, or "Documents"?</li>
+<li><b>Signer's download.</b> Allowed at any time (as drawn), or only after completion?</li>
+<li><b>Language of the first template.</b> English, Bahasa Melayu, or both templates side by side?</li>
+<li><b>Signing page look.</b> Workspace logo and name only (as drawn), or a colour as well?</li>
+<li><b>Anything missing</b> from the screens: a view you expected, a button you would press that is not here.</li>
+</ol>
+<p class="meta">Wireframes only. Visual design, icons and exact spacing follow Halo's existing components when built.</p>
+</main>
+</div>
