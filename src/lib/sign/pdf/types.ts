@@ -54,6 +54,13 @@ export interface PlacedField {
   text?: string;
   /** Key in the document's merge values that fills this field when the document is sent. */
   merge?: string;
+  /**
+   * Forms: the key of the data field whose answer this placement prints. A bound placement is not asked
+   * of anyone; the answer to the form is drawn here when the document is sealed.
+   */
+  data?: string;
+  /** A tick box bound to a choice: ticked when the answer is (or includes) this option. */
+  dataValue?: string;
 }
 
 /** The value of one field, as entered or derived. Which members matter depends on the field type. */

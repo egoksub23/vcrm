@@ -5,6 +5,7 @@
 // ============================================================
 
 import { consentFor } from "../consent";
+import type { SignerFormView } from "../forms/types";
 import { checkCode, CODE_SENDS_PER_HOUR, CODE_TTL_MS, generateCode, hashCode, hashToken, isPlausibleToken, type CodeCheck } from "../tokens";
 import { deliverCode, deliverOutcome, deliverInvitation, type Delivery } from "../notify";
 import type { PlacedField } from "../pdf/types";
@@ -108,6 +109,8 @@ export interface SigningView {
     others: OtherSigner[];
     /** Required fields of this signer not yet answered. */
     missing: string[];
+    /** Forms: this signer's parts, answers and progress; null for a document that is only fields on the page. */
+    form?: SignerFormView | null;
   };
 }
 
@@ -174,6 +177,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
     othersAnswers: others,
     others: signers.filter((s) => s.id !== signer.id).map((s) => ({ name: s.full_name, roleKey: s.role_key, kind: s.kind, status: s.status, orderNo: s.order_no, signedAt: s.signed_at })),
     missing: missingRequired(doc.fields_snapshot, signer.role_key, answered).map((f) => f.key),
+    form: null,
   };
   return base;
 }

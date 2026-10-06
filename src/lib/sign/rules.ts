@@ -33,6 +33,8 @@ export interface Issue {
   code: string;
   field?: string;
   role?: string;
+  /** Forms: the part it is about. */
+  part?: string;
   detail?: string;
 }
 
@@ -67,7 +69,8 @@ export function validateFields(fields: readonly PlacedField[], roles: readonly S
       issues.push({ code: "bad_field_type", ...at });
       continue;
     }
-    const senderFixed = f.type === "static_text" || !!f.merge;
+    // a field the sender fixes (static text, a merge value) or that prints an answer to the form belongs to no one who answers
+    const senderFixed = f.type === "static_text" || !!f.merge || !!f.data;
     if (senderFixed) {
       if (f.role !== SENDER_ROLE && !roleByKey.has(f.role)) issues.push({ code: "unknown_role", ...at, role: f.role });
     } else {
@@ -220,7 +223,7 @@ export function checkAnswer(field: PlacedField, input: AnswerInput | undefined):
 
 /** The fields a role completes (not static, and not written by the engine: the signer's name and the signing date). */
 export function fieldsForRole(fields: readonly PlacedField[], roleKey: string): PlacedField[] {
-  return fields.filter((f) => f.role === roleKey && f.type !== "static_text" && !f.merge && f.type !== "date_signed" && f.type !== "name");
+  return fields.filter((f) => f.role === roleKey && f.type !== "static_text" && !f.merge && !f.data && f.type !== "date_signed" && f.type !== "name");
 }
 
 /** Required fields of a role that have no answer yet. `answered` is the set of field keys with a stored value. */

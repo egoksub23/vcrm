@@ -243,7 +243,7 @@ export function staticValues(fields: readonly PlacedField[], merge: Readonly<Rec
 
 /** The fields whose value comes from a person, as opposed to the sender's static and merge fields. */
 export function answerFields(fields: readonly PlacedField[]): PlacedField[] {
-  return fields.filter((f) => !f.merge && f.type !== "static_text");
+  return fields.filter((f) => !f.merge && !f.data && f.type !== "static_text");
 }
 
 /** Freeze: write the static and merge values onto the template file and fingerprint the result. */
@@ -253,7 +253,7 @@ export async function freezeBase(
   merge: Readonly<Record<string, unknown>>,
   options: StampOptions = {},
 ): Promise<StampResult & { sha256: string }> {
-  const staticFields = fields.filter((f) => f.merge || f.type === "static_text");
+  const staticFields = fields.filter((f) => !f.data && (f.merge || f.type === "static_text"));
   const result = await stampFields(template, staticFields, staticValues(staticFields, merge), options);
   return { ...result, sha256: sha256Hex(result.bytes) };
 }

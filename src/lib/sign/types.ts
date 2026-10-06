@@ -3,6 +3,7 @@
 // Pure types and constants, no I/O.
 // ============================================================
 
+import type { FormDefinition } from "./forms/types";
 import type { PlacedField } from "./pdf/types";
 
 export const SIGN_BUCKET = "sign-documents";
@@ -48,6 +49,8 @@ export interface SignDocumentRow {
   merge_values: Record<string, unknown>;
   fields_snapshot: PlacedField[];
   roles_snapshot: SignRole[];
+  /** Forms (phase 1B): the form the signers fill in parts; null for a document that is only fields on the page. */
+  form_snapshot: FormDefinition | null;
   sign_in_order: boolean;
   code_required: boolean;
   locale: SignLocale;
@@ -130,6 +133,7 @@ export interface SignTemplateVersionRow {
   page_count: number;
   fields: PlacedField[];
   roles: SignRole[];
+  form: FormDefinition | null;
   defaults: TemplateDefaults;
   created_at: string;
 }
@@ -184,5 +188,12 @@ export const EVENT_TYPES = [
   "downloaded",
   "delivery_failed",
   "created",
+  // forms
+  "part_completed",
+  "part_reopened",
+  "uploaded",
+  "upload_removed",
+  "writeback",
+  "expiry_extended",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
