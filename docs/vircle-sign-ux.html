@@ -112,18 +112,21 @@ pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius
   <a href="#send">Sending</a>
   <a href="#templates">Templates</a>
   <a href="#signer">Signer pages</a>
+  <a href="#forms">Forms in parts</a>
   <a href="#admin">Admin and automation</a>
   <a href="#copy">Copy and states</a>
   <a href="#review">For your review</a>
 </nav>
 
 <main>
-<p class="meta">DOCUMENT 3 OF 3 &middot; REVISED 6 OCT 2026 &middot; ALL PEOPLE AND AMOUNTS ARE EXAMPLES</p>
+<p class="meta">DOCUMENT 3 OF 3 &middot; SECOND REVISION 6 OCT 2026 &middot; ALL PEOPLE AND AMOUNTS ARE EXAMPLES</p>
 <h1>Vircle Doc Sign: screens and flows</h1>
 <p class="lede">What each person sees, in the order they meet it. These are wireframes in Halo's own layout, not final visuals: they fix what is on each screen and what each control does, so the build matches what you approved. Numbers on a screen match the notes beside it. Requirement ids (F-12 and so on) refer to document 1.</p>
 <p class="note"><b>Reading tip.</b> Violet marks the first signer's fields and teal the second's, everywhere in this document, the same way they appear in the editor and on the signing page. Amber means something the signer still has to do. All screens work on a phone for the signer; the sender's screens are designed for a computer first and stack on a tablet.</p>
 
 <p class="note"><b>Revised.</b> Merchant agreement is now an <b>add-on</b> and a <b>category</b>, not the whole product. Any PDF, Word file or image can be uploaded and prepared (S2, S2b). Every document has a <b>signing list</b> with full name, email and an optional <b>signing order</b>: with order on, each step is invited only after the one before has signed (S2, S3, signer screens). New screens: S2b, A1b (categories and add-ons).</p>
+
+<p class="note"><b>Second revision.</b> After the sample Merchant Application and your online e-invoice form: the merchant fills the application <b>in parts, over several sittings, from one link</b> (section "Forms in parts"); commercial terms come from a <b>merchant group</b> variant (Group A, B, C); and the <b>e-invoice tax details</b> are a part of the form. Group B and C values on these screens are illustrative only.</p>
 
 <!-- ============ PRINCIPLES ============ -->
 <h2 id="principles">Principles and map</h2>
@@ -215,6 +218,32 @@ flowchart TD
   W["Before their turn, a later signer sees: Waiting for Ali to sign first"] -.-> C
   X[Decline, void or expiry] -.-> STOP[Chain stops, sender told]
 </pre>
+<h3>One link, many sittings</h3>
+<pre class="mermaid">
+flowchart TD
+  L[Merchant opens the single link] --> C{Code on?}
+  C -- yes --> V[Enter code] --> O
+  C -- no --> O[Application overview: parts and progress]
+  O --> P[Fill a part, saved as they type]
+  P --> O
+  O --> W[Close the page, come back later on any device]
+  W --> L
+  O --> R{All required parts done?}
+  R -- no --> O
+  R -- yes --> S[Review and sign unlocks]
+  S --> D[Signed and sealed]
+  O -.-> H["Share a part with a colleague (later)"]
+</pre>
+<h3>A part's states</h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> NotStarted
+  NotStarted --> InProgress: first answer
+  InProgress --> Done: every visible required field valid
+  Done --> InProgress: an answer is changed to invalid or a new field becomes required
+  Done --> Locked: merchant signs
+  Locked --> [*]
+</pre>
 <h3>Merchant onboarding, the target</h3>
 <pre class="mermaid">
 flowchart LR
@@ -278,7 +307,7 @@ stateDiagram-v2
  <div class="wf"><div class="cap">Step 1 &middot; Document</div><div class="pane">
   <div class="steps"><span class="on"><b>1</b> Document</span><span><b>2</b> Signers</span><span><b>3</b> Prepare</span><span><b>4</b> Send</span></div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="chip a">All</span><span class="chip">Merchant agreements</span><span class="chip">General</span></div>
-  <div class="card" style="border-color:var(--accent)"><b>Merchant Agreement</b> <span class="chip a">v3</span> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">4 pages &middot; 2 roles &middot; 14 fields</span></div>
+  <div class="card" style="border-color:var(--accent)"><b>Merchant Application</b> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">Form in 7 parts &middot; 4 pages &middot; 3 variants</span><div class="lbl">Merchant group</div><div class="in v">Group A (from the contact) &#9662;</div></div>
   <div class="card" style="margin-top:6px"><b>Data Processing Terms</b> <span class="chip">v1</span> <span class="chip">Merchant agreements</span><br><span style="color:var(--muted)">2 pages &middot; 1 role &middot; 4 fields</span></div>
   <div class="card" style="margin-top:8px;border-style:dashed;text-align:center"><b>Upload a file</b><br><span style="color:var(--muted)">PDF, Word or image &middot; up to 25 MB<br>Drop it here or <u>choose</u></span></div></div></div>
  <div class="wf"><div class="cap">Step 2 &middot; Signing list</div><div class="pane">
@@ -473,6 +502,107 @@ stateDiagram-v2
 </div>
 <p>On wider screens the list of fields sits beside the page; on any screen the page is zoomable and fields remain tappable. Nothing on an end-state page reveals another signer's data or whether other documents exist.</p>
 
+<!-- ============ FORMS ============ -->
+<h2 id="forms">Forms in parts, and merchant groups</h2>
+<p>The merchant opens one link and sees their application as parts. Answers save as they type; they can close the page and come back through the same link, on any device. Review and sign unlocks when every required part is done. The parts and fields below come from your sample application and your online e-invoice form (Appendix A of the feature document).</p>
+<p class="tag">F-82 to F-94, F-98 to F-102</p>
+<div class="phones" role="group" aria-label="Merchant application on a phone">
+ <div class="phone"><div class="top"><span>Kedai Runcit Ali</span><span class="chip">EN &#9662;</span></div><div class="body">
+  <b style="font:700 16px var(--display)">Your merchant application</b>
+  <div class="prog"><i style="width:29%"></i></div><span style="color:var(--muted);font-size:11px">2 of 7 parts done &middot; Saved 2 min ago</span>
+  <div class="tbl" style="font-size:11.5px">
+   <div class="r" style="grid-template-columns:1fr auto"><span>1 Company and tax</span><span class="chip g">Done</span></div>
+   <div class="r" style="grid-template-columns:1fr auto"><span>2 Address and contacts</span><span class="chip g">Done</span></div>
+   <div class="r sel" style="grid-template-columns:1fr auto"><span>3 e-Invoice input</span><span class="chip w">4 of 6</span></div>
+   <div class="r" style="grid-template-columns:1fr auto"><span>4 Bank account</span><span class="chip">Not started</span></div>
+   <div class="r" style="grid-template-columns:1fr auto"><span>5 Documents</span><span class="chip">Not started</span></div>
+   <div class="r" style="grid-template-columns:1fr auto"><span>6 Commercial terms</span><span class="chip">Not started</span></div>
+   <div class="r" style="grid-template-columns:1fr auto;color:var(--muted)"><span>7 Review and sign</span><span class="chip">Locked</span></div></div></div>
+  <div class="foot"><span class="btn p">Continue: e-Invoice input</span><span style="text-align:center;font-size:11px;color:var(--muted)">Finish 5 parts to unlock signing</span></div></div>
+ <div class="phone"><div class="top"><span>3 e-Invoice input</span><span class="chip">Saved</span></div><div class="body">
+  <div class="lbl" style="margin-top:0">Tax type</div><div class="in v">SST &#9662;</div>
+  <div class="lbl">Tax percentage <span class="chip a">shown for SST</span></div><div class="in v">8</div>
+  <div class="lbl">SST registration number</div><div class="in v">W10-1234-32000001</div>
+  <div class="lbl">e-Invoice email *</div><div class="in v">finance@kedairuncit.example</div>
+  <div class="lbl">Business MSIC code(s) * &mdash; one or more</div><div style="display:flex;gap:4px;flex-wrap:wrap"><span class="chip a">47111 &times;</span><span class="chip a">47211 &times;</span><span class="chip">+ Add code</span></div>
+  <div class="lbl">Business activity</div><div class="in">As per your SSM registration</div></div>
+  <div class="foot"><span class="btn p">Save and next part</span><span class="btn">Back to overview</span></div></div>
+ <div class="phone"><div class="top"><span>5 Documents</span><span class="chip w">1 of 3</span></div><div class="body">
+  <span style="font-size:11px;color:var(--muted)">Shown because you chose <b>Sdn. Bhd.</b></span>
+  <div class="card"><b>Form 9, Form 49 and bank statement header</b><br><span class="btn" style="margin-top:4px">Upload</span></div>
+  <div class="card"><b>Director or owner ID</b> <span class="chip g">Uploaded</span><br><span style="color:var(--muted)">ic-front.jpg &middot; 0.8 MB</span></div>
+  <div class="card"><b>Pictures of your business premise</b><br><span style="color:var(--muted)">0 of up to 3</span><br><span class="btn" style="margin-top:4px">Add picture</span></div></div>
+  <div class="foot"><span class="btn p">Save and next part</span></div></div>
+ <div class="phone"><div class="top"><span>7 Review and sign</span><span class="chip g">Unlocked</span></div><div class="body" style="padding:8px">
+  <div class="pdf" style="min-height:190px;padding:6px"><div class="page" style="max-width:150px;padding:6px"><h6>Merchant Application</h6><div class="ln"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:85%"></div>
+   <div class="fld done" style="left:8%;top:52%;width:70%;height:7%">Answers printed</div>
+   <div class="fld todo" style="left:8%;top:64%;width:70%;height:10%">Sign</div>
+   <div class="fld todo" style="left:8%;top:78%;width:70%;height:8%">Company stamp</div></div></div>
+  <span style="font-size:11px">Check the answers printed on your form. Change a part</span></div>
+  <div class="foot"><span class="btn p">Sign now</span><span class="btn">Change an answer</span></div></div>
+</div>
+<ol class="callouts"><li><span class="n">1</span><span><b>Overview:</b> every part with a status, overall progress, the time of the last save. Continue goes to the first unfinished part. Parts open in any order; Review and sign stays locked until required parts are done.</span></li>
+<li><span class="n">2</span><span><b>A part</b> matches your online e-invoice form. <b>Tax percentage</b> and <b>SST registration number</b> appear only when tax type is SST. MSIC codes are a list of entries.</span></li>
+<li><span class="n">3</span><span><b>Documents</b> change with the company type: a Sdn. Bhd. is asked for Forms 9 and 49, a sole proprietor for Form D. Files are checked for type and size.</span></li>
+<li><span class="n">4</span><span><b>Review and sign:</b> the answers are printed on the real application. The merchant signs and uploads the company stamp. If an answer is too long for its box the page names the field to shorten.</span></li>
+<li><span class="n">5</span><span>Closing the page loses nothing. Coming back through the same link (and code, if on) shows the overview exactly as left. <i>Later:</i> a "Share this part" button lets a colleague, for example finance, fill only that part.</span></li></ol>
+
+<h3>Sender: the form builder</h3>
+<p class="tag">F-94</p>
+<div class="two"><div class="wf"><div class="cap">Merchant Application &rsaquo; Form &rsaquo; 3 e-Invoice input</div>
+<div class="app" style="grid-template-columns:130px minmax(0,1fr) 170px">
+ <div class="side" style="gap:4px"><i>1 Company and tax</i><i>2 Address and contacts</i><i class="on">3 e-Invoice input</i><i>4 Bank account</i><i>5 Documents</i><i>6 Commercial terms</i><i>7 Review and sign</i><i style="color:var(--accent)">+ Add part</i></div>
+ <div class="pane"><div class="hd"><b>3 e-Invoice input</b><span><span class="btn">Preview as merchant</span> <span class="btn p">Save</span></span></div>
+  <div class="tbl"><div class="r h" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span></span><span>Data field</span><span>Type</span><span>Req</span><span>Rule</span></div>
+  <div class="r" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span>&#8942;</span><span>Tax type</span><span>Choice</span><span>No</span><span></span></div>
+  <div class="r sel" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span>&#8942;</span><span>Tax percentage</span><span>Number</span><span>If SST</span><span><span class="chip a">Show if Tax type = SST</span></span></div>
+  <div class="r" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span>&#8942;</span><span>SST registration no.</span><span>Text</span><span>If SST</span><span><span class="chip a">Show if Tax type = SST</span></span></div>
+  <div class="r" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span>&#8942;</span><span>e-Invoice email</span><span>Email</span><span>Yes</span><span></span></div>
+  <div class="r" style="grid-template-columns:14px 1.4fr .9fr .6fr 1.2fr"><span>&#8942;</span><span>MSIC code(s)</span><span>List</span><span>Yes</span><span><span class="chip">5 digits each</span></span></div></div>
+  <span class="btn" style="margin-top:8px">+ Add data field</span></div>
+ <div style="padding:10px;border-left:1px solid var(--line);display:grid;gap:4px;align-content:start;font-size:11px">
+  <b>Tax percentage</b>
+  <div class="lbl">Label (EN)</div><div class="in v">Tax percentage</div>
+  <div class="lbl">Label (BM)</div><div class="in v">Peratusan cukai</div>
+  <div class="lbl">Type</div><div class="in v">Number, 0 to 100</div>
+  <div class="lbl">Show if</div><div class="in v">Tax type is SST</div>
+  <div class="lbl">Fills contact field</div><div class="in v">Tax percentage</div>
+  <div class="lbl">Printed on the form</div><div class="in">Page 2, 1 place</div></div></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>Parts on the left, the fields of the chosen part in the middle, properties on the right. Drag to reorder.</span></li>
+<li><span class="n">2</span><span>Rules are chosen from lists ("Show if Tax type is SST"), never written as code, and read back in plain words.</span></li>
+<li><span class="n">3</span><span>Every field has text in each language, validation, the contact field it fills, and where it prints. "Printed on the form" jumps to the template editor.</span></li>
+<li><span class="n">4</span><span>"Preview as merchant" opens the real phone layout with test answers.</span></li></ol></div>
+
+<h3>Sender: progress on a document</h3>
+<p class="tag">F-92</p>
+<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; SGN-2026-000123 &rsaquo; Application progress</div><div class="pane">
+ <div class="hd"><b>Application progress</b><span><span class="btn">Remind about unfinished parts</span> <span class="btn">Extend expiry</span></span></div>
+ <div class="prog" style="margin-bottom:6px"><i style="width:43%"></i></div><span style="color:var(--muted)">3 of 7 parts &middot; last activity 2 h ago from a phone</span>
+ <div class="tbl" style="margin-top:8px"><div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>1 Company and tax</span><span><span class="chip g">Done</span></span><span>Yesterday 16:20</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>2 Address and contacts</span><span><span class="chip g">Done</span></span><span>Yesterday 16:31</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>3 e-Invoice input</span><span><span class="chip w">4 of 6</span></span><span>Today 09:12</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>4 Bank account</span><span><span class="chip">Not started</span></span><span>&mdash;</span></div></div>
+ <p style="color:var(--muted);margin-top:6px">Answers so far are readable here. Changes are logged. The reminder names the parts still open.</p></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>The sender sees exactly where the merchant is stuck, without asking them.</span></li>
+<li><span class="n">2</span><span>"Remind" sends a message such as "You have 4 parts left: e-Invoice input, Bank account, Documents, Commercial terms. Continue here."</span></li></ol></div>
+
+<h3>Merchant groups: variants of one application</h3>
+<p class="tag">F-98 to F-102</p>
+<div class="two"><div class="wf"><div class="cap">Sign &rsaquo; Templates &rsaquo; Merchant Application &rsaquo; Compare Group A and Group B</div><div class="pane">
+ <div class="hd"><span><b>Merchant Application</b> <span class="chip">Merchant agreements</span></span><span><span class="btn">Duplicate variant</span> <span class="btn p">Compare</span></span></div>
+ <div style="display:flex;gap:6px;margin-bottom:8px"><span class="chip a">Group A v3</span><span class="chip">Group B v2</span><span class="chip">Group C v1</span></div>
+ <div class="tbl"><div class="r h" style="grid-template-columns:1.4fr 1fr 1fr"><span>Term</span><span>Group A</span><span>Group B (example)</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Platform fee, FPX</span><span>RM 1 per collection</span><span>RM 0.80 per collection</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Credit card</span><span>1.8%</span><span>1.6%</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Debit card</span><span>1.2%</span><span>1.0%</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Termination notice</span><span>60 days</span><span>30 days</span></div>
+ <div class="r" style="grid-template-columns:1.4fr 1fr 1fr"><span>Settlement</span><span>2 times a week</span><span>Weekly</span></div>
+ <div class="r sel" style="grid-template-columns:1.4fr 1fr 1fr"><span>Key term 8 (hardware)</span><span>Included</span><span><span class="chip w">Different wording</span></span></div></div>
+ <p style="color:var(--muted);margin-top:6px">Everything else, including the whole form and the e-invoice part, is shared by all variants.</p></div></div>
+<ol class="callouts"><li><span class="n">1</span><span>One family, one variant per merchant group. The sender picks the group in the wizard; a contact that already has a group picks it automatically.</span></li>
+<li><span class="n">2</span><span>Fees and terms are fields with the variant's defaults. Changing them for one merchant is off unless the workspace allows it.</span></li>
+<li><span class="n">3</span><span>Compare shows what differs. "Duplicate variant" starts a new group from an existing one. A new version never alters documents already sent.</span></li></ol></div>
+
 <!-- ============ ADMIN ============ -->
 <h2 id="admin">Admin and automation</h2>
 <h3>A1. Settings &rsaquo; Sign</h3>
@@ -588,6 +718,10 @@ stateDiagram-v2
 <li><b>Code by default?</b> Should the verification code be on for every merchant document, or only when chosen?</li>
 <li><b>Word files.</b> Is a conversion preview ("this is exactly what will be signed") acceptable, given exact layout depends on fonts? Please supply the real agreement as Word and PDF.</li>
 <li><b>Categories.</b> Which categories do you want at the start besides Merchant agreements?</li>
+<li><b>Merchant groups.</b> How many groups, and what differs: fees only, or clauses too? Who may change a fee for one merchant?</li>
+<li><b>Application parts.</b> Are the seven parts in the right order, and should any be merged or split?</li>
+<li><b>Company name fields.</b> Ask the legal name once and a trading name only if different? GST No. replaced by SST registration number?</li>
+<li><b>Colleague links.</b> Which part may a merchant pass to a colleague (finance for bank and tax)?</li>
 <li><b>Name in the sidebar.</b> "Doc Sign" as drawn, or "Documents"?</li>
 <li><b>Signer's download.</b> Allowed at any time (as drawn), or only after completion?</li>
 <li><b>Signing page look.</b> Workspace logo and name only (as drawn), or a colour as well?</li>

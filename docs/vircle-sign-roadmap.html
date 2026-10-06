@@ -1,0 +1,124 @@
+<title>Vircle Doc Sign Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: one clean sheet. Stage strip first (what you get when), then a week-scaled timeline,
+   then what is needed from the owner and the top risks. Same tokens as the UX document. */
+:root{
+  --bg:#f6f5fb; --surface:#ffffff; --surface2:#f0eef9; --ink:#1b1a2b; --muted:#66657d; --line:#e2e0ee;
+  --accent:#6a4cf0; --accent-soft:#ece8fd; --good:#1b8f63; --warn:#a96a06; --bad:#c83048;
+  --c0:#8a89a0; --c1a:#6a4cf0; --c1b:#0f8f94; --c2:#b8741a; --c3:#a43a73;
+  --display:'Schibsted Grotesk',system-ui,sans-serif; --body:'Public Sans',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#13121d; --surface:#1c1b2b; --surface2:#25243a; --ink:#ecebf7; --muted:#a09fb8; --line:#34334c;
+  --accent:#9b84ff; --accent-soft:#2b2650; --good:#4fc79a; --warn:#e3a94a; --bad:#ff7d92;
+  --c0:#9b9ab3; --c1a:#9b84ff; --c1b:#4fc7cc; --c2:#e3a94a; --c3:#e47fb4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13121d; --surface:#1c1b2b; --surface2:#25243a; --ink:#ecebf7; --muted:#a09fb8; --line:#34334c;
+  --accent:#9b84ff; --accent-soft:#2b2650; --good:#4fc79a; --warn:#e3a94a; --bad:#ff7d92;
+  --c0:#9b9ab3; --c1a:#9b84ff; --c1b:#4fc7cc; --c2:#e3a94a; --c3:#e47fb4; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px;padding-block:24px 80px}
+.meta{font:500 12px var(--mono);color:var(--muted);letter-spacing:.02em}
+h1{font:700 clamp(28px,4vw,40px)/1.1 var(--display);margin:6px 0 10px;text-wrap:balance}
+h2{font:700 22px/1.2 var(--display);margin:44px 0 6px}
+p{margin:6px 0;max-width:70ch} .lede{color:var(--muted);font-size:16px;max-width:68ch}
+.stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.stage{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:14px;display:grid;gap:6px;align-content:start}
+.stage .k{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stage h3{font:700 17px/1.25 var(--display);margin:0}
+.stage .d{font:500 13px var(--mono)}
+.stage p{font-size:13.5px;margin:0}
+.stage .gate{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px;align-items:start}
+.golive{background:var(--accent-soft);border-radius:10px;padding:14px 16px}
+.golive b{font:700 15px var(--display)} .golive p{font-size:13.5px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gantt{min-width:860px;padding:8px 10px 12px}
+.g-head,.g-row,.g-phase{display:grid;grid-template-columns:300px minmax(0,1fr);align-items:center;gap:10px;min-height:26px}
+.g-phase{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.g-label{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-label small{font:500 11px var(--mono);color:var(--muted);margin-left:6px}
+.wp{font:600 10.5px var(--mono);color:var(--muted);margin-right:4px}
+.g-track{position:relative;height:22px;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:16.6667% 100%}
+.g-track.scale{height:18px;background:none}
+.tick{position:absolute;top:0;font:500 10.5px var(--mono);color:var(--muted);transform:translateX(-1px)}
+.bar{position:absolute;top:3px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;overflow:hidden}
+.bar em{font:500 10px var(--mono);font-style:normal;color:#fff;padding:0 5px;white-space:nowrap}
+.span{position:absolute;top:8px;height:6px;border-radius:3px}
+.ms{position:absolute;top:2px;width:0} .ms i{position:absolute;left:-6px;top:3px;width:12px;height:12px;background:var(--ink);transform:rotate(45deg);border-radius:2px}
+.mslist{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 20px;font-size:13.5px}
+.mslist li{display:grid;grid-template-columns:78px 1fr;gap:8px;border-bottom:1px solid var(--line);padding:5px 0}
+.wk{font:600 11.5px var(--mono);color:var(--accent)}
+table.doc{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table.doc th,table.doc td{text-align:left;border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+table.doc th{font:600 11.5px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--surface2)}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font:600 11px var(--body);background:var(--surface2);color:var(--muted);white-space:nowrap}
+.chip.a{background:var(--accent-soft);color:var(--accent)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px}
+@media (max-width:900px){.stages{grid-template-columns:repeat(2,minmax(0,1fr))}.hero,.two{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.stages{grid-template-columns:minmax(0,1fr)}}
+</style>
+
+<div class="wrap">
+<p class="meta">VIRCLE DOC SIGN &middot; ROADMAP &middot; 6 OCT 2026 &middot; PLANNING FIGURES, ONE ENGINEER</p>
+<h1>Roadmap: from core signing to merchant go-live and beyond</h1>
+<div class="hero">
+ <div>
+  <p class="lede">Week 0 is the day you give the go-ahead. The product is built in four phases behind an operator switch, first for Vircle only. Each phase ends with something you can use and a gate you can check. The plan counts 116 working days of build (23 weeks) plus a 3-day start-up.</p>
+ </div>
+ <div class="golive"><b>Merchant go-live: about week 13.6</b>
+  <p>That is the end of Phase 1B: about 68 working days, roughly 3 months. With two engineers working in parallel it is about 8 to 9 weeks.</p>
+  <p>Until then an agent can already send the merchant application as a document the merchant fills on the page.</p></div>
+</div>
+
+<h2>What you get, phase by phase</h2>
+<div class="stages">
+ <div class="stage" style="--c:var(--c1a)"><span class="k">Phase 1A &middot; weeks 0 to 9.2</span><h3>Core signing</h3><span class="d">46 days</span>
+  <p>Upload a PDF, Word file or image, place signing locations, text, dates and numbers, list signers with an optional signing order, send by email or WhatsApp, sign on a phone, sealed PDF filed on the contact. Categories and the add-on mechanism.</p>
+  <span class="gate">Gate: a Word file is signed on an Android phone and an iPhone and verifies in a PDF reader.</span></div>
+ <div class="stage" style="--c:var(--c1b)"><span class="k">Phase 1B &middot; weeks 9.2 to 13.6</span><h3>Forms and merchant groups</h3><span class="d">22 days</span>
+  <p>The merchant application filled in parts from one link with autosave, conditional fields and uploads, the e-invoice tax details, and variants per merchant group A, B and C. The Merchant Registration add-on goes live.</p>
+  <span class="gate">Gate: a merchant starts on a phone, finishes on a computer through the same link, and signs.</span></div>
+ <div class="stage" style="--c:var(--c2)"><span class="k">Phase 2 &middot; weeks 13.6 to 19.8</span><h3>Automate and scale</h3><span class="d">31 days</span>
+  <p>Automatic onboarding from a contact tag, webhooks and public API, reminders that name unfinished parts, countersign inside Halo, share a part with a colleague, option lists, envelopes, bulk send.</p>
+  <span class="gate">Gate: a tagged contact goes to a filed, signed agreement with no manual step.</span></div>
+ <div class="stage" style="--c:var(--c3)"><span class="k">Phase 3 &middot; weeks 19.8 to 23.2</span><h3>Trust and compliance</h3><span class="d">17 days</span>
+  <p>Public registration entry, certificate-authority signature, verify page, retention rules, form without signature, load test and security review.</p>
+  <span class="gate">Gate: sealed files show as trusted; 200 documents in an hour complete in time.</span></div>
+</div>
+
+<h2>Timeline</h2>
+<p>Bars are scaled to weeks. The diamonds are milestones. Work packages run one after another for one engineer; with two, the editor and conversion work run beside the signing page and the form work starts earlier.</p>
+<div class="scroll"><div class="gantt" role="img" aria-label="Timeline of work packages across 24 weeks">
+<div class="g-head"><div class="g-label"></div><div class="g-track scale"><span class="tick" style="left:0.00%">W0</span><span class="tick" style="left:16.67%">W4</span><span class="tick" style="left:33.33%">W8</span><span class="tick" style="left:50.00%">W12</span><span class="tick" style="left:66.67%">W16</span><span class="tick" style="left:83.33%">W20</span><span class="tick" style="left:100.00%">W24</span></div></div><div class="g-row"><div class="g-label"><b>Milestones</b></div><div class="g-track"><span class="ms" style="left:30.00%" title="First document signed and sealed (test), week 7.2"><i></i></span><span class="ms" style="left:38.33%" title="Core product usable inside Vircle, week 9.2"><i></i></span><span class="ms" style="left:56.67%" title="Merchant pilot: 3 merchants, week 13.6"><i></i></span><span class="ms" style="left:60.00%" title="Automatic onboarding, week 14.4"><i></i></span><span class="ms" style="left:82.50%" title="Phase 2 complete, week 19.8"><i></i></span><span class="ms" style="left:89.17%" title="Trusted certificate and verify page, week 21.4"><i></i></span><span class="ms" style="left:96.67%" title="Programme complete, week 23.2"><i></i></span></div></div><div class="g-row"><div class="g-label">Phase 0 &middot; Decisions, legal, certificate ordered</div><div class="g-track"><span class="bar" style="left:0;width:2.50%;background:var(--c0)"><em>3 d</em></span></div></div><div class="g-phase"><div class="g-label"><b>Phase 1A · Core signing</b> <small>46 days</small></div><div class="g-track"><span class="span" style="left:0.00%;width:38.33%;background:var(--c1a)"></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP1</span> Foundation: tables, permissions, switches, audit</div><div class="g-track"><span class="bar" style="left:0.00%;width:4.17%;background:var(--c1a)"><em>5 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP2</span> PDF engine: stamp, seal, certificate</div><div class="g-track"><span class="bar" style="left:4.17%;width:5.83%;background:var(--c1a)"><em>7 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP3</span> Word conversion service</div><div class="g-track"><span class="bar" style="left:10.00%;width:3.33%;background:var(--c1a)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP4</span> Editor: place fields on any document</div><div class="g-track"><span class="bar" style="left:13.33%;width:8.33%;background:var(--c1a)"><em>10 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP5</span> Send and sign: signing list, order, signer page</div><div class="g-track"><span class="bar" style="left:21.67%;width:8.33%;background:var(--c1a)"><em>10 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP6</span> Management: list, detail, contact tab</div><div class="g-track"><span class="bar" style="left:30.00%;width:3.33%;background:var(--c1a)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP7</span> Categories and add-ons</div><div class="g-track"><span class="bar" style="left:33.33%;width:3.33%;background:var(--c1a)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP8</span> Settings, platform console, languages</div><div class="g-track"><span class="bar" style="left:36.67%;width:1.67%;background:var(--c1a)"><em>2 d</em></span></div></div><div class="g-phase"><div class="g-label"><b>Phase 1B · Forms and merchant groups</b> <small>22 days</small></div><div class="g-track"><span class="span" style="left:38.33%;width:18.33%;background:var(--c1b)"></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP9</span> Data fields and form definition</div><div class="g-track"><span class="bar" style="left:38.33%;width:5.00%;background:var(--c1b)"><em>6 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP10</span> Form-mode signing: parts, autosave, resume</div><div class="g-track"><span class="bar" style="left:43.33%;width:5.00%;background:var(--c1b)"><em>6 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP11</span> Sender: form builder, progress, write-back</div><div class="g-track"><span class="bar" style="left:48.33%;width:3.33%;background:var(--c1b)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP12</span> Template families and merchant groups</div><div class="g-track"><span class="bar" style="left:51.67%;width:2.50%;background:var(--c1b)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP13</span> Merchant Registration content (real files)</div><div class="g-track"><span class="bar" style="left:54.17%;width:2.50%;background:var(--c1b)"><em>3 d</em></span></div></div><div class="g-phase"><div class="g-label"><b>Phase 2 · Automate and scale</b> <small>31 days</small></div><div class="g-track"><span class="span" style="left:56.67%;width:25.83%;background:var(--c2)"></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP14</span> Automation trigger and step, webhooks</div><div class="g-track"><span class="bar" style="left:56.67%;width:3.33%;background:var(--c2)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP15</span> Public API</div><div class="g-track"><span class="bar" style="left:60.00%;width:2.50%;background:var(--c2)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP16</span> Part-aware reminders, countersign in Halo</div><div class="g-track"><span class="bar" style="left:62.50%;width:4.17%;background:var(--c2)"><em>5 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP17</span> Envelopes (several documents, one sitting)</div><div class="g-track"><span class="bar" style="left:66.67%;width:3.33%;background:var(--c2)"><em>4 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP18</span> Bulk send and exports</div><div class="g-track"><span class="bar" style="left:70.00%;width:2.50%;background:var(--c2)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP19</span> Share a part with a colleague</div><div class="g-track"><span class="bar" style="left:72.50%;width:2.50%;background:var(--c2)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP20</span> Option lists and MSIC picker</div><div class="g-track"><span class="bar" style="left:75.00%;width:2.50%;background:var(--c2)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP21</span> Sensitive fields, test mode, add-on updates</div><div class="g-track"><span class="bar" style="left:77.50%;width:5.00%;background:var(--c2)"><em>6 d</em></span></div></div><div class="g-phase"><div class="g-label"><b>Phase 3 · Trust and compliance</b> <small>17 days</small></div><div class="g-track"><span class="span" style="left:82.50%;width:14.17%;background:var(--c3)"></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP22</span> Public registration entry</div><div class="g-track"><span class="bar" style="left:82.50%;width:2.50%;background:var(--c3)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP23</span> CA certificate and verify page</div><div class="g-track"><span class="bar" style="left:85.00%;width:4.17%;background:var(--c3)"><em>5 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP24</span> Retention rules</div><div class="g-track"><span class="bar" style="left:89.17%;width:2.50%;background:var(--c3)"><em>3 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP25</span> Form without signature</div><div class="g-track"><span class="bar" style="left:91.67%;width:1.67%;background:var(--c3)"><em>2 d</em></span></div></div><div class="g-row"><div class="g-label"><span class="wp">WP26</span> Load test and security review</div><div class="g-track"><span class="bar" style="left:93.33%;width:3.33%;background:var(--c3)"><em>4 d</em></span></div></div>
+</div></div>
+<ul class="mslist"><li><span class="wk">Week 7.2</span><span>First document signed and sealed (test)</span></li><li><span class="wk">Week 9.2</span><span>Core product usable inside Vircle</span></li><li><span class="wk">Week 13.6</span><span>Merchant pilot: 3 merchants</span></li><li><span class="wk">Week 14.4</span><span>Automatic onboarding</span></li><li><span class="wk">Week 19.8</span><span>Phase 2 complete</span></li><li><span class="wk">Week 21.4</span><span>Trusted certificate and verify page</span></li><li><span class="wk">Week 23.2</span><span>Programme complete</span></li></ul>
+
+<h2>What I need from you, and by when</h2>
+<table class="doc"><thead><tr><th>Needed</th><th>Why</th><th>By</th></tr></thead><tbody>
+<tr><td>Go-ahead and the answers on the six assumptions (feature document, section 1)</td><td>Starts Phase 0 and WP1</td><td>Week 0</td></tr>
+<tr><td>Retention period for signed contracts and whether they outlive a deleted workspace</td><td>Shapes the tables and deletion rules in WP1</td><td>Before WP1</td></tr>
+<tr><td>Order the sealing certificate (and decide if a certificate-authority one is needed at launch)</td><td>Procurement is slow; the pilot needs at least an organisational certificate</td><td>Week 0</td></tr>
+<tr><td>VPS memory and CPU, or permission to measure</td><td>Sizes the PDF engine and the converter</td><td>Before WP2</td></tr>
+<tr><td>Real merchant application as Word and PDF, with its fonts; the e-invoice part added</td><td>Conversion tests and the real template</td><td>Before WP3</td></tr>
+<tr><td>Option lists: company ID types, e-invoice phases, tax types, bank list</td><td>The form's choices</td><td>Before WP9</td></tr>
+<tr><td>Merchant groups: how many, what differs, who may change a fee</td><td>Variants and permissions</td><td>Before WP12</td></tr>
+<tr><td>WhatsApp utility template submitted for approval</td><td>WhatsApp invitations; approval takes time</td><td>By week 6</td></tr>
+<tr><td>Legal read on e-signature requirements for merchant contracts</td><td>Decides how strong the signature must be at go-live</td><td>Before the merchant pilot</td></tr>
+<tr><td>Three pilot merchants and a date</td><td>The Phase 1B gate</td><td>Week 12</td></tr>
+</tbody></table>
+
+<h2>Where it can slip</h2>
+<div class="two">
+ <div class="note"><b>Critical path.</b> Foundation, PDF engine, send and sign, then the form work, then the merchant content. Conversion, wording and the management screens can run beside them.</div>
+ <div class="note"><b>Biggest unknowns.</b> How closely Word files convert (fonts), how long the certificate takes, the VPS headroom, and whether merchant groups differ in clauses as well as fees. Each has an early check: a real-file conversion test in WP3, the certificate order in week 0, a measurement in WP2, and your answer on groups before WP12.</div>
+</div>
+
+<h2>Scope guardrails</h2>
+<p>Not planned: signing in person on a shared device, SMS delivery, Excel and PowerPoint input, face or ID-card verification, editing the text of a document inside the product, and a customer-facing launch. The last is a switch and pricing decision after Vircle uses it, not new build.</p>
+<p class="meta">The detail behind every line is in the feature set (document 1), the delivery plan (document 2) and the UX document (document 3).</p>
+</div>

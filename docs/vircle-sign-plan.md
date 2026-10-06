@@ -1,6 +1,6 @@
 ---
 title: "Vircle Doc Sign: delivery plan"
-subtitle: "Document 2 of 3 for review. Architecture, data, security, work packages and rollout, revised 6 Oct 2026"
+subtitle: "Document 2 of 3 for review. Architecture, data, security, work packages and rollout, second revision 6 Oct 2026"
 ---
 
 # 1. Summary
@@ -9,14 +9,26 @@ Vircle Doc Sign is built natively inside Halo (decision: option B in the proposa
 document** (PDF, Word, image), supports a signing list with an optional signing order, and groups
 documents into categories. Ready-made packs, starting with **Merchant Registration**, come as
 add-ons. Nothing from the OpenSign fork is copied; its behaviour is used as a reference only, so no
-AGPL obligation arises. It is built in three phases behind an operator switch, first for Vircle only.
+AGPL obligation arises. It is built in phases behind an operator switch, first for Vircle only.
+
+**Second revision (merchant application sample and e-invoice form).** The merchant application is
+filled **in parts, over several sittings, from one link**, includes the new e-invoice tax details,
+and exists as **variants per merchant group** (A, B, C) with different fees and terms. That adds a
+forms layer (Phase 1B) between the core signing product and the merchant go-live.
 
 | Phase | Result | Effort (one engineer) |
 |---|---|---|
-| 0 | Decisions, legal read, certificate ordered | 3 days, overlaps phase 1 |
-| 1 | Any PDF, Word file or image can be prepared and sent to a signing list (in order if chosen); a merchant signs on a phone; the sealed PDF is filed; the Merchant Registration add-on is installable | 46 days, about 9 weeks |
-| 2 | Automation, API, webhooks, reminders, countersign in Halo, envelopes, bulk send, add-on updates | 25 days, about 5 weeks |
-| 3 | Public registration form, trusted certificate, verify page, retention, hardening | 18 days, about 3.5 weeks |
+| 0 | Decisions, legal read, certificate ordered, real merchant application and terms received | 3 days, overlaps phase 1A |
+| 1A | **Core signing.** Any PDF, Word file or image prepared and sent to a signing list (in order if chosen); a merchant signs on a phone; the sealed PDF is filed; categories and the add-on mechanism | 46 days, about 9 weeks |
+| 1B | **Forms and merchant groups.** The application filled in parts from one link with autosave; conditional fields and uploads; e-invoice tax details; variants per merchant group; the Merchant Registration add-on goes live | 22 days, about 4.5 weeks |
+| 2 | Automation, API, webhooks, part-aware reminders, countersign in Halo, share a part, option lists, envelopes, bulk send, add-on updates | 31 days, about 6 weeks |
+| 3 | Public registration entry, trusted certificate, verify page, retention, hardening, form without signature | 17 days, about 3.5 weeks |
+
+**Merchant go-live is at the end of Phase 1B: about 68 working days, roughly 13.5 weeks.** The whole
+programme is about 119 days (24 weeks) for one engineer; two engineers working in parallel on 1A and
+1B bring go-live forward to about 9 weeks. Until 1B is built, an agent can send the application as a
+document the merchant fills directly on the page (with save and resume), with the tax details as an
+extra page; nothing sent in the meantime is lost.
 
 These are planning figures. **Phase 1 grew from 35 to 46 days** after your note on Word files,
 categories and add-ons, and the signing list: Word conversion service 4 days, categories and
@@ -87,12 +99,17 @@ security on, and `updated_at` triggers. Names start `sign_`. Migrations start at
 |---|---|---|
 | `sign_categories` | A document category | key, name, defaults (expiry, reminders, code required, sign in order, consent wording, retention), add-on key (if installed by one), archived |
 | `sign_addons` | Which add-ons a workspace has installed | add-on key, installed version, installed by and when, status |
-| `sign_templates` | A template's identity | name, description, **category**, status (draft, active, archived), current version, tags, add-on key and version if it came from one, "customised" flag |
+| `sign_templates` | A template's identity | name, description, **category**, **family and variant key (for example Merchant group A)**, status (draft, active, archived), current version, tags, add-on key and version if it came from one, "customised" flag |
 | `sign_template_versions` | Immutable version of a template | version no., source file path and SHA-256, page count, `fields` (json), `roles` (json), defaults (expiry, reminders, order, language, subject, message) |
 | `sign_documents` | One document sent for signing | reference (SGN-2026-000123), title, status, **category**, template version (nullable), contact, ticket, deal, `merge_values`, `fields_snapshot`, **`sign_in_order` flag**, locale, expires at, sent at, completed at, **original upload (path, type, SHA-256)**, **converted PDF**, base file and SHA-256, final file and SHA-256, void reason, created by |
 | `sign_document_files` | Files that belong to a document | kind (source, annex, signer upload, signed, certificate), path, name, size, SHA-256 |
 | `sign_signers` | A person who signs | role key, **full name**, **email**, phone, channel, **order number (step)**, **invited at**, status, **token hash**, code hash and attempts, viewed, signed and declined times, decline reason, IP, device, locale, consent version |
-| `sign_field_values` | What a signer entered | signer, field key, value (json) or file, sensitive flag, entered at |
+| `sign_answers` | Everything entered, in form mode or on the page | document, signer, data field key, value (json) or file, source (signer, sender, contact, colleague), saved at, sensitive flag |
+| `sign_template_families` | A family of variants (Merchant Application) | name, category, form, add-on key |
+| `sign_forms` | An immutable form definition per version | ordered parts, data field keys in each part, text per language |
+| `sign_data_fields` | Definition of each data field | key, labels and help per language, type, options or option list, validation, required rule, show-if rule, contact field it fills, sensitive flag, default per variant |
+| `sign_contributors` (P2) | Colleague links for one part | document, part keys, name, email, token hash, status |
+| `sign_option_lists` (P2) | Shared option lists | name, items with labels per language |
 | `sign_events` | **Append-only audit chain** | document, signer, type, actor (user, signer, system), detail (json), IP, device, `prev_hash`, `row_hash`, time |
 | `sign_settings` | One row per workspace | default expiry, reminder days, default language, consent texts (per language), sender name, logo, retention years, certificate reference |
 | `sign_certificates` | Sealing certificates | name, subject, valid until, **encrypted** P12 and passphrase, default flag |
@@ -202,7 +219,68 @@ pages, and "Save as template" copies the prepared fields into a template at any 
   an edited add-on template is marked "customised" and an update only offers a new version beside it.
 - **Update (Phase 2).** A new add-on version shows "Update available" with a change list.
 
-# 8. Signer security
+# 8. Forms in parts, and merchant groups
+
+**Data fields and placements.** Asking and printing are separate. A *data field* (key, labels, type,
+rules) is asked once. A *placement* puts its value at a place on the PDF; one data field can have
+many placements, or none (data only). In the editor a placed field is bound to a data field instead
+of being typed. Merge from the contact (F-06) is just a data field whose first value came from the
+contact.
+
+**The form.** A template has a form definition: ordered *parts*, each a list of data fields. The
+signer's page has two modes: *form mode* (parts, then review and sign) and *overlay mode* (fields
+on the page, used by one-off documents). A template can use either.
+
+**Rules in one place.** Visibility ("show tax percentage only when tax type is SST"), required-if,
+validation (digits, length, pattern, phone, postcode, file type and size) and part completion are
+all computed by **one shared TypeScript module** used by the browser for instant feedback and by the
+server as the authority. The rule language is a small JSON form (equals, not equals, in, empty,
+not empty, and, or), so it can be stored, tested and shown in the builder.
+
+**Autosave and resume.**
+- The browser sends changed answers in small batches (about every second while typing and when leaving
+  a field). The server validates each value, stores it in `sign_answers`, and returns what is valid.
+  Answers are never kept only in the browser.
+- Two tabs or devices: the latest save for a field wins and the other device is told "this answer was
+  changed elsewhere". Offline changes queue and resend.
+- The single link plus the code (when on) opens a verified session valid for 12 hours; the overview
+  shows each part as Not started, In progress or Done, computed by the shared module.
+- Audit: a "sitting" event is written at most once per 5 minutes; "part completed", "part
+  reopened" and "submitted" are always written. Keystrokes are never logged.
+
+**The gate.** The sign step is locked in the interface until required parts are done, **and the server
+re-checks the entire answer set when the signature arrives**; it never trusts the browser's idea of
+which parts are complete.
+
+**Printing answers.** Placements draw text with automatic shrinking inside their box and wrap
+multi-line values; a list prints one entry per line or comma separated. If an answer cannot fit even
+at the smallest size the signer is told which field to shorten before they can sign, and fixed values
+(fees, terms) are checked for fit when the variant is saved. Uploaded files are stored with their
+SHA-256, listed in the certificate, and appended to the sealed packet as annexes where required.
+
+**Write-back.** Each data field can name a contact field. On submission (and, if chosen, per part) the
+server updates the contact in one transaction through the existing contact update path, writes an
+audit line with old and new values, and by default only overwrites a value after it was shown to and
+confirmed by the signer.
+
+**Families and variants.**
+- A *variant* is a normal template carrying a family and a variant key. All variants of a family
+  share one form and one set of data fields, so the tax part and contacts are identical everywhere.
+- The merchant group is a contact field. The wizard offers the group; from a contact that has one it
+  is preselected; the automation step takes the group as an input.
+- Commercial values (fees, notice period, settlement, payment channel note) are data fields with
+  each variant's defaults. They are locked on the merchant's page and on the sender's wizard unless
+  the workspace setting "senders may change fees" is on.
+- Compare shows two variants side by side (fields, values, wording differences). "Copy fields from"
+  matches placements by label so a new group starts from an existing one.
+- A new version of a variant never changes sent documents; the sealed record names group, variant and
+  version.
+
+**Share a part (P2).** A colleague link is scoped to chosen part keys, has its own token, shows only
+those parts, records the colleague's name and email on each change (source "colleague"), and can
+never reach the sign step.
+
+# 9. Signer security
 
 - **Link:** 32 random bytes, only its SHA-256 stored, shown once. Reissuing a link kills the old one.
 - **Code:** 6 digits, hashed, 10 minutes, 5 tries, then locked for 15 minutes; resends are limited.
@@ -221,7 +299,7 @@ pages, and "Save as template" copies the prepared fields into a template at any 
 - **Staff access:** reading requires `sign.view`; writes happen only through server routes that call
   `requireCapability`; the audit log records administrative changes.
 
-# 9. Where each part touches Halo
+# 10. Where each part touches Halo
 
 | Part | Files and conventions |
 |---|---|
@@ -234,6 +312,7 @@ pages, and "Save as template" copies the prepared fields into a template at any 
 | API | `src/app/api/sign/*` (staff, `requireCapability`), `src/app/api/sign/public/[token]/*` (token auth, listed in `PUBLIC_ROUTES` in `route-surface.test.ts`), `src/app/api/v1/sign/*` (P2). |
 | Conversion | `docker-compose.sign.yml` (converter service, internal network), `SIGN_CONVERTER_URL`, converter client in `src/lib/sign/convert/`, health on the Platform job card. |
 | Add-ons | `src/lib/sign/addons/merchant/` (manifest, template files, fields, wording), installer route, Settings > Doc Sign > Add-ons. |
+| Forms | `src/lib/sign/forms/` (rules, validation, completion, printing fit), routes `/api/sign/public/[token]/answers` and `/parts`, contact write-back through the existing contact update helper, form builder under `(dashboard)/sign/templates/[id]/form`. |
 | Jobs | `/api/sign/jobs-cron` through `cronRoute`, `CRON_INTERVALS`, Platform job card string, crontab line in `docs/automations-and-cron.md`. |
 | Engine | `src/lib/sign/` (`pdf/`, `ceremony/`, `tokens.ts`, `events.ts`, `templates/`, `notify.ts`). |
 | Notifications | notification types widened in the migration; email templates beside `invitation-email.ts`. |
@@ -245,9 +324,9 @@ pages, and "Save as template" copies the prepared fields into a template at any 
 | Language and guide | `Sign` namespace in four languages, `content/help/sign/*`, neutral-wording test, `CHANGELOG.md`, version bump 0.76.0. |
 | Public registration address | the signer page and verify page added to `registered-urls.ts` only if a provider needs it (no). |
 
-# 10. Work packages
+# 11. Work packages
 
-## Phase 1 (46 days)
+## Phase 1A: core signing (46 days)
 
 | WP | Work | Days |
 |---|---|---|
@@ -255,36 +334,52 @@ pages, and "Save as template" copies the prepared fields into a template at any 
 | 2 | **PDF engine:** merge render, stamping of every field type, certificate pages, PKCS7 sealing, hashes, verification, golden test files checked with an independent verifier | 7 |
 | 3 | **Conversion service:** container and compose file, converter client, size, time and page checks, preview and error messages, fonts, image-to-PDF, tests with a set of real Word files | 4 |
 | 4 | **Editor:** viewer, field placement and properties for all field types, roles, merge keys, versions, library, preview, prepare-any-document path, save as template | 10 |
-| 5 | **Send and sign:** wizard, **signing list with full name, email and order**, order logic, invitations (email, WhatsApp), tokens and codes, signing page on mobile, signatures, uploads, decline, waiting and end states, seal job | 10 |
+| 5 | **Send and sign:** wizard, signing list with full name, email and order, order logic, invitations (email, WhatsApp), tokens and codes, signing page on mobile, signatures, uploads, decline, waiting and end states, seal job | 10 |
 | 6 | **Management:** list with category filter, detail, audit view, contact tab, notifications, downloads, void, remind, resend, change recipient | 4 |
-| 7 | **Categories and add-ons:** category settings, add-on catalogue and installer, Merchant Registration content, operator switch | 4 |
+| 7 | **Categories and add-ons:** category settings, add-on catalogue and installer, operator switch | 4 |
 | 8 | **Settings, platform and finish:** Settings, Platform console, four-language strings, User Guide, documentation, device testing | 2 |
 
-## Phase 2 (25 days)
+## Phase 1B: forms and merchant groups (22 days)
 
 | WP | Work | Days |
 |---|---|---|
-| 9 | Automation trigger and step, webhooks, recipe "Merchant onboarding" | 4 |
-| 10 | Public API `/api/v1/sign`, scopes, API docs | 3 |
-| 11 | Reminders and expiry job, countersign inside Halo | 5 |
-| 12 | Envelopes (several documents, one sitting) | 4 |
-| 13 | Bulk send, CSV export, zip download | 3 |
-| 14 | Sensitive-field encryption and masking, template test mode, ticket and deal attach, replace file, add-on updates | 6 |
+| 9 | **Data fields and form definition:** tables, field types, shared rule and validation module, option lists seed, binding placements to data fields in the editor | 6 |
+| 10 | **Form-mode signing:** overview with parts, part screens, autosave and resume, progress, locked review and sign, mobile, languages | 6 |
+| 11 | **Sender side:** form builder, progress view, reminders naming unfinished parts, extend expiry, write-back to contact fields | 4 |
+| 12 | **Families and merchant groups:** variants, group picker, auto-choice from the contact, commercial values with defaults, compare and copy | 3 |
+| 13 | **Merchant Registration content:** the real application with the e-invoice part, groups A, B and C, wording in English and Bahasa Melayu, tests on the real files | 3 |
 
-## Phase 3 (18 days)
+## Phase 2 (31 days)
 
 | WP | Work | Days |
 |---|---|---|
-| 15 | Public registration forms and anti-abuse | 6 |
-| 16 | CA-issued certificate rollout, verify page | 5 |
-| 17 | Retention rules and the deletion exception | 3 |
-| 18 | Load test, security review, fixes | 4 |
+| 14 | Automation trigger and step (with the merchant group as an input), webhooks, recipe "Merchant onboarding" | 4 |
+| 15 | Public API `/api/v1/sign`, scopes, API docs | 3 |
+| 16 | Part-aware reminders and expiry job, countersign inside Halo | 5 |
+| 17 | Envelopes (several documents, one sitting) | 4 |
+| 18 | Bulk send, CSV export, zip download | 3 |
+| 19 | Share a part (colleague links) | 3 |
+| 20 | Option lists in Settings and the MSIC code picker | 3 |
+| 21 | Sensitive-field encryption and masking, template test mode, ticket and deal attach, replace file, add-on updates | 6 |
 
-# 11. Testing
+## Phase 3 (17 days)
+
+| WP | Work | Days |
+|---|---|---|
+| 22 | Public registration entry and anti-abuse | 3 |
+| 23 | CA-issued certificate rollout, verify page | 5 |
+| 24 | Retention rules and the deletion exception | 3 |
+| 25 | Form without signature (standalone e-invoice details) | 2 |
+| 26 | Load test, security review, fixes | 4 |
+
+# 12. Testing
 
 - **Unit tests (Vitest):** tokens and codes, state moves, merge rendering, field validation, hash
   chain, sealing steps, permissions, and the signing-order logic (parallel, sequential, mixed steps,
   two signers finishing at once, decline mid-chain, change recipient mid-chain).
+- **Forms tests:** the rule module (visibility, required-if, validation for every type), part completion,
+  autosave with two devices, resume after the code, the server re-check at signing, answers that
+  overflow a box, conditional uploads, write-back with old and new values, and variant selection.
 - **Conversion tests:** a set of real Word files (tables, images, headers, tracked changes, Malay text,
   large and corrupt files) converted and compared page by page; oversized and macro-laden files
   rejected or neutralised.
@@ -299,11 +394,11 @@ pages, and "Save as template" copies the prepared fields into a template at any 
   browser, each in English and Bahasa Melayu; keyboard-only and screen-reader pass.
 - **Pilot:** three real merchants, with the owner watching events live.
 
-# 12. Rollout
+# 13. Rollout
 
 1. Build behind the `sign` switch, off for everyone.
 2. Switch on for the Vircle workspace and use test documents.
-3. **Pilot** with three merchants. Fix what they hit.
+3. **Pilot** with three merchants once Phase 1B is done (about 68 working days from the go-ahead). Fix what they hit.
 4. Open to all Vircle users, then enable Phase 2 automation.
 5. Decide whether to offer to customers; that is a switch plus pricing, not new code.
 
@@ -312,7 +407,7 @@ line. The VPS size is not recorded anywhere, so measure memory and CPU of one se
 one conversion in WP3 and report; if either needs headroom, the engine moves to a small worker
 container on the same host (the gateway pattern).
 
-# 13. Risks
+# 14. Risks
 
 | Risk | Effect | Handling |
 |---|---|---|
@@ -320,6 +415,9 @@ container on the same host (the gateway pattern).
 | Certificate procurement is slow | Trusted signature arrives late | Order in Phase 0; Phase 1 uses an organisational certificate |
 | PDF stamping uses CPU and memory | Slows Halo | Queue, 2 at a time, measure in WP2, worker container as fallback |
 | Word files convert imperfectly (fonts, layout) | The signed document differs from what the author saw | Preview with "this is exactly what will be signed", Vircle fonts added, PDF recommended for exact layout |
+| Long forms are abandoned halfway | Merchants never finish | Autosave, one link that resumes anywhere, reminders that name the unfinished parts, share-a-part for colleagues |
+| Conditional rules grow complicated | Hard to review and test | Small rule language, one shared module, previews in the builder, tests for every rule |
+| Answers longer than the boxes on the printed form | Text cut off in a signed contract | Auto-shrink, wrapping, a clear message before signing, fixed values checked when saved |
 | Converter handles untrusted files | Attack surface | Isolated container with no internet, resource limits, result validation, never served back |
 | Phone browsers differ (drawing, upload, zoom) | Merchants cannot sign | Device matrix; typed signature as an alternative |
 | WhatsApp template approval | Invitations by WhatsApp delayed | Email works from day one; submit the template in Phase 0 |
@@ -327,7 +425,7 @@ container on the same host (the gateway pattern).
 | Scope growth (editor features) | Delays | Phase gates; "Later" list in document 1 |
 | Library licences or maintenance | Rework | Checked in WP2 and recorded |
 
-# 14. Decisions needed before Phase 1 starts
+# 15. Decisions needed before Phase 1 starts
 
 1. The assumptions in the feature document, section 1.
 2. First template: the actual agreement and its fields (feature document, questions 2 and 3).
@@ -335,5 +433,6 @@ container on the same host (the gateway pattern).
 4. Retention period and the deletion exception (question 6).
 5. Certificate: who orders it, and whether a CA-issued one is mandatory at launch.
 6. VPS memory and CPU figures, or permission to measure them.
+   Also: the merchant group definitions and the option lists (feature document, questions 9 to 15).
 7. The merchant agreement as Word and PDF, with its fonts, so conversion can be tested on the real file.
 8. Brand name on customer-facing wording while the module is Vircle-only (the help pages for it are owner-only so Halo's neutral-wording test still passes).

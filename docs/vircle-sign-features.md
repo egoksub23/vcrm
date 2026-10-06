@@ -1,6 +1,6 @@
 ---
 title: "Vircle Doc Sign: feature set"
-subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026"
+subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026 (second revision)"
 ---
 
 # 1. Purpose and how to review this document
@@ -14,15 +14,22 @@ Registration**: a merchant applies, receives the merchant agreement prefilled wi
 signs on their phone, and the signed file lands on their record in Halo with no manual handling. A
 workspace without an add-on still has the whole core product.
 
-*Revised after your note that the merchant agreement is an add-on template and category, that Word
-files and any-document editing are needed, and that signers are listed with full name, email and an
-optional signing order. Changes are in sections 3.1, 3.2, 3.9, 3.10 and 3.11.*
+*First revision: the merchant agreement is an add-on template and category, Word files and
+any-document editing are needed, and signers are listed with full name, email and an optional
+signing order (sections 3.1, 3.2, 3.9, 3.10, 3.11).*
+
+*Second revision, after the sample Merchant Application Form and your online e-invoice form: the
+commercial terms differ by merchant group (template families, section 3.13), the e-invoice tax
+details are added to the application, and the merchant fills the application **in parts, over
+several sittings, from one link** (forms, section 3.12). Appendix A maps every field.*
 
 Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "drop F-22". Priority:
 
 - **P1** first release (Phase 1), enough to run real merchant agreements.
 - **P2** second release (Phase 2), automation, API and scale.
-- **P3** third release (Phase 3), forms, trusted certificate, hardening.
+- **P1b** Phase 1B, straight after the core: forms filled in parts, template families and merchant
+  groups. The Merchant Registration add-on goes live when P1b is done.
+- **P3** third release (Phase 3), trusted certificate, verify page, retention, hardening.
 - **Later** parked, not planned.
 
 **Assumptions made so work can start (please confirm or change):**
@@ -67,7 +74,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | F-03 | Field types: signature, initials, full name, **date signed (automatic)**, **date the signer picks**, text, multi-line text, email, phone, **number (decimals, currency symbol, minimum and maximum)**, checkbox, dropdown, radio group, **static text the sender writes on the document**, and **file upload by signer** (for example business registration certificate, ID copy). | P1 |
 | F-04 | **Signer roles** per template or document (for example Merchant, Director). Each field belongs to a role. Up to 6 roles. Roles are filled from the signing list (F-66). | P1 |
 | F-05 | Field properties: required or optional, label and help text, placeholder, default value, validation (length, email, phone, a regular expression such as an IC number), read-only. | P1 |
-| F-06 | **Merge fields**: a field can be filled before sending from a contact or workspace value (name, email, phone, company, country, any custom field, document reference, today's date). Merge keys are chosen from a list, not typed. | P1 |
+| F-06 | **Merge fields**: a field can be filled before sending from a contact or workspace value (name, email, phone, company, country, any custom field, document reference, today's date). Merge keys are chosen from a list, not typed. From P1b every value is a **data field** (F-82) and merge fields are data fields that came from the contact. | P1 |
 | F-07 | Template **versions**: editing a template used by sent documents creates a new version. A document always keeps the exact version it was sent with. | P1 |
 | F-08 | Template defaults: roles and their order, whether signing follows the order, expiry in days, reminder schedule, email subject and message, which language to open in, and the category. | P1 |
 | F-09 | Template library: search, tags, archive and restore, duplicate, preview as a signer, who changed what and when. | P1 |
@@ -194,11 +201,50 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | F-80 | **Operator control.** Which add-ons a workspace may use is switched in the Platform console. A workspace Owner or Admin installs an available add-on from Settings > Doc Sign > Add-ons. Installing again never overwrites what the workspace has changed. | P1 |
 | F-81 | **Add-on updates.** A new version shows as "Update available" with a list of changes; applying it creates new template versions and never alters sent documents. | P2 |
 
-**What the Merchant Registration add-on contains:** the category *Merchant agreements*; the templates
-*Merchant Agreement* and *Data Processing Terms* (Vircle supplies the wording; you provide the
-files); contact fields for business registration number, authorised person's IC number, bank name,
-bank account and outlet address; English and Bahasa Melayu invitation wording. Phase 2 adds the
-onboarding automation recipe and Phase 3 the public registration form.
+**What the Merchant Registration add-on contains:** the category *Merchant agreements*; the family
+*Merchant Application* with variants for Merchant group A, B and C (you provide the real files and
+terms); the form with its parts and data fields (Appendix A), including the new **e-invoice and tax
+details** part; the template *Data Processing Terms*; contact fields for every mapped answer;
+English and Bahasa Melayu wording. Phase 2 adds the onboarding automation recipe and the option
+lists; Phase 3 the public registration entry.
+
+## 3.12 Forms: fill in parts, over several sittings, with one link
+
+The merchant application is a long form (company, tax, contacts, bank, documents, terms) that people
+rarely finish in one go. P1b makes the document a **form first, then a signature**.
+
+| Id | Requirement | Pri |
+|---|---|---|
+| F-82 | **Data fields.** Every value on a document is a data field with a key, label and help text in each language, type, options, validation, required rule, the part it belongs to and, optionally, the contact field it fills. One data field can be printed in several places on the document (placements) or nowhere. Asking and printing are separate. | P1b |
+| F-83 | **Form definition.** A template has an ordered list of **parts**, each holding data fields. Parts are shown to the signer instead of (or before) the page overlay. | P1b |
+| F-84 | **Form field types:** text, multi-line, number, email, phone (country prefix), single choice, multiple choice, yes or no, date, address lines, **list of entries** (for example several business activity codes), **file upload** (a document checklist item), **image** (company stamp), and read-only text to acknowledge (the commercial terms). | P1b |
+| F-85 | **Conditional fields.** A field or an upload can appear, and be required, only when another answer says so (for example tax percentage and SST registration number only when the tax type is SST; company registration papers differ for a company and a sole proprietor). | P1b |
+| F-86 | **Validation** with a message in the signer's language: digits only, length, pattern, email, phone with +60 default, postcode with 5 digits, minimum and maximum, file type and size. | P1b |
+| F-87 | **One link, many sittings.** The signer's single link opens the application overview: each part shows Not started, In progress or Done, with an overall percentage. "Continue" goes to the next unfinished part. Parts can be done in any order. | P1b |
+| F-88 | **Autosave on the server.** Every change is saved as the signer types, so closing the page loses nothing. The same link resumes on any phone or computer (after the code, if the code is on). "Saved a moment ago" is shown. | P1b |
+| F-89 | **Review and sign** is the last part. It stays locked until every required part is done, then shows the document with all answers printed on it, and the signature, company stamp, name, designation and date. | P1b |
+| F-90 | **Prefill and no double asking.** Values already known (from the contact, or from an earlier document in the same packet) are prefilled for the signer to confirm. A value asked in one part is never asked again in another part or another document. | P1b |
+| F-91 | **Reopen.** A signer can change any part until they sign. After signing, everything is locked. | P1b |
+| F-92 | **Sender's progress view:** per part status, last activity, the answers so far (read only), a reminder that names the unfinished parts, and "extend expiry". | P1b |
+| F-93 | **Write-back.** Mapped answers update the contact's and company's fields when the application is submitted; each change is logged with the old and new value. | P1b |
+| F-94 | **Form builder** for people with `sign.templates`: add and reorder parts, add data fields, set rules and validation, set text in each language, preview as a signer. | P1b |
+| F-95 | **Share a part.** The signer can send one part's link to a colleague (for example finance, for bank and tax details). The colleague sees only that part and cannot sign; their name and email are recorded. | P2 |
+| F-96 | **Option lists** kept in Settings and shared by all forms: Malaysian states, banks, company registration ID types, tax types, e-invoice phases. A searchable **MSIC code** picker. | P2 |
+| F-97 | **Form without signature.** The same form and link used on its own (for example e-invoice details for an existing merchant), with the answers written back. | P3 |
+
+## 3.13 Template families and merchant groups
+
+| Id | Requirement | Pri |
+|---|---|---|
+| F-98 | **Template family with variants.** A family (for example Merchant Application) has variants (Merchant group A, B, C). Each variant is a full template with its own wording, fees and key terms. All variants share the family's form and data fields, so tax details and contacts are identical everywhere. | P1b |
+| F-99 | **Choosing the variant.** When sending, the sender picks the merchant group; from a contact that already has a merchant group the variant is chosen automatically. | P1b |
+| F-100 | **Commercial values as data fields** with each variant's defaults (platform fee for FPX, credit card and debit card, payment channel note, notice period, settlement schedule, free usage period). They print on the document. Changing them for one merchant is off by default and needs an explicit workspace setting. | P1b |
+| F-101 | **Variant management:** duplicate a variant, compare two variants side by side, copy fields from another variant by matching labels. Changing terms creates a new version; documents already sent keep theirs. | P1b |
+| F-102 | The sealed record states the group, variant and version, and the terms as printed. | P1b |
+
+**Until P1b is built**, a merchant can fill the application directly on the document (F-35 save and
+resume), and the e-invoice tax details are an extra page on the template. P1b replaces that with the
+form experience; nothing sent in the meantime is lost.
 
 # 4. Out of scope for now
 
@@ -210,14 +256,15 @@ signer (the P3 certificate is for sealing, not per person).
 # 5. Merchant registration: the target end-to-end flow
 
 0. The workspace has the **Merchant Registration add-on** installed (section 3.11).
-1. A merchant fills the **registration form** (P3) or an agent creates the contact (P1). The
-   contact receives the tag "Merchant applicant" and the business details in custom fields.
-2. The automation "Merchant onboarding" (P2) starts: it sends **Merchant Agreement** to the
-   merchant by WhatsApp and email, with the signing list Merchant first, Director second and
-   sign-in-order on. Fields the merchant must complete: signature, company registration
-   number, authorised person's IC number, bank account, upload of the business registration
-   certificate and an ID copy.
-3. The merchant opens the link on their phone, enters the code, reads, fills, signs.
+1. An agent creates the contact (P1), or a merchant enters through a public registration page
+   (P3). The contact receives the tag "Merchant applicant" and a **merchant group**.
+2. The automation "Merchant onboarding" (P2) starts: it sends the **Merchant Application** variant
+   for that group to the merchant by WhatsApp and email, with the signing list Merchant first,
+   Director second and sign-in-order on. (Before P2 an agent sends it by hand.)
+3. The merchant opens the single link on their phone, enters the code and sees the **parts**:
+   company and tax information, invoicing and contact details, e-invoice input, bank account,
+   documents, commercial terms, then review and sign. They fill some parts now and come back to the
+   rest later through the same link; answers are saved as they go. They sign when every part is done.
 4. The countersigner (Vircle Director) is notified in Halo and signs (P2).
 5. The sealed PDF and certificate are saved to the contact. The contact's stage becomes "Merchant
    signed". A ticket "Merchant KYC review" is opened for the Merchant Operations team with the
@@ -270,9 +317,11 @@ Halo's four roles are Viewer, Agent, Admin and Owner. The read-only stakeholder 
 | Signer upload per file | 10 MB, PDF, JPG, PNG |
 | Link and code | link valid until the document expires; code 10 minutes, 5 tries |
 | Default expiry | 14 days (workspace setting, 1 to 90) |
-| Reminders | day 3 and day 7 |
+| Reminders | day 3 and day 7; they name the unfinished parts |
 | Manual remind | once per 24 hours per signer |
 | Documents sent per month | set by the operator per workspace |
+| Parts per form / fields per part | 12 parts / 40 fields |
+| Autosave | every change, kept for as long as the document is open |
 
 # 9. Acceptance, per phase
 
@@ -282,6 +331,13 @@ with a valid signature (accepting that the certificate is not CA-trusted yet), s
 certificate page, appears on the contact, and cannot be altered or deleted. The audit trail is
 complete and chained, an unrelated workspace cannot see any of it, the signer page passes keyboard
 and screen-reader checks, and strings exist in four languages.
+
+**Phase 1B is accepted when** a merchant opens one link, completes two parts on a phone, closes the
+page, returns on a computer through the same link and finds their answers, finishes the remaining
+parts, and signs; the answers are printed on the agreement, including the e-invoice tax details; a
+conditional field (SST) and a conditional upload (company type) appear and disappear correctly; the
+sender sees progress per part; answers are written to the contact; and two merchants of different
+groups receive different fees and terms from the same family.
 
 **Phase 2 is accepted when** the merchant onboarding automation runs from a contact tag to a
 completed, filed, notified document with no manual step, reminders and expiry run on time, the
@@ -305,3 +361,97 @@ agreed time.
 7. Should sign-in-order be on by default for the Merchant agreements category (Merchant first,
    Director second)?
 8. Which other categories do you want at the start besides Merchant agreements?
+9. Merchant groups: how many (A, B, C and more), what exactly differs between them (fees only, or
+   clauses too), and who may change fees on one merchant?
+10. The sample application has "Company Name" and "Company Registered Name (If Different)", and your
+    online form has "Company Legal Name (as per SSM)". Proposal: ask the legal name once and ask a
+    trading name only if different. Confirm.
+11. The application has "GST No." and the online form has "SST Registration Number". Replace GST
+    with SST? Keep both?
+12. Please supply the option lists: company registration ID types, e-invoice compliance phases, tax
+    types, and whether the bank list is a fixed list of Malaysian banks.
+13. Should the official company stamp be mandatory, and is an uploaded image of the stamp acceptable?
+14. Which parts can a merchant pass to a colleague (finance for bank and tax)?
+15. Does Vircle sign the application too (countersign), or only the merchant?
+
+# Appendix A. Merchant Application: data fields
+
+Built from the sample *Vircle Merchant Application Form 2024* (sections A to E and the signature
+block) and the online e-invoice form. "MA" = the existing application, "e-Inv" = the online form.
+Required (Req) follows the stars on your screenshot and the form; please correct any.
+Fields that exist in both are asked once.
+
+**Part 1. Company and tax information**
+
+| Data field | Type | Req | In MA | In e-Inv | Notes |
+|---|---|---|---|---|---|
+| Company legal name (as per SSM) | multi-line | Yes | Registered name | Yes | Proposal: ask once; print on both lines of the MA |
+| Trading name (if different) | text | No | Company name | | Shown only if different |
+| Type of business | choice: sole proprietor, partnership, Sdn. Bhd., Bhd., others (+ text) | Yes | Yes | | Drives the document uploads (part 4) |
+| BRN type | choice | No | | Yes | Options to supply |
+| Business registration no. (BRN) | text, digits only, no hyphens | Yes | Company registration no. | Yes | Length rule to confirm |
+| When must you comply with e-invoicing | choice | Yes | | Yes | Phase options to supply |
+| Tax identification number (TIN) | text | Yes | | Yes | |
+| Tax type (SST or not applicable) | choice | No | | Yes | |
+| Tax percentage | number | If SST | | Yes | Shown only when tax type is SST |
+| SST registration no. | text | If SST | GST No. (replace?) | Yes | Shown only when tax type is SST |
+| Business MSIC code(s), one or more | list of entries | Yes | | Yes | Search picker in P2 |
+| Business activity (as per SSM) | multi-line | No | | Yes | |
+
+**Part 2. Address and contacts**
+
+| Data field | Type | Req | In MA | In e-Inv | Notes |
+|---|---|---|---|---|---|
+| Company address (without city, state, postcode) | multi-line | Yes | Yes | Yes | MA has two lines |
+| City | text | Yes | Yes | Yes | |
+| Postcode | 5 digits | Yes | Yes | Yes | |
+| State | choice (Malaysian states) | Yes | Yes | Yes | |
+| Country | choice, default Malaysia | Yes | Yes | | |
+| Company contact no. | phone, +60 | Yes | | Yes | |
+| Contact person: name, designation, contact no., email | text, text, phone, email | Yes | Yes (section B) | | |
+| e-Invoice person in charge: name | text | Yes | | Yes | |
+| e-Invoice person in charge: email (finance, for queries) | email | No | | Yes | Marked optional on your screenshot |
+| e-Invoice email (where all e-invoices are sent) | email | Yes | | Yes | |
+
+**Part 3. Bank account**
+
+| Data field | Type | Req | In MA | Notes |
+|---|---|---|---|---|
+| Bank name | choice or text | Yes | Yes | Bank list to confirm |
+| Account no. | digits | Yes | Yes | |
+| Account holder name | text | Yes | Yes | Should match the legal name; warn if not |
+| Bank branch | text | Yes | Yes | |
+| Swift code (if any) | text | No | Yes | |
+| Finance contact person | text | Yes | Yes | |
+
+**Part 4. Documents to upload** (conditional on type of business)
+
+| Upload | Shown when | Req |
+|---|---|---|
+| Form 9, Form 49 and bank statement header | Sdn. Bhd. or Bhd. | Yes |
+| Form D and bank statement header | Sole proprietor or partnership | Yes |
+| Photocopy of director or owner ID | Always | Yes |
+| Up to 3 pictures of the business premise | Always | At least 1 (to confirm) |
+
+**Part 5. Commercial terms** (read only, from the merchant group's variant; the merchant ticks "I have read and accept")
+
+Platform fee for FPX, credit card and debit card; the payment channel note; the nine key terms
+(partner, right to decline, information requests, account access, refund and void, termination
+notice of 60 days, binding effect of the merchant terms, hardware, settlement twice weekly).
+Fees, notice period and settlement schedule are data fields with each variant's defaults (F-100).
+
+**Part 6. Review and sign**
+
+| Item | Type | Req | Notes |
+|---|---|---|---|
+| Authorised signature | signature | Yes | |
+| Official company stamp | image upload | Yes | To confirm |
+| Name | text, prefilled from contact person | Yes | |
+| Designation | text | Yes | |
+| Date | date signed (automatic) | Yes | |
+| FW no. | reference, set by Vircle | Yes | Prefilled, not editable by the merchant |
+
+**New in this form compared with the sample:** the whole e-invoice and tax block (BRN type, e-invoice
+compliance phase, TIN, tax type and percentage, SST registration no., MSIC codes, business activity,
+e-invoice person in charge and e-invoice email).
+
