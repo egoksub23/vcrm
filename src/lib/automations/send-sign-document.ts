@@ -16,7 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { getSignChainDepth } from './sign-event'
-import { recipientsOf } from './sign-step'
+import { copiesOf, signersOf } from './sign-step'
 import type { SendSignDocumentStepConfig } from '@/types'
 import type { SignCtx } from '@/lib/sign/service/context'
 import type { SignDocumentRow } from '@/lib/sign/types'
@@ -61,8 +61,10 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
   const { cfg, accountId } = input
   const templateId = typeof cfg.template_id === 'string' ? cfg.template_id.trim() : ''
   if (!templateId) throw new Error('send_sign_document needs a template')
-  const recipients = recipientsOf(cfg)
-  if (recipients.length === 0) throw new Error('send_sign_document needs at least one recipient')
+  // Who signs gets a role and a link; who only receives the signed copy is saved apart (never a role, never a signer row).
+  const recipients = signersOf(cfg)
+  const copyRecipients = copiesOf(cfg)
+  if (recipients.length === 0) throw new Error('send_sign_document needs at least one recipient who signs')
 
   const ctx = input.ctx ?? (await automationCtx(accountId, input.ownerUserId, getSignChainDepth(input.vars)))
   if (!ctx) return skip('the public address of this server is not set (NEXT_PUBLIC_SITE_URL), so signing links cannot be made', 'not_configured')
@@ -117,6 +119,30 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
       }
     }
 
+    // Who receives the signed copy: the same details, from the contact or fixed, with no channel and no phone.
+    const copies: { fullName: string; email: string }[] = []
+    for (const r of copyRecipients) {
+      if (r.source === 'contact') {
+        if (!input.contactId || !input.contact) return skip('this run has no contact to send the signed copy to', 'no_contact')
+        const name = String(input.contact.name ?? '').trim()
+        const email = String(input.contact.email ?? '').trim()
+        if (!email) return skip('the contact has no email address (Doc Sign needs one for everyone who receives a copy). Add it, or use a fixed recipient', 'recipient_email_missing')
+        copies.push({ fullName: name || email, email })
+      } else {
+        copies.push({ fullName: input.text(String(r.full_name ?? '')).trim(), email: input.text(String(r.email ?? '')).trim() })
+      }
+    }
+    // The same address twice (a {{variable}} that turned out equal) is said before anything is made.
+    const signing = new Set(people.map((p) => p.email.toLowerCase()))
+    const receiving = new Set<string>()
+    for (const c of copies) {
+      const k = c.email.toLowerCase()
+      if (!k) continue
+      if (signing.has(k)) return skip('a person who receives a copy also signs the document, so they get the signed copy anyway', 'copy_is_signer')
+      if (receiving.has(k)) return skip('the same person is set to receive a copy twice', 'copy_duplicate')
+      receiving.add(k)
+    }
+
     let doc: SignDocumentRow
     if (documentId) {
       doc = await loadDocument(ctx, documentId)
@@ -153,6 +179,11 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
           doc.id,
           people.map((p, i) => ({ roleKey: p.role_key, kind: kindOf.get(p.role_key)!, fullName: p.full_name, email: p.email, phone: p.phone || null, channel: p.channel, orderNo: i + 1 })),
         )
+        // the people who receive the signed copy go on after the signers (the check "they also sign" needs the signers saved)
+        if (copies.length > 0) {
+          const { setCopyRecipients } = await import('@/lib/sign/service/copy-recipients')
+          await setCopyRecipients(ctx, { documentId: doc.id }, copies)
+        }
       }
     } catch (err) {
       // An unusable draft (bad values, a role that is not there) is removed so a retry does not pile them up.
@@ -160,8 +191,11 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
       throw err
     }
 
+    // said in the result: how many people will also get the signed copy (only those saved by this pass)
+    const copyNote = created && copies.length > 0 ? `; ${copies.length} ${copies.length === 1 ? 'person' : 'people'} will also get the signed copy` : ''
+
     if (cfg.send === false) {
-      return { step: { status: 'success', outcome: 'draft', detail: `draft ${doc.reference ?? doc.id} created for a person to check and send` }, varsPatch }
+      return { step: { status: 'success', outcome: 'draft', detail: `draft ${doc.reference ?? doc.id} created for a person to check and send${copyNote}` }, varsPatch }
     }
 
     try {
@@ -171,7 +205,7 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
         step: {
           status: 'success',
           outcome: 'sent',
-          detail: `document ${sent.reference ?? doc.id} sent to ${sent.invited.length} ${sent.invited.length === 1 ? 'person' : 'people'}${unreached ? `; ${unreached} could not be reached, see the document's history` : ''}`,
+          detail: `document ${sent.reference ?? doc.id} sent to ${sent.invited.length} ${sent.invited.length === 1 ? 'person' : 'people'}${unreached ? `; ${unreached} could not be reached, see the document's history` : ''}${copyNote}`,
         },
         varsPatch: { ...varsPatch, sign_reference: sent.reference ?? doc.reference ?? '' },
       }

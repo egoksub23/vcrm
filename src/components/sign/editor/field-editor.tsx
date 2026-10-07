@@ -6,7 +6,8 @@
 // draft (full placement). It does no network: the parent owns `fields` and `roles` and saves them.
 // ============================================================
 
-import { Smartphone } from "lucide-react";
+import { Smartphone, Users } from "lucide-react";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -51,12 +52,20 @@ export interface FieldEditorProps {
   form?: FormDefinition | null;
   /** Select this placement and scroll to it once the pages are loaded (the form builder's "Printed on the form" link). */
   focusKey?: string | null;
+  /**
+   * A document of a collection that was not made from a template: its roles are the collection's people. They are shown locked in the roles
+   * panel, no role is added (placing a field when no role may own it places nothing), and with no roles at all a banner says to add the people
+   * on the collection page first.
+   */
+  rolesLocked?: boolean;
+  /** Where the people are added (the collection's page): the banner links to it. */
+  collectionHref?: string;
 }
 
 const PAGE_GAP = 16;
 const PAD = 16;
 
-export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey }: FieldEditorProps) {
+export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey, rolesLocked = false, collectionHref }: FieldEditorProps) {
   const t = useTranslations("Sign.editor");
   const tf = useTranslations("Sign.formBuilder");
   const locale = useLocale();
@@ -78,7 +87,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
     }),
     [t],
   );
-  const model = useEditorModel({ fields, roles, onChange, seeds });
+  const model = useEditorModel({ fields, roles, onChange, seeds, rolesLocked });
   const { update, setRect, nudge, place, placeBound, remove, duplicate, copyToEveryPage, copy, paste, addRole, patchRole, deleteRole, undo, redo } = model;
 
   const [selectedKey, setSelectedKey] = useState<string | null>(focusKey ?? null);
@@ -361,6 +370,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
       roles={roles}
       selected={selected}
       readOnly={locked}
+      rolesLocked={rolesLocked}
       typeLabels={typeLabels}
       senderLabel={senderLabel}
       mergeKeys={mergeKeys}
@@ -414,6 +424,17 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
         onPanel={() => setPanelOpen((o) => !o)}
         extra={toolbarExtra}
       />
+      {rolesLocked && roles.length === 0 ? (
+        <div role="status" data-no-people className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-amber-500/10 px-3 py-2 text-sm">
+          <Users className="size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">{t("draft.noPeopleYet")}</span>
+          {collectionHref ? (
+            <Link href={collectionHref} className="font-medium text-primary underline-offset-4 hover:underline">
+              {t("draft.openCollection")}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       {locked ? null : (
         <Palette tool={tool} onTool={setTool} roles={roles} activeRole={activeRole} onActiveRole={setActiveRoleKey} disabled={!ready} full={fields.length >= MAX_FIELDS} />
       )}

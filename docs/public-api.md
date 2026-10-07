@@ -347,6 +347,7 @@ left behind, so a retry starts clean.
 | `expires_in_days` | integer 1 to 365, optional | Default: the category's, else the workspace's |
 | `sign_in_order` | boolean, optional | Default: the template's |
 | `code_required` | boolean, optional | Ask each signer for a one-time code. Default: the template's |
+| `copy_to` | array, optional | Up to 10 people who **receive a copy** of the signed document and do not sign, see below |
 | `send` | boolean, default `true` | `false` leaves a draft (see `POST .../send`) |
 
 Each entry of `signers`:
@@ -359,6 +360,32 @@ Each entry of `signers`:
 | `phone` | International number such as `+60123456789` (spaces and dashes are fine). Required for `channel: "whatsapp"` |
 | `channel` | `email` (default) or `whatsapp` |
 | `order_no` | Whole number from 1. Default: the position in the list. Only matters with `sign_in_order`. People who share a number form one step: they are invited together, and the next step begins when all of them have finished |
+
+Each entry of `copy_to`, people who receive the signed PDF by email when the
+document is completed and sealed (the same address-and-name rules as a signer):
+
+| Field | Notes |
+| --- | --- |
+| `full_name` | Required, up to 160 characters |
+| `email` | Required, a valid address, up to 254 characters |
+
+A person in `copy_to` is not a signer: they have no role, no signing link, no
+turn in `sign_in_order`, get no reminders, and are never in `signers` or in
+`signers_total` / `signers_signed`. A signer's address cannot also be in
+`copy_to`, and an address is listed once (compared ignoring case). More than 10
+entries, a missing name, a bad address or a duplicate is a `400` `bad_request`
+with every problem in `issues`, each naming the entry, for example
+`copy_to[0].email` or `copy_to[2].full_name`:
+
+```json
+{ "error": { "code": "bad_request", "message": "Some fields are missing or not valid. See `issues`.",
+  "issues": [ { "code": "invalid", "field": "copy_to[0].email", "detail": "must be a valid email address" } ] } }
+```
+
+The list is saved in the same all-or-nothing call as the document, so nothing is
+left behind when the call fails. When the document is completed, each person is
+sent one email with the signed PDF attached (a file too large to attach is not
+sent as a link: the email says to ask the sender). Each is sent it once.
 
 Fields it does not know are ignored. Wrong or missing fields give a `400` with
 `error.code` `bad_request` and **every** problem in `error.issues`, each naming
@@ -414,6 +441,7 @@ sent anyway; the signing link is **never** returned by the API. Call
         "signed_at": null, "declined_at": null, "decline_reason": null,
         "last_reminded_at": null, "reminder_count": 0 }
     ],
+    "copy_to": [ { "full_name": "Siti Accounts" } ],
     "invitations": [ { "signer_id": "…", "role_key": "merchant", "channel": "whatsapp", "status": "sent" } ]
   }
 }
@@ -433,6 +461,10 @@ makes a new document.
 
 If a call with `send: false` was replayed, you get the draft (`status: "draft"`),
 not a send. Use `POST .../send`.
+
+The replay returns the document as it was made, `copy_to` included: the same list
+of names, in the same order. `copy_to` in a retry is ignored like every other
+field, so a retry never adds a person.
 
 ### `GET /api/v1/sign/documents`
 
@@ -471,6 +503,10 @@ The document with its people. What the fields mean:
   cannot be sent, cancelled, reminded or have its people changed through the API
   (the call answers `document_in_envelope`); that is done on the collection in
   Halo.
+- `copy_to`: the people who receive the signed copy, `[{ "full_name": "…" }]` in the
+  order they were added. **Names only:** the addresses are never returned. Empty
+  when there are none, and always empty for a document of a collection (a
+  collection's copy recipients belong to the collection). They are not signers.
 - `signers[].status`: `pending` (not invited yet: signing order), `sent`
   (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
   is when they signed.

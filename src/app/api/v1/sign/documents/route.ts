@@ -5,7 +5,8 @@
 // List: keyset-paginated (see src/lib/api/v1/pagination.ts), newest first; filters `status`, `contact_id`,
 // `template_id`, `reference`, `created_after`.
 //
-// Create: one call makes the document and, unless `send: false`, sends it. All or nothing. `reference` is
+// Create: one call makes the document and, unless `send: false`, sends it. `copy_to` (up to 10 `{ full_name, email }`) names people who are not
+// signers and receive the signed copy by email when everyone has signed; they are part of the same call (and of its replay). All or nothing. `reference` is
 // the idempotency key: a document with that reference already in the workspace is returned with 200 and
 // `Idempotent-Replay: true`, and nothing is created or sent again. 201 for a new document.
 // 403 `sign_disabled` when Doc Sign is off for the workspace.

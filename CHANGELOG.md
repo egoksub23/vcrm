@@ -11,6 +11,22 @@ and polish.
 
 ## [Unreleased]
 
+**Migration required: 175.** Apply it before the new app.
+
+### Added
+
+- **Receives a copy.** People in a send flow who are not signing can be added as "Receives a copy": when the document or collection is completed they get one email with the signed PDF (the certificate pages are inside it). They never get a signing link, never see the document before completion, and do not count as signers in progress, reminders, webhooks, the API or exports. Up to 10 per document or collection; can be added or removed until it is completed. API: `copy_to` on create; automation step: recipient kind "copy". Migration 175.
+
+### Changed
+
+- **A simpler People step for document collections and single documents:** each person is a name (a matching contact fills the email, which stays editable), an email and "Must sign" or "Receives a copy". The per-document role dropdowns are gone: for uploaded files every person who must sign becomes a role in each document's editor, where signature blocks are assigned to them; template documents keep a small "Match the template's roles" section. At send, a person signs only the documents where a block is assigned to them.
+
+### Fixed
+
+- Uploaded documents in a collection showed empty role dropdowns so nobody could be added.
+
+## [0.78.1] — 2026-10-07
+
 **Migration required: 174.** (Deploy order: apply 174, then the new app.)
 
 ### Changed

@@ -1448,7 +1448,11 @@
         "recipient_email_missing": "contact has no email",
         "recipient_phone_missing": "contact has no phone",
         "sign_limit_reached": "monthly limit reached",
-        "not_ready": "not ready to send"
+        "not_ready": "not ready to send",
+        "copy_is_signer": "copy person also signs",
+        "copy_duplicate": "copy person listed twice",
+        "copy_name": "copy person has no name",
+        "copy_email": "copy person has no valid email"
       },
       "tokens": "{count, plural, =1 {# token} other {# tokens}}",
       "back": "Back",
@@ -1959,8 +1963,8 @@
           "templateHint": "Suggested template: \"{name}\". Pick it once it exists under Doc Sign > Templates.",
           "title": "Document title",
           "titleHint": "Optional. Leave empty to use the template's title. You can insert variables.",
-          "recipients": "Who signs",
-          "recipientsHint": "Each person gets a link. The role says which part of the document they complete. A role marked * must have a person.",
+          "recipients": "Who signs and who gets a copy",
+          "recipientsHint": "Each person who must sign gets a link. The role says which part of the document they complete. A role marked * must have a person. A person who receives a copy gets no link: they are emailed the signed document when everyone has signed.",
           "role": "Role",
           "rolePlaceholder": "Role key, for example merchant",
           "selectRole": "Choose a role…",
@@ -1976,7 +1980,7 @@
           "email": "Email",
           "phone": "Phone (with country code)",
           "requiredRoles": "Still needs a person for: {roles}",
-          "addRecipient": "Add a person",
+          "addRecipient": "Add a person who signs",
           "merge": "Fill in the document",
           "mergeHint": "Values for the template's merge fields (the parts filled in before sending). Use the variable button above a value to insert the contact's details.",
           "mergeKey": "Field name",
@@ -1995,7 +1999,13 @@
           "send": "Send it now",
           "sendHint": "Turn off to save the document as a draft for a person to check and send. The signers' links go out only when it is sent.",
           "summary": "{count, plural, one {# person signs} other {# people sign}}",
-          "summaryEmpty": "Choose a template"
+          "summaryEmpty": "Choose a template",
+          "addCopy": "Add a person who receives a copy",
+          "type": "Type",
+          "typeSigner": "Must sign",
+          "typeCopy": "Receives a copy",
+          "contactCopyNote": "Uses the contact's name and email. The contact must have an email address, or this step is skipped.",
+          "summaryCopies": "{count, plural, one {# person signs} other {# people sign}}, {copies, plural, one {# gets a copy} other {# get a copy}}"
         }
       }
     }
@@ -7160,7 +7170,8 @@
       "sign_document": "Signing document",
       "sign_bulk_job": "Signing batch",
       "sign_option_list": "Signing option list",
-      "sign_envelope": "Signing document collection"
+      "sign_envelope": "Signing document collection",
+      "sign_copy_recipient": "Signing copy recipient"
     },
     "roleNames": {
       "owner": "Owner",
@@ -9223,7 +9234,9 @@
         "envelope_declined": "{by} declined the document collection {reference}, so every document that was open stopped",
         "envelope_document_added": "{sender} added this document to the collection {reference}",
         "envelope_document_removed": "{sender} removed “{title}” from the collection {reference}",
-        "envelope_reordered": "{sender} changed the order of the documents in the collection {reference}"
+        "envelope_reordered": "{sender} changed the order of the documents in the collection {reference}",
+        "copy_recipient_added": "{sender} added {name} ({email}) to receive a copy",
+        "copy_recipient_removed": "{sender} removed {name} from the people who receive a copy"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -9278,6 +9291,41 @@
         "emptyTicket": "No documents are attached to this ticket yet.",
         "emptyDeal": "No documents are attached to this deal yet.",
         "testBadge": "Test"
+      },
+      "copies": {
+        "title": "People who receive a copy",
+        "help": "They get the signed copy by email when everyone has signed. They never get a signing link and are not counted among the signatures.",
+        "label": "Receives a copy",
+        "sent": "Copy sent {date}",
+        "notSent": "Not sent yet",
+        "notSentFinal": "No copy was sent",
+        "add": "Add someone who receives a copy",
+        "fullName": "Full name",
+        "email": "Email",
+        "submit": "Add",
+        "cancel": "Cancel",
+        "remove": "Remove {name}",
+        "added": "{name} will get the signed copy.",
+        "removed": "{name} no longer gets the signed copy.",
+        "limit": "Up to {max} people can receive a copy.",
+        "nameRequired": "Enter a full name.",
+        "emailInvalid": "Enter a valid email address."
+      },
+      "collectionCopies": {
+        "receivesCopy": "Receives a copy",
+        "sent": "Copy sent {date}",
+        "notSent": "Not sent yet",
+        "afterSigned": "They get the signed copies by email when everything is signed.",
+        "remove": "Remove {name}",
+        "removeShort": "Remove",
+        "removed": "{name} will no longer receive a copy.",
+        "addHeading": "Add a person who receives a copy",
+        "addHint": "They are not asked to sign. They get the signed documents by email when everything is signed.",
+        "name": "Full name",
+        "email": "Email",
+        "add": "Add",
+        "added": "{name} will receive a copy.",
+        "limit": "Up to {max} people can receive a copy."
       }
     },
     "editor": {
@@ -9331,7 +9379,9 @@
         "editFields": "Edit fields",
         "lockFields": "Lock fields",
         "saveAsTemplate": "Save as template",
-        "replaceFile": "Replace file"
+        "replaceFile": "Replace file",
+        "noPeopleYet": "Nobody has to sign yet. Add the people on the collection page first, then place their signature blocks here.",
+        "openCollection": "Open the collection"
       },
       "fieldsList": {
         "title": "All fields",
@@ -9466,7 +9516,9 @@
         "removeFields": "Delete the fields",
         "confirmDelete": "Delete role",
         "sender": "Sender",
-        "senderHint": "Fixed text and values you fill in belong to you, the sender."
+        "senderHint": "Fixed text and values you fill in belong to you, the sender.",
+        "fromPeople": "from the collection's people",
+        "fromPeopleHint": "People are added, renamed and removed on the collection page. Their signature blocks are placed here."
       },
       "save": {
         "saved": "All changes saved",
@@ -10790,7 +10842,15 @@
         "uploads_too_large": "The files add up to more than 60 MB. Remove one, or use smaller files.",
         "bad_order": "The order of the documents could not be read. Open the page again and try once more.",
         "envelope_full": "A collection holds up to six documents, so no more can be added.",
-        "envelope_minimum": "A collection keeps at least two documents. Delete the collection to stop."
+        "envelope_minimum": "A collection keeps at least two documents. Delete the collection to stop.",
+        "copy_name": "Enter the full name of the person who should receive a copy.",
+        "copy_email": "Enter a valid email address for the person who should receive a copy.",
+        "copy_duplicate": "That person already receives a copy.",
+        "copy_is_signer": "That person is asked to sign, so they get the signed copy anyway.",
+        "copy_limit": "Up to 10 people can receive a copy.",
+        "copy_not_open": "People can receive a copy until the document is completed. This one is not open any more.",
+        "copy_fixed": "A person who receives a copy is removed and added again, never changed.",
+        "copy_recipient_not_found": "That person was not found. They may already have been removed."
       },
       "records": {
         "ticketLabel": "Link to a ticket",
@@ -10856,9 +10916,9 @@
         },
         "people": {
           "heading": "People",
-          "intro": "Add each person once, and say what they are on each document. They get one message and one link for the whole collection.",
+          "intro": "Add each person once: their name, their email, and whether they must sign or only receive a copy. Who signs what is set in each document, when you place a signature block and give it to a person.",
           "ordered": "People sign one after another",
-          "orderedHint": "Give each person a step. People with the same step sign together, and the next step is invited only when everyone in the step has finished all the documents.",
+          "orderedHint": "Give each person who signs a step. People with the same step sign together, and the next step is invited only when everyone in the step has finished their documents.",
           "empty": "Nobody is on the list yet.",
           "personN": "Person {n}",
           "remove": "Remove {name}",
@@ -10881,10 +10941,33 @@
             "name": "Enter a full name.",
             "email": "Enter a valid email address.",
             "phone": "Enter a phone number with its country code.",
-            "noDocument": "Put this person on at least one document, or remove them."
+            "noDocument": "Choose this person's role under \"Match the template's roles\", or remove them."
           },
           "add": "Add a person",
-          "conflictsLabel": "Things to fix in the list of people"
+          "conflictsLabel": "Things to fix in the list of people",
+          "type": {
+            "label": "What they do",
+            "signer": "Must sign",
+            "copy": "Receives a copy"
+          },
+          "copyLine": "They get the signed copy by email when everything is signed. They are not asked to sign.",
+          "addCopy": "Add a person who receives a copy",
+          "limitSigners": "A collection can have up to {max} people who must sign.",
+          "limitRoles": "A collection with an uploaded file can have up to {max} people who must sign. Each one is a role on that document.",
+          "limitCopies": "Up to {max} people can receive a copy.",
+          "template": {
+            "heading": "Match the template's roles",
+            "hint": "These documents came from templates. Choose which person has each role.",
+            "nobody": "Nobody"
+          },
+          "removeDialog": {
+            "title": "Remove {name}?",
+            "body": "The {fields, plural, one {# field} other {# fields}} assigned to them, on {documents, plural, one {# document} other {# documents}}, will be removed too.",
+            "cancel": "Keep them",
+            "confirm": "Remove"
+          },
+          "roleNobody": "Nobody has the role {role} on {document}. Match it to a person above.",
+          "roleTwo": "The role {role} on {document} has more than one person. Give it to one person."
         },
         "options": {
           "heading": "Options",
@@ -10894,7 +10977,7 @@
           "heading": "Review and send",
           "ordered": "People sign one after another, in the steps you set.",
           "allAtOnce": "Everyone is invited at the same time.",
-          "counts": "{documents, plural, one {# document} other {# documents}} for {people, plural, one {# person} other {# people}}.",
+          "counts": "{documents, plural, one {# document} other {# documents}} for {people, plural, one {# person} other {# people}}{copies, plural, =0 {.} one { and # person who receives a copy.} other { and # people who receive a copy.}}",
           "limit": "This collection needs room for {needed} documents, but this workspace has room for {remaining} more this month.",
           "problemsTitle": "{count, plural, one {# thing to fix before sending} other {# things to fix before sending}}",
           "sharedHeading": "The collection",
@@ -10918,8 +11001,12 @@
           "envelope_size": "A document collection holds {range} documents.",
           "envelope_too_many_pages": "A document collection can have up to {range} pages in all.",
           "duplicate_person": "Person {n} has the same email address as another person.",
-          "person_without_document": "Person {n} is not on any document.",
-          "role_two_people": "The role {role} on {document} has more than one person. Give it to one person."
+          "person_without_document": "Person {n} has no role on any document. Match them to a template role, or remove them.",
+          "role_two_people": "The role {role} on {document} has more than one person. Give it to one person.",
+          "person_without_work": "{name} has nothing to sign yet. Open a document and assign a field to them, or change them to receive a copy.",
+          "document_nobody": "Nobody has anything to do on this document yet. Open it and assign a signature block to a person.",
+          "too_many_copies": "Up to {range} people can receive a copy.",
+          "too_many_roles": "A collection with an uploaded file can have up to {range} people who must sign."
         },
         "banner": {
           "title": "Document {number} of {count} in a document collection",
@@ -11028,6 +11115,20 @@
           "removeConfirm": "Remove the document",
           "keep": "Keep it"
         }
+      },
+      "copies": {
+        "type": "Type",
+        "typeSigner": "Must sign",
+        "typeCopy": "Receives a copy",
+        "heading": "People who receive a copy",
+        "help": "They get the signed copy by email when everyone has signed. They never get a signing link.",
+        "add": "Add someone who receives a copy",
+        "limit": "Up to {max} people can receive a copy.",
+        "remove": "Remove copy recipient {n}",
+        "sameEmail": "{email} is listed at numbers {a} and {b}. They get one copy, so only the first is kept.",
+        "isSigner": "{email} signs this document, so they get the signed copy anyway. This entry is left out.",
+        "mustPlaceFields": "Place the fields on the document first to ask someone to sign it.",
+        "reviewLine": "Will also get the signed copy: {people}"
       }
     },
     "signer": {

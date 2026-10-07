@@ -159,6 +159,8 @@ const doc = (n: number, over: Partial<EnvelopeData["documents"][number]> = {}): 
   pageCount: n,
   roles: [],
   rolesNeeded: [],
+  fromTemplate: false,
+  fieldCounts: {},
   categoryId: null,
   completedAt: null,
   hasFinalFile: false,

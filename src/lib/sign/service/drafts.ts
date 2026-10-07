@@ -311,8 +311,25 @@ export async function updateDraft(ctx: SignCtx, documentId: string, patch: Draft
     update.merge_values = clean;
   }
   if (patch.fields !== undefined || patch.roles !== undefined) {
+    // an uploaded file of a collection has no roles of its own: the collection's people make them (service/envelopes.ts setEnvelopeSigners), so
+    // what the editor sends back for those roles is not taken (it shows them locked), and it cannot add a role (nobody could be given it); a role
+    // that is there from before collections made roles from people can still be edited or deleted as sent. The fields are checked against the
+    // roles that result.
+    const peopleRoles = !!doc.envelope_id && !doc.template_version_id && !opts.viaEnvelope;
     const fields = patch.fields ?? doc.fields_snapshot;
-    const roles = patch.roles ?? doc.roles_snapshot;
+    let roles: SignRole[] = patch.roles ?? doc.roles_snapshot;
+    if (peopleRoles) {
+      const mine = doc.roles_snapshot.filter((r) => r.source === "people");
+      const older = new Set(doc.roles_snapshot.filter((r) => r.source !== "people").map((r) => r.key));
+      const others = roles
+        .filter((r) => older.has(r.key))
+        .map((r) => {
+          const { source, ...rest } = r;
+          void source; // a role cannot claim to be the people's
+          return rest;
+        });
+      roles = [...mine, ...others];
+    }
     const issues: Issue[] = [...validateRoles(roles), ...validateFields(fields, roles, doc.page_count ?? 1)];
     // the form belongs to the template and is not editable here, but the placements must still print it soundly
     if (doc.form_snapshot) issues.push(...validateForm(doc.form_snapshot, roles, fields));

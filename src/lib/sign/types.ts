@@ -41,6 +41,12 @@ export interface SignRole {
   kind: SignerKind;
   /** Colour slot 0..5 for the editor and the signing page. */
   color: number;
+  /**
+   * Document collections: "people" marks a role the collection's people made (one for each person who must sign, on a document that has no roles
+   * of its own). The editor shows it locked ("from the collection's people"); the collection keeps it in step with the people. Absent for every
+   * other role.
+   */
+  source?: "people";
 }
 
 export interface SignDocumentRow {
@@ -154,6 +160,21 @@ export interface SignEnvelopeRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Migration 175: a person who receives the signed copy when the document (or every document of the collection) is completed. Not a signer. */
+export interface SignCopyRecipientRow {
+  id: string;
+  account_id: string;
+  /** Exactly one of the two is set: a document on its own, or a document collection. */
+  document_id: string | null;
+  envelope_id: string | null;
+  full_name: string;
+  email: string;
+  /** When the signed copy was sent to this person; null until then. */
+  notified_at: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface SignSettingsRow {
@@ -277,5 +298,8 @@ export const EVENT_TYPES = [
   "envelope_document_added",
   "envelope_document_removed",
   "envelope_reordered",
+  // migration 175: a person who receives a copy was added to a document or collection, or removed (names and masked addresses only). History only: left off the certificate.
+  "copy_recipient_added",
+  "copy_recipient_removed",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -7,6 +7,7 @@
 import { isDelegate } from "../forward";
 import { deliverCompleted, deliverOutcome } from "../notify";
 import { isFormMode, type SignDocumentRow, type SignSignerRow } from "../types";
+import { sendDocumentCopies } from "./copy-delivery";
 import { docFacts } from "./send";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
 
@@ -15,7 +16,10 @@ async function workspace(ctx: SignCtx, doc: SignDocumentRow) {
   return { info, w: { name: info.workspaceName, senderName: info.senderName, settings, timeZone: info.timeZone } };
 }
 
-/** The signed copy to every signer and to the sender, attached when small enough. Not to a person who was handed only a part of someone's form: the copy holds the whole document. */
+/**
+ * The signed copy to every signer and to the sender, attached when small enough, then to each person who receives a copy (migration 175: once, in this same step).
+ * Not to a person who was handed only a part of someone's form: the copy holds the whole document.
+ */
 export async function notifyCompleted(ctx: SignCtx, doc: SignDocumentRow, signers: readonly SignSignerRow[], pdf: Uint8Array): Promise<void> {
   try {
     const { info, w } = await workspace(ctx, doc);
@@ -29,6 +33,7 @@ export async function notifyCompleted(ctx: SignCtx, doc: SignDocumentRow, signer
       const d = await deliverCompleted(ctx.deps, facts, w, p, file);
       if (d.status !== "sent") await logEvent(ctx, doc.id, "delivery_failed", { actor: "system", signerId: p.signerId, detail: { kind: "completed", status: d.status, reason: d.detail ?? null } });
     }
+    await sendDocumentCopies(ctx, doc, facts, w, file, new Set(people.map((p) => p.email.trim().toLowerCase())));
   } catch (err) {
     console.error("[sign] could not notify completion:", err instanceof Error ? err.message : err);
   }

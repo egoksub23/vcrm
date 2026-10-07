@@ -20,10 +20,11 @@ import { useSignDraft, type DraftData } from "@/hooks/use-sign-draft";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import { resolveDefaults } from "@/lib/sign/defaults";
 import { isEmptyPatch, optionsFromDocument, optionsPatch, type DraftOptions } from "@/lib/sign/client/draft-options";
+import { copiesFromRecords, copyHasInput, copyIsComplete, copyKey, copyPayload, type CopyRow } from "@/lib/sign/client/copy-form";
 import { draftProblems } from "@/lib/sign/client/draft-problems";
 import { errorKey, problemStep, type DraftStep } from "@/lib/sign/client/errors";
 import { normalizeSteps, payloadKey, rowHasInput, rowIsComplete, rowsForRoles, rowsFromSigners, toPayload, type SignerRow } from "@/lib/sign/client/signers-form";
-import { isFormMode, type SignDocumentRow, type SignSignerRow } from "@/lib/sign/types";
+import { isFormMode, type SignCopyRecipientRow, type SignDocumentRow, type SignSignerRow } from "@/lib/sign/types";
 import { FormFieldsStep } from "./form-fields-step";
 import { OptionsStep } from "./options-step";
 import { PeopleStep } from "./people-step";
@@ -86,6 +87,9 @@ export function DraftWorkspace({ documentId, onOpenDocument }: Props) {
   return <LoadedWorkspace key={documentId} documentId={documentId} data={data} reload={reload} setDocument={setDocument} onOpenDocument={onOpenDocument} />;
 }
 
+/** The draft as the route answers it: `copies` are the people who receive the signed copy (a document on its own only; migration 175). */
+type DraftWithCopies = DraftData & { copies?: SignCopyRecipientRow[] };
+
 function initialStep(doc: SignDocumentRow, signers: readonly SignSignerRow[]): DraftStepId {
   // a form without a signature has no fields on a page: its people are what it needs first
   if ((!isFormMode(doc) && doc.fields_snapshot.length === 0) || doc.roles_snapshot.length === 0) return "fields";
@@ -115,8 +119,11 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
   // What the screen starts from; read once. Afterwards these are the sender's own edits.
   const [init] = useState(() => {
     const saved = rowsFromSigners(data.signers);
+    const savedCopies = (data as DraftWithCopies).copies ?? [];
     return {
       rows: saved.length > 0 ? saved : rowsForRoles(doc.roles_snapshot),
+      copies: copiesFromRecords(savedCopies),
+      savedCopiesKey: copyKey(savedCopies.map((c) => ({ fullName: c.full_name, email: c.email }))),
       savedPeopleKey: payloadKey(toPayload(saved, doc.roles_snapshot, doc.sign_in_order)),
       options: optionsFromDocument(doc),
       step: initialStep(doc, data.signers),
@@ -124,6 +131,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
   });
   const [step, setStep] = useState<DraftStepId>(init.step);
   const [rows, setRows] = useState<SignerRow[]>(init.rows);
+  const [copies, setCopies] = useState<CopyRow[]>(init.copies);
   const [options, setOptions] = useState<DraftOptions>(init.options);
   const [peopleInvalid, setPeopleInvalid] = useState(false);
   const [optionsInvalid, setOptionsInvalid] = useState(false);
@@ -137,23 +145,35 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
   // The latest values, for the saves (which run later than the render that made them).
   const rowsRef = useRef(init.rows);
+  const copiesRef = useRef(init.copies);
   const optionsRef = useRef(init.options);
   const rolesRef = useRef(roles);
   const savedPeopleKey = useRef(init.savedPeopleKey);
+  const savedCopiesKey = useRef(init.savedCopiesKey);
   const savedOptions = useRef(init.options);
   const deleted = useRef(false);
   useEffect(() => {
     rolesRef.current = roles;
   });
 
+  // the people who must sign, then the people who receive a copy, in one save: the copies route checks them against the saved signers, so the
+  // signers go first (an address that moved from one list to the other is never on both)
   const people = useAutosave(async () => {
     if (deleted.current) return;
     const payload = toPayload(rowsRef.current, rolesRef.current, optionsRef.current.signInOrder);
     const key = payloadKey(payload);
-    if (key === savedPeopleKey.current) return;
+    const copyList = copyPayload(copiesRef.current, rowsRef.current.map((r) => r.email));
+    const copiesNow = copyKey(copyList);
+    if (key === savedPeopleKey.current && copiesNow === savedCopiesKey.current) return;
     try {
-      await signRequest(`/api/sign/documents/${documentId}/signers`, { method: "PUT", json: { signers: payload } });
-      savedPeopleKey.current = key;
+      if (key !== savedPeopleKey.current) {
+        await signRequest(`/api/sign/documents/${documentId}/signers`, { method: "PUT", json: { signers: payload } });
+        savedPeopleKey.current = key;
+      }
+      if (copiesNow !== savedCopiesKey.current) {
+        await signRequest(`/api/sign/documents/${documentId}/copies`, { method: "PUT", json: { copies: copyList } });
+        savedCopiesKey.current = copiesNow;
+      }
       setSaveErrorCode(null);
     } catch (err) {
       setSaveErrorCode(err instanceof SignApiError ? err.code : "request_failed");
@@ -183,6 +203,11 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
     const next = optionsRef.current.signInOrder ? normalizeSteps(list) : list;
     rowsRef.current = next;
     setRows(next);
+    people.touch();
+  };
+  const changeCopies = (list: CopyRow[]) => {
+    copiesRef.current = list;
+    setCopies(list);
     people.touch();
   };
   const changeOptions = (patch: Partial<DraftOptions>) => {
@@ -274,7 +299,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
 
   const saveState = combineSaveStates([people.state, optionsSave.state]);
   const category = categories.find((c) => c.id === options.categoryId);
-  const unsavedPeople = rows.filter((r) => rowHasInput(r) && !rowIsComplete(r, roles)).length;
+  const unsavedPeople = rows.filter((r) => rowHasInput(r) && !rowIsComplete(r, roles)).length + copies.filter((c) => copyHasInput(c) && !copyIsComplete(c)).length;
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
@@ -340,6 +365,8 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               onGoToFields={() => goStep("fields")}
               form={form}
               mode={mode}
+              copies={copies}
+              onCopies={changeCopies}
             />
             {unsavedPeople > 0 ? <p className="mt-3 text-xs text-muted-foreground">{t("unsavedPeople", { count: unsavedPeople })}</p> : null}
           </>
@@ -364,6 +391,7 @@ function LoadedWorkspace({ documentId, data, reload, setDocument, onOpenDocument
               onGoToStep={goStep}
               form={form}
               mode={mode}
+              copies={formOnly ? undefined : copies}
             />
             {sendErrorCode === "document_not_draft" ? (
               <div className="mt-3 flex justify-end">

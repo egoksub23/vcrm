@@ -23,12 +23,12 @@ import type { EnvelopeData } from "@/hooks/use-sign-envelope";
 import { SignApiError, signRequest, type SignIssue } from "@/lib/sign/client/api";
 import { isEmptyPatch, optionsFlags } from "@/lib/sign/client/draft-options";
 import { splitLayoutIssues } from "@/lib/sign/client/draft-problems";
-import { dedupeEnvelopeIssues, envelopePatch, fixFor, groupByDocument, liveEnvelopeIssues, normalizePersonSteps, optionsFromEnvelope, peopleFromSigners, peopleKey, peoplePayload } from "@/lib/sign/client/envelope-form";
+import { dedupeEnvelopeIssues, envelopePatch, fixFor, groupByDocument, liveEnvelopeIssues, matchTemplateRoles, normalizePersonSteps, optionsFromEnvelope, peopleFromSigners, peopleKey, peoplePayload, personIsComplete, type PersonPayload } from "@/lib/sign/client/envelope-form";
 import { errorKey, problemKey, problemNamespace } from "@/lib/sign/client/errors";
 import { resolveDefaults } from "@/lib/sign/defaults";
-import { seedPeople, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
+import { isCopy, isSigner, seedPeople, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
-import type { SignEnvelopeRow } from "@/lib/sign/types";
+import type { SignCopyRecipientRow, SignEnvelopeRow, SignSignerRow } from "@/lib/sign/types";
 
 import { DocumentStatusBadge } from "../send/status-badge";
 import { FormProblemText } from "../send/form-problem-text";
@@ -51,7 +51,17 @@ interface SendResponse extends Omit<SendResultData, "documentId"> {
   documents: { id: string; title: string; reference: string | null; position: number }[];
 }
 
-const ENVELOPE_PROBLEM_CODES = new Set(["envelope_size", "envelope_too_many_pages", "duplicate_person", "person_without_document", "role_two_people"]);
+const ENVELOPE_PROBLEM_CODES = new Set(["envelope_size", "envelope_too_many_pages", "duplicate_person", "person_without_document", "role_two_people", "person_without_work", "document_nobody", "too_many_copies", "too_many_roles"]);
+
+/** The documents as the people step reads them (whether each came from a template decides whether it has roles to match). */
+const liteDocs = (documents: EnvelopeData["documents"]): EnvelopeDocLite[] => documents.map((d) => ({ id: d.id, position: d.position, title: d.title, roles: d.roles, mode: d.mode, needed: d.rolesNeeded, fromTemplate: d.fromTemplate }));
+
+/** What the screen starts a person list from: what the server holds, or (nothing saved, some document from a template) one person per template role; then the template roles matched where they fit. */
+function startingPeople(signers: readonly SignSignerRow[], copies: readonly SignCopyRecipientRow[], docs: readonly EnvelopeDocLite[]): { saved: EnvelopePerson[]; people: EnvelopePerson[] } {
+  const saved = peopleFromSigners(signers, copies);
+  const base = saved.length > 0 ? saved : docs.some((d) => d.fromTemplate) ? seedPeople(docs) : [];
+  return { saved, people: matchTemplateRoles(base, docs) };
+}
 
 export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
   const t = useTranslations("Sign.send.envelope");
@@ -63,12 +73,11 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
   const { settings, loading: settingsLoading } = useSignSettings();
 
   const env: SignEnvelopeRow = data.envelope;
-  const docs: EnvelopeDocLite[] = data.documents.map((d) => ({ id: d.id, position: d.position, title: d.title, roles: d.roles, mode: d.mode, needed: d.rolesNeeded }));
+  const docs: EnvelopeDocLite[] = liteDocs(data.documents);
 
   // What the screen starts from, read once; afterwards these are the sender's own edits.
   const [init] = useState(() => {
-    const saved = peopleFromSigners(data.signers);
-    const people = saved.length > 0 ? saved : seedPeople(docs);
+    const { saved, people } = startingPeople(data.signers, data.copies ?? [], docs);
     return { people, options: optionsFromEnvelope(env, data.links), peopleKey: peopleKey(peoplePayload(saved, docs, env.sign_in_order)) };
   });
   const [people, setPeople] = useState<EnvelopePerson[]>(init.people);
@@ -99,7 +108,7 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
     const key = peopleKey(payload);
     if (key === savedPeopleKey.current) return;
     try {
-      await signRequest(`/api/sign/envelopes/${envelopeId}/signers`, { method: "PUT", json: { people: payload } });
+      await signRequest<{ signers: SignSignerRow[]; copies: SignCopyRecipientRow[] }>(`/api/sign/envelopes/${envelopeId}/signers`, { method: "PUT", json: { people: payload satisfies PersonPayload[] } });
       savedPeopleKey.current = key;
       setSaveErrorCode(null);
       void reload();
@@ -133,19 +142,18 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
   const afterDocumentsChanged = async (): Promise<void> => {
     const fresh = await reload();
     if (!fresh) return;
-    const freshDocs: EnvelopeDocLite[] = fresh.documents.map((d) => ({ id: d.id, position: d.position, title: d.title, roles: d.roles, mode: d.mode, needed: d.rolesNeeded }));
-    const saved = peopleFromSigners(fresh.signers);
-    if (saved.length > 0) {
-      peopleRef.current = saved;
-      setPeople(saved);
-      savedPeopleKey.current = peopleKey(peoplePayload(saved, freshDocs, optionsRef.current.signInOrder));
-      return;
-    }
-    // nobody saved yet: keep what was typed, without the roles on documents that are gone
+    const freshDocs = liteDocs(fresh.documents);
+    const saved = peopleFromSigners(fresh.signers, fresh.copies ?? []);
     const here = new Set(freshDocs.map((d) => d.id));
-    const kept = peopleRef.current.map((p) => ({ ...p, roles: Object.fromEntries(Object.entries(p.roles).filter(([id]) => here.has(id))) }));
-    peopleRef.current = kept;
-    setPeople(kept);
+    // what was typed and could not be saved yet (a person not finished) stays, without the roles on documents that are gone
+    const savedEmails = new Set(saved.map((p) => p.email.trim().toLowerCase()));
+    const pending = peopleRef.current
+      .filter((p) => !personIsComplete(p, freshDocs) && !(p.email.trim() && savedEmails.has(p.email.trim().toLowerCase())))
+      .map((p) => ({ ...p, roles: Object.fromEntries(Object.entries(p.roles).filter(([id]) => here.has(id))) }));
+    const next = matchTemplateRoles([...saved.filter(isSigner), ...pending.filter(isSigner), ...saved.filter(isCopy), ...pending.filter(isCopy)], freshDocs);
+    peopleRef.current = next;
+    setPeople(next);
+    if (saved.length > 0) savedPeopleKey.current = peopleKey(peoplePayload(saved, freshDocs, optionsRef.current.signInOrder));
   };
 
   const changePeople = (list: EnvelopePerson[]) => {
@@ -223,8 +231,14 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
   const docTitle = (id: string | undefined | null) => data.documents.find((d) => d.id === id)?.title ?? "";
   const peopleCodes = (code: string) => ENVELOPE_PROBLEM_CODES.has(code);
 
+  // a person by the place a problem names (the index in the list the server checked: the people who must sign, then the people who receive a copy)
+  const nameAt = (detail: string | undefined | null): string => {
+    const at = detail && /^\d+$/.test(detail) ? Number(detail) : -1;
+    return (at >= 0 ? people[at]?.fullName.trim() : "") || t("people.personN", { n: at + 1 });
+  };
+
   const problemText = (issue: SignIssue): string => {
-    if (peopleCodes(issue.code)) return t(`problems.${issue.code}`, { n: issue.detail && /^\d+$/.test(issue.detail) ? Number(issue.detail) + 1 : 0, role: data.documents.find((d) => d.id === issue.document)?.roles.find((r) => r.key === issue.role)?.label ?? issue.role ?? "", document: docTitle(issue.document), range: issue.detail ?? "", max: MAX_SIGNERS });
+    if (peopleCodes(issue.code)) return t(`problems.${issue.code}`, { n: issue.detail && /^\d+$/.test(issue.detail) ? Number(issue.detail) + 1 : 0, name: nameAt(issue.detail), role: data.documents.find((d) => d.id === issue.document)?.roles.find((r) => r.key === issue.role)?.label ?? issue.role ?? "", document: docTitle(issue.document), range: issue.detail ?? "", max: MAX_SIGNERS });
     const n = issue.detail && /^\d+$/.test(issue.detail) ? Number(issue.detail) + 1 : 0;
     const role = data.documents.find((d) => d.id === issue.document)?.roles.find((r) => r.key === issue.role)?.label ?? issue.role ?? "";
     return tErr(problemKey(issue.code), { n, role, max: MAX_SIGNERS, count: 1 });
@@ -290,6 +304,7 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
         </h2>
         <EnvelopePeople
           docs={docs}
+          workDocs={data.documents}
           people={people}
           ordered={options.signInOrder}
           readOnly={!canSend}
@@ -313,7 +328,7 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
           4. {t("review.heading")}
         </h2>
         <p className="text-sm text-foreground">{options.signInOrder ? t("review.ordered") : t("review.allAtOnce")}</p>
-        <p className="text-xs text-muted-foreground">{t("review.counts", { documents: docs.length, people: people.filter((p) => p.fullName.trim()).length })}</p>
+        <p className="text-xs text-muted-foreground">{t("review.counts", { documents: docs.length, people: people.filter((p) => isSigner(p) && p.fullName.trim()).length, copies: people.filter((p) => isCopy(p) && p.fullName.trim()).length })}</p>
 
         {headroom && !headroom.fits ? (
           <div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground">

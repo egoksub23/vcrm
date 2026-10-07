@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
+import { addCopy, canAddCopy, copyNotices, copyToSigner, removeCopy, signerToCopy, updateCopy, type CopyNotice, type CopyRow } from "@/lib/sign/client/copy-form";
+import { MAX_COPY_RECIPIENTS } from "@/lib/sign/envelopes";
 import { addRow, asHaloUser, dropOnRow, duplicateEmails, groupByStep, moveStep, removeRow, rolesWithoutPeople, setStep, updateRow, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignMode, SignRole } from "@/lib/sign/types";
 import { ContactPicker } from "./contact-picker";
+import { CopyRowEditor } from "./copy-row";
 import { FormRolesCard } from "./form-roles-card";
 import { HaloUserPicker } from "./halo-user-picker";
 import { SignerRowEditor } from "./signer-row";
@@ -31,30 +34,95 @@ interface Props {
   form?: FormDefinition | null;
   /** A form without a signature (migration 169): nobody signs, so the words say "fills in" and "submits". */
   mode?: SignMode;
+  /** Migration 175: the people who receive the signed copy (not signers). Absent, with `onCopies`, there is no copy section and no type dropdown. */
+  copies?: readonly CopyRow[];
+  onCopies?: (next: CopyRow[]) => void;
 }
 
-/** Step 2: who signs. A row for each person, the order switch, and the people to add from the contacts. */
-export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConfigured, readOnly, onRows, onSignInOrder, onGoToFields, form, mode }: Props) {
+/**
+ * Step 2: who signs. A row for each person, the order switch, and the people to add from the contacts. Below the people who must sign,
+ * the people who only receive the signed copy (they need no roles, so they can be added before any field is placed).
+ */
+export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConfigured, readOnly, onRows, onSignInOrder, onGoToFields, form, mode, copies, onCopies }: Props) {
   const t = useTranslations("Sign.send.people");
+  const tc = useTranslations("Sign.send.copies");
   const formOnly = mode === "form";
+  // a form without a signature has nobody who signs: no copy section there
+  const copyEnabled = !!onCopies && !formOnly;
+  const copyList = copies ?? [];
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
   const [contactsOpen, setContactsOpen] = useState(false);
   /** The row a Halo user is being chosen for. */
   const [haloFor, setHaloFor] = useState<string | null>(null);
 
-  if (roles.length === 0) {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
-        <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Users className="size-5" aria-hidden />
-        </div>
-        <h2 className="text-base font-semibold text-foreground">{t("noRolesTitle")}</h2>
-        <p className="text-sm text-muted-foreground">{t("noRolesBody")}</p>
-        <Button type="button" onClick={onGoToFields}>
-          {t("goToFields")}
-        </Button>
+  const emptyState = (
+    <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
+      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Users className="size-5" aria-hidden />
       </div>
+      <h2 className="text-base font-semibold text-foreground">{t("noRolesTitle")}</h2>
+      <p className="text-sm text-muted-foreground">{t("noRolesBody")}</p>
+      <Button type="button" onClick={onGoToFields}>
+        {t("goToFields")}
+      </Button>
+    </div>
+  );
+
+  // the people who receive a copy: kept in their own list, after the people who must sign
+  const copyProblems = copyNotices(copyList, rows.map((r) => r.email));
+  const copyNoticeText = (n: CopyNotice): string => (n.kind === "signer" ? tc("isSigner", { email: n.email }) : tc("sameEmail", { email: n.email, a: n.positions[0], b: n.positions[1] }));
+  const signFull = rows.length >= MAX_SIGNERS;
+  const copySection = copyEnabled ? (
+    <section aria-labelledby="people-copies-heading" data-copy-section className="space-y-3">
+      <div>
+        <h3 id="people-copies-heading" className="text-sm font-semibold text-foreground">
+          {tc("heading")}
+        </h3>
+        <p className="text-xs text-muted-foreground">{tc("help")}</p>
+      </div>
+      <ul className="space-y-2" aria-label={tc("heading")}>
+        {copyList.map((c, i) => {
+          const notice = copyProblems.find((n) => n.index === i);
+          return (
+            <CopyRowEditor
+              key={c.key}
+              row={c}
+              index={i}
+              showInvalid={showInvalid}
+              notice={notice ? copyNoticeText(notice) : null}
+              readOnly={readOnly}
+              canSign={roles.length > 0}
+              signFull={signFull}
+              onChange={(patch) => onCopies?.(updateCopy(copyList, c.key, patch))}
+              onRemove={() => onCopies?.(removeCopy(copyList, c.key))}
+              onMustSign={() => {
+                const moved = copyToSigner(rows, copyList, roles, c.key);
+                onRows(moved.rows);
+                onCopies?.(moved.copies);
+              }}
+            />
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" disabled={readOnly || !canAddCopy(copyList)} onClick={() => onCopies?.(addCopy(copyList))}>
+          <Plus aria-hidden />
+          {tc("add")}
+        </Button>
+        {!canAddCopy(copyList) ? <p className="text-xs text-muted-foreground">{tc("limit", { max: MAX_COPY_RECIPIENTS })}</p> : null}
+      </div>
+    </section>
+  ) : null;
+
+  if (roles.length === 0) {
+    return copySection ? (
+      <div className="space-y-8">
+        {emptyState}
+        {copySection}
+      </div>
+    ) : (
+      emptyState
     );
   }
 
@@ -124,6 +192,16 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
                   onMove={(delta) => onRows(moveStep(rows, row.key, delta < 0 ? -1 : 1))}
                   onStep={(step) => onRows(setStep(rows, row.key, step))}
                   onChooseHalo={() => setHaloFor(row.key)}
+                  onReceiveCopy={
+                    copyEnabled
+                      ? () => {
+                          const moved = signerToCopy(rows, copyList, row.key);
+                          onRows(moved.rows);
+                          onCopies?.(moved.copies);
+                        }
+                      : undefined
+                  }
+                  copyFull={!canAddCopy(copyList)}
                   onDragStart={(e) => {
                     e.dataTransfer.effectAllowed = "move";
                     e.dataTransfer.setData("text/plain", row.key);
@@ -162,6 +240,8 @@ export function PeopleStep({ roles, rows, signInOrder, showInvalid, whatsappConf
         </Button>
         {full ? <p className="text-xs text-muted-foreground">{t("limitReached", { max: MAX_SIGNERS })}</p> : null}
       </div>
+
+      {copySection}
 
       <Dialog open={haloFor !== null} onOpenChange={(open) => !open && setHaloFor(null)}>
         <DialogContent>

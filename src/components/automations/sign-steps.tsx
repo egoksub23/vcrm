@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
 import { SIGN_EVENT_NAMES, eventsOf } from "@/lib/automations/sign-event"
-import { MAX_SIGN_RECIPIENTS, requiredRoleKeys } from "@/lib/automations/sign-step"
+import { MAX_COPY_RECIPIENTS, MAX_SIGN_RECIPIENTS, isCopyRecipient, requiredRoleKeys } from "@/lib/automations/sign-step"
 import { SIGN_LOCALES, type SignRole } from "@/lib/sign/types"
 import type { PlacedField } from "@/lib/sign/pdf/types"
 import type { FormDefinition } from "@/lib/sign/forms/types"
@@ -212,6 +212,8 @@ interface EditorProps {
 }
 
 const blankRecipient = (roleKey = ""): SendSignDocumentRecipient => ({ role_key: roleKey, source: "contact", channel: "email" })
+/** Someone who only receives the signed copy: no role, no channel (the shape keeps "" and "email"), usually a fixed person. */
+const blankCopy = (): SendSignDocumentRecipient => ({ kind: "copy", role_key: "", source: "fixed", channel: "email" })
 
 export function SendSignDocumentEditor({ cid, config, set }: EditorProps) {
   const t = useTranslations("Automations.builder.sign.step")
@@ -236,12 +238,23 @@ export function SendSignDocumentEditor({ cid, config, set }: EditorProps) {
 
   const roles = version?.roles ?? []
   const required = useMemo(() => (version ? requiredRoleKeys(version) : []), [version])
-  const uncovered = required.filter((k) => !recipients.some((r) => r.role_key === k))
+  const signers = recipients.filter((r) => !isCopyRecipient(r))
+  const copyCount = recipients.length - signers.length
+  const uncovered = required.filter((k) => !signers.some((r) => r.role_key === k))
   const mergeKeys = useMemo(() => [...new Set((version?.fields ?? []).map((f) => f.merge).filter((m): m is string => !!m))], [version])
   const listId = `sign-merge-${cid}`
 
   function patchRecipient(i: number, patch: Partial<SendSignDocumentRecipient>) {
     set({ recipients: recipients.map((r, j) => (j === i ? { ...r, ...patch } : r)) })
+  }
+  /** Change what a person is: a copy has no role, no channel and no phone; a signer is the default kind (left off). */
+  function setKind(i: number, kind: "signer" | "copy") {
+    patchRecipient(
+      i,
+      kind === "copy"
+        ? { kind: "copy", role_key: "", channel: "email", phone: undefined }
+        : { kind: undefined, role_key: uncovered[0] ?? "" },
+    )
   }
   function setMerge(rows: [string, string][]) {
     set({ merge_values: Object.fromEntries(rows) })
@@ -280,72 +293,98 @@ export function SendSignDocumentEditor({ cid, config, set }: EditorProps) {
 
       <Field label={t("recipients")} hint={t("recipientsHint")}>
         <div className="space-y-2">
-          {recipients.map((r, i) => (
-            <div key={i} className="rounded-md border border-border bg-card/60 p-2">
-              <div className="mb-2 flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <label className="mb-1 block text-[11px] text-muted-foreground">{t("role")}</label>
-                  {roles.length > 0 ? (
-                    <select value={r.role_key} onChange={(e) => patchRecipient(i, { role_key: e.target.value })} className={SELECT}>
-                      <option value="">{t("selectRole")}</option>
-                      {roles.map((x) => (
-                        <option key={x.key} value={x.key}>
-                          {x.label}
-                          {required.includes(x.key) ? " *" : ""}
-                        </option>
-                      ))}
-                      {r.role_key && !roles.some((x) => x.key === r.role_key) && <option value={r.role_key}>{r.role_key}</option>}
+          {recipients.map((r, i) => {
+            const copy = isCopyRecipient(r)
+            return (
+              <div key={i} className="rounded-md border border-border bg-card/60 p-2">
+                <div className="mb-2 flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <label className="mb-1 block text-[11px] text-muted-foreground">{t("type")}</label>
+                    <select value={copy ? "copy" : "signer"} onChange={(e) => setKind(i, e.target.value as "signer" | "copy")} className={SELECT}>
+                      <option value="signer">{t("typeSigner")}</option>
+                      <option value="copy">{t("typeCopy")}</option>
                     </select>
-                  ) : (
-                    <Input value={r.role_key} onChange={(e) => patchRecipient(i, { role_key: e.target.value })} placeholder={t("rolePlaceholder")} className={INPUT} />
+                  </div>
+                  {!copy && (
+                    <div className="min-w-0 flex-1">
+                      <label className="mb-1 block text-[11px] text-muted-foreground">{t("role")}</label>
+                      {roles.length > 0 ? (
+                        <select value={r.role_key} onChange={(e) => patchRecipient(i, { role_key: e.target.value })} className={SELECT}>
+                          <option value="">{t("selectRole")}</option>
+                          {roles.map((x) => (
+                            <option key={x.key} value={x.key}>
+                              {x.label}
+                              {required.includes(x.key) ? " *" : ""}
+                            </option>
+                          ))}
+                          {r.role_key && !roles.some((x) => x.key === r.role_key) && <option value={r.role_key}>{r.role_key}</option>}
+                        </select>
+                      ) : (
+                        <Input value={r.role_key} onChange={(e) => patchRecipient(i, { role_key: e.target.value })} placeholder={t("rolePlaceholder")} className={INPUT} />
+                      )}
+                    </div>
+                  )}
+                  <Button type="button" variant="ghost" size="icon" aria-label={t("removeRecipient")} onClick={() => set({ recipients: recipients.filter((_, j) => j !== i) })}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] text-muted-foreground">{t("source")}</label>
+                    <select value={r.source} onChange={(e) => patchRecipient(i, { source: e.target.value as "contact" | "fixed" })} className={SELECT}>
+                      <option value="contact">{t("sourceContact")}</option>
+                      <option value="fixed">{t("sourceFixed")}</option>
+                    </select>
+                  </div>
+                  {!copy && (
+                    <div>
+                      <label className="mb-1 block text-[11px] text-muted-foreground">{t("channel")}</label>
+                      <select value={r.channel} onChange={(e) => patchRecipient(i, { channel: e.target.value as "email" | "whatsapp" })} className={SELECT}>
+                        <option value="email">{t("channelEmail")}</option>
+                        <option value="whatsapp">{t("channelWhatsapp")}</option>
+                      </select>
+                    </div>
                   )}
                 </div>
-                <Button type="button" variant="ghost" size="icon" aria-label={t("removeRecipient")} onClick={() => set({ recipients: recipients.filter((_, j) => j !== i) })}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {r.source === "contact" ? (
+                  <p className="mt-2 text-[11px] text-muted-foreground">{copy ? t("contactCopyNote") : t("contactNote")}</p>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    <PromptField cid={cid} single label={t("fullName")} value={r.full_name ?? ""} onChange={(v) => patchRecipient(i, { full_name: v })} />
+                    <PromptField cid={cid} single label={t("email")} value={r.email ?? ""} onChange={(v) => patchRecipient(i, { email: v })} />
+                    {!copy && r.channel === "whatsapp" && <PromptField cid={cid} single label={t("phone")} value={r.phone ?? ""} onChange={(v) => patchRecipient(i, { phone: v })} />}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-1 block text-[11px] text-muted-foreground">{t("source")}</label>
-                  <select value={r.source} onChange={(e) => patchRecipient(i, { source: e.target.value as "contact" | "fixed" })} className={SELECT}>
-                    <option value="contact">{t("sourceContact")}</option>
-                    <option value="fixed">{t("sourceFixed")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-muted-foreground">{t("channel")}</label>
-                  <select value={r.channel} onChange={(e) => patchRecipient(i, { channel: e.target.value as "email" | "whatsapp" })} className={SELECT}>
-                    <option value="email">{t("channelEmail")}</option>
-                    <option value="whatsapp">{t("channelWhatsapp")}</option>
-                  </select>
-                </div>
-              </div>
-              {r.source === "contact" ? (
-                <p className="mt-2 text-[11px] text-muted-foreground">{t("contactNote")}</p>
-              ) : (
-                <div className="mt-2 space-y-1">
-                  <PromptField cid={cid} single label={t("fullName")} value={r.full_name ?? ""} onChange={(v) => patchRecipient(i, { full_name: v })} />
-                  <PromptField cid={cid} single label={t("email")} value={r.email ?? ""} onChange={(v) => patchRecipient(i, { email: v })} />
-                  {r.channel === "whatsapp" && <PromptField cid={cid} single label={t("phone")} value={r.phone ?? ""} onChange={(v) => patchRecipient(i, { phone: v })} />}
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
           {uncovered.length > 0 && (
             <p role="alert" className="text-[11px] text-amber-300">
               {t("requiredRoles", { roles: uncovered.map((k) => roles.find((x) => x.key === k)?.label ?? k).join(", ") })}
             </p>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={recipients.length >= MAX_SIGN_RECIPIENTS}
-            onClick={() => set({ recipients: [...recipients, blankRecipient(uncovered[0] ?? "")] })}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("addRecipient")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={signers.length >= MAX_SIGN_RECIPIENTS}
+              onClick={() => set({ recipients: [...recipients, blankRecipient(uncovered[0] ?? "")] })}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("addRecipient")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={copyCount >= MAX_COPY_RECIPIENTS}
+              onClick={() => set({ recipients: [...recipients, blankCopy()] })}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("addCopy")}
+            </Button>
+          </div>
         </div>
       </Field>
 

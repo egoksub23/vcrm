@@ -75,6 +75,12 @@ const DB_CODES: Record<string, { code: string; status: number; message: string }
   sign_envelope_is_frozen: { code: "envelope_frozen", status: 409, message: "A document collection that was sent cannot be edited." },
   sign_document_envelope_is_fixed: { code: "envelope_fixed", status: 409, message: "A document cannot be moved out of its collection." },
   sign_envelope_not_open_for_documents: { code: "envelope_not_draft", status: 409, message: "This document collection was already sent." },
+  // people who receive a copy (migration 175)
+  sign_copy_not_open: { code: "copy_not_open", status: 409, message: "People can receive a copy until the document is completed. This one is not open any more." },
+  sign_copy_limit: { code: "copy_limit", status: 400, message: "Up to 10 people can receive a copy." },
+  sign_copy_belongs_to_collection: { code: "document_in_envelope", status: 409, message: "This document is part of a document collection. People who receive a copy are added to the collection." },
+  sign_copy_recipient_is_fixed: { code: "copy_fixed", status: 409, message: "A person who receives a copy is removed and added again, never changed." },
+  sign_copy_recipients_uq: { code: "copy_duplicate", status: 400, message: "That person already receives a copy." },
   // the unique (account_id, reference) of sign_documents: only a caller that chose its own reference (the public API) can hit it
   sign_documents_reference: { code: "reference_in_use", status: 409, message: "That reference is already used by another document." },
 };

@@ -10,20 +10,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-export interface ContactSummary {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  company: string | null;
-}
+import { CONTACT_COLUMNS as COLUMNS, useContactSearch, type ContactSummary } from "./use-contact-search";
 
-const COLUMNS = "id, name, email, phone, company";
+export type { ContactSummary };
 
 export const contactLabel = (c: ContactSummary): string => c.name?.trim() || c.email?.trim() || c.phone?.trim() || c.company?.trim() || "";
-
-/** Characters that would break a PostgREST filter list are dropped. */
-const safe = (q: string) => q.replace(/[,()%*\\"]/g, " ").replace(/\s+/g, " ").trim();
 
 interface Props {
   /** The chosen contact's id, or null. */
@@ -45,7 +36,6 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const [found, setFound] = useState<{ q: string; rows: ContactSummary[] } | null>(null);
   const [resolved, setResolved] = useState<ContactSummary | null>(null);
 
   const selected = contactId && resolved?.id === contactId ? resolved : null;
@@ -65,26 +55,8 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
   }, [contactId, accountId, resolved?.id]);
 
   // Search as the person types (the most recent contacts when the box is empty).
-  useEffect(() => {
-    if (!open || !accountId) return;
-    let cancelled = false;
-    const q = safe(query);
-    const handle = setTimeout(async () => {
-      let req = createClient().from("contacts").select(COLUMNS).is("deleted_at", null);
-      req = q ? req.or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,company.ilike.%${q}%`) : req.order("created_at", { ascending: false });
-      const { data } = await req.limit(8);
-      if (cancelled) return;
-      setFound({ q: query, rows: (data as ContactSummary[] | null) ?? [] });
-      setActive(0);
-    }, q ? 250 : 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(handle);
-    };
-  }, [open, query, accountId]);
-
-  const rows = found?.rows ?? [];
-  const searching = open && (!found || found.q !== query);
+  const { rows, searching } = useContactSearch(query, open);
+  const current = Math.min(active, Math.max(0, rows.length - 1));
 
   const pick = (c: ContactSummary) => {
     setResolved(c);
@@ -126,7 +98,7 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={open && rows[active] ? `${listId}-${active}` : undefined}
+          aria-activedescendant={open && rows[current] ? `${listId}-${current}` : undefined}
           autoComplete="off"
           className="pl-8"
           placeholder={t("placeholder")}
@@ -136,19 +108,20 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
           onBlur={() => setTimeout(() => setOpen(false), 120)}
           onChange={(e) => {
             setQuery(e.target.value);
+            setActive(0);
             setOpen(true);
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
               setOpen(true);
-              setActive((a) => Math.min(rows.length - 1, a + 1));
+              setActive(Math.min(rows.length - 1, current + 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
-              setActive((a) => Math.max(0, a - 1));
-            } else if (e.key === "Enter" && open && rows[active]) {
+              setActive(Math.max(0, current - 1));
+            } else if (e.key === "Enter" && open && rows[current]) {
               e.preventDefault();
-              pick(rows[active]);
+              pick(rows[current]);
             } else if (e.key === "Escape") {
               setOpen(false);
             }
@@ -172,8 +145,8 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
                 key={c.id}
                 id={`${listId}-${i}`}
                 role="option"
-                aria-selected={i === active}
-                className={cn("cursor-pointer rounded-md px-2 py-1.5", i === active && "bg-muted")}
+                aria-selected={i === current}
+                className={cn("cursor-pointer rounded-md px-2 py-1.5", i === current && "bg-muted")}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   pick(c);

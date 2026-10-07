@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { SignIssue } from "@/lib/sign/client/api";
 import { defaultExpiryDate, fromDateInput, parseReminderDays, type DraftOptions } from "@/lib/sign/client/draft-options";
 import { splitLayoutIssues } from "@/lib/sign/client/draft-problems";
+import { copyNotices, copyPayload, type CopyRow } from "@/lib/sign/client/copy-form";
 import { errorKey, problemKey, problemNamespace, problemStep, type DraftStep } from "@/lib/sign/client/errors";
 import { reviewLines, type SignerRow } from "@/lib/sign/client/signers-form";
 import { MAX_SIGNERS } from "@/lib/sign/rules";
@@ -35,14 +36,22 @@ interface Props {
   form?: FormDefinition | null;
   /** A form without a signature (migration 169): the words say "Send the form" and "submit". */
   mode?: SignMode;
+  /** Migration 175: the people who receive the signed copy. They are listed apart from the people who sign. */
+  copies?: readonly CopyRow[];
 }
 
 /** Step 4: what will happen, in plain words, what still stops it, and the Send button. */
-export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep, form, mode }: Props) {
+export function ReviewStep({ roles, rows, options, categoryName, contactName, defaultExpiryDays, now, problems, checking, canSend, sending, sendErrorCode, onSend, onGoToStep, form, mode, copies = [] }: Props) {
   const t = useTranslations("Sign.send.review");
+  const tc = useTranslations("Sign.send.copies");
   const tProblems = useTranslations("Sign.send");
   const f = useFormatter();
   const people = reviewLines(rows, roles, options.signInOrder);
+  // who gets the signed copy (what is saved), and what was left out of it: an address listed twice, or one that signs (a notice, not a block:
+  // the person signs, or is listed once, so nobody is missed)
+  const signerEmails = rows.map((r) => r.email);
+  const copyPeople = copyPayload(copies, signerEmails);
+  const copyLeftOut = copyNotices(copies, signerEmails).filter((n) => n.kind === "signer" || n.positions[0] !== n.index + 1);
   const { single, layoutCount } = splitLayoutIssues(problems);
   const blocked = problems.length > 0;
 
@@ -90,6 +99,17 @@ export function ReviewStep({ roles, rows, options, categoryName, contactName, de
             })}
           </ol>
         )}
+
+        {copyPeople.length > 0 ? (
+          <p data-copy-review className="text-sm text-foreground">
+            {tc("reviewLine", { people: copyPeople.map((c) => `${c.fullName} (${c.email})`).join(", "), count: copyPeople.length })}
+          </p>
+        ) : null}
+        {copyLeftOut.map((n) => (
+          <p key={`${n.kind}-${n.index}`} className="text-xs text-amber-700 dark:text-amber-300">
+            {n.kind === "signer" ? tc("isSigner", { email: n.email }) : tc("sameEmail", { email: n.email, a: n.positions[0], b: n.index + 1 })}
+          </p>
+        ))}
 
         <dl className="grid gap-x-4 gap-y-1.5 border-t border-border pt-3 text-sm sm:grid-cols-[8rem_1fr]">
           <dt className="text-muted-foreground">{t("expiryLabel")}</dt>

@@ -11,14 +11,15 @@ import { randomUUID } from "node:crypto";
 import { forgetAccountUsage, signSendHeadroom } from "@/lib/platform/usage";
 
 import { cleanReminderDays, expiryFor, resolveDefaults } from "../defaults";
-import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, peopleFromRows, peopleIssues, rowsFor, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry } from "../envelopes";
+import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, PERSON_KEY_RE, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, newPersonKey, peopleFromRows, peopleIssues, pruneRows, roleHasWork, rowsFor, syncDocumentRoles, withDerivedRoles, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry, type PersonType } from "../envelopes";
 import type { ConvertOptions } from "../convert";
 import { REMIND_GAP_MS } from "../defaults";
-import { fieldsForRole, type Issue } from "../rules";
+import { MAX_ROLES, fieldsForRole, type Issue } from "../rules";
 import { removeFiles } from "../storage";
-import { SIGN_LOCALES, isFormMode, type Invitation, type SignChannel, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow, type SignRole } from "../types";
+import { SIGN_LOCALES, isFormMode, type Invitation, type SignChannel, type SignCopyRecipientRow, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow, type SignRole } from "../types";
 import { loadSettings, type SignCtx } from "./context";
 import { createDraftFromTemplate, createDraftFromUpload, deleteDraft, deleteDocument, setSigners, updateDraft, type DraftPatch, type SignerInput } from "./drafts";
+import { listCopyRecipients } from "./copy-recipients";
 import { anchorOf, groupByParty, loadEnvelope, loadEnvelopeDocuments, loadEnvelopeSigners } from "./envelope-data";
 import { deliverEnvelopeInvitations, envelopeWorkspace, notifyEnvelopeCompleted, notifyEnvelopeEnded } from "./envelope-delivery";
 import { SignError, raiseDatabaseError } from "./errors";
@@ -42,6 +43,10 @@ export interface EnvelopeDocumentSummary {
   roles: SignRole[];
   /** The roles that have something to complete on this document (the others need nobody). */
   rolesNeeded: string[];
+  /** Made from a template (its roles are the template's, matched to people), as against an uploaded file (its roles are the people's). */
+  fromTemplate: boolean;
+  /** How many fields a person completes are assigned to each role, by role key (so the screen can say what removing a person takes with them). */
+  fieldCounts: Record<string, number>;
   categoryId: string | null;
   completedAt: string | null;
   hasFinalFile: boolean;
@@ -60,6 +65,8 @@ export interface EnvelopeData {
   documents: EnvelopeDocumentSummary[];
   /** Every row of the signing list (a person has one row on each document they are on). */
   signers: SignSignerRow[];
+  /** The people who receive a copy of the signed documents (they are not on the signing list), and whether each was sent it yet. */
+  copies: SignCopyRecipientRow[];
   /** A draft: what stands between it and Send, document by document (each issue names its document), then the shared list. */
   problems: Issue[];
   /** A draft: whether the month's limit has room for all the documents. */
@@ -77,27 +84,49 @@ const summary = (d: SignDocumentRow): EnvelopeDocumentSummary => ({
   mode: isFormMode(d) ? "form" : "sign",
   pageCount: d.page_count,
   roles: d.roles_snapshot ?? [],
-  rolesNeeded: (d.roles_snapshot ?? []).filter((r) => fieldsForRole(d.fields_snapshot ?? [], r.key).length > 0 || (d.form_snapshot?.parts ?? []).some((p) => p.role === r.key)).map((r) => r.key),
+  rolesNeeded: (d.roles_snapshot ?? []).filter((r) => roleHasWork(d, r.key)).map((r) => r.key),
+  fromTemplate: !!d.template_version_id,
+  fieldCounts: Object.fromEntries((d.roles_snapshot ?? []).map((r) => [r.key, fieldsForRole(d.fields_snapshot ?? [], r.key).length])),
   categoryId: d.category_id,
   completedAt: d.completed_at,
   hasFinalFile: !!d.final_path,
 });
 
-const lite = (d: SignDocumentRow): EnvelopeDocLite => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, roles: d.roles_snapshot ?? [], mode: isFormMode(d) ? "form" : "sign" });
+const lite = (d: SignDocumentRow): EnvelopeDocLite => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, roles: d.roles_snapshot ?? [], mode: isFormMode(d) ? "form" : "sign", fromTemplate: !!d.template_version_id });
 
-/** Everything that stands between a draft envelope and Send: each document's own problems (tagged with the document) and the shared list's. */
-export function envelopeProblems(env: SignEnvelopeRow, docs: readonly SignDocumentRow[], signers: readonly SignSignerRow[]): Issue[] {
+/**
+ * Everything that stands between a draft envelope and Send: each document's own problems (tagged with the document) and the shared list's.
+ *
+ * A person who must sign signs only the documents on which a field is assigned to them (the rest are left off at send: `pruneRows`), so each
+ * document is held to what a document alone is held to with ITS signers being those people. A document nobody has anything to do on is
+ * `document_nobody`, and a person with nothing to do on any document is `person_without_work`. People who receive a copy are not signers: they
+ * are only checked for a name, an address, the limit, and not being on the signing list too.
+ */
+export function envelopeProblems(env: SignEnvelopeRow, docs: readonly SignDocumentRow[], signers: readonly SignSignerRow[], copies: readonly Pick<SignCopyRecipientRow, "id" | "full_name" | "email">[] = []): Issue[] {
   const out: Issue[] = [];
   if (docs.length < ENVELOPE_MIN_DOCUMENTS || docs.length > ENVELOPE_MAX_DOCUMENTS) out.push({ code: "envelope_size", detail: `${ENVELOPE_MIN_DOCUMENTS}-${ENVELOPE_MAX_DOCUMENTS}` });
   const pages = docs.reduce((n, d) => n + (d.page_count ?? 0), 0);
   if (pages > ENVELOPE_MAX_PAGES) out.push({ code: "envelope_too_many_pages", detail: String(ENVELOPE_MAX_PAGES) });
+  const { keep } = pruneRows(docs, signers);
   for (const d of docs) {
     // each document is held to what a document alone is held to, with the envelope's own options in place of its own
     const asDoc: SignDocumentRow = { ...d, sign_in_order: env.sign_in_order, code_required: env.code_required };
-    for (const i of readinessProblems(asDoc, signers.filter((s) => s.document_id === d.id))) out.push({ ...i, document: d.id });
+    const mine = keep.filter((s) => s.document_id === d.id);
+    const found = readinessProblems(asDoc, mine);
+    if (mine.length === 0) {
+      out.push({ code: "document_nobody", document: d.id });
+      for (const i of found) if (i.code !== "no_signer" && i.code !== "no_person") out.push({ ...i, document: d.id });
+    } else {
+      for (const i of found) out.push({ ...i, document: d.id });
+    }
   }
   const people = peopleFromRows(signers);
-  out.push(...peopleIssues(docs.map(lite), people, { ordered: env.sign_in_order }));
+  const kept = new Set(keep.map((s) => s.id));
+  people.forEach((p, i) => {
+    if (!signers.some((s) => kept.has(s.id) && (s.party_id ?? s.id) === p.partyId)) out.push({ code: "person_without_work", detail: String(i) });
+  });
+  const copyPeople: EnvelopePerson[] = copies.map((c) => ({ key: c.id, fullName: c.full_name, email: c.email, phone: "", channel: "email", step: 1, roles: {}, type: "copy" }));
+  out.push(...peopleIssues(docs.map(lite), [...people, ...copyPeople], { ordered: env.sign_in_order }));
   return out;
 }
 
@@ -106,6 +135,7 @@ export async function envelopeData(ctx: SignCtx, envelopeId: string): Promise<En
   const envelope = await loadEnvelope(ctx, envelopeId);
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const signers = await loadEnvelopeSigners(ctx, docs.map((d) => d.id));
+  const copies = await listCopyRecipients(ctx, { envelopeId });
   const draft = envelope.status === "draft";
   let headroom: EnvelopeHeadroom | null = null;
   if (draft) {
@@ -113,7 +143,7 @@ export async function envelopeData(ctx: SignCtx, envelopeId: string): Promise<En
     const needed = docs.length;
     headroom = { limit: room.limit, used: room.used, remaining: room.remaining, needed, fits: room.remaining === null || needed <= room.remaining };
   }
-  return { envelope, documents: docs.map(summary), signers, problems: draft ? envelopeProblems(envelope, docs, signers) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null } };
+  return { envelope, documents: docs.map(summary), signers, copies, problems: draft ? envelopeProblems(envelope, docs, signers, copies) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null } };
 }
 
 /** What a document's own screen says of the envelope it is in: the envelope and its siblings, no more. */
@@ -395,33 +425,26 @@ export interface EnvelopePersonInput {
   channel: SignChannel;
   /** The signing step; only meaningful when the envelope needs signing order. */
   step?: number;
-  /** The role this person has on each document, by document id; a document left out is one they are not on. */
+  /**
+   * The role this person has on each document that came from a TEMPLATE, by document id (a document left out is one they are not on). Ignored
+   * for an uploaded file: its roles are made from the people.
+   */
   roles: Record<string, string>;
+  /** "signer" (the default) or "copy". A person who receives a copy is not saved here (see copy-recipients.ts); they are left out of the signing list. */
+  type?: PersonType;
+  /** The person's stable key (a `pp_` key the screen keeps for them): it becomes their role on the uploaded documents, so a rename keeps the fields assigned to them. */
+  key?: string;
+  /**
+   * A person the screen is still filling in (no valid address yet, say). They are not saved as a signer (nothing is checked or invited), but their
+   * role on the uploaded documents is KEPT with the fields assigned to it, so a half-typed address never takes work away. A new person with no name
+   * who has no role yet is simply ignored.
+   */
+  incomplete?: boolean;
 }
 
-/**
- * Replace the shared signing list of a draft envelope. One entry is one PERSON with a role on each document they are on; the rows are
- * written to each document (through the same service a document alone uses) tied together by the person's party id, the row on their
- * first document being the anchor. Refused, with the people it is about, when the list is not sound.
- */
-export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, people: readonly EnvelopePersonInput[]): Promise<SignSignerRow[]> {
-  const env = await loadEnvelope(ctx, envelopeId);
-  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
-  const docs = await loadEnvelopeDocuments(ctx, envelopeId);
-  const list: EnvelopePerson[] = people.map((p, i) => ({
-    key: `p${i}`,
-    fullName: p.fullName,
-    email: p.email,
-    phone: p.phone ?? "",
-    channel: p.channel,
-    step: Math.max(1, Math.floor(p.step ?? i + 1)),
-    roles: p.roles ?? {},
-  }));
-  const issues = peopleIssues(docs.map(lite), list, { ordered: env.sign_in_order }).filter((i) => i.code !== "person_without_document");
-  // a person on no document is simply not saved (the screen lets a row be half made); every other problem stops the save
-  if (issues.length > 0) throw new SignError("bad_signers", "The signing list is not valid.", 400, issues);
-
-  const rows = rowsFor(docs.map(lite), list, { ordered: env.sign_in_order, newId: randomUUID });
+/** Write a signing list to the documents (the same service a document alone uses), each person's rows tied together, the anchor on their first document. */
+async function writeSigners(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[], people: readonly EnvelopePerson[]): Promise<SignSignerRow[]> {
+  const rows = rowsFor(docs.map(lite), people, { ordered: env.sign_in_order, newId: randomUUID });
   const out: SignSignerRow[] = [];
   for (const d of docs) {
     const mine: SignerInput[] = rows
@@ -430,6 +453,53 @@ export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, peopl
     out.push(...(await setSigners(ctx, d.id, mine, { viaEnvelope: true })));
   }
   return out;
+}
+
+/**
+ * Replace the shared signing list of a draft collection. One entry is one PERSON who must sign. Their roles come from the documents:
+ *   - an uploaded file (no roles of its own) takes a role from each person: the person's key is the role's key and their name its label, kept
+ *     in step with the people here (a rename keeps the key, so fields assigned to the person stay; a person taken off the list takes the
+ *     fields assigned to them off the uploaded documents, since nobody could complete them);
+ *   - a document from a template keeps the template's roles, and `roles` says which person has which.
+ * The rows are written to each document (through the same service a document alone uses) tied together by the person's party id, the row on
+ * their first document being the anchor. Refused, with the people it is about, when the list is not sound.
+ */
+export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, people: readonly EnvelopePersonInput[]): Promise<SignSignerRow[]> {
+  const env = await loadEnvelope(ctx, envelopeId);
+  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
+  const docs = await loadEnvelopeDocuments(ctx, envelopeId);
+  const used = new Set<string>();
+  // the roles the uploaded documents already hold for people: a person the screen is still filling in keeps theirs
+  const held = new Set(docs.filter((d) => !d.template_version_id).flatMap((d) => (d.roles_snapshot ?? []).filter((r) => r.source === "people").map((r) => r.key)));
+  const entries = people
+    .filter((p) => (p.type ?? "signer") === "signer")
+    .filter((p) => !p.incomplete || !!p.fullName.trim() || (!!p.key && held.has(p.key)))
+    .map((p, i) => {
+      let key = p.key && PERSON_KEY_RE.test(p.key) && !used.has(p.key) ? p.key : newPersonKey();
+      while (used.has(key)) key = newPersonKey();
+      used.add(key);
+      const person: EnvelopePerson = { key, fullName: p.fullName, email: p.email, phone: p.phone ?? "", channel: p.channel, step: Math.max(1, Math.floor(p.step ?? i + 1)), roles: p.roles ?? {} };
+      return { person, incomplete: !!p.incomplete };
+    });
+  const list = entries.map((e) => e.person);
+  // an uploaded file holds a few roles, one for each person
+  if (list.length > MAX_ROLES && docs.some((d) => !d.template_version_id)) throw new SignError("bad_signers", "The signing list is not valid.", 400, [{ code: "too_many_roles", detail: String(MAX_ROLES) }]);
+  // what the people look like once the uploaded documents have taken their roles; only the finished ones are checked and saved
+  const derived = withDerivedRoles(docs.map(lite), list);
+  const finished = new Set(entries.filter((e) => !e.incomplete).map((e) => e.person.key));
+  const derivedFinished = derived.people.filter((p) => finished.has(p.key));
+  const issues = peopleIssues(derived.docs, derivedFinished, { ordered: env.sign_in_order }).filter((i) => i.code !== "person_without_document");
+  // a person on no document is simply not saved (the screen lets a row be half made); every other problem stops the save
+  if (issues.length > 0) throw new SignError("bad_signers", "The signing list is not valid.", 400, issues);
+
+  // the uploaded documents take their roles from the people, and lose the fields of a person who is gone
+  for (const d of docs.filter((x) => !x.template_version_id)) {
+    const sync = syncDocumentRoles({ roles: d.roles_snapshot ?? [], fields: d.fields_snapshot ?? [] }, list);
+    if (!sync.changed) continue;
+    await updateDraft(ctx, d.id, { roles: sync.roles, ...(sync.removed > 0 ? { fields: sync.fields } : {}) }, { viaEnvelope: true });
+  }
+  const fresh = await loadEnvelopeDocuments(ctx, envelopeId);
+  return writeSigners(ctx, env, fresh, derivedFinished);
 }
 
 // ---- sending ------------------------------------------------------------------------------------
@@ -456,8 +526,9 @@ export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<En
   // the envelope's options are on every document (they were written as they were edited; once more so nothing can differ)
   docs = await applyEnvelopeOptions(ctx, env, docs);
   const signers = await loadEnvelopeSigners(ctx, docs.map((d) => d.id));
+  const copies = await listCopyRecipients(ctx, { envelopeId });
 
-  const problems = envelopeProblems(env, docs, signers);
+  const problems = envelopeProblems(env, docs, signers, copies);
   if (problems.length > 0) throw new SignError("envelope_not_ready", "This document collection is not ready to send.", 400, problems);
 
   // the limit is for the whole envelope: every document counts as a document sent, and none is sent if they do not all fit
@@ -489,6 +560,21 @@ export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<En
     throw err;
   }
 
+  // A person signs only the documents on which a field is assigned to them: their rows on the others are left off, and each person's
+  // anchor (the row that carries their link) moves to their first remaining document. The list is written again for that, and put back as
+  // it was if the database then refuses the send, so nothing the sender prepared is lost.
+  const { dropped, keep } = pruneRows(docs, signers);
+  const before = peopleFromRows(signers);
+  if (dropped.length > 0) {
+    try {
+      await writeSigners(ctx, env, docs, peopleFromRows(keep));
+    } catch (err) {
+      await removeFiles(ctx.admin, frozen.map((f) => f.path));
+      await writeSigners(ctx, env, docs, before).catch(() => undefined);
+      throw err;
+    }
+  }
+
   const { data, error } = await ctx.admin.rpc("sign_send_envelope", {
     p_envelope: envelopeId,
     p_docs: frozen.map((f) => ({ document_id: f.doc.id, base_path: f.path, base_sha256: f.sha256, page_count: f.doc.page_count })),
@@ -497,6 +583,7 @@ export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<En
   });
   if (error || !data) {
     await removeFiles(ctx.admin, frozen.map((f) => f.path));
+    if (dropped.length > 0) await writeSigners(ctx, env, docs, before).catch(() => undefined);
     raiseDatabaseError(error, "send envelope");
   }
   forgetAccountUsage(ctx.accountId);
@@ -648,10 +735,10 @@ export async function settleEnvelope(ctx: SignCtx, envelopeId: string): Promise<
     }
     if (!(data as { completed?: boolean } | null)?.completed) return;
     const [env, docs] = await Promise.all([loadEnvelope(ctx, envelopeId), loadEnvelopeDocuments(ctx, envelopeId)]);
-    const files: { bytes: Uint8Array; filename: string }[] = [];
+    const files: { bytes: Uint8Array; filename: string; documentId: string }[] = [];
     for (const d of docs) {
       if (!d.final_path) continue;
-      files.push({ bytes: await getFile(ctx.admin, d.final_path, ctx.accountId), filename: `${d.reference ?? "document"}-${isFormMode(d) ? "record" : "signed"}.pdf` });
+      files.push({ bytes: await getFile(ctx.admin, d.final_path, ctx.accountId), filename: `${d.reference ?? "document"}-${isFormMode(d) ? "record" : "signed"}.pdf`, documentId: d.id });
     }
     await notifyEnvelopeCompleted(ctx, env, docs, files);
   } catch (err) {

@@ -21,9 +21,10 @@ Automations can send a document for signature on their own, and can react when a
 2. The trigger is **Tag added**. The tag **Merchant applicant** is picked for you if it exists; if not, choose a tag.
 3. Open the step **Send document for signing**. The template **Merchant Application** is picked for you if it exists; if not, choose it.
 4. Under **Who signs**, the **Merchant** role is set to **The contact**. Add more people if your template has more roles, for example a director who countersigns. A role marked with a star must have a person.
-5. Under **Fill in the document**, add values for the template's merge fields if you use any. Use the **Insert variable** button to put in the contact's company or name.
-6. Leave **Send it now** ticked to send straight away. Untick it to save the document as a draft for a person to check and send.
-7. Give the automation a name, switch it **Active** and click **Save**.
+5. Anyone who should only get the signed file, such as your accountant, can be added as a recipient who **Receives a copy**. They have no role and no link, and are sent the signed PDF by email when everyone has signed. See [Receive a copy of the signed document](/help/doc-sign/copies).
+6. Under **Fill in the document**, add values for the template's merge fields if you use any. Use the **Insert variable** button to put in the contact's company or name.
+7. Leave **Send it now** ticked to send straight away. Untick it to save the document as a draft for a person to check and send.
+8. Give the automation a name, switch it **Active** and click **Save**.
 
 If something is wrong, saving an active automation shows the first problem, for example "the template needs a recipient for the role Merchant" or "that Doc Sign template is not active".
 
@@ -84,4 +85,5 @@ If the same run reaches the step twice, it does not make a second document.
 - [Send a document for signature](/help/doc-sign/send-a-document)
 - [Templates](/help/doc-sign/templates)
 - [Categories and add-ons](/help/doc-sign/categories-and-add-ons)
+- [Receive a copy of the signed document](/help/doc-sign/copies)
 - [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel)

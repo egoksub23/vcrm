@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import type { EnvelopeBrief } from "@/lib/sign/service/envelopes";
-import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
+import type { SignCopyRecipientRow, SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
 
 import { POLL_MS, shouldPoll } from "./logic";
 
@@ -30,6 +30,8 @@ export interface DocumentDetailData {
   files: DetailFile[];
   /** Migration 171: the envelope this document is one of, with its siblings' titles and states; null for a document on its own. */
   envelope?: EnvelopeBrief | null;
+  /** Migration 175: the people who receive the signed copy of a document on its own (a document of a collection has none of its own). Not signers. */
+  copies?: SignCopyRecipientRow[];
 }
 
 interface Result {
@@ -41,7 +43,9 @@ interface Result {
 /** Changes whenever something the screen shows has changed, so the history is read again only then. */
 export function dataFingerprint(d: DocumentDetailData): string {
   const last = d.signers.reduce((m, s) => (s.updated_at > m ? s.updated_at : m), "");
-  return `${d.document.updated_at}|${d.signers.length}|${last}`;
+  const copies = d.copies ?? [];
+  const copyPrint = copies.map((c) => `${c.id}:${c.notified_at ?? ""}`).join(",");
+  return `${d.document.updated_at}|${d.signers.length}|${last}${copies.length > 0 ? `|${copyPrint}` : ""}`;
 }
 
 export function useDocumentDetail(documentId: string) {
@@ -56,9 +60,9 @@ export function useDocumentDetail(documentId: string) {
     async (force = false): Promise<void> => {
       const mine = ++sequence.current;
       try {
-        const body = await signRequest<{ document: SignDocumentRow; signers: SignSignerRow[]; files: DetailFile[]; envelope?: EnvelopeBrief | null }>(`/api/sign/documents/${documentId}`);
+        const body = await signRequest<{ document: SignDocumentRow; signers: SignSignerRow[]; files: DetailFile[]; envelope?: EnvelopeBrief | null; copies?: SignCopyRecipientRow[] }>(`/api/sign/documents/${documentId}`);
         if (mine !== sequence.current) return;
-        const data: DocumentDetailData = { document: body.document, signers: body.signers ?? [], files: body.files ?? [], envelope: body.envelope ?? null };
+        const data: DocumentDetailData = { document: body.document, signers: body.signers ?? [], files: body.files ?? [], envelope: body.envelope ?? null, copies: body.copies ?? [] };
         const print = dataFingerprint(data);
         if (force || print !== printRef.current) {
           printRef.current = print;

@@ -36,6 +36,8 @@ interface Loaded {
   isDraft: boolean;
   hasFile: boolean;
   fromTemplate: boolean;
+  /** The collection this document belongs to, if any. */
+  envelopeId: string | null;
 }
 
 type Load = { status: "loading" } | { status: "error"; code: string } | { status: "ready"; data: Loaded };
@@ -75,6 +77,7 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
             isDraft: d.status === "draft",
             hasFile: !!d.base_path,
             fromTemplate: !!d.template_version_id,
+            envelopeId: d.envelope_id ?? null,
           },
         });
       } catch (err) {
@@ -87,6 +90,8 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
 
   const changed = useCallback(() => onChanged?.(), [onChanged]);
   const layoutQueue = useSaveQueue<EditorState>(async (value) => {
+    // (a document of a collection that was not made from a template has the collection's people as its roles: the server keeps those in step
+    // and ignores what is sent for them)
     await signRequest(`/api/sign/documents/${documentId}`, { method: "PATCH", json: { fields: value.fields, roles: value.roles } });
     changed();
   });
@@ -131,7 +136,8 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
     );
   }
 
-  const { fields, roles, values, isDraft, hasFile, fromTemplate, title } = load.data;
+  const { fields, roles, values, isDraft, hasFile, fromTemplate, title, envelopeId } = load.data;
+  const rolesLocked = !!envelopeId && !fromTemplate;
   if (!hasFile) return <p role="alert" className="py-10 text-center text-sm text-muted-foreground">{t("draft.noFile")}</p>;
 
   const locked = !isDraft || !canSend;
@@ -185,6 +191,8 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
         mergeValues={values}
         mode="draft"
         readOnly={layoutLocked}
+        rolesLocked={rolesLocked}
+        collectionHref={envelopeId ? `/sign/envelopes/${envelopeId}` : undefined}
         onChange={onLayout}
         className="h-[78vh] min-h-[520px]"
         toolbarExtra={extra}

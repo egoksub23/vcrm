@@ -7,9 +7,12 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROLE_CLASS, roleColorStyle } from "@/lib/sign/client/colors";
+import { fillFromContact } from "@/lib/sign/client/copy-form";
 import { rowFlags, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { SignChannel, SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
+import { PersonNameInput } from "./person-name-input";
+import type { ContactSummary } from "./use-contact-search";
 
 type Field = "name" | "email" | "phone" | "role";
 
@@ -35,6 +38,10 @@ interface Props {
   onStep: (step: number) => void;
   /** Open the list of Halo users to name one for this row. Absent: the row cannot be given a Halo user (the envelope's list). */
   onChooseHalo?: () => void;
+  /** The type dropdown ("Must sign" / "Receives a copy"). Absent: the row has no type (the person must sign). Choosing "Receives a copy" moves the person to the copy list. */
+  onReceiveCopy?: () => void;
+  /** The copy list is full, so "Receives a copy" cannot be chosen. */
+  copyFull?: boolean;
   onDragStart: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
   onDrop: (e: DragEvent) => void;
@@ -44,8 +51,9 @@ interface Props {
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-invalid:border-destructive";
 
 /** One person on the signing list: name, email, role, channel (and a phone number for WhatsApp), with the order handles when order is on. */
-export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onStep, onChooseHalo, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
+export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid, notice, whatsappConfigured, readOnly, dragging, dropTarget, onChange, onRemove, onMove, onStep, onChooseHalo, onReceiveCopy, copyFull, onDragStart, onDragOver, onDrop, onDragEnd }: Props) {
   const t = useTranslations("Sign.send.people");
+  const tc = useTranslations("Sign.send.copies");
   const [left, setLeft] = useState<ReadonlySet<Field>>(new Set());
   const flags = rowFlags(row, roles);
   const shown = (f: Field) => flags[f] && (showInvalid || left.has(f));
@@ -96,12 +104,22 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
           </div>
         ) : null}
 
-        <div className="grid min-w-0 flex-1 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={cn("grid min-w-0 flex-1 gap-x-3 gap-y-2 sm:grid-cols-2", onReceiveCopy ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
           <div className="space-y-1">
             <label htmlFor={`${ids}-name`} className="text-xs font-medium text-muted-foreground">
               {t("fullName")}
             </label>
-            <Input id={`${ids}-name`} value={row.fullName} maxLength={160} autoComplete="off" disabled={readOnly} aria-invalid={shown("name")} readOnly={halo} onBlur={() => leave("name")} onChange={(e) => onChange({ fullName: e.target.value })} />
+            {/* typing a name offers the matching contacts; choosing one fills the name and the email (the email stays editable) */}
+            <PersonNameInput
+              id={`${ids}-name`}
+              value={row.fullName}
+              disabled={readOnly}
+              invalid={shown("name")}
+              readOnly={halo}
+              onBlur={() => leave("name")}
+              onChange={(fullName) => onChange({ fullName })}
+              onPickContact={(c: ContactSummary) => onChange({ ...fillFromContact(c, row), ...(row.channel === "whatsapp" && !row.phone.trim() && c.phone?.trim() ? { phone: c.phone.trim() } : {}) })}
+            />
             {shown("name") ? <p className="text-xs text-destructive">{t("nameRequired")}</p> : null}
           </div>
           <div className="space-y-1">
@@ -111,6 +129,19 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
             <Input id={`${ids}-email`} type="email" value={row.email} maxLength={254} autoComplete="off" disabled={readOnly} aria-invalid={shown("email")} readOnly={halo} onBlur={() => leave("email")} onChange={(e) => onChange({ email: e.target.value })} />
             {shown("email") ? <p className="text-xs text-destructive">{t("emailInvalid")}</p> : null}
           </div>
+          {onReceiveCopy ? (
+            <div className="space-y-1">
+              <label htmlFor={`${ids}-type`} className="text-xs font-medium text-muted-foreground">
+                {tc("type")}
+              </label>
+              <select id={`${ids}-type`} className={SELECT} value="signer" disabled={readOnly} onChange={(e) => e.target.value === "copy" && onReceiveCopy()}>
+                <option value="signer">{tc("typeSigner")}</option>
+                <option value="copy" disabled={copyFull}>
+                  {tc("typeCopy")}
+                </option>
+              </select>
+            </div>
+          ) : null}
           <div className="space-y-1">
             <label htmlFor={`${ids}-role`} className="text-xs font-medium text-muted-foreground">
               {t("role")}
@@ -139,7 +170,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
           </div>
           {halo ? (
             // a Halo user signs from inside Halo; the invitation still goes to their email, so the name and email are theirs and are not typed
-            <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-4">
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-full">
               <span data-halo-user className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground">
                 <ShieldCheck className="size-3" aria-hidden />
                 {t("haloUserTag")}
@@ -150,7 +181,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
               </Button>
             </div>
           ) : onChooseHalo ? (
-            <div className="sm:col-span-2 xl:col-span-4">
+            <div className="sm:col-span-2 xl:col-span-full">
               <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={onChooseHalo}>
                 <ShieldCheck aria-hidden />
                 {t("chooseHaloUser")}
@@ -158,7 +189,7 @@ export function SignerRowEditor({ row, index, count, roles, ordered, showInvalid
             </div>
           ) : null}
           {row.channel === "whatsapp" ? (
-            <div className="space-y-1 sm:col-span-2 xl:col-span-4">
+            <div className="space-y-1 sm:col-span-2 xl:col-span-full">
               <label htmlFor={`${ids}-phone`} className="text-xs font-medium text-muted-foreground">
                 {t("phone")}
               </label>

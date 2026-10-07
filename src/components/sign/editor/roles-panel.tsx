@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -25,20 +25,29 @@ interface RolesPanelProps {
   form?: FormDefinition | null;
   labelLocale?: SignLocale;
   readOnly: boolean;
+  /**
+   * A document of a collection that was not made from a template: its roles are the collection's people (`source === "people"`). Those are shown
+   * read-only ("from the collection's people") and no role can be added. An older role without that source stays editable.
+   */
+  rolesLocked?: boolean;
   onAdd: (kind: SignerKind) => void;
   onPatch: (key: string, patch: Partial<Pick<SignRole, "label" | "kind" | "color">>) => void;
   onDelete: (key: string, reassignTo: string | null) => void;
 }
 
-export function RolesPanel({ roles, fields, form, labelLocale, readOnly, onAdd, onPatch, onDelete }: RolesPanelProps) {
+export function RolesPanel({ roles, fields, form, labelLocale, readOnly, rolesLocked = false, onAdd, onPatch, onDelete }: RolesPanelProps) {
   const t = useTranslations("Sign.editor");
   return (
     <div className="space-y-3 p-3">
-      <p className="text-xs text-muted-foreground">{t("roles.intro")}</p>
+      <p className="text-xs text-muted-foreground">{rolesLocked ? t("roles.fromPeopleHint") : t("roles.intro")}</p>
       <ul className="space-y-3">
-        {roles.map((role) => (
-          <RoleCard key={role.key} role={role} roles={roles} fields={fields} form={form} labelLocale={labelLocale} readOnly={readOnly} onPatch={onPatch} onDelete={onDelete} />
-        ))}
+        {roles.map((role) =>
+          rolesLocked && role.source === "people" ? (
+            <LockedRoleCard key={role.key} role={role} fields={fields} />
+          ) : (
+            <RoleCard key={role.key} role={role} roles={roles} fields={fields} form={form} labelLocale={labelLocale} readOnly={readOnly} onPatch={onPatch} onDelete={onDelete} />
+          ),
+        )}
         <li className="flex items-center gap-2 rounded-lg border border-dashed p-2" style={roleColorStyle(null)}>
           <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-[var(--rc-solid)]" />
           <div className="min-w-0">
@@ -47,7 +56,7 @@ export function RolesPanel({ roles, fields, form, labelLocale, readOnly, onAdd, 
           </div>
         </li>
       </ul>
-      {readOnly ? null : (
+      {readOnly || rolesLocked ? null : (
         <div className="space-y-1">
           <Button type="button" variant="outline" size="sm" disabled={!canAddRole(roles)} onClick={() => onAdd("signer")}>
             <Plus />
@@ -57,6 +66,23 @@ export function RolesPanel({ roles, fields, form, labelLocale, readOnly, onAdd, 
         </div>
       )}
     </div>
+  );
+}
+
+/** A role the collection's people made: name, colour and how many fields it has, nothing to change here. */
+function LockedRoleCard({ role, fields }: { role: SignRole; fields: readonly PlacedField[] }) {
+  const t = useTranslations("Sign.editor");
+  return (
+    <li data-role-locked className="space-y-1 rounded-lg border p-2.5" style={roleColorStyle(role.color)}>
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="size-3 shrink-0 rounded-full bg-[var(--rc-solid)]" />
+        <p className="min-w-0 flex-1 truncate text-sm font-medium">{role.label}</p>
+        <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {t("roles.fromPeople")} · {t("roles.fieldCount", { count: countRoleFields(fields, role.key) })}
+      </p>
+    </li>
   );
 }
 

@@ -18,8 +18,9 @@ import { remindHeldUntil } from "../defaults";
 import type { Issue } from "../rules";
 import { belongsToAccount, getFile, safeFileName } from "../storage";
 import type { DeliveryStatus } from "../notify";
-import type { SignChannel, SignDocumentRow, SignSignerRow, SignerKind } from "../types";
+import type { SignChannel, SignCopyRecipientRow, SignDocumentRow, SignSignerRow, SignerKind } from "../types";
 import { loadDocument, loadSigners, logEvent, type SignCtx } from "./context";
+import { listCopyRecipients, setCopyRecipients } from "./copy-recipients";
 import { SignError, raiseDatabaseError } from "./errors";
 import { createDraftFromTemplate, deleteDraft, setSigners, updateDraft, type DraftPatch } from "./drafts";
 import { formOf } from "./form-state";
@@ -43,6 +44,8 @@ export interface ApiCreateInput {
   title: string | null;
   contactId: string | null;
   signers: ApiSignerInput[];
+  /** People who receive the signed copy when everyone has signed (not signers: no link, no turn). Up to 10. */
+  copyTo?: { fullName: string; email: string }[];
   mergeValues: Record<string, string>;
   message: string | null;
   locale: "en" | "ms" | "zh" | "ko" | null;
@@ -64,6 +67,8 @@ export interface DocumentBundle {
   document: SignDocumentRow;
   signers: SignSignerRow[];
   templateId: string | null;
+  /** The people who receive a copy of the signed document (a document of a collection has none of its own). */
+  copies?: SignCopyRecipientRow[];
 }
 
 export interface CreateOutcome extends DocumentBundle {
@@ -92,8 +97,12 @@ async function findByReference(ctx: SignCtx, reference: string): Promise<SignDoc
 /** One document with its people. A document of another workspace is "not found", exactly like a missing one. */
 export async function loadBundle(ctx: SignCtx, documentId: string): Promise<DocumentBundle> {
   const document = await loadDocument(ctx, documentId);
-  const [signers, templateId] = await Promise.all([loadSigners(ctx, documentId), templateIdOf(ctx, document.template_version_id)]);
-  return { document, signers, templateId };
+  const [signers, templateId, copies] = await Promise.all([
+    loadSigners(ctx, documentId),
+    templateIdOf(ctx, document.template_version_id),
+    document.envelope_id ? Promise.resolve([] as SignCopyRecipientRow[]) : listCopyRecipients(ctx, { documentId }),
+  ]);
+  return { document, signers, templateId, copies };
 }
 
 // ---- create ---------------------------------------------------------------------------------------
@@ -179,6 +188,8 @@ export async function createDocumentForApi(ctx: SignCtx, input: ApiCreateInput):
       draft.id,
       input.signers.map((s, i) => ({ roleKey: s.roleKey, kind: kinds[i], fullName: s.fullName, email: s.email, phone: s.phone, channel: s.channel, orderNo: s.orderNo ?? i + 1 })),
     );
+    // the people who receive a copy are part of the same create, so a replay of the reference finds them there
+    if (input.copyTo && input.copyTo.length > 0) await setCopyRecipients(ctx, { documentId: draft.id }, input.copyTo);
     if (input.send) invitations = (await sendDocument(ctx, draft.id)).invited.map(toInvitation);
   } catch (err) {
     await discardDraft(ctx, draft.id);

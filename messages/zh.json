@@ -1448,7 +1448,11 @@
         "recipient_email_missing": "联系人没有电子邮件",
         "recipient_phone_missing": "联系人没有电话",
         "sign_limit_reached": "已达每月上限",
-        "not_ready": "尚不能发送"
+        "not_ready": "尚不能发送",
+        "copy_is_signer": "副本收件人也是签署人",
+        "copy_duplicate": "副本收件人重复",
+        "copy_name": "副本收件人没有姓名",
+        "copy_email": "副本收件人没有有效的电子邮件"
       },
       "tokens": "{count, plural, =1 {# 个 token} other {# 个 token}}",
       "back": "返回",
@@ -1959,8 +1963,8 @@
           "templateHint": "建议的模板：“{name}”。待它出现在 Doc Sign > 模板后再选择。",
           "title": "文件标题",
           "titleHint": "可选。留空则使用模板的标题。可以插入变量。",
-          "recipients": "由谁签署",
-          "recipientsHint": "每个人都会收到一个链接。角色决定他们要完成文件的哪一部分。标有 * 的角色必须指定人员。",
+          "recipients": "谁签署，谁收到副本",
+          "recipientsHint": "每位必须签署的人都会收到一个链接。角色决定他们要完成文件的哪一部分。标有 * 的角色必须有人。收到副本的人不会收到链接：所有人签署完成后，已签署的文件会通过电子邮件发给他们。",
           "role": "角色",
           "rolePlaceholder": "角色键，例如 merchant",
           "selectRole": "选择角色…",
@@ -1976,7 +1980,7 @@
           "email": "电子邮件",
           "phone": "电话（含国家区号）",
           "requiredRoles": "仍需为以下角色指定人员：{roles}",
-          "addRecipient": "添加人员",
+          "addRecipient": "添加签署人",
           "merge": "填写文件内容",
           "mergeHint": "模板合并字段的值（发送前填入的部分）。使用值上方的变量按钮可插入联系人的资料。",
           "mergeKey": "字段名称",
@@ -1995,7 +1999,13 @@
           "send": "立即发送",
           "sendHint": "关闭后，文件将保存为草稿，由人工检查并发送。签署链接只有在文件发送后才会发出。",
           "summary": "{count} 人签署",
-          "summaryEmpty": "选择模板"
+          "summaryEmpty": "选择模板",
+          "addCopy": "添加收到副本的人",
+          "type": "类型",
+          "typeSigner": "必须签署",
+          "typeCopy": "收到副本",
+          "contactCopyNote": "使用联系人的姓名和电子邮件。联系人必须有电子邮件地址，否则此步骤会被跳过。",
+          "summaryCopies": "{count} 人签署，{copies} 人收到副本"
         }
       }
     }
@@ -6431,7 +6441,8 @@
       "sign_document": "签署文档",
       "sign_bulk_job": "批量签署",
       "sign_option_list": "签署选项列表",
-      "sign_envelope": "签署信封"
+      "sign_envelope": "签署信封",
+      "sign_copy_recipient": "签署副本收件人"
     },
     "roleNames": {
       "owner": "所有者",
@@ -7869,7 +7880,9 @@
         "envelope_declined": "{by} 拒绝了文件集 {reference},因此所有未完成的文件都已停止",
         "envelope_document_added": "{sender}将此文件添加到文件集 {reference}",
         "envelope_document_removed": "{sender}从文件集 {reference} 中移除了“{title}”",
-        "envelope_reordered": "{sender}更改了文件集 {reference} 中文件的顺序"
+        "envelope_reordered": "{sender}更改了文件集 {reference} 中文件的顺序",
+        "copy_recipient_added": "{sender} 添加了 {name}（{email}）接收副本",
+        "copy_recipient_removed": "{sender} 将 {name} 从接收副本的人员中移除"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -7924,6 +7937,41 @@
         "emptyTicket": "此工单还没有关联文档。",
         "emptyDeal": "此交易还没有关联文档。",
         "testBadge": "测试"
+      },
+      "copies": {
+        "title": "接收副本的人",
+        "help": "所有人签署完成后，他们会通过电子邮件收到已签署的副本。他们不会收到签署链接，也不计入签署人数。",
+        "label": "接收副本",
+        "sent": "副本已于 {date} 发送",
+        "notSent": "尚未发送",
+        "notSentFinal": "未发送副本",
+        "add": "添加接收副本的人",
+        "fullName": "全名",
+        "email": "电子邮件",
+        "submit": "添加",
+        "cancel": "取消",
+        "remove": "移除 {name}",
+        "added": "{name} 将收到已签署的副本。",
+        "removed": "{name} 不再收到已签署的副本。",
+        "limit": "最多 {max} 人可以接收副本。",
+        "nameRequired": "请输入全名。",
+        "emailInvalid": "请输入有效的电子邮件地址。"
+      },
+      "collectionCopies": {
+        "receivesCopy": "接收副本",
+        "sent": "副本已于 {date} 发送",
+        "notSent": "尚未发送",
+        "afterSigned": "全部签署完成后，他们会通过电子邮件收到已签署的副本。",
+        "remove": "移除 {name}",
+        "removeShort": "移除",
+        "removed": "{name} 将不再接收副本。",
+        "addHeading": "添加接收副本的人员",
+        "addHint": "不会要求他们签署。全部签署完成后，他们会通过电子邮件收到已签署的文件。",
+        "name": "姓名",
+        "email": "电子邮件",
+        "add": "添加",
+        "added": "{name} 将接收副本。",
+        "limit": "最多 {max} 人可以接收副本。"
       }
     },
     "editor": {
@@ -7977,7 +8025,9 @@
         "editFields": "编辑字段",
         "lockFields": "锁定字段",
         "saveAsTemplate": "另存为模板",
-        "replaceFile": "替换文件"
+        "replaceFile": "替换文件",
+        "noPeopleYet": "还没有人需要签署。请先在文件集页面添加人员，然后在此处放置他们的签名块。",
+        "openCollection": "打开文件集"
       },
       "fieldsList": {
         "title": "所有字段",
@@ -8112,7 +8162,9 @@
         "removeFields": "删除这些字段",
         "confirmDelete": "删除角色",
         "sender": "发送人",
-        "senderHint": "固定文字和您填写的值归您（发送人）所有。"
+        "senderHint": "固定文字和您填写的值归您（发送人）所有。",
+        "fromPeople": "来自文件集中的人员",
+        "fromPeopleHint": "人员在文件集页面添加、重命名和移除。他们的签名块在此处放置。"
       },
       "save": {
         "saved": "所有更改已保存",
@@ -9436,7 +9488,15 @@
         "uploads_too_large": "这些文件合计超过 60 MB。请移除其中一个，或使用较小的文件。",
         "bad_order": "无法读取文件顺序。请重新打开页面后再试一次。",
         "envelope_full": "一个文件集最多包含六份文件，因此无法再添加。",
-        "envelope_minimum": "一个文件集至少保留两份文件。如需放弃，请删除整个文件集。"
+        "envelope_minimum": "一个文件集至少保留两份文件。如需放弃，请删除整个文件集。",
+        "copy_name": "请输入接收副本者的姓名。",
+        "copy_email": "请输入接收副本者的有效电子邮件地址。",
+        "copy_duplicate": "此人已在接收副本。",
+        "copy_is_signer": "此人需要签署，因此无论如何都会收到已签署的副本。",
+        "copy_limit": "最多 10 人可以接收副本。",
+        "copy_not_open": "在文件完成之前，人员都可以接收副本。此文件已不再开放。",
+        "copy_fixed": "接收副本的人员只能移除后重新添加，不能修改。",
+        "copy_recipient_not_found": "找不到此人。他们可能已被移除。"
       },
       "records": {
         "ticketLabel": "关联工单",
@@ -9502,9 +9562,9 @@
         },
         "people": {
           "heading": "人员",
-          "intro": "每个人只需添加一次,并说明他们在每份文件上的角色。他们只会收到一条消息和一个链接,涵盖整个文件集。",
+          "intro": "每位人员只需添加一次：姓名、电子邮件，以及他们是必须签署还是仅接收副本。谁签署什么，在每份文件中设置：您放置签名块并将其分配给某位人员时即可确定。",
           "ordered": "按顺序依次签署",
-          "orderedHint": "为每个人指定一个步骤。步骤相同的人一起签署,只有当该步骤中的所有人都完成全部文件后,才会邀请下一步骤的人。",
+          "orderedHint": "为每位签署人设置一个步骤。步骤相同的人员一起签署；只有当该步骤中所有人都完成了各自的文件后，才会邀请下一步骤。",
           "empty": "名单中还没有人。",
           "personN": "第 {n} 位",
           "remove": "移除 {name}",
@@ -9527,10 +9587,33 @@
             "name": "请输入姓名。",
             "email": "请输入有效的电子邮件地址。",
             "phone": "请输入含国家代码的电话号码。",
-            "noDocument": "请让此人至少出现在一份文件上,或将其移除。"
+            "noDocument": "请在“匹配模板角色”中为此人选择角色，或将其移除。"
           },
           "add": "添加人员",
-          "conflictsLabel": "人员名单中需要修正的事项"
+          "conflictsLabel": "人员名单中需要修正的事项",
+          "type": {
+            "label": "他们的角色",
+            "signer": "必须签署",
+            "copy": "接收副本"
+          },
+          "copyLine": "全部签署完成后，他们会通过电子邮件收到已签署的副本。不会要求他们签署。",
+          "addCopy": "添加接收副本的人员",
+          "limitSigners": "一个文件集最多可有 {max} 位必须签署的人员。",
+          "limitRoles": "包含已上传文件的文件集最多可有 {max} 位必须签署的人员。每位都是该文件上的一个角色。",
+          "limitCopies": "最多 {max} 人可以接收副本。",
+          "template": {
+            "heading": "匹配模板角色",
+            "hint": "这些文件来自模板。请选择由谁担任每个角色。",
+            "nobody": "无人"
+          },
+          "removeDialog": {
+            "title": "移除 {name}？",
+            "body": "分配给他们的 {fields} 个字段（分布在 {documents} 份文件上）也会一并移除。",
+            "cancel": "保留",
+            "confirm": "移除"
+          },
+          "roleNobody": "没有人担任 {document} 上的角色“{role}”。请在上方将其匹配给某位人员。",
+          "roleTwo": "{document} 上的角色“{role}”有多位人员。请只分配给一位。"
         },
         "options": {
           "heading": "选项",
@@ -9540,7 +9623,7 @@
           "heading": "检查并发送",
           "ordered": "按您设定的步骤依次签署。",
           "allAtOnce": "所有人同时收到邀请。",
-          "counts": "{people, plural, other {#位}}签署人,共 {documents, plural, other {#份文件}}。",
+          "counts": "{documents, plural, other {# 份文件}}，共 {people, plural, other {# 位人员}}{copies, plural, =0 {。} other {，另有 # 位接收副本的人员。}}",
           "limit": "该文件集需要 {needed} 份文件的额度,但本月此工作区只剩 {remaining} 份。",
           "problemsTitle": "{count, plural, other {发送前需要修正 # 项}}",
           "sharedHeading": "文件集",
@@ -9564,8 +9647,12 @@
           "envelope_size": "一个文件集包含 {range} 份文件。",
           "envelope_too_many_pages": "一个文件集总共最多 {range} 页。",
           "duplicate_person": "第 {n} 位与另一位使用了相同的电子邮件地址。",
-          "person_without_document": "第 {n} 位不在任何文件上。",
-          "role_two_people": "《{document}》上的角色“{role}”有多个人。请只指定一个人。"
+          "person_without_document": "第 {n} 位人员在任何文件上都没有角色。请将其匹配到模板角色，或将其移除。",
+          "role_two_people": "《{document}》上的角色“{role}”有多个人。请只指定一个人。",
+          "person_without_work": "{name} 目前没有需要签署的内容。请打开一份文件并为其分配字段，或将其改为接收副本。",
+          "document_nobody": "这份文件目前没有任何人需要处理。请打开它，并将签名块分配给某位人员。",
+          "too_many_copies": "最多 {range} 人可以接收副本。",
+          "too_many_roles": "包含已上传文件的文件集最多可有 {range} 位必须签署的人员。"
         },
         "banner": {
           "title": "文件集中第 {number} 份,共 {count} 份",
@@ -9674,6 +9761,20 @@
           "removeConfirm": "移除文件",
           "keep": "保留"
         }
+      },
+      "copies": {
+        "type": "类型",
+        "typeSigner": "须签署",
+        "typeCopy": "接收副本",
+        "heading": "接收副本的人",
+        "help": "所有人签署完成后，他们会通过电子邮件收到已签署的副本。他们不会收到签署链接。",
+        "add": "添加接收副本的人",
+        "limit": "最多 {max} 人可以接收副本。",
+        "remove": "移除副本接收人 {n}",
+        "sameEmail": "{email} 在第 {a} 项和第 {b} 项重复出现。他们只会收到一份副本，因此只保留第一项。",
+        "isSigner": "{email} 要签署此文件，因此无论如何都会收到已签署的副本。此条目已略去。",
+        "mustPlaceFields": "请先在文件上放置字段，才能请人签署。",
+        "reviewLine": "还将收到已签署的副本：{people}"
       }
     },
     "signer": {

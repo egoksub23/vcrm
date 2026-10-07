@@ -9,6 +9,7 @@ import { deliverEnvelopeCompleted, deliverEnvelopeInvitation, deliverEnvelopeRem
 import { isDelegate } from "../forward";
 import { isFormMode, type Invitation, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow } from "../types";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
+import { sendEnvelopeCopies, type CopyFile } from "./copy-delivery";
 import { loadEnvelopeSigners, groupByParty, anchorOf } from "./envelope-data";
 import type { InvitationResult } from "./send";
 
@@ -109,8 +110,11 @@ export async function notifyEnvelopeEnded(ctx: SignCtx, env: SignEnvelopeRow, do
   }
 }
 
-/** The signed copies to each person and to the sender in ONE message each: every document's file, attached while they fit. Never throws. */
-export async function notifyEnvelopeCompleted(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[], files: readonly { bytes: Uint8Array; filename: string }[]): Promise<void> {
+/**
+ * The signed copies to each person and to the sender in ONE message each: every document's file, attached while they fit; then, in this same step and
+ * once, to each person who receives a copy (migration 175). Never throws.
+ */
+export async function notifyEnvelopeCompleted(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[], files: readonly CopyFile[]): Promise<void> {
   try {
     const [info, w, rows] = await Promise.all([loadSenderAndWorkspace(ctx, env.created_by), envelopeWorkspace(ctx, env.created_by), loadEnvelopeSigners(ctx, docs.map((d) => d.id))]);
     const facts = envelopeFacts(env, docs, ctx);
@@ -125,6 +129,7 @@ export async function notifyEnvelopeCompleted(ctx: SignCtx, env: SignEnvelopeRow
         if (home) await logEvent(ctx, home, "delivery_failed", { actor: "system", signerId: p.signerId, detail: { kind: "completed", status: d.status, reason: d.detail ?? null } });
       }
     }
+    await sendEnvelopeCopies(ctx, env.id, docs, facts, w, files, new Set(people.map((p) => p.email.trim().toLowerCase())));
   } catch (err) {
     console.error("[sign] could not notify the completion of the envelope:", env.id, err instanceof Error ? err.message : err);
   }

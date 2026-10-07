@@ -21,16 +21,18 @@ import { useCapability } from "@/hooks/use-can";
 import { useNow } from "@/hooks/use-now";
 import type { EnvelopeData } from "@/hooks/use-sign-envelope";
 import { SignApiError, documentFileUrl, signRequest } from "@/lib/sign/client/api";
+import { errorKey } from "@/lib/sign/client/errors";
 import { remindHeldUntil } from "@/lib/sign/defaults";
 import { SIGN_STATUS_NAMESPACE, signerBadgeClass, signerStatusKey } from "@/lib/sign/client/status";
 import { canVoidEnvelope, documentsDone, peopleFromRows } from "@/lib/sign/envelopes";
-import type { SignChannel, SignSignerRow } from "@/lib/sign/types";
+import type { SignChannel, SignCopyRecipientRow, SignSignerRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredLink } from "../detail/signer-dialogs";
 import { detailErrorKey, type RecipientForm } from "../detail/logic";
 import { VoidDialog } from "../detail/void-dialog";
 import { DocumentStatusBadge } from "../send/status-badge";
+import { AddCopyRecipient, COPIES_OPEN_STATUSES, CopyRecipientItems } from "./copy-recipients";
 
 interface Props {
   data: EnvelopeData;
@@ -50,12 +52,15 @@ type Open = { kind: "remind" | "resend" | "recipient"; signer: SignSignerRow } |
 export function EnvelopeDetail({ data, reload }: Props) {
   const t = useTranslations("Sign.send.envelope");
   const td = useTranslations("Sign.detail");
+  const tErr = useTranslations("Sign.send");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const f = useFormatter();
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
   const now = useNow(60_000);
   const { envelope: env, documents, signers } = data;
+  // the people who receive a copy are not signers: they are not in `signers`, so they are not in "x of y signed", the progress or the reminders
+  const copies: readonly SignCopyRecipientRow[] = data.copies ?? [];
   const statuses = documents.map((d) => d.status);
 
   const [open, setOpen] = useState<Open>(null);
@@ -64,6 +69,8 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const [link, setLink] = useState<UndeliveredLink | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [extending, setExtending] = useState(false);
+  const [copyBusy, setCopyBusy] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const day = (iso: string | null) => (iso ? f.dateTime(new Date(iso), { dateStyle: "medium" }) : "");
   const verdict = canVoidEnvelope(statuses);
@@ -72,8 +79,9 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const rowsOf = (key: string) => signers.filter((s) => (s.party_id ?? s.id) === key);
   const docOf = (id: string) => documents.find((d) => d.id === id);
   const stillOpen = env.status === "sent" || env.status === "in_progress" || env.status === "sealing";
+  const canChangeCopies = canSend && COPIES_OPEN_STATUSES.has(env.status);
   const canExtend = canSend && documents.some((d) => d.status === "sent" || d.status === "in_progress");
-  const waitingNames = people.filter((p) => rowsOf(p.key).some((r) => (r.status === "sent" || r.status === "viewed") && ["sent", "in_progress"].includes(docOf(r.document_id)?.status ?? ""))).map((p) => p.fullName);
+  const waitingNames = people.filter((p) => rowsOf(p.partyId ?? p.key).some((r) => (r.status === "sent" || r.status === "viewed") && ["sent", "in_progress"].includes(docOf(r.document_id)?.status ?? ""))).map((p) => p.fullName);
   const declinedBy = signers.find((s) => s.status === "declined")?.full_name ?? null;
   const partly = statuses.some((s) => s === "sealing" || s === "completed" || s === "failed") && statuses.some((s) => s === "sent" || s === "in_progress");
 
@@ -95,6 +103,22 @@ export function EnvelopeDetail({ data, reload }: Props) {
       if (err instanceof SignApiError && (err.code === "signer_not_open" || err.code === "document_not_open")) void reload();
     } finally {
       setBusy(false);
+    }
+  }
+  /** Stop a person receiving the signed copies (while the collection is open). */
+  async function removeCopy(copy: Pick<SignCopyRecipientRow, "id" | "full_name">) {
+    setCopyBusy(copy.id);
+    setCopyError(null);
+    try {
+      await signRequest(`/api/sign/envelopes/${env.id}/copies/${copy.id}`, { method: "DELETE" });
+      toast.success(td("collectionCopies.removed", { name: copy.full_name }));
+      await reload();
+    } catch (err) {
+      const code = err instanceof SignApiError ? err.code : "request_failed";
+      setCopyError(code);
+      if (code === "copy_not_open" || code === "copy_recipient_not_found") void reload();
+    } finally {
+      setCopyBusy(null);
     }
   }
   const close = () => {
@@ -194,7 +218,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
         </h2>
         <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {people.map((p) => {
-            const mine = rowsOf(p.key);
+            const mine = rowsOf(p.partyId ?? p.key);
             const anchor = mine.find((r) => r.id === r.party_id) ?? mine[0];
             const openRows = mine.filter((r) => (r.status === "sent" || r.status === "viewed") && ["sent", "in_progress"].includes(docOf(r.document_id)?.status ?? ""));
             const invitedRows = mine.filter((r) => r.status !== "pending");
@@ -251,7 +275,14 @@ export function EnvelopeDetail({ data, reload }: Props) {
               </li>
             );
           })}
+          <CopyRecipientItems copies={copies} completed={env.status === "completed"} canChange={canChangeCopies} busyId={copyBusy} onRemove={(c) => void removeCopy(c)} />
         </ul>
+        {copyError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {tErr(errorKey(copyError))}
+          </p>
+        ) : null}
+        {canChangeCopies ? <AddCopyRecipient envelopeId={env.id} count={copies.length} onAdded={reload} /> : null}
       </section>
 
       {open && open.kind !== "recipient" ? (

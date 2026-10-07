@@ -49,14 +49,29 @@ async function resyncPeople(ctx: SignCtx, envelopeId: string): Promise<void> {
   const rows = await loadEnvelopeSigners(ctx, docs.map((d) => d.id));
   if (rows.length === 0) return;
   const ids = new Set(docs.map((d) => d.id));
-  const people = peopleFromRows(rows).map((p) => ({
+  const saved = peopleFromRows(rows).map((p) => ({
+    key: p.key,
     fullName: p.fullName,
     email: p.email,
     phone: p.phone,
     channel: p.channel,
     step: p.step,
     roles: Object.fromEntries(Object.entries(p.roles).filter(([documentId]) => ids.has(documentId))),
+    incomplete: false,
   }));
+  // A person the screen is still filling in (migration 175) has a role on the uploaded documents, with fields assigned to it, but no row. Writing the
+  // people again without them would take their role and those fields away, so they are carried through as incomplete, as the screen sends them.
+  const roleKeys = docs.filter((d) => !d.template_version_id).flatMap((d) => (d.roles_snapshot ?? []).filter((r) => r.source === "people"));
+  const known = new Set(saved.map((p) => p.key));
+  const held = new Map<string, string>();
+  for (const r of roleKeys) if (!known.has(r.key) && !held.has(r.key)) held.set(r.key, r.label);
+  const unfinished = [...held].map(([key, label]) => ({ key, fullName: label, email: "", phone: "", channel: "email" as const, step: 1, roles: {} as Record<string, string>, incomplete: true }));
+  // in the order the roles are in, so the colours (and the places) do not move
+  const place = (key: string) => {
+    const i = roleKeys.findIndex((r) => r.key === key);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const people = [...saved, ...unfinished].sort((a, b) => place(a.key) - place(b.key));
   try {
     await setEnvelopeSigners(ctx, envelopeId, people);
   } catch (err) {
@@ -102,6 +117,8 @@ export async function addEnvelopeDocuments(ctx: SignCtx, envelopeId: string, arg
     for (const d of made) await deleteDraft(ctx, d.id, { viaEnvelope: true }).catch(() => undefined);
     throw err;
   }
+  // an uploaded file takes a role from each person who must sign, and the people are on it
+  await resyncPeople(ctx, envelopeId);
   const documents = await loadEnvelopeDocuments(ctx, envelopeId);
   for (const d of made) await logEvent(ctx, d.id, "envelope_document_added", { actor: "user", userId: ctx.userId, detail: { envelope_id: env.id, reference: env.reference, position: d.envelope_position ?? 0, count: documents.length } });
   return { added: made, documents };

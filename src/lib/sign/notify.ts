@@ -13,6 +13,7 @@ import { isResendConfigured, sendEmail, type EmailAttachment, type EmailIdentity
 import { sendTemplateMessage } from "@/lib/whatsapp/meta-api";
 import { decrypt } from "@/lib/whatsapp/encryption";
 
+import { copyEmail, envelopeCopyEmail } from "./copy-messages";
 import { codeEmail, completedEmail, declinedEmail, expiredEmail, forwardEmail, forwardNoticeEmail, invitationEmail, reminderEmail, voidedEmail, type Rendered } from "./messages";
 import { envelopeCompletedEmail, envelopeInvitationEmail, envelopeReminderEmail } from "./envelope-messages";
 import { ENVELOPE_ATTACH_BYTES } from "./envelopes/status";
@@ -288,18 +289,66 @@ export async function deliverEnvelopeReminder(admin: SupabaseClient, deps: Notif
   return viaEmail(deps, env.accountId, inv.email, m, displayFrom(w));
 }
 
+/** The files that go on one message: in order, while they fit in `ENVELOPE_ATTACH_BYTES` in all. `fits[i]` says whether file i was attached. */
+function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string }[]): { attached: { filename: string; content: string }[]; fits: boolean[] } {
+  let budget = ENVELOPE_ATTACH_BYTES;
+  const attached: { filename: string; content: string }[] = [];
+  const fits: boolean[] = [];
+  for (const f of pdfs) {
+    if (f.bytes.byteLength > budget) {
+      fits.push(false);
+      continue;
+    }
+    budget -= f.bytes.byteLength;
+    attached.push({ filename: f.filename, content: Buffer.from(f.bytes).toString("base64") });
+    fits.push(true);
+  }
+  return { attached, fits };
+}
+
 /**
  * The signed copies of every document, in ONE message to a person or the sender. The files are attached in the envelope's order while
  * they fit in ENVELOPE_ATTACH_BYTES in all; the message says how many were attached and sends the rest to the person's own link.
  */
 export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFacts, w: Workspace, to: Party, pdfs: readonly { bytes: Uint8Array; filename: string }[]): Promise<Delivery> {
-  let budget = ENVELOPE_ATTACH_BYTES;
-  const attached: { filename: string; content: string }[] = [];
-  for (const f of pdfs) {
-    if (f.bytes.byteLength > budget) continue;
-    budget -= f.bytes.byteLength;
-    attached.push({ filename: f.filename, content: Buffer.from(f.bytes).toString("base64") });
-  }
+  const { attached } = attachWithinBudget(pdfs);
   const m = envelopeCompletedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: env.title, count: env.documents.length, attachedCount: attached.length, mode: env.mode });
+  return viaEmail(deps, env.accountId, to.email, m, displayFrom(w), attached.length ? attached : undefined);
+}
+
+// ---- people who receive a copy (migration 175) ------------------------------------------------------------
+
+/**
+ * The signed copy of one document to a person who receives a copy: ONE message, with the sealed PDF attached while it fits (the same limit as
+ * the signers' copy). A copy too large to attach is never sent as a download link: the message says the sender can provide it and names the public
+ * page that checks a signed document (`verifyUrl`), which shows no document.
+ */
+export async function deliverCopy(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: { name: string; email: string }, pdf: { bytes: Uint8Array; filename: string } | null, verifyUrl: string): Promise<Delivery> {
+  const attachable = !!pdf && pdf.bytes.byteLength <= 20 * 1024 * 1024;
+  const m = copyEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, name: to.name, title: doc.title, attached: attachable, verifyUrl, mode: doc.mode });
+  const attachments = attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined;
+  return viaEmail(deps, doc.accountId, to.email, m, displayFrom(w), attachments);
+}
+
+/** The signed copies of every document of a collection, in ONE message to a person who receives a copy. Those that do not fit are named with the page that checks them. */
+export async function deliverEnvelopeCopy(
+  deps: NotifyDeps,
+  env: EnvelopeFacts,
+  w: Workspace,
+  to: { name: string; email: string },
+  pdfs: readonly { bytes: Uint8Array; filename: string; title: string; verifyUrl: string }[],
+): Promise<Delivery> {
+  const { attached, fits } = attachWithinBudget(pdfs);
+  const m = envelopeCopyEmail({
+    locale: env.locale,
+    workspace: w.name,
+    sender: w.senderName,
+    name: to.name,
+    title: env.title,
+    count: env.documents.length,
+    attachedCount: attached.length,
+    notAttached: pdfs.filter((_, i) => !fits[i]).map((f) => ({ title: f.title, verifyUrl: f.verifyUrl })),
+    mode: env.mode,
+  });
   return viaEmail(deps, env.accountId, to.email, m, displayFrom(w), attached.length ? attached : undefined);
 }

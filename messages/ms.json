@@ -1448,7 +1448,11 @@
         "recipient_email_missing": "kenalan tiada e-mel",
         "recipient_phone_missing": "kenalan tiada telefon",
         "sign_limit_reached": "had bulanan dicapai",
-        "not_ready": "belum sedia dihantar"
+        "not_ready": "belum sedia dihantar",
+        "copy_is_signer": "penerima salinan juga menandatangani",
+        "copy_duplicate": "penerima salinan disenaraikan dua kali",
+        "copy_name": "penerima salinan tiada nama",
+        "copy_email": "penerima salinan tiada e-mel sah"
       },
       "tokens": "{count, plural, =1 {# token} other {# token}}",
       "back": "Kembali",
@@ -1959,8 +1963,8 @@
           "templateHint": "Templat dicadangkan: \"{name}\". Pilih apabila ia sudah ada di Doc Sign > Templat.",
           "title": "Tajuk dokumen",
           "titleHint": "Pilihan. Biarkan kosong untuk guna tajuk templat. Anda boleh menyisipkan pemboleh ubah.",
-          "recipients": "Siapa yang menandatangani",
-          "recipientsHint": "Setiap orang menerima pautan. Peranan menentukan bahagian dokumen yang mereka lengkapkan. Peranan bertanda * mesti ada orang.",
+          "recipients": "Siapa yang menandatangani dan siapa yang menerima salinan",
+          "recipientsHint": "Setiap orang yang mesti menandatangani menerima pautan. Peranan menentukan bahagian dokumen yang mereka lengkapkan. Peranan bertanda * mesti ada orang. Orang yang menerima salinan tidak mendapat pautan: dokumen yang telah ditandatangani dihantar kepadanya melalui e-mel apabila semua orang telah menandatangani.",
           "role": "Peranan",
           "rolePlaceholder": "Kunci peranan, contohnya merchant",
           "selectRole": "Pilih peranan…",
@@ -1976,7 +1980,7 @@
           "email": "E-mel",
           "phone": "Telefon (dengan kod negara)",
           "requiredRoles": "Masih memerlukan orang untuk: {roles}",
-          "addRecipient": "Tambah orang",
+          "addRecipient": "Tambah orang yang menandatangani",
           "merge": "Isi dokumen",
           "mergeHint": "Nilai bagi medan cantum templat (bahagian yang diisi sebelum dihantar). Guna butang pemboleh ubah di atas nilai untuk menyisipkan butiran kenalan.",
           "mergeKey": "Nama medan",
@@ -1995,7 +1999,13 @@
           "send": "Hantar sekarang",
           "sendHint": "Matikan untuk menyimpan dokumen sebagai draf supaya seseorang menyemak dan menghantarnya. Pautan penandatangan hanya dihantar apabila dokumen dihantar.",
           "summary": "{count} orang menandatangani",
-          "summaryEmpty": "Pilih templat"
+          "summaryEmpty": "Pilih templat",
+          "addCopy": "Tambah orang yang menerima salinan",
+          "type": "Jenis",
+          "typeSigner": "Mesti menandatangani",
+          "typeCopy": "Menerima salinan",
+          "contactCopyNote": "Menggunakan nama dan e-mel kenalan. Kenalan mesti mempunyai alamat e-mel, jika tidak langkah ini dilangkau.",
+          "summaryCopies": "{count} orang menandatangani, {copies} orang menerima salinan"
         }
       }
     }
@@ -6431,7 +6441,8 @@
       "sign_document": "Dokumen tandatangan",
       "sign_bulk_job": "Kelompok tandatangan",
       "sign_option_list": "Senarai pilihan tandatangan",
-      "sign_envelope": "Koleksi dokumen tandatangan"
+      "sign_envelope": "Koleksi dokumen tandatangan",
+      "sign_copy_recipient": "Penerima salinan tandatangan"
     },
     "roleNames": {
       "owner": "Pemilik",
@@ -7869,7 +7880,9 @@
         "envelope_declined": "{by} menolak koleksi dokumen {reference}, jadi setiap dokumen yang masih terbuka dihentikan",
         "envelope_document_added": "{sender} menambah dokumen ini ke dalam koleksi {reference}",
         "envelope_document_removed": "{sender} membuang “{title}” daripada koleksi {reference}",
-        "envelope_reordered": "{sender} menukar susunan dokumen dalam koleksi {reference}"
+        "envelope_reordered": "{sender} menukar susunan dokumen dalam koleksi {reference}",
+        "copy_recipient_added": "{sender} menambah {name} ({email}) untuk menerima salinan",
+        "copy_recipient_removed": "{sender} membuang {name} daripada orang yang menerima salinan"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -7924,6 +7937,41 @@
         "emptyTicket": "Belum ada dokumen dilampirkan pada tiket ini.",
         "emptyDeal": "Belum ada dokumen dilampirkan pada tawaran ini.",
         "testBadge": "Ujian"
+      },
+      "copies": {
+        "title": "Orang yang menerima salinan",
+        "help": "Mereka menerima salinan yang telah ditandatangani melalui e-mel apabila semua orang sudah menandatangani. Mereka tidak pernah menerima pautan menandatangani dan tidak dikira dalam tandatangan.",
+        "label": "Menerima salinan",
+        "sent": "Salinan dihantar {date}",
+        "notSent": "Belum dihantar",
+        "notSentFinal": "Tiada salinan dihantar",
+        "add": "Tambah orang yang menerima salinan",
+        "fullName": "Nama penuh",
+        "email": "E-mel",
+        "submit": "Tambah",
+        "cancel": "Batal",
+        "remove": "Buang {name}",
+        "added": "{name} akan menerima salinan yang telah ditandatangani.",
+        "removed": "{name} tidak lagi menerima salinan yang telah ditandatangani.",
+        "limit": "Sehingga {max} orang boleh menerima salinan.",
+        "nameRequired": "Masukkan nama penuh.",
+        "emailInvalid": "Masukkan alamat e-mel yang sah."
+      },
+      "collectionCopies": {
+        "receivesCopy": "Menerima salinan",
+        "sent": "Salinan dihantar {date}",
+        "notSent": "Belum dihantar",
+        "afterSigned": "Mereka mendapat salinan bertandatangan melalui e-mel apabila semuanya telah ditandatangani.",
+        "remove": "Buang {name}",
+        "removeShort": "Buang",
+        "removed": "{name} tidak lagi akan menerima salinan.",
+        "addHeading": "Tambah orang yang menerima salinan",
+        "addHint": "Mereka tidak diminta menandatangani. Mereka mendapat dokumen bertandatangan melalui e-mel apabila semuanya telah ditandatangani.",
+        "name": "Nama penuh",
+        "email": "E-mel",
+        "add": "Tambah",
+        "added": "{name} akan menerima salinan.",
+        "limit": "Sehingga {max} orang boleh menerima salinan."
       }
     },
     "editor": {
@@ -7977,7 +8025,9 @@
         "editFields": "Edit medan",
         "lockFields": "Kunci medan",
         "saveAsTemplate": "Simpan sebagai templat",
-        "replaceFile": "Gantikan fail"
+        "replaceFile": "Gantikan fail",
+        "noPeopleYet": "Belum ada sesiapa yang perlu menandatangani. Tambah orang di halaman koleksi dokumen dahulu, kemudian letakkan blok tandatangan mereka di sini.",
+        "openCollection": "Buka koleksi dokumen"
       },
       "fieldsList": {
         "title": "Semua medan",
@@ -8112,7 +8162,9 @@
         "removeFields": "Padam medan",
         "confirmDelete": "Padam peranan",
         "sender": "Penghantar",
-        "senderHint": "Teks tetap dan nilai yang anda isi dimiliki oleh anda, sebagai penghantar."
+        "senderHint": "Teks tetap dan nilai yang anda isi dimiliki oleh anda, sebagai penghantar.",
+        "fromPeople": "daripada orang dalam koleksi dokumen",
+        "fromPeopleHint": "Orang ditambah, dinamakan semula dan dibuang di halaman koleksi dokumen. Blok tandatangan mereka diletakkan di sini."
       },
       "save": {
         "saved": "Semua perubahan disimpan",
@@ -9436,7 +9488,15 @@
         "uploads_too_large": "Jumlah saiz fail melebihi 60 MB. Buang satu, atau gunakan fail yang lebih kecil.",
         "bad_order": "Susunan dokumen tidak dapat dibaca. Buka semula halaman dan cuba sekali lagi.",
         "envelope_full": "Satu koleksi mengandungi sehingga enam dokumen, jadi tiada lagi yang boleh ditambah.",
-        "envelope_minimum": "Satu koleksi mengekalkan sekurang-kurangnya dua dokumen. Padam koleksi untuk berhenti."
+        "envelope_minimum": "Satu koleksi mengekalkan sekurang-kurangnya dua dokumen. Padam koleksi untuk berhenti.",
+        "copy_name": "Masukkan nama penuh orang yang akan menerima salinan.",
+        "copy_email": "Masukkan alamat e-mel yang sah untuk orang yang akan menerima salinan.",
+        "copy_duplicate": "Orang itu sudah menerima salinan.",
+        "copy_is_signer": "Orang itu diminta menandatangani, jadi mereka tetap mendapat salinan bertandatangan.",
+        "copy_limit": "Sehingga 10 orang boleh menerima salinan.",
+        "copy_not_open": "Orang boleh menerima salinan sehingga dokumen selesai. Dokumen ini tidak terbuka lagi.",
+        "copy_fixed": "Orang yang menerima salinan dibuang dan ditambah semula, tidak pernah diubah.",
+        "copy_recipient_not_found": "Orang itu tidak ditemui. Mungkin mereka sudah dibuang."
       },
       "records": {
         "ticketLabel": "Pautkan ke tiket",
@@ -9502,9 +9562,9 @@
         },
         "people": {
           "heading": "Orang",
-          "intro": "Tambah setiap orang sekali sahaja, dan nyatakan peranan mereka pada setiap dokumen. Mereka menerima satu mesej dan satu pautan untuk seluruh koleksi dokumen.",
+          "intro": "Tambah setiap orang sekali sahaja: nama, e-mel, dan sama ada mereka mesti menandatangani atau hanya menerima salinan. Siapa menandatangani apa ditetapkan dalam setiap dokumen, apabila anda meletakkan blok tandatangan dan memberikannya kepada seseorang.",
           "ordered": "Orang menandatangani satu demi satu",
-          "orderedHint": "Berikan setiap orang satu langkah. Orang dengan langkah yang sama menandatangani bersama, dan langkah seterusnya dijemput hanya apabila semua orang dalam langkah itu telah menyelesaikan semua dokumen.",
+          "orderedHint": "Beri setiap orang yang menandatangani satu langkah. Orang dengan langkah yang sama menandatangani bersama, dan langkah seterusnya dijemput hanya apabila semua orang dalam langkah itu telah menyelesaikan dokumen mereka.",
           "empty": "Belum ada sesiapa dalam senarai.",
           "personN": "Orang {n}",
           "remove": "Buang {name}",
@@ -9527,10 +9587,33 @@
             "name": "Masukkan nama penuh.",
             "email": "Masukkan alamat e-mel yang sah.",
             "phone": "Masukkan nombor telefon dengan kod negaranya.",
-            "noDocument": "Letakkan orang ini pada sekurang-kurangnya satu dokumen, atau buang mereka."
+            "noDocument": "Pilih peranan orang ini di bawah \"Padankan peranan templat\", atau buang mereka."
           },
           "add": "Tambah seorang",
-          "conflictsLabel": "Perkara yang perlu dibetulkan dalam senarai orang"
+          "conflictsLabel": "Perkara yang perlu dibetulkan dalam senarai orang",
+          "type": {
+            "label": "Peranan mereka",
+            "signer": "Mesti menandatangani",
+            "copy": "Menerima salinan"
+          },
+          "copyLine": "Mereka mendapat salinan bertandatangan melalui e-mel apabila semuanya telah ditandatangani. Mereka tidak diminta menandatangani.",
+          "addCopy": "Tambah orang yang menerima salinan",
+          "limitSigners": "Satu koleksi boleh mempunyai sehingga {max} orang yang mesti menandatangani.",
+          "limitRoles": "Koleksi yang mengandungi fail yang dimuat naik boleh mempunyai sehingga {max} orang yang mesti menandatangani. Setiap orang ialah satu peranan pada dokumen itu.",
+          "limitCopies": "Sehingga {max} orang boleh menerima salinan.",
+          "template": {
+            "heading": "Padankan peranan templat",
+            "hint": "Dokumen ini datang daripada templat. Pilih siapa yang memegang setiap peranan.",
+            "nobody": "Tiada sesiapa"
+          },
+          "removeDialog": {
+            "title": "Buang {name}?",
+            "body": "{fields} medan yang ditugaskan kepada mereka, pada {documents} dokumen, akan dibuang sekali.",
+            "cancel": "Kekalkan",
+            "confirm": "Buang"
+          },
+          "roleNobody": "Tiada sesiapa memegang peranan {role} pada {document}. Padankan dengan seseorang di atas.",
+          "roleTwo": "Peranan {role} pada {document} mempunyai lebih daripada seorang. Berikan kepada seorang sahaja."
         },
         "options": {
           "heading": "Pilihan",
@@ -9540,7 +9623,7 @@
           "heading": "Semak dan hantar",
           "ordered": "Orang menandatangani satu demi satu, mengikut langkah yang anda tetapkan.",
           "allAtOnce": "Semua orang dijemput serentak.",
-          "counts": "{documents, plural, other {# dokumen}} untuk {people, plural, other {# orang}}.",
+          "counts": "{documents, plural, other {# dokumen}} untuk {people, plural, other {# orang}}{copies, plural, =0 {.} other { dan # orang yang menerima salinan.}}",
           "limit": "Koleksi dokumen ini memerlukan ruang untuk {needed} dokumen, tetapi ruang kerja ini hanya mempunyai ruang untuk {remaining} lagi bulan ini.",
           "problemsTitle": "{count, plural, other {# perkara perlu dibetulkan sebelum menghantar}}",
           "sharedHeading": "Koleksi dokumen",
@@ -9564,8 +9647,12 @@
           "envelope_size": "Satu koleksi dokumen mengandungi {range} dokumen.",
           "envelope_too_many_pages": "Satu koleksi dokumen boleh mempunyai sehingga {range} halaman kesemuanya.",
           "duplicate_person": "Orang {n} mempunyai alamat e-mel yang sama dengan orang lain.",
-          "person_without_document": "Orang {n} tidak berada pada mana-mana dokumen.",
-          "role_two_people": "Peranan {role} pada {document} mempunyai lebih daripada seorang. Berikan kepada seorang sahaja."
+          "person_without_document": "Orang {n} tiada peranan pada mana-mana dokumen. Padankan mereka dengan peranan templat, atau buang mereka.",
+          "role_two_people": "Peranan {role} pada {document} mempunyai lebih daripada seorang. Berikan kepada seorang sahaja.",
+          "person_without_work": "{name} belum mempunyai apa-apa untuk ditandatangani. Buka dokumen dan tugaskan satu medan kepada mereka, atau tukar mereka kepada penerima salinan.",
+          "document_nobody": "Belum ada sesiapa yang perlu melakukan apa-apa pada dokumen ini. Buka dokumen itu dan tugaskan satu blok tandatangan kepada seseorang.",
+          "too_many_copies": "Sehingga {range} orang boleh menerima salinan.",
+          "too_many_roles": "Koleksi yang mengandungi fail yang dimuat naik boleh mempunyai sehingga {range} orang yang mesti menandatangani."
         },
         "banner": {
           "title": "Dokumen {number} daripada {count} dalam satu koleksi dokumen",
@@ -9674,6 +9761,20 @@
           "removeConfirm": "Buang dokumen",
           "keep": "Kekalkan"
         }
+      },
+      "copies": {
+        "type": "Jenis",
+        "typeSigner": "Perlu menandatangani",
+        "typeCopy": "Menerima salinan",
+        "heading": "Orang yang menerima salinan",
+        "help": "Mereka menerima salinan yang telah ditandatangani melalui e-mel apabila semua orang sudah menandatangani. Mereka tidak pernah menerima pautan menandatangani.",
+        "add": "Tambah orang yang menerima salinan",
+        "limit": "Sehingga {max} orang boleh menerima salinan.",
+        "remove": "Buang penerima salinan {n}",
+        "sameEmail": "{email} disenaraikan pada nombor {a} dan {b}. Mereka menerima satu salinan sahaja, jadi hanya yang pertama disimpan.",
+        "isSigner": "{email} menandatangani dokumen ini, jadi mereka tetap menerima salinan yang telah ditandatangani. Entri ini ditinggalkan.",
+        "mustPlaceFields": "Letakkan medan pada dokumen dahulu untuk meminta seseorang menandatanganinya.",
+        "reviewLine": "Turut menerima salinan yang telah ditandatangani: {people}"
       }
     },
     "signer": {

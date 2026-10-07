@@ -1,23 +1,32 @@
 "use client";
 
 // ============================================================
-// Doc Sign, an envelope's people (migration 171): ONE list for all the documents. Each person has a role on each document they are on (or none);
-// they get one email and one link for all of them. Where the roles of the documents do not line up (a role nobody has, a role two people have)
-// it is said here, beside the people, before the review.
+// Doc Sign, a collection's people (migration 171, with the people model of migration 175): ONE list for all the documents. Each person is a name,
+// an email and a TYPE: "Must sign" or "Receives a copy". Nobody picks a role per document here: an uploaded file takes a role from each person who
+// must sign (the sender then assigns each signature block to a person in the document's own editor), and only the documents that came from a
+// template have roles to match, in "Match the template's roles" under the list. A person who receives a copy needs no channel and no step: they
+// get the signed copy by email when everything is signed.
 // ============================================================
 
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { addPerson, normalizePersonSteps, personHasInput, personIsComplete, removePerson, setPersonRole, updatePerson } from "@/lib/sign/client/envelope-form";
-import { roleCoverage, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
-import { normalizePhone, MAX_SIGNERS } from "@/lib/sign/rules";
+import { addPerson, countByType, normalizePersonSteps, personHasInput, personIsComplete, removePerson, setPersonType, setTemplateMatch, templateMatches, updatePerson } from "@/lib/sign/client/envelope-form";
+import { MAX_COPY_RECIPIENTS, isCopy, isSigner, isUploadDoc, roleCoverage, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
+import { MAX_ROLES, MAX_SIGNERS, normalizePhone } from "@/lib/sign/rules";
+
+import { PersonNameInput } from "../send/person-name-input";
+import { applyContact, removalAsk, type RemovalAsk } from "./people-edit";
 
 interface Props {
   docs: readonly EnvelopeDocLite[];
+  /** What the documents have assigned to each role, so removing a person can say what goes with them (the documents as the server sent them). */
+  workDocs?: readonly { id: string; fromTemplate?: boolean; fieldCounts?: Record<string, number> }[];
   people: readonly EnvelopePerson[];
   ordered: boolean;
   readOnly: boolean;
@@ -32,12 +41,38 @@ interface Props {
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, whatsappConfigured, onPeople, onOrdered }: Props) {
+/** The words of the question asked before a person with fields assigned to them is removed (one component, so the wording is tested as shown). */
+export function RemovalWords({ ask, part }: { ask: RemovalAsk; part: "title" | "body" }) {
+  const t = useTranslations("Sign.send.envelope.people.removeDialog");
+  return <>{part === "title" ? t("title", { name: ask.name }) : t("body", { fields: ask.fields, documents: ask.documents })}</>;
+}
+
+export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly, showInvalid, whatsappConfigured, onPeople, onOrdered }: Props) {
   const t = useTranslations("Sign.send.envelope.people");
+  const [asking, setAsking] = useState<RemovalAsk | null>(null);
   const change = (next: EnvelopePerson[]) => onPeople(ordered ? normalizePersonSteps(next) : next);
-  const coverage = roleCoverage(docs, people);
+
+  const counts = countByType(people);
+  const hasUpload = docs.some(isUploadDoc);
+  const signerLimit = hasUpload ? MAX_ROLES : MAX_SIGNERS;
+  const signersFull = counts.signers >= signerLimit;
+  const copiesFull = counts.copies >= MAX_COPY_RECIPIENTS;
+  const nameOf = (p: EnvelopePerson, i: number) => p.fullName.trim() || t("personN", { n: i + 1 });
+
+  // the roles of the documents that came from a template are matched to people here; an uploaded file's roles are the people themselves
+  const templateDocs = docs.filter((d) => !isUploadDoc(d));
+  const coverage = roleCoverage(templateDocs, people).filter((c) => c.people > 1 || (c.people === 0 && c.needed));
+  const matches = templateMatches(docs, people);
+  const matchedDocuments = [...new Set(matches.map((m) => m.documentId))];
   const titleOf = (id: string) => docs.find((d) => d.id === id)?.title ?? "";
   const labelOf = (id: string, key: string) => docs.find((d) => d.id === id)?.roles.find((r) => r.key === key)?.label ?? key;
+  const signers = people.filter(isSigner);
+
+  const requestRemove = (p: EnvelopePerson, i: number) => {
+    const ask = removalAsk(people, p.key, workDocs, nameOf(p, i));
+    if (ask) setAsking(ask);
+    else change(removePerson(people, p.key));
+  };
 
   return (
     <div className="space-y-4">
@@ -55,16 +90,18 @@ export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, w
 
       <ol className="space-y-3">
         {people.map((p, i) => {
+          const copy = isCopy(p);
           const touched = showInvalid || personHasInput(p);
           const nameBad = touched && (!p.fullName.trim() || p.fullName.trim().length > 160);
           const emailBad = touched && !EMAIL_RE.test(p.email.trim());
-          const phoneBad = touched && p.channel === "whatsapp" && normalizePhone(p.phone) === null;
-          const rolesBad = touched && !personIsComplete({ ...p, fullName: "x", email: "x@x.xx", phone: "+60123456789", step: 1 }, docs);
+          const phoneBad = touched && !copy && p.channel === "whatsapp" && normalizePhone(p.phone) === null;
+          // a person who must sign needs a place on the documents: an uploaded file gives every person one, a template's role must be matched
+          const rolesBad = touched && !copy && !personIsComplete({ ...p, fullName: "x", email: "x@x.xx", phone: "+60123456789", step: 1 }, docs);
           return (
-            <li key={p.key} className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <li key={p.key} data-person-type={copy ? "copy" : "signer"} className="space-y-3 rounded-xl border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground">{p.fullName.trim() || t("personN", { n: i + 1 })}</p>
-                <Button type="button" variant="ghost" size="sm" disabled={readOnly} aria-label={t("remove", { name: p.fullName.trim() || t("personN", { n: i + 1 }) })} onClick={() => change(removePerson(people, p.key))}>
+                <p className="text-sm font-semibold text-foreground">{nameOf(p, i)}</p>
+                <Button type="button" variant="ghost" size="sm" disabled={readOnly} aria-label={t("remove", { name: nameOf(p, i) })} onClick={() => requestRemove(p, i)}>
                   <Trash2 aria-hidden />
                   {t("removeShort")}
                 </Button>
@@ -74,7 +111,14 @@ export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, w
                   <label htmlFor={`${p.key}-name`} className="text-xs font-medium text-foreground">
                     {t("fullName")}
                   </label>
-                  <Input id={`${p.key}-name`} value={p.fullName} maxLength={160} disabled={readOnly} aria-invalid={nameBad} onChange={(e) => change(updatePerson(people, p.key, { fullName: e.target.value }))} />
+                  <PersonNameInput
+                    id={`${p.key}-name`}
+                    value={p.fullName}
+                    disabled={readOnly}
+                    invalid={nameBad}
+                    onChange={(name) => change(updatePerson(people, p.key, { fullName: name }, docs))}
+                    onPickContact={(c) => change(applyContact(people, p.key, c, docs))}
+                  />
                   {nameBad ? <p className="text-xs text-destructive">{t("errors.name")}</p> : null}
                 </div>
                 <div className="space-y-1">
@@ -85,16 +129,31 @@ export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, w
                   {emailBad ? <p className="text-xs text-destructive">{t("errors.email")}</p> : null}
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor={`${p.key}-channel`} className="text-xs font-medium text-foreground">
-                    {t("channel.label")}
+                  <label htmlFor={`${p.key}-type`} className="text-xs font-medium text-foreground">
+                    {t("type.label")}
                   </label>
-                  <select id={`${p.key}-channel`} className={SELECT} value={p.channel} disabled={readOnly} onChange={(e) => change(updatePerson(people, p.key, { channel: e.target.value === "whatsapp" ? "whatsapp" : "email" }))}>
-                    <option value="email">{t("channel.email")}</option>
-                    <option value="whatsapp">{t("channel.whatsapp")}</option>
+                  <select id={`${p.key}-type`} className={SELECT} value={copy ? "copy" : "signer"} disabled={readOnly} onChange={(e) => change(setPersonType(people, p.key, e.target.value === "copy" ? "copy" : "signer", docs))}>
+                    <option value="signer" disabled={copy && signersFull}>
+                      {t("type.signer")}
+                    </option>
+                    <option value="copy" disabled={!copy && copiesFull}>
+                      {t("type.copy")}
+                    </option>
                   </select>
-                  {p.channel === "whatsapp" && whatsappConfigured === false ? <p className="text-xs text-amber-700 dark:text-amber-300">{t("whatsappOff")}</p> : null}
                 </div>
-                {p.channel === "whatsapp" ? (
+                {!copy ? (
+                  <div className="space-y-1">
+                    <label htmlFor={`${p.key}-channel`} className="text-xs font-medium text-foreground">
+                      {t("channel.label")}
+                    </label>
+                    <select id={`${p.key}-channel`} className={SELECT} value={p.channel} disabled={readOnly} onChange={(e) => change(updatePerson(people, p.key, { channel: e.target.value === "whatsapp" ? "whatsapp" : "email" }))}>
+                      <option value="email">{t("channel.email")}</option>
+                      <option value="whatsapp">{t("channel.whatsapp")}</option>
+                    </select>
+                    {p.channel === "whatsapp" && whatsappConfigured === false ? <p className="text-xs text-amber-700 dark:text-amber-300">{t("whatsappOff")}</p> : null}
+                  </div>
+                ) : null}
+                {!copy && p.channel === "whatsapp" ? (
                   <div className="space-y-1">
                     <label htmlFor={`${p.key}-phone`} className="text-xs font-medium text-foreground">
                       {t("phone")}
@@ -103,7 +162,7 @@ export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, w
                     {phoneBad ? <p className="text-xs text-destructive">{t("errors.phone")}</p> : null}
                   </div>
                 ) : null}
-                {ordered ? (
+                {!copy && ordered ? (
                   <div className="space-y-1">
                     <label htmlFor={`${p.key}-step`} className="text-xs font-medium text-foreground">
                       {t("step")}
@@ -113,47 +172,115 @@ export function EnvelopePeople({ docs, people, ordered, readOnly, showInvalid, w
                   </div>
                 ) : null}
               </div>
-
-              <fieldset className="space-y-2">
-                <legend className="text-xs font-medium text-foreground">{t("rolesHeading")}</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {docs.map((d) => (
-                    <div key={d.id} className="space-y-1">
-                      <label htmlFor={`${p.key}-${d.id}`} className="block truncate text-xs text-muted-foreground">
-                        {t("roleOn", { document: d.title })}
-                      </label>
-                      <select id={`${p.key}-${d.id}`} className={SELECT} value={p.roles[d.id] ?? ""} disabled={readOnly} onChange={(e) => change(setPersonRole(people, p.key, d.id, e.target.value))}>
-                        <option value="">{t("notOn")}</option>
-                        {d.roles.map((r) => (
-                          <option key={r.key} value={r.key}>
-                            {r.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                {rolesBad ? <p className="text-xs text-destructive">{t("errors.noDocument")}</p> : null}
-              </fieldset>
+              {copy ? <p className="text-xs text-muted-foreground">{t("copyLine")}</p> : null}
+              {rolesBad ? <p className="text-xs text-destructive">{t("errors.noDocument")}</p> : null}
             </li>
           );
         })}
       </ol>
 
-      <Button type="button" variant="outline" disabled={readOnly || people.length >= MAX_SIGNERS} onClick={() => change(addPerson(people, docs))}>
-        <Plus aria-hidden />
-        {t("add")}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" disabled={readOnly || signersFull} onClick={() => change(addPerson(people, docs, "signer"))}>
+          <Plus aria-hidden />
+          {t("add")}
+        </Button>
+        <Button type="button" variant="outline" disabled={readOnly || copiesFull} onClick={() => change(addPerson(people, docs, "copy"))}>
+          <Plus aria-hidden />
+          {t("addCopy")}
+        </Button>
+      </div>
+      {signersFull ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {hasUpload ? t("limitRoles", { max: signerLimit }) : t("limitSigners", { max: signerLimit })}
+        </p>
+      ) : null}
+      {copiesFull ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {t("limitCopies", { max: MAX_COPY_RECIPIENTS })}
+        </p>
+      ) : null}
 
-      {coverage.some((c) => c.people > 1 || (c.people === 0 && c.needed)) ? (
+      {matches.length > 0 ? (
+        <section aria-labelledby="env-template-roles" className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+          <div>
+            <h3 id="env-template-roles" className="text-sm font-semibold text-foreground">
+              {t("template.heading")}
+            </h3>
+            <p className="text-xs text-muted-foreground">{t("template.hint")}</p>
+          </div>
+          {matchedDocuments.map((documentId) => (
+            <div key={documentId} className="space-y-2">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{titleOf(documentId)}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {matches
+                  .filter((m) => m.documentId === documentId)
+                  .map((m) => (
+                    <div key={m.roleKey} className="space-y-1">
+                      <label htmlFor={`match-${documentId}-${m.roleKey}`} className="block truncate text-xs font-medium text-foreground">
+                        {m.roleLabel}
+                      </label>
+                      <select
+                        id={`match-${documentId}-${m.roleKey}`}
+                        className={SELECT}
+                        value={m.personKey ?? ""}
+                        disabled={readOnly}
+                        onChange={(e) => change(setTemplateMatch(people, documentId, m.roleKey, e.target.value || null))}
+                      >
+                        <option value="">{t("template.nobody")}</option>
+                        {signers.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {nameOf(p, people.indexOf(p))}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {coverage.length > 0 ? (
         <ul className="space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground" aria-label={t("conflictsLabel")}>
-          {coverage
-            .filter((c) => c.people > 1 || (c.people === 0 && c.needed))
-            .map((c) => (
-              <li key={`${c.documentId}-${c.roleKey}`}>{t(c.people === 0 ? "roleNobody" : "roleTwo", { role: labelOf(c.documentId, c.roleKey), document: titleOf(c.documentId) })}</li>
-            ))}
+          {coverage.map((c) => (
+            <li key={`${c.documentId}-${c.roleKey}`}>{t(c.people === 0 ? "roleNobody" : "roleTwo", { role: labelOf(c.documentId, c.roleKey), document: titleOf(c.documentId) })}</li>
+          ))}
         </ul>
       ) : null}
+
+      <Dialog open={asking !== null} onOpenChange={(o) => (o ? undefined : setAsking(null))}>
+        <DialogContent>
+          {asking ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  <RemovalWords ask={asking} part="title" />
+                </DialogTitle>
+                <DialogDescription>
+                  <RemovalWords ask={asking} part="body" />
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setAsking(null)}>
+                  {t("removeDialog.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    change(removePerson(people, asking.key));
+                    setAsking(null);
+                  }}
+                >
+                  <Trash2 aria-hidden />
+                  {t("removeDialog.confirm")}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

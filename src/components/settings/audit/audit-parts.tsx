@@ -144,6 +144,7 @@ const ENTITY_ICON: Readonly<Record<string, LucideIcon>> = {
   sign_bulk_job: FileSignature,
   sign_option_list: FileSignature,
   sign_envelope: FileSignature,
+  sign_copy_recipient: FileSignature,
 };
 
 export function AuditEntityIcon({ type, className }: { type: string; className?: string }) {

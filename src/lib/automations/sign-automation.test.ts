@@ -9,7 +9,7 @@ import { interpolatePlain, interpolateSafe } from './ai/parsers'
 import { varsProducedBy, variablesFor } from './ai/vars'
 import { AUTOMATION_TEMPLATES } from './templates'
 import { MAX_SIGN_CHAIN_DEPTH, eventsOf, getSignChainDepth, isSignEventName, signEventMatches, SIGN_EVENT_NAMES, type SignEventContext } from './sign-event'
-import { checkSendSignDocument, requiredRoleKeys, type SignSetup } from './sign-step'
+import { checkSendSignDocument, copiesOf, isCopyRecipient, recipientsOf, requiredRoleKeys, signersOf, type SignSetup } from './sign-step'
 import { signSetupForActivation, signTemplateIdsOf, stepsUseSign } from './sign-activation'
 import { validateStepsForActivation, validateTriggerForActivation } from './validate'
 import { triggerMeta, isKnownTrigger } from './trigger-meta'
@@ -348,5 +348,82 @@ describe('the KYC ticket of the follow-up recipe reads the document', () => {
     expect(plan.description).toContain('https://halo.example/verify/doc-1')
     expect(plan.description).not.toContain('{{')
     expect(plan.skip).toBeNull()
+  })
+})
+
+describe('the Send document for signing step: people who receive a copy', () => {
+  const signer = { role_key: 'merchant', source: 'contact', channel: 'email' }
+  const copy = (extra: Record<string, unknown> = {}) => ({ kind: 'copy', role_key: '', source: 'fixed', channel: 'email', full_name: 'Accounts', email: 'accounts@kedai.my', ...extra })
+  const paths = (recipients: unknown[], s?: SignSetup) =>
+    checkSendSignDocument({ ...goodStep().step_config, recipients }, 'p', s).map((i) => i.path.replace(/^p\./, ''))
+
+  it('a recipient with no kind is a signer: every configuration saved before copies existed reads as before', () => {
+    const old = [signer, { role_key: 'director', source: 'fixed', channel: 'email', full_name: 'D', email: 'd@x.my' }]
+    expect(signersOf({ recipients: old as never })).toHaveLength(2)
+    expect(copiesOf({ recipients: old as never })).toEqual([])
+    expect(paths(old)).toEqual([])
+    expect(paths([{ ...signer, kind: 'signer' }])).toEqual([])
+  })
+
+  it('recipientsOf keeps everyone, signersOf and copiesOf split them, and junk entries are dropped', () => {
+    const cfg = { recipients: [signer, copy(), null, 'x', copy({ source: 'contact' })] as never }
+    expect(recipientsOf(cfg)).toHaveLength(3)
+    expect(signersOf(cfg)).toEqual([signer])
+    expect(copiesOf(cfg)).toHaveLength(2)
+    expect(isCopyRecipient(copy() as never)).toBe(true)
+    expect(isCopyRecipient(signer as never)).toBe(false)
+    expect(recipientsOf({})).toEqual([])
+  })
+
+  it('a copy needs no role and no channel; a signer still does', () => {
+    expect(paths([signer, copy()])).toEqual([])
+    // role and channel left off altogether
+    expect(paths([signer, { kind: 'copy', source: 'fixed', full_name: 'A', email: 'a@x.my' }])).toEqual([])
+    expect(paths([{ ...signer, role_key: '' }, copy()])).toEqual(['recipients[0].role_key'])
+  })
+
+  it('a fixed copy needs a name and a valid email (a variable in the address is checked when it runs); a contact copy needs neither', () => {
+    expect(paths([signer, copy({ full_name: '', email: '' })])).toEqual(['recipients[1].full_name', 'recipients[1].email'])
+    expect(paths([signer, copy({ email: 'not-an-email' })])).toEqual(['recipients[1].email'])
+    expect(paths([signer, copy({ email: '{{ vars.accounts }}' })])).toEqual([])
+    expect(paths([{ ...signer, source: 'fixed', full_name: 'S', email: 's@x.my' }, copy({ source: 'contact', full_name: undefined, email: undefined })])).toEqual([])
+    expect(paths([signer, copy({ source: 'nobody' })])).toEqual(['recipients[1].source'])
+    // an unknown kind is not a copy: it is held to the rules of a signer as well
+    expect(paths([signer, copy({ kind: 'cc' })])).toEqual(['recipients[1].kind', 'recipients[1].role_key'])
+  })
+
+  it('at least one recipient still means one who signs; the 20 cap counts signers, the copies have their own cap of 10', () => {
+    expect(paths([copy()])).toEqual(['recipients'])
+    const signers = (n: number) => Array.from({ length: n }, (_, i) => ({ role_key: 'merchant', source: 'fixed', channel: 'email', full_name: `S${i}`, email: `s${i}@x.my` }))
+    const copies = (n: number) => Array.from({ length: n }, (_, i) => copy({ full_name: `C${i}`, email: `c${i}@x.my` }))
+    expect(paths([...signers(20), ...copies(10)])).toEqual([])
+    expect(paths(signers(21))).toEqual(['recipients'])
+    expect(paths([...signers(1), ...copies(11)])).toEqual(['recipients'])
+    expect(checkSendSignDocument({ ...goodStep().step_config, recipients: [...signers(1), ...copies(11)] }, 'p')[0].message).toContain('up to 10')
+  })
+
+  it('the same fixed address as a signer or as another copy is refused, whatever its case; {{variables}} are not compared', () => {
+    const fixedSigner = { role_key: 'merchant', source: 'fixed', channel: 'email', full_name: 'S', email: 'Aziz@Kedai.my' }
+    expect(paths([fixedSigner, copy({ email: 'aziz@kedai.my' })])).toEqual(['recipients[1].email'])
+    expect(paths([signer, copy({ email: 'x@kedai.my' }), copy({ full_name: 'B', email: 'X@KEDAI.MY' })])).toEqual(['recipients[2].email'])
+    expect(paths([signer, copy({ email: '{{ vars.a }}' }), copy({ full_name: 'B', email: '{{ vars.a }}' })])).toEqual([])
+    // the contact is one address: they cannot sign and also receive a copy, nor be a copy twice
+    expect(paths([signer, copy({ source: 'contact' })])).toEqual(['recipients[1].source'])
+    expect(paths([{ ...fixedSigner, email: 's@x.my' }, copy({ source: 'contact' }), copy({ source: 'contact' })])).toEqual(['recipients[2].source'])
+  })
+
+  it('with the workspace lookup, the template roles are the signers: a copy needs no role and covers none', () => {
+    expect(paths([signer, copy()], setup())).toEqual([])
+    // a copy never covers a required role
+    expect(paths([{ ...signer, role_key: 'finance' }, copy({ role_key: 'merchant' })], setup())).toEqual(['recipients'])
+    // a role key on a copy is not looked up in the template
+    expect(paths([signer, copy({ role_key: 'ghost' })], setup())).toEqual([])
+    expect(paths([signer, { ...signer, role_key: 'ghost' }], setup())).toEqual(['recipients[1].role_key'])
+  })
+
+  it('goes through the activation validator like any other step', () => {
+    const v = (recipients: unknown[]) => validateStepsForActivation([{ step_type: 'send_sign_document', step_config: { ...goodStep().step_config, recipients } }]).map((i) => i.path)
+    expect(v([signer, copy()])).toEqual([])
+    expect(v([copy()])).toEqual(['steps[0].recipients'])
   })
 })

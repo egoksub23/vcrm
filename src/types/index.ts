@@ -1448,14 +1448,23 @@ export interface SignDocumentEventTriggerConfig {
 }
 
 export interface SendSignDocumentRecipient {
-  /** A role of the template, e.g. `merchant`. */
+  /**
+   * What the person is to the document. `signer` (also when left out, so every configuration saved before this existed keeps
+   * working) fills a role and gets a link. `copy` only RECEIVES the signed copy by email when everyone has signed: no role, no
+   * channel, no phone, never a link, not counted as a signer. For a copy `role_key` and `channel` are ignored (the builder
+   * saves "" and "email" to keep the shape).
+   */
+  kind?: 'signer' | 'copy';
+  /** A role of the template, e.g. `merchant`. Signers only. */
   role_key: string;
   /** `contact`: the triggering contact's name, email and phone. `fixed`: the details below. */
   source: 'contact' | 'fixed';
   /** Fixed recipients only. Variables such as {{ contact.name }} work. */
   full_name?: string;
   email?: string;
+  /** Signers by WhatsApp only. */
   phone?: string;
+  /** How a signer gets the link. Signers only. */
   channel: 'email' | 'whatsapp';
 }
 

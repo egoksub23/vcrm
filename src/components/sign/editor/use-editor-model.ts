@@ -52,6 +52,11 @@ export interface EditorModelInput {
   roles: SignRole[];
   onChange: (next: EditorState) => void;
   seeds: EditorSeeds;
+  /**
+   * The roles are the collection's people (a document of a collection that was not made from a template): the editor never makes a role of its
+   * own, and the roles the people made (`source === "people"`) cannot be renamed, changed or deleted.
+   */
+  rolesLocked?: boolean;
 }
 
 export function useStableCallback<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
@@ -70,7 +75,7 @@ export interface PlaceOptions {
   preferredRole: string | null;
 }
 
-export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelInput) {
+export function useEditorModel({ fields, roles, onChange, seeds, rolesLocked = false }: EditorModelInput) {
   const [history, setHistory] = useState<History>(() => initHistory({ fields, roles }));
   const current: EditorState = { fields, roles };
   if (!isPresent(history, current)) setHistory(initHistory(current));
@@ -130,13 +135,17 @@ export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelIn
     setRect(key, (resize ? nudgeSize : nudgeRect)(f, direction, big, page), `nudge:${key}`);
   });
 
-  /** Place a new field. Adds a first role when there is none that may own the type. Returns the new key, or null at the maximum. */
+  /**
+   * Place a new field. Adds a first role when there is none that may own the type (never when the roles are the collection's people: then nothing
+   * is placed). Returns the new key, or null at the maximum or when no role may own the type.
+   */
   const place = useStableCallback((input: PlaceOptions): string | null => {
     const { fields: fs, roles: rs } = state();
     if (fs.length >= MAX_FIELDS) return null;
     let nextRoles = rs;
     let role = roleForType(input.type, rs, input.preferredRole);
     if (!role && input.type !== "static_text") {
+      if (rolesLocked) return null;
       const kind: SignerKind = "signer";
       const added = addRoleTo(rs, { label: seeds.roleLabel(kind, rs.length + 1), kind });
       if (!added) return null;
@@ -206,8 +215,10 @@ export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelIn
     return added[added.length - 1].key;
   });
 
+  const fromPeople = (rs: readonly SignRole[], key: string): boolean => rolesLocked && rs.find((r) => r.key === key)?.source === "people";
   const addRole = useStableCallback((kind: SignerKind): SignRole | null => {
     const { fields: fs, roles: rs } = state();
+    if (rolesLocked) return null;
     const added = addRoleTo(rs, { label: seeds.roleLabel(kind, rs.length + 1), kind });
     if (!added) return null;
     commit({ fields: fs, roles: added.roles });
@@ -215,10 +226,12 @@ export function useEditorModel({ fields, roles, onChange, seeds }: EditorModelIn
   });
   const patchRole = useStableCallback((key: string, patch: Partial<Pick<SignRole, "label" | "kind" | "color">>) => {
     const { fields: fs, roles: rs } = state();
+    if (fromPeople(rs, key)) return;
     commit({ fields: fs, roles: updateRole(rs, key, patch) }, patch.label !== undefined ? `role:${key}:label` : undefined);
   });
   const deleteRole = useStableCallback((key: string, reassignTo: string | null) => {
     const { fields: fs, roles: rs } = state();
+    if (fromPeople(rs, key)) return;
     const r = removeRole(rs, fs, key, reassignTo);
     commit({ fields: r.fields, roles: r.roles });
   });

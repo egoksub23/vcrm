@@ -173,6 +173,70 @@ describe.each(["en", "ms", "zh", "ko"])("the Doc Sign trigger and step render wi
     expect(html).toContain(esc(logs.outcomes.recipient_email_missing))
   })
 
+  it("the recipients editor: a type for each person (must sign / receives a copy), role and channel only for who signs, both ways to add", () => {
+    const cfg = {
+      template_id: "tpl-1",
+      recipients: [
+        { role_key: "merchant", source: "contact", channel: "email" },
+        { kind: "copy", role_key: "", source: "fixed", channel: "email", full_name: "Accounts Team", email: "accounts@x.my" },
+        { kind: "copy", role_key: "", source: "contact", channel: "email" },
+      ],
+      merge_values: {},
+    }
+    const html = render(locale, flow(withTemplates(<SendSignDocumentEditor cid="s" config={cfg} set={() => {}} />)))
+    for (const k of ["type", "typeSigner", "typeCopy", "addRecipient", "addCopy", "contactCopyNote", "contactNote", "recipients", "recipientsHint"]) {
+      expect(html, k).toContain(esc(s().step[k]))
+    }
+    // one type box a person: the first signs, the other two receive a copy
+    expect((html.match(/<option value="copy" selected=""/g) ?? []).length).toBe(2)
+    expect((html.match(/<option value="signer" selected=""/g) ?? []).length).toBe(1)
+    // the role and channel boxes are only for the one who signs
+    expect((html.match(new RegExp(`>${esc(s().step.channel)}<`, "g")) ?? []).length).toBe(1)
+    expect((html.match(new RegExp(`>${esc(s().step.role)}<`, "g")) ?? []).length).toBe(1)
+    // the fixed copy shows a name and an email, but no phone box even though it is "email"
+    expect(html).toContain("Accounts Team")
+    expect(html).toContain("accounts@x.my")
+    expect(html).not.toContain(esc(s().step.phone))
+  })
+
+  it("a copy recipient never shows a phone box; the collapsed summary counts those who sign and those who receive a copy", () => {
+    const html = render(
+      locale,
+      flow(withTemplates(<SendSignDocumentEditor cid="s" config={{ template_id: "tpl-1", recipients: [{ kind: "copy", role_key: "", source: "fixed", channel: "whatsapp", phone: "0123", full_name: "A", email: "a@x.my" }], merge_values: {} }} set={() => {}} />)),
+    )
+    expect(html).not.toContain(esc(s().step.phone))
+    const initial: BuilderInitial = {
+      name: "Merchant onboarding",
+      description: "",
+      trigger_type: "sign_document_event",
+      trigger_config: { events: ["completed"] },
+      is_active: false,
+      steps: [
+        {
+          cid: "1",
+          step_type: "send_sign_document",
+          step_config: { template_id: "tpl-1", recipients: [{ role_key: "merchant", source: "contact", channel: "email" }, { kind: "copy", role_key: "", source: "fixed", channel: "email", full_name: "A", email: "a@x.my" }], merge_values: {} },
+        },
+      ],
+    }
+    const summary = render(locale, <AutomationBuilder initial={initial} />)
+    const words: Record<string, string> = { en: "1 person signs, 1 gets a copy", ms: "1 orang menandatangani, 1 orang menerima salinan", zh: "1 人签署，1 人收到副本", ko: "1명 서명, 1명 사본 수신" }
+    expect(summary).toContain(words[locale])
+  })
+
+  it("the log rows word the outcomes of a copy that could not be made", () => {
+    const logs = load(locale).Automations.logs
+    const html = render(
+      locale,
+      <ul>
+        <StepRow result={{ step_id: "a", step_type: "send_sign_document", status: "skipped", detail: "skipped: x", outcome: "copy_is_signer" }} />
+        <StepRow result={{ step_id: "b", step_type: "send_sign_document", status: "skipped", detail: "skipped: y", outcome: "copy_duplicate" }} />
+      </ul>,
+    )
+    expect(html).toContain(esc(logs.outcomes.copy_is_signer))
+    expect(html).toContain(esc(logs.outcomes.copy_duplicate))
+  })
+
   it("the recipes have names, descriptions, labels for their trigger and steps, and every seed they name", () => {
     const tpl = load(locale).Automations.templates
     for (const slug of ["merchant_onboarding", "merchant_signed_followup"] as const) {

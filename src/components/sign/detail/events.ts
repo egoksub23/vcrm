@@ -156,6 +156,11 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     values.title = text(detail.title, 200) ?? "";
     values.count = typeof detail.count === "number" ? String(detail.count) : "";
     values.by = text(detail.by_name, 160) ?? actor;
+  } else if (row.type === "copy_recipient_added" || row.type === "copy_recipient_removed") {
+    // a person who receives a copy (migration 175): the name and the masked address, never the address itself
+    values.name = text(detail.name, 160) ?? ctx.someone;
+    values.email = text(detail.email, 200) ?? "";
+    values.reference = text(detail.reference, 40) ?? "";
   } else if (row.type === "signer_moved") {
     values.step = typeof detail.to_step === "number" ? String(detail.to_step) : "";
   } else if (row.type === "forwarding_changed") {

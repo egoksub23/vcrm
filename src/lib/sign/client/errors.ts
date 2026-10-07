@@ -95,6 +95,15 @@ export const KNOWN_ERROR_CODES = [
   "envelope_no_test",
   "document_in_envelope",
   "document_retained",
+  // people who receive a copy (migration 175)
+  "copy_name",
+  "copy_email",
+  "copy_duplicate",
+  "copy_is_signer",
+  "copy_limit",
+  "copy_not_open",
+  "copy_fixed",
+  "copy_recipient_not_found",
   // the edge
   "save_failed",
   "network",

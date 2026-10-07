@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   createDraftFromTemplate: vi.fn(),
   updateDraft: vi.fn(),
   setSigners: vi.fn(),
+  setCopyRecipients: vi.fn(),
   deleteDraft: vi.fn(),
   sendDocument: vi.fn(),
   origin: 'https://halo.example',
@@ -25,6 +26,7 @@ vi.mock('@/lib/sign/service/drafts', () => ({
   setSigners: (...a: unknown[]) => m.setSigners(...a),
   deleteDraft: (...a: unknown[]) => m.deleteDraft(...a),
 }))
+vi.mock('@/lib/sign/service/copy-recipients', () => ({ setCopyRecipients: (...a: unknown[]) => m.setCopyRecipients(...a) }))
 vi.mock('./admin-client', () => ({ supabaseAdmin: () => m.admin }))
 vi.mock('@/lib/site-url', () => ({ publicOrigin: () => m.origin }))
 vi.mock('@/lib/sign/notify', () => ({ realDeps: { marker: 'deps' } }))
@@ -80,7 +82,7 @@ beforeEach(() => {
   db = new FakeDb()
   ctx = { admin: db.client(), accountId: ACCOUNT, userId: 'owner-1', origin: 'https://halo.example', deps: {} as never, now: () => new Date('2026-10-07T00:00:00Z'), chainDepth: 2 }
   m.enabled = true
-  for (const f of [m.createDraftFromTemplate, m.updateDraft, m.setSigners, m.deleteDraft, m.sendDocument]) f.mockReset()
+  for (const f of [m.createDraftFromTemplate, m.updateDraft, m.setSigners, m.setCopyRecipients, m.deleteDraft, m.sendDocument]) f.mockReset()
   m.createDraftFromTemplate.mockImplementation(async () => {
     const d = draft()
     db.seed('sign_documents', [d])
@@ -88,6 +90,7 @@ beforeEach(() => {
   })
   m.updateDraft.mockImplementation(async (_c: unknown, _id: string, patch: Record<string, unknown>) => ({ ...draft(), ...patch }))
   m.setSigners.mockResolvedValue([])
+  m.setCopyRecipients.mockResolvedValue([])
   m.deleteDraft.mockResolvedValue(undefined)
   m.sendDocument.mockResolvedValue({ documentId: 'doc-1', reference: 'SIGN-2026-0003', expiresAt: '2026-11-07T00:00:00Z', invited: [{ signerId: 's1', name: 'Casey Lee', roleKey: 'merchant', delivery: { status: 'sent', channel: 'email' } }] })
 })
@@ -289,5 +292,106 @@ describe('Send document for signing: a retry of the same run', () => {
     db.seed('sign_documents', [draft({ id: 'doc-x', account_id: 'someone-else', status: 'sent' })])
     await runSendSignDocument(input({ vars: { sign_document_id: 'doc-x', _sign_doc_key: docKey(CONTACT, TEMPLATE) } }))
     expect(m.createDraftFromTemplate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Send document for signing: people who receive a copy', () => {
+  const copy = (over: Partial<SendSignDocumentStepConfig['recipients'][number]> = {}): SendSignDocumentStepConfig['recipients'][number] => ({ kind: 'copy', role_key: '', source: 'fixed', channel: 'email', ...over })
+  const fixedSigner: SendSignDocumentStepConfig['recipients'][number] = { role_key: 'merchant', source: 'fixed', channel: 'email', full_name: 'Dato Aziz', email: 'aziz@kedai.my' }
+
+  it('saves them after the signers, apart from them: no role, no signer row, no link', async () => {
+    const out = await runSendSignDocument(
+      input({
+        cfg: cfg({
+          recipients: [
+            { role_key: 'merchant', source: 'contact', channel: 'email' },
+            copy({ full_name: 'Accounts of {{ contact.company }}', email: ' accounts@kedai.my ' }),
+            copy({ full_name: 'Legal', email: 'legal@kedai.my' }),
+          ],
+        }),
+      }),
+    )
+    // the signers are the one signer: the copies are not mixed in
+    expect(m.setSigners).toHaveBeenCalledTimes(1)
+    expect(m.setSigners.mock.calls[0][2]).toEqual([expect.objectContaining({ roleKey: 'merchant', email: 'casey@example.com', orderNo: 1 })])
+    // ...and the copies are saved on the same document, with a name and an address only
+    expect(m.setCopyRecipients).toHaveBeenCalledTimes(1)
+    expect(m.setCopyRecipients).toHaveBeenCalledWith(ctx, { documentId: 'doc-1' }, [
+      { fullName: 'Accounts of Kedai Casey', email: 'accounts@kedai.my' },
+      { fullName: 'Legal', email: 'legal@kedai.my' },
+    ])
+    // the order: signers first, copies second, then the send
+    expect(m.setSigners.mock.invocationCallOrder[0]).toBeLessThan(m.setCopyRecipients.mock.invocationCallOrder[0])
+    expect(m.setCopyRecipients.mock.invocationCallOrder[0]).toBeLessThan(m.sendDocument.mock.invocationCallOrder[0])
+    expect(out.step).toMatchObject({ status: 'success', outcome: 'sent' })
+    expect(out.step.detail).toContain('2 people will also get the signed copy')
+  })
+
+  it('the contact can be the one who receives a copy, with their own name and email', async () => {
+    const out = await runSendSignDocument(input({ cfg: cfg({ recipients: [fixedSigner, copy({ source: 'contact' })] }) }))
+    expect(m.setSigners.mock.calls[0][2]).toEqual([expect.objectContaining({ email: 'aziz@kedai.my' })])
+    expect(m.setCopyRecipients).toHaveBeenCalledWith(ctx, { documentId: 'doc-1' }, [{ fullName: 'Casey Lee', email: 'casey@example.com' }])
+    expect(out.step.detail).toContain('1 person will also get the signed copy')
+  })
+
+  it('a document with no copies does not touch the copy service, and says nothing of copies', async () => {
+    const out = await runSendSignDocument(input())
+    expect(m.setCopyRecipients).not.toHaveBeenCalled()
+    expect(out.step.detail).not.toContain('signed copy')
+  })
+
+  it('a draft (send off) says how many will get the copy', async () => {
+    const out = await runSendSignDocument(input({ cfg: cfg({ send: false, recipients: [fixedSigner, copy({ full_name: 'Legal', email: 'legal@kedai.my' })] }) }))
+    expect(m.sendDocument).not.toHaveBeenCalled()
+    expect(out.step).toMatchObject({ status: 'success', outcome: 'draft' })
+    expect(out.step.detail).toContain('1 person will also get the signed copy')
+  })
+
+  it('a contact with no email who is to receive a copy skips the step before anything is made', async () => {
+    const out = await runSendSignDocument(input({ cfg: cfg({ recipients: [fixedSigner, copy({ source: 'contact' })] }), contact: { name: 'Casey', email: '' } }))
+    expect(out.step).toMatchObject({ status: 'skipped', outcome: 'recipient_email_missing' })
+    expect(out.step.detail).toContain('no email')
+    expect(m.createDraftFromTemplate).not.toHaveBeenCalled()
+    expect(m.setCopyRecipients).not.toHaveBeenCalled()
+  })
+
+  it('a run with no contact cannot send a copy to the contact', async () => {
+    const out = await runSendSignDocument(input({ contactId: null, contact: null, cfg: cfg({ recipients: [fixedSigner, copy({ source: 'contact' })] }) }))
+    expect(out.step).toMatchObject({ status: 'skipped', outcome: 'no_contact' })
+    expect(m.createDraftFromTemplate).not.toHaveBeenCalled()
+  })
+
+  it('the same address as a signer, or twice, is said before anything is made (a {{variable}} may turn out equal)', async () => {
+    const same = await runSendSignDocument(input({ cfg: cfg({ recipients: [fixedSigner, copy({ full_name: 'Aziz', email: 'AZIZ@kedai.my' })] }) }))
+    expect(same.step).toMatchObject({ status: 'skipped', outcome: 'copy_is_signer' })
+    const twice = await runSendSignDocument(input({ cfg: cfg({ recipients: [fixedSigner, copy({ full_name: 'A', email: 'x@kedai.my' }), copy({ full_name: 'B', email: 'X@kedai.my' })] }) }))
+    expect(twice.step).toMatchObject({ status: 'skipped', outcome: 'copy_duplicate' })
+    // the contact signs and also is named as a copy
+    const contact = await runSendSignDocument(input({ cfg: cfg({ recipients: [{ role_key: 'merchant', source: 'contact', channel: 'email' }, copy({ source: 'contact' })] }) }))
+    expect(contact.step).toMatchObject({ status: 'skipped', outcome: 'copy_is_signer' })
+    expect(m.createDraftFromTemplate).not.toHaveBeenCalled()
+  })
+
+  it('a copy the service refuses removes the draft again, like an unusable signer, and is skipped in words', async () => {
+    m.setCopyRecipients.mockRejectedValue(new SignError('copy_email', 'Enter a valid email for the person who receives a copy.', 400))
+    const out = await runSendSignDocument(input({ cfg: cfg({ recipients: [fixedSigner, copy({ full_name: 'Legal', email: '{{ contact.nope }}' })] }) }))
+    expect(out.step).toMatchObject({ status: 'skipped', outcome: 'copy_email' })
+    expect(m.deleteDraft).toHaveBeenCalledWith(ctx, 'doc-1')
+    expect(m.sendDocument).not.toHaveBeenCalled()
+  })
+
+  it('a retry that finds the draft does not save the copies a second time', async () => {
+    db.seed('sign_documents', [draft()])
+    const out = await runSendSignDocument(
+      input({ vars: { sign_document_id: 'doc-1', _sign_doc_key: docKey(CONTACT, TEMPLATE) }, cfg: cfg({ recipients: [fixedSigner, copy({ full_name: 'Legal', email: 'legal@kedai.my' })] }) }),
+    )
+    expect(m.createDraftFromTemplate).not.toHaveBeenCalled()
+    expect(m.setSigners).not.toHaveBeenCalled()
+    expect(m.setCopyRecipients).not.toHaveBeenCalled()
+    expect(out.step.outcome).toBe('sent')
+  })
+
+  it('a step with people who receive a copy but nobody who signs is a configuration error', async () => {
+    await expect(runSendSignDocument(input({ cfg: cfg({ recipients: [copy({ full_name: 'Legal', email: 'legal@kedai.my' })] }) }))).rejects.toThrow('who signs')
   })
 })

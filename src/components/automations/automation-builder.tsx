@@ -2019,9 +2019,12 @@ function previewFor(step: BuilderStep, t: ReturnType<typeof useTranslations>): s
         ? t("ai.summary.ticket", { subject: c.subject as string })
         : t("ai.summary.ticketEmpty")
     case "send_sign_document": {
-      const n = Array.isArray(c.recipients) ? c.recipients.length : 0
+      const list = (Array.isArray(c.recipients) ? c.recipients : []) as { kind?: string }[]
+      const copies = list.filter((r) => r?.kind === "copy").length
       return c.template_id
-        ? t("sign.step.summary", { count: n })
+        ? copies > 0
+          ? t("sign.step.summaryCopies", { count: list.length - copies, copies })
+          : t("sign.step.summary", { count: list.length })
         : t("sign.step.summaryEmpty")
     }
     case "condition":

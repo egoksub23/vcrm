@@ -25,6 +25,7 @@ import { myOpenPlace } from "@/lib/sign/turn";
 
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
+import { CopyRecipients } from "./copy-recipients";
 import { downloadFile } from "./download";
 import { FilesList } from "./files-list";
 import { HistoryView } from "./history-view";
@@ -169,6 +170,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
 
         <TabsContent value="people" className="grid gap-6 pt-4">
           <PeopleList document={doc} signers={data.signers} undelivered={undelivered} caps={inEnvelope ? { ...caps, send: false } : caps} onChanged={reload} form={doc.form_snapshot} />
+          <CopyRecipients document={doc} copies={data.copies ?? []} canSend={canSend} onChanged={reload} />
           <FilesList files={data.files} />
         </TabsContent>
 

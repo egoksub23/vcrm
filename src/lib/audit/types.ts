@@ -75,6 +75,8 @@ export const AUDIT_ENTITY_TYPES = [
   "sign_bulk_job",
   "sign_option_list",
   "sign_envelope",
+  // Migration 175: a person who receives a copy of a signed document or collection.
+  "sign_copy_recipient",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

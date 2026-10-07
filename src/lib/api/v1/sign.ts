@@ -15,6 +15,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { publicOrigin } from '@/lib/site-url';
 import { signEnabled } from '@/lib/sign/feature';
 import { realDeps, verifyLink } from '@/lib/sign/notify';
+import { MAX_COPY_RECIPIENTS } from '@/lib/sign/envelopes';
 import { MAX_SIGNERS, normalizePhone } from '@/lib/sign/rules';
 import type { ApiCreateInput, ApiInvitation, ApiProgress, DocumentBundle, ListedDocument, ListFilters } from '@/lib/sign/service/api';
 import type { SignCtx } from '@/lib/sign/service/context';
@@ -188,6 +189,27 @@ export function parseCreateBody(body: Record<string, unknown>): ApiCreateInput {
     });
   }
 
+  // people who receive the signed copy: a name and an address each, up to 10, not on the signing list and not twice
+  const copyTo: ApiCreateInput['copyTo'] = [];
+  if (body.copy_to !== undefined && body.copy_to !== null) {
+    if (!Array.isArray(body.copy_to)) bad('copy_to', 'must be a list of people: [{ full_name, email }]');
+    else if (body.copy_to.length > MAX_COPY_RECIPIENTS) bad('copy_to', `can have up to ${MAX_COPY_RECIPIENTS} people`);
+    else {
+      const seen = new Set(signers.map((s) => s.email.toLowerCase()));
+      body.copy_to.forEach((raw, i) => {
+        const at = (f: string) => `copy_to[${i}].${f}`;
+        if (!isObject(raw)) return bad(`copy_to[${i}]`, 'must be an object');
+        const fullName = typeof raw.full_name === 'string' ? raw.full_name.trim() : '';
+        if (!fullName || fullName.length > 160) bad(at('full_name'), 'is required, up to 160 characters');
+        const email = typeof raw.email === 'string' ? raw.email.trim() : '';
+        if (!EMAIL_RE.test(email) || email.length > 254) bad(at('email'), 'must be a valid email address');
+        else if (seen.has(email.toLowerCase())) bad(at('email'), 'is already on the list: a signer already gets the signed copy, and a person is listed once');
+        else seen.add(email.toLowerCase());
+        copyTo.push({ fullName, email });
+      });
+    }
+  }
+
   const mergeValues: Record<string, string> = {};
   if (body.merge_values !== undefined && body.merge_values !== null) {
     if (!isObject(body.merge_values)) bad('merge_values', 'must be an object of text values');
@@ -227,7 +249,7 @@ export function parseCreateBody(body: Record<string, unknown>): ApiCreateInput {
       problems.map((p) => ({ code: 'invalid', field: p.field, detail: p.detail })),
     );
   }
-  return { templateId, reference, title, contactId, signers, mergeValues, message, locale, expiresInDays, signInOrder, codeRequired, send };
+  return { templateId, reference, title, contactId, signers, copyTo, mergeValues, message, locale, expiresInDays, signInOrder, codeRequired, send };
 }
 
 /** `?status`, `?contact_id`, `?template_id`, `?reference`, `?created_after` of the list, or a 400. */
@@ -319,6 +341,8 @@ export function serializeBundle(b: DocumentBundle, origin: string, extra: { invi
   return {
     ...serializeDocumentFacts(b.document, b.templateId, origin),
     signers: b.signers.map(serializeSigner),
+    // who receives the signed copy: names only (the addresses are the integrator's own; they are not read back)
+    copy_to: (b.copies ?? []).map((c) => ({ full_name: c.full_name })),
     ...(extra.invitations ? { invitations: extra.invitations.map(serializeInvitation) } : {}),
     ...(extra.progress !== undefined
       ? {
