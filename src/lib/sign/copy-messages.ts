@@ -3,11 +3,14 @@
 // document of a collection, in ONE email. They are outside the workspace and read it in the document's language, so the words are written
 // here (the same rule as messages.ts, whose frame and footer they share). Pure.
 //
-// The signed PDF is attached while it fits; the sealed file already holds the certificate pages, so the attachment is the proof. A copy
-// that is too large to attach is never sent as a download link (a link would open the file to anyone who holds it): the message says the
-// sender can provide it and gives the public page that checks a signed document, which shows no document, only whether it is genuine.
+// The signed PDF is attached while it fits. A document sealed before migration 178 holds its certificate pages inside the file, so the attachment
+// is the proof; a newer one has its certificate as a separate file, attached too while it fits (certificate-mail-words.ts says which of the
+// two is true of the message). A copy that is too large to attach is never sent as a download link (a link would open the file to anyone who holds
+// it): the message says the sender can provide it and gives the public page that checks a signed document, which shows no document, only whether
+// it is genuine.
 // ============================================================
 
+import { certificateMailWords, certificateSentence, certificatesSentence, type CertificateState } from "./certificate-mail-words";
 import { button, escapeHtml, fill, frame, para, small, wordsFor, type Rendered } from "./messages";
 import type { SignLocale, SignMode } from "./types";
 
@@ -126,6 +129,8 @@ export interface CopyEmailArgs {
   /** The public page that checks a signed document (shows no document). Named when the copy could not be attached. */
   verifyUrl?: string;
   mode?: SignMode;
+  /** Migration 178: the certificate is a file of its own, attached to this message or not. Absent when it is inside the signed file. */
+  certificate?: CertificateState;
 }
 
 /** The signed copy of one document, to a person who receives a copy. */
@@ -135,11 +140,14 @@ export function copyEmail(a: CopyEmailArgs): Rendered {
   const formOnly = a.mode === "form";
   const v = { name: a.name, sender: a.sender, workspace: a.workspace, title: a.title };
   const intro = fill(formOnly ? c.formIntro : c.intro, v);
-  const note = a.attached ? (formOnly ? c.formAttached : c.attached) : fill(c.tooLarge, v);
-  const lines = [intro, note];
+  // a certificate of its own is not "the certificate pages inside the copy": the copy's sentence then says only that the copy is attached
+  const own = a.certificate === "attached" || a.certificate === "missing";
+  const note = a.attached ? (formOnly ? c.formAttached : own ? certificateMailWords(a.locale).signedAttached : c.attached) : fill(c.tooLarge, v);
+  const certificateNote = certificateSentence(a.locale, a.certificate ?? "none", { sender: a.sender });
+  const lines = [intro, note, ...(certificateNote ? [certificateNote] : [])];
   if (!a.attached && a.verifyUrl) lines.push(c.verify, a.verifyUrl);
   lines.push("", c.nothingToDo, "", fill(w.footer, { workspace: a.workspace }));
-  const html = frame([para(intro), para(note), !a.attached && a.verifyUrl ? `${small(c.verify)}${button(a.title, a.verifyUrl)}` : "", small(c.nothingToDo)].join("\n"), w, a.workspace);
+  const html = frame([para(intro), para(note), certificateNote ? para(certificateNote) : "", !a.attached && a.verifyUrl ? `${small(c.verify)}${button(a.title, a.verifyUrl)}` : "", small(c.nothingToDo)].join("\n"), w, a.workspace);
   return { subject: fill(formOnly ? c.formSubject : c.subject, v), html, text: lines.join("\n") };
 }
 
@@ -149,6 +157,8 @@ export interface EnvelopeCopyEmailArgs extends Omit<CopyEmailArgs, "attached" | 
   attachedCount: number;
   /** The documents whose signed copy is NOT attached, each with the public page that checks it. */
   notAttached?: readonly { title: string; verifyUrl: string }[];
+  /** Migration 178: how many of the documents have a certificate of their own, and how many of those certificates are attached. Absent when none has. */
+  certificates?: { total: number; attached: number };
 }
 
 /** The signed copies of every document of a collection, in ONE message to a person who receives a copy. */
@@ -158,12 +168,16 @@ export function envelopeCopyEmail(a: EnvelopeCopyEmailArgs): Rendered {
   const formOnly = a.mode === "form";
   const v = { name: a.name, sender: a.sender, workspace: a.workspace, title: a.title, count: String(a.count), attached: String(a.attachedCount) };
   const intro = fill(formOnly ? c.collectionFormIntro : c.collectionIntro, v);
-  const note = a.attachedCount >= a.count ? fill(formOnly ? c.collectionFormAttached : c.collectionAttached, v) : a.attachedCount > 0 ? fill(c.collectionSomeAttached, v) : fill(c.collectionNoneAttached, v);
+  // when the certificates are files of their own, "the signed copies include the certificate pages" is not what is true of them
+  const ownCertificates = (a.certificates?.total ?? 0) > 0;
+  const allAttached = fill(formOnly ? c.collectionFormAttached : ownCertificates ? certificateMailWords(a.locale).signedCopiesAttached : c.collectionAttached, v);
+  const note = a.attachedCount >= a.count ? allAttached : a.attachedCount > 0 ? fill(c.collectionSomeAttached, v) : fill(c.collectionNoneAttached, v);
+  const certificatesNote = a.certificates ? certificatesSentence(a.locale, { ...a.certificates, sender: a.sender }) : null;
   const missing = a.notAttached ?? [];
-  const lines = [intro, note];
+  const lines = [intro, note, ...(certificatesNote ? [certificatesNote] : [])];
   if (missing.length > 0) lines.push(c.verify, ...missing.map((m) => `${m.title}: ${m.verifyUrl}`));
   lines.push("", c.nothingToDo, "", fill(w.footer, { workspace: a.workspace }));
   const links = missing.length > 0 ? [small(c.verify), ...missing.map((m) => `<p style="font-size: 13px; line-height: 1.5; word-break: break-all;">${escapeHtml(m.title)}: <a href="${escapeHtml(m.verifyUrl)}">${escapeHtml(m.verifyUrl)}</a></p>`)].join("\n") : "";
-  const html = frame([para(intro), para(note), links, small(c.nothingToDo)].join("\n"), w, a.workspace);
+  const html = frame([para(intro), para(note), certificatesNote ? para(certificatesNote) : "", links, small(c.nothingToDo)].join("\n"), w, a.workspace);
   return { subject: fill(formOnly ? c.collectionFormSubject : c.collectionSubject, v), html, text: lines.join("\n") };
 }

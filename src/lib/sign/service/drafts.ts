@@ -432,7 +432,8 @@ async function ownFilePaths(ctx: SignCtx, doc: SignDocumentRow): Promise<string[
     ctx.admin.from("sign_answers").select("file_path").eq("document_id", doc.id).eq("account_id", ctx.accountId),
   ]);
   const paths = new Set<string>([...(files.data ?? []).map((f: { path: string }) => f.path), ...(answers.data ?? []).map((a: { file_path: string | null }) => a.file_path ?? "")]);
-  for (const p of [doc.base_path, doc.original_path, doc.final_path]) if (p) paths.add(p);
+  // (migration 178: the certificate as a file of its own is one of them; its file row names it too, this is the belt to that brace)
+  for (const p of [doc.base_path, doc.original_path, doc.final_path, doc.certificate_path]) if (p) paths.add(p);
   return [...paths].filter((p) => p.startsWith(mine));
 }
 

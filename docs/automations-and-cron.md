@@ -120,6 +120,7 @@ What later steps can read:
 | `{{ sign.event }}` | Which event fired it. |
 | `{{ sign.template }}` | The template's name (empty if it was not made from one). |
 | `{{ sign.final_sha256 }}` | The fingerprint of the signed file (completed only). |
+| `{{ sign.certificate_sha256 }}` | The fingerprint of the certificate when it is a file of its own (completed only; empty for a document sealed before certificates became separate files). |
 | `{{ sign.verify_url }}` | The public page that proves the signed file is genuine (completed only). |
 
 `{{ contact.name }}`, `{{ contact.first_name }}`, `{{ contact.email }}`, `{{ contact.phone }}` and

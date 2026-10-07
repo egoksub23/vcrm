@@ -329,3 +329,49 @@ describe("the words of a draft collection's new problems", () => {
     expect(addPerson([], [uploaded], "signer")[0].type).toBeUndefined();
   });
 });
+
+// ---- Download all (zip) and the certificates of a completed collection (migration 178) ----------------------------------------
+
+describe("the downloads of a collection", () => {
+  const withFiles = (status: "sent" | "completed", flags: { final: boolean; certificate: boolean }): EnvelopeData => {
+    const d = detail(status, []);
+    return { ...d, documents: d.documents.map((x) => ({ ...x, hasFinalFile: flags.final, hasCertificate: flags.certificate })) };
+  };
+  const ZIP = '/api/sign/envelopes/e1/zip"';
+
+  for (const locale of LOCALES) {
+    it(`offers ONE 'Download all (zip)' and a certificate beside each signed document that has one (${locale})`, () => {
+      const w = wording(locale);
+      const all = at(w, "send.envelope.detail.downloadAll");
+      const certificate = at(w, "send.envelope.detail.certificate");
+      const html = page(locale, <EnvelopeDetail data={withFiles("completed", { final: true, certificate: true })} reload={async () => null} />);
+      expect(html.split(ZIP)).toHaveLength(2);
+      expect(html).toContain(all);
+      expect(html.split(`>${certificate}<`).length - 1).toBe(2);
+      for (const n of [1, 2]) {
+        const id = `0000000${n}-0000-4000-8000-000000000000`;
+        expect(html).toContain(`/api/sign/documents/${id}/file?kind=final&amp;download=1`);
+        expect(html).toContain(`/api/sign/documents/${id}/file?kind=certificate&amp;download=1`);
+      }
+      if (locale === "en") {
+        expect(all).toBe("Download all (zip)");
+        expect(certificate).toBe("Certificate");
+      } else {
+        expect(all).not.toBe("Download all (zip)");
+      }
+    });
+  }
+
+  it("keeps the signed copy of each document, and the one zip, for a collection sealed before certificates were files of their own: no certificate link", () => {
+    const html = page("en", <EnvelopeDetail data={withFiles("completed", { final: true, certificate: false })} reload={async () => null} />);
+    expect(html).toContain(ZIP);
+    expect(html).not.toContain("kind=certificate");
+    expect(html).not.toContain(">Certificate<");
+  });
+
+  it("offers nothing to download while no document has a signed file", () => {
+    const html = page("en", <EnvelopeDetail data={withFiles("sent", { final: false, certificate: false })} reload={async () => null} />);
+    expect(html).not.toContain("/zip");
+    expect(html).not.toContain("Download all (zip)");
+  });
+});

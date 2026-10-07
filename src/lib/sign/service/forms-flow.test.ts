@@ -960,15 +960,17 @@ describe("sealing a form document", () => {
     expect(inBox(at("1234567890"), 0.35)).toBe(true); // the filler's answer, printed too
     expect(first.some((x) => x.str.includes("sdn_bhd"))).toBe(false);
 
-    // the certificate pages list the upload (name and the start of its fingerprint); nothing of the form's answers is on them
+    // the certificate (a file of its own: migration 178) lists the upload (name and the start of its fingerprint); nothing of the form's answers is on it
     const upload = t.db.rows("sign_document_files").find((f) => f.kind === "signer_upload")!;
-    const cert = text.filter((x) => x.page > 1).map((x) => x.str).join(" ").replace(/\s+/g, "");
+    const certificateBytes = t.db.files.get(fin.args.p_certificate_path as string)!;
+    expect(verifySealed(certificateBytes).ok).toBe(true);
+    const cert = (await pageText(certificateBytes)).map((x) => x.str).join(" ").replace(/\s+/g, "");
     expect(cert).toContain("uploaded");
     expect(cert).toContain("CompanyExtractfinal.pdf");
     expect(cert).toContain(String(upload.sha256).slice(0, 16));
     for (const hidden of ["KedaiRuncitAliSdnBhd", "Johor", "1234567890", "ali@old.example"]) expect(cert).not.toContain(hidden);
-    // the uploaded file is not appended as a page: the original page plus certificate pages only
-    expect(text.some((x) => x.page === 2 && x.str.includes("Fixture"))).toBe(false);
+    // the uploaded file is not appended as a page, and the signed file carries no certificate pages: the original page only
+    expect(text.some((x) => x.page === 2)).toBe(false);
   });
 
   it("merges the bound placements' values over the answered ones, and leaves a bound placement out of the answered fields", async () => {

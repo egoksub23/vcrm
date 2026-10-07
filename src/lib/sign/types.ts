@@ -95,6 +95,12 @@ export interface SignDocumentRow {
   page_count: number | null;
   final_path: string | null;
   final_sha256: string | null;
+  /**
+   * Migration 178: the certificate as a PDF of its own, stored beside the signed file, and its SHA-256. Both are set together, once, when the
+   * document is completed. NULL (or absent) means the certificate is EMBEDDED in the signed PDF: every document sealed before migration 178.
+   */
+  certificate_path?: string | null;
+  certificate_sha256?: string | null;
   void_reason: string | null;
   reminder_days: number[] | null;
   sealing_started_at: string | null;
@@ -197,6 +203,8 @@ export interface SignSettingsRow {
   certificate_id: string | null;
   whatsapp_template_name: string | null;
   whatsapp_template_language: string;
+  /** Migration 178: also put the certificate pages inside the signed PDF of a new document (the standalone certificate is always made). Default false. */
+  embed_certificate?: boolean;
 }
 
 export interface SignTemplateVersionRow {

@@ -8505,7 +8505,11 @@
         "retentionHint": "A whole number of years, from 1 to 50. 7 is the starting value until your organisation has decided how long it must keep signed records: confirm the period with your lawyer or auditor.",
         "retentionEffect": "A change applies to documents sealed from now on. A document that is already sealed keeps the date it was given when it was sealed. A category can set its own period (Categories). Documents are never deleted automatically.",
         "retentionPast": "{count, plural, one {# signed document is past its retention date.} other {# signed documents are past their retention date.}}",
-        "retentionPastNone": "No signed document is past its retention date yet."
+        "retentionPastNone": "No signed document is past its retention date yet.",
+        "certificateTitle": "Certificate of completion",
+        "certificateIntro": "Every new signed document gets its certificate of completion as a separate PDF, sealed with the same digital signature, beside the signed document. The signed document carries only the signatures and a small ID line on every page.",
+        "embedCertificate": "Also embed the certificate inside the signed PDF",
+        "embedCertificateHint": "Off by default. When on, a new document also gets the certificate pages at the end of the signed PDF, as well as the separate file. Documents that are already signed are not changed."
       },
       "consent": {
         "intro": "This is what a person agrees to before signing. The standard wording is used unless you write your own for a language. Each wording has a version, and the version a person agreed to is kept with the signed document. Have your own wording read by someone qualified before you rely on it.",
@@ -9044,7 +9048,11 @@
         "view": "View",
         "downloadOriginal": "Download original",
         "void": "Cancel document",
-        "downloadRecord": "Download the record"
+        "downloadRecord": "Download the record",
+        "signedDocument": "Signed document",
+        "sealedRecord": "Sealed record",
+        "certificate": "Certificate",
+        "downloadAll": "Download all (zip)"
       },
       "banner": {
         "waiting": "Waiting for {names} ({done} of {total} signed)",
@@ -9192,7 +9200,9 @@
         "asSent": "As sent",
         "noteSigned": "The signed copy, with every answer and the certificate pages.",
         "noteSent": "The document as it was sent. Answers are not shown here until everyone has signed.",
-        "noteRecord": "The sealed submission record: the answers, the people who submitted and the certificate pages."
+        "noteRecord": "The sealed submission record: the answers, the people who submitted and the certificate pages.",
+        "noteSignedOwn": "The signed copy, with every answer. Its certificate is a separate file.",
+        "noteRecordOwn": "The sealed submission record: the answers and the people who submitted. Its certificate is a separate file."
       },
       "files": {
         "title": "Files",
@@ -9226,7 +9236,8 @@
           "fingerprint": "File fingerprint",
           "channel": "Sent by",
           "delivery": "What went wrong",
-          "error": "Technical note"
+          "error": "Technical note",
+          "certificateFingerprint": "Certificate fingerprint"
         },
         "chain": {
           "checking": "Checking",
@@ -11136,7 +11147,9 @@
             "cancel": "Cancel",
             "action": "Give more time",
             "done": "The new date was saved"
-          }
+          },
+          "downloadAll": "Download all (zip)",
+          "certificate": "Certificate"
         }
       },
       "collection": {
@@ -11403,7 +11416,11 @@
           "download": "Download signed PDF",
           "view": "View signed PDF",
           "byEmail": "A signed copy was sent to your email address.",
-          "delegate": "Thank you for filling in your part. The sender has the finished document."
+          "delegate": "Thank you for filling in your part. The sender has the finished document.",
+          "signedDocument": "Signed document",
+          "record": "Sealed record",
+          "certificate": "Certificate",
+          "downloadAll": "Download all (zip)"
         },
         "declined": {
           "title": "This document was not signed",
@@ -11554,7 +11571,10 @@
             "body": "Everyone has signed. We are putting the signed copies together. This page updates by itself, so you can leave it open.",
             "slow": "This is taking longer than usual. You can close this page. We will email the signed copies as soon as they are ready.",
             "stuck": "This is taking longer than expected. Your signatures are saved and nothing is lost. The signed copies are still being made, and we will email them to you as soon as they are ready. You can close this page."
-          }
+          },
+          "certificate": "Download the certificate of {title}",
+          "certificateShort": "Certificate",
+          "downloadAll": "Download all (zip)"
         }
       }
     },
@@ -11816,7 +11836,10 @@
         "matchBodyForm": "Your copy is identical to the sealed record, byte for byte.",
         "differentTitleForm": "This file is not the sealed record",
         "differentBodyForm": "It may have been changed, or saved again by another program or a PDF editor. Ask the sender for the sealed record.",
-        "fingerprintForm": "Fingerprint of the sealed record (SHA-256)"
+        "fingerprintForm": "Fingerprint of the sealed record (SHA-256)",
+        "introBoth": "Choose the signed document or its certificate, whichever you were given. It is compared on your device and is not uploaded.",
+        "matchCertificateTitle": "This is the exact certificate",
+        "matchCertificateBody": "Your copy is identical to the certificate of this document, byte for byte. It names the signed document it covers by its fingerprint."
       },
       "readerHint": "To see the electronic signature itself, open the PDF in a PDF reader such as Adobe Acrobat and look at its signature panel.",
       "notFound": {
@@ -11824,7 +11847,12 @@
         "body": "Check that you scanned the whole code or opened the whole address. If it still does not work, ask the person who sent you the document."
       },
       "signedTitleForm": "This submission is recorded",
-      "envelope": "This document was signed together with others, in one document collection of {count, plural, one {# document} other {# documents}}."
+      "envelope": "This document was signed together with others, in one document collection of {count, plural, one {# document} other {# documents}}.",
+      "certificate": {
+        "title": "Certificate",
+        "separate": "The certificate of this document is a separate file, sealed with a digital signature. It names the signed document it covers: {file}.",
+        "fingerprint": "Fingerprint of the certificate (SHA-256)"
+      }
     },
     "bulk": {
       "title": "Bulk send",

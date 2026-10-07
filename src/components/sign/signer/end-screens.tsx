@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, Ban, CalendarX, CheckCircle2, Clock, Download, ExternalLink, FileX, Loader2, RefreshCw, UserX } from "lucide-react";
+import { AlertTriangle, Archive, Award, Ban, CalendarX, CheckCircle2, Clock, Download, ExternalLink, FileX, Loader2, RefreshCw, UserX } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { signerFileUrl } from "@/lib/sign/client/api";
@@ -89,11 +89,24 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
             // a person handed one part of the form does not get the whole document
             <p className="text-sm text-muted-foreground">{t("end.completed.delegate")}</p>
           ) : canDownload ? (
-            <div className="flex w-full flex-col gap-2 pt-2 sm:flex-row sm:justify-center">
+            <div className="flex w-full flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap sm:justify-center">
               <a href={signerFileUrl(token, true)} className={cn(buttonVariants(), "h-12 px-5 text-base")}>
                 <Download className="size-4" aria-hidden />
-                {formOnly ? t("end.completedForm.download") : t("end.completed.download")}
+                {/* a certificate of its own (migration 178) makes this "the signed document" beside "Certificate"; an older document has one file with both in it */}
+                {view.document.hasCertificate ? (formOnly ? t("end.completed.record") : t("end.completed.signedDocument")) : formOnly ? t("end.completedForm.download") : t("end.completed.download")}
               </a>
+              {view.document.hasCertificate ? (
+                <>
+                  <a href={signerFileUrl(token, true, "certificate")} className={cn(buttonVariants({ variant: "outline" }), "h-12 px-5 text-base")}>
+                    <Award className="size-4" aria-hidden />
+                    {t("end.completed.certificate")}
+                  </a>
+                  <a href={signerFileUrl(token, true, "zip")} className={cn(buttonVariants({ variant: "outline" }), "h-12 px-5 text-base")}>
+                    <Archive className="size-4" aria-hidden />
+                    {t("end.completed.downloadAll")}
+                  </a>
+                </>
+              ) : null}
               <a href={signerFileUrl(token)} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "h-12 px-5 text-base")}>
                 <ExternalLink className="size-4" aria-hidden />
                 {formOnly ? t("end.completedForm.view") : t("end.completed.view")}

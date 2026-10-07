@@ -60,6 +60,8 @@ export interface SignEventData {
   signer?: { name: string; role: string };
   /** completed only */
   final_sha256?: string;
+  /** completed only (migration 178): the SHA-256 of the certificate when it is a file of its own, which the API serves at GET /api/v1/sign/documents/{id}/certificate. Absent when the certificate is inside the signed PDF (a document sealed earlier). */
+  certificate_sha256?: string;
   verify_url?: string;
 }
 
@@ -93,6 +95,7 @@ export function buildSignEventData(doc: SignDocumentRow, signers: readonly SignS
   if ((event === "viewed" || event === "declined") && who) data.signer = { name: who.full_name, role: label(who.role_key) };
   if (event === "completed") {
     if (doc.final_sha256) data.final_sha256 = doc.final_sha256;
+    if (doc.certificate_sha256) data.certificate_sha256 = doc.certificate_sha256;
     data.verify_url = verifyLink(origin, doc.id);
   }
   return data;
@@ -110,6 +113,7 @@ export function toAutomationContext(data: SignEventData, event: SignEvent): Sign
     template_id: data.template_id ?? "",
     category_id: data.category_id ?? "",
     final_sha256: data.final_sha256 ?? "",
+    certificate_sha256: data.certificate_sha256 ?? "",
     verify_url: data.verify_url ?? "",
   };
 }

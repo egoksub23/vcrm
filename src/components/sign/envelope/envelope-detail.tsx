@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send } from "lucide-react";
+import { Archive, ArrowLeft, Award, Bell, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { useCapability } from "@/hooks/use-can";
 import { useNow } from "@/hooks/use-now";
 import type { EnvelopeData } from "@/hooks/use-sign-envelope";
-import { SignApiError, documentFileUrl, signRequest } from "@/lib/sign/client/api";
+import { SignApiError, documentFileUrl, envelopeZipUrl, signRequest } from "@/lib/sign/client/api";
 import { errorKey } from "@/lib/sign/client/errors";
 import { remindHeldUntil } from "@/lib/sign/defaults";
 import { SIGN_STATUS_NAMESPACE, signerBadgeClass, signerStatusKey } from "@/lib/sign/client/status";
@@ -197,9 +197,18 @@ export function EnvelopeDetail({ data, reload }: Props) {
       </section>
 
       <section aria-labelledby="env-detail-docs" className="space-y-2">
-        <h2 id="env-detail-docs" className="text-sm font-semibold text-foreground">
-          {t("detail.documents")}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="env-detail-docs" className="text-sm font-semibold text-foreground">
+            {t("detail.documents")}
+          </h2>
+          {documents.some((d) => d.hasFinalFile) ? (
+            // every signed document with its certificate, and a summary, in one zip
+            <a href={envelopeZipUrl(env.id)} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
+              <Archive className="size-3.5" aria-hidden />
+              {t("detail.downloadAll")}
+            </a>
+          ) : null}
+        </div>
         <ol className="divide-y divide-border rounded-xl border border-border bg-card">
           {documents.map((d) => (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
@@ -215,6 +224,12 @@ export function EnvelopeDetail({ data, reload }: Props) {
                   <a href={documentFileUrl(d.id, "final", true)} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
                     <Download className="size-3.5" aria-hidden />
                     {t("detail.download")}
+                  </a>
+                ) : null}
+                {d.hasCertificate ? (
+                  <a href={documentFileUrl(d.id, "certificate", true)} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
+                    <Award className="size-3.5" aria-hidden />
+                    {t("detail.certificate")}
                   </a>
                 ) : null}
                 <Link href={`/sign/${d.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">

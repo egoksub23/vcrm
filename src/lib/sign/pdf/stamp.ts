@@ -15,8 +15,9 @@ import {
   type EngineLocale,
 } from "./format";
 import { normalizeRotation, offsetToUser, shownBoxToUser, type Rotation } from "./geometry";
+import { drawIdFooters } from "./idfooter";
 import { openPdf, savePdf, sha256Hex } from "./load";
-import type { FieldValue, FieldValues, PlacedField, StampOptions, StampResult, StampWarning } from "./types";
+import type { FieldValue, FieldValues, FooterResult, PlacedField, StampOptions, StampResult, StampWarning } from "./types";
 
 const INK = rgb(0.06, 0.07, 0.12);
 const PAD = 2;
@@ -176,6 +177,7 @@ function drawCheck(page: PDFPage, field: PlacedField, g: PageGeom) {
 /**
  * Write `values` onto the fields of a PDF. A field with no value is left blank. Returns the new
  * file (plain cross-reference table, ready for certificate pages and a signature) and any warnings.
+ * With `options.idFooter` every page also gets the ID line in its bottom margin (idfooter.ts).
  */
 export async function stampFields(
   input: Uint8Array,
@@ -231,8 +233,18 @@ export async function stampFields(
     if (text) drawFittedText(page, field, text, g, ctx, { font: "regular" });
   }
 
+  // the ID line on every page (the sealing step only; see idfooter.ts), after the answers so nothing is drawn over it. It can never fail the stamp.
+  let footer: FooterResult | undefined;
+  if (options.idFooter) {
+    try {
+      footer = drawIdFooters(doc, fonts, options.idFooter);
+    } catch {
+      footer = { stamped: 0, skipped: 0, failed: pages.length };
+    }
+  }
+
   const bytes = await savePdf(doc);
-  return { bytes, warnings: ctx.warnings };
+  return { bytes, warnings: ctx.warnings, ...(footer ? { footer } : {}) };
 }
 
 /**

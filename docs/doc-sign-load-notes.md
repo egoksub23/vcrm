@@ -185,3 +185,21 @@ provider; the converter; concurrent web traffic; webhooks and automations beyond
 CJK font (the fonts written on documents are Latin only today); the sealing of a document collection's documents; a certificate
 uploaded by a workspace (a larger chain makes a larger signature, the same order of cost). The run-to-run spread
 was up to about 25 percent between the two full runs, wider than usual because of the machine's other load.
+
+## After migration 178: the certificate is a second file
+
+A sealed document is now TWO files: the signed document (with the ID line on every page, no certificate pages) and the certificate as a PDF of its own,
+sealed with the same certificate and stored beside it. Measured the same way (scenarios a, b and c, 4 warm repeats), BEFORE and AFTER in one sitting on the
+same developer machine (NOT the live server; the machine was busy with other work, so read the differences, not the absolute figures):
+
+| Scenario | Before: warm ms | After: warm ms | Signed file before / after | Certificate file |
+|---|---|---|---|---|
+| a. small contract (4 pp) | 191 | 229 | 291 KB (5 pp) / 160 KB (4 pp) | one A4 page |
+| b. Merchant Application, answered | 302 | 303 | 548 KB (5 pp) / 416 KB (4 pp) | one A4 page |
+| c. 50 pages, 300 fields | 993 | 893 | 620 KB (52 pp) / 491 KB (50 pp) | one A4 page |
+
+Building and sealing the certificate costs about 40 ms for a small document and is lost in the noise for a large one; the 20 s tick budget and the 4
+documents per tick (`runSealingWithin`) are unchanged, and a heavy document still takes the engine seconds, not the certificate. Each sealed job makes
+**2 more storage calls** on the live server (the certificate's upload and its read-back: 5 storage calls instead of 3) and the same 2 rpc calls (the
+second is the same `sign_finish_sealing`, now with the certificate); those are network round trips whose time is not in the table. The signed file is
+smaller than before (no certificate pages and no second copy of the fonts), which is what the mail attachment budgets count first.

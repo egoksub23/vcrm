@@ -34,6 +34,11 @@ const MS: CertificateLabels = {
   note: "Peristiwa penandatanganan di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Fail ini dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
   page: "Halaman perakuan",
   of: "daripada",
+  documentId: "ID dokumen",
+  signedFile: "Dokumen bertandatangan",
+  signedFingerprint: "SHA-256 dokumen bertandatangan",
+  standaloneNote:
+    "Sijil ini ialah fail berasingan. Ia meliputi dokumen bertandatangan yang dinamakan di atas: cap jari SHA-256 dokumen itu ditulis di sini dan sesiapa boleh menyemak salinan dengannya di halaman pengesahan. Peristiwa penandatanganan di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Sijil ini dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
 };
 
 const ZH: CertificateLabels = {
@@ -62,6 +67,11 @@ const ZH: CertificateLabels = {
   note: "上述签署事件保存在审计记录中，每条记录都带有前一条记录的指纹。本文件以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
   page: "证书页",
   of: "共",
+  documentId: "文件 ID",
+  signedFile: "已签署文件",
+  signedFingerprint: "已签署文件的 SHA-256",
+  standaloneNote:
+    "本证书是一个独立的文件，涵盖上面所列的已签署文件：该文件的 SHA-256 指纹写在此处，任何人都可以在核验页面上用它核对手中的副本。上述签署事件保存在审计记录中，每条记录都带有前一条记录的指纹。本证书以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
 };
 
 const KO: CertificateLabels = {
@@ -90,6 +100,11 @@ const KO: CertificateLabels = {
   note: "위의 서명 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 파일은 디지털 서명으로 봉인되었으며, 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
   page: "증명서 페이지",
   of: "/",
+  documentId: "문서 ID",
+  signedFile: "서명된 문서",
+  signedFingerprint: "서명된 문서의 SHA-256",
+  standaloneNote:
+    "이 증명서는 별도의 파일입니다. 위에 적힌 서명된 문서를 대상으로 하며, 그 문서의 SHA-256 지문이 여기에 기재되어 있어 누구나 확인 페이지에서 사본을 대조할 수 있습니다. 위의 서명 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 증명서는 디지털 서명으로 봉인되었으며, 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
 };
 
 const LABELS: Record<SignLocale, CertificateLabels> = { en: DEFAULT_CERTIFICATE_LABELS, ms: MS, zh: ZH, ko: KO };
@@ -107,6 +122,10 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     statusSigned: "Submitted",
     statusPending: "Not submitted",
     note: "The events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This file records what was submitted and is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
+    signedFile: "Sealed record",
+    signedFingerprint: "SHA-256 of the sealed record",
+    standaloneNote:
+      "This certificate is a separate file. It covers the sealed record of what was submitted, named above: that file's SHA-256 fingerprint is written here, and anyone can check a copy against it on the verification page. The events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This certificate is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
   },
   ms: {
     heading: "Perakuan Penghantaran",
@@ -116,6 +135,10 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     statusSigned: "Dihantar",
     statusPending: "Belum dihantar",
     note: "Peristiwa di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Fail ini merekodkan apa yang dihantar dan dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
+    signedFile: "Rekod termeterai",
+    signedFingerprint: "SHA-256 rekod termeterai",
+    standaloneNote:
+      "Sijil ini ialah fail berasingan. Ia meliputi rekod termeterai tentang apa yang dihantar, yang dinamakan di atas: cap jari SHA-256 fail itu ditulis di sini dan sesiapa boleh menyemak salinan dengannya di halaman pengesahan. Peristiwa di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Sijil ini dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
   },
   zh: {
     heading: "提交证书",
@@ -125,6 +148,10 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     statusSigned: "已提交",
     statusPending: "未提交",
     note: "上述事件保存在审计记录中，每条记录都带有前一条记录的指纹。本文件记录所提交的内容，并以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
+    signedFile: "封存的记录",
+    signedFingerprint: "封存记录的 SHA-256",
+    standaloneNote:
+      "本证书是一个独立的文件，涵盖上面所列的、记录所提交内容的封存记录：该文件的 SHA-256 指纹写在此处，任何人都可以在核验页面上用它核对手中的副本。上述事件保存在审计记录中，每条记录都带有前一条记录的指纹。本证书以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
   },
   ko: {
     heading: "제출 증명서",
@@ -134,6 +161,10 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     statusSigned: "제출함",
     statusPending: "미제출",
     note: "위의 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 파일은 제출된 내용을 기록하며 디지털 서명으로 봉인되었습니다. 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
+    signedFile: "봉인된 기록",
+    signedFingerprint: "봉인된 기록의 SHA-256",
+    standaloneNote:
+      "이 증명서는 별도의 파일입니다. 위에 적힌, 제출된 내용을 기록한 봉인된 기록을 대상으로 하며, 그 파일의 SHA-256 지문이 여기에 기재되어 있어 누구나 확인 페이지에서 사본을 대조할 수 있습니다. 위의 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 증명서는 디지털 서명으로 봉인되었으며, 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
   },
 };
 

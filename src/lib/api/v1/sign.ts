@@ -62,6 +62,24 @@ export function limitSends(api: ApiKeyContext): void {
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 /** `{ error: { code, message, issues? } }` for a SignError; the usual envelope for anything else. */
+/**
+ * A file as the API hands it out: the bytes as an attachment (never an address), with the file's fingerprint in `X-Content-SHA256`. The signed file
+ * and the certificate file are both answered this way.
+ */
+export function fileResponse(file: { bytes: Uint8Array; mime: string; filename: string; sha256: string | null }): NextResponse {
+  return new NextResponse(Buffer.from(file.bytes), {
+    status: 200,
+    headers: {
+      'Content-Type': file.mime,
+      'Content-Length': String(file.bytes.byteLength),
+      'Content-Disposition': `attachment; filename="${file.filename.replace(/["\r\n]/g, '')}"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      ...(file.sha256 ? { 'X-Content-SHA256': file.sha256 } : {}),
+    },
+  });
+}
+
 export function signApiError(err: unknown): NextResponse {
   if (err instanceof SignError) {
     return NextResponse.json(
@@ -305,7 +323,10 @@ export function serializeSigner(s: SignSignerRow) {
 
 type DocumentFacts = ListedDocument | SignDocumentRow;
 
-/** The facts of a document. `final_sha256` and `verify_url` exist only once it is completed. */
+/**
+ * The facts of a document. `final_sha256` and `verify_url` exist only once it is completed; `certificate_sha256` too, and it is null for a document sealed
+ * before certificates became separate files (its certificate is the last pages of the signed copy).
+ */
 export function serializeDocumentFacts(d: DocumentFacts, templateId: string | null, origin: string) {
   const completed = d.status === 'completed' && !!d.final_sha256;
   return {
@@ -330,6 +351,7 @@ export function serializeDocumentFacts(d: DocumentFacts, templateId: string | nu
     completed_at: d.completed_at,
     void_reason: d.status === 'voided' ? d.void_reason : null,
     final_sha256: completed ? d.final_sha256 : null,
+    certificate_sha256: completed ? (d.certificate_sha256 ?? null) : null,
     verify_url: completed ? verifyLink(origin, d.id) : null,
   };
 }

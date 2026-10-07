@@ -71,6 +71,7 @@ import { POST as voidDocument } from './documents/[id]/void/route';
 import { POST as remindDocument } from './documents/[id]/remind/route';
 import { POST as sendDocument } from './documents/[id]/send/route';
 import { GET as getFile } from './documents/[id]/file/route';
+import { GET as getCertificate } from './documents/[id]/certificate/route';
 
 const roles: SignRole[] = [
   { key: 'merchant', label: 'Merchant', kind: 'signer', color: 0 },
@@ -774,6 +775,70 @@ describe('GET /documents/{id}/file', () => {
     expect((await json(original)).error?.code).toBe('no_original_file');
     const kind = await getFile(call('GET', `/documents/${id}/file?kind=base`, 'read'), withId(id));
     expect(kind.status).toBe(400);
+  });
+
+  it('says the certificate is a file of its own for a document sealed after migration 178: its own bytes and fingerprint, recorded, the same at both addresses', async () => {
+    const { id, bytes, finalPath, row } = await completed();
+    const certificate = await makePdf([{ ...A4 }]);
+    const certificatePath = `account-${A}/${id}/certificate/cert.pdf`;
+    db.files.set(certificatePath, certificate);
+    const sha = createHash('sha256').update(certificate).digest('hex');
+    Object.assign(row, { status: 'completed', final_path: finalPath, final_sha256: createHash('sha256').update(bytes).digest('hex'), certificate_path: certificatePath, certificate_sha256: sha });
+
+    const res = await getCertificate(call('GET', `/documents/${id}/certificate`, 'read'), withId(id));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="MERCHANT-1001-certificate.pdf"');
+    expect(res.headers.get('x-content-sha256')).toBe(sha);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(certificate);
+    const logged = db.rpcCalls.filter((c) => c.name === 'sign_log' && c.args.p_type === 'downloaded');
+    expect(logged).toHaveLength(1);
+    expect(logged[0].args.p_detail).toMatchObject({ kind: 'certificate', via: 'api_key:key-wacrm_live_read' });
+    // the existing address answers the same file, and the signed file is still the signed file
+    const same = await getFile(call('GET', `/documents/${id}/file?kind=certificate`, 'read'), withId(id));
+    expect(same.status).toBe(200);
+    expect(new Uint8Array(await same.arrayBuffer())).toEqual(certificate);
+    const signed = await getFile(call('GET', `/documents/${id}/file?kind=signed`, 'read'), withId(id));
+    expect(new Uint8Array(await signed.arrayBuffer())).toEqual(bytes);
+    // the document says the certificate's fingerprint (next to the signed file's)
+    const facts = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(facts.data.certificate_sha256).toBe(sha);
+    expect(facts.data.final_sha256).toBe(createHash('sha256').update(bytes).digest('hex'));
+  });
+
+  it('answers 404 no_separate_certificate for a document sealed earlier (its certificate is inside the signed copy), at both addresses, and null in the facts', async () => {
+    const { id, finalPath, row } = await completed();
+    Object.assign(row, { status: 'completed', final_path: finalPath, final_sha256: 'a'.repeat(64) });
+    for (const path of [`/documents/${id}/certificate`, `/documents/${id}/file?kind=certificate`]) {
+      const res = await (path.endsWith('certificate') ? getCertificate : getFile)(call('GET', path, 'read'), withId(id));
+      expect(res.status, path).toBe(404);
+      const body = await json(res);
+      expect(body.error?.code).toBe('no_separate_certificate');
+      expect(body.error?.message).toContain('kind=signed');
+    }
+    const facts = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(facts.data.certificate_sha256).toBeNull();
+    expect(db.rpcCalls.some((c) => c.name === 'sign_log' && c.args.p_type === 'downloaded')).toBe(false);
+  });
+
+  it('refuses the certificate before the document is completed, to a key without the read scope, and across workspaces', async () => {
+    const { id, finalPath, row } = await completed();
+    const certificatePath = `account-${A}/${id}/certificate/cert.pdf`;
+    db.files.set(certificatePath, new Uint8Array([1, 2, 3]));
+    for (const status of ['draft', 'sent', 'in_progress', 'sealing', 'failed', 'voided', 'declined', 'expired']) {
+      Object.assign(row, { status, final_path: finalPath, final_sha256: 'a'.repeat(64), certificate_path: certificatePath, certificate_sha256: 'd'.repeat(64) });
+      const res = await getCertificate(call('GET', `/documents/${id}/certificate`, 'read'), withId(id));
+      expect(res.status, status).toBe(409);
+      expect((await json(res)).error?.code).toBe('not_completed');
+    }
+    Object.assign(row, { status: 'completed' });
+    expect((await getCertificate(call('GET', `/documents/${id}/certificate`, 'none'), withId(id))).status).toBe(403);
+    expect((await getCertificate(call('GET', `/documents/${id}/certificate`, 'other'), withId(id))).status).toBe(404);
+    // a stored path outside the workspace's folder is never read
+    Object.assign(row, { certificate_path: `account-${B}/x/certificate/y.pdf` });
+    db.files.set(`account-${B}/x/certificate/y.pdf`, new Uint8Array([9]));
+    expect((await getCertificate(call('GET', `/documents/${id}/certificate`, 'read'), withId(id))).status).toBe(404);
   });
 
   it('hands out the original as received when the document has one, in any state', async () => {

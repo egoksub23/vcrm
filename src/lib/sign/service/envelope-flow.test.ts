@@ -490,20 +490,26 @@ describe("sealing and the one message at the end", () => {
     expect(ids.map((id) => docRow(id).status)).toEqual(["completed", "completed"]);
     expect((await loadEnvelope(ctx, await loadEnvelopeId())).status).toBe("completed");
 
-    // each file is its own sealed document, whose certificate says what it was signed with
+    // each file is its own sealed document, and its certificate (a file of its own, sealed too: migration 178) says what it was signed with
     const finals = ids.map((id) => db.files.get(docRow(id).final_path!)!);
     for (const bytes of finals) expect(verifySealed(bytes).ok).toBe(true);
-    const first = (await textOf(finals[0])).replace(/\s+/g, " ").toUpperCase();
+    const certificates = ids.map((id) => db.files.get(String(docRow(id).certificate_path))!);
+    for (const bytes of certificates) expect(verifySealed(bytes).ok).toBe(true);
+    // the signed file carries no certificate pages; the certificate names the signed file by its fingerprint
+    expect((await textOf(finals[0])).toUpperCase()).not.toContain("PART OF DOCUMENT COLLECTION");
+    const first = (await textOf(certificates[0])).replace(/\s+/g, " ").toUpperCase();
     expect(first).toContain("PART OF DOCUMENT COLLECTION ENV-2026-000001 (DOCUMENT 1 OF 2)");
     expect(first).toContain("1. MERCHANT AGREEMENT (THIS DOCUMENT)".toUpperCase());
     expect(first).toContain("2. FEE SCHEDULE");
     for (const id of ids) expect(first).toContain(docRow(id).base_sha256!.toUpperCase());
-    expect((await textOf(finals[1])).replace(/\s+/g, " ").toUpperCase()).toContain("(DOCUMENT 2 OF 2)");
+    expect(first.replace(/\s/g, "")).toContain(String(docRow(ids[0]).final_sha256).toUpperCase());
+    expect((await textOf(certificates[1])).replace(/\s+/g, " ").toUpperCase()).toContain("(DOCUMENT 2 OF 2)");
 
     // ONE message each (Ali, Bala and the sender), carrying both signed copies; no message of a single document's own
     expect(mail.map((m) => m.to).sort()).toEqual(["ali@kedai.example", "bala@kedai.example", "gokula@vircle.example"]);
     expect(mail.every((m) => m.subject === "Signed: Onboarding pack (2 documents)")).toBe(true);
-    expect(mail.every((m) => Array.isArray(m.attachments) && m.attachments.length === 2)).toBe(true);
+    // (each document's signed file and its certificate: four attachments)
+    expect(mail.every((m) => Array.isArray(m.attachments) && m.attachments.length === 4)).toBe(true);
     // both chains say the envelope completed, once
     expect(rpcs("sign_envelope_settle")).toHaveLength(2);
     expect(db.rpcCalls.filter((c) => c.name === "sign_log" && c.args.p_type === "envelope_completed")).toHaveLength(2);

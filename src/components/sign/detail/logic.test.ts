@@ -80,9 +80,19 @@ describe("documentActions", () => {
   const files = { base_path: "a/base.pdf", final_path: null, original_path: "a/orig.docx" };
 
   it("offers the signed copy only once it is completed and sealed", () => {
-    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf" }, { void: true })).toEqual({ downloadSigned: true, viewKind: "final", downloadOriginal: true, void: false });
+    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf" }, { void: true })).toEqual({ downloadSigned: true, downloadCertificate: false, downloadAll: false, viewKind: "final", downloadOriginal: true, void: false });
     expect(documentActions({ status: "sealing", ...files }, { void: true }).downloadSigned).toBe(false);
     expect(documentActions({ status: "completed", ...files }, { void: true }).downloadSigned).toBe(false);
+  });
+
+  it("offers the certificate and everything in one zip only for a completed document whose certificate is a file of its own (migration 178)", () => {
+    const own = { ...files, final_path: "a/final.pdf", certificate_path: "a/certificate.pdf" };
+    expect(documentActions({ status: "completed", ...own }, { void: false })).toMatchObject({ downloadSigned: true, downloadCertificate: true, downloadAll: true });
+    // a document sealed before it has the certificate inside the signed copy: one file, nothing more to offer
+    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf", certificate_path: null }, { void: false })).toMatchObject({ downloadSigned: true, downloadCertificate: false, downloadAll: false });
+    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf" }, { void: false })).toMatchObject({ downloadCertificate: false, downloadAll: false });
+    // nothing before it is completed, whatever the row says
+    expect(documentActions({ status: "sealing", ...own }, { void: false })).toMatchObject({ downloadSigned: false, downloadCertificate: false, downloadAll: false });
   });
 
   it("views the file as sent until there is a sealed copy", () => {

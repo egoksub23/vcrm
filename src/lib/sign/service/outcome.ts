@@ -4,9 +4,10 @@
 // document is already in its final state.
 // ============================================================
 
+import { certificateFileName, signedFileName } from "../file-names";
 import { isDelegate } from "../forward";
-import { deliverCompleted, deliverOutcome } from "../notify";
-import { isFormMode, type SignDocumentRow, type SignSignerRow } from "../types";
+import { deliverCompleted, deliverOutcome, type SignedMailFile } from "../notify";
+import type { SignDocumentRow, SignSignerRow } from "../types";
 import { sendDocumentCopies } from "./copy-delivery";
 import { docFacts } from "./send";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
@@ -17,14 +18,15 @@ async function workspace(ctx: SignCtx, doc: SignDocumentRow) {
 }
 
 /**
- * The signed copy to every signer and to the sender, attached when small enough, then to each person who receives a copy (migration 175: once, in this same step).
+ * The signed copy to every signer and to the sender, attached when small enough (with its certificate, a file of its own, when the document has one: migration 178),
+ * then to each person who receives a copy (migration 175: once, in this same step).
  * Not to a person who was handed only a part of someone's form: the copy holds the whole document.
  */
-export async function notifyCompleted(ctx: SignCtx, doc: SignDocumentRow, signers: readonly SignSignerRow[], pdf: Uint8Array): Promise<void> {
+export async function notifyCompleted(ctx: SignCtx, doc: SignDocumentRow, signers: readonly SignSignerRow[], pdf: Uint8Array, certificate?: Uint8Array | null): Promise<void> {
   try {
     const { info, w } = await workspace(ctx, doc);
     const facts = docFacts(doc, ctx);
-    const file = { bytes: pdf, filename: `${doc.reference ?? "document"}-${isFormMode(doc) ? "record" : "signed"}.pdf` };
+    const file: SignedMailFile = { bytes: pdf, filename: signedFileName(doc), ...(certificate ? { certificate: { bytes: certificate, filename: certificateFileName(doc) } } : {}) };
     const people = signers.filter((s) => !isDelegate(s)).map((s) => ({ name: s.full_name, email: s.email, channel: s.channel, locale: s.locale ?? doc.locale, signerId: s.id as string | null }));
     if (info.senderEmail && !people.some((p) => p.email.toLowerCase() === info.senderEmail!.toLowerCase())) {
       people.push({ name: info.senderName, email: info.senderEmail, channel: "email", locale: doc.locale, signerId: null });

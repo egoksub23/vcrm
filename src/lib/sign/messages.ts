@@ -5,6 +5,7 @@
 // returns the subject, an HTML body and a plain-text body.
 // ============================================================
 
+import { certificateMailWords, certificateSentence, type CertificateState } from "./certificate-mail-words";
 import type { SignLocale, SignMode } from "./types";
 
 export function escapeHtml(value: string): string {
@@ -489,18 +490,32 @@ export function codeEmail(a: { locale: SignLocale; workspace: string; title: str
   return { subject: w.codeSubject, html, text };
 }
 
-export function completedEmail(a: { locale: SignLocale; workspace: string; name: string; title: string; downloadUrl?: string; attached: boolean; mode?: SignMode }): Rendered {
+export function completedEmail(a: {
+  locale: SignLocale;
+  workspace: string;
+  name: string;
+  title: string;
+  downloadUrl?: string;
+  attached: boolean;
+  mode?: SignMode;
+  /** Migration 178: the document's certificate is a file of its own: attached to this message, or not (it did not fit). Absent when it is inside the signed file. */
+  certificate?: CertificateState;
+}): Rendered {
   const w = wordsFor(a.locale);
   const v = { name: a.name, title: a.title };
   const formOnly = a.mode === "form";
   const intro = fill(formOnly ? w.completedFormIntro : w.completedIntro, v);
   const attachedNote = formOnly ? w.completedFormAttached : w.completedAttached;
+  const certificateNote = certificateSentence(a.locale, a.certificate ?? "none");
+  // an address that opens the signed file also opens its certificate when the certificate is a file of its own: say both
+  const linkText = a.certificate === "attached" || a.certificate === "missing" ? certificateMailWords(a.locale).linkAll : w.completedLink;
   const lines = [intro];
   if (a.attached) lines.push(attachedNote);
-  if (a.downloadUrl) lines.push(w.completedLink, a.downloadUrl);
+  if (certificateNote) lines.push(certificateNote);
+  if (a.downloadUrl) lines.push(linkText, a.downloadUrl);
   lines.push("", fill(w.footer, { workspace: a.workspace }));
   const html = frame(
-    [para(intro), a.attached ? para(attachedNote) : "", a.downloadUrl ? `${small(w.completedLink)}${button(a.title, a.downloadUrl)}` : ""].join("\n"),
+    [para(intro), a.attached ? para(attachedNote) : "", certificateNote ? para(certificateNote) : "", a.downloadUrl ? `${small(linkText)}${button(a.title, a.downloadUrl)}` : ""].join("\n"),
     w,
     a.workspace,
   );

@@ -14,6 +14,7 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 import { embedFonts, measureRuns, runsFor, type EngineFonts } from "./fonts";
 import { formatDateTime, wrapText, type EngineLocale } from "./format";
+import { drawIdFooter } from "./idfooter";
 import { openPdf, savePdf, sha256Hex } from "./load";
 
 const A4 = { w: 595.28, h: 841.89 };
@@ -168,7 +169,7 @@ const sizeWords = (bytes: number): string => (bytes >= 1048576 ? `${(bytes / 104
  * The answer pages of a submission record. The caller appends the certificate pages and seals the result.
  * Returns the file and how many pages it has (the certificate then says how many pages the record has).
  */
-export async function buildSubmissionRecord(data: RecordData, options: { locale?: EngineLocale } = {}): Promise<{ bytes: Uint8Array; pageCount: number }> {
+export async function buildSubmissionRecord(data: RecordData, options: { locale?: EngineLocale; idFooter?: string } = {}): Promise<{ bytes: Uint8Array; pageCount: number }> {
   const doc = await PDFDocument.create({ updateMetadata: false });
   const fonts = await embedFonts(doc);
   const L: RecordLabels = { ...DEFAULT_RECORD_LABELS, ...(data.labels ?? {}) };
@@ -236,6 +237,14 @@ export async function buildSubmissionRecord(data: RecordData, options: { locale?
   c.pages.forEach((page, i) => {
     drawLine(c, `${data.reference}  •  ${L.page} ${i + 1} ${L.of} ${c.pages.length}`, MARGIN, 28, 7.5, fonts.regular, MUTED, page);
     page.drawLine({ start: { x: MARGIN, y: 40 }, end: { x: A4.w - MARGIN, y: 40 }, thickness: 0.5, color: LINE });
+    // the ID line (idfooter.ts) on the sealed record's pages, below the page's own footer; it never stops the record being made
+    if (options.idFooter) {
+      try {
+        drawIdFooter(page, fonts, options.idFooter);
+      } catch {
+        // the record is complete without it
+      }
+    }
   });
 
   return { bytes: await savePdf(doc), pageCount: c.pages.length };

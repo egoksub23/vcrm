@@ -60,6 +60,8 @@ export async function submissionRecord(
   rows: readonly AnswerRow[],
   events: readonly { row_hash: string }[],
   info: { workspaceName: string; timeZone: string },
+  /** `idFooter`: the line stamped on every page of the record (pdf/idfooter.ts); only the sealing step asks for it. */
+  options: { idFooter?: string } = {},
 ): Promise<{ bytes: Uint8Array; pageCount: number }> {
-  return buildSubmissionRecord(recordData(doc, signers, rows, events, info), { locale: doc.locale });
+  return buildSubmissionRecord(recordData(doc, signers, rows, events, info), { locale: doc.locale, ...options });
 }

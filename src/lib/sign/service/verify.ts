@@ -6,7 +6,8 @@
 //   - that the document was completed and when, in whose workspace, with what title and reference;
 //   - who signed and when (names and times only: no email, phone, network address or device, which the
 //     certificate page itself does not put in front of a stranger either);
-//   - the file's SHA-256, so the page can compare it with the copy the person holds, in their browser;
+//   - the file's SHA-256, so the page can compare it with the copy the person holds, in their browser; and, when the certificate is a file of its
+//     own (migration 178), the certificate's SHA-256 and the name of the signed file it covers, so the person can check either file;
 //   - whether the document's audit chain still recomputes (sign_verify_chain, migration 157).
 //
 // A document that is not completed, whose workspace has Doc Sign off or is suspended, or that does not
@@ -16,6 +17,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { signEnabled } from "../feature";
+import { signedFileName } from "../file-names";
 import { realDeps } from "../notify";
 import { isFormMode, type SignDocumentRow, type SignMode, type SignSignerRow } from "../types";
 import { loadSenderAndWorkspace, loadSigners, type SignCtx } from "./context";
@@ -41,12 +43,17 @@ export interface VerifyView {
   envelope?: { documents: number };
   /** SHA-256 (hex) of the sealed PDF. */
   sha256: string;
+  /**
+   * Migration 178: the certificate is a file of its own: its SHA-256 and the name of the signed file it covers. Absent when the certificate pages are
+   * inside the signed PDF (every document sealed before the migration), which the page treats as it always did.
+   */
+  certificate?: { sha256: string; signedFileName: string };
   chain: ChainState;
   /** How many events the chain holds (shown next to its state). */
   events: number | null;
 }
 
-type DocRow = Pick<SignDocumentRow, "id" | "account_id" | "title" | "reference" | "status" | "completed_at" | "page_count" | "final_sha256"> & { mode?: SignMode | null; envelope_id?: string | null };
+type DocRow = Pick<SignDocumentRow, "id" | "account_id" | "title" | "reference" | "status" | "completed_at" | "page_count" | "final_sha256"> & { mode?: SignMode | null; envelope_id?: string | null; certificate_sha256?: string | null };
 
 function chainOf(data: unknown): { state: ChainState; events: number | null } {
   if (typeof data !== "object" || data === null) return { state: "unknown", events: null };
@@ -67,7 +74,7 @@ export function signedPeople(signers: readonly SignSignerRow[], mode?: SignMode 
 
 export async function loadVerification(admin: SupabaseClient, id: unknown, now: () => Date = () => new Date()): Promise<VerifyView | null> {
   if (!isDocumentId(id)) return null;
-  const found = await admin.from("sign_documents").select("id, account_id, title, reference, status, mode, envelope_id, completed_at, page_count, final_sha256").eq("id", id).maybeSingle();
+  const found = await admin.from("sign_documents").select("id, account_id, title, reference, status, mode, envelope_id, completed_at, page_count, final_sha256, certificate_sha256").eq("id", id).maybeSingle();
   if (found.error || !found.data) return null;
   const doc = found.data as DocRow;
   if (doc.status !== "completed" || !doc.completed_at || !doc.final_sha256) return null;
@@ -96,6 +103,7 @@ export async function loadVerification(admin: SupabaseClient, id: unknown, now: 
     ...(isFormMode(doc.mode) ? { mode: "form" as const } : {}),
     ...(envelopeDocuments ? { envelope: { documents: envelopeDocuments } } : {}),
     sha256: doc.final_sha256,
+    ...(doc.certificate_sha256 ? { certificate: { sha256: doc.certificate_sha256, signedFileName: signedFileName(doc) } } : {}),
     chain: checked.state,
     events: checked.events,
   };

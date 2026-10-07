@@ -130,6 +130,8 @@ export interface ActionDoc {
   status: string;
   base_path: string | null;
   final_path: string | null;
+  /** Migration 178: the certificate as a file of its own; absent or null when it is inside the signed PDF (a document sealed earlier). */
+  certificate_path?: string | null;
   original_path: string | null;
   /** Migration 169: `form` for a form without a signature. Its base file is only a stand-in: nobody reads it, and only the sealed record is viewed. */
   mode?: string | null;
@@ -137,6 +139,9 @@ export interface ActionDoc {
 
 export interface DocumentActions {
   downloadSigned: boolean;
+  /** Migration 178: the document has its certificate as a file of its own: it is offered as a download, and so is everything in one zip. */
+  downloadCertificate: boolean;
+  downloadAll: boolean;
   /** What the viewer shows: the sealed copy once there is one, otherwise the file as it was sent. */
   viewKind: "final" | "base" | null;
   downloadOriginal: boolean;
@@ -145,8 +150,11 @@ export interface DocumentActions {
 
 export function documentActions(doc: ActionDoc, caps: Pick<DetailCaps, "void">): DocumentActions {
   const completed = doc.status === "completed" && !!doc.final_path;
+  const ownCertificate = completed && !!doc.certificate_path;
   return {
     downloadSigned: completed,
+    downloadCertificate: ownCertificate,
+    downloadAll: ownCertificate,
     viewKind: completed ? "final" : doc.base_path && doc.mode !== "form" ? "base" : null,
     downloadOriginal: !!doc.original_path,
     void: caps.void && (doc.status === "sent" || doc.status === "in_progress"),

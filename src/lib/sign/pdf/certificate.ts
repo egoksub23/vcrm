@@ -1,7 +1,15 @@
 // ============================================================
-// The certificate pages appended to a signed document: who signed, when and from where, the file's
-// fingerprint, the history of the document, and a QR code that opens the verification page. Added
-// before the file is sealed, so the seal covers them too.
+// The certificate of a signed document: who signed, when and from where, the file's fingerprint, the history of
+// the document, and a QR code that opens the verification page. It comes in two layouts:
+//
+//   embedded    `appendCertificate`: the pages are added to the signed file before it is sealed, so the one seal covers
+//               them too (every document sealed before migration 178, and a new one when the workspace asks for it)
+//   standalone  `buildCertificate`: a PDF of its own (migration 178), made AFTER the signed file is sealed so that it can
+//               name the file it covers and that file's SHA-256; it is sealed on its own by the caller
+//
+// Both draw the same pages (`drawCertificate`); the standalone one adds the signed file's name and fingerprint. The collection
+// summary (`buildCollectionSummary`) is the small page set that goes in the zip of a document collection and is drawn with
+// the same pieces.
 // ============================================================
 
 import { PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
@@ -9,8 +17,9 @@ import QRCode from "qrcode";
 
 import { embedFonts, measureRuns, runsFor, type EngineFonts } from "./fonts";
 import { formatDateTime, wrapText, type EngineLocale } from "./format";
+import { drawIdFooter } from "./idfooter";
 import { openPdf, savePdf } from "./load";
-import type { CertificateData, CertificateEnvelope, CertificateLabels } from "./types";
+import type { CertificateData, CertificateEnvelope, CertificateLabels, CollectionSummaryData } from "./types";
 
 const A4 = { w: 595.28, h: 841.89 };
 const MARGIN = 48;
@@ -47,6 +56,11 @@ export const DEFAULT_CERTIFICATE_LABELS: CertificateLabels = {
   note: "The signing events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This file is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
   page: "Certificate page",
   of: "of",
+  documentId: "Document ID",
+  signedFile: "Signed document",
+  signedFingerprint: "SHA-256 of the signed document",
+  standaloneNote:
+    "This certificate is a separate file. It covers the signed document named above: that document's SHA-256 fingerprint is written here, and anyone can check a copy against it on the verification page. The signing events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This certificate is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
 };
 
 class Cursor {
@@ -154,19 +168,19 @@ export interface CertificateResult {
   pagesAdded: number;
 }
 
-/** Append the certificate pages to `input`. */
-export async function appendCertificate(
-  input: Uint8Array,
-  data: CertificateData,
-  options: { locale?: EngineLocale } = {},
-): Promise<CertificateResult> {
-  const doc = await openPdf(input);
+export interface CertificateOptions {
+  locale?: EngineLocale;
+  /** The ID line (idfooter.ts) for the pages drawn here: the embedded certificate pages are pages of the signed file and carry it like the rest. */
+  idFooter?: string;
+}
+
+/** Draw the certificate pages into `doc` (after any pages it already has). */
+async function drawCertificate(doc: PDFDocument, data: CertificateData, options: CertificateOptions): Promise<PDFPage[]> {
   const fonts = await embedFonts(doc);
   const L: CertificateLabels = { ...DEFAULT_CERTIFICATE_LABELS, ...(data.labels ?? {}) };
   const tz = data.timeZone ?? "UTC";
   const locale = options.locale ?? "en";
   const fmt = (d: Date) => formatDateTime(d, tz, locale);
-  const startPages = doc.getPageCount();
 
   const c = new Cursor(doc, fonts);
 
@@ -187,7 +201,9 @@ export async function appendCertificate(
   // Key facts (kept narrow enough to clear the QR code)
   const facts: [string, string, boolean?][] = [
     [L.reference, data.reference],
+    ...(data.documentId ? ([[L.documentId, data.documentId]] as [string, string][]) : []),
     [L.document, data.title],
+    ...(data.covers ? ([[L.signedFile, data.covers.fileName]] as [string, string][]) : []),
     [L.pages, String(data.pageCount)],
     ...(data.sentAt ? ([[L.sentOn, fmt(data.sentAt)]] as [string, string][]) : []),
     [L.completedOn, fmt(data.completedAt)],
@@ -210,6 +226,8 @@ export async function appendCertificate(
   drawLine(c, L.verify, A4.w - MARGIN - qrSize, qrTop - qrSize - 10, 7.5, fonts.regular, MUTED);
   c.y = Math.min(c.y, qrTop - qrSize - 18);
 
+  // a standalone certificate says which file it covers, by the fingerprint of the sealed file
+  if (data.covers) keyValue(c, L.signedFingerprint, data.covers.sha256, { mono: true });
   keyValue(c, L.fingerprint, data.baseSha256, { mono: true });
   keyValue(c, L.chainHead, data.chainHead, { mono: true });
   keyValue(c, L.verify, data.verifyUrl);
@@ -259,15 +277,89 @@ export async function appendCertificate(
     rule(c);
   }
 
-  paragraph(c, L.note, { size: 8, color: MUTED });
+  paragraph(c, data.covers ? L.standaloneNote : L.note, { size: 8, color: MUTED });
 
   // Footers, now that the page count is known
   c.pages.forEach((page, i) => {
     const text = `${data.reference}  •  ${L.page} ${i + 1} ${L.of} ${c.pages.length}`;
     drawLine(c, text, MARGIN, 28, 7.5, fonts.regular, MUTED, page);
     page.drawLine({ start: { x: MARGIN, y: 40 }, end: { x: A4.w - MARGIN, y: 40 }, thickness: 0.5, color: LINE });
+    // the ID line below the page's own footer; it never stops the certificate being made
+    if (options.idFooter) {
+      try {
+        drawIdFooter(page, fonts, options.idFooter);
+      } catch {
+        // the certificate is complete without it
+      }
+    }
   });
+  return c.pages;
+}
 
+/** Append the certificate pages to `input` (the embedded layout). */
+export async function appendCertificate(input: Uint8Array, data: CertificateData, options: CertificateOptions = {}): Promise<CertificateResult> {
+  const doc = await openPdf(input);
+  const startPages = doc.getPageCount();
+  await drawCertificate(doc, data, options);
   const bytes = await savePdf(doc);
   return { bytes, pagesAdded: doc.getPageCount() - startPages };
+}
+
+/**
+ * The certificate as a PDF of its own (the standalone layout, migration 178). Give it `data.covers` (the sealed signed file it is about: name,
+ * pages, SHA-256); without it the pages say nothing about a file and read as the embedded ones do. The caller seals the result.
+ */
+export async function buildCertificate(data: CertificateData, options: Pick<CertificateOptions, "locale"> = {}): Promise<{ bytes: Uint8Array; pageCount: number }> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const pages = await drawCertificate(doc, data, options);
+  return { bytes: await savePdf(doc), pageCount: pages.length };
+}
+
+/**
+ * The collection summary: one small PDF with the collection's reference and title, and for each document its title, reference, the name and
+ * SHA-256 of its signed file, the name and SHA-256 of its certificate (or that the certificate is inside the signed file), and who signed it
+ * and when. It is an index to the other files of the zip, not evidence of its own: the certificates are, and each of them is sealed.
+ */
+export async function buildCollectionSummary(data: CollectionSummaryData, options: { locale?: EngineLocale } = {}): Promise<{ bytes: Uint8Array; pageCount: number }> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const fonts = await embedFonts(doc);
+  const L = data.labels;
+  const fmt = (d: Date) => formatDateTime(d, data.timeZone ?? "UTC", options.locale ?? "en");
+  const c = new Cursor(doc, fonts);
+
+  c.page.drawRectangle({ x: 0, y: A4.h - 70, width: A4.w, height: 70, color: ACCENT });
+  drawLine(c, L.heading, MARGIN, A4.h - 44, 20, fonts.bold, rgb(1, 1, 1));
+  drawLine(c, data.workspaceName, MARGIN, A4.h - 60, 9.5, fonts.regular, rgb(0.9, 0.88, 1));
+  c.y = A4.h - 70 - 14;
+
+  keyValue(c, L.reference, data.reference);
+  keyValue(c, L.title, data.title);
+  keyValue(c, L.documents, String(data.documents.length));
+  keyValue(c, L.preparedOn, fmt(data.preparedAt));
+  rule(c);
+
+  section(c, L.documentsHeading);
+  for (const d of data.documents) {
+    c.ensure(70);
+    c.y -= 4;
+    paragraph(c, `${d.number}. ${d.title}`, { size: 10, font: fonts.bold });
+    keyValue(c, L.documentReference, d.reference);
+    keyValue(c, L.file, d.fileName);
+    keyValue(c, L.fingerprint, d.sha256, { mono: true });
+    if (d.certificateFileName && d.certificateSha256) {
+      keyValue(c, L.certificateFile, d.certificateFileName);
+      keyValue(c, L.certificateFingerprint, d.certificateSha256, { mono: true });
+    } else {
+      keyValue(c, L.certificateFile, L.certificateEmbedded);
+    }
+    keyValue(c, L.signedBy, d.signers.length === 0 ? L.nobody : d.signers.map((s) => (s.signedAt ? `${s.name}  (${fmt(s.signedAt)})` : s.name)).join("\n"));
+    rule(c);
+  }
+  paragraph(c, L.note, { size: 8, color: MUTED });
+
+  c.pages.forEach((page, i) => {
+    drawLine(c, `${data.reference}  \u2022  ${L.page} ${i + 1} ${L.of} ${c.pages.length}`, MARGIN, 28, 7.5, fonts.regular, MUTED, page);
+    page.drawLine({ start: { x: MARGIN, y: 40 }, end: { x: A4.w - MARGIN, y: 40 }, thickness: 0.5, color: LINE });
+  });
+  return { bytes: await savePdf(doc), pageCount: c.pages.length };
 }

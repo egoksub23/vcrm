@@ -7,6 +7,7 @@
 // cancelled", which is true of the whole envelope).
 // ============================================================
 
+import { certificatesSentence } from "./certificate-mail-words";
 import { button, escapeHtml, fill, frame, longDate, para, small, wordsFor, type Rendered } from "./messages";
 import type { SignLocale, SignMode } from "./types";
 
@@ -213,6 +214,8 @@ export interface EnvelopeCompletedArgs {
   attachedCount: number;
   /** Every document is a form without a signature: "received", and records instead of signed copies. */
   mode?: SignMode;
+  /** Migration 178: how many of the documents have a certificate of their own, and how many of those certificates are attached. Absent when none has. */
+  certificates?: { total: number; attached: number };
 }
 
 /** The one message each person (and the sender) gets when every document of the envelope is complete. */
@@ -222,13 +225,15 @@ export function envelopeCompletedEmail(a: EnvelopeCompletedArgs): Rendered {
   const formOnly = a.mode === "form";
   const v = { name: a.name, title: a.title, count: String(a.count), attached: String(a.attachedCount) };
   const intro = fill(formOnly ? e.completedFormIntro : e.completedIntro, v);
+  // (the signed copies' own sentence is the same whichever way the certificate is kept: it says nothing about certificate pages)
   const note =
     a.attachedCount >= a.count
       ? fill(formOnly ? e.completedFormAttached : e.completedAttached, v)
       : a.attachedCount > 0
         ? fill(e.completedSomeAttached, v)
         : e.completedNoneAttached;
-  const text = [intro, note, "", fill(w.footer, { workspace: a.workspace })].join("\n");
-  const html = frame([para(intro), para(note)].join("\n"), w, a.workspace);
+  const certificatesNote = a.certificates ? certificatesSentence(a.locale, a.certificates) : null;
+  const text = [intro, note, ...(certificatesNote ? [certificatesNote] : []), "", fill(w.footer, { workspace: a.workspace })].join("\n");
+  const html = frame([para(intro), para(note), certificatesNote ? para(certificatesNote) : ""].join("\n"), w, a.workspace);
   return { subject: fill(formOnly ? e.completedFormSubject : e.completedSubject, v), html, text };
 }

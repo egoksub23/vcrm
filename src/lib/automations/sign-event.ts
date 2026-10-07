@@ -34,12 +34,14 @@ export interface SignEventContext {
   category_id: string
   /** Only for completed. */
   final_sha256: string
+  /** Only for completed, and only when the certificate is a file of its own (migration 178); empty for a document sealed before it. */
+  certificate_sha256?: string
   /** The public page that proves the signed file is genuine (completed only). */
   verify_url: string
 }
 
 /** The names `{{ sign.<name> }}` resolves, for the "Insert variable" list. */
-export const SIGN_VARIABLES = ['document_id', 'reference', 'title', 'status', 'event', 'template', 'final_sha256', 'verify_url'] as const
+export const SIGN_VARIABLES = ['document_id', 'reference', 'title', 'status', 'event', 'template', 'final_sha256', 'certificate_sha256', 'verify_url'] as const
 
 /** The events a trigger configuration listens to (empty or missing = completed only). */
 export function eventsOf(cfg: SignDocumentEventTriggerConfig | null | undefined): SignEventName[] {

@@ -12,7 +12,7 @@ import { CheckCircle2, FileCheck2, FileX, Loader2, ShieldAlert, ShieldCheck, Upl
 import { useLocale, useTranslations } from "next-intl";
 
 import { buttonVariants } from "@/components/ui/button";
-import { compareFingerprints, HashUnavailableError, sha256OfFile, type CopyCheck } from "@/lib/sign/client/file-hash";
+import { compareFingerprints, HashUnavailableError, sha256OfFile } from "@/lib/sign/client/file-hash";
 import type { VerifyView } from "@/lib/sign/service/verify";
 import { cn } from "@/lib/utils";
 
@@ -67,9 +67,11 @@ export function VerifyApp({ view }: { view: VerifyView }) {
         )}
       </Card>
 
+      {view.certificate ? <CertificateCard certificate={view.certificate} /> : null}
+
       <Trail state={view.chain} events={view.events} />
 
-      <CheckCopy sha256={view.sha256} formOnly={formOnly} />
+      <CheckCopy sha256={view.sha256} certificateSha256={view.certificate?.sha256} formOnly={formOnly} />
 
       <p className="text-center text-xs text-muted-foreground">{t("readerHint")}</p>
     </div>
@@ -82,6 +84,20 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
       {children}
     </section>
+  );
+}
+
+/** Migration 178: the certificate is a file of its own. It names the signed file it covers; its own fingerprint can be compared below. */
+function CertificateCard({ certificate }: { certificate: NonNullable<VerifyView["certificate"]> }) {
+  const t = useTranslations("Sign.verify.certificate");
+  return (
+    <Card title={t("title")}>
+      <p className="text-sm">{t("separate", { file: certificate.signedFileName })}</p>
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer text-muted-foreground">{t("fingerprint")}</summary>
+        <p className="mt-2 break-all font-mono text-xs">{certificate.sha256}</p>
+      </details>
+    </Card>
   );
 }
 
@@ -120,9 +136,18 @@ function Trail({ state, events }: { state: VerifyView["chain"]; events: number |
   );
 }
 
-type CopyState = { kind: "idle" } | { kind: "checking" } | { kind: "error"; why: "read" | "unsupported" } | { kind: "done"; result: CopyCheck; fileName: string };
+/** Which of the document's files the person's file is: the signed one, the certificate (a file of its own, migration 178), or neither. */
+export type FileCheck = "signed" | "certificate" | "different";
 
-function CheckCopy({ sha256, formOnly }: { sha256: string; formOnly: boolean }) {
+export function checkAgainst(held: string, sha256: string, certificateSha256?: string): FileCheck {
+  if (compareFingerprints(held, sha256) === "match") return "signed";
+  if (certificateSha256 && compareFingerprints(held, certificateSha256) === "match") return "certificate";
+  return "different";
+}
+
+type CopyState = { kind: "idle" } | { kind: "checking" } | { kind: "error"; why: "read" | "unsupported" } | { kind: "done"; result: FileCheck; fileName: string };
+
+function CheckCopy({ sha256, certificateSha256, formOnly }: { sha256: string; certificateSha256?: string; formOnly: boolean }) {
   const t = useTranslations("Sign.verify.check");
   const [state, setState] = useState<CopyState>({ kind: "idle" });
   const input = useRef<HTMLInputElement>(null);
@@ -133,7 +158,7 @@ function CheckCopy({ sha256, formOnly }: { sha256: string; formOnly: boolean }) 
     setState({ kind: "checking" });
     try {
       const held = await sha256OfFile(file);
-      setState({ kind: "done", result: compareFingerprints(held, sha256), fileName: file.name });
+      setState({ kind: "done", result: checkAgainst(held, sha256, certificateSha256), fileName: file.name });
     } catch (err) {
       setState({ kind: "error", why: err instanceof HashUnavailableError ? "unsupported" : "read" });
     }
@@ -142,7 +167,7 @@ function CheckCopy({ sha256, formOnly }: { sha256: string; formOnly: boolean }) 
   return (
     <Card title={t("title")}>
       <p id={hintId} className="mb-3 text-sm text-muted-foreground">
-        {t("intro")}
+        {certificateSha256 ? t("introBoth") : t("intro")}
       </p>
       <input
         ref={input}
@@ -162,7 +187,17 @@ function CheckCopy({ sha256, formOnly }: { sha256: string; formOnly: boolean }) 
       </button>
 
       <div className="mt-3" aria-live="polite">
-        {state.kind === "done" && state.result === "match" ? (
+        {state.kind === "done" && state.result === "certificate" ? (
+          <div className="flex gap-3 rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3">
+            <FileCheck2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            <div className="min-w-0">
+              <p className="font-medium">{t("matchCertificateTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("matchCertificateBody")}</p>
+              <p className="mt-1 truncate text-xs text-muted-foreground">{state.fileName}</p>
+            </div>
+          </div>
+        ) : null}
+        {state.kind === "done" && state.result === "signed" ? (
           <div className="flex gap-3 rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3">
             <FileCheck2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
             <div className="min-w-0">

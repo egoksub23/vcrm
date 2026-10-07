@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronRight, Download, Eye, FileDown, Loader2, Ban } from "lucide-react";
+import { Archive, Award, ChevronRight, Download, Eye, FileDown, Loader2, Ban } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +18,7 @@ import { formatWhen } from "./format";
 import type { DocumentActions } from "./logic";
 import type { DocumentLinks } from "./use-document-links";
 
-export type DownloadKind = "final" | "original";
+export type DownloadKind = "final" | "original" | "certificate" | "zip";
 
 interface Props {
   document: SignDocumentRow;
@@ -68,7 +68,20 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
           {actions.downloadSigned && (
             <Button onClick={() => onDownload("final")} disabled={downloading !== null}>
               {downloading === "final" ? <Loader2 className="animate-spin" aria-hidden /> : <Download aria-hidden />}
-              {t(doc.mode === "form" ? "actions.downloadRecord" : "actions.downloadSigned")}
+              {/* a certificate of its own makes this "the signed document" beside "Certificate"; a document sealed earlier has one file with both in it */}
+              {t(actions.downloadCertificate ? (doc.mode === "form" ? "actions.sealedRecord" : "actions.signedDocument") : doc.mode === "form" ? "actions.downloadRecord" : "actions.downloadSigned")}
+            </Button>
+          )}
+          {actions.downloadCertificate && (
+            <Button variant="outline" onClick={() => onDownload("certificate")} disabled={downloading !== null}>
+              {downloading === "certificate" ? <Loader2 className="animate-spin" aria-hidden /> : <Award aria-hidden />}
+              {t("actions.certificate")}
+            </Button>
+          )}
+          {actions.downloadAll && (
+            <Button variant="outline" onClick={() => onDownload("zip")} disabled={downloading !== null}>
+              {downloading === "zip" ? <Loader2 className="animate-spin" aria-hidden /> : <Archive aria-hidden />}
+              {t("actions.downloadAll")}
             </Button>
           )}
           {actions.viewKind && (

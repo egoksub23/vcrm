@@ -20,7 +20,10 @@ import { removeFiles } from "../storage";
 import { SIGN_LOCALES, isFormMode, type Invitation, type SignChannel, type SignCopyRecipientRow, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow } from "../types";
 import { loadSettings, type SignCtx } from "./context";
 import { createDraftFromTemplate, createDraftFromUpload, deleteDraft, deleteDocument, setSigners, updateDraft, type DraftPatch, type SignerInput } from "./drafts";
+import { signedFileName } from "../file-names";
+import { certificateOf } from "./certificate-files";
 import { listCopyRecipients } from "./copy-recipients";
+import type { CopyFile } from "./copy-delivery";
 import { anchorOf, groupByParty, loadEnvelope, loadEnvelopeDocuments, loadEnvelopeSigners } from "./envelope-data";
 import { deliverEnvelopeInvitations, envelopeWorkspace, notifyEnvelopeCompleted, notifyEnvelopeEnded } from "./envelope-delivery";
 import { SignError, raiseDatabaseError } from "./errors";
@@ -739,10 +742,12 @@ export async function settleEnvelope(ctx: SignCtx, envelopeId: string): Promise<
     }
     if (!(data as { completed?: boolean } | null)?.completed) return;
     const [env, docs] = await Promise.all([loadEnvelope(ctx, envelopeId), loadEnvelopeDocuments(ctx, envelopeId)]);
-    const files: { bytes: Uint8Array; filename: string; documentId: string }[] = [];
+    const files: CopyFile[] = [];
     for (const d of docs) {
       if (!d.final_path) continue;
-      files.push({ bytes: await getFile(ctx.admin, d.final_path, ctx.accountId), filename: `${d.reference ?? "document"}-${isFormMode(d) ? "record" : "signed"}.pdf`, documentId: d.id });
+      // migration 178: a document sealed from then on has its certificate as a file of its own, which goes on the same messages (an older one has it inside the signed file)
+      const certificate = await certificateOf(ctx, d);
+      files.push({ bytes: await getFile(ctx.admin, d.final_path, ctx.accountId), filename: signedFileName(d), documentId: d.id, ...(certificate ? { certificate } : {}) });
     }
     await notifyEnvelopeCompleted(ctx, env, docs, files);
   } catch (err) {

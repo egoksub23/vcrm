@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useCapability } from "@/hooks/use-can";
 import { formatReminderDays, parseReminderDays, parseWholeNumber } from "@/lib/sign/client/admin-settings";
@@ -39,6 +40,8 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
   const [waName, setWaName] = useState(settings.whatsapp_template_name ?? "");
   const [waLang, setWaLang] = useState(settings.whatsapp_template_language || "en");
   const [retention, setRetention] = useState(String(settings.retention_years));
+  // migration 178: the certificate is always a file of its own; this also puts its pages inside the signed PDF of a new document
+  const [embed, setEmbed] = useState(settings.embed_certificate === true);
   const [pastRetention, setPastRetention] = useState<number | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
@@ -85,6 +88,7 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
         sender_name: sender.trim() || null,
         whatsapp_template_name: name || null,
         whatsapp_template_language: waLang.trim(),
+        embed_certificate: embed,
       })
       .eq("id", settings.id)
       .select("*")
@@ -147,6 +151,20 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
         </div>
         <p className="text-xs text-muted-foreground">{t("retentionEffect")}</p>
         {pastRetention !== null ? <p className="text-xs text-muted-foreground">{pastRetention === 0 ? t("retentionPastNone") : t("retentionPast", { count: pastRetention })}</p> : null}
+      </fieldset>
+
+      <fieldset className="space-y-3 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-foreground">{t("certificateTitle")}</legend>
+        <p className="text-sm text-muted-foreground">{t("certificateIntro")}</p>
+        <label className="flex w-fit cursor-pointer items-start gap-2.5 text-sm">
+          <Checkbox id="sign-embed-certificate" className="mt-0.5" checked={embed} disabled={!canEdit} onCheckedChange={(c) => setEmbed(c === true)} aria-describedby="sign-embed-certificate-hint" />
+          <span>
+            <span className="block font-medium text-foreground">{t("embedCertificate")}</span>
+            <span id="sign-embed-certificate-hint" className="block text-xs text-muted-foreground">
+              {t("embedCertificateHint")}
+            </span>
+          </span>
+        </label>
       </fieldset>
 
       <Button type="submit" disabled={!canEdit || saving}>

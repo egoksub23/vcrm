@@ -6,7 +6,7 @@
 // end. The documents themselves are the ordinary screens (the fields on the page, the form in parts, the review): this only frames them.
 // ============================================================
 
-import { CheckCircle2, Circle, Clock, Download, XCircle } from "lucide-react";
+import { Archive, Award, CheckCircle2, Circle, Clock, Download, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -165,16 +165,31 @@ export function EnvelopeEnd({ envelope, scope, name, canDownload }: EndProps) {
               <span className="tabular-nums text-muted-foreground">{i + 1}.</span> {d.title}
             </span>
             {d.state === "completed" && canDownload ? (
-              <a href={signerFileUrl(scopeOf(token, d.id), true)} className={cn(buttonVariants({ variant: "outline" }), "h-11 px-3 text-sm")} aria-label={t("envelope.end.download", { title: d.title })}>
-                <Download className="size-4" aria-hidden />
-                {t("envelope.end.downloadShort")}
-              </a>
+              <span className="flex flex-wrap items-center gap-2">
+                <a href={signerFileUrl(scopeOf(token, d.id), true)} className={cn(buttonVariants({ variant: "outline" }), "h-11 px-3 text-sm")} aria-label={t("envelope.end.download", { title: d.title })}>
+                  <Download className="size-4" aria-hidden />
+                  {t("envelope.end.downloadShort")}
+                </a>
+                {d.hasCertificate ? (
+                  <a href={signerFileUrl(scopeOf(token, d.id), true, "certificate")} className={cn(buttonVariants({ variant: "outline" }), "h-11 px-3 text-sm")} aria-label={t("envelope.end.certificate", { title: d.title })}>
+                    <Award className="size-4" aria-hidden />
+                    {t("envelope.end.certificateShort")}
+                  </a>
+                ) : null}
+              </span>
             ) : (
               <StateWord state={d.state} />
             )}
           </li>
         ))}
       </ol>
+      {done && canDownload ? (
+        // every signed document of the person's with its certificate, and a summary, in one zip
+        <a href={signerFileUrl(scopeOf(token, envelope.documents[0]?.id), true, "zip")} className={cn(buttonVariants(), "h-12 px-5 text-base")}>
+          <Archive className="size-4" aria-hidden />
+          {t("envelope.end.downloadAll")}
+        </a>
+      ) : null}
       {done && !canDownload ? <p className="text-sm text-muted-foreground">{t("envelope.end.completed.byEmail")}</p> : null}
     </div>
   );

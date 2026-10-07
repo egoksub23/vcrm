@@ -60,15 +60,20 @@ describe("a document on its own, through the real sealing", () => {
       expect(to(email)).toHaveLength(1);
       expect(to(email)[0].subject).toBe("Signed: Merchant Agreement");
       expect(to(email)[0].attachments?.[0].filename).toBe(`${doc.reference}-signed.pdf`);
+      // migration 178: the certificate is a file of its own, attached beside it as a separate file
+      expect(to(email)[0].attachments?.map((a) => a.filename)).toEqual([`${doc.reference}-signed.pdf`, `${doc.reference}-certificate.pdf`]);
     }
     // the copy recipients: one each, the sealed PDF attached, never a link that opens it
     for (const p of [CARA, DEV]) {
       const mails = to(p.email);
       expect(mails).toHaveLength(1);
       expect(mails[0].subject).toBe("Signed copy: Merchant Agreement");
-      expect(mails[0].attachments).toHaveLength(1);
-      expect(mails[0].attachments![0].filename).toBe(`${doc.reference}-signed.pdf`);
+      expect(mails[0].attachments!.map((a) => a.filename)).toEqual([`${doc.reference}-signed.pdf`, `${doc.reference}-certificate.pdf`]);
       expect(attachmentBytes(mails[0])[0]).toBeGreaterThan(1000);
+      // the words say what is attached: the copy, and the certificate as a separate file (no "certificate pages" inside the copy)
+      expect(mails[0].text).toContain("The signed copy is attached to this message.");
+      expect(mails[0].text).toContain("The certificate is attached to this message as a separate file.");
+      expect(mails[0].text).not.toContain("certificate pages");
       expect(mails[0].text).toContain(`Hello ${p.fullName}`);
       expect(mails[0].text).not.toMatch(/\/s\/[0-9a-f]/);
       expect(mails[0].text).not.toContain("/verify/");
@@ -242,7 +247,10 @@ describe("a document collection", () => {
     expect((await loadEnvelope(w.ctx, envelope.id)).status).toBe("completed");
     for (const p of [CARA, DEV]) {
       expect(to(p.email)).toHaveLength(1);
-      expect(to(p.email)[0].attachments).toHaveLength(2);
+      // each document's signed copy and its certificate (a file of its own, migration 178), in the collection's order
+      expect(to(p.email)[0].attachments).toHaveLength(4);
+      expect(to(p.email)[0].attachments!.map((a) => a.filename.replace(/^.*-(signed|certificate)\.pdf$/, "$1"))).toEqual(["signed", "certificate", "signed", "certificate"]);
+      expect(to(p.email)[0].text).toContain("The 2 certificates are attached to this message as separate files.");
       // each attachment is a real sealed PDF
       for (const a of to(p.email)[0].attachments!) expect(Buffer.from(a.content, "base64").subarray(0, 5).toString()).toBe("%PDF-");
     }

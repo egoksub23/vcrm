@@ -36,6 +36,8 @@ export interface EnvelopeDocumentSummary {
   categoryId: string | null;
   completedAt: string | null;
   hasFinalFile: boolean;
+  /** Migration 178: the document's certificate is a file of its own (offered beside the signed file). False for a document sealed earlier: it is inside the signed file. */
+  hasCertificate?: boolean;
 }
 
 /** The signature blocks of a role: a signature or initials placed for it. */
@@ -63,5 +65,6 @@ export function summarizeDocument(d: SignDocumentRow): EnvelopeDocumentSummary {
     categoryId: d.category_id,
     completedAt: d.completed_at,
     hasFinalFile: !!d.final_path,
+    hasCertificate: !!d.final_path && !!d.certificate_path,
   };
 }

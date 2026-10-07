@@ -1,10 +1,14 @@
 // ============================================================
 // Sealing: when everyone has signed, the sealing job builds the final file. It takes a document with
-// a lease (so two workers never share one), writes every signer's answers onto the file that was sent,
-// appends the certificate pages, seals it with the workspace's certificate, stores it with its
-// SHA-256, and only then lets the database mark the document completed. Any failure leaves the
-// document in "sealing" with the reason recorded; the job tries again after the lease, and after five
-// attempts the document is marked failed for a person to look at.
+// a lease (so two workers never share one), writes every signer's answers onto the file that was sent
+// (and the ID line, "Vircle Secure Sign · ID ...", on every page), seals it with the workspace's certificate
+// and stores it with its SHA-256. Then it makes the certificate of completion as a PDF of its own (migration
+// 178), which names the signed file by that SHA-256, seals it with the same certificate and stores it beside
+// the signed file; a workspace that asked for it ALSO gets the certificate pages inside the signed file. Only
+// then does the database mark the document completed, with both files recorded in the one statement. Any
+// failure (the certificate included) leaves the document in "sealing" with the reason recorded, removes what
+// was stored, and the job tries again after the lease; after five attempts the document is marked failed
+// for a person to look at.
 // ============================================================
 
 import { certificateLabels, eventSentence } from "../certificate-words";
@@ -13,9 +17,10 @@ import { isDelegate, nameResolver, stepGroups } from "../forward";
 import { notifyCompleted } from "./outcome";
 import { emitSignEvent } from "./outbound";
 import { envelopeCertificateBlock } from "../envelopes";
-import type { CertificateData, CertificateEnvelope } from "../pdf/types";
+import type { CertificateCovers, CertificateData, CertificateEnvelope } from "../pdf/types";
 import { answerFields } from "../pdf/stamp";
-import { appendCertificate } from "../pdf/certificate";
+import { appendCertificate, buildCertificate } from "../pdf/certificate";
+import { idFooterText } from "../pdf/idfooter";
 import { markTestPages } from "../pdf/testmark";
 import { sealPdf } from "../pdf/seal";
 import { stampFields } from "../pdf/stamp";
@@ -24,6 +29,7 @@ import { verifyLink } from "../notify";
 import { decodeImageDataUrl, type StoredAnswer } from "../rules";
 import { documentPath, getFile, putFile, removeFiles } from "../storage";
 import type { FieldValue, FieldValues, PlacedField } from "../pdf/types";
+import { certificateFileName, signedFileName } from "../file-names";
 import { isFormMode, type SignDocumentRow, type SignLocale, type SignSignerRow } from "../types";
 import { CERTIFICATE_HOLD_CODES, sealingCertificate } from "./certificates";
 import { loadDocument, loadSenderAndWorkspace, loadSettings, loadSigners, type SignCtx } from "./context";
@@ -94,6 +100,8 @@ export function certificateData(
   pageCount: number,
   /** Migration 171: the document is one of an envelope; its certificate lists the documents signed with it. */
   envelope?: CertificateEnvelope | null,
+  /** Migration 178: a standalone certificate names the sealed file it covers (its name and SHA-256). Absent for the pages embedded in the signed file. */
+  covers?: CertificateCovers,
 ): CertificateData {
   const roleLabel = new Map(doc.roles_snapshot.map((r) => [r.key, r.label]));
   // who a person was at the time: a turn that was forwarded keeps the forwarder's name on what the forwarder did
@@ -117,6 +125,8 @@ export function certificateData(
   return {
     title: doc.title,
     reference: doc.reference ?? doc.id,
+    documentId: doc.id,
+    ...(covers ? { covers } : {}),
     workspaceName: info.workspaceName,
     baseSha256: doc.base_sha256 ?? "",
     pageCount,
@@ -162,16 +172,30 @@ export function describeFailure(err: unknown): string {
   return `${named}${typeof code === "string" && !err.message.includes(code) ? `${code}: ` : ""}${err.message}`;
 }
 
+/**
+ * Run a step that puts the ID line on pages, and carry on without the line when the step fails: the stamp is the one thing in sealing that may
+ * be left off (never the seal, never the answers). A step that fails for a reason of its own fails again without the line, and that error is the
+ * one that is reported.
+ */
+async function withIdFooter<T>(what: string, documentId: string, text: string, run: (idFooter: string | undefined) => Promise<T>): Promise<T> {
+  try {
+    return await run(text);
+  } catch (err) {
+    console.error(`[sign] the ID line could not be stamped (${what}) for`, documentId, "- sealing without it:", describeFailure(err));
+    return run(undefined);
+  }
+}
+
 /** Seal one document that this worker has claimed. */
 export async function sealDocument(ctx: SignCtx, documentId: string): Promise<SealOutcome> {
-  let stored: string | null = null;
+  // every file stored by this attempt, so a failure leaves nothing behind (the next attempt makes its own: they carry the seal's own time)
+  const stored: string[] = [];
   const startedAt = Date.now();
   try {
     const doc = await loadDocument(ctx, documentId);
     if (doc.status !== "sealing") return { documentId, status: "completed" };
     if (!doc.base_path) throw new SignError("no_base_file", "The document has no file.", 500);
     const [signers, settings, info] = await Promise.all([loadSigners(ctx, documentId), loadSettings(ctx), loadSenderAndWorkspace(ctx, doc.created_by)]);
-    void settings;
     const answersQ = await ctx.admin.from("sign_answers").select(ANSWER_COLUMNS).eq("document_id", documentId).eq("account_id", ctx.accountId);
     if (answersQ.error) raiseDatabaseError(answersQ.error, "load answers");
     const eventsQ = await ctx.admin
@@ -182,73 +206,119 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
       .order("doc_seq", { ascending: true });
     if (eventsQ.error) raiseDatabaseError(eventsQ.error, "load events");
 
+    // a document of a collection: the collection it is part of (its certificate lists the documents signed with it, and the ID line on each page names it)
+    let envelope: CertificateEnvelope | null = null;
+    let collectionReference: string | null = null;
+    if (doc.envelope_id) {
+      const [env, siblings] = await Promise.all([loadEnvelope(ctx, doc.envelope_id), loadEnvelopeDocuments(ctx, doc.envelope_id)]);
+      envelope = envelopeCertificateBlock(doc.locale, env, siblings, doc.id);
+      collectionReference = env.reference ?? null;
+    }
+    // "Vircle Secure Sign · [COL-...] · ID <id>" on every page of the signed file: written with the answers, before the seal and the fingerprint
+    const idFooter = idFooterText({ documentId: doc.id, collectionReference });
     const form = formOf(doc);
     const opened = openRows((answersQ.data ?? []) as unknown as StoredRow[], documentId);
     // What is sealed. A document to sign: the file that was sent, with what the people entered written on it. A form without a
     // signature (migration 169): a submission record made from the answers, since there is no document to write on. Either way the
-    // certificate pages follow and the whole file is sealed below, the same way.
+    // file is sealed below, the same way, and the certificate is made after it (a file of its own, and inside the file too when the workspace asks).
     let body: { bytes: Uint8Array; pageCount: number };
     if (isFormMode(doc)) {
-      body = await submissionRecord(doc, signers, opened, (eventsQ.data ?? []) as never, info);
+      body = await withIdFooter("submission record", documentId, idFooter, (footer) => submissionRecord(doc, signers, opened, (eventsQ.data ?? []) as never, info, footer ? { idFooter: footer } : {}));
     } else {
       const base = await getFile(ctx.admin, doc.base_path, ctx.accountId);
       const values = valuesFor(doc.fields_snapshot, signers, opened as { signer_id: string; field_key: string; value: StoredAnswer | null }[], form ? { definition: form, locale: doc.locale } : undefined);
       // the places that print the form's answers are stamped with the answers, like any other place a person filled in
       const places = form ? [...answerFields(doc.fields_snapshot), ...boundPlacements(doc.fields_snapshot)] : answerFields(doc.fields_snapshot);
-      const stamped = await stampFields(base, places, values, { locale: doc.locale, timeZone: info.timeZone });
+      const stamped = await withIdFooter("answers", documentId, idFooter, (footer) => stampFields(base, places, values, { locale: doc.locale, timeZone: info.timeZone, ...(footer ? { idFooter: footer } : {}) }));
+      if (stamped.footer && (stamped.footer.failed > 0 || stamped.footer.skipped > 0)) console.warn("[sign] the ID line was left off some pages of", documentId, JSON.stringify(stamped.footer));
       body = { bytes: stamped.bytes, pageCount: doc.page_count ?? 1 };
     }
 
-    // an envelope's documents are sealed one by one, each with its own certificate; the certificate says which documents it was signed with
-    let envelope: CertificateEnvelope | null = null;
-    if (doc.envelope_id) {
-      const [env, siblings] = await Promise.all([loadEnvelope(ctx, doc.envelope_id), loadEnvelopeDocuments(ctx, doc.envelope_id)]);
-      envelope = envelopeCertificateBlock(doc.locale, env, siblings, doc.id);
+    const embed = settings.embed_certificate === true;
+    let toSeal = body.bytes;
+    if (embed) {
+      // the workspace asked for the certificate pages inside the signed file as well (the way every document was sealed before migration 178)
+      const embedded = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, body.pageCount, envelope);
+      const withCertificate = await withIdFooter("certificate pages", documentId, idFooter, (footer) => appendCertificate(body.bytes, embedded, { locale: doc.locale, ...(footer ? { idFooter: footer } : {}) }));
+      toSeal = withCertificate.bytes;
     }
-    const data = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, body.pageCount, envelope);
-    const withCertificate = await appendCertificate(body.bytes, data, { locale: doc.locale });
-    // a test document (F-10): the pages of the file that was sent carry the TEST mark already (it was put on when it was sent); the certificate pages (and, for a form, the whole submission record) get it now
-    const toSeal = doc.test ? (await markTestPages(withCertificate.bytes, { skipPages: isFormMode(doc) ? 0 : body.pageCount })).bytes : withCertificate.bytes;
+    // a test document (F-10): the pages of the file that was sent carry the TEST mark already (it was put on when it was sent); the pages added at sealing get it now
+    // (the certificate pages when they are embedded, and for a form the whole submission record)
+    if (doc.test && (embed || isFormMode(doc))) toSeal = (await markTestPages(toSeal, { skipPages: isFormMode(doc) ? 0 : body.pageCount })).bytes;
 
     const cert = await sealingCertificate(ctx);
-    const sealed = await sealPdf(toSeal, cert.p12, cert.passphrase, {
-      reason: `${isFormMode(doc) ? "Submitted" : "Signed"} through Vircle Secure Sign: ${doc.reference ?? doc.id}`,
-      name: info.workspaceName,
-      location: "",
-      signingTime: ctx.now(),
-    });
+    const reason = `${isFormMode(doc) ? "Submitted" : "Signed"} through Vircle Secure Sign: ${doc.reference ?? doc.id}`;
+    const sealed = await sealPdf(toSeal, cert.p12, cert.passphrase, { reason, name: info.workspaceName, location: "", signingTime: ctx.now() });
 
     const finalPath = documentPath(ctx.accountId, documentId, "final", `${sealed.sha256}.pdf`);
     await putFile(ctx.admin, finalPath, sealed.bytes, "application/pdf");
-    stored = finalPath;
+    stored.push(finalPath);
     // verify what we are about to record: read it back and fingerprint it
     const back = await getFile(ctx.admin, finalPath, ctx.accountId);
     if (sha256Hex(back) !== sealed.sha256) throw new SignError("seal_verify_failed", "The stored file does not match what was sealed.", 500);
 
-    const fin = await ctx.admin.rpc("sign_finish_sealing", { p_document: documentId, p_final_path: finalPath, p_final_sha256: sealed.sha256 });
-    if (fin.error) raiseDatabaseError(fin.error, "finish sealing");
-    stored = null; // recorded: no longer a leftover
-
-    await ctx.admin.from("sign_document_files").insert({
-      account_id: ctx.accountId,
-      document_id: documentId,
-      kind: "signed",
-      path: finalPath,
-      name: `${doc.reference ?? "document"}-${isFormMode(doc) ? "record" : "signed"}.pdf`,
-      mime: "application/pdf",
-      size_bytes: sealed.size,
-      sha256: sealed.sha256,
+    // the certificate of completion as a file of its own: it names the signed file by the fingerprint just made, is sealed with the same certificate,
+    // and is stored and read back like the signed file. A failure anywhere here fails the seal (and is retried like any seal failure): the document
+    // is not completed without it, because the database is only told once both files are in place.
+    const covers: CertificateCovers = { fileName: signedFileName(doc), sha256: sealed.sha256 };
+    const standalone = certificateData(doc, signers, (eventsQ.data ?? []) as never, info, ctx.origin, body.pageCount, envelope, covers);
+    const built = await buildCertificate(standalone, { locale: doc.locale });
+    const certificatePdf = doc.test ? (await markTestPages(built.bytes)).bytes : built.bytes;
+    const sealedCertificate = await sealPdf(certificatePdf, cert.p12, cert.passphrase, {
+      reason: `Certificate of ${isFormMode(doc) ? "submission" : "completion"} through Vircle Secure Sign: ${doc.reference ?? doc.id}`,
+      name: info.workspaceName,
+      location: "",
+      signingTime: ctx.now(),
     });
+    const certificatePath = documentPath(ctx.accountId, documentId, "certificate", `${sealedCertificate.sha256}.pdf`);
+    await putFile(ctx.admin, certificatePath, sealedCertificate.bytes, "application/pdf");
+    stored.push(certificatePath);
+    const certificateBack = await getFile(ctx.admin, certificatePath, ctx.accountId);
+    if (sha256Hex(certificateBack) !== sealedCertificate.sha256) throw new SignError("seal_verify_failed", "The stored certificate does not match what was sealed.", 500);
+
+    const fin = await ctx.admin.rpc("sign_finish_sealing", {
+      p_document: documentId,
+      p_final_path: finalPath,
+      p_final_sha256: sealed.sha256,
+      p_certificate_path: certificatePath,
+      p_certificate_sha256: sealedCertificate.sha256,
+    });
+    if (fin.error) raiseDatabaseError(fin.error, "finish sealing");
+    stored.length = 0; // recorded: no longer leftovers
+
+    await ctx.admin.from("sign_document_files").insert([
+      {
+        account_id: ctx.accountId,
+        document_id: documentId,
+        kind: "signed",
+        path: finalPath,
+        name: signedFileName(doc),
+        mime: "application/pdf",
+        size_bytes: sealed.size,
+        sha256: sealed.sha256,
+      },
+      {
+        account_id: ctx.accountId,
+        document_id: documentId,
+        kind: "certificate",
+        path: certificatePath,
+        name: certificateFileName(doc),
+        mime: "application/pdf",
+        size_bytes: sealedCertificate.size,
+        sha256: sealedCertificate.sha256,
+      },
+    ]);
+    const completed = { ...doc, status: "completed" as const, final_path: finalPath, final_sha256: sealed.sha256, certificate_path: certificatePath, certificate_sha256: sealedCertificate.sha256 };
     // the automation trigger and the webhook (never throws); then tell everyone, a message that fails is recorded, never fatal
-    await emitSignEvent(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, "completed");
+    await emitSignEvent(ctx, completed, "completed");
     // a document of an envelope sends no message of its own: when the LAST one is sealed, each person gets ONE message with every signed copy
     if (doc.envelope_id) await settleEnvelope(ctx, doc.envelope_id);
-    else await notifyCompleted(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, signers, sealed.bytes);
+    else await notifyCompleted(ctx, completed, signers, sealed.bytes, sealedCertificate.bytes);
     // one line for each document sealed, so the server's log shows that sealing is running and how long it takes
-    console.info("[sign] sealed", documentId, `${Date.now() - startedAt} ms`, `${Math.round(sealed.size / 1024)} KB`);
+    console.info("[sign] sealed", documentId, `${Date.now() - startedAt} ms`, `${Math.round(sealed.size / 1024)} KB + ${Math.round(sealedCertificate.size / 1024)} KB certificate`);
     return { documentId, status: "completed" };
   } catch (err) {
-    if (stored) await removeFiles(ctx.admin, [stored]);
+    if (stored.length > 0) await removeFiles(ctx.admin, stored);
     const message = describeFailure(err);
     // the whole line goes to the server's log (with where it happened); the first 400 characters go onto the document, for its sender to read
     console.error("[sign] sealing failed for", documentId, message, err instanceof Error && err.stack ? `| ${err.stack.split(/\r?\n/).slice(1, 4).map((l) => l.trim()).join(" | ")}` : "");

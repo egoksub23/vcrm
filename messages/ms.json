@@ -7151,7 +7151,11 @@
         "retentionHint": "Nombor bulat tahun, dari 1 hingga 50. 7 ialah nilai permulaan sehingga organisasi anda memutuskan berapa lama rekod bertandatangan mesti disimpan: sahkan tempoh itu dengan peguam atau juruaudit anda.",
         "retentionEffect": "Perubahan terpakai untuk dokumen yang dimeterai mulai sekarang. Dokumen yang sudah dimeterai kekal dengan tarikh yang diberikan semasa ia dimeterai. Kategori boleh menetapkan tempohnya sendiri (Kategori). Dokumen tidak pernah dipadam secara automatik.",
         "retentionPast": "{count, plural, one {# dokumen bertandatangan telah melepasi tarikh pengekalannya.} other {# dokumen bertandatangan telah melepasi tarikh pengekalannya.}}",
-        "retentionPastNone": "Belum ada dokumen bertandatangan yang melepasi tarikh pengekalannya."
+        "retentionPastNone": "Belum ada dokumen bertandatangan yang melepasi tarikh pengekalannya.",
+        "certificateTitle": "Perakuan penyempurnaan",
+        "certificateIntro": "Setiap dokumen bertandatangan yang baharu mendapat perakuan penyempurnaannya sebagai PDF berasingan, dimeterai dengan tandatangan digital yang sama, di sebelah dokumen bertandatangan. Dokumen bertandatangan hanya membawa tandatangan dan satu baris ID kecil pada setiap halaman.",
+        "embedCertificate": "Benamkan juga sijil di dalam PDF yang ditandatangani",
+        "embedCertificateHint": "Mati secara lalai. Apabila dihidupkan, dokumen baharu juga mendapat halaman sijil di hujung PDF yang ditandatangani, selain fail berasingan. Dokumen yang sudah ditandatangani tidak diubah."
       },
       "consent": {
         "intro": "Inilah yang dipersetujui seseorang sebelum menandatangani. Perkataan standard digunakan melainkan anda menulis perkataan sendiri untuk sesuatu bahasa. Setiap perkataan mempunyai versi, dan versi yang dipersetujui seseorang disimpan bersama dokumen bertandatangan. Minta perkataan anda sendiri disemak oleh orang yang bertauliah sebelum anda bergantung kepadanya.",
@@ -7690,7 +7694,11 @@
         "view": "Lihat",
         "downloadOriginal": "Muat turun fail asal",
         "void": "Batalkan dokumen",
-        "downloadRecord": "Muat turun rekod"
+        "downloadRecord": "Muat turun rekod",
+        "signedDocument": "Dokumen bertandatangan",
+        "sealedRecord": "Rekod termeterai",
+        "certificate": "Sijil",
+        "downloadAll": "Muat turun semua (zip)"
       },
       "banner": {
         "waiting": "Menunggu {names} ({done} daripada {total} telah menandatangani)",
@@ -7838,7 +7846,9 @@
         "asSent": "Seperti dihantar",
         "noteSigned": "Salinan bertandatangan, dengan setiap jawapan dan halaman perakuan.",
         "noteSent": "Dokumen seperti yang dihantar. Jawapan tidak dipaparkan di sini sehingga semua orang telah menandatangani.",
-        "noteRecord": "Rekod penghantaran yang dimeterai: jawapan, orang yang menghantar dan halaman perakuan."
+        "noteRecord": "Rekod penghantaran yang dimeterai: jawapan, orang yang menghantar dan halaman perakuan.",
+        "noteSignedOwn": "Salinan yang ditandatangani, dengan setiap jawapan. Sijilnya ialah fail berasingan.",
+        "noteRecordOwn": "Rekod penghantaran yang dimeterai: jawapan dan orang yang menghantar. Sijilnya ialah fail berasingan."
       },
       "files": {
         "title": "Fail",
@@ -7872,7 +7882,8 @@
           "fingerprint": "Cap jari fail",
           "channel": "Dihantar melalui",
           "delivery": "Apa yang tidak berjaya",
-          "error": "Nota teknikal"
+          "error": "Nota teknikal",
+          "certificateFingerprint": "Cap jari sijil"
         },
         "chain": {
           "checking": "Sedang disemak",
@@ -9782,7 +9793,9 @@
             "cancel": "Batal",
             "action": "Beri lebih masa",
             "done": "Tarikh baharu telah disimpan"
-          }
+          },
+          "downloadAll": "Muat turun semua (zip)",
+          "certificate": "Sijil"
         }
       },
       "collection": {
@@ -10049,7 +10062,11 @@
           "download": "Muat turun PDF bertandatangan",
           "view": "Lihat PDF bertandatangan",
           "byEmail": "Salinan bertandatangan telah dihantar ke alamat e-mel anda.",
-          "delegate": "Terima kasih kerana melengkapkan bahagian anda. Penghantar mempunyai dokumen yang telah siap."
+          "delegate": "Terima kasih kerana melengkapkan bahagian anda. Penghantar mempunyai dokumen yang telah siap.",
+          "signedDocument": "Dokumen bertandatangan",
+          "record": "Rekod termeterai",
+          "certificate": "Sijil",
+          "downloadAll": "Muat turun semua (zip)"
         },
         "declined": {
           "title": "Dokumen ini tidak ditandatangani",
@@ -10200,7 +10217,10 @@
             "body": "Semua orang telah menandatangani. Kami sedang menyediakan salinan bertandatangan. Halaman ini dikemas kini sendiri, jadi anda boleh membiarkannya terbuka.",
             "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar salinan bertandatangan melalui e-mel sebaik sahaja siap.",
             "stuck": "Ini mengambil masa lebih lama daripada yang dijangka. Tandatangan anda telah disimpan dan tiada apa yang hilang. Salinan bertandatangan masih dalam proses dibuat, dan kami akan menghantarnya melalui e-mel sebaik sahaja siap. Anda boleh menutup halaman ini."
-          }
+          },
+          "certificate": "Muat turun sijil {title}",
+          "certificateShort": "Sijil",
+          "downloadAll": "Muat turun semua (zip)"
         }
       }
     },
@@ -10462,7 +10482,10 @@
         "matchBodyForm": "Salinan anda serupa dengan rekod bermeterai, bait demi bait.",
         "differentTitleForm": "Fail ini bukan rekod bermeterai",
         "differentBodyForm": "Ia mungkin telah diubah, atau disimpan semula oleh atur cara lain atau penyunting PDF. Minta rekod bermeterai daripada penghantar.",
-        "fingerprintForm": "Cap jari rekod bermeterai (SHA-256)"
+        "fingerprintForm": "Cap jari rekod bermeterai (SHA-256)",
+        "introBoth": "Pilih dokumen bertandatangan atau sijilnya, mana-mana yang diberikan kepada anda. Ia dibandingkan pada peranti anda dan tidak dimuat naik.",
+        "matchCertificateTitle": "Ini ialah sijil yang tepat",
+        "matchCertificateBody": "Salinan anda serupa dengan sijil dokumen ini, bait demi bait. Ia menamakan dokumen bertandatangan yang diliputinya melalui cap jarinya."
       },
       "readerHint": "Untuk melihat tandatangan elektronik itu sendiri, buka PDF dalam pembaca PDF seperti Adobe Acrobat dan lihat panel tandatangannya.",
       "notFound": {
@@ -10470,7 +10493,12 @@
         "body": "Pastikan anda mengimbas keseluruhan kod atau membuka keseluruhan alamat. Jika masih tidak berfungsi, tanya orang yang menghantar dokumen itu kepada anda."
       },
       "signedTitleForm": "Penghantaran ini direkodkan",
-      "envelope": "Dokumen ini ditandatangani bersama dokumen lain, dalam satu koleksi dokumen yang mengandungi {count, plural, other {# dokumen}}."
+      "envelope": "Dokumen ini ditandatangani bersama dokumen lain, dalam satu koleksi dokumen yang mengandungi {count, plural, other {# dokumen}}.",
+      "certificate": {
+        "title": "Sijil",
+        "separate": "Sijil dokumen ini ialah fail berasingan, dimeterai dengan tandatangan digital. Ia menamakan dokumen bertandatangan yang diliputinya: {file}.",
+        "fingerprint": "Cap jari sijil (SHA-256)"
+      }
     },
     "bulk": {
       "title": "Hantar pukal",

@@ -283,13 +283,19 @@ export interface ApiFile {
 /**
  * The bytes of a file of a document. The signed copy exists only once the document is completed, and only
  * then is it ever handed out: both the status and the stored path are checked. Opening it is recorded.
- * The certificate is the last pages of the signed copy, not a file of its own.
+ * The certificate is a file of its own for a document sealed from migration 178 on (`certificate_sha256` says which); an older document has
+ * its certificate as the last pages of the signed copy, and asking for it is a 404 `no_separate_certificate` that says so.
  */
 export async function fileForApi(ctx: SignCtx, documentId: string, kind: ApiFileKind): Promise<ApiFile> {
   const doc = await loadDocument(ctx, documentId);
   const stem = safeFileName(doc.reference ?? doc.title, "document");
   if (kind === "certificate") {
-    throw new SignError("no_separate_certificate", "The certificate is the last pages of the signed copy. Download kind=signed.", 404);
+    if (doc.status !== "completed" || !doc.final_sha256) throw new SignError("not_completed", "The certificate is available once everyone has signed and the document is completed.", 409);
+    if (!doc.certificate_path || !doc.certificate_sha256) throw new SignError("no_separate_certificate", "The certificate of this document is the last pages of the signed copy (it was sealed before certificates became separate files). Download kind=signed.", 404);
+    if (!belongsToAccount(doc.certificate_path, ctx.accountId)) throw new SignError("no_separate_certificate", "This document has no certificate file.", 404);
+    const bytes = await getFile(ctx.admin, doc.certificate_path, ctx.accountId);
+    await logEvent(ctx, documentId, "downloaded", { actor: "user", userId: ctx.userId, detail: { kind: "certificate" } });
+    return { bytes, mime: "application/pdf", filename: `${stem}-certificate.pdf`, sha256: doc.certificate_sha256 };
   }
   if (kind === "signed") {
     if (doc.status !== "completed" || !doc.final_path || !doc.final_sha256) throw new SignError("not_completed", "The signed copy is available once everyone has signed and the document is completed.", 409);
@@ -334,11 +340,11 @@ export async function progressForApi(ctx: SignCtx, doc: SignDocumentRow): Promis
 // ---- lists ------------------------------------------------------------------------------------------
 
 export const LIST_COLUMNS =
-  "id, reference, title, status, mode, template_version_id, contact_id, envelope_id, locale, sign_in_order, code_required, expires_at, sent_at, completed_at, final_sha256, void_reason, page_count, created_at, updated_at";
+  "id, reference, title, status, mode, template_version_id, contact_id, envelope_id, locale, sign_in_order, code_required, expires_at, sent_at, completed_at, final_sha256, certificate_sha256, void_reason, page_count, created_at, updated_at";
 
 export type ListedDocument = Pick<
   SignDocumentRow,
-  | "id" | "reference" | "title" | "status" | "mode" | "template_version_id" | "contact_id" | "envelope_id" | "locale" | "sign_in_order" | "code_required" | "expires_at" | "sent_at" | "completed_at" | "final_sha256" | "void_reason" | "page_count" | "created_at" | "updated_at"
+  | "id" | "reference" | "title" | "status" | "mode" | "template_version_id" | "contact_id" | "envelope_id" | "locale" | "sign_in_order" | "code_required" | "expires_at" | "sent_at" | "completed_at" | "final_sha256" | "certificate_sha256" | "void_reason" | "page_count" | "created_at" | "updated_at"
 >;
 
 export interface ListFilters {

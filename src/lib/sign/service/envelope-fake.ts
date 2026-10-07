@@ -239,7 +239,7 @@ export function installEnvelopeRpcs(db: FakeDb, o: EnvelopeRpcOptions) {
   db.rpcHandlers.sign_finish_sealing = async (a) => {
     const d = doc(a.p_document);
     if (!d || d.status !== "sealing") return fail("document_not_sealing");
-    Object.assign(d, { final_path: a.p_final_path, final_sha256: a.p_final_sha256, completed_at: o.now(), retain_until: "2033-10-06T08:00:00Z" });
+    Object.assign(d, { final_path: a.p_final_path, final_sha256: a.p_final_sha256, certificate_path: a.p_certificate_path ?? null, certificate_sha256: a.p_certificate_sha256 ?? null, completed_at: o.now(), retain_until: "2033-10-06T08:00:00Z" });
     setDoc(d, "completed");
     return ok({ account_id: d.account_id, reference: d.reference });
   };

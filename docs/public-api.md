@@ -287,6 +287,7 @@ document that does not exist.
 | `POST /api/v1/sign/documents/{id}/void` | `sign:write` | Cancel a document that has not finished |
 | `POST /api/v1/sign/documents/{id}/remind` | `sign:write` | Remind the people who have not signed |
 | `GET /api/v1/sign/documents/{id}/file` | `sign:read` | Download the signed PDF (after completion) |
+| `GET /api/v1/sign/documents/{id}/certificate` | `sign:read` | Download the certificate of completion as a PDF of its own (after completion) |
 
 Instead of polling `GET /documents/{id}`, subscribe to the `sign.*` events (see
 [Webhooks](#webhooks)).
@@ -384,8 +385,9 @@ with every problem in `issues`, each naming the entry, for example
 
 The list is saved in the same all-or-nothing call as the document, so nothing is
 left behind when the call fails. When the document is completed, each person is
-sent one email with the signed PDF attached (a file too large to attach is not
-sent as a link: the email says to ask the sender). Each is sent it once.
+sent one email with the signed PDF attached, and its certificate as a second,
+separate attachment (a file too large to attach is not sent as a link: the email
+says to ask the sender). Each is sent it once.
 
 Fields it does not know are ignored. Wrong or missing fields give a `400` with
 `error.code` `bad_request` and **every** problem in `error.issues`, each naming
@@ -438,7 +440,7 @@ when it has one, otherwise through the platform sender. Call
     "sign_in_order": true, "code_required": false, "page_count": 6,
     "created_at": "2026-10-07T01:00:00.000Z", "updated_at": "2026-10-07T01:00:02.000Z",
     "sent_at": "2026-10-07T01:00:02.000Z", "expires_at": "2026-10-21T01:00:02.000Z",
-    "completed_at": null, "void_reason": null, "final_sha256": null, "verify_url": null,
+    "completed_at": null, "void_reason": null, "final_sha256": null, "certificate_sha256": null, "verify_url": null,
     "signers": [
       { "id": "…", "role_key": "merchant", "kind": "signer", "full_name": "Ali bin Ahmad",
         "email": "ali@kedairuncit.example", "channel": "whatsapp", "order_no": 1,
@@ -517,10 +519,13 @@ The document with its people. What the fields mean:
 - `signers[].status`: `pending` (not invited yet: signing order), `sent`
   (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
   is when they signed.
-- `final_sha256` and `verify_url` appear once `completed`. `final_sha256` is the
-  SHA-256 of the signed PDF, so you can check what you downloaded.
-  `verify_url` is the public page behind the QR code on the certificate: anyone
-  can open it and check a file against the fingerprint.
+- `final_sha256`, `certificate_sha256` and `verify_url` appear once `completed`.
+  `final_sha256` is the SHA-256 of the signed PDF, so you can check what you
+  downloaded. `certificate_sha256` is the SHA-256 of the certificate PDF (see
+  `GET .../certificate` below); it is `null` for a document that was sealed before
+  certificates became separate files, whose certificate is the last pages of the
+  signed PDF. `verify_url` is the public page behind the QR code on the
+  certificate: anyone can open it and check either file against its fingerprint.
 - `progress` is `null` for a document without a form. For a document with a form
   (such as Merchant Registration) it lists, for each role, `percent` of required
   answers given, `last_activity_at` and `parts`: `{ key, title, state, done,
@@ -570,17 +575,44 @@ header `X-Content-SHA256` (the same as `final_sha256`). The API hands out bytes
 and never an address, so the file cannot be shared by link; every download is
 authenticated and recorded in the document's history.
 
-- `kind=signed` (the default): the sealed PDF, with the certificate pages at the
-  end. **Only once the document is `completed`**; before that it is a `409`
-  `not_completed`, in every state.
-- `kind=certificate`: the certificate is the last pages of the signed PDF, not a
-  separate file, so this answers `404` `no_separate_certificate`. Download `signed`.
+- `kind=signed` (the default): the sealed PDF. A document sealed now has the
+  signatures and a small grey line on every page, `Vircle Secure Sign · ID <document id>`
+  (for a document of a collection, `Vircle Secure Sign · COL-… · ID <document id>`);
+  its certificate is a file of its own (next). A document sealed earlier has its
+  certificate pages at the end of this PDF. **Only once the document is `completed`**;
+  before that it is a `409` `not_completed`, in every state.
+- `kind=certificate`: the same file as `GET .../certificate` below. For a document
+  sealed before certificates became separate files it answers `404`
+  `no_separate_certificate` (its certificate is the last pages of the signed PDF:
+  download `signed`).
 - `kind=original`: the file as it was uploaded, when the document has one
   (documents made from a template have none: `404` `no_original_file`).
 
 ```bash
 curl -L -o MERCHANT-10231-signed.pdf \
   "https://your-crm.example.com/api/v1/sign/documents/0d9e…/file?kind=signed" \
+  -H "Authorization: Bearer wacrm_live_xxx"
+```
+
+### `GET /api/v1/sign/documents/{id}/certificate`
+
+The certificate of completion as a PDF of its own: who signed and when, the timeline of
+what happened, the document's reference and id, a QR code to the verify page, and the
+SHA-256 of the signed PDF it covers (for a document of a collection also the
+collection's reference and how many documents it holds). It is sealed with the same
+digital signature as the signed PDF. The answer is the file as an attachment, with
+`X-Content-SHA256` (the same as `certificate_sha256` on the document); nothing about
+its address is handed out, and every download is recorded in the document's history.
+
+- `409` `not_completed` before the document is `completed`.
+- `404` `no_separate_certificate` for a document sealed before certificates became
+  separate files: its certificate is the last pages of the signed PDF (`file?kind=signed`).
+- The same private-document and workspace rules as the signed file: a document a key
+  may not see is a `404` `document_not_found`.
+
+```bash
+curl -L -o MERCHANT-10231-certificate.pdf \
+  "https://your-crm.example.com/api/v1/sign/documents/0d9e…/certificate" \
   -H "Authorization: Bearer wacrm_live_xxx"
 ```
 
@@ -601,7 +633,7 @@ is added when there are several things to say. Branch on `code`.
 | 400 | `reason_required` | `void` without a reason |
 | 404 | `document_not_found` | No such document in this workspace (also for an id that is not a UUID) |
 | 404 | `template_not_found`, `signer_not_found` | Not in this workspace / not on this document |
-| 404 | `no_separate_certificate`, `no_original_file`, `no_final_file` | The file asked for does not exist |
+| 404 | `no_separate_certificate`, `no_original_file`, `no_final_file` | The file asked for does not exist (`no_separate_certificate`: the document was sealed before certificates became separate files) |
 | 409 | `document_not_draft` | The document was already sent |
 | 409 | `document_not_open` | The document is no longer waiting for signatures |
 | 409 | `template_not_active` | The template is archived or a draft |
@@ -766,6 +798,7 @@ saved, so `status` is the document's status **after** the event.
     { "name": "Ali bin Ahmad", "role": "Merchant", "role_key": "merchant", "status": "signed", "signed_at": "2026-10-04T06:03:00.000Z" }
   ],
   "final_sha256": "ab12…",       // completed only: SHA-256 of the sealed PDF
+  "certificate_sha256": "cd34…", // completed only, and only when the certificate is a file of its own (GET /api/v1/sign/documents/{id}/certificate); absent for a document sealed earlier
   "verify_url": "https://halo.example/verify/<document_id>" // completed only: public page that proves the file
 }
 ```
@@ -778,8 +811,9 @@ saved, so `status` is the document's status **after** the event.
   signer gave when declining or the sender gave when cancelling. Download
   the signed file with `GET /api/v1/sign/documents/{id}/file` (see "Secure Sign"
   above) when you need it.
-- To check a signed file you hold, compare its SHA-256 with `final_sha256`, or
-  open `verify_url` and drop the file on it.
+- To check a signed file you hold, compare its SHA-256 with `final_sha256` (the
+  certificate's with `certificate_sha256`), or open `verify_url` and drop the file
+  on it: the page tells you whether it is the signed document or its certificate.
 - Delivery is the same single attempt described below: a receiver that is
   down misses the event. Dedupe on the envelope `id`, and reconcile with the
   Secure Sign API when it matters.

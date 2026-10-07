@@ -7151,7 +7151,11 @@
         "retentionHint": "整数年数，1 到 50。在贵机构确定签署记录必须保存多久之前，初始值为 7：请向律师或审计师确认该期限。",
         "retentionEffect": "更改只适用于此后封印的文档。已封印的文档保留其封印时获得的日期。类别可以设置自己的期限（类别）。文档绝不会被自动删除。",
         "retentionPast": "{count, plural, other {# 份已签署文档已超过保留期限。}}",
-        "retentionPastNone": "目前没有已签署文档超过保留期限。"
+        "retentionPastNone": "目前没有已签署文档超过保留期限。",
+        "certificateTitle": "完成证书",
+        "certificateIntro": "此后每份新签署的文件，其完成证书都会作为独立的 PDF 与已签署文件并列保存，并使用相同的数字签名封存。已签署文件只包含签名和每页上的一行小号 ID。",
+        "embedCertificate": "同时将证书嵌入已签署的 PDF",
+        "embedCertificateHint": "默认关闭。开启后，新文件除独立文件外，已签署 PDF 末尾也会附上证书页。已签署的文件不会被更改。"
       },
       "consent": {
         "intro": "这是对方在签署前同意的内容。除非您为某种语言撰写自己的措辞，否则使用标准措辞。每种措辞都有版本，对方同意的版本会与已签署的文件一起保存。在依赖您自己的措辞之前，请让有资质的人审阅。",
@@ -7690,7 +7694,11 @@
         "view": "查看",
         "downloadOriginal": "下载原件",
         "void": "取消文件",
-        "downloadRecord": "下载记录"
+        "downloadRecord": "下载记录",
+        "signedDocument": "已签署文件",
+        "sealedRecord": "封存记录",
+        "certificate": "证书",
+        "downloadAll": "全部下载 (zip)"
       },
       "banner": {
         "waiting": "正在等待 {names}（已签署 {done}/{total}）",
@@ -7838,7 +7846,9 @@
         "asSent": "发送时的版本",
         "noteSigned": "已签署的副本，包含所有答案和证书页。",
         "noteSent": "发送时的文件。所有人签署之前，这里不显示答案。",
-        "noteRecord": "已封存的提交记录：答复、提交人以及证书页。"
+        "noteRecord": "已封存的提交记录：答复、提交人以及证书页。",
+        "noteSignedOwn": "已签署的副本，含所有答案。其证书是单独的文件。",
+        "noteRecordOwn": "封存的提交记录：所有答案和提交人。其证书是单独的文件。"
       },
       "files": {
         "title": "文件",
@@ -7872,7 +7882,8 @@
           "fingerprint": "文件指纹",
           "channel": "发送方式",
           "delivery": "出错原因",
-          "error": "技术说明"
+          "error": "技术说明",
+          "certificateFingerprint": "证书指纹"
         },
         "chain": {
           "checking": "正在核验",
@@ -9782,7 +9793,9 @@
             "cancel": "取消",
             "action": "延长时间",
             "done": "新日期已保存"
-          }
+          },
+          "downloadAll": "全部下载 (zip)",
+          "certificate": "证书"
         }
       },
       "collection": {
@@ -10049,7 +10062,11 @@
           "download": "下载已签署的 PDF",
           "view": "查看已签署的 PDF",
           "byEmail": "签署副本已发送到您的邮箱。",
-          "delegate": "感谢您填写所负责的部分。发件人已收到完成的文档。"
+          "delegate": "感谢您填写所负责的部分。发件人已收到完成的文档。",
+          "signedDocument": "已签署文件",
+          "record": "封存记录",
+          "certificate": "证书",
+          "downloadAll": "全部下载 (zip)"
         },
         "declined": {
           "title": "此文件未被签署",
@@ -10200,7 +10217,10 @@
             "body": "所有人都已签署。我们正在生成已签署的副本。此页面会自动更新，您可以保持打开。",
             "slow": "这比平时花的时间更长。您可以关闭此页面。已签署的副本一准备好，我们就会通过邮件发送给您。",
             "stuck": "这比预期花的时间更长。您的签名已保存，没有任何内容丢失。已签署的副本仍在生成中，一准备好我们就会通过邮件发送给您。您可以关闭此页面。"
-          }
+          },
+          "certificate": "下载 {title} 的证书",
+          "certificateShort": "证书",
+          "downloadAll": "全部下载 (zip)"
         }
       }
     },
@@ -10462,7 +10482,10 @@
         "matchBodyForm": "您的副本与封存的记录逐字节完全一致。",
         "differentTitleForm": "此文件不是封存的记录",
         "differentBodyForm": "它可能已被修改，或被其他程序或 PDF 编辑器重新保存。请向发件人索取封存的记录。",
-        "fingerprintForm": "封存记录的指纹 (SHA-256)"
+        "fingerprintForm": "封存记录的指纹 (SHA-256)",
+        "introBoth": "请选择您拿到的已签署文件或其证书。比对在您的设备上进行，文件不会上传。",
+        "matchCertificateTitle": "这就是原始证书",
+        "matchCertificateBody": "您的副本与本文件的证书逐字节完全一致。证书通过指纹指明其涵盖的已签署文件。"
       },
       "readerHint": "要查看电子签名本身，请用 Adobe Acrobat 等 PDF 阅读器打开该 PDF，并查看其签名面板。",
       "notFound": {
@@ -10470,7 +10493,12 @@
         "body": "请确认您扫描了完整的二维码或打开了完整的网址。如仍无法打开，请联系发送文件给您的人。"
       },
       "signedTitleForm": "此提交已记录",
-      "envelope": "这份文件与其他文件一起签署,属于一个包含 {count, plural, other {#份文件}}的文件集。"
+      "envelope": "这份文件与其他文件一起签署,属于一个包含 {count, plural, other {#份文件}}的文件集。",
+      "certificate": {
+        "title": "证书",
+        "separate": "本文件的证书是一个独立的文件，以数字签名封存。它指明所涵盖的已签署文件：{file}。",
+        "fingerprint": "证书的指纹 (SHA-256)"
+      }
     },
     "bulk": {
       "title": "批量发送",

@@ -10,6 +10,7 @@ import { A4, makePdf } from "../pdf/fixtures";
 import { createSelfSignedP12 } from "../pdf/p12";
 import { TEST_MARK_TEXT } from "../pdf/testmark";
 import type { PlacedField } from "../pdf/types";
+import { verifySealed } from "../pdf/verify";
 import type { SignRole } from "../types";
 import { listDocumentsForApi } from "./api";
 import type { SignCtx } from "./context";
@@ -292,8 +293,9 @@ describe("where a test document is left out", () => {
 });
 
 describe("sealing a test document", () => {
-  it("marks every page of the signed file, the certificate pages too, and the file still verifies", async () => {
+  it.each([false, true])("marks every page of the signed file and of its certificate, and both files still verify (certificate also embedded: %s)", async (embed) => {
     await template();
+    if (embed) db.rows("sign_settings")[0].embed_certificate = true;
     await sendTestDocument(ctx, "tpl1");
     const d = db.rows("sign_documents")[0];
     // everyone signs; the sealing job takes it
@@ -314,10 +316,17 @@ describe("sealing a test document", () => {
     const fin = db.rpcCalls.find((c) => c.name === "sign_finish_sealing")!;
     const bytes = db.files.get(fin.args.p_final_path as string)!;
     const pages = await drawnText(bytes);
-    // two pages of the document, then the certificate pages: all of them carry the mark
-    expect(pages.length).toBeGreaterThan(2);
+    // two pages of the document (and, only when the workspace asked for them inside the file, the certificate pages): all of them carry the mark
+    if (embed) expect(pages.length).toBeGreaterThan(2);
+    else expect(pages).toHaveLength(2);
     expect(pages.every(marked)).toBe(true);
     expect(createHash("sha256").update(bytes).digest("hex")).toBe(fin.args.p_final_sha256);
+    // the certificate is a file of its own and carries the mark on every page too
+    const certificate = db.files.get(fin.args.p_certificate_path as string)!;
+    expect(verifySealed(certificate).ok).toBe(true);
+    const certificatePages = await drawnText(certificate);
+    expect(certificatePages.length).toBeGreaterThan(0);
+    expect(certificatePages.every(marked)).toBe(true);
     // and nothing was announced to the outside
     expect(rec.webhooks).not.toHaveBeenCalled();
   });

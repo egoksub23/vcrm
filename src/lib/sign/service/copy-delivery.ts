@@ -10,7 +10,7 @@
 // that cannot be delivered is not a reason to fail the completion.
 // ============================================================
 
-import { deliverCopy, deliverEnvelopeCopy, verifyLink, type DocFacts, type EnvelopeFacts, type Workspace } from "../notify";
+import { deliverCopy, deliverEnvelopeCopy, verifyLink, type DocFacts, type EnvelopeFacts, type MailFile, type SignedMailFile, type Workspace } from "../notify";
 import type { SignCopyRecipientRow, SignDocumentRow } from "../types";
 import { logEvent, type SignCtx } from "./context";
 import type { CopyTarget } from "./copy-recipients";
@@ -37,7 +37,7 @@ async function release(ctx: SignCtx, id: string): Promise<void> {
  * The signed copy of a document on its own, to each person who receives one, once. `told` are the addresses (lower case) that were just sent the
  * signed copy as a signer or as the sender: a person on both lists is not sent it twice (their copy row is still marked as sent).
  */
-export async function sendDocumentCopies(ctx: SignCtx, doc: SignDocumentRow, facts: DocFacts, w: Workspace, pdf: { bytes: Uint8Array; filename: string }, told: ReadonlySet<string> = new Set()): Promise<void> {
+export async function sendDocumentCopies(ctx: SignCtx, doc: SignDocumentRow, facts: DocFacts, w: Workspace, pdf: SignedMailFile, told: ReadonlySet<string> = new Set()): Promise<void> {
   try {
     const people = await claim(ctx, { documentId: doc.id });
     for (const p of people) {
@@ -53,11 +53,12 @@ export async function sendDocumentCopies(ctx: SignCtx, doc: SignDocumentRow, fac
   }
 }
 
-/** A signed file of a collection: its bytes and name, and which document it is (for the page that checks it when it is too large to attach). */
+/** A signed file of a collection: its bytes and name, and which document it is (for the page that checks it when it is too large to attach). `certificate`: its certificate when that is a file of its own (migration 178). */
 export interface CopyFile {
   bytes: Uint8Array;
   filename: string;
   documentId?: string;
+  certificate?: MailFile | null;
 }
 
 /** The signed copies of every document of a collection, in ONE message to each person who receives a copy, once (`told`: as for a document). */
@@ -66,7 +67,7 @@ export async function sendEnvelopeCopies(ctx: SignCtx, envelopeId: string, docs:
     const people = await claim(ctx, { envelopeId });
     if (people.length === 0) return;
     const titleOf = new Map(docs.map((d) => [d.id, d.title]));
-    const pdfs = files.map((f) => ({ bytes: f.bytes, filename: f.filename, title: (f.documentId && titleOf.get(f.documentId)) || f.filename, verifyUrl: verifyLink(ctx.origin, f.documentId ?? docs[0]?.id ?? "") }));
+    const pdfs = files.map((f) => ({ bytes: f.bytes, filename: f.filename, ...(f.certificate ? { certificate: f.certificate } : {}), title: (f.documentId && titleOf.get(f.documentId)) || f.filename, verifyUrl: verifyLink(ctx.origin, f.documentId ?? docs[0]?.id ?? "") }));
     for (const p of people) {
       if (told.has(p.email.trim().toLowerCase())) continue;
       const d = await deliverEnvelopeCopy(ctx.deps, facts, w, { name: p.full_name, email: p.email }, pdfs);

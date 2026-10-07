@@ -327,7 +327,13 @@ async function sealWith(docId: string) {
   t.db.rpcHandlers.sign_fail_sealing = async () => ({ data: null, error: null });
   const out = await runSealing({ admin: t.ctx.admin, origin: t.ctx.origin, deps: t.ctx.deps, now: t.ctx.now }, 2);
   const fin = t.db.rpcCalls.find((c) => c.name === "sign_finish_sealing");
-  return { out, bytes: fin ? t.db.files.get(fin.args.p_final_path as string)! : null, sha256: fin ? (fin.args.p_final_sha256 as string) : null };
+  return {
+    out,
+    bytes: fin ? t.db.files.get(fin.args.p_final_path as string)! : null,
+    sha256: fin ? (fin.args.p_final_sha256 as string) : null,
+    // migration 178: the certificate is a file of its own
+    certificate: fin?.args.p_certificate_path ? t.db.files.get(fin.args.p_certificate_path as string)! : null,
+  };
 }
 
 async function textOf(bytes: Uint8Array): Promise<string> {
@@ -392,7 +398,7 @@ describe("a form of one person, end to end", () => {
     expect(doc.status).toBe("completed");
     expect(doc.final_path).toBeTruthy();
 
-    // the sealed file is the record plus the certificate pages, and checks out
+    // the sealed file is the record (its certificate is a file of its own), and checks out
     const verified = verifySealed(sealed.bytes!);
     expect(verified.ok).toBe(true);
     expect(verified.sha256).toBe(sealed.sha256);
@@ -409,11 +415,17 @@ describe("a form of one person, end to end", () => {
     const upload = t.db.rows("sign_document_files").find((f) => f.kind === "signer_upload")!;
     expect(text.replace(/\s/g, "")).toContain(String(upload.sha256));
     expect(text).toContain("ssm-extract.pdf");
-    // the certificate says submission, not signing
-    expect(text).toContain("Certificate of Submission");
-    expect(text).toContain("Ali bin Ahmad submitted their details");
-    expect(text).toContain("Everyone had submitted");
-    expect(text).not.toContain("Certificate of Completion");
+    // the record carries no certificate pages; the certificate says submission, not signing, and names the record it covers
+    expect(text).not.toContain("Certificate of Submission");
+    expect(verifySealed(sealed.certificate!).ok).toBe(true);
+    const certificate = await textOf(sealed.certificate!);
+    expect(certificate).toContain("Certificate of Submission");
+    expect(certificate).toContain("Ali bin Ahmad submitted their details");
+    expect(certificate).toContain("Everyone had submitted");
+    expect(certificate).not.toContain("Certificate of Completion");
+    expect(certificate).toContain("Sealed record");
+    expect(certificate).toContain("SGN-2026-000777-record.pdf");
+    expect(certificate.replace(/\s/g, "")).toContain(String(sealed.sha256));
 
     // the record is the document's final file and is kept like any other
     expect(t.db.rows("sign_document_files").find((f) => f.kind === "signed")!.name).toBe("SGN-2026-000777-record.pdf");
@@ -421,8 +433,9 @@ describe("a form of one person, end to end", () => {
     // the submitter and the sender were told, with the record attached
     const toApplicant = t.mail.find((m) => m.to === "ali@kedairuncit.example" && m.subject.startsWith("Received"))!;
     expect(toApplicant.subject).toBe("Received: E-invoice details");
-    expect(toApplicant.attachments).toEqual(["SGN-2026-000777-record.pdf"]);
+    expect(toApplicant.attachments).toEqual(["SGN-2026-000777-record.pdf", "SGN-2026-000777-certificate.pdf"]);
     expect(toApplicant.text).toContain("A record of what was submitted is attached");
+    expect(toApplicant.text).toContain("The certificate is attached to this message as a separate file.");
     expect(t.mail.some((m) => m.to === "gokula@vircle.example" && m.subject.startsWith("Received"))).toBe(true);
     expect(t.mail.some((m) => /Signed:/.test(m.subject))).toBe(false);
 

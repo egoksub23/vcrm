@@ -50,7 +50,7 @@ export interface DescribeContext {
   mode?: string | null;
 }
 
-export type DetailKind = "ip" | "device" | "consent" | "fingerprint" | "channel" | "delivery" | "error";
+export type DetailKind = "ip" | "device" | "consent" | "fingerprint" | "certificateFingerprint" | "channel" | "delivery" | "error";
 
 export interface EventDetail {
   kind: DetailKind;
@@ -226,6 +226,8 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
   if (row.type === "consented") add("consent", text(detail.version, 60));
   if (row.type === "sent") add("fingerprint", text(detail.base_sha256, 80));
   if (row.type === "sealed") add("fingerprint", text(detail.final_sha256, 80));
+  // migration 178: the certificate as a file of its own has a fingerprint of its own (an older document's sealed event has none)
+  if (row.type === "sealed") add("certificateFingerprint", text(detail.certificate_sha256, 80));
   if (row.type === "delivery_failed") {
     add("channel", text(detail.channel, 20));
     add("delivery", text(detail.reason, 300));

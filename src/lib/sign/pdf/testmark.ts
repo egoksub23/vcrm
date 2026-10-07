@@ -20,8 +20,8 @@ export const TEST_MARK_TEXT = "TEST";
 export const TEST_MARK_NOTE = "TEST DOCUMENT - NOT A REAL AGREEMENT";
 
 const RED = rgb(0.78, 0.09, 0.09);
-/** Cap height of Helvetica Bold as a fraction of the font size. */
-const CAP = 0.72;
+/** Cap height of Helvetica Bold as a fraction of the font size (placeCentred centres a line on its capitals; the footer stamp, idfooter.ts, uses the same figure to put a baseline where it wants it). */
+export const CAP = 0.72;
 
 export interface MarkPlacement {
   /** The text's start, in the page's own user space (what pdf-lib's drawText takes). */

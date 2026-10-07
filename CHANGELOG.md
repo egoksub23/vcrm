@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.84.0] — 2026-10-08
+
+**Migration required: 178.** Apply it BEFORE the new app: sealing now calls a function that only exists after 178.
+
+### Added
+
+- **The certificate is its own file.** A newly signed document is the signed PDF (signatures and the tamper-proof seal) plus a separate certificate PDF (QR code, who signed and when, the history, and the fingerprint of the signed file it covers), sealed with the same certificate. Documents signed before this keep their certificate inside the PDF, untouched.
+- **Downloads:** a document offers Signed document, Certificate and Download all (zip); a document collection has one zip with every signed document, its certificate and a Collection summary. The signer's finished page, the API (`GET /api/v1/sign/documents/{id}/certificate`, `certificate_sha256` on the document and in the completed webhook) and the verify page know about both files. Signed-copy emails attach the signed document and the certificate as separate attachments within the sending mailbox's size limit, with a link above it.
+- **An ID on every page.** Each page of a newly signed document carries a small centred footer: "Vircle Secure Sign · ID <document id>" (and the collection reference for a document of a collection), added before the seal so the seal covers it.
+- **Setting:** Settings > Secure Sign > General > "Also embed the certificate inside the signed PDF" (off by default) for counterparties who want one file.
+
 ## [0.83.0] — 2026-10-08
 
 No migration.

@@ -347,6 +347,73 @@ describe("planZip and zipStream", () => {
     expect(plan.skipped).toEqual([{ id: "b", reference: "SGN-2026-b", reason: "too_large" }]);
   });
 
+  describe("with certificates that are files of their own (migration 178)", () => {
+    const certificateOf = (id: string, bytes = pdf(id.charCodeAt(0) + 100)) => {
+      const path = `account-${ACCT}/${id}/certificate/${id}.pdf`;
+      const row = t.db.rows("sign_documents").find((d) => d.id === id)!;
+      row.certificate_path = path;
+      row.certificate_sha256 = "d".repeat(64);
+      t.db.files.set(path, bytes);
+      return { path, bytes };
+    };
+
+    it("puts each document's certificate in the zip beside its signed file, named after it; a document with its certificate inside the signed PDF adds nothing", async () => {
+      const a = addDoc("a");
+      const b = addDoc("b");
+      const ca = certificateOf("a");
+      const plan = await planZip(t.ctx, ["a", "b"]);
+      expect(plan.names?.get("a")).toEqual({ signed: "SGN-2026-a - Agreement a.pdf", certificate: "SGN-2026-a - Agreement a - certificate.pdf" });
+      expect(plan.names?.get("b")).toEqual({ signed: "SGN-2026-b - Agreement b.pdf", certificate: null });
+      const zip = unzipSync(new Uint8Array(await new Response(zipStream(t.ctx, plan)).arrayBuffer()));
+      expect(Object.keys(zip).sort()).toEqual(["SGN-2026-a - Agreement a - certificate.pdf", "SGN-2026-a - Agreement a.pdf", "SGN-2026-b - Agreement b.pdf"]);
+      expect(zip["SGN-2026-a - Agreement a.pdf"]).toEqual(a.bytes);
+      expect(zip["SGN-2026-a - Agreement a - certificate.pdf"]).toEqual(ca.bytes);
+      expect(zip["SGN-2026-b - Agreement b.pdf"]).toEqual(b.bytes);
+      // one download recorded for each document, not for each file
+      expect(t.db.rpcCalls.filter((c) => c.args.p_type === "downloaded").map((c) => c.args.p_document)).toEqual(["a", "b"]);
+    });
+
+    it("counts the certificate in the size of a document, and names a certificate that cannot be read while the signed file still comes", async () => {
+      addDoc("a");
+      addDoc("b");
+      certificateOf("a");
+      const lost = certificateOf("b");
+      t.db.files.delete(lost.path);
+      const half = Math.floor(ZIP_MAX_BYTES * 0.5);
+      t.db.seed("sign_document_files", [
+        { account_id: ACCT, document_id: "a", kind: "signed", size_bytes: half },
+        { account_id: ACCT, document_id: "a", kind: "certificate", size_bytes: Math.floor(half * 0.6) },
+        { account_id: ACCT, document_id: "b", kind: "signed", size_bytes: 10 },
+        { account_id: ACCT, document_id: "b", kind: "certificate", size_bytes: 10 },
+      ]);
+      // a's signed file and certificate together are 80% of the limit: b still fits (and is the one with the unreadable certificate)
+      const plan = await planZip(t.ctx, ["a", "b"]);
+      expect(plan.included.map((d) => d.id)).toEqual(["a", "b"]);
+      const zip = unzipSync(new Uint8Array(await new Response(zipStream(t.ctx, plan)).arrayBuffer()));
+      expect(Object.keys(zip).sort()).toEqual([ZIP_SKIPPED_NOTE, "SGN-2026-a - Agreement a - certificate.pdf", "SGN-2026-a - Agreement a.pdf", "SGN-2026-b - Agreement b.pdf"]);
+      expect(strFromU8(zip[ZIP_SKIPPED_NOTE])).toContain("SGN-2026-b: the signed file is in this zip, but its certificate could not be read");
+      // and the limit is held with the certificate in it
+      t.db.tables["sign_document_files"] = [];
+      t.db.seed("sign_document_files", [
+        { account_id: ACCT, document_id: "a", kind: "signed", size_bytes: Math.floor(ZIP_MAX_BYTES * 0.5) },
+        { account_id: ACCT, document_id: "a", kind: "certificate", size_bytes: Math.floor(ZIP_MAX_BYTES * 0.3) },
+        { account_id: ACCT, document_id: "b", kind: "signed", size_bytes: Math.floor(ZIP_MAX_BYTES * 0.19) },
+        { account_id: ACCT, document_id: "b", kind: "certificate", size_bytes: Math.floor(ZIP_MAX_BYTES * 0.05) },
+      ]);
+      const over = await planZip(t.ctx, ["a", "b"]);
+      expect(over.included.map((d) => d.id)).toEqual(["a"]);
+      expect(over.skipped).toEqual([{ id: "b", reference: "SGN-2026-b", reason: "too_large" }]);
+    });
+
+    it("names a certificate like its signed file with ' - certificate' before the extension, and never twice the same", () => {
+      const used = new Set<string>();
+      const doc = { id: "x", reference: "SGN-2026-000001", title: "Merchant Agreement" };
+      expect(zipEntryName(doc, used)).toBe("SGN-2026-000001 - Merchant Agreement.pdf");
+      expect(zipEntryName(doc, used, "certificate")).toBe("SGN-2026-000001 - Merchant Agreement - certificate.pdf");
+      expect(zipEntryName(doc, used, "certificate")).toBe("SGN-2026-000001 - Merchant Agreement - certificate-2.pdf");
+    });
+  });
+
   it("always takes the first document even when it alone is over the limit", async () => {
     addDoc("a");
     t.db.seed("sign_document_files", [{ account_id: ACCT, document_id: "a", kind: "signed", size_bytes: ZIP_MAX_BYTES + 1 }]);

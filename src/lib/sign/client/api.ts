@@ -72,11 +72,18 @@ export async function signRequest<T = unknown>(path: string, init: { method?: st
   return (await res.json()) as T;
 }
 
-/** The address of a document's file, for the viewer (`kind`: base, final or original). */
-export const documentFileUrl = (documentId: string, kind: "base" | "final" | "original" = "base", download = false) =>
+/**
+ * The address of a document's file, for the viewer (`kind`: base, final or original) and the downloads: `certificate` is the certificate of a document
+ * that has one as a file of its own (migration 178) and `zip` is the signed document and that certificate in one zip.
+ */
+export const documentFileUrl = (documentId: string, kind: "base" | "final" | "original" | "certificate" | "zip" = "base", download = false) =>
   `/api/sign/documents/${documentId}/file?kind=${kind}${download ? "&download=1" : ""}`;
+
+/** "Download all (zip)" of a document collection: every signed document with its certificate, and a summary (migration 178). */
+export const envelopeZipUrl = (envelopeId: string) => `/api/sign/envelopes/${envelopeId}/zip`;
 
 export const templateFileUrl = (templateId: string) => `/api/sign/templates/${templateId}/file`;
 
 /** The address of the file on a signer's link; `scope` is the token, or `<token>@<document id>` for one document of an envelope (see ./scope.ts). */
-export const signerFileUrl = (scope: string, download = false) => publicPath(scope, "/file", { query: download ? "download=1" : "" });
+export const signerFileUrl = (scope: string, download = false, part?: "certificate" | "zip") =>
+  publicPath(scope, "/file", { query: [download ? "download=1" : "", part ? `part=${part}` : ""].filter(Boolean).join("&") });

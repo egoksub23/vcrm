@@ -26,7 +26,7 @@ import { myOpenPlace } from "@/lib/sign/turn";
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
 import { CopyRecipients } from "./copy-recipients";
-import { downloadFile } from "./download";
+import { downloadFile, downloadName } from "./download";
 import { FilesList } from "./files-list";
 import { HistoryView } from "./history-view";
 import { bannerFor, detailErrorKey, documentActions, undeliveredDetails, type DetailCaps } from "./logic";
@@ -110,7 +110,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   async function download(kind: DownloadKind) {
     setDownloading(kind);
     try {
-      await downloadFile(documentFileUrl(documentId, kind, true), kind === "final" ? `${doc?.reference ?? "document"}-${doc?.mode === "form" ? "record" : "signed"}.pdf` : `${doc?.reference ?? "document"}-original`);
+      await downloadFile(documentFileUrl(documentId, kind, true), downloadName(kind, doc?.reference ?? null, doc?.mode ?? null));
     } catch (err) {
       toast.error(t(detailErrorKey(err instanceof SignApiError ? err.code : "request_failed")));
     } finally {
@@ -189,7 +189,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">{t(viewKind === "final" ? (doc.mode === "form" ? "viewer.noteRecord" : "viewer.noteSigned") : "viewer.noteSent")}</p>
+              <p className="text-xs text-muted-foreground">{t(viewKind === "final" ? (doc.certificate_path ? (doc.mode === "form" ? "viewer.noteRecordOwn" : "viewer.noteSignedOwn") : doc.mode === "form" ? "viewer.noteRecord" : "viewer.noteSigned") : "viewer.noteSent")}</p>
               <DocumentViewer documentId={documentId} kind={viewKind} version={`${viewKind}|${viewKind === "final" ? doc.final_path : doc.base_path}`} />
             </>
           )}

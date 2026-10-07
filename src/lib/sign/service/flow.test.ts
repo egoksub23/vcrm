@@ -557,10 +557,17 @@ describe("sealing", () => {
     expect(v.ok).toBe(true);
     expect(v.signer?.subject).toContain("Test seal");
     expect(t.db.rows("sign_document_files").some((f) => f.kind === "signed")).toBe(true);
+    // the certificate is a file of its own, sealed too, recorded with the signed file in the one call
+    expect(fin.args.p_certificate_path).toMatch(new RegExp(`/certificate/[0-9a-f]{64}\\.pdf$`));
+    const certificate = t.db.files.get(fin.args.p_certificate_path as string)!;
+    expect(createHash("sha256").update(certificate).digest("hex")).toBe(fin.args.p_certificate_sha256);
+    expect(verifySealed(certificate).ok).toBe(true);
+    expect(t.db.rows("sign_document_files").find((f) => f.kind === "certificate")).toMatchObject({ path: fin.args.p_certificate_path, sha256: fin.args.p_certificate_sha256, mime: "application/pdf" });
 
     // everyone got the signed copy, attached: both signers and the sender
     expect(t.mail.map((m) => m.to).sort()).toEqual(["ali@kedairuncit.example", "g@vircle.example", "gokula@vircle.example"]);
-    expect(t.mail.every((m) => Array.isArray(m.attachments) && m.attachments.length === 1)).toBe(true);
+    // (the signed copy and its certificate, two separate files: migration 178)
+    expect(t.mail.every((m) => Array.isArray(m.attachments) && m.attachments.length === 2)).toBe(true);
   });
 
   it("keeps the document in sealing, records why, and removes a half-written file when something fails", async () => {

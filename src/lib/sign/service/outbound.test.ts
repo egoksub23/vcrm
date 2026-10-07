@@ -103,6 +103,8 @@ describe("emitSignEvent: both channels", () => {
       template_id: "tpl-1",
       category_id: "cat-1",
       final_sha256: SHA,
+      // (migration 178: empty for a document whose certificate is inside the signed PDF)
+      certificate_sha256: "",
       verify_url: `https://halo.example/verify/${DOC}`,
     });
     // the loop guard starts at one link
@@ -131,6 +133,19 @@ describe("emitSignEvent: both channels", () => {
       { name: "Casey Lee", role: "Merchant", role_key: "merchant", status: "signed", signed_at: "2026-10-04T00:00:00Z" },
       { name: "Dato Aziz", role: "Director (countersign)", role_key: "director", status: "sent", signed_at: null },
     ]);
+  });
+
+  it("carries the certificate's fingerprint beside the signed file's, in the webhook and in the automation's variables, only when the certificate is a file of its own (migration 178)", () => {
+    const CERT = "cd".repeat(32);
+    const own = buildSignEventData(doc({ certificate_sha256: CERT }), [], "completed", "https://halo.example", { templateId: null, templateName: null, categoryName: null });
+    expect(own).toMatchObject({ final_sha256: SHA, certificate_sha256: CERT });
+    expect(toAutomationContext(own, "completed")).toMatchObject({ final_sha256: SHA, certificate_sha256: CERT });
+    // a document sealed earlier has its certificate inside the signed PDF: nothing is claimed
+    const embedded = buildSignEventData(doc(), [], "completed", "https://halo.example", { templateId: null, templateName: null, categoryName: null });
+    expect(embedded).not.toHaveProperty("certificate_sha256");
+    expect(toAutomationContext(embedded, "completed").certificate_sha256).toBe("");
+    // and only the completed event says anything about files
+    expect(buildSignEventData(doc({ certificate_sha256: CERT }), [], "sent", "https://halo.example", { templateId: null, templateName: null, categoryName: null })).not.toHaveProperty("certificate_sha256");
   });
 
   it("each event goes out as sign.<event>", async () => {

@@ -294,12 +294,30 @@ export async function deliverCode(deps: NotifyDeps, doc: DocFacts, w: Workspace,
   return viaEmail(deps, doc.accountId, to, codeEmail({ locale: doc.locale, workspace: w.name, title: doc.title, code }), displayFrom(w));
 }
 
-/** The signed copy, to a signer or the sender: attached when it fits, always with a link. */
-export async function deliverCompleted(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, pdf: { bytes: Uint8Array; filename: string } | null, downloadUrl?: string): Promise<Delivery> {
+/**
+ * What goes on a message and what it can say about it: each signed file in order, followed by its certificate when that is a file of its own, while they
+ * all fit in `limit` bytes (a file that does not fit is left off and the ones after it still get their turn). `signedFits[i]` says whether the signed file
+ * of entry i is on the message; `certificates` counts the entries that have a certificate of their own and how many of those are on it.
+ */
+function planAttachments(files: readonly SignedMailFile[], limit: number): { attachments: { filename: string; content: string }[]; signedFits: boolean[]; certificates: { total: number; attached: number } } {
+  const flat: MailFile[] = [];
+  const at: { signed: number; cert: number }[] = [];
+  for (const f of files) at.push({ signed: flat.push(f) - 1, cert: f.certificate ? flat.push(f.certificate) - 1 : -1 });
+  const { attached, fits } = attachWithinBudget(flat, limit);
+  const own = at.filter((a) => a.cert >= 0);
+  return { attachments: attached, signedFits: at.map((a) => fits[a.signed]), certificates: { total: own.length, attached: own.filter((a) => fits[a.cert]).length } };
+}
+
+/** The state of ONE document's certificate on a message, for the words: none (it is inside the signed file), attached, or a file of its own that did not fit. */
+const certificateStateOf = (c: { total: number; attached: number }): "attached" | "missing" | undefined => (c.total === 0 ? undefined : c.attached > 0 ? "attached" : "missing");
+
+/** The signed copy, to a signer or the sender: attached when it fits (and its certificate, when that is a file of its own), always with a link. */
+export async function deliverCompleted(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, pdf: SignedMailFile | null, downloadUrl?: string): Promise<Delivery> {
   return emailVia(deps, doc.accountId, to.email, displayFrom(w), (limit) => {
-    const attachable = !!pdf && pdf.bytes.byteLength <= limit;
-    const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: attachable, downloadUrl, mode: doc.mode });
-    return { m, attachments: attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined };
+    const plan = planAttachments(pdf ? [pdf] : [], limit);
+    const certificate = certificateStateOf(plan.certificates);
+    const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: plan.signedFits[0] === true, downloadUrl, mode: doc.mode, ...(certificate ? { certificate } : {}) });
+    return { m, attachments: plan.attachments.length ? plan.attachments : undefined };
   });
 }
 
@@ -385,8 +403,19 @@ export async function deliverEnvelopeReminder(admin: SupabaseClient, deps: Notif
   return viaEmail(deps, env.accountId, inv.email, m, displayFrom(w));
 }
 
+/** A file for an email: its bytes and the name it is attached under. */
+export interface MailFile {
+  bytes: Uint8Array;
+  filename: string;
+}
+
+/** A signed file for an email, with (migration 178) its certificate when that is a file of its own. A document sealed earlier has none: its certificate is inside the signed file. */
+export interface SignedMailFile extends MailFile {
+  certificate?: MailFile | null;
+}
+
 /** The files that go on one message: in order, while they fit in `limit` bytes in all (`ENVELOPE_ATTACH_BYTES`, or less through a mailbox). `fits[i]` says whether file i was attached. */
-function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string }[], limit: number = ENVELOPE_ATTACH_BYTES): { attached: { filename: string; content: string }[]; fits: boolean[] } {
+function attachWithinBudget(pdfs: readonly MailFile[], limit: number = ENVELOPE_ATTACH_BYTES): { attached: { filename: string; content: string }[]; fits: boolean[] } {
   let budget = limit;
   const attached: { filename: string; content: string }[] = [];
   const fits: boolean[] = [];
@@ -406,11 +435,20 @@ function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string
  * The signed copies of every document, in ONE message to a person or the sender. The files are attached in the envelope's order while
  * they fit in ENVELOPE_ATTACH_BYTES in all; the message says how many were attached and sends the rest to the person's own link.
  */
-export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFacts, w: Workspace, to: Party, pdfs: readonly { bytes: Uint8Array; filename: string }[]): Promise<Delivery> {
+export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFacts, w: Workspace, to: Party, pdfs: readonly SignedMailFile[]): Promise<Delivery> {
   return emailVia(deps, env.accountId, to.email, displayFrom(w), (limit) => {
-    const { attached } = attachWithinBudget(pdfs, limit);
-    const m = envelopeCompletedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: env.title, count: env.documents.length, attachedCount: attached.length, mode: env.mode });
-    return { m, attachments: attached.length ? attached : undefined };
+    const plan = planAttachments(pdfs, limit);
+    const m = envelopeCompletedEmail({
+      locale: to.locale,
+      workspace: w.name,
+      name: to.name,
+      title: env.title,
+      count: env.documents.length,
+      attachedCount: plan.signedFits.filter(Boolean).length,
+      mode: env.mode,
+      ...(plan.certificates.total > 0 ? { certificates: plan.certificates } : {}),
+    });
+    return { m, attachments: plan.attachments.length ? plan.attachments : undefined };
   });
 }
 
@@ -421,11 +459,12 @@ export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFa
  * the signers' copy). A copy too large to attach is never sent as a download link: the message says the sender can provide it and names the public
  * page that checks a signed document (`verifyUrl`), which shows no document.
  */
-export async function deliverCopy(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: { name: string; email: string }, pdf: { bytes: Uint8Array; filename: string } | null, verifyUrl: string): Promise<Delivery> {
+export async function deliverCopy(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: { name: string; email: string }, pdf: SignedMailFile | null, verifyUrl: string): Promise<Delivery> {
   return emailVia(deps, doc.accountId, to.email, displayFrom(w), (limit) => {
-    const attachable = !!pdf && pdf.bytes.byteLength <= limit;
-    const m = copyEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, name: to.name, title: doc.title, attached: attachable, verifyUrl, mode: doc.mode });
-    return { m, attachments: attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined };
+    const plan = planAttachments(pdf ? [pdf] : [], limit);
+    const certificate = certificateStateOf(plan.certificates);
+    const m = copyEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, name: to.name, title: doc.title, attached: plan.signedFits[0] === true, verifyUrl, mode: doc.mode, ...(certificate ? { certificate } : {}) });
+    return { m, attachments: plan.attachments.length ? plan.attachments : undefined };
   });
 }
 
@@ -435,10 +474,10 @@ export async function deliverEnvelopeCopy(
   env: EnvelopeFacts,
   w: Workspace,
   to: { name: string; email: string },
-  pdfs: readonly { bytes: Uint8Array; filename: string; title: string; verifyUrl: string }[],
+  pdfs: readonly (SignedMailFile & { title: string; verifyUrl: string })[],
 ): Promise<Delivery> {
   return emailVia(deps, env.accountId, to.email, displayFrom(w), (limit) => {
-    const { attached, fits } = attachWithinBudget(pdfs, limit);
+    const plan = planAttachments(pdfs, limit);
     const m = envelopeCopyEmail({
       locale: env.locale,
       workspace: w.name,
@@ -446,10 +485,11 @@ export async function deliverEnvelopeCopy(
       name: to.name,
       title: env.title,
       count: env.documents.length,
-      attachedCount: attached.length,
-      notAttached: pdfs.filter((_, i) => !fits[i]).map((f) => ({ title: f.title, verifyUrl: f.verifyUrl })),
+      attachedCount: plan.signedFits.filter(Boolean).length,
+      notAttached: pdfs.filter((_, i) => !plan.signedFits[i]).map((f) => ({ title: f.title, verifyUrl: f.verifyUrl })),
       mode: env.mode,
+      ...(plan.certificates.total > 0 ? { certificates: plan.certificates } : {}),
     });
-    return { m, attachments: attached.length ? attached : undefined };
+    return { m, attachments: plan.attachments.length ? plan.attachments : undefined };
   });
 }

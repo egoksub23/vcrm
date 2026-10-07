@@ -13,8 +13,10 @@ import { checkCode, CODE_SENDS_PER_HOUR, CODE_TTL_MS, generateCode, hashCode, ha
 import { deliverCode, deliverOutcome, deliverInvitation, type Delivery } from "../notify";
 import type { PlacedField } from "../pdf/types";
 import { SENDER_ROLE, checkAnswer, fieldsForRole, missingRequired, type AnswerInput, type StoredAnswer } from "../rules";
+import { certificateFileName, signedFileName } from "../file-names";
 import { getFile } from "../storage";
 import { isFormMode, type Invitation, type SignDocumentRow, type SignEnvelopeRow, type SignMode, type SignSettingsRow, type SignSignerRow } from "../types";
+import { planEnvelopeZip, planZip, zipStream } from "./export";
 import { docFacts } from "./send";
 import { emitSignEvent } from "./outbound";
 import { loadSenderAndWorkspace, loadSettings, logEvent, type SignCtx } from "./context";
@@ -164,6 +166,8 @@ export interface EnvelopeDocView {
   mode: SignMode;
   /** What the page would be for this person on that document (`active` is the ones still to do). */
   state: PageState;
+  /** Migration 178: the document is complete and its certificate is a file of its own (offered as a download beside the signed file). */
+  hasCertificate?: boolean;
 }
 
 /** Migration 171: the person's whole sitting. Present when the link is for an envelope. */
@@ -200,6 +204,8 @@ export interface SigningView {
     mode?: SignMode;
     /** Sent from a template to try it out (F-10): the page says TEST. Absent for a real document. */
     test?: boolean;
+    /** Migration 178: the document is complete and its certificate is a file of its own (offered as a download beside the signed file). Absent when it is inside the signed file. */
+    hasCertificate?: boolean;
   };
   /** Migration 171: this link is for an envelope; the document above is the one asked for, and this lists them all. */
   envelope?: EnvelopeView;
@@ -276,6 +282,7 @@ function envelopeView(lookup: Lookup, current: PartyMember, withDocuments: boole
     pageCount: m.doc.page_count,
     mode: isFormMode(m.doc) ? "form" : "sign",
     state: pageState(m.doc, m.signer),
+    ...(m.doc.status === "completed" && m.doc.certificate_path ? { hasCertificate: true } : {}),
   }));
   return {
     title: party.envelope.title,
@@ -318,6 +325,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
       codeRequired: doc.code_required,
       mode: isFormMode(doc) ? "form" : "sign",
       ...(doc.test ? { test: true } : {}),
+      ...(doc.status === "completed" && doc.certificate_path ? { hasCertificate: true } : {}),
     },
     workspace: { name: info.workspaceName, logoUrl: info.logoUrl },
     signer: { name: signer.full_name, roleKey: signer.role_key, kind: signer.kind, status: signer.status },
@@ -718,15 +726,23 @@ async function declineEnvelope(ctx: SignCtx, lookup: Lookup, reason: string | nu
 
 // ---- the file -------------------------------------------------------------------------------------
 
+/**
+ * May this person be handed files at all? A delegate sees their part and nothing else of the document, not the pages and not the signed copy; and when
+ * the document asks for a code, the signed files (like the pages) wait for it.
+ */
+function mayHaveFiles(lookup: Lookup, sessionOk: boolean): boolean {
+  if (isDelegate(lookup.signer)) return false;
+  const state = pageState(lookup.doc, lookup.signer);
+  return !(codeRequiredFor(lookup) && !sessionOk && (state === "active" || state === "signed" || state === "completed"));
+}
+
 /** The bytes a signer may see: the document as sent while it is open, the sealed copy once it is complete. */
 export async function fileForSigner(ctx: SignCtx, lookup: Lookup, sessionOk: boolean): Promise<{ bytes: Uint8Array; filename: string; kind: "base" | "final" } | null> {
-  // a delegate sees their part and nothing else of the document, not the pages and not the signed copy
-  if (isDelegate(lookup.signer)) return null;
+  if (!mayHaveFiles(lookup, sessionOk)) return null;
   const state = pageState(lookup.doc, lookup.signer);
-  if (codeRequiredFor(lookup) && !sessionOk && (state === "active" || state === "signed" || state === "completed")) return null;
   if (state === "completed" && lookup.doc.final_path) {
     const bytes = await getFile(ctx.admin, lookup.doc.final_path, ctx.accountId);
-    return { bytes, filename: `${lookup.doc.reference ?? "document"}-${isFormMode(lookup.doc) ? "record" : "signed"}.pdf`, kind: "final" };
+    return { bytes, filename: signedFileName(lookup.doc), kind: "final" };
   }
   // a form without a signature has no document to read: its base file is only a stand-in, so there is nothing to hand out until the record exists
   if (isFormMode(lookup.doc)) return null;
@@ -735,6 +751,42 @@ export async function fileForSigner(ctx: SignCtx, lookup: Lookup, sessionOk: boo
     return { bytes, filename: `${lookup.doc.reference ?? "document"}.pdf`, kind: "base" };
   }
   return null;
+}
+
+/**
+ * The certificate of a completed document, for the person who signed it (migration 178): the file of its own, under the same rules as the signed copy
+ * (a code first, never a delegate). Null when there is nothing to hand out: the document is not complete, or its certificate is inside the signed PDF.
+ */
+export async function certificateForSigner(ctx: SignCtx, lookup: Lookup, sessionOk: boolean): Promise<{ bytes: Uint8Array; filename: string } | null> {
+  if (!mayHaveFiles(lookup, sessionOk)) return null;
+  const { doc } = lookup;
+  if (pageState(doc, lookup.signer) !== "completed" || !doc.certificate_path) return null;
+  const bytes = await getFile(ctx.admin, doc.certificate_path, ctx.accountId);
+  return { bytes, filename: certificateFileName(doc) };
+}
+
+/**
+ * Everything of a completed document in one zip, for the person who signed it: the signed document and its certificate; for a link that is a document
+ * collection's, every completed document of THEIRS with its certificate and a small summary of those documents (a person never gets a document they are
+ * not on). Null when there is nothing to hand out. The same rules as the signed copy; the download is not recorded, as the signed copy's never was.
+ */
+export async function zipForSigner(ctx: SignCtx, lookup: Lookup, sessionOk: boolean): Promise<{ stream: ReadableStream<Uint8Array>; filename: string } | null> {
+  if (!mayHaveFiles(lookup, sessionOk)) return null;
+  try {
+    if (lookup.party) {
+      const mine = new Set(lookup.party.members.filter((m) => m.doc.status === "completed").map((m) => m.doc.id));
+      if (mine.size === 0) return null;
+      const { plan, extras, fileName } = await planEnvelopeZip(ctx, lookup.party.envelope.id, { only: mine });
+      return { stream: zipStream(ctx, plan, { extras, log: false }), filename: fileName };
+    }
+    if (pageState(lookup.doc, lookup.signer) !== "completed") return null;
+    const plan = await planZip(ctx, [lookup.doc.id]);
+    return { stream: zipStream(ctx, plan, { log: false }), filename: `${lookup.doc.reference ?? "document"}.zip` };
+  } catch (err) {
+    // "nothing to download" is an answer of "no file", like any other file the person has none of
+    if (err instanceof SignError && err.code === "nothing_to_download") return null;
+    throw err;
+  }
 }
 
 export type { SignSettingsRow };

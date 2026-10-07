@@ -12,6 +12,7 @@ import type { SignerLocale } from "@/lib/sign/client/signer-flow";
 import type { VerifyView } from "@/lib/sign/service/verify";
 
 import { VerifyNotFoundRoot, VerifyRoot } from "./verify-root";
+import { checkAgainst } from "./verify-view";
 
 const LOCALES: SignerLocale[] = ["en", "ms", "zh", "ko"];
 let messages: SignerMessages;
@@ -122,5 +123,58 @@ describe("the page for an address that is not a signed document", () => {
     const html = missing("en", true);
     expect(html).toContain("Please wait a moment");
     expect(html).not.toContain("could not find");
+  });
+});
+
+// ---- the certificate as a file of its own (migration 178) ----------------------------------------------------------------
+
+describe("the verify page of a document whose certificate is a file of its own", () => {
+  const own = (over: Partial<VerifyView> = {}) => view({ certificate: { sha256: "cd".repeat(32), signedFileName: "MA-0001-signed.pdf" }, ...over });
+  const WORDS: Record<SignerLocale, { title: string; intro: string; notExpected: string }> = {
+    en: { title: "Certificate", intro: "Choose the signed document or its certificate, whichever you were given.", notExpected: "Choose the PDF you were given." },
+    ms: { title: "Sijil", intro: "Pilih dokumen bertandatangan atau sijilnya, mana-mana yang diberikan kepada anda.", notExpected: "" },
+    zh: { title: "证书", intro: "请选择您拿到的已签署文件或其证书。", notExpected: "" },
+    ko: { title: "증명서", intro: "받으신 서명된 문서 또는 증명서 중 하나를 선택하세요.", notExpected: "" },
+  };
+
+  it("names the signed file the certificate covers, shows both fingerprints, and asks for either file to check", () => {
+    const html = page(own());
+    expect(html).toContain("The certificate of this document is a separate file, sealed with a digital signature. It names the signed document it covers: MA-0001-signed.pdf.");
+    expect(html).toContain("cd".repeat(32));
+    expect(html).toContain("ab".repeat(32));
+    expect(html).toContain("Fingerprint of the certificate (SHA-256)");
+    expect(html).toContain("Choose the signed document or its certificate, whichever you were given.");
+    expect(html).not.toContain("Choose the PDF you were given.");
+  });
+
+  it("says in every language what it says in English, with no raw key", () => {
+    for (const locale of LOCALES) {
+      const html = page(own(), locale);
+      expect(looksLikeKey(html), locale).toBe(false);
+      expect(html, locale).toContain(WORDS[locale].title);
+      expect(html, locale).toContain(WORDS[locale].intro);
+      expect(html, locale).toContain("MA-0001-signed.pdf");
+      expect(html, locale).toContain("cd".repeat(32));
+      expect(/certificate\.(title|separate|fingerprint)|check\.introBoth|matchCertificate/.test(html), locale).toBe(false);
+    }
+    expect(errors).toEqual([]);
+  });
+
+  it("is the page it always was for a document whose certificate is inside the signed PDF", () => {
+    const html = page(view());
+    expect(html).not.toContain("separate file");
+    expect(html).not.toContain("Fingerprint of the certificate");
+    expect(html).toContain("Choose the PDF you were given.");
+  });
+
+  it("tells which of the document's files a person's file is: the signed document, the certificate, or neither (fingerprints compared in the browser)", () => {
+    const signed = "ab".repeat(32);
+    const certificate = "cd".repeat(32);
+    expect(checkAgainst(signed, signed, certificate)).toBe("signed");
+    expect(checkAgainst(certificate.toUpperCase(), signed, certificate)).toBe("certificate");
+    expect(checkAgainst(` ${signed} `, signed)).toBe("signed");
+    expect(checkAgainst("ef".repeat(32), signed, certificate)).toBe("different");
+    // without a certificate of its own, a file with that fingerprint is simply not it
+    expect(checkAgainst(certificate, signed)).toBe("different");
   });
 });

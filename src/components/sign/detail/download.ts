@@ -5,6 +5,15 @@
 // SignApiError the screen words in the reader's language.
 
 import { SignApiError } from "@/lib/sign/client/api";
+import { certificateFileName, signedFileName } from "@/lib/sign/file-names";
+
+/** The name a download is saved under when the route does not suggest one (the route's own name wins). */
+export function downloadName(kind: "final" | "original" | "certificate" | "zip", reference: string | null, mode: string | null): string {
+  if (kind === "final") return signedFileName({ reference, mode: mode === "form" ? "form" : "sign" });
+  if (kind === "certificate") return certificateFileName({ reference });
+  if (kind === "zip") return `${reference ?? "document"}.zip`;
+  return `${reference ?? "document"}-original`;
+}
 
 /** The file name the route suggests, or a fallback. */
 export function fileNameFrom(disposition: string | null, fallback: string): string {

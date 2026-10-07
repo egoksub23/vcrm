@@ -216,3 +216,76 @@ describe.skipIf(LOCALES.length === 0)("the detail screen renders in every langua
     });
   }
 });
+
+// Migration 178: a document whose certificate is a file of its own offers the signed document, the certificate and everything in one zip; one sealed before
+// it keeps the single button it always had (its certificate is inside the signed PDF).
+const OWN_CERTIFICATE_WORDS: Record<string, { signed: string; sealed: string; certificate: string; all: string; old: string }> = {
+  en: { signed: "Signed document", sealed: "Sealed record", certificate: "Certificate", all: "Download all (zip)", old: "Download signed PDF" },
+  ms: { signed: "Dokumen bertandatangan", sealed: "Rekod termeterai", certificate: "Sijil", all: "Muat turun semua (zip)", old: "" },
+  zh: { signed: "已签署文件", sealed: "封存记录", certificate: "证书", all: "全部下载 (zip)", old: "" },
+  ko: { signed: "서명된 문서", sealed: "봉인된 기록", certificate: "증명서", all: "모두 다운로드 (zip)", old: "" },
+};
+
+describe("the download buttons of a document with a certificate of its own", () => {
+  const completed = (over: Partial<SignDocumentRow> = {}) => doc({ status: "completed", final_path: "z/final.pdf", completed_at: "2026-10-06T10:00:00Z", ...over });
+  const header = (locale: string, d: SignDocumentRow, downloading: "final" | "original" | "certificate" | "zip" | null = null) =>
+    page(locale, <DetailHeader document={d} links={{ category: null, contact: null, ticket: null, deal: null }} actions={documentActions(d, { void: false })} downloading={downloading} onView={() => {}} onDownload={() => {}} onVoid={() => {}} />);
+  const buttons = (html: string) => [...html.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
+
+  for (const locale of LOCALES) {
+    it(`offers the signed document, the certificate and everything in one zip, as three separate buttons (${locale})`, () => {
+      const words = OWN_CERTIFICATE_WORDS[locale];
+      const own = buttons(header(locale, completed({ certificate_path: "z/certificate.pdf" })));
+      expect(own).toEqual(expect.arrayContaining([words.signed, words.certificate, words.all]));
+      expect(own.indexOf(words.signed)).toBeLessThan(own.indexOf(words.certificate));
+      expect(own.indexOf(words.certificate)).toBeLessThan(own.indexOf(words.all));
+      // no raw key, and the old single label is gone
+      expect(header(locale, completed({ certificate_path: "z/certificate.pdf" }))).not.toMatch(/actions\.|Sign\.detail/);
+      if (words.old) expect(own).not.toContain(words.old);
+    });
+
+    it(`says "record" for a form without a signature (${locale})`, () => {
+      const words = OWN_CERTIFICATE_WORDS[locale];
+      const own = buttons(header(locale, completed({ certificate_path: "z/certificate.pdf", mode: "form" })));
+      expect(own).toEqual(expect.arrayContaining([words.sealed, words.certificate, words.all]));
+      expect(own).not.toContain(words.signed);
+    });
+
+    it(`keeps the one button a document sealed earlier had, with no certificate or zip (${locale})`, () => {
+      const words = OWN_CERTIFICATE_WORDS[locale];
+      for (const d of [completed(), completed({ certificate_path: null })]) {
+        const old = buttons(header(locale, d));
+        expect(old).not.toContain(words.certificate);
+        expect(old).not.toContain(words.all);
+        expect(old).not.toContain(words.signed);
+        expect(old.some((b) => /signed|bertandatangan|已签署|서명/i.test(b)), locale).toBe(true);
+      }
+    });
+  }
+
+  it("offers neither before the document is completed, whatever the row says", () => {
+    expect(buttons(header("en", doc({ status: "sealing", final_path: null, certificate_path: "z/certificate.pdf" })))).not.toContain("Certificate");
+  });
+
+  it("shows a spinner on the button that is working, and disables the others", () => {
+    const html = header("en", completed({ certificate_path: "z/certificate.pdf" }), "zip");
+    expect(html).toContain("animate-spin");
+    expect([...html.matchAll(/<button[^>]*disabled[^>]*>/g)].length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("the note under the viewer", () => {
+  const note = (locale: string, key: string) => ((wording(locale)?.viewer ?? {}) as Record<string, string>)[key];
+
+  it("says the certificate is a separate file for a document that has one of its own, and still says 'certificate pages' only for one sealed earlier", () => {
+    for (const locale of LOCALES) {
+      for (const key of ["noteSignedOwn", "noteRecordOwn", "noteSigned", "noteRecord"]) expect(note(locale, key), `${locale}.${key}`).toBeTruthy();
+      expect(note(locale, "noteSignedOwn")).not.toBe(note(locale, "noteSigned"));
+      if (locale !== "en") expect(note(locale, "noteSignedOwn")).not.toBe(note("en", "noteSignedOwn"));
+    }
+    expect(note("en", "noteSignedOwn")).toBe("The signed copy, with every answer. Its certificate is a separate file.");
+    expect(note("en", "noteRecordOwn")).toBe("The sealed submission record: the answers and the people who submitted. Its certificate is a separate file.");
+    expect(note("en", "noteSignedOwn")).not.toMatch(/certificate pages/i);
+    expect(note("en", "noteSigned")).toContain("certificate pages");
+  });
+});

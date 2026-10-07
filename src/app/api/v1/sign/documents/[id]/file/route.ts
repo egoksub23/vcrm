@@ -3,15 +3,15 @@
 //
 // The bytes of the file, as an attachment (not a link: nothing about the file's address is handed out, and
 // every download is authenticated and recorded). `signed` is the sealed PDF and exists only once the
-// document is completed: any other state is a 409 `not_completed`. The certificate is the last pages of the
-// signed copy, so `certificate` answers 404 and points to `signed`. `original` is the file as uploaded, when
+// document is completed: any other state is a 409 `not_completed`. `certificate` is the certificate of completion
+// as a PDF of its own (the same file as GET .../certificate) for a document sealed from migration 178 on; an older
+// document has its certificate as the last pages of the signed copy, and `certificate` answers 404
+// `no_separate_certificate` and points to `signed`. `original` is the file as uploaded, when
 // the document has one. The response carries `X-Content-SHA256`, the file's fingerprint.
 // ============================================================
 
-import { NextResponse } from 'next/server';
-
 import { requireApiKey } from '@/lib/auth/api-context';
-import { documentIdOf, signApiError, signCtx } from '@/lib/api/v1/sign';
+import { documentIdOf, fileResponse, signApiError, signCtx } from '@/lib/api/v1/sign';
 import { FILE_KINDS, fileForApi, type ApiFileKind } from '@/lib/sign/service/api';
 import { SignError } from '@/lib/sign/service/errors';
 
@@ -24,18 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!(FILE_KINDS as readonly string[]).includes(kind)) {
       throw new SignError('bad_request', 'Some filters are not valid. See `issues`.', 400, [{ code: 'invalid', field: 'kind', detail: `must be one of ${FILE_KINDS.join(', ')}` }]);
     }
-    const file = await fileForApi(ctx, id, kind as ApiFileKind);
-    return new NextResponse(Buffer.from(file.bytes), {
-      status: 200,
-      headers: {
-        'Content-Type': file.mime,
-        'Content-Length': String(file.bytes.byteLength),
-        'Content-Disposition': `attachment; filename="${file.filename.replace(/["\r\n]/g, '')}"`,
-        'Cache-Control': 'private, no-store',
-        'X-Content-Type-Options': 'nosniff',
-        ...(file.sha256 ? { 'X-Content-SHA256': file.sha256 } : {}),
-      },
-    });
+    return fileResponse(await fileForApi(ctx, id, kind as ApiFileKind));
   } catch (err) {
     return signApiError(err);
   }

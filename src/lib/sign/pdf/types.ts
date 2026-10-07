@@ -94,12 +94,26 @@ export interface StampOptions {
   locale?: "en" | "ms" | "zh" | "ko";
   /** Time zone for dates written by the engine (date_signed). Default UTC. */
   timeZone?: string;
+  /**
+   * The line stamped on every page, in the bottom margin (see idfooter.ts): only the sealing step asks for it, so a draft, a preview and a document being
+   * signed never carry it. The stamp can never fail the call: a page it cannot be put on is counted in `footer` and left as it was.
+   */
+  idFooter?: string;
+}
+
+/** What a footer stamp did: pages stamped, pages it was left off (too small to hold it), pages it could not be drawn on. */
+export interface FooterResult {
+  stamped: number;
+  skipped: number;
+  failed: number;
 }
 
 export interface StampResult {
   bytes: Uint8Array;
   /** Fields that could not be drawn as given (unsupported characters, a value too long for its box). */
   warnings: StampWarning[];
+  /** Present when `idFooter` was asked for. */
+  footer?: FooterResult;
 }
 
 export interface StampWarning {
@@ -144,9 +158,23 @@ export interface CertificateEnvelope {
   documents: { number: number; title: string; reference: string; sha256: string; current: boolean }[];
 }
 
+/**
+ * The signed file a standalone certificate (migration 178) is about: its name and the fingerprint that identifies it. The certificate is
+ * made after the signed file is sealed, so it can name it; a certificate that is embedded in the signed file cannot, and has none of this.
+ */
+export interface CertificateCovers {
+  fileName: string;
+  /** SHA-256 of the sealed file the certificate covers. */
+  sha256: string;
+}
+
 export interface CertificateData {
   title: string;
   reference: string;
+  /** The document's id, the one in the address of its verify page and in the footer stamped on every page of the signed file. */
+  documentId?: string;
+  /** A standalone certificate: the signed file it covers. Absent for the certificate pages embedded in the signed file. */
+  covers?: CertificateCovers;
   workspaceName: string;
   /** SHA-256 of the file as sent (before anything was written on it). */
   baseSha256: string;
@@ -193,6 +221,59 @@ export interface CertificateLabels {
   note: string;
   page: string;
   of: string;
+  /** The document's id (shown beside its reference). */
+  documentId: string;
+  /** A standalone certificate: the name of the file it covers, and that file's fingerprint. */
+  signedFile: string;
+  signedFingerprint: string;
+  /** What closes a standalone certificate in place of `note`. */
+  standaloneNote: string;
+}
+
+/** The words of the collection summary, already in the collection's language (collection-summary-words.ts). */
+export interface CollectionSummaryLabels {
+  heading: string;
+  reference: string;
+  title: string;
+  documents: string;
+  preparedOn: string;
+  documentsHeading: string;
+  documentReference: string;
+  file: string;
+  fingerprint: string;
+  certificateFile: string;
+  certificateFingerprint: string;
+  certificateEmbedded: string;
+  signedBy: string;
+  nobody: string;
+  note: string;
+  page: string;
+  of: string;
+}
+
+/** One document of a collection on its summary. */
+export interface CollectionSummaryDocument {
+  number: number;
+  title: string;
+  reference: string;
+  /** The name of its signed file in the zip, and that file's SHA-256. */
+  fileName: string;
+  sha256: string;
+  /** The name of its standalone certificate in the zip and the certificate's SHA-256; absent when the certificate is embedded in the signed file. */
+  certificateFileName?: string;
+  certificateSha256?: string;
+  signers: { name: string; signedAt?: Date }[];
+}
+
+/** The small PDF that opens a collection's zip: the collection, and each document with its fingerprint and who signed. */
+export interface CollectionSummaryData {
+  reference: string;
+  title: string;
+  workspaceName: string;
+  preparedAt: Date;
+  timeZone?: string;
+  documents: CollectionSummaryDocument[];
+  labels: CollectionSummaryLabels;
 }
 
 export interface SealOptions {
