@@ -59,7 +59,7 @@ describe("warningText", () => {
     expect(soon.title).toBe("Sealing certificate ends in 14 days");
     expect(soon.body).toContain("2026-10-20");
     expect(soon.body).toContain("Kedai Runcit Ali Sdn Bhd");
-    expect(soon.body).toContain("Settings > Doc Sign > Sealing certificate");
+    expect(soon.body).toContain("Settings > Secure Sign > Sealing certificate");
     const gone = warningText(0, new Date("2026-10-01T00:00:00Z"), null);
     expect(gone.title).toBe("Sealing certificate has expired");
     expect(gone.body).toContain("wait, unsealed");
@@ -139,7 +139,7 @@ describe("runCertificateWatch", () => {
     expect(notes()).toHaveLength(0);
   });
 
-  it("stays quiet for a workspace whose Doc Sign is off or suspended", async () => {
+  it("stays quiet for a workspace whose Secure Sign is off or suspended", async () => {
     db.tables.account_platform = [{ account_id: ACCT, status: "active", features: { sign: false }, limits: {} }];
     cert({ valid_until: after(3).toISOString() });
     expect(await run()).toEqual({ checked: 1, notified: 0 });
@@ -171,7 +171,7 @@ describe("runCertificateWatch", () => {
     expect(marker()).toBe(7);
   });
 
-  it("runs as part of the Doc Sign job", async () => {
+  it("runs as part of the Secure Sign job", async () => {
     db.rpcHandlers.sign_claim_sealing = async () => ({ data: [], error: null });
     db.rpcHandlers.sign_expire_due = async () => ({ data: [], error: null });
     db.rpcHandlers.sign_bulk_claim = async () => ({ data: [], error: null });

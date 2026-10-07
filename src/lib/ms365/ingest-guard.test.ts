@@ -10,11 +10,11 @@ describe("what may become a conversation (Microsoft 365)", () => {
     expect(decideMs365Ingest(customer, mailbox)).toEqual({ ingest: true });
   });
 
-  it("keeps out a Doc Sign message by its header, in any capitalisation, even when it did not come from the mailbox's own address", () => {
+  it("keeps out a Secure Sign message by its header, in any capitalisation, even when it did not come from the mailbox's own address", () => {
     expect(decideMs365Ingest({ ...customer, fromAddress: "alias@vircle.com", senderAddress: "alias@vircle.com", headers: [{ name: "x-halo-sign", value: "1" }] }, mailbox)).toEqual({ ingest: false, reason: "doc_sign" });
   });
 
-  it("keeps out the delivery-failure notice of a Doc Sign message, where Exchange quotes the original's headers in the body", () => {
+  it("keeps out the delivery-failure notice of a Secure Sign message, where Exchange quotes the original's headers in the body", () => {
     const ndr = { ...customer, fromAddress: "postmaster@vircle.onmicrosoft.com", senderAddress: null, headers: [], bodyText: "Delivery has failed to these recipients\r\nOriginal message headers:\r\nFrom: support@vircle.com\r\nX-Halo-Sign: 1\r\nSubject: Please sign", bodyHtml: null };
     expect(isHaloSignMessage(ndr)).toBe(true);
     expect(decideMs365Ingest(ndr, mailbox)).toMatchObject({ ingest: false, reason: "doc_sign" });

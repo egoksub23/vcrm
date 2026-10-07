@@ -44,12 +44,12 @@ export function warningText(threshold: ExpiryThreshold, validUntil: Date, subjec
   if (threshold === 0) {
     return {
       title: "Sealing certificate has expired",
-      body: `The certificate that seals your signed documents${who} ended on ${date}. Documents that everyone has signed now wait, unsealed, until a valid certificate is installed in Settings > Doc Sign > Sealing certificate.`,
+      body: `The certificate that seals your signed documents${who} ended on ${date}. Documents that everyone has signed now wait, unsealed, until a valid certificate is installed in Settings > Secure Sign > Sealing certificate.`,
     };
   }
   return {
     title: `Sealing certificate ends in ${threshold} days`,
-    body: `The certificate that seals your signed documents${who} is valid until ${date}. Install a renewed certificate in Settings > Doc Sign > Sealing certificate before then; after that day documents that everyone has signed wait, unsealed, until you do.`,
+    body: `The certificate that seals your signed documents${who} is valid until ${date}. Install a renewed certificate in Settings > Secure Sign > Sealing certificate before then; after that day documents that everyone has signed wait, unsealed, until you do.`,
   };
 }
 

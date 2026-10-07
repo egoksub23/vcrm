@@ -329,7 +329,7 @@ describe("the lists screen's operations", () => {
     await expect(updateList(t.ctx, "Bad Key", { name: "x" })).rejects.toMatchObject({ code: "list_not_found", status: 404 });
   });
 
-  it("never lets a list that comes with Doc Sign lose a value, and says which would have gone", async () => {
+  it("never lets a list that comes with Secure Sign lose a value, and says which would have gone", async () => {
     await ensureSystemLists(t.ctx);
     const err = await updateList(t.ctx, "states_my", { items: itemsOf("states_my").filter((i) => i.value !== "johor" && i.value !== "kedah") }).catch((e) => e);
     expect(err).toMatchObject({ code: "list_values_locked", status: 409, issues: [{ code: "value_removed", field: "johor" }, { code: "value_removed", field: "kedah" }] });

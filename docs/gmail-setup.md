@@ -126,13 +126,13 @@ via Gmail's own `threadId` (so it groups correctly in Gmail's UI) and
 proper `In-Reply-To`/`References` headers (so it threads correctly in
 any other mail client too).
 
-## Doc Sign sends through this mailbox
+## Secure Sign sends through this mailbox
 
-When Doc Sign is on for the workspace and no Microsoft 365 mailbox can send, its invitations, reminders, codes and signed copies are sent from the connected
+When Secure Sign is on for the workspace and no Microsoft 365 mailbox can send, its invitations, reminders, codes and signed copies are sent from the connected
 Gmail mailbox (`gmail.send`), from its address under the workspace's name. They carry `X-Halo-Sign: 1` and `Auto-Submitted: auto-generated`, and the push
 webhook refuses any message that carries the mark, has the label `SENT` or comes from the mailbox itself, so they never become inbox conversations. Gmail
 keeps every message in the Sent folder, where anyone who can open the mailbox can read the signing links. Sending limits apply (about 500 messages a day for a
-consumer account, 2,000 for Google Workspace, and a few a second): Doc Sign spaces its sends, tries once more after a per-second limit, stops asking for ten
+consumer account, 2,000 for Google Workspace, and a few a second): Secure Sign spaces its sends, tries once more after a per-second limit, stops asking for ten
 minutes after the daily limit and reports the reason. Up to 17 MB of signed files are attached (Gmail's 25 MB limit counts the encoded message); above that a
 link is used. See `docs/doc-sign-setup.md` sections 1, 9b and 9c.
 

@@ -54,7 +54,7 @@ Some values can be filled in before sending, for example from the contact. The *
 
 Uploaded the wrong version, or the customer sent a corrected file? On a **draft** you do not have to start again. In the Fields step, click **Replace file** and choose the new PDF, Word file or image.
 
-Before anything changes, Doc Sign tells you what would happen:
+Before anything changes, Secure Sign tells you what would happen:
 
 - how many pages the new file has, and how many the old one had
 - **fields that keep their place**: the page is still there and is the same size, so the field stays exactly where you put it

@@ -14,7 +14,7 @@ Some documents need a signature from someone on your own team, for example a dir
 
 ## See what is waiting for you
 
-1. Open **Doc Sign**. A number next to **Sign** in the side menu counts the documents that wait for you.
+1. Open **Secure Sign**. A number next to **Secure Sign** in the side menu counts the documents that wait for you.
 2. On the **Documents** tab, click **Awaiting my signature**. The list shows the title, the reference, who sent it, when it was sent and when it expires.
 
 A document only appears when it is your turn. If the document signs in order, it stays out of the list until the people before you have finished. When your turn comes you also get a notification in Halo.

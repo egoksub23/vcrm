@@ -27,7 +27,7 @@ services:
     ports:
       - '${HOST_PORT:-3000}:3000'
     restart: unless-stopped
-    # The second network reaches the Doc Sign converter below. It has no way out to the internet.
+    # The second network reaches the Secure Sign converter below. It has no way out to the internet.
     networks:
       - default
       - sign-internal
@@ -44,9 +44,9 @@ services:
       retries: 3
       start_period: 15s
 
-  # Doc Sign: turns an uploaded Word file into a PDF (LibreOffice inside Gotenberg). It is only started
+  # Secure Sign: turns an uploaded Word file into a PDF (LibreOffice inside Gotenberg). It is only started
   # when the `sign` profile is on: add COMPOSE_PROFILES=sign and SIGN_CONVERTER_URL=http://sign-converter:3000
-  # to .env.local. See docs/docker.md ("Doc Sign converter"). Uploaded Word files are untrusted, so the
+  # to .env.local. See docs/docker.md ("Secure Sign converter"). Uploaded Word files are untrusted, so the
   # container is locked down: no internet, no published port, read-only except a temporary folder, no
   # capabilities, limited memory and processes.
   sign-converter:

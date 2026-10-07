@@ -52,7 +52,7 @@
     "userGuide": "사용 가이드",
     "pendingApprovals": "승인 대기 중인 제안 {count}건",
     "platform": "플랫폼",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -78,7 +78,7 @@
     "menuProfile": "프로필",
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Help": {
     "pageTitle": "사용 가이드",
@@ -1442,7 +1442,7 @@
         "sent": "문서 발송됨",
         "draft": "초안 생성됨",
         "already_sent": "이미 발송됨",
-        "not_enabled": "Doc Sign 꺼짐",
+        "not_enabled": "Secure Sign 꺼짐",
         "not_configured": "설정 안 됨",
         "no_contact": "연락처 없음",
         "recipient_email_missing": "연락처에 이메일 없음",
@@ -1584,8 +1584,8 @@
           "hint": "반복 일정에 따라"
         },
         "sign_document_event": {
-          "label": "Doc Sign 이벤트",
-          "hint": "Doc Sign 문서가 발송, 열람, 완료, 거절, 만료 또는 취소되었을 때"
+          "label": "Secure Sign 이벤트",
+          "hint": "Secure Sign 문서가 발송, 열람, 완료, 거절, 만료 또는 취소되었을 때"
         }
       },
       "trigger": "트리거",
@@ -1959,8 +1959,8 @@
           "templateId": "템플릿 id",
           "selectTemplate": "템플릿 선택…",
           "unknownTemplate": "(템플릿을 찾을 수 없거나 활성 상태가 아님)",
-          "noTemplates": "활성 템플릿이 없거나 볼 수 있는 권한이 없습니다. Doc Sign > 템플릿에서 먼저 게시하세요.",
-          "templateHint": "추천 템플릿: \"{name}\". Doc Sign > 템플릿에 생기면 선택하세요.",
+          "noTemplates": "활성 템플릿이 없거나 볼 수 있는 권한이 없습니다. Secure Sign > 템플릿에서 먼저 게시하세요.",
+          "templateHint": "추천 템플릿: \"{name}\". Secure Sign > 템플릿에 생기면 선택하세요.",
           "title": "문서 제목",
           "titleHint": "선택 사항. 비워 두면 템플릿의 제목을 사용합니다. 변수를 삽입할 수 있습니다.",
           "recipients": "서명하는 사람과 사본을 받는 사람",
@@ -6898,8 +6898,8 @@
         "description": "설정 → SLA 및 업무 시간에서 업무 시간 일정과 휴일을 편집하고, 티켓 SLA 정책을 만들고 순서를 바꾸고 편집합니다. 티켓의 SLA 상태는 모든 구성원이 볼 수 있습니다."
       },
       "menu_sign": {
-        "label": "메뉴: Doc Sign",
-        "description": "사이드바에 Doc Sign을 표시하고 해당 페이지를 열어 문서, 템플릿, 감사 기록을 볼 수 있게 합니다. 기본값: 소유자, 관리자, 에이전트."
+        "label": "메뉴: Secure Sign",
+        "description": "사이드바에 Secure Sign을 표시하고 해당 페이지를 열어 문서, 템플릿, 감사 기록을 볼 수 있게 합니다. 기본값: 소유자, 관리자, 에이전트."
       },
       "sign_send": {
         "label": "서명용 문서 보내기",
@@ -6914,7 +6914,7 @@
         "description": "서명 템플릿과 양식을 만들고, 편집하고, 복제하고, 보관합니다. 기본값: 소유자와 관리자."
       },
       "sign_settings": {
-        "label": "Doc Sign 설정",
+        "label": "Secure Sign 설정",
         "description": "카테고리, 애드온, 기본값, 동의 문구, 발신자 이름과 로고, 봉인 인증서를 설정합니다. 기본값: 소유자와 관리자."
       },
       "sign_sign": {
@@ -6939,7 +6939,7 @@
       "channels": "채널 및 연동",
       "workspace": "워크스페이스",
       "people": "사람",
-      "sign": "Doc Sign"
+      "sign": "Secure Sign"
     },
     "preset": {
       "support-manager": {
@@ -7168,9 +7168,9 @@
       "support_access": "지원 접근",
       "sign_template": "서명 템플릿",
       "sign_category": "서명 카테고리",
-      "sign_settings": "Doc Sign 설정",
+      "sign_settings": "Secure Sign 설정",
       "sign_certificate": "서명 인증서",
-      "sign_addon": "Doc Sign 애드온",
+      "sign_addon": "Secure Sign 애드온",
       "sign_document": "서명 문서",
       "sign_bulk_job": "서명 일괄 발송",
       "sign_option_list": "서명 선택 목록",
@@ -8397,12 +8397,12 @@
     "encLastRun": "마지막 실행: {rewritten}건 변경, {conflicts}건 도중 변경됨, {unreadable}건 읽을 수 없음.",
     "encNotFinished": "완료 전에 시간이 끝났습니다. 다시 실행하세요.",
     "notAllowed": "플랫폼 관리에 접근할 권한이 없습니다.",
-    "feature_sign": "Doc Sign",
+    "feature_sign": "Secure Sign",
     "feature_sign_desc": "전자서명: 문서를 업로드하거나 만들어 서명을 요청하고 서명본을 보관합니다. 운영자가 켜기 전에는 꺼져 있습니다.",
-    "feature_sign_merchant": "Doc Sign: 가맹점 등록",
-    "feature_sign_merchant_desc": "Doc Sign의 가맹점 등록 애드온(가맹점 신청서와 전자세금계산서 정보)입니다. Doc Sign이 필요합니다. 대부분의 고객에게는 꺼 둡니다.",
+    "feature_sign_merchant": "Secure Sign: 가맹점 등록",
+    "feature_sign_merchant_desc": "Secure Sign의 가맹점 등록 애드온(가맹점 신청서와 전자세금계산서 정보)입니다. Secure Sign이 필요합니다. 대부분의 고객에게는 꺼 둡니다.",
     "meter_sign_documents_per_month": "월간 서명 문서",
-    "job_sign-jobs": "문서 서명 작업 (봉인, 만료, 알림)"
+    "job_sign-jobs": "Secure Sign 작업 (봉인, 만료, 알림)"
   },
   "Sign": {
     "admin": {
@@ -8447,8 +8447,8 @@
           "dismiss": "닫기"
         }
       },
-      "settingsTab": "Doc Sign",
-      "title": "Doc Sign",
+      "settingsTab": "Secure Sign",
+      "title": "Secure Sign",
       "description": "전자 서명을 위한 기본값, 서명 문구, 카테고리, 애드온, 봉인 인증서를 설정합니다.",
       "loading": "불러오는 중…",
       "retry": "다시 시도",
@@ -8866,7 +8866,7 @@
         },
         "issues": {
           "no_template": "보낼 템플릿을 선택해 주세요.",
-          "template_not_active": "템플릿이 활성화되어 있지 않습니다. Doc Sign > 템플릿에서 활성화해 주세요.",
+          "template_not_active": "템플릿이 활성화되어 있지 않습니다. Secure Sign > 템플릿에서 활성화해 주세요.",
           "template_has_no_version": "템플릿에 저장된 버전이 아직 없습니다.",
           "no_applicant_role": "신청자가 채우는 역할을 선택해 주세요.",
           "applicant_role_unknown": "신청자가 채우는 역할이 이 템플릿에 없습니다. 다른 역할을 선택해 주세요.",
@@ -9005,7 +9005,7 @@
           "microsoft365": "각 메시지에는 한 사람의 링크나 서명된 문서가 들어 있으므로 메일함의 보낸 편지함에 사본을 남기지 않습니다.",
           "gmail": "Gmail은 모든 메시지를 해당 메일함의 보낸편지함에 보관하며, 그 메일함을 열 수 있는 사람은 누구나 읽을 수 있습니다."
         },
-        "inboxNote": "Doc Sign 메시지는 Halo 받은편지함에 추가되지 않습니다.",
+        "inboxNote": "Secure Sign 메시지는 Halo 받은편지함에 추가되지 않습니다.",
         "link": {
           "manage": "이 메일함의 채널 설정 열기",
           "connectMicrosoft365": "Microsoft 365 메일함 연결",
@@ -9018,7 +9018,7 @@
       "retry": "다시 시도",
       "header": {
         "breadcrumb": "현재 위치",
-        "back": "Doc Sign",
+        "back": "Secure Sign",
         "inOrder": "순서대로 서명",
         "codeRequired": "인증 코드 필요",
         "reference": "문서 번호 {reference}",
@@ -10249,8 +10249,8 @@
         "stale": "이 양식을 저장한 뒤 목록이 바뀌었습니다. 저장하면 새 버전을 사용합니다.",
         "preview": "목록에서 가져온 {count, plural, other {선택지 #개}}",
         "previewMore": "외 {count}개",
-        "hint": "저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 나중에 목록을 바꿔도 이미 발송된 문서는 바뀌지 않습니다. 목록은 설정 > Doc Sign > 목록에서 관리합니다.",
-        "hintPicked": "서명자는 코드나 단어로 이 목록을 검색해 항목을 하나씩 추가합니다. 저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 목록은 설정 > Doc Sign > 목록에서 관리합니다."
+        "hint": "저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 나중에 목록을 바꿔도 이미 발송된 문서는 바뀌지 않습니다. 목록은 설정 > Secure Sign > 목록에서 관리합니다.",
+        "hintPicked": "서명자는 코드나 단어로 이 목록을 검색해 항목을 하나씩 추가합니다. 저장할 때 목록의 사본이 양식에 들어가고, 문서를 발송할 때 각 문서에 들어갑니다. 목록은 설정 > Secure Sign > 목록에서 관리합니다."
       },
       "sensitive": {
         "title": "민감 정보",
@@ -10430,9 +10430,9 @@
     },
     "send": {
       "shell": {
-        "title": "문서 서명",
+        "title": "Secure Sign",
         "newDocument": "새 문서",
-        "sections": "문서 서명 섹션",
+        "sections": "Secure Sign 섹션",
         "tabDocuments": "문서",
         "tabTemplates": "템플릿"
       },
@@ -10537,7 +10537,7 @@
             "signed_out": "다시 로그인한 후 계속하세요.",
             "rate_limited": "시도 횟수가 너무 많습니다. 잠시 후 다시 시도하세요.",
             "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
-            "sign_disabled": "이 워크스페이스에서는 Doc Sign이 켜져 있지 않습니다.",
+            "sign_disabled": "이 워크스페이스에서는 Secure Sign이 켜져 있지 않습니다.",
             "generic": "문서를 열 수 없습니다. 다시 시도하세요."
           }
         },
@@ -11202,7 +11202,7 @@
       },
       "copies": {
         "type": "유형",
-        "typeSigner": "서명해야 함",
+        "typeSigner": "서명 필요",
         "typeCopy": "사본 수신",
         "heading": "사본을 받는 사람",
         "help": "모두 서명을 마치면 서명된 사본을 이메일로 받습니다. 서명 링크는 받지 않습니다.",
@@ -12076,7 +12076,7 @@
         "job_finished": "이 일괄 발송은 이미 끝났습니다.",
         "nothing_to_download": "선택한 문서 중 서명된 파일이 있는 것이 아직 없습니다. 완료된 문서만 해당됩니다.",
         "bad_ids": "문서를 1건에서 50건 사이로 선택하세요.",
-        "sign_disabled": "이 워크스페이스에는 Doc Sign이 켜져 있지 않습니다.",
+        "sign_disabled": "이 워크스페이스에는 Secure Sign이 켜져 있지 않습니다.",
         "network": "서버에 연결할 수 없습니다. 연결을 확인한 뒤 다시 시도하세요.",
         "signed_out": "로그아웃되었습니다. 계속하려면 다시 로그인하세요.",
         "forbidden": "이 작업을 할 권한이 없습니다.",
@@ -12088,7 +12088,7 @@
         "sign_limit_reached": "월 문서 한도에 도달했습니다.",
         "cancelled": "이 문서를 보내기 전에 일괄 발송이 취소되었습니다.",
         "gave_up": "여러 번 시도했지만 끝나지 않았습니다. 문서를 확인하고 필요하면 직접 보내세요.",
-        "sign_disabled": "이 워크스페이스의 Doc Sign이 꺼졌습니다.",
+        "sign_disabled": "이 워크스페이스의 Secure Sign이 꺼졌습니다.",
         "template_not_found": "템플릿이 삭제되었습니다.",
         "template_not_active": "템플릿이 더 이상 활성 상태가 아닙니다.",
         "template_has_no_version": "템플릿에 저장된 버전이 없습니다.",
@@ -12111,7 +12111,7 @@
       }
     },
     "lists": {
-      "intro": "목록은 양식에서 사용할 수 있는 선택지 모음으로, 주나 국가, 은행을 한 번만 적어 두고 한 곳에서 최신 상태로 관리할 수 있습니다. 일부는 Doc Sign에 기본으로 들어 있으며, 직접 추가할 수도 있습니다. 목록을 수정해도 이미 발송된 문서는 바뀌지 않습니다.",
+      "intro": "목록은 양식에서 사용할 수 있는 선택지 모음으로, 주나 국가, 은행을 한 번만 적어 두고 한 곳에서 최신 상태로 관리할 수 있습니다. 일부는 Secure Sign에 기본으로 들어 있으며, 직접 추가할 수도 있습니다. 목록을 수정해도 이미 발송된 문서는 바뀌지 않습니다.",
       "new": "새 목록",
       "loading": "목록을 불러오는 중...",
       "loadFailed": "목록을 불러오지 못했습니다.",
@@ -12123,7 +12123,7 @@
       "colVersion": "버전",
       "colActions": "작업",
       "archivedBadge": "보관됨",
-      "typeSystem": "Doc Sign 기본 제공",
+      "typeSystem": "Secure Sign 기본 제공",
       "typeOwn": "내 목록",
       "kindMsic": "MSIC 코드",
       "openList": "{name} 열기",
@@ -12141,7 +12141,7 @@
       "listArchived": "목록을 보관했습니다",
       "listRestored": "목록을 복원했습니다",
       "listSaved": "목록을 저장했습니다",
-      "systemNote": "이 목록은 Doc Sign에 기본으로 들어 있습니다. 표현을 바꾸고 항목을 추가할 수 있으며, 값은 그대로 유지되므로 응답의 의미가 항상 보존됩니다. 더 이상 필요 없는 항목은 보관하면 새 양식에서 숨겨집니다.",
+      "systemNote": "이 목록은 Secure Sign에 기본으로 들어 있습니다. 표현을 바꾸고 항목을 추가할 수 있으며, 값은 그대로 유지되므로 응답의 의미가 항상 보존됩니다. 더 이상 필요 없는 항목은 보관하면 새 양식에서 숨겨집니다.",
       "systemNoteMsic": "말레이시아 통계청(DOSM)이 발표한 MSIC 2008 사업 활동 코드입니다. 표현을 바꾸고 직접 코드를 추가할 수 있으며, 공식 코드는 그대로 유지됩니다. CSV를 가져오면 한 번에 많이 바꿀 수 있습니다.",
       "usedBy": "{count, plural, =0 {사용하는 템플릿 없음} other {템플릿 #개에서 사용 중}}",
       "usedByNone": "아직 이 목록을 사용하는 템플릿이 없습니다. 양식 빌더에서 필드에 이 목록을 선택하세요.",
@@ -12181,7 +12181,7 @@
       "itemSaved": "항목을 저장했습니다",
       "cancel": "취소",
       "resetTitle": "{name}을(를) 기본값으로 되돌릴까요?",
-      "resetBody": "Doc Sign에 기본으로 들어 있는 모든 항목이 원래의 표현과 위치로 돌아가며, 보관된 항목은 다시 표시됩니다. 직접 추가한 항목은 그 뒤에 그대로 남습니다. 삭제되는 것은 없으며, 이미 만든 양식도 바뀌지 않습니다.",
+      "resetBody": "Secure Sign에 기본으로 들어 있는 모든 항목이 원래의 표현과 위치로 돌아가며, 보관된 항목은 다시 표시됩니다. 직접 추가한 항목은 그 뒤에 그대로 남습니다. 삭제되는 것은 없으며, 이미 만든 양식도 바뀌지 않습니다.",
       "resetConfirm": "기본값으로 되돌리기",
       "resetDone": "목록을 기본값으로 되돌렸습니다",
       "meta": {
@@ -12225,7 +12225,7 @@
         "modeMergeHint": "파일에 없는 항목은 그대로 남습니다. 파일에서 비워 둔 언어는 유지됩니다.",
         "modeReplace": "파일로 목록 전체를 바꾸기",
         "modeReplaceHint": "파일에 없는 항목은 목록에서 제거됩니다. 이미 만든 양식은 바뀌지 않습니다.",
-        "systemMergeOnly": "Doc Sign 기본 목록은 추가와 업데이트만 할 수 있습니다.",
+        "systemMergeOnly": "Secure Sign 기본 목록은 추가와 업데이트만 할 수 있습니다.",
         "checking": "파일을 확인하는 중...",
         "summary": "추가 {added}개, 업데이트 {updated}개, 변경 없음 {unchanged}개, 제거 {removed}개.",
         "removedWarning": "{count, plural, other {항목 #개가 목록에서 제거됩니다.}}",
@@ -12280,10 +12280,10 @@
         "group_too_long": "그룹은 40자까지 입력할 수 있습니다.",
         "duplicate_value": "이미 목록에 있는 값입니다.",
         "too_many_items": "목록에는 항목을 5,000개까지 넣을 수 있습니다.",
-        "list_values_locked": "Doc Sign 기본 목록은 모든 값을 그대로 유지합니다. 항목을 제거하지 말고 보관하세요.",
+        "list_values_locked": "Secure Sign 기본 목록은 모든 값을 그대로 유지합니다. 항목을 제거하지 말고 보관하세요.",
         "value_removed": "이 값은 제거할 수 없습니다.",
-        "system_list_merge_only": "Doc Sign 기본 목록은 추가나 업데이트만 가능하며 교체할 수 없습니다.",
-        "not_a_system_list": "Doc Sign 기본 목록만 기본값으로 되돌릴 수 있습니다.",
+        "system_list_merge_only": "Secure Sign 기본 목록은 추가나 업데이트만 가능하며 교체할 수 없습니다.",
+        "not_a_system_list": "Secure Sign 기본 목록만 기본값으로 되돌릴 수 있습니다.",
         "bad_import": "CSV 파일과 가져오는 방법을 선택하세요.",
         "import_failed": "이 파일에서는 가져올 수 있는 내용이 없습니다."
       }
@@ -12480,7 +12480,8 @@
         "introForm": "이 양식을 작성하는 모든 사람을 한 번씩 추가하세요: 이름, 이메일, 그리고 작성하는지 사본만 받는지를 지정합니다.",
         "typeFiller": "양식 작성",
         "limitSigners": "최대 {max}명에게 서명을 요청할 수 있습니다.",
-        "limitRoles": "업로드한 파일에는 최대 {max}명에게 서명을 요청할 수 있습니다. 각 사람은 그 문서의 역할이 됩니다."
+        "limitRoles": "업로드한 파일에는 최대 {max}명에게 서명을 요청할 수 있습니다. 각 사람은 그 문서의 역할이 됩니다.",
+        "sentByWhatsapp": "WhatsApp으로 발송"
       },
       "blocks": {
         "heading": "서명 블록",
@@ -12565,8 +12566,8 @@
       "toggle": {
         "labelSingle": "비공개 문서",
         "labelCollection": "비공개 문서 모음",
-        "hintSingle": "본인, 워크스페이스 관리자, 서명자로 지정한 Halo 사용자만 이 문서와 서명한 사람, 그들의 답변을 볼 수 있습니다. Doc Sign을 사용하는 다른 사람은 목록, 검색, 집계, 내보내기에서 이 문서를 찾을 수 없습니다.",
-        "hintCollection": "본인, 워크스페이스 관리자, 서명자로 지정한 Halo 사용자만 이 문서 모음과 그 안의 모든 문서, 서명한 사람, 그들의 답변을 볼 수 있습니다. Doc Sign을 사용하는 다른 사람은 목록, 검색, 집계, 내보내기에서 이 문서들을 찾을 수 없습니다.",
+        "hintSingle": "본인, 워크스페이스 관리자, 서명자로 지정한 Halo 사용자만 이 문서와 서명한 사람, 그들의 답변을 볼 수 있습니다. Secure Sign을 사용하는 다른 사람은 목록, 검색, 집계, 내보내기에서 이 문서를 찾을 수 없습니다.",
+        "hintCollection": "본인, 워크스페이스 관리자, 서명자로 지정한 Halo 사용자만 이 문서 모음과 그 안의 모든 문서, 서명한 사람, 그들의 답변을 볼 수 있습니다. Secure Sign을 사용하는 다른 사람은 목록, 검색, 집계, 내보내기에서 이 문서들을 찾을 수 없습니다.",
         "notYours": "이 문서를 업로드한 사람이나 관리자만 변경할 수 있습니다."
       }
     },

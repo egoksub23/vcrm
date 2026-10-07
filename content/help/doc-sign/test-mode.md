@@ -9,7 +9,7 @@ Before you send a template to a merchant, you want to see what they will see: th
 
 ## Send a test
 
-1. Open the template (**Doc Sign**, then **Templates**, then the template's name).
+1. Open the template (**Secure Sign**, then **Templates**, then the template's name).
 2. Click **Send a test**.
 3. Check the address. It is your own email. Leave it as it is, or see "Use another inbox of yours" below.
 4. Click **Send the test**.
@@ -34,7 +34,7 @@ A test uses the template's real version and its real form, so you can try the wh
 
 ## Who the test goes to
 
-Only to you. Doc Sign checks this on its server: the address must be the one you sign in with, or the same address with **+something** added before the @. A different person's address is refused.
+Only to you. Secure Sign checks this on its server: the address must be the one you sign in with, or the same address with **+something** added before the @. A different person's address is refused.
 
 ### Use another inbox of yours
 

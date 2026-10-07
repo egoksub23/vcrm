@@ -1,11 +1,11 @@
 ---
 title: API and integrations
-description: Let your own system send documents for signature, follow them and fetch the signed copy, using an API key with Doc Sign permissions.
+description: Let your own system send documents for signature, follow them and fetch the signed copy, using an API key with Secure Sign permissions.
 order: 14
 updated: 2026-10-07
 ---
 
-If you have a system of your own, such as a merchant onboarding app, it can send documents for signature without anyone opening Doc Sign. It talks to Halo through the **API**. Your developer does the connecting; this page explains what you need to set up and what to expect.
+If you have a system of your own, such as a merchant onboarding app, it can send documents for signature without anyone opening Secure Sign. It talks to Halo through the **API**. Your developer does the connecting; this page explains what you need to set up and what to expect.
 
 ## What the API can do
 
@@ -20,7 +20,7 @@ It cannot create or edit templates, and it does not give your system the signing
 
 ## Before you start
 
-Ask your admin to check that **Doc Sign** is switched on for your workspace. If it is off, every call from your system is refused with the message that Doc Sign is not turned on.
+Ask your admin to check that **Secure Sign** is switched on for your workspace. If it is off, every call from your system is refused with the message that Secure Sign is not turned on.
 
 ## Create a key with the right permissions
 
@@ -45,11 +45,11 @@ You cannot add a permission to a key later. Make a new key and revoke the old on
 - **The signed copy comes only after completion.** Before everyone has signed, the download is refused.
 - **Use events instead of checking again and again.** Your system can be told when a document is signed, declined or expires, instead of asking every few minutes.
 
-The full technical reference, with examples, is in the Public API document your developer has access to (the "Doc Sign" part).
+The full technical reference, with examples, is in the Public API document your developer has access to (the "Secure Sign" part).
 
 ## What you see in Halo
 
-A document sent by your system appears in **Doc Sign**, **Documents**, like any other. Its **History** shows that the person who made the key started it. The monthly limit of documents for signature counts these documents too.
+A document sent by your system appears in **Secure Sign**, **Documents**, like any other. Its **History** shows that the person who made the key started it. The monthly limit of documents for signature counts these documents too.
 
 ## Tips
 

@@ -203,7 +203,7 @@ describe('access', () => {
     expect(db.rows('sign_documents')).toHaveLength(0);
   });
 
-  it('answers 403 sign_disabled for every route when the operator has Doc Sign off, and does nothing', async () => {
+  it('answers 403 sign_disabled for every route when the operator has Secure Sign off, and does nothing', async () => {
     db.rows('account_platform').find((r) => r.account_id === A)!.features = { sign: false };
     const answers = [
       await listTemplates(call('GET', '/templates', 'write')),

@@ -71,7 +71,7 @@ function nodeChain(entry: string): string[] | null {
 const CLIENT_DIRS = [join(SRC, "components", "sign"), join(SRC, "components", "settings", "sign"), join(SRC, "lib", "sign", "client")];
 const HOOKS = readdirSync(join(SRC, "hooks")).filter((n) => /^use-sign.*\.tsx?$/.test(n) && !/\.test\./.test(n)).map((n) => join(SRC, "hooks", n));
 
-describe("the browser side of Doc Sign never reaches a Node-only module", () => {
+describe("the browser side of Secure Sign never reaches a Node-only module", () => {
   const entries = [...CLIENT_DIRS.flatMap(walk), ...HOOKS].filter((f) => !/test-messages|fixtures/.test(f)) // helpers that only the tests load
     .filter((f) => f.includes(join("lib", "sign", "client")) || /^\s*["']use client["']/.test(text(f)));
 

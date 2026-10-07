@@ -5,11 +5,11 @@ order: 10
 updated: 2026-10-07
 ---
 
-Doc Sign settings are the starting point for every new document. A category, a template or the sender can change them for one document.
+Secure Sign settings are the starting point for every new document. A category, a template or the sender can change them for one document.
 
 ## Before you start
 
-Open **Settings** and click **Doc Sign**. The tab is there only if your platform operator switched Doc Sign on for your workspace and your role may manage Doc Sign settings. Changes are written to the audit log.
+Open **Settings** and click **Secure Sign**. The tab is there only if your platform operator switched Secure Sign on for your workspace and your role may manage Secure Sign settings. Changes are written to the audit log.
 
 The page has five tabs: **General**, **Consent wording**, **Categories**, **Add-ons** and **Sealing certificate**. This page covers the first two. See [Categories and add-ons](/help/doc-sign/categories-and-add-ons) for the next two.
 
@@ -27,14 +27,14 @@ Click **Save** when you change something.
 
 ## Email: which mailbox your messages are sent from
 
-At the top of **General** is an **Email** card. It shows how Doc Sign sends invitations, reminders, codes and signed copies. There is nothing to switch on it: it only tells you.
+At the top of **General** is an **Email** card. It shows how Secure Sign sends invitations, reminders, codes and signed copies. There is nothing to switch on it: it only tells you.
 
 | What the card says | What it means |
 |---|---|
 | **Sent from support@yourcompany.com via your connected Microsoft 365 mailbox** (or **Gmail mailbox**) | Messages go out from that mailbox, under your workspace's name. Replies go to the address your workspace set for replies, or to the mailbox. |
 | **Sent by the platform sender** | You have no connected mailbox that can send, so messages go out from the platform's own address. Connect a mailbox to send from your own address. |
 | **Not set up** | There is no mailbox and no platform sender, so nothing is sent. The document's page says so for each person. Connect a mailbox. |
-| A line about a mailbox that **needs to be reconnected** or **is switched off** | Doc Sign skips it. Fix it in Settings > Channels. |
+| A line about a mailbox that **needs to be reconnected** or **is switched off** | Secure Sign skips it. Fix it in Settings > Channels. |
 
 The link on the card opens **Settings > Channels** on the tab of that mailbox (**Email** for Microsoft 365, **Gmail** for Gmail). If you connected both, Microsoft 365 is used.
 
@@ -43,7 +43,7 @@ Click **Send a test email to me** to send one short message to your own address,
 What to know about sending from a mailbox:
 
 - **Gmail** keeps every message in the mailbox's **Sent** folder, so anyone who can open that mailbox can read the signing links in it. **Microsoft 365** messages are not kept in Sent Items.
-- Doc Sign messages are never added to the Halo Inbox, even when they are sent to the mailbox's own address.
+- Secure Sign messages are never added to the Halo Inbox, even when they are sent to the mailbox's own address.
 - A mailbox can only send so many messages. Gmail allows about 500 a day (2,000 for Google Workspace); Microsoft 365 about 30 a minute. When it is reached, the person shows "The email did not arrive" with the reason. Wait, then use **Resend**.
 - A signed copy is attached to the email when it is small enough: up to 2.5 MB through Microsoft 365 and 17 MB through Gmail. A larger one is not attached; the email links to it instead.
 
@@ -62,11 +62,11 @@ Each wording has a **version**, shown beside it. Changing the words makes a new 
 
 ## WhatsApp invitations
 
-You send by email unless you choose WhatsApp for a person. WhatsApp only sends message templates that Meta has approved, so Doc Sign needs the name of one.
+A document you send from the **People** step always goes by email. WhatsApp is used by a bulk send or a registration page that is set to it, and for a person who was saved with WhatsApp in a draft made earlier (that person is marked **Sent by WhatsApp**). WhatsApp only sends message templates that Meta has approved, so Secure Sign needs the name of one.
 
 1. In your WhatsApp account, create a message template. It needs three variables, in this order: the person's name, the document title and the signing link.
 2. Wait for Meta to approve it.
-3. In **Settings**, **Doc Sign**, **General**, enter the **Template name**, exactly as in your WhatsApp account (lower case letters, digits and underscores).
+3. In **Settings**, **Secure Sign**, **General**, enter the **Template name**, exactly as in your WhatsApp account (lower case letters, digits and underscores).
 4. Enter the **Template language code** the template was approved in, for example `en`, `ms` or `en_US`.
 5. Click **Save**.
 

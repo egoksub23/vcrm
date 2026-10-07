@@ -68,19 +68,19 @@ describe("Microsoft 365 webhook: what becomes a conversation", () => {
     expect(h.findContact).toHaveBeenCalledTimes(1);
   });
 
-  it("stops a Doc Sign message addressed to the mailbox itself", async () => {
+  it("stops a Secure Sign message addressed to the mailbox itself", async () => {
     h.message = { ...customer, fromAddress: "support@vircle.com", senderAddress: "support@vircle.com", headers: [{ name: "X-Halo-Sign", value: "1" }] };
     await notify();
     expect(h.findContact).not.toHaveBeenCalled();
   });
 
-  it("stops a message that carries Doc Sign's header, whoever it says it is from", async () => {
+  it("stops a message that carries Secure Sign's header, whoever it says it is from", async () => {
     h.message = { ...customer, headers: [{ name: "X-Halo-Sign", value: "1" }] };
     await notify();
     expect(h.findContact).not.toHaveBeenCalled();
   });
 
-  it("stops the delivery-failure notice of a Doc Sign message (its body quotes the original's headers)", async () => {
+  it("stops the delivery-failure notice of a Secure Sign message (its body quotes the original's headers)", async () => {
     h.message = { ...customer, fromAddress: "postmaster@vircle.onmicrosoft.com", senderAddress: null, headers: [], bodyText: "Delivery has failed.\r\nX-Halo-Sign: 1\r\nSubject: Please sign" };
     await notify();
     expect(h.findContact).not.toHaveBeenCalled();

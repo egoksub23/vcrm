@@ -147,7 +147,7 @@ describe('triggerMatches: sign_document_event', () => {
   })
 })
 
-describe('dispatching a Doc Sign event', () => {
+describe('dispatching a Secure Sign event', () => {
   it('runs the automations whose trigger matches, with the sign context and the contact', async () => {
     h.s.automations = [automation({ trigger_config: { events: ['completed'], template_id: 'tpl-1' } }), automation({ id: 'a2', trigger_config: { events: ['declined'] } })]
     h.s.steps = [step(0, 'send_message', { text: 'Thanks {{ contact.name }}, {{ sign.reference }} ({{ sign.event }}) {{ sign.template }}' })]
@@ -203,7 +203,7 @@ describe('the Send document for signing step', () => {
     expect(h.s.logSteps[0]).toMatchObject({ step_type: 'send_sign_document', status: 'success', outcome: 'sent' })
   })
 
-  it('carries the depth of the Doc Sign chain it is part of', async () => {
+  it('carries the depth of the Secure Sign chain it is part of', async () => {
     h.runner.mockResolvedValue({ step: { status: 'success', outcome: 'sent', detail: 'ok' }, varsPatch: {} })
     h.s.automations = [automation()]
     h.s.steps = [step(0, 'send_sign_document', cfg)]
@@ -211,7 +211,7 @@ describe('the Send document for signing step', () => {
     expect(h.runner.mock.calls[0][0].vars).toMatchObject({ _sign_chain_depth: 2 })
   })
 
-  it('a skipped step (Doc Sign said no) is logged as skipped and the run goes on', async () => {
+  it('a skipped step (Secure Sign said no) is logged as skipped and the run goes on', async () => {
     h.runner.mockResolvedValue({ step: { status: 'skipped', outcome: 'sign_limit_reached', detail: 'skipped: limit' }, varsPatch: {} })
     setup(cfg, [step(1, 'send_message', { text: 'still here' })])
     await run()

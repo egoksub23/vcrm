@@ -166,7 +166,7 @@ describe('Send document for signing: the happy path', () => {
   })
 })
 
-describe('Send document for signing: Doc Sign says no', () => {
+describe('Send document for signing: Secure Sign says no', () => {
   it('a limit reached keeps the draft, links it for a person, and does not crash the run', async () => {
     m.sendDocument.mockRejectedValue(new SignError('sign_limit_reached', 'This workspace has reached its monthly limit.', 429))
     const out = await runSendSignDocument(input())
@@ -224,7 +224,7 @@ describe('Send document for signing: Doc Sign says no', () => {
 })
 
 describe('Send document for signing: before anything is made', () => {
-  it('Doc Sign off for the workspace: skipped', async () => {
+  it('Secure Sign off for the workspace: skipped', async () => {
     m.enabled = false
     const out = await runSendSignDocument(input())
     expect(out.step).toMatchObject({ status: 'skipped', outcome: 'not_enabled' })

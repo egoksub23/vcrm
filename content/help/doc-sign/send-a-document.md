@@ -31,7 +31,7 @@ A Word file is converted to a PDF first. You see every page of the result before
 The draft opens in a workspace with four steps along the top. Your work is saved as you go.
 
 1. **Fields** shows the pages. Place the fields people have to fill in or sign. Each field belongs to a **role**, and in the next step each role is given to a person. See [Prepare the fields](/help/doc-sign/prepare-fields). When you started from a template this is done already; check it.
-2. **People** lists everyone on the document, and what each one is: **Must sign** or **Receives a copy**. See the next section and [Signing order](/help/doc-sign/signing-order).
+2. **People** lists everyone on the document, and what each one is: **Signature required** or **Receives a copy**. See the next section and [Signing order](/help/doc-sign/signing-order).
 3. **Options** sets the title, category, contact, an optional **ticket** and **deal** to attach the document to, the language of the invitation, a message to the signers, the expiry date, the reminders, and whether each signer needs a verification code. Anything you leave alone follows the category and then the workspace settings.
 4. **Review** shows everything in one place. If something is missing, it lists what to fix and takes you to the right step.
 
@@ -39,7 +39,7 @@ The draft opens in a workspace with four steps along the top. Your work is saved
 
 On the People step, every person has a name, an email and a type.
 
-- **Must sign** is a person who signs or fills in their part. They have a **role** (which fields are theirs), a way to be reached (email or WhatsApp) and, when signing order is on, a **step**. They get a private link.
+- **Signature required** is a person who signs or fills in their part. They have a **role** (which fields are theirs) and, when signing order is on, a **step**. The link always goes to their email. They get a private link.
 - **Receives a copy** is a person who does not sign. They have only a name and an email. They never get a link, and when the document is completed they get the signed PDF by email. See [Receive a copy of the signed document](/help/doc-sign/copies).
 
 When you type in the name box, Halo searches your contacts. Choose a contact and the name and the email are filled in. You can still edit the email.
@@ -72,7 +72,7 @@ If you tick **Needs a verification code** on the Options step, each signer must 
 
 ## Common mistakes
 
-- **Choosing WhatsApp before it is set up.** WhatsApp needs an approved message template. If none is set, the person is not reached. See [Settings and the WhatsApp template](/help/doc-sign/settings-and-whatsapp).
+- **A person saved with WhatsApp before it is set up.** The People step marks them **Sent by WhatsApp**. WhatsApp needs an approved message template; if none is set, the person is not reached. See [Settings and the WhatsApp template](/help/doc-sign/settings-and-whatsapp).
 - **Putting the same email address on the list twice when signing order is on.** Each signer must then be a different person.
 - **Adding someone who only needs the final file as a person who must sign.** Choose **Receives a copy** instead. They then get the signed file without a link or anything to do.
 

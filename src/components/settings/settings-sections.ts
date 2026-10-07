@@ -98,7 +98,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   incidents: { id: 'incidents', label: 'Incidents', icon: ShieldAlert, group: 'workspace', capability: 'incidents.manage' },
   // Doc Sign (migration 157): Settings > Doc Sign (sign.settings). The operator's `sign` flag removes
   // every sign.* capability, so the tab is absent for a workspace that does not have Doc Sign.
-  sign: { id: 'sign', label: 'Doc Sign', icon: FileSignature, group: 'workspace', capability: 'sign.settings' },
+  sign: { id: 'sign', label: 'Secure Sign', icon: FileSignature, group: 'workspace', capability: 'sign.settings' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },

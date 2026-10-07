@@ -103,7 +103,7 @@ describe('{{ sign.* }} and {{ contact.* }} in text', () => {
 })
 
 describe('the Insert variable list', () => {
-  it('offers the sign variables for the Doc Sign trigger only', () => {
+  it('offers the sign variables for the Secure Sign trigger only', () => {
     const steps = [{ cid: 'a', step_type: 'send_message', step_config: {} }]
     const on = variablesFor(steps, 'a', { triggerType: 'sign_document_event' }).map((v) => v.token)
     expect(on).toEqual(expect.arrayContaining(['{{ sign.document_id }}', '{{ sign.reference }}', '{{ sign.title }}', '{{ sign.status }}', '{{ sign.event }}', '{{ sign.template }}', '{{ sign.final_sha256 }}']))
@@ -132,7 +132,7 @@ describe('validating the trigger', () => {
     expect(validateTriggerForActivation('sign_document_event', { events: 'completed' }).map((i) => i.path)).toEqual(['trigger.events'])
     expect(validateTriggerForActivation('sign_document_event', { template_id: 5 }).map((i) => i.path)).toEqual(['trigger.template_id'])
   })
-  it('refuses a workspace where Doc Sign is off, when the caller looked', () => {
+  it('refuses a workspace where Secure Sign is off, when the caller looked', () => {
     const off: SignSetup = { enabled: false, templates: {} }
     expect(validateTriggerForActivation('sign_document_event', {}, { signSetup: off }).map((i) => i.message)).toEqual([expect.stringContaining('not turned on')])
     expect(validateTriggerForActivation('sign_document_event', {}, { signSetup: { enabled: true, templates: {} } })).toEqual([])
@@ -211,7 +211,7 @@ describe('validating the Send document for signing step', () => {
     expect(issues({ ...goodStep().step_config, locale: 'ms', send: false })).toEqual([])
   })
 
-  it('with the workspace lookup: Doc Sign on, the template there and active, the roles covered', () => {
+  it('with the workspace lookup: Secure Sign on, the template there and active, the roles covered', () => {
     expect(issues(goodStep().step_config, setup({}, false)).map((i) => i.message)).toEqual([expect.stringContaining('not turned on')])
     expect(issues(goodStep().step_config, { enabled: true, templates: { 'tpl-1': { found: false, active: false, roles: [], requiredRoles: [] } } }).map((i) => i.message)).toEqual([
       expect.stringContaining('no longer exists'),
@@ -267,7 +267,7 @@ describe('the activation lookup', () => {
     return { from: make } as never
   }
 
-  it('does not look at Doc Sign at all when the automation does not use it', async () => {
+  it('does not look at Secure Sign at all when the automation does not use it', async () => {
     expect(await signSetupForActivation(client({}), 'a1', [{ step_type: 'send_message' }], 'new_message_received')).toBeUndefined()
   })
 })

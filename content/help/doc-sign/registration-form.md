@@ -11,9 +11,9 @@ The email is the key idea. The document goes only to the address they typed, so 
 
 ## Make a form
 
-You need permission to manage Doc Sign settings (owners and admins have it by default).
+You need permission to manage Secure Sign settings (owners and admins have it by default).
 
-1. Open **Settings > Doc Sign > Registration forms** and click **New registration form**.
+1. Open **Settings > Secure Sign > Registration forms** and click **New registration form**.
 2. **Name** it. Only your team sees the name. Below it you see how the address will read: the name, then a random ending that is made when you save. It never contains anything about your workspace.
 3. Choose what happens after they submit:
    - **Send a document to sign.** Choose the **template**, and the **role the applicant fills** (for example Merchant). If the template has other roles, such as a director who countersigns, type a name and an email for each. Leave a role empty if nobody is needed for it.

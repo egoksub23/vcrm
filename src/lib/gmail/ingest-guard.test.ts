@@ -17,7 +17,7 @@ function payloadOf(raw: string): GmailPayloadPart {
   return { mimeType: "multipart/alternative", headers, parts: [{ mimeType: "text/plain", body: { data: b64("hi") } }] };
 }
 
-describe("a message Doc Sign sent", () => {
+describe("a message Secure Sign sent", () => {
   it("is recognised by its header, whatever way it was built", () => {
     const raw = buildRawMessage({ toAddress: "a@b.com", subject: "s", text: "t", html: "<p>t</p>", fromAddress: "support@vircle.com", headers: { "X-Halo-Sign": "1" } });
     expect(isHaloSignMessage(payloadOf(raw))).toBe(true);
@@ -52,7 +52,7 @@ describe("what may become a conversation", () => {
     expect(decideIngest(base, mailbox)).toEqual({ ingest: true });
   });
 
-  it("keeps out a Doc Sign message addressed to the mailbox itself (INBOX and SENT), by any one of its three marks", () => {
+  it("keeps out a Secure Sign message addressed to the mailbox itself (INBOX and SENT), by any one of its three marks", () => {
     expect(decideIngest({ ...base, fromAddress: "support@vircle.com", labelIds: ["INBOX", "SENT"], haloSign: true }, mailbox)).toEqual({ ingest: false, reason: "doc_sign" });
     // the header alone is enough, even from an address that is not the mailbox's own (a send-as alias)
     expect(decideIngest({ ...base, fromAddress: "alias@vircle.com", haloSign: true }, mailbox)).toMatchObject({ ingest: false, reason: "doc_sign" });

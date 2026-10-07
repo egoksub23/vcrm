@@ -39,7 +39,7 @@ describe('normalizeEvents', () => {
   });
 });
 
-describe('Doc Sign events', () => {
+describe('Secure Sign events', () => {
   const SIGN = ['sign.sent', 'sign.viewed', 'sign.completed', 'sign.declined', 'sign.expired', 'sign.voided'];
 
   it('are part of the vocabulary, each with a description', () => {

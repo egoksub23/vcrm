@@ -28,7 +28,7 @@ curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/autom
 | `/api/sla/cron` | Notifies when a conversation has waited longer than its workspace's response-time target. | every 5 min | No "response time exceeded" alerts. |
 | `/api/sla/tickets-cron` | Marks ticket SLA breaches and sends at-risk and breached notices. | every minute | Ticket SLA state is shown live but never stored or notified. |
 | `/api/incidents/escalation-cron` | Escalates unacknowledged incidents up the levels. | every minute | Incidents never auto-escalate. |
-| `/api/sign/jobs-cron` | Doc Sign: seals documents everyone has signed, expires documents past their date, sends due reminders. | every minute | Signed documents stay in "Finishing", and no reminders or expiries happen. See `docs/doc-sign-setup.md`. |
+| `/api/sign/jobs-cron` | Secure Sign: seals documents everyone has signed, expires documents past their date, sends due reminders. | every minute | Signed documents stay in "Finishing", and no reminders or expiries happen. See `docs/doc-sign-setup.md`. |
 | `/api/integrations/jira/cron` | Jira job queue, catch-up poll, webhook renewal. | every 1 to 2 min | Jira links stop syncing. |
 | `/api/messages/sweep-cron` | Marks a send stuck in "sending" as failed after 10 min so it can be resent. | every 5 min | A crashed send stays "sending" forever. |
 | `/api/email/subscription-renew` | Renews each Microsoft 365 mailbox's change-notification subscription. | daily | Inbound mail stops after about 3 days. |
@@ -89,13 +89,13 @@ These guarantees apply to a deployment with several customers (migration 135):
   The flow sweep reads a page at a time and reports `truncated: true` if it ran
   out of time; the next run continues.
 
-## Doc Sign in automations
+## Secure Sign in automations
 
-Doc Sign can start an automation and an automation can send a document. There is one trigger and one step. Both
-need Doc Sign switched on for the workspace (the operator flag `sign`, see `docs/doc-sign-setup.md`); the Add
-step menu and the trigger list only offer them to people who can see Doc Sign (`menu.sign`).
+Secure Sign can start an automation and an automation can send a document. There is one trigger and one step. Both
+need Secure Sign switched on for the workspace (the operator flag `sign`, see `docs/doc-sign-setup.md`); the Add
+step menu and the trigger list only offer them to people who can see Secure Sign (`menu.sign`).
 
-### The trigger: Doc Sign event (`sign_document_event`)
+### The trigger: Secure Sign event (`sign_document_event`)
 
 Fires when a document is **sent, viewed, completed, declined, expired or voided**. Configuration:
 
@@ -126,7 +126,7 @@ What later steps can read:
 `{{ contact.company }}` now work in **every** step that takes text (Send message, Update contact field, Create
 deal, Send webhook, Create ticket), not only in AI steps. They used to come out empty in Send message.
 
-The trigger cannot be fired by hand through `POST /api/automations/engine`: only Doc Sign fires it, with the
+The trigger cannot be fired by hand through `POST /api/automations/engine`: only Secure Sign fires it, with the
 document's real details.
 
 ### The step: Send document for signing (`send_sign_document`)
@@ -149,7 +149,7 @@ The document is linked to the contact and is "created by" the person who owns th
 
 Behaviour worth knowing:
 
-- **Doc Sign says no, the run goes on.** A limit reached, a document that is not ready, a recipient with no
+- **Secure Sign says no, the run goes on.** A limit reached, a document that is not ready, a recipient with no
   valid email, a template that is no longer active: the step is logged as **skipped** with the reason, and the
   next steps run. If the document had already been made, it stays as a complete draft linked to the contact so
   a person can fix the cause and send it. A draft that could never be valid (a role the template lacks, a bad
@@ -157,19 +157,19 @@ Behaviour worth knowing:
 - **Who may build it.** Saving an automation with this step, or switching one on, needs `sign.send` as well as 
   `automations.manage` (checked on the server in `POST /api/automations` and `PATCH /api/automations/{id}`): it sends 
   documents in the workspace's name. Switching one off needs only `automations.manage`.
-- **A contact needs an email address.** Doc Sign requires an email for every signer, even when the link goes by
+- **A contact needs an email address.** Secure Sign requires an email for every signer, even when the link goes by
   WhatsApp. A contact without one is skipped with that message; use a fixed recipient instead.
 - **No second document on a retry.** The step remembers the document in `vars.sign_document_id` (with the
   contact and template). If the same run reaches the step again, it reuses that document: a sent one is left
   alone, a draft is sent. Two different runs (the tag added twice) are two documents; delete or void as needed.
 - **Activation checks.** Activating (or keeping active) an automation with this step, or with the trigger, is
-  refused with a clear message when Doc Sign is off for the workspace, the template is missing or not active, a
+  refused with a clear message when Secure Sign is off for the workspace, the template is missing or not active, a
   recipient names a role the template does not have, or a required role has no recipient
   (`signSetupForActivation` in `src/lib/automations/sign-activation.ts`, on the server). Drafts save freely.
 
 ### Loops
 
-An automation started by a Doc Sign event can itself send a document, which is another event. The depth is
+An automation started by a Secure Sign event can itself send a document, which is another event. The depth is
 carried in `vars._sign_chain_depth` (the same idea as the tag chain) and the trigger stops being dispatched
 after **3** links. The outbound webhook is not affected.
 
@@ -185,16 +185,16 @@ Sign never emits. The payload holds ids, dates, status, and each signer's name, 
 
 Webhook delivery is the existing single attempt with a 5 second timeout, and an endpoint is switched off after
 15 failures in a row. It is **not** retried: a receiver that is down misses the event, so reconcile with the
-Doc Sign API when it matters.
+Secure Sign API when it matters.
 
 ### Recipes
 
-Two ready-made automations (Automations > the cards at the top, shown where Doc Sign is on):
+Two ready-made automations (Automations > the cards at the top, shown where Secure Sign is on):
 
 1. **Merchant onboarding**: trigger *Tag added*, then *Send document for signing* with the contact as the
    `merchant`. The builder picks the tag named "Merchant applicant" and the template named "Merchant
    Application" when the workspace has them; otherwise it shows the suggestion.
-2. **Merchant signed follow-up**: trigger *Doc Sign event* (completed), then *Add tag* "Merchant signed",
+2. **Merchant signed follow-up**: trigger *Secure Sign event* (completed), then *Add tag* "Merchant signed",
    *Create ticket* "Merchant KYC review" (always opened, not skipped when a ticket is open) and a thank-you
    *Send message* (last, because it needs an existing conversation with the contact).
 

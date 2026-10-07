@@ -1,8 +1,8 @@
-# Doc Sign: setup for the operator
+# Secure Sign: setup for the operator
 
-Doc Sign is Halo's electronic signing module. It is **off for every workspace** until you
+Secure Sign is Halo's electronic signing module. It is **off for every workspace** until you
 turn it on. This page is what you do on the server, and in the Platform console, to switch it
-on for a workspace and keep it running. What users do is in the User Guide (**Doc Sign**).
+on for a workspace and keep it running. What users do is in the User Guide (**Secure Sign**).
 
 ## 1. Before anything else
 
@@ -13,7 +13,7 @@ on for a workspace and keep it running. What users do is in the User Guide (**Do
 - **`NEXT_PUBLIC_SITE_URL`** is your public https address. Signers' links are built on it.
 - **Email can be sent**, one of two ways. Invitations, reminders, codes and signed copies go out by
   email, and without a sender a document can be sent but nobody is told (the document's page says so).
-  Doc Sign picks the way for each workspace, in this order:
+  Secure Sign picks the way for each workspace, in this order:
   1. **The workspace's own connected mailbox**: a Microsoft 365 mailbox (Settings > Channels > Email),
      or else a Gmail mailbox (Settings > Channels > Gmail). Mail goes out from that mailbox's address,
      under the workspace's name. Nothing to set on the server beyond what those channels already need
@@ -24,7 +24,7 @@ on for a workspace and keep it running. What users do is in the User Guide (**Do
   2. **`RESEND_API_KEY`** is set (the platform sender, with `RESEND_FROM_EMAIL` on a verified domain).
      Used for a workspace with no mailbox that can send.
 
-  Either one is enough. **Settings > Doc Sign > General > Email** shows which one a workspace is using,
+  Either one is enough. **Settings > Secure Sign > General > Email** shows which one a workspace is using,
   with the mailbox's address, and has a **Send a test email to me** button. What to know about the
   mailbox: mail through it is marked `X-Halo-Sign: 1`, and Halo's own inbox ingestion refuses anything
   carrying that mark, so a signing link or a signed document is never read into the shared inbox
@@ -36,22 +36,22 @@ on for a workspace and keep it running. What users do is in the User Guide (**Do
   rotation (`docs/encryption-key-rotation.md`) like every other secret.
 - **`AUTOMATION_CRON_SECRET`** is set (section 4).
 
-## 2. Turn Doc Sign on for a workspace
+## 2. Turn Secure Sign on for a workspace
 
 Sign in as a platform operator and open **Platform**. Open the workspace and click **Edit**.
 In the features list:
 
 | Switch | What it does |
 |---|---|
-| **Doc Sign** (`sign`) | The Doc Sign menu, the pages, the routes and Settings > Doc Sign. Off removes every Doc Sign permission from every person in the workspace, so nothing is shown. Signer links stop answering (404). |
-| **Doc Sign: Merchant Registration** (`sign_merchant`) | Lets the workspace install the Merchant Registration add-on from Settings > Doc Sign > Add-ons. Needs **Doc Sign** on as well. |
+| **Secure Sign** (`sign`) | The Secure Sign menu, the pages, the routes and Settings > Secure Sign. Off removes every Secure Sign permission from every person in the workspace, so nothing is shown. Signer links stop answering (404). |
+| **Secure Sign: Merchant Registration** (`sign_merchant`) | Lets the workspace install the Merchant Registration add-on from Settings > Secure Sign > Add-ons. Needs **Secure Sign** on as well. |
 
 Also in that dialog, **Signing documents per month** is the monthly limit (empty means no
 limit). The workspace's admins get a notice at 80 percent, and sending is refused at 100 percent
 with a message telling them to contact support. Drafts do not count, only documents sent.
 The workspace's file storage is covered by the existing storage meter.
 
-A workspace owner or admin then finds **Doc Sign** in the sidebar and in Settings. Who may do
+A workspace owner or admin then finds **Secure Sign** in the sidebar and in Settings. Who may do
 what inside is set in **Settings > Roles & permissions** (view, send, void, manage templates,
 manage settings).
 
@@ -68,7 +68,7 @@ SIGN_CONVERTER_URL=http://sign-converter:3000
 Then redeploy (`docker compose --env-file .env.local up -d`). `docker compose --env-file
 .env.local ps` should list `sign-converter` as `healthy`. The container needs about 1 GB of
 memory while it converts and the image is large; sizes, limits and what it cannot do are in
-`docs/docker.md` ("Doc Sign converter"). Without it, a Word upload says "Word conversion is
+`docs/docker.md` ("Secure Sign converter"). Without it, a Word upload says "Word conversion is
 not available right now. Upload a PDF instead."
 
 A Word file may not convert to more than 50 pages and gets 60 seconds. A PDF may have up to
@@ -76,7 +76,7 @@ A Word file may not convert to more than 50 pages and gets 60 seconds. A PDF may
 
 ## 4. The scheduled job
 
-Doc Sign needs one job called every **minute**. It seals documents that everyone has signed,
+Secure Sign needs one job called every **minute**. It seals documents that everyone has signed,
 expires documents past their date, sends due reminders, and sends the documents of bulk
 batches (section 8c). Without it, completed documents stay in **Finishing**, no reminders or
 expiries happen, and a bulk send stays on **Waiting to start**.
@@ -87,14 +87,14 @@ expiries happen, and a bulk send stays on **Waiting to start**.
 
 It uses the same secret and header as the other jobs. It is listed in
 `docs/automations-and-cron.md`, and the **Background jobs** card in the Platform console shows
-**Doc Sign jobs** with the time of its last run. Late or Not running means the crontab line is
+**Secure Sign jobs** with the time of its last run. Late or Not running means the crontab line is
 missing or wrong.
 
 The signed copy is also attempted **right after the last signature** (the server seals in the background once the answer to the signer has gone
 out, within 15 seconds and at most three documents), so it normally appears within seconds; the job is the safety net that retries what did not
 finish. Both use one claim with a five-minute lease, so a document is never sealed twice. If sealing was tried and **nothing** could be sealed, the job
 answers `500` with `seal_error` in its body, the Background jobs card shows it as an error, and `curl -f` exits non-zero. A document is tried up to five
-times, five minutes apart, and is then marked **Could not finish** (the reason stays on it). Its sender sees the reason (people with Doc Sign settings)
+times, five minutes apart, and is then marked **Could not finish** (the reason stays on it). Its sender sees the reason (people with Secure Sign settings)
 and a **Try again** button on the document and on the collection; nothing the people signed is lost, and a retry is written in the document's history.
 
 ## 5. Chinese and Korean names on signed files
@@ -120,11 +120,11 @@ years, and keeps it encrypted (table `sign_certificates`, key ring). Nothing to 
 
 What users see: PDF readers say the signer is not trusted. The seal still shows whether the
 file was changed after signing, but the reader cannot check who made the certificate. The
-workspace sees this under Settings > Doc Sign > Sealing certificate, with its date. A new one is made
+workspace sees this under Settings > Secure Sign > Sealing certificate, with its date. A new one is made
 the next time a document is sealed after it expires.
 
 A certificate from a certificate authority (so readers show a valid signature) can be installed under
-Settings > Doc Sign > Sealing certificate (`.p12` or `.pfx`, migration 165). It is checked before it is kept (expiry, key size,
+Settings > Secure Sign > Sealing certificate (`.p12` or `.pfx`, migration 165). It is checked before it is kept (expiry, key size,
 key use, chain) and sealed with its full chain; a document waits in "sealing" with a readable reason while the certificate in use is
 expired, and administrators are notified 30, 14 and 7 days before it ends. See `docs/doc-sign-certificate.md` for what to ask a
 certificate authority for, and how to rotate. Deploy order: apply migration 165 before the new app.
@@ -161,7 +161,7 @@ the CSV and zip exports and the public API never carry an answer. Nothing to con
 | Expiry | 1 to 365 days (default 14, per workspace) |
 | Reminders | up to five, each 1 to 60 days after the invitation |
 | Verification code | 6 digits, 10 minutes, 5 tries, 5 codes an hour |
-| Retention of signed files | 7 years by default (`sign_settings.retention_years`, 1 to 50, per workspace under Settings > Doc Sign, per category if set); a completed document cannot be deleted before its date, by anyone (`docs/doc-sign-retention.md`) |
+| Retention of signed files | 7 years by default (`sign_settings.retention_years`, 1 to 50, per workspace under Settings > Secure Sign, per category if set); a completed document cannot be deleted before its date, by anyone (`docs/doc-sign-retention.md`) |
 | One bulk send | 500 people, a CSV of 1 MB, 5 fixed people; 3 batches queued or running per workspace |
 | Export of the documents list | 50,000 documents, read 500 at a time and streamed |
 | Zip of signed files | 50 documents and 300 MB a download, one file read at a time |
@@ -190,9 +190,9 @@ Needs migration `160_sign_forms.sql` (adds `sign_template_versions.form` and `si
 
 ## 8b. API access for the workspace's own systems
 
-A workspace can send and follow documents from its own backend (a merchant onboarding system, for example) through the public API under `/api/v1/sign`. The reference, with request and response examples, is the **Doc Sign** part of `docs/public-api.md`. What the operator needs to know:
+A workspace can send and follow documents from its own backend (a merchant onboarding system, for example) through the public API under `/api/v1/sign`. The reference, with request and response examples, is the **Secure Sign** part of `docs/public-api.md`. What the operator needs to know:
 
-1. **Turn Doc Sign on for the workspace first** (section 2). The API does not look at who made the key: while the **Doc Sign** switch is off, or the workspace is suspended, every Doc Sign call answers `403 sign_disabled`.
+1. **Turn Secure Sign on for the workspace first** (section 2). The API does not look at who made the key: while the **Secure Sign** switch is off, or the workspace is suspended, every Secure Sign call answers `403 sign_disabled`.
 2. **Create the key** (a workspace admin or owner): **Settings > API keys > New API key**, name it after the system that will use it, and tick only what it needs: **`sign:read`** (templates, documents, status, downloading the signed copy) and **`sign:write`** (send, remind, cancel). A reporting job needs only `sign:read`. The key is shown once; it works from its next request and is revoked from the same screen. Keys need no migration: scopes are stored as free text.
 3. **No new database objects.** The caller's own `reference` is kept as the document's reference, and the existing unique (workspace, reference) rule is what makes a retry safe. A reference cannot look like `SGN-2026-000123`, which stays the system's own numbering.
 4. **What shows in the history.** A document made through a key is recorded with the person who made the key as the actor, and the `created` and `downloaded` events carry `via: api_key:<key id>` so the history tells it apart from a person at the screen. The invitation emails name that person as the sender.
@@ -201,9 +201,9 @@ A workspace can send and follow documents from its own backend (a merchant onboa
 
 ## 8c. Bulk send, export and zip
 
-**Bulk send** (`/sign/bulk`, migration 162) sends one template to up to 500 people from a CSV or from contacts. The person who starts it needs `sign.send`; anyone with `menu.sign` can read a batch and its results. It needs **no new switch**: it is part of Doc Sign and follows the `sign` flag (off means no new batch, and the rows of a running batch are skipped with `sign_disabled`).
+**Bulk send** (`/sign/bulk`, migration 162) sends one template to up to 500 people from a CSV or from contacts. The person who starts it needs `sign.send`; anyone with `menu.sign` can read a batch and its results. It needs **no new switch**: it is part of Secure Sign and follows the `sign` flag (off means no new batch, and the rows of a running batch are skipped with `sign_disabled`).
 
-1. **The work is done by the scheduled job** (section 4), not by the browser, so closing the page loses nothing. Each minute the job claims a batch of waiting rows (taking turns across workspaces, so one big batch cannot starve the others), makes and sends one document for each through the same code as a single send, and gives back what it had no time for. Rows are leased for five minutes, so two runs never take the same row. Expect roughly 15 to 25 documents a minute: a batch of 500 takes about half an hour. A Platform console **Doc Sign jobs** result carries `bulk_claimed`, `bulk_sent` and `bulk_failed` for the last run.
+1. **The work is done by the scheduled job** (section 4), not by the browser, so closing the page loses nothing. Each minute the job claims a batch of waiting rows (taking turns across workspaces, so one big batch cannot starve the others), makes and sends one document for each through the same code as a single send, and gives back what it had no time for. Rows are leased for five minutes, so two runs never take the same row. Expect roughly 15 to 25 documents a minute: a batch of 500 takes about half an hour. A Platform console **Secure Sign jobs** result carries `bulk_claimed`, `bulk_sent` and `bulk_failed` for the last run.
 2. **The monthly limit.** The batch is refused up front when it cannot fit in this month's **Signing documents per month** limit. If the limit is reached while it runs (other documents were sent meanwhile), the rows not yet sent are marked **Failed** with `sign_limit_reached`; no job fails.
 3. **Never sent twice.** A row that already has a document is not made again, and a document that is already out is recorded as sent without sending it again. A row that is tried three times without finishing is marked failed (`gave_up`); its draft, if any, stays linked for the sender to open.
 4. **What shows in a document's history.** The `created` event and every later event written by the batch carry `via: bulk:<batch id>`.
@@ -214,13 +214,13 @@ A workspace can send and follow documents from its own backend (a merchant onboa
 
 ## 8d. Public registration pages
 
-A **registration form** is a public page, `/r/<slug>`, where someone with no login enters a few details. Halo finds or creates their contact, applies a tag, and (if the form is set to) makes a document from a template and emails it to the address they typed, which is also what proves the address is theirs. It is made in **Settings > Doc Sign > Registration forms** by anyone who holds `sign.settings`. The page needs **Doc Sign** on for the workspace (section 2) and nothing else switched on: it is part of Doc Sign.
+A **registration form** is a public page, `/r/<slug>`, where someone with no login enters a few details. Halo finds or creates their contact, applies a tag, and (if the form is set to) makes a document from a template and emails it to the address they typed, which is also what proves the address is theirs. It is made in **Settings > Secure Sign > Registration forms** by anyone who holds `sign.settings`. The page needs **Secure Sign** on for the workspace (section 2) and nothing else switched on: it is part of Secure Sign.
 
 Needs migration `164_sign_registration.sql` (tables `sign_registration_forms` and `sign_registrations`; verify with `supabase/ci/verify-164-sign-registration.sql`). Apply it before the first form is made.
 
 | Item | Behaviour |
 |---|---|
-| The address | `https://YOUR-APP/r/<name>-<8 random characters>`. It never contains the workspace id and cannot be found by counting. **New address** in Settings retires the old one at once. A form that is switched off, unknown, or whose workspace has Doc Sign off or is suspended answers the same plain "not available" page. |
+| The address | `https://YOUR-APP/r/<name>-<8 random characters>`. It never contains the workspace id and cannot be found by counting. **New address** in Settings retires the old one at once. A form that is switched off, unknown, or whose workspace has Secure Sign off or is suspended answers the same plain "not available" page. |
 | `ENCRYPTION_KEY` | Needed (it already is for WhatsApp and Jira). The page's signed token and the keyed hashes are derived from it. Without it the page says it is not available right now and takes nothing. No new variable is needed for this. |
 | Limits | Per address: 40 posts an hour of any kind and 5 with valid details. Per form: 600 and 60 an hour, and the form's own **daily cap** (default 100 accepted a day, 1 to 5000) on top. Shared across app instances (`rate_limit_hit`). The address is only used as a keyed hash. |
 | Hidden field and token | A field a person never fills (a script that fills every input is answered like a success and recorded as spam), and a signed form token: genuine, for this form, under two hours old and at least three seconds old. A token that has expired or is too fresh is sent back with a new one. |
@@ -261,9 +261,9 @@ If a Halo user also has the emailed invitation open in another tab, **Sign now**
 
 ## 8f. Option lists
 
-A data field of a form can name a shared **option list** instead of carrying its own options: Settings > Doc Sign > Lists (capability `sign.settings` to change, `menu.sign` to read; help article `content/help/doc-sign/option-lists.md`). Needs migration `163_sign_option_lists.sql`. The form builder and the signing page that come with it use the lists; an older deploy simply never sees `optionList`.
+A data field of a form can name a shared **option list** instead of carrying its own options: Settings > Secure Sign > Lists (capability `sign.settings` to change, `menu.sign` to read; help article `content/help/doc-sign/option-lists.md`). Needs migration `163_sign_option_lists.sql`. The form builder and the signing page that come with it use the lists; an older deploy simply never sees `optionList`.
 
-**What ships.** Seven system lists are copied into a workspace the first time Doc Sign opens (`sign_ensure_defaults` calls `sign_seed_option_lists`), and by the migration into every workspace that already has Doc Sign data: `states_my` (13 states and 3 federal territories), `countries` (ISO 3166-1, 249 entries), `banks_my`, `company_id_types`, `einvoice_phases`, `tax_types` and `msic`. The content is in `src/lib/sign/lists/system-lists.ts`, which generates the function `sign_option_list_defaults()` in the migration (a test fails if the two drift apart; after changing a list run `UPDATE_LISTS_MIGRATION=1 npx vitest run src/lib/sign/lists/migration`, then add a migration that replaces the function with a higher `version` for the change to reach the database). A workspace keeps its own copy: relabel, add, reorder and archive items; the values of a system list can never be deleted (the database refuses). "Reset to default" puts the shipped wording back and keeps what the workspace added.
+**What ships.** Seven system lists are copied into a workspace the first time Secure Sign opens (`sign_ensure_defaults` calls `sign_seed_option_lists`), and by the migration into every workspace that already has Secure Sign data: `states_my` (13 states and 3 federal territories), `countries` (ISO 3166-1, 249 entries), `banks_my`, `company_id_types`, `einvoice_phases`, `tax_types` and `msic`. The content is in `src/lib/sign/lists/system-lists.ts`, which generates the function `sign_option_list_defaults()` in the migration (a test fails if the two drift apart; after changing a list run `UPDATE_LISTS_MIGRATION=1 npx vitest run src/lib/sign/lists/migration`, then add a migration that replaces the function with a higher `version` for the change to reach the database). A workspace keeps its own copy: relabel, add, reorder and archive items; the values of a system list can never be deleted (the database refuses). "Reset to default" puts the shipped wording back and keeps what the workspace added.
 
 **The MSIC list.** It is the full MSIC 2008 as published by the Department of Statistics Malaysia, retrieved on 2026-10-07 from its open data catalogue (`https://open.dosm.gov.my/data-catalogue/msic`, licence CC BY 4.0): 21 sections, 88 divisions and 1,174 five-digit classes, each in English and Bahasa Melayu, exactly as published apart from the footnote markers the source glues to the Malay text. The source, the checks that were made and what was not checked are in the header of `src/lib/sign/lists/msic.ts`. LHDN's e-invoice MSIC list is the same classification. The signer's picker shows the code with the description; an admin can edit any wording, or import a CSV (code, English description, Malay description) to change many at once.
 
@@ -273,7 +273,7 @@ A data field of a form can name a shared **option list** instead of carrying its
 
 ## 8g. Steps that sign together, and forwarding
 
-Needs migration `166_sign_forward_parallel.sql` (verify with `supabase/ci/verify-166-sign-forward-parallel.sql`). Help article: `content/help/doc-sign/forwarding-and-parallel-signing.md`. No new switch or capability: it is part of Doc Sign and follows the `sign` flag; the signer's routes answer 404 for a workspace with Doc Sign off like every other.
+Needs migration `166_sign_forward_parallel.sql` (verify with `supabase/ci/verify-166-sign-forward-parallel.sql`). Help article: `content/help/doc-sign/forwarding-and-parallel-signing.md`. No new switch or capability: it is part of Secure Sign and follows the `sign` flag; the signer's routes answer 404 for a workspace with Secure Sign off like every other.
 
 **Steps.** With signing order on, people who share an order number form one step: all of them are invited when the step begins, and the next step begins when every one of them has finished (the ceremony functions of 158 already worked this way; phase 1 only stopped the sender giving two people one number). The sender's people list shows `Step 1 (2 people)`, and the public API accepts a shared `order_no`. A decline by anyone stops the document; reminders and expiry are unchanged (a person of a later step has no link yet and is not reminded). The audit trail records each invitation with its cause (`because: signer_finished` with the name, or `step_finished`), and the sealed certificate lists the signers in step order. A person whose step has not begun can be re-addressed (`Change recipient`, nothing is sent) or moved to a later step (`Move to`, `sign_move_signer`).
 
@@ -331,7 +331,7 @@ It goes only to the person: each address must be one they have (their sign-in or
 
 **Replace the file of a draft (F-77).** `POST /api/sign/documents/[id]/replace-file` (`sign.send`, 20 a minute; multipart `file`, `dryRun=1` to only find out): a draft only (a sent document's file is fingerprinted and the database refuses to change it). The pure decision is `src/lib/sign/replace-file.ts`: a field keeps its place when its page exists and is the same size (2 pt tolerance); a field whose page is gone is moved to the last page and flagged `page_missing`; a field on a page of another size or shape is flagged `size_changed` and left; one that was not inside its page is flagged `outside_page`. Nothing else of the draft changes. The old files are removed only from the document's own folder, after the row was updated (the update is conditional on the draft status, so a send that got in first wins and the new file is removed). The event `file_replaced` is in the history and left off the certificate.
 
-**Add-on updates (F-81).** A manifest has a `version` ("major.minor", compared as numbers), `changes` (what each version changed, per language) and `history` (the templates of the versions it replaced). Settings > Doc Sign > Add-ons shows **Update available** with the changes, and **Update** (`POST /api/sign/addons` with `{ "key", "action": "update" }`, `sign.settings`). Per template of the add-on: a template whose content (fields, roles, form without the options a list copied in, defaults) still equals a shipped version, and whose file is the shipped file, gets a **new version**; any other template is left exactly as it is and an **"<name> (updated)"** copy is made beside it; a deleted template is not brought back; one already at the new version is skipped, which makes a second press harmless. Documents and drafts are never touched. `sign_addons.installed_version` is changed last, so a failure is repeated by pressing Update again; the database logs the change (migration 157's trigger: who, which version). To ship a new add-on version: raise `version`, add its `changes`, and move the version it replaces into `history`.
+**Add-on updates (F-81).** A manifest has a `version` ("major.minor", compared as numbers), `changes` (what each version changed, per language) and `history` (the templates of the versions it replaced). Settings > Secure Sign > Add-ons shows **Update available** with the changes, and **Update** (`POST /api/sign/addons` with `{ "key", "action": "update" }`, `sign.settings`). Per template of the add-on: a template whose content (fields, roles, form without the options a list copied in, defaults) still equals a shipped version, and whose file is the shipped file, gets a **new version**; any other template is left exactly as it is and an **"<name> (updated)"** copy is made beside it; a deleted template is not brought back; one already at the new version is skipped, which makes a second press harmless. Documents and drafts are never touched. `sign_addons.installed_version` is changed last, so a failure is repeated by pressing Update again; the database logs the change (migration 157's trigger: who, which version). To ship a new add-on version: raise `version`, add its `changes`, and move the version it replaces into `history`.
 
 **Merchant Registration 2.0.** The choices (state, country, bank, company ID type, e-invoice phase, tax type) name the shared lists and the MSIC codes are picked from the MSIC list (`optionList`); the bank account and the business registration number are sensitive (`sensitive`), the account printed on the sealed copy as its last four digits. The PDF and layout did not change (the file is drawn from the version-1.1 form, `MERCHANT_FORM_V1`). The tax identification number is not marked sensitive: it is on every e-invoice and staff need it in full. These are decisions to confirm with the owner.
 
@@ -352,9 +352,9 @@ The product word is **document collection** (people never see the word "envelope
 
 ## 8k. People who receive a copy, and the collection people model (migration 175)
 
-Two changes that go together. The owner's words for the collection screen: add each person once with a name and an email, choose **Must sign** or **Receives a copy**, and give the roles on each document when a signature block is placed, not in a table of roles per document.
+Two changes that go together. The owner's words for the collection screen: add each person once with a name and an email, choose **Signature required** or **Receives a copy**, and give the roles on each document when a signature block is placed, not in a table of roles per document.
 
-- **The collection's people.** In **People** a person has a name, an email and a type (**Must sign** or **Receives a copy**). A document of a collection with no roles of its own (an uploaded file) takes one role per person who must sign: role key = the person's own key (`pp_xxxxxxxx`), label = their name, `SignRole.source = "people"`, colour = their place 0 to 5. They are kept in step server-side while the collection is a draft (added, renamed, removed; removing a person takes the fields assigned to them off the uploaded documents), and the editor shows them locked as "from the collection's people". Max 6 people who must sign when the collection has an uploaded file (`MAX_ROLES`), 20 otherwise. A document from a template keeps the template's roles; **Match the template's roles** says which person has each (`autoMatchTemplateRoles` fills it when a role label equals a person's name, or when there is one person and one role). Code: `src/lib/sign/envelopes/roles.ts`, `src/lib/sign/client/envelope-form.ts`.
+- **The collection's people.** In **People** a person has a name, an email and a type (**Signature required** or **Receives a copy**). A document of a collection with no roles of its own (an uploaded file) takes one role per person who must sign: role key = the person's own key (`pp_xxxxxxxx`), label = their name, `SignRole.source = "people"`, colour = their place 0 to 5. They are kept in step server-side while the collection is a draft (added, renamed, removed; removing a person takes the fields assigned to them off the uploaded documents), and the editor shows them locked as "from the collection's people". Max 6 people who must sign when the collection has an uploaded file (`MAX_ROLES`), 20 otherwise. A document from a template keeps the template's roles; **Match the template's roles** says which person has each (`autoMatchTemplateRoles` fills it when a role label equals a person's name, or when there is one person and one role). Code: `src/lib/sign/envelopes/roles.ts`, `src/lib/sign/client/envelope-form.ts`.
 - **Send.** A person who must sign signs only the documents with at least one field assigned to them; their row on the others is left off and the link is re-anchored on the first document they do sign. The problems are listed per document: `document_nobody` (nobody has anything to do on it), `person_without_work` (nothing assigned to that person anywhere), `too_many_roles` (6), `too_many_copies` (10), next to the existing `signer_name`, `signer_email`, `duplicate_person`.
 - **The table.** `sign_copy_recipients` (migration 175): one row per person per target, the target being a document on its own (`document_id`) or a document collection (`envelope_id`), exactly one of the two. `full_name`, `email` (same check as a signer), `created_by`, `notified_at`. One row per target and address, case ignored. A trigger (`sign_copy_recipients_guard`) allows a new row only while the target is a draft, sent or in progress, refuses a document of a collection (the people belong to the collection), allows at most 10 per target (counted under an advisory lock) and lets only `notified_at` change afterwards. They are not signers: no row in `sign_signers`, so progress, reminders, webhooks, the API's `signers`, the exports and "x of y signed" never see them.
 - **Access.** RLS: members with `menu.sign` read; every write is the server's (service role), and the routes check `sign.send`. Routes: `POST|PUT|GET /api/sign/documents/[id]/copies`, the same under `/api/sign/envelopes/[id]/copies`, `DELETE .../copies/[copyId]`, and the collection's `PUT .../signers` saves both lists in one call. Service: `service/copy-recipients.ts`.
@@ -381,44 +381,44 @@ Two changes that go together. The owner's words for the collection screen: add e
 
 | What you see | Likely cause and fix |
 |---|---|
-| No **Doc Sign** in the sidebar or Settings | The **Doc Sign** switch is off for the workspace, or the person's role lacks the permission. Check Platform first. |
-| Signer link says "This link is not valid" | The link was cut off, was replaced by a newer one (a reminder, resend or change of recipient replaces it), or Doc Sign is off or the workspace is suspended. |
+| No **Secure Sign** in the sidebar or Settings | The **Secure Sign** switch is off for the workspace, or the person's role lacks the permission. Check Platform first. |
+| Signer link says "This link is not valid" | The link was cut off, was replaced by a newer one (a reminder, resend or change of recipient replaces it), or Secure Sign is off or the workspace is suspended. |
 | Documents stay in **Finishing** | The scheduled job is not running (check the **Background jobs** card and the crontab), or sealing is failing: the document's page says "The last try at the signed copy did not work" with the reason, and section 9a shows how to read it. |
 | Document shows "Could not finish" | Sealing failed five times. Put the cause right (certificate, `ENCRYPTION_KEY`, a missing file) and press **Try again** on the document or the collection. The reason is on the page and in the server log (`[sign] sealing failed for ...`); section 9a. |
 | "Word conversion is not available right now" | `SIGN_CONVERTER_URL` is empty, or the container is not running or not healthy (section 3). |
 | A Word file "took too long" or "could not be converted" | Ask for a PDF. Large or unusual files can fail; the converter keeps no state. |
 | A signer cannot upload a file | It is not a PDF, JPEG or PNG, or it is over the field's limit (section 8), or the document has reached 50 MB of uploads. |
-| Nobody receives invitations | The workspace has no connected mailbox that can send and `RESEND_API_KEY` is not set (section 1), or the mail is in spam. The document's page says when a message could not be delivered, and why. **Settings > Doc Sign > General > Email** shows which way email goes and can send a test (section 9b). |
+| Nobody receives invitations | The workspace has no connected mailbox that can send and `RESEND_API_KEY` is not set (section 1), or the mail is in spam. The document's page says when a message could not be delivered, and why. **Settings > Secure Sign > General > Email** shows which way email goes and can send a test (section 9b). |
 | Invitations say "Reason: the connected mailbox needs to be reconnected" | The mailbox's access was revoked or has expired (a password change, an administrator removing the app's consent, a Microsoft refresh token not used for 90 days). Reconnect it in Settings > Channels. Until then the platform sender is used when `RESEND_API_KEY` is set, otherwise nothing is sent. |
-| Invitations say "Reason: the mailbox has reached its limit on messages sent in one day" | Gmail allows about 500 a day for a consumer account and 2,000 for Google Workspace; Exchange Online about 10,000 recipients a day. Doc Sign stops asking for ten minutes and reports the same reason for every message in that time. The limit resets within 24 hours; use **Resend** on the people who were missed (a bulk send settles as sent with these people marked "did not arrive"). |
-| Invitations say "Reason: ... asked us to slow down" | The mailbox sent too fast (Gmail: a few a second; Exchange Online: about 30 messages a minute). Doc Sign spaces its sends out and waits once for the time Microsoft names; a long bulk send can still hit it. Use **Resend** a minute later. |
+| Invitations say "Reason: the mailbox has reached its limit on messages sent in one day" | Gmail allows about 500 a day for a consumer account and 2,000 for Google Workspace; Exchange Online about 10,000 recipients a day. Secure Sign stops asking for ten minutes and reports the same reason for every message in that time. The limit resets within 24 hours; use **Resend** on the people who were missed (a bulk send settles as sent with these people marked "did not arrive"). |
+| Invitations say "Reason: ... asked us to slow down" | The mailbox sent too fast (Gmail: a few a second; Exchange Online: about 30 messages a minute). Secure Sign spaces its sends out and waits once for the time Microsoft names; a long bulk send can still hit it. Use **Resend** a minute later. |
 | A signed copy arrives without its file and with a link | The file is over what the way email goes can carry (2.5 MB through Microsoft 365, 17 MB through Gmail, 20 MB through the platform sender). The signer's message links to their copy; people who only receive a copy are given the public check page and told to ask the sender. |
-| WhatsApp invitation not delivered | The workspace has no approved message template set in Settings > Doc Sign > General, or its WhatsApp channel is off. |
+| WhatsApp invitation not delivered | The workspace has no approved message template set in Settings > Secure Sign > General, or its WhatsApp channel is off. |
 | Chinese or Korean text appears as `?` | No CJK font (section 5). |
-| A template cannot be saved: "the list ... does not exist" | A field names an option list the workspace does not have (it was typed in by hand or the lists were never seeded). Open Settings > Doc Sign > Lists, which seeds the system lists, and choose an existing list. |
+| A template cannot be saved: "the list ... does not exist" | A field names an option list the workspace does not have (it was typed in by hand or the lists were never seeded). Open Settings > Secure Sign > Lists, which seeds the system lists, and choose an existing list. |
 | A signer cannot find a code in the MSIC picker | The code is not in the list (MSIC 2008 has 1,174 classes), or the form was sent before the code was added: a document keeps the list it was sent with. An admin can add the code to the list; a new document picks it up. |
 | "Monthly limit reached" when sending | The workspace is at its **Signing documents per month** limit. Raise or clear it in Platform. |
 | A bulk send stays on **Waiting to start** | The scheduled job is not running (section 4), or the workspace is suspended. |
 | A bulk send says "Three bulk sends are already running" | The workspace has three batches queued or running. Wait for one to finish or cancel one. |
 | Rows of a bulk send are **Failed** with "monthly limit" | The workspace reached **Signing documents per month** part way. Raise it in Platform, then send those people again in a new batch. |
-| A registration page says "not available" | The form is switched off or its address was replaced (**New address**), Doc Sign is off for the workspace or it is suspended, or the link was typed wrong. All look the same on purpose. |
+| A registration page says "not available" | The form is switched off or its address was replaced (**New address**), Secure Sign is off for the workspace or it is suspended, or the link was typed wrong. All look the same on purpose. |
 | A registration page says "not available right now" | The server has no `ENCRYPTION_KEY` (section 1): it cannot sign the page's token. |
-| An applicant says no email came | Open **Settings > Doc Sign > Registration forms > Recent activity**. "The document was made but the email could not be delivered" means email is not set up or could not be sent (section 1: a connected mailbox, or `RESEND_API_KEY` and its sender domain) (the document is open; resend it from its page, the reason is on it). "The monthly limit of documents is reached" means the Platform limit (section 2). A repeat within a day is not sent again. |
+| An applicant says no email came | Open **Settings > Secure Sign > Registration forms > Recent activity**. "The document was made but the email could not be delivered" means email is not set up or could not be sent (section 1: a connected mailbox, or `RESEND_API_KEY` and its sender domain) (the document is open; resend it from its page, the reason is on it). "The monthly limit of documents is reached" means the Platform limit (section 2). A repeat within a day is not sent again. |
 | Every visitor to a registration page is told "too many tries" | The proxy count is wrong (`TRUSTED_PROXY_HOPS`, section 8d): all visitors look like one address. |
 | The Turnstile box never appears | One of the two keys is missing (the page then has no check at all), or the browser blocks `challenges.cloudflare.com`. The page says the check could not load and the button stays off until it does. |
 | A signer sees no "Forward" link | Forwarding is off for the document (section 8g), the position already forwarded twice, or the person was handed one part (a delegate cannot pass it on). |
 | A forward fails with "That person is already on this document" | The address belongs to someone on the document for the same role (or to anyone on it, when the document needs signing order). |
 | A person handed a part says they cannot see the document | By design: they see only that part, not the pages, and are not sent the signed copy. |
-| Add-on card says "Not available" | **Doc Sign: Merchant Registration** is off for the workspace (section 2). |
+| Add-on card says "Not available" | **Secure Sign: Merchant Registration** is off for the workspace (section 2). |
 | PDF reader says the signature is not trusted | Expected with the self-signed certificate (section 6). |
-| An API call answers `403 sign_disabled` | **Doc Sign** is off for the workspace, or the workspace is suspended (section 2). A key cannot switch it on. |
+| An API call answers `403 sign_disabled` | **Secure Sign** is off for the workspace, or the workspace is suspended (section 2). A key cannot switch it on. |
 | An API call answers `403 forbidden` | The key lacks `sign:read` (reads and downloads) or `sign:write` (create, send, remind, cancel). Make a new key with the scope; scopes cannot be added to an existing key (section 8b). |
 | The API client retries and the merchant gets two documents | The call had no `reference`. With a `reference`, a retry returns the first document (`Idempotent-Replay: true`) and sends nothing. |
 
 ## 9a. A signed copy does not appear: find the real reason
 
 The signer's page shows a spinner for two minutes, says "longer than usual", and after ten minutes stops spinning and says the copy will be emailed. The
-sender's page says why (people with Doc Sign settings) and offers **Try again**. To read the same reasons on the server:
+sender's page says why (people with Secure Sign settings) and offers **Try again**. To read the same reasons on the server:
 
 ```bash
 ssh root@YOUR-SERVER
@@ -453,11 +453,11 @@ is sealed at once, and its state is shown in the list, not as "everyone has sign
 
 ## 9b. Which way email goes, and why a message did not arrive
 
-For each message Doc Sign asks the workspace's connected mailboxes first: a Microsoft 365 mailbox that can send, else a Gmail mailbox that can send; a
+For each message Secure Sign asks the workspace's connected mailboxes first: a Microsoft 365 mailbox that can send, else a Gmail mailbox that can send; a
 mailbox that is switched off in Settings > Channels, or needs reconnecting, is skipped. With none ready, the platform sender (`RESEND_API_KEY`) is used.
 With neither, the message is not sent and the person's row says so. There is no "primary email channel" setting: Microsoft 365 wins when both are connected.
 
-**Settings > Doc Sign > General > Email** (people with Doc Sign settings) names the one in use, for example "Sent from support@vircle.com via your connected
+**Settings > Secure Sign > General > Email** (people with Secure Sign settings) names the one in use, for example "Sent from support@vircle.com via your connected
 Microsoft 365 mailbox", says when a connected mailbox cannot send and why the platform sender is used instead, links to where the mailbox is connected, and
 **Send a test email to me** sends one short message to the signed-in person's own address the same way (five an hour). A test that fails shows the reason.
 
@@ -477,19 +477,19 @@ screen that sent it, on the person's row in the people list and in the toast of 
 
 Anything else shows what the provider said. A message accepted by the provider and bounced later is not known to Halo (the bounce goes to the mailbox).
 
-## 9c. Mail Doc Sign sends is never read into the shared inbox
+## 9c. Mail Secure Sign sends is never read into the shared inbox
 
 Mail sent through a connected mailbox can come back to Halo's own inbox ingestion: a message addressed to the mailbox itself (a test email, a copy to the
-sender's own address) is delivered to its Inbox, and a bounce of a message Doc Sign sent arrives there too. The inbox is read by everyone with inbox access,
+sender's own address) is delivered to its Inbox, and a bounce of a message Secure Sign sent arrives there too. The inbox is read by everyone with inbox access,
 and these messages hold a person's signing link or a signed document, so Halo refuses them on the ingestion path, by independent signals:
 
-- every Doc Sign message carries the header `X-Halo-Sign: 1` (the Microsoft 365 webhook reads it from `internetMessageHeaders`, the Gmail webhook from the
+- every Secure Sign message carries the header `X-Halo-Sign: 1` (the Microsoft 365 webhook reads it from `internetMessageHeaders`, the Gmail webhook from the
   message headers), and is refused when it has it;
 - a delivery-failure notice that quotes the original's headers is refused when the quoted text has the header (Exchange puts them in the body; Gmail in a
   `text/rfc822-headers` part);
 - Gmail only: the label `SENT` (Gmail's own statement that the mailbox sent it) is refused;
 - a message from the mailbox's own address (`from` or `sender`) is refused.
 
-Not covered: a person who replies to a Doc Sign email. The reply is an ordinary message from that person and becomes a conversation, quoting their own link
+Not covered: a person who replies to a Secure Sign email. The reply is an ordinary message from that person and becomes a conversation, quoting their own link
 (set a Reply-To address in the workspace's email identity to send replies elsewhere). A bounce whose original headers the provider leaves out cannot be
 recognised; it contains the recipient's address and the subject, not the link.

@@ -58,7 +58,7 @@ describe("the Microsoft 365 mailbox state", () => {
 });
 
 describe("sending through the Microsoft 365 mailbox", () => {
-  it("sends as the mailbox with the Doc Sign marker, keeps no copy in Sent Items, and takes only X- headers", async () => {
+  it("sends as the mailbox with the Secure Sign marker, keeps no copy in Sent Items, and takes only X- headers", async () => {
     const w = world(row());
     const state = ready(await loadMs365Mailbox("A", { headers: { "X-Halo-Sign": "1" } }, w.deps));
     expect(state.attachBytes).toBe(MS365_ATTACH_BYTES);

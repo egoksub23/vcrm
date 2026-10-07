@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.83.0] — 2026-10-08
+
+No migration.
+
+### Changed
+
+- **Doc Sign is now Secure Sign** everywhere a person reads it: the sidebar (which now sits directly below Incidents), Settings, the signing page header ("Vircle Secure Sign"), emails, the certificate and seal text of newly signed documents, the verify page, the help articles and the operator docs, in all four languages. Web addresses, permission and feature keys and already-signed documents are unchanged.
+- **The People step:** a person's card has the full name with the email directly under it, and "What they do" as two radio buttons, **Signature required** or **Receives a copy** ("Must sign" is now "Signature required" everywhere). The "Send the link by" choice is gone from this screen: links go by email. A draft that already holds a person set to WhatsApp keeps it and shows a "Sent by WhatsApp" note.
+
 ## [0.82.0] — 2026-10-08
 
 No migration. (0.81.0's migration 177 is still needed if not yet applied.)

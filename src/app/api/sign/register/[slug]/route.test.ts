@@ -53,7 +53,7 @@ describe("POST /api/sign/register/[slug]", () => {
     }
   });
 
-  it("answers an unknown, switched-off or Doc Sign-off page with one 404 that says nothing else", async () => {
+  it("answers an unknown, switched-off or Secure Sign-off page with one 404 that says nothing else", async () => {
     submitRegistration.mockResolvedValue({ kind: "not_found" });
     const a = await call({}, {}, "merchant-sign-up-7k2m9x4q");
     const b = await call({}, {}, "nothing-here-aaaaaaaa");

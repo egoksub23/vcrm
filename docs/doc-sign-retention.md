@@ -1,4 +1,4 @@
-# Doc Sign: retention (what is enforced, what is not, what the owner must decide)
+# Secure Sign: retention (what is enforced, what is not, what the owner must decide)
 
 Applies from migration `165_sign_retention.sql`. Proved by `supabase/ci/verify-165-sign-retention.sql`.
 

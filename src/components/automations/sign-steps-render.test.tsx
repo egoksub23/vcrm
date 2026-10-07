@@ -85,7 +85,7 @@ const flow = (node: React.ReactNode) => (
   <AiFlowProvider value={{ steps: [{ cid: "s", step_type: "send_sign_document", step_config: {} }], triggerType: "sign_document_event" }}>{node}</AiFlowProvider>
 )
 
-describe.each(["en", "ms", "zh", "ko"])("the Doc Sign trigger and step render with %s messages", (locale) => {
+describe.each(["en", "ms", "zh", "ko"])("the Secure Sign trigger and step render with %s messages", (locale) => {
   const b = () => load(locale).Automations.builder
   const s = () => b().sign
 

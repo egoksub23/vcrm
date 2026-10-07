@@ -96,16 +96,16 @@ describe("the People step of a draft collection", () => {
       expect(html).not.toContain("up1");
       expect(html).not.toContain("Scanned contract");
       expect(html).not.toMatch(/Role on|Not on this document/);
-      // the type select holds the person's type
-      expect(html).toMatch(/<select id="pp_aaaaaaaa-type"[^>]*>/);
-      expect(html).toMatch(/<option value="signer" selected/);
-      expect(html).toMatch(/<option value="copy" selected/);
+      // the type is two radio buttons (no select), each person's own pair holding their type
+      expect(html).not.toContain("<select");
+      expect(html).toMatch(/<input type="radio"[^>]*name="pp_aaaaaaaa-type"[^>]*checked=""[^>]*value="signer"/);
+      expect(html).toMatch(/<input type="radio"[^>]*name="pp_cccccccc-type"[^>]*checked=""[^>]*value="copy"/);
     });
 
-    it(`gives a person who must sign a channel, and a person who receives a copy only a name, an email and a line (${locale})`, () => {
+    it(`gives a person who must sign a step but no channel, and a person who receives a copy only a name, an email and a line (${locale})`, () => {
       const html = people(locale, { ordered: true });
       const [signerCard, copyCard] = html.split("<li ").slice(1);
-      expect(signerCard).toContain("pp_aaaaaaaa-channel");
+      expect(signerCard).not.toContain("pp_aaaaaaaa-channel");
       expect(signerCard).toContain("pp_aaaaaaaa-step");
       expect(signerCard).not.toContain(words("copyLine"));
       expect(copyCard).not.toContain("pp_cccccccc-channel");
@@ -162,19 +162,25 @@ describe("the People step of a draft collection", () => {
   it("shows nothing to edit to someone who cannot send", () => {
     const html = people("en", { readOnly: true });
     expect(openingTagOfButtonWith(html, "Add a person")).toMatch(DISABLED);
-    expect(html).toMatch(/<select id="pp_aaaaaaaa-type"[^>]*disabled/);
+    expect(html.match(/<input type="radio"[^>]*>/g)).toHaveLength(4);
+    expect(html.match(/<input type="radio"[^>]*>/g)?.every((r) => DISABLED.test(r))).toBe(true);
   });
 
   it("switches a person to receive a copy: the channel and the step are gone from their card", () => {
     const start = [person({ channel: "whatsapp", phone: "+60123456789" })];
-    expect(people("en", { people: start, ordered: true })).toContain("pp_aaaaaaaa-phone");
+    // a person saved earlier with WhatsApp keeps their number and is told so; nothing offers a channel
+    const before = people("en", { people: start, ordered: true });
+    expect(before).toContain("pp_aaaaaaaa-phone");
+    expect(before).toContain("Sent by WhatsApp");
+    expect(before).not.toContain("pp_aaaaaaaa-channel");
     const next = setPersonType(start, "pp_aaaaaaaa", "copy", [uploaded]);
     const html = people("en", { people: next, ordered: true });
     expect(html).not.toContain("pp_aaaaaaaa-channel");
     expect(html).not.toContain("pp_aaaaaaaa-phone");
     expect(html).not.toContain("pp_aaaaaaaa-step");
+    expect(html).not.toContain("Sent by WhatsApp");
     expect(html).toContain("They get the signed copy by email");
-    expect(html).toMatch(/<option value="copy" selected/);
+    expect(html).toMatch(/<input type="radio"[^>]*name="pp_aaaaaaaa-type"[^>]*checked=""[^>]*value="copy"/);
   });
 
   it("wires a chosen contact to the person: name and email filled, the email still editable, the contact never saved", () => {

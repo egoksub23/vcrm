@@ -125,7 +125,7 @@ describe("who may install", () => {
     expect(t.db.rows("sign_addons")).toHaveLength(0);
   });
 
-  it("refuses when Doc Sign itself is off, even if the add-on flag is on", async () => {
+  it("refuses when Secure Sign itself is off, even if the add-on flag is on", async () => {
     t = setup({ sign: false, sign_merchant: true });
     await expect(installAddon(t.ctx, "merchant")).rejects.toMatchObject({ code: "addon_not_available" });
   });

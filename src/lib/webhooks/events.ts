@@ -28,7 +28,7 @@ export const WEBHOOK_EVENT_DESCRIPTIONS: Record<WebhookEvent, string> = {
   'message.status_updated':
     'A message you sent changed delivery status (sent/delivered/read/failed)',
   'conversation.created': 'A new conversation was opened',
-  'sign.sent': 'A Doc Sign document was sent for signing',
+  'sign.sent': 'A Secure Sign document was sent for signing',
   'sign.viewed': 'A signer opened their signing link for the first time',
   'sign.completed': 'Every signer signed: the sealed file is ready (carries its SHA-256 and the public verify page)',
   'sign.declined': 'A signer declined to sign',

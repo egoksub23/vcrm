@@ -113,7 +113,7 @@ describe("parseUpdateTenant", () => {
     expect(parseUpdateTenant({ limits: { contacts: null, storage_mb: null } }).ok).toBe(true);
   });
 
-  it("accepts the Doc Sign limit (migration 157) and the two Doc Sign switches", () => {
+  it("accepts the Secure Sign limit (migration 157) and the two Secure Sign switches", () => {
     expect(parseUpdateTenant({ limits: { sign_documents_per_month: 200 } })).toEqual({
       ok: true,
       value: { limits: { sign_documents_per_month: 200 } },

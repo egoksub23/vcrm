@@ -31,7 +31,7 @@ All the documents are sent together or not at all. If one of them is not ready, 
 
 In **People** you add a person with a **name** and an **email**, and you choose what they are:
 
-- **Must sign** is a person who signs, or fills in, their part of the documents.
+- **Signature required** is a person who signs, or fills in, their part of the documents.
 - **Receives a copy** is a person who does not sign but should get the signed documents. See [Receive a copy of the signed document](/help/doc-sign/copies).
 
 If you type a name that is in your contacts, Halo offers the contact. Choosing it fills in the name and the email, and you can still edit the email. If the contact has no email, type it yourself.

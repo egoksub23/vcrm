@@ -9,7 +9,7 @@ Every completed document is sealed with a digital certificate. The seal is how a
 
 ## Before you start
 
-Open **Settings**, then **Doc Sign**, then **Sealing certificate**. Seeing the certificate is for anyone who can manage Doc Sign settings, and so is installing or removing one.
+Open **Settings**, then **Secure Sign**, then **Sealing certificate**. Seeing the certificate is for anyone who can manage Secure Sign settings, and so is installing or removing one.
 
 ## Two kinds of certificate
 

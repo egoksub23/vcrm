@@ -72,7 +72,7 @@ describe('usageMeters', () => {
     expect(usageMeters(null)).toEqual([])
   })
 
-  it('shows the Doc Sign meter only for a workspace that has a limit on it or has sent something', () => {
+  it('shows the Secure Sign meter only for a workspace that has a limit on it or has sent something', () => {
     const keys = (u: AccountUsage) => usageMeters(u).map((m) => m.key)
     expect(keys(usage())).not.toContain('sign_documents_per_month')
     expect(keys(usage({ sign_documents_month: 0 }))).not.toContain('sign_documents_per_month')

@@ -492,7 +492,7 @@ export async function runBulk(base: Base, opts: { limit?: number; perAccount?: n
     // the module was switched off since the batch was made
     if (!enabled.has(job.account_id)) enabled.set(job.account_id, await signEnabled(base.admin, job.account_id));
     if (!enabled.get(job.account_id)) {
-      const why = { code: "sign_disabled", message: "Doc Sign was switched off for this workspace." };
+      const why = { code: "sign_disabled", message: "Secure Sign was switched off for this workspace." };
       stopped.set(job.id, why);
       await finishRow(ctx, row, { state: "skipped", error_code: why.code, error_message: why.message });
       await stop(job, "failed", "skipped", why.code, why.message);

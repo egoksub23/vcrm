@@ -1,11 +1,11 @@
 ---
-title: "Vircle Doc Sign: feature set"
+title: "Vircle Secure Sign: feature set"
 subtitle: "Document 1 of 3 for review. Requirements, scope and acceptance, revised 6 Oct 2026 (third revision)"
 ---
 
 # 1. Purpose and how to review this document
 
-Vircle Doc Sign is a native document-signing module inside Halo. It works on **any document**: upload
+Vircle Secure Sign is a native document-signing module inside Halo. It works on **any document**: upload
 a PDF, a Word file or an image, place signing locations, text, date and number fields on it, name
 the people who must sign (in a set order if you wish), send it for electronic signature, store the
 signed result safely, and manage documents afterwards. Documents are organised into **categories**,
@@ -55,17 +55,17 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
    certificate. A licensed certificate-authority signature is a P3 option, pending legal advice.
 6. Signed documents are **kept for a configurable period** (proposed default 7 years), even if the
    workspace is deleted, as an explicit exception. This needs your decision.
-7. The product name is **Vircle Doc Sign**; the sidebar says "Doc Sign". Customer-facing pages and
+7. The product name is **Vircle Secure Sign**; the sidebar says "Secure Sign". Customer-facing pages and
    emails use the workspace's name and "Halo". Because Halo's help pages must not name Vircle, the
-   Doc Sign help pages are owner-only while the module is Vircle-only. If it is later sold to
+   Secure Sign help pages are owner-only while the module is Vircle-only. If it is later sold to
    customers, the brand on customer-facing wording is a decision to take then.
 
 # 2. Who uses it
 
 | Person | What they do | Where |
 |---|---|---|
-| **Sender** (onboarding or sales agent) | Uploads or picks a document, lists the signers, sends, follows progress, resends, voids | Halo, Doc Sign section and contact page |
-| **Template owner** (operations lead) | Builds and versions templates, fixes field positions and merge keys | Halo, Doc Sign > Templates |
+| **Sender** (onboarding or sales agent) | Uploads or picks a document, lists the signers, sends, follows progress, resends, voids | Halo, Secure Sign section and contact page |
+| **Template owner** (operations lead) | Builds and versions templates, fixes field positions and merge keys | Halo, Secure Sign > Templates |
 | **Signer** (merchant, no account) | Opens a link, reviews, fills fields, signs, downloads a copy | A public page on a phone or computer |
 | **Countersigner** (Vircle director) | Signs after the merchant, inside Halo | Halo, "Awaiting my signature" |
 | **Reviewer** (compliance, audit) | Reads the audit trail, verifies a document is untampered | Halo and the public verify page |
@@ -194,7 +194,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 
 | Id | Requirement | Pri |
 |---|---|---|
-| F-73 | **Upload and prepare any document.** From Doc Sign, a contact or a ticket, upload a PDF, Word file or image, place fields with the full editor and send, with no template. "Save as template" is one click at any point. | P1 |
+| F-73 | **Upload and prepare any document.** From Secure Sign, a contact or a ticket, upload a PDF, Word file or image, place fields with the full editor and send, with no template. "Save as template" is one click at any point. | P1 |
 | F-74 | **Word files are converted to PDF** before preparing. The editor shows the converted pages with the notice "This is exactly what will be signed"; the original Word file is kept with the document. If conversion fails, the message tells the sender to save as PDF and upload that. | P1 |
 | F-75 | Images become one-page PDFs (a photographed form, a scan). | P1 |
 | F-76 | Insert signing locations, text, dates, numbers and the other field types in F-03 anywhere on any page of any uploaded document. | P1 |
@@ -204,9 +204,9 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 
 | Id | Requirement | Pri |
 |---|---|---|
-| F-78 | **Categories.** Every template and document has a category (the starting set is **Merchant agreements, NDA, Partnership and Sales**). Workspaces create, rename and archive their own. Lists filter by category. A category carries defaults that override the workspace defaults: expiry, reminders, code required, a preset for the signing-order checkbox, consent wording, retention. The four starting categories exist for every workspace using Doc Sign; Merchant agreements is filled by the Merchant Registration add-on and the others start empty for the workspace's own templates. | P1 |
+| F-78 | **Categories.** Every template and document has a category (the starting set is **Merchant agreements, NDA, Partnership and Sales**). Workspaces create, rename and archive their own. Lists filter by category. A category carries defaults that override the workspace defaults: expiry, reminders, code required, a preset for the signing-order checkbox, consent wording, retention. The four starting categories exist for every workspace using Secure Sign; Merchant agreements is filled by the Merchant Registration add-on and the others start empty for the workspace's own templates. | P1 |
 | F-79 | **Add-ons** are ready-made packs for a business process. Each can contain a category, templates, contact fields, wording and, later, an automation recipe and a registration form. The first add-on is **Merchant Registration**. | P1 |
-| F-80 | **Operator control.** Which add-ons a workspace may use is switched in the Platform console. A workspace Owner or Admin installs an available add-on from Settings > Doc Sign > Add-ons. Installing again never overwrites what the workspace has changed. | P1 |
+| F-80 | **Operator control.** Which add-ons a workspace may use is switched in the Platform console. A workspace Owner or Admin installs an available add-on from Settings > Secure Sign > Add-ons. Installing again never overwrites what the workspace has changed. | P1 |
 | F-81 | **Add-on updates.** A new version shows as "Update available" with a list of changes; applying it creates new template versions and never alters sent documents. | P2 |
 
 **What the Merchant Registration add-on contains:** the category *Merchant agreements*; the template
@@ -307,7 +307,7 @@ reads the completion email.
 
 | Permission | Allows | Default roles |
 |---|---|---|
-| `menu.sign` | See Doc Sign, its documents, templates and audit trail | Agent, Admin, Owner |
+| `menu.sign` | See Secure Sign, its documents, templates and audit trail | Agent, Admin, Owner |
 | `sign.send` | Create and send documents, remind, resend | Agent, Admin, Owner |
 | `sign.void` | Void a document, change a recipient | Admin, Owner |
 | `sign.templates` | Create, edit and archive templates | Admin, Owner |
@@ -376,7 +376,7 @@ agreed time.
 | Who fills and who signs | The sender can say in advance which fields and parts are filled or signed by whom (roles), and a signer can forward their turn or a part to someone else (the sender may switch forwarding off). |
 | Signer's download | Only after the document is completed. |
 | Signing page look | Workspace logo and name (my suggestion, accepted). |
-| Name in the sidebar | "Doc Sign". |
+| Name in the sidebar | "Secure Sign". |
 
 **Parked or not needed now:** order of the application parts (as drawn in the UX document); asking the legal name once and a trading name only if different (both fields as on your sample); anything else missing from the screens (none for now).
 

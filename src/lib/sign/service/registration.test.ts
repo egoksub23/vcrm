@@ -166,12 +166,12 @@ afterEach(() => {
 });
 
 describe("a registration page that is not there", () => {
-  it("answers the same for an unknown address, a switched-off form, Doc Sign off, a suspended workspace and a malformed address", async () => {
+  it("answers the same for an unknown address, a switched-off form, Secure Sign off, a suspended workspace and a malformed address", async () => {
     await setup({ active: false });
     const cases: [string, () => void][] = [
       ["unknown", () => {}],
       ["switched off", () => {}],
-      ["Doc Sign off", () => { db.rows("sign_registration_forms")[0].active = true; db.rows("account_platform")[0].features = { sign: false }; }],
+      ["Secure Sign off", () => { db.rows("sign_registration_forms")[0].active = true; db.rows("account_platform")[0].features = { sign: false }; }],
       ["suspended", () => { db.rows("account_platform")[0].features = { sign: true }; db.rows("account_platform")[0].status = "suspended"; }],
     ];
     const slugs = ["merchant-sign-up-aaaaaaaa", SLUG, SLUG, SLUG];

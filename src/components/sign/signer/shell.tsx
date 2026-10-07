@@ -46,7 +46,7 @@ export function Shell({ workspace, locale, onLocaleChange, product, wide, bottom
               <img src={workspace.logoUrl} alt={workspace.name} className="h-9 max-w-[7rem] shrink-0 object-contain" referrerPolicy="no-referrer" />
             ) : null}
             <div className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-semibold">Vircle Doc Sign</span>
+              <span className="block truncate text-sm font-semibold">Vircle Secure Sign</span>
               {workspace ? <span className="block truncate text-xs text-muted-foreground">{workspace.name}</span> : null}
             </div>
           </div>

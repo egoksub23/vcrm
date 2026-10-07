@@ -91,8 +91,8 @@ export async function renderMerchantPdf(layout: MerchantLayout = buildMerchantLa
   const summary = summarize(layout);
   doc.setTitle("Merchant Application / Permohonan Peniaga");
   doc.setSubject(`layout:${summarySha256(summary)}`);
-  doc.setProducer("Halo Doc Sign");
-  doc.setCreator("Halo Doc Sign");
+  doc.setProducer("Vircle Secure Sign");
+  doc.setCreator("Vircle Secure Sign");
   doc.setCreationDate(new Date("2026-10-06T00:00:00Z"));
   doc.setModificationDate(new Date("2026-10-06T00:00:00Z"));
   return doc.save({ useObjectStreams: false });

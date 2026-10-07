@@ -5,7 +5,7 @@ order: 22
 updated: 2026-10-07
 ---
 
-Two things in Doc Sign help when the right person is not the first one to open the link:
+Two things in Secure Sign help when the right person is not the first one to open the link:
 
 - **Signing together.** People who share a step sign at the same time, instead of one after another.
 - **Forwarding.** A signer hands their turn, or one part of a form, to a colleague, and you can see exactly who did what.

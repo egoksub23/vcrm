@@ -119,6 +119,33 @@ describe("the people", () => {
     expect(JSON.stringify(payload)).not.toContain("contactId");
   });
 
+  it("sends every person made on the People screen by email, and keeps a person saved earlier with WhatsApp as they were", () => {
+    const upload = [{ id: "up", position: 1, title: "Scan", roles: [], fromTemplate: false }];
+    let list = addPerson([], docs, "signer", { fullName: "Ali", email: "ali@example.com", phone: "+60123456789", contactId: "c1" });
+    list = updatePerson(list, list[0].key, { email: "ali@vircle.example" });
+    list = addPerson(list, docs, "signer", { fullName: "Bea", email: "bea@example.com" });
+    expect(list.every((p) => p.channel === "email")).toBe(true);
+    expect(peoplePayload(list, upload, false).map((p) => p.channel)).toEqual(["email", "email"]);
+    // a person who was saved with WhatsApp (an earlier draft) is not changed behind anyone's back
+    const saved = [...list, ali({ key: "wa", fullName: "Wati", email: "wati@example.com", channel: "whatsapp", phone: "+60 12-345 6789" })];
+    const payload = peoplePayload(saved, upload, false);
+    expect(payload.find((p) => p.key === "wa")).toMatchObject({ channel: "whatsapp", phone: "+60123456789", type: "signer" });
+    expect(payload.filter((p) => p.key !== "wa").map((p) => p.channel)).toEqual(["email", "email"]);
+    // and still not complete without a number
+    expect(personIsComplete(ali({ channel: "whatsapp", phone: "" }), upload)).toBe(false);
+  });
+
+  it("saves a person who receives a copy with no signing options, whatever they had before they were switched", () => {
+    const upload = [{ id: "up", position: 1, title: "Scan", roles: [], fromTemplate: false }];
+    const before = [ali({ key: "p1", channel: "whatsapp", phone: "+60123456789", step: 4, roles: { d1: "merchant" } })];
+    const copy = setPersonType(before, "p1", "copy", docs);
+    expect(copy[0]).toMatchObject({ type: "copy", channel: "email", phone: "", step: 1, roles: {} });
+    // complete with only a name and an email: no phone, no step, no role, no place on a document
+    expect(personIsComplete(copy[0], upload)).toBe(true);
+    expect(personIsComplete({ ...copy[0], phone: "", step: 0 }, [])).toBe(true);
+    expect(peoplePayload(copy, upload, true)).toEqual([{ fullName: "Ali", email: "ali@example.com", phone: null, channel: "email", step: 1, roles: {}, type: "copy", key: "p1" }]);
+  });
+
   it("stops at 20 who must sign and at 10 who receive a copy", () => {
     let list: EnvelopePerson[] = [];
     for (let i = 0; i < MAX_SIGNERS + 3; i++) list = addPerson(list, docs, "signer", { fullName: `S${i}` });

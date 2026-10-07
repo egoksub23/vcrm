@@ -9,5 +9,5 @@ import type { SignCtx } from "./context";
 import { SignError } from "./errors";
 
 export async function assertSignOn(ctx: Pick<SignCtx, "admin" | "accountId">): Promise<void> {
-  if (!(await signEnabled(ctx.admin, ctx.accountId))) throw new SignError("sign_disabled", "Doc Sign is not switched on for this workspace.", 403);
+  if (!(await signEnabled(ctx.admin, ctx.accountId))) throw new SignError("sign_disabled", "Secure Sign is not switched on for this workspace.", 403);
 }

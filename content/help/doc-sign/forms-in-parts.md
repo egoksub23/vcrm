@@ -43,7 +43,7 @@ For what the signer sees step by step, see [What the signer sees](/help/doc-sign
 
 ## Follow the progress
 
-Open the document from **Doc Sign**, then **Documents**. A document with a form opens on the **Progress** tab. It refreshes by itself every few seconds while the document is open.
+Open the document from **Secure Sign**, then **Documents**. A document with a form opens on the **Progress** tab. It refreshes by itself every few seconds while the document is open.
 
 For each person you see:
 
@@ -56,7 +56,7 @@ Below that are **the answers so far**, grouped by part. They are read only and s
 If an answer will not fit where it prints, a warning at the top of the page names it.
 
 > [!IMPORTANT]
-> Answers can hold personal and financial details. You see them only if your role may see Doc Sign. Do not copy them into messages or tickets unless you need to.
+> Answers can hold personal and financial details. You see them only if your role may see Secure Sign. Do not copy them into messages or tickets unless you need to.
 
 ## Remind about unfinished parts
 

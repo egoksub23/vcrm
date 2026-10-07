@@ -58,7 +58,7 @@ describe("the Gmail mailbox state", () => {
 });
 
 describe("sending through the Gmail mailbox", () => {
-  it("sends as the mailbox, under the workspace's name, with Reply-To, the Doc Sign marker and the files", async () => {
+  it("sends as the mailbox, under the workspace's name, with Reply-To, the Secure Sign marker and the files", async () => {
     const w = world(row());
     const state = ready(await loadGmailMailbox("A", { headers: { "X-Halo-Sign": "1" } }, w.deps));
     expect(state.attachBytes).toBe(GMAIL_ATTACH_BYTES);

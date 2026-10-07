@@ -41,7 +41,7 @@ describe("deliverInvitation", () => {
     expect(d.sentWa).toHaveLength(0);
   });
 
-  it("uses the sender name from Doc Sign settings when there is one", async () => {
+  it("uses the sender name from Secure Sign settings when there is one", async () => {
     const d = deps();
     await deliverInvitation(admin, d, "https://x", doc, { ...ws, settings: { ...ws.settings!, sender_name: "Vircle Merchant Team" } }, inv());
     expect(d.sentEmails[0].fromName).toBe("Vircle Merchant Team");

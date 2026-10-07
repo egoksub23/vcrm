@@ -118,7 +118,7 @@ describe("loadVerification", () => {
     expect(await loadVerification(db.client(), "not-an-id")).toBeNull();
   });
 
-  it("says nothing when the workspace has Doc Sign off or is suspended", async () => {
+  it("says nothing when the workspace has Secure Sign off or is suspended", async () => {
     replace("account_platform", [{ account_id: ACCT, status: "active", features: { sign: false }, limits: {} }]);
     expect(await loadVerification(db.client(), DOC)).toBeNull();
     replace("account_platform", [{ account_id: ACCT, status: "suspended", features: { sign: true }, limits: {} }]);

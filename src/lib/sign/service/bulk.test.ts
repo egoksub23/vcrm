@@ -473,7 +473,7 @@ describe("runBulk", () => {
     expect(job()).toMatchObject({ status: "failed", error_code: "template_not_active" });
   });
 
-  it("does not send for a workspace whose Doc Sign was switched off, and says so", async () => {
+  it("does not send for a workspace whose Secure Sign was switched off, and says so", async () => {
     seedJob(PEOPLE);
     db.rows("account_platform")[0].features = { sign: false };
     await run();
@@ -656,7 +656,7 @@ describe("copy recipients of a batch", () => {
     expect(copyRows().some((c) => c.email === "gokula@vircle.example")).toBe(false);
   });
 
-  it("never makes a document private (migration 176): a batch is the workspace's own work, seen by everyone with Doc Sign", async () => {
+  it("never makes a document private (migration 176): a batch is the workspace's own work, seen by everyone with Secure Sign", async () => {
     seedJob(PEOPLE.slice(0, 2), {}, { options: options({ copyTo: COPIES }) });
     await run();
     expect(db.rows("sign_documents")).toHaveLength(2);

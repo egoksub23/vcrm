@@ -5,7 +5,7 @@ order: 9
 updated: 2026-10-06
 ---
 
-Doc Sign keeps two kinds of proof for every document: a **history** of what happened, and a **sealed PDF** that shows if the document was changed after it was signed.
+Secure Sign keeps two kinds of proof for every document: a **history** of what happened, and a **sealed PDF** that shows if the document was changed after it was signed.
 
 ## The history (audit trail)
 
@@ -31,7 +31,7 @@ Everyone on the document gets the signed copy by email. You can also download it
 
 ## What the seal tells you
 
-If anyone changes the PDF after sealing, a PDF reader can tell. A seal made with a certificate from a certificate authority shows who the certificate was issued to and by whom, and a reader that trusts that authority marks it as trusted (see [The sealing certificate](/help/doc-sign/sealing-certificate)). A seal made with the certificate Doc Sign made for your workspace is **self-signed**, and PDF readers show a warning that the signer is not trusted. The seal still shows whether the file changed, but the reader cannot check who made the certificate. This is normal for a self-signed certificate. You can see which one your workspace uses under **Settings**, **Doc Sign**, **Sealing certificate**.
+If anyone changes the PDF after sealing, a PDF reader can tell. A seal made with a certificate from a certificate authority shows who the certificate was issued to and by whom, and a reader that trusts that authority marks it as trusted (see [The sealing certificate](/help/doc-sign/sealing-certificate)). A seal made with the certificate Secure Sign made for your workspace is **self-signed**, and PDF readers show a warning that the signer is not trusted. The seal still shows whether the file changed, but the reader cannot check who made the certificate. This is normal for a self-signed certificate. You can see which one your workspace uses under **Settings**, **Secure Sign**, **Sealing certificate**.
 
 ## Checking a document from its QR code
 
@@ -41,7 +41,7 @@ The page shows that the document was completed, when, in whose workspace, its ti
 
 To check a file, choose the PDF on that page. Its fingerprint is worked out on your own device, so the file is never uploaded, and compared with the fingerprint of the signed original. **This is the exact signed file** means your copy is identical to what was sealed. **This file is not the signed original** means it differs: it may have been changed, or saved again by another program or a PDF editor.
 
-The page says nothing for a document that is not completed, was cancelled, or belongs to a workspace that no longer has Doc Sign. It then reads "We could not find this document".
+The page says nothing for a document that is not completed, was cancelled, or belongs to a workspace that no longer has Secure Sign. It then reads "We could not find this document".
 
 ## Where the files are kept
 

@@ -107,8 +107,8 @@ const EN: Words = {
   expiredIntro: "“{title}” expired before everyone signed. Nobody can sign it now; send it again if it is still needed.",
   voidedSubject: "Cancelled: {title}",
   voidedIntro: "“{title}” was cancelled by the sender. You do not need to do anything.",
-  testSubject: "Test email from Doc Sign",
-  testIntro: "This is a test email from Doc Sign for {workspace}. If you can read it, signing invitations, codes and signed copies can reach you the same way.",
+  testSubject: "Test email from Secure Sign",
+  testIntro: "This is a test email from Secure Sign for {workspace}. If you can read it, signing invitations, codes and signed copies can reach you the same way.",
   testNote: "Nothing is needed from you. No document was sent.",
   forwardSubject: "{forwarder} passed this on to you: {title}",
   forwardIntroTurn: "Hello {name}, {forwarder} has passed “{title}” on to you to complete in their place. It was sent by {sender} at {workspace}.",
@@ -130,7 +130,7 @@ const EN: Words = {
   declinedFormIntro: "{name} declined to complete “{title}”.",
   expiredFormIntro: "“{title}” expired before everyone submitted their details. Nobody can complete it now; send it again if it is still needed.",
   forwardConsentTurnForm: "You will be asked to agree to submit electronically yourself, then to review and submit.",
-  footer: "Sent through Halo Doc Sign for {workspace}.",
+  footer: "Sent through Vircle Secure Sign for {workspace}.",
 };
 
 const MS: Words = {
@@ -165,8 +165,8 @@ const MS: Words = {
   expiredIntro: "“{title}” tamat tempoh sebelum semua pihak menandatangani. Tiada siapa boleh menandatanganinya sekarang; hantar semula jika masih diperlukan.",
   voidedSubject: "Dibatalkan: {title}",
   voidedIntro: "“{title}” telah dibatalkan oleh penghantar. Anda tidak perlu berbuat apa-apa.",
-  testSubject: "E-mel ujian daripada Doc Sign",
-  testIntro: "Ini ialah e-mel ujian daripada Doc Sign untuk {workspace}. Jika anda dapat membacanya, jemputan menandatangani, kod dan salinan bertandatangan boleh sampai kepada anda dengan cara yang sama.",
+  testSubject: "E-mel ujian daripada Secure Sign",
+  testIntro: "Ini ialah e-mel ujian daripada Secure Sign untuk {workspace}. Jika anda dapat membacanya, jemputan menandatangani, kod dan salinan bertandatangan boleh sampai kepada anda dengan cara yang sama.",
   testNote: "Anda tidak perlu berbuat apa-apa. Tiada dokumen dihantar.",
   forwardSubject: "{forwarder} telah menyerahkan ini kepada anda: {title}",
   forwardIntroTurn: "Helo {name}, {forwarder} telah menyerahkan “{title}” kepada anda untuk dilengkapkan bagi pihaknya. Dokumen ini dihantar oleh {sender} di {workspace}.",
@@ -188,7 +188,7 @@ const MS: Words = {
   declinedFormIntro: "{name} enggan melengkapkan “{title}”.",
   expiredFormIntro: "“{title}” tamat tempoh sebelum semua pihak menghantar butiran mereka. Tiada siapa boleh melengkapkannya sekarang; hantar semula jika masih diperlukan.",
   forwardConsentTurnForm: "Anda akan diminta bersetuju menghantar secara elektronik sendiri, kemudian menyemak dan menghantar.",
-  footer: "Dihantar melalui Halo Doc Sign untuk {workspace}.",
+  footer: "Dihantar melalui Vircle Secure Sign untuk {workspace}.",
 };
 
 const ZH: Words = {
@@ -223,8 +223,8 @@ const ZH: Words = {
   expiredIntro: "《{title}》在所有人签署之前已过期，现在无法再签署；如仍需要，请重新发送。",
   voidedSubject: "已取消：{title}",
   voidedIntro: "《{title}》已被发件人取消，您无需进行任何操作。",
-  testSubject: "来自 Doc Sign 的测试邮件",
-  testIntro: "这是 Doc Sign 为 {workspace} 发送的测试邮件。如果您能看到这封邮件，签署邀请、验证码和已签署的副本也能以同样的方式送达。",
+  testSubject: "来自 Secure Sign 的测试邮件",
+  testIntro: "这是 Secure Sign 为 {workspace} 发送的测试邮件。如果您能看到这封邮件，签署邀请、验证码和已签署的副本也能以同样的方式送达。",
   testNote: "您无需进行任何操作。没有发送任何文档。",
   forwardSubject: "{forwarder} 把此文件转交给您：{title}",
   forwardIntroTurn: "{name}，您好。{forwarder} 已把《{title}》转交给您，请您代其完成。该文件由 {workspace} 的 {sender} 发送。",
@@ -246,7 +246,7 @@ const ZH: Words = {
   declinedFormIntro: "{name} 拒绝填写《{title}》。",
   expiredFormIntro: "《{title}》在所有人提交资料之前已过期，现在无法再填写；如仍需要，请重新发送。",
   forwardConsentTurnForm: "系统会请您自行同意以电子方式提交，然后查阅并提交。",
-  footer: "由 Halo Doc Sign 代表 {workspace} 发送。",
+  footer: "由 Vircle Secure Sign 代表 {workspace} 发送。",
 };
 
 const KO: Words = {
@@ -281,8 +281,8 @@ const KO: Words = {
   expiredIntro: "“{title}”이(가) 모두 서명하기 전에 만료되었습니다. 더 이상 서명할 수 없으며, 필요하면 다시 보내 주세요.",
   voidedSubject: "취소됨: {title}",
   voidedIntro: "“{title}”이(가) 발신자에 의해 취소되었습니다. 별도로 하실 일은 없습니다.",
-  testSubject: "Doc Sign 테스트 이메일",
-  testIntro: "{workspace}의 Doc Sign에서 보낸 테스트 이메일입니다. 이 메일을 읽을 수 있다면 서명 요청, 인증 코드, 서명된 사본도 같은 방식으로 받을 수 있습니다.",
+  testSubject: "Secure Sign 테스트 이메일",
+  testIntro: "{workspace}의 Secure Sign에서 보낸 테스트 이메일입니다. 이 메일을 읽을 수 있다면 서명 요청, 인증 코드, 서명된 사본도 같은 방식으로 받을 수 있습니다.",
   testNote: "별도로 하실 일은 없습니다. 문서는 전송되지 않았습니다.",
   forwardSubject: "{forwarder}님이 이 문서를 전달했습니다: {title}",
   forwardIntroTurn: "{name}님, 안녕하세요. {forwarder}님이 “{title}”을(를) 대신 작성해 달라고 전달했습니다. 이 문서는 {workspace}의 {sender}님이 보냈습니다.",
@@ -304,7 +304,7 @@ const KO: Words = {
   declinedFormIntro: "{name}님이 “{title}” 작성을 거부했습니다.",
   expiredFormIntro: "“{title}”이(가) 모두 제출하기 전에 만료되었습니다. 더 이상 작성할 수 없으며, 필요하면 다시 보내 주세요.",
   forwardConsentTurnForm: "전자 제출에 직접 동의한 다음, 검토 후 제출하게 됩니다.",
-  footer: "{workspace}을(를) 대신하여 Halo Doc Sign으로 발송되었습니다.",
+  footer: "{workspace}을(를) 대신하여 Vircle Secure Sign으로 발송되었습니다.",
 };
 
 const DICT: Record<SignLocale, Words> = { en: EN, ms: MS, zh: ZH, ko: KO };

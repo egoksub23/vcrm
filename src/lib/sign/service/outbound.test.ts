@@ -227,7 +227,7 @@ describe("emitSignEvent: when no automation listens", () => {
 });
 
 describe("emitSignEvent: the flag", () => {
-  it("a workspace without Doc Sign never emits", async () => {
+  it("a workspace without Secure Sign never emits", async () => {
     m.enabled = false;
     await emitSignEvent(ctx, doc(), "completed");
     expect(m.automations).not.toHaveBeenCalled();

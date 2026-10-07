@@ -74,15 +74,15 @@ function openUploaded(row: CertRow, now: Date): SealingCertificate {
     facts = readP12(opened.p12, opened.passphrase, now);
   } catch (err) {
     console.error("[sign] sealing certificate unreadable:", err instanceof Error ? err.message : err);
-    throw new SignError("certificate_unreadable", "The sealing certificate could not be opened. Install the certificate again in Settings > Doc Sign > Sealing certificate.", 409);
+    throw new SignError("certificate_unreadable", "The sealing certificate could not be opened. Install the certificate again in Settings > Secure Sign > Sealing certificate.", 409);
   }
   try {
     assertValidNow(facts, now);
   } catch (err) {
     if (err instanceof CertificateError && err.code === "p12_expired") {
-      throw new SignError("certificate_expired", `The sealing certificate expired on ${day(facts.notAfter)}. Install a renewed certificate in Settings > Doc Sign > Sealing certificate; this document is then sealed automatically.`, 409);
+      throw new SignError("certificate_expired", `The sealing certificate expired on ${day(facts.notAfter)}. Install a renewed certificate in Settings > Secure Sign > Sealing certificate; this document is then sealed automatically.`, 409);
     }
-    throw new SignError("certificate_not_valid_yet", `The sealing certificate is not valid until ${day(facts.notBefore)}. Install a certificate that is valid today in Settings > Doc Sign > Sealing certificate.`, 409);
+    throw new SignError("certificate_not_valid_yet", `The sealing certificate is not valid until ${day(facts.notBefore)}. Install a certificate that is valid today in Settings > Secure Sign > Sealing certificate.`, 409);
   }
   return { p12: opened.p12, passphrase: opened.passphrase, facts, generated: false };
 }
@@ -120,7 +120,7 @@ async function createWorkspaceCertificate(ctx: SignCtx, existing: readonly CertR
   const acct = await ctx.admin.from("accounts").select("name").eq("id", ctx.accountId).maybeSingle();
   const name = (acct.data as { name?: string } | null)?.name?.trim() || "Workspace";
   const passphrase = randomBytes(24).toString("hex");
-  const p12 = createSelfSignedP12({ commonName: `${name} (Halo Doc Sign)`, organization: name, passphrase, years: 5 });
+  const p12 = createSelfSignedP12({ commonName: `${name} (Vircle Secure Sign)`, organization: name, passphrase, years: 5 });
   const facts = readP12(p12, passphrase);
   // the one default allowed per workspace: an expired self-signed default gives way to the new one
   const stale = existing.filter((c) => c.is_default && isGeneratedCertificate(c));
@@ -196,7 +196,7 @@ async function selfTest(kept: { p12: Uint8Array; passphrase: string }, facts: P1
   const doc = await PDFDocument.create();
   doc.addPage([200, 200]);
   try {
-    const sealed = await sealPdf(await savePdf(doc), kept.p12, kept.passphrase, { name: "Halo Doc Sign certificate check", reason: "Certificate check", signingTime: now });
+    const sealed = await sealPdf(await savePdf(doc), kept.p12, kept.passphrase, { name: "Vircle Secure Sign certificate check", reason: "Certificate check", signingTime: now });
     const v = verifySealed(sealed.bytes);
     if (!v.ok || v.certificateCount !== facts.chainLength) throw new SignError("certificate_self_test_failed", "A test seal made with this certificate could not be verified.", 422);
   } catch (err) {

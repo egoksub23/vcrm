@@ -212,7 +212,7 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
 
     const cert = await sealingCertificate(ctx);
     const sealed = await sealPdf(toSeal, cert.p12, cert.passphrase, {
-      reason: `${isFormMode(doc) ? "Submitted" : "Signed"} through Halo Doc Sign: ${doc.reference ?? doc.id}`,
+      reason: `${isFormMode(doc) ? "Submitted" : "Signed"} through Vircle Secure Sign: ${doc.reference ?? doc.id}`,
       name: info.workspaceName,
       location: "",
       signingTime: ctx.now(),

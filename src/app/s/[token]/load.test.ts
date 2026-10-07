@@ -66,7 +66,7 @@ describe("loadSigning", () => {
     expect(state.built).not.toHaveBeenCalled();
   });
 
-  it("is invalid for a link that is not live, and for a workspace with Doc Sign off, alike", async () => {
+  it("is invalid for a link that is not live, and for a workspace with Secure Sign off, alike", async () => {
     state.lookup = null;
     expect(await loadSigning(fresh())).toEqual({ kind: "invalid" });
     state.lookup = lookup(false);

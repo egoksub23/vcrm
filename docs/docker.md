@@ -90,9 +90,9 @@ no data is lost. Add it to root's crontab to run weekly:
 
 Check usage any time with `df -h /` and `docker system df`.
 
-## Doc Sign converter (Word to PDF)
+## Secure Sign converter (Word to PDF)
 
-Doc Sign turns an uploaded Word file into a PDF with LibreOffice, run inside the
+Secure Sign turns an uploaded Word file into a PDF with LibreOffice, run inside the
 [Gotenberg](https://gotenberg.dev) container defined in `docker-compose.yml` as `sign-converter`.
 It is **off by default** and only starts when the `sign` profile is on. Without it, PDFs and images still
 work and a Word upload says "Word conversion is not available right now. Upload a PDF instead."

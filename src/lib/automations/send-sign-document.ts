@@ -70,7 +70,7 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
   if (!ctx) return skip('the public address of this server is not set (NEXT_PUBLIC_SITE_URL), so signing links cannot be made', 'not_configured')
 
   const { signEnabled } = await import('@/lib/sign/feature')
-  if (!(await signEnabled(ctx.admin, accountId))) return skip('Doc Sign is not turned on for this workspace', 'not_enabled')
+  if (!(await signEnabled(ctx.admin, accountId))) return skip('Secure Sign is not turned on for this workspace', 'not_enabled')
 
   const { SignError } = await import('@/lib/sign/service/errors')
   const drafts = await import('@/lib/sign/service/drafts')
@@ -105,7 +105,7 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
         const name = String(input.contact.name ?? '').trim()
         const email = String(input.contact.email ?? '').trim()
         const phone = String(input.contact.phone ?? '').trim()
-        if (!email) return skip('the contact has no email address (Doc Sign needs one for every signer). Add it, or use a fixed recipient', 'recipient_email_missing')
+        if (!email) return skip('the contact has no email address (Secure Sign needs one for every signer). Add it, or use a fixed recipient', 'recipient_email_missing')
         if (r.channel === 'whatsapp' && !phone) return skip('the contact has no phone number, so the link cannot go by WhatsApp', 'recipient_phone_missing')
         people.push({ role_key: r.role_key, full_name: name || email, email, phone, channel: r.channel })
       } else {
@@ -126,7 +126,7 @@ export async function runSendSignDocument(input: SendSignDocumentInput): Promise
         if (!input.contactId || !input.contact) return skip('this run has no contact to send the signed copy to', 'no_contact')
         const name = String(input.contact.name ?? '').trim()
         const email = String(input.contact.email ?? '').trim()
-        if (!email) return skip('the contact has no email address (Doc Sign needs one for everyone who receives a copy). Add it, or use a fixed recipient', 'recipient_email_missing')
+        if (!email) return skip('the contact has no email address (Secure Sign needs one for everyone who receives a copy). Add it, or use a fixed recipient', 'recipient_email_missing')
         copies.push({ fullName: name || email, email })
       } else {
         copies.push({ fullName: input.text(String(r.full_name ?? '')).trim(), email: input.text(String(r.email ?? '')).trim() })

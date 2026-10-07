@@ -39,9 +39,9 @@ export async function sealPdf(
   const signingTime = options.signingTime ?? new Date();
   pdflibAddPlaceholder({
     pdfDoc: doc,
-    reason: options.reason ?? "Sealed by Halo Doc Sign",
+    reason: options.reason ?? "Sealed by Vircle Secure Sign",
     contactInfo: options.contactInfo ?? "",
-    name: options.name ?? "Halo Doc Sign",
+    name: options.name ?? "Vircle Secure Sign",
     location: options.location ?? "",
     signingTime,
     signatureLength: SIGNATURE_LENGTH,

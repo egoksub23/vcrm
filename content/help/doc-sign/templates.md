@@ -9,11 +9,11 @@ A template is a document prepared once, with its pages, fields, roles and starti
 
 ## Before you start
 
-Anyone who can see Doc Sign can look at templates. To create or change them you need permission to manage templates. To use one for a new document you need permission to send.
+Anyone who can see Secure Sign can look at templates. To create or change them you need permission to manage templates. To use one for a new document you need permission to send.
 
 ## Open the library
 
-Click **Doc Sign**, then **Templates**. Each row shows the name, category, status, how many versions it has, when it was last changed, and any tags. Use the search box and the **Category** and **Status** filters to find one.
+Click **Secure Sign**, then **Templates**. Each row shows the name, category, status, how many versions it has, when it was last changed, and any tags. Use the search box and the **Category** and **Status** filters to find one.
 
 ## Create a template
 

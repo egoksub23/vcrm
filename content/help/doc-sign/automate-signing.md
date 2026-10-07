@@ -9,15 +9,15 @@ Automations can send a document for signature on their own, and can react when a
 
 ## What you need first
 
-- Doc Sign is switched on for your workspace, and you can see **Doc Sign** in the menu.
+- Secure Sign is switched on for your workspace, and you can see **Secure Sign** in the menu.
 - The **Merchant Application** template is installed and **Active**. See [Categories and add-ons](/help/doc-sign/categories-and-add-ons) and [Templates](/help/doc-sign/templates). Any other active template works the same way.
 - A tag called **Merchant applicant** and a tag called **Merchant signed** exist. Tags are created in **Settings**, under **Tags**.
-- The contact has an **email address**. Doc Sign needs an email for every person who signs, even when the link goes by WhatsApp.
+- The contact has an **email address**. Secure Sign needs an email for every person who signs, even when the link goes by WhatsApp.
 - You have permission to manage automations **and** to send documents. Without the second one, saving or switching on an automation that sends documents is refused.
 
 ## Part 1: send the application when a contact is tagged
 
-1. Click **Automations**. Near the top, click the **Merchant onboarding** card. If you do not see it, Doc Sign is not on for you.
+1. Click **Automations**. Near the top, click the **Merchant onboarding** card. If you do not see it, Secure Sign is not on for you.
 2. The trigger is **Tag added**. The tag **Merchant applicant** is picked for you if it exists; if not, choose a tag.
 3. Open the step **Send document for signing**. The template **Merchant Application** is picked for you if it exists; if not, choose it.
 4. Under **Who signs**, the **Merchant** role is set to **The contact**. Add more people if your template has more roles, for example a director who countersigns. A role marked with a star must have a person.
@@ -26,14 +26,14 @@ Automations can send a document for signature on their own, and can react when a
 7. Leave **Send it now** ticked to send straight away. Untick it to save the document as a draft for a person to check and send.
 8. Give the automation a name, switch it **Active** and click **Save**.
 
-If something is wrong, saving an active automation shows the first problem, for example "the template needs a recipient for the role Merchant" or "that Doc Sign template is not active".
+If something is wrong, saving an active automation shows the first problem, for example "the template needs a recipient for the role Merchant" or "that Secure Sign template is not active".
 
-From now on, adding the tag **Merchant applicant** to a contact makes a document from the template, links it to that contact, and sends the signing link to their email. You can see the document in **Doc Sign**, and its history shows it was made from a template.
+From now on, adding the tag **Merchant applicant** to a contact makes a document from the template, links it to that contact, and sends the signing link to their email. You can see the document in **Secure Sign**, and its history shows it was made from a template.
 
 ## Part 2: follow up when it is signed
 
 1. Click **Automations**, then the **Merchant signed follow-up** card.
-2. The trigger is **Doc Sign event**, set to **Everyone has signed (completed)**. Pick the **Merchant Application** template so other documents do not start it.
+2. The trigger is **Secure Sign event**, set to **Everyone has signed (completed)**. Pick the **Merchant Application** template so other documents do not start it.
 3. The steps are: **Add tag** (**Merchant signed**), **Create ticket** (**Merchant KYC review**) and **Send message** (the thank-you).
 4. Check the ticket text and the message. They already use the document's reference and the contact's name. You can change the wording.
 5. Switch it **Active** and click **Save**.
@@ -44,7 +44,7 @@ The thank-you message needs an existing conversation with the contact. It runs l
 
 ## Other things an automation can react to
 
-In the **Doc Sign event** trigger, tick any of: a document is **sent**, a signer **opens** it for the first time, **everyone has signed**, a signer **declines**, a document **expires**, a document is **cancelled**. You can limit it to one template or one category.
+In the **Secure Sign event** trigger, tick any of: a document is **sent**, a signer **opens** it for the first time, **everyone has signed**, a signer **declines**, a document **expires**, a document is **cancelled**. You can limit it to one template or one category.
 
 Useful examples:
 
@@ -73,7 +73,7 @@ If the same run reaches the step twice, it does not make a second document.
 
 ## Common mistakes
 
-- **Choosing a template that is still a draft.** The template must be **Active**. Open it in Doc Sign > Templates and activate it.
+- **Choosing a template that is still a draft.** The template must be **Active**. Open it in Secure Sign > Templates and activate it.
 - **A contact without an email.** The step is skipped. Add the email to the contact, or use **A fixed person** for the recipient.
 - **Forgetting a role.** If the template has a director who must sign, the step needs a person for that role too.
 - **Leaving the template filter empty on the follow-up.** Then every completed document of any kind starts it. Pick the template.

@@ -52,7 +52,7 @@
     "userGuide": "用户指南",
     "pendingApprovals": "{count} 个{count, plural, =1 {提案} other {提案}}等待审批",
     "platform": "平台",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -78,7 +78,7 @@
     "menuProfile": "个人资料",
     "menuSettings": "设置",
     "menuSignOut": "退出登录",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Help": {
     "pageTitle": "用户指南",
@@ -1442,7 +1442,7 @@
         "sent": "文件已发送",
         "draft": "已生成草稿",
         "already_sent": "已发送过",
-        "not_enabled": "Doc Sign 未开启",
+        "not_enabled": "Secure Sign 未开启",
         "not_configured": "尚未设置",
         "no_contact": "没有联系人",
         "recipient_email_missing": "联系人没有电子邮件",
@@ -1584,8 +1584,8 @@
           "hint": "按重复计划触发"
         },
         "sign_document_event": {
-          "label": "Doc Sign 事件",
-          "hint": "Doc Sign 文件被发送、打开、完成、拒签、过期或作废时"
+          "label": "Secure Sign 事件",
+          "hint": "Secure Sign 文件被发送、打开、完成、拒签、过期或作废时"
         }
       },
       "trigger": "触发器",
@@ -1959,8 +1959,8 @@
           "templateId": "模板 ID",
           "selectTemplate": "选择模板…",
           "unknownTemplate": "（找不到该模板或未启用）",
-          "noTemplates": "没有找到已启用的模板，或您无权查看。请先在 Doc Sign > 模板中发布一个。",
-          "templateHint": "建议的模板：“{name}”。待它出现在 Doc Sign > 模板后再选择。",
+          "noTemplates": "没有找到已启用的模板，或您无权查看。请先在 Secure Sign > 模板中发布一个。",
+          "templateHint": "建议的模板：“{name}”。待它出现在 Secure Sign > 模板后再选择。",
           "title": "文件标题",
           "titleHint": "可选。留空则使用模板的标题。可以插入变量。",
           "recipients": "谁签署，谁收到副本",
@@ -2002,7 +2002,7 @@
           "summaryEmpty": "选择模板",
           "addCopy": "添加收到副本的人",
           "type": "类型",
-          "typeSigner": "必须签署",
+          "typeSigner": "需要签名",
           "typeCopy": "收到副本",
           "contactCopyNote": "使用联系人的姓名和电子邮件。联系人必须有电子邮件地址，否则此步骤会被跳过。",
           "summaryCopies": "{count} 人签署，{copies} 人收到副本"
@@ -6169,8 +6169,8 @@
         "description": "打开 设置 → SLA 与营业时间，编辑营业时间表和节假日，并创建、排序和编辑工单 SLA 策略。所有人都可以在工单上看到 SLA 状态。"
       },
       "menu_sign": {
-        "label": "菜单：Doc Sign",
-        "description": "在侧边栏显示 Doc Sign，并允许打开其页面、查看文档、模板和审计记录。默认：所有者、管理员和客服。"
+        "label": "菜单：Secure Sign",
+        "description": "在侧边栏显示 Secure Sign，并允许打开其页面、查看文档、模板和审计记录。默认：所有者、管理员和客服。"
       },
       "sign_send": {
         "label": "发送文档签署",
@@ -6185,7 +6185,7 @@
         "description": "创建、编辑、复制和归档签署模板及其表单。默认：所有者和管理员。"
       },
       "sign_settings": {
-        "label": "配置 Doc Sign",
+        "label": "配置 Secure Sign",
         "description": "类别、附加模块、默认设置、同意条款、发件人名称和徽标，以及密封证书。默认：所有者和管理员。"
       },
       "sign_sign": {
@@ -6210,7 +6210,7 @@
       "channels": "渠道与集成",
       "workspace": "工作区",
       "people": "人员",
-      "sign": "Doc Sign"
+      "sign": "Secure Sign"
     },
     "preset": {
       "support-manager": {
@@ -6439,9 +6439,9 @@
       "support_access": "支持访问",
       "sign_template": "签署模板",
       "sign_category": "签署类别",
-      "sign_settings": "Doc Sign 设置",
+      "sign_settings": "Secure Sign 设置",
       "sign_certificate": "签署证书",
-      "sign_addon": "Doc Sign 附加模块",
+      "sign_addon": "Secure Sign 附加模块",
       "sign_document": "签署文档",
       "sign_bulk_job": "批量签署",
       "sign_option_list": "签署选项列表",
@@ -7093,8 +7093,8 @@
           "dismiss": "关闭"
         }
       },
-      "settingsTab": "Doc Sign",
-      "title": "Doc Sign",
+      "settingsTab": "Secure Sign",
+      "title": "Secure Sign",
       "description": "电子签名的默认设置、签署措辞、类别、附加包和封存证书。",
       "loading": "正在加载…",
       "retry": "重试",
@@ -7512,7 +7512,7 @@
         },
         "issues": {
           "no_template": "请选择要发送的模板。",
-          "template_not_active": "模板未启用。请在 Doc Sign > 模板中启用。",
+          "template_not_active": "模板未启用。请在 Secure Sign > 模板中启用。",
           "template_has_no_version": "模板还没有已保存的版本。",
           "no_applicant_role": "请选择申请人填写的角色。",
           "applicant_role_unknown": "申请人填写的角色不在此模板中，请另选一个。",
@@ -7651,7 +7651,7 @@
           "microsoft365": "不会在该邮箱的“已发送邮件”中保留副本，因为每封邮件都包含某个人的链接或已签署的文档。",
           "gmail": "Gmail 会把每封邮件保存在该邮箱的“已发送”文件夹中，任何能打开该邮箱的人都可以阅读。"
         },
-        "inboxNote": "Doc Sign 的邮件不会被加入 Halo 收件箱。",
+        "inboxNote": "Secure Sign 的邮件不会被加入 Halo 收件箱。",
         "link": {
           "manage": "打开此邮箱的渠道设置",
           "connectMicrosoft365": "连接 Microsoft 365 邮箱",
@@ -7664,7 +7664,7 @@
       "retry": "重试",
       "header": {
         "breadcrumb": "当前位置",
-        "back": "Doc Sign",
+        "back": "Secure Sign",
         "inOrder": "按顺序签署",
         "codeRequired": "需要验证码",
         "reference": "编号 {reference}",
@@ -8895,8 +8895,8 @@
         "stale": "自保存此表单以来，列表已发生变化。保存后即可使用新版本。",
         "preview": "来自列表的 {count, plural, other {# 个选项}}",
         "previewMore": "另有 {count} 个",
-        "hint": "保存时，列表的副本会进入表单；发送文件时，会进入每份文件。之后更改列表不会改变已发送的文件。列表保存在“设置 > Doc Sign > 列表”中。",
-        "hintPicked": "签署人可按代码或关键词搜索此列表，并逐个添加条目。保存时，列表的副本会进入表单；发送文件时，会进入每份文件。列表保存在“设置 > Doc Sign > 列表”中。"
+        "hint": "保存时，列表的副本会进入表单；发送文件时，会进入每份文件。之后更改列表不会改变已发送的文件。列表保存在“设置 > Secure Sign > 列表”中。",
+        "hintPicked": "签署人可按代码或关键词搜索此列表，并逐个添加条目。保存时，列表的副本会进入表单；发送文件时，会进入每份文件。列表保存在“设置 > Secure Sign > 列表”中。"
       },
       "sensitive": {
         "title": "敏感数据",
@@ -9076,9 +9076,9 @@
     },
     "send": {
       "shell": {
-        "title": "文档签署",
+        "title": "Secure Sign",
         "newDocument": "新建文档",
-        "sections": "文档签署栏目",
+        "sections": "Secure Sign 栏目",
         "tabDocuments": "文档",
         "tabTemplates": "模板"
       },
@@ -9183,7 +9183,7 @@
             "signed_out": "请重新登录后继续。",
             "rate_limited": "尝试次数过多，请稍后再试。",
             "network": "无法连接服务器，请检查网络后重试。",
-            "sign_disabled": "此工作区未开启 Doc Sign。",
+            "sign_disabled": "此工作区未开启 Secure Sign。",
             "generic": "无法打开文件，请重试。"
           }
         },
@@ -9677,7 +9677,7 @@
           "conflictsLabel": "人员名单中需要修正的事项",
           "type": {
             "label": "他们的角色",
-            "signer": "必须签署",
+            "signer": "需要签名",
             "copy": "接收副本"
           },
           "copyLine": "全部签署完成后，他们会通过电子邮件收到已签署的副本。不会要求他们签署。",
@@ -9848,7 +9848,7 @@
       },
       "copies": {
         "type": "类型",
-        "typeSigner": "须签署",
+        "typeSigner": "需要签名",
         "typeCopy": "接收副本",
         "heading": "接收副本的人",
         "help": "所有人签署完成后，他们会通过电子邮件收到已签署的副本。他们不会收到签署链接。",
@@ -10722,7 +10722,7 @@
         "job_finished": "此批量发送已经结束。",
         "nothing_to_download": "所选文件都还没有已签署文件。只有已完成的文件才有。",
         "bad_ids": "请选择 1 到 50 份文件。",
-        "sign_disabled": "此工作区未开启 Doc Sign。",
+        "sign_disabled": "此工作区未开启 Secure Sign。",
         "network": "无法连接服务器。请检查网络后重试。",
         "signed_out": "你已退出登录。请重新登录后继续。",
         "forbidden": "你没有执行此操作的权限。",
@@ -10734,7 +10734,7 @@
         "sign_limit_reached": "本月的文件额度已用完。",
         "cancelled": "在发送这份文件之前，批量发送已被取消。",
         "gave_up": "这一份尝试多次仍未完成。请检查其文件，必要时手动发送。",
-        "sign_disabled": "此工作区的 Doc Sign 已关闭。",
+        "sign_disabled": "此工作区的 Secure Sign 已关闭。",
         "template_not_found": "模板已被删除。",
         "template_not_active": "模板已不再启用。",
         "template_has_no_version": "模板没有已保存的版本。",
@@ -10757,7 +10757,7 @@
       }
     },
     "lists": {
-      "intro": "列表是表单可以使用的一组选项，这样州属、国家或银行只需写一次，并在一个地方保持最新。部分列表随 Doc Sign 提供，您也可以添加自己的列表。编辑列表绝不会更改已发送的文件。",
+      "intro": "列表是表单可以使用的一组选项，这样州属、国家或银行只需写一次，并在一个地方保持最新。部分列表随 Secure Sign 提供，您也可以添加自己的列表。编辑列表绝不会更改已发送的文件。",
       "new": "新建列表",
       "loading": "正在加载列表…",
       "loadFailed": "无法加载列表。",
@@ -10769,7 +10769,7 @@
       "colVersion": "版本",
       "colActions": "操作",
       "archivedBadge": "已归档",
-      "typeSystem": "随 Doc Sign 提供",
+      "typeSystem": "随 Secure Sign 提供",
       "typeOwn": "您的列表",
       "kindMsic": "MSIC 代码",
       "openList": "打开 {name}",
@@ -10787,7 +10787,7 @@
       "listArchived": "列表已归档",
       "listRestored": "列表已恢复",
       "listSaved": "列表已保存",
-      "systemNote": "此列表随 Doc Sign 提供。您可以修改措辞并添加项目；它的值保持不变，因此答案始终保留其含义。不再需要的项目请归档，归档后新表单中将不再显示。",
+      "systemNote": "此列表随 Secure Sign 提供。您可以修改措辞并添加项目；它的值保持不变，因此答案始终保留其含义。不再需要的项目请归档，归档后新表单中将不再显示。",
       "systemNoteMsic": "MSIC 2008 业务活动代码，由马来西亚统计局（DOSM）发布。您可以修改措辞并添加自己的代码；官方代码保持不变。可导入 CSV 一次性更改多项。",
       "usedBy": "{count, plural, =0 {没有模板使用} other {被 # 个模板使用}}",
       "usedByNone": "目前没有模板使用此列表。请在表单构建器中为某个字段选择它。",
@@ -10827,7 +10827,7 @@
       "itemSaved": "项目已保存",
       "cancel": "取消",
       "resetTitle": "将 {name} 恢复为默认？",
-      "resetBody": "随 Doc Sign 提供的每个项目都会恢复为原来的措辞和位置，已归档的项目会重新显示。您添加的项目会保留在它们之后。不会删除任何内容，已创建的表单也不会改变。",
+      "resetBody": "随 Secure Sign 提供的每个项目都会恢复为原来的措辞和位置，已归档的项目会重新显示。您添加的项目会保留在它们之后。不会删除任何内容，已创建的表单也不会改变。",
       "resetConfirm": "恢复默认",
       "resetDone": "列表已恢复为默认",
       "meta": {
@@ -10871,7 +10871,7 @@
         "modeMergeHint": "文件中没有的项目会保留。文件中留空的语言会保留原有内容。",
         "modeReplace": "用此文件替换整个列表",
         "modeReplaceHint": "文件中没有的项目会从列表中移除。已创建的表单不会改变。",
-        "systemMergeOnly": "随 Doc Sign 提供的列表只能添加和更新。",
+        "systemMergeOnly": "随 Secure Sign 提供的列表只能添加和更新。",
         "checking": "正在检查文件…",
         "summary": "待添加 {added} 项，待更新 {updated} 项，未变化 {unchanged} 项，待移除 {removed} 项。",
         "removedWarning": "{count, plural, other {将从列表中移除 # 个项目。}}",
@@ -10926,10 +10926,10 @@
         "group_too_long": "分组最多 40 个字符。",
         "duplicate_value": "列表中已有该值。",
         "too_many_items": "一个列表最多可包含 5,000 个项目。",
-        "list_values_locked": "随 Doc Sign 提供的列表会保留它的每个值。请归档项目，而不是移除。",
+        "list_values_locked": "随 Secure Sign 提供的列表会保留它的每个值。请归档项目，而不是移除。",
         "value_removed": "无法移除此值。",
-        "system_list_merge_only": "随 Doc Sign 提供的列表只能添加或更新，不能被替换。",
-        "not_a_system_list": "只有随 Doc Sign 提供的列表才能恢复默认。",
+        "system_list_merge_only": "随 Secure Sign 提供的列表只能添加或更新，不能被替换。",
+        "not_a_system_list": "只有随 Secure Sign 提供的列表才能恢复默认。",
         "bad_import": "请选择 CSV 文件和导入方式。",
         "import_failed": "此文件中没有任何内容可以导入。"
       }
@@ -11067,7 +11067,7 @@
         "noDocuments": "还没有文件。",
         "people": "人员",
         "noPeople": "还没有添加任何人。",
-        "mustSign": "必须签署",
+        "mustSign": "需要签名",
         "copy": "接收副本",
         "blocks": "{count, plural, other {# 个签名块}}",
         "ready": "就绪",
@@ -11126,7 +11126,8 @@
         "introForm": "添加所有填写此表单的人，每人只需添加一次：姓名、电子邮件，以及他们是填写还是仅接收副本。",
         "typeFiller": "填写表单",
         "limitSigners": "最多可以邀请 {max} 位人员签署。",
-        "limitRoles": "对于上传的文件，最多可以邀请 {max} 位人员签署。每个人都是该文件上的一个角色。"
+        "limitRoles": "对于上传的文件，最多可以邀请 {max} 位人员签署。每个人都是该文件上的一个角色。",
+        "sentByWhatsapp": "通过 WhatsApp 发送"
       },
       "blocks": {
         "heading": "签名块",
@@ -11211,8 +11212,8 @@
       "toggle": {
         "labelSingle": "私密文档",
         "labelCollection": "私密文件集",
-        "hintSingle": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它。",
-        "hintCollection": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文件集及其中的每份文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它们。",
+        "hintSingle": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文档、谁已签署以及他们的回答。其他使用 Secure Sign 的人在列表、搜索、统计或导出中都找不到它。",
+        "hintCollection": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文件集及其中的每份文档、谁已签署以及他们的回答。其他使用 Secure Sign 的人在列表、搜索、统计或导出中都找不到它们。",
         "notYours": "只有上传者或管理员可以更改此项。"
       }
     },

@@ -67,9 +67,9 @@ function page(locale: string, node: React.ReactNode) {
 }
 
 const WORDS: Record<(typeof LOCALES)[number], { documents: string; people: string; blocks: string; send: string; compact2: string; continueToPeople: string; mustSign: string; copy: string; leftHeading: string }> = {
-  en: { documents: "Documents", people: "People", blocks: "Signature blocks", send: "Review and send", compact2: "Step 2 of 4: People", continueToPeople: "Continue to People", mustSign: "Must sign", copy: "Receives a copy", leftHeading: "What is left" },
-  ms: { documents: "Dokumen", people: "Orang", blocks: "Blok tandatangan", send: "Semak dan hantar", compact2: "Langkah 2 daripada 4: Orang", continueToPeople: "Teruskan ke Orang", mustSign: "Mesti menandatangani", copy: "Menerima salinan", leftHeading: "Apa yang tinggal" },
-  zh: { documents: "文件", people: "人员", blocks: "签名块", send: "检查并发送", compact2: "第 2 步，共 4 步：人员", continueToPeople: "继续到人员", mustSign: "必须签署", copy: "接收副本", leftHeading: "还剩什么" },
+  en: { documents: "Documents", people: "People", blocks: "Signature blocks", send: "Review and send", compact2: "Step 2 of 4: People", continueToPeople: "Continue to People", mustSign: "Signature required", copy: "Receives a copy", leftHeading: "What is left" },
+  ms: { documents: "Dokumen", people: "Orang", blocks: "Blok tandatangan", send: "Semak dan hantar", compact2: "Langkah 2 daripada 4: Orang", continueToPeople: "Teruskan ke Orang", mustSign: "Tandatangan diperlukan", copy: "Menerima salinan", leftHeading: "Apa yang tinggal" },
+  zh: { documents: "文件", people: "人员", blocks: "签名块", send: "检查并发送", compact2: "第 2 步，共 4 步：人员", continueToPeople: "继续到人员", mustSign: "需要签名", copy: "接收副本", leftHeading: "还剩什么" },
   ko: { documents: "문서", people: "사람", blocks: "서명 블록", send: "검토 및 발송", compact2: "4단계 중 2단계: 사람", continueToPeople: "사람(으)로 계속", mustSign: "서명 필요", copy: "사본 수신", leftHeading: "남은 일" },
 };
 
@@ -264,6 +264,124 @@ describe("the People step", () => {
       });
     }
   }
+
+  // ---- the card of a person: no channel, the email under the name, what they do as two radio buttons ----
+  const cards = (html: string) => html.split("<li ").slice(1).filter((c) => c.includes("data-person-type"));
+
+  for (const locale of LOCALES) {
+    const w = WORDS[locale];
+    const words = wording(locale) as { send: { envelope: { people: { type: { label: string }; channel: { label: string; whatsapp: string } } } } };
+    const typeLabel = words.send.envelope.people.type.label;
+    const channel = words.send.envelope.people.channel;
+
+    it(`offers no way to send the link: no channel choice, no WhatsApp, no select at all (${locale})`, () => {
+      const html = page(locale, <ProcessPeople kind="single" docs={liteDocs([upload(1, who)])} workDocs={[upload(1, who)]} people={who} {...props} />);
+      expect(html).not.toContain("-channel");
+      expect(html).not.toContain(channel.label);
+      expect(html).not.toContain(channel.whatsapp);
+      expect(html).not.toContain("<select");
+      expect(html).not.toContain('type="tel"');
+      expect(html).not.toContain("data-sent-by-whatsapp");
+    });
+
+    it(`puts the name on top with the email directly under it on the left, and what they do on the right (${locale})`, () => {
+      const html = page(locale, <ProcessPeople kind="collection" docs={liteDocs([upload(1, who)])} workDocs={[upload(1, who)]} people={who} {...props} />);
+      const found = cards(html);
+      expect(found).toHaveLength(3);
+      for (const card of found) {
+        const name = card.indexOf("data-name-box");
+        const email = card.indexOf('type="email"');
+        const radios = card.indexOf('role="radiogroup"');
+        expect(name).toBeGreaterThan(-1);
+        expect(name).toBeLessThan(email);
+        expect(email).toBeLessThan(radios);
+        // two columns: the left holds the name and the email, the right the radio group (so on a phone they stack in that order)
+        expect(card).toContain("sm:grid-cols-2");
+        const right = card.indexOf('<div class="space-y-3">', card.indexOf("sm:grid-cols-2") + 40);
+        expect(right).toBeGreaterThan(email);
+        expect(right).toBeLessThan(radios);
+      }
+    });
+
+    it(`says what they do with two labelled radio buttons, the right one checked (${locale})`, () => {
+      const html = page(locale, <ProcessPeople kind="single" docs={liteDocs([upload(1, who)])} workDocs={[upload(1, who)]} people={who} {...props} />);
+      const [first, second, third] = cards(html);
+      for (const card of [first, second, third]) {
+        expect(card.match(/type="radio"/g)).toHaveLength(2);
+        expect(card.match(/role="radiogroup"/g)).toHaveLength(1);
+        // the group is named by a visible label that exists on the card
+        const labelledBy = /role="radiogroup"[^>]*aria-labelledby="([^"]+)"/.exec(card)?.[1] ?? /aria-labelledby="([^"]+)"[^>]*role="radiogroup"/.exec(card)?.[1];
+        expect(labelledBy).toBeTruthy();
+        expect(card).toContain(`id="${labelledBy}"`);
+        expect(card.slice(card.indexOf(`id="${labelledBy}"`))).toContain(typeLabel);
+        expect(card).toContain(w.mustSign);
+        expect(card).toContain(w.copy);
+      }
+      // one name for the two radios of a person (so the arrow keys move between them), and a different one for each person
+      const names = (card: string) => [...card.matchAll(/<input[^>]*type="radio"[^>]*name="([^"]+)"/g)].map((m) => m[1]).concat([...card.matchAll(/<input[^>]*name="([^"]+)"[^>]*type="radio"/g)].map((m) => m[1]));
+      const checkedOf = (card: string) => [...card.matchAll(/<input[^>]*type="radio"[^>]*>/g)].map((m) => ({ value: /value="(\w+)"/.exec(m[0])?.[1], checked: /\schecked(=|\s|>)/.test(m[0]) }));
+      expect(new Set(names(first)).size).toBe(1);
+      expect(new Set(names(first))).not.toEqual(new Set(names(second)));
+      expect(checkedOf(first)).toEqual([{ value: "signer", checked: true }, { value: "copy", checked: false }]);
+      expect(checkedOf(second)).toEqual([{ value: "signer", checked: true }, { value: "copy", checked: false }]);
+      expect(checkedOf(third)).toEqual([{ value: "signer", checked: false }, { value: "copy", checked: true }]);
+    });
+  }
+
+  it("names the first radio 'Fills in' when the document is a form without a signature, and keeps 'Receives a copy'", () => {
+    const html = page("en", <ProcessPeople kind="single" formOnly docs={liteDocs([upload(1, who)])} workDocs={[upload(1, who)]} people={who} {...props} />);
+    expect(html).toContain("Fills in");
+    expect(html).not.toContain("Signature required");
+    expect(html).toContain("Receives a copy");
+  });
+
+  it("disables the radio of a type whose limit is reached, and every radio when the screen is read-only", () => {
+    const six = Array.from({ length: 6 }, (_, i) => person(`pp_s${i}aaaaaa`, `S${i}`, { step: i + 1 }));
+    const full = page("en", <ProcessPeople kind="single" docs={liteDocs([upload(1, six)])} workDocs={[upload(1, six)]} people={[...six, cara()]} {...props} />);
+    const radio = (html: string, key: string, value: string) => new RegExp(`<input[^>]*name="${key}-type"[^>]*value="${value}"[^>]*>`).exec(html)?.[0] ?? "";
+    // six people must sign (the most an uploaded file holds): a person who receives a copy cannot become one
+    expect(radio(full, "pp_cara0001", "signer")).toMatch(/\sdisabled(=|\s|>)/);
+    expect(radio(full, "pp_cara0001", "copy")).not.toMatch(/\sdisabled(=|\s|>)/);
+    const locked = page("en", <ProcessPeople kind="single" docs={liteDocs([upload(1, who)])} workDocs={[upload(1, who)]} people={who} {...props} readOnly />);
+    expect(locked.match(/<input[^>]*type="radio"[^>]*>/g)?.every((r) => /\sdisabled(=|\s|>)/.test(r))).toBe(true);
+  });
+
+  it("shows the step number under the radios of a person who signs, only when people sign one after another", () => {
+    const docs = liteDocs([upload(1, who)]);
+    const unordered = page("en", <ProcessPeople kind="single" docs={docs} workDocs={[upload(1, who)]} people={who} {...props} />);
+    expect(unordered).not.toContain("-step");
+    const ordered = page("en", <ProcessPeople kind="single" docs={docs} workDocs={[upload(1, who)]} people={who} {...props} ordered />);
+    const [first, , third] = cards(ordered);
+    expect(first).toContain(`${ALI}-step`);
+    expect(first.indexOf('role="radiogroup"')).toBeLessThan(first.indexOf(`${ALI}-step`));
+    expect(third).not.toContain("-step");
+  });
+
+  for (const locale of LOCALES) {
+    it(`keeps a person saved earlier with WhatsApp as they are, and says so, read-only (${locale})`, () => {
+      const wa = ali({ channel: "whatsapp", phone: "+60123456789" });
+      const sentBy = (wording(locale) as { process: { people: { sentByWhatsapp: string } } }).process.people.sentByWhatsapp;
+      const html = page(locale, <ProcessPeople kind="single" docs={liteDocs([upload(1, [wa, bala()])])} workDocs={[upload(1, [wa, bala()])]} people={[wa, bala()]} {...props} />);
+      const [first, second] = cards(html);
+      expect(first).toContain("data-sent-by-whatsapp");
+      expect(first).toContain(sentBy);
+      // their number stays (the draft is not changed behind their back); there is still no control to change the channel
+      expect(first).toContain("+60123456789");
+      expect(first).not.toContain("-channel");
+      expect(first).not.toContain("<select");
+      expect(second).not.toContain("data-sent-by-whatsapp");
+      expect(second).not.toContain('type="tel"');
+    });
+  }
+
+  it("warns about a WhatsApp person only when WhatsApp is not set up for the workspace", () => {
+    const wa = ali({ channel: "whatsapp", phone: "+60123456789" });
+    const docs = liteDocs([upload(1, [wa])]);
+    const off = page("en", <ProcessPeople kind="single" docs={docs} workDocs={[upload(1, [wa])]} people={[wa]} {...props} whatsappConfigured={false} />);
+    expect(off).toContain("WhatsApp is not switched on for this workspace.");
+    const on = page("en", <ProcessPeople kind="single" docs={docs} workDocs={[upload(1, [wa])]} people={[wa]} {...props} />);
+    expect(on).not.toContain("WhatsApp is not switched on for this workspace.");
+  });
 
   it("matches the roles of a document that came from a template, and only those", () => {
     const tpl = processDoc(1, { fromTemplate: true, roles: [role("merchant", "Merchant"), role("director", "Director", 1)], rolesNeeded: ["merchant", "director"] });

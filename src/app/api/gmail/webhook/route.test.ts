@@ -62,13 +62,13 @@ describe("Gmail webhook: what becomes a conversation", () => {
     expect(h.findContact).toHaveBeenCalledTimes(1);
   });
 
-  it("stops a Doc Sign message addressed to the mailbox itself (it is in INBOX and SENT)", async () => {
+  it("stops a Secure Sign message addressed to the mailbox itself (it is in INBOX and SENT)", async () => {
     h.message = { ...customer, fromAddress: "support@vircle.com", labelIds: ["INBOX", "SENT", "UNREAD"], haloSign: true };
     await push();
     expect(h.findContact).not.toHaveBeenCalled();
   });
 
-  it("stops a message that carries Doc Sign's header, whoever it says it is from", async () => {
+  it("stops a message that carries Secure Sign's header, whoever it says it is from", async () => {
     h.message = { ...customer, haloSign: true };
     await push();
     expect(h.findContact).not.toHaveBeenCalled();

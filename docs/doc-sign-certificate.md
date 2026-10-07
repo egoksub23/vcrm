@@ -1,4 +1,4 @@
-# Doc Sign: the sealing certificate (self-signed or from a certificate authority)
+# Secure Sign: the sealing certificate (self-signed or from a certificate authority)
 
 Every completed document is sealed with a digital signature (a PKCS#7 signature over the whole PDF, `adbe.pkcs7.detached`). The certificate that makes it is per workspace. This page is for whoever decides which certificate to use and installs it. It follows `docs/doc-sign-setup.md` section 6.
 
@@ -33,7 +33,7 @@ In Malaysia, certification authorities that issue certificates under the Digital
 Ask for a **document signing certificate for an organisation** (a "seal", or an organisational signing certificate), and confirm in writing:
 
 1. **An RSA key of at least 2048 bits.** Halo refuses smaller keys. Elliptic-curve keys are not supported.
-2. **An exportable PKCS#12 file (`.p12` or `.pfx`).** This is the point most likely to go wrong. Many authorities, and the Adobe Approved Trust List rules for the certificates it trusts automatically, require the private key to live on a hardware token or in the authority's own signing service. Such a key **cannot be exported**, and Doc Sign cannot use it today. Ask: "Can I receive this certificate as a PKCS#12 file with the private key that I can load into software?" If the answer is no, that product does not fit, and the next choices are a different product or building support for signing through the authority's service (not built).
+2. **An exportable PKCS#12 file (`.p12` or `.pfx`).** This is the point most likely to go wrong. Many authorities, and the Adobe Approved Trust List rules for the certificates it trusts automatically, require the private key to live on a hardware token or in the authority's own signing service. Such a key **cannot be exported**, and Secure Sign cannot use it today. Ask: "Can I receive this certificate as a PKCS#12 file with the private key that I can load into software?" If the answer is no, that product does not fit, and the next choices are a different product or building support for signing through the authority's service (not built).
 3. **The authority's intermediate certificate(s) in the file**, or sent separately so you can add them. Without them a reader may not be able to build the chain.
 4. **Key usage that allows signing** (digital signature, and non-repudiation or content commitment, if it lists any), and, if it lists extended key usages, one meant for signing documents or email (document signing, email protection, or "any").
 5. **A SHA-256 (or stronger) signature.** SHA-1 is accepted by Halo with a warning but readers are phasing it out; MD5 is refused.
@@ -45,7 +45,7 @@ Ask your lawyer what legal weight a seal by the organisation has for your docume
 
 ## 4. Install it
 
-Settings > Doc Sign > **Sealing certificate** > Install a certificate. Choose the `.p12` or `.pfx`, type its passphrase, click **Check and install**. Needs `sign.settings`.
+Settings > Secure Sign > **Sealing certificate** > Install a certificate. Choose the `.p12` or `.pfx`, type its passphrase, click **Check and install**. Needs `sign.settings`.
 
 The server checks, in this order, and refuses with a message for each:
 
@@ -74,7 +74,7 @@ Install the new file the same way, a week or two before the old one ends. The ne
 
 ## 6. Before it ends, and when it has
 
-- A certificate the workspace uploaded is watched by the Doc Sign job (every minute, `runCertificateWatch`). The owner and admins (members who hold `sign.settings`) get a Halo notification at **30, 14 and 7 days** before it ends and once when it has **ended**, each once. The last warning sent is kept on the row (`sign_certificates.expiry_notified_days`).
+- A certificate the workspace uploaded is watched by the Secure Sign job (every minute, `runCertificateWatch`). The owner and admins (members who hold `sign.settings`) get a Halo notification at **30, 14 and 7 days** before it ends and once when it has **ended**, each once. The last warning sent is kept on the row (`sign_certificates.expiry_notified_days`).
 - The self-signed certificate is not watched: it lasts five years and is renewed by the next seal.
 - If an uploaded certificate has ended (or cannot be opened) when a document finishes signing, **sealing stops**. The document stays in "sealing" with a readable reason (it shows on the document's page to people who manage settings), keeps its attempts (`sign_hold_sealing`), is tried again every few minutes, and is sealed as soon as a valid certificate is installed. Nothing is sealed with a certificate nobody chose, and the signers are not asked to sign again.
 
@@ -86,7 +86,7 @@ Unchanged, whatever you do. The signature, the certificate inside it and the cha
 
 - **No trusted timestamp, no long-term validation.** The seal records the signing time from Halo's clock, not from a timestamp authority, and carries no revocation data. Readers therefore judge a certificate by today's date: after the certificate ends, some readers show earlier seals with an expired-certificate notice even though the file is unchanged. The integrity check (not modified since sealing) stays true. A timestamp (RFC 3161) and long-term validation are a possible follow-up; ask the authority whether it sells a timestamp service.
 - **Keys on a hardware token or in an authority's service** cannot be used (section 3, point 2).
-- **A chain with an elliptic-curve certificate** in it cannot be read by the library Doc Sign uses. Export the file with RSA certificates only.
+- **A chain with an elliptic-curve certificate** in it cannot be read by the library Secure Sign uses. Export the file with RSA certificates only.
 - **One certificate per workspace** is in use at a time. There is no per-person or per-category certificate.
 - **Certificate expiry is told in Halo only** (notifications), not by email.
 

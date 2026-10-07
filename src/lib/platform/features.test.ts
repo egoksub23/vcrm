@@ -90,7 +90,7 @@ describe("applyFeatureFlags", () => {
     expect([...out].sort()).toEqual(["menu.inbox", "settings.workspace", "tickets.delete"]);
   });
 
-  it("keeps Doc Sign when only the Merchant Registration add-on is off (it has no capability of its own)", () => {
+  it("keeps Secure Sign when only the Merchant Registration add-on is off (it has no capability of its own)", () => {
     const withSign = new Set(["menu.sign", "sign.send", "tickets.delete"]);
     const out = applyFeatureFlags(withSign, parsePlatformRow({ features: { sign_merchant: false } }));
     expect([...out].sort()).toEqual(["menu.sign", "sign.send", "tickets.delete"]);

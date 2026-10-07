@@ -1,11 +1,11 @@
 ---
 title: Private documents
-description: Keep a document or a document collection to yourself, your admins and the people named as signers, so nobody else with Doc Sign can find it.
+description: Keep a document or a document collection to yourself, your admins and the people named as signers, so nobody else with Secure Sign can find it.
 order: 29
 updated: 2026-10-08
 ---
 
-Most documents in Doc Sign can be seen by everyone who has access to the Doc Sign menu. A **private** document is different: only a few people can see it, and nobody else can even find it. Use it for a contract, an offer or an HR document that the rest of the team does not need to read.
+Most documents in Secure Sign can be seen by everyone who has access to the Secure Sign menu. A **private** document is different: only a few people can see it, and nobody else can even find it. Use it for a contract, an offer or an HR document that the rest of the team does not need to read.
 
 ## Who can see a private document
 
@@ -13,7 +13,7 @@ Most documents in Doc Sign can be seen by everyone who has access to the Doc Sig
 - **The workspace's admins and owners.**
 - **Halo users who are named as signers on it.** A colleague who signs inside Halo can open the document they have to sign, and see how far it has got.
 
-Everyone else with Doc Sign does not see it. It is not in the **Documents** list, not in a search, not in the counts above the list, not in the CSV export, not in the zip of signed documents, not in **Needs attention**, not on a contact's page and not in the public API. If they open its address, they get the same "not found" page as for a document that does not exist.
+Everyone else with Secure Sign does not see it. It is not in the **Documents** list, not in a search, not in the counts above the list, not in the CSV export, not in the zip of signed documents, not in **Needs attention**, not on a contact's page and not in the public API. If they open its address, they get the same "not found" page as for a document that does not exist.
 
 "See it" means everything about it: the document, who has signed, the answers on a form, the history, the files people uploaded and the people who receive a copy.
 

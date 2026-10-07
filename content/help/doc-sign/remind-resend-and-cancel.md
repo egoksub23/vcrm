@@ -9,13 +9,13 @@ After you send a document, its page shows where things stand and gives you the a
 
 ## Before you start
 
-Open **Doc Sign**, then **Documents**, and click the document. Reminding, resending and changing a recipient need permission to send. Cancelling needs permission to void. If a button is missing, your role does not have it.
+Open **Secure Sign**, then **Documents**, and click the document. Reminding, resending and changing a recipient need permission to send. Cancelling needs permission to void. If a button is missing, your role does not have it.
 
 ## Follow progress
 
 A banner at the top says what is happening, for example "Waiting for Ali (1 of 2 signed)". Below it, the **People** tab lists each person with their state: **Not invited yet**, **Invited**, **Opened**, **Signed**, **Filled in** or **Declined**. The **Document** tab shows the file and the **History** tab shows what happened. See [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf).
 
-Doc Sign also sends automatic reminders. They follow the reminder days set on the document, which come from its category and your workspace settings, and stop when the document is completed, declined, cancelled or expired.
+Secure Sign also sends automatic reminders. They follow the reminder days set on the document, which come from its category and your workspace settings, and stop when the document is completed, declined, cancelled or expired.
 
 ## Remind a person
 
@@ -29,7 +29,7 @@ The person gets a reminder by the channel you chose for them, with a **new link*
 
 Click **Resend** next to the person, then **Send again**. They get the invitation again with a new link, and the earlier link stops working. Use it when they say they never got it.
 
-If the message could not be delivered, the person shows "The email did not arrive" or "The WhatsApp message did not arrive", with the reason under it. Read the reason first. If it says the address was not accepted, check the address or number and change the recipient if it is wrong. If it says the mailbox needs to be reconnected, has reached its limit for the day, or asked Doc Sign to slow down, nothing is wrong with the address: fix the mailbox (**Settings > Doc Sign > General > Email** shows which one it is) or wait, then use **Resend**. You can also use **Copy link** and pass the link on yourself.
+If the message could not be delivered, the person shows "The email did not arrive" or "The WhatsApp message did not arrive", with the reason under it. Read the reason first. If it says the address was not accepted, check the address or number and change the recipient if it is wrong. If it says the mailbox needs to be reconnected, has reached its limit for the day, or asked Secure Sign to slow down, nothing is wrong with the address: fix the mailbox (**Settings > Secure Sign > General > Email** shows which one it is) or wait, then use **Resend**. You can also use **Copy link** and pass the link on yourself.
 
 ## Change the recipient
 

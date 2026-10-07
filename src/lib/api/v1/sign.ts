@@ -38,7 +38,7 @@ export const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID
  */
 export async function signCtx(request: Request, api: ApiKeyContext): Promise<SignCtx> {
   if (!(await signEnabled(api.supabase, api.accountId))) {
-    throw new SignError('sign_disabled', 'Doc Sign is not turned on for this workspace.', 403);
+    throw new SignError('sign_disabled', 'Secure Sign is not turned on for this workspace.', 403);
   }
   return {
     admin: api.supabase,

@@ -50,7 +50,7 @@ describe("describeEmail (the Email card)", () => {
     expect(await describeEmail(ctxWith(ready({ provider: "gmail", address: "sales@vircle.com" })))).toMatchObject({ via: "mailbox", provider: "gmail", address: "sales@vircle.com" });
   });
 
-  it("says the sender name Doc Sign settings set, when there is one", async () => {
+  it("says the sender name Secure Sign settings set, when there is one", async () => {
     db.rows("sign_settings")[0].sender_name = "Vircle Merchant Team";
     expect((await describeEmail(ctxWith(ready()))).fromName).toBe("Vircle Merchant Team");
   });
@@ -76,7 +76,7 @@ describe("sendTestEmail", () => {
     const r = await sendTestEmail(ctxWith(ready()));
     expect(r).toEqual({ sent: true, via: "mailbox", provider: "microsoft365", from: "support@vircle.com", to: "gokula@vircle.com", reason: null, detail: null });
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ to: "gokula@vircle.com", fromName: "Vircle", replyTo: "hello@vircle.example", subject: "E-mel ujian daripada Doc Sign" });
+    expect(sent[0]).toMatchObject({ to: "gokula@vircle.com", fromName: "Vircle", replyTo: "hello@vircle.example", subject: "E-mel ujian daripada Secure Sign" });
     expect(sent[0].attachments).toBeUndefined();
     expect(platform).toHaveLength(0);
   });

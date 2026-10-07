@@ -52,7 +52,7 @@
     "userGuide": "User Guide",
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval",
     "platform": "Platform",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -78,7 +78,7 @@
     "menuProfile": "Profile",
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
-    "sign": "Doc Sign"
+    "sign": "Secure Sign"
   },
   "Help": {
     "pageTitle": "User Guide",
@@ -1442,7 +1442,7 @@
         "sent": "document sent",
         "draft": "draft made",
         "already_sent": "already sent",
-        "not_enabled": "Doc Sign is off",
+        "not_enabled": "Secure Sign is off",
         "not_configured": "not set up",
         "no_contact": "no contact",
         "recipient_email_missing": "contact has no email",
@@ -1584,8 +1584,8 @@
           "hint": "On a recurring schedule"
         },
         "sign_document_event": {
-          "label": "Doc Sign event",
-          "hint": "When a Doc Sign document is sent, opened, completed, declined, expired or cancelled"
+          "label": "Secure Sign event",
+          "hint": "When a Secure Sign document is sent, opened, completed, declined, expired or cancelled"
         }
       },
       "trigger": "Trigger",
@@ -1959,8 +1959,8 @@
           "templateId": "Template id",
           "selectTemplate": "Choose a template…",
           "unknownTemplate": "(template not found or not active)",
-          "noTemplates": "No active templates found, or you cannot see them. Publish one under Doc Sign > Templates.",
-          "templateHint": "Suggested template: \"{name}\". Pick it once it exists under Doc Sign > Templates.",
+          "noTemplates": "No active templates found, or you cannot see them. Publish one under Secure Sign > Templates.",
+          "templateHint": "Suggested template: \"{name}\". Pick it once it exists under Secure Sign > Templates.",
           "title": "Document title",
           "titleHint": "Optional. Leave empty to use the template's title. You can insert variables.",
           "recipients": "Who signs and who gets a copy",
@@ -2002,7 +2002,7 @@
           "summaryEmpty": "Choose a template",
           "addCopy": "Add a person who receives a copy",
           "type": "Type",
-          "typeSigner": "Must sign",
+          "typeSigner": "Signature required",
           "typeCopy": "Receives a copy",
           "contactCopyNote": "Uses the contact's name and email. The contact must have an email address, or this step is skipped.",
           "summaryCopies": "{count, plural, one {# person signs} other {# people sign}}, {copies, plural, one {# gets a copy} other {# get a copy}}"
@@ -6898,8 +6898,8 @@
         "description": "Open Settings → SLA & business hours to edit business-hour schedules and holidays and to create, order and edit ticket SLA policies. Everyone can see the SLA state on a ticket."
       },
       "menu_sign": {
-        "label": "Menu: Doc Sign",
-        "description": "Show Doc Sign in the sidebar and allow opening its page and reading its documents, templates and audit trail. Default: Owner, Admin and Agent."
+        "label": "Menu: Secure Sign",
+        "description": "Show Secure Sign in the sidebar and allow opening its page and reading its documents, templates and audit trail. Default: Owner, Admin and Agent."
       },
       "sign_send": {
         "label": "Send documents for signing",
@@ -6914,7 +6914,7 @@
         "description": "Create, edit, duplicate and archive signing templates and their forms. Default: Owner and Admin."
       },
       "sign_settings": {
-        "label": "Configure Doc Sign",
+        "label": "Configure Secure Sign",
         "description": "Categories, add-ons, defaults, consent wording, the sender's name and logo, and the sealing certificate. Default: Owner and Admin."
       },
       "sign_sign": {
@@ -6939,7 +6939,7 @@
       "channels": "Channels and integrations",
       "workspace": "Workspace",
       "people": "People",
-      "sign": "Doc Sign"
+      "sign": "Secure Sign"
     },
     "preset": {
       "support-manager": {
@@ -7168,9 +7168,9 @@
       "support_access": "Support access",
       "sign_template": "Signing template",
       "sign_category": "Signing category",
-      "sign_settings": "Doc Sign settings",
+      "sign_settings": "Secure Sign settings",
       "sign_certificate": "Signing certificate",
-      "sign_addon": "Doc Sign add-on",
+      "sign_addon": "Secure Sign add-on",
       "sign_document": "Signing document",
       "sign_bulk_job": "Signing batch",
       "sign_option_list": "Signing option list",
@@ -8397,12 +8397,12 @@
     "encLastRun": "Last run: {rewritten} rewritten, {conflicts} changed meanwhile, {unreadable} unreadable.",
     "encNotFinished": "Time ran out before it finished: run it again.",
     "notAllowed": "You do not have access to platform administration.",
-    "feature_sign": "Doc Sign",
+    "feature_sign": "Secure Sign",
     "feature_sign_desc": "Electronic signing: upload or build documents, send them for signature and keep the signed copies. Off until the operator turns it on.",
-    "feature_sign_merchant": "Doc Sign: Merchant Registration",
-    "feature_sign_merchant_desc": "The Merchant Registration add-on for Doc Sign (merchant application and e-invoice details). Needs Doc Sign. Off for most customers.",
+    "feature_sign_merchant": "Secure Sign: Merchant Registration",
+    "feature_sign_merchant_desc": "The Merchant Registration add-on for Secure Sign (merchant application and e-invoice details). Needs Secure Sign. Off for most customers.",
     "meter_sign_documents_per_month": "Signing documents per month",
-    "job_sign-jobs": "Doc Sign jobs (sealing, expiry, reminders)"
+    "job_sign-jobs": "Secure Sign jobs (sealing, expiry, reminders)"
   },
   "Sign": {
     "admin": {
@@ -8447,8 +8447,8 @@
           "dismiss": "Dismiss"
         }
       },
-      "settingsTab": "Doc Sign",
-      "title": "Doc Sign",
+      "settingsTab": "Secure Sign",
+      "title": "Secure Sign",
       "description": "Defaults, signing wording, categories, add-ons and the sealing certificate for electronic signing.",
       "loading": "Loading…",
       "retry": "Try again",
@@ -8866,7 +8866,7 @@
         },
         "issues": {
           "no_template": "Choose the template to send.",
-          "template_not_active": "The template is not active. Make it active in Doc Sign > Templates.",
+          "template_not_active": "The template is not active. Make it active in Secure Sign > Templates.",
           "template_has_no_version": "The template has no saved version yet.",
           "no_applicant_role": "Choose which role the applicant fills.",
           "applicant_role_unknown": "The role the applicant fills is not in this template. Choose another.",
@@ -9005,7 +9005,7 @@
           "microsoft365": "No copy is kept in the mailbox's Sent Items, because each message holds one person's link or signed document.",
           "gmail": "Gmail keeps each message in the mailbox's Sent folder, where anyone who can open the mailbox can read it."
         },
-        "inboxNote": "Doc Sign messages are not added to the Halo inbox.",
+        "inboxNote": "Secure Sign messages are not added to the Halo inbox.",
         "link": {
           "manage": "Open the channel settings of this mailbox",
           "connectMicrosoft365": "Connect a Microsoft 365 mailbox",
@@ -9018,7 +9018,7 @@
       "retry": "Try again",
       "header": {
         "breadcrumb": "Where you are",
-        "back": "Doc Sign",
+        "back": "Secure Sign",
         "inOrder": "Signs in order",
         "codeRequired": "Code required",
         "reference": "Reference {reference}",
@@ -10249,8 +10249,8 @@
         "stale": "The list has changed since this form was saved. Save to use the new version.",
         "preview": "{count, plural, one {# option} other {# options}} from the list",
         "previewMore": "and {count} more",
-        "hint": "A copy of the list goes into the form when you save, and into each document when it is sent. Changing the list later does not change documents already sent. Lists are kept in Settings > Doc Sign > Lists.",
-        "hintPicked": "The signer searches this list by code or by words and adds entries one by one. A copy of the list goes into the form when you save, and into each document when it is sent. Lists are kept in Settings > Doc Sign > Lists."
+        "hint": "A copy of the list goes into the form when you save, and into each document when it is sent. Changing the list later does not change documents already sent. Lists are kept in Settings > Secure Sign > Lists.",
+        "hintPicked": "The signer searches this list by code or by words and adds entries one by one. A copy of the list goes into the form when you save, and into each document when it is sent. Lists are kept in Settings > Secure Sign > Lists."
       },
       "sensitive": {
         "title": "Sensitive data",
@@ -10430,9 +10430,9 @@
     },
     "send": {
       "shell": {
-        "title": "Doc Sign",
+        "title": "Secure Sign",
         "newDocument": "New document",
-        "sections": "Doc Sign sections",
+        "sections": "Secure Sign sections",
         "tabDocuments": "Documents",
         "tabTemplates": "Templates"
       },
@@ -10537,7 +10537,7 @@
             "signed_out": "Sign in again to continue.",
             "rate_limited": "Too many tries. Try again in a moment.",
             "network": "Could not reach the server. Check your connection and try again.",
-            "sign_disabled": "Doc Sign is not switched on for this workspace.",
+            "sign_disabled": "Secure Sign is not switched on for this workspace.",
             "generic": "The document could not be opened. Try again."
           }
         },
@@ -11031,7 +11031,7 @@
           "conflictsLabel": "Things to fix in the list of people",
           "type": {
             "label": "What they do",
-            "signer": "Must sign",
+            "signer": "Signature required",
             "copy": "Receives a copy"
           },
           "copyLine": "They get the signed copy by email when everything is signed. They are not asked to sign.",
@@ -11202,7 +11202,7 @@
       },
       "copies": {
         "type": "Type",
-        "typeSigner": "Must sign",
+        "typeSigner": "Signature required",
         "typeCopy": "Receives a copy",
         "heading": "People who receive a copy",
         "help": "They get the signed copy by email when everyone has signed. They never get a signing link.",
@@ -12076,7 +12076,7 @@
         "job_finished": "This bulk send has already finished.",
         "nothing_to_download": "None of the chosen documents has a signed file yet. Only completed documents do.",
         "bad_ids": "Choose between 1 and 50 documents.",
-        "sign_disabled": "Doc Sign is not switched on for this workspace.",
+        "sign_disabled": "Secure Sign is not switched on for this workspace.",
         "network": "Could not reach the server. Check your connection and try again.",
         "signed_out": "You have been signed out. Sign in again to continue.",
         "forbidden": "You do not have permission to do this.",
@@ -12088,7 +12088,7 @@
         "sign_limit_reached": "The monthly limit of documents was reached.",
         "cancelled": "The bulk send was cancelled before this document was sent.",
         "gave_up": "This one did not finish after several tries. Check its document, then send it by hand if needed.",
-        "sign_disabled": "Doc Sign was switched off for this workspace.",
+        "sign_disabled": "Secure Sign was switched off for this workspace.",
         "template_not_found": "The template was deleted.",
         "template_not_active": "The template is no longer active.",
         "template_has_no_version": "The template has no saved version.",
@@ -12111,7 +12111,7 @@
       }
     },
     "lists": {
-      "intro": "Lists are sets of choices that forms can use, so a state, a country or a bank is worded once and kept up to date in one place. Some come with Doc Sign; you can add your own. Editing a list never changes a document that was already sent.",
+      "intro": "Lists are sets of choices that forms can use, so a state, a country or a bank is worded once and kept up to date in one place. Some come with Secure Sign; you can add your own. Editing a list never changes a document that was already sent.",
       "new": "New list",
       "loading": "Loading lists...",
       "loadFailed": "The lists could not be loaded.",
@@ -12123,7 +12123,7 @@
       "colVersion": "Version",
       "colActions": "Actions",
       "archivedBadge": "Archived",
-      "typeSystem": "Comes with Doc Sign",
+      "typeSystem": "Comes with Secure Sign",
       "typeOwn": "Yours",
       "kindMsic": "MSIC codes",
       "openList": "Open {name}",
@@ -12141,7 +12141,7 @@
       "listArchived": "List archived",
       "listRestored": "List restored",
       "listSaved": "List saved",
-      "systemNote": "This list comes with Doc Sign. You can change the wording and add items; its values stay, so an answer always keeps its meaning. An item you no longer want is archived, which hides it from new forms.",
+      "systemNote": "This list comes with Secure Sign. You can change the wording and add items; its values stay, so an answer always keeps its meaning. An item you no longer want is archived, which hides it from new forms.",
       "systemNoteMsic": "The MSIC 2008 business activity codes, as published by the Department of Statistics Malaysia (DOSM). You can change the wording and add codes of your own; the official codes stay. Import a CSV to change many at once.",
       "usedBy": "{count, plural, =0 {Used by no template} one {Used by 1 template} other {Used by # templates}}",
       "usedByNone": "No template uses this list yet. Choose it for a field in the form builder.",
@@ -12181,7 +12181,7 @@
       "itemSaved": "Item saved",
       "cancel": "Cancel",
       "resetTitle": "Reset {name} to default?",
-      "resetBody": "Every item that comes with Doc Sign goes back to its original wording and place, and archived ones are shown again. Items you added stay, after them. Nothing is deleted, and forms already made are not changed.",
+      "resetBody": "Every item that comes with Secure Sign goes back to its original wording and place, and archived ones are shown again. Items you added stay, after them. Nothing is deleted, and forms already made are not changed.",
       "resetConfirm": "Reset to default",
       "resetDone": "The list is back to its default",
       "meta": {
@@ -12225,7 +12225,7 @@
         "modeMergeHint": "Items that are not in the file stay. A language the file leaves empty is kept.",
         "modeReplace": "Replace the whole list with the file",
         "modeReplaceHint": "Items that are not in the file are removed from the list. Forms already made are not changed.",
-        "systemMergeOnly": "A list that comes with Doc Sign can only be added to and updated.",
+        "systemMergeOnly": "A list that comes with Secure Sign can only be added to and updated.",
         "checking": "Checking the file...",
         "summary": "{added} to add, {updated} to update, {unchanged} unchanged, {removed} to remove.",
         "removedWarning": "{count, plural, one {# item will be removed from the list.} other {# items will be removed from the list.}}",
@@ -12280,10 +12280,10 @@
         "group_too_long": "A group can be up to 40 characters.",
         "duplicate_value": "That value is already in the list.",
         "too_many_items": "A list holds up to 5,000 items.",
-        "list_values_locked": "A list that comes with Doc Sign keeps every value it has. Archive an item instead of removing it.",
+        "list_values_locked": "A list that comes with Secure Sign keeps every value it has. Archive an item instead of removing it.",
         "value_removed": "This value cannot be removed.",
-        "system_list_merge_only": "A list that comes with Doc Sign can only be added to or updated, never replaced.",
-        "not_a_system_list": "Only a list that comes with Doc Sign can be reset.",
+        "system_list_merge_only": "A list that comes with Secure Sign can only be added to or updated, never replaced.",
+        "not_a_system_list": "Only a list that comes with Secure Sign can be reset.",
         "bad_import": "Choose a CSV file and how to import it.",
         "import_failed": "Nothing in this file could be imported."
       }
@@ -12421,7 +12421,7 @@
         "noDocuments": "No documents yet.",
         "people": "People",
         "noPeople": "Nobody has been added yet.",
-        "mustSign": "Must sign",
+        "mustSign": "Signature required",
         "copy": "Receives a copy",
         "blocks": "{count, plural, one {# signature block} other {# signature blocks}}",
         "ready": "Ready",
@@ -12480,7 +12480,8 @@
         "introForm": "Add everyone who fills this in, once: their name, their email, and whether they fill it in or only receive a copy.",
         "typeFiller": "Fills in",
         "limitSigners": "Up to {max} people can be asked to sign.",
-        "limitRoles": "Up to {max} people can be asked to sign an uploaded file. Each one becomes a role on that document."
+        "limitRoles": "Up to {max} people can be asked to sign an uploaded file. Each one becomes a role on that document.",
+        "sentByWhatsapp": "Sent by WhatsApp"
       },
       "blocks": {
         "heading": "Signature blocks",
@@ -12565,8 +12566,8 @@
       "toggle": {
         "labelSingle": "Private document",
         "labelCollection": "Private document collection",
-        "hintSingle": "Only you, the workspace's admins and the Halo users you name as signers can see this document, who has signed it and what they answered. Other people with Doc Sign will not find it in lists, searches, counts or exports.",
-        "hintCollection": "Only you, the workspace's admins and the Halo users you name as signers can see this collection and every document in it, who has signed and what they answered. Other people with Doc Sign will not find them in lists, searches, counts or exports.",
+        "hintSingle": "Only you, the workspace's admins and the Halo users you name as signers can see this document, who has signed it and what they answered. Other people with Secure Sign will not find it in lists, searches, counts or exports.",
+        "hintCollection": "Only you, the workspace's admins and the Halo users you name as signers can see this collection and every document in it, who has signed and what they answered. Other people with Secure Sign will not find them in lists, searches, counts or exports.",
         "notYours": "Only the person who uploaded this, or an admin, can change this."
       }
     },

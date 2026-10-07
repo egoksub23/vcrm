@@ -27,7 +27,7 @@ vi.mock("@/lib/sign/service/gate", () => ({
   assertSignOn: async () => {
     if (!h.signOn) {
       const { SignError } = await import("@/lib/sign/service/errors");
-      throw new SignError("sign_disabled", "Doc Sign is not switched on for this workspace.", 403);
+      throw new SignError("sign_disabled", "Secure Sign is not switched on for this workspace.", 403);
     }
   },
 }));
@@ -84,7 +84,7 @@ describe("POST /api/sign/documents/[id]/countersign", () => {
     expect(db.rpcCalls.filter((c) => c.name === "sign_rotate_token")).toHaveLength(0);
   });
 
-  it("refuses without the capability, without Doc Sign, and for an address that is not a document id", async () => {
+  it("refuses without the capability, without Secure Sign, and for an address that is not a document id", async () => {
     h.denied = true;
     expect((await call()).status).toBe(403);
     h.denied = false;

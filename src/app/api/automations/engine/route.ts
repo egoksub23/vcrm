@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   // Doc Sign events come from Doc Sign itself (src/lib/sign/service/outbound.ts), with the document's real
   // details: they cannot be made up here.
   if (body.trigger_type === 'sign_document_event') {
-    return NextResponse.json({ error: 'sign_document_event is fired by Doc Sign itself' }, { status: 400 })
+    return NextResponse.json({ error: 'sign_document_event is fired by Secure Sign itself' }, { status: 400 })
   }
 
   await runAutomationsForTrigger({

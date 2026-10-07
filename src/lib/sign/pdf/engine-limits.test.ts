@@ -81,7 +81,7 @@ describe("a document at the page limit", () => {
   const pass = "limit-test";
   let p12: Uint8Array;
   beforeAll(() => {
-    p12 = createSelfSignedP12({ commonName: "Halo Doc Sign test", organization: "Vircle", country: "MY", passphrase: pass, bits: 1024 });
+    p12 = createSelfSignedP12({ commonName: "Vircle Secure Sign test", organization: "Vircle", country: "MY", passphrase: pass, bits: 1024 });
   });
   const cert: CertificateData = {
     title: "Long agreement",

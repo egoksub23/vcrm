@@ -64,7 +64,7 @@ export function checkSendSignDocument(c: Record<string, unknown>, path: string, 
   const add = (p: string, message: string) => issues.push({ path: `${path}.${p}`, message })
 
   const templateId = typeof c.template_id === 'string' ? c.template_id.trim() : ''
-  if (!templateId) add('template_id', 'a Doc Sign template is required')
+  if (!templateId) add('template_id', 'a Secure Sign template is required')
 
   const recipients = Array.isArray(c.recipients) ? (c.recipients as Record<string, unknown>[]) : []
   // A recipient with no `kind` signs (every configuration saved before copies existed); `copy` only receives the signed copy.
@@ -145,11 +145,11 @@ export function checkSendSignDocument(c: Record<string, unknown>, path: string, 
   if (setup) {
     // roles belong to the people who sign; their index is kept for the path
     const signers = recipients.map((r, i) => ({ r, i })).filter(({ r }) => !copyAt(r))
-    if (!setup.enabled) add('template_id', 'Doc Sign is not turned on for this workspace')
+    if (!setup.enabled) add('template_id', 'Secure Sign is not turned on for this workspace')
     else if (templateId) {
       const t = setup.templates[templateId]
-      if (!t?.found) add('template_id', 'that Doc Sign template no longer exists')
-      else if (!t.active) add('template_id', 'that Doc Sign template is not active: publish it first')
+      if (!t?.found) add('template_id', 'that Secure Sign template no longer exists')
+      else if (!t.active) add('template_id', 'that Secure Sign template is not active: publish it first')
       else {
         const have = new Set(t.roles.map((r) => r.key))
         signers.forEach(({ r, i }) => {

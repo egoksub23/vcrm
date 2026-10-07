@@ -1,4 +1,4 @@
-# Doc Sign: third-party code and fonts
+# Secure Sign: third-party code and fonts
 
 Checked on 6 October 2026, when the PDF engine (work package 2) was added. Nothing here is copied from
 OpenSign or any other signing product; these are general-purpose libraries and fonts.

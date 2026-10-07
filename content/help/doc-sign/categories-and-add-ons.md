@@ -5,11 +5,11 @@ order: 8
 updated: 2026-10-08
 ---
 
-A **category** labels documents and templates and sets the starting choices for them. An **add-on** is a ready-made pack for a business process, such as signing merchant agreements. Both are managed in **Settings**, under **Doc Sign**, by someone allowed to manage Doc Sign settings.
+A **category** labels documents and templates and sets the starting choices for them. An **add-on** is a ready-made pack for a business process, such as signing merchant agreements. Both are managed in **Settings**, under **Secure Sign**, by someone allowed to manage Secure Sign settings.
 
 ## Categories
 
-Every workspace starts with four categories: **Merchant agreements**, **NDA**, **Partnership** and **Sales**. You can add your own, rename them and archive them. Lists in Doc Sign can be filtered by category.
+Every workspace starts with four categories: **Merchant agreements**, **NDA**, **Partnership** and **Sales**. You can add your own, rename them and archive them. Lists in Secure Sign can be filtered by category.
 
 ### What a category sets
 
@@ -26,7 +26,7 @@ Anything the category leaves empty follows your workspace setting. The sender ca
 
 ### Create or change a category
 
-1. Open **Settings**, then **Doc Sign**, then **Categories**.
+1. Open **Settings**, then **Secure Sign**, then **Categories**.
 2. Click **New category**, or the pencil next to one to edit it.
 3. Fill in the name and any starting choices. Leave a choice empty to use the workspace setting.
 4. Click **Create category** or **Save**.
@@ -42,7 +42,7 @@ Use the arrows to move a category up or down in the list. A category cannot be d
 
 ## Add-ons
 
-Open **Settings**, then **Doc Sign**, then **Add-ons**. Each card shows the add-on's name, what it adds and its state:
+Open **Settings**, then **Secure Sign**, then **Add-ons**. Each card shows the add-on's name, what it adds and its state:
 
 - **Not installed**: ready to install.
 - **Installed v2.0**: installed, with its version.
@@ -51,7 +51,7 @@ Open **Settings**, then **Doc Sign**, then **Add-ons**. Each card shows the add-
 
 ### Install an add-on
 
-Click **Install**. Doc Sign:
+Click **Install**. Secure Sign:
 
 - adds the add-on's category if you do not have it, or marks your existing one as belonging to the add-on without changing its choices
 - adds its templates as drafts for you to review
@@ -84,7 +84,7 @@ The first add-on, **Merchant Registration**, is for signing merchant agreements.
 
 **What version 2.0 changed** (for a workspace that installed 1.1):
 
-- State, country, bank, company ID type, e-invoice phase and tax type take their choices from your **shared lists** (Settings, Doc Sign, Lists), so a bank or a state is changed once for every form. See [Option lists](/help/doc-sign/option-lists).
+- State, country, bank, company ID type, e-invoice phase and tax type take their choices from your **shared lists** (Settings, Secure Sign, Lists), so a bank or a state is changed once for every form. See [Option lists](/help/doc-sign/option-lists).
 - Business MSIC codes are picked from the full MSIC list with a search box.
 - The **bank account number** and the **business registration number** are [sensitive answers](/help/doc-sign/sensitive-fields): stored encrypted, shown masked to you with a logged Reveal, and left out of exports and the API. On the signed copy the account number is printed as its last four digits; the registration number is printed in full because the agreement has to name the company. The tax identification number (TIN) is not marked sensitive: it is shared on every e-invoice and your staff need it in full. If your workspace only signs up companies, you can switch the registration number's protection off in the template editor.
 - The template file, its layout and its wording are unchanged.

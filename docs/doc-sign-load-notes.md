@@ -1,4 +1,4 @@
-# Doc Sign: sealing load notes
+# Secure Sign: sealing load notes
 
 What it costs to seal a signed document, and what the cron job can carry. Read the next paragraph first.
 

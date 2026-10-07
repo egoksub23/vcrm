@@ -145,7 +145,7 @@ describe("the merged Team section", () => {
     expect(resolveTeamView(null, null)).toBe("members");
   });
 
-  it("registers Doc Sign in the workspace group behind sign.settings, so the operator's switch hides it", () => {
+  it("registers Secure Sign in the workspace group behind sign.settings, so the operator's switch hides it", () => {
     expect(SECTION_META.sign.group).toBe("workspace");
     expect(SECTION_META.sign.capability).toBe("sign.settings");
     expect(resolveSection("sign")).toBe("sign");

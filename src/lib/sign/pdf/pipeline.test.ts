@@ -297,12 +297,12 @@ describe("sealing and verification", () => {
   const pass = "test-passphrase";
 
   beforeAll(() => {
-    p12 = createSelfSignedP12({ commonName: "Halo Doc Sign test", organization: "Vircle", country: "MY", passphrase: pass, bits: 1024 });
+    p12 = createSelfSignedP12({ commonName: "Vircle Secure Sign test", organization: "Vircle", country: "MY", passphrase: pass, bits: 1024 });
   });
 
   it("reads the facts about a certificate and rejects a wrong passphrase", () => {
     const facts = readP12(p12, pass);
-    expect(facts.subject).toBe("Halo Doc Sign test, Vircle, MY");
+    expect(facts.subject).toBe("Vircle Secure Sign test, Vircle, MY");
     expect(facts.selfSigned).toBe(true);
     expect(facts.notAfter.getTime()).toBeGreaterThan(Date.now());
     expect(() => readP12(p12, "wrong")).toThrow(CertificateError);
@@ -331,7 +331,7 @@ describe("sealing and verification", () => {
     const v = verifySealed(sealed.bytes);
     expect(v.problems).toEqual([]);
     expect(v).toMatchObject({ ok: true, signatureCount: 1, signatureValid: true, digestMatches: true, coversWholeFile: true });
-    expect(v.signer).toMatchObject({ subject: "Halo Doc Sign test, Vircle, MY", selfSigned: true });
+    expect(v.signer).toMatchObject({ subject: "Vircle Secure Sign test, Vircle, MY", selfSigned: true });
     expect(v.reason).toBe("Test seal");
     expect(Math.abs((v.signingTime?.getTime() ?? 0) - Date.now())).toBeLessThan(60_000);
 

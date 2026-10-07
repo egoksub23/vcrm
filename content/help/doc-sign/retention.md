@@ -5,26 +5,26 @@ order: 20
 updated: 2026-10-07
 ---
 
-A signed document is a record. Doc Sign keeps every completed document for a period you choose, called the **retention period**. Until the end of it, nobody can delete the document, not even the workspace owner.
+A signed document is a record. Secure Sign keeps every completed document for a period you choose, called the **retention period**. Until the end of it, nobody can delete the document, not even the workspace owner.
 
 ## Before you start
 
-Open **Settings**, then **Doc Sign**, then **General**. Changing the period needs permission to manage Doc Sign settings. Anyone who can see Doc Sign can see when a document is kept until.
+Open **Settings**, then **Secure Sign**, then **General**. Changing the period needs permission to manage Secure Sign settings. Anyone who can see Secure Sign can see when a document is kept until.
 
 ## What is kept, and until when
 
-When the last person signs and the document is sealed, Doc Sign works out its **retention date**: the day it was sealed plus the retention period. The date is shown on the document's page, under the green "Completed" banner, for example "Kept until 6 Oct 2033".
+When the last person signs and the document is sealed, Secure Sign works out its **retention date**: the day it was sealed plus the retention period. The date is shown on the document's page, under the green "Completed" banner, for example "Kept until 6 Oct 2033".
 
 Until that date:
 
 - The document, its signed PDF, the certificate pages and its history cannot be deleted by anyone: not by you, not by the workspace owner, not by an administrator.
 - The retention date cannot be shortened. It can only be moved later.
 
-After that date the rule no longer stops a deletion. Doc Sign never deletes anything by itself, and there is no button to delete a signed document yet.
+After that date the rule no longer stops a deletion. Secure Sign never deletes anything by itself, and there is no button to delete a signed document yet.
 
 ## Set the period
 
-1. In **Settings**, **Doc Sign**, **General**, find **Retention**.
+1. In **Settings**, **Secure Sign**, **General**, find **Retention**.
 2. Enter a whole number of years, from 1 to 50. The starting value is **7**.
 3. Click **Save**.
 
@@ -40,7 +40,7 @@ Nothing. The retention date is fixed on the day a document is sealed. If you cha
 ## What is not covered
 
 - **Drafts and documents that were never sealed.** A draft can be deleted by anyone who can send documents. A document that was sent but not completed (declined, expired or cancelled) is not deleted either; cancel it instead. See [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel).
-- **Copies outside Halo.** The signed PDF you or the signers downloaded or received by email is yours to keep or delete. Retention applies to the copy kept in Doc Sign.
+- **Copies outside Halo.** The signed PDF you or the signers downloaded or received by email is yours to keep or delete. Retention applies to the copy kept in Secure Sign.
 - **Deleting your whole workspace.** This is the one exception. When a workspace is deleted, everything in it is removed, signed documents included, so export your workspace data first (the owner can do this in Settings, under the workspace's data and deletion options). Whether signed documents should outlive a deleted workspace is still to be decided together with legal advice; until then, they do not.
 
 ## Tips

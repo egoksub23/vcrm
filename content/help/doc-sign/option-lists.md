@@ -7,9 +7,9 @@ updated: 2026-10-07
 
 Many questions on a form have the same answers every time: which state, which country, which bank, which business activity. An **option list** keeps those answers in one place, so you word them once and every form that needs them uses the same list. The signer searches the list on their phone instead of scrolling through hundreds of lines.
 
-Lists live in **Settings**, then **Doc Sign**, then the **Lists** tab. Anyone who can see Doc Sign can read them. Changing them needs the permission to manage Doc Sign settings.
+Lists live in **Settings**, then **Secure Sign**, then the **Lists** tab. Anyone who can see Secure Sign can read them. Changing them needs the permission to manage Secure Sign settings.
 
-## The lists that come with Doc Sign
+## The lists that come with Secure Sign
 
 Your workspace starts with these. You cannot delete them, but you can change their wording and add to them.
 
@@ -88,14 +88,14 @@ A row with a problem is left out and listed; the other rows are used. **Export C
 
 ## Put a list back to how it came
 
-On a list that comes with Doc Sign, **Reset to default** puts every item back to its original wording and place and shows the archived ones again. Items you added stay, after them. Nothing is deleted, and forms already made are not changed.
+On a list that comes with Secure Sign, **Reset to default** puts every item back to its original wording and place and shows the archived ones again. Items you added stay, after them. Nothing is deleted, and forms already made are not changed.
 
 ## Common mistakes
 
 - **Expecting an old document to change.** It will not: it keeps the list it was sent with. Make a new document to use the new list.
 - **Expecting an old template to update by itself.** Open its form and save it; a new document made after that has the new list.
 - **Using a value with spaces or accents.** A value is for the computer: letters, digits and `_` `.` `-` only. Put the nice wording in the English column.
-- **Losing the leading zero of an MSIC code in Excel.** `01111` becomes `1111`. Doc Sign puts the zero back and tells you, but it is safer to format the column as text.
+- **Losing the leading zero of an MSIC code in Excel.** `01111` becomes `1111`. Secure Sign puts the zero back and tells you, but it is safer to format the column as text.
 - **Deleting instead of archiving.** Lists and items are archived, not deleted, so that forms and answers never lose their meaning.
 - **Saving the CSV in the wrong format.** Choose **CSV UTF-8**, or Bahasa Melayu, Chinese and Korean letters can come out wrong.
 - **Editing the wording of a list in a form.** Options that come from a list are changed on the list, in **Settings**, not in the form.

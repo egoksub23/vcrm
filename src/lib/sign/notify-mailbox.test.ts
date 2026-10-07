@@ -140,7 +140,7 @@ describe("which way email goes", () => {
     expect(await deliverInvitation(admin, odd.deps, "https://halo.test", doc, ws, inv)).toEqual({ channel: "email", status: "failed", detail: "something odd" });
   });
 
-  it("marks every message of the workspace's mailbox with the Doc Sign header the inbox ingestion refuses", () => {
+  it("marks every message of the workspace's mailbox with the Secure Sign header the inbox ingestion refuses", () => {
     expect(SIGN_MAIL_HEADERS).toEqual({ "X-Halo-Sign": "1" });
     expect(typeof realDeps.mailbox).toBe("function");
   });
@@ -230,7 +230,7 @@ describe("the test email", () => {
     expect(r).toMatchObject({ delivery: { status: "sent" }, via: "mailbox", provider: "microsoft365", from: "support@vircle.com" });
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe("me@vircle.com");
-    expect(sent[0].subject).toBe("Doc Sign 테스트 이메일");
+    expect(sent[0].subject).toBe("Secure Sign 테스트 이메일");
     expect(sent[0].text).not.toMatch(/https?:\/\//);
 
     const p = world({ platform: true, state: { kind: "none" } });

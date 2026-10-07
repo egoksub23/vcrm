@@ -171,7 +171,7 @@ describe("what sealing does with the certificate", () => {
     expect(err).toBeInstanceOf(SignError);
     expect(err.code).toBe("certificate_expired");
     expect(err.message).toContain("2026-10-03");
-    expect(err.message).toContain("Settings > Doc Sign > Sealing certificate");
+    expect(err.message).toContain("Settings > Secure Sign > Sealing certificate");
     expect(CERTIFICATE_HOLD_CODES.has(err.code)).toBe(true);
     // no certificate was made behind the owner's back
     expect(stored()).toHaveLength(1);

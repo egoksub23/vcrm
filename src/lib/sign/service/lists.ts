@@ -143,7 +143,7 @@ async function write(ctx: SignCtx, row: OptionListRow, patch: Record<string, unk
     .select("*")
     .single();
   if (error || !data) {
-    if (/system_values_cannot_be_deleted/.test(error?.message ?? "")) throw new SignError("list_values_locked", "A list that comes with Doc Sign keeps every value it has.", 409);
+    if (/system_values_cannot_be_deleted/.test(error?.message ?? "")) throw new SignError("list_values_locked", "A list that comes with Secure Sign keeps every value it has.", 409);
     if (/duplicate_values/.test(error?.message ?? "")) throw new SignError("duplicate_value", "Two items have the same value.", 400);
     if (/item_is_not_valid|msic_code_is_not_valid|items_must_be_an_array/.test(error?.message ?? "")) throw new SignError("bad_items", "An item of the list is not valid.", 400);
     raiseDatabaseError(error, "update option list");
@@ -208,7 +208,7 @@ export async function updateList(ctx: SignCtx, key: string, patch: ListPatch): P
     if (issues.length === 0) {
       const items = cleanItems(patch.items);
       const gone = row.is_system ? removedValues(row.items, items) : [];
-      if (gone.length) throw new SignError("list_values_locked", "A list that comes with Doc Sign keeps every value it has.", 409, gone.slice(0, 20).map((v) => ({ code: "value_removed", field: v })));
+      if (gone.length) throw new SignError("list_values_locked", "A list that comes with Secure Sign keeps every value it has.", 409, gone.slice(0, 20).map((v) => ({ code: "value_removed", field: v })));
       if (items.length > MAX_LIST_ITEMS) issues.push({ code: "too_many_items", detail: String(MAX_LIST_ITEMS) });
       update.items = items;
     }
@@ -231,7 +231,7 @@ export async function importIntoList(ctx: SignCtx, key: string, input: ImportInp
   if (input.csv.length > MAX_IMPORT_CHARS) throw new SignError("body_too_large", "That file is too large to import.", 413);
   if (input.mode !== "merge" && input.mode !== "replace") throw new SignError("bad_import", "Choose how to import the file.", 400);
   const row = await loadList(ctx, key);
-  if (row.is_system && input.mode === "replace") throw new SignError("system_list_merge_only", "A list that comes with Doc Sign can only be added to or updated, never replaced.", 409);
+  if (row.is_system && input.mode === "replace") throw new SignError("system_list_merge_only", "A list that comes with Secure Sign can only be added to or updated, never replaced.", 409);
 
   const parsed = parseListCsv(input.csv, row.kind);
   if (parsed.items.length === 0) {
@@ -253,11 +253,11 @@ export async function exportList(ctx: SignCtx, key: string): Promise<{ filename:
 /** Put a list that comes with Doc Sign back to the wording it shipped with. What the workspace added is kept after it. */
 export async function resetList(ctx: SignCtx, key: string): Promise<OptionListRow> {
   const row = await loadList(ctx, key);
-  if (!row.is_system) throw new SignError("not_a_system_list", "Only a list that comes with Doc Sign can be reset.", 409);
+  if (!row.is_system) throw new SignError("not_a_system_list", "Only a list that comes with Secure Sign can be reset.", 409);
   // loaded here, not at the top of the file: the shipped content is large and only this one call needs it
   const { SYSTEM_LISTS } = await import("../lists/system-lists");
   const shipped = SYSTEM_LISTS.find((l) => l.key === key);
-  if (!shipped) throw new SignError("not_a_system_list", "Only a list that comes with Doc Sign can be reset.", 409);
+  if (!shipped) throw new SignError("not_a_system_list", "Only a list that comes with Secure Sign can be reset.", 409);
   const items = resetToDefault(row.items, shipped.items);
   if (sameItems(items, row.items)) return row;
   return write(ctx, row, { items });

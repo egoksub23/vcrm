@@ -326,7 +326,7 @@ export function validateTriggerForActivation(
       }
     }
     if (opts.signSetup && !opts.signSetup.enabled) {
-      issues.push({ path: 'trigger', message: 'Doc Sign is not turned on for this workspace, so this trigger would never fire' })
+      issues.push({ path: 'trigger', message: 'Secure Sign is not turned on for this workspace, so this trigger would never fire' })
     }
   } else if (triggerType === 'interactive_reply') {
     const ids = cfg.reply_ids

@@ -36,7 +36,7 @@ export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
   'conversations:read': 'List and read conversations',
   'broadcasts:send': 'Launch broadcast campaigns',
   'webhooks:manage': 'Register and manage outbound event webhooks',
-  'sign:read': 'See Doc Sign templates, documents and their status, and download signed copies',
+  'sign:read': 'See Secure Sign templates, documents and their status, and download signed copies',
   'sign:write': 'Send documents for signature, remind signers and cancel documents',
 };
 

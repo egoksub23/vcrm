@@ -227,7 +227,7 @@ export async function deliverInvitation(
     const to = normalizePhone(inv.phone);
     const template = w.settings?.whatsapp_template_name;
     if (!to) return { channel: "whatsapp", status: "failed", detail: "no valid phone number" };
-    if (!template) return { channel: "whatsapp", status: "not_configured", detail: "no WhatsApp template is set in Doc Sign settings" };
+    if (!template) return { channel: "whatsapp", status: "not_configured", detail: "no WhatsApp template is set in Secure Sign settings" };
     try {
       await deps.sendWhatsApp(admin, { accountId: doc.accountId, to, templateName: template, language: w.settings?.whatsapp_template_language ?? "en", params: [inv.name, doc.title, link] });
       return { channel: "whatsapp", status: "sent" };
@@ -340,7 +340,7 @@ export async function deliverEnvelopeInvitation(admin: SupabaseClient, deps: Not
     const to = normalizePhone(inv.phone);
     const template = w.settings?.whatsapp_template_name;
     if (!to) return { channel: "whatsapp", status: "failed", detail: "no valid phone number" };
-    if (!template) return { channel: "whatsapp", status: "not_configured", detail: "no WhatsApp template is set in Doc Sign settings" };
+    if (!template) return { channel: "whatsapp", status: "not_configured", detail: "no WhatsApp template is set in Secure Sign settings" };
     try {
       await deps.sendWhatsApp(admin, { accountId: env.accountId, to, templateName: template, language: w.settings?.whatsapp_template_language ?? "en", params: [inv.name, env.title, link] });
       return { channel: "whatsapp", status: "sent" };

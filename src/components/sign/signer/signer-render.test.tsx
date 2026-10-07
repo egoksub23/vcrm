@@ -71,6 +71,9 @@ run("the signing page, first paint", () => {
     expect(html).toContain("Merchant Agreement");
     expect(html).toContain("Please sign by Friday.");
     expect(html).toContain("Secured by Halo");
+    // the header names the product, which is Secure Sign
+    expect(html).toContain("Vircle Secure Sign");
+    expect(html).not.toContain("Doc Sign");
     expect(errors).toEqual([]);
   });
 

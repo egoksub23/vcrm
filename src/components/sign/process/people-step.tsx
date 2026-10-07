@@ -2,11 +2,12 @@
 
 // ============================================================
 // Doc Sign, step 2 of the sending workflow: everyone who takes part, on ONE screen, for a document on its own and for a collection. Each person is
-// a name (a matching contact fills the email, which stays editable), an email and a TYPE: "Must sign" or "Receives a copy". For a person who
-// must sign: how the link is sent (email or WhatsApp), their step when people sign one after another, and (a document on its own) a Halo user
+// a name (a matching contact fills the email, which stays editable), the email under it, and a TYPE as two radio buttons: "Signature required" or
+// "Receives a copy". The link always goes by email (nobody is offered a channel here; a person saved earlier with WhatsApp keeps it and is told so).
+// For a person who must sign: their step when people sign one after another, and (a document on its own) a Halo user
 // of this workspace to sign from inside Halo. Nothing about roles per document and nothing about fields here: an uploaded file takes a role from
 // each person who must sign (the sender then gives each signature block to a person in step 3), and only a document that came from a template
-// has roles to match, in "Match the template's roles" under the list. A person who receives a copy needs no channel and no step: they get the
+// has roles to match, in "Match the template's roles" under the list. A person who receives a copy needs no step: they get the
 // signed copy by email when everything is signed.
 // ============================================================
 
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { addPerson, countByType, normalizePersonSteps, personHasInput, personIsComplete, removePerson, setPersonType, setTemplateMatch, templateMatches, updatePerson } from "@/lib/sign/client/envelope-form";
 import { MAX_COPY_RECIPIENTS, isCopy, isSigner, isUploadDoc, roleCoverage, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
 import { MAX_ROLES, MAX_SIGNERS, normalizePhone } from "@/lib/sign/rules";
@@ -106,7 +108,9 @@ export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], peo
           const touched = showInvalid || personHasInput(p);
           const nameBad = touched && (!p.fullName.trim() || p.fullName.trim().length > 160);
           const emailBad = touched && !EMAIL_RE.test(p.email.trim());
-          const phoneBad = touched && !copy && p.channel === "whatsapp" && normalizePhone(p.phone) === null;
+          // a person saved earlier with WhatsApp keeps that channel (and the number it needs); nobody is given it on this screen
+          const byWhatsapp = !copy && p.channel === "whatsapp";
+          const phoneBad = touched && byWhatsapp && normalizePhone(p.phone) === null;
           // a person who must sign needs a place on the documents: an uploaded file gives every person one, a template's role must be matched
           const rolesBad = touched && !copy && !personIsComplete({ ...p, fullName: "x", email: "x@x.xx", phone: "+60123456789", step: 1 }, docs);
           return (
@@ -118,72 +122,92 @@ export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], peo
                   {t("removeShort")}
                 </Button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label htmlFor={`${p.key}-name`} className="text-xs font-medium text-foreground">
-                    {t("fullName")}
-                  </label>
-                  <PersonNameInput
-                    id={`${p.key}-name`}
-                    value={p.fullName}
-                    disabled={readOnly}
-                    readOnly={!!p.internalUserId}
-                    invalid={nameBad}
-                    onChange={(name) => change(updatePerson(people, p.key, { fullName: name }, docs))}
-                    onPickContact={(c) => change(applyContact(people, p.key, c, docs))}
-                  />
-                  {nameBad ? <p className="text-xs text-destructive">{t("errors.name")}</p> : null}
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor={`${p.key}-email`} className="text-xs font-medium text-foreground">
-                    {t("email")}
-                  </label>
-                  <Input id={`${p.key}-email`} type="email" value={p.email} maxLength={254} autoComplete="off" disabled={readOnly} readOnly={!!p.internalUserId} aria-invalid={emailBad} onChange={(e) => change(updatePerson(people, p.key, { email: e.target.value }))} />
-                  {emailBad ? <p className="text-xs text-destructive">{t("errors.email")}</p> : null}
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor={`${p.key}-type`} className="text-xs font-medium text-foreground">
-                    {t("type.label")}
-                  </label>
-                  <select id={`${p.key}-type`} className={SELECT} value={copy ? "copy" : "signer"} disabled={readOnly} onChange={(e) => change(setPersonType(people, p.key, e.target.value === "copy" ? "copy" : "signer", docs))}>
-                    <option value="signer" disabled={copy && signersFull}>
-                      {formOnly ? tp("typeFiller") : t("type.signer")}
-                    </option>
-                    <option value="copy" disabled={!copy && copiesFull}>
-                      {t("type.copy")}
-                    </option>
-                  </select>
-                </div>
-                {!copy ? (
+              <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                {/* left: who they are (name, then the email directly under it) */}
+                <div className="space-y-3">
                   <div className="space-y-1">
-                    <label htmlFor={`${p.key}-channel`} className="text-xs font-medium text-foreground">
-                      {t("channel.label")}
+                    <label htmlFor={`${p.key}-name`} className="text-xs font-medium text-foreground">
+                      {t("fullName")}
                     </label>
-                    <select id={`${p.key}-channel`} className={SELECT} value={p.channel} disabled={readOnly} onChange={(e) => change(updatePerson(people, p.key, { channel: e.target.value === "whatsapp" ? "whatsapp" : "email" }))}>
-                      <option value="email">{t("channel.email")}</option>
-                      <option value="whatsapp">{t("channel.whatsapp")}</option>
-                    </select>
-                    {p.channel === "whatsapp" && whatsappConfigured === false ? <p className="text-xs text-[light-dark(#92400e,#fcd34d)]">{t("whatsappOff")}</p> : null}
+                    <PersonNameInput
+                      id={`${p.key}-name`}
+                      value={p.fullName}
+                      disabled={readOnly}
+                      readOnly={!!p.internalUserId}
+                      invalid={nameBad}
+                      onChange={(name) => change(updatePerson(people, p.key, { fullName: name }, docs))}
+                      onPickContact={(c) => change(applyContact(people, p.key, c, docs))}
+                    />
+                    {nameBad ? <p className="text-xs text-destructive">{t("errors.name")}</p> : null}
                   </div>
-                ) : null}
-                {!copy && p.channel === "whatsapp" ? (
                   <div className="space-y-1">
-                    <label htmlFor={`${p.key}-phone`} className="text-xs font-medium text-foreground">
-                      {t("phone")}
+                    <label htmlFor={`${p.key}-email`} className="text-xs font-medium text-foreground">
+                      {t("email")}
                     </label>
-                    <Input id={`${p.key}-phone`} type="tel" value={p.phone} placeholder="+60123456789" disabled={readOnly} aria-invalid={phoneBad} onChange={(e) => change(updatePerson(people, p.key, { phone: e.target.value }))} />
-                    {phoneBad ? <p className="text-xs text-destructive">{t("errors.phone")}</p> : null}
+                    <Input id={`${p.key}-email`} type="email" value={p.email} maxLength={254} autoComplete="off" disabled={readOnly} readOnly={!!p.internalUserId} aria-invalid={emailBad} onChange={(e) => change(updatePerson(people, p.key, { email: e.target.value }))} />
+                    {emailBad ? <p className="text-xs text-destructive">{t("errors.email")}</p> : null}
                   </div>
-                ) : null}
-                {!copy && ordered ? (
-                  <div className="space-y-1">
-                    <label htmlFor={`${p.key}-step`} className="text-xs font-medium text-foreground">
-                      {t("step")}
-                    </label>
-                    <Input id={`${p.key}-step`} type="number" min={1} max={MAX_SIGNERS} value={p.step} disabled={readOnly} className="w-24" onChange={(e) => change(updatePerson(people, p.key, { step: Math.max(1, Math.min(MAX_SIGNERS, Math.floor(Number(e.target.value)) || 1)) }))} />
-                    <p className="text-xs text-muted-foreground">{t("stepHint")}</p>
+                  {byWhatsapp ? (
+                    // only a person saved earlier with WhatsApp: their number stays, so the draft is not changed behind their back
+                    <div className="space-y-1">
+                      <label htmlFor={`${p.key}-phone`} className="text-xs font-medium text-foreground">
+                        {t("phone")}
+                      </label>
+                      <Input id={`${p.key}-phone`} type="tel" value={p.phone} placeholder="+60123456789" disabled={readOnly} aria-invalid={phoneBad} onChange={(e) => change(updatePerson(people, p.key, { phone: e.target.value }))} />
+                      {phoneBad ? <p className="text-xs text-destructive">{t("errors.phone")}</p> : null}
+                    </div>
+                  ) : null}
+                </div>
+                {/* right: what they do, as two radio buttons (a native radio group: the arrow keys move between them) */}
+                <div className="space-y-3">
+                  <div role="radiogroup" aria-labelledby={`${p.key}-type-label`} data-person-types className="space-y-1.5">
+                    <p id={`${p.key}-type-label`} className="text-xs font-medium text-foreground">
+                      {t("type.label")}
+                    </p>
+                    {(["signer", "copy"] as const).map((type) => {
+                      const checked = (type === "copy") === copy;
+                      const blocked = !checked && (type === "signer" ? signersFull : copiesFull);
+                      return (
+                        <label
+                          key={type}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm text-foreground transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                            checked ? "border-primary bg-primary/5" : "border-border",
+                            readOnly || blocked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/40",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name={`${p.key}-type`}
+                            value={type}
+                            className="size-4 shrink-0 accent-primary outline-none"
+                            checked={checked}
+                            disabled={readOnly || blocked}
+                            onChange={() => change(setPersonType(people, p.key, type, docs))}
+                          />
+                          <span>{type === "signer" ? (formOnly ? tp("typeFiller") : t("type.signer")) : t("type.copy")}</span>
+                        </label>
+                      );
+                    })}
                   </div>
-                ) : null}
+                  {!copy && ordered ? (
+                    <div className="space-y-1">
+                      <label htmlFor={`${p.key}-step`} className="text-xs font-medium text-foreground">
+                        {t("step")}
+                      </label>
+                      <Input id={`${p.key}-step`} type="number" min={1} max={MAX_SIGNERS} value={p.step} disabled={readOnly} className="w-24" onChange={(e) => change(updatePerson(people, p.key, { step: Math.max(1, Math.min(MAX_SIGNERS, Math.floor(Number(e.target.value)) || 1)) }))} />
+                      <p className="text-xs text-muted-foreground">{t("stepHint")}</p>
+                    </div>
+                  ) : null}
+                  {byWhatsapp ? (
+                    <div className="space-y-1">
+                      <p data-sent-by-whatsapp className="text-xs text-muted-foreground">
+                        {tp("sentByWhatsapp")}
+                      </p>
+                      {whatsappConfigured === false ? <p className="text-xs text-[light-dark(#92400e,#fcd34d)]">{t("whatsappOff")}</p> : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {p.internalUserId ? (
                 // a Halo user signs from inside Halo; the invitation still goes to their email, so the name and the email are theirs and are not typed

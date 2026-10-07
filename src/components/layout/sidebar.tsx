@@ -16,36 +16,20 @@ import { AwaitingBadge } from "@/components/sign/awaiting-badge";
 import { useAwaitingSignature } from "@/hooks/use-sign-shortcuts";
 import { badgeLabel } from "@/lib/approvals/rules";
 import {
-  BarChart3,
-  Bell,
-  Bot,
-  BookMarked,
-  BookOpen,
-  Building2,
   ChevronsLeft,
   ChevronsRight,
   Crown,
-  FileSignature,
-  GitBranch,
-  LayoutDashboard,
   LogOut,
-  MessageCircle,
-  MessageSquare,
-  Radio,
   Settings,
   Shield,
-  ShieldAlert,
-  Ticket,
   User,
   UserCog,
-  Users,
   UsersRound,
-  Workflow,
   X,
-  Zap,
 } from "lucide-react";
 import type { AccountRole } from "@/lib/auth/roles";
 import { filterByCapability } from "@/lib/auth/page-access";
+import { bottomNavItems, navItems, platformNavItem } from "./nav-items";
 
 // Per-role chip metadata used in the sidebar's account strip + the
 // Members tab roster. Keeping this near both consumers in a single
@@ -97,58 +81,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface NavItem {
-  href: string;
-  labelKey: string;
-  icon: typeof LayoutDashboard;
-  /**
-   * When true, the nav row renders a small "Beta" chip after the label.
-   * Purely informational — doesn't affect routing or access.
-   */
-  beta?: boolean;
-  /**
-   * Menu capability that shows this item (Roles & permissions). The
-   * item is hidden unless the caller holds it; the page itself is
-   * guarded by the same capability in the dashboard shell.
-   */
-  capability?: string;
-}
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard, capability: "menu.dashboard" },
-  { href: "/inbox", labelKey: "inbox", icon: MessageSquare, capability: "menu.inbox" },
-  { href: "/notifications", labelKey: "notifications", icon: Bell, capability: "menu.notifications" },
-  { href: "/contacts", labelKey: "contacts", icon: Users, capability: "menu.contacts" },
-  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch, capability: "menu.pipelines" },
-  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio, capability: "menu.broadcasts" },
-  { href: "/tickets", labelKey: "tickets", icon: Ticket, capability: "menu.tickets" },
-  { href: "/sign", labelKey: "sign", icon: FileSignature, capability: "menu.sign" },
-  { href: "/automations", labelKey: "automations", icon: Zap, capability: "menu.automations" },
-  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true, capability: "menu.flows" },
-  { href: "/knowledge", labelKey: "knowledge", icon: BookOpen, capability: "menu.knowledge" },
-  { href: "/agents", labelKey: "aiAgents", icon: Bot, capability: "menu.agents" },
-  { href: "/reports", labelKey: "reports", icon: BarChart3, capability: "menu.reports" },
-];
-
-// The User Guide is open to every signed-in role, so it carries no capability
-// (and no database capability exists for it). Sembang lives here too, below
-// Settings — it's internal team chat, not a customer/business-facing tool
-// like the items above the divider, so it's deliberately set apart from them
-// rather than mixed into the same list.
-const bottomNavItems: NavItem[] = [
-  { href: "/help", labelKey: "userGuide", icon: BookMarked },
-  { href: "/settings", labelKey: "settings", icon: Settings, capability: "menu.settings" },
-  { href: "/sembang", labelKey: "sembang", icon: MessageCircle, beta: true, capability: "menu.sembang" },
-  // Incident Reporting: internal, next to Sembang, not a customer-facing
-  // tool — open to every role (anyone can raise one); per-incident
-  // visibility is enforced separately (migration 116).
-  { href: "/incidents", labelKey: "incidents", icon: ShieldAlert, capability: "menu.incidents" },
-];
-
-// Operator console (migration 132). Not capability-gated: platform admins
-// are a separate population from account roles, so it is appended below
-// only for them. The page and the /api/platform routes enforce it again.
-const platformNavItem: NavItem = { href: "/platform", labelKey: "platform", icon: Building2 };
 
 interface SidebarProps {
   /** Controlled on mobile by the Header's hamburger button. Ignored on lg+. */
@@ -437,7 +369,6 @@ export function Sidebar({
                       </span>
                     )}
                     {showTicketsBadge && <TicketsWaitingBadge count={ticketsWaiting} />}
-                    {item.href === "/sign" && signAwaiting > 0 && <AwaitingBadge count={signAwaiting} />}
                   </Link>
                 </li>
               );
@@ -468,6 +399,7 @@ export function Sidebar({
                     {expanded && (
                       <span className="flex-1">{t(item.labelKey as string)}</span>
                     )}
+                    {item.href === "/sign" && signAwaiting > 0 && <AwaitingBadge count={signAwaiting} />}
                     {item.href === "/settings" && pendingApprovals > 0 && (
                       <span
                         aria-label={t("pendingApprovals", { count: pendingApprovals })}

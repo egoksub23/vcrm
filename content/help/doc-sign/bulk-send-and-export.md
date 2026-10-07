@@ -10,7 +10,7 @@ This page covers three things you do with many documents at once: **sending** on
 ## Before you start
 
 - To send in bulk you need permission to send documents, and the template must be **Active**. See [Templates](/help/doc-sign/templates).
-- To export or download you only need to be able to see Doc Sign.
+- To export or download you only need to be able to see Secure Sign.
 - Bulk send counts against your workspace's monthly limit of documents sent, exactly like sending one by one.
 
 ## Send one template to many people

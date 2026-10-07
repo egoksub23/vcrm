@@ -5,7 +5,7 @@ scripts and automations — send messages, manage contacts, launch
 broadcasts — without going through the dashboard UI.
 
 > **Status:** stable. Authentication, scopes, rate limiting, the
-> messages / contacts / conversations / broadcasts / [Doc Sign](#doc-sign-e-signatures) endpoints, and
+> messages / contacts / conversations / broadcasts / [Secure Sign](#doc-sign-e-signatures) endpoints, and
 > outbound event [webhooks](#webhooks) all ship now.
 
 ## Authentication
@@ -50,7 +50,7 @@ it. Grant the minimum.
 | `conversations:read` | List and read conversations              |
 | `broadcasts:send`    | Launch broadcast campaigns               |
 | `webhooks:manage`    | Register and manage outbound webhooks    |
-| `sign:read`          | See Doc Sign templates, documents and their status, and download signed copies |
+| `sign:read`          | See Secure Sign templates, documents and their status, and download signed copies |
 | `sign:write`         | Send documents for signature, remind signers and cancel documents |
 
 A key with **no scopes** still authenticates and can call
@@ -265,13 +265,13 @@ Broadcast status + counts. Scope: `broadcasts:send`. `status` moves
 `sending` → `sent`; `delivered_count` / `read_count` keep climbing as
 Meta delivery webhooks arrive. `404` for another account's broadcast.
 
-## Doc Sign (e-signatures)
+## Secure Sign (e-signatures)
 
 Send documents for electronic signature from your own backend, follow them,
 and download the signed copy. Everything is under `/api/v1/sign`. Scopes:
 `sign:read` for every `GET`, `sign:write` for every `POST`.
 
-**Before you start.** Doc Sign must be switched on for the workspace (the
+**Before you start.** Secure Sign must be switched on for the workspace (the
 platform operator does that). Until it is, every call answers `403` with
 `error.code` `sign_disabled`, whatever the key's scopes. A key sees only its
 own workspace: a document of another workspace is a `404`, exactly like a
@@ -586,14 +586,14 @@ curl -L -o MERCHANT-10231-signed.pdf \
 
 ### Errors
 
-Doc Sign errors use the usual `{ "error": { "code", "message" } }` envelope; `issues`
+Secure Sign errors use the usual `{ "error": { "code", "message" } }` envelope; `issues`
 is added when there are several things to say. Branch on `code`.
 
 | Status | `code` | Meaning |
 | --- | --- | --- |
 | 401 | `unauthorized` | Missing, wrong, revoked or expired key |
 | 403 | `forbidden` | The key lacks `sign:read` or `sign:write` |
-| 403 | `sign_disabled` | Doc Sign is not turned on for the workspace |
+| 403 | `sign_disabled` | Secure Sign is not turned on for the workspace |
 | 429 | `rate_limited` | Too many requests. Calls that send messages (create, send, remind) are limited to 30 a minute per key |
 | 429 | `sign_limit_reached` | The workspace's monthly limit of documents for signature is reached |
 | 400 | `bad_json`, `bad_request`, `invalid_request`, `not_ready` | The body or the filters are not valid; read `issues` |
@@ -684,15 +684,15 @@ things happen in your account. **Migration required:** apply
 | `message.received`       | An inbound message arrives from a contact         |
 | `message.status_updated` | A message you sent changed delivery status        |
 | `conversation.created`   | A new conversation is opened for a contact        |
-| `sign.sent`              | A Doc Sign document was sent for signing          |
+| `sign.sent`              | A Secure Sign document was sent for signing          |
 | `sign.viewed`            | A signer opened their link for the first time     |
 | `sign.completed`         | Everyone signed and the sealed file is ready      |
 | `sign.declined`          | A signer declined                                 |
 | `sign.expired`           | A document passed its expiry date unsigned        |
 | `sign.voided`            | The sender cancelled a document                   |
 
-The `sign.*` events are emitted only for workspaces that have Doc Sign
-switched on. See [Doc Sign events](#doc-sign-events) for their payload.
+The `sign.*` events are emitted only for workspaces that have Secure Sign
+switched on. See [Secure Sign events](#doc-sign-events) for their payload.
 
 ### Managing endpoints
 
@@ -740,7 +740,7 @@ delivery uuid you can dedupe on, and `data` varies by `event`:
 
 Headers: `X-Wacrm-Event`, `X-Wacrm-Webhook-Id`, and `X-Wacrm-Signature`.
 
-### Doc Sign events
+### Secure Sign events
 
 `sign.sent`, `sign.viewed`, `sign.completed`, `sign.declined`, `sign.expired`
 and `sign.voided` share one `data` shape. They are sent after the change is
@@ -776,13 +776,13 @@ saved, so `status` is the document's status **after** the event.
 - **Never included:** email addresses, phone numbers, signing-link tokens,
   file addresses or downloads, IP addresses, merge values, and the reason a
   signer gave when declining or the sender gave when cancelling. Download
-  the signed file with `GET /api/v1/sign/documents/{id}/file` (see "Doc Sign"
+  the signed file with `GET /api/v1/sign/documents/{id}/file` (see "Secure Sign"
   above) when you need it.
 - To check a signed file you hold, compare its SHA-256 with `final_sha256`, or
   open `verify_url` and drop the file on it.
 - Delivery is the same single attempt described below: a receiver that is
   down misses the event. Dedupe on the envelope `id`, and reconcile with the
-  Doc Sign API when it matters.
+  Secure Sign API when it matters.
 
 ### Verifying the signature
 

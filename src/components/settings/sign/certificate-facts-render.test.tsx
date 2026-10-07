@@ -65,7 +65,7 @@ describe.skipIf(LOCALES.length === 0)("the certificate read-out", () => {
       expect(authority).toContain("AB:AB:AB");
       expect(authority).toContain("2048");
 
-      const generated = render(locale, view({ uploaded: false, selfSigned: true, issuer: "Vircle (Halo Doc Sign)", subject: "Vircle (Halo Doc Sign)", name: "Halo self-signed (not trusted by PDF readers)", chainLength: 1 }));
+      const generated = render(locale, view({ uploaded: false, selfSigned: true, issuer: "Vircle (Vircle Secure Sign)", subject: "Vircle (Vircle Secure Sign)", name: "Halo self-signed (not trusted by PDF readers)", chainLength: 1 }));
       const uploadedSelf = render(locale, view({ selfSigned: true, chainLength: 1 }));
       // each kind says something different about what a reader will show
       expect(new Set([authority, generated, uploadedSelf]).size).toBe(3);

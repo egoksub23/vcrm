@@ -218,7 +218,7 @@ describe("the hook points", () => {
     expect(events()).toEqual([]);
   });
 
-  it("a workspace without Doc Sign emits nothing from any hook point", async () => {
+  it("a workspace without Secure Sign emits nothing from any hook point", async () => {
     db.tables.account_platform = [{ account_id: ACCT, status: "active", features: { sign: false }, limits: {} }];
     await sent();
     db.rpcHandlers.sign_void_document = async () => ({ data: {}, error: null });

@@ -5,7 +5,7 @@ order: 28
 updated: 2026-10-07
 ---
 
-Some people need the final signed file but do not sign anything. A manager who wants it for the records, an accountant who files it, a customer's finance team. In Doc Sign they are people who **Receive a copy**.
+Some people need the final signed file but do not sign anything. A manager who wants it for the records, an accountant who files it, a customer's finance team. In Secure Sign they are people who **Receive a copy**.
 
 When the document is completed and sealed, each of them gets **one email** with the signed PDF attached. That is all they get.
 
@@ -72,7 +72,7 @@ To change a person's name or email, remove them and add them again.
 A [bulk send](/help/doc-sign/bulk-send-and-export) and a [registration form](/help/doc-sign/registration-form) make many documents from one setup, so each can carry a **list of people who receive a copy**. The list goes on **every document** it makes, so you set it once.
 
 - **Bulk send.** On the **Setup** step, under **People who receive a copy**, click **Add a person** and type a name and an email address. The **Check and send** step shows the list again, so you see who gets a copy of each document before you send.
-- **Registration form.** In **Settings > Doc Sign > Registration forms**, open the form and add the people under **People who receive a copy**. This list is never shown on the public page. The person who registers cannot see it.
+- **Registration form.** In **Settings > Secure Sign > Registration forms**, open the form and add the people under **People who receive a copy**. This list is never shown on the public page. The person who registers cannot see it.
 
 These people are not signers. Each gets **one email with the signed PDF** when a document is completed, exactly as described above. The same rules apply: up to **10** people, and each address once. If someone already signs a document (for example the person on your bulk list, or a fixed director), they are left out of **that document's** copies, because they get the signed copy as a signer. A person who is only on the copy list is not left out of anything.
 
@@ -80,7 +80,7 @@ A person you started to add but did not finish (a name without an email, or the 
 
 ## Common mistakes
 
-- **Adding someone who must sign as a person who receives a copy.** They would have no link and could not sign. Set them to **Must sign**. A person who signs already gets the copy.
+- **Adding someone who must sign as a person who receives a copy.** They would have no link and could not sign. Set them to **Signature required**. A person who signs already gets the copy.
 - **Expecting a link.** A person who receives a copy never gets one. If they need to read the document first, make them a signer.
 - **Adding someone after the document is completed.** It is too late: the copies have already gone out. Download the signed file from the document page and send it to them yourself.
 - **Expecting reminders or progress.** They hear nothing until the document is completed.

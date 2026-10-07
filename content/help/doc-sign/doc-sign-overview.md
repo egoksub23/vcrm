@@ -1,16 +1,16 @@
 ---
-title: Doc Sign at a glance
-description: What Doc Sign is, who can use it, and where to find documents, templates and settings.
+title: Secure Sign at a glance
+description: What Secure Sign is, who can use it, and where to find documents, templates and settings.
 order: 1
 updated: 2026-10-06
 ---
 
-Doc Sign lets you send a document to the people who need to sign it, follow who has signed, and keep the signed copy. The people you send to do not need a login. They get a private link, open it on a phone or a computer, and sign on the page.
+Secure Sign lets you send a document to the people who need to sign it, follow who has signed, and keep the signed copy. The people you send to do not need a login. They get a private link, open it on a phone or a computer, and sign on the page.
 
 Use it for agreements, forms and anything else that needs a signature and a record of who signed and when.
 
 > [!NOTE]
-> Doc Sign is switched on per workspace by the platform operator. If you do not see **Doc Sign** in the sidebar, it is not on for your workspace yet. Ask your admin.
+> Secure Sign is switched on per workspace by the platform operator. If you do not see **Secure Sign** in the sidebar, it is not on for your workspace yet. Ask your admin.
 
 ## Who can do what
 
@@ -18,25 +18,25 @@ What you can do depends on your role. By default:
 
 | You want to | You need |
 |---|---|
-| See documents and templates | Permission to see Doc Sign |
+| See documents and templates | Permission to see Secure Sign |
 | Send a document, remind, resend, change a recipient | Permission to send |
 | Cancel a document | Permission to void |
 | Show a sensitive answer in full (an ID number, a bank account) | Permission to reveal sensitive answers |
 | Create and edit templates | Permission to manage templates |
-| Change Doc Sign settings, categories and add-ons | Permission to manage Doc Sign settings |
+| Change Secure Sign settings, categories and add-ons | Permission to manage Secure Sign settings |
 
 If a button is greyed out or missing, your role does not have that permission. See [Roles and permissions](/help/getting-started/roles-and-permissions).
 
 ## The screens
 
-Click **Doc Sign** in the sidebar. There are two tabs.
+Click **Secure Sign** in the sidebar. There are two tabs.
 
 - **Documents** lists every document with its status. Use the filters and the search box to find one. Open a row to see the people, the history and the files.
 - **Templates** is the library of documents prepared once and used again. See [Templates](/help/doc-sign/templates).
 
 The **New document** button, top right, starts a new document. See [Send a document for signature](/help/doc-sign/send-a-document).
 
-Settings for Doc Sign are in **Settings**, under **Doc Sign**. See [Settings and the WhatsApp template](/help/doc-sign/settings-and-whatsapp).
+Settings for Secure Sign are in **Settings**, under **Secure Sign**. See [Settings and the WhatsApp template](/help/doc-sign/settings-and-whatsapp).
 
 ## Document statuses
 
