@@ -255,7 +255,7 @@ export async function updateDraft(ctx: SignCtx, documentId: string, patch: Draft
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
   if (doc.envelope_id && !opts.viaEnvelope && ENVELOPE_OPTIONS.some((k) => patch[k] !== undefined)) {
-    throw new SignError("document_in_envelope", "This document is part of an envelope. Change this on the envelope.", 409);
+    throw new SignError("document_in_envelope", "This document is part of a document collection. Change this on the collection.", 409);
   }
 
   const update: Record<string, unknown> = {};
@@ -352,7 +352,7 @@ export async function setSigners(ctx: SignCtx, documentId: string, signers: Sign
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
   // the people of an envelope are one list for all its documents, saved through the envelope
-  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of an envelope. Change the people on the envelope.", 409);
+  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Change the people on the collection.", 409);
   if (signers.length > 20) throw new SignError("too_many_signers", "A document can have up to 20 people.", 400);
   // a Halo user (a countersigner) must belong to this workspace: an id from anywhere else is refused
   await assertAccountMembers(ctx, signers.map((s) => s.internalUserId).filter((x): x is string => !!x));
@@ -417,7 +417,7 @@ async function deleteRowThenFiles(ctx: SignCtx, doc: SignDocumentRow): Promise<v
 export async function deleteDraft(ctx: SignCtx, documentId: string, opts: { viaEnvelope?: boolean } = {}): Promise<void> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "Only a draft can be deleted. Void a document that was sent.", 409);
-  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of an envelope. Delete the envelope instead.", 409);
+  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Delete the collection instead.", 409);
   await deleteRowThenFiles(ctx, doc);
 }
 
@@ -428,7 +428,7 @@ export async function deleteDraft(ctx: SignCtx, documentId: string, opts: { viaE
  */
 export async function deleteDocument(ctx: SignCtx, documentId: string, opts: { viaEnvelope?: boolean } = {}): Promise<void> {
   const doc = await loadDocument(ctx, documentId);
-  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of an envelope. Delete the envelope instead.", 409);
+  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Delete the collection instead.", 409);
   if (doc.status === "draft") return deleteRowThenFiles(ctx, doc);
   if (doc.status !== "completed") throw new SignError("document_not_draft", "Only a draft can be deleted. Void a document that was sent.", 409);
   const until = doc.retain_until ? new Date(doc.retain_until) : null;

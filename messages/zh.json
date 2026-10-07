@@ -7750,9 +7750,9 @@
         "keep": "保留文件",
         "action": "取消文件",
         "done": "文件已取消",
-        "envelopeBody": "文件包的所有链接都会失效,正在等待的人会收到一次通知。此操作无法撤销。如有需要,请重新发送一个新的文件包。",
-        "envelopeAction": "取消文件包",
-        "envelopeDone": "文件包已取消"
+        "envelopeBody": "文件集的所有链接都会失效,正在等待的人会收到一次通知。此操作无法撤销。如有需要,请重新发送一个新的文件集。",
+        "envelopeAction": "取消文件集",
+        "envelopeDone": "文件集已取消"
       },
       "viewer": {
         "loading": "正在加载页面",
@@ -7864,9 +7864,12 @@
         "completedForm": "提交已记录",
         "downloadedForm": "{sender} 打开或下载了记录",
         "all_submitted": "所有人均已提交",
-        "envelope_sent": "{sender} 发送了文件包 {reference},共 {count, plural, other {#份文件}}",
-        "envelope_completed": "文件包 {reference} 已完成,全部 {count, plural, other {#份文件}}均已签署",
-        "envelope_declined": "{by} 拒绝了文件包 {reference},因此所有未完成的文件都已停止"
+        "envelope_sent": "{sender} 发送了文件集 {reference},共 {count, plural, other {#份文件}}",
+        "envelope_completed": "文件集 {reference} 已完成,全部 {count, plural, other {#份文件}}均已签署",
+        "envelope_declined": "{by} 拒绝了文件集 {reference},因此所有未完成的文件都已停止",
+        "envelope_document_added": "{sender}将此文件添加到文件集 {reference}",
+        "envelope_document_removed": "{sender}从文件集 {reference} 中移除了“{title}”",
+        "envelope_reordered": "{sender}更改了文件集 {reference} 中文件的顺序"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -7889,11 +7892,11 @@
         "generic": "出了点问题，请重试。",
         "already_on_document": "该人员已在此文档中。",
         "step_not_movable": "只能把该人员移到尚未开始的步骤。",
-        "envelope_not_found": "找不到该文件包。",
-        "envelope_not_sent": "该文件包尚未发出。",
-        "envelope_partly_completed": "该文件包中已有文件由所有人签署,因此无法取消整个文件包。",
-        "envelope_person_has_signed": "此人已签署了文件包的一部分,因此无法更换。",
-        "document_in_envelope": "该文件属于一个文件包。请在文件包上进行此操作。",
+        "envelope_not_found": "找不到该文件集。",
+        "envelope_not_sent": "该文件集尚未发出。",
+        "envelope_partly_completed": "该文件集中已有文件由所有人签署,因此无法取消整个文件集。",
+        "envelope_person_has_signed": "此人已签署了文件集的一部分,因此无法更换。",
+        "document_in_envelope": "该文件属于一个文件集。请在文件集上进行此操作。",
         "expiry_in_the_past": "新日期必须在将来。",
         "expiry_not_later": "新日期必须晚于当前日期。",
         "expiry_too_far": "该日期太遥远。请选择更近的日期。",
@@ -9074,7 +9077,7 @@
         "testBadge": "测试",
         "formBadge": "表格",
         "progressForm": "{done}/{total} 已提交",
-        "envelopeBadge": "文件包 · {count, plural, other {#份文件}}",
+        "envelopeBadge": "文件集 · {count, plural, other {#份文件}}",
         "dateFrom": "创建日期自",
         "dateTo": "创建日期至",
         "contactLabel": "联系人",
@@ -9411,24 +9414,29 @@
         "test_no_address": "您的账户没有可用于接收测试的邮箱地址。",
         "same_file": "这就是文档目前使用的文件。",
         "document_has_no_file": "此文档没有可替换的文件。",
-        "envelope_not_found": "找不到该文件包。",
-        "envelope_not_draft": "该文件包已发出,无法再修改。",
-        "envelope_not_sent": "该文件包尚未发出。",
-        "envelope_size": "一个文件包包含两到六份文件。",
-        "envelope_documents": "您操作期间该文件包中的文件有变化。请重新打开并检查。",
-        "envelope_options": "文件包中的每份文件必须使用相同的签署顺序和验证码设置。",
-        "envelope_people": "该文件包的人员名单不完整。请检查后重新保存。",
+        "envelope_not_found": "找不到该文件集。",
+        "envelope_not_draft": "该文件集已发出,无法再修改。",
+        "envelope_not_sent": "该文件集尚未发出。",
+        "envelope_size": "一个文件集包含两到六份文件。",
+        "envelope_documents": "您操作期间该文件集中的文件有变化。请重新打开并检查。",
+        "envelope_options": "文件集中的每份文件必须使用相同的签署顺序和验证码设置。",
+        "envelope_people": "该文件集的人员名单不完整。请检查后重新保存。",
         "envelope_person_twice": "同一个人在每份文件上只能有一个角色。",
-        "envelope_not_ready": "该文件包尚未准备好发送。请查看需要修正的事项。",
-        "envelope_too_big": "一个文件包中的文件总共最大 50 MB。请使用更小的文件。",
+        "envelope_not_ready": "该文件集尚未准备好发送。请查看需要修正的事项。",
+        "envelope_too_big": "一个文件集中的文件总共最大 50 MB。请使用更小的文件。",
         "envelope_duplicate_template": "每个模板只能选择一次。",
-        "envelope_not_deletable": "只有草稿可以删除。已发出的文件包请取消。",
-        "envelope_frozen": "已发出的文件包无法编辑。",
-        "envelope_fixed": "文件无法从其文件包中移出。",
-        "envelope_no_forwarding": "文件包中的文件不能转交给其他人。",
-        "envelope_no_test": "测试文件不能放入文件包。",
-        "document_in_envelope": "该文件属于一个文件包。请在文件包上进行此操作。",
-        "document_retained": "这份已签署的文件目前必须保留,暂时无法删除。"
+        "envelope_not_deletable": "只有草稿可以删除。已发出的文件集请取消。",
+        "envelope_frozen": "已发出的文件集无法编辑。",
+        "envelope_fixed": "文件无法从其文件集中移出。",
+        "envelope_no_forwarding": "文件集中的文件不能转交给其他人。",
+        "envelope_no_test": "测试文件不能放入文件集。",
+        "document_in_envelope": "该文件属于一个文件集。请在文件集上进行此操作。",
+        "document_retained": "这份已签署的文件目前必须保留,暂时无法删除。",
+        "too_many_files": "一次最多可添加六个文件。",
+        "uploads_too_large": "这些文件合计超过 60 MB。请移除其中一个，或使用较小的文件。",
+        "bad_order": "无法读取文件顺序。请重新打开页面后再试一次。",
+        "envelope_full": "一个文件集最多包含六份文件，因此无法再添加。",
+        "envelope_minimum": "一个文件集至少保留两份文件。如需放弃，请删除整个文件集。"
       },
       "records": {
         "ticketLabel": "关联工单",
@@ -9444,16 +9452,16 @@
         "unknown": "您无权查看的记录"
       },
       "envelope": {
-        "badge": "文件包 · {count, plural, other {#份文件}}",
+        "badge": "文件集 · {count, plural, other {#份文件}}",
         "new": {
-          "link": "将多份文件作为一个文件包发送",
-          "title": "新建文件包",
+          "link": "将多份文件作为一个文件集发送",
+          "title": "新建文件集",
           "subtitle": "把多份文件发给同一批人,一次签完。每个人只收到一条消息和一个链接。",
           "chooseHeading": "选择文件",
-          "chooseHint": "选择模板,或添加一个文件。一个文件包包含 {min} 到 {max} 份文件。",
+          "chooseHint": "选择模板,或添加一个文件。一个文件集包含 {min} 到 {max} 份文件。",
           "templatesLabel": "模板",
           "fileHeading": "或添加文件",
-          "fileHint": "PDF 或 Word 文件。文件包创建后再设置它的字段。",
+          "fileHint": "PDF 或 Word 文件。文件集创建后再设置它的字段。",
           "orderHeading": "文件顺序({count})",
           "nothingChosen": "尚未选择任何内容。",
           "removeFile": "移除文件",
@@ -9462,30 +9470,30 @@
           "remove": "移除 {title}",
           "needMore": "请至少选择 {min} 份文件。",
           "count": "{count} / {max} 份文件",
-          "titleLabel": "文件包标题",
+          "titleLabel": "文件集标题",
           "titlePlaceholder": "例如:商户入驻",
-          "create": "创建文件包"
+          "create": "创建文件集"
         },
         "view": {
-          "loading": "正在加载文件包",
-          "notFoundTitle": "找不到该文件包",
-          "failedTitle": "无法加载该文件包",
+          "loading": "正在加载文件集",
+          "notFoundTitle": "找不到该文件集",
+          "failedTitle": "无法加载该文件集",
           "retry": "重试",
           "backToDocuments": "返回文件列表"
         },
         "draft": {
           "back": "返回文件列表",
           "delete": "删除草稿",
-          "deleteTitle": "删除该文件包草稿?",
+          "deleteTitle": "删除该文件集草稿?",
           "deleteBody": "{count, plural, other {其中的 # 份文件也会一并删除。}}尚未发送任何内容。此操作无法撤销。",
           "deleteConfirm": "删除草稿",
           "cancel": "保留",
-          "deleted": "文件包草稿已删除",
-          "readOnly": "您可以查看该文件包,但不能修改。"
+          "deleted": "文件集草稿已删除",
+          "readOnly": "您可以查看该文件集,但不能修改。"
         },
         "documents": {
           "heading": "文件",
-          "hint": "在这里设置每份文件的字段。人员和选项由整个文件包共用。",
+          "hint": "在这里设置每份文件的字段。人员和选项由整个文件集共用。",
           "form": "表单",
           "pages": "{count, plural, other {#页}}",
           "problems": "{count, plural, other {有 # 项需要修正}}",
@@ -9494,7 +9502,7 @@
         },
         "people": {
           "heading": "人员",
-          "intro": "每个人只需添加一次,并说明他们在每份文件上的角色。他们只会收到一条消息和一个链接,涵盖整个文件包。",
+          "intro": "每个人只需添加一次,并说明他们在每份文件上的角色。他们只会收到一条消息和一个链接,涵盖整个文件集。",
           "ordered": "按顺序依次签署",
           "orderedHint": "为每个人指定一个步骤。步骤相同的人一起签署,只有当该步骤中的所有人都完成全部文件后,才会邀请下一步骤的人。",
           "empty": "名单中还没有人。",
@@ -9526,68 +9534,68 @@
         },
         "options": {
           "heading": "选项",
-          "hint": "这些设置适用于文件包中的每份文件。"
+          "hint": "这些设置适用于文件集中的每份文件。"
         },
         "review": {
           "heading": "检查并发送",
           "ordered": "按您设定的步骤依次签署。",
           "allAtOnce": "所有人同时收到邀请。",
           "counts": "{people, plural, other {#位}}签署人,共 {documents, plural, other {#份文件}}。",
-          "limit": "该文件包需要 {needed} 份文件的额度,但本月此工作区只剩 {remaining} 份。",
+          "limit": "该文件集需要 {needed} 份文件的额度,但本月此工作区只剩 {remaining} 份。",
           "problemsTitle": "{count, plural, other {发送前需要修正 # 项}}",
-          "sharedHeading": "文件包",
+          "sharedHeading": "文件集",
           "fixDocument": "打开文件",
           "fixPeople": "前往人员",
           "fixOptions": "前往选项",
           "layout": "{count, plural, other {有 # 个字段无效}}",
           "ready": "一切准备就绪,可以发送。",
-          "openEnvelope": "打开文件包",
+          "openEnvelope": "打开文件集",
           "send": "发送 {count, plural, other {#份文件}}",
           "noPermission": "您没有发送文件的权限。",
           "sendBlocked": "请先修正上面列出的事项再发送。",
           "sendNote": "名单中的所有人会立即收到邀请。发送后,文件无法再编辑。"
         },
         "sent": {
-          "title": "文件包已发送",
+          "title": "文件集已发送",
           "subtitle": "已发送 {count, plural, other {#份文件}}。每个人收到一条消息。",
-          "open": "打开文件包"
+          "open": "打开文件集"
         },
         "problems": {
-          "envelope_size": "一个文件包包含 {range} 份文件。",
-          "envelope_too_many_pages": "一个文件包总共最多 {range} 页。",
+          "envelope_size": "一个文件集包含 {range} 份文件。",
+          "envelope_too_many_pages": "一个文件集总共最多 {range} 页。",
           "duplicate_person": "第 {n} 位与另一位使用了相同的电子邮件地址。",
           "person_without_document": "第 {n} 位不在任何文件上。",
           "role_two_people": "《{document}》上的角色“{role}”有多个人。请只指定一个人。"
         },
         "banner": {
-          "title": "文件包中第 {number} 份,共 {count} 份",
-          "open": "打开文件包",
-          "manageNote": "提醒、新链接、更换收件人、延长时间和取消都是针对整个文件包进行的,而不是单份文件。"
+          "title": "文件集中第 {number} 份,共 {count} 份",
+          "open": "打开文件集",
+          "manageNote": "提醒、新链接、更换收件人、延长时间和取消都是针对整个文件集进行的,而不是单份文件。"
         },
         "member": {
-          "backToEnvelope": "返回文件包",
-          "banner": "这是文件包“{title}”中的第 {number} 份,共 {count} 份。人员、选项和发送都在文件包上设置。",
-          "openEnvelope": "打开文件包"
+          "backToEnvelope": "返回文件集",
+          "banner": "这是文件集“{title}”中的第 {number} 份,共 {count} 份。人员、选项和发送都在文件集上设置。",
+          "openEnvelope": "打开文件集"
         },
         "detail": {
           "sentOn": "发送于 {date}",
           "expiresOn": "{date} 到期",
           "extend": "延长时间",
-          "void": "取消文件包",
+          "void": "取消文件集",
           "banner": {
             "completed": "全部 {count, plural, other {#份文件}}均已签署。",
-            "declinedBy": "{name} 拒绝签署,因此整个文件包已停止。",
-            "declined": "有人拒绝签署,因此整个文件包已停止。",
-            "expired": "文件包已于 {date} 到期。",
-            "voided": "文件包已取消。",
+            "declinedBy": "{name} 拒绝签署,因此整个文件集已停止。",
+            "declined": "有人拒绝签署,因此整个文件集已停止。",
+            "expired": "文件集已于 {date} 到期。",
+            "voided": "文件集已取消。",
             "failed": "无法生成已签署的文件。请打开出错的文件查看处理方法。",
             "sealing": "所有人都已签署,正在生成已签署的文件。",
             "waiting": "正在等待 {names}。",
-            "sent": "文件包已发送,但还没有人收到邀请。",
+            "sent": "文件集已发送,但还没有人收到邀请。",
             "reason": "原因:{reason}"
           },
           "progress": "{total} 份文件中已完成 {done} 份。",
-          "partly": "至少有一份文件已由所有人签署,因此该文件包无法再取消。",
+          "partly": "至少有一份文件已由所有人签署,因此该文件集无法再取消。",
           "documents": "文件",
           "download": "已签署副本",
           "openDocument": "打开",
@@ -9595,7 +9603,7 @@
           "step": "第 {step} 步",
           "notInvited": "尚未邀请,他们的步骤还没开始。",
           "remindHeld": "{time} 之后才能再次发送提醒。",
-          "cannotReplace": "此人已签署了文件包的一部分,因此无法更换。",
+          "cannotReplace": "此人已签署了文件集的一部分,因此无法更换。",
           "extendDialog": {
             "title": "给所有人延长时间",
             "body": "请选择一个更晚的日期。它适用于所有仍未完成的文件。",
@@ -9604,6 +9612,67 @@
             "action": "延长时间",
             "done": "新日期已保存"
           }
+        }
+      },
+      "collection": {
+        "choice": {
+          "heading": "您要发送什么？",
+          "single": "单个文件",
+          "singleHint": "一份文件，单独准备并签署。",
+          "collection": "文件集",
+          "collectionHint": "由同一批人在一次签署中完成的两到六份文件。每个人只收到一条消息和一个链接。"
+        },
+        "builder": {
+          "title": "新建文件集",
+          "subtitle": "由同一批人在一次签署中完成的多份文件。每个人只收到一条消息和一个链接。",
+          "chooseHeading": "添加文件",
+          "chooseHint": "添加您自己的文件、选择模板，或两者兼用。一个文件集包含 {min} 到 {max} 份文件。",
+          "orderHeading": "此文件集中的文件（{count}/{max}）",
+          "orderHint": "文件将按此顺序签署。拖动文件即可移动，也可使用箭头。",
+          "nothingChosen": "尚未添加任何文件。",
+          "needMore": "请至少添加 {min} 份文件。",
+          "full": "一个文件集最多包含 {max} 份文件，因此无法再添加。",
+          "count": "{count}/{max} 份文件",
+          "titleLabel": "文件集标题",
+          "titlePlaceholder": "例如：商户入驻",
+          "create": "创建文件集",
+          "creating": "正在创建文件集并准备文件。Word 文件需要稍长一些时间。"
+        },
+        "files": {
+          "heading": "您自己的文件",
+          "dropHere": "将文件拖到此处，或",
+          "chooseFiles": "选择文件",
+          "inputLabel": "选择文件",
+          "hint": "PDF、Word 或图片（JPG、PNG），每个最大 {max} MB。可一次选择多个，也可以稍后再添加。",
+          "templatesHeading": "模板",
+          "overflowSome": "已添加 {added} 个文件，另有 {skipped} 个未添加，因为一个文件集最多包含 {max} 份文件。",
+          "overflowNone": "一个文件集最多包含 {max} 份文件，因此没有再添加。",
+          "rejected": "未添加 {name}。{reason}"
+        },
+        "list": {
+          "label": "此文件集中的文件",
+          "titleLabel": "第 {n} 份文件的标题",
+          "kindFile": "文件：{name}（{size}）",
+          "kindTemplate": "模板",
+          "moveUp": "上移 {title}",
+          "moveDown": "下移 {title}",
+          "remove": "移除 {title}"
+        },
+        "draft": {
+          "add": "添加文件",
+          "addTitle": "添加文件",
+          "addHint": "上传一个或多个文件，或勾选模板。还可再添加 {room} 份。",
+          "addConfirm": "添加 {count} 份文件",
+          "cancel": "取消",
+          "count": "{count}/{max} 份文件",
+          "minimum": "{count}/{max} 份文件。一个文件集至少保留 {min} 份，因此无法移除。如需放弃，请删除整个文件集。",
+          "full": "一个文件集最多包含 {max} 份文件，因此无法再添加。",
+          "added": "已添加 {count} 份文件",
+          "removed": "文件已移除",
+          "removeTitle": "移除此文件？",
+          "removeBody": "“{title}”将被删除，您在其上准备的内容也会一并删除。其他文件保留。此操作无法撤销。",
+          "removeConfirm": "移除文件",
+          "keep": "保留"
         }
       }
     },
@@ -9906,8 +9975,8 @@
       "envelope": {
         "next": "下一份文件",
         "finish": "完成并签署全部",
-        "declineNote": "这将终止整个文件包:{count, plural, other {全部 #份文件}}对所有人都会停止。",
-        "listLabel": "该文件包中的文件",
+        "declineNote": "这将终止整个文件集:{count, plural, other {全部 #份文件}}对所有人都会停止。",
+        "listLabel": "该文件集中的文件",
         "position": "第 {number} 份,共 {count} 份",
         "open": "打开 {title}",
         "notFinal": "完成最后一份文件之前,一切都不算最终。其他文件可以按任意顺序打开。",
@@ -10207,7 +10276,7 @@
         "body": "请确认您扫描了完整的二维码或打开了完整的网址。如仍无法打开，请联系发送文件给您的人。"
       },
       "signedTitleForm": "此提交已记录",
-      "envelope": "这份文件与其他文件一起签署,属于一个包含 {count, plural, other {#份文件}}的文件包。"
+      "envelope": "这份文件与其他文件一起签署,属于一个包含 {count, plural, other {#份文件}}的文件集。"
     },
     "bulk": {
       "title": "批量发送",

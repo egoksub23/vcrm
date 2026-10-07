@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { HIDDEN_EVENTS } from "@/lib/sign/certificate-words";
 import { EVENT_TYPES } from "@/lib/sign/types";
 
 import { chainState, describeEvent, latestWriteback, orderEvents, visibleDetails, type DescribeContext, type SignEventRow } from "./events";
@@ -188,5 +189,19 @@ describe("chainState", () => {
     expect(chainState(null)).toEqual({ state: "unknown" });
     expect(chainState("nope")).toEqual({ state: "unknown" });
     expect(chainState({})).toEqual({ state: "unknown" });
+  });
+});
+
+describe("the history of a draft collection", () => {
+  it("names the collection, the sender and the document that was removed", () => {
+    const removed = describeEvent(row({ type: "envelope_document_removed", actor_user_id: "u1", detail: { reference: "ENV-2026-000007", title: "Fee Schedule", count: 2 } }), ctx());
+    expect(removed.key).toBe("events.envelope_document_removed");
+    expect(removed.values).toMatchObject({ sender: "Gokula", reference: "ENV-2026-000007", title: "Fee Schedule" });
+    expect(describeEvent(row({ type: "envelope_document_added", actor_user_id: "u1", detail: { reference: "ENV-2026-000007", position: 3, count: 3 } }), ctx()).values).toMatchObject({ sender: "Gokula", reference: "ENV-2026-000007" });
+    expect(describeEvent(row({ type: "envelope_reordered", detail: { reference: "ENV-2026-000007" } }), ctx()).key).toBe("events.envelope_reordered");
+  });
+
+  it("stays off the certificate: it is draft history, not part of the signing", () => {
+    for (const type of ["envelope_document_added", "envelope_document_removed", "envelope_reordered"]) expect(HIDDEN_EVENTS.has(type), type).toBe(true);
   });
 });

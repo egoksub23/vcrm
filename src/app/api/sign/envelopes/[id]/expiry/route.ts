@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     request,
     async ({ ctx }) => {
       const { id } = await params;
-      if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That envelope was not found.", 404);
+      if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
       const body = await readJson<{ expiresAt?: unknown }>(request);
       return json(await extendEnvelopeExpiry(ctx, id, body.expiresAt));
     },

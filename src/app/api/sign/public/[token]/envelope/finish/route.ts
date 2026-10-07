@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     request,
     params,
     async ({ ctx, lookup, sessionOk, ip, device }) => {
-      if (!lookup.party) throw new SignError("not_an_envelope", "This link is not for an envelope.", 400);
+      if (!lookup.party) throw new SignError("not_an_envelope", "This link is not for a document collection.", 400);
       if (codeRequiredFor(lookup) && !sessionOk) throw new SignError("code_required", "Enter the code first.", 403);
       const body = await readJson<{ answers?: unknown; locale?: unknown }>(request, 2_500_000);
       const answers = body.answers === undefined ? {} : body.answers;

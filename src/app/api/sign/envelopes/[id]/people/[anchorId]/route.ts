@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     request,
     async ({ ctx }) => {
       const { id, anchorId } = await params;
-      if (!UUID_RE.test(id) || !UUID_RE.test(anchorId)) throw new SignError("signer_not_found", "That person is not on this envelope.", 404);
+      if (!UUID_RE.test(id) || !UUID_RE.test(anchorId)) throw new SignError("signer_not_found", "That person is not on this collection.", 404);
       const body = await readJson<{ action?: unknown; fullName?: unknown; email?: unknown; phone?: unknown; channel?: unknown }>(request);
       switch (body.action) {
         case "remind":

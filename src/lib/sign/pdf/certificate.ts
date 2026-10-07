@@ -132,7 +132,7 @@ function keyValue(c: Cursor, key: string, value: string, opts: { mono?: boolean 
 }
 
 /**
- * Migration 171: "Part of envelope {reference}": the documents signed together, each with its reference and the fingerprint of the file as
+ * Migration 171: "Part of document collection {reference}": the documents signed together, each with its reference and the fingerprint of the file as
  * sent. Its own block, drawn between the document's fingerprints and the signers; certificates of documents on their own never reach it.
  */
 function envelopeBlock(c: Cursor, e: CertificateEnvelope) {

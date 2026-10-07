@@ -18,7 +18,7 @@ type Params = { params: Promise<{ id: string }> };
 
 async function idOf(params: Params["params"]): Promise<string> {
   const { id } = await params;
-  if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That envelope was not found.", 404);
+  if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
   return id;
 }
 

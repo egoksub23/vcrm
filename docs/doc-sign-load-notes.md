@@ -182,6 +182,6 @@ Not applied; `jobs.ts` and the engine were not edited.
 
 The live server (CPU, memory, disk, Node 20 on Alpine, the Next bundle); network time to Supabase, storage and the mail
 provider; the converter; concurrent web traffic; webhooks and automations beyond one empty lookup; documents with a
-CJK font (the fonts written on documents are Latin only today); the sealing of an envelope's documents; a certificate
+CJK font (the fonts written on documents are Latin only today); the sealing of a document collection's documents; a certificate
 uploaded by a workspace (a larger chain makes a larger signature, the same order of cost). The run-to-run spread
 was up to about 25 percent between the two full runs, wider than usual because of the machine's other load.

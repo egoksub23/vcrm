@@ -494,7 +494,7 @@ describe("sealing and the one message at the end", () => {
     const finals = ids.map((id) => db.files.get(docRow(id).final_path!)!);
     for (const bytes of finals) expect(verifySealed(bytes).ok).toBe(true);
     const first = (await textOf(finals[0])).replace(/\s+/g, " ").toUpperCase();
-    expect(first).toContain("PART OF ENVELOPE ENV-2026-000001 (DOCUMENT 1 OF 2)");
+    expect(first).toContain("PART OF DOCUMENT COLLECTION ENV-2026-000001 (DOCUMENT 1 OF 2)");
     expect(first).toContain("1. MERCHANT AGREEMENT (THIS DOCUMENT)".toUpperCase());
     expect(first).toContain("2. FEE SCHEDULE");
     for (const id of ids) expect(first).toContain(docRow(id).base_sha256!.toUpperCase());

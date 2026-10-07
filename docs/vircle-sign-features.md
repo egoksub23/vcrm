@@ -99,7 +99,7 @@ Each requirement has an id (F-01 and so on) so you can reply "change F-14" or "d
 | F-15 | One-off document: upload any supported file, place fields and send without saving a template (see F-73). | P1 |
 | F-16 | Annexes: attach extra files to the document (read-only, listed in the signing page and included in the sealed packet). | P1 |
 | F-17 | Send now or save as draft; resend; change a recipient's email or phone and reissue the link (the old link stops working). | P1 |
-| F-18 | Envelope: several documents signed in one sitting (for example Agreement + Fee schedule + Data processing terms), one audit trail. | P2 |
+| F-18 | Document collection: several documents signed in one sitting (for example Agreement + Fee schedule + Data processing terms), one audit trail. | P2 |
 | F-19 | Bulk send: choose many contacts or upload a CSV, one document each, with a preview and a per-row result. | P2 |
 | F-20 | Schedule a send for later. | Later |
 

@@ -1,5 +1,5 @@
 // ============================================================
-// Envelopes (migration 171): the block "Part of envelope {reference}" on each document's certificate. It lists the documents signed
+// Envelopes (migration 171): the block "Part of document collection {reference}" on each document's certificate. It lists the documents signed
 // together by title, reference and the SHA-256 of the file AS SENT: that fingerprint exists for every sibling from the moment the envelope
 // is sent, so the block reads the same whichever document was sealed first. Pure; the page drawing is `appendCertificate`'s.
 // ============================================================
@@ -16,28 +16,28 @@ interface Words {
 }
 
 const EN: Words = {
-  heading: "Part of envelope {reference} (document {number} of {count})",
+  heading: "Part of document collection {reference} (document {number} of {count})",
   note: "This document was signed together with the documents below in one sitting. Each has its own certificate; the fingerprints are those of the files as they were sent.",
   here: "this document",
   reference: "Reference",
   sha256: "SHA-256 as sent",
 };
 const MS: Words = {
-  heading: "Sebahagian daripada kumpulan {reference} (dokumen {number} daripada {count})",
+  heading: "Sebahagian daripada koleksi dokumen {reference} (dokumen {number} daripada {count})",
   note: "Dokumen ini ditandatangani bersama dokumen di bawah dalam satu sesi. Setiap satu mempunyai perakuannya sendiri; cap jari ialah cap jari fail seperti dihantar.",
   here: "dokumen ini",
   reference: "Rujukan",
   sha256: "SHA-256 seperti dihantar",
 };
 const ZH: Words = {
-  heading: "属于文件组 {reference}（第 {number} 份，共 {count} 份）",
+  heading: "属于文件集 {reference}（第 {number} 份，共 {count} 份）",
   note: "本文件与下列文件在同一次签署中一并签署。每份文件各有自己的证书；指纹为各文件发送时的指纹。",
   here: "本文件",
   reference: "编号",
   sha256: "发送时的 SHA-256",
 };
 const KO: Words = {
-  heading: "묶음 {reference}에 포함됨 (문서 {count}건 중 {number}번째)",
+  heading: "문서 모음 {reference}에 포함됨 (문서 {count}건 중 {number}번째)",
   note: "이 문서는 아래 문서들과 한 번에 함께 서명되었습니다. 각 문서에는 자체 증명서가 있으며, 지문은 발송 당시 파일의 지문입니다.",
   here: "이 문서",
   reference: "문서 번호",

@@ -21,7 +21,7 @@ type Tree = { [key: string]: unknown };
 
 export const ENVELOPE_EN: Tree = {
   position: "Document {number} of {count}",
-  listLabel: "The documents in this envelope",
+  listLabel: "The documents in this document collection",
   open: "Open {title}",
   notFinal: "Nothing is final until you finish the last document. Your answers are saved as you go.",
   next: "Next document",
@@ -29,7 +29,7 @@ export const ENVELOPE_EN: Tree = {
   introTitle: "{count} documents to read and sign",
   introTitleFill: "{count} documents to complete",
   introBody: "You agree once, then go through the documents one after another and finish once at the end.",
-  declineNote: "This stops all {count} documents of the envelope that are not yet fully signed.",
+  declineNote: "This stops all {count} documents of the document collection that are not yet fully signed.",
   state: { active: "To do", signed: "Signed", sealing: "Being sealed", completed: "Complete", declined: "Declined", expired: "Expired", voided: "Cancelled", failed: "Needs attention", not_invited: "Not your turn yet" },
   end: {
     signed: { title: "You have signed all {count} documents", body: "Thank you, {name}. Your part is done.", waiting: "We are waiting for the others. When everyone has signed, you will get one email with all the signed copies." },
@@ -119,7 +119,7 @@ run("the envelope on the signing page", () => {
   it("frames a document with its place, the list of documents with states in words, and the promise that nothing is final yet", () => {
     const html = page(view());
     expect(html).toContain("Document 2 of 3");
-    expect(html).toContain("The documents in this envelope");
+    expect(html).toContain("The documents in this document collection");
     expect(html).toContain("Merchant Agreement");
     expect(html).toContain("Signed");
     expect(html).toContain("To do");

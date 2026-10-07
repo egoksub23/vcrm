@@ -12,10 +12,10 @@ import { voidEnvelope } from "@/lib/sign/service/envelopes";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return staff("sign.void", request, async ({ ctx }) => {
     const { id } = await params;
-    if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That envelope was not found.", 404);
+    if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
     const body = await readJson<{ reason?: unknown }>(request);
     const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 1000) : "";
-    if (!reason) throw new SignError("reason_required", "Say why this envelope is being cancelled.", 400);
+    if (!reason) throw new SignError("reason_required", "Say why this collection is being cancelled.", 400);
     await voidEnvelope(ctx, id, reason);
     return json({ voided: true });
   });

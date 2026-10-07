@@ -273,5 +273,9 @@ export const EVENT_TYPES = [
   "envelope_sent",
   "envelope_completed",
   "envelope_declined",
+  // document collections, while a draft: a document added, one removed, the order changed. History only: left off the certificate.
+  "envelope_document_added",
+  "envelope_document_removed",
+  "envelope_reordered",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

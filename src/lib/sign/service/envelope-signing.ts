@@ -41,7 +41,7 @@ export async function finishEnvelope(
   meta: { ip: string | null; device: string | null; locale: string | null },
 ): Promise<EnvelopeFinishResult> {
   const party = lookup.party;
-  if (!party) throw new SignError("not_an_envelope", "This link is not for an envelope.", 400);
+  if (!party) throw new SignError("not_an_envelope", "This link is not for a document collection.", 400);
   const todo = party.members.filter((m) => pageState(m.doc, m.signer) === "active");
   const completed: string[] = [];
   let sealing = false;

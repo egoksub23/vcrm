@@ -98,7 +98,7 @@ export const MAX_EXPIRY_AHEAD_DAYS = 365;
 export async function extendExpiry(ctx: SignCtx, documentId: string, requested: unknown, opts: { viaEnvelope?: boolean } = {}): Promise<ExtendExpiryResult> {
   const doc = await loadDocument(ctx, documentId);
   // one expiry for the whole envelope: its own function gives every document the same new date
-  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of an envelope. Change the expiry on the envelope.", 409);
+  if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Change the expiry on the collection.", 409);
   if (doc.status !== "sent" && doc.status !== "in_progress") throw new SignError("document_not_open", "Only a document that is waiting for signatures can be given more time.", 409);
   const at = typeof requested === "string" || typeof requested === "number" ? new Date(requested) : null;
   if (!at || Number.isNaN(at.getTime())) throw new SignError("bad_expiry", "Choose a date and time.", 400);

@@ -82,6 +82,12 @@ export const KNOWN_ERROR_CODES = [
   "envelope_not_ready",
   "envelope_too_big",
   "envelope_duplicate_template",
+  // document collections: several files at once, and adding, removing and reordering the documents of a draft
+  "too_many_files",
+  "uploads_too_large",
+  "bad_order",
+  "envelope_full",
+  "envelope_minimum",
   "envelope_not_deletable",
   "envelope_frozen",
   "envelope_fixed",

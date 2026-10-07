@@ -148,7 +148,7 @@ export async function freezeForSend(ctx: SignCtx, doc: SignDocumentRow, w: Works
 
 /** A document of an envelope is sent, cancelled, reminded and changed with its envelope (migration 171). */
 export function assertNotInEnvelope(doc: Pick<SignDocumentRow, "envelope_id">): void {
-  if (doc.envelope_id) throw new SignError("document_in_envelope", "This document is part of an envelope. Do this on the envelope.", 409);
+  if (doc.envelope_id) throw new SignError("document_in_envelope", "This document is part of a document collection. Do this on the collection.", 409);
 }
 
 export async function sendDocument(ctx: SignCtx, documentId: string): Promise<SendResult> {

@@ -157,7 +157,7 @@ describe("the certificate block", () => {
 
   it("lists the documents in order with title, reference and the fingerprint as sent, and marks the one it is on", () => {
     const b = envelopeCertificateBlock("en", { id: "e1", reference: "ENV-2026-000007" }, sibs, "d2")!;
-    expect(b.heading).toBe("Part of envelope ENV-2026-000007 (document 2 of 3)");
+    expect(b.heading).toBe("Part of document collection ENV-2026-000007 (document 2 of 3)");
     expect(b.documents.map((d) => [d.number, d.title, d.reference, d.sha256.slice(0, 2), d.current])).toEqual([
       [1, "Agreement", "SGN-2026-000001", "aa", false],
       [2, "Fee schedule", "SGN-2026-000002", "bb", true],

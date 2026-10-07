@@ -179,9 +179,9 @@ const EVENTS: Record<SignLocale, EventWords> = {
     signer_moved: "{actor} was moved to step {step}",
     forwarding_on: "{sender} allowed forwarding",
     forwarding_off: "{sender} switched forwarding off",
-    envelope_sent: "This document was sent as part of envelope {reference} ({count} documents)",
-    envelope_completed: "Every document of envelope {reference} was completed",
-    envelope_declined: "{by} declined envelope {reference}",
+    envelope_sent: "This document was sent as part of document collection {reference} ({count} documents)",
+    envelope_completed: "Every document of document collection {reference} was completed",
+    envelope_declined: "{by} declined document collection {reference}",
     all_submitted: "Everyone had submitted",
     created_form: "{sender} created the form",
     sent_form: "{sender} sent the form",
@@ -226,9 +226,9 @@ const EVENTS: Record<SignLocale, EventWords> = {
     signer_moved: "{actor} dipindahkan ke langkah {step}",
     forwarding_on: "{sender} membenarkan penyerahan kepada orang lain",
     forwarding_off: "{sender} menutup penyerahan kepada orang lain",
-    envelope_sent: "Dokumen ini dihantar sebagai sebahagian daripada kumpulan {reference} ({count} dokumen)",
-    envelope_completed: "Semua dokumen dalam kumpulan {reference} telah disempurnakan",
-    envelope_declined: "{by} menolak kumpulan dokumen {reference}",
+    envelope_sent: "Dokumen ini dihantar sebagai sebahagian daripada koleksi dokumen {reference} ({count} dokumen)",
+    envelope_completed: "Semua dokumen dalam koleksi dokumen {reference} telah disempurnakan",
+    envelope_declined: "{by} menolak koleksi dokumen {reference}",
     all_submitted: "Semua pihak telah menghantar",
     created_form: "{sender} mencipta borang",
     sent_form: "{sender} menghantar borang",
@@ -273,9 +273,9 @@ const EVENTS: Record<SignLocale, EventWords> = {
     signer_moved: "{actor} 已移至第 {step} 步",
     forwarding_on: "{sender} 允许转交",
     forwarding_off: "{sender} 关闭了转交",
-    envelope_sent: "本文件作为文件组 {reference}（共 {count} 份）的一部分发送",
-    envelope_completed: "文件组 {reference} 中的所有文件均已完成",
-    envelope_declined: "{by} 拒绝了文件组 {reference}",
+    envelope_sent: "本文件作为文件集 {reference}（共 {count} 份）的一部分发送",
+    envelope_completed: "文件集 {reference} 中的所有文件均已完成",
+    envelope_declined: "{by} 拒绝了文件集 {reference}",
     all_submitted: "所有人均已提交",
     created_form: "{sender} 创建了表格",
     sent_form: "{sender} 发送了表格",
@@ -320,9 +320,9 @@ const EVENTS: Record<SignLocale, EventWords> = {
     signer_moved: "{actor}님이 {step}단계로 옮겨졌습니다",
     forwarding_on: "{sender}님이 전달을 허용했습니다",
     forwarding_off: "{sender}님이 전달을 껐습니다",
-    envelope_sent: "이 문서는 묶음 {reference}(문서 {count}건)의 일부로 발송되었습니다",
-    envelope_completed: "묶음 {reference}의 모든 문서가 완료되었습니다",
-    envelope_declined: "{by}님이 묶음 {reference}을(를) 거부했습니다",
+    envelope_sent: "이 문서는 문서 모음 {reference}(문서 {count}건)의 일부로 발송되었습니다",
+    envelope_completed: "문서 모음 {reference}의 모든 문서가 완료되었습니다",
+    envelope_declined: "{by}님이 문서 모음 {reference}을(를) 거부했습니다",
     all_submitted: "모든 분이 제출을 마쳤습니다",
     created_form: "{sender}님이 양식을 만들었습니다",
     sent_form: "{sender}님이 양식을 발송했습니다",
@@ -339,7 +339,7 @@ const EVENTS: Record<SignLocale, EventWords> = {
  * Events that are noise on a certificate: retries and autosaves, a part's progress and the contact being updated
  * (the last carries personal data and belongs in the audit trail, not on a page that is sent to everyone).
  */
-export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_failed", "downloaded", "part_completed", "part_reopened", "writeback", "halo_link", "sensitive_viewed", "file_replaced"]);
+export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_failed", "downloaded", "part_completed", "part_reopened", "writeback", "halo_link", "sensitive_viewed", "file_replaced", "envelope_document_added", "envelope_document_removed", "envelope_reordered"]);
 
 /** What an event's own detail adds to its sentence. */
 export interface EventExtras {

@@ -96,6 +96,24 @@ export function installEnvelopeRpcs(db: FakeDb, o: EnvelopeRpcOptions) {
     return ok({ reference: e.reference, account_id: e.account_id, envelope_id: e.id, step, documents: mine.map((d) => ({ document_id: d.id, reference: d.reference, position: d.envelope_position })), invited: inviteStep(e.id as string, step, ordered) });
   };
 
+  // migration 174: the new order of ALL the documents of a draft collection, in one step
+  db.rpcHandlers.sign_envelope_set_order = async (a) => {
+    const e = envOf(a.p_envelope);
+    if (!e) return fail("envelope_not_found");
+    if (e.status !== "draft") return fail("envelope_not_draft");
+    const mine = docsOfEnv(e.id);
+    if (mine.some((d) => d.status !== "draft")) return fail("envelope_not_draft");
+    const ids = (a.p_ids as string[] | null) ?? [];
+    if (ids.length !== mine.length || new Set(ids).size !== ids.length || ids.some((id) => !mine.find((d) => d.id === id))) return fail("envelope_order_mismatch");
+    let moved = 0;
+    ids.forEach((id, i) => {
+      const d = doc(id)!;
+      if (d.envelope_position !== i + 1) moved++;
+      d.envelope_position = i + 1;
+    });
+    return ok({ count: mine.length, moved });
+  };
+
   db.rpcHandlers.sign_envelope_mark_viewed = async (a) => {
     const anchor = signer(a.p_anchor);
     if (!anchor?.party_id) return ok(false);

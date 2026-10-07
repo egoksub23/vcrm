@@ -183,4 +183,44 @@ export async function readUpload(request: Request, maxBytes: number = MAX_UPLOAD
   return { file, fields };
 }
 
+/** Several files at once (a document collection): at most six, each up to 25 MB, and no more than 60 MB in all. */
+export const MAX_UPLOAD_FILES = 6;
+export const MAX_UPLOAD_FILE_BYTES = 25 * 1024 * 1024;
+export const MAX_UPLOADS_BODY = 60 * 1024 * 1024 + 512 * 1024;
+
+/**
+ * Read a multipart upload of SEVERAL files (every part named `file`, in the order they were sent) and its text fields, with the limits of
+ * `readUpload` on each file and one on the whole: the body is read through the capped reader, so nothing past `maxBytes` is ever held, whatever
+ * the request declares; more than `maxFiles` files, or a file over `maxFileBytes`, is refused before any of them is used. Other parts that are
+ * files are ignored, as in `readUpload`.
+ */
+export async function readUploads(
+  request: Request,
+  opts: { maxFiles?: number; maxFileBytes?: number; maxBytes?: number } = {},
+): Promise<{ files: { bytes: Uint8Array; name: string }[]; fields: Record<string, string> }> {
+  const maxFiles = opts.maxFiles ?? MAX_UPLOAD_FILES;
+  const maxFileBytes = opts.maxFileBytes ?? MAX_UPLOAD_FILE_BYTES;
+  const maxBytes = opts.maxBytes ?? MAX_UPLOADS_BODY;
+  // the whole body over the cap is one answer, a single file over its own cap another (the screen words them differently)
+  const tooLarge = () => new SignError("uploads_too_large", `The files add up to more than ${Math.round(maxBytes / (1024 * 1024))} MB.`, 413);
+  const fileTooLarge = () => new SignError("upload_too_large", `A file is larger than ${Math.round(maxFileBytes / (1024 * 1024))} MB.`, 413);
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) throw tooLarge();
+  const raw = await readBodyCapped(request, maxBytes);
+  if (raw === null) throw tooLarge();
+  const form = await new Response(raw as unknown as BodyInit, { headers: { "content-type": request.headers.get("content-type") ?? "" } }).formData().catch(() => null);
+  if (!form) throw new SignError("bad_upload", "The upload could not be read.", 400);
+  const fields: Record<string, string> = {};
+  const parts: File[] = [];
+  for (const [k, v] of form.entries()) {
+    if (typeof v === "string") fields[k] = v;
+    else if (k === "file") parts.push(v);
+  }
+  if (parts.length > maxFiles) throw new SignError("too_many_files", `Upload up to ${maxFiles} files at a time.`, 400);
+  if (parts.some((p) => p.size > maxFileBytes)) throw fileTooLarge();
+  const files: { bytes: Uint8Array; name: string }[] = [];
+  for (const p of parts) files.push({ bytes: new Uint8Array(await p.arrayBuffer()), name: p.name || "document" });
+  return { files, fields };
+}
+
 export const optionalId = (v: unknown): string | null => (typeof v === "string" && UUID_RE.test(v) ? v : null);

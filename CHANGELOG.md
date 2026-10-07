@@ -11,6 +11,16 @@ and polish.
 
 ## [Unreleased]
 
+**Migration required: 174.** (Deploy order: apply 174, then the new app.)
+
+### Changed
+
+- **Envelopes are now "document collections"** in every screen, email, certificate and help page, in all four languages (the product word is neutral; code, URLs and the reference prefix keep the old name). The New document page now starts with a choice: Single document or Document collection.
+
+### Fixed
+
+- **A document collection could take only one uploaded file and no documents could be added afterwards.** It can now be built from many files chosen or dropped at once, in any mix with templates, in one ordered list (2 to 6 documents) that can be reordered and edited. A draft collection can have documents added, removed and reordered (migration 174). The old single-file request still works.
+
 ## [0.78.0] — 2026-10-07
 
 **Migrations required: 162 to 171 and 173, in order (there is no 161 or 172).** Doc Sign is still off until the operator turns it on, and every new part is behind that switch. Apply the migrations BEFORE the new app: the list, template library, public API and CSV export read the new `mode` column, and migrations 166 and 169 replace signing functions the running app calls. Each migration has a `supabase/ci/verify-NNN-*.sql` script; all of them (and the schema guard) passed against the production database inside a rolled-back transaction. Nothing has run end to end on a live server yet.

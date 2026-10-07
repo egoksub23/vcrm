@@ -149,9 +149,11 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     values.to = text(detail.to_name, 160) ?? ctx.someone;
     const partKey = text(detail.part, 80);
     values.part = partKey ? (ctx.partTitle?.(partKey) ?? partKey) : "";
-  } else if (row.type === "envelope_sent" || row.type === "envelope_completed" || row.type === "envelope_declined") {
-    // an envelope (migration 171): its reference and size, and who declined it; the document's own events are worded as ever
+  } else if (row.type === "envelope_sent" || row.type === "envelope_completed" || row.type === "envelope_declined" || row.type === "envelope_document_added" || row.type === "envelope_document_removed" || row.type === "envelope_reordered") {
+    // an envelope (migration 171): its reference and size, and who declined it; the document's own events are worded as ever.
+    // While a draft: the document that was removed (its title), and the new size.
     values.reference = text(detail.reference, 40) ?? "";
+    values.title = text(detail.title, 200) ?? "";
     values.count = typeof detail.count === "number" ? String(detail.count) : "";
     values.by = text(detail.by_name, 160) ?? actor;
   } else if (row.type === "signer_moved") {

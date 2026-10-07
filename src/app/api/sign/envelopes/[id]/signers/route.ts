@@ -13,7 +13,7 @@ import { setEnvelopeSigners, type EnvelopePersonInput } from "@/lib/sign/service
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return staff("sign.send", request, async ({ ctx }) => {
     const { id } = await params;
-    if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That envelope was not found.", 404);
+    if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
     const body = await readJson<{ people?: unknown }>(request);
     if (!Array.isArray(body.people)) throw new SignError("bad_signers", "Send the list of people.", 400);
     const people: EnvelopePersonInput[] = body.people.map((p) => {

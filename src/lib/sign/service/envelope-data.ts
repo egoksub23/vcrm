@@ -10,7 +10,7 @@ import { SignError, raiseDatabaseError } from "./errors";
 export async function loadEnvelope(ctx: SignCtx, envelopeId: string): Promise<SignEnvelopeRow> {
   const { data, error } = await ctx.admin.from("sign_envelopes").select("*").eq("id", envelopeId).eq("account_id", ctx.accountId).maybeSingle();
   if (error) raiseDatabaseError(error, "load envelope");
-  if (!data) throw new SignError("envelope_not_found", "That envelope was not found.", 404);
+  if (!data) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
   return data as SignEnvelopeRow;
 }
 

@@ -1,5 +1,7 @@
 # Doc Sign envelopes: several documents, one sitting (F-18, migration 171)
 
+> **Naming note.** The product word, in every screen, message, certificate and help page, is **document collection** (short form **collection**). "Envelope" is only the internal name: the code, the routes (`/sign/envelopes/...`, `/api/sign/envelopes`), the database objects, the event types and the API fields (`envelope_id`) keep it. This design document keeps the internal word below.
+
 Status: built in WP16. Read with `docs/vircle-sign-features.md` (F-18) and `docs/doc-sign-setup.md`.
 
 ## The model

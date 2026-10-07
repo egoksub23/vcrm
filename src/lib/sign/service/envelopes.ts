@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { forgetAccountUsage, signSendHeadroom } from "@/lib/platform/usage";
 
 import { cleanReminderDays, expiryFor, resolveDefaults } from "../defaults";
-import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, canVoidEnvelope, deriveEnvelopeStatus, peopleFromRows, peopleIssues, rowsFor, type EnvelopeDocLite, type EnvelopePerson } from "../envelopes";
+import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, peopleFromRows, peopleIssues, rowsFor, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry } from "../envelopes";
 import type { ConvertOptions } from "../convert";
 import { REMIND_GAP_MS } from "../defaults";
 import { fieldsForRole, type Issue } from "../rules";
@@ -142,11 +142,25 @@ export async function envelopeBrief(ctx: SignCtx, envelopeId: string | null | un
 
 // ---- making one ---------------------------------------------------------------------------------
 
+/** A file of the sender's own that becomes a document of the collection (the bytes are checked and converted as for any document). */
+export interface EnvelopeUpload {
+  bytes: Uint8Array;
+  filename: string;
+  converter?: ConvertOptions;
+}
+
 export interface EnvelopeDraftArgs {
   title?: string | null;
   templateIds: readonly string[];
   /** One uploaded file as the first document, with the templates after it. */
-  file?: { bytes: Uint8Array; filename: string; converter?: ConvertOptions } | null;
+  file?: EnvelopeUpload | null;
+  /** Several uploaded files (after `file`, when both are given). */
+  files?: readonly EnvelopeUpload[];
+  /**
+   * The documents in the order they are signed: files (by their place in `file`, then `files`) and templates interleaved, each with an optional
+   * title of the sender's. When absent, the files in the order they came, then `templateIds`. When present, `templateIds` is not used.
+   */
+  order?: readonly OrderEntry[];
   contactId?: string | null;
   ticketId?: string | null;
   dealId?: string | null;
@@ -160,17 +174,69 @@ async function templateNames(ctx: SignCtx, ids: readonly string[]): Promise<Map<
 }
 
 /**
- * Make an envelope as a draft from two to six templates (or one uploaded file and templates): the envelope, then each document through
- * the same service a document alone is made by, in order. Whatever was made is removed again when any step fails. The envelope starts
- * with the options of the workspace and the strictest of the templates' (signing order and code on when any template asks for them).
+ * The list of documents to make, checked: every file named once and every template once, a template that is not this workspace's refused.
+ * Returns the names of the templates (by id). Nothing is made here.
+ */
+export async function checkEntries(ctx: SignCtx, entries: readonly OrderEntry[], uploads: number): Promise<Map<string, string>> {
+  const usedFiles = new Set<number>();
+  const ids: string[] = [];
+  for (const e of entries) {
+    if (e.kind === "file") {
+      if (!Number.isInteger(e.index) || e.index < 0 || e.index >= uploads || usedFiles.has(e.index)) throw new SignError("bad_order", "The order of the documents is not valid.", 400);
+      usedFiles.add(e.index);
+    } else {
+      ids.push(e.id);
+    }
+  }
+  if (usedFiles.size !== uploads) throw new SignError("bad_order", "The order of the documents is not valid.", 400);
+  if (new Set(ids).size !== ids.length) throw new SignError("envelope_duplicate_template", "Choose each template once.", 400);
+  const names = await templateNames(ctx, ids);
+  for (const id of ids) if (!names.has(id)) throw new SignError("template_not_found", "That template was not found.", 404);
+  return names;
+}
+
+/**
+ * Make the documents of `entries` as drafts of an envelope, in order, from the first place after `from`: each by the same service a document
+ * alone is made by (conversion, limits and checks unchanged). Every document made is pushed on `made` as it is, so the caller can remove them
+ * again when a later one fails (the work is all or nothing).
+ */
+export async function makeEntryDocuments(
+  ctx: SignCtx,
+  envelopeId: string,
+  from: number,
+  entries: readonly OrderEntry[],
+  uploads: readonly EnvelopeUpload[],
+  link: { contactId: string | null; ticketId: string | null; dealId: string | null },
+  made: SignDocumentRow[],
+): Promise<void> {
+  let position = from;
+  for (const e of entries) {
+    position += 1;
+    const title = e.title?.trim() ? e.title.trim() : undefined;
+    if (e.kind === "file") {
+      const up = uploads[e.index];
+      const m = await createDraftFromUpload(ctx, { bytes: up.bytes, filename: up.filename, converter: up.converter, title, ...link, envelope: { id: envelopeId, position } });
+      made.push(m.document);
+    } else {
+      made.push(await createDraftFromTemplate(ctx, { templateId: e.id, title, ...link, envelope: { id: envelopeId, position } }));
+    }
+  }
+}
+
+/**
+ * Make a collection as a draft from two to six documents: any mix of files and templates, in the order given (or the files, then the templates).
+ * The envelope, then each document through the same service a document alone is made by, in order. Whatever was made is removed again when any
+ * step fails. The envelope starts with the options of the workspace and the strictest of the documents' (signing order and code on when any
+ * asks for them).
  */
 export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs): Promise<{ envelope: SignEnvelopeRow; documents: SignDocumentRow[] }> {
-  const ids = [...args.templateIds];
-  const total = ids.length + (args.file ? 1 : 0);
-  if (total < ENVELOPE_MIN_DOCUMENTS || total > ENVELOPE_MAX_DOCUMENTS) throw new SignError("envelope_size", `An envelope has ${ENVELOPE_MIN_DOCUMENTS} to ${ENVELOPE_MAX_DOCUMENTS} documents.`, 400);
-  if (new Set(ids).size !== ids.length) throw new SignError("envelope_duplicate_template", "Choose each template once.", 400);
+  const uploads: EnvelopeUpload[] = [...(args.file ? [args.file] : []), ...(args.files ?? [])];
+  const entries: readonly OrderEntry[] = args.order ?? defaultOrder(uploads.length, args.templateIds);
+  const total = entries.length;
+  if (total < ENVELOPE_MIN_DOCUMENTS || total > ENVELOPE_MAX_DOCUMENTS) throw new SignError("envelope_size", `A collection has ${ENVELOPE_MIN_DOCUMENTS} to ${ENVELOPE_MAX_DOCUMENTS} documents.`, 400);
   const title = (args.title ?? "").trim();
-  if (title.length > 200) throw new SignError("bad_title", "Give the envelope a title of up to 200 characters.", 400);
+  if (title.length > 200) throw new SignError("bad_title", "Give the collection a title of up to 200 characters.", 400);
+  const names = await checkEntries(ctx, entries, uploads.length);
 
   // the same checks a document alone gets: the contact, the ticket and the deal belong to this workspace and agree with each other
   let checkedContact: string | null = null;
@@ -181,12 +247,11 @@ export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs)
     checkedContact = args.contactId;
   }
   const links = await resolveLinks(ctx, { contactId: checkedContact, ticketId: args.ticketId, dealId: args.dealId });
-  const names = await templateNames(ctx, ids);
-  for (const id of ids) if (!names.has(id)) throw new SignError("template_not_found", "That template was not found.", 404);
 
   const settings = await loadSettings(ctx);
   const defaults = resolveDefaults({ workspace: settings });
-  const fallbackTitle = args.file ? args.file.filename.replace(/\.[A-Za-z0-9]{1,5}$/, "") : (names.get(ids[0]) ?? "Documents");
+  const first = entries[0];
+  const fallbackTitle = first.kind === "file" ? (first.title ?? uploads[first.index].filename.replace(/\.[A-Za-z0-9]{1,5}$/, "")) : (first.title ?? names.get(first.id) ?? "Documents");
   const inserted = await ctx.admin
     .from("sign_envelopes")
     .insert({
@@ -208,13 +273,7 @@ export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs)
     await ctx.admin.from("sign_envelopes").delete().eq("id", envelope.id).eq("account_id", ctx.accountId);
   };
   try {
-    let position = 0;
-    const link = { contactId: links.contactId, ticketId: links.ticketId, dealId: links.dealId };
-    if (args.file) {
-      const made = await createDraftFromUpload(ctx, { bytes: args.file.bytes, filename: args.file.filename, converter: args.file.converter, ...link, envelope: { id: envelope.id, position: ++position } });
-      documents.push(made.document);
-    }
-    for (const templateId of ids) documents.push(await createDraftFromTemplate(ctx, { templateId, ...link, envelope: { id: envelope.id, position: ++position } }));
+    await makeEntryDocuments(ctx, envelope.id, 0, entries, uploads, { contactId: links.contactId, ticketId: links.ticketId, dealId: links.dealId }, documents);
 
     // the options the people will meet: the strictest of the documents' own (signing order and code on when any asks), the first message
     // any of them has, then written to every document so they agree from the start
@@ -237,7 +296,7 @@ export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs)
 // ---- options ------------------------------------------------------------------------------------
 
 /** Write the envelope's options onto each of its draft documents (one signing order, code, language, message, expiry and reminders for all). */
-async function applyEnvelopeOptions(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[]): Promise<SignDocumentRow[]> {
+export async function applyEnvelopeOptions(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[]): Promise<SignDocumentRow[]> {
   const out: SignDocumentRow[] = [];
   for (const d of docs) {
     const patch: DraftPatch = {
@@ -271,11 +330,11 @@ export interface EnvelopePatch {
 /** Change what an envelope shares. Only while it is a draft. The options go onto every document in the same step. */
 export async function updateEnvelope(ctx: SignCtx, envelopeId: string, patch: EnvelopePatch): Promise<SignEnvelopeRow> {
   const env = await loadEnvelope(ctx, envelopeId);
-  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This envelope was already sent.", 409);
+  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
   const update: Record<string, unknown> = {};
   if (patch.title !== undefined) {
     const t = patch.title.trim();
-    if (t.length < 1 || t.length > 200) throw new SignError("bad_title", "Give the envelope a title of up to 200 characters.", 400);
+    if (t.length < 1 || t.length > 200) throw new SignError("bad_title", "Give the collection a title of up to 200 characters.", 400);
     update.title = t;
   }
   if (patch.message !== undefined) {
@@ -319,7 +378,7 @@ export async function updateEnvelope(ctx: SignCtx, envelopeId: string, patch: En
   if (Object.keys(update).length > 0) {
     const { data, error } = await ctx.admin.from("sign_envelopes").update(update).eq("id", envelopeId).eq("account_id", ctx.accountId).eq("status", "draft").select("*").maybeSingle();
     if (error) raiseDatabaseError(error, "update envelope");
-    if (!data) throw new SignError("envelope_not_draft", "This envelope was already sent.", 409);
+    if (!data) throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
     saved = data as SignEnvelopeRow;
   }
   if (Object.keys(update).some((k) => k !== "title")) await applyEnvelopeOptions(ctx, saved, docs);
@@ -347,7 +406,7 @@ export interface EnvelopePersonInput {
  */
 export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, people: readonly EnvelopePersonInput[]): Promise<SignSignerRow[]> {
   const env = await loadEnvelope(ctx, envelopeId);
-  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This envelope was already sent.", 409);
+  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const list: EnvelopePerson[] = people.map((p, i) => ({
     key: `p${i}`,
@@ -391,20 +450,20 @@ export interface EnvelopeSendResult {
  */
 export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<EnvelopeSendResult> {
   const env = await loadEnvelope(ctx, envelopeId);
-  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This envelope was already sent.", 409);
+  if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
   let docs = await loadEnvelopeDocuments(ctx, envelopeId);
-  if (docs.length < ENVELOPE_MIN_DOCUMENTS || docs.length > ENVELOPE_MAX_DOCUMENTS) throw new SignError("envelope_size", `An envelope has ${ENVELOPE_MIN_DOCUMENTS} to ${ENVELOPE_MAX_DOCUMENTS} documents.`, 400);
+  if (docs.length < ENVELOPE_MIN_DOCUMENTS || docs.length > ENVELOPE_MAX_DOCUMENTS) throw new SignError("envelope_size", `A document collection has ${ENVELOPE_MIN_DOCUMENTS} to ${ENVELOPE_MAX_DOCUMENTS} documents.`, 400);
   // the envelope's options are on every document (they were written as they were edited; once more so nothing can differ)
   docs = await applyEnvelopeOptions(ctx, env, docs);
   const signers = await loadEnvelopeSigners(ctx, docs.map((d) => d.id));
 
   const problems = envelopeProblems(env, docs, signers);
-  if (problems.length > 0) throw new SignError("envelope_not_ready", "This envelope is not ready to send.", 400, problems);
+  if (problems.length > 0) throw new SignError("envelope_not_ready", "This document collection is not ready to send.", 400, problems);
 
   // the limit is for the whole envelope: every document counts as a document sent, and none is sent if they do not all fit
   const room = await signSendHeadroom(ctx.admin, ctx.accountId);
   if (room.remaining !== null && docs.length > room.remaining) {
-    throw new SignError("sign_limit_reached", "This workspace does not have room for all the documents of this envelope this month.", 429, [{ code: "envelope_exceeds_limit", detail: `${docs.length}:${room.remaining}` }]);
+    throw new SignError("sign_limit_reached", "This workspace does not have room for all the documents of this collection this month.", 429, [{ code: "envelope_exceeds_limit", detail: `${docs.length}:${room.remaining}` }]);
   }
 
   for (const d of docs) await refreshFormSnapshot(ctx, d);
@@ -423,7 +482,7 @@ export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<En
       const f = await freezeForSend(ctx, d, w);
       frozen.push({ doc: d, path: f.path, sha256: f.sha256 });
       bytes += f.size;
-      if (bytes > ENVELOPE_MAX_BYTES) throw new SignError("envelope_too_big", `The documents of an envelope can be up to ${Math.round(ENVELOPE_MAX_BYTES / (1024 * 1024))} MB in all.`, 413);
+      if (bytes > ENVELOPE_MAX_BYTES) throw new SignError("envelope_too_big", `The documents of a document collection can be up to ${Math.round(ENVELOPE_MAX_BYTES / (1024 * 1024))} MB in all.`, 413);
     }
   } catch (err) {
     await removeFiles(ctx.admin, frozen.map((f) => f.path));
@@ -467,9 +526,9 @@ export async function voidEnvelope(ctx: SignCtx, envelopeId: string, reason: str
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const verdict = canVoidEnvelope(docs.map((d) => d.status));
   if (!verdict.ok) {
-    if (verdict.reason === "partly_completed") throw new SignError("envelope_partly_completed", "A document of this envelope was already signed by everyone, so the envelope cannot be cancelled.", 409);
-    if (verdict.reason === "already_final") throw new SignError("document_already_final", "This envelope has already finished.", 409);
-    throw new SignError("envelope_not_sent", "This envelope has not been sent.", 409);
+    if (verdict.reason === "partly_completed") throw new SignError("envelope_partly_completed", "A document of this collection was already signed by everyone, so the collection cannot be cancelled.", 409);
+    if (verdict.reason === "already_final") throw new SignError("document_already_final", "This document collection has already finished.", 409);
+    throw new SignError("envelope_not_sent", "This document collection has not been sent.", 409);
   }
   const { error } = await ctx.admin.rpc("sign_void_envelope", { p_envelope: envelopeId, p_reason: reason, p_actor: ctx.userId });
   if (error) raiseDatabaseError(error, "void envelope");
@@ -484,7 +543,7 @@ async function personOf(ctx: SignCtx, envelopeId: string, anchorId: string) {
   const rows = await loadEnvelopeSigners(ctx, docs.map((d) => d.id));
   const mine = groupByParty(rows, docs).get(anchorId);
   const anchor = mine ? anchorOf(mine) : undefined;
-  if (!mine || !anchor || anchor.id !== anchorId) throw new SignError("signer_not_found", "That person is not on this envelope.", 404);
+  if (!mine || !anchor || anchor.id !== anchorId) throw new SignError("signer_not_found", "That person is not on this collection.", 404);
   return { env, docs, rows, mine, anchor };
 }
 
@@ -528,7 +587,7 @@ export async function changeEnvelopeRecipient(ctx: SignCtx, envelopeId: string, 
   const email = change.email.trim().toLowerCase();
   // one human, one place on the envelope: two entries would be two links
   const own = new Set(mine.map((s) => s.id));
-  if (rows.some((s) => !own.has(s.id) && s.email.trim().toLowerCase() === email)) throw new SignError("already_on_document", "That person is already on this envelope.", 400);
+  if (rows.some((s) => !own.has(s.id) && s.email.trim().toLowerCase() === email)) throw new SignError("already_on_document", "That person is already on this collection.", 400);
   const { data, error } = await ctx.admin.rpc("sign_envelope_change_recipient", { p_anchor: anchorId, p_name: change.fullName, p_email: change.email, p_phone: change.phone ?? "", p_channel: change.channel ?? null, p_actor: ctx.userId });
   if (error || !data) raiseDatabaseError(error, "change recipient");
   const brief = data as Invitation;
@@ -543,7 +602,7 @@ export async function extendEnvelopeExpiry(ctx: SignCtx, envelopeId: string, req
   const env = await loadEnvelope(ctx, envelopeId);
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const open = docs.filter((d) => d.status === "sent" || d.status === "in_progress");
-  if (open.length === 0) throw new SignError("document_not_open", "Only an envelope that is waiting for signatures can be given more time.", 409);
+  if (open.length === 0) throw new SignError("document_not_open", "Only a document collection that is waiting for signatures can be given more time.", 409);
   let expiresAt = "";
   for (const d of open) expiresAt = (await extendExpiry(ctx, d.id, requested, { viaEnvelope: true })).expiresAt;
   await ctx.admin.from("sign_envelopes").update({ expires_at: expiresAt }).eq("id", env.id).eq("account_id", ctx.accountId);
@@ -564,11 +623,11 @@ export async function deleteEnvelope(ctx: SignCtx, envelopeId: string): Promise<
     const held = docs.find((d) => !d.retain_until || new Date(d.retain_until).getTime() > now);
     if (held) {
       const until = held.retain_until ? new Date(held.retain_until) : null;
-      throw new SignError("document_retained", until ? `This signed envelope is kept until ${until.toISOString().slice(0, 10)} and cannot be deleted before then.` : "This signed envelope is kept and cannot be deleted.", 409, [{ code: "document_retained", detail: until?.toISOString() ?? "" }]);
+      throw new SignError("document_retained", until ? `This signed document collection is kept until ${until.toISOString().slice(0, 10)} and cannot be deleted before then.` : "This signed document collection is kept and cannot be deleted.", 409, [{ code: "document_retained", detail: until?.toISOString() ?? "" }]);
     }
     for (const d of docs) await deleteDocument(ctx, d.id, { viaEnvelope: true });
   } else {
-    throw new SignError("envelope_not_deletable", "Only a draft can be deleted. Cancel an envelope that was sent.", 409);
+    throw new SignError("envelope_not_deletable", "Only a draft can be deleted. Cancel a document collection that was sent.", 409);
   }
   const { error } = await ctx.admin.from("sign_envelopes").delete().eq("id", envelopeId).eq("account_id", ctx.accountId);
   if (error) raiseDatabaseError(error, "delete envelope");

@@ -6431,7 +6431,7 @@
       "sign_document": "Dokumen tandatangan",
       "sign_bulk_job": "Kelompok tandatangan",
       "sign_option_list": "Senarai pilihan tandatangan",
-      "sign_envelope": "Sampul tandatangan"
+      "sign_envelope": "Koleksi dokumen tandatangan"
     },
     "roleNames": {
       "owner": "Pemilik",
@@ -7750,9 +7750,9 @@
         "keep": "Kekalkan dokumen",
         "action": "Batalkan dokumen",
         "done": "Dokumen telah dibatalkan",
-        "envelopeBody": "Setiap pautan sampul berhenti berfungsi dan orang yang menunggu dimaklumkan sekali. Ini tidak boleh dibuat asal. Hantar sampul baharu jika perlu.",
-        "envelopeAction": "Batalkan sampul",
-        "envelopeDone": "Sampul telah dibatalkan"
+        "envelopeBody": "Setiap pautan koleksi dokumen berhenti berfungsi dan orang yang menunggu dimaklumkan sekali. Ini tidak boleh dibuat asal. Hantar koleksi dokumen baharu jika perlu.",
+        "envelopeAction": "Batalkan koleksi dokumen",
+        "envelopeDone": "Koleksi dokumen telah dibatalkan"
       },
       "viewer": {
         "loading": "Memuatkan halaman",
@@ -7864,9 +7864,12 @@
         "completedForm": "Penghantaran direkodkan",
         "downloadedForm": "{sender} membuka atau memuat turun rekod",
         "all_submitted": "Semua pihak telah menghantar",
-        "envelope_sent": "{sender} menghantar sampul {reference} dengan {count, plural, other {# dokumen}}",
-        "envelope_completed": "Sampul {reference} telah selesai, kesemua {count, plural, other {# dokumen}} ditandatangani",
-        "envelope_declined": "{by} menolak sampul {reference}, jadi setiap dokumen yang masih terbuka dihentikan"
+        "envelope_sent": "{sender} menghantar koleksi dokumen {reference} dengan {count, plural, other {# dokumen}}",
+        "envelope_completed": "Koleksi dokumen {reference} telah selesai, kesemua {count, plural, other {# dokumen}} ditandatangani",
+        "envelope_declined": "{by} menolak koleksi dokumen {reference}, jadi setiap dokumen yang masih terbuka dihentikan",
+        "envelope_document_added": "{sender} menambah dokumen ini ke dalam koleksi {reference}",
+        "envelope_document_removed": "{sender} membuang “{title}” daripada koleksi {reference}",
+        "envelope_reordered": "{sender} menukar susunan dokumen dalam koleksi {reference}"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -7889,11 +7892,11 @@
         "generic": "Sesuatu telah tidak kena. Sila cuba lagi.",
         "already_on_document": "Orang itu sudah ada pada dokumen ini.",
         "step_not_movable": "Orang itu hanya boleh dipindahkan ke langkah yang belum bermula.",
-        "envelope_not_found": "Sampul itu tidak ditemui.",
-        "envelope_not_sent": "Sampul ini belum dihantar.",
-        "envelope_partly_completed": "Satu dokumen dalam sampul ini telah ditandatangani oleh semua orang, jadi sampul tidak boleh dibatalkan.",
-        "envelope_person_has_signed": "Orang ini sudah menandatangani sebahagian daripada sampul, jadi mereka tidak boleh diganti.",
-        "document_in_envelope": "Dokumen ini sebahagian daripada sampul. Lakukan ini pada sampulnya.",
+        "envelope_not_found": "Koleksi dokumen itu tidak ditemui.",
+        "envelope_not_sent": "Koleksi dokumen ini belum dihantar.",
+        "envelope_partly_completed": "Satu dokumen dalam koleksi dokumen ini telah ditandatangani oleh semua orang, jadi koleksi dokumen tidak boleh dibatalkan.",
+        "envelope_person_has_signed": "Orang ini sudah menandatangani sebahagian daripada koleksi dokumen, jadi mereka tidak boleh diganti.",
+        "document_in_envelope": "Dokumen ini sebahagian daripada koleksi dokumen. Lakukan ini pada koleksi dokumennya.",
         "expiry_in_the_past": "Tarikh baharu mesti pada masa hadapan.",
         "expiry_not_later": "Tarikh baharu mesti lebih lewat daripada tarikh semasa.",
         "expiry_too_far": "Tarikh itu terlalu jauh. Pilih tarikh yang lebih dekat.",
@@ -9074,7 +9077,7 @@
         "testBadge": "Ujian",
         "formBadge": "Borang",
         "progressForm": "{done} daripada {total} telah menghantar",
-        "envelopeBadge": "Sampul · {count, plural, other {# dokumen}}",
+        "envelopeBadge": "Koleksi dokumen · {count, plural, other {# dokumen}}",
         "dateFrom": "Dibuat dari",
         "dateTo": "Dibuat hingga",
         "contactLabel": "Kenalan",
@@ -9411,24 +9414,29 @@
         "test_no_address": "Akaun anda tidak mempunyai alamat e-mel untuk menerima ujian.",
         "same_file": "Ini ialah fail yang sudah ada pada dokumen.",
         "document_has_no_file": "Dokumen ini tiada fail untuk digantikan.",
-        "envelope_not_found": "Sampul itu tidak ditemui.",
-        "envelope_not_draft": "Sampul ini sudah dihantar, jadi ia tidak boleh diubah lagi.",
-        "envelope_not_sent": "Sampul ini belum dihantar.",
-        "envelope_size": "Satu sampul mengandungi dua hingga enam dokumen.",
-        "envelope_documents": "Dokumen dalam sampul ini berubah semasa anda bekerja. Buka semula dan semaknya.",
-        "envelope_options": "Setiap dokumen dalam sampul mesti menggunakan susunan menandatangani dan tetapan kod yang sama.",
-        "envelope_people": "Senarai orang dalam sampul ini tidak lengkap. Semak dan simpan semula.",
+        "envelope_not_found": "Koleksi dokumen itu tidak ditemui.",
+        "envelope_not_draft": "Koleksi dokumen ini sudah dihantar, jadi ia tidak boleh diubah lagi.",
+        "envelope_not_sent": "Koleksi dokumen ini belum dihantar.",
+        "envelope_size": "Satu koleksi dokumen mengandungi dua hingga enam dokumen.",
+        "envelope_documents": "Dokumen dalam koleksi dokumen ini berubah semasa anda bekerja. Buka semula dan semaknya.",
+        "envelope_options": "Setiap dokumen dalam koleksi dokumen mesti menggunakan susunan menandatangani dan tetapan kod yang sama.",
+        "envelope_people": "Senarai orang dalam koleksi dokumen ini tidak lengkap. Semak dan simpan semula.",
         "envelope_person_twice": "Seseorang hanya boleh mempunyai satu peranan pada setiap dokumen.",
-        "envelope_not_ready": "Sampul ini belum sedia untuk dihantar. Semak senarai perkara yang perlu dibetulkan.",
-        "envelope_too_big": "Dokumen dalam satu sampul boleh sehingga 50 MB kesemuanya. Gunakan fail yang lebih kecil.",
+        "envelope_not_ready": "Koleksi dokumen ini belum sedia untuk dihantar. Semak senarai perkara yang perlu dibetulkan.",
+        "envelope_too_big": "Dokumen dalam satu koleksi dokumen boleh sehingga 50 MB kesemuanya. Gunakan fail yang lebih kecil.",
         "envelope_duplicate_template": "Pilih setiap templat sekali sahaja.",
-        "envelope_not_deletable": "Hanya draf yang boleh dipadam. Batalkan sampul yang sudah dihantar.",
-        "envelope_frozen": "Sampul yang sudah dihantar tidak boleh disunting.",
-        "envelope_fixed": "Dokumen tidak boleh dikeluarkan daripada sampulnya.",
-        "envelope_no_forwarding": "Dokumen dalam sampul tidak boleh dikemukakan kepada orang lain.",
-        "envelope_no_test": "Dokumen ujian tidak boleh menjadi sebahagian daripada sampul.",
-        "document_in_envelope": "Dokumen ini sebahagian daripada sampul. Lakukan ini pada sampulnya.",
-        "document_retained": "Dokumen bertandatangan ini mesti disimpan buat masa ini, jadi ia belum boleh dipadam."
+        "envelope_not_deletable": "Hanya draf yang boleh dipadam. Batalkan koleksi dokumen yang sudah dihantar.",
+        "envelope_frozen": "Koleksi dokumen yang sudah dihantar tidak boleh disunting.",
+        "envelope_fixed": "Dokumen tidak boleh dikeluarkan daripada koleksi dokumennya.",
+        "envelope_no_forwarding": "Dokumen dalam koleksi dokumen tidak boleh dikemukakan kepada orang lain.",
+        "envelope_no_test": "Dokumen ujian tidak boleh menjadi sebahagian daripada koleksi dokumen.",
+        "document_in_envelope": "Dokumen ini sebahagian daripada koleksi dokumen. Lakukan ini pada koleksi dokumennya.",
+        "document_retained": "Dokumen bertandatangan ini mesti disimpan buat masa ini, jadi ia belum boleh dipadam.",
+        "too_many_files": "Anda boleh menambah sehingga enam fail pada satu masa.",
+        "uploads_too_large": "Jumlah saiz fail melebihi 60 MB. Buang satu, atau gunakan fail yang lebih kecil.",
+        "bad_order": "Susunan dokumen tidak dapat dibaca. Buka semula halaman dan cuba sekali lagi.",
+        "envelope_full": "Satu koleksi mengandungi sehingga enam dokumen, jadi tiada lagi yang boleh ditambah.",
+        "envelope_minimum": "Satu koleksi mengekalkan sekurang-kurangnya dua dokumen. Padam koleksi untuk berhenti."
       },
       "records": {
         "ticketLabel": "Pautkan ke tiket",
@@ -9444,16 +9452,16 @@
         "unknown": "Rekod yang tidak dapat anda lihat"
       },
       "envelope": {
-        "badge": "Sampul · {count, plural, other {# dokumen}}",
+        "badge": "Koleksi dokumen · {count, plural, other {# dokumen}}",
         "new": {
-          "link": "Hantar beberapa dokumen sebagai satu sampul",
-          "title": "Sampul baharu",
+          "link": "Hantar beberapa dokumen sebagai satu koleksi dokumen",
+          "title": "Koleksi dokumen baharu",
           "subtitle": "Beberapa dokumen untuk orang yang sama, ditandatangani sekali gus. Setiap orang menerima satu mesej dan satu pautan.",
           "chooseHeading": "Pilih dokumen",
-          "chooseHint": "Pilih templat, atau tambah satu fail. Satu sampul mengandungi {min} hingga {max} dokumen.",
+          "chooseHint": "Pilih templat, atau tambah satu fail. Satu koleksi dokumen mengandungi {min} hingga {max} dokumen.",
           "templatesLabel": "Templat",
           "fileHeading": "Atau tambah fail",
-          "fileHint": "Fail PDF atau Word. Anda menyediakan medannya selepas sampul dibuat.",
+          "fileHint": "Fail PDF atau Word. Anda menyediakan medannya selepas koleksi dokumen dibuat.",
           "orderHeading": "Susunan dokumen ({count})",
           "nothingChosen": "Belum ada yang dipilih.",
           "removeFile": "Buang fail",
@@ -9462,30 +9470,30 @@
           "remove": "Buang {title}",
           "needMore": "Pilih sekurang-kurangnya {min} dokumen.",
           "count": "{count} daripada {max} dokumen",
-          "titleLabel": "Tajuk sampul",
+          "titleLabel": "Tajuk koleksi dokumen",
           "titlePlaceholder": "Contohnya, Pendaftaran peniaga",
-          "create": "Cipta sampul"
+          "create": "Cipta koleksi dokumen"
         },
         "view": {
-          "loading": "Memuatkan sampul",
-          "notFoundTitle": "Sampul ini tidak ditemui",
-          "failedTitle": "Sampul tidak dapat dimuatkan",
+          "loading": "Memuatkan koleksi dokumen",
+          "notFoundTitle": "Koleksi dokumen ini tidak ditemui",
+          "failedTitle": "Koleksi dokumen tidak dapat dimuatkan",
           "retry": "Cuba lagi",
           "backToDocuments": "Kembali ke dokumen"
         },
         "draft": {
           "back": "Kembali ke dokumen",
           "delete": "Padam draf",
-          "deleteTitle": "Padam draf sampul ini?",
+          "deleteTitle": "Padam draf koleksi dokumen ini?",
           "deleteBody": "{count, plural, other {Kesemua # dokumen di dalamnya turut dipadam.}} Tiada apa-apa yang telah dihantar. Ini tidak boleh dibuat asal.",
           "deleteConfirm": "Padam draf",
           "cancel": "Simpan",
-          "deleted": "Draf sampul telah dipadam",
-          "readOnly": "Anda boleh melihat sampul ini tetapi tidak boleh mengubahnya."
+          "deleted": "Draf koleksi dokumen telah dipadam",
+          "readOnly": "Anda boleh melihat koleksi dokumen ini tetapi tidak boleh mengubahnya."
         },
         "documents": {
           "heading": "Dokumen",
-          "hint": "Sediakan medan setiap dokumen di sini. Orang dan pilihan dikongsi oleh seluruh sampul.",
+          "hint": "Sediakan medan setiap dokumen di sini. Orang dan pilihan dikongsi oleh seluruh koleksi dokumen.",
           "form": "Borang",
           "pages": "{count, plural, other {# halaman}}",
           "problems": "{count, plural, other {# perkara perlu dibetulkan}}",
@@ -9494,7 +9502,7 @@
         },
         "people": {
           "heading": "Orang",
-          "intro": "Tambah setiap orang sekali sahaja, dan nyatakan peranan mereka pada setiap dokumen. Mereka menerima satu mesej dan satu pautan untuk seluruh sampul.",
+          "intro": "Tambah setiap orang sekali sahaja, dan nyatakan peranan mereka pada setiap dokumen. Mereka menerima satu mesej dan satu pautan untuk seluruh koleksi dokumen.",
           "ordered": "Orang menandatangani satu demi satu",
           "orderedHint": "Berikan setiap orang satu langkah. Orang dengan langkah yang sama menandatangani bersama, dan langkah seterusnya dijemput hanya apabila semua orang dalam langkah itu telah menyelesaikan semua dokumen.",
           "empty": "Belum ada sesiapa dalam senarai.",
@@ -9526,68 +9534,68 @@
         },
         "options": {
           "heading": "Pilihan",
-          "hint": "Ini terpakai untuk setiap dokumen dalam sampul."
+          "hint": "Ini terpakai untuk setiap dokumen dalam koleksi dokumen."
         },
         "review": {
           "heading": "Semak dan hantar",
           "ordered": "Orang menandatangani satu demi satu, mengikut langkah yang anda tetapkan.",
           "allAtOnce": "Semua orang dijemput serentak.",
           "counts": "{documents, plural, other {# dokumen}} untuk {people, plural, other {# orang}}.",
-          "limit": "Sampul ini memerlukan ruang untuk {needed} dokumen, tetapi ruang kerja ini hanya mempunyai ruang untuk {remaining} lagi bulan ini.",
+          "limit": "Koleksi dokumen ini memerlukan ruang untuk {needed} dokumen, tetapi ruang kerja ini hanya mempunyai ruang untuk {remaining} lagi bulan ini.",
           "problemsTitle": "{count, plural, other {# perkara perlu dibetulkan sebelum menghantar}}",
-          "sharedHeading": "Sampul",
+          "sharedHeading": "Koleksi dokumen",
           "fixDocument": "Buka dokumen",
           "fixPeople": "Pergi ke orang",
           "fixOptions": "Pergi ke pilihan",
           "layout": "{count, plural, other {# medan tidak sah}}",
           "ready": "Semuanya sedia untuk dihantar.",
-          "openEnvelope": "Buka sampul",
+          "openEnvelope": "Buka koleksi dokumen",
           "send": "Hantar {count, plural, other {# dokumen}}",
           "noPermission": "Anda tidak mempunyai kebenaran untuk menghantar dokumen.",
           "sendBlocked": "Betulkan perkara yang disenaraikan di atas untuk menghantar.",
           "sendNote": "Semua orang dalam senarai dijemput serta-merta. Selepas dihantar, dokumen tidak boleh disunting."
         },
         "sent": {
-          "title": "Sampul telah dihantar",
+          "title": "Koleksi dokumen telah dihantar",
           "subtitle": "{count, plural, other {# dokumen}} dihantar. Setiap orang menerima satu mesej.",
-          "open": "Buka sampul"
+          "open": "Buka koleksi dokumen"
         },
         "problems": {
-          "envelope_size": "Satu sampul mengandungi {range} dokumen.",
-          "envelope_too_many_pages": "Satu sampul boleh mempunyai sehingga {range} halaman kesemuanya.",
+          "envelope_size": "Satu koleksi dokumen mengandungi {range} dokumen.",
+          "envelope_too_many_pages": "Satu koleksi dokumen boleh mempunyai sehingga {range} halaman kesemuanya.",
           "duplicate_person": "Orang {n} mempunyai alamat e-mel yang sama dengan orang lain.",
           "person_without_document": "Orang {n} tidak berada pada mana-mana dokumen.",
           "role_two_people": "Peranan {role} pada {document} mempunyai lebih daripada seorang. Berikan kepada seorang sahaja."
         },
         "banner": {
-          "title": "Dokumen {number} daripada {count} dalam satu sampul",
-          "open": "Buka sampul",
-          "manageNote": "Peringatan, pautan baharu, penerima baharu, masa tambahan dan pembatalan dilakukan untuk seluruh sampul, bukan untuk satu dokumen."
+          "title": "Dokumen {number} daripada {count} dalam satu koleksi dokumen",
+          "open": "Buka koleksi dokumen",
+          "manageNote": "Peringatan, pautan baharu, penerima baharu, masa tambahan dan pembatalan dilakukan untuk seluruh koleksi dokumen, bukan untuk satu dokumen."
         },
         "member": {
-          "backToEnvelope": "Kembali ke sampul",
-          "banner": "Ini ialah dokumen {number} daripada {count} dalam sampul “{title}”. Orang, pilihan dan penghantaran ditetapkan pada sampul.",
-          "openEnvelope": "Buka sampul"
+          "backToEnvelope": "Kembali ke koleksi dokumen",
+          "banner": "Ini ialah dokumen {number} daripada {count} dalam koleksi dokumen “{title}”. Orang, pilihan dan penghantaran ditetapkan pada koleksi dokumen.",
+          "openEnvelope": "Buka koleksi dokumen"
         },
         "detail": {
           "sentOn": "Dihantar {date}",
           "expiresOn": "Tamat tempoh {date}",
           "extend": "Beri lebih masa",
-          "void": "Batalkan sampul",
+          "void": "Batalkan koleksi dokumen",
           "banner": {
             "completed": "Kesemua {count, plural, other {# dokumen}} telah ditandatangani.",
-            "declinedBy": "{name} enggan menandatangani, jadi seluruh sampul dihentikan.",
-            "declined": "Seseorang enggan menandatangani, jadi seluruh sampul dihentikan.",
-            "expired": "Sampul telah tamat tempoh pada {date}.",
-            "voided": "Sampul telah dibatalkan.",
+            "declinedBy": "{name} enggan menandatangani, jadi seluruh koleksi dokumen dihentikan.",
+            "declined": "Seseorang enggan menandatangani, jadi seluruh koleksi dokumen dihentikan.",
+            "expired": "Koleksi dokumen telah tamat tempoh pada {date}.",
+            "voided": "Koleksi dokumen telah dibatalkan.",
             "failed": "Fail bertandatangan tidak dapat dibuat. Buka dokumen yang gagal untuk melihat apa yang perlu dilakukan.",
             "sealing": "Semua orang telah menandatangani. Fail bertandatangan sedang dibuat.",
             "waiting": "Menunggu {names}.",
-            "sent": "Sampul telah dihantar. Belum ada sesiapa yang dijemput.",
+            "sent": "Koleksi dokumen telah dihantar. Belum ada sesiapa yang dijemput.",
             "reason": "Sebab: {reason}"
           },
           "progress": "{done} daripada {total} dokumen telah selesai.",
-          "partly": "Sekurang-kurangnya satu dokumen telah ditandatangani oleh semua orang, jadi sampul ini tidak boleh dibatalkan lagi.",
+          "partly": "Sekurang-kurangnya satu dokumen telah ditandatangani oleh semua orang, jadi koleksi dokumen ini tidak boleh dibatalkan lagi.",
           "documents": "Dokumen",
           "download": "Salinan bertandatangan",
           "openDocument": "Buka",
@@ -9595,7 +9603,7 @@
           "step": "Langkah {step}",
           "notInvited": "Belum dijemput. Langkah mereka belum bermula.",
           "remindHeld": "Peringatan boleh dihantar semula selepas {time}.",
-          "cannotReplace": "Orang ini sudah menandatangani sebahagian daripada sampul, jadi mereka tidak boleh diganti.",
+          "cannotReplace": "Orang ini sudah menandatangani sebahagian daripada koleksi dokumen, jadi mereka tidak boleh diganti.",
           "extendDialog": {
             "title": "Beri semua orang lebih masa",
             "body": "Pilih tarikh yang lebih lewat. Ia terpakai untuk setiap dokumen yang masih terbuka.",
@@ -9604,6 +9612,67 @@
             "action": "Beri lebih masa",
             "done": "Tarikh baharu telah disimpan"
           }
+        }
+      },
+      "collection": {
+        "choice": {
+          "heading": "Apa yang anda hantar?",
+          "single": "Dokumen tunggal",
+          "singleHint": "Satu dokumen, disediakan dan ditandatangani secara berasingan.",
+          "collection": "Koleksi dokumen",
+          "collectionHint": "Dua hingga enam dokumen ditandatangani oleh orang yang sama dalam satu sesi. Setiap orang menerima satu mesej dan satu pautan."
+        },
+        "builder": {
+          "title": "Koleksi dokumen baharu",
+          "subtitle": "Beberapa dokumen untuk orang yang sama, ditandatangani dalam satu sesi. Setiap orang menerima satu mesej dan satu pautan.",
+          "chooseHeading": "Tambah dokumen",
+          "chooseHint": "Tambah fail anda sendiri, pilih templat, atau kedua-duanya. Satu koleksi mengandungi {min} hingga {max} dokumen.",
+          "orderHeading": "Dokumen dalam koleksi ini ({count} daripada {max})",
+          "orderHint": "Dokumen ditandatangani mengikut susunan ini. Seret dokumen untuk mengalihkannya, atau gunakan anak panah.",
+          "nothingChosen": "Belum ada yang ditambah.",
+          "needMore": "Tambah sekurang-kurangnya {min} dokumen.",
+          "full": "Satu koleksi mengandungi sehingga {max} dokumen, jadi tiada lagi yang boleh ditambah.",
+          "count": "{count} daripada {max} dokumen",
+          "titleLabel": "Tajuk koleksi",
+          "titlePlaceholder": "Contohnya, Pendaftaran pedagang",
+          "create": "Cipta koleksi",
+          "creating": "Mencipta koleksi dan menyediakan fail. Fail Word mengambil masa sedikit lebih lama."
+        },
+        "files": {
+          "heading": "Fail anda sendiri",
+          "dropHere": "Letakkan fail di sini, atau",
+          "chooseFiles": "pilih fail",
+          "inputLabel": "Pilih fail",
+          "hint": "PDF, Word atau imej (JPG, PNG), sehingga {max} MB setiap satu. Pilih beberapa sekali gus, atau kembali dan tambah lagi.",
+          "templatesHeading": "Templat",
+          "overflowSome": "{added} fail ditambah. {skipped} fail ditinggalkan kerana satu koleksi mengandungi sehingga {max} dokumen.",
+          "overflowNone": "Satu koleksi mengandungi sehingga {max} dokumen, jadi tiada lagi yang ditambah.",
+          "rejected": "{name} tidak ditambah. {reason}"
+        },
+        "list": {
+          "label": "Dokumen dalam koleksi ini",
+          "titleLabel": "Tajuk dokumen {n}",
+          "kindFile": "Fail: {name} ({size})",
+          "kindTemplate": "Templat",
+          "moveUp": "Alihkan {title} ke atas",
+          "moveDown": "Alihkan {title} ke bawah",
+          "remove": "Buang {title}"
+        },
+        "draft": {
+          "add": "Tambah dokumen",
+          "addTitle": "Tambah dokumen",
+          "addHint": "Muat naik satu atau beberapa fail, atau tandakan templat. Masih boleh menambah sehingga {room} dokumen.",
+          "addConfirm": "Tambah {count} dokumen",
+          "cancel": "Batal",
+          "count": "{count} daripada {max} dokumen",
+          "minimum": "{count} daripada {max} dokumen. Satu koleksi mengekalkan sekurang-kurangnya {min} dokumen, jadi tiada yang boleh dibuang. Padam koleksi untuk berhenti.",
+          "full": "Satu koleksi mengandungi sehingga {max} dokumen, jadi tiada lagi yang boleh ditambah.",
+          "added": "{count} dokumen telah ditambah",
+          "removed": "Dokumen telah dibuang",
+          "removeTitle": "Buang dokumen ini?",
+          "removeBody": "“{title}” dipadam bersama apa-apa yang telah anda sediakan padanya. Dokumen lain dikekalkan. Tindakan ini tidak boleh dibuat asal.",
+          "removeConfirm": "Buang dokumen",
+          "keep": "Kekalkan"
         }
       }
     },
@@ -9906,8 +9975,8 @@
       "envelope": {
         "next": "Dokumen seterusnya",
         "finish": "Selesai dan tandatangani semua",
-        "declineNote": "Ini menamatkan keseluruhan sampul: {count, plural, other {kesemua # dokumen}} dihentikan untuk semua orang.",
-        "listLabel": "Dokumen dalam sampul ini",
+        "declineNote": "Ini menamatkan keseluruhan koleksi dokumen: {count, plural, other {kesemua # dokumen}} dihentikan untuk semua orang.",
+        "listLabel": "Dokumen dalam koleksi dokumen ini",
         "position": "Dokumen {number} daripada {count}",
         "open": "Buka {title}",
         "notFinal": "Tiada apa yang muktamad sehingga anda menyelesaikan dokumen terakhir. Anda boleh membuka yang lain dalam sebarang susunan.",
@@ -10207,7 +10276,7 @@
         "body": "Pastikan anda mengimbas keseluruhan kod atau membuka keseluruhan alamat. Jika masih tidak berfungsi, tanya orang yang menghantar dokumen itu kepada anda."
       },
       "signedTitleForm": "Penghantaran ini direkodkan",
-      "envelope": "Dokumen ini ditandatangani bersama dokumen lain, dalam satu sampul yang mengandungi {count, plural, other {# dokumen}}."
+      "envelope": "Dokumen ini ditandatangani bersama dokumen lain, dalam satu koleksi dokumen yang mengandungi {count, plural, other {# dokumen}}."
     },
     "bulk": {
       "title": "Hantar pukal",

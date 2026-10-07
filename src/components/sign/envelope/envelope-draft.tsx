@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, CheckCircle2, ExternalLink, Loader2, Send, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Send, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -35,6 +35,7 @@ import { FormProblemText } from "../send/form-problem-text";
 import { OptionsStep } from "../send/options-step";
 import { SaveIndicator } from "../send/save-indicator";
 import { SendResult, type SendResultData } from "../send/send-result";
+import { EnvelopeDocuments } from "./envelope-documents";
 import { EnvelopePeople } from "./envelope-people";
 
 interface Props {
@@ -124,6 +125,28 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
   });
 
   const flushAll = async (): Promise<boolean> => (await Promise.all([peopleSave.flush(), optionsSave.flush()])).every(Boolean);
+
+  /**
+   * The documents were added, removed or reordered: read the collection again, and take the people from what the server holds. A removal or a
+   * new order has the server write the signing list again (each person's link is on their first document), so what is on screen follows it.
+   */
+  const afterDocumentsChanged = async (): Promise<void> => {
+    const fresh = await reload();
+    if (!fresh) return;
+    const freshDocs: EnvelopeDocLite[] = fresh.documents.map((d) => ({ id: d.id, position: d.position, title: d.title, roles: d.roles, mode: d.mode, needed: d.rolesNeeded }));
+    const saved = peopleFromSigners(fresh.signers);
+    if (saved.length > 0) {
+      peopleRef.current = saved;
+      setPeople(saved);
+      savedPeopleKey.current = peopleKey(peoplePayload(saved, freshDocs, optionsRef.current.signInOrder));
+      return;
+    }
+    // nobody saved yet: keep what was typed, without the roles on documents that are gone
+    const here = new Set(freshDocs.map((d) => d.id));
+    const kept = peopleRef.current.map((p) => ({ ...p, roles: Object.fromEntries(Object.entries(p.roles).filter(([id]) => here.has(id))) }));
+    peopleRef.current = kept;
+    setPeople(kept);
+  };
 
   const changePeople = (list: EnvelopePerson[]) => {
     peopleRef.current = list;
@@ -251,28 +274,14 @@ export function EnvelopeDraft({ envelopeId, data, reload, onOpen }: Props) {
           </h2>
           <p className="text-xs text-muted-foreground">{t("documents.hint")}</p>
         </div>
-        <ol className="space-y-2">
-          {data.documents.map((d) => {
-            const own = problems.filter((p) => p.document === d.id);
-            return (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    <span className="text-muted-foreground tabular-nums">{d.position}.</span> {d.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{[d.reference, d.mode === "form" ? t("documents.form") : t("documents.pages", { count: d.pageCount ?? 0 })].filter(Boolean).join(" · ")}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {own.length > 0 ? <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{t("documents.problems", { count: own.length })}</span> : <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-label={t("documents.ready")} />}
-                  <Link href={`/sign/${d.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
-                    <ExternalLink className="size-3.5" aria-hidden />
-                    {t("documents.edit")}
-                  </Link>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+        <EnvelopeDocuments
+          envelopeId={envelopeId}
+          documents={data.documents}
+          problemCount={(id) => problems.filter((p) => p.document === id).length}
+          canEdit={canSend}
+          beforeChange={flushAll}
+          onChanged={afterDocumentsChanged}
+        />
       </section>
 
       <section id="envelope-people" aria-labelledby="env-people" className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">

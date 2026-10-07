@@ -7160,7 +7160,7 @@
       "sign_document": "Signing document",
       "sign_bulk_job": "Signing batch",
       "sign_option_list": "Signing option list",
-      "sign_envelope": "Signing envelope"
+      "sign_envelope": "Signing document collection"
     },
     "roleNames": {
       "owner": "Owner",
@@ -9104,9 +9104,9 @@
         "keep": "Keep the document",
         "action": "Cancel document",
         "done": "The document was cancelled",
-        "envelopeBody": "Every link of the envelope stops working and the people who were waiting are told once. This cannot be undone. Send a new envelope if you need one.",
-        "envelopeAction": "Cancel envelope",
-        "envelopeDone": "The envelope was cancelled"
+        "envelopeBody": "Every link of the document collection stops working and the people who were waiting are told once. This cannot be undone. Send a new collection if you need one.",
+        "envelopeAction": "Cancel document collection",
+        "envelopeDone": "The document collection was cancelled"
       },
       "viewer": {
         "loading": "Loading the pages",
@@ -9218,9 +9218,12 @@
         "completedForm": "The submission was recorded",
         "downloadedForm": "{sender} opened or downloaded the record",
         "all_submitted": "Everyone had submitted",
-        "envelope_sent": "{sender} sent the envelope {reference} with {count, plural, one {# document} other {# documents}}",
-        "envelope_completed": "The envelope {reference} was completed, all {count, plural, one {# document} other {# documents}} signed",
-        "envelope_declined": "{by} declined the envelope {reference}, so every document that was open stopped"
+        "envelope_sent": "{sender} sent the document collection {reference} with {count, plural, one {# document} other {# documents}}",
+        "envelope_completed": "The document collection {reference} was completed, all {count, plural, one {# document} other {# documents}} signed",
+        "envelope_declined": "{by} declined the document collection {reference}, so every document that was open stopped",
+        "envelope_document_added": "{sender} added this document to the collection {reference}",
+        "envelope_document_removed": "{sender} removed “{title}” from the collection {reference}",
+        "envelope_reordered": "{sender} changed the order of the documents in the collection {reference}"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -9243,11 +9246,11 @@
         "generic": "Something went wrong. Please try again.",
         "already_on_document": "That person is already on this document.",
         "step_not_movable": "That person can only be moved to a step that has not begun.",
-        "envelope_not_found": "That envelope was not found.",
-        "envelope_not_sent": "This envelope has not been sent yet.",
-        "envelope_partly_completed": "A document of this envelope was already signed by everyone, so the envelope cannot be cancelled.",
-        "envelope_person_has_signed": "This person has already signed part of the envelope, so they cannot be replaced.",
-        "document_in_envelope": "This document is part of an envelope. Do this on the envelope instead.",
+        "envelope_not_found": "That document collection was not found.",
+        "envelope_not_sent": "This document collection has not been sent yet.",
+        "envelope_partly_completed": "A document of this collection was already signed by everyone, so the collection cannot be cancelled.",
+        "envelope_person_has_signed": "This person has already signed part of the collection, so they cannot be replaced.",
+        "document_in_envelope": "This document is part of a document collection. Do this on the collection instead.",
         "expiry_in_the_past": "The new date must be in the future.",
         "expiry_not_later": "The new date must be later than the current one.",
         "expiry_too_far": "That date is too far away. Choose a nearer date.",
@@ -10428,7 +10431,7 @@
         "testBadge": "Test",
         "formBadge": "Form",
         "progressForm": "{done} of {total} submitted",
-        "envelopeBadge": "Envelope · {count, plural, one {# document} other {# documents}}",
+        "envelopeBadge": "Collection · {count, plural, one {# document} other {# documents}}",
         "dateFrom": "Made from",
         "dateTo": "Made until",
         "contactLabel": "Contact",
@@ -10765,24 +10768,29 @@
         "test_no_address": "Your account has no email address to send the test to.",
         "same_file": "This is the file the document already has.",
         "document_has_no_file": "This document has no file to replace.",
-        "envelope_not_found": "That envelope was not found.",
-        "envelope_not_draft": "This envelope was already sent, so it can no longer be changed.",
-        "envelope_not_sent": "This envelope has not been sent yet.",
-        "envelope_size": "An envelope holds two to six documents.",
-        "envelope_documents": "The documents of this envelope changed while you were working. Open it again and check them.",
-        "envelope_options": "Every document of an envelope must use the same signing order and the same code setting.",
-        "envelope_people": "The list of people of this envelope is not complete. Check it and save it again.",
+        "envelope_not_found": "That document collection was not found.",
+        "envelope_not_draft": "This document collection was already sent, so it can no longer be changed.",
+        "envelope_not_sent": "This document collection has not been sent yet.",
+        "envelope_size": "A document collection holds two to six documents.",
+        "envelope_documents": "The documents of this collection changed while you were working. Open it again and check them.",
+        "envelope_options": "Every document of a collection must use the same signing order and the same code setting.",
+        "envelope_people": "The list of people of this collection is not complete. Check it and save it again.",
         "envelope_person_twice": "A person can have only one role on each document.",
-        "envelope_not_ready": "This envelope is not ready to send. Check the list of things to fix.",
-        "envelope_too_big": "The documents of an envelope can be up to 50 MB in all. Use smaller files.",
+        "envelope_not_ready": "This document collection is not ready to send. Check the list of things to fix.",
+        "envelope_too_big": "The documents of a collection can be up to 50 MB in all. Use smaller files.",
         "envelope_duplicate_template": "Choose each template only once.",
-        "envelope_not_deletable": "Only a draft can be deleted. Cancel an envelope that was sent.",
-        "envelope_frozen": "An envelope that was sent cannot be edited.",
-        "envelope_fixed": "A document cannot be moved out of its envelope.",
-        "envelope_no_forwarding": "The documents of an envelope cannot be forwarded to someone else.",
-        "envelope_no_test": "A test document cannot be part of an envelope.",
-        "document_in_envelope": "This document is part of an envelope. Do this on the envelope instead.",
-        "document_retained": "This signed document must be kept for now, so it cannot be deleted yet."
+        "envelope_not_deletable": "Only a draft can be deleted. Cancel a collection that was sent.",
+        "envelope_frozen": "A document collection that was sent cannot be edited.",
+        "envelope_fixed": "A document cannot be moved out of its collection.",
+        "envelope_no_forwarding": "The documents of a collection cannot be forwarded to someone else.",
+        "envelope_no_test": "A test document cannot be part of a collection.",
+        "document_in_envelope": "This document is part of a document collection. Do this on the collection instead.",
+        "document_retained": "This signed document must be kept for now, so it cannot be deleted yet.",
+        "too_many_files": "You can add up to six files at a time.",
+        "uploads_too_large": "The files add up to more than 60 MB. Remove one, or use smaller files.",
+        "bad_order": "The order of the documents could not be read. Open the page again and try once more.",
+        "envelope_full": "A collection holds up to six documents, so no more can be added.",
+        "envelope_minimum": "A collection keeps at least two documents. Delete the collection to stop."
       },
       "records": {
         "ticketLabel": "Link to a ticket",
@@ -10798,16 +10806,16 @@
         "unknown": "A record you cannot see"
       },
       "envelope": {
-        "badge": "Envelope · {count, plural, one {# document} other {# documents}}",
+        "badge": "Collection · {count, plural, one {# document} other {# documents}}",
         "new": {
-          "link": "Send several documents as one envelope",
-          "title": "New envelope",
+          "link": "Send several documents as a document collection",
+          "title": "New document collection",
           "subtitle": "Several documents for the same people, signed in one sitting. Each person gets one message and one link.",
           "chooseHeading": "Choose the documents",
-          "chooseHint": "Pick templates, or add one file. An envelope holds {min} to {max} documents.",
+          "chooseHint": "Pick templates, or add one file. A collection holds {min} to {max} documents.",
           "templatesLabel": "Templates",
           "fileHeading": "Or add a file",
-          "fileHint": "A PDF or a Word file. You prepare its fields after the envelope is made.",
+          "fileHint": "A PDF or a Word file. You prepare its fields after the collection is made.",
           "orderHeading": "Order of the documents ({count})",
           "nothingChosen": "Nothing chosen yet.",
           "removeFile": "Remove the file",
@@ -10816,30 +10824,30 @@
           "remove": "Remove {title}",
           "needMore": "Choose at least {min} documents.",
           "count": "{count} of {max} documents",
-          "titleLabel": "Envelope title",
+          "titleLabel": "Collection title",
           "titlePlaceholder": "For example, Merchant onboarding",
-          "create": "Create the envelope"
+          "create": "Create the collection"
         },
         "view": {
-          "loading": "Loading the envelope",
-          "notFoundTitle": "This envelope was not found",
-          "failedTitle": "The envelope could not be loaded",
+          "loading": "Loading the collection",
+          "notFoundTitle": "This document collection was not found",
+          "failedTitle": "The document collection could not be loaded",
           "retry": "Try again",
           "backToDocuments": "Back to documents"
         },
         "draft": {
           "back": "Back to documents",
           "delete": "Delete the draft",
-          "deleteTitle": "Delete this envelope draft?",
+          "deleteTitle": "Delete this document collection draft?",
           "deleteBody": "{count, plural, one {The document in it is deleted too.} other {All # documents in it are deleted too.}} Nothing has been sent. This cannot be undone.",
           "deleteConfirm": "Delete the draft",
           "cancel": "Keep it",
-          "deleted": "The envelope draft was deleted",
-          "readOnly": "You can look at this envelope but not change it."
+          "deleted": "The document collection draft was deleted",
+          "readOnly": "You can look at this collection but not change it."
         },
         "documents": {
           "heading": "Documents",
-          "hint": "Prepare the fields of each document here. The people and the options are shared by the whole envelope.",
+          "hint": "Prepare the fields of each document here. The people and the options are shared by the whole collection.",
           "form": "A form",
           "pages": "{count, plural, one {# page} other {# pages}}",
           "problems": "{count, plural, one {# thing to fix} other {# things to fix}}",
@@ -10848,7 +10856,7 @@
         },
         "people": {
           "heading": "People",
-          "intro": "Add each person once, and say what they are on each document. They get one message and one link for the whole envelope.",
+          "intro": "Add each person once, and say what they are on each document. They get one message and one link for the whole collection.",
           "ordered": "People sign one after another",
           "orderedHint": "Give each person a step. People with the same step sign together, and the next step is invited only when everyone in the step has finished all the documents.",
           "empty": "Nobody is on the list yet.",
@@ -10880,68 +10888,68 @@
         },
         "options": {
           "heading": "Options",
-          "hint": "These apply to every document of the envelope."
+          "hint": "These apply to every document of the collection."
         },
         "review": {
           "heading": "Review and send",
           "ordered": "People sign one after another, in the steps you set.",
           "allAtOnce": "Everyone is invited at the same time.",
           "counts": "{documents, plural, one {# document} other {# documents}} for {people, plural, one {# person} other {# people}}.",
-          "limit": "This envelope needs room for {needed} documents, but this workspace has room for {remaining} more this month.",
+          "limit": "This collection needs room for {needed} documents, but this workspace has room for {remaining} more this month.",
           "problemsTitle": "{count, plural, one {# thing to fix before sending} other {# things to fix before sending}}",
-          "sharedHeading": "The envelope",
+          "sharedHeading": "The collection",
           "fixDocument": "Open the document",
           "fixPeople": "Go to people",
           "fixOptions": "Go to options",
           "layout": "{count, plural, one {# field is not valid} other {# fields are not valid}}",
           "ready": "Everything is ready to send.",
-          "openEnvelope": "Open the envelope",
+          "openEnvelope": "Open the collection",
           "send": "Send {count, plural, one {# document} other {# documents}}",
           "noPermission": "You do not have permission to send documents.",
           "sendBlocked": "Fix the things listed above to send.",
           "sendNote": "Everyone on the list is invited right away. Once it is sent, the documents cannot be edited."
         },
         "sent": {
-          "title": "The envelope was sent",
+          "title": "The document collection was sent",
           "subtitle": "{count, plural, one {# document} other {# documents}} sent. Each person got one message.",
-          "open": "Open the envelope"
+          "open": "Open the collection"
         },
         "problems": {
-          "envelope_size": "An envelope holds {range} documents.",
-          "envelope_too_many_pages": "An envelope can have up to {range} pages in all.",
+          "envelope_size": "A document collection holds {range} documents.",
+          "envelope_too_many_pages": "A document collection can have up to {range} pages in all.",
           "duplicate_person": "Person {n} has the same email address as another person.",
           "person_without_document": "Person {n} is not on any document.",
           "role_two_people": "The role {role} on {document} has more than one person. Give it to one person."
         },
         "banner": {
-          "title": "Document {number} of {count} in an envelope",
-          "open": "Open the envelope",
-          "manageNote": "Reminders, a new link, a new recipient, more time and cancelling are done for the whole envelope, not for one document."
+          "title": "Document {number} of {count} in a document collection",
+          "open": "Open the collection",
+          "manageNote": "Reminders, a new link, a new recipient, more time and cancelling are done for the whole collection, not for one document."
         },
         "member": {
-          "backToEnvelope": "Back to the envelope",
-          "banner": "This is document {number} of {count} in the envelope “{title}”. The people, the options and sending are set on the envelope.",
-          "openEnvelope": "Open the envelope"
+          "backToEnvelope": "Back to the collection",
+          "banner": "This is document {number} of {count} in the collection “{title}”. The people, the options and sending are set on the collection.",
+          "openEnvelope": "Open the collection"
         },
         "detail": {
           "sentOn": "Sent {date}",
           "expiresOn": "Expires {date}",
           "extend": "Give more time",
-          "void": "Cancel the envelope",
+          "void": "Cancel the collection",
           "banner": {
             "completed": "All {count, plural, one {# document is} other {# documents are}} signed.",
-            "declinedBy": "{name} declined to sign, so the whole envelope stopped.",
-            "declined": "Someone declined to sign, so the whole envelope stopped.",
-            "expired": "The envelope expired on {date}.",
-            "voided": "The envelope was cancelled.",
+            "declinedBy": "{name} declined to sign, so the whole collection stopped.",
+            "declined": "Someone declined to sign, so the whole collection stopped.",
+            "expired": "The collection expired on {date}.",
+            "voided": "The collection was cancelled.",
             "failed": "A signed file could not be made. Open the document that failed to see what to do.",
             "sealing": "Everyone has signed. The signed files are being made.",
             "waiting": "Waiting for {names}.",
-            "sent": "The envelope was sent. Nobody has been invited yet.",
+            "sent": "The collection was sent. Nobody has been invited yet.",
             "reason": "Reason: {reason}"
           },
           "progress": "{done} of {total} documents are complete.",
-          "partly": "At least one document is already signed by everyone, so this envelope can no longer be cancelled.",
+          "partly": "At least one document is already signed by everyone, so this collection can no longer be cancelled.",
           "documents": "Documents",
           "download": "Signed copy",
           "openDocument": "Open",
@@ -10949,7 +10957,7 @@
           "step": "Step {step}",
           "notInvited": "Not invited yet. Their step has not begun.",
           "remindHeld": "A reminder can be sent again after {time}.",
-          "cannotReplace": "This person has already signed part of the envelope, so they cannot be replaced.",
+          "cannotReplace": "This person has already signed part of the collection, so they cannot be replaced.",
           "extendDialog": {
             "title": "Give everyone more time",
             "body": "Choose a later date. It applies to every document that is still open.",
@@ -10958,6 +10966,67 @@
             "action": "Give more time",
             "done": "The new date was saved"
           }
+        }
+      },
+      "collection": {
+        "choice": {
+          "heading": "What are you sending?",
+          "single": "Single document",
+          "singleHint": "One document, prepared and signed on its own.",
+          "collection": "Document collection",
+          "collectionHint": "Two to six documents signed by the same people in one sitting. Each person gets one message and one link."
+        },
+        "builder": {
+          "title": "New document collection",
+          "subtitle": "Several documents for the same people, signed in one sitting. Each person gets one message and one link.",
+          "chooseHeading": "Add the documents",
+          "chooseHint": "Add your own files, choose templates, or both. A collection holds {min} to {max} documents.",
+          "orderHeading": "Documents in this collection ({count} of {max})",
+          "orderHint": "They are signed in this order. Drag a document to move it, or use the arrows.",
+          "nothingChosen": "Nothing added yet.",
+          "needMore": "Add at least {min} documents.",
+          "full": "A collection holds up to {max} documents, so no more can be added.",
+          "count": "{count} of {max} documents",
+          "titleLabel": "Collection title",
+          "titlePlaceholder": "For example, Merchant onboarding",
+          "create": "Create the collection",
+          "creating": "Creating the collection and preparing the files. Word files take a little longer."
+        },
+        "files": {
+          "heading": "Your own files",
+          "dropHere": "Drop files here, or",
+          "chooseFiles": "choose files",
+          "inputLabel": "Choose files",
+          "hint": "PDF, Word or image (JPG, PNG), up to {max} MB each. Choose several at once, or come back and add more.",
+          "templatesHeading": "Templates",
+          "overflowSome": "{added, plural, one {# file was} other {# files were}} added. {skipped, plural, one {# file was} other {# files were}} left out because a collection holds up to {max} documents.",
+          "overflowNone": "A collection holds up to {max} documents, so nothing more was added.",
+          "rejected": "{name} was not added. {reason}"
+        },
+        "list": {
+          "label": "Documents in this collection",
+          "titleLabel": "Title of document {n}",
+          "kindFile": "File: {name} ({size})",
+          "kindTemplate": "Template",
+          "moveUp": "Move {title} up",
+          "moveDown": "Move {title} down",
+          "remove": "Remove {title}"
+        },
+        "draft": {
+          "add": "Add a document",
+          "addTitle": "Add documents",
+          "addHint": "Upload one or several files, or tick templates. {room, plural, one {One more document fits.} other {Up to # more documents fit.}}",
+          "addConfirm": "Add {count, plural, one {# document} other {# documents}}",
+          "cancel": "Cancel",
+          "count": "{count} of {max} documents",
+          "minimum": "{count} of {max} documents. A collection keeps at least {min}, so none can be removed. Delete the collection to stop.",
+          "full": "A collection holds up to {max} documents, so no more can be added.",
+          "added": "{count, plural, one {The document was added} other {# documents were added}}",
+          "removed": "The document was removed",
+          "removeTitle": "Remove this document?",
+          "removeBody": "“{title}” is deleted, with anything you prepared on it. The other documents are kept. This cannot be undone.",
+          "removeConfirm": "Remove the document",
+          "keep": "Keep it"
         }
       }
     },
@@ -11260,8 +11329,8 @@
       "envelope": {
         "next": "Next document",
         "finish": "Finish and sign everything",
-        "declineNote": "This ends the whole envelope: {count, plural, one {# document} other {all # documents}} stop for everyone.",
-        "listLabel": "The documents of this envelope",
+        "declineNote": "This ends the whole collection: {count, plural, one {# document} other {all # documents}} stop for everyone.",
+        "listLabel": "The documents of this collection",
         "position": "Document {number} of {count}",
         "open": "Open {title}",
         "notFinal": "Nothing is final until you finish the last document. You can open the others in any order.",
@@ -11561,7 +11630,7 @@
         "body": "Check that you scanned the whole code or opened the whole address. If it still does not work, ask the person who sent you the document."
       },
       "signedTitleForm": "This submission is recorded",
-      "envelope": "This document was signed together with others, in one envelope of {count, plural, one {# document} other {# documents}}."
+      "envelope": "This document was signed together with others, in one document collection of {count, plural, one {# document} other {# documents}}."
     },
     "bulk": {
       "title": "Bulk send",

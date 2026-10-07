@@ -26,7 +26,7 @@ their turn (Phase 2).
 | 0 | Decisions, legal read, certificate ordered, real merchant application and terms received | 3 days, overlaps phase 1A |
 | 1A | **Core signing.** Any PDF, Word file or image prepared and sent to a signing list (in order if chosen); a merchant signs on a phone; the sealed PDF is filed; categories and the add-on mechanism | 46 days, about 9 weeks |
 | 1B | **Forms.** The application filled in parts from one link with autosave; conditional fields and uploads; parts assigned to roles; e-invoice tax details; the Merchant Registration add-on goes live | 18 days, about 3.5 weeks |
-| 2 | Automation, API, webhooks, part-aware reminders, countersign in Halo, forwarding, option lists, envelopes, bulk send, add-on updates | 31 days, about 6 weeks |
+| 2 | Automation, API, webhooks, part-aware reminders, countersign in Halo, forwarding, option lists, document collections, bulk send, add-on updates | 31 days, about 6 weeks |
 | 3 | Public registration entry, trusted certificate, verify page, retention, hardening, form without signature | 17 days, about 3.5 weeks |
 
 **Merchant go-live is at the end of Phase 1B: about 64 working days, roughly 12.8 weeks.** The whole
@@ -361,7 +361,7 @@ templates and a shared library of form parts are parked.
 | 13 | Automation trigger and step (the template is an input), webhooks, recipe "Merchant onboarding" | 4 |
 | 14 | Public API `/api/v1/sign`, scopes, API docs | 3 |
 | 15 | Part-aware reminders and expiry job, countersign inside Halo | 5 |
-| 16 | Envelopes (several documents, one sitting) | 4 |
+| 16 | Document collections (several documents, one sitting) | 4 |
 | 17 | Bulk send, CSV export, zip download | 3 |
 | 18 | Forward a turn or a part to someone else; parallel steps | 3 |
 | 19 | Option lists in Settings and the MSIC code picker | 3 |

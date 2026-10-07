@@ -464,11 +464,13 @@ The document with its people. What the fields mean:
   submitted, `status` `completed` means everyone has submitted, and the "signed
   copy" (`GET .../file?kind=signed`) is the sealed submission record, with the
   same `final_sha256` and `verify_url`. The answers are not in the JSON; they are in the record file (every answer except the ones the form marks sensitive, which are masked).
-- `envelope_id`: the envelope the document is signed in (several documents sent
-  to the same people as one, migration 171), or `null`. Read only: the API does
-  not create or change envelopes yet, and a document of an envelope cannot be
-  sent, cancelled, reminded or have its people changed through the API (the
-  call answers `document_in_envelope`); that is done on the envelope in Halo.
+- `envelope_id`: the id of the document collection the document is signed in
+  (several documents sent to the same people as one, migration 171), or `null`.
+  The field keeps this name as part of the API contract. Read only: the API does
+  not create or change document collections yet, and a document of a collection
+  cannot be sent, cancelled, reminded or have its people changed through the API
+  (the call answers `document_in_envelope`); that is done on the collection in
+  Halo.
 - `signers[].status`: `pending` (not invited yet: signing order), `sent`
   (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
   is when they signed.
