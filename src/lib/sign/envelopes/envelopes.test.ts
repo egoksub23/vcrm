@@ -102,6 +102,9 @@ describe("the shared signing list", () => {
     expect(issues([ali({ channel: "whatsapp", phone: "123" })])).toContainEqual({ code: "signer_phone", detail: "0" });
     expect(issues([ali({ step: 0 })])).toContainEqual({ code: "signer_order", detail: "0" });
     expect(issues([ali(), bala({ email: "ALI@kedai.example" })])).toContainEqual({ code: "duplicate_person", detail: "1" });
+    // the same Halo user on two people is one human twice (one login could open both places), whatever their addresses say
+    expect(issues([ali({ internalUserId: "u-1" }), bala({ internalUserId: "u-1" })])).toContainEqual({ code: "duplicate_person", detail: "1" });
+    expect(issues([ali({ internalUserId: "u-1" }), bala({ internalUserId: "u-2" })])).toEqual([]);
     expect(issues([ali({ roles: { d1: "ghost" } })])).toContainEqual({ code: "signer_role", detail: "0", document: "d1", role: "ghost" });
     expect(issues([ali({ roles: { d1: "sender" } })]).map((i) => i.code)).toContain("signer_role");
     expect(issues([ali({ roles: { nowhere: "merchant" } })]).map((i) => i.code)).toEqual(expect.arrayContaining(["signer_role", "person_without_document"]));

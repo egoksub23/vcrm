@@ -148,9 +148,24 @@ export interface SealOutcome {
   error?: string;
 }
 
+/**
+ * What went wrong, in one line, for the document's record, the audit trail and the server's log: the kind of error and its code (a missing font
+ * file says ENOENT and its path; a refused database call says what was refused) as well as its message, so a stuck document can be diagnosed
+ * from the page of the sender without reading the server's log.
+ */
+export function describeFailure(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  // our own errors are written to be read (a certificate that expired says so, with the date): they are kept as they are
+  if (err instanceof SignError) return err.message;
+  const code = (err as { code?: unknown }).code;
+  const named = err.name && err.name !== "Error" ? `${err.name}: ` : "";
+  return `${named}${typeof code === "string" && !err.message.includes(code) ? `${code}: ` : ""}${err.message}`;
+}
+
 /** Seal one document that this worker has claimed. */
 export async function sealDocument(ctx: SignCtx, documentId: string): Promise<SealOutcome> {
   let stored: string | null = null;
+  const startedAt = Date.now();
   try {
     const doc = await loadDocument(ctx, documentId);
     if (doc.status !== "sealing") return { documentId, status: "completed" };
@@ -229,11 +244,14 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
     // a document of an envelope sends no message of its own: when the LAST one is sealed, each person gets ONE message with every signed copy
     if (doc.envelope_id) await settleEnvelope(ctx, doc.envelope_id);
     else await notifyCompleted(ctx, { ...doc, status: "completed", final_path: finalPath, final_sha256: sealed.sha256 }, signers, sealed.bytes);
+    // one line for each document sealed, so the server's log shows that sealing is running and how long it takes
+    console.info("[sign] sealed", documentId, `${Date.now() - startedAt} ms`, `${Math.round(sealed.size / 1024)} KB`);
     return { documentId, status: "completed" };
   } catch (err) {
     if (stored) await removeFiles(ctx.admin, [stored]);
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[sign] sealing failed for", documentId, message);
+    const message = describeFailure(err);
+    // the whole line goes to the server's log (with where it happened); the first 400 characters go onto the document, for its sender to read
+    console.error("[sign] sealing failed for", documentId, message, err instanceof Error && err.stack ? `| ${err.stack.split(/\r?\n/).slice(1, 4).map((l) => l.trim()).join(" | ")}` : "");
     // a certificate that cannot be used is not a fault of the document: it waits for a valid one, keeping its attempts
     const waitsForCertificate = err instanceof SignError && CERTIFICATE_HOLD_CODES.has(err.code);
     await ctx.admin.rpc(waitsForCertificate ? "sign_hold_sealing" : "sign_fail_sealing", { p_document: documentId, p_error: message.slice(0, 400) });
@@ -251,34 +269,64 @@ export async function sealDocument(ctx: SignCtx, documentId: string): Promise<Se
 export async function runSealingWithin(
   base: Omit<SignCtx, "accountId" | "userId">,
   opts: { budgetMs?: number; max?: number } = {},
-): Promise<{ claimed: number; completed: number; retry: number }> {
+): Promise<SealRun> {
   const budgetMs = opts.budgetMs ?? 20_000;
   const max = opts.max ?? 4;
   const started = Date.now();
-  const total = { claimed: 0, completed: 0, retry: 0 };
+  const total: SealRun = { claimed: 0, completed: 0, retry: 0 };
   while (total.claimed < max && Date.now() - started < budgetMs) {
     const one = await runSealing(base, 1);
     if (one.claimed === 0) break;
     total.claimed += one.claimed;
     total.completed += one.completed;
     total.retry += one.retry;
+    if (one.errors) total.errors = [...(total.errors ?? []), ...one.errors];
   }
   return total;
 }
 
-export async function runSealing(base: Omit<SignCtx, "accountId" | "userId">, limit = 2): Promise<{ claimed: number; completed: number; retry: number }> {
+/** What a sealing run did. `errors` (only when something failed): why, one line for each document that did not seal this time. */
+export interface SealRun {
+  claimed: number;
+  completed: number;
+  retry: number;
+  errors?: string[];
+}
+
+export async function runSealing(base: Omit<SignCtx, "accountId" | "userId">, limit = 2): Promise<SealRun> {
   const { data, error } = await base.admin.rpc("sign_claim_sealing", { p_limit: limit, p_lease_seconds: 300, p_max_attempts: 5 });
   if (error) {
     console.error("[sign] could not claim documents to seal:", error.message);
-    return { claimed: 0, completed: 0, retry: 0 };
+    return { claimed: 0, completed: 0, retry: 0, errors: [`could not claim documents to seal: ${error.message}`.slice(0, 200)] };
   }
   const claims = (data ?? []) as { document_id: string; account_id: string }[];
   let completed = 0;
   let retry = 0;
+  const errors: string[] = [];
   for (const c of claims) {
     const out = await sealDocument({ ...base, accountId: c.account_id, userId: null }, c.document_id);
     if (out.status === "completed") completed++;
-    else retry++;
+    else {
+      retry++;
+      errors.push(`${c.document_id}: ${out.error ?? "unknown"}`.slice(0, 260));
+    }
   }
-  return { claimed: claims.length, completed, retry };
+  return { claimed: claims.length, completed, retry, ...(errors.length > 0 ? { errors } : {}) };
+}
+
+/**
+ * Seal what is waiting RIGHT NOW, in the background, after the answer to a signer's last signature has gone out (the routes hand this to Next's
+ * `after`). The minute job stays the safety net (it also retries and expires); this only makes the signed copy appear within seconds instead of
+ * within a minute. It uses the same claim with a lease as the job, so the two never seal one document twice. Best effort: it never throws,
+ * and whatever it does not finish the job does.
+ */
+export async function sealSoon(base: Omit<SignCtx, "accountId" | "userId">, opts: { budgetMs?: number; max?: number } = {}): Promise<SealRun | null> {
+  try {
+    const run = await runSealingWithin(base, { budgetMs: opts.budgetMs ?? 15_000, max: opts.max ?? 3 });
+    if (run.retry > 0) console.error("[sign] sealing right after the last signature did not finish; the job will try again:", (run.errors ?? []).join(" ; "));
+    return run;
+  } catch (err) {
+    console.error("[sign] sealing right after the last signature failed:", describeFailure(err));
+    return null;
+  }
 }

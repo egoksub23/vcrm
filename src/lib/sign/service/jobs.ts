@@ -86,7 +86,10 @@ export async function runReminders(base: Base, limit = 100): Promise<{ checked: 
   return { checked: rows.length, reminded };
 }
 
-export async function runAll(base: Base): Promise<Record<string, number>> {
+/** A run in which documents were tried and not one could be sealed: the job is failing, not quiet (the route records it as an error so the console and `curl -f` say so). */
+export const sealingIsFailing = (body: Record<string, number | string>): boolean => Number(body.seal_retry ?? 0) > 0 && Number(body.sealed ?? 0) === 0;
+
+export async function runAll(base: Base): Promise<Record<string, number | string>> {
   const seal = await runSealingWithin(base);
   const expiry = await runExpiry(base);
   const reminders = await runReminders(base);
@@ -101,6 +104,8 @@ export async function runAll(base: Base): Promise<Record<string, number>> {
     claimed: seal.claimed,
     sealed: seal.completed,
     seal_retry: seal.retry,
+    // why a document did not seal this time (the first one; the document itself and its history carry each reason): the heartbeat shows it
+    ...(seal.errors && seal.errors.length > 0 ? { seal_error: seal.errors[0].slice(0, 200) } : {}),
     expired: expiry.expired,
     reminders_checked: reminders.checked,
     reminded: reminders.reminded,

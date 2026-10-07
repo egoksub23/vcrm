@@ -7686,7 +7686,9 @@
         "completedOnForm": "Dihantar dan direkodkan pada {date}",
         "completedForm": "Dihantar dan direkodkan",
         "completedNoteForm": "Semua pihak telah menghantar. Rekod yang dimeterai disimpan di sini.",
-        "declinedNoteForm": "Tiada orang lain boleh mengisi borang ini. Hantar yang baharu jika masih diperlukan."
+        "declinedNoteForm": "Tiada orang lain boleh mengisi borang ini. Hantar yang baharu jika masih diperlukan.",
+        "sealingStuck": "Percubaan terakhir untuk membuat salinan bertandatangan tidak berjaya. Ia dicuba semula setiap beberapa minit. Tiada apa yang ditandatangani oleh mereka yang hilang.",
+        "sealingStuckTechnical": "Percubaan terakhir untuk membuat salinan bertandatangan tidak berjaya ({error}). Ia dicuba semula setiap beberapa minit. Tiada apa yang ditandatangani oleh mereka yang hilang."
       },
       "tabs": {
         "people": "Orang ({count})",
@@ -7902,7 +7904,8 @@
         "envelope_document_removed": "{sender} membuang “{title}” daripada koleksi {reference}",
         "envelope_reordered": "{sender} menukar susunan dokumen dalam koleksi {reference}",
         "copy_recipient_added": "{sender} menambah {name} ({email}) untuk menerima salinan",
-        "copy_recipient_removed": "{sender} membuang {name} daripada orang yang menerima salinan"
+        "copy_recipient_removed": "{sender} membuang {name} daripada orang yang menerima salinan",
+        "seal_retried": "{sender} meminta fail bertandatangan dibuat semula"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -7933,7 +7936,8 @@
         "expiry_in_the_past": "Tarikh baharu mesti pada masa hadapan.",
         "expiry_not_later": "Tarikh baharu mesti lebih lewat daripada tarikh semasa.",
         "expiry_too_far": "Tarikh itu terlalu jauh. Pilih tarikh yang lebih dekat.",
-        "bad_expiry": "Tarikh itu tidak dapat dibaca. Pilih semula."
+        "bad_expiry": "Tarikh itu tidak dapat dibaca. Pilih semula.",
+        "seal_not_stuck": "Ini tidak lagi menunggu salinan bertandatangannya. Halaman telah disegarkan."
       },
       "contactTab": {
         "tab": "Dokumen",
@@ -7992,6 +7996,12 @@
         "add": "Tambah",
         "added": "{name} akan menerima salinan.",
         "limit": "Sehingga {max} orang boleh menerima salinan."
+      },
+      "sealRetry": {
+        "button": "Cuba lagi",
+        "started": "Mencuba semula sekarang. Salinan bertandatangan akan muncul di sini apabila siap.",
+        "collectionNote": "Sekurang-kurangnya satu salinan bertandatangan tidak dapat dibuat. Tiada apa yang ditandatangani oleh mereka yang hilang.",
+        "reasonOn": "{title}: {error}"
       }
     },
     "editor": {
@@ -9429,7 +9439,8 @@
         "form_mode_needs_a_form": "Borang ini tiada bahagian untuk diisi. Buka templat dan tambah satu.",
         "form_mode_signature": "Borang tanpa tandatangan tidak boleh mempunyai tempat untuk menandatangani.",
         "form_mode_placement": "Borang tanpa tandatangan tidak mempunyai apa-apa yang diletakkan pada halaman.",
-        "form_mode_signer_role": "Borang tanpa tandatangan tidak boleh mempunyai peranan yang menandatangani."
+        "form_mode_signer_role": "Borang tanpa tandatangan tidak boleh mempunyai peranan yang menandatangani.",
+        "role_shared": "Peranan {role} mempunyai lebih daripada seorang. Setiap tandatangan milik seorang sahaja, jadi berikan peranan itu kepada seorang sahaja."
       },
       "errors": {
         "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
@@ -9988,7 +9999,9 @@
         "sealing": {
           "title": "Kami sedang menyiapkan dokumen anda",
           "body": "Semua orang telah menandatangani. Kami sedang menyediakan salinan bertandatangan. Halaman ini dikemas kini sendiri, jadi anda boleh membiarkannya terbuka.",
-          "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar salinan bertandatangan melalui e-mel sebaik sahaja siap."
+          "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar salinan bertandatangan melalui e-mel sebaik sahaja siap.",
+          "stuck": "Ini mengambil masa lebih lama daripada yang dijangka. Tandatangan anda telah disimpan dan tiada apa yang hilang. Salinan bertandatangan masih dalam proses dibuat, dan kami akan menghantarnya melalui e-mel sebaik sahaja siap. Anda boleh menutup halaman ini.",
+          "check": "Semak semula"
         },
         "completed": {
           "title": "Dokumen telah ditandatangani",
@@ -10022,7 +10035,8 @@
         "sealingForm": {
           "title": "Kami sedang merekodkan penghantaran anda",
           "body": "Semua pihak telah menghantar. Kami sedang menyusun rekod. Halaman ini dikemas kini sendiri, jadi anda boleh membiarkannya terbuka.",
-          "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar rekod melalui e-mel sebaik sahaja siap."
+          "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar rekod melalui e-mel sebaik sahaja siap.",
+          "stuck": "Ini mengambil masa lebih lama daripada yang dijangka. Penghantaran anda telah disimpan dan tiada apa yang hilang. Rekod masih dalam proses dibuat, dan kami akan menghantarnya melalui e-mel sebaik sahaja siap. Anda boleh menutup halaman ini."
         },
         "completedForm": {
           "title": "Penghantaran anda telah direkodkan",
@@ -10140,7 +10154,13 @@
             "waiting": "Kami sedang menunggu orang lain. Anda akan menerima e-mel dengan dokumen bertandatangan apabila semua orang selesai."
           },
           "download": "Muat turun {title}",
-          "downloadShort": "Muat turun"
+          "downloadShort": "Muat turun",
+          "sealing": {
+            "title": "Kami sedang menyiapkan dokumen anda",
+            "body": "Semua orang telah menandatangani. Kami sedang menyediakan salinan bertandatangan. Halaman ini dikemas kini sendiri, jadi anda boleh membiarkannya terbuka.",
+            "slow": "Ini mengambil masa lebih lama daripada biasa. Anda boleh menutup halaman ini. Kami akan menghantar salinan bertandatangan melalui e-mel sebaik sahaja siap.",
+            "stuck": "Ini mengambil masa lebih lama daripada yang dijangka. Tandatangan anda telah disimpan dan tiada apa yang hilang. Salinan bertandatangan masih dalam proses dibuat, dan kami akan menghantarnya melalui e-mel sebaik sahaja siap. Anda boleh menutup halaman ini."
+          }
         }
       }
     },
@@ -11012,7 +11032,8 @@
         "blocks": "{count, plural, other {# blok tandatangan}}",
         "ready": "Sedia",
         "leftCount": "{count, plural, other {(# lagi)}}",
-        "allDone": "(semuanya sedia)"
+        "allDone": "(semuanya sedia)",
+        "noBlocks": "tiada blok tandatangan, jadi tidak diminta menandatangani ini"
       },
       "left": {
         "heading": "Apa yang tinggal",

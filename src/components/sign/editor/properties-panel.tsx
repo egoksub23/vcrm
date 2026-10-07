@@ -18,6 +18,8 @@ import type { SignLocale, SignRole } from "@/lib/sign/types";
 
 import { FIELD_ICONS } from "./field-icons";
 import { FormRow, NativeSelect } from "./form-bits";
+import { useRoleEmails } from "./role-emails";
+import { cn } from "@/lib/utils";
 
 export type FieldChange = Partial<PlacedField> | ((f: PlacedField) => PlacedField);
 
@@ -55,6 +57,7 @@ interface PropertiesPanelProps {
 export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, mergeKeys, pageCount, senderLabel, form, labelLocale = "en", onChange, onDuplicate, onCopyToPages, onDelete }: PropertiesPanelProps) {
   const t = useTranslations("Sign.editor");
   const tf = useTranslations("Sign.formBuilder");
+  const emails = useRoleEmails();
   if (!field) return <p className="p-3 text-sm text-muted-foreground">{t("props.none")}</p>;
 
   const Icon = FIELD_ICONS[field.type];
@@ -78,6 +81,27 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
       <FormRow label={t("props.role")} htmlFor={id("role")} hint={senderFixed ? t("props.roleSender") : undefined}>
         {senderFixed ? (
           <Input id={id("role")} value={senderLabel} disabled readOnly />
+        ) : allowedRoles.some((r) => emails[r.key]) ? (
+          <div id={id("role")} role="radiogroup" aria-label={t("props.role")} className="space-y-1">
+            {allowedRoles.map((r) => {
+              const on = r.key === field.role;
+              return (
+                <button
+                  key={r.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  disabled={readOnly}
+                  data-role-option={r.key}
+                  onClick={() => patch({ role: r.key })}
+                  className={cn("flex w-full min-w-0 flex-col rounded-lg border px-3 py-2 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60", on ? "border-primary bg-primary/10" : "border-input bg-background hover:bg-muted/60")}
+                >
+                  <span className="truncate text-sm font-medium">{r.label}</span>
+                  {emails[r.key] ? <span className="truncate text-xs text-muted-foreground">{emails[r.key]}</span> : null}
+                </button>
+              );
+            })}
+          </div>
         ) : (
           <NativeSelect id={id("role")} value={field.role} disabled={readOnly} onChange={(e) => patch({ role: e.target.value })}>
             {!allowedRoles.some((r) => r.key === field.role) ? <option value={field.role}>{field.role}</option> : null}

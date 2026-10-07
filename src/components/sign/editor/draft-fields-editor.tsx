@@ -25,6 +25,7 @@ import { FieldEditor } from "./field-editor";
 import { ReplaceFileDialog } from "./replace-file-dialog";
 import { SaveAsTemplateDialog } from "./save-as-template-dialog";
 import { SaveStatus } from "./save-status";
+import type { RoleEmails } from "./role-emails";
 import { useSaveQueue } from "./use-save-queue";
 
 interface Loaded {
@@ -55,9 +56,13 @@ interface DraftFieldsEditorProps {
   flushRef?: MutableRefObject<(() => Promise<boolean>) | null>;
   /** The sending workflow: with no people yet the editor offers to go to the People step. */
   onGoToPeople?: () => void;
+  /** The sending workflow: the address of the person each role stands for (role key to address), shown next to the name. */
+  roleEmails?: RoleEmails;
+  /** The sending workflow: the colour slot of each role (role key to slot), so one person has one colour on every document of a collection. */
+  roleColors?: Readonly<Record<string, number>>;
 }
 
-export function DraftFieldsEditor({ documentId, onChanged, flushRef, onGoToPeople }: DraftFieldsEditorProps) {
+export function DraftFieldsEditor({ documentId, onChanged, flushRef, onGoToPeople, roleEmails, roleColors }: DraftFieldsEditorProps) {
   const t = useTranslations("Sign.editor");
   const canSend = useCapability("sign.send");
   const canTemplates = useCapability("sign.templates");
@@ -211,6 +216,8 @@ export function DraftFieldsEditor({ documentId, onChanged, flushRef, onGoToPeopl
         mode="draft"
         readOnly={layoutLocked}
         rolesLocked={rolesLocked}
+        roleEmails={roleEmails}
+        roleColors={roleColors}
         collectionHref={envelopeId ? `/sign/envelopes/${envelopeId}` : undefined}
         onGoToPeople={onGoToPeople}
         onChange={onLayout}

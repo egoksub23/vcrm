@@ -45,7 +45,10 @@ export function Shell({ workspace, locale, onLocaleChange, product, wide, bottom
               // eslint-disable-next-line @next/next/no-img-element
               <img src={workspace.logoUrl} alt={workspace.name} className="h-9 max-w-[7rem] shrink-0 object-contain" referrerPolicy="no-referrer" />
             ) : null}
-            {workspace ? <span className={cn("truncate text-sm font-semibold", workspace.logoUrl && "sr-only sm:not-sr-only")}>{workspace.name}</span> : null}
+            <div className="min-w-0 leading-tight">
+              <span className="block truncate text-sm font-semibold">Vircle Doc Sign</span>
+              {workspace ? <span className="block truncate text-xs text-muted-foreground">{workspace.name}</span> : null}
+            </div>
           </div>
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
         </div>

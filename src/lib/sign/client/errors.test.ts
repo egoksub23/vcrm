@@ -72,6 +72,11 @@ describe("problems", () => {
     expect(problemKey("signer_name")).toBe("problems.signer_name");
   });
 
+  it("word two people on one role of a document, and send the sender to the people to put it right", () => {
+    expect(problemKey("role_shared")).toBe("problems.role_shared");
+    expect(problemStep("role_shared")).toBe("people");
+  });
+
   it("show a problem once", () => {
     expect(dedupeIssues([{ code: "signer_name", detail: "0" }, { code: "signer_name", detail: "0" }, { code: "signer_name", detail: "1" }])).toHaveLength(2);
   });

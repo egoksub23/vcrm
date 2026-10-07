@@ -310,7 +310,9 @@ describe("the signer's view of a form", () => {
     expect(form.ready).toBe(false);
     // data answers are never placed-field answers
     expect(Object.keys(view.content!.answers)).toEqual([]);
-    expect(view.content!.fields).toHaveLength(fields.length);
+    // the merchant's own places and the places that print the form's answers, not the director's place
+    expect(view.content!.fields).toHaveLength(fields.length - 1);
+    expect(view.content!.fields.map((f) => f.key)).not.toContain("dsig");
     NO_PATH(view);
   });
 

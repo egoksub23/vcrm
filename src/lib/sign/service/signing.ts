@@ -12,7 +12,7 @@ import type { Issue } from "../rules";
 import { checkCode, CODE_SENDS_PER_HOUR, CODE_TTL_MS, generateCode, hashCode, hashToken, isPlausibleToken, type CodeCheck } from "../tokens";
 import { deliverCode, deliverOutcome, deliverInvitation, type Delivery } from "../notify";
 import type { PlacedField } from "../pdf/types";
-import { checkAnswer, fieldsForRole, missingRequired, type AnswerInput, type StoredAnswer } from "../rules";
+import { SENDER_ROLE, checkAnswer, fieldsForRole, missingRequired, type AnswerInput, type StoredAnswer } from "../rules";
 import { getFile } from "../storage";
 import { isFormMode, type Invitation, type SignDocumentRow, type SignEnvelopeRow, type SignMode, type SignSettingsRow, type SignSignerRow } from "../types";
 import { docFacts } from "./send";
@@ -259,6 +259,9 @@ export function envelopeState(states: readonly PageState[]): PageState {
   if (states.length > 0 && states.every((s) => s === "not_invited")) return "not_invited";
   if (states.length > 0 && states.every((s) => s === "completed")) return "completed";
   if (states.includes("not_invited")) return "not_invited";
+  // A document the person has signed that is not being sealed yet is waiting for somebody ELSE: the sitting is waiting, and must never read
+  // "everyone has signed" because another document of the collection (one only this person is on) happens to be sealing already.
+  if (states.includes("signed")) return "signed";
   if (states.includes("sealing")) return "sealing";
   return "signed";
 }
@@ -282,6 +285,15 @@ function envelopeView(lookup: Lookup, current: PartyMember, withDocuments: boole
     state: envelopeState(documents.map((d) => d.state)),
     documents: withDocuments ? documents : [],
   };
+}
+
+/**
+ * The placed fields a person's page is given: their own (their role), the sender's (static text, merge and form-printing places), and the places of
+ * other people that have been ANSWERED (those people have signed; their answers are drawn read only). A place that belongs to someone else and
+ * has no answer yet is not part of this person's page at all: it is not theirs to see, and the server would refuse an answer for it anyway.
+ */
+export function fieldsShownTo(fields: readonly PlacedField[], signer: Pick<SignSignerRow, "role_key">, answeredByOthers: ReadonlySet<string>): PlacedField[] {
+  return fields.filter((f) => f.role === signer.role_key || f.role === SENDER_ROLE || !!f.merge || f.data !== undefined || answeredByOthers.has(f.key));
 }
 
 export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean): Promise<SigningView> {
@@ -350,7 +362,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
   }
   const answered = new Set(Object.keys(mine));
   base.content = {
-    fields: doc.fields_snapshot,
+    fields: fieldsShownTo(doc.fields_snapshot, signer, new Set(Object.keys(others))),
     answers: mine,
     othersAnswers: others,
     // a delegate is the business of the person who handed them a part, not a person of the document

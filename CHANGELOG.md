@@ -9,6 +9,25 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.81.0] — 2026-10-08
+
+**Migration required: 177.** Apply it before the new app (it only adds two guards, nothing the old app depends on).
+
+### Security
+
+- **A signing link now only carries its own person's blocks.** The signing page used to be sent every block of the document, including other people's unsigned ones; it now gets only the person's own blocks, the sender's, and other people's already-answered blocks. The server already refused an answer to another person's block; the database now refuses it too (migration 177), and a signature saved by one person is deleted if the row is later handed to a different person.
+- Two people on one role, or the same Halo user on two people, are refused at send. The Review step lists, under each document, who signs it and how many blocks each person has; a person with none reads "not asked to sign this".
+
+### Fixed
+
+- **"Everyone has signed" appeared too early** in a document collection: as soon as one document was being sealed, the page told the person everyone had signed while the other person still had to sign. The page now shows one end page with each document's state.
+- **Sealing could stall with no way out.** The signed copy is now put together right after the last signature (the minute job stays as the safety net). A failed or stuck document shows the real reason and a **Try again** button for the sender; the job route answers an error when sealing was tried and nothing sealed; the signing page stops spinning after 10 minutes and says the copy will be emailed. The fonts and add-on files are copied into the runtime image.
+
+### Changed
+
+- **The editor tells two people with one name apart:** the email address shows under the name in "Filled in by" (now a list), on the "Add a signature block for…" buttons and on the block itself. In a collection a person has the same colour on every document.
+- The signing page header reads **Vircle Doc Sign**, with the workspace name under it. The sent screen no longer prints an internal role code under each person's name.
+
 ## [0.80.0] — 2026-10-07
 
 **Migration required: 176.** Apply it BEFORE the new app: the document and collection lists now read `is_private`.

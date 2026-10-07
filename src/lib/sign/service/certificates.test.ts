@@ -283,7 +283,7 @@ describe("sealing a document", () => {
     const doc = await documentReadyToSeal();
     const old = issue({ commonName: "Kedai Lama", slot: "seal2-old", issuer: c.intermediate, notBefore: new Date(NOW.getTime() - 400 * DAY), notAfter: new Date(NOW.getTime() - 3 * DAY) });
     t.db.seed("sign_certificates", [{ id: "ca2", account_id: ACCT, name: "Uploaded: Kedai", p12_enc: encrypt(Buffer.from(p12Of(old.key, [old.cert, c.intermediate.cert], PASS)).toString("base64")), passphrase_enc: encrypt(PASS), valid_until: null, is_default: true, source: "uploaded" }]);
-    expect(await runOnce()).toEqual({ claimed: 1, completed: 0, retry: 1 });
+    expect(await runOnce()).toMatchObject({ claimed: 1, completed: 0, retry: 1 });
     const hold = t.db.rpcCalls.filter((x) => x.name === "sign_hold_sealing");
     expect(hold).toHaveLength(1);
     expect(hold[0].args.p_document).toBe(doc.id);
@@ -302,7 +302,7 @@ describe("sealing a document", () => {
   it("still uses the ordinary failure path for a fault that is not the certificate's", async () => {
     await documentReadyToSeal();
     t.db.files.set(t.db.rows("sign_documents")[0].base_path as string, new TextEncoder().encode("not a pdf"));
-    expect(await runOnce()).toEqual({ claimed: 1, completed: 0, retry: 1 });
+    expect(await runOnce()).toMatchObject({ claimed: 1, completed: 0, retry: 1 });
     expect(t.db.rpcCalls.some((x) => x.name === "sign_fail_sealing")).toBe(true);
     expect(t.db.rpcCalls.some((x) => x.name === "sign_hold_sealing")).toBe(false);
   });

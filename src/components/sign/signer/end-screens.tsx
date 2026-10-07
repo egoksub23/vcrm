@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, Ban, CalendarX, CheckCircle2, Clock, Download, ExternalLink, FileX, Loader2, UserX } from "lucide-react";
+import { AlertTriangle, Ban, CalendarX, CheckCircle2, Clock, Download, ExternalLink, FileX, Loader2, RefreshCw, UserX } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { signerFileUrl } from "@/lib/sign/client/api";
@@ -187,22 +187,64 @@ function Frame({ icon, title, children }: { icon: ReactNode; title: string; chil
   );
 }
 
-/** The document is being sealed: the page asks again by itself (use-signer) and says so; after two minutes it says it is slow. */
-function Sealing({ formOnly }: { formOnly?: boolean }) {
-  const t = useTranslations("Sign.signer");
-  const [slow, setSlow] = useState(false);
+/** How long a signed copy is waited for before the page says it is slow, and before it stops showing a spinner and says it will email instead. */
+export const SEALING_SLOW_AFTER_MS = 120_000;
+export const SEALING_STUCK_AFTER_MS = 600_000;
+
+export type SealingPhase = "waiting" | "slow" | "stuck";
+
+/** What the page says of the wait for the signed copy, by how long it has been: nothing yet, "longer than usual", then "longer than expected, we will email you". */
+export function sealingPhase(elapsedMs: number): SealingPhase {
+  return elapsedMs >= SEALING_STUCK_AFTER_MS ? "stuck" : elapsedMs >= SEALING_SLOW_AFTER_MS ? "slow" : "waiting";
+}
+
+/** The phase of the wait, moving on by itself from when the page began waiting. */
+export function useSealingPhase(): SealingPhase {
+  const [phase, setPhase] = useState<SealingPhase>("waiting");
   useEffect(() => {
-    const timer = setTimeout(() => setSlow(true), 120_000);
-    return () => clearTimeout(timer);
+    const slow = setTimeout(() => setPhase("slow"), SEALING_SLOW_AFTER_MS);
+    const stuck = setTimeout(() => setPhase("stuck"), SEALING_STUCK_AFTER_MS);
+    return () => {
+      clearTimeout(slow);
+      clearTimeout(stuck);
+    };
   }, []);
+  return phase;
+}
+
+/** The icon of the wait: a spinner while it is normal, a still clock once it is slow enough that a spinner would only look like a frozen page. */
+export function SealingIcon({ phase }: { phase: SealingPhase }) {
+  return phase === "stuck" ? <Clock className="size-12 text-muted-foreground" aria-hidden /> : <Loader2 className="size-12 text-primary motion-safe:animate-spin" aria-hidden />;
+}
+
+/** "Check again": the page asks the server now rather than at its next turn. */
+export function CheckAgain() {
+  const t = useTranslations("Sign.signer");
   return (
-    <Frame icon={<Loader2 className="size-12 text-primary motion-safe:animate-spin" aria-hidden />} title={formOnly ? t("end.sealingForm.title") : t("end.sealing.title")}>
+    <button type="button" onClick={() => window.location.reload()} className={cn(buttonVariants({ variant: "outline" }), "h-11 px-5 text-base")}>
+      <RefreshCw className="size-4" aria-hidden />
+      {t("end.sealing.check")}
+    </button>
+  );
+}
+
+/** The document is being sealed: the page asks again by itself (use-signer) and says so; after two minutes it says it is slow, after ten it says it will email. */
+export function SealingNotice({ phase, formOnly }: { phase: SealingPhase; formOnly?: boolean }) {
+  const t = useTranslations("Sign.signer");
+  return (
+    <Frame icon={<SealingIcon phase={phase} />} title={formOnly ? t("end.sealingForm.title") : t("end.sealing.title")}>
       <div aria-live="polite" className="space-y-3">
         <p>{formOnly ? t("end.sealingForm.body") : t("end.sealing.body")}</p>
-        {slow ? <p className="text-sm">{formOnly ? t("end.sealingForm.slow") : t("end.sealing.slow")}</p> : null}
+        {phase === "slow" ? <p className="text-sm">{formOnly ? t("end.sealingForm.slow") : t("end.sealing.slow")}</p> : null}
+        {phase === "stuck" ? <p className="text-sm">{formOnly ? t("end.sealingForm.stuck") : t("end.sealing.stuck")}</p> : null}
       </div>
+      {phase === "stuck" ? <CheckAgain /> : null}
     </Frame>
   );
+}
+
+function Sealing({ formOnly }: { formOnly?: boolean }) {
+  return <SealingNotice phase={useSealingPhase()} formOnly={formOnly} />;
 }
 
 const KIND_STYLE: Record<OtherKind, string> = {

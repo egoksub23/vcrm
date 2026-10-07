@@ -12,6 +12,7 @@
 // A strip of the people who must sign, in the colours the editor draws their blocks in, stays above whatever is shown.
 // ============================================================
 
+import { useMemo } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, ClipboardList, FileText, Loader2, Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -21,7 +22,7 @@ import { useSignDraft } from "@/hooks/use-sign-draft";
 import { ROLE_CLASS, roleColorStyle } from "@/lib/sign/client/colors";
 import { errorKey } from "@/lib/sign/client/errors";
 import { hasFormParts } from "@/lib/sign/client/progress-logic";
-import { documentCover, personHasWork, type DocCover } from "@/lib/sign/client/process";
+import { documentCover, personColor, personHasWork, roleKeyOn, type DocCover } from "@/lib/sign/client/process";
 import { isSigner, type EnvelopePerson } from "@/lib/sign/envelopes";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +116,23 @@ export function DocumentEditor({ documentId, process }: { documentId: string; pr
   const t = useTranslations("Sign.process.blocks");
   const tErr = useTranslations("Sign.send");
   const { data, error, loading, retry } = useSignDraft(documentId);
+  // the address and the colour of each person who must sign, by the role they have on this document: two people with one name can be told apart
+  // in the editor, and one person has the same colour on every document of a collection
+  const { roleEmails, roleColors } = useMemo(() => {
+    const doc = process.docs.find((d) => d.id === documentId);
+    const emails: Record<string, string> = {};
+    const colors: Record<string, number> = {};
+    if (!doc) return { roleEmails: emails, roleColors: colors };
+    for (const p of process.people) {
+      if (!isSigner(p)) continue;
+      const key = roleKeyOn(p, doc);
+      if (!key) continue;
+      colors[key] = personColor(process.people, p.key);
+      const email = p.email.trim();
+      if (email) emails[key] = email;
+    }
+    return { roleEmails: emails, roleColors: colors };
+  }, [process.docs, process.people, documentId]);
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20" role="status" aria-label={t("loadingEditor")}>
@@ -137,9 +155,9 @@ export function DocumentEditor({ documentId, process }: { documentId: string; pr
   const form = hasFormParts(doc.form_snapshot) ? doc.form_snapshot : null;
   const goPeople = () => void process.goStep("people");
   return form ? (
-    <FormFieldsStep documentId={documentId} form={form} roles={doc.roles_snapshot} readOnly={!process.canSend} onChanged={process.refresh} formOnly={doc.mode === "form"} flushRef={process.editorFlush} onGoToPeople={goPeople} />
+    <FormFieldsStep documentId={documentId} form={form} roles={doc.roles_snapshot} readOnly={!process.canSend} onChanged={process.refresh} formOnly={doc.mode === "form"} flushRef={process.editorFlush} onGoToPeople={goPeople} roleEmails={roleEmails} roleColors={roleColors} />
   ) : (
-    <DraftFieldsEditor documentId={documentId} onChanged={process.refresh} flushRef={process.editorFlush} onGoToPeople={goPeople} />
+    <DraftFieldsEditor documentId={documentId} onChanged={process.refresh} flushRef={process.editorFlush} onGoToPeople={goPeople} roleEmails={roleEmails} roleColors={roleColors} />
   );
 }
 

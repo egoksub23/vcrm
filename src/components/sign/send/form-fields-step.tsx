@@ -24,6 +24,10 @@ interface Props {
   /** The sending workflow: where the embedded editor keeps its flush. */
   flushRef?: MutableRefObject<(() => Promise<boolean>) | null>;
   onGoToPeople?: () => void;
+  /** The address of the person each role stands for (role key to address), shown next to the name in the editor. */
+  roleEmails?: Readonly<Record<string, string>>;
+  /** The colour slot of each role (role key to slot). */
+  roleColors?: Readonly<Record<string, number>>;
 }
 
 /**
@@ -31,7 +35,7 @@ interface Props {
  * the field editor. The form belongs to the template. "Edit fields" opens the editor to change where the answers
  * print on the pages, never the form.
  */
-export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, formOnly, flushRef, onGoToPeople }: Props) {
+export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, formOnly, flushRef, onGoToPeople, roleEmails, roleColors }: Props) {
   const t = useTranslations("Sign.progress.formStep");
   const locale = asLocale(useLocale());
   const [editing, setEditing] = useState(false);
@@ -82,7 +86,7 @@ export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, f
       </div>
       )}
 
-      {editing && !formOnly ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} flushRef={flushRef} onGoToPeople={onGoToPeople} /> : null}
+      {editing && !formOnly ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} flushRef={flushRef} onGoToPeople={onGoToPeople} roleEmails={roleEmails} roleColors={roleColors} /> : null}
     </div>
   );
 }

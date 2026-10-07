@@ -9040,7 +9040,9 @@
         "completedOnForm": "Submitted and recorded on {date}",
         "completedForm": "Submitted and recorded",
         "completedNoteForm": "Everyone submitted. The sealed record is kept here.",
-        "declinedNoteForm": "Nobody else can fill this form in. Send a new one if it is still needed."
+        "declinedNoteForm": "Nobody else can fill this form in. Send a new one if it is still needed.",
+        "sealingStuck": "The last try at the signed copy did not work. It is tried again every few minutes. Nothing the people signed is lost.",
+        "sealingStuckTechnical": "The last try at the signed copy did not work ({error}). It is tried again every few minutes. Nothing the people signed is lost."
       },
       "tabs": {
         "people": "People ({count})",
@@ -9256,7 +9258,8 @@
         "envelope_document_removed": "{sender} removed “{title}” from the collection {reference}",
         "envelope_reordered": "{sender} changed the order of the documents in the collection {reference}",
         "copy_recipient_added": "{sender} added {name} ({email}) to receive a copy",
-        "copy_recipient_removed": "{sender} removed {name} from the people who receive a copy"
+        "copy_recipient_removed": "{sender} removed {name} from the people who receive a copy",
+        "seal_retried": "{sender} asked for the signed file to be made again"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -9287,7 +9290,8 @@
         "expiry_in_the_past": "The new date must be in the future.",
         "expiry_not_later": "The new date must be later than the current one.",
         "expiry_too_far": "That date is too far away. Choose a nearer date.",
-        "bad_expiry": "That date could not be read. Choose it again."
+        "bad_expiry": "That date could not be read. Choose it again.",
+        "seal_not_stuck": "This is not waiting for its signed copy any more. The page was refreshed."
       },
       "contactTab": {
         "tab": "Documents",
@@ -9346,6 +9350,12 @@
         "add": "Add",
         "added": "{name} will receive a copy.",
         "limit": "Up to {max} people can receive a copy."
+      },
+      "sealRetry": {
+        "button": "Try again",
+        "started": "Trying again now. The signed copy appears here when it is ready.",
+        "collectionNote": "At least one signed copy could not be made. Nothing the people signed is lost.",
+        "reasonOn": "{title}: {error}"
       }
     },
     "editor": {
@@ -10783,7 +10793,8 @@
         "form_mode_needs_a_form": "This form has no part to fill in. Open the template and add one.",
         "form_mode_signature": "A form without a signature cannot have a place to sign.",
         "form_mode_placement": "A form without a signature has nothing placed on a page.",
-        "form_mode_signer_role": "A form without a signature cannot have a role that signs."
+        "form_mode_signer_role": "A form without a signature cannot have a role that signs.",
+        "role_shared": "The role {role} has more than one person. Each signature belongs to one person, so give the role to one person only."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -11342,7 +11353,9 @@
         "sealing": {
           "title": "We are finishing your document",
           "body": "Everyone has signed. We are putting the signed copy together. This page updates by itself, so you can leave it open.",
-          "slow": "This is taking longer than usual. You can close this page. We will email the signed copy as soon as it is ready."
+          "slow": "This is taking longer than usual. You can close this page. We will email the signed copy as soon as it is ready.",
+          "stuck": "This is taking longer than expected. Your signature is saved and nothing is lost. The signed copy is still being made, and we will email it to you as soon as it is ready. You can close this page.",
+          "check": "Check again"
         },
         "completed": {
           "title": "The document is signed",
@@ -11376,7 +11389,8 @@
         "sealingForm": {
           "title": "We are recording your submission",
           "body": "Everyone has submitted. We are putting the record together. This page updates by itself, so you can leave it open.",
-          "slow": "This is taking longer than usual. You can close this page. We will email the record as soon as it is ready."
+          "slow": "This is taking longer than usual. You can close this page. We will email the record as soon as it is ready.",
+          "stuck": "This is taking longer than expected. Your submission is saved and nothing is lost. The record is still being made, and we will email it to you as soon as it is ready. You can close this page."
         },
         "completedForm": {
           "title": "Your submission is recorded",
@@ -11494,7 +11508,13 @@
             "waiting": "We are waiting for the others. You will get an email with the signed documents when everyone is done."
           },
           "download": "Download {title}",
-          "downloadShort": "Download"
+          "downloadShort": "Download",
+          "sealing": {
+            "title": "We are finishing your documents",
+            "body": "Everyone has signed. We are putting the signed copies together. This page updates by itself, so you can leave it open.",
+            "slow": "This is taking longer than usual. You can close this page. We will email the signed copies as soon as they are ready.",
+            "stuck": "This is taking longer than expected. Your signatures are saved and nothing is lost. The signed copies are still being made, and we will email them to you as soon as they are ready. You can close this page."
+          }
         }
       }
     },
@@ -12366,7 +12386,8 @@
         "blocks": "{count, plural, one {# signature block} other {# signature blocks}}",
         "ready": "Ready",
         "leftCount": "{count, plural, one {(# thing left)} other {(# things left)}}",
-        "allDone": "(everything is ready)"
+        "allDone": "(everything is ready)",
+        "noBlocks": "no signature block, so not asked to sign this"
       },
       "left": {
         "heading": "What is left",

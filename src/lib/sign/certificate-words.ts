@@ -339,7 +339,7 @@ const EVENTS: Record<SignLocale, EventWords> = {
  * Events that are noise on a certificate: retries and autosaves, a part's progress and the contact being updated
  * (the last carries personal data and belongs in the audit trail, not on a page that is sent to everyone).
  */
-export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_failed", "downloaded", "part_completed", "part_reopened", "writeback", "halo_link", "sensitive_viewed", "file_replaced", "envelope_document_added", "envelope_document_removed", "envelope_reordered", "copy_recipient_added", "copy_recipient_removed"]);
+export const HIDDEN_EVENTS = new Set(["saved", "seal_attempt_failed", "seal_retried", "seal_failed", "downloaded", "part_completed", "part_reopened", "writeback", "halo_link", "sensitive_viewed", "file_replaced", "envelope_document_added", "envelope_document_removed", "envelope_reordered", "copy_recipient_added", "copy_recipient_removed"]);
 
 /** What an event's own detail adds to its sentence. */
 export interface EventExtras {

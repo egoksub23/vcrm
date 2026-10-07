@@ -36,7 +36,8 @@ export interface DetailCaps {
 export type Banner =
   | { kind: "draft" }
   | { kind: "waiting"; names: string[]; more: number; done: number; total: number; form?: boolean }
-  | { kind: "sealing"; form?: boolean }
+  /** `stuck`: an attempt at the signed copy failed and it is being tried again (the sender can ask for a try now); `error` is why, for whoever runs the workspace. */
+  | { kind: "sealing"; form?: boolean; stuck?: true; error?: string | null }
   | { kind: "completed"; at: string | null; retainUntil?: string; form?: boolean }
   | { kind: "declined"; by: string | null; reason: string | null; form?: boolean }
   | { kind: "expired"; at: string | null }
@@ -71,7 +72,7 @@ export function bannerFor(doc: BannerDoc, signers: readonly BannerSigner[], caps
       return { kind: "waiting", names: w.names, more: w.more, done: people.filter((s) => s.status === "signed").length, total: people.length, ...form };
     }
     case "sealing":
-      return { kind: "sealing", ...form };
+      return { kind: "sealing", ...form, ...(doc.seal_error?.trim() ? { stuck: true as const, error: caps.settings ? doc.seal_error.trim() : null } : {}) };
     case "completed":
       return { kind: "completed", at: doc.completed_at, ...(doc.retain_until ? { retainUntil: doc.retain_until } : {}), ...form };
     case "declined": {
@@ -277,6 +278,8 @@ export const DETAIL_ERROR_CODES = [
   "rate_limited",
   "network",
   "database_error",
+  // another try at sealing (service/seal-retry.ts)
+  "seal_not_stuck",
 ] as const;
 
 const KNOWN: ReadonlySet<string> = new Set(DETAIL_ERROR_CODES);

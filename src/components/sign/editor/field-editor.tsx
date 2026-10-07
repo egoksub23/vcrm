@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { toast } from "sonner";
 
 import { PdfPages, usePdf, useElementWidth } from "@/components/sign/pdf-pages";
+import { RoleEmailsProvider, type RoleEmails } from "./role-emails";
 import { Button } from "@/components/ui/button";
 import { groupFieldsByPage, fieldsOnPage, pageAtOffset, pageHeights, pageTops, pageWidthPx, percentOfWidth, type Zoom } from "@/lib/sign/client/editor-pages";
 import type { EditorState } from "@/lib/sign/client/editor-history";
@@ -59,16 +60,21 @@ export interface FieldEditorProps {
    * on the collection page first.
    */
   rolesLocked?: boolean;
+  /** The email address of the person each role stands for (role key to address), shown next to the name so two people with one name can be told apart. */
+  roleEmails?: RoleEmails;
+  /** The colour slot (0 to 5) each role is drawn in (role key to slot), when the screen knows better than the roles: in a document collection one person has one colour on every document. Display only, never saved. */
+  roleColors?: Readonly<Record<string, number>>;
   /** Where the people are added (the collection's page): the banner links to it. */
   collectionHref?: string;
   /** The sending workflow: with no people yet the banner offers to go to the People step. Takes the place of `collectionHref`. */
   onGoToPeople?: () => void;
 }
 
+const NO_EMAILS: RoleEmails = {};
 const PAGE_GAP = 16;
 const PAD = 16;
 
-export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey, rolesLocked = false, collectionHref, onGoToPeople }: FieldEditorProps) {
+export function FieldEditor({ pdfUrl, pdfVersion, fields, roles: rolesSaved, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey, rolesLocked = false, roleEmails, roleColors, collectionHref, onGoToPeople }: FieldEditorProps) {
   const t = useTranslations("Sign.editor");
   const tf = useTranslations("Sign.formBuilder");
   const locale = useLocale();
@@ -90,7 +96,9 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
     }),
     [t],
   );
-  const model = useEditorModel({ fields, roles, onChange, seeds, rolesLocked });
+  // what is drawn may use another colour than what is saved (the saved roles go back to the model untouched)
+  const roles = useMemo(() => (roleColors ? rolesSaved.map((r) => (roleColors[r.key] === undefined || roleColors[r.key] === r.color ? r : { ...r, color: roleColors[r.key] })) : rolesSaved), [rolesSaved, roleColors]);
+  const model = useEditorModel({ fields, roles: rolesSaved, onChange, seeds, rolesLocked });
   const { update, setRect, nudge, place, placeBound, remove, duplicate, copyToEveryPage, copy, paste, addRole, patchRole, deleteRole, undo, redo } = model;
 
   const [selectedKey, setSelectedKey] = useState<string | null>(focusKey ?? null);
@@ -427,6 +435,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
   );
 
   return (
+    <RoleEmailsProvider value={roleEmails ?? NO_EMAILS}>
     <div ref={rootRef} className={cn("flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background", className)} onKeyDown={onKeyDown} data-mode={mode}>
       {phone ? (
         <div role="status" className="flex items-start gap-2 border-b bg-amber-500/10 px-3 py-2 text-sm">
@@ -499,5 +508,6 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
         {showPanel ? <aside className={cn("shrink-0 border-l bg-card", compact ? "absolute inset-y-0 right-0 z-40 w-80 max-w-full shadow-xl" : "w-80")}>{panel}</aside> : null}
       </div>
     </div>
+    </RoleEmailsProvider>
   );
 }

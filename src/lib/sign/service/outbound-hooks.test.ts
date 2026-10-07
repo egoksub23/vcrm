@@ -213,7 +213,7 @@ describe("the hook points", () => {
     db.rpcHandlers.sign_fail_sealing = async () => ({ data: null, error: null });
     db.files.set(db.rows("sign_documents")[0].base_path as string, new TextEncoder().encode("not a pdf"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await runSealing({ admin: ctx.admin, origin: ctx.origin, deps: ctx.deps, now: ctx.now }, 2)).toEqual({ claimed: 1, completed: 0, retry: 1 });
+    expect(await runSealing({ admin: ctx.admin, origin: ctx.origin, deps: ctx.deps, now: ctx.now }, 2)).toMatchObject({ claimed: 1, completed: 0, retry: 1 });
     spy.mockRestore();
     expect(events()).toEqual([]);
   });

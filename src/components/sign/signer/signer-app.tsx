@@ -164,8 +164,8 @@ export function SignerApp({ token, initialView, initialSessionOk, locale, onLoca
         {t("fill.openingDocument")}
       </div>
     );
-  } else if (view.envelope && (view.envelope.state === "signed" || view.envelope.state === "completed")) {
-    // the person's sitting is over: every document of theirs is signed (or complete), as one page
+  } else if (view.envelope && (view.envelope.state === "signed" || view.envelope.state === "completed" || view.envelope.state === "sealing")) {
+    // the person's sitting is over: every document of theirs is signed, being sealed or complete, as one page (waiting for the others, or for the signed copies)
     body = <EnvelopeEnd envelope={view.envelope} scope={token} name={view.signer.name} canDownload={signer.sessionOk || !view.document.codeRequired} />;
   } else {
     body = <EndScreen state={screen} view={view} token={token} canDownload={(signer.sessionOk || !view.document.codeRequired) && !view.delegate} />;

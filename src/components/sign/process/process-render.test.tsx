@@ -183,6 +183,35 @@ describe("the summary", () => {
   });
 });
 
+describe("who signs which document (the sender sees it before sending)", () => {
+  const people = [ali(), bala()];
+  // document 1: Ali has two blocks and Bala one; document 2: Ali only; document 3: Bala only
+  const docs = [upload(1, people, { [ALI]: 2, [BALA]: 1 }), upload(2, people, { [ALI]: 1 }), upload(3, people, { [BALA]: 1 })];
+  const facts = { kind: "collection" as const, docs, people, ordered: false, optionIssues: [] };
+
+  it("lists, under each document, each person who must sign with the blocks that are theirs, and says a person with none is not asked to sign it", () => {
+    const summary = summarize(facts, "Pack");
+    expect(summary.documents.map((d) => d.people.map((p) => [p.name, p.blocks]))).toEqual([
+      [["Ali", 2], ["Bala", 1]],
+      [["Ali", 1], ["Bala", 0]],
+      [["Ali", 0], ["Bala", 1]],
+    ]);
+    const html = page("en", <ProcessSummary summary={summary} kind="collection" onGo={() => {}} />);
+    expect(html).toContain("Ali: 2 signature blocks");
+    expect(html).toContain("Bala: 1 signature block");
+    expect(html).toContain("Bala: no signature block, so not asked to sign this");
+    expect(html).toContain("Ali: no signature block, so not asked to sign this");
+    // one list for each document
+    for (const d of summary.documents) expect(html).toContain(`data-doc-people="${d.id}"`);
+  });
+
+  it("is said in every language, and a document with a single person on it carries no such list", () => {
+    for (const locale of LOCALES) expect(page(locale, <ProcessSummary summary={summarize(facts, "Pack")} kind="collection" onGo={() => {}} />)).toContain("data-doc-people");
+    const alone = summarize({ kind: "single", docs: [upload(1, [ali()], { [ALI]: 1 })], people: [ali()], ordered: false, optionIssues: [] }, "One");
+    expect(page("en", <ProcessSummary summary={alone} kind="single" onGo={() => {}} />)).not.toContain("data-doc-people");
+  });
+});
+
 describe("the first screen: the documents", () => {
   const ID = { contact: "11111111-1111-4111-8111-111111111111", ticket: "22222222-2222-4222-8222-222222222222", deal: "33333333-3333-4333-8333-333333333333" };
   for (const locale of LOCALES) {

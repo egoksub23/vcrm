@@ -72,6 +72,13 @@ It uses the same secret and header as the other jobs. It is listed in
 **Doc Sign jobs** with the time of its last run. Late or Not running means the crontab line is
 missing or wrong.
 
+The signed copy is also attempted **right after the last signature** (the server seals in the background once the answer to the signer has gone
+out, within 15 seconds and at most three documents), so it normally appears within seconds; the job is the safety net that retries what did not
+finish. Both use one claim with a five-minute lease, so a document is never sealed twice. If sealing was tried and **nothing** could be sealed, the job
+answers `500` with `seal_error` in its body, the Background jobs card shows it as an error, and `curl -f` exits non-zero. A document is tried up to five
+times, five minutes apart, and is then marked **Could not finish** (the reason stays on it). Its sender sees the reason (people with Doc Sign settings)
+and a **Try again** button on the document and on the collection; nothing the people signed is lost, and a retry is written in the document's history.
+
 ## 5. Chinese and Korean names on signed files
 
 The fonts built into the signing engine cover English and Bahasa Melayu. A name or text in
@@ -358,8 +365,8 @@ Two changes that go together. The owner's words for the collection screen: add e
 |---|---|
 | No **Doc Sign** in the sidebar or Settings | The **Doc Sign** switch is off for the workspace, or the person's role lacks the permission. Check Platform first. |
 | Signer link says "This link is not valid" | The link was cut off, was replaced by a newer one (a reminder, resend or change of recipient replaces it), or Doc Sign is off or the workspace is suspended. |
-| Documents stay in **Finishing** | The scheduled job is not running. Check the **Background jobs** card and the crontab. |
-| Document shows "Could not finish" | Sealing failed. It is retried by itself; the server log has `[sign]` lines with the reason. Check the certificate and `ENCRYPTION_KEY`. |
+| Documents stay in **Finishing** | The scheduled job is not running (check the **Background jobs** card and the crontab), or sealing is failing: the document's page says "The last try at the signed copy did not work" with the reason, and section 9a shows how to read it. |
+| Document shows "Could not finish" | Sealing failed five times. Put the cause right (certificate, `ENCRYPTION_KEY`, a missing file) and press **Try again** on the document or the collection. The reason is on the page and in the server log (`[sign] sealing failed for ...`); section 9a. |
 | "Word conversion is not available right now" | `SIGN_CONVERTER_URL` is empty, or the container is not running or not healthy (section 3). |
 | A Word file "took too long" or "could not be converted" | Ask for a PDF. Large or unusual files can fail; the converter keeps no state. |
 | A signer cannot upload a file | It is not a PDF, JPEG or PNG, or it is over the field's limit (section 8), or the document has reached 50 MB of uploads. |
@@ -385,3 +392,39 @@ Two changes that go together. The owner's words for the collection screen: add e
 | An API call answers `403 sign_disabled` | **Doc Sign** is off for the workspace, or the workspace is suspended (section 2). A key cannot switch it on. |
 | An API call answers `403 forbidden` | The key lacks `sign:read` (reads and downloads) or `sign:write` (create, send, remind, cancel). Make a new key with the scope; scopes cannot be added to an existing key (section 8b). |
 | The API client retries and the merchant gets two documents | The call had no `reference`. With a `reference`, a retry returns the first document (`Idempotent-Replay: true`) and sends nothing. |
+
+## 9a. A signed copy does not appear: find the real reason
+
+The signer's page shows a spinner for two minutes, says "longer than usual", and after ten minutes stops spinning and says the copy will be emailed. The
+sender's page says why (people with Doc Sign settings) and offers **Try again**. To read the same reasons on the server:
+
+```bash
+ssh root@YOUR-SERVER
+cd /opt/wacrm
+
+# the app's own log lines for sealing: the reason, then where it happened
+docker compose --env-file .env.local logs --since 2h app | grep -E "\[sign\] (sealing|could not)"
+
+# is the job running, and what did it say last? A 500 with seal_error in the body is a sealing failure; the Background jobs card shows the same
+SECRET=$(grep "^AUTOMATION_CRON_SECRET=" .env.local | cut -d= -f2-)
+curl -sS -H "x-cron-secret: $SECRET" https://YOUR-APP/api/sign/jobs-cron
+```
+
+```sql
+-- the documents that are stuck, with the reason, the attempts used and when the last try was
+select reference, title, status, seal_error, sealing_attempts, sealing_started_at
+  from sign_documents where status in ('sealing', 'failed') order by sealing_started_at;
+-- the history of one document (what each attempt said)
+select created_at, type, detail from sign_events where document_id = '<document id>' and type like 'seal%' order by doc_seq;
+```
+
+Reasons and what they mean: `ENOENT ... NotoSans_...ttf` is the fonts missing from the image (they are traced into every `/api/sign/**` route by
+`outputFileTracingIncludes` in `next.config.ts`: rebuild the image); `The sealing certificate ...` is the certificate (section 6; the document waits and is
+sealed when a good one is installed); `could not claim documents to seal` or `permission denied` is the database (migration 158 must be applied);
+`sensitive_unreadable` is the key ring (section 6a). Then press **Try again**.
+
+**One link, one person.** In a collection each person has one link, and it opens only that person's own rows: a person is shown, and may answer, only the
+places of their own role on each document (the server refuses any other key with `not_your_field`, and since migration 177 the database refuses it too).
+A person who has signed everything of theirs reads "waiting for the others" until the other people have signed their documents; a document only they are on
+is sealed at once, and its state is shown in the list, not as "everyone has signed". Two people on one role of a document are refused at send
+(`role_shared`, or `role_two_people` in a collection).

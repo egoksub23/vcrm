@@ -463,8 +463,8 @@ export function useSigner({ token, initialView, initialSessionOk, locale, envelo
   // ---- a document being sealed changes by itself -----------------------------------------------------
 
   const screen: Screen = screenFor(view);
-  // an envelope that is being sealed changes by itself too (a document of the person's may be sealed while another still is)
-  const polling = (shouldPoll(screen) || view.envelope?.state === "sealing") && !gone;
+  // an envelope with a document being sealed changes by itself too (a document of the person's may be sealed while another still waits for somebody else)
+  const polling = (shouldPoll(screen) || view.envelope?.state === "sealing" || !!view.envelope?.documents.some((d) => d.state === "sealing")) && !gone;
   useEffect(() => {
     if (!polling) return;
     const started = Date.now();

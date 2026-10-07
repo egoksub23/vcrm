@@ -15,6 +15,7 @@ import type { SignRole } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
 import { FieldVisual } from "./field-visual";
+import { useRoleEmails } from "./role-emails";
 
 export interface FieldBoxCallbacks {
   select: (key: string) => void;
@@ -80,6 +81,8 @@ function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly,
   const drag = useRef<Drag | null>(null);
 
   const roleLabel = role ? role.label : senderLabel;
+  const roleEmails = useRoleEmails();
+  const roleEmail = role ? (roleEmails[role.key] ?? "") : "";
   const style = useMemo(() => roleColorStyle(role ? role.color : null, "light"), [role]);
   const sample = useMemo(() => (preview || field.merge ? sampleValue(field, sampleCtx) : null), [preview, field, sampleCtx]);
   const bound = dataLabel !== undefined;
@@ -186,10 +189,10 @@ function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly,
       role="button"
       tabIndex={selected ? 0 : -1}
       aria-pressed={selected}
-      aria-label={`${typeLabel}, ${roleLabel}${bound ? `, ${dataLabel}` : field.label ? `, ${field.label}` : ""}`}
+      aria-label={`${typeLabel}, ${roleLabel}${roleEmail ? ` (${roleEmail})` : ""}${bound ? `, ${dataLabel}` : field.label ? `, ${field.label}` : ""}`}
       data-field={field.key}
       data-bound={bound ? "" : undefined}
-      title={bound ? `${typeLabel} · ${dataLabel}` : `${typeLabel} · ${roleLabel}`}
+      title={bound ? `${typeLabel} · ${dataLabel}` : `${typeLabel} · ${roleLabel}${roleEmail ? ` · ${roleEmail}` : ""}`}
       className={cn(
         "absolute box-border rounded-[3px] border outline-none",
         filled ? "border-dashed bg-transparent" : "bg-clip-padding",
@@ -210,7 +213,7 @@ function FieldBoxImpl({ field, role, senderLabel, typeLabel, selected, readOnly,
       onPointerCancel={(e) => finish(e, true)}
       onKeyDown={onKeyDown}
     >
-      <FieldVisual field={field} caption={caption} roleLabel={roleLabel} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} sample={preview ? sample : null} hasIssue={hasIssue} dataLabel={dataLabel} />
+      <FieldVisual field={field} caption={caption} roleLabel={roleLabel} roleEmail={roleEmail} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} sample={preview ? sample : null} hasIssue={hasIssue} dataLabel={dataLabel} />
       {selected && !readOnly
         ? HANDLES.map((h) => (
             <span

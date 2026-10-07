@@ -139,7 +139,7 @@ export function NewProcess({ contactId = null, ticketId = null, dealId = null, t
 
   const summary: Summary = {
     title: title.trim() || (count > 0 ? placeholder : ""),
-    documents: items.map((i, n) => ({ id: i.key, title: i.title.trim() || defaultTitle(i) || String(n + 1), pageCount: null, state: "empty", blocks: 0 })),
+    documents: items.map((i, n) => ({ id: i.key, title: i.title.trim() || defaultTitle(i) || String(n + 1), pageCount: null, state: "empty", blocks: 0, people: [] })),
     people: [],
     left: [
       { id: "documents", done: ready, step: "documents" },

@@ -98,6 +98,11 @@ export function readinessProblems(doc: SignDocumentRow, signers: readonly SignSi
     hasBaseFile: !!doc.base_path,
     mode: doc.mode,
   });
+  // A role is one person's: two people on one role would both be asked for the same places, and the sealed file would carry only the first
+  // person's answers on them. (A person handed a part of a form is a row of the same role, but only after the send.)
+  const held = new Map<string, number>();
+  for (const s of signers) if (!s.part_keys || s.part_keys.length === 0) held.set(s.role_key, (held.get(s.role_key) ?? 0) + 1);
+  for (const [role, n] of held) if (n > 1) problems.push({ code: "role_shared", role });
   // a form must be sound with the placements that print it, and every part needs a person to complete it
   const form = formOf(doc);
   // a form without a signature is only a form: without a part there is nothing to fill in (the rest of its rules are sendProblems')

@@ -18,6 +18,8 @@ export interface FieldVisualProps {
   caption: string;
   /** The name of the role, or of the sender. */
   roleLabel: string;
+  /** The address of the person the block is for, when the sending workflow knows it (so two people with one name can be told apart). */
+  roleEmail?: string;
   /** Size of the box on screen, in CSS pixels. */
   widthPx: number;
   heightPx: number;
@@ -31,7 +33,7 @@ export interface FieldVisualProps {
 }
 
 /** The inside of a field box: the editor's icon and label, or the preview's sample value. */
-export function FieldVisual({ field, caption, roleLabel, widthPx, heightPx, pxPerPt, sample, hasIssue, dataLabel }: FieldVisualProps) {
+export function FieldVisual({ field, caption, roleLabel, roleEmail = "", widthPx, heightPx, pxPerPt, sample, hasIssue, dataLabel }: FieldVisualProps) {
   const align = field.align ?? "left";
   if (sample) return <PreviewContent field={field} sample={sample} widthPx={widthPx} heightPx={heightPx} pxPerPt={pxPerPt} align={align} />;
 
@@ -57,6 +59,7 @@ export function FieldVisual({ field, caption, roleLabel, widthPx, heightPx, pxPe
         {iconOnly ? null : <span className="truncate text-[11px] font-medium">{caption}</span>}
       </div>
       {showRole ? <span className="truncate text-[10px] opacity-80">{roleLabel}</span> : null}
+      {showRole && roleEmail && heightPx >= 48 ? <span data-role-email className="truncate text-[10px] opacity-70">{roleEmail}</span> : null}
     </div>
   );
 }

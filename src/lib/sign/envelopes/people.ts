@@ -184,6 +184,7 @@ export function peopleIssues(docs: readonly EnvelopeDocLite[], people: readonly 
   if (docs.some(isUploadDoc) && signerCount > MAX_ROLES) issues.push({ code: "too_many_roles", detail: String(MAX_ROLES) });
   const byId = new Map(docs.map((d) => [d.id, d]));
   const seen = new Map<string, number>();
+  const seenUsers = new Set<string>();
   people.forEach((p, i) => {
     const at = { detail: String(i) };
     if (!p.fullName.trim() || p.fullName.trim().length > 160) issues.push({ code: "signer_name", ...at });
@@ -194,6 +195,11 @@ export function peopleIssues(docs: readonly EnvelopeDocLite[], people: readonly 
       // one human, one entry: two entries would be two links (and two invitations) for one person, or a copy that goes to someone who already signs
       if (seen.has(lower)) issues.push({ code: "duplicate_person", ...at });
       seen.set(lower, i);
+    }
+    // one Halo user is one person too: two entries for the same user would be two places that one login can open
+    if (p.internalUserId) {
+      if (seenUsers.has(p.internalUserId)) issues.push({ code: "duplicate_person", ...at });
+      seenUsers.add(p.internalUserId);
     }
     if (!isSigner(p)) return;
     if (p.channel === "whatsapp" && !normalizePhone(p.phone)) issues.push({ code: "signer_phone", ...at });

@@ -306,7 +306,8 @@ describe("a signer's link", () => {
     expect(pageState(l.doc, l.signer)).toBe("active");
     const view = await buildView(t.ctx, l, false);
     expect(view).toMatchObject({ state: "active", needsCode: false, needsConsent: true, document: { title: "Merchant Application: Kedai Runcit" }, workspace: { name: "Vircle Sdn Bhd" } });
-    expect(view.content!.fields).toHaveLength(fields.length);
+    // the page is given the merchant's own places and the sender's text, not the director's place (it is not theirs, and nobody has signed it)
+    expect(view.content!.fields.map((f) => f.key)).toEqual(["fee", "biz", "mname", "msig", "mdate"]);
     // the merchant must fill the business name and sign; the name and date write themselves
     expect(view.content!.missing).toEqual(["biz", "msig"]);
     expect(view.content!.others.map((o) => o.name)).toEqual(["Gokula"]);
@@ -530,7 +531,9 @@ describe("sealing", () => {
     // no signers at all and a corrupted base file make the render fail
     t.db.files.set(doc.base_path!, new TextEncoder().encode("not a pdf"));
     const out = await runSealing({ admin: t.ctx.admin, origin: t.ctx.origin, deps: t.ctx.deps, now: t.ctx.now }, 2);
-    expect(out).toEqual({ claimed: 1, completed: 0, retry: 1 });
+    expect(out).toMatchObject({ claimed: 1, completed: 0, retry: 1 });
+    // the reason is part of the run's answer, so the job can report it
+    expect(out.errors?.[0]).toContain("pdf_invalid");
     expect(t.db.rpcCalls.some((c) => c.name === "sign_fail_sealing")).toBe(true);
     expect(t.db.rpcCalls.some((c) => c.name === "sign_finish_sealing")).toBe(false);
   });

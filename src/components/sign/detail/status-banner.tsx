@@ -2,6 +2,7 @@
 
 // Doc Sign, the detail screen: one box that says what is happening to the document, in plain words.
 
+import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AlarmClock, Ban, CircleCheck, CircleX, Hourglass, LoaderCircle, TriangleAlert } from "lucide-react";
 
@@ -26,7 +27,8 @@ const ICON_TONE: Record<BannerTone, string> = {
   muted: "text-muted-foreground",
 };
 
-export function StatusBanner({ banner }: { banner: Banner }) {
+/** `retry`: the sender's "Try again" for a document whose signed copy could not be made (shown under the words of a failed or stuck sealing). */
+export function StatusBanner({ banner, retry }: { banner: Banner; retry?: ReactNode }) {
   const t = useTranslations("Sign.detail");
   const locale = useLocale();
   if (banner.kind === "draft") return null;
@@ -51,7 +53,8 @@ export function StatusBanner({ banner }: { banner: Banner }) {
     case "sealing":
       Icon = LoaderCircle;
       title = t(banner.form ? "banner.sealingForm" : "banner.sealing");
-      note = t(banner.form ? "banner.sealingNoteForm" : "banner.sealingNote");
+      // an attempt failed and it is being tried again: say so (and why, for the people who may read it) instead of a spinner that never ends
+      note = banner.stuck ? (banner.error ? t("banner.sealingStuckTechnical", { error: banner.error }) : t("banner.sealingStuck")) : t(banner.form ? "banner.sealingNoteForm" : "banner.sealingNote");
       break;
     case "completed":
       Icon = CircleCheck;
@@ -101,6 +104,7 @@ export function StatusBanner({ banner }: { banner: Banner }) {
         <p className="font-medium text-foreground break-words">{title}</p>
         {note && <p className="mt-0.5 text-sm text-muted-foreground break-words">{note}</p>}
         {retention && <p className="mt-1 text-sm text-muted-foreground break-words">{retention}</p>}
+        {retry ? <div className="mt-2">{retry}</div> : null}
       </div>
     </div>
   );

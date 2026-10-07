@@ -43,6 +43,17 @@ function SummaryBody({ summary, kind, onGo }: Props) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-foreground">{d.title}</span>
                   <span className="block text-xs text-muted-foreground">{t("blocks", { count: d.blocks })}</span>
+                  {/* who signs which document: a person with no block on one is not asked to sign it, and the sender sees that before sending */}
+                  {summary.counts.signers > 1 && d.people.length > 0 ? (
+                    <ul className="mt-0.5 space-y-0.5" data-doc-people={d.id}>
+                      {d.people.map((p, i) => (
+                        <li key={p.key} className="flex items-center gap-1.5 text-xs text-muted-foreground" data-person={p.key} data-blocks={p.blocks}>
+                          <span style={roleColorStyle(p.color)} className={cn("size-2 shrink-0 rounded-full", ROLE_CLASS.dot)} aria-hidden />
+                          <span className="min-w-0 truncate">{`${p.name || tp("personN", { n: i + 1 })}: ${p.blocks > 0 ? t("blocks", { count: p.blocks }) : t("noBlocks")}`}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </span>
                 {d.state === "ready" ? <Check className="mt-0.5 size-4 shrink-0 text-[light-dark(#059669,#34d399)]" aria-label={t("ready")} /> : null}
               </li>

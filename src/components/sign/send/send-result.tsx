@@ -72,13 +72,14 @@ export function SendResult({ result, roles, ordered, onOpenDocument, mode, words
       <ul className="space-y-3">
         {result.invited.map((inv) => {
           const ok = inv.delivery.status === "sent";
-          const role = roles.find((r) => r.key === inv.roleKey)?.label ?? inv.roleKey;
+          // a role the screen does not know (a collection's people) is an internal key: show nothing rather than "pp_z5vg003a"
+          const role = roles.find((r) => r.key === inv.roleKey)?.label ?? "";
           return (
             <li key={inv.signerId} className="space-y-2 rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{inv.name}</p>
-                  <p className="text-xs text-muted-foreground">{role}</p>
+                  {role ? <p className="text-xs text-muted-foreground">{role}</p> : null}
                 </div>
                 <p className={ok ? "flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-300" : "flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300"}>
                   {ok ? <CheckCircle2 className="size-4" aria-hidden /> : <MailWarning className="size-4" aria-hidden />}

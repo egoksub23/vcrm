@@ -15,6 +15,8 @@ import { scopeOf, splitScope } from "@/lib/sign/client/scope";
 import type { EnvelopeView, PageState } from "@/lib/sign/service/signing";
 import { cn } from "@/lib/utils";
 
+import { CheckAgain, SealingIcon, useSealingPhase } from "./end-screens";
+
 const STATE_ICON: Record<PageState, typeof Circle> = {
   active: Circle,
   signed: CheckCircle2,
@@ -140,12 +142,22 @@ export function EnvelopeEnd({ envelope, scope, name, canDownload }: EndProps) {
   const t = useTranslations("Sign.signer");
   const token = splitScope(scope).token;
   const done = envelope.state === "completed";
+  // every document of the person is being sealed or complete (nobody has anything left to sign): the wait is for the signed copies
+  const sealing = envelope.state === "sealing";
+  const phase = useSealingPhase();
   return (
     <div className="flex flex-col items-center gap-4 px-3 py-10 text-center" role="status">
-      <CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />
-      <h1 className="text-2xl font-semibold leading-snug">{done ? t("envelope.end.completed.title", { count: envelope.count }) : t("envelope.end.signed.title", { count: envelope.count })}</h1>
-      <p className="max-w-prose text-base">{done ? t("envelope.end.completed.body") : t("envelope.end.signed.body", { name })}</p>
-      {done ? null : <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.signed.waiting")}</p>}
+      {sealing ? <SealingIcon phase={phase} /> : <CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />}
+      <h1 className="text-2xl font-semibold leading-snug">{done ? t("envelope.end.completed.title", { count: envelope.count }) : sealing ? t("envelope.end.sealing.title", { count: envelope.count }) : t("envelope.end.signed.title", { count: envelope.count })}</h1>
+      <p className="max-w-prose text-base">{done ? t("envelope.end.completed.body") : sealing ? t("envelope.end.sealing.body") : t("envelope.end.signed.body", { name })}</p>
+      {done || sealing ? null : <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.signed.waiting")}</p>}
+      {sealing && phase === "slow" ? <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.sealing.slow")}</p> : null}
+      {sealing && phase === "stuck" ? (
+        <>
+          <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.sealing.stuck")}</p>
+          <CheckAgain />
+        </>
+      ) : null}
       <ol className="w-full max-w-md space-y-2 text-left">
         {envelope.documents.map((d, i) => (
           <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2">

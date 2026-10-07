@@ -267,6 +267,8 @@ export const EVENT_TYPES = [
   "declined",
   "all_signed",
   "seal_attempt_failed",
+  // the sender asked for another try after sealing stopped (service/seal-retry.ts); History only: left off the certificate
+  "seal_retried",
   "sealed",
   "completed",
   "voided",

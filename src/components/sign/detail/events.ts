@@ -230,7 +230,7 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     add("channel", text(detail.channel, 20));
     add("delivery", text(detail.reason, 300));
   }
-  if (row.type === "seal_attempt_failed") add("error", text(detail.error, 300));
+  if (row.type === "seal_attempt_failed" || row.type === "seal_retried") add("error", text(detail.error, 300));
 
   return {
     id: row.id,

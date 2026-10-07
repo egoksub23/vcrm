@@ -53,6 +53,14 @@ describe("bannerFor", () => {
     expect(b).toEqual({ kind: "declined", by: "Siti", reason: "Fee is wrong" });
   });
 
+  it("says a sealing that keeps failing is stuck, with the reason only for people with sign.settings, and a calm one is not", () => {
+    expect(bannerFor(doc({ status: "sealing", seal_error: null }), [], { settings: true })).toEqual({ kind: "sealing" });
+    expect(bannerFor(doc({ status: "sealing", seal_error: "  " }), [], { settings: true })).toEqual({ kind: "sealing" });
+    const stuck = doc({ status: "sealing", seal_error: "ENOENT: font" });
+    expect(bannerFor(stuck, [], { settings: false })).toEqual({ kind: "sealing", stuck: true, error: null });
+    expect(bannerFor(stuck, [], { settings: true })).toEqual({ kind: "sealing", stuck: true, error: "ENOENT: font" });
+  });
+
   it("shows the technical note of a failed seal only to people with sign.settings", () => {
     const d = doc({ status: "failed", seal_error: "certificate missing" });
     expect(bannerFor(d, [], { settings: false })).toEqual({ kind: "failed", error: null });

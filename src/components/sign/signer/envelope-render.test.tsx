@@ -34,6 +34,12 @@ export const ENVELOPE_EN: Tree = {
   end: {
     signed: { title: "You have signed all {count} documents", body: "Thank you, {name}. Your part is done.", waiting: "We are waiting for the others. When everyone has signed, you will get one email with all the signed copies." },
     completed: { title: "All {count} documents are complete", body: "Everyone has signed. Download your signed copies below.", byEmail: "The signed copies were sent to your email address." },
+    sealing: {
+      title: "We are finishing your documents",
+      body: "Everyone has signed. We are putting the signed copies together. This page updates by itself, so you can leave it open.",
+      slow: "This is taking longer than usual.",
+      stuck: "This is taking longer than expected.",
+    },
     download: "Download {title}",
     downloadShort: "Download",
   },
@@ -151,6 +157,28 @@ run("the envelope on the signing page", () => {
     expect(html).toContain("Thank you, Ali bin Ahmad.");
     expect(html).toContain("one email with all the signed copies");
     expect(html).not.toContain("Download");
+    expect(errors).toEqual([]);
+  });
+
+  it("does not say everyone has signed while a document still waits for somebody else, even when another of the person's documents is being sealed already", () => {
+    // document 2 has only this person on it, so it is sealing; document 1 waits for the other person: the sitting is "signed" (waiting), never "sealing"
+    const html = page(view({ state: "signed", content: null, envelope: envelope({ state: "signed" }, ["signed", "sealing", "completed"]) }));
+    expect(html).toContain("You have signed all 3 documents");
+    expect(html).toContain("We are waiting for the others.");
+    expect(html).toContain("Being sealed");
+    expect(html).not.toContain("We are finishing your documents");
+    expect(html).not.toContain("Everyone has signed. We are putting");
+    expect(errors).toEqual([]);
+  });
+
+  it("says the signed copies are being made only when nobody has anything left to sign, as ONE page for the whole sitting", () => {
+    const html = page(view({ state: "sealing", content: null, envelope: envelope({ state: "sealing" }, ["sealing", "completed", "sealing"]) }));
+    expect(html).toContain("We are finishing your documents");
+    expect(html).toContain("Everyone has signed. We are putting the signed copies together.");
+    expect(html).not.toContain("You have signed all 3 documents");
+    // the documents are listed with where each stands, and the finished one can be downloaded
+    expect(html).toContain("Being sealed");
+    expect(html).toContain(`/api/sign/public/${TOKEN}/file?doc=d2&amp;download=1`);
     expect(errors).toEqual([]);
   });
 

@@ -178,7 +178,7 @@ export function documentCover(doc: ProcessDoc, people: readonly EnvelopePerson[]
       const role = roleKeyOn(p, doc);
       const blocks = role ? (doc.signatureCounts[role] ?? 0) : 0;
       const parts = role ? (doc.partCounts[role] ?? 0) : 0;
-      return { key: p.key, name: p.fullName.trim(), color: doc.roles.find((r) => r.key === role)?.color ?? personColor(people, p.key), blocks, parts, covered: formOnly ? parts > 0 : blocks > 0 };
+      return { key: p.key, name: p.fullName.trim(), color: personColor(people, p.key), blocks, parts, covered: formOnly ? parts > 0 : blocks > 0 };
     });
   const blocks = Object.values(doc.signatureCounts).reduce((n, c) => n + c, 0);
   const worked = formOnly ? doc.hasForm : blocks > 0;
@@ -397,6 +397,8 @@ export interface SummaryDocument {
   pageCount: number | null;
   state: CoverState;
   blocks: number;
+  /** Who signs this document and how many blocks are theirs: a person with none is not asked to sign it (their row on it is left off at send). */
+  people: { key: string; name: string; color: number; blocks: number }[];
 }
 
 export interface ProcessSummary {
@@ -421,7 +423,7 @@ export function summarize(facts: ProcessFacts, title: string): ProcessSummary {
     }));
   return {
     title,
-    documents: covers.map((c) => ({ id: c.doc.id, title: c.doc.title, pageCount: c.doc.pageCount, state: c.state, blocks: c.blocks })),
+    documents: covers.map((c) => ({ id: c.doc.id, title: c.doc.title, pageCount: c.doc.pageCount, state: c.state, blocks: c.blocks, people: c.people.map((p) => ({ key: p.key, name: p.name, color: p.color, blocks: p.blocks })) })),
     people,
     left: whatIsLeft(f),
     counts: { signers: people.filter((p) => p.type === "signer").length, copies: Math.min(MAX_COPY_RECIPIENTS, people.filter((p) => p.type === "copy").length) },

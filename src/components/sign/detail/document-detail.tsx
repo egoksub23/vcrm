@@ -32,6 +32,7 @@ import { HistoryView } from "./history-view";
 import { bannerFor, detailErrorKey, documentActions, signersWithUndelivered, type DetailCaps } from "./logic";
 import { PeopleList } from "./people-list";
 import { ProgressTab } from "./progress/progress-tab";
+import { SealRetry } from "./seal-retry";
 import { StatusBanner } from "./status-banner";
 import { useDocumentDetail } from "./use-document-detail";
 import { useDocumentEvents } from "./use-document-events";
@@ -130,7 +131,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         forwarding={canSend && !inEnvelope && (doc.status === "sent" || doc.status === "in_progress") ? { allowed: doc.allow_forwarding, busy: forwardingBusy, onChange: (allow) => void changeForwarding(allow) } : undefined}
       />
 
-      <StatusBanner banner={banner} />
+      <StatusBanner banner={banner} retry={canSend && (banner.kind === "failed" || (banner.kind === "sealing" && banner.stuck)) ? <SealRetry path={`/api/sign/documents/${documentId}/retry-seal`} onDone={reload} /> : undefined} />
 
       {inEnvelope && data.envelope ? <EnvelopeBanner envelope={data.envelope} documentId={documentId} /> : null}
 

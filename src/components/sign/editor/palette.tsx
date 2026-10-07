@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { FIELD_ICONS, PALETTE_ORDER } from "./field-icons";
 import { NativeSelect } from "./form-bits";
 import { FIELD_DRAG_TYPE } from "./page-overlay";
+import { useRoleEmails } from "./role-emails";
 
 interface PaletteProps {
   tool: FieldType | null;
@@ -29,6 +30,7 @@ interface PaletteProps {
 
 /** The field types, as buttons: choose one, then click or drag on a page. A type can also be dragged onto a page. */
 export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disabled, full, quick }: PaletteProps) {
+  const emails = useRoleEmails();
   const t = useTranslations("Sign.editor");
   const active = roles.find((r) => r.key === activeRole) ?? roles[0] ?? null;
   const hint = full ? t("palette.full") : tool ? t("palette.armed", { type: t(`types.${tool}`) }) : disabled ? "" : t("palette.hint");
@@ -75,6 +77,7 @@ export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disable
               >
                 <PenLine className="size-3.5 shrink-0" aria-hidden />
                 <span className="truncate">{t("palette.addSignatureFor", { name: r.label })}</span>
+                {emails[r.key] ? <span data-chip-email className="truncate text-[11px] font-normal opacity-70">{emails[r.key]}</span> : null}
                 <span className="shrink-0 rounded-full bg-background/70 px-1.5 text-[11px] tabular-nums">{n === 0 ? t("palette.noBlockYet") : t("palette.blockCount", { count: n })}</span>
               </button>
             );

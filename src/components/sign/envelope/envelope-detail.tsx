@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredLink } from "../detail/signer-dialogs";
 import { detailErrorKey, type RecipientForm } from "../detail/logic";
+import { SealRetry } from "../detail/seal-retry";
 import { VoidDialog } from "../detail/void-dialog";
 import { PrivateBadge } from "../private-badge";
 import { DocumentStatusBadge } from "../send/status-badge";
@@ -58,6 +59,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const f = useFormatter();
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
+  const canSettings = useCapability("sign.settings");
   const now = useNow(60_000);
   const { envelope: env, documents, signers } = data;
   // the people who receive a copy are not signers: they are not in `signers`, so they are not in "x of y signed", the progress or the reminders
@@ -179,6 +181,15 @@ export function EnvelopeDetail({ data, reload }: Props) {
                         : t("detail.banner.sent")}
         </p>
         <p className="text-xs text-muted-foreground">{t("detail.progress", { done, total })}</p>
+        {data.stuck && data.stuck.length > 0 ? (
+          <div className="mt-2 grid gap-2 rounded-lg bg-muted/50 p-2 text-xs text-foreground">
+            <p>{td("sealRetry.collectionNote")}</p>
+            {canSettings ? data.stuck.filter((d) => d.error).map((d) => (
+              <p key={d.id} className="break-words text-muted-foreground">{td("sealRetry.reasonOn", { title: d.title, error: d.error ?? "" })}</p>
+            )) : null}
+            {canSend ? <SealRetry path={`/api/sign/envelopes/${env.id}/retry-seal`} onDone={reload} /> : null}
+          </div>
+        ) : null}
         {env.status === "voided" && env.void_reason ? <p className="mt-1 text-xs text-muted-foreground">{t("detail.banner.reason", { reason: env.void_reason })}</p> : null}
         {partly && stillOpen ? <p className="mt-2 rounded-lg bg-muted/50 p-2 text-xs text-foreground">{t("detail.partly")}</p> : null}
       </section>

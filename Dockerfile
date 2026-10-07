@@ -54,6 +54,11 @@ COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 # User Guide pages (Markdown) are read from disk at runtime by /help.
 COPY --from=builder --chown=nextjs:nextjs /app/content ./content
+# Doc Sign's PDF engine reads its fonts, and the add-on files, from disk when it sends, seals or checks a document. A route is only traced for what it
+# imports (next.config.ts lists these for /api/sign and /api/v1/sign), and a document is also sent by an automation, which runs inside other routes: so
+# the folders are copied whole, and no route can run without its fonts.
+COPY --from=builder --chown=nextjs:nextjs /app/src/lib/sign/pdf/assets ./src/lib/sign/pdf/assets
+COPY --from=builder --chown=nextjs:nextjs /app/src/lib/sign/addons ./src/lib/sign/addons
 
 USER nextjs
 EXPOSE 3000

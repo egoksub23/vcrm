@@ -7686,7 +7686,9 @@
         "completedOnForm": "已于 {date} 提交并记录",
         "completedForm": "已提交并记录",
         "completedNoteForm": "所有人均已提交。已封存的记录保存在此处。",
-        "declinedNoteForm": "其他人无法再填写此表格。如仍需要，请发送新的表格。"
+        "declinedNoteForm": "其他人无法再填写此表格。如仍需要，请发送新的表格。",
+        "sealingStuck": "上一次生成已签署副本未成功。系统每隔几分钟会重试一次。大家已签署的内容不会丢失。",
+        "sealingStuckTechnical": "上一次生成已签署副本未成功（{error}）。系统每隔几分钟会重试一次。大家已签署的内容不会丢失。"
       },
       "tabs": {
         "people": "人员（{count}）",
@@ -7902,7 +7904,8 @@
         "envelope_document_removed": "{sender}从文件集 {reference} 中移除了“{title}”",
         "envelope_reordered": "{sender}更改了文件集 {reference} 中文件的顺序",
         "copy_recipient_added": "{sender} 添加了 {name}（{email}）接收副本",
-        "copy_recipient_removed": "{sender} 将 {name} 从接收副本的人员中移除"
+        "copy_recipient_removed": "{sender} 将 {name} 从接收副本的人员中移除",
+        "seal_retried": "{sender} 要求重新生成已签署的文件"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -7933,7 +7936,8 @@
         "expiry_in_the_past": "新日期必须在将来。",
         "expiry_not_later": "新日期必须晚于当前日期。",
         "expiry_too_far": "该日期太遥远。请选择更近的日期。",
-        "bad_expiry": "无法识别该日期。请重新选择。"
+        "bad_expiry": "无法识别该日期。请重新选择。",
+        "seal_not_stuck": "这份文件已不再等待生成已签署的副本。页面已刷新。"
       },
       "contactTab": {
         "tab": "文件",
@@ -7992,6 +7996,12 @@
         "add": "添加",
         "added": "{name} 将接收副本。",
         "limit": "最多 {max} 人可以接收副本。"
+      },
+      "sealRetry": {
+        "button": "重试",
+        "started": "正在重试。已签署的副本准备好后会显示在此处。",
+        "collectionNote": "至少有一份已签署的副本未能生成。大家已签署的内容不会丢失。",
+        "reasonOn": "{title}：{error}"
       }
     },
     "editor": {
@@ -9429,7 +9439,8 @@
         "form_mode_needs_a_form": "此表格没有可填写的部分。请打开模板并添加一个。",
         "form_mode_signature": "无需签署的表格不能有签署位置。",
         "form_mode_placement": "无需签署的表格在页面上不放置任何内容。",
-        "form_mode_signer_role": "无需签署的表格不能有需要签署的角色。"
+        "form_mode_signer_role": "无需签署的表格不能有需要签署的角色。",
+        "role_shared": "角色“{role}”有多个人。每个签名只属于一个人，请只把该角色指定给一个人。"
       },
       "errors": {
         "generic": "出了点问题，请重试。",
@@ -9988,7 +9999,9 @@
         "sealing": {
           "title": "我们正在完成您的文件",
           "body": "所有人都已签署。我们正在生成签署副本。此页面会自动更新，您可以保持打开。",
-          "slow": "这比平时花的时间更长。您可以关闭此页面。签署副本一准备好，我们就会通过邮件发送给您。"
+          "slow": "这比平时花的时间更长。您可以关闭此页面。签署副本一准备好，我们就会通过邮件发送给您。",
+          "stuck": "这比预期花的时间更长。您的签名已保存，没有任何内容丢失。已签署的副本仍在生成中，一准备好我们就会通过邮件发送给您。您可以关闭此页面。",
+          "check": "再检查一次"
         },
         "completed": {
           "title": "文件已签署",
@@ -10022,7 +10035,8 @@
         "sealingForm": {
           "title": "我们正在记录您的提交",
           "body": "所有人均已提交。我们正在整理记录。此页面会自动更新，您可以保持打开。",
-          "slow": "耗时比平时长。您可以关闭此页面，记录准备好后我们会通过邮件发送给您。"
+          "slow": "耗时比平时长。您可以关闭此页面，记录准备好后我们会通过邮件发送给您。",
+          "stuck": "这比预期花的时间更长。您的提交已保存，没有任何内容丢失。记录仍在生成中，一准备好我们就会通过邮件发送给您。您可以关闭此页面。"
         },
         "completedForm": {
           "title": "您的提交已记录",
@@ -10140,7 +10154,13 @@
             "waiting": "我们正在等待其他人。所有人完成后,您会收到一封附有已签署文件的邮件。"
           },
           "download": "下载 {title}",
-          "downloadShort": "下载"
+          "downloadShort": "下载",
+          "sealing": {
+            "title": "我们正在完成您的文件",
+            "body": "所有人都已签署。我们正在生成已签署的副本。此页面会自动更新，您可以保持打开。",
+            "slow": "这比平时花的时间更长。您可以关闭此页面。已签署的副本一准备好，我们就会通过邮件发送给您。",
+            "stuck": "这比预期花的时间更长。您的签名已保存，没有任何内容丢失。已签署的副本仍在生成中，一准备好我们就会通过邮件发送给您。您可以关闭此页面。"
+          }
         }
       }
     },
@@ -11012,7 +11032,8 @@
         "blocks": "{count, plural, other {# 个签名块}}",
         "ready": "就绪",
         "leftCount": "{count, plural, other {（还剩 # 项）}}",
-        "allDone": "（一切就绪）"
+        "allDone": "（一切就绪）",
+        "noBlocks": "没有签名块，因此无需签署此文件"
       },
       "left": {
         "heading": "还剩什么",

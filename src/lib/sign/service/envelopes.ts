@@ -25,6 +25,7 @@ import { anchorOf, groupByParty, loadEnvelope, loadEnvelopeDocuments, loadEnvelo
 import { deliverEnvelopeInvitations, envelopeWorkspace, notifyEnvelopeCompleted, notifyEnvelopeEnded } from "./envelope-delivery";
 import { SignError, raiseDatabaseError } from "./errors";
 import { resolveLinks } from "./links";
+import { sealingIsStuck } from "./seal-retry";
 import { emitSignEvent } from "./outbound";
 import { assertMayChangePrivacy, assertMayEditDraft } from "./privacy";
 import { extendExpiry } from "./progress";
@@ -56,6 +57,8 @@ export interface EnvelopeData {
   headroom: EnvelopeHeadroom | null;
   /** The ticket and the deal the envelope's documents are attached to (the same on each). */
   links: { ticketId: string | null; dealId: string | null };
+  /** The documents whose signed copy could not be made (marked failed, or still being tried with an error): the sender can ask for another try. `error` is why. */
+  stuck?: { id: string; position: number; title: string; error: string | null }[];
 }
 
 export const lite = (d: SignDocumentRow): EnvelopeDocLite => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, roles: d.roles_snapshot ?? [], mode: isFormMode(d) ? "form" : "sign", fromTemplate: !!d.template_version_id });
@@ -78,7 +81,8 @@ export function envelopeProblems(env: SignEnvelopeRow, docs: readonly SignDocume
     // each document is held to what a document alone is held to, with the envelope's own options in place of its own
     const asDoc: SignDocumentRow = { ...d, sign_in_order: env.sign_in_order, code_required: env.code_required };
     const mine = keep.filter((s) => s.document_id === d.id);
-    const found = readinessProblems(asDoc, mine);
+    // (two people on one role is the shared list's `role_two_people`, said once for the person who has to fix it)
+    const found = readinessProblems(asDoc, mine).filter((i) => i.code !== "role_shared");
     if (mine.length === 0) {
       out.push({ code: "document_nobody", document: d.id });
       for (const i of found) if (i.code !== "no_signer" && i.code !== "no_person") out.push({ ...i, document: d.id });
@@ -109,7 +113,8 @@ export async function envelopeData(ctx: SignCtx, envelopeId: string): Promise<En
     const needed = docs.length;
     headroom = { limit: room.limit, used: room.used, remaining: room.remaining, needed, fits: room.remaining === null || needed <= room.remaining };
   }
-  return { envelope, documents: docs.map(summarizeDocument), signers, copies, problems: draft ? envelopeProblems(envelope, docs, signers, copies) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null } };
+  const stuck = docs.filter(sealingIsStuck).map((d) => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, error: d.seal_error?.trim() || null }));
+  return { envelope, documents: docs.map(summarizeDocument), signers, copies, problems: draft ? envelopeProblems(envelope, docs, signers, copies) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null }, stuck };
 }
 
 /** What a document's own screen says of the envelope it is in: the envelope and its siblings, no more. */

@@ -7,6 +7,7 @@
 // the page shows what remains and Finish can be pressed again. A link that is not an envelope's answers 400.
 // ============================================================
 import { json, publicLink, readJson } from "@/lib/sign/http";
+import { sealAfterResponse } from "@/lib/sign/service/seal-after";
 import { finishEnvelope } from "@/lib/sign/service/envelope-signing";
 import { SignError } from "@/lib/sign/service/errors";
 import { codeRequiredFor, type AnyAnswerInput } from "@/lib/sign/service/signing";
@@ -23,7 +24,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       const answers = body.answers === undefined ? {} : body.answers;
       if (typeof answers !== "object" || answers === null || Array.isArray(answers)) throw new SignError("bad_answers", "The answers are not valid.", 400);
       const locale = typeof body.locale === "string" && SIGN_LOCALES.includes(body.locale as never) ? body.locale : null;
-      return json(await finishEnvelope(ctx, lookup, answers as Record<string, Record<string, AnyAnswerInput>>, { ip, device, locale }));
+      const result = await finishEnvelope(ctx, lookup, answers as Record<string, Record<string, AnyAnswerInput>>, { ip, device, locale });
+      // a document of the collection has every signature now: make its signed copy right away, after this answer has gone
+      if (result.sealing) sealAfterResponse(ctx);
+      return json(result);
     },
     { rate: { limit: 20, windowMs: 60_000 } },
   );
