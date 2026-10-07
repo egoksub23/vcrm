@@ -110,8 +110,10 @@ Fix: `sealPdf` opens the file with room for the pages the engine adds (`SEAL_EXT
 
 ### Reported, not changed
 
-**F8 (medium, design) Sensitive answers: "Reveal" needs `sign.send`, the file does not.**
-A sensitive answer is stored encrypted, shown masked on the sender's screens, and revealed through a route that needs `sign.send`, is rate limited,
+**F8 (medium, design) Sensitive answers: "Reveal" needs its own permission, the file does not.**
+(Migration 176 gave the Reveal button and its route their own capability, `sign.reveal-sensitive`, Owner and Admin by default, instead of `sign.send`. Only
+the Reveal action moved: who may read the sealed PDF, the zip and the uploaded files is still the open question below.)
+A sensitive answer is stored encrypted, shown masked on the sender's screens, and revealed through a route that needs `sign.reveal-sensitive` (was `sign.send`), is rate limited,
 and writes `sensitive_viewed` before it answers. But the sealed PDF prints a sensitive answer in full unless the form says `printMasked`, and the
 sealed PDF is served at `menu.sign` (the document file route, the zip, and the API's `kind=signed` for any key with `sign:read`); the files a
 signer uploaded (ID cards) are served at `menu.sign` too. Anyone who can open the list can read every sensitive value by downloading the signed copy,
@@ -186,8 +188,8 @@ doc-sign-setup.md section 8d) or, if the app is reachable without the proxy, an 
 
 | Action | Capability |
 |---|---|
-| See the list, open a document, download the sealed copy, a signer's uploaded file, the zip, the CSV | `menu.sign` |
-| Reveal one sensitive answer | `sign.send` (rate limited, audited first) |
+| See the list, open a document, download the sealed copy, a signer's uploaded file, the zip, the CSV | `menu.sign` (a private document only for its uploader, admins and the Halo users named on it, migration 176) |
+| Reveal one sensitive answer | `sign.reveal-sensitive` (Owner and Admin by default; rate limited, audited first) |
 | Send, bulk send, test a template, replace a draft's file, change people, build an automation that sends | `sign.send` |
 | Open one's own turn from Halo | `sign.sign`, and the place must be addressed to the caller's own email (F3) |
 | Registration forms, option lists, add-ons, settings, certificates | `sign.settings` |

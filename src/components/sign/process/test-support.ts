@@ -22,6 +22,7 @@ export function fakeProcess(args: { kind?: "single" | "collection"; docs: Proces
   const process = {
     kind,
     canSend: true,
+    canChangePrivacy: true,
     people: args.people,
     options,
     step: args.step ?? "send",

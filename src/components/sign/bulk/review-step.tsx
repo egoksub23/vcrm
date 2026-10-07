@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { BulkPreview } from "@/lib/sign/bulk/types";
+import { copyLeftOut } from "@/lib/sign/client/bulk";
+import type { CopyPayload } from "@/lib/sign/client/copy-form";
 import { cn } from "@/lib/utils";
 import { ProblemList, useProblemWords } from "./problem-text";
 
@@ -18,13 +20,17 @@ interface Props {
   skipInvalid: boolean;
   onSkipInvalid: (v: boolean) => void;
   onRecheck: () => void;
+  /** The people who receive the signed copy of every document (what `buildRequest` sends), for the sender to see before sending. */
+  copyTo?: readonly CopyPayload[];
+  /** The addresses of the fixed people: they sign every document, so they are left out of its copies. */
+  fixedEmails?: readonly string[];
 }
 
 /** The most rows drawn at once; the rest are one click away. */
 const SHOWN = 200;
 
 /** Step 4: what would happen. The problems, the month's room, and every person. Nothing is sent from here. */
-export function ReviewStep({ preview, loading, errorKey, skipInvalid, onSkipInvalid, onRecheck }: Props) {
+export function ReviewStep({ preview, loading, errorKey, skipInvalid, onSkipInvalid, onRecheck, copyTo = [], fixedEmails = [] }: Props) {
   const t = useTranslations("Sign.bulk");
   const words = useProblemWords();
   const [onlyProblems, setOnlyProblems] = useState(false);
@@ -54,6 +60,8 @@ export function ReviewStep({ preview, loading, errorKey, skipInvalid, onSkipInva
   const blocked = file.problems.length > 0 || plan.problems.length > 0;
   const visible = (onlyProblems ? rows.filter((r) => r.problems.length > 0) : rows).slice(0, all ? undefined : SHOWN);
   const hidden = (onlyProblems ? counts.withProblems : rows.length) - visible.length;
+  // who of the copy list also signs a document, and so is left out of that document's copies
+  const leftOut = copyTo.length > 0 ? copyLeftOut(copyTo, rows.filter((r) => r.problems.length === 0).map((r) => r.email), fixedEmails) : [];
 
   return (
     <div className="space-y-4" aria-busy={loading}>
@@ -83,6 +91,28 @@ export function ReviewStep({ preview, loading, errorKey, skipInvalid, onSkipInva
           </div>
         </dl>
       </section>
+
+      {copyTo.length > 0 ? (
+        <section aria-labelledby="bulk-review-copies" data-bulk-review-copies className="space-y-2 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <h2 id="bulk-review-copies" className="text-sm font-semibold text-foreground">
+            {t("review.copiesHeading")}
+          </h2>
+          <p className="text-xs text-muted-foreground">{t("review.copiesBody", { count: counts.ok })}</p>
+          <ul className="divide-y divide-border text-sm">
+            {copyTo.map((c) => (
+              <li key={c.email.toLowerCase()} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
+                <span className="break-words font-medium text-foreground">{c.fullName}</span>
+                <span className="break-all text-xs text-muted-foreground">{c.email}</span>
+              </li>
+            ))}
+          </ul>
+          {leftOut.map((p) => (
+            <p key={p.email.toLowerCase()} className="text-xs text-muted-foreground">
+              {t("review.copiesLeftOut", { name: p.fullName, email: p.email, count: p.documents })}
+            </p>
+          ))}
+        </section>
+      ) : null}
 
       {file.problems.length > 0 ? (
         <div role="alert" className="space-y-1 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">

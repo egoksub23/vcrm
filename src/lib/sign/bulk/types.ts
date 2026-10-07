@@ -3,6 +3,7 @@
 // Pure types and constants, no I/O.
 // ============================================================
 
+import type { CopyInput } from "../copy-list";
 import type { SignChannel, SignLocale } from "../types";
 
 /** The most people one batch can hold. */
@@ -46,6 +47,11 @@ export interface BulkOptions {
   codeRequired: boolean | null;
   signInOrder: boolean | null;
   reminderDays: number[] | null;
+  /**
+   * Migration 176: people who receive the signed copy of EVERY document of the batch (at most 10). Kept in the batch's options, which a batch never
+   * changes after it is made. Absent (or empty): nobody.
+   */
+  copyTo?: CopyInput[];
 }
 
 /** What the list said for one person. Stored as the row's input and never changed. */

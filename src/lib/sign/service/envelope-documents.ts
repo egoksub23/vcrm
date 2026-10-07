@@ -11,6 +11,7 @@
 import { ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MIN_DOCUMENTS, defaultOrder, peopleFromRows, type OrderEntry } from "../envelopes";
 import type { SignDocumentRow, SignEnvelopeRow } from "../types";
 import { logEvent, type SignCtx } from "./context";
+import { assertMayEditDraft } from "./privacy";
 import { deleteDraft } from "./drafts";
 import { loadEnvelope, loadEnvelopeDocuments, loadEnvelopeSigners } from "./envelope-data";
 import { applyEnvelopeOptions, checkEntries, makeEntryDocuments, setEnvelopeSigners, type EnvelopeUpload } from "./envelopes";
@@ -28,6 +29,7 @@ export interface AddDocumentsArgs {
 async function draftEnvelope(ctx: SignCtx, envelopeId: string): Promise<SignEnvelopeRow> {
   const env = await loadEnvelope(ctx, envelopeId);
   if (env.status !== "draft") throw new SignError("envelope_not_draft", "This collection was already sent, so its documents cannot be changed.", 409);
+  await assertMayEditDraft(ctx, env);
   return env;
 }
 
@@ -107,7 +109,7 @@ export async function addEnvelopeDocuments(ctx: SignCtx, envelopeId: string, arg
   }
 
   const lead = existing[0];
-  const link = { contactId: env.contact_id, ticketId: lead?.ticket_id ?? null, dealId: lead?.deal_id ?? null };
+  const link = { contactId: env.contact_id, ticketId: lead?.ticket_id ?? null, dealId: lead?.deal_id ?? null, isPrivate: env.is_private === true };
   const made: SignDocumentRow[] = [];
   try {
     await makeEntryDocuments(ctx, envelopeId, existing.length, entries, uploads, link, made);

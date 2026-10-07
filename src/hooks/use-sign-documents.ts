@@ -41,6 +41,8 @@ export interface SignListRow {
   mode?: "sign" | "form";
   /** Migration 170: sent from a template to try it out (F-10). */
   test?: boolean;
+  /** Migration 176: private (only its uploader, admins and the Halo users named on it can see it): the list marks it with a lock. */
+  is_private?: boolean;
   category_id: string | null;
   contact_id: string | null;
   sign_in_order: boolean;
@@ -59,11 +61,11 @@ export interface SignListRow {
 export type StatusCounts = Record<StatusGroup, number>;
 
 const SELECT =
-  "id, reference, title, status, mode, test, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys)";
+  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys)";
 
 /** An envelope with its documents and their people (migration 171); the list shows it as one row. */
 const ENVELOPE_SELECT =
-  "id, reference, title, status, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_documents!sign_documents_envelope_fk(id, title, status, envelope_position, sign_signers(id, full_name, status, order_no, kind, part_keys, party_id))";
+  "id, reference, title, status, is_private, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_documents!sign_documents_envelope_fk(id, title, status, envelope_position, sign_signers(id, full_name, status, order_no, kind, part_keys, party_id))";
 
 /** The part of a PostgREST filter builder these queries use; every method returns the builder. */
 interface Filterable {

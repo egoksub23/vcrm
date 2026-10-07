@@ -11,23 +11,20 @@
 // name and the MASKED address, never the address itself.
 // ============================================================
 
+import { COPY_EMAIL_MAX, COPY_EMAIL_RE, COPY_NAME_MAX, copiesWithoutSigners, type CopyInput } from "../copy-list";
 import { MAX_COPY_RECIPIENTS } from "../envelopes";
 import { maskEmail } from "../forward";
 import type { SignCopyRecipientRow, SignDocumentRow, SignEnvelopeRow } from "../types";
 import { loadDocument, loadSigners, logEvent, type SignCtx } from "./context";
 import { loadEnvelope, loadEnvelopeDocuments, loadEnvelopeSigners } from "./envelope-data";
 import { SignError, raiseDatabaseError } from "./errors";
+import { assertMayEditDraft, callerOf } from "./privacy";
 
 /** The document or the collection a person receives a copy of. */
 export type CopyTarget = { documentId: string } | { envelopeId: string };
 const isEnvelope = (t: CopyTarget): t is { envelopeId: string } => "envelopeId" in t;
 
-export interface CopyInput {
-  fullName: string;
-  email: string;
-}
-
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+export type { CopyInput };
 
 /** Targets that can still be completed: a person is added or removed only while it is one of these. */
 const OPEN = new Set(["draft", "sent", "in_progress"]);
@@ -37,8 +34,8 @@ export function cleanCopyInput(input: CopyInput, index?: number): CopyInput {
   const where = index === undefined ? [] : [{ code: "signer_name", detail: String(index) }];
   const fullName = String(input.fullName ?? "").trim();
   const email = String(input.email ?? "").trim();
-  if (!fullName || fullName.length > 160) throw new SignError("copy_name", "Enter a full name for the person who receives a copy.", 400, where);
-  if (!EMAIL_RE.test(email) || email.length > 254) throw new SignError("copy_email", "Enter a valid email for the person who receives a copy.", 400, index === undefined ? [] : [{ code: "signer_email", detail: String(index) }]);
+  if (!fullName || fullName.length > COPY_NAME_MAX) throw new SignError("copy_name", "Enter a full name for the person who receives a copy.", 400, where);
+  if (!COPY_EMAIL_RE.test(email) || email.length > COPY_EMAIL_MAX) throw new SignError("copy_email", "Enter a valid email for the person who receives a copy.", 400, index === undefined ? [] : [{ code: "signer_email", detail: String(index) }]);
   return { fullName, email };
 }
 
@@ -55,12 +52,14 @@ export function parseCopyList(raw: unknown): CopyInput[] {
 async function resolve(ctx: SignCtx, target: CopyTarget): Promise<{ status: string; documents: SignDocumentRow[]; reference: string | null; signerEmails: Set<string>; envelope: SignEnvelopeRow | null }> {
   if (isEnvelope(target)) {
     const envelope = await loadEnvelope(ctx, target.envelopeId);
+    await assertMayEditDraft(ctx, envelope);
     const documents = await loadEnvelopeDocuments(ctx, target.envelopeId);
     const rows = await loadEnvelopeSigners(ctx, documents.map((d) => d.id));
     return { status: envelope.status, documents, reference: envelope.reference, signerEmails: new Set(rows.map((s) => s.email.trim().toLowerCase())), envelope };
   }
   const doc = await loadDocument(ctx, target.documentId);
   if (doc.envelope_id) throw new SignError("document_in_envelope", "This document is part of a document collection. People who receive a copy are added to the collection.", 409);
+  await assertMayEditDraft(ctx, doc);
   const signers = await loadSigners(ctx, doc.id);
   return { status: doc.status, documents: [doc], reference: doc.reference, signerEmails: new Set(signers.map((s) => s.email.trim().toLowerCase())), envelope: null };
 }
@@ -68,8 +67,18 @@ async function resolve(ctx: SignCtx, target: CopyTarget): Promise<{ status: stri
 const column = (target: CopyTarget): "document_id" | "envelope_id" => (isEnvelope(target) ? "envelope_id" : "document_id");
 const targetId = (target: CopyTarget): string => (isEnvelope(target) ? target.envelopeId : target.documentId);
 
-/** The people who receive a copy, in the order they were added. */
+/** The people who receive a copy, in the order they were added. A person or a key asks about a target they may see (a private document is "not found" to the rest). */
 export async function listCopyRecipients(ctx: SignCtx, target: CopyTarget): Promise<SignCopyRecipientRow[]> {
+  if (callerOf(ctx).kind !== "system") {
+    try {
+      if (isEnvelope(target)) await loadEnvelope(ctx, target.envelopeId);
+      else await loadDocument(ctx, target.documentId);
+    } catch (err) {
+      // a target that is not there, is another workspace's, or is private and not the caller's has no people to show (and the list does not say which of these it is)
+      if (err instanceof SignError && err.status === 404) return [];
+      throw err;
+    }
+  }
   const { data, error } = await ctx.admin.from("sign_copy_recipients").select("*").eq(column(target), targetId(target)).eq("account_id", ctx.accountId).order("created_at", { ascending: true }).order("id", { ascending: true });
   if (error) raiseDatabaseError(error, "load copy recipients");
   return (data ?? []) as SignCopyRecipientRow[];
@@ -164,4 +173,17 @@ export async function setCopyRecipients(ctx: SignCtx, target: CopyTarget, list: 
     await record(ctx, t.documents, t.reference, "copy_recipient_added", c);
   }
   return listCopyRecipients(ctx, target);
+}
+
+/**
+ * Put a ready-made list (the one a bulk send or a registration form carries, migration 176) on a document that was just made, through the same rules and the
+ * same rows as people added by hand: the people who already sign it are left out (they get the signed copy anyway, and the database refuses the same person
+ * as both), the rest are set exactly as listed (so a second run, after a retry, changes nothing). Call it after the signers are written and before sending.
+ * Nothing is done for an empty list.
+ */
+export async function applyCopyList(ctx: SignCtx, documentId: string, list: readonly CopyInput[] | null | undefined): Promise<SignCopyRecipientRow[]> {
+  if (!list || list.length === 0) return [];
+  const signers = await loadSigners(ctx, documentId);
+  const wanted = copiesWithoutSigners(list, signers.map((s) => s.email));
+  return setCopyRecipients(ctx, { documentId }, wanted);
 }

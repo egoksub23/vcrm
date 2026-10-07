@@ -25,6 +25,8 @@ export interface DraftOptions {
   signInOrder: boolean;
   /** Forwarding (F-95): the people on the document may hand their turn, or a part of the form, to someone else. */
   allowForwarding: boolean;
+  /** Migration 176: private to whoever uploaded it, the workspace's admins and the Halo users named on it. Chosen while a draft. Absent: not private. */
+  isPrivate?: boolean;
 }
 
 /** What `PATCH /api/sign/documents/:id` takes (a subset of DraftPatch). */
@@ -40,6 +42,7 @@ export interface OptionsPatch {
   signInOrder?: boolean;
   codeRequired?: boolean;
   allowForwarding?: boolean;
+  isPrivate?: boolean;
   reminderDays?: number[];
 }
 
@@ -85,6 +88,7 @@ export function optionsFromDocument(doc: SignDocumentRow): DraftOptions {
     codeRequired: doc.code_required,
     signInOrder: doc.sign_in_order,
     allowForwarding: !!doc.allow_forwarding,
+    isPrivate: doc.is_private === true,
   };
 }
 
@@ -136,6 +140,7 @@ export function optionsPatch(saved: DraftOptions, next: DraftOptions, now: Date)
   if (next.codeRequired !== saved.codeRequired) patch.codeRequired = next.codeRequired;
   if (next.signInOrder !== saved.signInOrder) patch.signInOrder = next.signInOrder;
   if (next.allowForwarding !== saved.allowForwarding) patch.allowForwarding = next.allowForwarding;
+  if ((next.isPrivate ?? false) !== (saved.isPrivate ?? false)) patch.isPrivate = next.isPrivate ?? false;
   return patch;
 }
 

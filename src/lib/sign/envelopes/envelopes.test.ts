@@ -169,6 +169,18 @@ describe("the certificate block", () => {
     expect(other.heading).toContain("document 1 of 3");
   });
 
+  // migration 176: a new collection's reference starts COL-; the ones made before it keep ENV-. Nothing reads the prefix: both are shown as stored.
+  it("shows a reference as stored, whichever prefix it has (COL- for a new collection, ENV- for one made before migration 176)", () => {
+    for (const reference of ["COL-2026-000007", "ENV-2026-000007", "COL-2027-000123"]) {
+      for (const locale of ["en", "ms", "zh", "ko"] as const) {
+        const b = envelopeCertificateBlock(locale, { id: "e1", reference }, sibs, "d2")!;
+        expect(b.heading, `${reference} ${locale}`).toContain(reference);
+      }
+    }
+    expect(envelopeCertificateBlock("en", { id: "e1", reference: "COL-2026-000007" }, sibs, "d2")!.heading).toBe("Part of document collection COL-2026-000007 (document 2 of 3)");
+    expect(envelopeCertificateBlock("en", { id: "e1", reference: "COL-2026-000007" }, sibs, "d2")!.heading.toLowerCase()).not.toContain("envelope");
+  });
+
   it("is in the reader's language, and absent when there is nothing to list", () => {
     for (const locale of ["ms", "zh", "ko"] as const) {
       const b = envelopeCertificateBlock(locale, { id: "e1", reference: "ENV-1" }, sibs, "d1")!;

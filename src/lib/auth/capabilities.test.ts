@@ -149,6 +149,7 @@ describe("catalogue", () => {
         "jira.link",
         "jira.share-comments",
         // Doc Sign: act through server routes; a sent document is written by the service role
+        "sign.reveal-sensitive",
         "sign.sign",
         "sign.void",
       ].sort(),

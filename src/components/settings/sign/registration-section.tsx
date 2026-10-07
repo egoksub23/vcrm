@@ -261,6 +261,12 @@ export function FormCard({
           <dt className="text-muted-foreground">{t("last30")}</dt>
           <dd>{t("last30Value", { accepted: counts.accepted, failed: counts.failed, blocked: counts.rejected_spam + counts.rejected_cap })}</dd>
         </div>
+        {form.send_document && (form.copy_recipients?.length ?? 0) > 0 ? (
+          <div className="flex gap-2 sm:col-span-2" data-form-copies>
+            <dt className="text-muted-foreground">{t("copiesLabel")}</dt>
+            <dd>{t("copiesValue", { count: form.copy_recipients.length })}</dd>
+          </div>
+        ) : null}
       </dl>
 
       {issues.length > 0 ? (

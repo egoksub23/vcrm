@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { BULK_MAX_BYTES } from "../bulk/types";
-import { EMPTY_FORM, buildRequest, checkFile, fixedSignersOf, isFinalJob, nextPollMs, personComplete, pickDefaultRole, progressPercent, rowMatches, sampleCsv, setupProblems, stepDone, type WizardForm } from "./bulk";
+import { COPY_TO_DETAIL, EMPTY_FORM, buildRequest, bulkErrorDetail, bulkErrorKey, checkFile, copyLeftOut, fixedSignersOf, isFinalJob, nextPollMs, personComplete, pickDefaultRole, planProblemKey, progressPercent, rowMatches, sampleCsv, setupProblems, stepDone, type WizardForm } from "./bulk";
+import { copiesFromList, emptyCopy } from "./copy-form";
 import { allState, toggleId, toggleMany } from "./selection";
 
 const roles = [
@@ -180,5 +181,71 @@ describe("the ticked documents", () => {
     expect(allState(["a"], ["a", "b"])).toBe("some");
     expect(allState(["a", "b", "z"], ["a", "b"])).toBe("all");
     expect(allState(["a"], [])).toBe("none");
+  });
+});
+
+describe("people who receive the signed copy of every document", () => {
+  const people = [
+    { fullName: " Mei Lin ", email: " mei@kedai.example " },
+    { fullName: "Raj", email: "raj@kedai.example" },
+  ];
+
+  it("send nothing extra when nobody is on the list, so a batch without copies is exactly what it always was", () => {
+    expect(buildRequest(form(), roles)!.options).not.toHaveProperty("copyTo");
+    expect(buildRequest(form({ copyTo: [emptyCopy()] }), roles)!.options).not.toHaveProperty("copyTo");
+  });
+
+  it("are sent as options.copyTo, trimmed, each address once, in the one request body the preview and the start both use", () => {
+    const f = form({ copyTo: [...copiesFromList(people), emptyCopy(), emptyCopy({ fullName: "Mei again", email: "MEI@kedai.example" })] });
+    const body = buildRequest(f, roles)!;
+    expect(body.options.copyTo).toEqual([
+      { fullName: "Mei Lin", email: "mei@kedai.example" },
+      { fullName: "Raj", email: "raj@kedai.example" },
+    ]);
+    // the preview and the start build the request from the same form with the same function
+    expect(buildRequest(f, roles)).toEqual(body);
+    // and nothing else about the request changed
+    expect(Object.keys(body.options).filter((k) => k !== "copyTo")).toEqual(Object.keys(buildRequest(form(), roles)!.options));
+  });
+
+  it("hold the setup step while a person is started but not complete, and not for a blank row", () => {
+    expect(setupProblems(form({ copyTo: copiesFromList(people) }), roles)).toEqual([]);
+    expect(setupProblems(form({ copyTo: [emptyCopy()] }), roles)).toEqual([]);
+    expect(setupProblems(form({ copyTo: [emptyCopy({ fullName: "Mei" })] }), roles)).toEqual(["copyTo"]);
+    expect(setupProblems(form({ copyTo: [emptyCopy({ email: "mei@kedai.example" })] }), roles)).toEqual(["copyTo"]);
+    expect(stepDone("setup", form({ copyTo: [emptyCopy({ fullName: "Mei", email: "nope" })] }), roles)).toBe(false);
+    expect(stepDone("setup", form({ copyTo: copiesFromList(people) }), roles)).toBe(true);
+  });
+
+  it("are worded on their own when the server refuses the list, and as before for every other refusal", () => {
+    expect(bulkErrorKey("bad_options", COPY_TO_DETAIL)).toBe("errors.bad_options_copy");
+    expect(bulkErrorKey("bad_options", "title")).toBe("errors.bad_options");
+    expect(bulkErrorKey("bad_options")).toBe("errors.bad_options");
+    expect(bulkErrorKey("rate_limited", COPY_TO_DETAIL)).toBe("errors.rate_limited");
+    expect(bulkErrorKey("nope", null)).toBe("errors.generic");
+    expect(planProblemKey("bad_options", COPY_TO_DETAIL)).toBe("plan.bad_options_copy");
+    expect(planProblemKey("bad_options", "fixed_signers")).toBe("plan.bad_options");
+    expect(planProblemKey("bad_options")).toBe("plan.bad_options");
+    expect(planProblemKey("nope")).toBe("plan.template_not_ready");
+  });
+
+  it("find the copy list among the details of a refusal, else the first detail", () => {
+    expect(bulkErrorDetail([{ detail: "title" }, { detail: "copyTo" }])).toBe("copyTo");
+    expect(bulkErrorDetail([{}, { detail: "7" }, { detail: "8" }])).toBe("7");
+    expect(bulkErrorDetail([])).toBeUndefined();
+  });
+
+  it("say who of them also signs, and on how many documents, so the review can name it", () => {
+    const list = [
+      { fullName: "Mei", email: "mei@kedai.example" },
+      { fullName: "Raj", email: "raj@kedai.example" },
+    ];
+    expect(copyLeftOut(list, ["a@x.example", "b@x.example"])).toEqual([]);
+    // Mei signs two of the documents, Raj none
+    expect(copyLeftOut(list, ["MEI@kedai.example", "a@x.example", " mei@kedai.example"])).toEqual([{ fullName: "Mei", email: "mei@kedai.example", documents: 2 }]);
+    // a fixed person signs every document
+    expect(copyLeftOut(list, ["a@x.example", "b@x.example", "c@x.example"], ["raj@kedai.example"])).toEqual([{ fullName: "Raj", email: "raj@kedai.example", documents: 3 }]);
+    expect(copyLeftOut([], ["a@x.example"], ["raj@kedai.example"])).toEqual([]);
+    expect(copyLeftOut(list, [], [])).toEqual([]);
   });
 });

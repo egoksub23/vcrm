@@ -230,6 +230,7 @@ function rowFrom(input: FormInput): Record<string, unknown> {
   if (input.templateId !== undefined) row.template_id = input.templateId;
   if (input.applicantRoleKey !== undefined) row.applicant_role_key = input.applicantRoleKey;
   if (input.signersOther !== undefined) row.signers_other = input.signersOther;
+  if (input.copyRecipients !== undefined) row.copy_recipients = input.copyRecipients;
   if (input.contactTagId !== undefined) row.contact_tag_id = input.contactTagId;
   if (input.fields !== undefined) row.fields = input.fields;
   if (input.consentText !== undefined) row.consent_text = input.consentText;
@@ -265,6 +266,7 @@ export async function createForm(ctx: SignCtx, body: unknown): Promise<Registrat
     send_document: true,
     active: false,
     signers_other: [] as OtherSigner[],
+    copy_recipients: [],
     ...rowFrom(input),
     account_id: ctx.accountId,
     created_by: ctx.userId,

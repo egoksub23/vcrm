@@ -45,13 +45,18 @@ const STATUS = {
   unknown: "Unknown",
 };
 
+// the words of the lock on a private document (migration 176)
+function privateWords(locale: string): Record<string, unknown> | undefined {
+  return (JSON.parse(readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8")) as { Sign?: { private?: Record<string, unknown> } }).Sign?.private;
+}
+
 function page(locale: string, node: React.ReactNode) {
   const detail = wording(locale);
   return renderToStaticMarkup(
     <NextIntlClientProvider
       locale={locale}
       timeZone="UTC"
-      messages={{ Sign: { detail, send: { status: STATUS } } }}
+      messages={{ Sign: { detail, send: { status: STATUS }, private: privateWords(locale) } }}
       onError={(e) => {
         throw e;
       }}
@@ -138,7 +143,7 @@ const signer = (over: Partial<SignSignerRow>): SignSignerRow =>
   }) as SignSignerRow;
 
 describe.skipIf(LOCALES.length === 0)("the detail screen renders in every language", () => {
-  const caps = { send: true, void: true, settings: true };
+  const caps = { send: true, void: true, reveal: true, settings: true };
 
   for (const locale of LOCALES) {
     it(`banner, header, people, files and history (${locale})`, () => {
@@ -194,6 +199,16 @@ describe.skipIf(LOCALES.length === 0)("the detail screen renders in every langua
       }
       expect(page(locale, <HistoryView events={null} chain={null} loading failed={false} signers={signers} signInOrder={false} technical={false} />)).toContain('role="status"');
       expect(page(locale, <HistoryView events={[]} chain={null} loading={false} failed={false} signers={signers} signInOrder={false} technical={false} />)).toContain("<h2");
+    });
+
+    it(`marks a private document in the header with the lock, and an ordinary one without (${locale})`, () => {
+      const header = (d: SignDocumentRow) =>
+        page(locale, <DetailHeader document={d} links={{ category: null, contact: null, ticket: null, deal: null }} actions={documentActions(d, caps)} downloading={null} onView={() => {}} onDownload={() => {}} onVoid={() => {}} />);
+      const secret = header(doc({ is_private: true }));
+      expect(secret).toContain("data-private-badge");
+      expect(secret).toContain("lucide-lock");
+      expect(header(doc({ is_private: false }))).not.toContain("data-private-badge");
+      expect(header(doc())).not.toContain("data-private-badge");
     });
 
     it(`contact tab shows its loading state (${locale})`, () => {

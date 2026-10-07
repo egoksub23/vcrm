@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,8 +9,15 @@ import { NextIntlClientProvider } from "next-intl";
 // (a new form and a saved one), a form's card, and none of it a raw message key. Effects do not run under
 // renderToStaticMarkup and the dialog's own frame is a portal, so the editor is drawn inside the dialog's root on its own.
 
+// the contact search of the name box reads contacts through the browser client
+vi.mock("@/lib/supabase/client", () => {
+  const stub: unknown = new Proxy(function () {}, { get: () => stub, apply: () => stub });
+  return { createClient: () => stub };
+});
+vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ accountId: "a1" }) }));
+
 import { Dialog } from "@/components/ui/dialog";
-import type { FormOptions } from "@/lib/sign/client/registration-admin";
+import { copyIssueKey, type FormOptions } from "@/lib/sign/client/registration-admin";
 import { readAdminMessages, REGISTER_LOCALES, type RegisterLocale, type Tree } from "@/lib/sign/client/register-test-messages";
 import type { RegistrationFormRow } from "@/lib/sign/registration/types";
 
@@ -54,6 +63,10 @@ const saved: RegistrationFormRow = {
   template_id: "tpl",
   applicant_role_key: "merchant",
   signers_other: [{ role_key: "director", name: "Siti Director", email: "siti@vircle.example", channel: "email", phone: null }],
+  copy_recipients: [
+    { fullName: "Mei Lin", email: "mei@vircle.example" },
+    { fullName: "Raj Kumar", email: "raj@vircle.example" },
+  ],
   contact_tag_id: "tag",
   fields: { full_name: "required", email: "required", phone: "off", company: "optional" },
   consent_text: { ms: "Kata-kata sendiri." },
@@ -65,8 +78,11 @@ const saved: RegistrationFormRow = {
   updated_at: "2026-10-01T00:00:00Z",
 };
 
+/** The words the list of people who receive a copy shares with the bulk wizard (Sign.copyList), and the contact search's (Sign.send, in English). */
+const signTree = (locale: RegisterLocale) => (JSON.parse(readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8")) as { Sign: Record<string, unknown> }).Sign;
+
 const wrap = (locale: RegisterLocale, node: React.ReactNode) => (
-  <NextIntlClientProvider locale={locale} messages={{ Sign: { admin: messages![locale] } }} timeZone="UTC">
+  <NextIntlClientProvider locale={locale} messages={{ Sign: { admin: messages![locale], copyList: signTree(locale).copyList, send: signTree("en").send } }} timeZone="UTC">
     {node}
   </NextIntlClientProvider>
 );
@@ -105,7 +121,7 @@ const card = (item: Partial<ListItem> = {}, canEdit = true, locale: RegisterLoca
 const switchTag = (html: string, label: string): string => html.match(new RegExp(`<[a-z]+[^>]*role="switch"[^>]*aria-label="${label}"[^>]*>|<[a-z]+[^>]*aria-label="${label}"[^>]*role="switch"[^>]*>`))?.[0] ?? "";
 
 /** A message key left untranslated reads like "Sign.admin.registration.name". */
-const looksLikeKey = (html: string) => /Sign\.admin|registration\.[a-zA-Z_]+\b|\b(?:reasons|issues|problems|status|ask|detail)\.[A-Za-z_]+/.test(html);
+const looksLikeKey = (html: string) => /Sign\.admin|Sign\.copyList|registration\.[a-zA-Z_]+\b|\b(?:reasons|issues|problems|status|ask|detail)\.[A-Za-z_]+/.test(html);
 
 run("the registration form editor", () => {
   it("starts a new form on the first template with sensible choices", () => {
@@ -233,5 +249,100 @@ run("a registration form's card", () => {
 run("the screens' own words carry no stray key", () => {
   it("has the registration tab", () => {
     for (const l of REGISTER_LOCALES) expect(((messages![l] as Tree).tabs as Tree).registration, l).toBeTypeOf("string");
+  });
+});
+
+const copyWords = (l: RegisterLocale) => (messages![l].registration as Tree).copies as Tree;
+const listWords = (l: RegisterLocale) => signTree(l).copyList as Record<string, string>;
+
+run("the people who receive a copy, in a registration form's editor", () => {
+  it("shows the saved people in their boxes, with the title and what the list does", () => {
+    const html = editor(saved);
+    expect(html).toContain("data-copy-list");
+    expect(html).toContain("People who receive a copy");
+    expect(html).toContain("This list is never shown on the public page.");
+    expect((html.match(/data-copy-row/g) ?? []).length).toBe(2);
+    expect(html).toContain('value="Mei Lin"');
+    expect(html).toContain('value="raj@vircle.example"');
+    expect(html).toContain('id="reg-copy-title"');
+    expect(html).toContain("Add a person");
+    // nothing is wrong with them
+    expect(html).not.toContain("data-copy-notice");
+  });
+
+  it("is empty for a new form and for a form saved before the list existed", () => {
+    for (const form of [null, { ...saved, copy_recipients: [] }, { ...saved, copy_recipients: undefined as never }]) {
+      const html = editor(form);
+      expect(html).toContain("data-copy-list");
+      expect(html).not.toContain("data-copy-row");
+    }
+  });
+
+  it("is not offered for a form that sends no document, or when there is no template to send", () => {
+    expect(editor({ ...saved, send_document: false, template_id: null, applicant_role_key: null, signers_other: [] })).not.toContain("data-copy-list");
+    expect(editor(null, { templates: [] })).not.toContain("data-copy-list");
+  });
+
+  it("names a person who is also the director who countersigns as left out", () => {
+    const html = editor({ ...saved, copy_recipients: [{ fullName: "Siti", email: "SITI@vircle.example" }] });
+    expect(html).toContain("data-copy-notice");
+    expect(html).toContain("This person signs, so they already get the signed copy.");
+  });
+
+  it("has a sentence for every refusal the server can give and for the field's own problem, in every language", () => {
+    for (const l of REGISTER_LOCALES) {
+      const c = copyWords(l);
+      expect(c.help, `${l} help`).toBeTypeOf("string");
+      for (const code of ["copy_name", "copy_email", "copy_duplicate", "too_many_copies", "bad_copy_list"]) {
+        expect((c.issues as Tree)[code], `${l} ${code}`).toBeTypeOf("string");
+        expect(copyIssueKey(code)).toBe(`copies.issues.${code}`);
+      }
+      expect((c.issues as Tree).generic, `${l} generic`).toBeTypeOf("string");
+      expect((((messages![l].registration as Tree).problems as Tree).copies as Tree).incomplete, `${l} incomplete`).toBeTypeOf("string");
+      expect((messages![l].registration as Tree).copiesLabel, `${l} label`).toBeTypeOf("string");
+      expect((messages![l].registration as Tree).copiesValue, `${l} value`).toBeTypeOf("string");
+      // the person's number is in the sentences that are about one person
+      for (const code of ["copy_name", "copy_email", "copy_duplicate"]) expect((c.issues as Record<string, string>)[code], `${l} ${code}`).toContain("{number}");
+    }
+  });
+
+  it("reads in every language with no raw key and no unfilled placeholder", () => {
+    for (const l of REGISTER_LOCALES) {
+      const html = editor(saved, {}, l);
+      expect(looksLikeKey(html), l).toBe(false);
+      expect(html, l).not.toMatch(/\{(role|name|address|number|count|max)\}/);
+      expect(html, l).toContain(listWords(l).title);
+      expect(html, l).toContain('value="Mei Lin"');
+      expect(html, l).toContain(listWords(l).count.replace("{count}", "2").replace("{max}", "10"));
+    }
+    expect(errors).toEqual([]);
+  });
+});
+
+run("a registration form's card and the people who receive a copy", () => {
+  it("says how many people get a copy of each document it sends", () => {
+    const html = card();
+    expect(html).toContain("data-form-copies");
+    expect(html).toContain("Signed copy to");
+    expect(html).toContain("2 people");
+    expect(card({ form: { ...saved, copy_recipients: [{ fullName: "Mei Lin", email: "mei@vircle.example" }] } })).toContain("1 person");
+  });
+
+  it("says nothing for none, or for a form that sends no document, and never lists a name or an address", () => {
+    expect(card({ form: { ...saved, copy_recipients: [] } })).not.toContain("data-form-copies");
+    expect(card({ form: { ...saved, copy_recipients: undefined as never } })).not.toContain("data-form-copies");
+    expect(card({ form: { ...saved, send_document: false, template_id: null } })).not.toContain("data-form-copies");
+    const html = card();
+    for (const secret of ["Mei Lin", "Raj Kumar", "mei@vircle.example", "raj@vircle.example"]) expect(html).not.toContain(secret);
+  });
+
+  it("reads in every language", () => {
+    for (const l of REGISTER_LOCALES) {
+      const html = card({}, true, l);
+      expect(html, l).toContain("data-form-copies");
+      expect(looksLikeKey(html), l).toBe(false);
+      expect(html, l).toContain(((messages![l].registration as Tree).copiesLabel as string));
+    }
+    expect(errors).toEqual([]);
   });
 });

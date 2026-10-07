@@ -10,7 +10,7 @@ An **envelope** groups 2 to 6 ordinary documents for the SAME people. It is a th
 
 - Every document stays a normal `sign_documents` row: its own PDF, fields, form, answers, seal, certificate, audit chain and
   retention date. Nothing about a single document changes for anyone who never makes an envelope.
-- `sign_envelopes` holds what is shared: title, reference (`ENV-2026-000012`), contact, message, expiry, code, signing order,
+- `sign_envelopes` holds what is shared: title, reference (`COL-2026-000012`; `ENV-2026-000012` before migration 176), contact, message, expiry, code, signing order,
   language, reminders, sent and completed times, and a status that the database derives from its documents.
 - `sign_documents.envelope_id` and `envelope_position` (1 to 6) are set when the draft is made and never change (a trigger holds it).
 - `sign_signers.party_id` ties together the rows that are one PERSON across the documents. The person's row on their first

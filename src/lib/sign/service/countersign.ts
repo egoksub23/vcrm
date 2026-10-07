@@ -24,6 +24,7 @@ import { turnState, type TurnState } from "../turn";
 import type { Invitation, SignDocumentRow, SignSignerRow } from "../types";
 import { loadDocument, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { documentListScope } from "./privacy";
 
 /** The verification method recorded when a Halo user opens their own turn: their Halo sign-in stands in for the code. */
 export const HALO_LOGIN_METHOD = "halo_login";
@@ -238,10 +239,12 @@ type AttentionDoc = Pick<SignDocumentRow, "id" | "title" | "reference" | "status
 export async function listNeedsAttention(ctx: SignCtx): Promise<AttentionItem[]> {
   const cutoff = new Date(ctx.now().getTime() - ATTENTION_DAYS * DAY_MS).toISOString();
   const columns = "id, title, reference, status, updated_at";
+  // a private document is listed only for the people who may see it (migration 176, service/privacy.ts)
+  const scope = await documentListScope(ctx);
   const [recent, failed, open] = await Promise.all([
-    ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).in("status", ["declined", "expired"]).gte("updated_at", cutoff).limit(SHORTCUT_LIMIT * 2),
-    ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).eq("status", "failed").limit(SHORTCUT_LIMIT),
-    ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).in("status", ["sent", "in_progress"]).order("updated_at", { ascending: false }).limit(500),
+    scope.apply(ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).in("status", ["declined", "expired"]).gte("updated_at", cutoff)).limit(SHORTCUT_LIMIT * 2),
+    scope.apply(ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).eq("status", "failed")).limit(SHORTCUT_LIMIT),
+    scope.apply(ctx.admin.from("sign_documents").select(columns).eq("account_id", ctx.accountId).neq("test", true).in("status", ["sent", "in_progress"])).order("updated_at", { ascending: false }).limit(500),
   ]);
   for (const r of [recent, failed, open]) if (r.error) raiseDatabaseError(r.error, "load the documents that need attention");
   const stopped = [...((recent.data ?? []) as AttentionDoc[]), ...((failed.data ?? []) as AttentionDoc[])];

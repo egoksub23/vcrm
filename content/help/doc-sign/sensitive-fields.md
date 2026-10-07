@@ -38,7 +38,9 @@ The certificate pages at the end never show an answer.
 
 ## Who can reveal an answer
 
-Everyone who can see Doc Sign sees the masked answer. **Reveal** needs the permission to send documents. Each reveal counts against a limit of 20 a minute per person.
+Everyone who can see Doc Sign sees the masked answer. **Reveal** needs its own permission, **Reveal sensitive answers**. Owners and admins have it by default. Sending documents does not give it, so a person can send and follow documents without being able to read the numbers people typed in. An admin can give the permission to a role that needs it, for example a compliance or operations role, in **Settings**; see [Roles and permissions](/help/getting-started/roles-and-permissions). A person without it sees the masked answer and no **Reveal** button. Each reveal counts against a limit of 20 a minute per person.
+
+This permission is only about **Reveal**. It does not change what the signed PDF prints (see above), and a private document is also hidden from people who may not see it. See [Private documents](/help/doc-sign/private-documents).
 
 ## Documents already sent
 
@@ -49,6 +51,7 @@ Only answers saved from now on are encrypted. A document that was already sent k
 - **Expecting the PDF to hide the number.** It prints in full unless you choose the last 4 characters or none.
 - **Marking a choice or a yes or no as sensitive.** Only typed answers can be. Use a typed question if the answer is private.
 - **Expecting to export the numbers.** They are not in any export or in the API. Press **Reveal** one document at a time.
+- **No Reveal button.** You need the **Reveal sensitive answers** permission. Ask an admin.
 - **Using a sensitive answer to fill the contact.** It is not allowed. Keep the contact's own fields as separate, ordinary questions.
 - **Losing the encryption key.** The administrator who runs the server must keep it safe. Without it the answers cannot be read, by anyone.
 

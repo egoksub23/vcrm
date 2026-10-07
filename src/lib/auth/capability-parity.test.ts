@@ -467,6 +467,8 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "sign.templates",
   "sign.settings",
   "sign.sign",
+  // Migration 176: Reveal on a sensitive answer, split off sign.send. Brand new, server route only: no earlier floor to compare against.
+  "sign.reveal-sensitive",
 ]);
 
 // ============================================================

@@ -134,7 +134,7 @@ export interface CertificateEvent {
  * document's language.
  */
 export interface CertificateEnvelope {
-  /** "Part of envelope ENV-2026-000012 (document 2 of 3)". */
+  /** "Part of document collection COL-2026-000012 (document 2 of 3)" (a collection made before migration 176 has an ENV- reference; both are shown as stored). */
   heading: string;
   note: string;
   referenceLabel: string;

@@ -2,10 +2,11 @@
 
 import { useTranslations } from "next-intl";
 
+import { CopyListEditor } from "@/components/sign/copy-list-editor";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { SignCategory } from "@/hooks/use-sign-categories";
-import { emptyPerson, personComplete, personStarted, type FixedPerson, type WizardForm } from "@/lib/sign/client/bulk";
+import { emptyPerson, fixedSignersOf, personComplete, personStarted, type FixedPerson, type WizardForm } from "@/lib/sign/client/bulk";
 import type { BulkRoleInfo } from "@/lib/sign/bulk/types";
 import { SIGN_LOCALES, type SignChannel } from "@/lib/sign/types";
 
@@ -179,6 +180,17 @@ export function SetupStep({ form, roles, categories, problems, showInvalid, onCh
             {tri("bulk-order", form.signInOrder, (v) => onChange({ signInOrder: v }), { default: t("setup.useDefault"), yes: t("setup.yes"), no: t("setup.no") })}
           </Field>
         </div>
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5" data-bulk-copies>
+        <CopyListEditor
+          idPrefix="bulk-copy"
+          rows={form.copyTo}
+          onChange={(copyTo) => onChange({ copyTo })}
+          showInvalid={bad("copyTo")}
+          signerEmails={fixedSignersOf(form, roles).map((f) => f.email)}
+          help={t("copies.help")}
+        />
       </section>
     </div>
   );

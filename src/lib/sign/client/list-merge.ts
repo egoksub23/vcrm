@@ -36,6 +36,8 @@ export interface EnvelopeListRaw {
   reference: string | null;
   title: string;
   status: DocumentStatus;
+  /** Migration 176. */
+  is_private?: boolean;
   contact_id: string | null;
   sign_in_order: boolean;
   sent_at: string | null;
@@ -90,6 +92,7 @@ export function envelopeToRow(e: EnvelopeListRaw): {
   reference: string | null;
   title: string;
   status: DocumentStatus;
+  is_private: boolean;
   category_id: null;
   contact_id: string | null;
   sign_in_order: boolean;
@@ -107,6 +110,7 @@ export function envelopeToRow(e: EnvelopeListRaw): {
     reference: e.reference,
     title: e.title,
     status: e.status,
+    is_private: e.is_private === true,
     category_id: null,
     contact_id: e.contact_id,
     sign_in_order: e.sign_in_order,

@@ -67,6 +67,17 @@ To change a person's name or email, remove them and add them again.
 - A system that sends documents through the API can pass `copy_to`, a list of up to 10 people with a `full_name` and an `email`. See [API and integrations](/help/doc-sign/api-and-integrations).
 - In an automation, the step **Send document for signing** can add recipients who **Receive a copy**. See [Automate signing](/help/doc-sign/automate-signing).
 
+## One list for every document a bulk send or a registration form makes
+
+A [bulk send](/help/doc-sign/bulk-send-and-export) and a [registration form](/help/doc-sign/registration-form) make many documents from one setup, so each can carry a **list of people who receive a copy**. The list goes on **every document** it makes, so you set it once.
+
+- **Bulk send.** On the **Setup** step, under **People who receive a copy**, click **Add a person** and type a name and an email address. The **Check and send** step shows the list again, so you see who gets a copy of each document before you send.
+- **Registration form.** In **Settings > Doc Sign > Registration forms**, open the form and add the people under **People who receive a copy**. This list is never shown on the public page. The person who registers cannot see it.
+
+These people are not signers. Each gets **one email with the signed PDF** when a document is completed, exactly as described above. The same rules apply: up to **10** people, and each address once. If someone already signs a document (for example the person on your bulk list, or a fixed director), they are left out of **that document's** copies, because they get the signed copy as a signer. A person who is only on the copy list is not left out of anything.
+
+A person you started to add but did not finish (a name without an email, or the other way round) stops the bulk send's Setup step or the form's save until you complete or remove them. A blank row is simply ignored.
+
 ## Common mistakes
 
 - **Adding someone who must sign as a person who receives a copy.** They would have no link and could not sign. Set them to **Must sign**. A person who signs already gets the copy.

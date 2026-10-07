@@ -37,6 +37,7 @@ import {
 } from "../bulk/types";
 import type { SignTemplateVersionRow } from "../types";
 import { loadDocument, loadSettings, type SignCtx } from "./context";
+import { applyCopyList } from "./copy-recipients";
 import { createDraftFromTemplate, deleteDraft, setSigners, updateDraft, type DraftPatch } from "./drafts";
 import { SignError, raiseDatabaseError } from "./errors";
 import { sendDocument } from "./send";
@@ -560,6 +561,8 @@ export async function runBulk(base: Base, opts: { limit?: number; perAccount?: n
     if (o.reminderDays !== null) patch.reminderDays = o.reminderDays;
     await updateDraft(ctx, documentId, patch);
     await setSigners(ctx, documentId, buildSigners({ name: row.input.name, email: row.input.email, phone: row.input.phone }, o, draft.roles_snapshot));
+    // the people who receive the signed copy of every document of the batch (migration 176): the same list on each, set before sending
+    await applyCopyList(ctx, documentId, o.copyTo);
     await sendDocument(ctx, documentId);
     return documentId;
   };

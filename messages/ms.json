@@ -6191,6 +6191,10 @@
       "sign_sign": {
         "label": "Tandatangan balas dalam Halo",
         "description": "Tandatangan dokumen sebagai penandatangan ruang kerja sendiri tanpa meninggalkan Halo. Lalai: Pemilik dan Pentadbir."
+      },
+      "sign_reveal_sensitive": {
+        "label": "Tunjukkan jawapan sensitif",
+        "description": "Gunakan Tunjukkan pada jawapan sensitif (nombor kad pengenalan, akaun bank) untuk membacanya sepenuhnya. Setiap pendedahan direkodkan dalam sejarah dokumen. Tanpa kebenaran ini jawapan kekal ditutup. Berasingan daripada menghantar dokumen. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -7595,9 +7599,25 @@
           },
           "dailyCap": {
             "invalid": "Masukkan nombor bulat dari 1 hingga 5000."
+          },
+          "copies": {
+            "incomplete": "Beri setiap orang yang menerima salinan nama dan e-mel yang sah, atau buang mereka."
           }
         },
-        "templateIsForm": "borang"
+        "templateIsForm": "borang",
+        "copies": {
+          "help": "Pilihan. Setiap seorang menerima satu e-mel dengan PDF yang telah ditandatangani bagi setiap dokumen yang dihantar oleh borang ini, apabila dokumen itu selesai. Mereka tidak menandatangani dan tidak pernah menerima pautan menandatangani. Senarai ini tidak pernah dipaparkan pada halaman awam. Sesiapa yang menandatangani sesuatu dokumen ditinggalkan daripada salinan dokumen itu.",
+          "issues": {
+            "copy_name": "Orang ke-{number} yang menerima salinan memerlukan nama penuh sehingga 160 aksara.",
+            "copy_email": "Orang ke-{number} yang menerima salinan memerlukan alamat e-mel yang sah.",
+            "copy_duplicate": "Orang ke-{number} yang menerima salinan mempunyai alamat yang sudah ada dalam senarai. Senaraikan setiap alamat sekali sahaja.",
+            "too_many_copies": "Terlalu ramai orang menerima salinan. Hadkan kepada 10 orang atau kurang.",
+            "bad_copy_list": "Senarai orang yang menerima salinan tidak dapat dibaca. Muat semula halaman dan cuba lagi.",
+            "generic": "Senarai orang yang menerima salinan tidak sah."
+          }
+        },
+        "copiesLabel": "Salinan yang ditandatangani kepada",
+        "copiesValue": "{count} orang"
       }
     },
     "detail": {
@@ -9000,7 +9020,8 @@
           "signed_out": "Anda telah log keluar. Log masuk semula untuk meneruskan.",
           "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
           "generic": "Itu tidak berjaya. Cuba lagi."
-        }
+        },
+        "needsPermission": "Disulitkan. Hanya orang yang diberi kebenaran Tunjukkan jawapan sensitif boleh memaparkannya."
       }
     },
     "send": {
@@ -9504,7 +9525,11 @@
         "copy_limit": "Sehingga 10 orang boleh menerima salinan.",
         "copy_not_open": "Orang boleh menerima salinan sehingga dokumen selesai. Dokumen ini tidak terbuka lagi.",
         "copy_fixed": "Orang yang menerima salinan dibuang dan ditambah semula, tidak pernah diubah.",
-        "copy_recipient_not_found": "Orang itu tidak ditemui. Mungkin mereka sudah dibuang."
+        "copy_recipient_not_found": "Orang itu tidak ditemui. Mungkin mereka sudah dibuang.",
+        "private_not_allowed": "Hanya orang yang memuat naik ini, atau admin, boleh mengubahnya.",
+        "private_fixed": "Sama ada ini peribadi tidak boleh diubah selepas ia dihantar.",
+        "private_cannot_join": "Dokumen peribadi tidak boleh ditambah ke koleksi yang tidak peribadi.",
+        "bad_private": "Pilih sama ada ini peribadi."
       },
       "records": {
         "ticketLabel": "Pautkan ke tiket",
@@ -10515,7 +10540,10 @@
         "rowOk": "Sedia",
         "noRows": "Tiada sesiapa untuk dipaparkan.",
         "showAll": "Papar {count} lagi",
-        "start": "Hantar {count} dokumen"
+        "start": "Hantar {count} dokumen",
+        "copiesHeading": "Turut menerima salinan yang telah ditandatangani",
+        "copiesBody": "Setiap seorang menerima satu e-mel dengan PDF yang telah ditandatangani bagi setiap satu daripada {count} dokumen, apabila dokumen itu selesai.",
+        "copiesLeftOut": "{name} ({email}) turut menandatangani {count} daripada dokumen ini. Bagi dokumen tersebut, dia menerima salinan yang telah ditandatangani sebagai penandatangan, bukan sebagai salinan."
       },
       "job": {
         "title": "Hantar pukal: {template}",
@@ -10613,7 +10641,8 @@
         "role_without_person": "Peranan {detail} mempunyai medan untuk diisi tetapi tiada sesiapa dinamakan. Tambah orang tetap untuknya.",
         "signer_without_signature": "Peranan {detail} menandatangani, tetapi templat tiada medan tandatangan atau inisial untuknya.",
         "merge_needs_file": "Templat mengisi nilai yang tiada pada kenalan ({detail}). Gunakan fail CSV dengan satu lajur untuk setiap nilai.",
-        "bad_options": "Sebahagian pilihan pada langkah tetapan tidak sah. Kembali ke langkah tetapan dan semaknya."
+        "bad_options": "Sebahagian pilihan pada langkah tetapan tidak sah. Kembali ke langkah tetapan dan semaknya.",
+        "bad_options_copy": "Senarai orang yang menerima salinan tidak sah. Pada langkah tetapan, beri setiap orang nama dan e-mel yang sah, senaraikan setiap alamat sekali sahaja, dan hadkan kepada 10 orang."
       },
       "errors": {
         "generic": "Sesuatu telah tidak kena. Sila cuba lagi.",
@@ -10638,7 +10667,8 @@
         "signed_out": "Anda telah dilog keluar. Log masuk semula untuk meneruskan.",
         "forbidden": "Anda tiada kebenaran untuk melakukan ini.",
         "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
-        "body_too_large": "Permintaan itu terlalu besar. Gunakan fail yang lebih kecil."
+        "body_too_large": "Permintaan itu terlalu besar. Gunakan fail yang lebih kecil.",
+        "bad_options_copy": "Senarai orang yang menerima salinan tidak sah. Pada langkah tetapan, beri setiap orang nama dan e-mel yang sah, senaraikan setiap alamat sekali sahaja, dan hadkan kepada 10 orang."
       },
       "reason": {
         "sign_limit_reached": "Had dokumen bulanan telah dicapai.",
@@ -10661,6 +10691,9 @@
         "unexpected": "Sesuatu tidak kena semasa menghantar dokumen ini.",
         "unknown": "Yang ini tidak dihantar.",
         "withMessage": "Tidak dihantar: {message}"
+      },
+      "copies": {
+        "help": "Pilihan. Setiap seorang menerima satu e-mel dengan PDF yang telah ditandatangani bagi setiap dokumen yang dibuat oleh penghantaran pukal ini, apabila dokumen itu selesai. Mereka tidak menandatangani dan tidak pernah menerima pautan menandatangani. Sesiapa yang menandatangani sesuatu dokumen ditinggalkan daripada salinan dokumen itu."
       }
     },
     "lists": {
@@ -11096,6 +11129,30 @@
         "contactLinked": "Dipautkan kepada",
         "contactAutoHint": "Dipautkan kepada kenalan orang pertama yang mesti menandatangani yang dipilih daripada kenalan anda. Buangkannya atau pilih kenalan lain jika itu salah.",
         "contactHint": "Pilih kenalan untuk dipautkan, atau biarkan kosong. Memilih seseorang daripada kenalan anda dalam Orang akan memautkannya untuk anda."
+      }
+    },
+    "copyList": {
+      "title": "Orang yang menerima salinan",
+      "fullName": "Nama penuh",
+      "email": "E-mel",
+      "add": "Tambah seorang",
+      "remove": "Buang orang ke-{number}",
+      "count": "{count} daripada {max}",
+      "limit": "Sehingga {max} orang boleh menerima salinan.",
+      "nameRequired": "Masukkan nama penuh.",
+      "emailInvalid": "Masukkan alamat e-mel yang sah.",
+      "duplicate": "Alamat ini sudah disenaraikan di atas, jadi entri ini ditinggalkan.",
+      "signer": "Orang ini menandatangani, jadi dia sudah mendapat salinan yang telah ditandatangani. Entri ini ditinggalkan."
+    },
+    "private": {
+      "badge": "Peribadi",
+      "badgeTitle": "Peribadi: hanya orang yang memuat naik dokumen ini, admin ruang kerja dan orang yang dinamakan sebagai penandatangan boleh melihatnya.",
+      "toggle": {
+        "labelSingle": "Dokumen peribadi",
+        "labelCollection": "Koleksi dokumen peribadi",
+        "hintSingle": "Hanya anda, admin ruang kerja dan pengguna Halo yang anda namakan sebagai penandatangan boleh melihat dokumen ini, siapa yang telah menandatanganinya dan apa yang mereka jawab. Orang lain yang menggunakan Doc Sign tidak akan menemuinya dalam senarai, carian, kiraan atau eksport.",
+        "hintCollection": "Hanya anda, admin ruang kerja dan pengguna Halo yang anda namakan sebagai penandatangan boleh melihat koleksi ini dan setiap dokumen di dalamnya, siapa yang telah menandatangani dan apa yang mereka jawab. Orang lain yang menggunakan Doc Sign tidak akan menemuinya dalam senarai, carian, kiraan atau eksport.",
+        "notYours": "Hanya orang yang memuat naik ini, atau admin, boleh menukarnya."
       }
     }
   }

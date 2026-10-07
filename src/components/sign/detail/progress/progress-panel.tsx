@@ -158,7 +158,7 @@ export function ProgressPanel({ document: doc, signers, events, caps, progress, 
         })}
       </ul>
 
-      <AnswersView documentId={doc.id} groups={groups} canReveal={caps.send} />
+      <AnswersView documentId={doc.id} groups={groups} canReveal={caps.reveal} />
 
       <SignerActionDialogs actions={actions} partsFor={partsFor} />
       {extending && <ExtendExpiryDialog documentId={doc.id} currentExpiry={doc.expires_at} now={nowDate} onClose={() => setExtending(false)} onExtended={onChanged} />}

@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { rowsFor, syncDocumentRoles } from "../envelopes";
 import type { SignSignerRow } from "../types";
 import { loadDocument, type SignCtx } from "./context";
+import { assertMayEditDraft } from "./privacy";
 import { setSigners, updateDraft, type SignerInput } from "./drafts";
 import { SignError } from "./errors";
 import { lite, planSigners, type EnvelopePersonInput } from "./envelopes";
@@ -26,6 +27,7 @@ import { lite, planSigners, type EnvelopePersonInput } from "./envelopes";
 export async function setDocumentPeople(ctx: SignCtx, documentId: string, people: readonly EnvelopePersonInput[], opts: { ordered?: boolean } = {}): Promise<SignSignerRow[]> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
+  await assertMayEditDraft(ctx, doc);
   if (doc.envelope_id) throw new SignError("document_in_envelope", "This document is part of a document collection. Change the people on the collection.", 409);
   const ordered = opts.ordered ?? doc.sign_in_order;
   const fromTemplate = !!doc.template_version_id;

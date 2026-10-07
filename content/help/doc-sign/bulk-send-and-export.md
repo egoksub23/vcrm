@@ -31,6 +31,17 @@ This page covers three things you do with many documents at once: **sending** on
 
 For each person: a name, an email address that is valid and appears only once in the file, every value the template needs, and a phone number when you use WhatsApp. For the whole batch: that the template can be sent with these people, and that the month's limit has room. If it does not, nothing is sent at all. You are told how many documents you can still send this month.
 
+### People who receive a copy of every document
+
+On the **Setup** step you can also add **people who receive a copy**: for example your own finance team, who should have the signed PDF of every document in the batch. Click **Add a person** under **People who receive a copy**, and type a name and an email address (or choose a contact for the name). You can add up to **10** people, and each address can be listed once.
+
+- They are **not signers**. They never get a signing link and are not counted in the progress.
+- Each of them gets **one email with the signed PDF** of each document, when that document is completed.
+- Anyone who signs a document is **left out of that document's copies**. If one of your fixed people, or a person on your list, is also on the copy list, they get the signed copy as a signer instead. The **Check and send** step names them.
+- The **Check and send** step lists the people who will receive a copy, so you can look once more before you send.
+
+A person you started to add but did not finish stops you moving on from the Setup step until you complete or remove them. For more on what a copy email holds and what these people never get, see [Receive a copy of the signed document](/help/doc-sign/copies).
+
 ### What happens next
 
 The documents are made and sent by the server in the background, roughly 15 to 25 documents a minute, so a batch of 500 takes about half an hour. You can close the page. Open **Bulk send** again to see **Recent bulk sends**, or come back to the batch page, which updates by itself while it runs.
@@ -79,5 +90,6 @@ Each document put in a zip is recorded in its history as downloaded, the same as
 
 - [Send a document for signature](/help/doc-sign/send-a-document)
 - [Templates](/help/doc-sign/templates)
+- [Receive a copy of the signed document](/help/doc-sign/copies)
 - [Signing order](/help/doc-sign/signing-order)
 - [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel)

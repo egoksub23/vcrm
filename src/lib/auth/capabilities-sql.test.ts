@@ -27,6 +27,7 @@ const migrationFiles = [
   "111_sembang_manage_capability.sql",
   "116_incident_reporting.sql",
   "157_sign_foundation.sql",
+  "176_sign_private_reveal_copy_prefix.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

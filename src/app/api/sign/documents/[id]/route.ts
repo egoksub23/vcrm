@@ -3,7 +3,7 @@
 //
 //   GET     (menu.sign)  the document, its signers and files, the people who receive a copy, and what stops a draft being sent
 //   PATCH   (sign.send)  change a draft: title, category, contact, ticket and deal (attach or detach, F-51), message, language, expiry, signing order,
-//                        code, reminders, values to fill in, fields and roles
+//                        code, reminders, values to fill in, fields and roles, and whether it is private (migration 176: only its uploader or an admin)
 //   DELETE  (sign.send)  delete a draft and its files; or, with sign.settings as well, a signed document whose retention
 //                        date has passed (409 document_retained, with the date, before that). A document that was sent
 //                        is voided, never deleted.

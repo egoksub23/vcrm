@@ -64,6 +64,7 @@ const form = (over: Partial<RegistrationFormRow> = {}): RegistrationFormRow => (
   template_id: TPL,
   applicant_role_key: "merchant",
   signers_other: [{ role_key: "director", name: "Siti Director", email: "siti@vircle.example", channel: "email", phone: null }],
+  copy_recipients: [],
   contact_tag_id: TAG,
   fields: { full_name: "required", email: "required", phone: "optional", company: "required" },
   consent_text: {},
@@ -747,5 +748,85 @@ describe("when the document cannot be sent", () => {
     expect(entries()[0]).toMatchObject({ status: "failed", reason: "send_failed" });
     // the draft that could not be sent is gone
     expect(db.rows("sign_documents")).toHaveLength(0);
+  });
+});
+
+// migration 176: a form carries a list of people who receive the signed copy of every document it makes
+describe("people who receive a copy of what the form sends", () => {
+  const COPIES = [
+    { fullName: "Rahman Accounts", email: "rahman@vircle.example" },
+    { fullName: "Mei Ling", email: "meiling@vircle.example" },
+  ];
+  const copyRows = () => db.rows("sign_copy_recipients");
+
+  it("puts the form's list on the document each submission makes, as the same rows a person adding them would make", async () => {
+    await setup({ copy_recipients: COPIES });
+    expect(await submit()).toEqual({ kind: "ok" });
+    const docs = db.rows("sign_documents");
+    expect(docs).toHaveLength(1);
+    expect(copyRows().map((c) => ({ document_id: c.document_id, envelope_id: c.envelope_id ?? null, full_name: c.full_name, email: c.email, account_id: c.account_id }))).toEqual(
+      COPIES.map((c) => ({ document_id: docs[0].id, envelope_id: null, full_name: c.fullName, email: c.email, account_id: ACCT })),
+    );
+    // not signers: nothing was added to the signing list for them, and no message went to them yet (the signed copy is sent on completion)
+    expect(db.rows("sign_signers").map((x) => x.email)).toEqual(["ali@kedai.example", "siti@vircle.example"]);
+    expect(copyRows().every((c) => !c.notified_at)).toBe(true);
+    expect(mail.map((m) => m.to)).not.toContain("rahman@vircle.example");
+    // each person's addition is on the document's history, by name and with the address masked
+    const added = db.rpcCalls.filter((c) => c.name === "sign_log" && c.args.p_type === "copy_recipient_added");
+    expect(added).toHaveLength(2);
+    expect(JSON.stringify(added.map((a) => a.args.p_detail))).not.toContain("rahman@vircle.example");
+  });
+
+  it("never makes the document private (migration 176): what a public page starts is the workspace's own work", async () => {
+    await setup({ copy_recipients: COPIES });
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(db.rows("sign_documents").every((d) => d.is_private !== true)).toBe(true);
+  });
+
+  it("gives every document its own rows, so each completes with its own copies", async () => {
+    await setup({ copy_recipients: COPIES });
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(await submit({ email: "bala@kedai.example", fullName: "Bala", token: token() }, SLUG, "203.0.113.10")).toEqual({ kind: "ok" });
+    const docs = db.rows("sign_documents").map((d) => d.id);
+    expect(docs).toHaveLength(2);
+    expect(copyRows()).toHaveLength(4);
+    for (const id of docs) expect(copyRows().filter((c) => c.document_id === id).map((c) => c.email)).toEqual(COPIES.map((c) => c.email));
+  });
+
+  it("leaves out anyone who signs that document: the applicant themselves and the people fixed on the form", async () => {
+    await setup({ copy_recipients: [{ fullName: "Ali again", email: "ALI@kedai.example" }, { fullName: "Siti Director", email: "siti@vircle.example" }, ...COPIES] });
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(copyRows().map((c) => c.email)).toEqual(COPIES.map((c) => c.email));
+    expect(entries()[0]).toMatchObject({ status: "accepted", reason: null });
+  });
+
+  it("changes nothing for a form with no list", async () => {
+    await setup();
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(copyRows()).toHaveLength(0);
+    expect(db.rpcCalls.filter((c) => c.name === "sign_log" && String(c.args.p_type).startsWith("copy_recipient"))).toHaveLength(0);
+  });
+
+  it("makes no document and no copy rows for a form that sends none", async () => {
+    await setup({ send_document: false, copy_recipients: COPIES });
+    expect(await submit()).toEqual({ kind: "ok" });
+    expect(db.rows("sign_documents")).toHaveLength(0);
+    expect(copyRows()).toHaveLength(0);
+  });
+
+  it("does not leave a half-made document when the list cannot be written: the registration fails loudly and the draft is gone", async () => {
+    await setup({ copy_recipients: COPIES });
+    db.failNext.sign_copy_recipients = "insert failed";
+    expect(await submit()).toEqual({ kind: "failed", saved: true });
+    expect(entries()[0]).toMatchObject({ status: "failed", reason: "send_failed" });
+    expect(db.rows("sign_documents")).toHaveLength(0);
+    expect(copyRows()).toHaveLength(0);
+  });
+
+  it("never shows the list on the page the public sees", async () => {
+    await setup({ copy_recipients: COPIES });
+    const found = (await loadPublicForm(db.client(), SLUG))!;
+    const text = JSON.stringify(buildRegisterView(found, "tok", null));
+    for (const secret of ["rahman@vircle.example", "meiling@vircle.example", "Rahman Accounts", "copy_recipients", "copyRecipients"]) expect(text, secret).not.toContain(secret);
   });
 });

@@ -14,6 +14,7 @@ import {
   previousStep,
   problemTarget,
   processProblems,
+  processRights,
   processStatus,
   reachableSteps,
   roleKeyOn,
@@ -367,5 +368,33 @@ describe("the summary", () => {
     expect(s.people.map((p) => [p.name, p.type, p.blocks])).toEqual([["Ali", "signer", 3], ["Bala", "signer", 1], ["Cara", "copy", 0]]);
     expect(s.counts).toEqual({ signers: 2, copies: 1 });
     expect(s.left.every((i) => i.done)).toBe(true);
+  });
+});
+
+// migration 176: who edits a draft, and who changes whether it is private
+describe("who may edit a draft", () => {
+  const rights = (over: Partial<Parameters<typeof processRights>[0]>) => processRights({ mayHold: true, isAdmin: false, isUploader: false, isPrivate: false, ...over });
+
+  it("is whoever may send, for a draft that is not private; only the uploader or an admin may make it private", () => {
+    expect(rights({})).toEqual({ canSend: true, canChangePrivacy: false });
+    expect(rights({ isUploader: true })).toEqual({ canSend: true, canChangePrivacy: true });
+    expect(rights({ isAdmin: true })).toEqual({ canSend: true, canChangePrivacy: true });
+  });
+
+  it("is the uploader and the admins alone for a private draft: anyone else (a Halo user named on it) reads it", () => {
+    expect(rights({ isPrivate: true })).toEqual({ canSend: false, canChangePrivacy: false });
+    expect(rights({ isPrivate: true, isUploader: true })).toEqual({ canSend: true, canChangePrivacy: true });
+    expect(rights({ isPrivate: true, isAdmin: true })).toEqual({ canSend: true, canChangePrivacy: true });
+  });
+
+  it("is nobody's without the permission to send, even the uploader of a private draft", () => {
+    for (const isPrivate of [false, true]) expect(rights({ mayHold: false, isUploader: true, isAdmin: true, isPrivate })).toEqual({ canSend: false, canChangePrivacy: false });
+  });
+
+  it("reads the uploader from the process source (a document's or a collection's created_by)", () => {
+    const doc = { id: "d1", account_id: "a", title: "T", status: "draft", created_by: "u1", is_private: true, fields_snapshot: [], roles_snapshot: [], base_path: "p", page_count: 1, reference: "SGN-1", mode: "sign" } as unknown as SignDocumentRow;
+    const source = sourceFromDraft({ document: doc, signers: [], problems: [] });
+    expect(source.createdBy).toBe("u1");
+    expect(source.options.isPrivate).toBe(true);
   });
 });

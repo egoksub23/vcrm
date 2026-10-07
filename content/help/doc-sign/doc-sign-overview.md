@@ -21,6 +21,7 @@ What you can do depends on your role. By default:
 | See documents and templates | Permission to see Doc Sign |
 | Send a document, remind, resend, change a recipient | Permission to send |
 | Cancel a document | Permission to void |
+| Show a sensitive answer in full (an ID number, a bank account) | Permission to reveal sensitive answers |
 | Create and edit templates | Permission to manage templates |
 | Change Doc Sign settings, categories and add-ons | Permission to manage Doc Sign settings |
 
@@ -66,5 +67,6 @@ A document that was sent cannot be edited. If you need a change, cancel it and s
 ## Related pages
 
 - [Send a document for signature](/help/doc-sign/send-a-document)
+- [Private documents](/help/doc-sign/private-documents)
 - [Templates](/help/doc-sign/templates)
 - [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf)

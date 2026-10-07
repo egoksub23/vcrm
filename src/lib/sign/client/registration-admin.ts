@@ -11,6 +11,7 @@
 
 import { ASK_LEVELS, DEFAULT_ASKED, DEFAULT_DAILY_CAP, MAX_DAILY_CAP, REGISTRATION_REASONS, type AskLevel, type OtherSigner, type RegistrationFormRow } from "@/lib/sign/registration/types";
 import { slugBase } from "@/lib/sign/registration/slug-base";
+import { copiesFromList, copyListReady, copyPayload, type CopyPayload, type CopyRow } from "@/lib/sign/client/copy-form";
 import { SIGN_LOCALES, type SignLocale } from "@/lib/sign/types";
 
 export interface TemplateOption {
@@ -53,6 +54,8 @@ export interface FormDraft {
   applicantRoleKey: string;
   /** By role key. */
   others: Record<string, OtherDraft>;
+  /** People who receive the signed copy of every document the form sends (migration 176). Never shown on the public page. */
+  copies: CopyRow[];
   contactTagId: string;
   /** The email is always required, so it is not here. */
   fullName: AskLevel;
@@ -74,6 +77,7 @@ export function newDraft(): FormDraft {
     templateId: "",
     applicantRoleKey: "",
     others: {},
+    copies: [],
     contactTagId: "",
     fullName: DEFAULT_ASKED.full_name,
     company: DEFAULT_ASKED.company,
@@ -95,6 +99,7 @@ export function draftFrom(form: RegistrationFormRow): FormDraft {
     templateId: form.template_id ?? "",
     applicantRoleKey: form.applicant_role_key ?? "",
     others,
+    copies: copiesFromList(form.copy_recipients ?? []),
     contactTagId: form.contact_tag_id ?? "",
     fullName: form.fields.full_name,
     company: form.fields.company,
@@ -108,7 +113,7 @@ export function draftFrom(form: RegistrationFormRow): FormDraft {
 
 // ---- the request ---------------------------------------------------------------------------------------
 
-export type DraftField = "name" | "template" | "applicantRole" | "others" | "dailyCap";
+export type DraftField = "name" | "template" | "applicantRole" | "others" | "copies" | "dailyCap";
 export type DraftProblem = "required" | "too_long" | "incomplete" | "invalid";
 
 export interface Payload {
@@ -118,6 +123,8 @@ export interface Payload {
   templateId: string | null;
   applicantRoleKey: string | null;
   signersOther: OtherSigner[];
+  /** Always sent, so taking everyone off the list clears it. */
+  copyRecipients: CopyPayload[];
   contactTagId: string | null;
   fields: { full_name: AskLevel; email: "required"; phone: AskLevel; company: AskLevel };
   consentText: Partial<Record<SignLocale, string>>;
@@ -172,6 +179,8 @@ export function toPayload(draft: FormDraft, options: Pick<FormOptions, "template
     }
   }
   if (!draft.sendDocument) signersOther = [];
+  // the list goes on every document the form sends, so a form that sends none keeps none; a person started but not complete is never dropped in silence
+  if (draft.sendDocument && !copyListReady(draft.copies)) problems.copies = "incomplete";
   if (Object.keys(problems).length > 0) return { ok: false, problems };
   return {
     ok: true,
@@ -182,6 +191,7 @@ export function toPayload(draft: FormDraft, options: Pick<FormOptions, "template
       templateId,
       applicantRoleKey,
       signersOther,
+      copyRecipients: draft.sendDocument ? copyPayload(draft.copies) : [],
       contactTagId: draft.contactTagId || null,
       fields: { full_name: draft.fullName, email: "required", phone: draft.phone, company: draft.company },
       consentText: words(draft.consentText),
@@ -235,3 +245,23 @@ const KNOWN_ISSUES: ReadonlySet<string> = new Set([
 
 /** The message key (under `Sign.admin.registration`) for an issue that stops a form working. */
 export const issueKey = (code: string): string => (KNOWN_ISSUES.has(code) ? `issues.${code}` : "issues.generic");
+
+// ---- the people who receive a copy: why the server refused the list -------------------------------------
+
+const KNOWN_COPY_ISSUES: ReadonlySet<string> = new Set(["copy_name", "copy_email", "copy_duplicate", "too_many_copies", "bad_copy_list"]);
+
+/** The message key (under `Sign.admin.registration`) for a refused copy list's issue; a code never seen reads as the general sentence. */
+export const copyIssueKey = (code: string): string => (KNOWN_COPY_ISSUES.has(code) ? `copies.issues.${code}` : "copies.issues.generic");
+
+/**
+ * The sentences to show for a refused form's copy issues (`field` "copyRecipients"; `detail` is the 0-based person), each as a message key and
+ * the person's 1-based number as the reader counts them. Issues of other fields are not about the list and are left out.
+ */
+export function copyIssueWords(issues: readonly { code: string; field?: string; detail?: string }[]): { key: string; number: string }[] {
+  return issues
+    .filter((i) => i.field === "copyRecipients")
+    .map((i) => {
+      const index = i.detail !== undefined && /^\d+$/.test(i.detail) ? Number(i.detail) + 1 : null;
+      return { key: copyIssueKey(i.code), number: index === null ? "" : String(index) };
+    });
+}

@@ -5,7 +5,8 @@
 // is a template or a file of the sender's own (a PDF, Word file or image, converted as for any document), in any mix and in the order given.
 //
 //   JSON       `templateIds` (the active templates, in the order the documents will be signed), or `order`; optional `title`, `contactId`,
-//              `ticketId`, `dealId`
+//              `ticketId`, `dealId`, `isPrivate` (migration 176: the collection, and so each document of it, is seen only by whoever uploads it, the
+//              workspace's admins and the Halo users named on it)
 //   multipart  the same fields as text, with any number of `file` parts (up to six, 60 MB in all) and `order`: a JSON list that interleaves
 //              { kind: "file", index } (the n-th `file` part) and { kind: "template", id }, each with an optional `title`. Without `order`, the
 //              files come first in the order they were sent, then `templateIds` (so one `file` with `templateIds` works as it always did).
@@ -16,6 +17,7 @@
 import { json, optionalId, staff } from "@/lib/sign/http";
 import { createEnvelopeDraft } from "@/lib/sign/service/envelopes";
 import { readCollectionRequest } from "@/lib/sign/service/envelope-request";
+import { parsePrivate } from "@/lib/sign/service/privacy";
 
 export async function POST(request: Request) {
   return staff(
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
         contactId: optionalId(body.data.contactId),
         ticketId: optionalId(body.data.ticketId),
         dealId: optionalId(body.data.dealId),
+        isPrivate: parsePrivate(body.data.isPrivate),
       });
       return json(
         {

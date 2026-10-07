@@ -5,11 +5,14 @@ import { MAX_SIGNERS } from "../rules";
 import {
   addCopy,
   canAddCopy,
+  copiesFromList,
   copiesFromRecords,
   copyFlags,
   copyHasInput,
   copyIsComplete,
   copyKey,
+  copyListFaults,
+  copyListReady,
   copyNotices,
   copyPayload,
   copyToSigner,
@@ -203,5 +206,58 @@ describe("changing a person's type", () => {
     const rows = [signer("Ali", "ali@example.com")];
     expect(signerToCopy(rows, [], "ghost").rows).toHaveLength(1);
     expect(copyToSigner(rows, [], roles, "ghost").rows).toHaveLength(1);
+  });
+});
+
+describe("a ready-made list (a bulk send, a registration form)", () => {
+  it("starts from a saved list, in order, with keys of their own", () => {
+    const rows = copiesFromList([
+      { fullName: "Mei", email: "mei@example.com" },
+      { fullName: "Raj", email: "raj@example.com" },
+    ]);
+    expect(rows.map((c) => [c.fullName, c.email])).toEqual([
+      ["Mei", "mei@example.com"],
+      ["Raj", "raj@example.com"],
+    ]);
+    expect(new Set(rows.map((c) => c.key)).size).toBe(2);
+    expect(copiesFromList()).toEqual([]);
+    // and goes back as the same list
+    expect(copyPayload(rows)).toEqual([
+      { fullName: "Mei", email: "mei@example.com" },
+      { fullName: "Raj", email: "raj@example.com" },
+    ]);
+  });
+
+  it("is ready when every person who was started is complete; a blank row is not a fault", () => {
+    expect(copyListReady([])).toBe(true);
+    expect(copyListReady([emptyCopy(), emptyCopy({ fullName: "Mei", email: "mei@example.com" })])).toBe(true);
+    expect(copyListFaults([emptyCopy()])).toEqual([]);
+  });
+
+  it("names which person, and which part, stops it", () => {
+    const rows = [
+      emptyCopy({ fullName: "Mei", email: "mei@example.com" }),
+      emptyCopy({ fullName: "Raj" }),
+      emptyCopy({ email: "dev@example.com" }),
+      emptyCopy({ fullName: "Sam", email: "sam@" }),
+      emptyCopy({ fullName: "x".repeat(161), email: "x@example.com" }),
+    ];
+    expect(copyListFaults(rows)).toEqual([
+      { index: 1, name: false, email: true },
+      { index: 2, name: true, email: false },
+      { index: 3, name: false, email: true },
+      { index: 4, name: true, email: false },
+    ]);
+    expect(copyListReady(rows)).toBe(false);
+  });
+
+  it("does not call an address listed twice a fault: the first is kept and the entry after it is named as left out", () => {
+    const rows = [emptyCopy({ fullName: "Mei", email: "mei@example.com" }), emptyCopy({ fullName: "Mei again", email: " MEI@example.com " })];
+    expect(copyListReady(rows)).toBe(true);
+    expect(copyPayload(rows)).toEqual([{ fullName: "Mei", email: "mei@example.com" }]);
+    expect(copyNotices(rows, []).map((n) => [n.index, n.kind])).toEqual([
+      [0, "duplicate"],
+      [1, "duplicate"],
+    ]);
   });
 });

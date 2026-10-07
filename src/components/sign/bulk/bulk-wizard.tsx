@@ -13,7 +13,8 @@ import { useSignCategories } from "@/hooks/use-sign-categories";
 import { useTemplateFacts } from "@/hooks/use-sign-bulk";
 import { useActiveTemplates } from "@/hooks/use-sign-templates";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
-import { EMPTY_FORM, WIZARD_STEPS, bulkErrorKey, buildRequest, pickDefaultRole, setupProblems, stepDone, type WizardForm, type WizardStep } from "@/lib/sign/client/bulk";
+import { EMPTY_FORM, WIZARD_STEPS, bulkErrorDetail, bulkErrorKey, buildRequest, fixedSignersOf, pickDefaultRole, setupProblems, stepDone, type WizardForm, type WizardStep } from "@/lib/sign/client/bulk";
+import { copyPayload } from "@/lib/sign/client/copy-form";
 import type { BulkJobView, BulkPreview } from "@/lib/sign/bulk/types";
 import { cn } from "@/lib/utils";
 import { PeopleStep } from "./people-step";
@@ -72,7 +73,7 @@ export function BulkWizard({ templateId: initialTemplate = null }: Props) {
     } catch (err) {
       if (mine !== latest.current) return;
       setPreview(null);
-      setPreviewError(bulkErrorKey(err instanceof SignApiError ? err.code : "request_failed"));
+      setPreviewError(err instanceof SignApiError ? bulkErrorKey(err.code, bulkErrorDetail(err.issues)) : bulkErrorKey("request_failed"));
     } finally {
       if (mine === latest.current) setPreviewing(false);
     }
@@ -113,7 +114,7 @@ export function BulkWizard({ templateId: initialTemplate = null }: Props) {
       router.push(`/sign/bulk/${job.id}`);
     } catch (err) {
       const code = err instanceof SignApiError ? err.code : "request_failed";
-      setCreateError({ code, detail: err instanceof SignApiError ? err.issues[0]?.detail : undefined });
+      setCreateError({ code, detail: err instanceof SignApiError ? bulkErrorDetail(err.issues) : undefined });
       setCreating(false);
       // the list or the month's room may have changed: show it as it is now
       if (code === "rows_have_problems" || code === "sign_limit_reached" || code === "bulk_file_problems" || code === "bulk_not_ready") void runPreview();
@@ -217,12 +218,12 @@ export function BulkWizard({ templateId: initialTemplate = null }: Props) {
         )
       ) : null}
 
-      {step === "review" ? <ReviewStep preview={preview} loading={previewing} errorKey={previewError} skipInvalid={form.skipInvalid} onSkipInvalid={(v) => patch({ skipInvalid: v })} onRecheck={() => void runPreview()} /> : null}
+      {step === "review" ? <ReviewStep preview={preview} loading={previewing} errorKey={previewError} skipInvalid={form.skipInvalid} onSkipInvalid={(v) => patch({ skipInvalid: v })} onRecheck={() => void runPreview()} copyTo={copyPayload(form.copyTo)} fixedEmails={fixedSignersOf(form, roles).map((f) => f.email)} /> : null}
 
       {createError ? (
         <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>{t(bulkErrorKey(createError.code), { detail: createError.detail ?? "" })}</p>
+          <p>{t(bulkErrorKey(createError.code, createError.detail), { detail: createError.detail ?? "" })}</p>
         </div>
       ) : null}
 

@@ -93,6 +93,21 @@ describe("the patch", () => {
     expect(isEmptyPatch(optionsPatch(base, next, NOW))).toBe(true);
   });
 
+  // migration 176: the choice to keep a document private is an option like any other, saved when it changes
+  it("reads whether the document is private, and sends it only when it changes", () => {
+    expect(base.isPrivate).toBe(false);
+    const privateDoc = optionsFromDocument({ ...doc, is_private: true } as SignDocumentRow);
+    expect(privateDoc.isPrivate).toBe(true);
+    expect(optionsPatch(base, { ...base, isPrivate: true }, NOW)).toEqual({ isPrivate: true });
+    expect(optionsPatch(privateDoc, { ...privateDoc, isPrivate: false }, NOW)).toEqual({ isPrivate: false });
+    expect(isEmptyPatch(optionsPatch(privateDoc, privateDoc, NOW))).toBe(true);
+    // an option set that does not carry the choice (older state) is "not private", and changing nothing else changes nothing
+    const { isPrivate: _unused, ...without } = base;
+    void _unused;
+    expect(isEmptyPatch(optionsPatch(without as DraftOptions, base, NOW))).toBe(true);
+    expect(optionsPatch(without as DraftOptions, { ...base, isPrivate: true }, NOW)).toEqual({ isPrivate: true });
+  });
+
   it("sends reminders as numbers", () => {
     expect(optionsPatch(base, { ...base, reminderText: "5, 1" }, NOW)).toEqual({ reminderDays: [1, 5] });
     expect(optionsPatch(base, { ...base, reminderText: "" }, NOW)).toEqual({ reminderDays: [] });

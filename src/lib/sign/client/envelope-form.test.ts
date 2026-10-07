@@ -51,6 +51,10 @@ describe("the options", () => {
   it("patches only what changed, never a category or forwarding", () => {
     const saved = optionsFromEnvelope(env);
     const patch = envelopePatch(saved, { ...saved, title: "Renamed", allowForwarding: true, categoryId: "x" }, new Date("2026-10-07T00:00:00Z"));
+    // (the choice to keep a collection private is its own, and is sent when it changes: migration 176)
+    expect(envelopePatch(saved, { ...saved, isPrivate: true }, new Date("2026-10-07T00:00:00Z"))).toEqual({ isPrivate: true });
+    expect(optionsFromEnvelope({ ...env, is_private: true } as unknown as SignEnvelopeRow).isPrivate).toBe(true);
+    expect(optionsFromEnvelope(env).isPrivate).toBe(false);
     expect(patch).toEqual({ title: "Renamed" });
   });
 });

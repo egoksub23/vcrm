@@ -27,14 +27,17 @@ DECLARE
     'restore_removed_item', 'set_account_role_capabilities', 'set_member_custom_role',
     'set_member_role', 'set_member_teams', 'set_role_capabilities', 'set_sembang_channel_hidden',
     'set_sembang_channel_muted', 'signup_is_open', 'support_grant_access', 'support_revoke_access', 'sla_apply_to_open_tickets',
-    'sign_verify_chain', 'sla_reorder_policies', 'team_open_conversation_counts', 'touch_presence',
+    'sign_verify_chain', 'sign_is_named_signer', 'sign_is_named_on_envelope', 'sign_document_visible', 'sign_envelope_visible', 'sla_reorder_policies', 'team_open_conversation_counts', 'touch_presence',
     'transfer_account_ownership', 'withdraw_proposal', 'workspace_deletion_cancel', 'workspace_deletion_request'
   ];
   -- ...and the subset a SIGNED-OUT caller may call: the two used before login, and the
   -- helpers that RLS policies (which apply to every role) evaluate.
   anon_ok text[] := ARRAY[
     'capability_account_ids', 'has_capability', 'is_account_member', 'is_sembang_channel_member',
-    'is_sembang_channel_moderator', 'peek_invitation', 'signup_is_open'
+    'is_sembang_channel_moderator', 'peek_invitation', 'signup_is_open',
+    -- Doc Sign's private-document helpers (176): called by the row level security policies, which every role with a table privilege evaluates;
+    -- each answers for auth.uid() and says no to a caller who has none
+    'sign_is_named_signer', 'sign_is_named_on_envelope', 'sign_document_visible', 'sign_envelope_visible'
   ];
   -- Reference tables every signed-in user may read in full (no tenant data in them).
   open_read_tables text[] := ARRAY['capability_catalogue', 'role_capability_defaults'];

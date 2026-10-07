@@ -23,7 +23,7 @@ import { SensitiveAnswer } from "./sensitive-answer";
 interface Props {
   documentId: string;
   groups: AnswerGroup[];
-  /** The reader may reveal a sensitive answer (sign.send); everyone with the menu sees it masked. */
+  /** The reader may reveal a sensitive answer (sign.reveal-sensitive); everyone with the menu sees it masked. */
   canReveal?: boolean;
 }
 

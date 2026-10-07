@@ -42,7 +42,7 @@ export interface CreatedDraft {
 }
 
 /** Upload a file and create the draft. `onProgress` gets 0..1 while the file is being sent. */
-export function uploadDraft(args: { file: File; title?: string; categoryId?: string | null; contactId?: string | null; ticketId?: string | null; dealId?: string | null; onProgress?: (fraction: number) => void; signal?: AbortSignal }): Promise<CreatedDraft> {
+export function uploadDraft(args: { file: File; title?: string; categoryId?: string | null; contactId?: string | null; ticketId?: string | null; dealId?: string | null; isPrivate?: boolean; onProgress?: (fraction: number) => void; signal?: AbortSignal }): Promise<CreatedDraft> {
   return new Promise((resolve, reject) => {
     const form = new FormData();
     form.append("file", args.file, args.file.name);
@@ -51,6 +51,8 @@ export function uploadDraft(args: { file: File; title?: string; categoryId?: str
     if (args.contactId) form.append("contactId", args.contactId);
     if (args.ticketId) form.append("ticketId", args.ticketId);
     if (args.dealId) form.append("dealId", args.dealId);
+    // migration 176: private to whoever uploads it, the workspace's admins and the Halo users named on it
+    if (args.isPrivate) form.append("isPrivate", "true");
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/sign/documents");

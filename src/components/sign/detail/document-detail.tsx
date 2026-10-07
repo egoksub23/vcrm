@@ -45,10 +45,11 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const tp = useTranslations("Sign.progress");
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
+  const canReveal = useCapability("sign.reveal-sensitive");
   const canSettings = useCapability("sign.settings");
   const canCountersign = useCapability("sign.sign");
   const { user } = useAuth();
-  const caps: DetailCaps = { send: canSend, void: canVoid, settings: canSettings };
+  const caps: DetailCaps = { send: canSend, void: canVoid, reveal: canReveal, settings: canSettings };
 
   const { data, error, loading, version, reload } = useDocumentDetail(documentId);
   const events = useDocumentEvents(documentId, version);

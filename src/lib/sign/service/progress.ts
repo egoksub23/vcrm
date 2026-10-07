@@ -122,6 +122,13 @@ export async function extendExpiry(ctx: SignCtx, documentId: string, requested: 
 
 /** A file a signer uploaded to this document, for the sender. The id must belong to this document and workspace. */
 export async function uploadedFileForStaff(ctx: SignCtx, documentId: string, fileId: string): Promise<{ bytes: Uint8Array; name: string; mime: string }> {
+  // a private document the caller may not see has no files for them either: "not found", as for a file that is not there
+  try {
+    await loadDocument(ctx, documentId);
+  } catch (err) {
+    if (err instanceof SignError && err.status === 404) throw new SignError("file_not_found", "That file was not found.", 404);
+    throw err;
+  }
   const { data, error } = await ctx.admin
     .from("sign_document_files")
     .select("id, path, name, mime")

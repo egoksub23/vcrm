@@ -6191,6 +6191,10 @@
       "sign_sign": {
         "label": "在 Halo 内会签",
         "description": "无需离开 Halo，即可以工作区自己的签署人身份签署文档。默认：所有者和管理员。"
+      },
+      "sign_reveal_sensitive": {
+        "label": "查看敏感答案",
+        "description": "对敏感答案（身份证号码、银行账号）使用“显示”以查看完整内容。每次查看都会记录在文档历史中。没有此权限时，答案保持遮盖。与发送文档的权限分开。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -7595,9 +7599,25 @@
           },
           "dailyCap": {
             "invalid": "请输入 1 到 5000 的整数。"
+          },
+          "copies": {
+            "incomplete": "请为每位接收副本的人填写姓名和有效的电子邮件，或将其移除。"
           }
         },
-        "templateIsForm": "表格"
+        "templateIsForm": "表格",
+        "copies": {
+          "help": "可选。此表单发送的每一份文件完成后，他们每人会收到一封附有已签署 PDF 的电子邮件。他们不需要签署，也不会收到签署链接。这份名单不会显示在公开页面上。凡是在某份文件上签署的人，不会再出现在该文件的副本名单中。",
+          "issues": {
+            "copy_name": "接收副本的第 {number} 位需要填写全名，最多 160 个字符。",
+            "copy_email": "接收副本的第 {number} 位需要填写有效的电子邮件地址。",
+            "copy_duplicate": "接收副本的第 {number} 位的地址已在名单中。每个地址只列一次。",
+            "too_many_copies": "接收副本的人太多了。请控制在 10 人以内。",
+            "bad_copy_list": "无法读取接收副本的人员名单。请重新加载页面后再试。",
+            "generic": "接收副本的人员名单无效。"
+          }
+        },
+        "copiesLabel": "已签署副本发送给",
+        "copiesValue": "{count} 人"
       }
     },
     "detail": {
@@ -9000,7 +9020,8 @@
           "signed_out": "您已退出登录。请重新登录后继续。",
           "network": "无法连接服务器。请检查网络后重试。",
           "generic": "操作未成功。请重试。"
-        }
+        },
+        "needsPermission": "已加密。只有被授予“查看敏感答案”权限的人才能显示完整内容。"
       }
     },
     "send": {
@@ -9504,7 +9525,11 @@
         "copy_limit": "最多 10 人可以接收副本。",
         "copy_not_open": "在文件完成之前，人员都可以接收副本。此文件已不再开放。",
         "copy_fixed": "接收副本的人员只能移除后重新添加，不能修改。",
-        "copy_recipient_not_found": "找不到此人。他们可能已被移除。"
+        "copy_recipient_not_found": "找不到此人。他们可能已被移除。",
+        "private_not_allowed": "只有上传者或管理员可以更改此项。",
+        "private_fixed": "发送后，是否私密就不能再更改。",
+        "private_cannot_join": "私密文档不能添加到非私密的文件集中。",
+        "bad_private": "请选择是否私密。"
       },
       "records": {
         "ticketLabel": "关联工单",
@@ -10515,7 +10540,10 @@
         "rowOk": "可发送",
         "noRows": "没有可显示的人员。",
         "showAll": "显示其余 {count} 人",
-        "start": "发送 {count} 份文件"
+        "start": "发送 {count} 份文件",
+        "copiesHeading": "同时接收已签署的副本",
+        "copiesBody": "{count} 份文件各自完成后，他们每人会收到一封附有已签署 PDF 的电子邮件。",
+        "copiesLeftOut": "{name}（{email}）也要签署其中 {count} 份文件。对这些文件，他们以签署人的身份收到已签署的副本，而不是作为副本接收人。"
       },
       "job": {
         "title": "批量发送：{template}",
@@ -10613,7 +10641,8 @@
         "role_without_person": "角色 {detail} 有需要填写的内容，但没有指定人员。请为它添加一位固定人员。",
         "signer_without_signature": "角色 {detail} 需要签署，但模板中没有为它设置签名或首字母字段。",
         "merge_needs_file": "模板要填入联系人没有的内容（{detail}）。请改用 CSV 文件，并为每项提供一列。",
-        "bad_options": "设置步骤中的某些选项无效。请返回设置步骤检查。"
+        "bad_options": "设置步骤中的某些选项无效。请返回设置步骤检查。",
+        "bad_options_copy": "接收副本的人员名单无效。请在设置步骤中为每个人填写姓名和有效的电子邮件，每个地址只列一次，且最多 10 人。"
       },
       "errors": {
         "generic": "出了点问题，请重试。",
@@ -10638,7 +10667,8 @@
         "signed_out": "你已退出登录。请重新登录后继续。",
         "forbidden": "你没有执行此操作的权限。",
         "rate_limited": "请求过多。请稍等片刻再试。",
-        "body_too_large": "请求内容过大。请使用较小的文件。"
+        "body_too_large": "请求内容过大。请使用较小的文件。",
+        "bad_options_copy": "接收副本的人员名单无效。请在设置步骤中为每个人填写姓名和有效的电子邮件，每个地址只列一次，且最多 10 人。"
       },
       "reason": {
         "sign_limit_reached": "本月的文件额度已用完。",
@@ -10661,6 +10691,9 @@
         "unexpected": "发送这份文件时出了问题。",
         "unknown": "这一份没有发送。",
         "withMessage": "未发送：{message}"
+      },
+      "copies": {
+        "help": "可选。这次批量发送生成的每一份文件完成后，他们每人会收到一封附有已签署 PDF 的电子邮件。他们不需要签署，也不会收到签署链接。凡是在某份文件上签署的人，不会再出现在该文件的副本名单中。"
       }
     },
     "lists": {
@@ -11096,6 +11129,30 @@
         "contactLinked": "关联到",
         "contactAutoHint": "已关联到第一位从您的联系人中选出的必须签署人员的联系人。如果不对，请移除它或选择其他联系人。",
         "contactHint": "选择要关联的联系人，或留空。在“人员”中从联系人里选择某人，会自动为您关联。"
+      }
+    },
+    "copyList": {
+      "title": "接收副本的人",
+      "fullName": "全名",
+      "email": "电子邮件",
+      "add": "添加一个人",
+      "remove": "移除第 {number} 位",
+      "count": "{count} / {max}",
+      "limit": "最多 {max} 人可以接收副本。",
+      "nameRequired": "请输入全名。",
+      "emailInvalid": "请输入有效的电子邮件地址。",
+      "duplicate": "这个地址已在上面列出，因此这一条会被忽略。",
+      "signer": "这个人需要签署，因此已经会收到已签署的副本。这一条会被忽略。"
+    },
+    "private": {
+      "badge": "私密",
+      "badgeTitle": "私密：只有上传者、工作区管理员和被指定为签署人的人可以查看。",
+      "toggle": {
+        "labelSingle": "私密文档",
+        "labelCollection": "私密文件集",
+        "hintSingle": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它。",
+        "hintCollection": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文件集及其中的每份文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它们。",
+        "notYours": "只有上传者或管理员可以更改此项。"
       }
     }
   }

@@ -38,6 +38,7 @@ import type { AskedFields, RegistrationFormRow, RegistrationStatus } from "../re
 import { parseSubmission, peekTrap, type DetailProblem, type Submission } from "../registration/validate";
 import { SIGN_LOCALES, type SignLocale } from "../types";
 import { loadSenderAndWorkspace, type SignCtx } from "./context";
+import { applyCopyList } from "./copy-recipients";
 import { createDraftFromTemplate, deleteDraft, setSigners, updateDraft } from "./drafts";
 import { SignError } from "./errors";
 import { formReadiness, loadTemplateStates } from "./registration-forms";
@@ -242,6 +243,8 @@ async function sendToApplicant(ctx: SignCtx, form: RegistrationFormRow, who: Sub
       return { roleKey: s.role_key, kind: r?.kind ?? ("signer" as const), fullName: s.name, email: s.email, phone: s.phone ?? null, channel: s.channel, orderNo: i + 2 };
     });
     await setSigners(ctx, draft.id, [applicant, ...others]);
+    // the form's own list of people who receive the signed copy (migration 176): on every document it makes, like a copy added by hand
+    await applyCopyList(ctx, draft.id, form.copy_recipients);
 
     const sent = await sendDocument(ctx, draft.id);
     const mine = sent.invited.find((i) => i.roleKey === role.key);

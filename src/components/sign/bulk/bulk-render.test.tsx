@@ -20,7 +20,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }), usePa
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => React.createElement("a", { href, ...rest }, children) }));
 
 import type { BulkJobView, BulkPreview, BulkRowView } from "@/lib/sign/bulk/types";
-import { BULK_ERROR_CODES, EMPTY_FORM, bulkErrorKey, fileProblemKey, planProblemKey, rowReasonKey, type WizardForm } from "@/lib/sign/client/bulk";
+import { BULK_ERROR_CODES, COPY_TO_DETAIL, EMPTY_FORM, bulkErrorKey, fileProblemKey, planProblemKey, rowReasonKey, type WizardForm } from "@/lib/sign/client/bulk";
+import { copiesFromList, emptyCopy } from "@/lib/sign/client/copy-form";
 import { FILE_PROBLEM_CODES, PLAN_PROBLEM_CODES, ROW_PROBLEM_CODES } from "@/lib/sign/bulk/types";
 
 const jobState: { job: BulkJobView | null; rows: BulkRowView[]; errorCode: string | null; loading: boolean } = { job: null, rows: [], errorCode: null, loading: false };
@@ -42,7 +43,7 @@ import { RecentBatches } from "./recent-batches";
 import { ReviewStep } from "./review-step";
 import { SetupStep } from "./setup-step";
 
-function tree(locale: string, key: "bulk" | "send"): Record<string, unknown> | null {
+function tree(locale: string, key: "bulk" | "send" | "copyList"): Record<string, unknown> | null {
   const merged = join(process.cwd(), "messages", `${locale}.json`);
   if (existsSync(merged)) {
     const found = (JSON.parse(readFileSync(merged, "utf8")) as { Sign?: Record<string, Record<string, unknown>> }).Sign?.[key];
@@ -60,7 +61,7 @@ function page(locale: string, node: React.ReactNode) {
       locale={locale}
       timeZone="UTC"
       // the list's own words (Sign.send) are not this package's: the English ones stand in
-      messages={{ Sign: { bulk: tree(locale, "bulk"), send: tree("en", "send") } }}
+      messages={{ Sign: { bulk: tree(locale, "bulk"), send: tree("en", "send"), copyList: tree(locale, "copyList") } }}
       onError={(e) => {
         throw e;
       }}
@@ -233,6 +234,91 @@ describe.skipIf(LOCALES.length === 0)("bulk send renders in every language", () 
         );
       }
       expect(page(locale, <Probe />)).toContain("fee");
+    });
+  }
+});
+
+describe.skipIf(LOCALES.length === 0)("bulk send: the people who receive a copy, in every language", () => {
+  const people = copiesFromList([
+    { fullName: "Mei Lin", email: "mei@kedai.example" },
+    { fullName: "Raj Kumar", email: "raj@kedai.example" },
+  ]);
+  const setup = (locale: string, f: WizardForm, problems: string[] = [], show = false) => page(locale, <SetupStep form={f} roles={roles} categories={[]} problems={problems} showInvalid={show} onChange={() => {}} />);
+  const review = (locale: string, p: BulkPreview | null, over: { copyTo?: { fullName: string; email: string }[]; fixedEmails?: string[] } = {}) =>
+    page(locale, <ReviewStep preview={p} loading={false} errorKey={null} skipInvalid={false} onSkipInvalid={() => {}} onRecheck={() => {}} copyTo={over.copyTo} fixedEmails={over.fixedEmails} />);
+
+  for (const locale of LOCALES) {
+    it(`has its own sentences, with the same placeholders (${locale})`, () => {
+      const t = tree(locale, "bulk") as Record<string, Record<string, Record<string, string> | string>>;
+      expect((t.copies as Record<string, string>).help, "copies.help").toBeTypeOf("string");
+      for (const k of ["copiesHeading", "copiesBody", "copiesLeftOut"]) expect((t.review as Record<string, string>)[k], `review.${k}`).toBeTypeOf("string");
+      expect((t.errors as Record<string, string>).bad_options_copy, "errors.bad_options_copy").toBeTypeOf("string");
+      expect((t.plan as Record<string, string>).bad_options_copy, "plan.bad_options_copy").toBeTypeOf("string");
+    });
+
+    it(`the setup step has the list: empty it only offers to add, with people it shows each, and says what the list does (${locale})`, () => {
+      const empty = setup(locale, form());
+      expect(empty).toContain("data-bulk-copies");
+      expect(empty).toContain("data-copy-list");
+      expect(empty).not.toContain("data-copy-row");
+      const t = tree(locale, "bulk") as { copies: { help: string } };
+      expect(empty).toContain(t.copies.help.slice(0, 20));
+
+      const filled = setup(locale, form({ copyTo: people }));
+      expect((filled.match(/data-copy-row/g) ?? []).length).toBe(2);
+      expect(filled).toContain('value="Mei Lin"');
+      expect(filled).toContain('value="raj@kedai.example"');
+    });
+
+    it(`the setup step flags a person who is not complete only after the sender tried to go on (${locale})`, () => {
+      const half = form({ copyTo: [emptyCopy({ fullName: "Mei" })] });
+      expect(setup(locale, half, ["copyTo"], false)).not.toContain('role="alert"');
+      expect(setup(locale, half, ["copyTo"], true)).toContain('role="alert"');
+      // another problem of the setup does not flag the list
+      expect(setup(locale, form({ copyTo: people }), ["title"], true)).not.toMatch(/data-copy-row[^]*role="alert"/);
+    });
+
+    it(`the setup step names a fixed person who is also on the list as left out (${locale})`, () => {
+      const f = form({ copyTo: [emptyCopy({ fullName: "Gokula", email: "gokula@vircle.example" })], fixed: { director: { fullName: "Gokula", email: "GOKULA@vircle.example", phone: "", channel: "email" } } });
+      expect(setup(locale, f)).toContain("data-copy-notice");
+      expect(setup(locale, form({ copyTo: [emptyCopy({ fullName: "Gokula", email: "gokula@vircle.example" })] }))).not.toContain("data-copy-notice");
+    });
+
+    it(`the review step shows who gets a copy of each document, and who is left out of some (${locale})`, () => {
+      const list = [{ fullName: "Mei Lin", email: "mei@kedai.example" }, { fullName: "Raj Kumar", email: "raj@kedai.example" }];
+      const withList = review(locale, preview(), { copyTo: list });
+      expect(withList).toContain("data-bulk-review-copies");
+      expect(withList).toContain("Mei Lin");
+      expect(withList).toContain("raj@kedai.example");
+      // the number of documents that would be made (one is ready in this preview) is in the sentence
+      const section = withList.match(/<section[^>]*data-bulk-review-copies[\s\S]*?<\/section>/)![0];
+      expect(section).toMatch(/<p[^>]*>[^<0-9]*1[^<0-9]*<\/p>/);
+      expect(withList).not.toContain("Sign.bulk");
+
+      // nobody on the list: nothing of it on the review
+      expect(review(locale, preview())).not.toContain("data-bulk-review-copies");
+      expect(review(locale, preview(), { copyTo: [] })).not.toContain("data-bulk-review-copies");
+
+      // a person on the list of people (row 1 is ali@kedai.example) and a fixed person who signs every document are left out of those documents' copies
+      const overlap = review(locale, preview(), { copyTo: [{ fullName: "Ali bin Ahmad", email: "ALI@kedai.example" }, list[1]], fixedEmails: ["raj@kedai.example"] });
+      expect((overlap.match(/<p class="text-xs text-muted-foreground">[^<]*(Ali bin Ahmad|Raj Kumar)[^<]*<\/p>/g) ?? []).length).toBe(2);
+      // a left-out person is named with the address as it was typed
+      expect(overlap).toContain("ALI@kedai.example");
+    });
+
+    it(`words a refused copy list on its own, for the check and for the start (${locale})`, () => {
+      const t = tree(locale, "bulk") as { errors: Record<string, string>; plan: Record<string, string> };
+      expect(bulkErrorKey("bad_options", COPY_TO_DETAIL)).toBe("errors.bad_options_copy");
+      expect(t.errors.bad_options_copy).not.toBe(t.errors.bad_options);
+      expect(t.plan.bad_options_copy).not.toBe(t.plan.bad_options);
+      // the review's failed check shows it, and so does the plan problem list
+      expect(page(locale, <ReviewStep preview={null} loading={false} errorKey={bulkErrorKey("bad_options", COPY_TO_DETAIL)} skipInvalid={false} onSkipInvalid={() => {}} onRecheck={() => {}} />)).toContain(t.errors.bad_options_copy.slice(0, 20));
+      function Probe() {
+        const w = useProblemWords();
+        return <ProblemList problems={[{ code: "bad_options", detail: COPY_TO_DETAIL }]} word={w.plan} />;
+      }
+      expect(page(locale, <Probe />)).toContain(t.plan.bad_options_copy.slice(0, 20));
+      expect(planProblemKey("bad_options", COPY_TO_DETAIL)).toBe("plan.bad_options_copy");
     });
   }
 });

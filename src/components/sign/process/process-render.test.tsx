@@ -466,3 +466,56 @@ describe("the whole screen of a draft", () => {
     expect(single).not.toContain("2 documents");
   });
 });
+
+// migration 176: the "Private" switch of step 1, for a document on its own and for a collection, on the first screen and on the Documents step
+describe("the Private switch", () => {
+  const PRIVATE_WORDS: Record<(typeof LOCALES)[number], { single: string; collection: string; hintSingle: string; hintCollection: string; notYours: string; badge: string }> = {
+    en: { single: "Private document", collection: "Private document collection", hintSingle: "admins and the Halo users you name as signers can see this document", hintCollection: "can see this collection and every document in it", notYours: "Only the person who uploaded this, or an admin, can change this.", badge: "Private" },
+    ms: { single: "Dokumen peribadi", collection: "Koleksi dokumen peribadi", hintSingle: "Hanya anda, admin ruang kerja dan pengguna Halo yang anda namakan sebagai penandatangan boleh melihat dokumen ini", hintCollection: "boleh melihat koleksi ini dan setiap dokumen di dalamnya", notYours: "Hanya orang yang memuat naik ini, atau admin, boleh menukarnya.", badge: "Peribadi" },
+    zh: { single: "私密文档", collection: "私密文件集", hintSingle: "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文档", hintCollection: "可以查看此文件集及其中的每份文档", notYours: "只有上传者或管理员可以更改此项。", badge: "私密" },
+    ko: { single: "비공개 문서", collection: "비공개 문서 모음", hintSingle: "본인, 워크스페이스 관리자, 서명자로 지정한 Halo 사용자만 이 문서와", hintCollection: "그 안의 모든 문서", notYours: "이 문서를 업로드한 사람이나 관리자만 변경할 수 있습니다.", badge: "비공개" },
+  };
+  const docs = [upload(1, who, { [ALI]: 1 }), upload(2, who, { [BALA]: 1 })];
+  const switchOf = (html: string) => /<[^>]*role="switch"[^>]*>/.exec(html.slice(html.indexOf("data-private-toggle")))?.[0] ?? "";
+
+  for (const locale of LOCALES) {
+    const w = PRIVATE_WORDS[locale];
+
+    it(`is on the first screen, off to begin with, and worded for what will be made (${locale})`, () => {
+      const html = page(locale, <NewProcess />);
+      expect(html).toContain("data-private-toggle");
+      expect(html).toContain(w.single);
+      expect(html).toContain(w.hintSingle);
+      expect(switchOf(html)).toContain('aria-checked="false"');
+      expect(html).not.toContain("private.toggle");
+    });
+
+    it(`is on the Documents step of a draft: private or not as saved, worded for a document on its own and for a collection (${locale})`, () => {
+      const open = page(locale, <DocumentsStep process={fakeProcess({ kind: "single", docs: [docs[0]], people: who, step: "documents" })} envelopeId={null} />);
+      expect(open).toContain(w.single);
+      expect(open).toContain(w.hintSingle);
+      expect(switchOf(open)).toContain('aria-checked="false"');
+      expect(open).not.toContain(w.notYours);
+      const secret = page(locale, <DocumentsStep process={fakeProcess({ kind: "collection", docs, people: who, step: "documents", options: { isPrivate: true } })} envelopeId="e1" />);
+      expect(secret).toContain(w.collection);
+      expect(secret).toContain(w.hintCollection);
+      expect(switchOf(secret)).toContain('aria-checked="true"');
+    });
+
+    it(`says why it cannot be changed by someone who is neither the uploader nor an admin, and just is read only for someone who cannot send (${locale})`, () => {
+      const notYours = page(locale, <DocumentsStep process={fakeProcess({ kind: "single", docs: [docs[0]], people: who, step: "documents", options: { isPrivate: true }, over: { canChangePrivacy: false } })} envelopeId={null} />);
+      expect(notYours).toContain(w.notYours);
+      expect(switchOf(notYours)).toMatch(/data-disabled|disabled/);
+      const readOnly = page(locale, <DocumentsStep process={fakeProcess({ kind: "single", docs: [docs[0]], people: who, step: "documents", over: { canSend: false, canChangePrivacy: false } })} envelopeId={null} />);
+      expect(readOnly).not.toContain(w.notYours);
+      expect(switchOf(readOnly)).toMatch(/data-disabled|disabled/);
+    });
+  }
+
+  it("never says envelope", () => {
+    for (const locale of LOCALES) {
+      const html = page(locale, <DocumentsStep process={fakeProcess({ kind: "collection", docs, people: who, step: "documents", options: { isPrivate: true } })} envelopeId="e1" />);
+      expect(html.toLowerCase()).not.toContain("envelope");
+    }
+  });
+});

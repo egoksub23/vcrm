@@ -18,6 +18,7 @@ import { planReplace, type ReplacePlan } from "../replace-file";
 import { documentPath, getFile, putFile, removeFiles, safeFileName } from "../storage";
 import type { SignDocumentRow } from "../types";
 import { loadDocument, logEvent, type SignCtx } from "./context";
+import { assertMayEditDraft } from "./privacy";
 import { prepareOrThrow } from "./drafts";
 import { SignError, raiseDatabaseError } from "./errors";
 
@@ -38,6 +39,7 @@ export async function replaceDraftFile(
 ): Promise<ReplaceResult> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "The file of a document that was sent cannot be replaced. Void it and send a new one.", 409);
+  await assertMayEditDraft(ctx, doc);
   if (!doc.base_path) throw new SignError("document_has_no_file", "This document has no file to replace.", 409);
 
   const prepared = await prepareOrThrow(args.bytes, args.filename, args.converter);

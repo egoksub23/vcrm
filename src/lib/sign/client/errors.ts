@@ -104,6 +104,11 @@ export const KNOWN_ERROR_CODES = [
   "copy_not_open",
   "copy_fixed",
   "copy_recipient_not_found",
+  // private documents (migration 176)
+  "private_not_allowed",
+  "private_fixed",
+  "private_cannot_join",
+  "bad_private",
   // the edge
   "save_failed",
   "network",

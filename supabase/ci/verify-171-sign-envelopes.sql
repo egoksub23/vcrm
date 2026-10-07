@@ -125,10 +125,10 @@ BEGIN
   IF v_res NOT LIKE 'ERR 42501%' THEN RAISE EXCEPTION 'FAIL a member changed an envelope directly: %', v_res; END IF;
 
   -- 2. The reference is numbered per workspace and fixed; a title is required; the status starts as a draft.
-  IF (SELECT reference FROM sign_envelopes WHERE id = envA) !~ '^ENV-[0-9]{4}-000001$' THEN
-    RAISE EXCEPTION 'FAIL the first envelope reference should be ENV-YYYY-000001, got %', (SELECT reference FROM sign_envelopes WHERE id = envA);
+  IF (SELECT reference FROM sign_envelopes WHERE id = envA) !~ '^(ENV|COL)-[0-9]{4}-000001$' THEN
+    RAISE EXCEPTION 'FAIL the first envelope reference should be COL-YYYY-000001 (ENV- before migration 176), got %', (SELECT reference FROM sign_envelopes WHERE id = envA);
   END IF;
-  IF (SELECT reference FROM sign_envelopes WHERE id = envB) !~ '^ENV-[0-9]{4}-000001$' THEN RAISE EXCEPTION 'FAIL each workspace numbers its own envelopes'; END IF;
+  IF (SELECT reference FROM sign_envelopes WHERE id = envB) !~ '^(ENV|COL)-[0-9]{4}-000001$' THEN RAISE EXCEPTION 'FAIL each workspace numbers its own envelopes'; END IF;
   BEGIN
     UPDATE sign_envelopes SET reference = 'ENV-X' WHERE id = envA;
     RAISE EXCEPTION 'FAIL the reference of an envelope was changed';
@@ -427,7 +427,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL each chain should say the envelope completed, once';
   END IF;
   IF (SELECT count(*) FROM notifications WHERE user_id = uA AND type = 'sign_completed' AND sign_document_id IN (d1, d2)) <> 1
-     OR NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = uA AND type = 'sign_completed' AND title LIKE '%ENV-%') THEN
+     OR NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = uA AND type = 'sign_completed' AND title ~ '(ENV|COL)-') THEN
     RAISE EXCEPTION 'FAIL the sender should be told once, naming the envelope: %', (SELECT string_agg(title, '; ') FROM notifications WHERE user_id = uA);
   END IF;
   -- every chain still recomputes

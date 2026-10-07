@@ -158,6 +158,14 @@ describe("the request that makes the documents", () => {
     expect([form.get("title"), form.get("contactId"), form.has("ticketId"), form.has("dealId")]).toEqual(["Onboarding", "c1", false, false]);
   });
 
+  it("carries the choice to keep the documents private (migration 176), only when it is made", () => {
+    const form = (collectionRequest(build(), { title: "Onboarding", isPrivate: "true" }) as { form: FormData }).form;
+    expect(form.get("isPrivate")).toBe("true");
+    expect((collectionRequest(build(), { title: "Onboarding", isPrivate: null }) as { form: FormData }).form.has("isPrivate")).toBe(false);
+    const items = toggleTemplate(toggleTemplate<File>([], { id: "t1", name: "A" }).items, { id: "t2", name: "B" }).items;
+    expect(collectionRequest(items, { isPrivate: "true" })).toMatchObject({ json: { isPrivate: "true" } });
+  });
+
   it("is JSON when there are only templates", () => {
     const items = toggleTemplate(toggleTemplate<File>([], { id: "t1", name: "A" }).items, { id: "t2", name: "B" }).items;
     expect(collectionRequest(items, { title: "" })).toEqual({ json: { order: [{ kind: "template", id: "t1" }, { kind: "template", id: "t2" }] } });

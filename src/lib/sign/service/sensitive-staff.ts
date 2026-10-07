@@ -2,7 +2,7 @@
 // Sensitive answers (F-47), the staff side. What the sender's screens (the Progress tab, the document detail) are
 // given for a sensitive answer is a mask (`•••• 1234`), never the value. A person who needs the value asks for it:
 // `revealAnswer` returns it once, after writing a `sensitive_viewed` event (the field and the document, never the value),
-// and refuses when the event cannot be recorded. The route is `POST /api/sign/documents/[id]/sensitive` (sign.send)
+// and refuses when the event cannot be recorded. The route is `POST /api/sign/documents/[id]/sensitive` (sign.reveal-sensitive)
 // with a limit per person; this module is the service behind it.
 // ============================================================
 

@@ -6920,6 +6920,10 @@
       "sign_sign": {
         "label": "Countersign inside Halo",
         "description": "Sign a document as the workspace's own signer without leaving Halo. Default: Owner and Admin."
+      },
+      "sign_reveal_sensitive": {
+        "label": "Reveal sensitive answers",
+        "description": "Use Reveal on a sensitive answer (an ID number, a bank account) to read it in full. Every reveal is recorded in the document's history. Without this permission the answer stays masked. Separate from sending documents. Default: Owner and Admin."
       }
     },
     "group": {
@@ -8949,9 +8953,25 @@
           },
           "dailyCap": {
             "invalid": "Enter a whole number from 1 to 5000."
+          },
+          "copies": {
+            "incomplete": "Give each person who receives a copy both a name and a valid email, or remove them."
           }
         },
-        "templateIsForm": "form"
+        "templateIsForm": "form",
+        "copies": {
+          "help": "Optional. Each of them gets one email with the signed PDF of every document this form sends, when that document is completed. They do not sign and never get a signing link. This list is never shown on the public page. Anyone who signs a document is left out of that document's copies.",
+          "issues": {
+            "copy_name": "Person {number} who receives a copy needs a full name of up to 160 characters.",
+            "copy_email": "Person {number} who receives a copy needs a valid email address.",
+            "copy_duplicate": "Person {number} who receives a copy has an address that is already on the list. List each address once.",
+            "too_many_copies": "Too many people receive a copy. Keep to 10 or fewer.",
+            "bad_copy_list": "The list of people who receive a copy could not be read. Reload the page and try again.",
+            "generic": "The list of people who receive a copy is not valid."
+          }
+        },
+        "copiesLabel": "Signed copy to",
+        "copiesValue": "{count, plural, one {# person} other {# people}}"
       }
     },
     "detail": {
@@ -10354,7 +10374,8 @@
           "signed_out": "You have been signed out. Sign in again to continue.",
           "network": "Could not reach the server. Check your connection and try again.",
           "generic": "That did not work. Try again."
-        }
+        },
+        "needsPermission": "Encrypted. Only people who have been given the Reveal sensitive answers permission can show it."
       }
     },
     "send": {
@@ -10858,7 +10879,11 @@
         "copy_limit": "Up to 10 people can receive a copy.",
         "copy_not_open": "People can receive a copy until the document is completed. This one is not open any more.",
         "copy_fixed": "A person who receives a copy is removed and added again, never changed.",
-        "copy_recipient_not_found": "That person was not found. They may already have been removed."
+        "copy_recipient_not_found": "That person was not found. They may already have been removed.",
+        "private_not_allowed": "Only the person who uploaded this, or an admin, can change this.",
+        "private_fixed": "Whether this is private cannot change once it has been sent.",
+        "private_cannot_join": "A private document cannot be added to a collection that is not private.",
+        "bad_private": "Choose whether this is private."
       },
       "records": {
         "ticketLabel": "Link to a ticket",
@@ -11869,7 +11894,10 @@
         "rowOk": "Ready",
         "noRows": "No one to show.",
         "showAll": "Show the other {count}",
-        "start": "Send {count, plural, one {# document} other {# documents}}"
+        "start": "Send {count, plural, one {# document} other {# documents}}",
+        "copiesHeading": "Also receive the signed copy",
+        "copiesBody": "Each of them gets one email with the signed PDF of each of the {count, plural, one {# document} other {# documents}}, when it is completed.",
+        "copiesLeftOut": "{name} ({email}) also signs {count, plural, one {# of the documents} other {# of the documents}}. For {count, plural, one {that document} other {those documents}} they get the signed copy as a signer, not as a copy."
       },
       "job": {
         "title": "Bulk send: {template}",
@@ -11967,7 +11995,8 @@
         "role_without_person": "The role {detail} has fields to complete but nobody is named for it. Add a fixed person for it.",
         "signer_without_signature": "The role {detail} signs, but the template has no signature or initials field for it.",
         "merge_needs_file": "The template fills in values a contact does not have ({detail}). Use a CSV file with a column for each.",
-        "bad_options": "Some of the choices on the setup step are not valid. Go back to the setup step and check them."
+        "bad_options": "Some of the choices on the setup step are not valid. Go back to the setup step and check them.",
+        "bad_options_copy": "The list of people who receive a copy is not valid. On the setup step, give each person a name and a valid email, list each address once, and keep to 10 people."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -11992,7 +12021,8 @@
         "signed_out": "You have been signed out. Sign in again to continue.",
         "forbidden": "You do not have permission to do this.",
         "rate_limited": "Too many requests. Wait a moment and try again.",
-        "body_too_large": "That request is too large. Use a smaller file."
+        "body_too_large": "That request is too large. Use a smaller file.",
+        "bad_options_copy": "The list of people who receive a copy is not valid. On the setup step, give each person a name and a valid email, list each address once, and keep to 10 people."
       },
       "reason": {
         "sign_limit_reached": "The monthly limit of documents was reached.",
@@ -12015,6 +12045,9 @@
         "unexpected": "Something went wrong while sending this document.",
         "unknown": "This one was not sent.",
         "withMessage": "Not sent: {message}"
+      },
+      "copies": {
+        "help": "Optional. Each of them gets one email with the signed PDF of every document this bulk send makes, when that document is completed. They do not sign and never get a signing link. Anyone who signs a document is left out of that document's copies."
       }
     },
     "lists": {
@@ -12450,6 +12483,30 @@
         "contactLinked": "Linked to",
         "contactAutoHint": "Linked to the contact of the first person who must sign who was picked from your contacts. Remove it or choose another contact if that is wrong.",
         "contactHint": "Choose a contact to link this to, or leave it empty. Picking a person from your contacts in People links it for you."
+      }
+    },
+    "copyList": {
+      "title": "People who receive a copy",
+      "fullName": "Full name",
+      "email": "Email",
+      "add": "Add a person",
+      "remove": "Remove person {number}",
+      "count": "{count} of {max}",
+      "limit": "Up to {max} people can receive a copy.",
+      "nameRequired": "Enter a full name.",
+      "emailInvalid": "Enter a valid email address.",
+      "duplicate": "This address is already listed above, so this entry is left out.",
+      "signer": "This person signs, so they already get the signed copy. This entry is left out."
+    },
+    "private": {
+      "badge": "Private",
+      "badgeTitle": "Private: only the person who uploaded it, the workspace's admins and the people named as signers can see this.",
+      "toggle": {
+        "labelSingle": "Private document",
+        "labelCollection": "Private document collection",
+        "hintSingle": "Only you, the workspace's admins and the Halo users you name as signers can see this document, who has signed it and what they answered. Other people with Doc Sign will not find it in lists, searches, counts or exports.",
+        "hintCollection": "Only you, the workspace's admins and the Halo users you name as signers can see this collection and every document in it, who has signed and what they answered. Other people with Doc Sign will not find them in lists, searches, counts or exports.",
+        "notYours": "Only the person who uploaded this, or an admin, can change this."
       }
     }
   }

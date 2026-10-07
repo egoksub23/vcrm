@@ -12,7 +12,7 @@ export function useProblemWords() {
   return {
     row: (p: BulkProblem): string => t(`problem.${p.code}`, { detail: p.detail ?? "" }),
     file: (p: BulkProblem): string => t(fileProblemKey(p.code), { detail: p.detail ?? "" }),
-    plan: (p: BulkProblem): string => t(planProblemKey(p.code), { detail: p.detail ?? "" }),
+    plan: (p: BulkProblem): string => t(planProblemKey(p.code, p.detail), { detail: p.detail ?? "" }),
     /** What became of a row: a failed send's code, or a skipped row's problem (`code` or `code:detail`). */
     reason: (code: string | null, message: string | null): string => {
       const d = decodeProblem(code);

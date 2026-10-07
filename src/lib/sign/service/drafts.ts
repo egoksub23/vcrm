@@ -19,6 +19,7 @@ import { assertAccountMembers } from "./countersign";
 import { SignError, raiseDatabaseError } from "./errors";
 import { resolveLinks } from "./links";
 import { refreshFormLists } from "./lists";
+import { assertMayChangePrivacy, assertMayEditDraft } from "./privacy";
 
 // ---- upload errors ---------------------------------------------------------------
 
@@ -74,6 +75,8 @@ export interface DraftLinks {
   reference?: string | null;
   /** Migration 171: the draft is made as a document of this envelope (still a draft), in this place (1 to 6). Never changes afterwards. */
   envelope?: { id: string; position: number } | null;
+  /** Migration 176: made private to its uploader, the workspace's admins and the Halo users named on it. Documents made by automations, bulk send and registration forms never pass it. */
+  isPrivate?: boolean;
 }
 
 async function insertDraft(ctx: SignCtx, row: Record<string, unknown>, files: Record<string, unknown>[], paths: string[]): Promise<SignDocumentRow> {
@@ -127,6 +130,7 @@ export async function createDraftFromUpload(
       title: (args.title?.trim() || stripExt(name) || "Untitled document").slice(0, 200),
       status: "draft",
       ...(args.envelope ? { envelope_id: args.envelope.id, envelope_position: args.envelope.position } : {}),
+      ...(args.isPrivate ? { is_private: true } : {}),
       category_id: category?.id ?? null,
       contact_id: contactId,
       ticket_id: links.ticketId,
@@ -186,6 +190,7 @@ export async function createDraftFromTemplate(ctx: SignCtx, args: DraftLinks & {
       status: "draft",
       ...(args.reference ? { reference: args.reference } : {}),
       ...(args.envelope ? { envelope_id: args.envelope.id, envelope_position: args.envelope.position } : {}),
+      ...(args.isPrivate ? { is_private: true } : {}),
       category_id: category?.id ?? null,
       template_version_id: version.id,
       contact_id: contactId,
@@ -237,6 +242,8 @@ export interface DraftPatch {
   codeRequired?: boolean;
   /** Forwarding (F-95): a signer may hand their turn, or a part, to someone else. */
   allowForwarding?: boolean;
+  /** Migration 176: private to its uploader, the workspace's admins and the Halo users named on it. Only its uploader or an admin may change it, and only on a draft. */
+  isPrivate?: boolean;
   reminderDays?: number[];
   mergeValues?: Record<string, unknown>;
   fields?: PlacedField[];
@@ -244,7 +251,7 @@ export interface DraftPatch {
 }
 
 /** The options of a document that are the ENVELOPE's when it is in one: the same for every document, set on the envelope. */
-const ENVELOPE_OPTIONS = ["message", "locale", "expiresAt", "signInOrder", "codeRequired", "allowForwarding", "reminderDays", "contactId", "ticketId", "dealId"] as const;
+const ENVELOPE_OPTIONS = ["message", "locale", "expiresAt", "signInOrder", "codeRequired", "allowForwarding", "reminderDays", "contactId", "ticketId", "dealId", "isPrivate"] as const;
 
 /**
  * Validate and apply changes to a draft. Throws SignError with the issues when the layout is not sound. A document of an envelope takes
@@ -254,6 +261,8 @@ const ENVELOPE_OPTIONS = ["message", "locale", "expiresAt", "signInOrder", "code
 export async function updateDraft(ctx: SignCtx, documentId: string, patch: DraftPatch, opts: { viaEnvelope?: boolean } = {}): Promise<SignDocumentRow> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
+  await assertMayEditDraft(ctx, doc);
+  await assertMayEditDraft(ctx, doc);
   if (doc.envelope_id && !opts.viaEnvelope && ENVELOPE_OPTIONS.some((k) => patch[k] !== undefined)) {
     throw new SignError("document_in_envelope", "This document is part of a document collection. Change this on the collection.", 409);
   }
@@ -296,6 +305,14 @@ export async function updateDraft(ctx: SignCtx, documentId: string, patch: Draft
   if (patch.signInOrder !== undefined) update.sign_in_order = !!patch.signInOrder;
   if (patch.codeRequired !== undefined) update.code_required = !!patch.codeRequired;
   if (patch.allowForwarding !== undefined) update.allow_forwarding = !!patch.allowForwarding;
+  if (patch.isPrivate !== undefined) {
+    if (typeof patch.isPrivate !== "boolean") throw new SignError("bad_private", "Choose whether this is private.", 400);
+    // a document of a collection takes its collection's choice (the collection asked for it: `viaEnvelope`, already checked there)
+    if (patch.isPrivate !== (doc.is_private === true)) {
+      if (!opts.viaEnvelope) await assertMayChangePrivacy(ctx, doc);
+      update.is_private = patch.isPrivate;
+    }
+  }
   if (patch.reminderDays !== undefined) update.reminder_days = cleanReminderDays(patch.reminderDays);
   if (patch.mergeValues !== undefined) {
     const mv = patch.mergeValues;
@@ -369,6 +386,7 @@ export interface SignerInput {
 export async function setSigners(ctx: SignCtx, documentId: string, signers: SignerInput[], opts: { viaEnvelope?: boolean } = {}): Promise<SignSignerRow[]> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
+  await assertMayEditDraft(ctx, doc);
   // the people of an envelope are one list for all its documents, saved through the envelope
   if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Change the people on the collection.", 409);
   if (signers.length > 20) throw new SignError("too_many_signers", "A document can have up to 20 people.", 400);
@@ -436,6 +454,7 @@ export async function deleteDraft(ctx: SignCtx, documentId: string, opts: { viaE
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "Only a draft can be deleted. Void a document that was sent.", 409);
   if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Delete the collection instead.", 409);
+  await assertMayEditDraft(ctx, doc);
   await deleteRowThenFiles(ctx, doc);
 }
 
@@ -447,7 +466,10 @@ export async function deleteDraft(ctx: SignCtx, documentId: string, opts: { viaE
 export async function deleteDocument(ctx: SignCtx, documentId: string, opts: { viaEnvelope?: boolean } = {}): Promise<void> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.envelope_id && !opts.viaEnvelope) throw new SignError("document_in_envelope", "This document is part of a document collection. Delete the collection instead.", 409);
-  if (doc.status === "draft") return deleteRowThenFiles(ctx, doc);
+  if (doc.status === "draft") {
+    await assertMayEditDraft(ctx, doc);
+    return deleteRowThenFiles(ctx, doc);
+  }
   if (doc.status !== "completed") throw new SignError("document_not_draft", "Only a draft can be deleted. Void a document that was sent.", 409);
   const until = doc.retain_until ? new Date(doc.retain_until) : null;
   if (!until || until.getTime() > ctx.now().getTime()) {

@@ -97,7 +97,7 @@ export async function makeWorld(): Promise<World> {
   db.rpcHandlers.sign_log = async () => ({ data: null, error: null });
   db.rpcHandlers.sign_ensure_defaults = async () => ({ data: null, error: null });
   db.rpcHandlers.account_usage = async () => ({ data: { limits: {}, sign_documents_month: 0 }, error: null });
-  db.insertDefaults.sign_envelopes = () => ({ status: "draft", reference: `ENV-2026-00000${++counter}`, locale: "en", sign_in_order: false, code_required: false, message: null, reminder_days: null, expires_at: null, sent_at: null, completed_at: null, void_reason: null, end_notified_at: null });
+  db.insertDefaults.sign_envelopes = () => ({ status: "draft", reference: `COL-2026-00000${++counter}`, locale: "en", sign_in_order: false, code_required: false, message: null, reminder_days: null, expires_at: null, sent_at: null, completed_at: null, void_reason: null, end_notified_at: null });
   db.insertDefaults.sign_documents = () => ({ reference: `SGN-2026-00000${++counter}`, mode: "sign", test: false, merge_values: {}, form_snapshot: null, envelope_id: null, envelope_position: null, final_path: null, final_sha256: null, completed_at: null, retain_until: null, void_reason: null, sent_at: null, expires_at: null });
   db.insertDefaults.sign_signers = () => ({ status: "pending", kind: "signer", invited_at: null, viewed_at: null, signed_at: null, consented_at: null, consent_version: null, last_reminded_at: null, reminder_count: 0, part_keys: null, delegated_by: null, forward_count: 0, forward_history: [], party_id: null, locale: null, ip: null, device: null, phone: null });
   // the database numbers copy recipients in the order they are added (created_at); the fake clock would give them all one instant

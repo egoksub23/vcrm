@@ -8,6 +8,8 @@ import { isExpiringSoon } from "@/lib/sign/client/list-filters";
 import { signerProgress, waitingSummary } from "@/lib/sign/client/status";
 import { cn } from "@/lib/utils";
 
+import { PrivateBadge } from "../private-badge";
+
 /** The red "TEST" mark of a document sent to try a template out. Words from `Sign.send.list.testBadge`. */
 export function TestBadge({ className }: { className?: string }) {
   const t = useTranslations("Sign.send.list");
@@ -24,8 +26,10 @@ export function MetaLine({ row, categories, className }: { row: SignListRow; cat
   const parts = [envelopeMark, row.mode === "form" ? t("formBadge") : null, row.reference, category, row.contacts?.name].filter((x): x is string => !!x);
   // a document sent from a template to try it out says so, in a mark that cannot be missed (F-10)
   const testMark = row.test ? <TestBadge className="mr-1.5 align-middle" /> : null;
-  if (parts.length === 0) return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{t("noReference")}</p>;
-  return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{parts.join(" · ")}</p>;
+  // a private document says so with a lock (migration 176)
+  const lock = row.is_private ? <PrivateBadge className="mr-1.5 align-middle" /> : null;
+  if (parts.length === 0) return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{lock}{t("noReference")}</p>;
+  return <p className={cn("truncate text-xs text-muted-foreground", className)}>{testMark}{lock}{parts.join(" · ")}</p>;
 }
 
 /** Who the document is waiting on, and how many have signed. */

@@ -21,6 +21,7 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { SignDocumentRow } from "@/lib/sign/types";
 
 import { EnvelopeDocuments } from "../envelope/envelope-documents";
+import { PrivateToggle } from "./private-toggle";
 import type { Process } from "./use-process";
 
 /** "Replace file" for one draft document: the dialog shows what would happen to the fields before anything changes. */
@@ -76,6 +77,15 @@ export function DocumentsStep({ process, envelopeId }: { process: Process; envel
           <p className="text-xs text-muted-foreground">{single ? t("titleHintSingle") : t("titleHintCollection")}</p>
         )}
       </section>
+
+      <PrivateToggle
+        id="process-private"
+        checked={process.options.isPrivate === true}
+        collection={!single}
+        disabled={readOnly || process.moving}
+        notYours={!readOnly && !process.canChangePrivacy}
+        onChange={(next) => process.changeOptions({ isPrivate: next })}
+      />
 
       <section aria-labelledby="process-docs" className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
         <h3 id="process-docs" className="text-sm font-semibold text-foreground">

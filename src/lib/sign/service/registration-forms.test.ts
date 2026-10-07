@@ -148,6 +148,19 @@ describe("making a form", () => {
     expect(db.rows("sign_registration_forms")).toHaveLength(0);
   });
 
+  it("keeps the list of people who receive the signed copy, and starts with none", async () => {
+    const plain = await createForm(ctx, base());
+    expect(plain.copy_recipients).toEqual([]);
+    const copies = [{ fullName: "Rahman", email: "rahman@vircle.example" }, { fullName: "Mei", email: "mei@vircle.example" }];
+    const f = await createForm(ctx, base({ copyRecipients: copies }));
+    expect(f.copy_recipients).toEqual(copies);
+    // refused as a whole, with the codes the screen words, and nothing is made
+    const before = db.rows("sign_registration_forms").length;
+    expect(await createForm(ctx, base({ copyRecipients: [{ fullName: "A", email: "bad" }] })).catch((e) => e)).toMatchObject({ code: "invalid_form", status: 400, issues: [{ code: "copy_email", field: "copyRecipients", detail: "0" }] });
+    expect(await createForm(ctx, base({ copyRecipients: Array.from({ length: 11 }, (_, i) => ({ fullName: `P${i}`, email: `p${i}@vircle.example` })) })).catch((e) => e)).toMatchObject({ code: "invalid_form" });
+    expect(db.rows("sign_registration_forms")).toHaveLength(before);
+  });
+
   it("only points at its own workspace's template and tag, and a tag that can be applied", async () => {
     expect(await createForm(ctx, base({ templateId: TPL_B })).catch((e) => e)).toMatchObject({ code: "template_not_found" });
     expect(await createForm(ctx, base({ templateId: "99999999-9999-4999-8999-999999999999" })).catch((e) => e)).toMatchObject({ code: "template_not_found" });
@@ -160,6 +173,17 @@ describe("making a form", () => {
 });
 
 describe("changing a form", () => {
+  it("changes the list of people who receive a copy, clears it with an empty list, and leaves it alone when it is not sent", async () => {
+    const f = await createForm(ctx, base({ copyRecipients: [{ fullName: "Rahman", email: "rahman@vircle.example" }] }));
+    const renamed = await updateForm(ctx, f.id, { name: "Renamed" });
+    expect(renamed.copy_recipients).toEqual([{ fullName: "Rahman", email: "rahman@vircle.example" }]);
+    const two = await updateForm(ctx, f.id, { copyRecipients: [{ fullName: "Mei", email: "mei@vircle.example" }, { fullName: "Rahman", email: "rahman@vircle.example" }] });
+    expect(two.copy_recipients.map((c) => c.email)).toEqual(["mei@vircle.example", "rahman@vircle.example"]);
+    expect((await updateForm(ctx, f.id, { copyRecipients: [] })).copy_recipients).toEqual([]);
+    expect(await updateForm(ctx, f.id, { copyRecipients: [{ fullName: "A", email: "a@b.example" }, { fullName: "B", email: "A@B.example" }] }).catch((e) => e)).toMatchObject({ code: "invalid_form", issues: [{ code: "copy_duplicate", detail: "1" }] });
+    expect(db.rows("sign_registration_forms").find((r) => r.id === f.id)!.copy_recipients).toEqual([]);
+  });
+
   it("changes only what is sent", async () => {
     const f = await createForm(ctx, base());
     const g = await updateForm(ctx, f.id, { dailyCap: 10 });

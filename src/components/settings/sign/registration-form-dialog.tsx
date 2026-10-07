@@ -11,13 +11,14 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+import { CopyListEditor } from "@/components/sign/copy-list-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
-import { ASK_CHOICES, draftFrom, issueKey, newDraft, previewAddress, toPayload, type DraftField, type FormDraft, type FormOptions } from "@/lib/sign/client/registration-admin";
+import { ASK_CHOICES, copyIssueWords, draftFrom, issueKey, newDraft, previewAddress, toPayload, type DraftField, type FormDraft, type FormOptions } from "@/lib/sign/client/registration-admin";
 import type { AskLevel, RegistrationFormRow } from "@/lib/sign/registration/types";
 import { SIGN_LOCALES } from "@/lib/sign/types";
 
@@ -88,7 +89,11 @@ export function RegistrationFormEditor({ form, options, onOpenChange, onSaved }:
       if (err instanceof SignApiError && err.code === "form_not_ready") {
         setFailure(t("cannotSwitchOn"));
         setIssues(err.issues.map((i) => t(issueKey(i.code), { role: i.role ?? "" })));
-      } else setFailure(errorText(err));
+      } else {
+        setFailure(errorText(err));
+        // a refused list of people who receive a copy: which person and what is wrong, in words
+        if (err instanceof SignApiError && err.code === "invalid_form") setIssues(copyIssueWords(err.issues).map((w) => t(w.key, { number: w.number })));
+      }
     } finally {
       setSaving(false);
     }
@@ -173,6 +178,19 @@ export function RegistrationFormEditor({ form, options, onOpenChange, onSaved }:
                     </p>
                   ) : null}
                 </div>
+              ) : null}
+              <CopyListEditor
+                idPrefix="reg-copy"
+                rows={draft.copies}
+                onChange={(copies) => set("copies", copies)}
+                showInvalid={!!problems.copies}
+                signerEmails={Object.values(draft.others).map((o) => o.email)}
+                help={t("copies.help")}
+              />
+              {problems.copies ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {problem("copies")}
+                </p>
               ) : null}
             </>
           )

@@ -9,6 +9,8 @@ A **document collection** is a group of two to six documents that go to the same
 
 Every document in a collection is still a normal document: it has its own file, fields, signed PDF, certificate and history. The collection only holds what is shared, the people and the options.
 
+A collection has its own number, such as `COL-2026-000012`, shown on its page and on each document's certificate. Collections made before this numbering began carry numbers that start `ENV-`; they are unchanged and work exactly the same. A collection can also be [private](/help/doc-sign/private-documents), and then every document in it is.
+
 ## Before you start
 
 You need permission to send documents. A collection holds **2 to 6 documents**, **300 pages** in all and **50 MB** in all. Each document counts toward your monthly limit of documents sent for signing, so a collection of four documents uses four. If the workspace does not have room for all of them, the collection is not sent and nothing is used.

@@ -76,6 +76,11 @@ export interface SignDocumentRow {
   /** Phase 2 (migration 171): the envelope this document is part of, and its place in it (1 to 6); both null for a document on its own. Fixed once set. */
   envelope_id?: string | null;
   envelope_position?: number | null;
+  /**
+   * Migration 176: private to its uploader, the workspace's admins and the Halo users named as signers (a document of a private collection is
+   * private). Chosen while a draft, fixed once sent. Absent or false: seen by everyone with menu.sign. See service/privacy.ts.
+   */
+  is_private?: boolean;
   locale: SignLocale;
   message: string | null;
   expires_at: string | null;
@@ -157,6 +162,8 @@ export interface SignEnvelopeRow {
   completed_at: string | null;
   void_reason: string | null;
   end_notified_at: string | null;
+  /** Migration 176: a private collection (and so every document of it) is seen only by its uploader, admins and the Halo users named on it. */
+  is_private?: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;

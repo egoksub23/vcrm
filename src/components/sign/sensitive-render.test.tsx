@@ -221,3 +221,26 @@ describe("before the words are merged", () => {
     expect(typeof merged).toBe("boolean");
   });
 });
+
+describe.runIf(merged)("who may reveal (migration 176)", () => {
+  const row = (): AnswerRowView => ({ key: "ic", label: "IC number", type: "text", sensitive: true, display: { kind: "text", text: "•••• 1234", multiline: false }, fromContact: false, bySender: false, savedAt: null });
+
+  for (const locale of LOCALES) {
+    it(`shows the mask and says who can show it, instead of a Reveal button, when the person may not (${locale})`, () => {
+      const t = (sign(locale).progress as { sensitive: Record<string, string> }).sensitive;
+      const out = html(<SensitiveAnswer documentId="d1" row={row()} canReveal={false} />, locale);
+      expect(out).toContain("•••• 1234");
+      expect(out).not.toContain("<button");
+      expect(out).not.toContain(t.reveal + "<");
+      expect(out).toContain(t.needsPermission);
+      expect(out).not.toContain(t.note);
+      expect(out).not.toMatch(/sensitive\.needsPermission/);
+      expect(out).not.toContain(SECRET);
+      // the person who may sees the usual note and a button
+      const may = html(<SensitiveAnswer documentId="d1" row={row()} canReveal />, locale);
+      expect(may).toContain("<button");
+      expect(may).toContain(t.note);
+      expect(may).not.toContain(t.needsPermission);
+    });
+  }
+});

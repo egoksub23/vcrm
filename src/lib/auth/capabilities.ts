@@ -258,6 +258,10 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("sign.templates", "sign", ADMIN_UP, "agent", "database"),
   def("sign.settings", "sign", ADMIN_UP, "agent", "database"),
   def("sign.sign", "sign", ADMIN_UP, "agent"),
+  // Migration 176: "Reveal" on a sensitive answer (an ID number, a bank account) of a document. It used to need sign.send; now it is its own
+  // switch, so a person can send documents without being able to read the numbers people entered. Server route only (the answers are read by
+  // the service role), so app tier. Default: Owner and Admin. What the sealed PDF, the zip and the uploads show is a separate decision (F8).
+  def("sign.reveal-sensitive", "sign", ADMIN_UP, "agent"),
 
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
@@ -324,6 +328,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sign.templates"
   | "sign.settings"
   | "sign.sign"
+  | "sign.reveal-sensitive"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

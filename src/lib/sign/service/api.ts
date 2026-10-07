@@ -24,6 +24,7 @@ import { listCopyRecipients, setCopyRecipients } from "./copy-recipients";
 import { SignError, raiseDatabaseError } from "./errors";
 import { createDraftFromTemplate, deleteDraft, setSigners, updateDraft, type DraftPatch } from "./drafts";
 import { formOf } from "./form-state";
+import { canSeeDocument, documentListScope } from "./privacy";
 import { loadProgress } from "./progress";
 import { remindSigner, sendDocument, voidDocument, type InvitationResult } from "./send";
 
@@ -91,7 +92,9 @@ async function templateIdOf(ctx: SignCtx, versionId: string | null): Promise<str
 async function findByReference(ctx: SignCtx, reference: string): Promise<SignDocumentRow | null> {
   const { data, error } = await ctx.admin.from("sign_documents").select("*").eq("account_id", ctx.accountId).eq("reference", reference).maybeSingle();
   if (error) raiseDatabaseError(error, "find document by reference");
-  return (data as SignDocumentRow | null) ?? null;
+  const found = (data as SignDocumentRow | null) ?? null;
+  // a private document is never handed back to a key (the reference reads as unused; the unique index then refuses a second one)
+  return found && (await canSeeDocument(ctx, found)) ? found : null;
 }
 
 /** One document with its people. A document of another workspace is "not found", exactly like a missing one. */
@@ -392,6 +395,8 @@ export async function listDocumentsForApi(ctx: SignCtx, filters: ListFilters, pa
   let q = ctx.admin.from("sign_documents").select(LIST_COLUMNS).eq("account_id", ctx.accountId);
   // a test document (F-10) is the sender's own rehearsal: it is not part of what the API lists
   q = q.neq("test", true);
+  // a key never sees a private document (migration 176, service/privacy.ts)
+  q = (await documentListScope(ctx)).apply(q);
   if (filters.status) q = q.eq("status", filters.status);
   if (filters.contactId) q = q.eq("contact_id", filters.contactId);
   if (filters.reference) q = q.eq("reference", filters.reference);

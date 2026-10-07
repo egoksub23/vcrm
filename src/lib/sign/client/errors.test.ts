@@ -21,6 +21,13 @@ describe("errorKey", () => {
     expect(errorKey("request_failed")).toBe("errors.generic");
   });
 
+  it("words the codes of private documents (migration 176)", () => {
+    for (const code of ["private_not_allowed", "private_fixed", "private_cannot_join", "bad_private"]) {
+      expect(KNOWN_ERROR_CODES, code).toContain(code);
+      expect(errorKey(code)).toBe(`errors.${code}`);
+    }
+  });
+
   it("covers every code the upload pipeline throws", () => {
     for (const code of [
       "upload_empty",

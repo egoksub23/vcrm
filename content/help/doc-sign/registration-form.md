@@ -18,16 +18,29 @@ You need permission to manage Doc Sign settings (owners and admins have it by de
 3. Choose what happens after they submit:
    - **Send a document to sign.** Choose the **template**, and the **role the applicant fills** (for example Merchant). If the template has other roles, such as a director who countersigns, type a name and an email for each. Leave a role empty if nobody is needed for it.
    - **Or keep only the details.** Switch **Send a document to sign** off. The contact is made and tagged, and nothing is sent. This is the way to start a [bulk send or an automation](/help/doc-sign/automate-signing) of your own.
-4. Choose a **tag** for the contact, for example "Merchant applicant". A tag can start an automation, such as a welcome message. Make the tag first in **Settings > Tags** if you do not have one.
-5. Choose which details the page asks for: full name, company, phone. Each can be **Required**, **Optional** or **Not asked**. The email is always asked, because the document goes there.
-6. Set the **registrations a day** (the default is 100) and the **language of the page**. A visitor can change the language on the page.
-7. Open **Wording** if you want your own agreement text or thank-you message in any of the four languages. Write the workspace name as `{workspace}`. Leave a language empty to use Halo's own words.
-8. Click **Create form**.
+4. Optionally add **People who receive a copy** (only when the form sends a document). They get the signed PDF of every document this form sends. See [People who receive a copy of every document](#people-who-receive-a-copy-of-every-document) below.
+5. Choose a **tag** for the contact, for example "Merchant applicant". A tag can start an automation, such as a welcome message. Make the tag first in **Settings > Tags** if you do not have one.
+6. Choose which details the page asks for: full name, company, phone. Each can be **Required**, **Optional** or **Not asked**. The email is always asked, because the document goes there.
+7. Set the **registrations a day** (the default is 100) and the **language of the page**. A visitor can change the language on the page.
+8. Open **Wording** if you want your own agreement text or thank-you message in any of the four languages. Write the workspace name as `{workspace}`. Leave a language empty to use Halo's own words.
+9. Click **Create form**.
 
 A new form starts **switched off**. Open its address with **Open** to see the page, then switch **Take registrations** on. Halo will not switch on a form that cannot work, and tells you why: a template that is not active, a role with nobody named, and so on.
 
 > [!NOTE]
 > If you also have an automation that sends a document when the tag is added, do not also turn on **Send a document to sign** on the form. The applicant would get two. Choose one of the two.
+
+## People who receive a copy of every document
+
+A registration form that sends a document can carry a **list of people who receive a copy**: for example your finance team, or the person who handles onboarding. Open the form, go to **People who receive a copy**, click **Add a person** and type a name and an email address (or choose a contact for the name). The list is saved with the form, and the form's card shows how many people are on it.
+
+- They are **not signers**. They never get a signing link, and they are not counted in the document's progress.
+- Each of them gets **one email with the signed PDF** of every document the form makes, when that document is completed.
+- You can add up to **10** people, and each address can be listed once.
+- If one of them also signs a document (for example the director you named for another role), they are left out of that document's copies, because they get the signed copy as a signer.
+- **The list is never shown on the public page.** The person who registers does not see the names or the addresses, or that the list exists.
+
+A person you started to add but did not finish (a name without an email, or the other way round) stops the form from being saved until you complete or remove them. A form that sends no document keeps no list, because there is nothing to send. See [Receive a copy of the signed document](/help/doc-sign/copies) for what the email holds.
 
 ## What the applicant sees
 
@@ -85,6 +98,7 @@ The page keeps the details as a contact in your workspace, like any other contac
 
 - [Templates](/help/doc-sign/templates)
 - [Send a document for signature](/help/doc-sign/send-a-document)
+- [Receive a copy of the signed document](/help/doc-sign/copies)
 - [Forms in parts](/help/doc-sign/forms-in-parts)
 - [Categories and add-ons](/help/doc-sign/categories-and-add-ons)
 - [Automate signing](/help/doc-sign/automate-signing)

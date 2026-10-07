@@ -133,6 +133,37 @@ export function copyPayload(copies: readonly CopyRow[], signerEmails: readonly s
 /** A string that is equal for two lists the server would store identically (to skip a save that changes nothing). */
 export const copyKey = (payload: readonly CopyPayload[]): string => JSON.stringify(payload.map((p) => [p.fullName, p.email]));
 
+// ---- a ready-made list (a bulk send, a registration form) -------------------------------------------------
+
+/** The people of a saved list (`[{ fullName, email }]`) as rows, in order. */
+export function copiesFromList(list: readonly CopyPayload[] = []): CopyRow[] {
+  return list.map((c) => emptyCopy({ fullName: c.fullName, email: c.email }));
+}
+
+/** A person who was started but is not complete: which part is not acceptable (0-based position in the list). */
+export interface CopyListFault {
+  index: number;
+  name: boolean;
+  email: boolean;
+}
+
+/**
+ * What stops a ready-made list being saved: a person with something typed whose name or address is not acceptable. A blank row is not a fault
+ * (it is simply not part of the list). Unlike a document on its own, a list that goes on every document of a bulk send or a registration form is
+ * never saved with someone missing in silence, so the screens hold the save until these are fixed.
+ */
+export function copyListFaults(copies: readonly CopyRow[]): CopyListFault[] {
+  const out: CopyListFault[] = [];
+  copies.forEach((c, index) => {
+    if (!copyHasInput(c)) return;
+    const f = copyFlags(c);
+    if (f.name || f.email) out.push({ index, name: f.name, email: f.email });
+  });
+  return out;
+}
+
+export const copyListReady = (copies: readonly CopyRow[]): boolean => copyListFaults(copies).length === 0;
+
 // ---- choosing a contact -------------------------------------------------------------------------------
 
 /** The part of a contact that fills a person. */

@@ -257,7 +257,7 @@ BEGIN
   SELECT string_agg(p.proname, ', ') INTO v_txt
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'sign\_%' AND p.prokind = 'f'
-     AND p.proname NOT IN ('sign_verify_chain', 'sign_registration_counts') AND p.prorettype <> 'trigger'::regtype
+     AND p.proname NOT IN ('sign_verify_chain', 'sign_registration_counts', 'sign_is_named_signer', 'sign_is_named_on_envelope', 'sign_document_visible', 'sign_envelope_visible', 'sign_copy_list_valid') AND p.prorettype <> 'trigger'::regtype
      AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE'));
   IF v_txt IS NOT NULL THEN RAISE EXCEPTION 'FAIL sign_ function(s) are callable by signed-in or signed-out users: %', v_txt; END IF;
   IF NOT has_function_privilege('service_role', 'public.sign_complete_signer(uuid,text,text,text,text)', 'EXECUTE')

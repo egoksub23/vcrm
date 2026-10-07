@@ -265,6 +265,23 @@ describe("an admin's form", () => {
     });
   });
 
+  // migration 176: a list of people who receive the signed copy of every document the form sends
+  it("takes a list of people who receive a copy, cleaned, and says which person is wrong", () => {
+    const ok = parseFormInput({ copyRecipients: [{ fullName: " Rahman ", email: " Rahman@Vircle.example " }, { full_name: "Mei", email: "mei@vircle.example" }] });
+    expect(ok).toEqual({ ok: true, value: { copyRecipients: [{ fullName: "Rahman", email: "Rahman@Vircle.example" }, { fullName: "Mei", email: "mei@vircle.example" }] } });
+    // an empty list clears it; a form that does not mention it leaves it alone
+    expect(parseFormInput({ copyRecipients: [] })).toEqual({ ok: true, value: { copyRecipients: [] } });
+    expect(parseFormInput({ name: "x" })).toEqual({ ok: true, value: { name: "x" } });
+    const issues = (body: unknown) => (parseFormInput(body) as { issues: { code: string; field?: string; detail?: string }[] }).issues;
+    expect(issues({ copyRecipients: [{ fullName: "A", email: "a@b.example" }, { fullName: "", email: "b@b.example" }, { fullName: "C", email: "nope" }, { fullName: "D", email: "A@B.example" }] })).toEqual([
+      { code: "copy_name", field: "copyRecipients", detail: "1" },
+      { code: "copy_email", field: "copyRecipients", detail: "2" },
+      { code: "copy_duplicate", field: "copyRecipients", detail: "3" },
+    ]);
+    expect(issues({ copyRecipients: Array.from({ length: 11 }, (_, i) => ({ fullName: `P${i}`, email: `p${i}@b.example` })) })).toEqual([{ code: "too_many_copies", field: "copyRecipients" }]);
+    expect(issues({ copyRecipients: "a@b.example" })).toEqual([{ code: "bad_copy_list", field: "copyRecipients" }]);
+  });
+
   it("is a change when it sends only some of the fields", () => {
     expect(parseFormInput({ active: false })).toEqual({ ok: true, value: { active: false } });
     expect(parseFormInput({})).toEqual({ ok: true, value: {} });

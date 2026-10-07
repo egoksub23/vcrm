@@ -11,6 +11,61 @@ type Row = Record<string, unknown>;
 type Result = { data: unknown; error: { message: string; details?: string } | null; count?: number };
 type Filter = (r: Row) => boolean;
 
+/** What the database fills in for a column that is NOT NULL DEFAULT: a row seeded or inserted without it has it (migration 176: nothing is private unless it says so). */
+const COLUMN_DEFAULTS: Record<string, Row> = {
+  sign_documents: { is_private: false },
+  sign_envelopes: { is_private: false },
+};
+
+/** Split a PostgREST `or(...)` list at its top-level commas (a comma inside `in.(a,b)` stays). */
+function splitTopLevel(expr: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const c of expr) {
+    if (c === "(") depth++;
+    if (c === ")") depth--;
+    if (c === "," && depth === 0) {
+      out.push(cur);
+      cur = "";
+    } else cur += c;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** One `column.operator.value` of an `or(...)`: eq, neq, is, in, gt, gte, lt, lte. */
+function orCondition(part: string): Filter {
+  const first = part.indexOf(".");
+  const second = part.indexOf(".", first + 1);
+  const col = part.slice(0, first);
+  const op = part.slice(first + 1, second);
+  const value = part.slice(second + 1);
+  const text = (r: Row) => (r[col] === null || r[col] === undefined ? null : String(r[col]));
+  switch (op) {
+    case "eq":
+      return (r) => text(r) === value;
+    case "neq":
+      return (r) => text(r) !== value;
+    case "is":
+      return (r) => (value === "null" ? text(r) === null : text(r) === value);
+    case "in": {
+      const set = new Set(splitTopLevel(value.replace(/^\(/, "").replace(/\)$/, "")));
+      return (r) => text(r) !== null && set.has(text(r) as string);
+    }
+    case "gt":
+      return (r) => text(r) !== null && (text(r) as string) > value;
+    case "gte":
+      return (r) => text(r) !== null && (text(r) as string) >= value;
+    case "lt":
+      return (r) => text(r) !== null && (text(r) as string) < value;
+    case "lte":
+      return (r) => text(r) !== null && (text(r) as string) <= value;
+    default:
+      throw new Error(`FakeDb: or() does not know the operator "${op}"`);
+  }
+}
+
 export class FakeDb {
   tables: Record<string, Row[]> = {};
   files = new Map<string, Uint8Array>();
@@ -22,7 +77,7 @@ export class FakeDb {
   insertDefaults: Record<string, (given: Row) => Row> = {};
 
   seed(table: string, rows: Row[]): this {
-    this.tables[table] = [...(this.tables[table] ?? []), ...rows.map((r) => ({ ...r }))];
+    this.tables[table] = [...(this.tables[table] ?? []), ...rows.map((r) => ({ ...(COLUMN_DEFAULTS[table] ?? {}), ...r }))];
     return this;
   }
 
@@ -163,6 +218,12 @@ class Query implements PromiseLike<Result> {
     this.filters.push((r) => typeof r[col] === "string" && re.test(r[col] as string));
     return this;
   }
+  /** PostgREST's `or(a.eq.1,b.is.null,id.in.(x,y))`: a row passes when any of the conditions holds (several calls are ANDed, as the database does). */
+  or(expr: string): this {
+    const tests = splitTopLevel(expr).map(orCondition);
+    this.filters.push((r) => tests.some((t) => t(r)));
+    return this;
+  }
   not(col: string, _op: string, v: unknown): this {
     this.filters.push((r) => (v === null ? r[col] !== null && r[col] !== undefined : r[col] !== v));
     return this;
@@ -214,7 +275,7 @@ class Query implements PromiseLike<Result> {
     } else if (this.op === "insert" || this.op === "upsert") {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
       for (const p of list) {
-        const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...(this.db.insertDefaults[this.table]?.(p) ?? {}), ...p };
+        const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...(COLUMN_DEFAULTS[this.table] ?? {}), ...(this.db.insertDefaults[this.table]?.(p) ?? {}), ...p };
         if (this.op === "upsert") {
           const existing = rows.find((r) => this.conflict.every((c) => r[c] === row[c]));
           if (existing && this.ignoreDuplicates) continue;

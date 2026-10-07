@@ -4,7 +4,8 @@
 //   GET     (menu.sign)  the envelope, its documents (summaries), the signing list (one row for each person on each document), and, for a draft,
 //                        what stands between it and Send (each problem names its document) and whether the month's limit has room for all of them
 //   PATCH   (sign.send)  change what an envelope shares while it is a draft: title, message, language, expiry, signing order, code, reminders,
-//                        contact, ticket and deal. The options are written onto every document in the same step.
+//                        contact, ticket and deal, and whether it is private (migration 176: only its uploader or an admin may change that). The options are
+//                        written onto every document in the same step.
 //   DELETE  (sign.send)  delete a draft envelope with its drafts; or, with sign.settings as well, a completed one once every document's
 //                        retention date has passed (409 document_retained, with the date, before that). A sent envelope is cancelled, never deleted.
 // ============================================================

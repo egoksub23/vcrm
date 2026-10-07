@@ -174,7 +174,7 @@ const signer = (over: Partial<SignSignerRow>): SignSignerRow =>
     ...over,
   }) as unknown as SignSignerRow;
 
-const caps = { send: true, void: true, settings: true };
+const caps = { send: true, void: true, reveal: true, settings: true };
 const NOW = Date.parse("2026-10-06T11:12:00Z");
 
 // the sign statuses are read from the merged messages' Sign.send; a fixture event row:
@@ -220,7 +220,7 @@ describe.skipIf(LOCALES.length === 0)("the form screens render in every language
       expect(open.match(/<button[^>]*>/g)?.length).toBeGreaterThan(3);
       // a finished document offers neither Remind nor Extend expiry
       const done = page(locale, <ProgressPanel {...base} document={doc({ status: "completed" })} caps={caps} />);
-      const without = page(locale, <ProgressPanel {...base} document={doc()} caps={{ send: false, void: false, settings: false }} />);
+      const without = page(locale, <ProgressPanel {...base} document={doc()} caps={{ send: false, void: false, reveal: false, settings: false }} />);
       expect(done.length).toBeLessThan(open.length);
       expect(without.length).toBeLessThan(open.length);
     });

@@ -24,6 +24,8 @@ export function shouldPoll(status: string): boolean {
 export interface DetailCaps {
   send: boolean;
   void: boolean;
+  /** May reveal a sensitive answer (sign.reveal-sensitive): without it the Reveal button is not shown. */
+  reveal: boolean;
   /** Sees technical detail such as why a sealing attempt failed. */
   settings: boolean;
 }

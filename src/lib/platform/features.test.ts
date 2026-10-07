@@ -84,7 +84,7 @@ describe("applyFeatureFlags", () => {
 
   it("removes menu.sign and every sign.* capability and nothing else when sign is off", () => {
     const withSign = new Set([
-      "menu.inbox", "menu.sign", "sign.send", "sign.void", "sign.templates", "sign.settings", "sign.sign", "tickets.delete", "settings.workspace",
+      "menu.inbox", "menu.sign", "sign.send", "sign.void", "sign.templates", "sign.settings", "sign.sign", "sign.reveal-sensitive", "tickets.delete", "settings.workspace",
     ]);
     const out = applyFeatureFlags(withSign, parsePlatformRow({ features: { sign: false } }));
     expect([...out].sort()).toEqual(["menu.inbox", "settings.workspace", "tickets.delete"]);

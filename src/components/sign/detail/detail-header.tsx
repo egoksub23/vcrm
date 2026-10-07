@@ -13,6 +13,7 @@ import { documentBadgeClass, documentStatusKey, SIGN_STATUS_NAMESPACE } from "@/
 import type { SignDocumentRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
+import { PrivateBadge } from "../private-badge";
 import { formatWhen } from "./format";
 import type { DocumentActions } from "./logic";
 import type { DocumentLinks } from "./use-document-links";
@@ -54,6 +55,7 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
             <h1 className="min-w-0 break-words text-2xl font-bold text-foreground">{doc.title}</h1>
             <span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium", documentBadgeClass(doc.status))}>{ts(documentStatusKey(doc.status))}</span>
             {doc.test && <span className="inline-flex h-6 items-center rounded-full bg-red-100 px-2.5 text-xs font-bold tracking-wide text-red-700 uppercase dark:bg-red-950 dark:text-red-300">{t("header.testChip")}</span>}
+            {doc.is_private && <PrivateBadge className="h-6 px-2.5 text-xs" />}
             {doc.mode === "form" && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.formChip")}</span>}
             {doc.sign_in_order && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t(doc.mode === "form" ? "header.inOrderForm" : "header.inOrder")}</span>}
             {doc.code_required && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.codeRequired")}</span>}

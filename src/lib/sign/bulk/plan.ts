@@ -4,6 +4,7 @@
 // and the runner, so a person is judged the same way at each.
 // ============================================================
 
+import { checkCopyList } from "../copy-list";
 import { cleanReminderDays } from "../defaults";
 // not the forms barrel: it re-exports printing, which pulls the PDF engine (and its font files) into the browser bundle of the bulk page
 import type { FormDefinition } from "../forms/types";
@@ -187,6 +188,10 @@ export function parseOptions(raw: unknown): { options: BulkOptions | null; probl
     else reminderDays = cleanReminderDays(raw.reminderDays as number[]);
   }
 
+  // people who receive the signed copy of every document (migration 176): a good list, or the batch is not made
+  const copies = checkCopyList(raw.copyTo);
+  if (!copies.ok) bad("copyTo");
+
   if (problems.length > 0 || !templateId || !personRole || !channel) return { options: null, problems };
   return {
     options: {
@@ -202,6 +207,8 @@ export function parseOptions(raw: unknown): { options: BulkOptions | null; probl
       codeRequired: codeRequired ?? null,
       signInOrder: signInOrder ?? null,
       reminderDays,
+      // only written when there is someone: a batch without copies keeps exactly the options it always had
+      ...(copies.ok && copies.list.length > 0 ? { copyTo: copies.list } : {}),
     },
     problems,
   };

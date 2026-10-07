@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_ASKED, REGISTRATION_REASONS, type RegistrationFormRow } from "@/lib/sign/registration/types";
 
-import { draftFrom, issueKey, newDraft, previewAddress, reasonKey, toPayload, type FormOptions } from "./registration-admin";
+import { copiesFromList, emptyCopy } from "./copy-form";
+import { copyIssueKey, copyIssueWords, draftFrom, issueKey, newDraft, previewAddress, reasonKey, toPayload, type FormOptions } from "./registration-admin";
 
 const options: Pick<FormOptions, "templates"> = {
   templates: [
@@ -33,6 +34,7 @@ describe("the request a draft becomes", () => {
         templateId: "tpl",
         applicantRoleKey: "merchant",
         signersOther: [{ role_key: "director", name: "Siti", email: "siti@vircle.example", channel: "email", phone: null }],
+        copyRecipients: [],
         contactTagId: "tag",
         fields: { full_name: "required", email: "required", phone: "optional", company: "required" },
         consentText: { en: "We keep it." },
@@ -94,6 +96,10 @@ describe("a form being edited", () => {
     template_id: "tpl",
     applicant_role_key: "merchant",
     signers_other: [{ role_key: "director", name: "Siti", email: "siti@vircle.example", channel: "email", phone: null }],
+    copy_recipients: [
+      { fullName: "Mei Lin", email: "mei@vircle.example" },
+      { fullName: "Raj", email: "raj@vircle.example" },
+    ],
     contact_tag_id: "tag",
     fields: { ...DEFAULT_ASKED, phone: "off" },
     consent_text: { ms: "Kata-kata." },
@@ -112,6 +118,40 @@ describe("a form being edited", () => {
     expect(d.consentText).toEqual({ en: "", ms: "Kata-kata.", zh: "", ko: "" });
     const r = toPayload(d, options);
     expect(r).toMatchObject({ ok: true, payload: { name: row.name, active: true, templateId: "tpl", signersOther: row.signers_other, fields: { ...row.fields }, consentText: { ms: "Kata-kata." }, successMessage: { en: "Thanks" }, dailyCap: 40 } });
+  });
+
+  it("carries the people who receive a copy from the saved form to the request, and back as the same list", () => {
+    const d = draftFrom(row);
+    expect(d.copies.map((c) => [c.fullName, c.email])).toEqual([
+      ["Mei Lin", "mei@vircle.example"],
+      ["Raj", "raj@vircle.example"],
+    ]);
+    const r = toPayload(d, options);
+    expect(r.ok && r.payload.copyRecipients).toEqual(row.copy_recipients);
+    // a form saved before the list existed has none
+    expect(draftFrom({ ...row, copy_recipients: undefined as never }).copies).toEqual([]);
+    expect(newDraft().copies).toEqual([]);
+  });
+
+  it("sends the list trimmed, each address once, without a blank row, and sends an empty list when everyone was taken off (so it clears)", () => {
+    const withList = (copies: ReturnType<typeof copiesFromList>) => toPayload({ ...draftFrom(row), copies }, options);
+    const r = withList([...copiesFromList([{ fullName: " Mei Lin ", email: " MEI@vircle.example " }]), emptyCopy(), emptyCopy({ fullName: "Mei again", email: "mei@VIRCLE.example" })]);
+    expect(r.ok && r.payload.copyRecipients).toEqual([{ fullName: "Mei Lin", email: "MEI@vircle.example" }]);
+    const none = withList([]);
+    expect(none.ok && none.payload.copyRecipients).toEqual([]);
+  });
+
+  it("holds the save while a person is started but not complete, and says so under the field", () => {
+    const r = toPayload({ ...draftFrom(row), copies: [emptyCopy({ fullName: "Mei" })] }, options);
+    expect(r).toEqual({ ok: false, problems: { copies: "incomplete" } });
+    expect(toPayload({ ...draftFrom(row), copies: [emptyCopy({ email: "mei@vircle.example" })] }, options)).toEqual({ ok: false, problems: { copies: "incomplete" } });
+    expect(toPayload({ ...draftFrom(row), copies: [emptyCopy()] }, options)).toMatchObject({ ok: true });
+  });
+
+  it("keeps no list for a form that sends no document, and does not hold its save for a half-typed one", () => {
+    const d = { ...draftFrom(row), sendDocument: false, templateId: "", applicantRoleKey: "", copies: [emptyCopy({ fullName: "Mei" }), ...copiesFromList([{ fullName: "Raj", email: "raj@vircle.example" }])] };
+    const r = toPayload(d, options);
+    expect(r).toMatchObject({ ok: true, payload: { sendDocument: false, copyRecipients: [] } });
   });
 
   it("has sensible starting values for a new form", () => {
@@ -134,5 +174,26 @@ describe("words for codes", () => {
     expect(reasonKey(null)).toBe("reasons.generic");
     expect(issueKey("role_without_person")).toBe("issues.role_without_person");
     expect(issueKey("bad_role_key")).toBe("issues.generic");
+  });
+
+  it("words each refusal of the copy list, with the person as the reader counts them, and leaves other fields alone", () => {
+    for (const c of ["copy_name", "copy_email", "copy_duplicate", "too_many_copies", "bad_copy_list"]) expect(copyIssueKey(c)).toBe(`copies.issues.${c}`);
+    expect(copyIssueKey("from_the_future")).toBe("copies.issues.generic");
+    expect(
+      copyIssueWords([
+        { code: "copy_name", field: "copyRecipients", detail: "0" },
+        { code: "copy_duplicate", field: "copyRecipients", detail: "2" },
+        { code: "too_many_copies", field: "copyRecipients" },
+        { code: "bad_copy_list", field: "copyRecipients", detail: "not a number" },
+        { code: "bad_role", field: "applicantRoleKey" },
+        { code: "signer_name", field: "signersOther", detail: "1" },
+      ]),
+    ).toEqual([
+      { key: "copies.issues.copy_name", number: "1" },
+      { key: "copies.issues.copy_duplicate", number: "3" },
+      { key: "copies.issues.too_many_copies", number: "" },
+      { key: "copies.issues.bad_copy_list", number: "" },
+    ]);
+    expect(copyIssueWords([])).toEqual([]);
   });
 });

@@ -9,6 +9,21 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.80.0] — 2026-10-07
+
+**Migration required: 176.** Apply it BEFORE the new app: the document and collection lists now read `is_private`.
+
+### Added
+
+- **Private documents.** The person who uploads a document or collection can mark it Private on the first step. Only that person, workspace admins and owners, and Halo users named as signers can see it and its progress (lists, detail, history, exports, zip, search, counts). Enforced in the database and in the service layer; API keys never see private documents. Everything in a private collection is private. A private draft can be edited, sent or deleted only by its uploader or an admin. Not available on automation, bulk or registration documents.
+- **A separate permission to reveal sensitive answers** (`sign.reveal-sensitive`). Owner and Admin have it; other roles and custom roles get it only when an admin grants it. The Reveal button is hidden without it. Who can read sensitive answers in the sealed PDF, zip and uploads is unchanged.
+- **Copy recipients on bulk send and registration forms.** Up to 10 people who receive the signed copy of every document the batch or the registration page produces. The list is never shown on the public page.
+
+### Changed
+
+- New document collections get references starting `COL-` instead of `ENV-`. Existing `ENV-` references keep working everywhere.
+- Agents and agent-based custom roles lose the Reveal button until an admin grants `sign.reveal-sensitive`.
+
 ## [0.79.0] — 2026-10-07
 
 **Migration required: 175** (already applied if you followed 0.78.1). No new migration for the four-step flow.

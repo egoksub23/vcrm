@@ -4,6 +4,7 @@
 // Settings screen, so it carries nothing that needs a server secret.
 // ============================================================
 
+import type { CopyInput } from "../copy-list";
 import type { SignLocale } from "../types";
 
 /** How the page treats a detail: asked and needed, asked but may be left empty, or not asked at all. */
@@ -54,6 +55,8 @@ export interface RegistrationFormRow {
   template_id: string | null;
   applicant_role_key: string | null;
   signers_other: OtherSigner[];
+  /** Migration 176: people who receive the signed copy of every document this form sends (at most 10; none is `[]`). Never shown on the public page. */
+  copy_recipients: CopyInput[];
   contact_tag_id: string | null;
   fields: AskedFields;
   consent_text: Wording;

@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
+import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { combineSaveStates, useAutosave } from "@/hooks/use-sign-autosave";
 import { SignApiError, type SignIssue } from "@/lib/sign/client/api";
@@ -20,7 +21,7 @@ import { isFormMode } from "@/lib/sign/types";
 import { errorKey } from "@/lib/sign/client/errors";
 import { normalizePersonSteps, peopleKey, peoplePayload, personIsComplete, type PersonPayload } from "@/lib/sign/client/envelope-form";
 import { hasFormParts } from "@/lib/sign/client/progress-logic";
-import { PROCESS_STEPS, deriveContact, liteDocs, optionIssuesOf, processProblems, processStatus, reachableSteps, roleKeyOn, startingPeople, startingStep, summarize, type ProcessFacts, type ProcessSource, type StepId } from "@/lib/sign/client/process";
+import { PROCESS_STEPS, deriveContact, liteDocs, optionIssuesOf, processProblems, processRights, processStatus, reachableSteps, roleKeyOn, startingPeople, startingStep, summarize, type ProcessFacts, type ProcessSource, type StepId } from "@/lib/sign/client/process";
 import { linksAfterContactChange } from "@/lib/sign/client/record-links";
 import { isCopy, isSigner, type EnvelopePerson } from "@/lib/sign/envelopes";
 
@@ -58,7 +59,11 @@ export interface BlockedNotice {
 export function useProcess({ source, api, asked }: Args) {
   const router = useRouter();
   const tErr = useTranslations("Sign.send");
-  const canSend = useCapability("sign.send");
+  const mayHold = useCapability("sign.send");
+  // migration 176: only the person who uploaded a draft, or an admin, can change whether it is private, and a private draft is edited by them alone
+  // (a Halo user named on it reads it): for anyone else the screens are read only, as for a person without sign.send
+  const { user, isOwner, isAdmin } = useAuth();
+  const { canSend, canChangePrivacy } = processRights({ mayHold, isAdmin: isOwner || isAdmin, isUploader: !!user && !!source.createdBy && source.createdBy === user.id, isPrivate: source.options.isPrivate === true });
   const docs = source.docs;
   const kind = source.kind;
 
@@ -282,6 +287,7 @@ export function useProcess({ source, api, asked }: Args) {
   return {
     kind,
     canSend,
+    canChangePrivacy,
     people,
     options,
     step,

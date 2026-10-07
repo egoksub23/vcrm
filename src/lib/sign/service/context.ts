@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { NotifyDeps } from "../notify";
 import { SignError, raiseDatabaseError } from "./errors";
+import { assertCanSeeDocument } from "./privacy";
 import type { SignDocumentRow, SignSettingsRow, SignSignerRow } from "../types";
 
 export interface SignCtx {
@@ -27,7 +28,8 @@ export async function loadDocument(ctx: SignCtx, documentId: string): Promise<Si
   const { data, error } = await ctx.admin.from("sign_documents").select("*").eq("id", documentId).eq("account_id", ctx.accountId).maybeSingle();
   if (error) raiseDatabaseError(error, "load document");
   if (!data) throw new SignError("document_not_found", "That document was not found.", 404);
-  return data as SignDocumentRow;
+  // a private document the caller may not see is "not found" too (service/privacy.ts): every service that starts here is covered
+  return assertCanSeeDocument(ctx, data as SignDocumentRow);
 }
 
 export async function loadSigners(ctx: SignCtx, documentId: string): Promise<SignSignerRow[]> {

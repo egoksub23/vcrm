@@ -65,7 +65,7 @@ describe.skipIf(LOCALES.length === 0)("a Halo user on the people list", () => {
             document={doc}
             signers={[signer({}), signer({ id: "s2", full_name: "Siti", internal_user_id: "u-other", role_key: "merchant", order_no: 2 }), signer({ id: "s3", full_name: "Ali", internal_user_id: "u-me", role_key: "merchant", order_no: 3 }), signer({ id: "s4", full_name: "Outside", email: "o@example.com", order_no: 4 })]}
             undelivered={new Set()}
-            caps={{ send: true, void: true, settings: true }}
+            caps={{ send: true, void: true, reveal: true, settings: true }}
             onChanged={async () => {}}
           />
         </NextIntlClientProvider>,

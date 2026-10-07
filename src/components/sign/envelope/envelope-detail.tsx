@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredLink } from "../detail/signer-dialogs";
 import { detailErrorKey, type RecipientForm } from "../detail/logic";
 import { VoidDialog } from "../detail/void-dialog";
+import { PrivateBadge } from "../private-badge";
 import { DocumentStatusBadge } from "../send/status-badge";
 import { AddCopyRecipient, COPIES_OPEN_STATUSES, CopyRecipientItems } from "./copy-recipients";
 
@@ -139,6 +140,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
             <h1 className="min-w-0 break-words text-xl font-semibold text-foreground">{env.title}</h1>
             <DocumentStatusBadge status={env.status} />
             <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{t("badge", { count: documents.length })}</span>
+            {env.is_private ? <PrivateBadge className="h-5" /> : null}
           </div>
           <p className="text-xs text-muted-foreground">{[env.reference, env.sent_at ? t("detail.sentOn", { date: day(env.sent_at) }) : null, env.expires_at && stillOpen ? t("detail.expiresOn", { date: day(env.expires_at) }) : null].filter(Boolean).join(" · ")}</p>
         </div>

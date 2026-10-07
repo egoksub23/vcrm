@@ -25,6 +25,18 @@ export function optionIssuesOf(options: DraftOptions, now: Date): SignIssue[] {
   return [...(flags.title ? [{ code: "title_required" }] : []), ...(flags.message ? [{ code: "message_long" }] : []), ...(flags.expiryPast ? [{ code: "expiry_past" }] : []), ...(flags.reminders ? [{ code: "reminders_bad" }] : [])];
 }
 
+// ---- who may edit a draft (migration 176) ---------------------------------------------------------------------
+
+/**
+ * What the reader may do with a draft process. Whoever may send (`sign.send`) edits it, except that a PRIVATE draft is edited by its uploader or an
+ * admin alone (a Halo user named on it reads it), and only the uploader or an admin can change whether it is private. The server holds the same rule;
+ * this is so the screens do not offer what would be refused.
+ */
+export function processRights(a: { mayHold: boolean; isAdmin: boolean; isUploader: boolean; isPrivate: boolean }): { canSend: boolean; canChangePrivacy: boolean } {
+  const canChangePrivacy = a.mayHold && (a.isAdmin || a.isUploader);
+  return { canChangePrivacy, canSend: a.mayHold && (!a.isPrivate || canChangePrivacy) };
+}
+
 // ---- the steps ------------------------------------------------------------------------------------
 
 export const PROCESS_STEPS = ["documents", "people", "blocks", "send"] as const;
@@ -72,18 +84,20 @@ export interface ProcessSource {
   headroom: ProcessHeadroom | null;
   /** A document on its own: its row (the form it carries, its category). */
   document?: SignDocumentRow;
+  /** Who uploaded it (the document's, or the collection's): with the workspace's admins, the only people who may change whether it is private. */
+  createdBy?: string | null;
 }
 
 /** A document on its own, read as a process of one document. */
 export function sourceFromDraft(data: { document: SignDocumentRow; signers: SignSignerRow[]; copies?: SignCopyRecipientRow[]; problems: SignIssue[] }): ProcessSource {
   const doc = data.document;
-  return { kind: "single", id: doc.id, reference: doc.reference, docs: [summarizeDocument(doc)], signers: data.signers, copies: data.copies ?? [], options: optionsFromDocument(doc), serverProblems: data.problems, headroom: null, document: doc };
+  return { kind: "single", id: doc.id, reference: doc.reference, docs: [summarizeDocument(doc)], signers: data.signers, copies: data.copies ?? [], options: optionsFromDocument(doc), serverProblems: data.problems, headroom: null, document: doc, createdBy: doc.created_by };
 }
 
 /** A document collection, read as a process of its documents. */
 export function sourceFromEnvelope(data: { envelope: SignEnvelopeRow; documents: ProcessDoc[]; signers: SignSignerRow[]; copies?: SignCopyRecipientRow[]; problems: SignIssue[]; headroom: ProcessHeadroom | null; links: { ticketId: string | null; dealId: string | null } }): ProcessSource {
   const env = data.envelope;
-  return { kind: "collection", id: env.id, reference: env.reference, docs: data.documents, signers: data.signers, copies: data.copies ?? [], options: optionsFromEnvelope(env, data.links), serverProblems: data.problems, headroom: data.headroom };
+  return { kind: "collection", id: env.id, reference: env.reference, docs: data.documents, signers: data.signers, copies: data.copies ?? [], options: optionsFromEnvelope(env, data.links), serverProblems: data.problems, headroom: data.headroom, createdBy: env.created_by };
 }
 
 // ---- what the People step starts from -----------------------------------------------------------------

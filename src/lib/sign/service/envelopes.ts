@@ -26,6 +26,7 @@ import { deliverEnvelopeInvitations, envelopeWorkspace, notifyEnvelopeCompleted,
 import { SignError, raiseDatabaseError } from "./errors";
 import { resolveLinks } from "./links";
 import { emitSignEvent } from "./outbound";
+import { assertMayChangePrivacy, assertMayEditDraft } from "./privacy";
 import { extendExpiry } from "./progress";
 import { freezeForSend, readinessProblems, refreshFormSnapshot, type InvitationResult } from "./send";
 import { getFile } from "../storage";
@@ -159,6 +160,8 @@ export interface EnvelopeDraftArgs {
   contactId?: string | null;
   ticketId?: string | null;
   dealId?: string | null;
+  /** Migration 176: a private collection, and so every document of it: seen only by its uploader, the workspace's admins and the Halo users named on it. */
+  isPrivate?: boolean;
 }
 
 async function templateNames(ctx: SignCtx, ids: readonly string[]): Promise<Map<string, string>> {
@@ -201,7 +204,7 @@ export async function makeEntryDocuments(
   from: number,
   entries: readonly OrderEntry[],
   uploads: readonly EnvelopeUpload[],
-  link: { contactId: string | null; ticketId: string | null; dealId: string | null },
+  link: { contactId: string | null; ticketId: string | null; dealId: string | null; isPrivate?: boolean },
   made: SignDocumentRow[],
 ): Promise<void> {
   let position = from;
@@ -255,6 +258,7 @@ export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs)
       contact_id: links.contactId,
       locale: defaults.locale,
       reminder_days: defaults.reminderDays,
+      ...(args.isPrivate ? { is_private: true } : {}),
       created_by: ctx.userId,
     })
     .select("*")
@@ -268,7 +272,7 @@ export async function createEnvelopeDraft(ctx: SignCtx, args: EnvelopeDraftArgs)
     await ctx.admin.from("sign_envelopes").delete().eq("id", envelope.id).eq("account_id", ctx.accountId);
   };
   try {
-    await makeEntryDocuments(ctx, envelope.id, 0, entries, uploads, { contactId: links.contactId, ticketId: links.ticketId, dealId: links.dealId }, documents);
+    await makeEntryDocuments(ctx, envelope.id, 0, entries, uploads, { contactId: links.contactId, ticketId: links.ticketId, dealId: links.dealId, isPrivate: args.isPrivate === true }, documents);
 
     // the options the people will meet: the strictest of the documents' own (signing order and code on when any asks), the first message
     // any of them has, then written to every document so they agree from the start
@@ -301,6 +305,8 @@ export async function applyEnvelopeOptions(ctx: SignCtx, env: SignEnvelopeRow, d
       message: env.message,
       reminderDays: env.reminder_days ?? [],
       allowForwarding: false,
+      // the collection decides: each document is private exactly when it is (the database holds that too)
+      isPrivate: env.is_private === true,
       // the expiry is checked when it is set; a date that has since passed is left for the send to refuse
       ...(env.expires_at && new Date(env.expires_at).getTime() > ctx.now().getTime() ? { expiresAt: env.expires_at } : {}),
     };
@@ -320,12 +326,15 @@ export interface EnvelopePatch {
   contactId?: string | null;
   ticketId?: string | null;
   dealId?: string | null;
+  /** Migration 176: only its uploader or an admin may change it, and only while the collection is a draft. */
+  isPrivate?: boolean;
 }
 
 /** Change what an envelope shares. Only while it is a draft. The options go onto every document in the same step. */
 export async function updateEnvelope(ctx: SignCtx, envelopeId: string, patch: EnvelopePatch): Promise<SignEnvelopeRow> {
   const env = await loadEnvelope(ctx, envelopeId);
   if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
+  await assertMayEditDraft(ctx, env);
   const update: Record<string, unknown> = {};
   if (patch.title !== undefined) {
     const t = patch.title.trim();
@@ -351,6 +360,13 @@ export async function updateEnvelope(ctx: SignCtx, envelopeId: string, patch: En
   if (patch.signInOrder !== undefined) update.sign_in_order = !!patch.signInOrder;
   if (patch.codeRequired !== undefined) update.code_required = !!patch.codeRequired;
   if (patch.reminderDays !== undefined) update.reminder_days = cleanReminderDays(patch.reminderDays);
+  if (patch.isPrivate !== undefined) {
+    if (typeof patch.isPrivate !== "boolean") throw new SignError("bad_private", "Choose whether this is private.", 400);
+    if (patch.isPrivate !== (env.is_private === true)) {
+      await assertMayChangePrivacy(ctx, env);
+      update.is_private = patch.isPrivate;
+    }
+  }
 
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   // the contact, the ticket and the deal of an envelope are the documents' too (so each shows on the contact's, the ticket's and the deal's panels)
@@ -434,6 +450,7 @@ async function writeSigners(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly S
 export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, people: readonly EnvelopePersonInput[]): Promise<SignSignerRow[]> {
   const env = await loadEnvelope(ctx, envelopeId);
   if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
+  await assertMayEditDraft(ctx, env);
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const { list, derivedFinished } = planSigners(docs, people, { ordered: env.sign_in_order });
 
@@ -501,6 +518,7 @@ export interface EnvelopeSendResult {
 export async function sendEnvelope(ctx: SignCtx, envelopeId: string): Promise<EnvelopeSendResult> {
   const env = await loadEnvelope(ctx, envelopeId);
   if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
+  await assertMayEditDraft(ctx, env);
   let docs = await loadEnvelopeDocuments(ctx, envelopeId);
   if (docs.length < ENVELOPE_MIN_DOCUMENTS || docs.length > ENVELOPE_MAX_DOCUMENTS) throw new SignError("envelope_size", `A document collection has ${ENVELOPE_MIN_DOCUMENTS} to ${ENVELOPE_MAX_DOCUMENTS} documents.`, 400);
   // the envelope's options are on every document (they were written as they were edited; once more so nothing can differ)
@@ -685,6 +703,7 @@ export async function deleteEnvelope(ctx: SignCtx, envelopeId: string): Promise<
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
   const now = ctx.now().getTime();
   if (env.status === "draft") {
+    await assertMayEditDraft(ctx, env);
     for (const d of docs) await deleteDraft(ctx, d.id, { viaEnvelope: true });
   } else if (docs.length > 0 && docs.every((d) => d.status === "completed")) {
     const held = docs.find((d) => !d.retain_until || new Date(d.retain_until).getTime() > now);

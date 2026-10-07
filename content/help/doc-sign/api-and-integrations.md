@@ -38,6 +38,7 @@ You cannot add a permission to a key later. Make a new key and revoke the old on
 
 - **Templates first.** The templates list tells your developer each template's roles (for example "merchant" and "director") and the values the sender can fill in. Documents are sent to people by role.
 - **Use a reference.** Your system should give each document its own reference, such as your merchant number. If the same call is made twice by mistake, Halo returns the first document and does not send a second one. Without a reference, a repeated call sends a second document.
+- **A private document is invisible to the API.** A document or collection that someone in Halo marked [private](/help/doc-sign/private-documents) is never listed or opened by a key, and a key never creates one.
 - **The reference is the document number.** It is the number shown on the document and on the certificate, so choose something you recognise.
 - **People who only receive a copy.** Pass them in `copy_to`. They get the signed PDF by email when the document is completed, never a link, and they are never in the list of signers. The API gives their names back, not their emails. They are part of the same call, so a repeated call with the same reference does not add them twice. See [Receive a copy of the signed document](/help/doc-sign/copies).
 - **Reminders keep the 24-hour rule.** The same person cannot be reminded again within 24 hours.

@@ -93,7 +93,7 @@ export function SensitiveAnswer({ documentId, row, canReveal }: { documentId: st
             </Button>
           ))}
       </div>
-      <span className="text-xs text-muted-foreground">{shown ? t("sensitive.shownNote") : t("sensitive.note")}</span>
+      <span className="text-xs text-muted-foreground">{shown ? t("sensitive.shownNote") : canReveal ? t("sensitive.note") : t("sensitive.needsPermission")}</span>
     </div>
   );
 }

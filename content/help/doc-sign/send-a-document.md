@@ -18,7 +18,8 @@ You need permission to send documents. If you start from a template, it must be 
    - **Upload a file** takes a PDF, a Word file or an image (JPG or PNG), up to 25 MB.
    - **Use a template** starts from a saved template with its fields and roles already placed.
 3. Optionally give it a title, a category and a contact. Without a title, the file name or template name is used.
-4. Click **Create draft**.
+4. Turn on **Private document** if only you, your admins and the people named as signers should see it. See [Private documents](/help/doc-sign/private-documents).
+5. Click **Create draft**.
 
 A Word file is converted to a PDF first. You see every page of the result before you send, and that PDF is exactly what the signers sign. If the conversion is not available on your server, or the file is too long, upload a PDF instead.
 
@@ -79,5 +80,6 @@ If you tick **Needs a verification code** on the Options step, each signer must 
 
 - [Prepare the fields](/help/doc-sign/prepare-fields)
 - [Receive a copy of the signed document](/help/doc-sign/copies)
+- [Private documents](/help/doc-sign/private-documents)
 - [Signing order](/help/doc-sign/signing-order)
 - [What the signer sees](/help/doc-sign/what-the-signer-sees)

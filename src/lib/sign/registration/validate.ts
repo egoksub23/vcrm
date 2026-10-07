@@ -13,6 +13,7 @@
 
 import { normalizeEmail, normalizeIdentityPhone } from "@/lib/widget/identity-token";
 
+import { checkCopyList, type CopyInput } from "../copy-list";
 import { KEY_PATTERN, normalizePhone, type Issue } from "../rules";
 import { SIGN_LOCALES, type SignLocale } from "../types";
 import { ASK_LEVELS, DEFAULT_ASKED, MAX_DAILY_CAP, REGISTRATION_DETAILS, REGISTRATION_MODES, type AskedFields, type AskLevel, type OtherSigner, type RegistrationDetail, type RegistrationMode, type Wording } from "./types";
@@ -142,6 +143,8 @@ export interface FormInput {
   templateId?: string | null;
   applicantRoleKey?: string | null;
   signersOther?: OtherSigner[];
+  /** People who receive the signed copy of every document the form sends (migration 176). */
+  copyRecipients?: CopyInput[];
   contactTagId?: string | null;
   fields?: AskedFields;
   consentText?: Wording;
@@ -251,6 +254,11 @@ export function parseFormInput(body: unknown): FormInputCheck {
   }
   const signers = otherSigners(body.signersOther, issues);
   if (signers) out.signersOther = signers;
+  if (body.copyRecipients !== undefined) {
+    const copies = checkCopyList(body.copyRecipients);
+    if (copies.ok) out.copyRecipients = copies.list;
+    else for (const i of copies.issues) issues.push({ code: i.code, field: "copyRecipients", ...(i.index !== undefined ? { detail: String(i.index) } : {}) });
+  }
   if (body.fields !== undefined) {
     const asked = askedFrom(body.fields);
     if (asked) out.fields = asked;

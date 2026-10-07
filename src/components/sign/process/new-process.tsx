@@ -28,6 +28,7 @@ import { ENVELOPE_MAX_DOCUMENTS } from "@/lib/sign/envelopes";
 import { cn } from "@/lib/utils";
 
 import { CollectionList, CollectionPicker } from "../envelope/collection-builder";
+import { PrivateToggle } from "./private-toggle";
 import { ProcessFooter, ProcessFrame } from "./process-layout";
 import { ProcessStepper, type StepAccess } from "./process-stepper";
 import { ProcessSummary } from "./process-summary";
@@ -64,6 +65,8 @@ export function NewProcess({ contactId = null, ticketId = null, dealId = null, t
 
   const [items, setItems] = useState<CollectionItem<File>[]>([]);
   const [title, setTitle] = useState("");
+  // migration 176: private to whoever uploads it (the person on this screen), the workspace's admins and the Halo users named as signers
+  const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -101,13 +104,13 @@ export function NewProcess({ contactId = null, ticketId = null, dealId = null, t
         const name = title.trim() || only.title.trim();
         let created: CreatedDraft;
         if (only.kind === "file") {
-          created = await uploadDraft({ file: only.file, title: name, categoryId, contactId, ticketId, dealId, onProgress: setProgress });
+          created = await uploadDraft({ file: only.file, title: name, categoryId, contactId, ticketId, dealId, isPrivate, onProgress: setProgress });
         } else {
-          created = await signRequest<CreatedDraft>("/api/sign/documents", { json: { templateId: only.id, title: name || undefined, categoryId: categoryId ?? undefined, contactId: contactId ?? undefined, ticketId: ticketId ?? undefined, dealId: dealId ?? undefined } });
+          created = await signRequest<CreatedDraft>("/api/sign/documents", { json: { templateId: only.id, title: name || undefined, categoryId: categoryId ?? undefined, contactId: contactId ?? undefined, ticketId: ticketId ?? undefined, dealId: dealId ?? undefined, isPrivate: isPrivate || undefined } });
         }
         router.push(`/sign/${created.document.id}`);
       } else {
-        const request = collectionRequest(items, { title: title.trim(), contactId, ticketId, dealId });
+        const request = collectionRequest(items, { title: title.trim(), contactId, ticketId, dealId, isPrivate: isPrivate ? "true" : null });
         const created = await signRequest<CreatedCollection>("/api/sign/envelopes", request);
         router.push(`/sign/envelopes/${created.envelope.id}`);
       }
@@ -220,6 +223,8 @@ export function NewProcess({ contactId = null, ticketId = null, dealId = null, t
           <Input id="new-title" maxLength={200} value={title} disabled={busy} placeholder={placeholder} onChange={(e) => setTitle(e.target.value)} />
           <p className="text-xs text-muted-foreground">{t("titleHint")}</p>
         </section>
+
+        <PrivateToggle id="new-private" checked={isPrivate} collection={count > 1} disabled={busy} onChange={setIsPrivate} />
 
         {errorCode ? (
           <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">

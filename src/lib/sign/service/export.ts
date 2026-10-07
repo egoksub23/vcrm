@@ -25,6 +25,7 @@ import { ZIP_MAX_BYTES, ZIP_SKIPPED_NOTE, classifyForZip, skippedNote, zipEntryN
 import { getFile } from "../storage";
 import { loadSenderAndWorkspace, logEvent, type SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
+import { documentListScope, visibleDocuments } from "./privacy";
 
 const SELECT = "reference, title, status, mode, category_id, created_at, sent_at, completed_at, expires_at, contacts(name), sign_signers(full_name, order_no)";
 const IN_CHUNK = 100;
@@ -63,6 +64,8 @@ export function documentsCsvStream(ctx: SignCtx, filters: ExportFilters, opts: {
     const categoryNames = new Map(((cats.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]));
     const { timeZone } = await loadSenderAndWorkspace(ctx, null);
     const range = createdRange(filters, timeZone);
+    // a private document is in the file only for the people who may see it (migration 176, service/privacy.ts)
+    const scope = await documentListScope(ctx);
 
     // a search also finds the documents a matching person is on (the list's own rule)
     let signerDocs: string[] = [];
@@ -78,7 +81,7 @@ export function documentsCsvStream(ctx: SignCtx, filters: ExportFilters, opts: {
     for (let offset = 0; offset < maxRows; ) {
       const take = Math.min(pageSize, maxRows - offset);
       // test documents (F-10) are rehearsals, not records: the file leaves them out, unless the Test group itself is what was asked for
-      const all = ctx.admin.from("sign_documents").select(SELECT).eq("account_id", ctx.accountId);
+      const all = scope.apply(ctx.admin.from("sign_documents").select(SELECT).eq("account_id", ctx.accountId));
       const base = filters.group === "test" ? all.eq("test", true) : all.neq("test", true);
       const { data, error } = await applyExportFilters(base, filters, clause, range)
         .order("created_at", { ascending: false })
@@ -108,9 +111,16 @@ export interface ZipPlan {
 export async function planZip(ctx: SignCtx, ids: readonly string[]): Promise<ZipPlan> {
   const found: ZipCandidate[] = [];
   for (let i = 0; i < ids.length; i += IN_CHUNK) {
-    const { data, error } = await ctx.admin.from("sign_documents").select("id, reference, title, status, final_path").eq("account_id", ctx.accountId).in("id", ids.slice(i, i + IN_CHUNK));
+    const { data, error } = await ctx.admin.from("sign_documents").select("id, reference, title, status, final_path, is_private, created_by, envelope_id").eq("account_id", ctx.accountId).in("id", ids.slice(i, i + IN_CHUNK));
     if (error) raiseDatabaseError(error, "load documents for the zip");
-    found.push(...((data ?? []) as ZipCandidate[]));
+    // a private document the caller may not see is not found, as if it were not there (it is not named in the zip's note either)
+    for (const row of await visibleDocuments(ctx, (data ?? []) as (ZipCandidate & { is_private?: boolean; created_by?: string | null; envelope_id?: string | null })[])) {
+      const { is_private: _private, created_by: _by, envelope_id: _envelope, ...candidate } = row;
+      void _private;
+      void _by;
+      void _envelope;
+      found.push(candidate);
+    }
   }
   const plan = classifyForZip(ids, found);
 

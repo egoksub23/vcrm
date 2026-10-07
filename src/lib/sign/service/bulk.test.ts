@@ -588,3 +588,108 @@ describe("reading a batch", () => {
     expect((await bulkResultRows(ctx, JOB, 2, 250)).rows.map((r) => r.rowNo)).toEqual([3]);
   });
 });
+
+// ---- people who receive a copy of every document (migration 176) ----------------------------------------------------
+
+describe("copy recipients of a batch", () => {
+  const COPIES = [
+    { fullName: "Rahman Accounts", email: "rahman@vircle.example" },
+    { fullName: "Mei Ling", email: "meiling@vircle.example" },
+  ];
+  const copyRows = () => db.rows("sign_copy_recipients");
+  const emailsOn = (docId: unknown) => copyRows().filter((c) => c.document_id === docId).map((c) => c.email);
+
+  it("is kept in the batch's options when the batch is made, and shown in the preview's acceptance of them", async () => {
+    await previewBulk(ctx, { options: options({ copyTo: COPIES }), csv: FILE });
+    const j = await createBulk(ctx, { options: options({ copyTo: COPIES }), csv: FILE });
+    expect((db.rows("sign_bulk_jobs").find((x) => x.id === j.id)!.options as BulkOptions).copyTo).toEqual(COPIES);
+  });
+
+  it("writes nothing into the options of a batch that has no copies", async () => {
+    const j = await createBulk(ctx, { options: options({ copyTo: [] }), csv: FILE });
+    expect("copyTo" in (db.rows("sign_bulk_jobs").find((x) => x.id === j.id)!.options as Record<string, unknown>)).toBe(false);
+  });
+
+  it("refuses a list that is not good, in the preview and at creation, before anything is stored: a bad address, a blank name, a repeat (case ignored), more than ten, not a list", async () => {
+    const bad: unknown[] = [
+      [{ fullName: "A", email: "not-an-address" }],
+      [{ fullName: "  ", email: "a@copy.example" }],
+      [{ fullName: "A", email: "a@copy.example" }, { fullName: "B", email: "A@Copy.Example" }],
+      Array.from({ length: 11 }, (_, i) => ({ fullName: `P${i}`, email: `p${i}@copy.example` })),
+      "a@copy.example",
+      { fullName: "A", email: "a@copy.example" },
+    ];
+    for (const copyTo of bad) {
+      await expect(previewBulk(ctx, { options: { ...options(), copyTo }, csv: FILE })).rejects.toMatchObject({ code: "bad_options", status: 400, issues: [{ code: "bad_options", detail: "copyTo" }] });
+      await expect(createBulk(ctx, { options: { ...options(), copyTo }, csv: FILE })).rejects.toMatchObject({ code: "bad_options" });
+    }
+    expect(db.rows("sign_bulk_jobs")).toHaveLength(0);
+  });
+
+  it("puts the same people on every document the batch makes, as ordinary copy recipients, before the document is sent", async () => {
+    seedJob(PEOPLE, {}, { options: options({ copyTo: COPIES }) });
+    const result = await run();
+    expect(result).toMatchObject({ sent: 3, failed: 0 });
+    const docs = db.rows("sign_documents");
+    expect(docs).toHaveLength(3);
+    for (const d of docs) expect(emailsOn(d.id)).toEqual(COPIES.map((c) => c.email));
+    expect(copyRows()).toHaveLength(6);
+    expect(copyRows().every((c) => c.account_id === ACCT && c.envelope_id == null && !c.notified_at)).toBe(true);
+    // they are not signers: the signing list is the person and the fixed signer, and no message went to a copy person yet
+    expect(db.rows("sign_signers").filter((x) => x.document_id === docs[0].id).map((x) => x.email)).toEqual(["ali@kedai.example", "gokula@vircle.example"]);
+    expect(mail.map((m) => m.to)).not.toContain("rahman@vircle.example");
+    // they were on the document when it was sent (the order of the calls: copies, then send)
+    const sent = db.rpcCalls.findIndex((c) => c.name === "sign_send_document");
+    const added = db.rpcCalls.findIndex((c) => c.name === "sign_log" && c.args.p_type === "copy_recipient_added");
+    expect(added).toBeGreaterThan(-1);
+    expect(added).toBeLessThan(sent);
+  });
+
+  it("leaves out, for each document, anyone who signs it: the person of that row and the fixed signers", async () => {
+    seedJob(PEOPLE, {}, { options: options({ copyTo: [{ fullName: "Ali again", email: "ALI@kedai.example" }, { fullName: "Gokula", email: "gokula@vircle.example" }, ...COPIES] }) });
+    await run();
+    const docs = db.rows("sign_documents");
+    // Ali is the person of the first row: left out of that document only; Siti's document keeps him as a copy person
+    expect(emailsOn(docs[0].id)).toEqual(COPIES.map((c) => c.email));
+    expect(emailsOn(docs[1].id)).toEqual(["ALI@kedai.example", ...COPIES.map((c) => c.email)]);
+    // the fixed signer is on every document as a signer, so never a copy person
+    expect(copyRows().some((c) => c.email === "gokula@vircle.example")).toBe(false);
+  });
+
+  it("never makes a document private (migration 176): a batch is the workspace's own work, seen by everyone with Doc Sign", async () => {
+    seedJob(PEOPLE.slice(0, 2), {}, { options: options({ copyTo: COPIES }) });
+    await run();
+    expect(db.rows("sign_documents")).toHaveLength(2);
+    expect(db.rows("sign_documents").every((d) => d.is_private !== true)).toBe(true);
+  });
+
+  it("changes nothing for a batch with no list", async () => {
+    seedJob(PEOPLE.slice(0, 1));
+    await run();
+    expect(copyRows()).toHaveLength(0);
+    expect(db.rpcCalls.filter((c) => c.name === "sign_log" && String(c.args.p_type).startsWith("copy_recipient"))).toHaveLength(0);
+  });
+
+  it("does not duplicate a person when a row is carried on after a crash (the list is set exactly as listed)", async () => {
+    seedJob(PEOPLE.slice(0, 1), {}, { options: options({ copyTo: COPIES }) });
+    const { createDraftFromTemplate } = await import("./drafts");
+    const { setCopyRecipients } = await import("./copy-recipients");
+    const draft = await createDraftFromTemplate(ctx, { templateId: TPL });
+    // the first try had already put the first person on the draft when the process died
+    await setCopyRecipients(ctx, { documentId: draft.id }, [COPIES[0]]);
+    Object.assign(row(1), { document_id: draft.id, claimed_until: new Date(Date.now() - 60_000).toISOString(), attempts: 1 });
+    await run();
+    expect(db.rows("sign_documents")).toHaveLength(1);
+    expect(emailsOn(draft.id)).toEqual(COPIES.map((c) => c.email));
+    expect(copyRows()).toHaveLength(2);
+  });
+
+  it("makes the row fail, with a reason, when the list cannot be written: the batch carries on with the others", async () => {
+    seedJob(PEOPLE.slice(0, 2), {}, { options: options({ copyTo: COPIES }) });
+    db.failNext.sign_copy_recipients = "insert failed";
+    const result = await run();
+    expect(result).toMatchObject({ sent: 1, failed: 1 });
+    expect(row(1).state).toBe("failed");
+    expect(row(2).state).toBe("sent");
+  });
+});

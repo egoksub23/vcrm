@@ -477,6 +477,8 @@ the people, plus `signers_total` and `signers_signed`.
 
 Documents a person sent themselves from a template page to try it out (**test documents**, marked TEST on every page) are not listed, and the API never creates one.
 
+**Private documents** (a person who uploads a document or a document collection in Halo can keep it to themselves, the workspace's admins and the Halo users named as signers) are never listed and never opened by a key: `GET /documents/{id}`, the file, send, void and remind answer `404 document_not_found` for one, exactly as for an id that does not exist. A key belongs to an integration, not to a person, so it cannot be named on a document. Documents the API creates are never private.
+
 ```bash
 curl "https://your-crm.example.com/api/v1/sign/documents?status=completed&created_after=2026-10-01&limit=50" \
   -H "Authorization: Bearer wacrm_live_xxx"

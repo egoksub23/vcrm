@@ -29,7 +29,9 @@ BEGIN
   SELECT count(*) INTO v_n
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'sign\_%' AND p.prokind = 'f'
-     AND p.proname NOT IN ('sign_verify_chain') AND p.prorettype <> 'trigger'::regtype
+     -- (sign_verify_chain checks the caller; migration 176's helpers answer for auth.uid() and are called by the row level security policies, and
+     --  its list check is a pure function a CHECK constraint calls: those are meant to be callable)
+     AND p.proname NOT IN ('sign_verify_chain', 'sign_is_named_signer', 'sign_is_named_on_envelope', 'sign_document_visible', 'sign_envelope_visible', 'sign_copy_list_valid') AND p.prorettype <> 'trigger'::regtype
      AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE'));
   IF v_n <> 0 THEN RAISE EXCEPTION 'FAIL % sign_ function(s) are callable by signed-in or signed-out users', v_n; END IF;
   IF NOT has_function_privilege('service_role', 'public.sign_send_document(uuid,text,text,integer,timestamptz,uuid)', 'EXECUTE') THEN

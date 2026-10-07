@@ -154,7 +154,7 @@ const signer = (over: Partial<SignSignerRow>): SignSignerRow =>
     ...over,
   }) as SignSignerRow;
 
-const caps = { send: true, void: true, settings: true };
+const caps = { send: true, void: true, reveal: true, settings: true };
 
 describe("signerActions with steps", () => {
   it("lets a person who is not invited yet be re-addressed and, when the document needs order, moved; nobody else moves", () => {

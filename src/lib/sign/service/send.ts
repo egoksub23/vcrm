@@ -19,6 +19,7 @@ import { sendProblems, type Issue, type SignerDraft } from "../rules";
 import { documentPath, getFile, putFile, removeFiles } from "../storage";
 import { isFormMode, type Invitation, type SignDocumentRow, type SignSignerRow } from "../types";
 import { loadDocument, loadSenderAndWorkspace, loadSettings, loadSigners, logEvent, type SignCtx } from "./context";
+import { assertMayEditDraft } from "./privacy";
 import { SignError, raiseDatabaseError } from "./errors";
 import { formOf, loadFormState, unfinishedParts } from "./form-state";
 import { refreshFormLists } from "./lists";
@@ -154,6 +155,7 @@ export function assertNotInEnvelope(doc: Pick<SignDocumentRow, "envelope_id">): 
 export async function sendDocument(ctx: SignCtx, documentId: string): Promise<SendResult> {
   const doc = await loadDocument(ctx, documentId);
   if (doc.status !== "draft") throw new SignError("document_not_draft", "This document was already sent.", 409);
+  await assertMayEditDraft(ctx, doc);
   assertNotInEnvelope(doc);
   const signers = await loadSigners(ctx, documentId);
 

@@ -47,6 +47,7 @@ export function optionsFromEnvelope(env: SignEnvelopeRow, links: { ticketId?: st
     codeRequired: env.code_required,
     signInOrder: env.sign_in_order,
     allowForwarding: false,
+    isPrivate: env.is_private === true,
   };
 }
 

@@ -10,6 +10,8 @@ import { normalizePhone } from "../rules";
 import type { SignChannel, SignLocale } from "../types";
 import { SIGN_LOCALES } from "../types";
 import { cleanReminderDays } from "../defaults";
+import { copiesWithoutSigners } from "../copy-list";
+import { copyListReady, copyPayload, type CopyPayload, type CopyRow } from "./copy-form";
 
 export type WizardStep = "template" | "people" | "setup" | "review";
 export const WIZARD_STEPS: readonly WizardStep[] = ["template", "people", "setup", "review"];
@@ -50,6 +52,8 @@ export interface WizardForm {
   /** "default", "yes" or "no". */
   codeRequired: "default" | "yes" | "no";
   signInOrder: "default" | "yes" | "no";
+  /** People who receive the signed copy of every document the batch makes (not signers); at most 10. */
+  copyTo: CopyRow[];
   skipInvalid: boolean;
 }
 
@@ -70,6 +74,7 @@ export const EMPTY_FORM: WizardForm = {
   reminderText: null,
   codeRequired: "default",
   signInOrder: "default",
+  copyTo: [],
   skipInvalid: false,
 };
 
@@ -129,6 +134,8 @@ export function buildRequest(form: WizardForm, roles: readonly BulkRoleInfo[]): 
   const hasList = form.source === "csv" ? form.csvText !== null && form.csvText !== "" : form.contacts.length > 0;
   if (!hasList) return null;
   const days = form.expiryDays.trim() === "" ? null : Number(form.expiryDays);
+  // only written when there is someone, so a batch without copies sends exactly what it always did
+  const copyTo = copyPayload(form.copyTo);
   const options = {
     templateId: form.templateId,
     personRole: form.personRole,
@@ -142,6 +149,7 @@ export function buildRequest(form: WizardForm, roles: readonly BulkRoleInfo[]): 
     codeRequired: triState(form.codeRequired),
     signInOrder: triState(form.signInOrder),
     reminderDays: reminderDaysOf(form.reminderText),
+    ...(copyTo.length > 0 ? { copyTo } : {}),
   };
   return form.source === "csv"
     ? { options, csv: form.csvText ?? "", skipInvalid: form.skipInvalid, ...(form.fileName ? { fileName: form.fileName } : {}) }
@@ -172,6 +180,8 @@ export function setupProblems(form: WizardForm, roles: readonly BulkRoleInfo[]):
   if (form.message.length > 2000) out.push("message");
   if (form.title.length > 200) out.push("title");
   if (form.locale !== "" && !SIGN_LOCALES.includes(form.locale)) out.push("locale");
+  // a person on the copy list who is started but not complete (the server refuses such a list, so the screen holds it first)
+  if (!copyListReady(form.copyTo)) out.push("copyTo");
   return out;
 }
 
@@ -241,8 +251,22 @@ export const BULK_ERROR_CODES = [
 ] as const;
 const KNOWN: ReadonlySet<string> = new Set(BULK_ERROR_CODES);
 
-/** The message key (under `Sign.bulk`) for a failure code of a bulk route. */
-export const bulkErrorKey = (code: string | null | undefined): string => (code && KNOWN.has(code) ? `errors.${code}` : "errors.generic");
+/** What the server names (`detail` of a `bad_options` problem) when it refused the list of people who receive a copy. */
+export const COPY_TO_DETAIL = "copyTo";
+
+/**
+ * The message key (under `Sign.bulk`) for a failure code of a bulk route. A refused list of copy people (`bad_options`, detail "copyTo") has a
+ * sentence of its own, because the sender fixes it in a different place from the other options.
+ */
+export function bulkErrorKey(code: string | null | undefined, detail?: string | null): string {
+  if (code === "bad_options" && detail === COPY_TO_DETAIL) return "errors.bad_options_copy";
+  return code && KNOWN.has(code) ? `errors.${code}` : "errors.generic";
+}
+
+/** The detail a failure carries for its sentence: the copy list when it is one of the refused options, else the first detail given. */
+export function bulkErrorDetail(issues: readonly { detail?: string }[]): string | undefined {
+  return issues.find((i) => i.detail === COPY_TO_DETAIL)?.detail ?? issues.find((i) => i.detail !== undefined)?.detail;
+}
 
 /** Codes of a failed or stopped row that have a sentence of their own (a row's own problems are `problem.<code>`). */
 const ROW_CODES: ReadonlySet<string> = new Set([
@@ -281,10 +305,34 @@ const PLAN_CODES: ReadonlySet<string> = new Set([
   "merge_needs_file",
   "bad_options",
 ]);
-export const planProblemKey = (code: string): string => (PLAN_CODES.has(code) ? `plan.${code}` : "plan.template_not_ready");
+export function planProblemKey(code: string, detail?: string | null): string {
+  if (code === "bad_options" && detail === COPY_TO_DETAIL) return "plan.bad_options_copy";
+  return PLAN_CODES.has(code) ? `plan.${code}` : "plan.template_not_ready";
+}
 
 const FILE_CODES: ReadonlySet<string> = new Set(["empty_file", "no_header", "missing_column", "duplicate_column", "too_many_rows", "too_large", "no_rows"]);
 export const fileProblemKey = (code: string): string => (FILE_CODES.has(code) ? `file.${code}` : "file.unknown");
+
+// ---- the copy list on the review ----------------------------------------------------------------------
+
+/** A person on the copy list who also signs some of the documents, and on how many of them (they are left out of those, and get the signed copy as a signer). */
+export interface CopyLeftOut extends CopyPayload {
+  documents: number;
+}
+
+/**
+ * Who of the copy list is left out of which documents: someone on the list of people (their own document) or one of the fixed people (every
+ * document) already signs, so the server leaves them out of that document's copies. `rowEmails` are the addresses of the documents that would be
+ * made, one per document.
+ */
+export function copyLeftOut(list: readonly CopyPayload[], rowEmails: readonly string[], fixedEmails: readonly string[] = []): CopyLeftOut[] {
+  const counts = new Map<CopyPayload, number>();
+  for (const email of rowEmails) {
+    const kept = new Set(copiesWithoutSigners(list, [email, ...fixedEmails]));
+    for (const person of list) if (!kept.has(person)) counts.set(person, (counts.get(person) ?? 0) + 1);
+  }
+  return list.filter((p) => counts.has(p)).map((p) => ({ ...p, documents: counts.get(p) ?? 0 }));
+}
 
 // ---- a running batch -----------------------------------------------------------------------------------
 
