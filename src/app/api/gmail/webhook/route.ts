@@ -33,6 +33,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { getValidAccessToken } from '@/lib/gmail/token'
+import { decideIngest } from '@/lib/gmail/ingest-guard'
 import {
   getMessage,
   listHistory,
@@ -185,18 +186,31 @@ async function processMessage(
     console.error('[gmail webhook] getMessage failed:', err instanceof Error ? err.message : err)
     return null
   })
-  if (!message || !message.fromAddress) return
+  if (!message) return
 
-  // Defense in depth alongside the INBOX-only watch scope — never
-  // treat a message from our own connected mailbox as inbound.
-  if (message.fromAddress.toLowerCase() === mailboxAddress) return
+  // Defense in depth alongside the INBOX-only watch scope. A message that
+  // appears in INBOX is not always somebody else's: mail Halo sends through
+  // this mailbox (Doc Sign: signing links, codes, signed documents) is also
+  // filed in INBOX when it is addressed to the mailbox itself, and a bounce
+  // of such a mail comes back here. None of it may become a conversation the
+  // whole team can read (see lib/gmail/ingest-guard.ts: the SENT label, the
+  // X-Halo-Sign header, our own address).
+  const decision = decideIngest(message, mailboxAddress)
+  if (!decision.ingest) {
+    if (decision.reason === 'doc_sign' || decision.reason === 'sent_label') {
+      console.info('[gmail webhook] skipped a message Halo sent itself:', decision.reason, message.id)
+    }
+    return
+  }
+  // decideIngest has already refused a message without a sender
+  const fromAddress = message.fromAddress!
 
   const contactOutcome = await findOrCreateContactByExternalId(admin, {
     accountId,
     configOwnerUserId,
     column: 'email',
-    externalId: message.fromAddress,
-    resolveDisplayName: async () => message.fromName || message.fromAddress!,
+    externalId: fromAddress,
+    resolveDisplayName: async () => message.fromName || fromAddress,
   })
   if (!contactOutcome) return
   const contactRecord = contactOutcome.contact

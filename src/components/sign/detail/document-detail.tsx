@@ -29,7 +29,7 @@ import { CopyRecipients } from "./copy-recipients";
 import { downloadFile } from "./download";
 import { FilesList } from "./files-list";
 import { HistoryView } from "./history-view";
-import { bannerFor, detailErrorKey, documentActions, signersWithUndelivered, type DetailCaps } from "./logic";
+import { bannerFor, detailErrorKey, documentActions, undeliveredDetails, type DetailCaps } from "./logic";
 import { PeopleList } from "./people-list";
 import { ProgressTab } from "./progress/progress-tab";
 import { SealRetry } from "./seal-retry";
@@ -91,7 +91,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const inEnvelope = !!doc.envelope_id && !!data.envelope;
   const actions = inEnvelope ? { ...documentActions(doc, caps), void: false } : documentActions(doc, caps);
   const banner = bannerFor(doc, data.signers, caps);
-  const undelivered = signersWithUndelivered(events.events ?? []);
+  const undelivered = undeliveredDetails(events.events ?? []);
   const viewKind = viewChoice && viewChoice === "base" && doc.base_path ? "base" : viewChoice === "final" && actions.downloadSigned ? "final" : actions.viewKind;
 
   async function changeForwarding(allow: boolean) {
@@ -171,7 +171,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         )}
 
         <TabsContent value="people" className="grid gap-6 pt-4">
-          <PeopleList document={doc} signers={data.signers} undelivered={undelivered} caps={inEnvelope ? { ...caps, send: false } : caps} onChanged={reload} form={doc.form_snapshot} />
+          <PeopleList document={doc} signers={data.signers} undelivered={new Set(undelivered.keys())} reasons={undelivered} caps={inEnvelope ? { ...caps, send: false } : caps} onChanged={reload} form={doc.form_snapshot} />
           <CopyRecipients document={doc} copies={data.copies ?? []} canSend={canSend} onChanged={reload} />
           <FilesList files={data.files} />
         </TabsContent>

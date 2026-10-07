@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { MailSendError } from "@/lib/email/send-reason";
 import { encrypt } from "@/lib/whatsapp/encryption";
 
 import type { NotifyDeps } from "../notify";
@@ -222,6 +223,45 @@ describe("sendDocument", () => {
     expect(res.invited[0].delivery).toMatchObject({ status: "failed" });
     expect(res.invited[0].link).toBe(`https://halo.test/s/${TOKEN_A}`);
     expect(t.db.rpcCalls.some((c) => c.name === "sign_log" && c.args.p_type === "delivery_failed")).toBe(true);
+  });
+
+  it("sends through the workspace's connected mailbox, not the platform sender, when it has one", async () => {
+    const doc = await draftWithLayout();
+    const rows = await setSigners(t.ctx, doc.id, [signerInput(), signerInput({ roleKey: "director", fullName: "Gokula", email: "g@vircle.example", orderNo: 2 })]);
+    sendHandler([{ signer_id: rows[0].id as string, token: TOKEN_A }]);
+    const viaMailbox: string[] = [];
+    t.ctx.deps = {
+      ...t.ctx.deps,
+      emailConfigured: () => false,
+      mailbox: async () => ({ kind: "ready", provider: "microsoft365", address: "support@vircle.com", attachBytes: 1024, send: async (m) => void viaMailbox.push(m.to) }),
+    };
+    const res = await sendDocument(t.ctx, doc.id);
+    expect(res.invited[0].delivery).toEqual({ channel: "email", status: "sent" });
+    expect(viaMailbox).toContain("ali@kedairuncit.example");
+    expect(t.mail).toHaveLength(0);
+  });
+
+  it("makes a mailbox that has hit its sending limit a failed delivery with the reason and the link to pass on, never a crash", async () => {
+    const doc = await draftWithLayout();
+    const rows = await setSigners(t.ctx, doc.id, [signerInput(), signerInput({ roleKey: "director", fullName: "Gokula", email: "g@vircle.example", orderNo: 2 })]);
+    sendHandler([{ signer_id: rows[0].id as string, token: TOKEN_A }]);
+    t.ctx.deps = {
+      ...t.ctx.deps,
+      mailbox: async () => ({
+        kind: "ready",
+        provider: "gmail",
+        address: "support@vircle.com",
+        attachBytes: 1024,
+        send: async () => {
+          throw new MailSendError("daily_limit", "Daily user sending quota exceeded.");
+        },
+      }),
+    };
+    const res = await sendDocument(t.ctx, doc.id);
+    expect(res.invited[0].delivery).toEqual({ channel: "email", status: "failed", detail: "daily_limit: Daily user sending quota exceeded." });
+    expect(res.invited[0].link).toBe(`https://halo.test/s/${TOKEN_A}`);
+    const failed = t.db.rpcCalls.find((c) => c.name === "sign_log" && c.args.p_type === "delivery_failed")!;
+    expect((failed.args.p_detail as { reason: string }).reason).toBe("daily_limit: Daily user sending quota exceeded.");
   });
 
   it("stops at the monthly limit", async () => {

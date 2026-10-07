@@ -7435,7 +7435,8 @@
         "form_not_ready": "此表单暂时还不能开启。打开它查看原因。",
         "invalid_form": "表单的部分设置无效。请检查名称、指定的人员和文字。",
         "tag_not_found": "找不到该标签。请选择联系人标签。",
-        "slug_unavailable": "无法为此表单生成地址，请重试。"
+        "slug_unavailable": "无法为此表单生成地址，请重试。",
+        "no_email": "您的个人资料中没有可用于发送测试邮件的电子邮件地址。"
       },
       "registration": {
         "loading": "正在加载注册表单……",
@@ -7618,6 +7619,44 @@
         },
         "copiesLabel": "已签署副本发送给",
         "copiesValue": "{count} 人"
+      },
+      "email": {
+        "title": "电子邮件",
+        "intro": "签署邀请、提醒、验证码和已签署的副本都通过电子邮件发送。这里显示它们的发送方式。此处无需切换任何设置：邮箱在“设置 > 渠道”中连接。",
+        "loading": "正在检查电子邮件的发送方式...",
+        "transport": {
+          "platform": "由平台发件服务发送",
+          "none": "尚未设置：请在“设置 > 渠道”（电子邮件或 Gmail）中连接邮箱",
+          "noneProblem": "目前无法发送电子邮件：已连接的邮箱出现问题",
+          "microsoft365": "通过您已连接的 Microsoft 365 邮箱从 {address} 发送",
+          "gmail": "通过您已连接的 Gmail 邮箱从 {address} 发送"
+        },
+        "platformNote": "尚未连接邮箱，因此邮件由平台自己的地址发出。若要从您自己的地址发送，请连接邮箱。",
+        "problem": {
+          "reconnect": "邮箱 {address} 需要重新连接：其访问权限已被撤销或已过期。",
+          "paused": "邮箱 {address} 已被关闭。",
+          "unavailable": "暂时无法读取已连接的邮箱。"
+        },
+        "platformInstead": "在问题解决之前，将使用平台发件服务。",
+        "test": {
+          "button": "给我发一封测试邮件",
+          "sending": "正在发送...",
+          "hint": "向您自己的地址发送一封简短的邮件，发送方式与真实邮件相同。",
+          "sentMailbox": "测试邮件已从 {from} 发送到 {to}。请查看您的收件箱。",
+          "sentPlatform": "测试邮件已由平台发件服务发送到 {to}。请查看您的收件箱。",
+          "failed": "测试邮件未能发送。"
+        },
+        "nameNote": "收件人会在地址旁看到名称 {name}。",
+        "keptNote": {
+          "microsoft365": "不会在该邮箱的“已发送邮件”中保留副本，因为每封邮件都包含某个人的链接或已签署的文档。",
+          "gmail": "Gmail 会把每封邮件保存在该邮箱的“已发送”文件夹中，任何能打开该邮箱的人都可以阅读。"
+        },
+        "inboxNote": "Doc Sign 的邮件不会被加入 Halo 收件箱。",
+        "link": {
+          "manage": "打开此邮箱的渠道设置",
+          "connectMicrosoft365": "连接 Microsoft 365 邮箱",
+          "connectGmail": "连接 Gmail 邮箱"
+        }
       }
     },
     "detail": {
@@ -7725,7 +7764,8 @@
         "moveTo": "移至",
         "moveStep": "第 {step} 步",
         "moveNew": "末尾新增一步",
-        "moved": "{name} 已移至其他步骤。"
+        "moved": "{name} 已移至其他步骤。",
+        "undeliveredEmailSetup": "邮件未能发出是因为电子邮件的设置，而不是这个地址的问题。问题解决后，请使用“重新发送”。"
       },
       "confirm": {
         "cancel": "取消",
@@ -9399,7 +9439,7 @@
           "whatsapp": "邀请已通过 WhatsApp 发送"
         },
         "notConfigured": {
-          "email": "尚未设置邮件，因此未发送任何内容",
+          "email": "此工作区尚未设置电子邮件，因此没有发送任何内容",
           "whatsapp": "尚未设置 WhatsApp，因此未发送任何内容"
         },
         "failed": {
@@ -11174,6 +11214,20 @@
         "hintSingle": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它。",
         "hintCollection": "只有您、工作区管理员和您指定为签署人的 Halo 用户可以查看此文件集及其中的每份文档、谁已签署以及他们的回答。其他使用 Doc Sign 的人在列表、搜索、统计或导出中都找不到它们。",
         "notYours": "只有上传者或管理员可以更改此项。"
+      }
+    },
+    "delivery": {
+      "reasonLine": "原因：{reason}",
+      "reasons": {
+        "not_set_up": "此工作区尚未设置电子邮件。请在“设置 > 渠道”（电子邮件或 Gmail）中连接邮箱，或请管理员设置平台发件服务。",
+        "mailbox_reconnect": "已连接的邮箱需要重新连接：其访问权限已被撤销或已过期。请在“设置 > 渠道”中重新连接。",
+        "mailbox_paused": "已连接的邮箱已被关闭。请在“设置 > 渠道”中重新开启。",
+        "daily_limit": "该邮箱已达到每日发送邮件数量的上限。请稍后再试，待上限重置后（24 小时内）。",
+        "rate_limited": "该邮箱发送过快，邮件服务要求我们放慢速度。请一分钟后再试。",
+        "address_rejected": "该电子邮件地址未被接受。请检查地址，或更换收件人。",
+        "attachment_too_large": "邮件连同附件太大，无法发送。",
+        "service_unavailable": "暂时无法连接邮件服务。请稍后再试。",
+        "other": "{detail}"
       }
     }
   }

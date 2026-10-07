@@ -2,7 +2,7 @@
 
 // Settings > Doc Sign (sign.settings). The tab is only offered when the platform operator has Doc Sign switched
 // on for the workspace: the operator's flag removes every sign.* capability, and the Settings rail and page
-// both check this one. Sections: General, Consent wording, Categories, Registration forms, Add-ons and the sealing
+// both check this one. Sections: General (with the Email status card), Consent wording, Categories, Registration forms, Add-ons and the sealing
 // certificate.
 
 import { useState } from "react";
@@ -16,6 +16,7 @@ import { AddonsSection } from "./addons-section";
 import { CategoriesSection } from "./categories-section";
 import { CertificateSection } from "./certificate-section";
 import { ConsentSection } from "./consent-section";
+import { EmailSection } from "./email-section";
 import { GeneralSection } from "./general-section";
 import { ListsSection } from "./lists-section";
 import { RegistrationSection } from "./registration-section";
@@ -56,7 +57,12 @@ export function SignSettingsPanel() {
       ) : null}
       {state.status === "ready" ? (
         <>
-          {tab === "general" ? <GeneralSection settings={state.data.settings} onSaved={replaceSettings} /> : null}
+          {tab === "general" ? (
+            <div className="space-y-5">
+              <EmailSection />
+              <GeneralSection settings={state.data.settings} onSaved={replaceSettings} />
+            </div>
+          ) : null}
           {tab === "consent" ? <ConsentSection data={state.data} onSaved={reload} /> : null}
           {tab === "categories" ? <CategoriesSection /> : null}
           {tab === "lists" ? <ListsSection /> : null}

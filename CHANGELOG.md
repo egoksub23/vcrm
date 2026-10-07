@@ -9,6 +9,21 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.82.0] — 2026-10-08
+
+No migration. (0.81.0's migration 177 is still needed if not yet applied.)
+
+### Added
+
+- **Doc Sign now sends its email through the workspace's own connected mailbox:** the Microsoft 365 mailbox (Settings > Channels > Email), else the Gmail mailbox, else the platform sender (Resend). Messages come from the mailbox's address under the workspace's name. Settings > Doc Sign > General has a new **Email** card that names the mailbox in use, links to where it is connected, and has a "Send a test email to me" button.
+- When a message does not arrive, the sender now sees why (mailbox needs reconnecting, sending limit reached, slow down, address not accepted, message too large) on the send screen, the people list and in the resend notice.
+- Doc Sign messages carry a marker, and the Microsoft 365 and Gmail inbox sync refuse them (and their bounces), so signing links and signed documents never become inbox conversations.
+
+### Changed
+
+- Signed copies are attached up to 2.5 MB through Microsoft 365 and 17 MB through Gmail (20 MB through the platform sender), with a link above that. Messages sent through a mailbox are not kept in its Sent Items.
+- Gmail messages now carry From and Reply-To, several attachments, and non-ASCII text correctly (this also affects the inbox composer's non-ASCII sends).
+
 ## [0.81.0] — 2026-10-08
 
 **Migration required: 177.** Apply it before the new app (it only adds two guards, nothing the old app depends on).

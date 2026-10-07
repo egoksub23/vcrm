@@ -48,7 +48,7 @@ The email is written in the language of the document. It says who asked for it t
 
 ## When the file is too large
 
-An email can carry only so much. If a signed file is too large to attach (over 20 MB, and for a collection, over 20 MB in all), Halo does **not** send a download link, because anyone who held the link could open the file. Instead the email says that the signed copy is too large to attach and that they can ask the sender for it. It also gives the link to the public check page for the document. That page shows **no document**; it only says whether the file is genuine.
+An email can carry only so much. If a signed file is too large to attach (over 20 MB, and for a collection, over 20 MB in all; through a connected Microsoft 365 mailbox, over 2.5 MB, and through Gmail, over 17 MB), Halo does **not** send a download link, because anyone who held the link could open the file. Instead the email says that the signed copy is too large to attach and that they can ask the sender for it. It also gives the link to the public check page for the document. That page shows **no document**; it only says whether the file is genuine.
 
 For a collection, the files are attached in order while they fit. The email says how many were attached, and names the ones that were not.
 

@@ -98,6 +98,15 @@ Graph's `reply` action on the customer's most recent inbound message,
 so it lands in the customer's own mail client as a normal threaded
 reply, not a disconnected new email each time.
 
+## Doc Sign sends through this mailbox
+
+When Doc Sign is on for the workspace, its invitations, reminders, codes and signed copies are sent from the connected mailbox (`Mail.Send`; reconnect a mailbox
+connected before that permission was asked for), in preference to the platform's Resend sender. They are marked `X-Halo-Sign: 1`, keep no copy in Sent Items,
+and the change-notification webhook above refuses any message that carries the mark (or quotes it, as a delivery-failure notice does), so they never become
+inbox conversations. Exchange Online limits apply (about 30 messages a minute and 10,000 recipients a day per mailbox); Doc Sign spaces its sends and reports
+a throttled message with its reason. Files go inline in the one `sendMail` call, so up to 2.5 MB of signed files are attached and anything larger is replaced
+by a link; a draft with an upload session (large attachments) is not built. See `docs/doc-sign-setup.md` sections 1, 9b and 9c.
+
 ## What's not supported yet
 
 - **Attachments over ~3 MB.** Graph's inline attachment upload (used

@@ -1,20 +1,27 @@
 // ============================================================
 // Sending what Doc Sign sends: invitations, reminders, codes, the signed copy and outcomes. Email goes
-// out through the platform's Resend sender under the workspace's name; WhatsApp only when the sender
-// chose it for a signer, through the workspace's own WhatsApp number and the approved template named in
-// Doc Sign settings. Every function returns a result and never throws: a message that could not be
-// delivered is something to show and record, not a reason to fail a signature.
+// out through the workspace's own connected mailbox (Microsoft 365, else Gmail: Settings > Channels) when it
+// has one, from that mailbox's address under the workspace's name; otherwise through the platform's Resend sender;
+// otherwise it is not sent and says so. The message itself (words, files, identity) is the same whichever
+// way it goes; only the last step differs. WhatsApp only when the sender chose it for a signer, through
+// the workspace's own WhatsApp number and the approved template named in Doc Sign settings. Every
+// function returns a result and never throws: a message that could not be delivered is something to show
+// and record, not a reason to fail a signature.
 // ============================================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadEmailIdentity } from "@/lib/email/identity";
+import { loadMailboxState } from "@/lib/email/mailbox";
+import type { MailboxProblem, MailboxProvider, MailboxState, OutgoingEmail } from "@/lib/email/mailbox-types";
 import { isResendConfigured, sendEmail, type EmailAttachment, type EmailIdentity } from "@/lib/email/resend";
+import { MailSendError, reasonDetail, type SendReason } from "@/lib/email/send-reason";
+import { HALO_SIGN_HEADER, HALO_SIGN_VALUE } from "@/lib/email/halo-mail-marker";
 import { sendTemplateMessage } from "@/lib/whatsapp/meta-api";
 import { decrypt } from "@/lib/whatsapp/encryption";
 
 import { copyEmail, envelopeCopyEmail } from "./copy-messages";
-import { codeEmail, completedEmail, declinedEmail, expiredEmail, forwardEmail, forwardNoticeEmail, invitationEmail, reminderEmail, voidedEmail, type Rendered } from "./messages";
+import { codeEmail, completedEmail, declinedEmail, expiredEmail, forwardEmail, forwardNoticeEmail, invitationEmail, reminderEmail, testEmail, voidedEmail, type Rendered } from "./messages";
 import { envelopeCompletedEmail, envelopeInvitationEmail, envelopeReminderEmail } from "./envelope-messages";
 import { ENVELOPE_ATTACH_BYTES } from "./envelopes/status";
 import { normalizePhone } from "./rules";
@@ -29,18 +36,84 @@ export interface Delivery {
 }
 
 export interface NotifyDeps {
+  /** The platform sender (Resend) is set up. */
   emailConfigured: () => boolean;
+  /** Send through the platform sender. */
   sendEmail: typeof sendEmail;
   loadIdentity: (accountId: string) => Promise<EmailIdentity>;
   sendWhatsApp: (admin: SupabaseClient, args: { accountId: string; to: string; templateName: string; language: string; params: string[] }) => Promise<void>;
+  /**
+   * The workspace's connected mailbox (Microsoft 365 or Gmail), when it has one: a ready mailbox is used for every email in preference to the platform sender.
+   * Absent (as in the tests that predate it), only the platform sender is used.
+   */
+  mailbox?: (accountId: string) => Promise<MailboxState>;
 }
+
+/**
+ * What every Doc Sign message sent through a mailbox carries. `X-Halo-Sign` keeps it out of Halo's own inbox ingestion (lib/gmail/ingest-guard.ts,
+ * lib/ms365/ingest-guard.ts): the mail holds a person's signing link or a signed document, and the inbox is read by the whole team. Each mailbox sender
+ * adds its own "a system sent this, do not auto-reply" header.
+ */
+export const SIGN_MAIL_HEADERS: Record<string, string> = { [HALO_SIGN_HEADER]: HALO_SIGN_VALUE };
 
 export const realDeps: NotifyDeps = {
   emailConfigured: isResendConfigured,
   sendEmail,
   loadIdentity: loadEmailIdentity,
   sendWhatsApp: sendWhatsAppTemplate,
+  mailbox: (accountId) => loadMailboxState(accountId, { headers: SIGN_MAIL_HEADERS }),
 };
+
+// ---- which way email goes -----------------------------------------------------------------------------------
+
+/** How a workspace's email goes out: through its connected mailbox, through the platform sender, or not at all. */
+export type EmailTransport =
+  | { via: "mailbox"; provider: MailboxProvider; address: string; attachBytes: number; send: (m: OutgoingEmail) => Promise<void> }
+  /** `skipped`: a mailbox is connected but could not be used, so the platform sender took its place. */
+  | { via: "platform"; skipped: MailboxTrouble | null }
+  /** Nothing can send. `problem` is set when a mailbox is connected but cannot send (so the answer is "reconnect it", not "set one up"). */
+  | { via: "none"; problem: MailboxTrouble | null };
+
+/** A connected mailbox that cannot send. `provider` is null when the connection could not be read at all. */
+export interface MailboxTrouble {
+  provider: MailboxProvider | null;
+  address: string;
+  problem: MailboxProblem;
+}
+
+/**
+ * Choose the transport for a workspace: a ready connected mailbox first; else the platform sender when it is set up; else none.
+ * Never throws: a mailbox that cannot be read counts as one that cannot send.
+ */
+export async function chooseEmailTransport(deps: NotifyDeps, accountId: string): Promise<EmailTransport> {
+  let problem: MailboxTrouble | null = null;
+  if (deps.mailbox) {
+    try {
+      const state = await deps.mailbox(accountId);
+      if (state.kind === "ready") return { via: "mailbox", provider: state.provider, address: state.address, attachBytes: Math.min(state.attachBytes, ENVELOPE_ATTACH_BYTES), send: state.send };
+      if (state.kind === "problem") problem = { provider: state.provider, address: state.address, problem: state.problem };
+    } catch (err) {
+      console.error("[sign] could not read the connected mailbox:", err instanceof Error ? err.message : err);
+      problem = { provider: null, address: "", problem: "unavailable" };
+    }
+  }
+  if (deps.emailConfigured()) return { via: "platform", skipped: problem };
+  return { via: "none", problem };
+}
+
+const PROBLEM_REASON: Record<MailboxProblem, SendReason> = { reconnect: "mailbox_reconnect", paused: "mailbox_paused", unavailable: "service_unavailable" };
+
+/** The delivery to report when no transport can send. */
+function undeliverable(t: Extract<EmailTransport, { via: "none" }>): Delivery {
+  if (t.problem) return { channel: "email", status: "failed", detail: reasonDetail(PROBLEM_REASON[t.problem.problem], t.problem.address ? `mailbox ${t.problem.address}` : "") };
+  return { channel: "email", status: "not_configured", detail: reasonDetail("not_set_up", "no connected mailbox and the platform sender is not set up") };
+}
+
+/** What went wrong, as the `detail` of a failed delivery: a named reason when we know it, otherwise the service's own words. */
+function failureDetail(err: unknown): string {
+  if (err instanceof MailSendError) return err.message;
+  return err instanceof Error ? err.message.slice(0, 200) : "send failed";
+}
 
 /** The public address of a signer's link. */
 export function signerLink(origin: string, token: string): string {
@@ -68,11 +141,20 @@ async function sendWhatsAppTemplate(
   });
 }
 
-async function viaEmail(deps: NotifyDeps, accountId: string, to: string, m: Rendered, identityName: string | null, attachments?: EmailAttachment[]): Promise<Delivery> {
-  if (!deps.emailConfigured()) return { channel: "email", status: "not_configured", detail: "RESEND_API_KEY is not set" };
+/** What a message is made of once the transport is known: its words, and the files that fit through it (`attachBytes` is the most those may add up to). */
+type MessageBuilder = (attachBytes: number) => { m: Rendered; attachments?: EmailAttachment[] };
+
+/**
+ * Send one email by the transport the workspace has. The words, files and identity are built the same for every transport (`build` is told how
+ * many bytes of files this transport takes); only the last step differs. Always answers with a Delivery.
+ */
+async function emailVia(deps: NotifyDeps, accountId: string, to: string, identityName: string | null, build: MessageBuilder): Promise<Delivery> {
+  const transport = await chooseEmailTransport(deps, accountId);
+  if (transport.via === "none") return undeliverable(transport);
   try {
+    const { m, attachments } = build(transport.via === "mailbox" ? transport.attachBytes : ENVELOPE_ATTACH_BYTES);
     const identity = await deps.loadIdentity(accountId);
-    await deps.sendEmail({
+    const message = {
       to,
       subject: m.subject,
       html: m.html,
@@ -80,11 +162,24 @@ async function viaEmail(deps: NotifyDeps, accountId: string, to: string, m: Rend
       fromName: identityName ?? identity.fromName,
       replyTo: identity.replyTo,
       ...(attachments?.length ? { attachments } : {}),
-    });
+    };
+    await (transport.via === "mailbox" ? transport.send(message) : deps.sendEmail(message));
     return { channel: "email", status: "sent" };
   } catch (err) {
-    return { channel: "email", status: "failed", detail: err instanceof Error ? err.message.slice(0, 200) : "send failed" };
+    return { channel: "email", status: "failed", detail: failureDetail(err) };
   }
+}
+
+/** A message without files of its own. */
+function viaEmail(deps: NotifyDeps, accountId: string, to: string, m: Rendered, identityName: string | null): Promise<Delivery> {
+  return emailVia(deps, accountId, to, identityName, () => ({ m }));
+}
+
+/** One short email to the person who asked for it (Settings > Doc Sign > Email): proves the way email goes out works, sends no document. */
+export async function deliverTestEmail(deps: NotifyDeps, accountId: string, to: string, locale: SignLocale, workspace: string, identityName: string | null): Promise<{ delivery: Delivery; via: EmailTransport["via"]; provider: MailboxProvider | null; from: string | null }> {
+  const transport = await chooseEmailTransport(deps, accountId);
+  const delivery = await viaEmail(deps, accountId, to, testEmail({ locale, workspace }), identityName);
+  return { delivery, via: transport.via, provider: transport.via === "mailbox" ? transport.provider : null, from: transport.via === "mailbox" ? transport.address : null };
 }
 
 export interface Party {
@@ -201,10 +296,11 @@ export async function deliverCode(deps: NotifyDeps, doc: DocFacts, w: Workspace,
 
 /** The signed copy, to a signer or the sender: attached when it fits, always with a link. */
 export async function deliverCompleted(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: Party, pdf: { bytes: Uint8Array; filename: string } | null, downloadUrl?: string): Promise<Delivery> {
-  const attachable = pdf && pdf.bytes.byteLength <= 20 * 1024 * 1024;
-  const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: !!attachable, downloadUrl, mode: doc.mode });
-  const attachments = attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined;
-  return viaEmail(deps, doc.accountId, to.email, m, displayFrom(w), attachments);
+  return emailVia(deps, doc.accountId, to.email, displayFrom(w), (limit) => {
+    const attachable = !!pdf && pdf.bytes.byteLength <= limit;
+    const m = completedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: doc.title, attached: attachable, downloadUrl, mode: doc.mode });
+    return { m, attachments: attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined };
+  });
 }
 
 export type Outcome = { kind: "declined"; by: string; reason?: string | null } | { kind: "expired" } | { kind: "voided" };
@@ -289,9 +385,9 @@ export async function deliverEnvelopeReminder(admin: SupabaseClient, deps: Notif
   return viaEmail(deps, env.accountId, inv.email, m, displayFrom(w));
 }
 
-/** The files that go on one message: in order, while they fit in `ENVELOPE_ATTACH_BYTES` in all. `fits[i]` says whether file i was attached. */
-function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string }[]): { attached: { filename: string; content: string }[]; fits: boolean[] } {
-  let budget = ENVELOPE_ATTACH_BYTES;
+/** The files that go on one message: in order, while they fit in `limit` bytes in all (`ENVELOPE_ATTACH_BYTES`, or less through a mailbox). `fits[i]` says whether file i was attached. */
+function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string }[], limit: number = ENVELOPE_ATTACH_BYTES): { attached: { filename: string; content: string }[]; fits: boolean[] } {
+  let budget = limit;
   const attached: { filename: string; content: string }[] = [];
   const fits: boolean[] = [];
   for (const f of pdfs) {
@@ -311,9 +407,11 @@ function attachWithinBudget(pdfs: readonly { bytes: Uint8Array; filename: string
  * they fit in ENVELOPE_ATTACH_BYTES in all; the message says how many were attached and sends the rest to the person's own link.
  */
 export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFacts, w: Workspace, to: Party, pdfs: readonly { bytes: Uint8Array; filename: string }[]): Promise<Delivery> {
-  const { attached } = attachWithinBudget(pdfs);
-  const m = envelopeCompletedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: env.title, count: env.documents.length, attachedCount: attached.length, mode: env.mode });
-  return viaEmail(deps, env.accountId, to.email, m, displayFrom(w), attached.length ? attached : undefined);
+  return emailVia(deps, env.accountId, to.email, displayFrom(w), (limit) => {
+    const { attached } = attachWithinBudget(pdfs, limit);
+    const m = envelopeCompletedEmail({ locale: to.locale, workspace: w.name, name: to.name, title: env.title, count: env.documents.length, attachedCount: attached.length, mode: env.mode });
+    return { m, attachments: attached.length ? attached : undefined };
+  });
 }
 
 // ---- people who receive a copy (migration 175) ------------------------------------------------------------
@@ -324,10 +422,11 @@ export async function deliverEnvelopeCompleted(deps: NotifyDeps, env: EnvelopeFa
  * page that checks a signed document (`verifyUrl`), which shows no document.
  */
 export async function deliverCopy(deps: NotifyDeps, doc: DocFacts, w: Workspace, to: { name: string; email: string }, pdf: { bytes: Uint8Array; filename: string } | null, verifyUrl: string): Promise<Delivery> {
-  const attachable = !!pdf && pdf.bytes.byteLength <= 20 * 1024 * 1024;
-  const m = copyEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, name: to.name, title: doc.title, attached: attachable, verifyUrl, mode: doc.mode });
-  const attachments = attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined;
-  return viaEmail(deps, doc.accountId, to.email, m, displayFrom(w), attachments);
+  return emailVia(deps, doc.accountId, to.email, displayFrom(w), (limit) => {
+    const attachable = !!pdf && pdf.bytes.byteLength <= limit;
+    const m = copyEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, name: to.name, title: doc.title, attached: attachable, verifyUrl, mode: doc.mode });
+    return { m, attachments: attachable ? [{ filename: pdf!.filename, content: Buffer.from(pdf!.bytes).toString("base64") }] : undefined };
+  });
 }
 
 /** The signed copies of every document of a collection, in ONE message to a person who receives a copy. Those that do not fit are named with the page that checks them. */
@@ -338,17 +437,19 @@ export async function deliverEnvelopeCopy(
   to: { name: string; email: string },
   pdfs: readonly { bytes: Uint8Array; filename: string; title: string; verifyUrl: string }[],
 ): Promise<Delivery> {
-  const { attached, fits } = attachWithinBudget(pdfs);
-  const m = envelopeCopyEmail({
-    locale: env.locale,
-    workspace: w.name,
-    sender: w.senderName,
-    name: to.name,
-    title: env.title,
-    count: env.documents.length,
-    attachedCount: attached.length,
-    notAttached: pdfs.filter((_, i) => !fits[i]).map((f) => ({ title: f.title, verifyUrl: f.verifyUrl })),
-    mode: env.mode,
+  return emailVia(deps, env.accountId, to.email, displayFrom(w), (limit) => {
+    const { attached, fits } = attachWithinBudget(pdfs, limit);
+    const m = envelopeCopyEmail({
+      locale: env.locale,
+      workspace: w.name,
+      sender: w.senderName,
+      name: to.name,
+      title: env.title,
+      count: env.documents.length,
+      attachedCount: attached.length,
+      notAttached: pdfs.filter((_, i) => !fits[i]).map((f) => ({ title: f.title, verifyUrl: f.verifyUrl })),
+      mode: env.mode,
+    });
+    return { m, attachments: attached.length ? attached : undefined };
   });
-  return viaEmail(deps, env.accountId, to.email, m, displayFrom(w), attached.length ? attached : undefined);
 }

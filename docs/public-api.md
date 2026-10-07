@@ -422,7 +422,12 @@ curl -X POST https://your-crm.example.com/api/v1/sign/documents \
 `201 Created`, the document (see below) plus `invitations`: for each person, whether
 the message reached them. A message that could not be delivered is reported
 (`failed`, or `not_configured` when the channel is not set up) and the document is
-sent anyway; the signing link is **never** returned by the API. Call
+sent anyway; the signing link is **never** returned by the API. `delivery.detail` says
+why: a reason word (`not_set_up`, `mailbox_reconnect`, `mailbox_paused`, `daily_limit`,
+`rate_limited`, `address_rejected`, `attachment_too_large`, `service_unavailable`), then
+`: ` and what the mail service said; or only what the service said when the failure is not
+one of those. Email goes through the workspace's connected Microsoft 365 or Gmail mailbox
+when it has one, otherwise through the platform sender. Call
 `POST .../remind` to send a fresh link later.
 
 ```json

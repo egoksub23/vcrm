@@ -54,6 +54,11 @@ export interface EmailIdentity {
 const UNSAFE_NAME_CHARS = /[\r\n"<>;,]/g;
 const PLAIN_EMAIL = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
 
+/** A display name that cannot alter an address or add a header: unsafe characters become spaces, at most 60 characters. Shared by every sender (Resend, Gmail). */
+export function cleanDisplayName(fromName?: string | null): string {
+  return (fromName ?? '').replace(UNSAFE_NAME_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
 /**
  * The `From` header: the deployment's verified address (the only address mail
  * can be sent as without verifying another domain) under the workspace's
@@ -62,7 +67,7 @@ const PLAIN_EMAIL = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
  * a name can never alter the address or add a header.
  */
 export function formatFrom(configured: string, fromName?: string | null): string {
-  const name = (fromName ?? '').replace(UNSAFE_NAME_CHARS, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const name = cleanDisplayName(fromName);
   if (!name) return configured;
   const bare = configured.match(/<([^<>]+)>\s*$/)?.[1]?.trim() ?? configured.trim();
   return `${name} <${bare}>`;

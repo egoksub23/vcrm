@@ -39,6 +39,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { getValidAccessToken } from '@/lib/ms365/token'
+import { decideMs365Ingest } from '@/lib/ms365/ingest-guard'
 import { getMessage, listAttachments, downloadAttachmentBytes } from '@/lib/ms365/mail-api'
 
 export const maxDuration = 60
@@ -155,18 +156,28 @@ async function processMessage(config: Record<string, unknown>, graphMessageId: s
     console.error('[email webhook] getMessage failed:', err instanceof Error ? err.message : err)
     return null
   })
-  if (!message || !message.fromAddress) return
+  if (!message) return
 
-  // Defense in depth alongside the Inbox-folder subscription scope —
-  // never treat a message from our own connected mailbox as inbound.
-  if (message.fromAddress.toLowerCase() === mailboxAddress) return
+  // Defense in depth alongside the Inbox-folder subscription scope. A message
+  // created in the Inbox is not always somebody else's: mail Halo sends through
+  // this mailbox (Doc Sign: signing links, codes, signed documents) arrives
+  // there when it is addressed to the mailbox itself, and so does the bounce of
+  // such a mail. None of it may become a conversation the whole team can read
+  // (see lib/ms365/ingest-guard.ts: the X-Halo-Sign header, our own address).
+  const decision = decideMs365Ingest(message, mailboxAddress)
+  if (!decision.ingest) {
+    if (decision.reason === 'doc_sign') console.info('[email webhook] skipped a message Halo sent itself:', message.id)
+    return
+  }
+  // decideMs365Ingest has already refused a message without a sender
+  const fromAddress = message.fromAddress!
 
   const contactOutcome = await findOrCreateContactByExternalId(admin, {
     accountId,
     configOwnerUserId,
     column: 'email',
-    externalId: message.fromAddress,
-    resolveDisplayName: async () => message.fromName || message.fromAddress!,
+    externalId: fromAddress,
+    resolveDisplayName: async () => message.fromName || fromAddress,
   })
   if (!contactOutcome) return
   const contactRecord = contactOutcome.contact

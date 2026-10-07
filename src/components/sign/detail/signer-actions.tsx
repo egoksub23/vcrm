@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import type { SignChannel, SignSignerRow } from "@/lib/sign/types";
 
+import { useDeliveryReason } from "../delivery-reason";
 import type { RecipientForm } from "./logic";
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type SignerStep, type UndeliveredLink } from "./signer-dialogs";
 
@@ -34,6 +35,7 @@ export type OpenDialog = { kind: "remind" | "resend"; signer: SignSignerRow } | 
  */
 export function useSignerActions(documentId: string, onChanged: () => Promise<void>) {
   const t = useTranslations("Sign.detail");
+  const reasonOf = useDeliveryReason();
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const [busy, setBusy] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function useSignerActions(documentId: string, onChanged: () => Promise<vo
         toast.success(t(`toasts.${done}`, { name: result.name || signer.full_name }));
       } else {
         // The message did not arrive: say so, and hand over the link once.
-        toast.warning(t(result.delivery.status === "not_configured" ? "toasts.notConfigured" : "toasts.notDelivered", { name: result.name || signer.full_name, channel: t(`channel.${result.delivery.channel}`) }));
+        toast.warning(t(result.delivery.status === "not_configured" ? "toasts.notConfigured" : "toasts.notDelivered", { name: result.name || signer.full_name, channel: t(`channel.${result.delivery.channel}`) }), { description: reasonOf(result.delivery.detail) ?? undefined });
         setLink({ signerId: result.signerId, name: result.name || signer.full_name, channel: result.delivery.channel, link: result.link });
       }
       await onChanged();

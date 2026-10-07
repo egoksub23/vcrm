@@ -11,8 +11,26 @@ on for a workspace and keep it running. What users do is in the User Guide (**Do
   the README. They create the `sign_*` tables, the private storage bucket `sign-documents`,
   and the two flags below (off for every workspace, old and new).
 - **`NEXT_PUBLIC_SITE_URL`** is your public https address. Signers' links are built on it.
-- **`RESEND_API_KEY`** is set. Invitations, reminders and signed copies go out by email.
-  Without it a document can be sent but nobody is told (the document's page says so).
+- **Email can be sent**, one of two ways. Invitations, reminders, codes and signed copies go out by
+  email, and without a sender a document can be sent but nobody is told (the document's page says so).
+  Doc Sign picks the way for each workspace, in this order:
+  1. **The workspace's own connected mailbox**: a Microsoft 365 mailbox (Settings > Channels > Email),
+     or else a Gmail mailbox (Settings > Channels > Gmail). Mail goes out from that mailbox's address,
+     under the workspace's name. Nothing to set on the server beyond what those channels already need
+     (`MS365_CLIENT_ID` and `MS365_CLIENT_SECRET`, or `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; see
+     `docs/microsoft-365-email-setup.md` and `docs/gmail-setup.md`). The mailbox must be able to send
+     (`Mail.Send` for Microsoft 365, `gmail.send` for Gmail): reconnect it if it was connected before
+     those permissions were asked for.
+  2. **`RESEND_API_KEY`** is set (the platform sender, with `RESEND_FROM_EMAIL` on a verified domain).
+     Used for a workspace with no mailbox that can send.
+
+  Either one is enough. **Settings > Doc Sign > General > Email** shows which one a workspace is using,
+  with the mailbox's address, and has a **Send a test email to me** button. What to know about the
+  mailbox: mail through it is marked `X-Halo-Sign: 1`, and Halo's own inbox ingestion refuses anything
+  carrying that mark, so a signing link or a signed document is never read into the shared inbox
+  (section 9c). Through Microsoft 365 no copy is kept in Sent Items; Gmail always keeps one in its Sent
+  folder. Files go on the message only when they fit: up to 2.5 MB through Microsoft 365, 17 MB through
+  Gmail, 20 MB through the platform sender; above that the message carries a link instead.
 - **`ENCRYPTION_KEY`** is set (it already is for WhatsApp and Jira). Sealing certificates are
   stored encrypted with the key ring, and the **Re-encrypt now** job rewrites them after a key
   rotation (`docs/encryption-key-rotation.md`) like every other secret.
@@ -370,7 +388,11 @@ Two changes that go together. The owner's words for the collection screen: add e
 | "Word conversion is not available right now" | `SIGN_CONVERTER_URL` is empty, or the container is not running or not healthy (section 3). |
 | A Word file "took too long" or "could not be converted" | Ask for a PDF. Large or unusual files can fail; the converter keeps no state. |
 | A signer cannot upload a file | It is not a PDF, JPEG or PNG, or it is over the field's limit (section 8), or the document has reached 50 MB of uploads. |
-| Nobody receives invitations | `RESEND_API_KEY` is missing, or the mail is in spam. The document's page says when a message could not be delivered. |
+| Nobody receives invitations | The workspace has no connected mailbox that can send and `RESEND_API_KEY` is not set (section 1), or the mail is in spam. The document's page says when a message could not be delivered, and why. **Settings > Doc Sign > General > Email** shows which way email goes and can send a test (section 9b). |
+| Invitations say "Reason: the connected mailbox needs to be reconnected" | The mailbox's access was revoked or has expired (a password change, an administrator removing the app's consent, a Microsoft refresh token not used for 90 days). Reconnect it in Settings > Channels. Until then the platform sender is used when `RESEND_API_KEY` is set, otherwise nothing is sent. |
+| Invitations say "Reason: the mailbox has reached its limit on messages sent in one day" | Gmail allows about 500 a day for a consumer account and 2,000 for Google Workspace; Exchange Online about 10,000 recipients a day. Doc Sign stops asking for ten minutes and reports the same reason for every message in that time. The limit resets within 24 hours; use **Resend** on the people who were missed (a bulk send settles as sent with these people marked "did not arrive"). |
+| Invitations say "Reason: ... asked us to slow down" | The mailbox sent too fast (Gmail: a few a second; Exchange Online: about 30 messages a minute). Doc Sign spaces its sends out and waits once for the time Microsoft names; a long bulk send can still hit it. Use **Resend** a minute later. |
+| A signed copy arrives without its file and with a link | The file is over what the way email goes can carry (2.5 MB through Microsoft 365, 17 MB through Gmail, 20 MB through the platform sender). The signer's message links to their copy; people who only receive a copy are given the public check page and told to ask the sender. |
 | WhatsApp invitation not delivered | The workspace has no approved message template set in Settings > Doc Sign > General, or its WhatsApp channel is off. |
 | Chinese or Korean text appears as `?` | No CJK font (section 5). |
 | A template cannot be saved: "the list ... does not exist" | A field names an option list the workspace does not have (it was typed in by hand or the lists were never seeded). Open Settings > Doc Sign > Lists, which seeds the system lists, and choose an existing list. |
@@ -381,7 +403,7 @@ Two changes that go together. The owner's words for the collection screen: add e
 | Rows of a bulk send are **Failed** with "monthly limit" | The workspace reached **Signing documents per month** part way. Raise it in Platform, then send those people again in a new batch. |
 | A registration page says "not available" | The form is switched off or its address was replaced (**New address**), Doc Sign is off for the workspace or it is suspended, or the link was typed wrong. All look the same on purpose. |
 | A registration page says "not available right now" | The server has no `ENCRYPTION_KEY` (section 1): it cannot sign the page's token. |
-| An applicant says no email came | Open **Settings > Doc Sign > Registration forms > Recent activity**. "The document was made but the email could not be delivered" means `RESEND_API_KEY` or the sender domain (the document is open; resend it from its page). "The monthly limit of documents is reached" means the Platform limit (section 2). A repeat within a day is not sent again. |
+| An applicant says no email came | Open **Settings > Doc Sign > Registration forms > Recent activity**. "The document was made but the email could not be delivered" means email is not set up or could not be sent (section 1: a connected mailbox, or `RESEND_API_KEY` and its sender domain) (the document is open; resend it from its page, the reason is on it). "The monthly limit of documents is reached" means the Platform limit (section 2). A repeat within a day is not sent again. |
 | Every visitor to a registration page is told "too many tries" | The proxy count is wrong (`TRUSTED_PROXY_HOPS`, section 8d): all visitors look like one address. |
 | The Turnstile box never appears | One of the two keys is missing (the page then has no check at all), or the browser blocks `challenges.cloudflare.com`. The page says the check could not load and the button stays off until it does. |
 | A signer sees no "Forward" link | Forwarding is off for the document (section 8g), the position already forwarded twice, or the person was handed one part (a delegate cannot pass it on). |
@@ -428,3 +450,46 @@ places of their own role on each document (the server refuses any other key with
 A person who has signed everything of theirs reads "waiting for the others" until the other people have signed their documents; a document only they are on
 is sealed at once, and its state is shown in the list, not as "everyone has signed". Two people on one role of a document are refused at send
 (`role_shared`, or `role_two_people` in a collection).
+
+## 9b. Which way email goes, and why a message did not arrive
+
+For each message Doc Sign asks the workspace's connected mailboxes first: a Microsoft 365 mailbox that can send, else a Gmail mailbox that can send; a
+mailbox that is switched off in Settings > Channels, or needs reconnecting, is skipped. With none ready, the platform sender (`RESEND_API_KEY`) is used.
+With neither, the message is not sent and the person's row says so. There is no "primary email channel" setting: Microsoft 365 wins when both are connected.
+
+**Settings > Doc Sign > General > Email** (people with Doc Sign settings) names the one in use, for example "Sent from support@vircle.com via your connected
+Microsoft 365 mailbox", says when a connected mailbox cannot send and why the platform sender is used instead, links to where the mailbox is connected, and
+**Send a test email to me** sends one short message to the signed-in person's own address the same way (five an hour). A test that fails shows the reason.
+
+The reason of every message that did not arrive is kept on the document's history (`delivery_failed`, field `reason`) and shown to the sender on the
+screen that sent it, on the person's row in the people list and in the toast of a resend. It is a word, then what the mail service said:
+
+| Reason | Meaning |
+|---|---|
+| `not_set_up` | No connected mailbox and no `RESEND_API_KEY`. |
+| `mailbox_reconnect` | Revoked or expired access (401, `invalid_grant`, consent withdrawn, a missing `Mail.Send` or `gmail.send` permission). The mailbox is marked "needs reconnecting" in its channel. |
+| `mailbox_paused` | The channel is switched off in Settings > Channels. |
+| `daily_limit` | The provider's sending limit for the day. |
+| `rate_limited` | Throttled (HTTP 429, `MailboxConcurrency`, `ApplicationThrottled`, Gmail's per-second limit). One retry after the `Retry-After` the provider named (up to 15 seconds); longer than that, the mailbox is left alone for that long and each message in between fails at once with this reason. |
+| `address_rejected` | The address is not valid or was refused. |
+| `attachment_too_large` | The message with its files is over the provider's size limit (the files are normally left off and a link used before this happens). |
+| `service_unavailable` | The provider could not be reached, or answered 5xx. |
+
+Anything else shows what the provider said. A message accepted by the provider and bounced later is not known to Halo (the bounce goes to the mailbox).
+
+## 9c. Mail Doc Sign sends is never read into the shared inbox
+
+Mail sent through a connected mailbox can come back to Halo's own inbox ingestion: a message addressed to the mailbox itself (a test email, a copy to the
+sender's own address) is delivered to its Inbox, and a bounce of a message Doc Sign sent arrives there too. The inbox is read by everyone with inbox access,
+and these messages hold a person's signing link or a signed document, so Halo refuses them on the ingestion path, by independent signals:
+
+- every Doc Sign message carries the header `X-Halo-Sign: 1` (the Microsoft 365 webhook reads it from `internetMessageHeaders`, the Gmail webhook from the
+  message headers), and is refused when it has it;
+- a delivery-failure notice that quotes the original's headers is refused when the quoted text has the header (Exchange puts them in the body; Gmail in a
+  `text/rfc822-headers` part);
+- Gmail only: the label `SENT` (Gmail's own statement that the mailbox sent it) is refused;
+- a message from the mailbox's own address (`from` or `sender`) is refused.
+
+Not covered: a person who replies to a Doc Sign email. The reply is an ordinary message from that person and becomes a conversation, quoting their own link
+(set a Reply-To address in the workspace's email identity to send replies elsewhere). A bounce whose original headers the provider leaves out cannot be
+recognised; it contains the recipient's address and the subject, not the link.

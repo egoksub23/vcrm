@@ -2,7 +2,7 @@
 title: Remind, resend and cancel
 description: Follow a sent document, nudge a person, send an invitation again, change a recipient, or cancel the document.
 order: 6
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 After you send a document, its page shows where things stand and gives you the actions that keep it moving.
@@ -29,7 +29,7 @@ The person gets a reminder by the channel you chose for them, with a **new link*
 
 Click **Resend** next to the person, then **Send again**. They get the invitation again with a new link, and the earlier link stops working. Use it when they say they never got it.
 
-If the message could not be delivered, the person shows "The email did not arrive" or "The WhatsApp message did not arrive". Check the address or number. If it is wrong, change the recipient. You can also use **Copy link** and pass the link on yourself.
+If the message could not be delivered, the person shows "The email did not arrive" or "The WhatsApp message did not arrive", with the reason under it. Read the reason first. If it says the address was not accepted, check the address or number and change the recipient if it is wrong. If it says the mailbox needs to be reconnected, has reached its limit for the day, or asked Doc Sign to slow down, nothing is wrong with the address: fix the mailbox (**Settings > Doc Sign > General > Email** shows which one it is) or wait, then use **Resend**. You can also use **Copy link** and pass the link on yourself.
 
 ## Change the recipient
 

@@ -32,6 +32,7 @@ import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredL
 import { detailErrorKey, type RecipientForm } from "../detail/logic";
 import { SealRetry } from "../detail/seal-retry";
 import { VoidDialog } from "../detail/void-dialog";
+import { useDeliveryReason } from "../delivery-reason";
 import { PrivateBadge } from "../private-badge";
 import { DocumentStatusBadge } from "../send/status-badge";
 import { AddCopyRecipient, COPIES_OPEN_STATUSES, CopyRecipientItems } from "./copy-recipients";
@@ -54,6 +55,7 @@ type Open = { kind: "remind" | "resend" | "recipient"; signer: SignSignerRow } |
 export function EnvelopeDetail({ data, reload }: Props) {
   const t = useTranslations("Sign.send.envelope");
   const td = useTranslations("Sign.detail");
+  const reasonOf = useDeliveryReason();
   const tErr = useTranslations("Sign.send");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const f = useFormatter();
@@ -97,7 +99,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
       if (result.notInvitedYet) toast.success(td("toasts.recipientChangedLater", { name: result.name || signer.full_name }));
       else if (result.delivery.status === "sent" || !result.link) toast.success(td(`toasts.${doneKey}`, { name: result.name || signer.full_name }));
       else {
-        toast.warning(td(result.delivery.status === "not_configured" ? "toasts.notConfigured" : "toasts.notDelivered", { name: result.name || signer.full_name, channel: td(`channel.${result.delivery.channel}`) }));
+        toast.warning(td(result.delivery.status === "not_configured" ? "toasts.notConfigured" : "toasts.notDelivered", { name: result.name || signer.full_name, channel: td(`channel.${result.delivery.channel}`) }), { description: reasonOf(result.delivery.detail) ?? undefined });
         setLink({ signerId: result.signerId, name: result.name || signer.full_name, channel: result.delivery.channel, link: result.link });
       }
       await reload();

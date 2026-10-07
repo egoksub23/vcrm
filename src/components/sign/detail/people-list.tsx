@@ -23,6 +23,7 @@ import { isDelegate, stepGroups } from "@/lib/sign/forward";
 import type { SignDocumentRow, SignRole, SignSignerRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
+import { DeliveryReason, isSetupReason } from "../delivery-reason";
 import { formatWhen } from "./format";
 import { detailErrorKey, signerActions, type DetailCaps } from "./logic";
 import { SignerActionDialogs, useSignerActions } from "./signer-actions";
@@ -32,6 +33,8 @@ interface Props {
   signers: SignSignerRow[];
   /** People whose last message did not arrive. */
   undelivered: ReadonlySet<string>;
+  /** Why it did not arrive, by signer id: the recorded reason (a named cause, or what the mail service said); null when the record has none. */
+  reasons?: ReadonlyMap<string, string | null>;
   caps: DetailCaps;
   /** Read the document again after an action. */
   onChanged: () => Promise<void>;
@@ -41,7 +44,7 @@ interface Props {
   form?: FormDefinition | null;
 }
 
-export function PeopleList({ document: doc, signers, undelivered, caps, onChanged, partsFor, form }: Props) {
+export function PeopleList({ document: doc, signers, undelivered, reasons, caps, onChanged, partsFor, form }: Props) {
   const t = useTranslations("Sign.detail");
   const locale = asLocale(useLocale());
   const actions = useSignerActions(doc.id, onChanged);
@@ -54,7 +57,7 @@ export function PeopleList({ document: doc, signers, undelivered, caps, onChange
     return part ? pick(part.title, locale) || key : key;
   };
   const row = (s: SignSignerRow, nested: boolean) => (
-    <SignerRow key={s.id} document={doc} signer={s} signers={signers} nested={nested} partTitle={partTitle} undelivered={undelivered.has(s.id)} caps={caps} onAction={(kind) => actions.open(kind, s)} onChanged={onChanged} />
+    <SignerRow key={s.id} document={doc} signer={s} signers={signers} nested={nested} partTitle={partTitle} undelivered={undelivered.has(s.id)} reason={reasons?.get(s.id) ?? null} caps={caps} onAction={(kind) => actions.open(kind, s)} onChanged={onChanged} />
   );
 
   return (
@@ -86,12 +89,14 @@ interface SignerRowProps {
   nested: boolean;
   partTitle: (key: string) => string;
   undelivered: boolean;
+  /** Why the last message did not arrive (the recorded detail), when it is known. */
+  reason?: string | null;
   caps: DetailCaps;
   onAction: (kind: "remind" | "resend" | "recipient") => void;
   onChanged: () => Promise<void>;
 }
 
-function SignerRow({ document: doc, signer, signers, nested, partTitle, undelivered, caps, onAction, onChanged }: SignerRowProps) {
+function SignerRow({ document: doc, signer, signers, nested, partTitle, undelivered, reason, caps, onAction, onChanged }: SignerRowProps) {
   const t = useTranslations("Sign.detail");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const locale = useLocale();
@@ -152,10 +157,13 @@ function SignerRow({ document: doc, signer, signers, nested, partTitle, undelive
       {signer.decline_reason && <p className="text-xs text-foreground">{t("people.declineReason", { reason: signer.decline_reason })}</p>}
 
       {undelivered && actions.open && (
-        <p className="flex items-start gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300" role="status">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {t(signer.channel === "whatsapp" ? "people.undeliveredWhatsapp" : "people.undeliveredEmail")}
-        </p>
+        <div className="space-y-1" role="status">
+          <p className="flex items-start gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            {t(signer.channel === "whatsapp" ? "people.undeliveredWhatsapp" : isSetupReason(reason) ? "people.undeliveredEmailSetup" : "people.undeliveredEmail")}
+          </p>
+          <DeliveryReason detail={reason} className="pl-5 text-xs text-muted-foreground" />
+        </div>
       )}
 
       {actions.open && caps.send && (

@@ -8789,7 +8789,8 @@
         "form_not_ready": "This form cannot be switched on yet. Open it to see why.",
         "invalid_form": "Some of the form's settings are not valid. Check the name, the people and the wording.",
         "tag_not_found": "That tag was not found. Choose a contact tag.",
-        "slug_unavailable": "Could not make an address for this form. Please try again."
+        "slug_unavailable": "Could not make an address for this form. Please try again.",
+        "no_email": "Your profile has no email address to send the test to."
       },
       "registration": {
         "loading": "Loading registration forms...",
@@ -8972,6 +8973,44 @@
         },
         "copiesLabel": "Signed copy to",
         "copiesValue": "{count, plural, one {# person} other {# people}}"
+      },
+      "email": {
+        "title": "Email",
+        "intro": "Invitations, reminders, codes and signed copies go out by email. This shows which way they go. There is nothing to switch here: the mailbox is connected in Settings > Channels.",
+        "loading": "Checking how email is sent...",
+        "transport": {
+          "platform": "Sent by the platform sender",
+          "none": "Not set up: connect a mailbox in Settings > Channels (Email or Gmail)",
+          "noneProblem": "Email cannot be sent right now: the connected mailbox has a problem",
+          "microsoft365": "Sent from {address} via your connected Microsoft 365 mailbox",
+          "gmail": "Sent from {address} via your connected Gmail mailbox"
+        },
+        "platformNote": "No mailbox is connected, so email goes out from the platform's own address. To send from your own address, connect a mailbox.",
+        "problem": {
+          "reconnect": "The mailbox {address} needs to be reconnected: its access was revoked or has expired.",
+          "paused": "The mailbox {address} is switched off.",
+          "unavailable": "The connected mailbox could not be read just now."
+        },
+        "platformInstead": "The platform sender is used until that is fixed.",
+        "test": {
+          "button": "Send a test email to me",
+          "sending": "Sending...",
+          "hint": "Sends one short email to your own address, the same way real messages go out.",
+          "sentMailbox": "Test email sent to {to} from {from}. Check your inbox.",
+          "sentPlatform": "Test email sent to {to} by the platform sender. Check your inbox.",
+          "failed": "The test email was not sent."
+        },
+        "nameNote": "People see the name {name} next to the address.",
+        "keptNote": {
+          "microsoft365": "No copy is kept in the mailbox's Sent Items, because each message holds one person's link or signed document.",
+          "gmail": "Gmail keeps each message in the mailbox's Sent folder, where anyone who can open the mailbox can read it."
+        },
+        "inboxNote": "Doc Sign messages are not added to the Halo inbox.",
+        "link": {
+          "manage": "Open the channel settings of this mailbox",
+          "connectMicrosoft365": "Connect a Microsoft 365 mailbox",
+          "connectGmail": "Connect a Gmail mailbox"
+        }
       }
     },
     "detail": {
@@ -9079,7 +9118,8 @@
         "moveTo": "Move to",
         "moveStep": "Step {step}",
         "moveNew": "A new step at the end",
-        "moved": "{name} was moved to another step."
+        "moved": "{name} was moved to another step.",
+        "undeliveredEmailSetup": "The email was not sent because of how email is set up, not because of this address. Once that is fixed, use Resend."
       },
       "confirm": {
         "cancel": "Cancel",
@@ -10753,7 +10793,7 @@
           "whatsapp": "Invitation sent by WhatsApp"
         },
         "notConfigured": {
-          "email": "Email is not set up, so nothing was sent",
+          "email": "Email is not set up for this workspace, so nothing was sent",
           "whatsapp": "WhatsApp is not set up, so nothing was sent"
         },
         "failed": {
@@ -12528,6 +12568,20 @@
         "hintSingle": "Only you, the workspace's admins and the Halo users you name as signers can see this document, who has signed it and what they answered. Other people with Doc Sign will not find it in lists, searches, counts or exports.",
         "hintCollection": "Only you, the workspace's admins and the Halo users you name as signers can see this collection and every document in it, who has signed and what they answered. Other people with Doc Sign will not find them in lists, searches, counts or exports.",
         "notYours": "Only the person who uploaded this, or an admin, can change this."
+      }
+    },
+    "delivery": {
+      "reasonLine": "Reason: {reason}",
+      "reasons": {
+        "not_set_up": "Email is not set up for this workspace. Connect a mailbox in Settings > Channels (Email or Gmail), or ask an administrator to set up the platform sender.",
+        "mailbox_reconnect": "The connected mailbox needs to be reconnected: its access was revoked or has expired. Reconnect it in Settings > Channels.",
+        "mailbox_paused": "The connected mailbox is switched off. Switch it on in Settings > Channels.",
+        "daily_limit": "The mailbox has reached its limit on messages sent in one day. Try again later, after the limit resets (within 24 hours).",
+        "rate_limited": "The mailbox is sending too fast and the mail service asked us to slow down. Try again in a minute.",
+        "address_rejected": "The email address was not accepted. Check it, or change the recipient.",
+        "attachment_too_large": "The message with its files was too large to send.",
+        "service_unavailable": "The mail service could not be reached just now. Try again in a moment.",
+        "other": "{detail}"
       }
     }
   }

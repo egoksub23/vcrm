@@ -45,6 +45,8 @@ export const ADMIN_ERROR_CODES = [
   "invalid_form",
   "tag_not_found",
   "slug_unavailable",
+  // the email card
+  "no_email",
   // the edge
   "network",
   "signed_out",

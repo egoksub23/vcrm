@@ -235,12 +235,20 @@ export interface DeliveryEvent {
  * about getting someone to sign, so it does not count.
  */
 export function signersWithUndelivered(events: readonly DeliveryEvent[]): Set<string> {
-  const out = new Set<string>();
+  return new Set(undeliveredDetails(events).keys());
+}
+
+/**
+ * The same people, each with why their last message did not arrive: the `reason` the failure was recorded with (a named cause such as
+ * `daily_limit`, or what the mail service said), or null when the record has none (older records, or a failure with no detail).
+ */
+export function undeliveredDetails(events: readonly DeliveryEvent[]): Map<string, string | null> {
+  const out = new Map<string, string | null>();
   const ordered = [...events].sort((a, b) => a.doc_seq - b.doc_seq);
   for (const e of ordered) {
     if (!e.signer_id) continue;
     if (e.type === "invited" || e.type === "resent" || e.type === "reminded" || e.type === "recipient_changed" || e.type === "forwarded") out.delete(e.signer_id);
-    else if (e.type === "delivery_failed" && e.detail?.kind !== "completed") out.add(e.signer_id);
+    else if (e.type === "delivery_failed" && e.detail?.kind !== "completed") out.set(e.signer_id, typeof e.detail?.reason === "string" && e.detail.reason.trim() ? e.detail.reason.trim().slice(0, 300) : null);
   }
   return out;
 }

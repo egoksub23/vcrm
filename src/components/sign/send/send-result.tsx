@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DeliveryReason } from "../delivery-reason";
 import type { SignChannel, SignMode, SignRole } from "@/lib/sign/types";
 
 export interface SendResultData {
@@ -86,6 +87,7 @@ export function SendResult({ result, roles, ordered, onOpenDocument, mode, words
                   {ok ? t(`delivered.${inv.delivery.channel}`) : t(inv.delivery.status === "not_configured" ? `notConfigured.${inv.delivery.channel}` : `failed.${inv.delivery.channel}`)}
                 </p>
               </div>
+              {!ok ? <DeliveryReason detail={inv.delivery.detail} /> : null}
               {!ok && inv.link ? (
                 <div className="space-y-1.5 rounded-lg bg-muted/50 p-3">
                   <label htmlFor={`link-${inv.signerId}`} className="text-xs font-medium text-foreground">

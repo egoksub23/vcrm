@@ -14,18 +14,23 @@ interface GoogleErrorResponse {
     code?: number
     message?: string
     status?: string
+    /** Google's machine-readable causes, e.g. `rateLimitExceeded`, `dailyLimitExceeded`, `insufficientPermissions`. */
+    errors?: { reason?: string }[]
   }
 }
 
 export class GmailApiError extends Error {
   readonly httpStatus: number
   readonly status: string | null
+  /** Google's first `errors[].reason`, when the response has one. */
+  readonly reason: string | null
 
-  constructor(message: string, fields: { httpStatus: number; status?: string | null }) {
+  constructor(message: string, fields: { httpStatus: number; status?: string | null; reason?: string | null }) {
     super(message)
     this.name = 'GmailApiError'
     this.httpStatus = fields.httpStatus
     this.status = fields.status ?? null
+    this.reason = fields.reason ?? null
   }
 
   get isAuthError(): boolean {
@@ -44,14 +49,16 @@ export class GmailApiError extends Error {
 export async function readGmailError(response: Response, fallback: string): Promise<GmailApiError> {
   let message = fallback
   let status: string | null = null
+  let reason: string | null = null
   try {
     const data = (await response.json()) as GoogleErrorResponse
     if (data.error?.message) message = data.error.message
     status = data.error?.status ?? null
+    reason = data.error?.errors?.[0]?.reason ?? null
   } catch {
     // response body wasn't JSON — keep the fallback
   }
-  return new GmailApiError(message, { httpStatus: response.status, status })
+  return new GmailApiError(message, { httpStatus: response.status, status, reason })
 }
 
 export async function throwGmailError(response: Response, fallback: string): Promise<never> {

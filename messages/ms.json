@@ -7435,7 +7435,8 @@
         "form_not_ready": "Borang ini belum boleh dihidupkan. Buka untuk melihat sebabnya.",
         "invalid_form": "Sesetengah tetapan borang tidak sah. Semak nama, orang yang dinamakan dan perkataan.",
         "tag_not_found": "Tag itu tidak dijumpai. Pilih tag kenalan.",
-        "slug_unavailable": "Tidak dapat membuat alamat untuk borang ini. Sila cuba lagi."
+        "slug_unavailable": "Tidak dapat membuat alamat untuk borang ini. Sila cuba lagi.",
+        "no_email": "Profil anda tidak mempunyai alamat e-mel untuk menghantar ujian."
       },
       "registration": {
         "loading": "Memuatkan borang pendaftaran...",
@@ -7618,6 +7619,44 @@
         },
         "copiesLabel": "Salinan yang ditandatangani kepada",
         "copiesValue": "{count} orang"
+      },
+      "email": {
+        "title": "E-mel",
+        "intro": "Jemputan, peringatan, kod dan salinan bertandatangan dihantar melalui e-mel. Ini menunjukkan caranya. Tiada apa yang perlu dihidupkan di sini: peti mel disambungkan di Tetapan > Saluran.",
+        "loading": "Memeriksa cara e-mel dihantar...",
+        "transport": {
+          "platform": "Dihantar oleh penghantar platform",
+          "none": "Belum disediakan: sambungkan peti mel di Tetapan > Saluran (E-mel atau Gmail)",
+          "noneProblem": "E-mel tidak dapat dihantar sekarang: peti mel yang disambungkan mempunyai masalah",
+          "microsoft365": "Dihantar dari {address} melalui peti mel Microsoft 365 yang anda sambungkan",
+          "gmail": "Dihantar dari {address} melalui peti mel Gmail yang anda sambungkan"
+        },
+        "platformNote": "Tiada peti mel disambungkan, jadi e-mel dihantar dari alamat platform sendiri. Untuk menghantar dari alamat anda sendiri, sambungkan peti mel.",
+        "problem": {
+          "reconnect": "Peti mel {address} perlu disambung semula: aksesnya telah ditarik balik atau telah tamat tempoh.",
+          "paused": "Peti mel {address} telah dimatikan.",
+          "unavailable": "Peti mel yang disambungkan tidak dapat dibaca sekarang."
+        },
+        "platformInstead": "Penghantar platform digunakan sehingga itu dibetulkan.",
+        "test": {
+          "button": "Hantar e-mel ujian kepada saya",
+          "sending": "Menghantar...",
+          "hint": "Menghantar satu e-mel ringkas ke alamat anda sendiri, dengan cara yang sama mesej sebenar dihantar.",
+          "sentMailbox": "E-mel ujian dihantar kepada {to} dari {from}. Semak peti masuk anda.",
+          "sentPlatform": "E-mel ujian dihantar kepada {to} oleh penghantar platform. Semak peti masuk anda.",
+          "failed": "E-mel ujian tidak dihantar."
+        },
+        "nameNote": "Orang ramai melihat nama {name} di sebelah alamat.",
+        "keptNote": {
+          "microsoft365": "Tiada salinan disimpan dalam Item Dihantar peti mel, kerana setiap mesej mengandungi pautan atau dokumen bertandatangan milik seseorang.",
+          "gmail": "Gmail menyimpan setiap mesej dalam folder Dihantar peti mel itu, yang boleh dibaca oleh sesiapa yang boleh membuka peti mel itu."
+        },
+        "inboxNote": "Mesej Doc Sign tidak ditambah ke peti masuk Halo.",
+        "link": {
+          "manage": "Buka tetapan saluran peti mel ini",
+          "connectMicrosoft365": "Sambungkan peti mel Microsoft 365",
+          "connectGmail": "Sambungkan peti mel Gmail"
+        }
       }
     },
     "detail": {
@@ -7725,7 +7764,8 @@
         "moveTo": "Pindah ke",
         "moveStep": "Langkah {step}",
         "moveNew": "Langkah baharu di hujung",
-        "moved": "{name} dipindahkan ke langkah lain."
+        "moved": "{name} dipindahkan ke langkah lain.",
+        "undeliveredEmailSetup": "E-mel tidak dihantar kerana cara e-mel disediakan, bukan kerana alamat ini. Setelah itu dibetulkan, gunakan Hantar semula."
       },
       "confirm": {
         "cancel": "Batal",
@@ -9399,7 +9439,7 @@
           "whatsapp": "Jemputan dihantar melalui WhatsApp"
         },
         "notConfigured": {
-          "email": "E-mel belum disediakan, jadi tiada yang dihantar",
+          "email": "E-mel belum disediakan untuk ruang kerja ini, jadi tiada apa dihantar",
           "whatsapp": "WhatsApp belum disediakan, jadi tiada yang dihantar"
         },
         "failed": {
@@ -11174,6 +11214,20 @@
         "hintSingle": "Hanya anda, admin ruang kerja dan pengguna Halo yang anda namakan sebagai penandatangan boleh melihat dokumen ini, siapa yang telah menandatanganinya dan apa yang mereka jawab. Orang lain yang menggunakan Doc Sign tidak akan menemuinya dalam senarai, carian, kiraan atau eksport.",
         "hintCollection": "Hanya anda, admin ruang kerja dan pengguna Halo yang anda namakan sebagai penandatangan boleh melihat koleksi ini dan setiap dokumen di dalamnya, siapa yang telah menandatangani dan apa yang mereka jawab. Orang lain yang menggunakan Doc Sign tidak akan menemuinya dalam senarai, carian, kiraan atau eksport.",
         "notYours": "Hanya orang yang memuat naik ini, atau admin, boleh menukarnya."
+      }
+    },
+    "delivery": {
+      "reasonLine": "Sebab: {reason}",
+      "reasons": {
+        "not_set_up": "E-mel belum disediakan untuk ruang kerja ini. Sambungkan peti mel di Tetapan > Saluran (E-mel atau Gmail), atau minta pentadbir menyediakan penghantar platform.",
+        "mailbox_reconnect": "Peti mel yang disambungkan perlu disambung semula: aksesnya telah ditarik balik atau telah tamat tempoh. Sambung semula di Tetapan > Saluran.",
+        "mailbox_paused": "Peti mel yang disambungkan telah dimatikan. Hidupkannya di Tetapan > Saluran.",
+        "daily_limit": "Peti mel telah mencapai had mesej yang boleh dihantar dalam sehari. Cuba lagi kemudian, selepas had ditetapkan semula (dalam masa 24 jam).",
+        "rate_limited": "Peti mel menghantar terlalu laju dan perkhidmatan e-mel meminta kami memperlahankan hantaran. Cuba lagi sebentar lagi.",
+        "address_rejected": "Alamat e-mel tidak diterima. Semak alamat itu, atau tukar penerima.",
+        "attachment_too_large": "Mesej beserta failnya terlalu besar untuk dihantar.",
+        "service_unavailable": "Perkhidmatan e-mel tidak dapat dihubungi sekarang. Cuba lagi sebentar lagi.",
+        "other": "{detail}"
       }
     }
   }

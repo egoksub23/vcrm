@@ -18,6 +18,7 @@ import { FlaskConical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DeliveryReason } from "../delivery-reason";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
@@ -168,6 +169,7 @@ export function TestSendBody({ templateId, roles, fields, form, unsaved, onOpenC
           {undelivered.length > 0 ? (
             <div role="alert" className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
               <p className="font-medium text-foreground">{t("testSend.notDelivered")}</p>
+              <DeliveryReason detail={undelivered[0]?.delivery.detail} />
               <ul className="space-y-1">
                 {undelivered.map((i) => (
                   <li key={i.signerId} className="break-all text-xs">

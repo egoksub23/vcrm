@@ -1,8 +1,8 @@
 ---
 title: Settings and the WhatsApp template
-description: Set the defaults for new documents, the consent wording, the sender name and the WhatsApp message template.
+description: Set the defaults for new documents, the consent wording, the sender name and the WhatsApp message template, and see which mailbox your email is sent from.
 order: 10
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 Doc Sign settings are the starting point for every new document. A category, a template or the sender can change them for one document.
@@ -24,6 +24,28 @@ The page has five tabs: **General**, **Consent wording**, **Categories**, **Add-
 | **Keep signed documents for** | Read only. Set by the platform for now. |
 
 Click **Save** when you change something.
+
+## Email: which mailbox your messages are sent from
+
+At the top of **General** is an **Email** card. It shows how Doc Sign sends invitations, reminders, codes and signed copies. There is nothing to switch on it: it only tells you.
+
+| What the card says | What it means |
+|---|---|
+| **Sent from support@yourcompany.com via your connected Microsoft 365 mailbox** (or **Gmail mailbox**) | Messages go out from that mailbox, under your workspace's name. Replies go to the address your workspace set for replies, or to the mailbox. |
+| **Sent by the platform sender** | You have no connected mailbox that can send, so messages go out from the platform's own address. Connect a mailbox to send from your own address. |
+| **Not set up** | There is no mailbox and no platform sender, so nothing is sent. The document's page says so for each person. Connect a mailbox. |
+| A line about a mailbox that **needs to be reconnected** or **is switched off** | Doc Sign skips it. Fix it in Settings > Channels. |
+
+The link on the card opens **Settings > Channels** on the tab of that mailbox (**Email** for Microsoft 365, **Gmail** for Gmail). If you connected both, Microsoft 365 is used.
+
+Click **Send a test email to me** to send one short message to your own address, the same way real messages go. If it does not go, the card tells you why, for example that the mailbox needs to be reconnected or has reached its limit for the day. You can send five an hour.
+
+What to know about sending from a mailbox:
+
+- **Gmail** keeps every message in the mailbox's **Sent** folder, so anyone who can open that mailbox can read the signing links in it. **Microsoft 365** messages are not kept in Sent Items.
+- Doc Sign messages are never added to the Halo Inbox, even when they are sent to the mailbox's own address.
+- A mailbox can only send so many messages. Gmail allows about 500 a day (2,000 for Google Workspace); Microsoft 365 about 30 a minute. When it is reached, the person shows "The email did not arrive" with the reason. Wait, then use **Resend**.
+- A signed copy is attached to the email when it is small enough: up to 2.5 MB through Microsoft 365 and 17 MB through Gmail. A larger one is not attached; the email links to it instead.
 
 ## Consent wording
 

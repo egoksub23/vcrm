@@ -8,6 +8,7 @@
  * in one small file rather than scattered across gmail-api.ts.
  */
 
+import { cleanDisplayName } from '@/lib/email/resend'
 import { stripHtml } from '@/lib/email/strip-html'
 
 export interface GmailHeader {
@@ -29,6 +30,12 @@ function encodeMimeHeader(value: string): string {
   return `=?UTF-8?B?${Buffer.from(value, 'utf-8').toString('base64')}?=`
 }
 
+export interface OutgoingAttachment {
+  name: string
+  contentType: string
+  contentBytesBase64: string
+}
+
 export interface OutgoingMailArgs {
   toAddress: string
   subject: string
@@ -42,63 +49,117 @@ export interface OutgoingMailArgs {
    *  `<abc123@mail.gmail.com>` — set together for a threaded reply. */
   inReplyTo?: string
   references?: string
-  attachment?: { name: string; contentType: string; contentBytesBase64: string }
+  attachment?: OutgoingAttachment
+  /** More than one file (Doc Sign's signed copies); sent in this order after `attachment`. */
+  attachments?: OutgoingAttachment[]
+  /** `From` address and display name. Gmail only honours the connected mailbox's own address (or one of its send-as
+   *  aliases); the name is what the recipient sees. Without `fromAddress` no `From` header is written and Gmail adds its own. */
+  fromAddress?: string
+  fromName?: string
+  /** One plain address replies should go to. */
+  replyTo?: string
+  /** Extra headers (for example `X-Halo-Sign: 1`). Names must be plain header tokens; values lose any line break. */
+  headers?: Record<string, string>
+}
+
+const CRLF = '\r\n'
+const HEADER_NAME = /^[A-Za-z][A-Za-z0-9-]*$/
+const ASCII_ONLY = /^[\x00-\x7F]*$/
+
+/** A header value on one line: a line break in it would let a value start another header. */
+function oneLine(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim()
+}
+
+/** The `From` header: the display name (quoted, or RFC 2047 encoded when it is not ASCII) and the address. */
+function formatFromHeader(address: string, name: string | undefined): string {
+  const display = cleanDisplayName(name)
+  const bare = oneLine(address).replace(/[<>]/g, '')
+  if (!display) return bare
+  return ASCII_ONLY.test(display) ? `"${display}" <${bare}>` : `${encodeMimeHeader(display)} <${bare}>`
+}
+
+/** A file name safe inside a quoted header parameter: no quote, backslash or line break; RFC 2047 encoded when it is not ASCII. */
+function attachmentName(name: string): string {
+  const safe = oneLine(name).replace(/["\\]/g, '_') || 'attachment'
+  return encodeMimeHeader(safe)
+}
+
+/** Base64 as the lines of at most 76 characters mail software expects (a single very long line is rejected by some servers). */
+function wrapBase64(b64: string): string {
+  return (b64.replace(/\s+/g, '').match(/.{1,76}/g) ?? []).join(CRLF)
+}
+
+/**
+ * One text part: its headers and its body. Plain ASCII with short lines goes as it is; anything else (Chinese, Korean or Malay text, a
+ * very long HTML line) is sent as base64 with its Content-Transfer-Encoding named, so no server on the way has to guess how 8-bit text
+ * should travel.
+ */
+function textPart(mimeType: 'text/plain' | 'text/html', content: string): { headers: string[]; body: string } {
+  const contentType = `Content-Type: ${mimeType}; charset="UTF-8"`
+  const plain = ASCII_ONLY.test(content) && content.split(/\r?\n/).every((line) => line.length <= 900)
+  if (plain) return { headers: [contentType], body: content }
+  return { headers: [contentType, 'Content-Transfer-Encoding: base64'], body: wrapBase64(Buffer.from(content, 'utf-8').toString('base64')) }
+}
+
+/** A text part as lines of a multipart body: its headers, a blank line, its content. */
+function asLines(part: { headers: string[]; body: string }): string[] {
+  return [...part.headers, '', part.body]
 }
 
 /** Builds the base64url-encoded raw message `users.messages.send` expects. */
 export function buildRawMessage(args: OutgoingMailArgs): string {
   const mixedBoundary = `part_${Date.now()}_${Math.random().toString(36).slice(2)}`
   const altBoundary = `alt_${Date.now()}_${Math.random().toString(36).slice(2)}`
-  const headers: string[] = [
-    `To: ${args.toAddress}`,
-    `Subject: ${encodeMimeHeader(args.subject)}`,
-    'MIME-Version: 1.0',
-  ]
+  const files = [...(args.attachment ? [args.attachment] : []), ...(args.attachments ?? [])]
+  const headers: string[] = []
+  if (args.fromAddress) headers.push(`From: ${formatFromHeader(args.fromAddress, args.fromName)}`)
+  headers.push(`To: ${oneLine(args.toAddress)}`, `Subject: ${encodeMimeHeader(oneLine(args.subject))}`, 'MIME-Version: 1.0')
+  if (args.replyTo) headers.push(`Reply-To: ${oneLine(args.replyTo)}`)
   if (args.inReplyTo) headers.push(`In-Reply-To: ${args.inReplyTo}`)
   if (args.references) headers.push(`References: ${args.references}`)
+  for (const [name, value] of Object.entries(args.headers ?? {})) {
+    if (HEADER_NAME.test(name)) headers.push(`${name}: ${oneLine(value)}`)
+  }
 
   // The plain-text/HTML pair, as either the whole body (own top-level
   // Content-Type header) or one part nested inside the multipart/mixed
   // envelope below (own Content-Type line, no top-level header needed).
-  const textOnlyPart = ['Content-Type: text/plain; charset="UTF-8"', '', args.text].join('\r\n')
+  const text = textPart('text/plain', args.text)
+  const textOnlyPart = asLines(text).join(CRLF)
   const alternativeBody = [
     `--${altBoundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    '',
-    args.text,
+    ...asLines(text),
     `--${altBoundary}`,
-    'Content-Type: text/html; charset="UTF-8"',
-    '',
-    args.html,
+    ...asLines(textPart('text/html', args.html ?? '')),
     `--${altBoundary}--`,
-  ].join('\r\n')
-  const alternativePart = [`Content-Type: multipart/alternative; boundary="${altBoundary}"`, '', alternativeBody].join(
-    '\r\n',
-  )
+  ].join(CRLF)
+  const alternativePart = [`Content-Type: multipart/alternative; boundary="${altBoundary}"`, '', alternativeBody].join(CRLF)
 
   let body: string
-  if (args.attachment) {
+  if (files.length > 0) {
     headers.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`)
-    body = [
-      `--${mixedBoundary}`,
-      args.html ? alternativePart : textOnlyPart,
-      `--${mixedBoundary}`,
-      `Content-Type: ${args.attachment.contentType}; name="${args.attachment.name}"`,
-      `Content-Disposition: attachment; filename="${args.attachment.name}"`,
-      'Content-Transfer-Encoding: base64',
-      '',
-      args.attachment.contentBytesBase64,
-      `--${mixedBoundary}--`,
-    ].join('\r\n')
+    const fileParts = files.flatMap((file) => {
+      const name = attachmentName(file.name)
+      return [
+        `--${mixedBoundary}`,
+        `Content-Type: ${oneLine(file.contentType)}; name="${name}"`,
+        `Content-Disposition: attachment; filename="${name}"`,
+        'Content-Transfer-Encoding: base64',
+        '',
+        wrapBase64(file.contentBytesBase64),
+      ]
+    })
+    body = [`--${mixedBoundary}`, args.html ? alternativePart : textOnlyPart, ...fileParts, `--${mixedBoundary}--`].join(CRLF)
   } else if (args.html) {
     headers.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`)
     body = alternativeBody
   } else {
-    headers.push('Content-Type: text/plain; charset="UTF-8"')
-    body = args.text
+    headers.push(...text.headers)
+    body = text.body
   }
 
-  const raw = `${headers.join('\r\n')}\r\n\r\n${body}`
+  const raw = `${headers.join(CRLF)}${CRLF}${CRLF}${body}`
   return Buffer.from(raw, 'utf-8').toString('base64url')
 }
 

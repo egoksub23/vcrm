@@ -54,7 +54,19 @@ export async function sendNewMail(args: {
    *  still required as the value actually used when this is omitted. */
   html?: string
   attachment?: GraphFileAttachment
+  /** More than one file (Doc Sign's signed copies); each is an inline fileAttachment, so together they stay under the inline limit. */
+  attachments?: GraphFileAttachment[]
+  /** Show this name next to the mailbox's own address (`from`). Left out, Exchange uses the mailbox's own name. */
+  fromName?: string
+  fromAddress?: string
+  replyTo?: string
+  /** Internet message headers (`X-...` names only: Graph refuses any other). Doc Sign writes `X-Halo-Sign: 1` here. */
+  headers?: Record<string, string>
+  /** Keep a copy in the mailbox's Sent Items. Defaults to true, as the inbox composer always did; Doc Sign turns it off. */
+  saveToSentItems?: boolean
 }): Promise<void> {
+  const files = [...(args.attachment ? [args.attachment] : []), ...(args.attachments ?? [])]
+  const headers = Object.entries(args.headers ?? {}).map(([name, value]) => ({ name, value }))
   const response = await fetch(`${GRAPH_BASE}/me/sendMail`, {
     method: 'POST',
     headers: authHeaders(args.accessToken),
@@ -65,9 +77,12 @@ export async function sendNewMail(args: {
           ? { contentType: 'HTML', content: args.html }
           : { contentType: 'Text', content: args.text },
         toRecipients: [{ emailAddress: { address: args.toAddress } }],
-        attachments: args.attachment ? [attachmentPayload(args.attachment)] : undefined,
+        attachments: files.length ? files.map(attachmentPayload) : undefined,
+        ...(args.fromAddress ? { from: { emailAddress: { address: args.fromAddress, ...(args.fromName ? { name: args.fromName } : {}) } } } : {}),
+        ...(args.replyTo ? { replyTo: [{ emailAddress: { address: args.replyTo } }] } : {}),
+        ...(headers.length ? { internetMessageHeaders: headers } : {}),
       },
-      saveToSentItems: true,
+      saveToSentItems: args.saveToSentItems ?? true,
     }),
   })
   if (!response.ok) {
@@ -209,6 +224,10 @@ export interface GraphMessageSummary {
   bodyHtml: string | null
   hasAttachments: boolean
   receivedDateTime: string
+  /** The `sender` (who actually sent it, which can differ from `from`), when Graph gave one. */
+  senderAddress: string | null
+  /** The internet message headers, as Graph returns them (name and value). Empty when Graph returned none. */
+  headers: { name: string; value: string }[]
 }
 
 export async function getMessage(args: {
@@ -216,7 +235,7 @@ export async function getMessage(args: {
   messageId: string
 }): Promise<GraphMessageSummary> {
   const params = new URLSearchParams({
-    $select: 'id,subject,from,body,hasAttachments,receivedDateTime',
+    $select: 'id,subject,from,sender,body,hasAttachments,receivedDateTime,internetMessageHeaders',
   })
   const response = await fetch(
     `${GRAPH_BASE}/me/messages/${encodeURIComponent(args.messageId)}?${params.toString()}`,
@@ -238,9 +257,11 @@ export async function getMessage(args: {
     id: string
     subject?: string
     from?: { emailAddress?: { address?: string; name?: string } }
+    sender?: { emailAddress?: { address?: string } }
     body?: { contentType?: string; content?: string }
     hasAttachments?: boolean
     receivedDateTime: string
+    internetMessageHeaders?: { name?: string; value?: string }[]
   }
   const isHtml = data.body?.contentType?.toLowerCase() === 'html'
   const rawContent = data.body?.content ?? null
@@ -253,6 +274,8 @@ export async function getMessage(args: {
     bodyHtml: isHtml ? rawContent : null,
     hasAttachments: data.hasAttachments ?? false,
     receivedDateTime: data.receivedDateTime,
+    senderAddress: data.sender?.emailAddress?.address ?? null,
+    headers: (data.internetMessageHeaders ?? []).flatMap((h) => (h.name ? [{ name: h.name, value: h.value ?? '' }] : [])),
   }
 }
 

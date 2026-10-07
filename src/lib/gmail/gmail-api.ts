@@ -6,6 +6,7 @@
  */
 
 import { throwGmailError } from './errors'
+import { isHaloSignMessage } from './ingest-guard'
 import {
   buildRawMessage,
   decodeBase64Url,
@@ -58,16 +59,29 @@ export async function sendNewMail(args: {
   text: string
   html?: string
   attachment?: GmailAttachmentInput
-}): Promise<{ messageId: string }> {
+  /** More than one file (Doc Sign's signed copies). */
+  attachments?: GmailAttachmentInput[]
+  /** The mailbox's own address and the name shown next to it. */
+  fromAddress?: string
+  fromName?: string
+  replyTo?: string
+  /** Extra headers, e.g. `X-Halo-Sign: 1`. */
+  headers?: Record<string, string>
+}): Promise<{ messageId: string; threadId: string }> {
   const raw = buildRawMessage({
     toAddress: args.toAddress,
     subject: args.subject,
     text: args.text,
     html: args.html,
     attachment: args.attachment,
+    attachments: args.attachments,
+    fromAddress: args.fromAddress,
+    fromName: args.fromName,
+    replyTo: args.replyTo,
+    headers: args.headers,
   })
   const result = await send({ accessToken: args.accessToken, raw })
-  return { messageId: result.id }
+  return { messageId: result.id, threadId: result.threadId }
 }
 
 export async function sendReply(args: {
@@ -143,6 +157,10 @@ export interface GmailMessageSummary {
   attachments: GmailAttachmentPart[]
   /** Gmail's own send/receive timestamp, epoch milliseconds as a string. */
   internalDate: string
+  /** Gmail's labels on the message (`INBOX`, `SENT`, ...). */
+  labelIds: string[]
+  /** The message, or the original a bounce quotes, carries Doc Sign's `X-Halo-Sign` header: it is never a conversation. */
+  haloSign: boolean
 }
 
 export async function getMessage(args: {
@@ -160,6 +178,7 @@ export async function getMessage(args: {
     id: string
     threadId: string
     internalDate: string
+    labelIds?: string[]
     payload?: GmailPayloadPart
   }
   const { name, address } = parseFromHeader(getHeader(data.payload?.headers, 'From'))
@@ -173,6 +192,8 @@ export async function getMessage(args: {
     bodyHtml: findHtmlBody(data.payload),
     attachments: findAttachmentParts(data.payload),
     internalDate: data.internalDate,
+    labelIds: data.labelIds ?? [],
+    haloSign: isHaloSignMessage(data.payload),
   }
 }
 
