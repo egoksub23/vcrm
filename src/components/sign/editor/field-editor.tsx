@@ -13,10 +13,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { toast } from "sonner";
 
 import { PdfPages, usePdf, useElementWidth } from "@/components/sign/pdf-pages";
+import { Button } from "@/components/ui/button";
 import { groupFieldsByPage, fieldsOnPage, pageAtOffset, pageHeights, pageTops, pageWidthPx, percentOfWidth, type Zoom } from "@/lib/sign/client/editor-pages";
 import type { EditorState } from "@/lib/sign/client/editor-history";
 import type { SampleContext } from "@/lib/sign/client/editor-preview";
-import { mergeKeysOf, readingOrder } from "@/lib/sign/client/layout";
+import { defaultSize, mergeKeysOf, readingOrder } from "@/lib/sign/client/layout";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import { validateForm } from "@/lib/sign/forms/validate";
 import { FIELD_TYPES, type FieldType, type PlacedField } from "@/lib/sign/pdf/types";
@@ -60,12 +61,14 @@ export interface FieldEditorProps {
   rolesLocked?: boolean;
   /** Where the people are added (the collection's page): the banner links to it. */
   collectionHref?: string;
+  /** The sending workflow: with no people yet the banner offers to go to the People step. Takes the place of `collectionHref`. */
+  onGoToPeople?: () => void;
 }
 
 const PAGE_GAP = 16;
 const PAD = 16;
 
-export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey, rolesLocked = false, collectionHref }: FieldEditorProps) {
+export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, mergeValues, readOnly = false, mode, className, toolbarExtra, form, focusKey, rolesLocked = false, collectionHref, onGoToPeople }: FieldEditorProps) {
   const t = useTranslations("Sign.editor");
   const tf = useTranslations("Sign.formBuilder");
   const locale = useLocale();
@@ -225,6 +228,32 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
     focusField(key);
   };
 
+  // the sending workflow: a signature block for a person, in the middle of the part of the page in view (below any block already there)
+  const placeSignatureFor = (roleKey: string) => {
+    const el = scrollRef.current;
+    if (!ready || !el || locked || tops.length === 0 || fields.length >= MAX_FIELDS) return;
+    const page = pageAtOffset(tops, heights, el.scrollTop, el.clientHeight);
+    const size = ready.pages[page];
+    const { w, h } = defaultSize("signature", size ? size.height / size.width : 1.4142);
+    const midY = el.scrollTop + el.clientHeight / 2;
+    const cy = Math.min(0.92, Math.max(0.08, (midY - tops[page]) / Math.max(1, heights[page])));
+    const x = Math.max(0, 0.5 - w / 2);
+    let y = Math.max(0, Math.min(1 - h, cy - h / 2));
+    for (let i = 0; i < 12 && fields.some((f) => f.page === page && Math.abs(f.y - y) < h * 0.9 && Math.abs(f.x - x) < w * 0.9); i++) y = Math.min(1 - h, y + h * 1.1);
+    const key = place({ type: "signature", page, rect: { x, y, w, h }, preferredRole: roleKey });
+    if (!key) return;
+    setActiveRoleKey(roleKey);
+    setSelectedKey(key);
+    setTab("field");
+    focusField(key);
+  };
+  const quick = useMemo(() => {
+    const signers = roles.filter((r) => r.kind === "signer");
+    const counts: Record<string, number> = {};
+    for (const f of fields) if (f.type === "signature" || f.type === "initials") counts[f.role] = (counts[f.role] ?? 0) + 1;
+    return { roles: signers, counts };
+  }, [roles, fields]);
+
   // forms: move to a place that prints a data field (again to go to the next one)
   const showData = (dataKey: string) => {
     const list = readingOrder(fields.filter((p) => p.data === dataKey));
@@ -371,6 +400,7 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
       selected={selected}
       readOnly={locked}
       rolesLocked={rolesLocked}
+      flow={!!onGoToPeople}
       typeLabels={typeLabels}
       senderLabel={senderLabel}
       mergeKeys={mergeKeys}
@@ -427,8 +457,12 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
       {rolesLocked && roles.length === 0 ? (
         <div role="status" data-no-people className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-amber-500/10 px-3 py-2 text-sm">
           <Users className="size-4 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">{t("draft.noPeopleYet")}</span>
-          {collectionHref ? (
+          <span className="min-w-0 flex-1">{t(onGoToPeople ? "draft.noPeopleFlow" : "draft.noPeopleYet")}</span>
+          {onGoToPeople ? (
+            <Button type="button" variant="outline" size="xs" onClick={onGoToPeople}>
+              {t("draft.goToPeople")}
+            </Button>
+          ) : collectionHref ? (
             <Link href={collectionHref} className="font-medium text-primary underline-offset-4 hover:underline">
               {t("draft.openCollection")}
             </Link>
@@ -436,7 +470,16 @@ export function FieldEditor({ pdfUrl, pdfVersion, fields, roles, onChange, merge
         </div>
       ) : null}
       {locked ? null : (
-        <Palette tool={tool} onTool={setTool} roles={roles} activeRole={activeRole} onActiveRole={setActiveRoleKey} disabled={!ready} full={fields.length >= MAX_FIELDS} />
+        <Palette
+          tool={tool}
+          onTool={setTool}
+          roles={roles}
+          activeRole={activeRole}
+          onActiveRole={setActiveRoleKey}
+          disabled={!ready}
+          full={fields.length >= MAX_FIELDS}
+          quick={mode === "draft" ? { ...quick, onAdd: placeSignatureFor } : undefined}
+        />
       )}
       <div className="relative flex min-h-0 flex-1">
         {!compact && ready ? (

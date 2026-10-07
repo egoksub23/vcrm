@@ -9,13 +9,13 @@ import { useSignEnvelope } from "@/hooks/use-sign-envelope";
 import { errorKey } from "@/lib/sign/client/errors";
 
 import { EnvelopeDetail } from "./envelope-detail";
-import { EnvelopeDraft } from "./envelope-draft";
+import { CollectionProcess } from "../process/collection-process";
 
 /**
- * One envelope: its page is the draft screen (the documents, one signing list, the options, the review) while it is a draft, and the envelope's
+ * One envelope: its page is the sending workflow (the four steps) while it is a draft, and the envelope's
  * own detail (what is happening to it, its documents, its people) from the moment it is sent.
  */
-export function EnvelopeView({ envelopeId }: { envelopeId: string }) {
+export function EnvelopeView({ envelopeId, asked }: { envelopeId: string; asked?: { step?: string | null; doc?: string | null } }) {
   const t = useTranslations("Sign.send.envelope.view");
   const tErr = useTranslations("Sign.send");
   const { data, error, loading, reload } = useSignEnvelope(envelopeId);
@@ -49,7 +49,7 @@ export function EnvelopeView({ envelopeId }: { envelopeId: string }) {
   }
 
   if (data.envelope.status === "draft") {
-    return <EnvelopeDraft key={envelopeId} envelopeId={envelopeId} data={data} reload={reload} onOpen={() => void reload()} />;
+    return <CollectionProcess key={envelopeId} envelopeId={envelopeId} data={data} reload={reload} onOpen={() => void reload()} asked={asked} />;
   }
   return <EnvelopeDetail data={data} reload={reload} />;
 }

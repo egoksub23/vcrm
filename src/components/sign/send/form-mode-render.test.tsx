@@ -15,11 +15,12 @@ vi.mock("@/lib/supabase/client", () => {
   return { createClient: () => stub };
 });
 vi.mock("@/hooks/use-can", () => ({ useCapability: () => true }));
+vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ accountId: "acc-1" }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 vi.mock("@/hooks/use-account-members", () => ({ useAccountMembers: () => ({ members: [], nameOf: () => "", profileOf: () => undefined }) }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => React.createElement("a", { href, ...rest }, children) }));
 
 import type { SignListRow } from "@/hooks/use-sign-documents";
-import { emptyRow, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignDocumentRow, SignRole } from "@/lib/sign/types";
 import { DetailHeader } from "../detail/detail-header";
@@ -28,10 +29,11 @@ import { StatusBanner } from "../detail/status-banner";
 import { FormRolesPanel } from "../form-builder/form-roles-panel";
 import { MetaLine, WaitingText } from "../list/row-parts";
 import { FormFieldsStep } from "./form-fields-step";
-import { PeopleStep } from "./people-step";
-import { ReviewStep } from "./review-step";
+import { ProcessPeople } from "../process/people-step";
+import { ProcessStepper } from "../process/process-stepper";
+import { SendStep } from "../process/send-step";
+import { fakeProcess, person as processPerson, processDoc } from "../process/test-support";
 import { SendResult } from "./send-result";
-import { StepsNav } from "./steps-nav";
 
 type Tree = Record<string, unknown>;
 
@@ -72,41 +74,46 @@ const form: FormDefinition = {
   ],
   fields: [{ key: "legal", type: "text", part: "company", label: { en: "Legal name" }, required: true }],
 };
-const person = (name: string, roleKey: string, step: number): SignerRow => ({ ...emptyRow(roleKey, step), fullName: name, email: `${name.toLowerCase()}@example.com` });
-const rows = [person("Ali", "applicant", 1), person("Siti", "accounts", 2)];
-const options = { title: "E-invoice details", categoryId: null, contactId: null, locale: "en" as const, message: "", expiryDate: "", reminderText: "3, 7", codeRequired: true, signInOrder: true, allowForwarding: false };
 
 describe.skipIf(LOCALES.length === 0)("a form without a signature, on the sender's screens", () => {
   for (const locale of LOCALES) {
-    it(`names the first step the form, and asks for people who fill in (${locale})`, () => {
-      const done = { fields: true, people: false, options: true, review: false };
-      const nav = page(locale, <StepsNav current="people" done={done} onGo={() => {}} formOnly />);
-      expect(nav).not.toContain("Fields</span>");
-      if (locale === "en") expect(nav).toContain(">Form<");
-      const props = { roles, rows: [], signInOrder: true, showInvalid: false, whatsappConfigured: true, readOnly: false, onRows: () => {}, onSignInOrder: () => {}, onGoToFields: () => {}, form, mode: "form" as const };
-      const empty = page(locale, <PeopleStep {...props} />);
+    it(`names the third step the form, and asks for people who fill in (${locale})`, () => {
+      const open = { documents: { open: true, blockedBy: null }, people: { open: true, blockedBy: null }, blocks: { open: true, blockedBy: null }, send: { open: true, blockedBy: null } } as const;
+      const nav = (formOnly: boolean) => page(locale, <ProcessStepper current="people" status={null} access={open} onGo={() => {}} formOnly={formOnly} />);
+      expect(nav(true)).not.toBe(nav(false));
       if (locale === "en") {
-        expect(empty).toContain("Add the people who fill this in.");
-        expect(empty).toContain("People fill this in in order");
-        expect(empty).not.toContain("who sign");
+        expect(nav(true)).toContain(">Form<");
+        expect(nav(true)).not.toContain("Signature blocks");
+        expect(nav(false)).toContain("Signature blocks");
       }
-      const agreement = page(locale, <PeopleStep {...props} mode="sign" />);
-      if (locale === "en") expect(agreement).toContain("Add the people who sign or fill in this document.");
+      const props = { kind: "single" as const, docs: [], people: [], ordered: true, showInvalid: false, whatsappConfigured: true, readOnly: false, onPeople: () => {}, onOrdered: () => {} };
+      const empty = page(locale, <ProcessPeople {...props} formOnly />);
+      const agreement = page(locale, <ProcessPeople {...props} />);
+      if (locale === "en") {
+        expect(empty).toContain("Add everyone who fills this in, once");
+        expect(empty).not.toContain("must sign or only receive");
+        expect(agreement).toContain("Add everyone who takes part, once");
+      }
+      expect(empty).not.toBe(agreement);
     });
 
     it(`the review and the result say form, not signature (${locale})`, () => {
-      const review = (mode: "form" | "sign") =>
+      const formDoc = processDoc(1, { mode: "form", hasForm: true, roles: [roles[0], roles[1]], rolesNeeded: ["applicant", "accounts"], partCounts: { applicant: 1, accounts: 1 }, fromTemplate: true });
+      const people = [processPerson("pp_aaaaaaaa", "Ali", { roles: { [formDoc.id]: "applicant" } }), processPerson("pp_bbbbbbbb", "Siti", { step: 2, roles: { [formDoc.id]: "accounts" } })];
+      const review = (formOnly: boolean) =>
         page(
           locale,
-          <ReviewStep roles={roles} rows={rows} options={options} categoryName={null} contactName={null} defaultExpiryDays={14} now={Date.parse("2026-10-06T08:00:00Z")} problems={[]} checking={false} canSend sending={false} sendErrorCode={null} onSend={() => {}} onGoToStep={() => {}} form={form} mode={mode} />,
+          <SendStep process={fakeProcess({ docs: [formDoc], people, options: { codeRequired: true, signInOrder: true }, over: { formOnly } })} categories={[]} defaultExpiryDays={14} now={Date.parse("2026-10-06T08:00:00Z")} headroom={null} onOpen={() => {}} />,
         );
-      const html = review("form");
+      const html = review(true);
       if (locale === "en") {
         expect(html).toContain("Send the form");
         expect(html).not.toContain("Send for signature");
         expect(html).toContain("People fill this in in order.");
         expect(html).toContain("Each person enters a one-time code first");
-        expect(review("sign")).toContain("Send for signature");
+        expect(review(false)).toContain("Send for signature");
+      } else {
+        expect(html).not.toBe(review(false));
       }
       const result = (mode: "form" | "sign") =>
         page(locale, <SendResult mode={mode} roles={roles} ordered result={{ documentId: "d1", reference: "SGN-1", expiresAt: "2026-10-20T00:00:00Z", invited: [{ signerId: "s1", name: "Ali", roleKey: "applicant", delivery: { channel: "email", status: "failed" }, link: "https://halo.test/s/abc" }] }} onOpenDocument={() => {}} />);

@@ -29,7 +29,7 @@ import { addPerson, setPersonType } from "@/lib/sign/client/envelope-form";
 import type { EnvelopeDocLite, EnvelopePerson } from "@/lib/sign/envelopes";
 import type { SignCopyRecipientRow, SignEnvelopeRow } from "@/lib/sign/types";
 import { EnvelopeDetail } from "./envelope-detail";
-import { EnvelopePeople, RemovalWords } from "./envelope-people";
+import { ProcessPeople as EnvelopePeople, RemovalWords } from "../process/people-step";
 import { applyContact, removalAsk } from "./people-edit";
 
 type Tree = Record<string, unknown>;
@@ -61,7 +61,7 @@ const copy = (over: Partial<EnvelopePerson> = {}): EnvelopePerson => person({ ke
 
 const noop = () => {};
 function people(locale: string, over: Partial<React.ComponentProps<typeof EnvelopePeople>> = {}) {
-  return page(locale, <EnvelopePeople docs={[uploaded]} people={[person(), copy()]} ordered={false} readOnly={false} showInvalid={false} whatsappConfigured onPeople={noop} onOrdered={noop} {...over} />);
+  return page(locale, <EnvelopePeople kind="collection" docs={[uploaded]} people={[person(), copy()]} ordered={false} readOnly={false} showInvalid={false} whatsappConfigured onPeople={noop} onOrdered={noop} {...over} />);
 }
 
 const DISABLED = /\sdisabled(=|>|\s)/;
@@ -150,7 +150,7 @@ describe("the People step of a draft collection", () => {
     const six = Array.from({ length: 6 }, (_, i) => person({ key: `pp_s${i}aaaaaa`, fullName: `S${i}`, email: `s${i}@example.com` }));
     const withUpload = people("en", { docs: [uploaded], people: six });
     expect(openingTagOfButtonWith(withUpload, "Add a person</button>".replace("</button>", ""))).toMatch(DISABLED);
-    expect(withUpload).toContain("uploaded file can have up to 6");
+    expect(withUpload).toContain("Up to 6 people can be asked to sign an uploaded file");
     const templateOnly = people("en", { docs: [templated], people: six });
     expect(openingTagOfButtonWith(templateOnly, "Add a person")).not.toMatch(DISABLED);
     const ten = Array.from({ length: 10 }, (_, i) => copy({ key: `pp_c${i}aaaaaa`, fullName: `C${i}`, email: `c${i}@example.com` }));
@@ -240,7 +240,7 @@ const env = (status: SignEnvelopeRow["status"]): SignEnvelopeRow => ({
 });
 const copyRow = (id: string, name: string, notified: string | null): SignCopyRecipientRow => ({ id, account_id: "a1", document_id: null, envelope_id: "e1", full_name: name, email: `${id}@example.com`, notified_at: notified, created_by: null, created_at: "2026-10-01T00:00:00Z" });
 const documentSummary = (n: number, status: "sent" | "completed"): EnvelopeData["documents"][number] => ({
-  id: `0000000${n}-0000-4000-8000-000000000000`, position: n, title: `Document ${n}`, reference: null, status, mode: "sign", pageCount: 1, roles: [], rolesNeeded: [], fromTemplate: false, fieldCounts: {}, categoryId: null, completedAt: null, hasFinalFile: false,
+  id: `0000000${n}-0000-4000-8000-000000000000`, position: n, title: `Document ${n}`, reference: null, status, mode: "sign", pageCount: 1, roles: [], rolesNeeded: [], fromTemplate: false, fieldCounts: {}, signatureCounts: {}, partCounts: {}, hasFile: true, hasForm: false, categoryId: null, completedAt: null, hasFinalFile: false,
 });
 const signerRow = (n: number): EnvelopeData["signers"][number] =>
   ({ id: `s${n}`, account_id: "a1", document_id: documentSummary(n, "sent").id, role_key: "pp_aaaaaaaa", kind: "signer", full_name: "Ali Hassan", email: "ali@example.com", phone: null, channel: "email", order_no: 1, status: "sent", party_id: "s1", last_reminded_at: null }) as unknown as EnvelopeData["signers"][number];

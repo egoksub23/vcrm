@@ -9,7 +9,27 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
-## [Unreleased]
+## [0.79.0] — 2026-10-07
+
+**Migration required: 175** (already applied if you followed 0.78.1). No new migration for the four-step flow.
+
+### Changed
+
+- **Doc Sign sending is now one four-step process, the same for a single document and a document collection:** 1 Documents (upload one or many files and/or pick templates, up to 6, and title it), 2 People (name, email, "Must sign" or "Receives a copy", channel, order, Halo user), 3 Signature blocks (open each document and place blocks for the people you added), 4 Review and send (options, optional links to a ticket or deal, a list of what is left with a Fix button for each, then Send). A numbered stepper with ticks, a summary panel with a "What is left" checklist and a sticky Back / Continue bar guide you; on a phone the stepper becomes "Step 2 of 4" with a dropdown. People are added before any signature block is placed, so blocks are assigned to people who already exist.
+- The Contact field is gone from the first screen. The document links itself to the first "Must sign" person you pick from your contacts; opening New document from a contact, ticket or deal still pre-links it.
+- A collection shows one card per document (pages, blocks placed, who is covered) and opens each document's editor in place with "Save and next document". The editor palette has an "Add a signature block for <name>" button per person.
+- The send screens for documents and collections are now one set of components, and the old per-kind screens are removed.
+
+### Fixed
+
+- A collection screen counted "nobody has to sign" and "same person twice" as layout problems; they now show as people problems.
+- A single uploaded document now gets its roles from the people you add, as a collection already did (the editor locks the roles once they exist).
+
+### Added
+
+- The document API accepts `{ people, ordered }` on `PUT /api/sign/documents/:id/signers` (creates the roles, signer rows and copy recipients together); the old `{ signers }` body still works. `GET /api/sign/documents/:id` also returns the same readiness problems that Send checks.
+
+## [Unreleased, shipped with 0.79.0]
 
 **Migration required: 175.** Apply it before the new app.
 

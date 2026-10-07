@@ -8027,7 +8027,9 @@
         "saveAsTemplate": "另存为模板",
         "replaceFile": "替换文件",
         "noPeopleYet": "还没有人需要签署。请先在文件集页面添加人员，然后在此处放置他们的签名块。",
-        "openCollection": "打开文件集"
+        "openCollection": "打开文件集",
+        "noPeopleFlow": "还没有添加必须签署的人员。请先添加人员，然后回来为每个人放置签名块。",
+        "goToPeople": "前往人员"
       },
       "fieldsList": {
         "title": "所有字段",
@@ -8091,7 +8093,11 @@
         "placeFor": "放置给",
         "hint": "选择字段类型，然后点击页面放置，或在页面上拖动来绘制大小。您也可以把字段类型拖到页面上。",
         "armed": "点击页面放置{type}字段，或拖动来绘制大小。按住 Shift 可连续放置多个。按 Esc 取消。",
-        "full": "此文档的字段数量已达上限。"
+        "full": "此文档的字段数量已达上限。",
+        "quickLabel": "为某位人员添加签名块",
+        "addSignatureFor": "为 {name} 添加签名块",
+        "noBlockYet": "暂无",
+        "blockCount": "{count, plural, other {# 个签名块}}"
       },
       "panel": {
         "label": "编辑面板",
@@ -8164,7 +8170,9 @@
         "sender": "发送人",
         "senderHint": "固定文字和您填写的值归您（发送人）所有。",
         "fromPeople": "来自文件集中的人员",
-        "fromPeopleHint": "人员在文件集页面添加、重命名和移除。他们的签名块在此处放置。"
+        "fromPeopleHint": "人员在文件集页面添加、重命名和移除。他们的签名块在此处放置。",
+        "fromPeopleFlow": "来自人员",
+        "fromPeopleHintFlow": "人员在第 2 步（人员）中添加、重命名和移除。您在此放置的每个签名块都会分配给其中一位。"
       },
       "save": {
         "saved": "所有更改已保存",
@@ -10934,6 +10942,160 @@
       "unavailable": {
         "title": "此页面暂时无法使用",
         "body": "请稍后再试。"
+      }
+    },
+    "process": {
+      "untitled": "无标题",
+      "blockedNotice": "您暂时还不能打开{step}。{why}",
+      "stepper": {
+        "label": "发送步骤",
+        "documents": "文件",
+        "people": "人员",
+        "blocks": "签名块",
+        "blocksForm": "表单",
+        "send": "检查并发送",
+        "done": "已完成",
+        "current": "当前步骤",
+        "blocked": "请先完成{step}",
+        "compact": "第 {n} 步，共 {total} 步：{name}",
+        "goTo": "前往某一步"
+      },
+      "footer": {
+        "back": "上一步",
+        "continue": "继续",
+        "continueTo": "继续到{step}",
+        "position": "第 {n} 步，共 {total} 步"
+      },
+      "summary": {
+        "label": "摘要",
+        "heading": "摘要",
+        "untitled": "无标题",
+        "documents": "文件",
+        "noDocuments": "还没有文件。",
+        "people": "人员",
+        "noPeople": "还没有添加任何人。",
+        "mustSign": "必须签署",
+        "copy": "接收副本",
+        "blocks": "{count, plural, other {# 个签名块}}",
+        "ready": "就绪",
+        "leftCount": "{count, plural, other {（还剩 # 项）}}",
+        "allDone": "（一切就绪）"
+      },
+      "left": {
+        "heading": "还剩什么",
+        "allDone": "一切就绪，可以发送。",
+        "doneMark": "（已完成）",
+        "documentsSingle": "添加您的文件并为其命名",
+        "documentsCollection": "添加 2 到 6 份文件并为其命名",
+        "signer": "至少添加一位必须签署的人员",
+        "people": "{count, plural, =0 {检查人员的详细信息} other {补全 # 位人员的详细信息}}",
+        "blocks": "{count, plural, =0 {在每份文件中放置签名块} other {在尚无签名块的 # 份文件中放置签名块}}",
+        "assign": "{count, plural, =0 {为每位必须签署的人员分配一个签名块} other {为 # 位人员分配签名块}}",
+        "options": "检查选项"
+      },
+      "blockedWhy": {
+        "no_documents": "请先添加至少一份文件。",
+        "too_few_documents": "请检查文件的数量。",
+        "no_title": "请为其命名。",
+        "no_signer": "请至少添加一位必须签署的人员。",
+        "unfinished_people": "{count, plural, other {请补全或移除 # 位尚未填写完整的人员。}}",
+        "people_problems": "请修正人员列表中标记的问题。",
+        "no_block_in_document": "{count, plural, other {请在 # 份尚无签名块的文件中放置签名块。}}",
+        "person_without_block": "{count, plural, other {请为 # 位尚无签名块的人员分配签名块。}}"
+      },
+      "new": {
+        "subtitle": "第 1 步：添加要发送的文件并为其命名。接下来是人员和签名块。",
+        "intro": "上传一个文件，或最多 {max} 个，也可以选择模板。一份文件单独发送；两份或更多会作为文件集一起签署。",
+        "titlePlaceholderNone": "取自第一个文件的名称",
+        "titlePlaceholderCollection": "{first} 等另外 {count, plural, other {# 份}}",
+        "hintSingle": "一份文件：单独发送。",
+        "countNone": "尚未选择。",
+        "countSingle": "1 份文件，单独发送。再添加一份，即可作为文件集一起签署。",
+        "countCollection": "{count}/{max} 份文件，作为文件集一起签署。",
+        "titleHint": "显示在您的列表和邮件中。留空则使用文件名。",
+        "blockedNotice": "您暂时还不能打开{step}。{why}"
+      },
+      "documents": {
+        "heading": "文件",
+        "introSingle": "您的文件已添加。在发送之前，您可以重命名它或替换它的文件。",
+        "introCollection": "此文件集中的文件，按签署顺序排列。在发送之前，您可以重命名文件集、调整顺序、添加或移除文件，或替换某个文件。",
+        "titleSingle": "文件标题",
+        "titleCollection": "文件集标题",
+        "titleRequired": "请为其命名。",
+        "titleHintSingle": "显示在您的列表和邮件中。",
+        "titleHintCollection": "显示在您的列表和相关人员收到的邮件中。",
+        "fileHeading": "文件"
+      },
+      "people": {
+        "heading": "人员",
+        "intro": "添加所有参与的人，每人只需添加一次：姓名、电子邮件，以及他们是必须签署还是仅接收副本。下一步中，您再把每个签名块分配给某位人员。",
+        "introForm": "添加所有填写此表单的人，每人只需添加一次：姓名、电子邮件，以及他们是填写还是仅接收副本。",
+        "typeFiller": "填写表单",
+        "limitSigners": "最多可以邀请 {max} 位人员签署。",
+        "limitRoles": "对于上传的文件，最多可以邀请 {max} 位人员签署。每个人都是该文件上的一个角色。"
+      },
+      "blocks": {
+        "heading": "签名块",
+        "headingForm": "表单",
+        "introSingle": "为每位必须签署的人员放置签名块。在下方选择一位人员即可为其添加签名块，也可以在页面上绘制一个并选择它属于谁。",
+        "introCollection": "打开每份文件并放置签名块，把每个签名块分配给一位必须签署的人员。每个人至少要有一个签名块，每份文件也至少要有一个。",
+        "introOpen": "为这份文件放置签名块。完成后，保存并继续下一份。",
+        "stripLabel": "必须签署的人员",
+        "blockCount": "{count, plural, other {# 个签名块}}",
+        "noBlockYet": "尚无签名块",
+        "somebody": "某人",
+        "formStatus": "表单 · {count, plural, other {# 页}}",
+        "formEmpty": "此表单还没有任何部分",
+        "statusNone": "尚无签名块",
+        "statusBlocks": "已放置 {count, plural, other {# 个签名块}} · 分配给 {names}",
+        "formBadge": "表单",
+        "pages": "{count, plural, other {# 页}}",
+        "openEditor": "打开编辑器",
+        "edit": "编辑",
+        "coverageLabel": "谁在这份文件中有需要签署的内容",
+        "hasBlock": "在此有签名块",
+        "nothingHere": "在此无需签署",
+        "loadingEditor": "正在加载编辑器",
+        "retry": "重试",
+        "backToDocuments": "返回文件列表",
+        "editing": "第 {n} 份文件，共 {total} 份：{title}",
+        "saveAndNext": "保存并转到下一份",
+        "saveAndBack": "保存并返回文件列表",
+        "listLabel": "文件及其签名块",
+        "readOnly": "您可以查看此草稿，但不能修改。"
+      },
+      "send": {
+        "heading": "检查并发送",
+        "intro": "检查将要发送的内容和对象，设置选项，然后发送。",
+        "countsSingle": "{people, plural, other {# 位人员必须签署}}{copies, plural, =0 {。} other {，另有 # 位人员接收副本。}}",
+        "countsCollection": "{documents, plural, other {# 份文件}}，供 {people, plural, other {# 位必须签署的人员}}{copies, plural, =0 {。} other {，另有 # 位接收副本的人员。}}",
+        "whoSignsLabel": "谁签署什么",
+        "nobodyHere": "这份文件上还没有人需要操作。",
+        "fillsIn": "填写表单",
+        "optionsHeading": "选项",
+        "limit": "此文件集需要 {needed} 份文件的额度，但此工作区本月只剩 {remaining} 份的额度。",
+        "readyCollection": "一切就绪，可以发送。",
+        "openDocument": "打开文件",
+        "openCollection": "打开文件集",
+        "sendCollection": "发送 {count, plural, other {# 份文件}}",
+        "blocked": "请先修正上方列出的问题再发送。",
+        "blockedOptions": "请先修正上方标记的选项再发送。",
+        "sendNoteCollection": "名单上的每个人都会立即收到邀请。发送后，文件将无法再编辑。",
+        "fix": {
+          "people": "前往人员",
+          "documents": "前往文件",
+          "blocks": "前往签名块",
+          "document": "打开文件",
+          "options": "前往选项"
+        }
+      },
+      "links": {
+        "heading": "关联（可选）",
+        "intro": "把它关联到工单或商机，使其显示在那里。联系人会自动为您关联。",
+        "contact": "联系人",
+        "contactLinked": "关联到",
+        "contactAutoHint": "已关联到第一位从您的联系人中选出的必须签署人员的联系人。如果不对，请移除它或选择其他联系人。",
+        "contactHint": "选择要关联的联系人，或留空。在“人员”中从联系人里选择某人，会自动为您关联。"
       }
     }
   }

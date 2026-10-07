@@ -1,4 +1,4 @@
-import { NewDocument } from "@/components/sign/send/new-document";
+import { NewProcess } from "@/components/sign/process/new-process";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -9,5 +9,6 @@ function idParam(v: string | string[] | undefined): string | null {
 
 export default async function NewSignDocumentPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const q = await searchParams;
-  return <NewDocument contactId={idParam(q.contactId)} ticketId={idParam(q.ticketId)} dealId={idParam(q.dealId)} templateId={idParam(q.templateId)} categoryId={idParam(q.categoryId)} kind={q.kind === "collection" ? "collection" : null} />;
+  // `?kind=collection` is no longer a choice (the number of documents decides), so it is not read; `?contactId=`, `?ticketId=` and `?dealId=` still link the draft
+  return <NewProcess contactId={idParam(q.contactId)} ticketId={idParam(q.ticketId)} dealId={idParam(q.dealId)} templateId={idParam(q.templateId)} categoryId={idParam(q.categoryId)} />;
 }

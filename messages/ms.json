@@ -8027,7 +8027,9 @@
         "saveAsTemplate": "Simpan sebagai templat",
         "replaceFile": "Gantikan fail",
         "noPeopleYet": "Belum ada sesiapa yang perlu menandatangani. Tambah orang di halaman koleksi dokumen dahulu, kemudian letakkan blok tandatangan mereka di sini.",
-        "openCollection": "Buka koleksi dokumen"
+        "openCollection": "Buka koleksi dokumen",
+        "noPeopleFlow": "Belum ada sesiapa yang mesti menandatangani ditambah. Tambah orang dahulu, kemudian kembali untuk meletakkan blok tandatangan bagi setiap seorang.",
+        "goToPeople": "Pergi ke Orang"
       },
       "fieldsList": {
         "title": "Semua medan",
@@ -8091,7 +8093,11 @@
         "placeFor": "Meletakkan untuk",
         "hint": "Pilih jenis medan, kemudian klik pada halaman untuk meletakkannya, atau seret pada halaman untuk melukis saiznya. Anda juga boleh menyeret jenis medan ke halaman.",
         "armed": "Klik pada halaman untuk meletakkan medan {type}, atau seret untuk melukis saiznya. Tahan Shift untuk meletakkan beberapa medan. Tekan Esc untuk membatalkan.",
-        "full": "Dokumen ini sudah mempunyai bilangan medan maksimum."
+        "full": "Dokumen ini sudah mempunyai bilangan medan maksimum.",
+        "quickLabel": "Tambah blok tandatangan untuk seseorang",
+        "addSignatureFor": "Tambah blok tandatangan untuk {name}",
+        "noBlockYet": "belum ada",
+        "blockCount": "{count, plural, other {# blok}}"
       },
       "panel": {
         "label": "Panel penyunting",
@@ -8164,7 +8170,9 @@
         "sender": "Penghantar",
         "senderHint": "Teks tetap dan nilai yang anda isi dimiliki oleh anda, sebagai penghantar.",
         "fromPeople": "daripada orang dalam koleksi dokumen",
-        "fromPeopleHint": "Orang ditambah, dinamakan semula dan dibuang di halaman koleksi dokumen. Blok tandatangan mereka diletakkan di sini."
+        "fromPeopleHint": "Orang ditambah, dinamakan semula dan dibuang di halaman koleksi dokumen. Blok tandatangan mereka diletakkan di sini.",
+        "fromPeopleFlow": "daripada senarai orang",
+        "fromPeopleHintFlow": "Orang ditambah, dinamakan semula dan dibuang pada langkah 2 (Orang). Setiap blok tandatangan yang anda letakkan di sini diberikan kepada salah seorang daripada mereka."
       },
       "save": {
         "saved": "Semua perubahan disimpan",
@@ -10934,6 +10942,160 @@
       "unavailable": {
         "title": "Halaman ini tidak tersedia sekarang",
         "body": "Sila cuba lagi kemudian."
+      }
+    },
+    "process": {
+      "untitled": "Tanpa tajuk",
+      "blockedNotice": "Anda belum boleh membuka {step}. {why}",
+      "stepper": {
+        "label": "Langkah untuk menghantar ini",
+        "documents": "Dokumen",
+        "people": "Orang",
+        "blocks": "Blok tandatangan",
+        "blocksForm": "Borang",
+        "send": "Semak dan hantar",
+        "done": "Selesai",
+        "current": "Langkah semasa",
+        "blocked": "Selesaikan {step} dahulu",
+        "compact": "Langkah {n} daripada {total}: {name}",
+        "goTo": "Pergi ke langkah"
+      },
+      "footer": {
+        "back": "Kembali",
+        "continue": "Teruskan",
+        "continueTo": "Teruskan ke {step}",
+        "position": "Langkah {n} daripada {total}"
+      },
+      "summary": {
+        "label": "Ringkasan",
+        "heading": "Ringkasan",
+        "untitled": "Tanpa tajuk",
+        "documents": "Dokumen",
+        "noDocuments": "Belum ada dokumen.",
+        "people": "Orang",
+        "noPeople": "Belum ada sesiapa ditambah.",
+        "mustSign": "Mesti menandatangani",
+        "copy": "Menerima salinan",
+        "blocks": "{count, plural, other {# blok tandatangan}}",
+        "ready": "Sedia",
+        "leftCount": "{count, plural, other {(# lagi)}}",
+        "allDone": "(semuanya sedia)"
+      },
+      "left": {
+        "heading": "Apa yang tinggal",
+        "allDone": "Semuanya sedia untuk dihantar.",
+        "doneMark": "(selesai)",
+        "documentsSingle": "Tambah dokumen anda dan beri tajuk",
+        "documentsCollection": "Tambah 2 hingga 6 dokumen dan beri tajuk",
+        "signer": "Tambah sekurang-kurangnya seorang yang mesti menandatangani",
+        "people": "{count, plural, =0 {Semak butiran orang} other {Lengkapkan butiran # orang}}",
+        "blocks": "{count, plural, =0 {Letakkan blok tandatangan dalam setiap dokumen} other {Letakkan blok tandatangan dalam # dokumen yang belum ada}}",
+        "assign": "{count, plural, =0 {Beri setiap orang yang mesti menandatangani satu blok tandatangan} other {Beri # orang satu blok tandatangan}}",
+        "options": "Semak pilihan"
+      },
+      "blockedWhy": {
+        "no_documents": "Tambah sekurang-kurangnya satu dokumen dahulu.",
+        "too_few_documents": "Semak bilangan dokumen.",
+        "no_title": "Beri tajuk.",
+        "no_signer": "Tambah sekurang-kurangnya seorang yang mesti menandatangani.",
+        "unfinished_people": "{count, plural, other {Lengkapkan atau buang # orang yang belum lengkap.}}",
+        "people_problems": "Betulkan apa yang ditandakan dalam senarai orang.",
+        "no_block_in_document": "{count, plural, other {Letakkan blok tandatangan dalam # dokumen yang belum ada.}}",
+        "person_without_block": "{count, plural, other {Beri # orang yang belum ada satu blok tandatangan.}}"
+      },
+      "new": {
+        "subtitle": "Langkah 1: tambah dokumen yang hendak dihantar dan beri tajuk. Orang dan blok tandatangan menyusul.",
+        "intro": "Muat naik satu fail, atau sehingga {max}, atau pilih templat. Satu dokumen dihantar secara berasingan; dua atau lebih ditandatangani bersama sebagai koleksi dokumen.",
+        "titlePlaceholderNone": "Diambil daripada nama fail pertama",
+        "titlePlaceholderCollection": "{first} dan {count, plural, other {# lagi}}",
+        "hintSingle": "Satu dokumen: ia dihantar secara berasingan.",
+        "countNone": "Belum ada yang dipilih.",
+        "countSingle": "1 dokumen, dihantar secara berasingan. Tambah satu lagi untuk menandatanganinya bersama sebagai koleksi dokumen.",
+        "countCollection": "{count} daripada {max} dokumen, ditandatangani bersama sebagai koleksi dokumen.",
+        "titleHint": "Dipaparkan dalam senarai anda dan dalam e-mel. Biarkan kosong untuk menggunakan nama fail.",
+        "blockedNotice": "Anda belum boleh membuka {step}. {why}"
+      },
+      "documents": {
+        "heading": "Dokumen",
+        "introSingle": "Dokumen anda telah ditambah. Anda boleh menamakannya semula atau menggantikan failnya selagi ia belum dihantar.",
+        "introCollection": "Dokumen dalam koleksi ini, mengikut susunan ia ditandatangani. Anda boleh menamakan semula koleksi, menyusun semula, menambah atau membuang dokumen, atau menggantikan fail selagi ia belum dihantar.",
+        "titleSingle": "Tajuk dokumen",
+        "titleCollection": "Tajuk koleksi",
+        "titleRequired": "Beri tajuk.",
+        "titleHintSingle": "Dipaparkan dalam senarai anda dan dalam e-mel.",
+        "titleHintCollection": "Dipaparkan dalam senarai anda dan dalam e-mel yang diterima orang.",
+        "fileHeading": "Fail"
+      },
+      "people": {
+        "heading": "Orang",
+        "intro": "Tambah semua yang terlibat, sekali sahaja: nama, e-mel, dan sama ada mereka mesti menandatangani atau hanya menerima salinan. Anda memberi setiap blok tandatangan kepada seseorang pada langkah seterusnya.",
+        "introForm": "Tambah semua yang mengisi borang ini, sekali sahaja: nama, e-mel, dan sama ada mereka mengisinya atau hanya menerima salinan.",
+        "typeFiller": "Mengisi borang",
+        "limitSigners": "Sehingga {max} orang boleh diminta menandatangani.",
+        "limitRoles": "Sehingga {max} orang boleh diminta menandatangani fail yang dimuat naik. Setiap seorang menjadi satu peranan pada dokumen itu."
+      },
+      "blocks": {
+        "heading": "Blok tandatangan",
+        "headingForm": "Borang",
+        "introSingle": "Letakkan blok tandatangan untuk setiap orang yang mesti menandatangani. Pilih seseorang di bawah untuk menambah blok bagi mereka, atau lukis satu pada halaman dan pilih untuk siapa.",
+        "introCollection": "Buka setiap dokumen dan letakkan blok tandatangan, beri setiap satu kepada orang yang mesti menandatangani. Setiap orang perlu ada blok di suatu tempat, dan setiap dokumen perlu ada sekurang-kurangnya satu.",
+        "introOpen": "Letakkan blok untuk dokumen ini. Apabila siap, simpan dan teruskan ke yang seterusnya.",
+        "stripLabel": "Orang yang mesti menandatangani",
+        "blockCount": "{count, plural, other {# blok}}",
+        "noBlockYet": "belum ada blok",
+        "somebody": "Seseorang",
+        "formStatus": "Borang · {count, plural, other {# halaman}}",
+        "formEmpty": "Borang ini belum ada bahagian",
+        "statusNone": "Belum ada blok tandatangan",
+        "statusBlocks": "{count, plural, other {# blok diletakkan}} · diberikan kepada {names}",
+        "formBadge": "Borang",
+        "pages": "{count, plural, other {# halaman}}",
+        "openEditor": "Buka penyunting",
+        "edit": "Sunting",
+        "coverageLabel": "Siapa yang ada sesuatu untuk ditandatangani dalam dokumen ini",
+        "hasBlock": "ada blok di sini",
+        "nothingHere": "tiada apa untuk ditandatangani di sini",
+        "loadingEditor": "Memuatkan penyunting",
+        "retry": "Cuba lagi",
+        "backToDocuments": "Kembali ke dokumen",
+        "editing": "Dokumen {n} daripada {total}: {title}",
+        "saveAndNext": "Simpan dan dokumen seterusnya",
+        "saveAndBack": "Simpan dan kembali ke dokumen",
+        "listLabel": "Dokumen dan blok tandatangannya",
+        "readOnly": "Anda boleh melihat draf ini tetapi tidak boleh mengubahnya."
+      },
+      "send": {
+        "heading": "Semak dan hantar",
+        "intro": "Semak apa yang akan dihantar dan kepada siapa, tetapkan pilihan, dan hantar.",
+        "countsSingle": "{people, plural, other {# orang mesti menandatangani}}{copies, plural, =0 {.} other { dan # orang menerima salinan.}}",
+        "countsCollection": "{documents, plural, other {# dokumen}} untuk {people, plural, other {# orang yang mesti menandatangani}}{copies, plural, =0 {.} other { dan # orang yang menerima salinan.}}",
+        "whoSignsLabel": "Siapa menandatangani apa",
+        "nobodyHere": "Belum ada sesiapa yang perlu berbuat apa-apa pada dokumen ini.",
+        "fillsIn": "mengisi borang",
+        "optionsHeading": "Pilihan",
+        "limit": "Koleksi ini memerlukan ruang untuk {needed} dokumen, tetapi ruang kerja ini hanya ada ruang untuk {remaining} lagi bulan ini.",
+        "readyCollection": "Semuanya sedia untuk dihantar.",
+        "openDocument": "Buka dokumen",
+        "openCollection": "Buka koleksi",
+        "sendCollection": "Hantar {count, plural, other {# dokumen}}",
+        "blocked": "Betulkan perkara yang disenaraikan di atas untuk menghantar.",
+        "blockedOptions": "Betulkan pilihan yang ditandakan di atas untuk menghantar.",
+        "sendNoteCollection": "Semua orang dalam senarai dijemput serta-merta. Setelah dihantar, dokumen tidak boleh disunting.",
+        "fix": {
+          "people": "Pergi ke Orang",
+          "documents": "Pergi ke Dokumen",
+          "blocks": "Pergi ke Blok tandatangan",
+          "document": "Buka dokumen",
+          "options": "Pergi ke pilihan"
+        }
+      },
+      "links": {
+        "heading": "Pautan (pilihan)",
+        "intro": "Lampirkan ini pada tiket atau tawaran supaya ia dipaparkan di sana. Kenalan dipautkan untuk anda.",
+        "contact": "Kenalan",
+        "contactLinked": "Dipautkan kepada",
+        "contactAutoHint": "Dipautkan kepada kenalan orang pertama yang mesti menandatangani yang dipilih daripada kenalan anda. Buangkannya atau pilih kenalan lain jika itu salah.",
+        "contactHint": "Pilih kenalan untuk dipautkan, atau biarkan kosong. Memilih seseorang daripada kenalan anda dalam Orang akan memautkannya untuk anda."
       }
     }
   }

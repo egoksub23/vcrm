@@ -277,7 +277,7 @@ export interface HaloMember {
 }
 
 /** The members the sender can still choose: not already on the list as a Halo user, and matching what was typed (name or email, any case). */
-export function pickableMembers(members: readonly HaloMember[], rows: readonly SignerRow[], query: string): HaloMember[] {
+export function pickableMembers(members: readonly HaloMember[], rows: readonly { internalUserId?: string | null }[], query: string): HaloMember[] {
   const taken = new Set(rows.map((r) => r.internalUserId).filter((x): x is string => !!x));
   const q = query.trim().toLowerCase();
   return members.filter((m) => !taken.has(m.user_id) && (q === "" || m.full_name.toLowerCase().includes(q) || (m.email ?? "").toLowerCase().includes(q)));

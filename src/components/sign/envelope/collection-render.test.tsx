@@ -5,9 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-// The document collection screens in every language with the real wording (next-intl throws on a missing key): the New document page with
-// "Single document / Document collection" as its first choice, the collection builder with its multi-file chooser, and the documents of a draft
-// collection with Add, Remove and the order. The words come from the merged message files.
+// The documents of a draft collection in every language with the real wording (next-intl throws on a missing key): Add, Remove and the order.
+// The first screen (the files and the title) is `NewProcess`, tested in process/process-render.test.tsx. The words come from the merged message files.
 
 vi.mock("@/lib/supabase/client", () => {
   const stub: unknown = new Proxy(function () {}, { get: () => stub, apply: () => stub });
@@ -26,14 +25,9 @@ vi.mock("@/hooks/use-sign-templates", () => ({
     ],
   }),
 }));
-// the pickers read the workspace's contacts, tickets and deals; here they only show what they were given
-vi.mock("../send/contact-picker", () => ({ ContactPicker: (p: { contactId: string | null }) => <span data-picker="contact" data-value={p.contactId ?? ""} /> }));
-vi.mock("../send/record-picker", () => ({ RecordPicker: (p: { kind: string; value: string | null }) => <span data-picker={p.kind} data-value={p.value ?? ""} /> }));
 
 import type { EnvelopeData } from "@/hooks/use-sign-envelope";
-import { NewDocument } from "../send/new-document";
 import { EnvelopeDocuments } from "./envelope-documents";
-import { NewEnvelope } from "./new-envelope";
 
 type Tree = Record<string, unknown>;
 const LOCALES = ["en", "ms", "zh", "ko"] as const;
@@ -74,81 +68,6 @@ function openingTagOfButtonWith(html: string, text: string): string {
   return html.slice(open, html.indexOf(">", open) + 1);
 }
 
-const ID = { contact: "11111111-1111-4111-8111-111111111111", ticket: "22222222-2222-4222-8222-222222222222", deal: "33333333-3333-4333-8333-333333333333" };
-
-describe("the New document page: single document or document collection first", () => {
-  for (const locale of LOCALES) {
-    const w = WORDS[locale];
-
-    it(`puts the choice before everything else, with the two options named (${locale})`, () => {
-      const html = page(locale, <NewDocument />);
-      expect(html).toContain(w.heading);
-      expect(html).toContain(w.single);
-      expect(html).toContain(w.collection);
-      // the choice comes before "how do you want to start" and the details of a single document
-      const choice = html.indexOf(w.heading);
-      const start = html.indexOf(wording(locale) && ((wording(locale).send as Tree).new as Tree).startHeading as string);
-      expect(choice).toBeGreaterThan(-1);
-      expect(start).toBeGreaterThan(choice);
-      // two radio options, single chosen
-      expect(html.match(/name="kind"/g)).toHaveLength(2);
-      expect(html).toMatch(/name="kind"[^>]*checked/);
-      expect(html).not.toContain(w.created);
-    });
-
-    it(`opens with the collection chosen, builds it in place and keeps the contact, ticket and deal (${locale})`, () => {
-      const html = page(locale, <NewDocument kind="collection" contactId={ID.contact} ticketId={ID.ticket} dealId={ID.deal} />);
-      expect(html).toContain(w.created);
-      expect(html).toContain(w.drop);
-      // the single document's own sections are not shown
-      expect(html).not.toContain(((wording(locale).send as Tree).new as Tree).startHeading as string);
-      // the selections are carried into the collection's pickers
-      expect(html).toContain(`data-picker="contact" data-value="${ID.contact}"`);
-      expect(html).toContain(`data-picker="ticket" data-value="${ID.ticket}"`);
-      expect(html).toContain(`data-picker="deal" data-value="${ID.deal}"`);
-      // the old small link is gone
-      expect(html).not.toContain("/sign/new/envelope");
-    });
-  }
-
-  it("keeps every single-document control as it was", () => {
-    const html = page("en", <NewDocument contactId={ID.contact} templateId={null} />);
-    expect(html).toContain("Upload a file");
-    expect(html).toContain("Use a template");
-    expect(html).toContain("Create draft");
-    expect(html).toContain(`data-picker="contact" data-value="${ID.contact}"`);
-  });
-});
-
-describe("the collection builder", () => {
-  for (const locale of LOCALES) {
-    const w = WORDS[locale];
-    it(`offers a chooser for several files at once, the templates, and one list (${locale})`, () => {
-      const html = page(locale, <NewEnvelope contactId={ID.contact} />);
-      expect(html).toContain(w.drop);
-      expect(html).toContain(w.choose);
-      // a multi-file input that takes PDF, Word and images
-      expect(html).toMatch(/<input[^>]*type="file"[^>]*multiple|<input[^>]*multiple[^>]*type="file"/);
-      expect(html).toContain(".pdf,.docx,.doc,.png,.jpg,.jpeg");
-      // the templates of the workspace are ticked from the same page
-      expect(html).toContain("Merchant Agreement");
-      expect(html).toContain("Fee Schedule");
-      expect(html).toContain(w.created);
-      // nothing is added yet, so there is nothing to create
-      expect(openingTagOfButtonWith(html, w.created)).toMatch(DISABLED);
-      expect(html).toContain(`data-picker="contact" data-value="${ID.contact}"`);
-    });
-  }
-
-  it("says collection, not envelope", () => {
-    for (const locale of ["en", "ms"] as const) {
-      const html = page(locale, <NewEnvelope />);
-      expect(html.toLowerCase()).not.toContain("envelope");
-      expect(html.toLowerCase()).not.toContain("sampul");
-    }
-  });
-});
-
 const doc = (n: number, over: Partial<EnvelopeData["documents"][number]> = {}): EnvelopeData["documents"][number] => ({
   id: `0000000${n}-0000-4000-8000-000000000000`,
   position: n,
@@ -161,6 +80,10 @@ const doc = (n: number, over: Partial<EnvelopeData["documents"][number]> = {}): 
   rolesNeeded: [],
   fromTemplate: false,
   fieldCounts: {},
+  signatureCounts: {},
+  partCounts: {},
+  hasFile: true,
+  hasForm: false,
   categoryId: null,
   completedAt: null,
   hasFinalFile: false,

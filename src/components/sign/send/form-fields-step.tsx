@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MutableRefObject } from "react";
 import { ClipboardList, Pencil } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -21,6 +21,9 @@ interface Props {
   onChanged: () => void;
   /** A form without a signature (migration 169): nothing is printed on a page, so there is no placement editor to open. */
   formOnly?: boolean;
+  /** The sending workflow: where the embedded editor keeps its flush. */
+  flushRef?: MutableRefObject<(() => Promise<boolean>) | null>;
+  onGoToPeople?: () => void;
 }
 
 /**
@@ -28,7 +31,7 @@ interface Props {
  * the field editor. The form belongs to the template. "Edit fields" opens the editor to change where the answers
  * print on the pages, never the form.
  */
-export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, formOnly }: Props) {
+export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, formOnly, flushRef, onGoToPeople }: Props) {
   const t = useTranslations("Sign.progress.formStep");
   const locale = asLocale(useLocale());
   const [editing, setEditing] = useState(false);
@@ -79,7 +82,7 @@ export function FormFieldsStep({ documentId, form, roles, readOnly, onChanged, f
       </div>
       )}
 
-      {editing && !formOnly ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} /> : null}
+      {editing && !formOnly ? <DraftFieldsEditor documentId={documentId} onChanged={onChanged} flushRef={flushRef} onGoToPeople={onGoToPeople} /> : null}
     </div>
   );
 }

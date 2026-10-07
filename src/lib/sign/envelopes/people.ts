@@ -59,6 +59,8 @@ export interface EnvelopePerson {
   contactId?: string | null;
   /** Saved people only: the party id their rows share (the id of their anchor row). */
   partyId?: string;
+  /** A document on its own only: the person is a Halo user of this workspace (a countersigner); their name and email are theirs. */
+  internalUserId?: string | null;
 }
 
 /** What one saved row of the signing list is (a person's role on one document). */
@@ -73,6 +75,7 @@ export interface EnvelopeSignerRow {
   phone: string | null;
   channel: SignChannel;
   orderNo: number;
+  internalUserId?: string | null;
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -146,6 +149,7 @@ export function peopleFromRows(rows: readonly SignSignerRow[]): EnvelopePerson[]
       channel: first.channel,
       step: first.order_no,
       roles: Object.fromEntries(list.map((r) => [r.document_id, r.role_key])),
+      ...(first.internal_user_id ? { internalUserId: first.internal_user_id } : {}),
     });
   }
   return people.sort((a, b) => a.step - b.step || a.fullName.localeCompare(b.fullName));
@@ -243,6 +247,7 @@ export function rowsFor(docs: readonly EnvelopeDocLite[], people: readonly Envel
         phone: p.channel === "whatsapp" ? normalizePhone(p.phone) : p.phone.trim() || null,
         channel: p.channel,
         orderNo: opts.ordered ? Math.max(1, Math.floor(p.step || 1)) : place,
+        ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}),
       });
     });
   });

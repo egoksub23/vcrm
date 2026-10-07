@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 
 import { Input } from "@/components/ui/input";
 import { useAccountMembers } from "@/hooks/use-account-members";
-import { pickableMembers, type HaloMember, type SignerRow } from "@/lib/sign/client/signers-form";
+import { pickableMembers, type HaloMember } from "@/lib/sign/client/signers-form";
 
 interface Props {
   /** The people already on the list: a Halo user already named on it is not offered again. */
-  rows: readonly SignerRow[];
+  rows: readonly { internalUserId?: string | null }[];
   onPick: (member: HaloMember) => void;
 }
 

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentDetail } from "@/components/sign/detail/document-detail";
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
-import { DraftWorkspace } from "./draft-workspace";
+import { SingleProcess } from "../process/single-process";
 
 interface Slot {
   id: string;
@@ -18,11 +18,11 @@ interface Slot {
 }
 
 /**
- * One document: its page is the draft workspace while it is a draft and the document detail from the
+ * One document: its page is the sending workflow (the four steps) while it is a draft and the document detail from the
  * moment it is sent. The status is read through row level security; a document that is not there (or not
  * this workspace's) reads as not found.
  */
-export function SignDocumentView({ documentId }: { documentId: string }) {
+export function SignDocumentView({ documentId, asked }: { documentId: string; asked?: { step?: string | null; doc?: string | null } }) {
   const t = useTranslations("Sign.send.view");
   const { accountId } = useAuth();
   const [slot, setSlot] = useState<Slot | null>(null);
@@ -75,7 +75,7 @@ export function SignDocumentView({ documentId }: { documentId: string }) {
   }
 
   if (current.status === "draft" && !openedDetail) {
-    return <DraftWorkspace documentId={documentId} onOpenDocument={() => setOpenedDetail(true)} />;
+    return <SingleProcess documentId={documentId} asked={asked} onOpenDocument={() => setOpenedDetail(true)} />;
   }
 
   return (

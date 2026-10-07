@@ -8,7 +8,7 @@
 
 import { FileUp, LayoutTemplate, Lock, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCapability } from "@/hooks/use-can";
@@ -48,7 +48,16 @@ const stringValues = (raw: Record<string, unknown> | null | undefined): Record<s
   return out;
 };
 
-export function DraftFieldsEditor({ documentId, onChanged }: { documentId: string; onChanged?: () => void }) {
+interface DraftFieldsEditorProps {
+  documentId: string;
+  onChanged?: () => void;
+  /** The sending workflow keeps the editor's flush here, so a step can be left only after what is being edited was saved. */
+  flushRef?: MutableRefObject<(() => Promise<boolean>) | null>;
+  /** The sending workflow: with no people yet the editor offers to go to the People step. */
+  onGoToPeople?: () => void;
+}
+
+export function DraftFieldsEditor({ documentId, onChanged, flushRef, onGoToPeople }: DraftFieldsEditorProps) {
   const t = useTranslations("Sign.editor");
   const canSend = useCapability("sign.send");
   const canTemplates = useCapability("sign.templates");
@@ -124,6 +133,15 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
     return !layoutQueue.unsaved() && !valuesQueue.unsaved();
   };
 
+  // the workflow asks the editor to save before it moves on
+  useEffect(() => {
+    if (!flushRef) return;
+    flushRef.current = flushAll;
+    return () => {
+      flushRef.current = null;
+    };
+  });
+
   if (load.status === "loading") return <p className="py-10 text-center text-sm text-muted-foreground">{t("draft.loading")}</p>;
   if (load.status === "error") {
     return (
@@ -137,7 +155,8 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
   }
 
   const { fields, roles, values, isDraft, hasFile, fromTemplate, title, envelopeId } = load.data;
-  const rolesLocked = !!envelopeId && !fromTemplate;
+  // an uploaded file has no roles of its own: the people make them (a collection's, or a document on its own: step 2 of the sending workflow)
+  const rolesLocked = !fromTemplate;
   if (!hasFile) return <p role="alert" className="py-10 text-center text-sm text-muted-foreground">{t("draft.noFile")}</p>;
 
   const locked = !isDraft || !canSend;
@@ -193,6 +212,7 @@ export function DraftFieldsEditor({ documentId, onChanged }: { documentId: strin
         readOnly={layoutLocked}
         rolesLocked={rolesLocked}
         collectionHref={envelopeId ? `/sign/envelopes/${envelopeId}` : undefined}
+        onGoToPeople={onGoToPeople}
         onChange={onLayout}
         className="h-[78vh] min-h-[520px]"
         toolbarExtra={extra}

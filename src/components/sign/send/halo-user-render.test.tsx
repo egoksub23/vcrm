@@ -5,8 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-// A Halo user on the people step, in every language with the real wording (next-intl throws on a missing key). The words come
-// from the merged message files; the tests wait for them to be merged.
+// A Halo user on the People step of a document on its own, in every language with the real wording (next-intl throws on a missing key). The
+// words come from the merged message files. A document collection offers no Halo user (a countersigner signs a document on its own).
 
 vi.mock("@/lib/supabase/client", () => {
   const stub: unknown = new Proxy(function () {}, { get: () => stub, apply: () => stub });
@@ -23,11 +23,14 @@ vi.mock("@/hooks/use-account-members", () => ({
     profileOf: () => undefined,
   }),
 }));
+// the name box searches the workspace's contacts; here it only shows what it was given
+vi.mock("./person-name-input", () => ({
+  PersonNameInput: (p: { id?: string; value: string; readOnly?: boolean }) => <input data-name-box id={p.id} role="combobox" aria-controls="x" aria-expanded={false} defaultValue={p.value} readOnly={p.readOnly} />,
+}));
 
-import { asHaloUser, emptyRow, type SignerRow } from "@/lib/sign/client/signers-form";
-import type { SignRole } from "@/lib/sign/types";
+import type { EnvelopeDocLite, EnvelopePerson } from "@/lib/sign/envelopes";
+import { ProcessPeople } from "../process/people-step";
 import { HaloUserPicker } from "./halo-user-picker";
-import { SignerRowEditor } from "./signer-row";
 
 type Tree = Record<string, unknown>;
 function wording(locale: string): Tree | null {
@@ -53,11 +56,11 @@ function page(locale: string, node: React.ReactNode) {
   );
 }
 
-const roles: SignRole[] = [{ key: "director", label: "Director", kind: "signer", color: 1 }];
-const handlers = { onChange: () => {}, onRemove: () => {}, onMove: () => {}, onStep: () => {}, onDragStart: () => {}, onDragOver: () => {}, onDrop: () => {}, onDragEnd: () => {} };
-const row = (over: Partial<SignerRow> = {}): SignerRow => ({ ...emptyRow("director", 1), fullName: "Ali", email: "ali@example.com", ...over });
-const renderRow = (locale: string, r: SignerRow, onChooseHalo?: () => void) =>
-  page(locale, <ul><SignerRowEditor row={r} index={0} count={1} roles={roles} ordered={false} showInvalid={false} whatsappConfigured notice={null} dragging={false} dropTarget={false} onChooseHalo={onChooseHalo} {...handlers} /></ul>);
+const uploaded: EnvelopeDocLite = { id: "d1", position: 1, title: "Scanned contract", roles: [], fromTemplate: false };
+const person = (over: Partial<EnvelopePerson> = {}): EnvelopePerson => ({ key: "pp_aaaaaaaa", fullName: "Ali", email: "ali@example.com", phone: "", channel: "email", step: 1, roles: {}, ...over });
+const halo = (): EnvelopePerson => person({ fullName: "Gokula Krishnan", email: "gokula@vircle.example", internalUserId: "u-gokula" });
+const render = (locale: string, people: EnvelopePerson[], kind: "single" | "collection" = "single") =>
+  page(locale, <ProcessPeople kind={kind} docs={[uploaded]} people={people} ordered={false} readOnly={false} showInvalid={false} whatsappConfigured onPeople={() => {}} onOrdered={() => {}} />);
 
 const WORDS: Record<string, { choose: string; tag: string; letGo: string }> = {
   en: { choose: "Choose a Halo user", tag: "Halo user", letGo: "Use someone outside Halo instead" },
@@ -66,17 +69,17 @@ const WORDS: Record<string, { choose: string; tag: string; letGo: string }> = {
   ko: { choose: "Halo 사용자 선택", tag: "Halo 사용자", letGo: "대신 Halo 밖의 사람 사용" },
 };
 
-describe.skipIf(LOCALES.length === 0)("a Halo user on the people step", () => {
+describe.skipIf(LOCALES.length === 0)("a Halo user on the People step", () => {
   for (const locale of LOCALES) {
-    it(`an ordinary row offers the choice, and no Halo mark (${locale})`, () => {
-      const html = renderRow(locale, row(), () => {});
+    it(`an ordinary person offers the choice, and no Halo mark (${locale})`, () => {
+      const html = render(locale, [person()]);
       expect(html).toContain(WORDS[locale].choose);
       expect(html).not.toContain("data-halo-user");
       expect(html).not.toContain("readOnly");
     });
 
-    it(`a Halo user's row is marked, with name and email not typed, and a way to let go (${locale})`, () => {
-      const html = renderRow(locale, { ...row(), ...asHaloUser({ user_id: "u-gokula", full_name: "Gokula Krishnan", email: "gokula@vircle.example" }) }, () => {});
+    it(`a Halo user is marked, with name and email not typed, and a way to let go (${locale})`, () => {
+      const html = render(locale, [halo()]);
       expect(html).toContain("data-halo-user");
       expect(html).toContain(`</svg>${WORDS[locale].tag}</span>`);
       expect(html).not.toContain(WORDS[locale].choose);
@@ -85,15 +88,15 @@ describe.skipIf(LOCALES.length === 0)("a Halo user on the people step", () => {
       expect(html).toContain(WORDS[locale].letGo);
     });
 
-    it(`a row without the handler (nowhere to choose from) shows neither (${locale})`, () => {
-      const html = renderRow(locale, row());
-      expect(html).not.toContain(WORDS[locale].choose);
-      expect(html).not.toContain("data-halo-user");
+    it(`a person who receives a copy, and a document collection, offer no Halo user (${locale})`, () => {
+      expect(render(locale, [person({ type: "copy" })])).not.toContain(WORDS[locale].choose);
+      const collection = render(locale, [person()], "collection");
+      expect(collection).not.toContain(WORDS[locale].choose);
+      expect(collection).not.toContain("data-halo-user");
     });
 
     it(`the picker lists the members, and leaves out one already on the list (${locale})`, () => {
-      const taken = { ...row(), ...asHaloUser({ user_id: "u-gokula", full_name: "Gokula Krishnan", email: "gokula@vircle.example" }) };
-      const html = page(locale, <HaloUserPicker rows={[taken]} onPick={() => {}} />);
+      const html = page(locale, <HaloUserPicker rows={[halo()]} onPick={() => {}} />);
       expect(html).toContain("Siti Aminah");
       expect(html).not.toContain("Gokula Krishnan");
     });

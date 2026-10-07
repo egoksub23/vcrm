@@ -1,5 +1,6 @@
 "use client";
 
+import { PenLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FieldType } from "@/lib/sign/pdf/types";
@@ -19,10 +20,15 @@ interface PaletteProps {
   onActiveRole: (key: string) => void;
   disabled: boolean;
   full: boolean;
+  /**
+   * Quick actions for a draft prepared for people: one button for each person who must sign, "Add a signature block for <Name>", that puts a
+   * signature for them in the middle of the page in view. `counts` are the signature blocks each already has.
+   */
+  quick?: { roles: readonly SignRole[]; counts: Readonly<Record<string, number>>; onAdd: (roleKey: string) => void };
 }
 
 /** The field types, as buttons: choose one, then click or drag on a page. A type can also be dragged onto a page. */
-export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disabled, full }: PaletteProps) {
+export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disabled, full, quick }: PaletteProps) {
   const t = useTranslations("Sign.editor");
   const active = roles.find((r) => r.key === activeRole) ?? roles[0] ?? null;
   const hint = full ? t("palette.full") : tool ? t("palette.armed", { type: t(`types.${tool}`) }) : disabled ? "" : t("palette.hint");
@@ -49,6 +55,32 @@ export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disable
           {hint}
         </p>
       </div>
+      {quick && quick.roles.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("palette.quickLabel")} data-quick-signatures>
+          {quick.roles.map((r) => {
+            const n = quick.counts[r.key] ?? 0;
+            return (
+              <button
+                key={r.key}
+                type="button"
+                disabled={disabled || full}
+                data-quick-role={r.key}
+                data-blocks={n}
+                onClick={() => quick.onAdd(r.key)}
+                style={roleColorStyle(r.color)}
+                className={cn(
+                  "inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+                  "border-[var(--rc-ring)] bg-[var(--rc-fill)] text-[var(--rc-text)] hover:brightness-95",
+                )}
+              >
+                <PenLine className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{t("palette.addSignatureFor", { name: r.label })}</span>
+                <span className="shrink-0 rounded-full bg-background/70 px-1.5 text-[11px] tabular-nums">{n === 0 ? t("palette.noBlockYet") : t("palette.blockCount", { count: n })}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={t("palette.label")}>
         {PALETTE_ORDER.map((type) => {
           const Icon = FIELD_ICONS[type];

@@ -6,7 +6,7 @@
 // or templates), "Remove" for each, and a new order (up and down, or drag). The work is done by the collection's routes; this is the screen.
 // ============================================================
 
-import { useState, type DragEvent } from "react";
+import { useState, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle2, ExternalLink, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -33,9 +33,13 @@ interface Props {
   beforeChange: () => Promise<boolean>;
   /** After a change: read the collection again and bring the people on screen up to date. */
   onChanged: () => Promise<void>;
+  /** "Edit" is a link to the document's own page. The sending workflow places blocks in its own step, so it turns this off. */
+  showEdit?: boolean;
+  /** Something more on each document's row (the workflow adds "Replace file"). */
+  rowExtra?: (document: EnvelopeData["documents"][number]) => ReactNode;
 }
 
-export function EnvelopeDocuments({ envelopeId, documents, problemCount, canEdit, beforeChange, onChanged }: Props) {
+export function EnvelopeDocuments({ envelopeId, documents, problemCount, canEdit, beforeChange, onChanged, showEdit = true, rowExtra }: Props) {
   const t = useTranslations("Sign.send.envelope.documents");
   const tc = useTranslations("Sign.send.collection.draft");
   const tl = useTranslations("Sign.send.collection.list");
@@ -148,10 +152,13 @@ export function EnvelopeDocuments({ envelopeId, documents, problemCount, canEdit
               </div>
               <div className="flex items-center gap-1.5">
                 {problems > 0 ? <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{t("problems", { count: problems })}</span> : <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-label={t("ready")} />}
-                <Link href={`/sign/${d.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
-                  <ExternalLink className="size-3.5" aria-hidden />
-                  {t("edit")}
-                </Link>
+                {showEdit ? (
+                  <Link href={`/sign/${d.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
+                    <ExternalLink className="size-3.5" aria-hidden />
+                    {t("edit")}
+                  </Link>
+                ) : null}
+                {rowExtra?.(d)}
                 {canEdit ? (
                   <>
                     <Button type="button" variant="ghost" size="icon-sm" aria-label={tl("moveUp", { title: d.title })} disabled={busy || i === 0} onClick={() => void reorder(moveBy(ids, i, -1))}>

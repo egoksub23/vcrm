@@ -25,6 +25,8 @@ interface Props {
   onChange: (patch: Partial<DraftOptions>) => void;
   /** Migration 171: the options of an ENVELOPE: shared by all its documents, so no category (each document has its own) and no forwarding (not offered in an envelope). */
   envelope?: boolean;
+  /** The sending workflow: the title is step 1's and the contact, ticket and deal are "Links (optional)" beside it, so they are not here. */
+  hideLinks?: boolean;
 }
 
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
@@ -48,7 +50,7 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
 }
 
 /** Step 3: the title, category, contact, language and message of the invitation, when it expires, reminders and the code. */
-export function OptionsStep({ options, categories, defaultExpiryDays, now, showInvalid, readOnly, onChange, envelope = false }: Props) {
+export function OptionsStep({ options, categories, defaultExpiryDays, now, showInvalid, readOnly, onChange, envelope = false, hideLinks = false }: Props) {
   const t = useTranslations("Sign.send.options");
   const nowDate = new Date(now);
   const flags = optionsFlags(options, nowDate);
@@ -58,7 +60,23 @@ export function OptionsStep({ options, categories, defaultExpiryDays, now, showI
   const links: DocumentLinksState = { contactId: options.contactId, ticketId: options.ticketId ?? null, dealId: options.dealId ?? null };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className={hideLinks ? "space-y-5" : "mx-auto max-w-2xl space-y-5"}>
+      {hideLinks && envelope ? null : hideLinks ? (
+        <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <Field id="opt-category" label={t("category")}>
+            <select id="opt-category" className={SELECT} value={options.categoryId ?? ""} disabled={readOnly} onChange={(e) => onChange({ categoryId: e.target.value === "" ? null : e.target.value })}>
+              <option value="">{t("noCategory")}</option>
+              {categories
+                .filter((c) => !c.archived || c.id === options.categoryId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        </section>
+      ) : (
       <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
         <Field id="opt-title" label={t("title")} error={flags.title && showInvalid ? t("titleRequired") : null}>
           <Input id="opt-title" value={options.title} maxLength={200} disabled={readOnly} aria-invalid={flags.title && showInvalid} onChange={(e) => onChange({ title: e.target.value })} />
@@ -91,6 +109,7 @@ export function OptionsStep({ options, categories, defaultExpiryDays, now, showI
           </Field>
         </div>
       </section>
+      )}
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-foreground">{t("invitationHeading")}</h2>

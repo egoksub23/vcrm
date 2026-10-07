@@ -10,12 +10,12 @@
 // ============================================================
 import { assertCapability } from "@/lib/auth/account";
 import { UUID_RE, json, readJson, staff } from "@/lib/sign/http";
-import { sendProblems } from "@/lib/sign/rules";
 import { SignError } from "@/lib/sign/service/errors";
 import { deleteDocument, updateDraft, type DraftPatch } from "@/lib/sign/service/drafts";
 import { loadDocument, loadSigners } from "@/lib/sign/service/context";
 import { listCopyRecipients } from "@/lib/sign/service/copy-recipients";
 import { envelopeBrief } from "@/lib/sign/service/envelopes";
+import { readinessProblems } from "@/lib/sign/service/send";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,17 +31,8 @@ export async function GET(request: Request, { params }: Params) {
     const doc = await loadDocument(ctx, id);
     const signers = await loadSigners(ctx, id);
     const files = await ctx.admin.from("sign_document_files").select("id, kind, name, mime, size_bytes, sha256, created_at").eq("document_id", id).eq("account_id", ctx.accountId);
-    const problems =
-      doc.status === "draft"
-        ? sendProblems({
-            fields: doc.fields_snapshot,
-            roles: doc.roles_snapshot,
-            signers: signers.map((s) => ({ role_key: s.role_key, kind: s.kind, full_name: s.full_name, email: s.email, phone: s.phone, channel: s.channel, order_no: s.order_no })),
-            signInOrder: doc.sign_in_order,
-            pageCount: doc.page_count ?? 0,
-            hasBaseFile: !!doc.base_path,
-          })
-        : [];
+    // what stops a draft being sent: the same check Send makes (its layout, its people, its form)
+    const problems = doc.status === "draft" ? readinessProblems(doc, signers) : [];
     // a document of an envelope says which, and what its siblings are (their titles and states only)
     // the people who receive a copy of a document on its own (the ones of a collection belong to the collection)
     const copies = doc.envelope_id ? [] : await listCopyRecipients(ctx, { documentId: id });

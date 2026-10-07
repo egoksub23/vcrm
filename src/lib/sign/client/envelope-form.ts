@@ -74,6 +74,8 @@ export interface PersonPayload {
   key: string;
   /** Still being filled in (no valid address yet, say): not saved as a signer, but their role and the fields assigned to it are kept. */
   incomplete?: boolean;
+  /** A document on its own only: the person is a Halo user of this workspace (a countersigner). */
+  internalUserId?: string;
 }
 
 /**
@@ -135,6 +137,7 @@ export function peoplePayload(people: readonly EnvelopePerson[], docs: readonly 
     type: "signer",
     key: p.key,
     incomplete: true,
+    ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}),
   });
   return [
     ...signers.map(
@@ -147,6 +150,7 @@ export function peoplePayload(people: readonly EnvelopePerson[], docs: readonly 
         roles: Object.fromEntries(template.flatMap((d) => (p.roles[d.id] && d.roles.some((r) => r.key === p.roles[d.id]) ? [[d.id, p.roles[d.id]] as const] : []))),
         type: "signer",
         key: p.key,
+        ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}),
       }),
     ),
     ...unfinished.map(asUnfinished),

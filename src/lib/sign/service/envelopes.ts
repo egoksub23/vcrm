@@ -11,12 +11,13 @@ import { randomUUID } from "node:crypto";
 import { forgetAccountUsage, signSendHeadroom } from "@/lib/platform/usage";
 
 import { cleanReminderDays, expiryFor, resolveDefaults } from "../defaults";
-import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, PERSON_KEY_RE, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, newPersonKey, peopleFromRows, peopleIssues, pruneRows, roleHasWork, rowsFor, syncDocumentRoles, withDerivedRoles, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry, type PersonType } from "../envelopes";
+import { summarizeDocument, type EnvelopeDocumentSummary } from "../envelopes/summary";
+import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, PERSON_KEY_RE, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, newPersonKey, peopleFromRows, peopleIssues, pruneRows, rowsFor, syncDocumentRoles, withDerivedRoles, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry, type PersonType } from "../envelopes";
 import type { ConvertOptions } from "../convert";
 import { REMIND_GAP_MS } from "../defaults";
-import { MAX_ROLES, fieldsForRole, type Issue } from "../rules";
+import { MAX_ROLES, type Issue } from "../rules";
 import { removeFiles } from "../storage";
-import { SIGN_LOCALES, isFormMode, type Invitation, type SignChannel, type SignCopyRecipientRow, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow, type SignRole } from "../types";
+import { SIGN_LOCALES, isFormMode, type Invitation, type SignChannel, type SignCopyRecipientRow, type SignDocumentRow, type SignEnvelopeRow, type SignSignerRow } from "../types";
 import { loadSettings, type SignCtx } from "./context";
 import { createDraftFromTemplate, createDraftFromUpload, deleteDraft, deleteDocument, setSigners, updateDraft, type DraftPatch, type SignerInput } from "./drafts";
 import { listCopyRecipients } from "./copy-recipients";
@@ -31,26 +32,7 @@ import { getFile } from "../storage";
 
 // ---- reading ------------------------------------------------------------------------------------
 
-/** A document of an envelope as a screen needs it: no fields, no form, no values. */
-export interface EnvelopeDocumentSummary {
-  id: string;
-  position: number;
-  title: string;
-  reference: string | null;
-  status: SignDocumentRow["status"];
-  mode: "sign" | "form";
-  pageCount: number | null;
-  roles: SignRole[];
-  /** The roles that have something to complete on this document (the others need nobody). */
-  rolesNeeded: string[];
-  /** Made from a template (its roles are the template's, matched to people), as against an uploaded file (its roles are the people's). */
-  fromTemplate: boolean;
-  /** How many fields a person completes are assigned to each role, by role key (so the screen can say what removing a person takes with them). */
-  fieldCounts: Record<string, number>;
-  categoryId: string | null;
-  completedAt: string | null;
-  hasFinalFile: boolean;
-}
+export type { EnvelopeDocumentSummary };
 
 export interface EnvelopeHeadroom {
   limit: number | null;
@@ -75,24 +57,7 @@ export interface EnvelopeData {
   links: { ticketId: string | null; dealId: string | null };
 }
 
-const summary = (d: SignDocumentRow): EnvelopeDocumentSummary => ({
-  id: d.id,
-  position: d.envelope_position ?? 0,
-  title: d.title,
-  reference: d.reference,
-  status: d.status,
-  mode: isFormMode(d) ? "form" : "sign",
-  pageCount: d.page_count,
-  roles: d.roles_snapshot ?? [],
-  rolesNeeded: (d.roles_snapshot ?? []).filter((r) => roleHasWork(d, r.key)).map((r) => r.key),
-  fromTemplate: !!d.template_version_id,
-  fieldCounts: Object.fromEntries((d.roles_snapshot ?? []).map((r) => [r.key, fieldsForRole(d.fields_snapshot ?? [], r.key).length])),
-  categoryId: d.category_id,
-  completedAt: d.completed_at,
-  hasFinalFile: !!d.final_path,
-});
-
-const lite = (d: SignDocumentRow): EnvelopeDocLite => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, roles: d.roles_snapshot ?? [], mode: isFormMode(d) ? "form" : "sign", fromTemplate: !!d.template_version_id });
+export const lite = (d: SignDocumentRow): EnvelopeDocLite => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, roles: d.roles_snapshot ?? [], mode: isFormMode(d) ? "form" : "sign", fromTemplate: !!d.template_version_id });
 
 /**
  * Everything that stands between a draft envelope and Send: each document's own problems (tagged with the document) and the shared list's.
@@ -143,7 +108,7 @@ export async function envelopeData(ctx: SignCtx, envelopeId: string): Promise<En
     const needed = docs.length;
     headroom = { limit: room.limit, used: room.used, remaining: room.remaining, needed, fits: room.remaining === null || needed <= room.remaining };
   }
-  return { envelope, documents: docs.map(summary), signers, copies, problems: draft ? envelopeProblems(envelope, docs, signers, copies) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null } };
+  return { envelope, documents: docs.map(summarizeDocument), signers, copies, problems: draft ? envelopeProblems(envelope, docs, signers, copies) : [], headroom, links: { ticketId: docs[0]?.ticket_id ?? null, dealId: docs[0]?.deal_id ?? null } };
 }
 
 /** What a document's own screen says of the envelope it is in: the envelope and its siblings, no more. */
@@ -434,6 +399,8 @@ export interface EnvelopePersonInput {
   type?: PersonType;
   /** The person's stable key (a `pp_` key the screen keeps for them): it becomes their role on the uploaded documents, so a rename keeps the fields assigned to them. */
   key?: string;
+  /** A document on its own only: the person is a Halo user of this workspace (a countersigner). */
+  internalUserId?: string | null;
   /**
    * A person the screen is still filling in (no valid address yet, say). They are not saved as a signer (nothing is checked or invited), but their
    * role on the uploaded documents is KEPT with the fields assigned to it, so a half-typed address never takes work away. A new person with no name
@@ -449,7 +416,7 @@ async function writeSigners(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly S
   for (const d of docs) {
     const mine: SignerInput[] = rows
       .filter((r) => r.documentId === d.id)
-      .map((r) => ({ id: r.id, partyId: r.partyId, roleKey: r.roleKey, kind: r.kind, fullName: r.fullName, email: r.email, phone: r.phone, channel: r.channel, orderNo: r.orderNo }));
+      .map((r) => ({ id: r.id, partyId: r.partyId, roleKey: r.roleKey, kind: r.kind, fullName: r.fullName, email: r.email, phone: r.phone, channel: r.channel, orderNo: r.orderNo, ...(r.internalUserId ? { internalUserId: r.internalUserId } : {}) }));
     out.push(...(await setSigners(ctx, d.id, mine, { viaEnvelope: true })));
   }
   return out;
@@ -468,29 +435,7 @@ export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, peopl
   const env = await loadEnvelope(ctx, envelopeId);
   if (env.status !== "draft") throw new SignError("envelope_not_draft", "This document collection was already sent.", 409);
   const docs = await loadEnvelopeDocuments(ctx, envelopeId);
-  const used = new Set<string>();
-  // the roles the uploaded documents already hold for people: a person the screen is still filling in keeps theirs
-  const held = new Set(docs.filter((d) => !d.template_version_id).flatMap((d) => (d.roles_snapshot ?? []).filter((r) => r.source === "people").map((r) => r.key)));
-  const entries = people
-    .filter((p) => (p.type ?? "signer") === "signer")
-    .filter((p) => !p.incomplete || !!p.fullName.trim() || (!!p.key && held.has(p.key)))
-    .map((p, i) => {
-      let key = p.key && PERSON_KEY_RE.test(p.key) && !used.has(p.key) ? p.key : newPersonKey();
-      while (used.has(key)) key = newPersonKey();
-      used.add(key);
-      const person: EnvelopePerson = { key, fullName: p.fullName, email: p.email, phone: p.phone ?? "", channel: p.channel, step: Math.max(1, Math.floor(p.step ?? i + 1)), roles: p.roles ?? {} };
-      return { person, incomplete: !!p.incomplete };
-    });
-  const list = entries.map((e) => e.person);
-  // an uploaded file holds a few roles, one for each person
-  if (list.length > MAX_ROLES && docs.some((d) => !d.template_version_id)) throw new SignError("bad_signers", "The signing list is not valid.", 400, [{ code: "too_many_roles", detail: String(MAX_ROLES) }]);
-  // what the people look like once the uploaded documents have taken their roles; only the finished ones are checked and saved
-  const derived = withDerivedRoles(docs.map(lite), list);
-  const finished = new Set(entries.filter((e) => !e.incomplete).map((e) => e.person.key));
-  const derivedFinished = derived.people.filter((p) => finished.has(p.key));
-  const issues = peopleIssues(derived.docs, derivedFinished, { ordered: env.sign_in_order }).filter((i) => i.code !== "person_without_document");
-  // a person on no document is simply not saved (the screen lets a row be half made); every other problem stops the save
-  if (issues.length > 0) throw new SignError("bad_signers", "The signing list is not valid.", 400, issues);
+  const { list, derivedFinished } = planSigners(docs, people, { ordered: env.sign_in_order });
 
   // the uploaded documents take their roles from the people, and lose the fields of a person who is gone
   for (const d of docs.filter((x) => !x.template_version_id)) {
@@ -500,6 +445,41 @@ export async function setEnvelopeSigners(ctx: SignCtx, envelopeId: string, peopl
   }
   const fresh = await loadEnvelopeDocuments(ctx, envelopeId);
   return writeSigners(ctx, env, fresh, derivedFinished);
+}
+
+/**
+ * Check a list of people against the documents they are for, as a collection and a document on its own both do: only the people who must sign
+ * are looked at here; a person the screen is still filling in keeps their role (and the fields assigned to it) on the uploaded documents; the
+ * list is refused (400 bad_signers, with the people it is about) when it is not sound. `extraKeys` are keys, besides the `pp_` ones, that a
+ * person may keep as their own (a document on its own that has a role of its own from before people made roles). Returns the people as the roles
+ * will have them (`list`) and the finished ones once the uploaded documents have taken their roles (`derivedFinished`: the ones to save).
+ */
+export function planSigners(docs: readonly SignDocumentRow[], people: readonly EnvelopePersonInput[], opts: { ordered: boolean; extraKeys?: ReadonlySet<string> }): { list: EnvelopePerson[]; derivedFinished: EnvelopePerson[] } {
+  const used = new Set<string>();
+  // the roles the uploaded documents already hold for people: a person the screen is still filling in keeps theirs
+  const held = new Set(docs.filter((d) => !d.template_version_id).flatMap((d) => (d.roles_snapshot ?? []).filter((r) => r.source === "people").map((r) => r.key)));
+  const mayKeep = (key: string | undefined): key is string => !!key && (PERSON_KEY_RE.test(key) || !!opts.extraKeys?.has(key));
+  const entries = people
+    .filter((p) => (p.type ?? "signer") === "signer")
+    .filter((p) => !p.incomplete || !!p.fullName.trim() || (!!p.key && (held.has(p.key) || !!opts.extraKeys?.has(p.key))))
+    .map((p, i) => {
+      let key = mayKeep(p.key) && !used.has(p.key) ? p.key : newPersonKey();
+      while (used.has(key)) key = newPersonKey();
+      used.add(key);
+      const person: EnvelopePerson = { key, fullName: p.fullName, email: p.email, phone: p.phone ?? "", channel: p.channel, step: Math.max(1, Math.floor(p.step ?? i + 1)), roles: p.roles ?? {}, ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}) };
+      return { person, incomplete: !!p.incomplete };
+    });
+  const list = entries.map((e) => e.person);
+  // an uploaded file holds a few roles, one for each person
+  if (list.length > MAX_ROLES && docs.some((d) => !d.template_version_id)) throw new SignError("bad_signers", "The signing list is not valid.", 400, [{ code: "too_many_roles", detail: String(MAX_ROLES) }]);
+  // what the people look like once the uploaded documents have taken their roles; only the finished ones are checked and saved
+  const derived = withDerivedRoles(docs.map(lite), list);
+  const finished = new Set(entries.filter((e) => !e.incomplete).map((e) => e.person.key));
+  const derivedFinished = derived.people.filter((p) => finished.has(p.key));
+  const issues = peopleIssues(derived.docs, derivedFinished, { ordered: opts.ordered }).filter((i) => i.code !== "person_without_document");
+  // a person on no document is simply not saved (the screen lets a row be half made); every other problem stops the save
+  if (issues.length > 0) throw new SignError("bad_signers", "The signing list is not valid.", 400, issues);
+  return { list, derivedFinished };
 }
 
 // ---- sending ------------------------------------------------------------------------------------

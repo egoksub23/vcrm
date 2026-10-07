@@ -1,4 +1,4 @@
-import { NewEnvelope } from "@/components/sign/envelope/new-envelope";
+import { NewProcess } from "@/components/sign/process/new-process";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -7,8 +7,8 @@ function idParam(v: string | string[] | undefined): string | null {
   return typeof v === "string" && UUID_RE.test(v) ? v : null;
 }
 
-/** "Send as envelope": several documents signed in one sitting. A contact, ticket or deal can be named in the address (opened from its own page). */
+/** The old address of "Send as a document collection": the same first screen as /sign/new (the number of documents decides). A contact, ticket or deal can be named in the address. */
 export default async function NewSignEnvelopePage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const q = await searchParams;
-  return <NewEnvelope contactId={idParam(q.contactId)} ticketId={idParam(q.ticketId)} dealId={idParam(q.dealId)} />;
+  return <NewProcess contactId={idParam(q.contactId)} ticketId={idParam(q.ticketId)} dealId={idParam(q.dealId)} />;
 }

@@ -30,20 +30,22 @@ interface RolesPanelProps {
    * read-only ("from the collection's people") and no role can be added. An older role without that source stays editable.
    */
   rolesLocked?: boolean;
+  /** The sending workflow: the people are step 2's, so the words say so (not "the collection's people"). */
+  flow?: boolean;
   onAdd: (kind: SignerKind) => void;
   onPatch: (key: string, patch: Partial<Pick<SignRole, "label" | "kind" | "color">>) => void;
   onDelete: (key: string, reassignTo: string | null) => void;
 }
 
-export function RolesPanel({ roles, fields, form, labelLocale, readOnly, rolesLocked = false, onAdd, onPatch, onDelete }: RolesPanelProps) {
+export function RolesPanel({ roles, fields, form, labelLocale, readOnly, rolesLocked = false, flow = false, onAdd, onPatch, onDelete }: RolesPanelProps) {
   const t = useTranslations("Sign.editor");
   return (
     <div className="space-y-3 p-3">
-      <p className="text-xs text-muted-foreground">{rolesLocked ? t("roles.fromPeopleHint") : t("roles.intro")}</p>
+      <p className="text-xs text-muted-foreground">{rolesLocked ? t(flow ? "roles.fromPeopleHintFlow" : "roles.fromPeopleHint") : t("roles.intro")}</p>
       <ul className="space-y-3">
         {roles.map((role) =>
           rolesLocked && role.source === "people" ? (
-            <LockedRoleCard key={role.key} role={role} fields={fields} />
+            <LockedRoleCard key={role.key} role={role} fields={fields} flow={flow} />
           ) : (
             <RoleCard key={role.key} role={role} roles={roles} fields={fields} form={form} labelLocale={labelLocale} readOnly={readOnly} onPatch={onPatch} onDelete={onDelete} />
           ),
@@ -70,7 +72,7 @@ export function RolesPanel({ roles, fields, form, labelLocale, readOnly, rolesLo
 }
 
 /** A role the collection's people made: name, colour and how many fields it has, nothing to change here. */
-function LockedRoleCard({ role, fields }: { role: SignRole; fields: readonly PlacedField[] }) {
+function LockedRoleCard({ role, fields, flow }: { role: SignRole; fields: readonly PlacedField[]; flow: boolean }) {
   const t = useTranslations("Sign.editor");
   return (
     <li data-role-locked className="space-y-1 rounded-lg border p-2.5" style={roleColorStyle(role.color)}>
@@ -80,7 +82,7 @@ function LockedRoleCard({ role, fields }: { role: SignRole; fields: readonly Pla
         <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
       </div>
       <p className="text-xs text-muted-foreground">
-        {t("roles.fromPeople")} · {t("roles.fieldCount", { count: countRoleFields(fields, role.key) })}
+        {t(flow ? "roles.fromPeopleFlow" : "roles.fromPeople")} · {t("roles.fieldCount", { count: countRoleFields(fields, role.key) })}
       </p>
     </li>
   );

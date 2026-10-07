@@ -9381,7 +9381,9 @@
         "saveAsTemplate": "Save as template",
         "replaceFile": "Replace file",
         "noPeopleYet": "Nobody has to sign yet. Add the people on the collection page first, then place their signature blocks here.",
-        "openCollection": "Open the collection"
+        "openCollection": "Open the collection",
+        "noPeopleFlow": "Nobody who must sign has been added yet. Add the people first, then come back to place a signature block for each of them.",
+        "goToPeople": "Go to People"
       },
       "fieldsList": {
         "title": "All fields",
@@ -9445,7 +9447,11 @@
         "placeFor": "Placing for",
         "hint": "Choose a field type, then click the page to place it, or drag on the page to draw its size. You can also drag a type onto the page.",
         "armed": "Click the page to place a {type} field, or drag to draw its size. Hold Shift to place several. Press Esc to cancel.",
-        "full": "This document has the most fields it can have."
+        "full": "This document has the most fields it can have.",
+        "quickLabel": "Add a signature block for a person",
+        "addSignatureFor": "Add a signature block for {name}",
+        "noBlockYet": "none yet",
+        "blockCount": "{count, plural, one {# block} other {# blocks}}"
       },
       "panel": {
         "label": "Editor panel",
@@ -9518,7 +9524,9 @@
         "sender": "Sender",
         "senderHint": "Fixed text and values you fill in belong to you, the sender.",
         "fromPeople": "from the collection's people",
-        "fromPeopleHint": "People are added, renamed and removed on the collection page. Their signature blocks are placed here."
+        "fromPeopleHint": "People are added, renamed and removed on the collection page. Their signature blocks are placed here.",
+        "fromPeopleFlow": "from the people",
+        "fromPeopleHintFlow": "People are added, renamed and removed in step 2 (People). Each signature block you place here is given to one of them."
       },
       "save": {
         "saved": "All changes saved",
@@ -12288,6 +12296,160 @@
       "unavailable": {
         "title": "This page is not available right now",
         "body": "Please try again later."
+      }
+    },
+    "process": {
+      "untitled": "Untitled",
+      "blockedNotice": "You cannot open {step} yet. {why}",
+      "stepper": {
+        "label": "Steps to send this",
+        "documents": "Documents",
+        "people": "People",
+        "blocks": "Signature blocks",
+        "blocksForm": "Form",
+        "send": "Review and send",
+        "done": "Done",
+        "current": "Current step",
+        "blocked": "Finish {step} first",
+        "compact": "Step {n} of {total}: {name}",
+        "goTo": "Go to a step"
+      },
+      "footer": {
+        "back": "Back",
+        "continue": "Continue",
+        "continueTo": "Continue to {step}",
+        "position": "Step {n} of {total}"
+      },
+      "summary": {
+        "label": "Summary",
+        "heading": "Summary",
+        "untitled": "Untitled",
+        "documents": "Documents",
+        "noDocuments": "No documents yet.",
+        "people": "People",
+        "noPeople": "Nobody has been added yet.",
+        "mustSign": "Must sign",
+        "copy": "Receives a copy",
+        "blocks": "{count, plural, one {# signature block} other {# signature blocks}}",
+        "ready": "Ready",
+        "leftCount": "{count, plural, one {(# thing left)} other {(# things left)}}",
+        "allDone": "(everything is ready)"
+      },
+      "left": {
+        "heading": "What is left",
+        "allDone": "Everything is ready to send.",
+        "doneMark": "(done)",
+        "documentsSingle": "Add your document and give it a title",
+        "documentsCollection": "Add 2 to 6 documents and give them a title",
+        "signer": "Add at least one person who must sign",
+        "people": "{count, plural, =0 {Check the details of the people} one {Finish the details of # person} other {Finish the details of # people}}",
+        "blocks": "{count, plural, =0 {Place a signature block in each document} one {Place a signature block in # document that has none} other {Place a signature block in # documents that have none}}",
+        "assign": "{count, plural, =0 {Give each person who must sign a signature block} one {Give # person a signature block} other {Give # people a signature block}}",
+        "options": "Check the options"
+      },
+      "blockedWhy": {
+        "no_documents": "Add at least one document first.",
+        "too_few_documents": "Check the number of documents.",
+        "no_title": "Give it a title.",
+        "no_signer": "Add at least one person who must sign.",
+        "unfinished_people": "{count, plural, one {Finish or remove the person who is not complete yet.} other {Finish or remove the # people who are not complete yet.}}",
+        "people_problems": "Fix what is marked in the list of people.",
+        "no_block_in_document": "{count, plural, one {Place a signature block in the document that has none.} other {Place a signature block in each of the # documents that have none.}}",
+        "person_without_block": "{count, plural, one {Give the person who has none a signature block.} other {Give each of the # people who have none a signature block.}}"
+      },
+      "new": {
+        "subtitle": "Step 1: add the document or documents to send and give them a title. The people and the signature blocks come next.",
+        "intro": "Upload one file, or up to {max}, or pick templates. One document is sent on its own; two or more are signed together as a document collection.",
+        "titlePlaceholderNone": "Taken from the first file name",
+        "titlePlaceholderCollection": "{first} and {count, plural, one {# more} other {# more}}",
+        "hintSingle": "One document: it is sent on its own.",
+        "countNone": "Nothing chosen yet.",
+        "countSingle": "1 document, sent on its own. Add another to sign them together as a document collection.",
+        "countCollection": "{count} of {max} documents, signed together as a document collection.",
+        "titleHint": "Shown in your list and in the emails. Leave it empty to use the file name.",
+        "blockedNotice": "You cannot open {step} yet. {why}"
+      },
+      "documents": {
+        "heading": "Documents",
+        "introSingle": "Your document is added. You can rename it, or replace its file, as long as it has not been sent.",
+        "introCollection": "The documents of this collection, in the order they are signed. You can rename the collection, reorder, add or remove documents, or replace a file, as long as it has not been sent.",
+        "titleSingle": "Document title",
+        "titleCollection": "Collection title",
+        "titleRequired": "Give it a title.",
+        "titleHintSingle": "Shown in your list and in the emails.",
+        "titleHintCollection": "Shown in your list and in the emails the people get.",
+        "fileHeading": "The file"
+      },
+      "people": {
+        "heading": "People",
+        "intro": "Add everyone who takes part, once: their name, their email, and whether they must sign or only receive a copy. You give each signature block to a person in the next step.",
+        "introForm": "Add everyone who fills this in, once: their name, their email, and whether they fill it in or only receive a copy.",
+        "typeFiller": "Fills in",
+        "limitSigners": "Up to {max} people can be asked to sign.",
+        "limitRoles": "Up to {max} people can be asked to sign an uploaded file. Each one becomes a role on that document."
+      },
+      "blocks": {
+        "heading": "Signature blocks",
+        "headingForm": "Form",
+        "introSingle": "Place a signature block for each person who must sign. Pick a person below to add a block for them, or draw one on the page and choose who it is for.",
+        "introCollection": "Open each document and place the signature blocks, giving each to a person who must sign. Each person needs a block somewhere, and each document needs at least one.",
+        "introOpen": "Place the blocks for this document. When you are done, save and go on to the next one.",
+        "stripLabel": "People who must sign",
+        "blockCount": "{count, plural, one {# block} other {# blocks}}",
+        "noBlockYet": "no block yet",
+        "somebody": "Somebody",
+        "formStatus": "Form · {count, plural, one {# page} other {# pages}}",
+        "formEmpty": "This form has no parts yet",
+        "statusNone": "No signature block yet",
+        "statusBlocks": "{count, plural, one {# block placed} other {# blocks placed}} · assigned to {names}",
+        "formBadge": "Form",
+        "pages": "{count, plural, one {# page} other {# pages}}",
+        "openEditor": "Open editor",
+        "edit": "Edit",
+        "coverageLabel": "Who has something to sign in this document",
+        "hasBlock": "has a block here",
+        "nothingHere": "has nothing to sign here",
+        "loadingEditor": "Loading the editor",
+        "retry": "Try again",
+        "backToDocuments": "Back to the documents",
+        "editing": "Document {n} of {total}: {title}",
+        "saveAndNext": "Save and next document",
+        "saveAndBack": "Save and back to the documents",
+        "listLabel": "Documents and their signature blocks",
+        "readOnly": "You can look at this draft but not change it."
+      },
+      "send": {
+        "heading": "Review and send",
+        "intro": "Check what will be sent and to whom, set the options, and send it.",
+        "countsSingle": "{people, plural, one {# person must sign} other {# people must sign}}{copies, plural, =0 {.} one { and # person receives a copy.} other { and # people receive a copy.}}",
+        "countsCollection": "{documents, plural, one {# document} other {# documents}} for {people, plural, one {# person who must sign} other {# people who must sign}}{copies, plural, =0 {.} one { and # person who receives a copy.} other { and # people who receive a copy.}}",
+        "whoSignsLabel": "Who signs what",
+        "nobodyHere": "Nobody has anything to do on this document yet.",
+        "fillsIn": "fills in the form",
+        "optionsHeading": "Options",
+        "limit": "This collection needs room for {needed} documents, but this workspace has room for {remaining} more this month.",
+        "readyCollection": "Everything is ready to send.",
+        "openDocument": "Open the document",
+        "openCollection": "Open the collection",
+        "sendCollection": "Send {count, plural, one {# document} other {# documents}}",
+        "blocked": "Fix the things listed above to send.",
+        "blockedOptions": "Fix the option marked above to send.",
+        "sendNoteCollection": "Everyone on the list is invited right away. Once it is sent, the documents cannot be edited.",
+        "fix": {
+          "people": "Go to People",
+          "documents": "Go to Documents",
+          "blocks": "Go to Signature blocks",
+          "document": "Open the document",
+          "options": "Go to the options"
+        }
+      },
+      "links": {
+        "heading": "Links (optional)",
+        "intro": "Attach this to a ticket or a deal so it shows there. The contact is linked for you.",
+        "contact": "Contact",
+        "contactLinked": "Linked to",
+        "contactAutoHint": "Linked to the contact of the first person who must sign who was picked from your contacts. Remove it or choose another contact if that is wrong.",
+        "contactHint": "Choose a contact to link this to, or leave it empty. Picking a person from your contacts in People links it for you."
       }
     }
   }

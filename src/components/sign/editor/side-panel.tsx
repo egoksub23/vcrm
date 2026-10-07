@@ -29,6 +29,8 @@ export interface SidePanelProps {
   readOnly: boolean;
   /** The roles are the collection's people (see `RolesPanel`): read-only, and none can be added. */
   rolesLocked?: boolean;
+  /** The sending workflow: the people are step 2's, so the words say so (not "the collection's people"). */
+  flow?: boolean;
   typeLabels: Record<FieldType, string>;
   senderLabel: string;
   mergeKeys: readonly string[];
@@ -109,7 +111,7 @@ export function SidePanel(p: SidePanelProps) {
         ) : null}
         {p.tab === "data" && p.form ? <DataFieldsPanel form={p.form} placements={p.fields} locale={p.labelLocale ?? "en"} readOnly={p.readOnly} canPlace={!!p.canPlaceData} onPlace={(k) => p.onPlaceData?.(k)} onShow={(k) => p.onShowData?.(k)} /> : null}
         {p.tab === "fields" ? <FieldsList fields={p.fields} roles={p.roles} selectedKey={p.selected?.key ?? null} issueKeys={p.issueKeys} typeLabels={p.typeLabels} senderLabel={p.senderLabel} form={p.form} labelLocale={p.labelLocale} onSelect={p.onSelectFromList} /> : null}
-        {p.tab === "roles" ? <RolesPanel roles={p.roles} fields={p.fields} form={p.form} labelLocale={p.labelLocale} readOnly={p.readOnly} rolesLocked={p.rolesLocked} onAdd={p.onAddRole} onPatch={p.onPatchRole} onDelete={p.onDeleteRole} /> : null}
+        {p.tab === "roles" ? <RolesPanel roles={p.roles} fields={p.fields} form={p.form} labelLocale={p.labelLocale} readOnly={p.readOnly} rolesLocked={p.rolesLocked} flow={p.flow} onAdd={p.onAddRole} onPatch={p.onPatchRole} onDelete={p.onDeleteRole} /> : null}
         {p.tab === "issues" ? <IssuesPanel issues={p.issues} fields={p.fields} roles={p.roles} typeLabels={p.typeLabels} form={p.form} labelLocale={p.labelLocale} onSelectField={p.onSelectFromList} onSelectRole={() => p.onTab("roles")} /> : null}
       </div>
     </div>

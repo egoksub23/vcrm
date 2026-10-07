@@ -9381,7 +9381,9 @@
         "saveAsTemplate": "템플릿으로 저장",
         "replaceFile": "파일 교체",
         "noPeopleYet": "아직 서명해야 할 사람이 없습니다. 먼저 문서 모음 페이지에서 사람을 추가한 다음 여기에 서명 블록을 배치하세요.",
-        "openCollection": "문서 모음 열기"
+        "openCollection": "문서 모음 열기",
+        "noPeopleFlow": "아직 서명해야 하는 사람이 추가되지 않았습니다. 먼저 사람을 추가한 다음, 돌아와 각 사람의 서명 블록을 배치하세요.",
+        "goToPeople": "사람으로 이동"
       },
       "fieldsList": {
         "title": "모든 필드",
@@ -9445,7 +9447,11 @@
         "placeFor": "배치 대상",
         "hint": "필드 유형을 선택한 다음 페이지를 클릭해 배치하거나, 페이지에서 드래그해 크기를 그려 주세요. 필드 유형을 페이지로 끌어다 놓을 수도 있습니다.",
         "armed": "페이지를 클릭해 {type} 필드를 배치하거나, 드래그해 크기를 그려 주세요. Shift 키를 누르고 있으면 여러 개를 배치할 수 있습니다. Esc 키를 누르면 취소됩니다.",
-        "full": "이 문서는 필드 수가 최대치에 도달했습니다."
+        "full": "이 문서는 필드 수가 최대치에 도달했습니다.",
+        "quickLabel": "사람을 위한 서명 블록 추가",
+        "addSignatureFor": "{name}의 서명 블록 추가",
+        "noBlockYet": "아직 없음",
+        "blockCount": "{count, plural, other {블록 #개}}"
       },
       "panel": {
         "label": "편집기 패널",
@@ -9518,7 +9524,9 @@
         "sender": "발송자",
         "senderHint": "고정 텍스트와 직접 입력하는 값은 발송자인 회원님의 것입니다.",
         "fromPeople": "문서 모음의 사람에서 가져옴",
-        "fromPeopleHint": "사람 추가, 이름 변경, 삭제는 문서 모음 페이지에서 합니다. 이들의 서명 블록은 여기에 배치합니다."
+        "fromPeopleHint": "사람 추가, 이름 변경, 삭제는 문서 모음 페이지에서 합니다. 이들의 서명 블록은 여기에 배치합니다.",
+        "fromPeopleFlow": "사람에서 가져옴",
+        "fromPeopleHintFlow": "사람은 2단계(사람)에서 추가, 이름 변경, 제거합니다. 여기에 배치하는 각 서명 블록은 그중 한 사람에게 지정됩니다."
       },
       "save": {
         "saved": "모든 변경 사항이 저장되었습니다",
@@ -12288,6 +12296,160 @@
       "unavailable": {
         "title": "지금은 이 페이지를 사용할 수 없습니다",
         "body": "나중에 다시 시도해 주세요."
+      }
+    },
+    "process": {
+      "untitled": "제목 없음",
+      "blockedNotice": "아직 {step}을(를) 열 수 없습니다. {why}",
+      "stepper": {
+        "label": "보내기 단계",
+        "documents": "문서",
+        "people": "사람",
+        "blocks": "서명 블록",
+        "blocksForm": "양식",
+        "send": "검토 및 발송",
+        "done": "완료",
+        "current": "현재 단계",
+        "blocked": "먼저 {step}을(를) 완료하세요",
+        "compact": "{total}단계 중 {n}단계: {name}",
+        "goTo": "단계로 이동"
+      },
+      "footer": {
+        "back": "이전",
+        "continue": "계속",
+        "continueTo": "{step}(으)로 계속",
+        "position": "{total}단계 중 {n}단계"
+      },
+      "summary": {
+        "label": "요약",
+        "heading": "요약",
+        "untitled": "제목 없음",
+        "documents": "문서",
+        "noDocuments": "아직 문서가 없습니다.",
+        "people": "사람",
+        "noPeople": "아직 추가된 사람이 없습니다.",
+        "mustSign": "서명 필요",
+        "copy": "사본 수신",
+        "blocks": "{count, plural, other {서명 블록 #개}}",
+        "ready": "준비됨",
+        "leftCount": "{count, plural, other {(#개 남음)}}",
+        "allDone": "(모두 준비됨)"
+      },
+      "left": {
+        "heading": "남은 일",
+        "allDone": "모두 준비되어 보낼 수 있습니다.",
+        "doneMark": "(완료)",
+        "documentsSingle": "문서를 추가하고 제목을 지정",
+        "documentsCollection": "문서 2~6개를 추가하고 제목을 지정",
+        "signer": "서명해야 하는 사람을 한 명 이상 추가",
+        "people": "{count, plural, =0 {사람들의 정보를 확인} other {#명의 정보를 완성}}",
+        "blocks": "{count, plural, =0 {각 문서에 서명 블록을 배치} other {서명 블록이 없는 문서 #개에 서명 블록을 배치}}",
+        "assign": "{count, plural, =0 {서명해야 하는 각 사람에게 서명 블록을 지정} other {#명에게 서명 블록을 지정}}",
+        "options": "옵션을 확인"
+      },
+      "blockedWhy": {
+        "no_documents": "먼저 문서를 한 개 이상 추가하세요.",
+        "too_few_documents": "문서 수를 확인하세요.",
+        "no_title": "제목을 지정하세요.",
+        "no_signer": "서명해야 하는 사람을 한 명 이상 추가하세요.",
+        "unfinished_people": "{count, plural, other {아직 완성되지 않은 #명을 완성하거나 제거하세요.}}",
+        "people_problems": "사람 목록에 표시된 문제를 해결하세요.",
+        "no_block_in_document": "{count, plural, other {서명 블록이 없는 문서 #개에 서명 블록을 배치하세요.}}",
+        "person_without_block": "{count, plural, other {서명 블록이 없는 #명에게 서명 블록을 지정하세요.}}"
+      },
+      "new": {
+        "subtitle": "1단계: 보낼 문서를 추가하고 제목을 지정합니다. 사람과 서명 블록은 다음 단계에서 정합니다.",
+        "intro": "파일을 하나 또는 최대 {max}개까지 업로드하거나 템플릿을 고르세요. 문서 하나는 따로 발송되고, 둘 이상은 문서 모음으로 함께 서명됩니다.",
+        "titlePlaceholderNone": "첫 번째 파일 이름에서 가져옵니다",
+        "titlePlaceholderCollection": "{first} 외 {count, plural, other {#개}}",
+        "hintSingle": "문서 하나: 따로 발송됩니다.",
+        "countNone": "아직 선택한 것이 없습니다.",
+        "countSingle": "문서 1개, 따로 발송됩니다. 하나 더 추가하면 문서 모음으로 함께 서명합니다.",
+        "countCollection": "문서 {count}/{max}개, 문서 모음으로 함께 서명됩니다.",
+        "titleHint": "목록과 이메일에 표시됩니다. 비워 두면 파일 이름을 사용합니다.",
+        "blockedNotice": "아직 {step}을(를) 열 수 없습니다. {why}"
+      },
+      "documents": {
+        "heading": "문서",
+        "introSingle": "문서가 추가되었습니다. 발송하기 전에는 이름을 바꾸거나 파일을 교체할 수 있습니다.",
+        "introCollection": "이 문서 모음의 문서이며 서명 순서대로 나열됩니다. 발송하기 전에는 모음 이름을 바꾸고, 순서를 바꾸고, 문서를 추가하거나 제거하고, 파일을 교체할 수 있습니다.",
+        "titleSingle": "문서 제목",
+        "titleCollection": "문서 모음 제목",
+        "titleRequired": "제목을 지정하세요.",
+        "titleHintSingle": "목록과 이메일에 표시됩니다.",
+        "titleHintCollection": "목록과 사람들이 받는 이메일에 표시됩니다.",
+        "fileHeading": "파일"
+      },
+      "people": {
+        "heading": "사람",
+        "intro": "참여하는 모든 사람을 한 번씩 추가하세요: 이름, 이메일, 그리고 서명해야 하는지 사본만 받는지를 지정합니다. 각 서명 블록은 다음 단계에서 사람에게 지정합니다.",
+        "introForm": "이 양식을 작성하는 모든 사람을 한 번씩 추가하세요: 이름, 이메일, 그리고 작성하는지 사본만 받는지를 지정합니다.",
+        "typeFiller": "양식 작성",
+        "limitSigners": "최대 {max}명에게 서명을 요청할 수 있습니다.",
+        "limitRoles": "업로드한 파일에는 최대 {max}명에게 서명을 요청할 수 있습니다. 각 사람은 그 문서의 역할이 됩니다."
+      },
+      "blocks": {
+        "heading": "서명 블록",
+        "headingForm": "양식",
+        "introSingle": "서명해야 하는 각 사람의 서명 블록을 배치하세요. 아래에서 사람을 선택하면 그 사람의 블록이 추가되고, 페이지에 직접 그린 다음 누구의 것인지 선택할 수도 있습니다.",
+        "introCollection": "각 문서를 열어 서명 블록을 배치하고, 각각을 서명해야 하는 사람에게 지정하세요. 모든 사람에게 블록이 하나 이상 있어야 하고, 모든 문서에도 하나 이상 있어야 합니다.",
+        "introOpen": "이 문서의 블록을 배치하세요. 끝나면 저장하고 다음 문서로 넘어가세요.",
+        "stripLabel": "서명해야 하는 사람",
+        "blockCount": "{count, plural, other {블록 #개}}",
+        "noBlockYet": "아직 블록 없음",
+        "somebody": "누군가",
+        "formStatus": "양식 · {count, plural, other {#페이지}}",
+        "formEmpty": "이 양식에는 아직 부분이 없습니다",
+        "statusNone": "아직 서명 블록이 없음",
+        "statusBlocks": "{count, plural, other {블록 #개 배치됨}} · {names}에게 지정됨",
+        "formBadge": "양식",
+        "pages": "{count, plural, other {#페이지}}",
+        "openEditor": "편집기 열기",
+        "edit": "편집",
+        "coverageLabel": "이 문서에서 서명할 것이 있는 사람",
+        "hasBlock": "여기에 블록이 있음",
+        "nothingHere": "여기에는 서명할 것이 없음",
+        "loadingEditor": "편집기를 불러오는 중",
+        "retry": "다시 시도",
+        "backToDocuments": "문서로 돌아가기",
+        "editing": "문서 {n}/{total}: {title}",
+        "saveAndNext": "저장하고 다음 문서",
+        "saveAndBack": "저장하고 문서로 돌아가기",
+        "listLabel": "문서와 서명 블록",
+        "readOnly": "이 초안을 볼 수는 있지만 변경할 수는 없습니다."
+      },
+      "send": {
+        "heading": "검토 및 발송",
+        "intro": "무엇을 누구에게 보내는지 확인하고, 옵션을 정한 다음 발송하세요.",
+        "countsSingle": "{people, plural, other {#명이 서명해야 합니다}}{copies, plural, =0 {.} other {, #명이 사본을 받습니다.}}",
+        "countsCollection": "{documents, plural, other {문서 #개}}, {people, plural, other {서명해야 하는 #명}}{copies, plural, =0 {.} other {, 사본을 받는 #명.}}",
+        "whoSignsLabel": "누가 무엇에 서명하나요",
+        "nobodyHere": "이 문서에는 아직 할 일이 있는 사람이 없습니다.",
+        "fillsIn": "양식 작성",
+        "optionsHeading": "옵션",
+        "limit": "이 문서 모음은 문서 {needed}개 분량이 필요하지만 이 워크스페이스는 이번 달에 {remaining}개만 더 보낼 수 있습니다.",
+        "readyCollection": "모두 준비되어 보낼 수 있습니다.",
+        "openDocument": "문서 열기",
+        "openCollection": "문서 모음 열기",
+        "sendCollection": "{count, plural, other {문서 #개}} 발송",
+        "blocked": "위에 나열된 문제를 해결해야 발송할 수 있습니다.",
+        "blockedOptions": "위에 표시된 옵션을 고쳐야 발송할 수 있습니다.",
+        "sendNoteCollection": "목록의 모든 사람이 바로 초대됩니다. 발송한 뒤에는 문서를 편집할 수 없습니다.",
+        "fix": {
+          "people": "사람으로 이동",
+          "documents": "문서로 이동",
+          "blocks": "서명 블록으로 이동",
+          "document": "문서 열기",
+          "options": "옵션으로 이동"
+        }
+      },
+      "links": {
+        "heading": "연결 (선택)",
+        "intro": "티켓이나 딜에 연결하면 그곳에 표시됩니다. 연락처는 자동으로 연결됩니다.",
+        "contact": "연락처",
+        "contactLinked": "연결된 연락처",
+        "contactAutoHint": "연락처에서 선택한 첫 번째 서명 필요 사람의 연락처에 연결되었습니다. 잘못되었다면 제거하거나 다른 연락처를 선택하세요.",
+        "contactHint": "연결할 연락처를 선택하거나 비워 두세요. 사람 단계에서 연락처로 사람을 선택하면 자동으로 연결됩니다."
       }
     }
   }

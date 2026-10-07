@@ -13,6 +13,7 @@ import { UUID_RE, json, readJson, staff } from "@/lib/sign/http";
 import { setCopyRecipients } from "@/lib/sign/service/copy-recipients";
 import { SignError } from "@/lib/sign/service/errors";
 import { setEnvelopeSigners, type EnvelopePersonInput } from "@/lib/sign/service/envelopes";
+import { parsePeople } from "@/lib/sign/service/people-input";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return staff("sign.send", request, async ({ ctx }) => {
@@ -20,24 +21,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!UUID_RE.test(id)) throw new SignError("envelope_not_found", "That document collection was not found.", 404);
     const body = await readJson<{ people?: unknown }>(request);
     if (!Array.isArray(body.people)) throw new SignError("bad_signers", "Send the list of people.", 400);
-    const people: EnvelopePersonInput[] = body.people.map((p) => {
-      const x = (p ?? {}) as Record<string, unknown>;
-      const roles: Record<string, string> = {};
-      if (typeof x.roles === "object" && x.roles !== null && !Array.isArray(x.roles)) {
-        for (const [doc, role] of Object.entries(x.roles as Record<string, unknown>)) if (UUID_RE.test(doc) && typeof role === "string" && role) roles[doc] = role;
-      }
-      return {
-        fullName: String(x.fullName ?? ""),
-        email: String(x.email ?? ""),
-        phone: typeof x.phone === "string" ? x.phone : null,
-        channel: x.channel === "whatsapp" ? "whatsapp" : "email",
-        step: Number(x.step ?? 0) || undefined,
-        roles,
-        type: x.type === "copy" ? "copy" : "signer",
-        key: typeof x.key === "string" ? x.key : undefined,
-        incomplete: x.incomplete === true,
-      };
-    });
+    // a document collection has no Halo users (a countersigner signs a document on its own): the field is read and dropped
+    const people: EnvelopePersonInput[] = parsePeople(body.people).map((p) => ({ ...p, internalUserId: null }));
     const signers = await setEnvelopeSigners(ctx, id, people);
     // the people who receive a copy are saved after the signing list (so a copy to someone who signs is refused against the list as saved)
     const copies = await setCopyRecipients(ctx, { envelopeId: id }, people.filter((p) => p.type === "copy").map((p) => ({ fullName: p.fullName, email: p.email })));

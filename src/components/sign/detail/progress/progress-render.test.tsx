@@ -26,11 +26,8 @@ import { FormFieldsStep } from "@/components/sign/send/form-fields-step";
 import { FormProblemText } from "@/components/sign/send/form-problem-text";
 import { FormReviewSummary } from "@/components/sign/send/form-review-summary";
 import { FormRolesCard } from "@/components/sign/send/form-roles-card";
-import { PeopleStep } from "@/components/sign/send/people-step";
-import { ReviewStep } from "@/components/sign/send/review-step";
 import type { StaffProgress } from "@/lib/sign/forms/api-types";
 import type { FormDefinition } from "@/lib/sign/forms/types";
-import { optionsFromDocument } from "@/lib/sign/client/draft-options";
 import { emptyRow, type SignerRow } from "@/lib/sign/client/signers-form";
 import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
 import { ProgressPanel } from "./progress-panel";
@@ -265,8 +262,6 @@ describe.skipIf(LOCALES.length === 0)("the form screens render in every language
       const both = page(locale, <FormRolesCard form={form} roles={doc().roles_snapshot} rows={[...rows, { ...emptyRow("finance"), fullName: "Siti", email: "siti@example.com" }]} />);
       expect(both).not.toContain('role="status"');
 
-      const step = page(locale, <PeopleStep roles={doc().roles_snapshot} rows={rows} signInOrder={false} showInvalid={false} whatsappConfigured={false} readOnly={false} onRows={() => {}} onSignInOrder={() => {}} onGoToFields={() => {}} form={form} />);
-      expect(step).toContain("form-roles-title");
     });
 
     it(`the review step summarises the form, the prefill and the blocking problem (${locale})`, () => {
@@ -277,29 +272,6 @@ describe.skipIf(LOCALES.length === 0)("the form screens render in every language
       expect(without).toContain("review-form");
       expect(without).not.toBe(withContact);
 
-      const options = { ...optionsFromDocument(doc()), title: "Merchant Application" };
-      const review = page(
-        locale,
-        <ReviewStep
-          roles={doc().roles_snapshot}
-          rows={rows}
-          options={options}
-          categoryName={null}
-          contactName={null}
-          defaultExpiryDays={14}
-          now={NOW}
-          problems={[{ code: "part_without_person", role: "finance" }]}
-          checking={false}
-          canSend
-          sending={false}
-          sendErrorCode={null}
-          onSend={() => {}}
-          onGoToStep={() => {}}
-          form={form}
-        />,
-      );
-      expect(review).toContain("review-form");
-      expect(review).toContain("review-problems");
       expect(page(locale, <FormProblemText issue={{ code: "part_without_person", role: "finance" }} roleLabel="Finance" />)).toContain("Finance");
     });
   }

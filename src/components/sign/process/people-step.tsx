@@ -1,15 +1,17 @@
 "use client";
 
 // ============================================================
-// Doc Sign, a collection's people (migration 171, with the people model of migration 175): ONE list for all the documents. Each person is a name,
-// an email and a TYPE: "Must sign" or "Receives a copy". Nobody picks a role per document here: an uploaded file takes a role from each person who
-// must sign (the sender then assigns each signature block to a person in the document's own editor), and only the documents that came from a
-// template have roles to match, in "Match the template's roles" under the list. A person who receives a copy needs no channel and no step: they
-// get the signed copy by email when everything is signed.
+// Doc Sign, step 2 of the sending workflow: everyone who takes part, on ONE screen, for a document on its own and for a collection. Each person is
+// a name (a matching contact fills the email, which stays editable), an email and a TYPE: "Must sign" or "Receives a copy". For a person who
+// must sign: how the link is sent (email or WhatsApp), their step when people sign one after another, and (a document on its own) a Halo user
+// of this workspace to sign from inside Halo. Nothing about roles per document and nothing about fields here: an uploaded file takes a role from
+// each person who must sign (the sender then gives each signature block to a person in step 3), and only a document that came from a template
+// has roles to match, in "Match the template's roles" under the list. A person who receives a copy needs no channel and no step: they get the
+// signed copy by email when everything is signed.
 // ============================================================
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -20,10 +22,15 @@ import { addPerson, countByType, normalizePersonSteps, personHasInput, personIsC
 import { MAX_COPY_RECIPIENTS, isCopy, isSigner, isUploadDoc, roleCoverage, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
 import { MAX_ROLES, MAX_SIGNERS, normalizePhone } from "@/lib/sign/rules";
 
+import { HaloUserPicker } from "../send/halo-user-picker";
 import { PersonNameInput } from "../send/person-name-input";
-import { applyContact, removalAsk, type RemovalAsk } from "./people-edit";
+import { applyContact, removalAsk, type RemovalAsk } from "../envelope/people-edit";
+import type { ProcessKind } from "@/lib/sign/client/process";
 
 interface Props {
+  kind: ProcessKind;
+  /** A form without a signature: nobody signs, the people fill it in. */
+  formOnly?: boolean;
   docs: readonly EnvelopeDocLite[];
   /** What the documents have assigned to each role, so removing a person can say what goes with them (the documents as the server sent them). */
   workDocs?: readonly { id: string; fromTemplate?: boolean; fieldCounts?: Record<string, number> }[];
@@ -47,9 +54,14 @@ export function RemovalWords({ ask, part }: { ask: RemovalAsk; part: "title" | "
   return <>{part === "title" ? t("title", { name: ask.name }) : t("body", { fields: ask.fields, documents: ask.documents })}</>;
 }
 
-export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly, showInvalid, whatsappConfigured, onPeople, onOrdered }: Props) {
+export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], people, ordered, readOnly, showInvalid, whatsappConfigured, onPeople, onOrdered }: Props) {
   const t = useTranslations("Sign.send.envelope.people");
+  const tp = useTranslations("Sign.process.people");
+  const th = useTranslations("Sign.send.people");
   const [asking, setAsking] = useState<RemovalAsk | null>(null);
+  /** The person a Halo user is being chosen for (a document on its own only). */
+  const [haloFor, setHaloFor] = useState<string | null>(null);
+  const allowHalo = kind === "single" && !formOnly;
   const change = (next: EnvelopePerson[]) => onPeople(ordered ? normalizePersonSteps(next) : next);
 
   const counts = countByType(people);
@@ -76,7 +88,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
+      <p className="text-sm text-muted-foreground">{tp(formOnly ? "introForm" : "intro")}</p>
 
       <label className="flex cursor-pointer items-start gap-2.5">
         <Checkbox className="mt-0.5" checked={ordered} disabled={readOnly} onCheckedChange={(c) => onOrdered(!!c)} />
@@ -115,6 +127,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
                     id={`${p.key}-name`}
                     value={p.fullName}
                     disabled={readOnly}
+                    readOnly={!!p.internalUserId}
                     invalid={nameBad}
                     onChange={(name) => change(updatePerson(people, p.key, { fullName: name }, docs))}
                     onPickContact={(c) => change(applyContact(people, p.key, c, docs))}
@@ -125,7 +138,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
                   <label htmlFor={`${p.key}-email`} className="text-xs font-medium text-foreground">
                     {t("email")}
                   </label>
-                  <Input id={`${p.key}-email`} type="email" value={p.email} maxLength={254} autoComplete="off" disabled={readOnly} aria-invalid={emailBad} onChange={(e) => change(updatePerson(people, p.key, { email: e.target.value }))} />
+                  <Input id={`${p.key}-email`} type="email" value={p.email} maxLength={254} autoComplete="off" disabled={readOnly} readOnly={!!p.internalUserId} aria-invalid={emailBad} onChange={(e) => change(updatePerson(people, p.key, { email: e.target.value }))} />
                   {emailBad ? <p className="text-xs text-destructive">{t("errors.email")}</p> : null}
                 </div>
                 <div className="space-y-1">
@@ -134,7 +147,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
                   </label>
                   <select id={`${p.key}-type`} className={SELECT} value={copy ? "copy" : "signer"} disabled={readOnly} onChange={(e) => change(setPersonType(people, p.key, e.target.value === "copy" ? "copy" : "signer", docs))}>
                     <option value="signer" disabled={copy && signersFull}>
-                      {t("type.signer")}
+                      {formOnly ? tp("typeFiller") : t("type.signer")}
                     </option>
                     <option value="copy" disabled={!copy && copiesFull}>
                       {t("type.copy")}
@@ -150,7 +163,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
                       <option value="email">{t("channel.email")}</option>
                       <option value="whatsapp">{t("channel.whatsapp")}</option>
                     </select>
-                    {p.channel === "whatsapp" && whatsappConfigured === false ? <p className="text-xs text-amber-700 dark:text-amber-300">{t("whatsappOff")}</p> : null}
+                    {p.channel === "whatsapp" && whatsappConfigured === false ? <p className="text-xs text-[light-dark(#92400e,#fcd34d)]">{t("whatsappOff")}</p> : null}
                   </div>
                 ) : null}
                 {!copy && p.channel === "whatsapp" ? (
@@ -172,6 +185,26 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
                   </div>
                 ) : null}
               </div>
+              {p.internalUserId ? (
+                // a Halo user signs from inside Halo; the invitation still goes to their email, so the name and the email are theirs and are not typed
+                <div className="flex flex-wrap items-center gap-2">
+                  <span data-halo-user className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground">
+                    <ShieldCheck className="size-3" aria-hidden />
+                    {th("haloUserTag")}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{th("haloUserNote")}</span>
+                  <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={() => change(updatePerson(people, p.key, { internalUserId: null }))}>
+                    {th("haloUserRemove")}
+                  </Button>
+                </div>
+              ) : allowHalo && !copy ? (
+                <div>
+                  <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={() => setHaloFor(p.key)}>
+                    <ShieldCheck aria-hidden />
+                    {th("chooseHaloUser")}
+                  </Button>
+                </div>
+              ) : null}
               {copy ? <p className="text-xs text-muted-foreground">{t("copyLine")}</p> : null}
               {rolesBad ? <p className="text-xs text-destructive">{t("errors.noDocument")}</p> : null}
             </li>
@@ -191,7 +224,7 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
       </div>
       {signersFull ? (
         <p className="text-xs text-muted-foreground" role="status">
-          {hasUpload ? t("limitRoles", { max: signerLimit }) : t("limitSigners", { max: signerLimit })}
+          {hasUpload ? tp("limitRoles", { max: signerLimit }) : tp("limitSigners", { max: signerLimit })}
         </p>
       ) : null}
       {copiesFull ? (
@@ -248,6 +281,24 @@ export function EnvelopePeople({ docs, workDocs = [], people, ordered, readOnly,
           ))}
         </ul>
       ) : null}
+
+      <Dialog open={haloFor !== null} onOpenChange={(open) => !open && setHaloFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{th("haloUserTitle")}</DialogTitle>
+            <DialogDescription>{th("haloUserBody")}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-64">
+            <HaloUserPicker
+              rows={people}
+              onPick={(member) => {
+                if (haloFor) change(updatePerson(people, haloFor, { fullName: member.full_name.trim() || member.email, email: member.email.trim(), phone: "", channel: "email", internalUserId: member.user_id }, docs));
+                setHaloFor(null);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={asking !== null} onOpenChange={(o) => (o ? undefined : setAsking(null))}>
         <DialogContent>

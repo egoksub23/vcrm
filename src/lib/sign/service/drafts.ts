@@ -311,11 +311,12 @@ export async function updateDraft(ctx: SignCtx, documentId: string, patch: Draft
     update.merge_values = clean;
   }
   if (patch.fields !== undefined || patch.roles !== undefined) {
-    // an uploaded file of a collection has no roles of its own: the collection's people make them (service/envelopes.ts setEnvelopeSigners), so
-    // what the editor sends back for those roles is not taken (it shows them locked), and it cannot add a role (nobody could be given it); a role
-    // that is there from before collections made roles from people can still be edited or deleted as sent. The fields are checked against the
-    // roles that result.
-    const peopleRoles = !!doc.envelope_id && !doc.template_version_id && !opts.viaEnvelope;
+    // an uploaded file of a collection has no roles of its own: the collection's people make them (service/envelopes.ts setEnvelopeSigners), and
+    // so do the people of a document on its own once it has any (service/document-people.ts), so what the editor sends back for those roles is not
+    // taken (it shows them locked), and it cannot add a role (nobody could be given it); a role that is there from before roles were made from
+    // people can still be edited or deleted as sent. A document on its own with no people yet takes the roles as sent, as it always did (the
+    // sending screens do not send any: they make the roles from the people). The fields are checked against the roles that result.
+    const peopleRoles = !doc.template_version_id && !opts.viaEnvelope && (!!doc.envelope_id || doc.roles_snapshot.some((r) => r.source === "people"));
     const fields = patch.fields ?? doc.fields_snapshot;
     let roles: SignRole[] = patch.roles ?? doc.roles_snapshot;
     if (peopleRoles) {

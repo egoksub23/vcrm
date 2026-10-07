@@ -74,8 +74,11 @@ const sameRoles = (a: readonly SignRole[], b: readonly SignRole[]) =>
  * so no work is lost; the editor still lets the sender move those fields to a person's role and delete it.
  */
 export function syncDocumentRoles(current: { roles: readonly SignRole[]; fields: readonly PlacedField[] }, people: readonly EnvelopePerson[]): { roles: SignRole[]; fields: PlacedField[]; changed: boolean; removed: number } {
-  const legacy = current.roles.filter((r) => r.source !== "people" && current.fields.some((f) => f.role === r.key));
-  const roles = [...peopleRoles(people), ...legacy];
+  const made = peopleRoles(people);
+  // a person may have taken over a role of the document's own (the key is the same): that role is then the person's, not an older one beside it
+  const madeKeys = new Set(made.map((r) => r.key));
+  const legacy = current.roles.filter((r) => r.source !== "people" && !madeKeys.has(r.key) && current.fields.some((f) => f.role === r.key));
+  const roles = [...made, ...legacy];
   const keys = new Set(roles.map((r) => r.key));
   const kept = current.fields.filter((f) => f.role === SENDER_ROLE || keys.has(f.role));
   const removed = current.fields.length - kept.length;

@@ -16,7 +16,7 @@ import { usePartsText } from "./form-roles-card";
 interface Props {
   form: FormDefinition;
   roles: readonly SignRole[];
-  rows: readonly SignerRow[];
+  rows: readonly Pick<SignerRow, "roleKey">[];
   contactId: string | null;
 }
 

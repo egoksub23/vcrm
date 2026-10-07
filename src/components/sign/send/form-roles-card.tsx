@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   form: FormDefinition;
   roles: readonly SignRole[];
-  rows: readonly SignerRow[];
+  rows: readonly Pick<SignerRow, "roleKey">[];
 }
 
 /** The parts a list of ranges names ("1 to 4 and 6"), in the reader's language. */
