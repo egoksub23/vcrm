@@ -89,9 +89,9 @@ describe.each(["en", "ms", "zh", "ko"])("the Secure Sign trigger and step render
   const b = () => load(locale).Automations.builder
   const s = () => b().sign
 
-  it("the trigger panel lists the six events with completed ticked when nothing is chosen, and the filters", () => {
+  it("the trigger panel lists the seven events (a completed document that is cancelled afterwards is the seventh) with completed ticked when nothing is chosen, and the filters", () => {
     const html = render(locale, withTemplates(<SignTriggerConfig config={{}} onChange={() => {}} />))
-    for (const e of ["sent", "viewed", "completed", "declined", "expired", "voided"]) expect(html).toContain(esc(s().trigger.event[e]))
+    for (const e of ["sent", "viewed", "completed", "declined", "expired", "voided", "cancelled"]) expect(html).toContain(esc(s().trigger.event[e]))
     expect(html).toContain(esc(s().trigger.eventsHint))
     expect(html).toContain(esc(s().trigger.anyTemplate))
     expect(html).toContain(esc(s().trigger.anyCategory))

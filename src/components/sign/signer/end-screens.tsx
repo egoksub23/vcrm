@@ -85,6 +85,8 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
       return (
         <Frame icon={<CheckCircle2 className="size-12 text-emerald-600 dark:text-emerald-400" aria-hidden />} title={formOnly ? t("end.completedForm.title") : t("end.completed.title")}>
           <p>{formOnly ? t("end.completedForm.body") : t("end.completed.body")}</p>
+          {/* migration 181: the document was cancelled after it was completed. Only the fact and the date, never why or by whom; the downloads below stay. */}
+          {view.document.cancelledAt ? <CancelledNotice at={view.document.cancelledAt} formOnly={formOnly} /> : null}
           {view.delegate ? (
             // a person handed one part of the form does not get the whole document
             <p className="text-sm text-muted-foreground">{t("end.completed.delegate")}</p>
@@ -155,6 +157,22 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
         </Frame>
       );
   }
+}
+
+/** The calm notice on a completed document that was cancelled afterwards: when, and that the signed copy remains a record. No reason, no name. */
+export function CancelledNotice({ at, formOnly, collection }: { at: string; formOnly?: boolean; collection?: boolean }) {
+  const t = useTranslations("Sign.signer");
+  const locale = useLocale();
+  const zone = useBrowserTimeZone();
+  return (
+    <div role="note" className="flex w-full items-start gap-2 rounded-xl border border-[color:light-dark(#fca5a5,#7f1d1d)] bg-[color:light-dark(#fef2f2,#450a0a66)] p-3 text-left text-sm text-foreground">
+      <Ban className="mt-0.5 size-4 shrink-0 text-[light-dark(#b91c1c,#fca5a5)]" aria-hidden />
+      <div className="min-w-0">
+        <p className="font-medium break-words">{t(collection ? "end.cancelled.titleCollection" : "end.cancelled.title", { date: formatDay(at, locale, zone) })}</p>
+        <p className="mt-0.5 text-muted-foreground break-words">{t(formOnly ? "end.cancelled.noteForm" : "end.cancelled.note")}</p>
+      </div>
+    </div>
+  );
 }
 
 /** The whole turn was handed to someone else: this page says so, and that the link no longer works. */

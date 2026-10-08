@@ -48,7 +48,7 @@ export function EnvelopeBanner({ envelope, documentId }: { envelope: EnvelopeBri
                   {d.position}. {d.title}
                 </Link>
               )}
-              <DocumentStatusBadge status={d.status} />
+              <DocumentStatusBadge status={d.status} cancelled={!!envelope.cancelledAt} />
             </li>
           );
         })}

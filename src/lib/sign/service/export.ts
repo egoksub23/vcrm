@@ -36,7 +36,7 @@ import { SignError, raiseDatabaseError } from "./errors";
 import { documentListScope, visibleDocuments } from "./privacy";
 import { signedPeople } from "./verify";
 
-const SELECT = "reference, title, status, mode, category_id, created_at, sent_at, completed_at, expires_at, contacts(name), sign_signers(full_name, order_no)";
+const SELECT = "reference, title, status, mode, category_id, created_at, sent_at, completed_at, expires_at, cancelled_at, contacts(name), sign_signers(full_name, order_no)";
 const IN_CHUNK = 100;
 
 /** A pull-based web stream over an async generator: the next chunk is made only when the reader asks for it. */
@@ -304,6 +304,7 @@ async function collectionSummaryFile(ctx: SignCtx, env: SignEnvelopeRow, docs: r
       preparedAt: ctx.now(),
       timeZone: info.timeZone,
       documents: entries,
+      ...(env.cancelled_at ? { cancelledAt: new Date(env.cancelled_at) } : {}),
       labels: collectionSummaryLabels(env.locale, mode),
     },
     { locale: env.locale },

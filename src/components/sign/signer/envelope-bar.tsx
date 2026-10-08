@@ -15,7 +15,7 @@ import { scopeOf, splitScope } from "@/lib/sign/client/scope";
 import type { EnvelopeView, PageState } from "@/lib/sign/service/signing";
 import { cn } from "@/lib/utils";
 
-import { CheckAgain, SealingIcon, useSealingPhase } from "./end-screens";
+import { CancelledNotice, CheckAgain, SealingIcon, useSealingPhase } from "./end-screens";
 
 const STATE_ICON: Record<PageState, typeof Circle> = {
   active: Circle,
@@ -151,6 +151,7 @@ export function EnvelopeEnd({ envelope, scope, name, canDownload }: EndProps) {
       <h1 className="text-2xl font-semibold leading-snug">{done ? t("envelope.end.completed.title", { count: envelope.count }) : sealing ? t("envelope.end.sealing.title", { count: envelope.count }) : t("envelope.end.signed.title", { count: envelope.count })}</h1>
       <p className="max-w-prose text-base">{done ? t("envelope.end.completed.body") : sealing ? t("envelope.end.sealing.body") : t("envelope.end.signed.body", { name })}</p>
       {done || sealing ? null : <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.signed.waiting")}</p>}
+      {done && envelope.cancelledAt ? <div className="w-full max-w-md"><CancelledNotice collection at={envelope.cancelledAt} /></div> : null}
       {sealing && phase === "slow" ? <p className="max-w-prose text-sm text-muted-foreground">{t("envelope.end.sealing.slow")}</p> : null}
       {sealing && phase === "stuck" ? (
         <>

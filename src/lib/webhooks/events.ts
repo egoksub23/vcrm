@@ -18,6 +18,7 @@ export const WEBHOOK_EVENTS = [
   'sign.declined', // a signer declined
   'sign.expired', // a document passed its expiry date unsigned
   'sign.voided', // the sender cancelled a document
+  'sign.cancelled', // a COMPLETED document (or collection) was cancelled afterwards; it stays completed and sealed
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -34,6 +35,7 @@ export const WEBHOOK_EVENT_DESCRIPTIONS: Record<WebhookEvent, string> = {
   'sign.declined': 'A signer declined to sign',
   'sign.expired': 'A document passed its expiry date without being signed',
   'sign.voided': 'A document was cancelled by the sender',
+  'sign.cancelled': 'A completed document was cancelled afterwards: the signed record is unchanged, but it is no longer in force (carries the date)',
 };
 
 /** Type-narrow an unknown value into a valid `WebhookEvent`. */

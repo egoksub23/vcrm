@@ -25,7 +25,8 @@ const ACCT = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
 const PASS = "correct horse";
 const DAY = 24 * 3600 * 1000;
-const NOW = new Date("2026-10-06T08:00:00Z");
+// the fixture certificates are issued relative to the real clock (two days back), so "now" follows it too
+const NOW = new Date(Math.floor(Date.now() / 60_000) * 60_000);
 
 function setup() {
   const db = new FakeDb();
@@ -170,7 +171,7 @@ describe("what sealing does with the certificate", () => {
     const err = await sealingCertificate(t.ctx).catch((e) => e);
     expect(err).toBeInstanceOf(SignError);
     expect(err.code).toBe("certificate_expired");
-    expect(err.message).toContain("2026-10-03");
+    expect(err.message).toContain(new Date(NOW.getTime() - 3 * DAY).toISOString().slice(0, 10));
     expect(err.message).toContain("Settings > Secure Sign > Sealing certificate");
     expect(CERTIFICATE_HOLD_CODES.has(err.code)).toBe(true);
     // no certificate was made behind the owner's back
@@ -287,7 +288,7 @@ describe("sealing a document", () => {
     const hold = t.db.rpcCalls.filter((x) => x.name === "sign_hold_sealing");
     expect(hold).toHaveLength(1);
     expect(hold[0].args.p_document).toBe(doc.id);
-    expect(String(hold[0].args.p_error)).toContain("expired on 2026-10-03");
+    expect(String(hold[0].args.p_error)).toContain(`expired on ${new Date(NOW.getTime() - 3 * DAY).toISOString().slice(0, 10)}`);
     // it is not the failure path (which counts attempts), and nothing half-made is left behind
     expect(t.db.rpcCalls.some((x) => x.name === "sign_fail_sealing")).toBe(false);
     expect(t.db.rpcCalls.some((x) => x.name === "sign_finish_sealing")).toBe(false);

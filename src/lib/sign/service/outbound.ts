@@ -1,8 +1,8 @@
 // ============================================================
 // Telling the rest of the workspace what happened to a document: the one place that turns a Doc Sign state
 // change into (a) the `sign_document_event` automation trigger and (b) the outbound webhook `sign.<event>`.
-// The six hook points (sendDocument, markViewed, sealDocument, declineSigning, runExpiry, voidDocument) each
-// make one call, after the change is committed.
+// The hook points (sendDocument, markViewed, sealDocument, declineSigning, runExpiry, voidDocument, and, for a completed document
+// cancelled afterwards (migration 181), cancelDocument / cancelEnvelope, one call for each document) each make one call, after the change is committed.
 //
 // It never throws and never holds the change up: the work runs after the response when there is a request
 // to run after (Next's `after`), and inline otherwise (the jobs, the tests). A failure here is logged and
@@ -60,6 +60,12 @@ export interface SignEventData {
   signer?: { name: string; role: string };
   /** completed only */
   final_sha256?: string;
+  /**
+   * cancelled only (migration 181): when the completed document was cancelled. The document stays `completed`; `final_sha256`, `certificate_sha256` and
+   * `verify_url` are as for completed. Like the reason a sender gave when voiding, the reason given for a cancellation and who gave it are NOT sent: they are
+   * the person's own words, and the API's `GET /sign/documents/{id}` has them for whoever needs them.
+   */
+  cancelled_at?: string;
   /** completed only (migration 178): the SHA-256 of the certificate when it is a file of its own, which the API serves at GET /api/v1/sign/documents/{id}/certificate. Absent when the certificate is inside the signed PDF (a document sealed earlier). */
   certificate_sha256?: string;
   verify_url?: string;
@@ -93,10 +99,13 @@ export function buildSignEventData(doc: SignDocumentRow, signers: readonly SignS
     signers: signers.map((s) => ({ name: s.full_name, role: label(s.role_key), role_key: s.role_key, status: s.status, signed_at: s.signed_at })),
   };
   if ((event === "viewed" || event === "declined") && who) data.signer = { name: who.full_name, role: label(who.role_key) };
-  if (event === "completed") {
+  if (event === "completed" || event === "cancelled") {
     if (doc.final_sha256) data.final_sha256 = doc.final_sha256;
     if (doc.certificate_sha256) data.certificate_sha256 = doc.certificate_sha256;
     data.verify_url = verifyLink(origin, doc.id);
+  }
+  if (event === "cancelled" && doc.cancelled_at) {
+    data.cancelled_at = doc.cancelled_at;
   }
   return data;
 }
@@ -115,6 +124,7 @@ export function toAutomationContext(data: SignEventData, event: SignEvent): Sign
     final_sha256: data.final_sha256 ?? "",
     certificate_sha256: data.certificate_sha256 ?? "",
     verify_url: data.verify_url ?? "",
+    cancelled_at: data.cancelled_at ?? "",
   };
 }
 
@@ -179,7 +189,7 @@ async function emit(ctx: SignCtx, given: SignDocumentRow, event: SignEvent, extr
 }
 
 /**
- * Announce that a document was sent, viewed, completed, declined, expired or voided. Call it after the change
+ * Announce that a document was sent, viewed, completed, declined, expired, voided or (a completed one) cancelled. Call it after the change
  * is committed. Never throws; returns once the work is handed over (after the response) or done.
  */
 export async function emitSignEvent(ctx: SignCtx, doc: SignDocumentRow, event: SignEvent, extra: SignEventExtra = {}): Promise<void> {

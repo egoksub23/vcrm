@@ -106,13 +106,13 @@ describe("the export's lines", () => {
   const names = new Map([[CAT, "Merchant agreements"]]);
 
   it("has the columns the owner asked for, in order", () => {
-    expect([...EXPORT_HEADER]).toEqual(["reference", "title", "category", "status", "contact", "signers", "created", "sent", "completed", "expires", "mode"]);
+    expect([...EXPORT_HEADER]).toEqual(["reference", "title", "category", "status", "contact", "signers", "created", "sent", "completed", "expires", "mode", "cancelled", "cancelled_at"]);
     expect(parseCsv(exportHeaderLine())[0]).toEqual([...EXPORT_HEADER]);
   });
 
   it("writes a document as one line: names joined in signing order, dates as ISO times", () => {
     const [row] = parseCsv(exportLines([doc()], names));
-    expect(row).toEqual(["SGN-2026-000001", "Merchant Agreement - Ali", "Merchant agreements", "completed", "Kedai Runcit Ali", "Ali bin Ahmad; Gokula", "2026-10-01T08:00:00.000Z", "2026-10-01T08:05:00.123Z", "2026-10-02T09:00:00.000Z", "2026-10-15T08:05:00.000Z", "sign"]);
+    expect(row).toEqual(["SGN-2026-000001", "Merchant Agreement - Ali", "Merchant agreements", "completed", "Kedai Runcit Ali", "Ali bin Ahmad; Gokula", "2026-10-01T08:00:00.000Z", "2026-10-01T08:05:00.123Z", "2026-10-02T09:00:00.000Z", "2026-10-15T08:05:00.000Z", "sign", "no", ""]);
   });
 
   it("marks a form without a signature as a form, and anything else as an agreement", () => {
@@ -124,7 +124,17 @@ describe("the export's lines", () => {
   it("leaves the cells of a draft empty", () => {
     const [row] = parseCsv(exportLines([doc({ reference: null, status: "draft", category_id: null, sent_at: null, completed_at: null, expires_at: null, contacts: null, sign_signers: null })], names));
     expect(row.slice(0, 2)).toEqual(["", "Merchant Agreement - Ali"]);
-    expect(row.slice(2)).toEqual(["", "draft", "", "", "2026-10-01T08:00:00.000Z", "", "", "", "sign"]);
+    expect(row.slice(2)).toEqual(["", "draft", "", "", "2026-10-01T08:00:00.000Z", "", "", "", "sign", "no", ""]);
+  });
+
+  it("says a completed document was cancelled afterwards in two columns of its own, while its status stays completed (migration 181)", () => {
+    const [row] = parseCsv(exportLines([doc({ cancelled_at: "2026-10-08T02:00:00+00:00" })], names));
+    expect(row.slice(3, 4)).toEqual(["completed"]);
+    expect(row.slice(10)).toEqual(["sign", "yes", "2026-10-08T02:00:00.000Z"]);
+    // the person's own free-text reason is not in the file
+    expect(row.join("|")).not.toMatch(/reason/i);
+    // a stamp on anything that is not completed is not a cancellation
+    expect(parseCsv(exportLines([doc({ status: "sent", cancelled_at: "2026-10-08T02:00:00+00:00" })], names))[0].slice(11)).toEqual(["no", ""]);
   });
 
   it("guards every cell a spreadsheet could run as a formula, and quotes what needs it", () => {
@@ -212,6 +222,19 @@ describe("documentsCsvStream", () => {
     seedDocs(1, { id: "a5", title: "After the range", status: "completed", contact_id: CONTACT, created_at: "2026-10-31T16:00:00Z" });
     const text = await read(documentsCsvStream(t.ctx, { ...none, group: "completed", category: CAT, contactId: CONTACT, from: "2026-10-01", to: "2026-10-31" }));
     expect(parseCsv(text).slice(1).map((r) => r[1])).toEqual(["Completed in range"]);
+  });
+
+  it("lists the cancelled documents apart: Completed leaves them out, Cancelled is only them, All has both (migration 181)", async () => {
+    seedDocs(1, { id: "k1", title: "Still in force", status: "completed", completed_at: "2026-10-02T09:00:00Z" });
+    seedDocs(1, { id: "k2", title: "Cancelled afterwards", status: "completed", completed_at: "2026-10-02T09:00:00Z", cancelled_at: "2026-10-08T02:00:00Z" });
+    seedDocs(1, { id: "k3", title: "Still open", status: "sent" });
+    const titles = async (group: ExportFilters["group"]) => parseCsv(await read(documentsCsvStream(t.ctx, { ...none, group }))).slice(1).map((r) => r[1] + ":" + r[3] + ":" + r[11]).sort();
+    expect(await titles("completed")).toEqual(["Still in force:completed:no"]);
+    expect(await titles("cancelled")).toEqual(["Cancelled afterwards:completed:yes"]);
+    expect(await titles("all")).toEqual(["Cancelled afterwards:completed:yes", "Still in force:completed:no", "Still open:sent:no"]);
+    expect(await titles("waiting")).toEqual(["Still open:sent:no"]);
+    // the list's own Cancelled group travels through the export button's query string
+    expect(parseExportFilters(new URLSearchParams(exportQuery({ group: "cancelled" }))).group).toBe("cancelled");
   });
 
   it("answers an empty list with the header alone", async () => {

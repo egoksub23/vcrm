@@ -64,7 +64,7 @@ export function DatesText({ row, now, className }: { row: SignListRow; now: numb
         <p>{t("edited", { when: ago(row.updated_at) })}</p>
       ) : (
         <>
-          {row.completed_at ? <p>{t("completedOn", { date: day(row.completed_at) })}</p> : row.sent_at ? <p>{t("sentOn", { date: day(row.sent_at) })}</p> : <p>{t("edited", { when: ago(row.updated_at) })}</p>}
+          {row.cancelled_at && row.status === "completed" ? <p>{t("cancelledOn", { date: day(row.cancelled_at) })}</p> : row.completed_at ? <p>{t("completedOn", { date: day(row.completed_at) })}</p> : row.sent_at ? <p>{t("sentOn", { date: day(row.sent_at) })}</p> : <p>{t("edited", { when: ago(row.updated_at) })}</p>}
           {row.expires_at && !row.completed_at ? (
             <p className={cn(soon && "font-medium text-amber-700 dark:text-amber-300")}>{t("expiresOn", { date: day(row.expires_at) })}</p>
           ) : null}

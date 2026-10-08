@@ -9,6 +9,23 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.87.0] — 2026-10-08
+
+**Migration required: 181.** Apply it BEFORE the new app: the list and the verify page read the new columns.
+
+### Added
+
+- **Cancel a completed document.** The person who created a completed document, and workspace admins and owners, can cancel it from the Secure Sign list (row menu) or its page. A reason is required (3 to 500 characters), and there is no undo: send a fresh document instead. A document inside a document collection is cancelled through the collection, which cancels all of its documents together.
+- The signed record is never changed: the signed PDF, the certificate, the answers and the history stay exactly as they were, and the document stays Completed for retention and usage. It gains a Cancelled marker (who, when, why) and a `cancelled` event in its tamper-evident history.
+- **Finding them:** a **Cancelled** filter on the list (Completed no longer includes cancelled ones; All includes everything), a Cancelled chip on rows, a banner on the page, and `cancelled` / `cancelled_at` columns in the CSV export. Search still finds cancelled documents.
+- A **Notify everyone** tick box (off by default) emails the signers, the copy recipients and the sender that the document was cancelled. The email carries no link and no file; it says the signed copy already received is no longer in force.
+- The signing page and the public verify page show "Cancelled on <date>" next to the proof that it was signed. The reason and who cancelled it are not shown publicly.
+- **API and automation:** v1 documents have `cancelled`, `cancelled_at`, `cancelled_by` (an id) and `cancel_reason`; the list takes `?cancelled=true|false`; a new `sign.cancelled` webhook event and automation trigger.
+
+### Fixed
+
+- A certificate test that failed once the real date passed its fixed date; it now follows the clock.
+
 ## [0.86.0] — 2026-10-08
 
 **Migrations required: 179 and 180.** Apply both BEFORE the new app.

@@ -24,6 +24,8 @@ const EN: CollectionSummaryLabels = {
   note: "This summary is an index to the other files in this download. It is not sealed: each certificate is, and each certificate names the signed document it covers by its SHA-256 fingerprint. To check a file, open the verification page of its document.",
   page: "Page",
   of: "of",
+  cancelled: "Cancelled",
+  cancelledNote: "This collection was cancelled after it was signed. The signed documents in this download are exactly as they were signed and remain a record of what was signed; they are no longer in force.",
 };
 
 const MS: CollectionSummaryLabels = {
@@ -44,6 +46,8 @@ const MS: CollectionSummaryLabels = {
   note: "Ringkasan ini ialah indeks kepada fail lain dalam muat turun ini. Ia tidak dimeterai: setiap sijil dimeterai, dan setiap sijil menamakan dokumen bertandatangan yang diliputinya melalui cap jari SHA-256. Untuk menyemak sesuatu fail, buka halaman pengesahan dokumennya.",
   page: "Halaman",
   of: "daripada",
+  cancelled: "Dibatalkan",
+  cancelledNote: "Koleksi ini dibatalkan selepas ia ditandatangani. Dokumen bertandatangan dalam muat turun ini kekal seperti semasa ditandatangani dan menjadi rekod apa yang ditandatangani; ia tidak lagi berkuat kuasa.",
 };
 
 const ZH: CollectionSummaryLabels = {
@@ -64,6 +68,8 @@ const ZH: CollectionSummaryLabels = {
   note: "本摘要是此次下载中其他文件的索引。它本身未封存：每份证书都已封存，并以 SHA-256 指纹指明其涵盖的已签署文件。要核验某个文件，请打开其所属文件的核验页面。",
   page: "页",
   of: "共",
+  cancelled: "取消时间",
+  cancelledNote: "本文件集在签署之后被取消。此次下载中的已签署文件与签署时完全一致，仍是已签署内容的记录，但已不再有效。",
 };
 
 const KO: CollectionSummaryLabels = {
@@ -84,6 +90,8 @@ const KO: CollectionSummaryLabels = {
   note: "이 요약은 이번 다운로드의 다른 파일에 대한 색인입니다. 봉인되어 있지 않으며, 각 증명서가 봉인되어 있고 각 증명서는 대상이 되는 서명된 문서를 SHA-256 지문으로 밝힙니다. 파일을 확인하려면 해당 문서의 확인 페이지를 여세요.",
   page: "페이지",
   of: "/",
+  cancelled: "취소일",
+  cancelledNote: "이 문서 모음은 서명된 후 취소되었습니다. 이번 다운로드의 서명된 문서는 서명 당시 그대로이며 서명된 내용의 기록으로 남지만, 더 이상 효력이 없습니다.",
 };
 
 const LABELS: Record<SignLocale, CollectionSummaryLabels> = { en: EN, ms: MS, zh: ZH, ko: KO };

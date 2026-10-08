@@ -10,7 +10,7 @@ import { narrow, narrowShared, rangeOf } from "@/hooks/use-sign-documents";
 function recorder() {
   const calls: unknown[][] = [];
   const q: Record<string, unknown> = {};
-  for (const m of ["in", "is", "eq", "or", "gte", "lt"]) {
+  for (const m of ["in", "is", "not", "eq", "or", "gte", "lt"]) {
     q[m] = (...args: unknown[]) => {
       calls.push([m, ...args]);
       return q;
@@ -41,6 +41,8 @@ describe("the list's date range and contact, as the database is asked", () => {
     const f = { ...EMPTY_FILTERS, group: "completed" as const, category: "none", contactId: "c1", from: "2026-10-01" };
     const { q, calls } = recorder();
     narrow(q, "completed", f, "title.ilike.%x%", rangeOf(f, "UTC"));
-    expect(calls.map((c) => c[0])).toEqual(["in", "is", "eq", "gte", "or"]);
+    // (the status, the cancelled ones left out of "Completed", no category, the contact, the first day, the search)
+    expect(calls.map((c) => c[0])).toEqual(["in", "is", "is", "eq", "gte", "or"]);
+    expect(calls[1]).toEqual(["is", "cancelled_at", null]);
   });
 });

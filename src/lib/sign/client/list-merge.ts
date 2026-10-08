@@ -43,6 +43,9 @@ export interface EnvelopeListRaw {
   sent_at: string | null;
   expires_at: string | null;
   completed_at: string | null;
+  /** Migration 181. */
+  cancelled_at?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
   contacts: { name: string | null } | null;
@@ -99,6 +102,8 @@ export function envelopeToRow(e: EnvelopeListRaw): {
   sent_at: string | null;
   expires_at: string | null;
   completed_at: string | null;
+  cancelled_at: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
   contacts: { name: string | null } | null;
@@ -117,6 +122,8 @@ export function envelopeToRow(e: EnvelopeListRaw): {
     sent_at: e.sent_at,
     expires_at: e.expires_at,
     completed_at: e.completed_at,
+    cancelled_at: e.cancelled_at ?? null,
+    created_by: e.created_by ?? null,
     created_at: e.created_at,
     updated_at: e.updated_at,
     contacts: e.contacts,

@@ -8,7 +8,9 @@ import type { DocumentStatus } from "../types";
 export const PAGE_SIZE = 25;
 
 // "test" is the documents sent from a template to try it out (F-10): every status, but only the tests. The other groups include them, marked.
-export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "stopped", "test"] as const;
+// "cancelled" (migration 181) is the completed documents that were cancelled afterwards: they are still completed in the database, so "completed" leaves
+// them out (see GROUP_CANCELLED) and "all" keeps them.
+export const STATUS_GROUPS = ["all", "draft", "waiting", "completed", "cancelled", "stopped", "test"] as const;
 export type StatusGroup = (typeof STATUS_GROUPS)[number];
 
 /** The statuses in each group; `null` is "every status". */
@@ -18,9 +20,44 @@ export const GROUP_STATUSES: Record<StatusGroup, readonly DocumentStatus[] | nul
   // "sealing" is the short moment after the last signature while the signed file is made
   waiting: ["sent", "in_progress", "sealing"],
   completed: ["completed"],
+  cancelled: ["completed"],
   stopped: ["declined", "expired", "voided", "failed"],
   test: null,
 };
+
+/** Of the documents in a group, which to keep: `no` the ones that were not cancelled, `yes` only the cancelled ones, `null` both. */
+export const GROUP_CANCELLED: Record<StatusGroup, "yes" | "no" | null> = {
+  all: null,
+  draft: null,
+  waiting: null,
+  completed: "no",
+  cancelled: "yes",
+  stopped: null,
+  test: null,
+};
+
+/** The part of a PostgREST filter builder that a group's rule uses (each method returns the builder). */
+interface GroupFilterable {
+  in(column: string, values: readonly string[]): GroupFilterable;
+  is(column: string, value: null): GroupFilterable;
+  not(column: string, operator: string, value: null): GroupFilterable;
+}
+
+/**
+ * Narrow a documents or collections query to a status group: its statuses, and (migration 181) whether the cancelled ones are in. "Completed" leaves out the
+ * documents that were cancelled afterwards; "Cancelled" is only those; every other group, and no group at all ("All"), takes them as they come. One rule for
+ * the list, its counts and the CSV export.
+ */
+export function narrowByGroup<T>(query: T, group: StatusGroup | null): T {
+  if (!group) return query;
+  let q = query as unknown as GroupFilterable;
+  const statuses = GROUP_STATUSES[group];
+  if (statuses) q = q.in("status", statuses);
+  const cancelled = GROUP_CANCELLED[group];
+  if (cancelled === "no") q = q.is("cancelled_at", null);
+  else if (cancelled === "yes") q = q.not("cancelled_at", "is", null);
+  return q as unknown as T;
+}
 
 /** The category filter: every category, none, or one. */
 export type CategoryFilter = "all" | "none" | string;

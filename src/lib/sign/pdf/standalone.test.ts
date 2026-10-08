@@ -213,6 +213,27 @@ describe("buildCollectionSummary", () => {
     expect(text).toContain("It is not sealed");
   });
 
+  it("says a collection was cancelled afterwards, with the date, when it was (migration 181): the signed files in the zip are untouched, the summary is not sealed", async () => {
+    const plain = (await pageTexts((await buildCollectionSummary(data())).bytes)).join(" ");
+    expect(plain).not.toContain("Cancelled");
+    expect(plain).not.toContain("cancelled after it was signed");
+    for (const locale of ["en", "ms", "zh", "ko"] as const) {
+      const labels = collectionSummaryLabels(locale);
+      expect(labels.cancelled, locale).toBeTruthy();
+      expect(labels.cancelledNote, locale).toBeTruthy();
+      const { bytes } = await buildCollectionSummary(data({ labels, cancelledAt: new Date(Date.UTC(2026, 9, 8, 2, 0)) }), { locale });
+      expect((await PDFDocument.load(bytes)).getPageCount(), locale).toBe(1);
+    }
+    const text = (await pageTexts((await buildCollectionSummary(data({ cancelledAt: new Date(Date.UTC(2026, 9, 8, 2, 0)) }))).bytes)).join(" ");
+    expect(text).toContain("Cancelled");
+    // 08 Oct 2026 02:00 UTC is 10:00 in Kuala Lumpur
+    expect(text).toContain("08 Oct 2026 10:00 UTC+8");
+    expect(text).toContain("This collection was cancelled after it was signed.");
+    expect(text).toContain("remain a record of what was signed; they are no longer in force.");
+    // the files it lists are named exactly as before
+    expect(text).toContain("SGN-2026-000121 - Merchant Agreement.pdf");
+  });
+
   it("flows onto more pages for a long collection and numbers them", async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({ number: i + 1, title: `Document ${i + 1}`, reference: `SGN-2026-0001${i}`, fileName: `File ${i + 1}.pdf`, sha256: String(i % 10).repeat(64), signers: [{ name: `Person ${i + 1}`, signedAt: new Date(Date.UTC(2026, 9, 6, 6, i)) }] }));
     const { bytes, pageCount } = await buildCollectionSummary(data({ documents: many }));

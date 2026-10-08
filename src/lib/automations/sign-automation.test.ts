@@ -61,8 +61,8 @@ describe('sign_document_event: which events fire it', () => {
     expect(signEventMatches({ events: ['completed'] }, undefined)).toBe(false)
   })
 
-  it('knows the six events, and the trigger has its pill', () => {
-    expect([...SIGN_EVENT_NAMES]).toEqual(['sent', 'viewed', 'completed', 'declined', 'expired', 'voided'])
+  it('knows the seven events, and the trigger has its pill', () => {
+    expect([...SIGN_EVENT_NAMES]).toEqual(['sent', 'viewed', 'completed', 'declined', 'expired', 'voided', 'cancelled'])
     expect(isSignEventName('viewed')).toBe(true)
     expect(isSignEventName('opened')).toBe(false)
     expect(isKnownTrigger('sign_document_event')).toBe(true)

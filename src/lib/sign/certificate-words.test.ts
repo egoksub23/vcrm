@@ -25,6 +25,14 @@ describe("eventSentence", () => {
     expect(eventSentence("declined", "ko", names)).toBe("Ali bin Ahmad님이 서명을 거부했습니다");
   });
 
+  it("leaves a cancellation and its notice off the certificate: the certificate is made when the document is sealed and never again (migration 181)", () => {
+    for (const type of ["cancelled", "cancel_notice_sent"]) {
+      expect(HIDDEN_EVENTS.has(type), type).toBe(true);
+      expect(EVENT_TYPES, type).toContain(type);
+      for (const l of SIGN_LOCALES) expect(eventSentence(type, l, names), `${l}.${type}`).toBeNull();
+    }
+  });
+
   it("leaves out autosaves and retries", () => {
     for (const t of HIDDEN_EVENTS) expect(eventSentence(t, "en", names)).toBeNull();
   });

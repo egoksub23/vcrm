@@ -127,6 +127,8 @@ export interface EnvelopeBrief {
   title: string;
   status: SignEnvelopeRow["status"];
   expiresAt: string | null;
+  /** Migration 181: when the (completed) collection was cancelled, with every document in it. Null when it was not. */
+  cancelledAt: string | null;
   documents: { id: string; position: number; title: string; reference: string | null; status: SignDocumentRow["status"]; mode: "sign" | "form" }[];
 }
 
@@ -140,6 +142,7 @@ export async function envelopeBrief(ctx: SignCtx, envelopeId: string | null | un
     title: env.title,
     status: env.status,
     expiresAt: env.expires_at,
+    cancelledAt: env.status === "completed" ? (env.cancelled_at ?? null) : null,
     documents: docs.map((d) => ({ id: d.id, position: d.envelope_position ?? 0, title: d.title, reference: d.reference, status: d.status, mode: isFormMode(d) ? "form" : "sign" })),
   };
 }

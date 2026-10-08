@@ -11,6 +11,7 @@ import { createSelfSignedP12 } from "../pdf/p12";
 import type { PlacedField } from "../pdf/types";
 import type { SignDocumentRow, SignRole, SignSignerRow } from "../types";
 import type { SignCtx } from "./context";
+import { installCancelRpcs } from "./cancel-fake";
 import { installEnvelopeRpcs } from "./envelope-fake";
 import { createEnvelopeDraft, type EnvelopePersonInput } from "./envelopes";
 import { FakeDb } from "./fake-db";
@@ -103,6 +104,8 @@ export async function makeWorld(): Promise<World> {
   // the database numbers copy recipients in the order they are added (created_at); the fake clock would give them all one instant
   db.insertDefaults.sign_copy_recipients = () => ({ notified_at: null, created_at: new Date(Date.parse("2026-10-06T08:00:00Z") + ++copyN * 1000).toISOString() });
   const fake = installEnvelopeRpcs(db, { newToken: () => (++tokenN).toString(16).padStart(64, "0"), now: () => "2026-10-06T08:00:00.000Z" });
+  // migration 181: cancelling a completed document or collection
+  installCancelRpcs(db, { now: () => "2026-10-06T08:00:00.000Z" });
   const pdf = await makePdf([{ ...A4 }]);
 
   const world: World = {

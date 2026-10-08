@@ -1948,7 +1948,8 @@
             "completed": "Everyone has signed (completed)",
             "declined": "A signer declines",
             "expired": "A document expires",
-            "voided": "A document is cancelled"
+            "voided": "A document is cancelled",
+            "cancelled": "A completed document is cancelled"
           },
           "template": "Only for this template",
           "anyTemplate": "Any template",
@@ -9115,7 +9116,8 @@
         "sent": "Sent",
         "completed": "Completed",
         "expires": "Expires",
-        "expired": "Expired"
+        "expired": "Expired",
+        "cancelled": "Cancelled"
       },
       "actions": {
         "downloadSigned": "Download signed PDF",
@@ -9384,7 +9386,11 @@
         "envelope_reordered": "{sender} changed the order of the documents in the collection {reference}",
         "copy_recipient_added": "{sender} added {name} ({email}) to receive a copy",
         "copy_recipient_removed": "{sender} removed {name} from the people who receive a copy",
-        "seal_retried": "{sender} asked for the signed file to be made again"
+        "seal_retried": "{sender} asked for the signed file to be made again",
+        "cancelled": "{sender} cancelled this completed document. It is no longer in force.",
+        "cancelledCollection": "{sender} cancelled the document collection {reference} ({count, plural, one {# document} other {# documents}}). It is no longer in force.",
+        "cancel_notice_sent": "{sent, plural, one {# person was} other {# people were}} emailed that it was cancelled",
+        "cancel_notice_sentSome": "{sent, plural, one {# person was} other {# people were}} emailed that it was cancelled; {failed, plural, one {# email} other {# emails}} could not be delivered"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -9416,7 +9422,14 @@
         "expiry_not_later": "The new date must be later than the current one.",
         "expiry_too_far": "That date is too far away. Choose a nearer date.",
         "bad_expiry": "That date could not be read. Choose it again.",
-        "seal_not_stuck": "This is not waiting for its signed copy any more. The page was refreshed."
+        "seal_not_stuck": "This is not waiting for its signed copy any more. The page was refreshed.",
+        "cancel_not_allowed": "Only the person who sent this, or an admin, can cancel it.",
+        "cancel_reason_invalid": "Give a reason of 3 to 500 characters.",
+        "document_not_completed": "Only a completed document can be cancelled.",
+        "document_already_cancelled": "This document was already cancelled.",
+        "envelope_not_completed": "Only a completed document collection can be cancelled.",
+        "envelope_already_cancelled": "This document collection was already cancelled.",
+        "belongs_to_collection": "This document is part of a document collection. Cancel the collection instead; that cancels every document in it."
       },
       "contactTab": {
         "tab": "Documents",
@@ -9481,6 +9494,36 @@
         "started": "Trying again now. The signed copy appears here when it is ready.",
         "collectionNote": "At least one signed copy could not be made. Nothing the people signed is lost.",
         "reasonOn": "{title}: {error}"
+      },
+      "cancel": {
+        "title": "Cancel this document?",
+        "body": "The signed copy and its certificate stay as a record, but the document will be marked cancelled and cannot be reactivated. To use it again, send a new document.",
+        "bodyCollection": "The signed copies and their certificates stay as a record, but the documents will be marked cancelled and cannot be reactivated. To use them again, send new documents.",
+        "collectionWarning": "This cancels all {count, plural, one {# document} other {# documents}} in the collection.",
+        "reason": "Reason for cancelling",
+        "reasonHint": "Required. Everyone who can see this document can read it.",
+        "reasonRequired": "Say why this is being cancelled.",
+        "reasonShort": "Give a reason of at least {min} characters.",
+        "counter": "{count} / {max}",
+        "notify": "Notify everyone",
+        "notifyWho": "Emails the {signers, plural, one {# signer} other {# signers}}, the {copies, plural, one {# person who receives a copy} other {# people who receive a copy}} and the sender.",
+        "notifyWhoPlain": "Emails the signers, the people who receive a copy and the sender.",
+        "notifyNote": "One short email each, with no link and no document. Off unless you tick it.",
+        "keep": "Keep document",
+        "action": "Cancel document",
+        "done": "The document was cancelled",
+        "doneCollection": "The collection was cancelled: {count, plural, one {# document} other {# documents}}",
+        "noticeSome": "{failed, plural, one {# email} other {# emails}} could not be delivered. The history has the details."
+      },
+      "cancelledBanner": {
+        "title": "This document was cancelled",
+        "titleCollection": "This document collection was cancelled",
+        "byOn": "Cancelled by {name} on {date}.",
+        "on": "Cancelled on {date}.",
+        "reason": "Reason: {reason}",
+        "note": "The signed copy and its certificate are kept as a record of what was signed, but this document is no longer in force.",
+        "noteCollection": "Every document in the collection was cancelled with it. The signed copies and certificates are kept as a record of what was signed, but they are no longer in force.",
+        "withCollection": "It was cancelled together with its collection:"
       }
     },
     "editor": {
@@ -10541,7 +10584,8 @@
           "signed": "Signed",
           "filled": "Filled in",
           "declined": "Declined"
-        }
+        },
+        "cancelled": "Cancelled"
       },
       "save": {
         "saving": "Saving...",
@@ -10566,7 +10610,8 @@
           "waiting": "Waiting for others",
           "completed": "Completed",
           "stopped": "Stopped",
-          "test": "Test"
+          "test": "Test",
+          "cancelled": "Cancelled"
         },
         "searchLabel": "Search documents",
         "searchPlaceholder": "Search by title, reference or signer",
@@ -10651,7 +10696,16 @@
         "dateFrom": "Made from",
         "dateTo": "Made until",
         "contactLabel": "Contact",
-        "rangeBackwards": "The start date is after the end date, so nothing can match."
+        "rangeBackwards": "The start date is after the end date, so nothing can match.",
+        "groupHelp": {
+          "all": "Everything, including documents that were cancelled after they were completed.",
+          "completed": "Completed documents that are still in force. Documents cancelled after they were completed are under Cancelled.",
+          "cancelled": "Completed documents that were cancelled afterwards. The signed copy is kept as a record, but they are no longer in force."
+        },
+        "cancelledOn": "Cancelled {date}",
+        "rowActions": "More actions for {title}",
+        "cancelAction": "Cancel document",
+        "colActions": "Actions"
       },
       "new": {
         "title": "New document",
@@ -11538,6 +11592,12 @@
         "notInvitedForm": {
           "title": "It is not your turn yet",
           "body": "Someone needs to finish before you. We will message you when it is your turn. You can close this page."
+        },
+        "cancelled": {
+          "title": "This document was cancelled on {date}",
+          "titleCollection": "These documents were cancelled on {date}",
+          "note": "The signed copy below remains a record of what was signed. It is no longer in force.",
+          "noteForm": "The record below remains a record of what was submitted. It is no longer in force."
         }
       },
       "others": {
@@ -11926,6 +11986,11 @@
         "title": "Certificate",
         "separate": "The certificate of this document is a separate file, sealed with a digital signature. It names the signed document it covers: {file}.",
         "fingerprint": "Fingerprint of the certificate (SHA-256)"
+      },
+      "cancelled": {
+        "title": "Cancelled on {date}",
+        "body": "This document was cancelled after it was signed. The signature and the record on this page are genuine, but the document is no longer in force.",
+        "bodyForm": "This record was cancelled after it was submitted. The record on this page is genuine, but it is no longer in force."
       }
     },
     "bulk": {

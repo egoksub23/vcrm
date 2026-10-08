@@ -106,6 +106,8 @@ describe("emitSignEvent: both channels", () => {
       // (migration 178: empty for a document whose certificate is inside the signed PDF)
       certificate_sha256: "",
       verify_url: `https://halo.example/verify/${DOC}`,
+      // (migration 181: empty for every event but a cancellation)
+      cancelled_at: "",
     });
     // the loop guard starts at one link
     expect(trigger.context.vars).toEqual({ _sign_chain_depth: 1 });
@@ -148,8 +150,26 @@ describe("emitSignEvent: both channels", () => {
     expect(buildSignEventData(doc({ certificate_sha256: CERT }), [], "sent", "https://halo.example", { templateId: null, templateName: null, categoryName: null })).not.toHaveProperty("certificate_sha256");
   });
 
-  it("each event goes out as sign.<event>", async () => {
+  it("carries the stamp of a cancellation and the proof of the record, only on the cancelled event (migration 181)", () => {
+    const stamped = doc({ cancelled_at: "2026-10-08T02:00:00Z", cancelled_by: "u1", cancel_reason: "Wrong price list" });
+    const data = buildSignEventData(stamped, [], "cancelled", "https://halo.example", { templateId: null, templateName: null, categoryName: null });
+    expect(data).toMatchObject({ status: "completed", final_sha256: SHA, verify_url: expect.stringContaining("/verify/"), cancelled_at: "2026-10-08T02:00:00Z" });
+    expect(toAutomationContext(data, "cancelled")).toMatchObject({ event: "cancelled", status: "completed", cancelled_at: "2026-10-08T02:00:00Z", verify_url: data.verify_url });
+    // as a void's reason is not sent, neither is the reason for a cancellation, nor who cancelled; no address either
+    expect(JSON.stringify(data)).not.toMatch(/@|Wrong price list|"u1"|cancel_reason|cancelled_by/);
+    expect(JSON.stringify(toAutomationContext(data, "cancelled"))).not.toMatch(/Wrong price list|cancel_reason/);
+    // and no other event says anything about a cancellation
     for (const e of ["sent", "viewed", "completed", "declined", "expired", "voided"] as const) {
+      const other = buildSignEventData(stamped, [], e, "https://halo.example", { templateId: null, templateName: null, categoryName: null });
+      expect(other, e).not.toHaveProperty("cancelled_at");
+      expect(toAutomationContext(other, e).cancelled_at, e).toBe("");
+    }
+    // a cancelled event for a row without a stamp (it cannot happen) claims nothing
+    expect(buildSignEventData(doc(), [], "cancelled", "https://halo.example", { templateId: null, templateName: null, categoryName: null })).not.toHaveProperty("cancelled_at");
+  });
+
+  it("each event goes out as sign.<event>", async () => {
+    for (const e of ["sent", "viewed", "completed", "declined", "expired", "voided", "cancelled"] as const) {
       m.webhooks.mockClear();
       await emitSignEvent(ctx, doc(), e);
       expect(m.webhooks.mock.calls[0][2]).toBe(`sign.${e}`);

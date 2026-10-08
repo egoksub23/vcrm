@@ -28,13 +28,15 @@ Ask your admin to check that **Secure Sign** is switched on for your workspace. 
 2. Name the key after the system that will use it, for example "Merchant onboarding".
 3. Tick the permissions it needs:
    - **sign:read** lets it see templates and documents and download signed copies.
-   - **sign:write** lets it send documents, send reminders and cancel documents.
+   - **sign:write** lets it send documents, send reminders and cancel documents that are still out for signature. A key cannot cancel a completed document; a person does that in Halo.
    A system that only needs to fetch signed copies needs only **sign:read**.
 4. Create the key and copy it. **It is shown only once.** Give it to your developer through a safe channel, not by chat or email.
 
 You cannot add a permission to a key later. Make a new key and revoke the old one from the same screen.
 
 ## What your developer needs to know
+
+- **Cancelled documents.** A person in Halo can cancel a document after it is completed. It stays `completed` with its signed file and certificate unchanged, and now also has `cancelled: true`, `cancelled_at`, `cancelled_by` and `cancel_reason`. The documents list takes `cancelled=true` or `cancelled=false`, and a `sign.cancelled` webhook (and an automation trigger) tells your system when it happens. Ask your developer to treat a cancelled document as no longer in force.
 
 - **Templates first.** The templates list tells your developer each template's roles (for example "merchant" and "director") and the values the sender can fill in. Documents are sent to people by role.
 - **Use a reference.** Your system should give each document its own reference, such as your merchant number. If the same call is made twice by mistake, Halo returns the first document and does not send a second one. Without a reference, a repeated call sends a second document.

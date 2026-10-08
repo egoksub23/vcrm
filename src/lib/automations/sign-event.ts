@@ -9,7 +9,7 @@
 import type { SignDocumentEventTriggerConfig, SignEventName } from '@/types'
 
 /** Every event, in the order a document meets them. The webhooks are `sign.<name>`. */
-export const SIGN_EVENT_NAMES: readonly SignEventName[] = ['sent', 'viewed', 'completed', 'declined', 'expired', 'voided']
+export const SIGN_EVENT_NAMES: readonly SignEventName[] = ['sent', 'viewed', 'completed', 'declined', 'expired', 'voided', 'cancelled']
 
 export function isSignEventName(v: unknown): v is SignEventName {
   return typeof v === 'string' && (SIGN_EVENT_NAMES as readonly string[]).includes(v)
@@ -36,12 +36,14 @@ export interface SignEventContext {
   final_sha256: string
   /** Only for completed, and only when the certificate is a file of its own (migration 178); empty for a document sealed before it. */
   certificate_sha256?: string
-  /** The public page that proves the signed file is genuine (completed only). */
+  /** The public page that proves the signed file is genuine (completed, and cancelled: a cancelled document is still a genuine record). */
   verify_url: string
+  /** Only for cancelled (migration 181): when a completed document was cancelled. Empty for every other event. The reason is not here, as a void's is not. */
+  cancelled_at?: string
 }
 
 /** The names `{{ sign.<name> }}` resolves, for the "Insert variable" list. */
-export const SIGN_VARIABLES = ['document_id', 'reference', 'title', 'status', 'event', 'template', 'final_sha256', 'certificate_sha256', 'verify_url'] as const
+export const SIGN_VARIABLES = ['document_id', 'reference', 'title', 'status', 'event', 'template', 'final_sha256', 'certificate_sha256', 'verify_url', 'cancelled_at'] as const
 
 /** The events a trigger configuration listens to (empty or missing = completed only). */
 export function eventsOf(cfg: SignDocumentEventTriggerConfig | null | undefined): SignEventName[] {

@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Archive, ArrowLeft, Award, Bell, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send } from "lucide-react";
+import { Archive, ArrowLeft, Award, Bell, CircleOff, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -17,17 +17,22 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAccountMembers } from "@/hooks/use-account-members";
+import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useNow } from "@/hooks/use-now";
 import type { EnvelopeData } from "@/hooks/use-sign-envelope";
 import { SignApiError, documentFileUrl, envelopeZipUrl, signRequest } from "@/lib/sign/client/api";
 import { errorKey } from "@/lib/sign/client/errors";
+import { canCancelRow, isCancelled } from "@/lib/sign/cancel";
 import { remindHeldUntil } from "@/lib/sign/defaults";
 import { SIGN_STATUS_NAMESPACE, signerBadgeClass, signerStatusKey } from "@/lib/sign/client/status";
 import { canVoidEnvelope, documentsDone, peopleFromRows } from "@/lib/sign/envelopes";
 import type { SignChannel, SignCopyRecipientRow, SignSignerRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
+import { CancelDialog, audienceOf } from "../detail/cancel-dialog";
+import { CancelledBanner } from "../detail/cancelled-banner";
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredLink } from "../detail/signer-dialogs";
 import { detailErrorKey, type RecipientForm } from "../detail/logic";
 import { SealRetry } from "../detail/seal-retry";
@@ -62,6 +67,8 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const canSend = useCapability("sign.send");
   const canVoid = useCapability("sign.void");
   const canSettings = useCapability("sign.settings");
+  const { user, isAdmin, isOwner } = useAuth();
+  const { nameOf } = useAccountMembers();
   const now = useNow(60_000);
   const { envelope: env, documents, signers } = data;
   // the people who receive a copy are not signers: they are not in `signers`, so they are not in "x of y signed", the progress or the reminders
@@ -73,12 +80,16 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [link, setLink] = useState<UndeliveredLink | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [extending, setExtending] = useState(false);
   const [copyBusy, setCopyBusy] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
 
   const day = (iso: string | null) => (iso ? f.dateTime(new Date(iso), { dateStyle: "medium" }) : "");
   const verdict = canVoidEnvelope(statuses);
+  // migration 181: a completed collection can be cancelled, as a whole, by the person who made it and by admins; it then reads Cancelled
+  const cancelled = isCancelled(env);
+  const canCancel = canCancelRow(env, { userId: user?.id, isAdmin: isAdmin || isOwner });
   const { done, total } = documentsDone(statuses);
   const people = peopleFromRows(signers);
   const rowsOf = (key: string) => signers.filter((s) => (s.party_id ?? s.id) === key);
@@ -142,7 +153,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
           </Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="min-w-0 break-words text-xl font-semibold text-foreground">{env.title}</h1>
-            <DocumentStatusBadge status={env.status} />
+            <DocumentStatusBadge status={env.status} cancelled={cancelled} />
             <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{t("badge", { count: documents.length })}</span>
             {env.is_private ? <PrivateBadge className="h-5" /> : null}
           </div>
@@ -159,8 +170,16 @@ export function EnvelopeDetail({ data, reload }: Props) {
               {t("detail.void")}
             </Button>
           ) : null}
+          {canCancel ? (
+            <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => setCancelling(true)}>
+              <CircleOff aria-hidden />
+              {td("cancel.action")}
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {cancelled && env.cancelled_at ? <CancelledBanner isCollection at={env.cancelled_at} by={env.cancelled_by ? nameOf(env.cancelled_by) || null : null} reason={env.cancel_reason?.trim() || null} /> : null}
 
       <section role="status" className="rounded-xl border border-border bg-card p-4 text-sm">
         <p className="font-medium text-foreground">
@@ -219,7 +238,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
                 <p className="text-xs text-muted-foreground">{[d.reference, d.completedAt ? td("banner.completedOn", { date: day(d.completedAt) }) : null].filter(Boolean).join(" · ")}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <DocumentStatusBadge status={d.status} />
+                <DocumentStatusBadge status={d.status} cancelled={!!d.cancelledAt} />
                 {d.hasFinalFile ? (
                   <a href={documentFileUrl(d.id, "final", true)} className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.8rem] font-medium hover:bg-muted">
                     <Download className="size-3.5" aria-hidden />
@@ -330,6 +349,15 @@ export function EnvelopeDetail({ data, reload }: Props) {
       ) : null}
       {link ? <LinkDialog value={link} onClose={() => setLink(null)} /> : null}
       {voiding ? <VoidDialog envelopeId={env.id} title={env.title} onClose={() => setVoiding(false)} onVoided={async () => void (await reload())} /> : null}
+      {cancelling ? (
+        <CancelDialog
+          target={{ kind: "collection", id: env.id, documents: documents.length }}
+          title={env.title}
+          audience={audienceOf({ signers, copies })}
+          onClose={() => setCancelling(false)}
+          onCancelled={async () => void (await reload())}
+        />
+      ) : null}
       {extending ? <ExtendDialog envelopeId={env.id} current={env.expires_at} onClose={() => setExtending(false)} onDone={async () => void (await reload())} /> : null}
     </div>
   );

@@ -46,7 +46,7 @@ export function callerOf(ctx: SignCtx): Caller {
 
 /** Whether this person is an admin or owner of the workspace; asked once per context. */
 const adminAnswers = new WeakMap<object, Promise<boolean>>();
-async function isAdminOf(ctx: SignCtx, userId: string): Promise<boolean> {
+export async function isAdminOf(ctx: SignCtx, userId: string): Promise<boolean> {
   let pending = adminAnswers.get(ctx);
   if (!pending) {
     pending = (async () => {

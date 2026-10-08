@@ -270,7 +270,7 @@ export function parseCreateBody(body: Record<string, unknown>): ApiCreateInput {
   return { templateId, reference, title, contactId, signers, copyTo, mergeValues, message, locale, expiresInDays, signInOrder, codeRequired, send };
 }
 
-/** `?status`, `?contact_id`, `?template_id`, `?reference`, `?created_after` of the list, or a 400. */
+/** `?status`, `?contact_id`, `?template_id`, `?reference`, `?created_after`, `?cancelled` of the list, or a 400. */
 export function parseListFilters(url: URL): ListFilters {
   const problems: Problem[] = [];
   const get = (k: string) => {
@@ -285,6 +285,11 @@ export function parseListFilters(url: URL): ListFilters {
   if (templateId && !isUuid(templateId)) problems.push({ field: 'template_id', detail: 'must be a template id' });
   const reference = get('reference');
   if (reference && reference.length > 64) problems.push({ field: 'reference', detail: 'must be up to 64 characters' });
+  const cancelledRaw = get('cancelled');
+  let cancelled: boolean | null = null;
+  if (cancelledRaw === 'true') cancelled = true;
+  else if (cancelledRaw === 'false') cancelled = false;
+  else if (cancelledRaw !== null) problems.push({ field: 'cancelled', detail: 'must be true or false' });
   let createdAfter: string | null = null;
   const after = get('created_after');
   if (after) {
@@ -295,7 +300,7 @@ export function parseListFilters(url: URL): ListFilters {
   if (problems.length > 0) {
     throw new SignError('bad_request', 'Some filters are not valid. See `issues`.', 400, problems.map((p) => ({ code: 'invalid', field: p.field, detail: p.detail })));
   }
-  return { status, contactId, templateId, reference, createdAfter };
+  return { status, contactId, templateId, reference, createdAfter, cancelled };
 }
 
 // ---- resources -------------------------------------------------------------------------------------------
@@ -329,6 +334,7 @@ type DocumentFacts = ListedDocument | SignDocumentRow;
  */
 export function serializeDocumentFacts(d: DocumentFacts, templateId: string | null, origin: string) {
   const completed = d.status === 'completed' && !!d.final_sha256;
+  const cancelled = d.status === 'completed' && !!d.cancelled_at;
   return {
     id: d.id,
     reference: d.reference,
@@ -350,6 +356,11 @@ export function serializeDocumentFacts(d: DocumentFacts, templateId: string | nu
     expires_at: d.expires_at,
     completed_at: d.completed_at,
     void_reason: d.status === 'voided' ? d.void_reason : null,
+    // migration 181: a completed document that was cancelled afterwards stays `completed` (and keeps its final_sha256, certificate and verify_url); these say it is no longer in force
+    cancelled: cancelled,
+    cancelled_at: cancelled ? (d.cancelled_at ?? null) : null,
+    cancelled_by: cancelled ? (d.cancelled_by ?? null) : null,
+    cancel_reason: cancelled ? (d.cancel_reason ?? null) : null,
     final_sha256: completed ? d.final_sha256 : null,
     certificate_sha256: completed ? (d.certificate_sha256 ?? null) : null,
     verify_url: completed ? verifyLink(origin, d.id) : null,

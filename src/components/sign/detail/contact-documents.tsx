@@ -31,6 +31,8 @@ export interface Row {
   created_at: string;
   sent_at: string | null;
   completed_at: string | null;
+  /** Migration 181: a completed document that was cancelled afterwards reads Cancelled. */
+  cancelled_at?: string | null;
 }
 
 type State = { key: string; rows: Row[] | null };
@@ -63,7 +65,7 @@ export function DocumentRows({ rows, kind }: { rows: readonly Row[]; kind: Panel
                 {formatDay(r.completed_at ?? r.sent_at ?? r.created_at, locale)}
               </span>
             </span>
-            <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium", documentBadgeClass(r.status))}>{ts(documentStatusKey(r.status))}</span>
+            <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium", documentBadgeClass(r.status, !!r.cancelled_at))}>{ts(documentStatusKey(r.status, !!r.cancelled_at))}</span>
           </Link>
         </li>
       ))}
@@ -83,7 +85,7 @@ export function RecordDocuments({ kind, id, contactId = null }: Props) {
     (async () => {
       const { data, error } = await createClient()
         .from("sign_documents")
-        .select("id, reference, title, status, test, created_at, sent_at, completed_at")
+        .select("id, reference, title, status, test, created_at, sent_at, completed_at, cancelled_at")
         .eq(DOCUMENT_COLUMN[kind], id)
         .order("created_at", { ascending: false })
         .limit(100);

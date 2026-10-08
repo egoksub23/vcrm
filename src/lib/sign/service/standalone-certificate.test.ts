@@ -387,7 +387,9 @@ describe("downloads and the page that checks a document", () => {
     w.tokens.set(signer.id, w.tokens.get(signer.id) ?? "a".repeat(64));
     // this document was made without a send, so its links were never issued: give Ali one
     const { hashToken } = await import("../tokens");
-    w.db.seed("sign_signer_secrets", [{ signer_id: signer.id, account_id: w.ctx.accountId, token_hash: hashToken("a".repeat(64)), code_hash: null, code_expires_at: null, code_attempts: 0 }]);
+    if (!w.db.rows("sign_signer_secrets").some((s) => s.signer_id === signer.id)) {
+      w.db.seed("sign_signer_secrets", [{ signer_id: signer.id, account_id: w.ctx.accountId, token_hash: hashToken("a".repeat(64)), code_hash: null, code_expires_at: null, code_attempts: 0 }]);
+    }
     return (await lookupByToken(w.ctx.admin, "a".repeat(64)))!;
   };
 
@@ -414,6 +416,30 @@ describe("downloads and the page that checks a document", () => {
     expect((await buildView(w.ctx, lookup, true)).document.hasCertificate).toBeUndefined();
     // the verify page says what it always said
     expect((await loadVerification(w.ctx.admin, d.id))?.certificate).toBeUndefined();
+  }, 30_000);
+
+  it("tells the signer, the verify page and the API that a cancelled document was cancelled, and still serves its signed copy and certificate unchanged (migration 181)", async () => {
+    const d = await completedDocument();
+    const before = { path: d.final_path, finalSha: d.final_sha256, certSha: d.certificate_sha256 };
+    // not cancelled: no date on the signer's page
+    expect((await buildView(w.ctx, await lookupOf(d.id), true)).document.cancelledAt).toBeUndefined();
+    Object.assign(d, { cancelled_at: "2026-10-08T02:00:00Z", cancelled_by: "u1", cancel_reason: "Wrong price list" });
+    // the signer's page: the date, never the reason; the downloads are as they were
+    const lookup = await lookupOf(d.id);
+    const view = await buildView(w.ctx, lookup, true);
+    expect(view.document.cancelledAt).toBe("2026-10-08T02:00:00Z");
+    expect(view.document.hasCertificate).toBe(true);
+    expect(JSON.stringify(view)).not.toContain("Wrong price list");
+    expect(sha((await fileForSigner(w.ctx, lookup, true))!.bytes)).toBe(d.final_sha256);
+    expect(sha((await certificateForSigner(w.ctx, lookup, true))!.bytes)).toBe(d.certificate_sha256);
+    // the verify page: cancelled, and still verified
+    const verified = await loadVerification(w.ctx.admin, d.id);
+    expect(verified).toMatchObject({ cancelledAt: "2026-10-08T02:00:00Z", sha256: d.final_sha256, certificate: { sha256: d.certificate_sha256 } });
+    // the API serves the same signed file and certificate
+    expect(sha((await fileForApi(w.ctx, d.id, "signed")).bytes)).toBe(d.final_sha256);
+    expect(sha((await fileForApi(w.ctx, d.id, "certificate")).bytes)).toBe(d.certificate_sha256);
+    // nothing about the record moved
+    expect([d.final_path, d.final_sha256, d.certificate_sha256]).toEqual([before.path, before.finalSha, before.certSha]);
   }, 30_000);
 
   it("gives the API the certificate's bytes and fingerprint, refuses it before completion and for a private document, and logs the download", async () => {

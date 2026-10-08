@@ -161,6 +161,17 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     values.name = text(detail.name, 160) ?? ctx.someone;
     values.email = text(detail.email, 200) ?? "";
     values.reference = text(detail.reference, 40) ?? "";
+  } else if (row.type === "cancelled") {
+    // a completed document (or the collection it is in) was cancelled (migration 181): when it was a whole collection, how many documents went with it
+    values.by = sender;
+    values.count = typeof detail.count === "number" ? String(detail.count) : "";
+    values.reference = text(detail.reference, 40) ?? "";
+    if (typeof detail.envelope_id === "string") key = "events.cancelledCollection";
+  } else if (row.type === "cancel_notice_sent") {
+    // counts only: how many people were emailed and how many could not be (their names and addresses are not in the history)
+    values.sent = typeof detail.sent === "number" ? String(detail.sent) : "0";
+    values.failed = typeof detail.failed === "number" ? String(detail.failed) : "0";
+    if (typeof detail.failed === "number" && detail.failed > 0) key = "events.cancel_notice_sentSome";
   } else if (row.type === "signer_moved") {
     values.step = typeof detail.to_step === "number" ? String(detail.to_step) : "";
   } else if (row.type === "forwarding_changed") {
@@ -246,7 +257,7 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     actorName: person ?? (row.actor_type === "signer" ? signerName : null),
     failed: FAILURES.has(row.type),
     minor: MINOR.has(row.type),
-    reason: row.type === "declined" || row.type === "voided" ? text(detail.reason, 1000) : null,
+    reason: row.type === "declined" || row.type === "voided" || row.type === "cancelled" ? text(detail.reason, 1000) : null,
     details,
     contactFields,
     link,

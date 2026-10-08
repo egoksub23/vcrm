@@ -19,6 +19,7 @@ import { chooseEmailTransport as chooseWorkspaceTransport, realWorkspaceMailDeps
 import { sendTemplateMessage } from "@/lib/whatsapp/meta-api";
 import { decrypt } from "@/lib/whatsapp/encryption";
 
+import { cancelEmail, type CancelEmailArgs } from "./cancel-messages";
 import { copyEmail, envelopeCopyEmail } from "./copy-messages";
 import { codeEmail, completedEmail, declinedEmail, expiredEmail, forwardEmail, forwardNoticeEmail, invitationEmail, reminderEmail, testEmail, voidedEmail, type Rendered } from "./messages";
 import { envelopeCompletedEmail, envelopeInvitationEmail, envelopeReminderEmail } from "./envelope-messages";
@@ -431,4 +432,15 @@ export async function deliverEnvelopeCopy(
     });
     return { m, attachments: plan.attachments.length ? plan.attachments : undefined };
   });
+}
+
+// ---- a completed document was cancelled (migration 181) ----------------------------------------------------------
+
+/**
+ * Tell one person that a completed document, or a whole collection, was cancelled (the canceller ticked "Notify everyone"). ONE short email, in the
+ * person's language, through the same sender and with the same marker as the rest of Secure Sign mail. It carries no signing link, no document and no
+ * file: the signed copy the person already has remains a record, no longer in force. Never throws.
+ */
+export async function deliverCancelNotice(deps: NotifyDeps, accountId: string, w: Workspace, to: { name: string; email: string }, args: Omit<CancelEmailArgs, "workspace">): Promise<Delivery> {
+  return viaEmail(deps, accountId, to.email, cancelEmail({ ...args, workspace: w.name }), displayFrom(w));
 }

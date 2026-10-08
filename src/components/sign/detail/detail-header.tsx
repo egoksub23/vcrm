@@ -5,11 +5,12 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Archive, Award, ChevronRight, Download, Eye, FileDown, Loader2, Ban } from "lucide-react";
+import { Archive, Award, Ban, ChevronRight, CircleOff, Download, Eye, FileDown, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { documentBadgeClass, documentStatusKey, SIGN_STATUS_NAMESPACE } from "@/lib/sign/client/status";
+import { isCancelled } from "@/lib/sign/cancel";
 import type { SignDocumentRow } from "@/lib/sign/types";
 import { cn } from "@/lib/utils";
 
@@ -28,11 +29,13 @@ interface Props {
   onView: () => void;
   onDownload: (kind: DownloadKind) => void;
   onVoid: () => void;
+  /** Migration 181: open the cancel dialog (the button shows only when `actions.cancel`). */
+  onCancel?: () => void;
   /** F-95: the sender's switch for forwarding, while the document is open (absent when it cannot change). */
   forwarding?: { allowed: boolean; busy: boolean; onChange: (allow: boolean) => void };
 }
 
-export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid, forwarding }: Props) {
+export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid, onCancel, forwarding }: Props) {
   const t = useTranslations("Sign.detail");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const locale = useLocale();
@@ -53,7 +56,7 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="min-w-0 break-words text-2xl font-bold text-foreground">{doc.title}</h1>
-            <span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium", documentBadgeClass(doc.status))}>{ts(documentStatusKey(doc.status))}</span>
+            <span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium", documentBadgeClass(doc.status, isCancelled(doc)))}>{ts(documentStatusKey(doc.status, isCancelled(doc)))}</span>
             {doc.test && <span className="inline-flex h-6 items-center rounded-full bg-red-100 px-2.5 text-xs font-bold tracking-wide text-red-700 uppercase dark:bg-red-950 dark:text-red-300">{t("header.testChip")}</span>}
             {doc.is_private && <PrivateBadge className="h-6 px-2.5 text-xs" />}
             {doc.mode === "form" && <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted-foreground">{t("header.formChip")}</span>}
@@ -102,6 +105,12 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
               {t("actions.void")}
             </Button>
           )}
+          {actions.cancel && onCancel && (
+            <Button variant="outline" className="text-destructive" onClick={onCancel}>
+              <CircleOff aria-hidden />
+              {t("cancel.action")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -141,6 +150,7 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
         <Meta label={t("meta.created")}>{formatWhen(doc.created_at, locale)}</Meta>
         {doc.sent_at && <Meta label={t("meta.sent")}>{formatWhen(doc.sent_at, locale)}</Meta>}
         {doc.completed_at && <Meta label={t("meta.completed")}>{formatWhen(doc.completed_at, locale)}</Meta>}
+        {isCancelled(doc) && doc.cancelled_at && <Meta label={t("meta.cancelled")}>{formatWhen(doc.cancelled_at, locale)}</Meta>}
         {doc.expires_at && <Meta label={t(doc.status === "expired" ? "meta.expired" : "meta.expires")}>{formatWhen(doc.expires_at, locale)}</Meta>}
       </dl>
     </header>

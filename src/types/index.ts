@@ -1446,7 +1446,7 @@ export interface CreateTicketStepConfig {
 }
 
 /** What happened to a Doc Sign document (the `sign.<event>` webhooks carry the same names). */
-export type SignEventName = 'sent' | 'viewed' | 'completed' | 'declined' | 'expired' | 'voided';
+export type SignEventName = 'sent' | 'viewed' | 'completed' | 'declined' | 'expired' | 'voided' | 'cancelled';
 
 export interface SignDocumentEventTriggerConfig {
   /** Which events fire it. Empty or missing = completed only. */

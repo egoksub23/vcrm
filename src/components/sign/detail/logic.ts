@@ -5,6 +5,7 @@
 // ============================================================
 
 import { waitingSummary } from "@/lib/sign/client/status";
+import { canCancelRow, type CancelViewer } from "@/lib/sign/cancel";
 import { REMIND_GAP_MS as REMIND_GAP } from "@/lib/sign/defaults";
 import type { DocumentStatus, SignSignerRow } from "@/lib/sign/types";
 
@@ -135,6 +136,9 @@ export interface ActionDoc {
   original_path: string | null;
   /** Migration 169: `form` for a form without a signature. Its base file is only a stand-in: nobody reads it, and only the sealed record is viewed. */
   mode?: string | null;
+  /** Migration 181: who made it and whether it was cancelled afterwards (for the Cancel action). */
+  created_by?: string | null;
+  cancelled_at?: string | null;
 }
 
 export interface DocumentActions {
@@ -146,9 +150,11 @@ export interface DocumentActions {
   viewKind: "final" | "base" | null;
   downloadOriginal: boolean;
   void: boolean;
+  /** Migration 181: "Cancel document" for a completed document that was not cancelled yet, to the person who made it and to admins. The server asks again. */
+  cancel: boolean;
 }
 
-export function documentActions(doc: ActionDoc, caps: Pick<DetailCaps, "void">): DocumentActions {
+export function documentActions(doc: ActionDoc, caps: Pick<DetailCaps, "void">, viewer?: CancelViewer): DocumentActions {
   const completed = doc.status === "completed" && !!doc.final_path;
   const ownCertificate = completed && !!doc.certificate_path;
   return {
@@ -158,6 +164,7 @@ export function documentActions(doc: ActionDoc, caps: Pick<DetailCaps, "void">):
     viewKind: completed ? "final" : doc.base_path && doc.mode !== "form" ? "base" : null,
     downloadOriginal: !!doc.original_path,
     void: caps.void && (doc.status === "sent" || doc.status === "in_progress"),
+    cancel: !!viewer && canCancelRow(doc, viewer),
   };
 }
 
@@ -279,6 +286,14 @@ export const DETAIL_ERROR_CODES = [
   "envelope_partly_completed",
   "envelope_person_has_signed",
   "document_in_envelope",
+  // cancelling a completed document or collection (migration 181)
+  "cancel_not_allowed",
+  "cancel_reason_invalid",
+  "document_not_completed",
+  "document_already_cancelled",
+  "envelope_not_completed",
+  "envelope_already_cancelled",
+  "belongs_to_collection",
   "expiry_in_the_past",
   "expiry_not_later",
   "expiry_too_far",

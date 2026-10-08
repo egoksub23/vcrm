@@ -565,6 +565,39 @@ describe('GET /documents/{id}', () => {
     expect(body.data.verify_url).toBe(`https://halo.test/verify/${id}`);
   });
 
+  it('shows a document that was cancelled after it was completed as still completed, with the fingerprint and the verify address, and says it was cancelled (migration 181)', async () => {
+    const { body: made } = await created();
+    const id = made.data.id as string;
+    // not cancelled: the members are there and say no
+    const plain = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(plain.data).toMatchObject({ cancelled: false, cancelled_at: null, cancelled_by: null, cancel_reason: null });
+    Object.assign(db.rows('sign_documents')[0], { status: 'completed', completed_at: '2026-10-07T01:00:00Z', final_path: `account-${A}/${id}/final/x.pdf`, final_sha256: 'f'.repeat(64) });
+    const completed = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(completed.data).toMatchObject({ status: 'completed', cancelled: false });
+    Object.assign(db.rows('sign_documents')[0], { cancelled_at: '2026-10-08T02:00:00Z', cancelled_by: USER, cancel_reason: 'Signed with the wrong price list.' });
+    const body = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(body.data).toMatchObject({
+      status: 'completed',
+      final_sha256: 'f'.repeat(64),
+      completed_at: '2026-10-07T01:00:00Z',
+      cancelled: true,
+      cancelled_at: '2026-10-08T02:00:00Z',
+      cancelled_by: USER,
+      cancel_reason: 'Signed with the wrong price list.',
+    });
+    expect(body.data.verify_url).toBe(`https://halo.test/verify/${id}`);
+    // the person is an id and nothing more: no name, no address
+    expect(Object.keys(body.data).filter((k) => k.startsWith('cancel'))).toEqual(['cancelled', 'cancelled_at', 'cancelled_by', 'cancel_reason']);
+  });
+
+  it('never reads a stamp on a document that is not completed as a cancellation', async () => {
+    const { body: made } = await created();
+    const id = made.data.id as string;
+    Object.assign(db.rows('sign_documents')[0], { cancelled_at: '2026-10-08T02:00:00Z', cancelled_by: USER, cancel_reason: 'stray' });
+    const body = await json(await getDocument(call('GET', `/documents/${id}`, 'read'), withId(id)));
+    expect(body.data).toMatchObject({ status: 'sent', cancelled: false, cancelled_at: null, cancelled_by: null, cancel_reason: null });
+  });
+
   it("answers 404 with no hint for another workspace's document, a missing one, and an id that is not one", async () => {
     const { body: made } = await created();
     const id = made.data.id as string;
@@ -971,6 +1004,33 @@ describe('GET /documents', () => {
     expect(res.status).toBe(400);
     const body = await json(res);
     expect(body.error?.issues?.map((i: any) => i.field)).toEqual(['status', 'contact_id', 'template_id', 'reference', 'created_after']);
+  });
+
+  it('filters on cancelled=true and cancelled=false (a cancelled document is still completed for status), and says what each row is', async () => {
+    const s = stub({ documents: [doc(2, { status: 'completed', final_sha256: 'f'.repeat(64), completed_at: '2026-10-07T01:00:00Z', cancelled_at: '2026-10-08T02:00:00Z', cancelled_by: USER, cancel_reason: 'Wrong price list' }), doc(1, { status: 'completed', final_sha256: 'e'.repeat(64) })] });
+    h.client = s.client;
+    const body = await json(await listDocuments(call('GET', '/documents?status=completed&cancelled=true', 'read')));
+    expect(s.opsOf('sign_documents')[0]).toContainEqual(['eq', ['status', 'completed']]);
+    expect(s.opsOf('sign_documents')[0]).toContainEqual(['not', ['cancelled_at', 'is', null]]);
+    expect(body.data[0]).toMatchObject({ status: 'completed', cancelled: true, cancelled_at: '2026-10-08T02:00:00Z', cancelled_by: USER, cancel_reason: 'Wrong price list' });
+    expect(body.data[1]).toMatchObject({ status: 'completed', cancelled: false, cancelled_at: null, cancelled_by: null, cancel_reason: null });
+    await listDocuments(call('GET', '/documents?status=completed&cancelled=false', 'read'));
+    expect(s.opsOf('sign_documents')[1]).toContainEqual(['is', ['cancelled_at', null]]);
+    // without the filter both are listed: nothing is added to the query
+    await listDocuments(call('GET', '/documents?status=completed', 'read'));
+    const plain = s.opsOf('sign_documents')[2];
+    expect(plain.some(([, args]) => (args as unknown[]).includes('cancelled_at'))).toBe(false);
+  });
+
+  it('rejects a cancelled filter that is not true or false', async () => {
+    h.client = stub({ documents: [] }).client;
+    for (const bad of ['maybe', '1', 'TRUE', 'yes']) {
+      const res = await listDocuments(call('GET', `/documents?cancelled=${bad}`, 'read'));
+      expect(res.status, bad).toBe(400);
+      expect((await json(res)).error?.issues).toEqual([{ code: 'invalid', field: 'cancelled', detail: 'must be true or false' }]);
+    }
+    // empty means not given
+    expect((await listDocuments(call('GET', '/documents?cancelled=', 'read'))).status).toBe(200);
   });
 
   it('lists only this workspace through the service too (FakeDb), including drafts', async () => {

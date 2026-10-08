@@ -33,6 +33,10 @@ After that date the rule no longer stops a deletion. Secure Sign never deletes a
 
 A category can have its own period (see [Categories and add-ons](/help/doc-sign/categories-and-add-ons)). If a category has one, it is used for the documents of that category. If it is empty, the workspace period is used.
 
+## A cancelled document
+
+A completed document that was later cancelled (see [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel#cancel-a-completed-document)) is kept exactly like any other completed document. The retention period runs from the day it was completed, not from the day it was cancelled, cancelling does not shorten or restart it, and its signed PDF and certificate cannot be deleted before that date.
+
 ## What a change does to documents already signed
 
 Nothing. The retention date is fixed on the day a document is sealed. If you change the period from 7 to 10 years today, documents sealed from now on are kept for 10 years, and documents already sealed keep the date they were given. Settings shows how many signed documents are already past their retention date.

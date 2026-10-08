@@ -9,6 +9,7 @@ Applies from migration `165_sign_retention.sql`. Proved by `supabase/ci/verify-1
 - The sealed file and certificate-page rows of a retained document in `sign_document_files` are protected the same way. Other file rows (source, uploads) are not.
 - `retain_until` can be moved later, never earlier or cleared. `TRUNCATE` of both tables is refused.
 - After `retain_until` a completed document can be deleted (`DELETE /api/sign/documents/[id]`, needs `sign.settings`; the files are removed only after the row went). There is no button for it yet.
+- **A cancelled document is retained exactly like a completed one** (migration 181). Cancelling a completed document or collection only adds a stamp (`cancelled_at`, `cancelled_by`, `cancel_reason`); `status` stays `completed`, so `retain_until` is unchanged, the clock still runs from completion (not from the cancellation), and the signed file and certificate rows stay protected by the same trigger. Cancelling does not shorten, restart or lift retention; the end date is when it always was. A cancelled document can be deleted only after `retain_until`, like any completed one.
 - Drafts stay deletable. Documents that were sent but never sealed (declined, expired, voided, failed) are not under retention, and stay undeletable as before (void instead).
 - The application deletes the database row first and removes stored files only after that succeeded; a refusal leaves the files where they are.
 

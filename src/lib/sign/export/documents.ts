@@ -5,19 +5,21 @@
 // The filters are the list's own (status group, category, search, contact) plus a date range on the day a
 // document was made. The columns: reference, title, category, status, contact, signers, created, sent,
 // completed, expires, mode (`sign` for an agreement, `form` for a form without a signature: migration 169; added last so a
-// reader that counts columns is not moved). Cells that start with = + - @ are guarded by toCsv against spreadsheet formulas.
+// reader that counts columns is not moved), cancelled (`yes` for a completed document that was cancelled afterwards, else `no`: its status
+// stays `completed`) and cancelled_at (migration 181; added after mode for the same reason). The reason is not in the file: it is the
+// person's own free text and belongs on the document's page. Cells that start with = + - @ are guarded by toCsv against spreadsheet formulas.
 // ============================================================
 
 import { toCsv } from "@/lib/csv";
 
-import { GROUP_STATUSES, STATUS_GROUPS, sanitizeSearch, type StatusGroup } from "../client/list-filters";
+import { STATUS_GROUPS, narrowByGroup, sanitizeSearch, type StatusGroup } from "../client/list-filters";
 
 /** The most documents one file holds. */
 export const EXPORT_MAX_ROWS = 50_000;
 /** Documents read from the database per round trip while streaming (it answers at most 1000). */
 export const EXPORT_PAGE_SIZE = 500;
 
-export const EXPORT_HEADER = ["reference", "title", "category", "status", "contact", "signers", "created", "sent", "completed", "expires", "mode"] as const;
+export const EXPORT_HEADER = ["reference", "title", "category", "status", "contact", "signers", "created", "sent", "completed", "expires", "mode", "cancelled", "cancelled_at"] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -124,9 +126,8 @@ interface Filterable {
 
 /** Narrow a documents query to the filters. `clause` is the search's `or(...)` filter (title, reference, or a matching signer's document). */
 export function applyExportFilters<T>(query: T, f: ExportFilters, clause: string | null, range: { gte: string | null; lt: string | null }): T {
-  let q = query as unknown as Filterable;
-  const statuses = GROUP_STATUSES[f.group];
-  if (statuses) q = q.in("status", statuses);
+  // the group's statuses, and whether the documents cancelled afterwards are in (migration 181): "completed" leaves them out, "cancelled" is only them
+  let q = narrowByGroup(query, f.group) as unknown as Filterable;
   if (f.category === "none") q = q.is("category_id", null);
   else if (f.category !== "all") q = q.eq("category_id", f.category);
   if (f.contactId) q = q.eq("contact_id", f.contactId);
@@ -151,6 +152,8 @@ export interface ExportDocRow {
   sign_signers: { full_name: string; order_no: number }[] | null;
   /** Migration 169. Absent (an older row) is an agreement. */
   mode?: string | null;
+  /** Migration 181: when a completed document was cancelled afterwards. Absent or null: not cancelled. */
+  cancelled_at?: string | null;
 }
 
 export function exportHeaderLine(): string {
@@ -182,6 +185,8 @@ export function exportLines(rows: readonly ExportDocRow[], categoryNames: Readon
       iso(r.completed_at),
       iso(r.expires_at),
       r.mode === "form" ? "form" : "sign",
+      r.status === "completed" && r.cancelled_at ? "yes" : "no",
+      r.status === "completed" ? iso(r.cancelled_at ?? null) : "",
     ]),
   );
 }

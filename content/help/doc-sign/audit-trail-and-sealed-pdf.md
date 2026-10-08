@@ -41,7 +41,9 @@ The page shows that the document was completed, when, in whose workspace, its ti
 
 To check a file, choose the PDF on that page. Its fingerprint is worked out on your own device, so the file is never uploaded, and compared with the fingerprint of the signed original. **This is the exact signed file** means your copy is identical to what was sealed. **This file is not the signed original** means it differs: it may have been changed, or saved again by another program or a PDF editor.
 
-The page says nothing for a document that is not completed, was cancelled, or belongs to a workspace that no longer has Secure Sign. It then reads "We could not find this document".
+The page says nothing for a document that is not completed, was cancelled before it was completed, or belongs to a workspace that no longer has Secure Sign. It then reads "We could not find this document".
+
+A document that was cancelled **after** it was completed is still there, with the same proof: the file is still the exact signed original. The page adds "Cancelled on" and the date, because the document is no longer in force. It does not show why it was cancelled or who did it.
 
 ## Where the files are kept
 

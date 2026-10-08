@@ -75,7 +75,8 @@ People who **receive a copy** get **one email** as well, with all the signed PDF
 - **Change recipient** replaces a person on all their documents at once. It is refused once that person has signed any of them.
 - A person who **receives a copy** can be added or removed on the collection page until the collection is completed.
 - **Give more time** sets one new expiry date for every document that is still open.
-- **Cancel the collection** stops every document and tells the waiting people once. You can cancel only while no document has been signed by everyone yet. After that the collection can no longer be cancelled.
+- **Cancel the collection** stops every document and tells the waiting people once. You can cancel only while no document has been signed by everyone yet. After that the collection can no longer be cancelled this way.
+- **Cancel a completed collection.** Once every document is signed, the person who sent the collection, or an admin, can still cancel it as a whole with **Cancel document** on its page or in the list. It needs a reason, can notify everyone, and cancels **all** the documents in it together. The signed copies and certificates are not changed, and you can still download them, but the collection is marked **Cancelled** and is no longer in force. See [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel#cancel-a-completed-document).
 - If a person **declines**, every document that is not yet fully signed is declined, and the collection stops.
 - You can delete a collection that is still a draft. One that was sent is cancelled instead, and a signed one is kept for its retention period. See [Retention](/help/doc-sign/retention).
 

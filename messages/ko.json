@@ -1948,7 +1948,8 @@
             "completed": "모두 서명함(완료)",
             "declined": "서명자가 거절함",
             "expired": "문서가 만료됨",
-            "voided": "문서가 취소됨"
+            "voided": "문서가 취소됨",
+            "cancelled": "완료된 문서가 취소됨"
           },
           "template": "이 템플릿만",
           "anyTemplate": "모든 템플릿",
@@ -9115,7 +9116,8 @@
         "sent": "발송",
         "completed": "완료",
         "expires": "만료",
-        "expired": "만료됨"
+        "expired": "만료됨",
+        "cancelled": "취소일"
       },
       "actions": {
         "downloadSigned": "서명된 PDF 다운로드",
@@ -9384,7 +9386,11 @@
         "envelope_reordered": "{sender}님이 문서 모음 {reference}의 문서 순서를 변경했습니다",
         "copy_recipient_added": "{sender} 님이 {name}({email}) 님을 사본 수신자로 추가했습니다",
         "copy_recipient_removed": "{sender} 님이 {name} 님을 사본 수신자에서 삭제했습니다",
-        "seal_retried": "{sender}님이 서명된 파일을 다시 만들도록 요청했습니다"
+        "seal_retried": "{sender}님이 서명된 파일을 다시 만들도록 요청했습니다",
+        "cancelled": "{sender}님이 완료된 이 문서를 취소했습니다. 더 이상 효력이 없습니다.",
+        "cancelledCollection": "{sender}님이 문서 모음 {reference}({count, plural, other {#개}})를 취소했습니다. 더 이상 효력이 없습니다.",
+        "cancel_notice_sent": "취소되었다는 이메일을 {sent, plural, other {#명}}에게 보냈습니다",
+        "cancel_notice_sentSome": "취소되었다는 이메일을 {sent, plural, other {#명}}에게 보냈고, {failed, plural, other {#통}}은 전달하지 못했습니다"
       },
       "errors": {
         "document_not_found": "해당 문서를 찾을 수 없습니다.",
@@ -9416,7 +9422,14 @@
         "expiry_not_later": "새 날짜는 현재 날짜보다 늦어야 합니다.",
         "expiry_too_far": "날짜가 너무 멉니다. 더 가까운 날짜를 고르세요.",
         "bad_expiry": "날짜를 읽을 수 없습니다. 다시 선택해 주세요.",
-        "seal_not_stuck": "더 이상 서명된 사본을 기다리는 상태가 아닙니다. 페이지를 새로 고쳤습니다."
+        "seal_not_stuck": "더 이상 서명된 사본을 기다리는 상태가 아닙니다. 페이지를 새로 고쳤습니다.",
+        "cancel_not_allowed": "이 문서를 보낸 사람 또는 관리자만 취소할 수 있습니다.",
+        "cancel_reason_invalid": "사유는 3자에서 500자 사이여야 합니다.",
+        "document_not_completed": "완료된 문서만 취소할 수 있습니다.",
+        "document_already_cancelled": "이 문서는 이미 취소되었습니다.",
+        "envelope_not_completed": "완료된 문서 모음만 취소할 수 있습니다.",
+        "envelope_already_cancelled": "이 문서 모음은 이미 취소되었습니다.",
+        "belongs_to_collection": "이 문서는 문서 모음에 속해 있습니다. 문서 모음을 취소하세요. 모음의 모든 문서가 취소됩니다."
       },
       "contactTab": {
         "tab": "문서",
@@ -9481,6 +9494,36 @@
         "started": "지금 다시 시도하고 있습니다. 서명된 사본이 준비되면 여기에 표시됩니다.",
         "collectionNote": "서명된 사본을 만들지 못한 문서가 하나 이상 있습니다. 사람들이 서명한 내용은 잃어버리지 않습니다.",
         "reasonOn": "{title}: {error}"
+      },
+      "cancel": {
+        "title": "이 문서를 취소할까요?",
+        "body": "서명본과 증명서는 기록으로 남지만, 문서는 취소됨으로 표시되며 다시 활성화할 수 없습니다. 다시 사용하려면 새 문서를 보내세요.",
+        "bodyCollection": "서명본과 증명서는 기록으로 남지만, 문서들은 취소됨으로 표시되며 다시 활성화할 수 없습니다. 다시 사용하려면 새 문서를 보내세요.",
+        "collectionWarning": "문서 모음의 문서 {count, plural, other {#개}} 모두가 취소됩니다.",
+        "reason": "취소 사유",
+        "reasonHint": "필수입니다. 이 문서를 볼 수 있는 모든 사람이 읽을 수 있습니다.",
+        "reasonRequired": "취소하는 이유를 입력하세요.",
+        "reasonShort": "사유는 {min}자 이상이어야 합니다.",
+        "counter": "{count} / {max}",
+        "notify": "모두에게 알리기",
+        "notifyWho": "서명자 {signers, plural, other {#명}}, 사본 수신자 {copies, plural, other {#명}} 및 발신자에게 이메일이 갑니다.",
+        "notifyWhoPlain": "서명자, 사본 수신자, 발신자에게 이메일이 갑니다.",
+        "notifyNote": "각자에게 링크와 문서 없이 짧은 이메일 한 통을 보냅니다. 체크하지 않으면 보내지 않습니다.",
+        "keep": "문서 유지",
+        "action": "문서 취소",
+        "done": "문서를 취소했습니다",
+        "doneCollection": "문서 모음을 취소했습니다: {count, plural, other {#개}}",
+        "noticeSome": "이메일 {failed, plural, other {#통}}을 전달하지 못했습니다. 자세한 내용은 이력에서 확인하세요."
+      },
+      "cancelledBanner": {
+        "title": "이 문서는 취소되었습니다",
+        "titleCollection": "이 문서 모음은 취소되었습니다",
+        "byOn": "{name}님이 {date}에 취소했습니다.",
+        "on": "{date}에 취소되었습니다.",
+        "reason": "사유: {reason}",
+        "note": "서명본과 증명서는 서명된 내용의 기록으로 보관되지만, 이 문서는 더 이상 효력이 없습니다.",
+        "noteCollection": "문서 모음의 모든 문서가 함께 취소되었습니다. 서명본과 증명서는 서명된 내용의 기록으로 보관되지만, 더 이상 효력이 없습니다.",
+        "withCollection": "소속 문서 모음과 함께 취소되었습니다:"
       }
     },
     "editor": {
@@ -10541,7 +10584,8 @@
           "signed": "서명함",
           "filled": "작성함",
           "declined": "거절함"
-        }
+        },
+        "cancelled": "취소됨"
       },
       "save": {
         "saving": "저장 중...",
@@ -10566,7 +10610,8 @@
           "waiting": "다른 사람 대기 중",
           "completed": "완료됨",
           "stopped": "중단됨",
-          "test": "테스트"
+          "test": "테스트",
+          "cancelled": "취소됨"
         },
         "searchLabel": "문서 검색",
         "searchPlaceholder": "제목, 참조 번호 또는 서명자로 검색",
@@ -10651,7 +10696,16 @@
         "dateFrom": "생성일 시작",
         "dateTo": "생성일 종료",
         "contactLabel": "연락처",
-        "rangeBackwards": "시작일이 종료일보다 늦어서 일치하는 항목이 없습니다."
+        "rangeBackwards": "시작일이 종료일보다 늦어서 일치하는 항목이 없습니다.",
+        "groupHelp": {
+          "all": "전체입니다. 완료된 후 취소된 문서도 포함됩니다.",
+          "completed": "효력이 있는 완료된 문서입니다. 완료된 후 취소된 문서는 ‘취소됨’에 있습니다.",
+          "cancelled": "완료된 후 취소된 문서입니다. 서명본은 기록으로 보관되지만 더 이상 효력이 없습니다."
+        },
+        "cancelledOn": "{date} 취소",
+        "rowActions": "{title} 추가 작업",
+        "cancelAction": "문서 취소",
+        "colActions": "작업"
       },
       "new": {
         "title": "새 문서",
@@ -11538,6 +11592,12 @@
         "notInvitedForm": {
           "title": "아직 차례가 아닙니다",
           "body": "먼저 끝내야 하는 분이 있습니다. 차례가 되면 메시지를 보내 드립니다. 이 페이지는 닫으셔도 됩니다."
+        },
+        "cancelled": {
+          "title": "이 문서는 {date}에 취소되었습니다",
+          "titleCollection": "이 문서들은 {date}에 취소되었습니다",
+          "note": "아래 서명본은 서명된 내용의 기록으로 남지만, 더 이상 효력이 없습니다.",
+          "noteForm": "아래 기록은 제출된 내용의 기록으로 남지만, 더 이상 효력이 없습니다."
         }
       },
       "others": {
@@ -11926,6 +11986,11 @@
         "title": "증명서",
         "separate": "이 문서의 증명서는 디지털 서명으로 봉인된 별도의 파일입니다. 증명서는 대상이 되는 서명된 문서를 밝힙니다: {file}.",
         "fingerprint": "증명서 지문 (SHA-256)"
+      },
+      "cancelled": {
+        "title": "{date}에 취소됨",
+        "body": "이 문서는 서명된 후 취소되었습니다. 이 페이지의 서명과 기록은 진본이지만, 문서는 더 이상 효력이 없습니다.",
+        "bodyForm": "이 기록은 제출된 후 취소되었습니다. 이 페이지의 기록은 진본이지만, 더 이상 효력이 없습니다."
       }
     },
     "bulk": {

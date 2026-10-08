@@ -49,6 +49,8 @@ const FAMILIES: Record<string, string[]> = {
   save: ["saving", "saved", "offline", "error"],
   // an envelope's page: words picked with a condition or a variable (migration 171)
   envelope: ["next", "finish", "introTitle", "introTitleFill"],
+  // a completed document that was cancelled afterwards (migration 181): the notice picks its words with a condition
+  "end.cancelled": ["title", "titleCollection", "note", "noteForm"],
   "envelope.state": ["active", "signed", "sealing", "completed", "declined", "expired", "voided", "failed", "not_invited"],
   others: ["signed", "declined", "turn", "invited", "waiting", "done", "title"],
   "sheet.signature": ["drawFailed", "pictureTooBig", "pictureUnreadable"],

@@ -336,6 +336,10 @@ export async function buildCollectionSummary(data: CollectionSummaryData, option
   keyValue(c, L.title, data.title);
   keyValue(c, L.documents, String(data.documents.length));
   keyValue(c, L.preparedOn, fmt(data.preparedAt));
+  if (data.cancelledAt) {
+    keyValue(c, L.cancelled, fmt(data.cancelledAt));
+    paragraph(c, L.cancelledNote, { size: 8.5, color: BAD });
+  }
   rule(c);
 
   section(c, L.documentsHeading);

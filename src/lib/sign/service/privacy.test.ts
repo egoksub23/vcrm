@@ -33,6 +33,7 @@ import { ACCT, ALI_KEY, OTHER_USER, USER, TPL_A, makeWorld, signerIn, type World
 import { assertMayChangePrivacy, callerOf, canSeeDocument, canSeeEnvelope, documentListScope, parsePrivate, visibleDocuments } from "./privacy";
 import { extendExpiry, loadProgress, uploadedFileForStaff } from "./progress";
 import { replaceDraftFile } from "./replace-file";
+import { cancelDocument, cancelEnvelope } from "./cancel";
 import { revealAnswer } from "./sensitive-staff";
 import { changeRecipient, moveSigner, remindSigner, resendSigner, sendDocument, voidDocument } from "./send";
 import { createTemplateFromDocument } from "./templates";
@@ -222,6 +223,8 @@ describe("every way into a private document is closed to whoever may not see it"
     ["remind a person", (c, d) => remindSigner(c, doc(d), "s1")],
     ["change a person", (c, d) => changeRecipient(c, doc(d), "s1", { fullName: "X", email: "x@y.example" })],
     ["move a person", (c, d) => moveSigner(c, doc(d), "s1", 1)],
+    // migration 181: cancelling a completed document is judged on the document the same way (a draft here, so the maker is told it is not completed)
+    ["cancel it", (c, d) => cancelDocument(c, doc(d), { reason: "Signed with the wrong price list", notify: false })],
   ];
 
   // a fresh document for every call: some of these delete or void the document they are given
@@ -493,6 +496,7 @@ describe("a private document collection", () => {
     ["change the people", (c, p) => setEnvelopeSigners(c, p.envelope.id, [signerIn("Ali", "ali@kedai.example", ALI_KEY)])],
     ["send it", (c, p) => sendEnvelope(c, p.envelope.id)],
     ["void it", (c, p) => voidEnvelope(c, p.envelope.id, "no")],
+    ["cancel it (migration 181)", (c, p) => cancelEnvelope(c, p.envelope.id, { reason: "Signed with the wrong price list", notify: false })],
     ["delete it", (c, p) => deleteEnvelope(c, p.envelope.id)],
     ["extend its expiry", (c, p) => extendEnvelopeExpiry(c, p.envelope.id, "2027-01-01T00:00:00Z")],
     ["resend to a person", (c, p) => resendEnvelopePerson(c, p.envelope.id, "p1")],

@@ -340,11 +340,11 @@ export async function progressForApi(ctx: SignCtx, doc: SignDocumentRow): Promis
 // ---- lists ------------------------------------------------------------------------------------------
 
 export const LIST_COLUMNS =
-  "id, reference, title, status, mode, template_version_id, contact_id, envelope_id, locale, sign_in_order, code_required, expires_at, sent_at, completed_at, final_sha256, certificate_sha256, void_reason, page_count, created_at, updated_at";
+  "id, reference, title, status, mode, template_version_id, contact_id, envelope_id, locale, sign_in_order, code_required, expires_at, sent_at, completed_at, final_sha256, certificate_sha256, void_reason, cancelled_at, cancelled_by, cancel_reason, page_count, created_at, updated_at";
 
 export type ListedDocument = Pick<
   SignDocumentRow,
-  | "id" | "reference" | "title" | "status" | "mode" | "template_version_id" | "contact_id" | "envelope_id" | "locale" | "sign_in_order" | "code_required" | "expires_at" | "sent_at" | "completed_at" | "final_sha256" | "certificate_sha256" | "void_reason" | "page_count" | "created_at" | "updated_at"
+  | "id" | "reference" | "title" | "status" | "mode" | "template_version_id" | "contact_id" | "envelope_id" | "locale" | "sign_in_order" | "code_required" | "expires_at" | "sent_at" | "completed_at" | "final_sha256" | "certificate_sha256" | "void_reason" | "cancelled_at" | "cancelled_by" | "cancel_reason" | "page_count" | "created_at" | "updated_at"
 >;
 
 export interface ListFilters {
@@ -353,6 +353,11 @@ export interface ListFilters {
   templateId: string | null;
   reference: string | null;
   createdAfter: string | null;
+  /**
+   * Migration 181: `true` only the completed documents that were cancelled afterwards, `false` only the ones that were not (cancelled ones are left out),
+   * `null` both. A cancelled document is still `completed` for `status`, so `status=completed&cancelled=false` is "completed and in force".
+   */
+  cancelled?: boolean | null;
 }
 
 /** Template ids and who has signed, for a page of documents, in two queries however long the page is. */
@@ -407,6 +412,8 @@ export async function listDocumentsForApi(ctx: SignCtx, filters: ListFilters, pa
   if (filters.contactId) q = q.eq("contact_id", filters.contactId);
   if (filters.reference) q = q.eq("reference", filters.reference);
   if (filters.createdAfter) q = q.gt("created_at", filters.createdAfter);
+  if (filters.cancelled === true) q = q.not("cancelled_at", "is", null);
+  else if (filters.cancelled === false) q = q.is("cancelled_at", null);
   if (versionIds) q = q.in("template_version_id", versionIds);
   q = q.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(params.limit + 1);
   const keyset = keysetFilter(params.cursor);

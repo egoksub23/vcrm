@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useId, useRef, useState, type ReactNode } from "react";
-import { CheckCircle2, FileCheck2, FileX, Loader2, ShieldAlert, ShieldCheck, UploadCloud } from "lucide-react";
+import { Ban, CheckCircle2, FileCheck2, FileX, Loader2, ShieldAlert, ShieldCheck, UploadCloud } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -51,6 +51,19 @@ export function VerifyApp({ view }: { view: VerifyView }) {
         </p>
         {view.envelope ? <p className="text-sm text-muted-foreground">{t("envelope", { count: view.envelope.documents })}</p> : null}
       </section>
+
+      {/* migration 181: cancelled after it was signed. What the page proves below is unchanged; this says it is no longer in force. Never why, nor by whom. */}
+      {view.cancelledAt ? (
+        <section role="status" className="flex gap-3 rounded-xl border border-[color:light-dark(#fca5a5,#7f1d1d)] bg-[color:light-dark(#fef2f2,#450a0a66)] p-4" aria-labelledby="verify-cancelled">
+          <Ban className="mt-0.5 size-6 shrink-0 text-[light-dark(#b91c1c,#fca5a5)]" aria-hidden />
+          <div className="min-w-0">
+            <h2 id="verify-cancelled" className="font-medium break-words">
+              {t("cancelled.title", { date: formatDay(view.cancelledAt, locale, timeZone) })}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t(formOnly ? "cancelled.bodyForm" : "cancelled.body")}</p>
+          </div>
+        </section>
+      ) : null}
 
       <Card title={formOnly ? t("signers.titleForm") : t("signers.title")}>
         {view.signers.length === 0 ? (

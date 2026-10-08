@@ -8,7 +8,9 @@
 //     certificate page itself does not put in front of a stranger either);
 //   - the file's SHA-256, so the page can compare it with the copy the person holds, in their browser; and, when the certificate is a file of its
 //     own (migration 178), the certificate's SHA-256 and the name of the signed file it covers, so the person can check either file;
-//   - whether the document's audit chain still recomputes (sign_verify_chain, migration 157).
+//   - whether the document's audit chain still recomputes (sign_verify_chain, migration 157);
+//   - when the document was cancelled, if it was cancelled after it was signed (migration 181): the proof above is unchanged (a cancelled document is still
+//     completed and sealed), and this adds the DATE so anyone checking a copy sees it is no longer in force. Never the reason, and never who.
 //
 // A document that is not completed, whose workspace has Doc Sign off or is suspended, or that does not
 // exist, all give the same answer: null. A page for such an address says nothing about which it was.
@@ -51,9 +53,14 @@ export interface VerifyView {
   chain: ChainState;
   /** How many events the chain holds (shown next to its state). */
   events: number | null;
+  /**
+   * Migration 181: the document was cancelled after it was signed, on this date. The signature and the record are exactly as they were (the truth above
+   * is unchanged), but it is no longer in force. Never the reason, nor who cancelled it. Absent when it was not.
+   */
+  cancelledAt?: string;
 }
 
-type DocRow = Pick<SignDocumentRow, "id" | "account_id" | "title" | "reference" | "status" | "completed_at" | "page_count" | "final_sha256"> & { mode?: SignMode | null; envelope_id?: string | null; certificate_sha256?: string | null };
+type DocRow = Pick<SignDocumentRow, "id" | "account_id" | "title" | "reference" | "status" | "completed_at" | "page_count" | "final_sha256"> & { mode?: SignMode | null; envelope_id?: string | null; certificate_sha256?: string | null; cancelled_at?: string | null };
 
 function chainOf(data: unknown): { state: ChainState; events: number | null } {
   if (typeof data !== "object" || data === null) return { state: "unknown", events: null };
@@ -74,7 +81,7 @@ export function signedPeople(signers: readonly SignSignerRow[], mode?: SignMode 
 
 export async function loadVerification(admin: SupabaseClient, id: unknown, now: () => Date = () => new Date()): Promise<VerifyView | null> {
   if (!isDocumentId(id)) return null;
-  const found = await admin.from("sign_documents").select("id, account_id, title, reference, status, mode, envelope_id, completed_at, page_count, final_sha256, certificate_sha256").eq("id", id).maybeSingle();
+  const found = await admin.from("sign_documents").select("id, account_id, title, reference, status, mode, envelope_id, completed_at, page_count, final_sha256, certificate_sha256, cancelled_at").eq("id", id).maybeSingle();
   if (found.error || !found.data) return null;
   const doc = found.data as DocRow;
   if (doc.status !== "completed" || !doc.completed_at || !doc.final_sha256) return null;
@@ -106,5 +113,6 @@ export async function loadVerification(admin: SupabaseClient, id: unknown, now: 
     ...(doc.certificate_sha256 ? { certificate: { sha256: doc.certificate_sha256, signedFileName: signedFileName(doc) } } : {}),
     chain: checked.state,
     events: checked.events,
+    ...(doc.cancelled_at ? { cancelledAt: doc.cancelled_at } : {}),
   };
 }

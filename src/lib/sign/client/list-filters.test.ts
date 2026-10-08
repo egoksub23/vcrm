@@ -1,15 +1,52 @@
 import { describe, expect, it } from "vitest";
 
 import { DOCUMENT_STATUSES } from "../types";
-import { EMPTY_FILTERS, GROUP_STATUSES, PAGE_SIZE, STATUS_GROUPS, filtersKey, isExpiringSoon, isFiltered, pageRange, sanitizeSearch, searchClause, signerSearchClause } from "./list-filters";
+import { EMPTY_FILTERS, GROUP_CANCELLED, GROUP_STATUSES, PAGE_SIZE, STATUS_GROUPS, filtersKey, isExpiringSoon, isFiltered, narrowByGroup, pageRange, sanitizeSearch, searchClause, signerSearchClause } from "./list-filters";
 
 describe("status groups", () => {
   it("put every status in exactly one group (all is every status)", () => {
     for (const s of DOCUMENT_STATUSES) {
       const groups = STATUS_GROUPS.filter((g) => GROUP_STATUSES[g]?.includes(s));
-      expect(groups, s).toHaveLength(1);
+      // "completed" is the one status two groups share, and they never overlap: a completed document that was cancelled afterwards (migration 181) is in
+      // "cancelled" and not in "completed"
+      expect(groups, s).toHaveLength(s === "completed" ? 2 : 1);
     }
     expect(GROUP_STATUSES.all).toBeNull();
+    expect(STATUS_GROUPS.filter((g) => GROUP_STATUSES[g]?.includes("completed"))).toEqual(["completed", "cancelled"]);
+    expect([GROUP_CANCELLED.completed, GROUP_CANCELLED.cancelled, GROUP_CANCELLED.all]).toEqual(["no", "yes", null]);
+  });
+});
+
+describe("narrowing a query to a group (migration 181)", () => {
+  const record = () => {
+    const calls: unknown[][] = [];
+    const q: Record<string, unknown> = {};
+    for (const m of ["in", "is", "not"]) q[m] = (...args: unknown[]) => (calls.push([m, ...args]), q);
+    return { q, calls };
+  };
+
+  it("keeps the cancelled documents out of Completed, takes only them for Cancelled, and leaves every other group, and no group, alone", () => {
+    const completed = record();
+    narrowByGroup(completed.q, "completed");
+    expect(completed.calls).toEqual([["in", "status", ["completed"]], ["is", "cancelled_at", null]]);
+    const cancelled = record();
+    narrowByGroup(cancelled.q, "cancelled");
+    expect(cancelled.calls).toEqual([["in", "status", ["completed"]], ["not", "cancelled_at", "is", null]]);
+    const all = record();
+    narrowByGroup(all.q, "all");
+    narrowByGroup(all.q, null);
+    expect(all.calls).toEqual([]);
+    for (const g of ["draft", "waiting", "stopped", "test"] as const) {
+      const r = record();
+      narrowByGroup(r.q, g);
+      expect(r.calls.some((c) => c.includes("cancelled_at")), g).toBe(false);
+    }
+  });
+
+  it("offers the Cancelled group and tells it apart in the key of the filters", () => {
+    expect(STATUS_GROUPS).toContain("cancelled");
+    expect(filtersKey({ ...EMPTY_FILTERS, group: "cancelled" })).not.toBe(filtersKey({ ...EMPTY_FILTERS, group: "completed" }));
+    expect(isFiltered({ ...EMPTY_FILTERS, group: "cancelled" })).toBe(true);
   });
 });
 

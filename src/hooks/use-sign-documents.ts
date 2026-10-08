@@ -5,10 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
 import {
-  GROUP_STATUSES,
   PAGE_SIZE,
   STATUS_GROUPS,
   filtersKey,
+  narrowByGroup,
   pageRange,
   sanitizeSearch,
   searchClause,
@@ -49,6 +49,10 @@ export interface SignListRow {
   sent_at: string | null;
   expires_at: string | null;
   completed_at: string | null;
+  /** Migration 181: a completed document that was cancelled afterwards (it stays completed; the list shows "Cancelled" instead). */
+  cancelled_at?: string | null;
+  /** Who made it: they, and the workspace's admins, are offered "Cancel document" on a completed row. */
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
   contacts: { name: string | null } | null;
@@ -61,16 +65,17 @@ export interface SignListRow {
 export type StatusCounts = Record<StatusGroup, number>;
 
 const SELECT =
-  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys)";
+  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys)";
 
 /** An envelope with its documents and their people (migration 171); the list shows it as one row. */
 const ENVELOPE_SELECT =
-  "id, reference, title, status, is_private, contact_id, sign_in_order, sent_at, expires_at, completed_at, created_at, updated_at, contacts(name), sign_documents!sign_documents_envelope_fk(id, title, status, envelope_position, sign_signers(id, full_name, status, order_no, kind, part_keys, party_id))";
+  "id, reference, title, status, is_private, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_documents!sign_documents_envelope_fk(id, title, status, envelope_position, sign_signers(id, full_name, status, order_no, kind, part_keys, party_id))";
 
 /** The part of a PostgREST filter builder these queries use; every method returns the builder. */
 interface Filterable {
   in(column: string, values: readonly string[]): Filterable;
   is(column: string, value: null): Filterable;
+  not(column: string, operator: string, value: null): Filterable;
   eq(column: string, value: string): Filterable;
   or(filters: string): Filterable;
   gte(column: string, value: string): Filterable;
@@ -91,9 +96,7 @@ export function narrowShared<T>(query: T, f: ListFilters, range: Range): T {
 }
 
 export function narrow<T>(query: T, group: StatusGroup | null, f: ListFilters, clause: string | null, range: Range): T {
-  let q = query as unknown as Filterable;
-  const statuses = group ? GROUP_STATUSES[group] : null;
-  if (statuses) q = q.in("status", statuses);
+  let q = narrowByGroup(query, group) as unknown as Filterable;
   // the Test group: only the documents sent to try a template out (migration 170)
   if (group === "test") q = q.eq("test", "true");
   if (f.category === "none") q = q.is("category_id", null);
@@ -133,9 +136,7 @@ async function fetchRows(f: ListFilters, clauses: { docs: string | null; envs: s
   if (error) throw error;
   let envs: SignListRow[] = [];
   if (envelopesIncluded(f)) {
-    let q = supabase.from("sign_envelopes").select(ENVELOPE_SELECT).order("created_at", { ascending: false }).order("id", { ascending: false }) as unknown as Filterable;
-    const statuses = GROUP_STATUSES[f.group];
-    if (statuses) q = q.in("status", statuses);
+    let q = narrowByGroup(supabase.from("sign_envelopes").select(ENVELOPE_SELECT).order("created_at", { ascending: false }).order("id", { ascending: false }), f.group) as unknown as Filterable;
     q = narrowShared(q, f, range);
     if (clauses.envs) q = q.or(clauses.envs);
     const res = await (q as unknown as { range(from: number, to: number): PromiseLike<{ data: unknown; error: unknown }> }).range(0, want - 1);
@@ -154,9 +155,7 @@ async function fetchCounts(f: ListFilters, clauses: { docs: string | null; envs:
       if (error) throw error;
       let extra = 0;
       if (withEnvelopes && g !== "test") {
-        let q = supabase.from("sign_envelopes").select("id", { count: "exact", head: true }) as unknown as Filterable;
-        const statuses = GROUP_STATUSES[g];
-        if (statuses) q = q.in("status", statuses);
+        let q = narrowByGroup(supabase.from("sign_envelopes").select("id", { count: "exact", head: true }), g) as unknown as Filterable;
         q = narrowShared(q, f, range);
         if (clauses.envs) q = q.or(clauses.envs);
         const res = await (q as unknown as PromiseLike<{ count: number | null; error: unknown }>);

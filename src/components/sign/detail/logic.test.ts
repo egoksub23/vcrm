@@ -80,7 +80,7 @@ describe("documentActions", () => {
   const files = { base_path: "a/base.pdf", final_path: null, original_path: "a/orig.docx" };
 
   it("offers the signed copy only once it is completed and sealed", () => {
-    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf" }, { void: true })).toEqual({ downloadSigned: true, downloadCertificate: false, downloadAll: false, viewKind: "final", downloadOriginal: true, void: false });
+    expect(documentActions({ status: "completed", ...files, final_path: "a/final.pdf" }, { void: true })).toEqual({ downloadSigned: true, downloadCertificate: false, downloadAll: false, viewKind: "final", downloadOriginal: true, void: false, cancel: false });
     expect(documentActions({ status: "sealing", ...files }, { void: true }).downloadSigned).toBe(false);
     expect(documentActions({ status: "completed", ...files }, { void: true }).downloadSigned).toBe(false);
   });
@@ -186,6 +186,35 @@ describe("signersWithUndelivered", () => {
   it("ignores a failure to deliver the signed copy, and unordered input", () => {
     expect(signersWithUndelivered([e(2, "delivery_failed", "a", { kind: "completed" })]).size).toBe(0);
     expect([...signersWithUndelivered([e(3, "delivery_failed", "a"), e(1, "invited", "a")])]).toEqual(["a"]);
+  });
+});
+
+describe("cancelling a completed document (migration 181)", () => {
+  const files = { base_path: "a/base.pdf", final_path: null, original_path: "a/orig.docx" };
+  const completed = { status: "completed", ...files, final_path: "a/final.pdf", created_by: "maker", cancelled_at: null as string | null };
+
+  it("offers Cancel document to the person who made it and to admins, on a completed document that is not cancelled, and to nobody else", () => {
+    expect(documentActions(completed, { void: false }, { userId: "maker", isAdmin: false }).cancel).toBe(true);
+    expect(documentActions(completed, { void: false }, { userId: "other", isAdmin: true }).cancel).toBe(true);
+    expect(documentActions(completed, { void: false }, { userId: "other", isAdmin: false }).cancel).toBe(false);
+    // not told who is looking: not offered
+    expect(documentActions(completed, { void: false }).cancel).toBe(false);
+    expect(documentActions({ ...completed, cancelled_at: "2026-10-08T02:00:00Z" }, { void: false }, { userId: "maker", isAdmin: true }).cancel).toBe(false);
+  });
+
+  it("does not take the downloads away from a cancelled document, and does not turn it into a void", () => {
+    const gone = documentActions({ ...completed, cancelled_at: "2026-10-08T02:00:00Z", certificate_path: "a/certificate.pdf" }, { void: true }, { userId: "maker", isAdmin: true });
+    expect(gone).toMatchObject({ downloadSigned: true, downloadCertificate: true, downloadAll: true, viewKind: "final", void: false, cancel: false });
+  });
+
+  it("keeps a cancelled document's banner as a completed one (its status did not change)", () => {
+    expect(bannerFor({ status: "completed", completed_at: "2026-10-02T09:00:00Z", expires_at: null, void_reason: null, seal_error: null, retain_until: "2033-10-02T09:00:00Z" }, [], { settings: false })).toMatchObject({ kind: "completed" });
+  });
+
+  it("words the failures it can meet", () => {
+    for (const code of ["cancel_not_allowed", "cancel_reason_invalid", "document_not_completed", "document_already_cancelled", "envelope_not_completed", "envelope_already_cancelled", "belongs_to_collection"]) {
+      expect(detailErrorKey(code)).toBe(`errors.${code}`);
+    }
   });
 });
 

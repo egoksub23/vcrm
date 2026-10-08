@@ -85,6 +85,16 @@ const DB_CODES: Record<string, { code: string; status: number; message: string }
   sign_private_is_fixed: { code: "private_fixed", status: 409, message: "Whether this is private cannot change once it is sent." },
   sign_private_needs_the_uploader_or_an_admin: { code: "private_not_allowed", status: 403, message: "Only the person who uploaded this, or an admin, can change this." },
   sign_private_document_cannot_join_a_public_collection: { code: "private_cannot_join", status: 409, message: "A private document cannot be added to a collection that is not private." },
+  // cancelling a completed document or collection (migration 181)
+  document_not_completed: { code: "document_not_completed", status: 409, message: "Only a completed document can be cancelled." },
+  document_already_cancelled: { code: "document_already_cancelled", status: 409, message: "This document was already cancelled." },
+  envelope_not_completed: { code: "envelope_not_completed", status: 409, message: "Only a completed document collection can be cancelled." },
+  envelope_already_cancelled: { code: "envelope_already_cancelled", status: 409, message: "This document collection was already cancelled." },
+  cancel_reason_invalid: { code: "cancel_reason_invalid", status: 400, message: "Give a reason of 3 to 500 characters." },
+  sign_document_cancel_needs_completed: { code: "document_not_completed", status: 409, message: "Only a completed document can be cancelled." },
+  sign_document_cancel_is_write_once: { code: "document_already_cancelled", status: 409, message: "This document was already cancelled." },
+  sign_envelope_cancel_needs_completed: { code: "envelope_not_completed", status: 409, message: "Only a completed document collection can be cancelled." },
+  sign_envelope_cancel_is_write_once: { code: "envelope_already_cancelled", status: 409, message: "This document collection was already cancelled." },
   // the unique (account_id, reference) of sign_documents: only a caller that chose its own reference (the public API) can hit it
   sign_documents_reference: { code: "reference_in_use", status: 409, message: "That reference is already used by another document." },
 };

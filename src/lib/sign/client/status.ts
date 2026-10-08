@@ -16,7 +16,8 @@ const DOCUMENT_STATUS_SET: ReadonlySet<string> = new Set<DocumentStatus>(["draft
 const SIGNER_STATUS_SET: ReadonlySet<string> = new Set<SignerStatus>(["pending", "sent", "viewed", "signed", "declined"]);
 
 /** The message key (relative to `Sign.send`) for a document status. An unknown status reads as "unknown". */
-export function documentStatusKey(status: string): string {
+export function documentStatusKey(status: string, cancelled?: boolean | null): string {
+  if (showsCancelled(status, cancelled)) return "status.cancelled";
   return DOCUMENT_STATUS_SET.has(status) ? `status.document.${status}` : "status.unknown";
 }
 
@@ -52,7 +53,17 @@ export const SIGNER_BADGE: Record<SignerStatus, string> = {
   declined: "bg-red-500/15 text-red-700 dark:text-red-300",
 };
 
-export function documentBadgeClass(status: string): string {
+/**
+ * A completed document that was cancelled afterwards (migration 181) reads "Cancelled" in a muted red. The colour is a pair for light and dark (light-dark(),
+ * which follows the app's theme; Tailwind's dark: variant does not apply here), and the word is the signal.
+ */
+export const CANCELLED_BADGE = "bg-[color:light-dark(#fee2e2,#7f1d1d66)] text-[light-dark(#991b1b,#fca5a5)]";
+
+/** A status is shown as cancelled only when it is completed AND the document was cancelled afterwards; any other status keeps its own word. */
+export const showsCancelled = (status: string, cancelled: boolean | null | undefined): boolean => status === "completed" && cancelled === true;
+
+export function documentBadgeClass(status: string, cancelled?: boolean | null): string {
+  if (showsCancelled(status, cancelled)) return CANCELLED_BADGE;
   return DOCUMENT_STATUS_SET.has(status) ? DOCUMENT_BADGE[status as DocumentStatus] : MUTED;
 }
 

@@ -40,7 +40,7 @@ describe('normalizeEvents', () => {
 });
 
 describe('Secure Sign events', () => {
-  const SIGN = ['sign.sent', 'sign.viewed', 'sign.completed', 'sign.declined', 'sign.expired', 'sign.voided'];
+  const SIGN = ['sign.sent', 'sign.viewed', 'sign.completed', 'sign.declined', 'sign.expired', 'sign.voided', 'sign.cancelled'];
 
   it('are part of the vocabulary, each with a description', () => {
     for (const e of SIGN) {

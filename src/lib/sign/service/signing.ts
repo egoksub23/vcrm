@@ -182,6 +182,8 @@ export interface EnvelopeView {
   state: PageState;
   /** Empty until the code (if one is asked for) is entered: nothing of the envelope but its title and count is shown before. */
   documents: EnvelopeDocView[];
+  /** Migration 181: when the completed collection was cancelled (the date only: never the reason, nor who). Absent when it was not. */
+  cancelledAt?: string;
 }
 
 export interface SigningView {
@@ -206,6 +208,8 @@ export interface SigningView {
     test?: boolean;
     /** Migration 178: the document is complete and its certificate is a file of its own (offered as a download beside the signed file). Absent when it is inside the signed file. */
     hasCertificate?: boolean;
+    /** Migration 181: the completed document was cancelled on this date (the date only: never the reason, nor who). Its signed copy is still offered. Absent when it was not. */
+    cancelledAt?: string;
   };
   /** Migration 171: this link is for an envelope; the document above is the one asked for, and this lists them all. */
   envelope?: EnvelopeView;
@@ -291,6 +295,7 @@ function envelopeView(lookup: Lookup, current: PartyMember, withDocuments: boole
     current: current.doc.id,
     state: envelopeState(documents.map((d) => d.state)),
     documents: withDocuments ? documents : [],
+    ...(party.envelope.status === "completed" && party.envelope.cancelled_at ? { cancelledAt: party.envelope.cancelled_at } : {}),
   };
 }
 
@@ -326,6 +331,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
       mode: isFormMode(doc) ? "form" : "sign",
       ...(doc.test ? { test: true } : {}),
       ...(doc.status === "completed" && doc.certificate_path ? { hasCertificate: true } : {}),
+      ...(doc.status === "completed" && doc.cancelled_at ? { cancelledAt: doc.cancelled_at } : {}),
     },
     workspace: { name: info.workspaceName, logoUrl: info.logoUrl },
     signer: { name: signer.full_name, roleKey: signer.role_key, kind: signer.kind, status: signer.status },

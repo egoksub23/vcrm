@@ -178,7 +178,7 @@ doc-sign-setup.md section 8d) or, if the app is reachable without the proxy, an 
   raw IP never stored (keyed hash only), slug has 39 bits and nothing of the workspace, Turnstile goes to one fixed address and fails closed.
 - Zip names: separators, `..`, drive letters, control characters and length are removed; two hostile titles do not collide (`security-review.test.ts`).
 - CSV exports: documents and bulk results go through `toCsv`, which guards `= + - @ \t \r`.
-- Webhook payloads: no email, phone, token, IP, device, path or merge value for any event; none for a test document.
+- Webhook payloads: no email, phone, token, IP, device, path or merge value for any event; none for a test document. `sign.cancelled` (migration 181) carries the date only: not the reason, not who (as for a void).
 - Sensitive answers: ciphertext bound to document and field, no plain `value` column for a sensitive row (CHECK), every reader opens through `openRows`,
   reveal writes its event first and refuses when it cannot (`strict`).
 - Bulk: rows leased with `SKIP LOCKED`, a document is recorded on its row before it is sent, a run twice at once cannot send a row twice, the monthly
@@ -194,7 +194,17 @@ doc-sign-setup.md section 8d) or, if the app is reachable without the proxy, an 
 | Open one's own turn from Halo | `sign.sign`, and the place must be addressed to the caller's own email (F3) |
 | Registration forms, option lists, add-ons, settings, certificates | `sign.settings` |
 | Void | `sign.void` |
+| Cancel a completed document or collection (migration 181) | `menu.sign` and, in the service, being the person who made it or an admin or owner who can see it (no new capability, not `sign.void`; never a key, an automation or the system) |
 | Public API | a key with `sign:read` / `sign:write`; Doc Sign must be on for the workspace |
+
+### Cancelling a completed document (migration 181): who may, and why the record cannot be altered
+
+A completed document is a sealed legal record, and the owner asked that the person who made it, or an admin, can cancel it. The design keeps the record untouched and adds a stamp beside it.
+
+- **Who.** Decided in the service (`service/cancel.ts`, `mayCancel`): the document's `created_by`, or an admin or owner of the workspace; nobody else, and never a key, an automation or the system (a key belongs to an integration, not to a person). The caller must also be able to see the document: a private document (176) is "not found" to anyone else, as for every other action, and a Halo user named on a private document sees it but may not cancel it. It is not `sign.void` (voiding stops a document still out for signature; this withdraws a signed record) and adds no capability, so no role needs changing. The routes need `menu.sign` and are rate limited (20 a minute for each person); the screens only hide the button. The SQL functions are the service role's alone, so no signed-in or signed-out caller can reach them directly (proved in the verify script).
+- **Immutability argument.** (1) `status` is never changed, so every rule that keys on `completed` (sealing, retention, the frozen-content check, export, verify, usage) is untouched. (2) The stamp is three new columns, written once, on a completed row, only by the cancelling function (a transaction-local flag the guard requires), never changed or cleared afterwards, and checked again by CHECK constraints (completed only; date and reason together; a reason of 3 to 500 trimmed characters); the single exception is the person becoming NULL when their login is deleted. (3) The signed file, the certificate, the answers and the signers are not columns the function touches, and the guard still refuses to change them. (4) The history is append-only: the `cancelled` event is one more row of the hash chain, written by the existing `sign_log` under the per-document lock, so `sign_verify_chain` recomputes it with the same code as before; a cancelled document's chain is checked exactly like any other. (5) A collection is stamped in one transaction under the collection's lock then the documents' in position order, so it is all or nothing and two steps cannot interleave. (6) The notice is claimed once in the database, so a retry cannot email anyone twice, and a failed email cannot undo the cancellation.
+- **What the public learns.** The verify page and the signer's page say a document was cancelled and on what date, never why or by whom (the reason is the person's own words and may name people); the API and the webhook follow the existing rule for a void's reason (the API has it for the workspace's own key; the webhook does not).
+- **Residual.** The free-text reason is readable by anyone in the workspace who can see the document, and by the workspace's API keys; the dialog says so. It is not escaped specially beyond the usual (React text, HTML-escaped in the email). The workspace audit log does not track the stamp (the document's own chain does).
 
 ## 4. The database
 

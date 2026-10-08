@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNow } from "@/hooks/use-now";
+import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useSignCategories } from "@/hooks/use-sign-categories";
 import { useSignDocuments } from "@/hooks/use-sign-documents";
@@ -18,6 +19,7 @@ import { ZIP_MAX_DOCUMENTS } from "@/lib/sign/export/zip";
 import { cn } from "@/lib/utils";
 import { ContactPicker } from "../send/contact-picker";
 import { DocumentCards, DocumentTable } from "./document-rows";
+import { GroupHelp } from "./group-help";
 import { ListActions } from "./list-actions";
 import { SelectionBar } from "./selection-bar";
 import { AttentionPanel, AwaitingPanel, ShortcutBar } from "./shortcut-panels";
@@ -28,6 +30,9 @@ export function DocumentsList() {
   const t = useTranslations("Sign.send.list");
   const canSend = useCapability("sign.send");
   const canCountersign = useCapability("sign.sign");
+  const { user, isAdmin, isOwner } = useAuth();
+  // migration 181: who may be offered "Cancel document" on a completed row (the server asks again)
+  const viewer = { userId: user?.id, isAdmin: isAdmin || isOwner };
   const now = useNow(60_000);
   const { categories, live } = useSignCategories();
 
@@ -93,6 +98,9 @@ export function DocumentsList() {
               </button>
             ))}
           </div>
+
+          {/* what the Completed, Cancelled and All filters mean (migration 181): a cancelled document is still a completed record, but it is listed apart */}
+          <GroupHelp group={group} />
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
@@ -181,8 +189,8 @@ export function DocumentsList() {
         </div>
       ) : (
         <div aria-busy={refreshing} className={cn("space-y-4 transition-opacity", refreshing && "opacity-60")}>
-          <DocumentTable rows={rows} categories={categories} now={now} selection={selection} />
-          <DocumentCards rows={rows} categories={categories} now={now} selection={selection} />
+          <DocumentTable rows={rows} categories={categories} now={now} selection={selection} viewer={viewer} onChanged={reload} />
+          <DocumentCards rows={rows} categories={categories} now={now} selection={selection} viewer={viewer} onChanged={reload} />
           <div className="flex flex-col items-center gap-2 pt-1">
             <p className="text-xs text-muted-foreground" aria-live="polite">
               {t("showing", { shown: rows.length, total: Math.max(total, rows.length) })}

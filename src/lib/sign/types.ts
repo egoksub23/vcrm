@@ -101,6 +101,16 @@ export interface SignDocumentRow {
    */
   certificate_path?: string | null;
   certificate_sha256?: string | null;
+  /**
+   * Migration 181: a COMPLETED document that was cancelled afterwards. `status` stays "completed" (the record is sealed and unchanged); these
+   * say it is no longer in force. All three are set together, once, on a completed document, by the cancelling function (a collection's documents share
+   * the collection's stamp). `cancelled_by` becomes null if that person's login is deleted. Absent or null: not cancelled. See cancel.ts.
+   */
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  /** Migration 181: when the cancel notice was claimed (an email to the people, only when the canceller asked for it); set once. */
+  cancel_notified_at?: string | null;
   void_reason: string | null;
   reminder_days: number[] | null;
   sealing_started_at: string | null;
@@ -170,6 +180,11 @@ export interface SignEnvelopeRow {
   end_notified_at: string | null;
   /** Migration 176: a private collection (and so every document of it) is seen only by its uploader, admins and the Halo users named on it. */
   is_private?: boolean;
+  /** Migration 181: the collection (a completed one) was cancelled, with every document in it. The same stamp as on each document. */
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  cancel_notified_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -318,5 +333,9 @@ export const EVENT_TYPES = [
   // migration 175: a person who receives a copy was added to a document or collection, or removed (names and masked addresses only). History only: left off the certificate.
   "copy_recipient_added",
   "copy_recipient_removed",
+  // migration 181: a completed document was cancelled (the reason the person gave is in the detail), and the cancel notice was sent (counts only: no names or
+  // addresses). History only: left off the certificate, which was made when the document was sealed and is never made again.
+  "cancelled",
+  "cancel_notice_sent",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

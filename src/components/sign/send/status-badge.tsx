@@ -8,10 +8,13 @@ import { cn } from "@/lib/utils";
 
 const BASE = "inline-flex h-5 w-fit shrink-0 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap";
 
-/** The status of a document as a word on a soft tint (the word is the signal; the tint only helps). */
-export function DocumentStatusBadge({ status, className }: { status: string; className?: string }) {
+/**
+ * The status of a document as a word on a soft tint (the word is the signal; the tint only helps). `cancelled`: the document is completed and was cancelled
+ * afterwards (migration 181), so it reads "Cancelled" instead of "Completed".
+ */
+export function DocumentStatusBadge({ status, cancelled, className }: { status: string; cancelled?: boolean | null; className?: string }) {
   const t = useTranslations("Sign.send");
-  return <span className={cn(BASE, documentBadgeClass(status), className)}>{t(documentStatusKey(status))}</span>;
+  return <span className={cn(BASE, documentBadgeClass(status, cancelled), className)}>{t(documentStatusKey(status, cancelled))}</span>;
 }
 
 /** The status of one person on a document. */

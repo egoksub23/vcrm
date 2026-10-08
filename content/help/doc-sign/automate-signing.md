@@ -5,7 +5,7 @@ order: 15
 updated: 2026-10-07
 ---
 
-Automations can send a document for signature on their own, and can react when a document is sent, opened, signed, declined, expired or cancelled. This page builds the merchant onboarding example from start to finish: a contact is tagged as a merchant applicant, the application goes to them, and when it is signed your team is told and the merchant gets a thank-you.
+Automations can send a document for signature on their own, and can react when a document is sent, opened, signed, declined, expired or cancelled, or when a completed document is cancelled afterwards. This page builds the merchant onboarding example from start to finish: a contact is tagged as a merchant applicant, the application goes to them, and when it is signed your team is told and the merchant gets a thank-you.
 
 ## What you need first
 
@@ -44,7 +44,7 @@ The thank-you message needs an existing conversation with the contact. It runs l
 
 ## Other things an automation can react to
 
-In the **Secure Sign event** trigger, tick any of: a document is **sent**, a signer **opens** it for the first time, **everyone has signed**, a signer **declines**, a document **expires**, a document is **cancelled**. You can limit it to one template or one category.
+In the **Secure Sign event** trigger, tick any of: a document is **sent**, a signer **opens** it for the first time, **everyone has signed**, a signer **declines**, a document **expires**, a document is **cancelled** before it was completed, or a completed document is cancelled afterwards (**A completed document is cancelled**). You can limit it to one template or one category. The variable `{{ sign.cancelled_at }}` holds the date for that last one; the reason is not available to automations.
 
 Useful examples:
 

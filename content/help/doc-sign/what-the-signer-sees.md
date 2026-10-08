@@ -37,7 +37,8 @@ The signed PDF is made, sealed and emailed to every signer and to you. The signe
 |---|---|
 | This link is not valid | The link was cut off when copied, or it was replaced by a newer one |
 | This link has expired | The expiry date passed. Send it again |
-| This document was cancelled | You cancelled it |
+| This document was cancelled | You cancelled it before it was completed |
+| This document was cancelled on a date, with the download buttons still there | You cancelled it after everyone signed. The signed copy stays a record, but it is no longer in force. The reason is not shown |
 | It is not your turn yet | The document is in signing order |
 | Please wait a moment | Too many tries came from their connection |
 

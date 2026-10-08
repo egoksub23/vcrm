@@ -10,6 +10,8 @@ import type { SignCategory } from "@/hooks/use-sign-categories";
 import type { SignListRow } from "@/hooks/use-sign-documents";
 import { rowHref } from "@/lib/sign/client/list-merge";
 import { allState } from "@/lib/sign/client/selection";
+import type { CancelViewer } from "@/lib/sign/cancel";
+import { RowActions } from "./row-actions";
 import { DatesText, MetaLine, WaitingText } from "./row-parts";
 
 /** The ticked documents (see use-selection.ts); without it the rows have no tick boxes. */
@@ -26,6 +28,12 @@ interface Props {
   categories: readonly SignCategory[];
   now: number;
   selection?: RowSelection;
+  /**
+   * Migration 181: who is looking, and what to do after a row was cancelled. With them a completed row the viewer made (or any, for an admin) has a
+   * "more" menu with "Cancel document". Without them there is no menu.
+   */
+  viewer?: CancelViewer;
+  onChanged?: () => void;
 }
 
 /** The tick box of one document. A full selection cannot take another, but a ticked one can always be unticked. */
@@ -36,7 +44,7 @@ function RowTick({ row, selection }: { row: SignListRow; selection: RowSelection
 }
 
 /** The documents as a table (tablets and computers). One row opens its document; the title is the keyboard link. */
-export function DocumentTable({ rows, categories, now, selection }: Props) {
+export function DocumentTable({ rows, categories, now, selection, viewer, onChanged }: Props) {
   const t = useTranslations("Sign.send.list");
   const tBulk = useTranslations("Sign.bulk.list");
   // an envelope is not zipped from the list (its documents are, one by one), so it has no tick box and is not in "select all"
@@ -70,6 +78,11 @@ export function DocumentTable({ rows, categories, now, selection }: Props) {
             <th scope="col" className="px-4 py-2.5">
               {t("colDates")}
             </th>
+            {viewer ? (
+              <th scope="col" className="w-12 py-2.5 pr-3 pl-0">
+                <span className="sr-only">{t("colActions")}</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -90,11 +103,16 @@ export function DocumentTable({ rows, categories, now, selection }: Props) {
                 <WaitingText row={row} />
               </td>
               <td className="px-4 py-3">
-                <DocumentStatusBadge status={row.status} />
+                <DocumentStatusBadge status={row.status} cancelled={!!row.cancelled_at} />
               </td>
               <td className="px-4 py-3">
                 <DatesText row={row} now={now} />
               </td>
+              {viewer ? (
+                <td className="w-12 py-3 pr-3 pl-0 text-right" onClick={(e) => e.stopPropagation()}>
+                  {onChanged ? <RowActions row={row} viewer={viewer} onChanged={onChanged} /> : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -104,7 +122,7 @@ export function DocumentTable({ rows, categories, now, selection }: Props) {
 }
 
 /** The documents as cards (phones). */
-export function DocumentCards({ rows, categories, now, selection }: Props) {
+export function DocumentCards({ rows, categories, now, selection, viewer, onChanged }: Props) {
   return (
     <ul className="flex flex-col gap-2 md:hidden">
       {rows.map((row) => (
@@ -115,7 +133,7 @@ export function DocumentCards({ rows, categories, now, selection }: Props) {
           <Link href={rowHref(row)} className="block min-w-0 flex-1 rounded-xl border border-border bg-card p-3 outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-start justify-between gap-2">
               <p className="min-w-0 flex-1 truncate font-medium text-foreground">{row.title}</p>
-              <DocumentStatusBadge status={row.status} />
+              <DocumentStatusBadge status={row.status} cancelled={!!row.cancelled_at} />
             </div>
             <MetaLine row={row} categories={categories} className="mt-0.5" />
             <div className="mt-2 flex items-end justify-between gap-3">
@@ -123,6 +141,7 @@ export function DocumentCards({ rows, categories, now, selection }: Props) {
               <DatesText row={row} now={now} className="shrink-0 text-right" />
             </div>
           </Link>
+          {viewer && onChanged ? <RowActions row={row} viewer={viewer} onChanged={onChanged} className="mt-2" /> : null}
         </li>
       ))}
     </ul>

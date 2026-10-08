@@ -42,6 +42,12 @@ describe("envelopeToRow", () => {
     expect(row.category_id).toBeNull();
   });
 
+  it("carries the cancel stamp and who made it, so the list can show Cancelled and offer Cancel document (migration 181)", () => {
+    expect(envelopeToRow(raw)).toMatchObject({ cancelled_at: null, created_by: null });
+    const cancelled = envelopeToRow({ ...raw, status: "completed", cancelled_at: "2026-10-08T02:00:00Z", created_by: "u1" });
+    expect(cancelled).toMatchObject({ status: "completed", cancelled_at: "2026-10-08T02:00:00Z", created_by: "u1" });
+  });
+
   it("opens the envelope's page, a document opens its own", () => {
     expect(rowHref(envelopeToRow(raw))).toBe("/sign/envelopes/e1");
     expect(rowHref({ id: "d9" })).toBe("/sign/d9");

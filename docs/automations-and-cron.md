@@ -177,12 +177,14 @@ after **3** links. The outbound webhook is not affected.
 ### Outbound webhooks
 
 The same events also go to the workspace's webhook endpoints as `sign.sent`, `sign.viewed`, `sign.completed`,
-`sign.declined`, `sign.expired` and `sign.voided` (see `docs/public-api.md`, "Webhooks"). One emitter,
-`src/lib/sign/service/outbound.ts`, feeds both, from six places: `sendDocument`, `markViewed`, `sealDocument`,
-`declineSigning`, `runExpiry`, `voidDocument`. It runs after the change is committed, after the response where
+`sign.declined`, `sign.expired`, `sign.voided` and `sign.cancelled` (a completed document that was cancelled afterwards,
+migration 181; the automation trigger has it as the seventh event, **A completed document is cancelled**, and `{{ sign.cancelled_at }}`;
+see `docs/public-api.md`, "Webhooks"). One emitter,
+`src/lib/sign/service/outbound.ts`, feeds both, from seven places: `sendDocument`, `markViewed`, `sealDocument`,
+`declineSigning`, `runExpiry`, `voidDocument`, and `cancelDocument` / `cancelEnvelope` (one event for each document cancelled). It runs after the change is committed, after the response where
 there is one, and never throws: a broken endpoint or automation cannot undo a signature. A workspace without Doc
 Sign never emits. The payload holds ids, dates, status, and each signer's name, role, status and signing time.
-**Never an email address, phone number, link token, file address, decline reason or merge value.**
+**Never an email address, phone number, link token, file address, decline, void or cancel reason or merge value.**
 
 Webhook delivery is the existing single attempt with a 5 second timeout, and an endpoint is switched off after
 15 failures in a row. It is **not** retried: a receiver that is down misses the event, so reconcile with the

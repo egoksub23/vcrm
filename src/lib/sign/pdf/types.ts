@@ -249,6 +249,9 @@ export interface CollectionSummaryLabels {
   note: string;
   page: string;
   of: string;
+  /** Migration 181: the line for a collection that was cancelled afterwards ("Cancelled" and its date), and a sentence saying what that means for the files. */
+  cancelled: string;
+  cancelledNote: string;
 }
 
 /** One document of a collection on its summary. */
@@ -273,6 +276,8 @@ export interface CollectionSummaryData {
   preparedAt: Date;
   timeZone?: string;
   documents: CollectionSummaryDocument[];
+  /** Migration 181: when the (completed) collection was cancelled. The signed files in the zip are exactly as they were; the summary, which is not sealed, says so. */
+  cancelledAt?: Date;
   labels: CollectionSummaryLabels;
 }
 

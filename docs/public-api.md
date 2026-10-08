@@ -440,7 +440,9 @@ when it has one, otherwise through the platform sender. Call
     "sign_in_order": true, "code_required": false, "page_count": 6,
     "created_at": "2026-10-07T01:00:00.000Z", "updated_at": "2026-10-07T01:00:02.000Z",
     "sent_at": "2026-10-07T01:00:02.000Z", "expires_at": "2026-10-21T01:00:02.000Z",
-    "completed_at": null, "void_reason": null, "final_sha256": null, "certificate_sha256": null, "verify_url": null,
+    "completed_at": null, "void_reason": null,
+    "cancelled": false, "cancelled_at": null, "cancelled_by": null, "cancel_reason": null,
+    "final_sha256": null, "certificate_sha256": null, "verify_url": null,
     "signers": [
       { "id": "…", "role_key": "merchant", "kind": "signer", "full_name": "Ali bin Ahmad",
         "email": "ali@kedairuncit.example", "channel": "whatsapp", "order_no": 1,
@@ -478,9 +480,13 @@ field, so a retry never adds a person.
 Newest first, paginated like every list ([Pagination](#pagination)). Filters:
 `status` (`draft`, `sent`, `in_progress`, `sealing`, `completed`, `declined`,
 `expired`, `voided`, `failed`), `contact_id`, `template_id`, `reference`
-(exact), `created_after` (a date or an ISO 8601 time). A filter that is not
-valid is a `400`. Each row has the same facts as the single document, without
-the people, plus `signers_total` and `signers_signed`.
+(exact), `created_after` (a date or an ISO 8601 time), and `cancelled`
+(`true` for only the completed documents that were cancelled afterwards, `false`
+for only the ones that were not; leave it out for both). A cancelled document is
+still `completed`, so `status=completed&cancelled=false` is "completed and in
+force". A filter that is not valid is a `400`. Each row has the same facts as
+the single document, without the people, plus `signers_total` and
+`signers_signed`.
 
 Documents a person sent themselves from a template page to try it out (**test documents**, marked TEST on every page) are not listed, and the API never creates one.
 
@@ -519,6 +525,21 @@ The document with its people. What the fields mean:
 - `signers[].status`: `pending` (not invited yet: signing order), `sent`
   (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
   is when they signed.
+- `cancelled`, `cancelled_at`, `cancelled_by` and `cancel_reason`: a person in
+  Halo (the one who sent the document, or an admin) can cancel a document
+  **after** it is completed, with a reason. The document stays `completed` and
+  sealed: its signed file, its certificate and its history are exactly as they
+  were, and `final_sha256`, `certificate_sha256` and `verify_url` are still
+  there (the public verify page keeps saying the file is genuine and adds that
+  it was cancelled on that date). `cancelled` is `true` once that has happened;
+  `cancelled_at` is when, `cancelled_by` is the id of the person who did it
+  (`null` if their login was deleted; never a name or address) and
+  `cancel_reason` is what they typed (3 to 500 characters). All four are
+  `cancelled: false` and `null` otherwise. A cancelled document is no longer in
+  force, but nothing about it is deleted. The API cannot cancel a completed
+  document; it is done in Halo, and `sign.cancelled` tells your backend. (A
+  document of a collection is cancelled with its collection: every document in it
+  gets the same four fields.)
 - `final_sha256`, `certificate_sha256` and `verify_url` appear once `completed`.
   `final_sha256` is the SHA-256 of the signed PDF, so you can check what you
   downloaded. `certificate_sha256` is the SHA-256 of the certificate PDF (see
@@ -722,6 +743,7 @@ things happen in your account. **Migration required:** apply
 | `sign.declined`          | A signer declined                                 |
 | `sign.expired`           | A document passed its expiry date unsigned        |
 | `sign.voided`            | The sender cancelled a document                   |
+| `sign.cancelled`         | A completed document was cancelled afterwards     |
 
 The `sign.*` events are emitted only for workspaces that have Secure Sign
 switched on. See [Secure Sign events](#doc-sign-events) for their payload.
@@ -774,8 +796,8 @@ Headers: `X-Wacrm-Event`, `X-Wacrm-Webhook-Id`, and `X-Wacrm-Signature`.
 
 ### Secure Sign events
 
-`sign.sent`, `sign.viewed`, `sign.completed`, `sign.declined`, `sign.expired`
-and `sign.voided` share one `data` shape. They are sent after the change is
+`sign.sent`, `sign.viewed`, `sign.completed`, `sign.declined`, `sign.expired`,
+`sign.voided` and `sign.cancelled` share one `data` shape. They are sent after the change is
 saved, so `status` is the document's status **after** the event.
 
 ```jsonc
@@ -806,9 +828,19 @@ saved, so `status` is the document's status **after** the event.
 - `sign.viewed` and `sign.declined` add `"signer": { "name": "…", "role": "…" }`,
   who it was. `viewed` is sent once per signer, the first time they open
   their link.
+- `sign.cancelled` is sent when a person in Halo cancels a **completed**
+  document (or a whole document collection: one event for each of its documents,
+  each with its `envelope_id`). `status` is still `"completed"`: cancelling does
+  not change the sealed record. It carries `final_sha256`, `certificate_sha256`
+  and `verify_url` as `sign.completed` did, and adds
+  `"cancelled_at": "2026-10-08T02:00:00.000Z"`. Who cancelled and why are not in
+  the event (see below); read them with `GET /api/v1/sign/documents/{id}`
+  (`cancelled_by`, `cancel_reason`). It was not sent for documents cancelled
+  before this event existed.
 - **Never included:** email addresses, phone numbers, signing-link tokens,
   file addresses or downloads, IP addresses, merge values, and the reason a
-  signer gave when declining or the sender gave when cancelling. Download
+  signer gave when declining, the sender gave when cancelling (voiding), or the
+  person gave when cancelling a completed document, and who that was. Download
   the signed file with `GET /api/v1/sign/documents/{id}/file` (see "Secure Sign"
   above) when you need it.
 - To check a signed file you hold, compare its SHA-256 with `final_sha256` (the

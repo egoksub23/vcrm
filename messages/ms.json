@@ -1948,7 +1948,8 @@
             "completed": "Semua orang telah menandatangani (selesai)",
             "declined": "Penandatangan menolak",
             "expired": "Dokumen tamat tempoh",
-            "voided": "Dokumen dibatalkan"
+            "voided": "Dokumen dibatalkan",
+            "cancelled": "Dokumen yang telah selesai dibatalkan"
           },
           "template": "Hanya untuk templat ini",
           "anyTemplate": "Mana-mana templat",
@@ -7761,7 +7762,8 @@
         "sent": "Dihantar",
         "completed": "Disempurnakan",
         "expires": "Tamat tempoh",
-        "expired": "Telah tamat tempoh"
+        "expired": "Telah tamat tempoh",
+        "cancelled": "Dibatalkan"
       },
       "actions": {
         "downloadSigned": "Muat turun PDF bertandatangan",
@@ -8030,7 +8032,11 @@
         "envelope_reordered": "{sender} menukar susunan dokumen dalam koleksi {reference}",
         "copy_recipient_added": "{sender} menambah {name} ({email}) untuk menerima salinan",
         "copy_recipient_removed": "{sender} membuang {name} daripada orang yang menerima salinan",
-        "seal_retried": "{sender} meminta fail bertandatangan dibuat semula"
+        "seal_retried": "{sender} meminta fail bertandatangan dibuat semula",
+        "cancelled": "{sender} membatalkan dokumen yang telah selesai ini. Ia tidak lagi berkuat kuasa.",
+        "cancelledCollection": "{sender} membatalkan koleksi dokumen {reference} ({count, plural, other {# dokumen}}). Ia tidak lagi berkuat kuasa.",
+        "cancel_notice_sent": "{sent, plural, other {# orang}} dimaklumkan melalui e-mel bahawa ia dibatalkan",
+        "cancel_notice_sentSome": "{sent, plural, other {# orang}} dimaklumkan melalui e-mel bahawa ia dibatalkan; {failed, plural, other {# e-mel}} tidak dapat dihantar"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -8062,7 +8068,14 @@
         "expiry_not_later": "Tarikh baharu mesti lebih lewat daripada tarikh semasa.",
         "expiry_too_far": "Tarikh itu terlalu jauh. Pilih tarikh yang lebih dekat.",
         "bad_expiry": "Tarikh itu tidak dapat dibaca. Pilih semula.",
-        "seal_not_stuck": "Ini tidak lagi menunggu salinan bertandatangannya. Halaman telah disegarkan."
+        "seal_not_stuck": "Ini tidak lagi menunggu salinan bertandatangannya. Halaman telah disegarkan.",
+        "cancel_not_allowed": "Hanya orang yang menghantar dokumen ini, atau pentadbir, yang boleh membatalkannya.",
+        "cancel_reason_invalid": "Berikan sebab 3 hingga 500 aksara.",
+        "document_not_completed": "Hanya dokumen yang telah selesai boleh dibatalkan.",
+        "document_already_cancelled": "Dokumen ini sudah dibatalkan.",
+        "envelope_not_completed": "Hanya koleksi dokumen yang telah selesai boleh dibatalkan.",
+        "envelope_already_cancelled": "Koleksi dokumen ini sudah dibatalkan.",
+        "belongs_to_collection": "Dokumen ini sebahagian daripada koleksi dokumen. Batalkan koleksi itu; ia membatalkan setiap dokumen di dalamnya."
       },
       "contactTab": {
         "tab": "Dokumen",
@@ -8127,6 +8140,36 @@
         "started": "Mencuba semula sekarang. Salinan bertandatangan akan muncul di sini apabila siap.",
         "collectionNote": "Sekurang-kurangnya satu salinan bertandatangan tidak dapat dibuat. Tiada apa yang ditandatangani oleh mereka yang hilang.",
         "reasonOn": "{title}: {error}"
+      },
+      "cancel": {
+        "title": "Batalkan dokumen ini?",
+        "body": "Salinan yang ditandatangani dan sijilnya kekal sebagai rekod, tetapi dokumen ini akan ditandakan sebagai dibatalkan dan tidak boleh diaktifkan semula. Untuk menggunakannya lagi, hantar dokumen baharu.",
+        "bodyCollection": "Salinan yang ditandatangani dan sijilnya kekal sebagai rekod, tetapi dokumen akan ditandakan sebagai dibatalkan dan tidak boleh diaktifkan semula. Untuk menggunakannya lagi, hantar dokumen baharu.",
+        "collectionWarning": "Ini membatalkan semua {count, plural, other {# dokumen}} dalam koleksi ini.",
+        "reason": "Sebab pembatalan",
+        "reasonHint": "Wajib. Semua orang yang boleh melihat dokumen ini boleh membacanya.",
+        "reasonRequired": "Nyatakan sebab pembatalan.",
+        "reasonShort": "Berikan sebab sekurang-kurangnya {min} aksara.",
+        "counter": "{count} / {max}",
+        "notify": "Maklumkan semua orang",
+        "notifyWho": "E-mel dihantar kepada {signers, plural, other {# penandatangan}}, {copies, plural, other {# penerima salinan}} dan penghantar.",
+        "notifyWhoPlain": "E-mel dihantar kepada penandatangan, penerima salinan dan penghantar.",
+        "notifyNote": "Satu e-mel ringkas untuk setiap orang, tanpa pautan dan tanpa dokumen. Mati melainkan anda menandakannya.",
+        "keep": "Kekalkan dokumen",
+        "action": "Batalkan dokumen",
+        "done": "Dokumen telah dibatalkan",
+        "doneCollection": "Koleksi telah dibatalkan: {count, plural, other {# dokumen}}",
+        "noticeSome": "{failed, plural, other {# e-mel}} tidak dapat dihantar. Sejarah mempunyai butirannya."
+      },
+      "cancelledBanner": {
+        "title": "Dokumen ini telah dibatalkan",
+        "titleCollection": "Koleksi dokumen ini telah dibatalkan",
+        "byOn": "Dibatalkan oleh {name} pada {date}.",
+        "on": "Dibatalkan pada {date}.",
+        "reason": "Sebab: {reason}",
+        "note": "Salinan yang ditandatangani dan sijilnya disimpan sebagai rekod apa yang ditandatangani, tetapi dokumen ini tidak lagi berkuat kuasa.",
+        "noteCollection": "Setiap dokumen dalam koleksi dibatalkan bersamanya. Salinan yang ditandatangani dan sijil disimpan sebagai rekod apa yang ditandatangani, tetapi tidak lagi berkuat kuasa.",
+        "withCollection": "Ia dibatalkan bersama koleksinya:"
       }
     },
     "editor": {
@@ -9187,7 +9230,8 @@
           "signed": "Telah ditandatangani",
           "filled": "Telah diisi",
           "declined": "Ditolak"
-        }
+        },
+        "cancelled": "Dibatalkan"
       },
       "save": {
         "saving": "Menyimpan...",
@@ -9212,7 +9256,8 @@
           "waiting": "Menunggu orang lain",
           "completed": "Selesai",
           "stopped": "Dihentikan",
-          "test": "Ujian"
+          "test": "Ujian",
+          "cancelled": "Dibatalkan"
         },
         "searchLabel": "Cari dokumen",
         "searchPlaceholder": "Cari mengikut tajuk, rujukan atau penandatangan",
@@ -9297,7 +9342,16 @@
         "dateFrom": "Dibuat dari",
         "dateTo": "Dibuat hingga",
         "contactLabel": "Kenalan",
-        "rangeBackwards": "Tarikh mula selepas tarikh akhir, jadi tiada yang boleh sepadan."
+        "rangeBackwards": "Tarikh mula selepas tarikh akhir, jadi tiada yang boleh sepadan.",
+        "groupHelp": {
+          "all": "Semua, termasuk dokumen yang dibatalkan selepas ia selesai.",
+          "completed": "Dokumen selesai yang masih berkuat kuasa. Dokumen yang dibatalkan selepas selesai berada di bawah Dibatalkan.",
+          "cancelled": "Dokumen selesai yang dibatalkan kemudian. Salinan yang ditandatangani disimpan sebagai rekod, tetapi tidak lagi berkuat kuasa."
+        },
+        "cancelledOn": "Dibatalkan {date}",
+        "rowActions": "Lebih banyak tindakan untuk {title}",
+        "cancelAction": "Batalkan dokumen",
+        "colActions": "Tindakan"
       },
       "new": {
         "title": "Dokumen baharu",
@@ -10184,6 +10238,12 @@
         "notInvitedForm": {
           "title": "Belum giliran anda",
           "body": "Seseorang perlu selesai sebelum anda. Kami akan menghantar mesej apabila tiba giliran anda. Anda boleh menutup halaman ini."
+        },
+        "cancelled": {
+          "title": "Dokumen ini dibatalkan pada {date}",
+          "titleCollection": "Dokumen ini dibatalkan pada {date}",
+          "note": "Salinan yang ditandatangani di bawah kekal sebagai rekod apa yang ditandatangani. Ia tidak lagi berkuat kuasa.",
+          "noteForm": "Rekod di bawah kekal sebagai rekod apa yang dihantar. Ia tidak lagi berkuat kuasa."
         }
       },
       "others": {
@@ -10572,6 +10632,11 @@
         "title": "Sijil",
         "separate": "Sijil dokumen ini ialah fail berasingan, dimeterai dengan tandatangan digital. Ia menamakan dokumen bertandatangan yang diliputinya: {file}.",
         "fingerprint": "Cap jari sijil (SHA-256)"
+      },
+      "cancelled": {
+        "title": "Dibatalkan pada {date}",
+        "body": "Dokumen ini dibatalkan selepas ia ditandatangani. Tandatangan dan rekod pada halaman ini adalah tulen, tetapi dokumen ini tidak lagi berkuat kuasa.",
+        "bodyForm": "Rekod ini dibatalkan selepas ia dihantar. Rekod pada halaman ini adalah tulen, tetapi ia tidak lagi berkuat kuasa."
       }
     },
     "bulk": {

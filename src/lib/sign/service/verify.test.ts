@@ -85,6 +85,23 @@ describe("loadVerification", () => {
     expect(db.rpcCalls.find((c) => c.name === "sign_verify_chain")?.args).toEqual({ p_document: DOC });
   });
 
+  it("says a document was cancelled after it was signed, with the date and nothing else: still verified, and neither the reason nor who is public (migration 181)", async () => {
+    replace("sign_documents", [doc({ cancelled_at: "2026-10-08T02:00:00Z", cancelled_by: "22222222-2222-4222-8222-222222222222", cancel_reason: "Signed with the wrong price list" })]);
+    const v = await loadVerification(db.client(), DOC);
+    // what the page proves is unchanged
+    expect(v).toMatchObject({ title: "Merchant Application: Kedai Runcit", completedAt: "2026-10-06T08:30:00Z", sha256: SHA, chain: "intact", events: 14 });
+    expect(v?.signers.map((s) => s.name)).toEqual(["Ali bin Ahmad", "Siti Director"]);
+    // and it says when it was cancelled
+    expect(v?.cancelledAt).toBe("2026-10-08T02:00:00Z");
+    const text = JSON.stringify(v);
+    expect(text).not.toContain("wrong price");
+    expect(text).not.toContain("22222222");
+    expect(text).not.toContain("cancel_reason");
+    // a document that was not cancelled says nothing of it
+    replace("sign_documents", [doc()]);
+    expect(await loadVerification(db.client(), DOC)).not.toHaveProperty("cancelledAt");
+  });
+
   it("lists who signed, earliest first, with a name and a time only", async () => {
     const v = await loadVerification(db.client(), DOC);
     expect(v?.signers).toEqual([

@@ -17,12 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignNowButton } from "@/components/sign/countersign/sign-now-button";
 import { EnvelopeBanner } from "@/components/sign/envelope/envelope-banner";
+import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { documentFileUrl, signRequest, SignApiError } from "@/lib/sign/client/api";
 import { hasFormParts } from "@/lib/sign/client/progress-logic";
+import { isCancelled } from "@/lib/sign/cancel";
 import { myOpenPlace } from "@/lib/sign/turn";
 
+import { CancelDialog, audienceOf } from "./cancel-dialog";
+import { CancelledBanner } from "./cancelled-banner";
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
 import { CopyRecipients } from "./copy-recipients";
@@ -49,7 +53,8 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const canReveal = useCapability("sign.reveal-sensitive");
   const canSettings = useCapability("sign.settings");
   const canCountersign = useCapability("sign.sign");
-  const { user } = useAuth();
+  const { user, isAdmin, isOwner } = useAuth();
+  const { nameOf } = useAccountMembers();
   const caps: DetailCaps = { send: canSend, void: canVoid, reveal: canReveal, settings: canSettings };
 
   const { data, error, loading, version, reload } = useDocumentDetail(documentId);
@@ -62,6 +67,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const [viewChoice, setViewChoice] = useState<"final" | "base" | null>(null);
   const [downloading, setDownloading] = useState<DownloadKind | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [forwardingBusy, setForwardingBusy] = useState(false);
 
   if (loading) {
@@ -89,7 +95,10 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const tab: TabKey = chosenTab === "progress" && !withForm ? "people" : (chosenTab ?? (withForm ? "progress" : "people"));
   // a document of an envelope is cancelled, reminded and changed with its envelope: those actions are the envelope's (migration 171)
   const inEnvelope = !!doc.envelope_id && !!data.envelope;
-  const actions = inEnvelope ? { ...documentActions(doc, caps), void: false } : documentActions(doc, caps);
+  // (the Cancel action stays: on a document of a collection it cancels the whole collection, and the dialog says so)
+  const viewer = { userId: user?.id, isAdmin: isAdmin || isOwner };
+  const actions = inEnvelope ? { ...documentActions(doc, caps, viewer), void: false } : documentActions(doc, caps, viewer);
+  const cancelled = isCancelled(doc);
   const banner = bannerFor(doc, data.signers, caps);
   const undelivered = undeliveredDetails(events.events ?? []);
   const viewKind = viewChoice && viewChoice === "base" && doc.base_path ? "base" : viewChoice === "final" && actions.downloadSigned ? "final" : actions.viewKind;
@@ -128,8 +137,13 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         onView={() => setTab("document")}
         onDownload={(k) => void download(k)}
         onVoid={() => setVoiding(true)}
+        onCancel={() => setCancelling(true)}
         forwarding={canSend && !inEnvelope && (doc.status === "sent" || doc.status === "in_progress") ? { allowed: doc.allow_forwarding, busy: forwardingBusy, onChange: (allow) => void changeForwarding(allow) } : undefined}
       />
+
+      {cancelled && doc.cancelled_at ? (
+        <CancelledBanner at={doc.cancelled_at} by={doc.cancelled_by ? nameOf(doc.cancelled_by) || null : null} reason={doc.cancel_reason?.trim() || null} collection={inEnvelope && data.envelope ? { id: data.envelope.id, reference: data.envelope.reference, title: data.envelope.title } : null} />
+      ) : null}
 
       <StatusBanner banner={banner} retry={canSend && (banner.kind === "failed" || (banner.kind === "sealing" && banner.stuck)) ? <SealRetry path={`/api/sign/documents/${documentId}/retry-seal`} onDone={reload} /> : undefined} />
 
@@ -201,6 +215,17 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
       </Tabs>
 
       {voiding && <VoidDialog documentId={documentId} title={doc.title} onClose={() => setVoiding(false)} onVoided={reload} />}
+      {cancelling && (
+        <CancelDialog
+          target={inEnvelope && data.envelope ? { kind: "collection", id: data.envelope.id, documents: data.envelope.documents.length } : { kind: "document", id: documentId }}
+          title={inEnvelope && data.envelope ? data.envelope.title : doc.title}
+          audience={inEnvelope ? undefined : audienceOf({ signers: data.signers, copies: data.copies })}
+          onClose={() => setCancelling(false)}
+          onCancelled={async () => {
+            await reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1948,7 +1948,8 @@
             "completed": "所有人均已签署（已完成）",
             "declined": "签署人拒绝签署",
             "expired": "文件已过期",
-            "voided": "文件已作废"
+            "voided": "文件已作废",
+            "cancelled": "已完成的文件被取消"
           },
           "template": "仅限此模板",
           "anyTemplate": "任何模板",
@@ -7761,7 +7762,8 @@
         "sent": "发送时间",
         "completed": "完成时间",
         "expires": "到期时间",
-        "expired": "已于此时到期"
+        "expired": "已于此时到期",
+        "cancelled": "取消时间"
       },
       "actions": {
         "downloadSigned": "下载已签署的 PDF",
@@ -8030,7 +8032,11 @@
         "envelope_reordered": "{sender}更改了文件集 {reference} 中文件的顺序",
         "copy_recipient_added": "{sender} 添加了 {name}（{email}）接收副本",
         "copy_recipient_removed": "{sender} 将 {name} 从接收副本的人员中移除",
-        "seal_retried": "{sender} 要求重新生成已签署的文件"
+        "seal_retried": "{sender} 要求重新生成已签署的文件",
+        "cancelled": "{sender} 取消了这份已完成的文件。它已不再有效。",
+        "cancelledCollection": "{sender} 取消了文件集 {reference}（{count, plural, other {# 份文件}}）。它已不再有效。",
+        "cancel_notice_sent": "已通过邮件通知 {sent, plural, other {# 人}}，告知已取消",
+        "cancel_notice_sentSome": "已通过邮件通知 {sent, plural, other {# 人}}，告知已取消；{failed, plural, other {# 封邮件}}未能送达"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -8062,7 +8068,14 @@
         "expiry_not_later": "新日期必须晚于当前日期。",
         "expiry_too_far": "该日期太遥远。请选择更近的日期。",
         "bad_expiry": "无法识别该日期。请重新选择。",
-        "seal_not_stuck": "这份文件已不再等待生成已签署的副本。页面已刷新。"
+        "seal_not_stuck": "这份文件已不再等待生成已签署的副本。页面已刷新。",
+        "cancel_not_allowed": "只有发送此文件的人或管理员才能取消它。",
+        "cancel_reason_invalid": "请给出 3 到 500 个字符的原因。",
+        "document_not_completed": "只有已完成的文件才能取消。",
+        "document_already_cancelled": "此文件已被取消。",
+        "envelope_not_completed": "只有已完成的文件集才能取消。",
+        "envelope_already_cancelled": "此文件集已被取消。",
+        "belongs_to_collection": "此文件属于一个文件集。请取消该文件集，这会取消其中的每份文件。"
       },
       "contactTab": {
         "tab": "文件",
@@ -8127,6 +8140,36 @@
         "started": "正在重试。已签署的副本准备好后会显示在此处。",
         "collectionNote": "至少有一份已签署的副本未能生成。大家已签署的内容不会丢失。",
         "reasonOn": "{title}：{error}"
+      },
+      "cancel": {
+        "title": "要取消此文件吗？",
+        "body": "已签署的副本及其证书会作为记录保留，但此文件将被标记为已取消，且无法重新启用。如需再次使用，请重新发送一份新文件。",
+        "bodyCollection": "已签署的副本及其证书会作为记录保留，但这些文件将被标记为已取消，且无法重新启用。如需再次使用，请重新发送新文件。",
+        "collectionWarning": "这将取消文件集中的全部 {count, plural, other {# 份文件}}。",
+        "reason": "取消原因",
+        "reasonHint": "必填。所有能看到此文件的人都可以阅读。",
+        "reasonRequired": "请说明取消的原因。",
+        "reasonShort": "原因至少需要 {min} 个字符。",
+        "counter": "{count} / {max}",
+        "notify": "通知所有人",
+        "notifyWho": "将发送邮件给 {signers, plural, other {# 位签署人}}、{copies, plural, other {# 位接收副本的人}}以及发送人。",
+        "notifyWhoPlain": "将发送邮件给签署人、接收副本的人以及发送人。",
+        "notifyNote": "每人一封简短邮件，不含链接和文件。除非勾选，否则不发送。",
+        "keep": "保留文件",
+        "action": "取消文件",
+        "done": "文件已取消",
+        "doneCollection": "文件集已取消：{count, plural, other {# 份文件}}",
+        "noticeSome": "{failed, plural, other {# 封邮件}}未能送达。详情见历史记录。"
+      },
+      "cancelledBanner": {
+        "title": "此文件已被取消",
+        "titleCollection": "此文件集已被取消",
+        "byOn": "{name} 于 {date} 取消。",
+        "on": "于 {date} 取消。",
+        "reason": "原因：{reason}",
+        "note": "已签署的副本及其证书作为已签署内容的记录保留，但此文件已不再有效。",
+        "noteCollection": "文件集中的每份文件都随之取消。已签署的副本和证书作为已签署内容的记录保留，但已不再有效。",
+        "withCollection": "它随所属文件集一并取消："
       }
     },
     "editor": {
@@ -9187,7 +9230,8 @@
           "signed": "已签署",
           "filled": "已填写",
           "declined": "已拒绝"
-        }
+        },
+        "cancelled": "已取消"
       },
       "save": {
         "saving": "正在保存...",
@@ -9212,7 +9256,8 @@
           "waiting": "等待他人",
           "completed": "已完成",
           "stopped": "已终止",
-          "test": "测试"
+          "test": "测试",
+          "cancelled": "已取消"
         },
         "searchLabel": "搜索文档",
         "searchPlaceholder": "按标题、编号或签署人搜索",
@@ -9297,7 +9342,16 @@
         "dateFrom": "创建日期自",
         "dateTo": "创建日期至",
         "contactLabel": "联系人",
-        "rangeBackwards": "开始日期晚于结束日期，因此没有任何结果。"
+        "rangeBackwards": "开始日期晚于结束日期，因此没有任何结果。",
+        "groupHelp": {
+          "all": "全部，包括完成后被取消的文件。",
+          "completed": "仍然有效的已完成文件。完成后被取消的文件在“已取消”中。",
+          "cancelled": "完成后被取消的文件。已签署的副本作为记录保留，但已不再有效。"
+        },
+        "cancelledOn": "{date} 取消",
+        "rowActions": "“{title}”的更多操作",
+        "cancelAction": "取消文件",
+        "colActions": "操作"
       },
       "new": {
         "title": "新建文档",
@@ -10184,6 +10238,12 @@
         "notInvitedForm": {
           "title": "还没轮到您",
           "body": "需要有人先完成。轮到您时我们会通知您。您可以关闭此页面。"
+        },
+        "cancelled": {
+          "title": "此文件已于 {date} 取消",
+          "titleCollection": "这些文件已于 {date} 取消",
+          "note": "下方的已签署副本仍是已签署内容的记录，但已不再有效。",
+          "noteForm": "下方的记录仍是所提交内容的记录，但已不再有效。"
         }
       },
       "others": {
@@ -10572,6 +10632,11 @@
         "title": "证书",
         "separate": "本文件的证书是一个独立的文件，以数字签名封存。它指明所涵盖的已签署文件：{file}。",
         "fingerprint": "证书的指纹 (SHA-256)"
+      },
+      "cancelled": {
+        "title": "已于 {date} 取消",
+        "body": "此文件在签署之后被取消。本页上的签名和记录是真实的，但该文件已不再有效。",
+        "bodyForm": "此记录在提交之后被取消。本页上的记录是真实的，但已不再有效。"
       }
     },
     "bulk": {
