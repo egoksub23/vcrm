@@ -177,6 +177,8 @@ export const ROUTE_ROWS: readonly Row[] = [
   // ---- inbox ----
   row("comments/[id]", "PATCH", "agent", "comments.moderate"),
   row("comments/sync", "POST", "agent", "comments.moderate"),
+  // Bulk handled / spam / hide on a post's comments (migration 180's grouped Comments inbox); delete is not offered in bulk
+  row("comments/bulk", "POST", "agent", "comments.moderate"),
   row("comments/[id]/action", "POST", "agent", "comments.moderate"),
   row("comments/[id]/action", "POST (action=delete)", "admin", "comments.delete", "was role !== admin/owner"),
   row("conversations/[id]/comments", "POST", "agent", "conversations.manage"),

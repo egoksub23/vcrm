@@ -60,6 +60,10 @@ function InboxPageInner() {
    * automatically instead of showing the empty center panel.
    */
   const deepLinkConvId = searchParams.get("c");
+  /**
+   * `?comment=<id>` deep link: opens the Comments tab on that comment's post, scrolled to and outlining it.
+   */
+  const deepLinkCommentId = searchParams.get("comment");
 
   const { user } = useAuth();
   const canClaimConversations = useCapability("conversations.manage");
@@ -71,7 +75,7 @@ function InboxPageInner() {
   // Chats / Emails tab of the conversation column. Lives here (not in
   // ConversationList) because the WhatsApp banner and deep links depend
   // on it too.
-  const [inboxTab, setInboxTab] = useState<InboxTab>("chats");
+  const [inboxTab, setInboxTab] = useState<InboxTab>(deepLinkCommentId ? "comments" : "chats");
   // Comments still waiting for a first response — the Comments tab's bubble.
   const [commentsOpen, setCommentsOpen] = useState(0);
   const refreshCommentsCount = useCallback(async () => {
@@ -792,6 +796,7 @@ function InboxPageInner() {
           unread={{ ...unreadConversationCounts(conversations), comments: commentsOpen }}
           onTabChange={setInboxTab}
           onCountChange={refreshCommentsCount}
+          initialCommentId={deepLinkCommentId}
         />
       ) : (
       <div ref={rowRef} className="flex flex-1 overflow-hidden">

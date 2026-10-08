@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.86.0] — 2026-10-08
+
+**Migrations required: 179 and 180.** Apply both BEFORE the new app.
+
+### Changed
+
+- **The Inbox Comments tab is grouped by post.** One row per post (thumbnail, caption, how many comments are to do, the latest comment and a dot when something new arrived) instead of one row per comment. A new comment moves its post to the top and raises its count; it never adds a second row. To do, Handled, Spam and All now filter posts. The tab badge still counts open comments. A **Flat list** toggle brings back the old per-comment list.
+- **Opening a post shows the whole conversation:** the post card, then every comment oldest first with replies indented, our own replies marked, and a "New" divider for what arrived since your last visit or while the post is open. Each comment has its own Reply (public, the default), Private reply, Hide, Mark handled and Spam. The reply box says who you are replying to; replying marks that comment handled as before.
+- **One person, many comments:** when one commenter has three or more open comments on a post they fold into a single block ("name · 11 comments") with Mark all handled, Hide all and Spam all. Comments can also be ticked for a bulk action. Each comment reports its own result; failures are listed, never dropped.
+- A comment can be opened directly with `/inbox?comment=<id>`.
+
 ## [0.85.0] — 2026-10-08
 
 **Migration required: 179.** Apply it BEFORE the new app: the channel settings and the renewal jobs read the new column.

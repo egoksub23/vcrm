@@ -105,12 +105,12 @@
     "file": "social-comments-01-list.png",
     "page": "inbox/social-comments",
     "route": "/inbox",
-    "capture": "Inbox with the Comments tab selected and the To do pill selected. Crop to the left column: the three tabs, the search box with the refresh button, the To do / Handled / Spam / All pills, the source icons and several comment rows. Do not click the refresh button and do not open a comment."
+    "capture": "Inbox with the Comments tab selected, the To do pill selected and Flat list OFF. Crop to the left column: the three tabs, the search box with the refresh button, the To do / Handled / Spam / All pills with the one-line help under them, the source icons with the Flat list switch, and several post rows (picture, caption, N to do badge, latest comment, a blue dot on at least one). Do not click the refresh button and do not open a post."
   },
   {
     "file": "social-comments-02-detail.png",
     "page": "inbox/social-comments",
     "route": "/inbox",
-    "capture": "Inbox, Comments tab. Click one comment (a Sample comment is fine) so it opens on the right, showing the post card, the thread, the Reply publicly and Private message tabs and the Hide button. Do not type in the reply box and do not click Send, Hide, Delete, Mark resolved or Spam."
+    "capture": "Inbox, Comments tab. Click one post that has several comments (a Sample post is fine) so it opens on the right, showing the post card, the comments as a conversation with a reply indented under a comment, the Reply and Private reply buttons under a comment, and the reply box at the bottom after pressing Reply on one comment. Do not type in the reply box and do not click Send, Hide, Delete, Mark handled or Spam."
   }
 ]
