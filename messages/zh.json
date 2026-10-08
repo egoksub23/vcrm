@@ -420,7 +420,10 @@
         "gmail": "Gmail",
         "vircle_chat": "Vircle Chat"
       },
-      "modeKnowledge": "知识"
+      "modeKnowledge": "知识",
+      "emailInboxOffHint": "电子邮件收件箱已关闭。请在“设置 > 渠道 > 电子邮件”中开启后再回复。",
+      "gmailInboxOffHint": "Gmail 收件箱已关闭。请在“设置 > 渠道 > Gmail”中开启后再回复。",
+      "emailInboxOffPlaceholder": "电子邮件收件箱已关闭"
     },
     "bubble": {
       "photo": "照片",
@@ -3103,13 +3106,13 @@
       },
       "email": {
         "title": "电子邮件",
-        "description": "连接 Microsoft 365 或 Outlook 邮箱，即可在收件箱中收发电子邮件。",
+        "description": "连接 Microsoft 365 或 Outlook 邮箱。Halo 会用它发送自己的邮件（Secure Sign、邀请、通知），您也可以把它用作客户服务收件箱。",
         "notConnected": "尚未连接邮箱。",
         "connectButton": "连接 Microsoft 365",
         "connectedAs": "已连接——{mailbox}",
         "connectedAtLabel": "已连接",
         "disconnect": "断开连接",
-        "disconnectConfirmDescription": "断开此邮箱？重新连接之前，电子邮件对话将停止同步。",
+        "disconnectConfirmDescription": "断开此邮箱？重新连接之前，新邮件将不再进入收件箱，Halo 也将停止用它发送自己的邮件。",
         "disconnectFailed": "断开电子邮件失败",
         "disconnected": "电子邮件已断开连接",
         "connected": "电子邮件已连接",
@@ -3125,13 +3128,13 @@
       },
       "gmail": {
         "title": "Gmail",
-        "description": "连接 Gmail 邮箱，即可在收件箱中收发电子邮件。",
+        "description": "连接 Gmail 邮箱。Halo 会用它发送自己的邮件（Secure Sign、邀请、通知），您也可以把它用作客户服务收件箱。",
         "notConnected": "尚未连接 Gmail 账户。",
         "connectButton": "连接 Gmail",
         "connectedAs": "已连接——{mailbox}",
         "connectedAtLabel": "已连接",
         "disconnect": "断开连接",
-        "disconnectConfirmDescription": "断开此 Gmail 账户？重新连接之前，电子邮件对话将停止同步。",
+        "disconnectConfirmDescription": "断开此 Gmail 账户？重新连接之前，新邮件将不再进入收件箱，Halo 也将停止用它发送自己的邮件。",
         "disconnectFailed": "断开 Gmail 失败",
         "disconnected": "Gmail 已断开连接",
         "connected": "Gmail 已连接",
@@ -3286,6 +3289,35 @@
         "sampleAdded": "示例评论已添加。请打开收件箱中的评论标签页。",
         "sampleCleared": "示例评论已移除",
         "sampleFailed": "无法更改示例评论"
+      },
+      "mailbox": {
+        "inboxTitle": "客户服务收件箱",
+        "inboxDescription": "将客户发来的电子邮件接收到 Halo 收件箱，并让客服人员在其中回复。关闭后，收件箱中已有的邮件保留为历史记录，不再有新邮件进入，也不再提供邮件回复。邮箱保持连接。",
+        "inboxOffNote": "已关闭：不会有新邮件进入收件箱，客服人员无法通过电子邮件回复。关闭期间到达的邮件，在您重新开启后不会被导入。",
+        "on": "开",
+        "off": "关",
+        "inboxOnToast": "客户服务收件箱已开启。从现在起，新邮件会进入收件箱。",
+        "inboxOffToast": "客户服务收件箱已关闭。不会再有新邮件进入；现有对话保留为历史记录。",
+        "inboxOffStopFailed": "客户服务收件箱已关闭。无法通知邮件服务商停止发送通知，因此 Halo 会忽略这些通知；它们会在几天内自动停止。",
+        "inboxOnNoPush": "已开启，但尚未设置 Gmail 推送通知，因此在设置完成之前不会收到新邮件。请参阅下方的推送通知设置。",
+        "sendTitle": "用此邮箱发送 Halo 邮件",
+        "send": {
+          "used": "用于 Secure Sign、邀请和通知",
+          "paused": "目前未使用：此邮箱已暂停。恢复后，Halo 的邮件将从此邮箱发出。",
+          "reconnect": "目前未使用：此邮箱需要重新连接。"
+        },
+        "sendDescription": "Halo 自己的邮件（Secure Sign 文档、团队邀请、通知）会从 {mailbox} 发出，无论客户服务收件箱是否开启。",
+        "sendDescriptionNoAddress": "Halo 自己的邮件（Secure Sign 文档、团队邀请、通知）会从此邮箱发出，无论客户服务收件箱是否开启。",
+        "pauseTitle": "完全暂停此邮箱",
+        "pauseDescription": "停止一切收发：新邮件不会进入收件箱，Halo 也不会通过此邮箱发送任何内容（不回复、不发 Secure Sign 邮件、不发邀请）。连接会保留，您可以随时恢复。",
+        "pausedToast": "邮箱已暂停。恢复之前，不会收发任何邮件。",
+        "resumedToast": "邮箱已恢复。",
+        "refusal": {
+          "needs_reconnect": "请先重新连接邮箱，然后再试。",
+          "start_failed": "无法开始接收邮件。请重试，或重新连接邮箱。",
+          "not_connected": "此邮箱未连接。",
+          "failed": "无法更新，请重试。"
+        }
       }
     },
     "autoLabels": {
@@ -6540,7 +6572,8 @@
       "pause_while_pending": "挂起时暂停",
       "at_risk_percent": "风险百分比",
       "conditions": "条件",
-      "require_ticket_resolution": "必须填写解决方式"
+      "require_ticket_resolution": "必须填写解决方式",
+      "inbox_enabled": "客户服务收件箱"
     },
     "activity": {
       "button": "动态",
@@ -7638,7 +7671,7 @@
         "platformNote": "尚未连接邮箱，因此邮件由平台自己的地址发出。若要从您自己的地址发送，请连接邮箱。",
         "problem": {
           "reconnect": "邮箱 {address} 需要重新连接：其访问权限已被撤销或已过期。",
-          "paused": "邮箱 {address} 已被关闭。",
+          "paused": "邮箱 {address} 已暂停（在“设置 > 渠道”中已开启“完全暂停此邮箱”）。",
           "unavailable": "暂时无法读取已连接的邮箱。"
         },
         "platformInstead": "在问题解决之前，将使用平台发件服务。",
@@ -7660,7 +7693,8 @@
           "manage": "打开此邮箱的渠道设置",
           "connectMicrosoft365": "连接 Microsoft 365 邮箱",
           "connectGmail": "连接 Gmail 邮箱"
-        }
+        },
+        "inboxOffNote": "即使在“设置 > 渠道”中已将该邮箱关闭为客户服务收件箱，仍会使用它来发送这些邮件。"
       }
     },
     "detail": {

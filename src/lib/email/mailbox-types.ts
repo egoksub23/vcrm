@@ -20,6 +20,22 @@ export type MailboxProvider = "microsoft365" | "gmail";
 
 export type MailboxProblem = "reconnect" | "paused" | "unavailable";
 
+/**
+ * Whether a connected mailbox row can send Halo's own email now, and if not, why. The one place the rule lives (both mailbox senders and the
+ * Settings > Channels status line use it):
+ *   - a connection that is not `connected`, or that needs the person to sign in again   -> "reconnect";
+ *   - the master pause (`enabled` false: nothing in, nothing out)                       -> "paused";
+ *   - otherwise nothing is wrong.
+ * `inbox_enabled` (use this mailbox for the customer care inbox) is deliberately NOT an input: a mailbox whose inbox is switched off still sends
+ * Halo's own email. `=== false`, not falsy: a row read before the column existed is not paused.
+ */
+export function mailboxSendProblem(row: { status?: string | null; needs_reauth?: boolean | null; enabled?: boolean | null }): "reconnect" | "paused" | null {
+  if (row.status && row.status !== "connected") return "reconnect";
+  if (row.needs_reauth === true) return "reconnect";
+  if (row.enabled === false) return "paused";
+  return null;
+}
+
 export type MailboxState =
   | { kind: "none" }
   /** A mailbox is connected but cannot send now. */
@@ -27,7 +43,16 @@ export type MailboxState =
   /** `attachBytes`: the most the files on one message may add up to, as raw bytes, through this mailbox. */
   | { kind: "ready"; provider: MailboxProvider; address: string; attachBytes: number; send: (m: OutgoingEmail) => Promise<void> };
 
-/** What the sender adds to every message. Doc Sign passes its marker header here. */
+/**
+ * Whether a connected mailbox is switched off as the customer care inbox: nothing new is ingested into the Inbox, and the Inbox does not offer
+ * email to reply with. `=== false`, not falsy: a row read before the column existed has the inbox on. Independent of `enabled` (the master pause)
+ * and of whether Halo can send through the mailbox.
+ */
+export function inboxIsOff(row: { inbox_enabled?: boolean | null }): boolean {
+  return row.inbox_enabled === false;
+}
+
+/** What the sender adds to every message, on top of the marks it always writes (X-Halo-System, and an auto-response suppression). Secure Sign passes its own marker header here. */
 export interface MailboxOptions {
   headers?: Record<string, string>;
 }

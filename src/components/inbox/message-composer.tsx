@@ -166,6 +166,9 @@ interface MessageComposerProps {
    *  instead of it always following `channelType`. A single-entry list
    *  hides the selector entirely (nothing to choose between). */
   availableChannels: ChannelType[];
+  /** Email channels the Inbox does not offer because the mailbox is switched off as the customer care inbox (migration 179). A conversation on one of
+   *  them stays readable but cannot be replied to by email: the box is locked with a notice. Absent: none. */
+  inboxOffChannels?: ChannelType[];
   sessionExpired: boolean;
   /** `html` is only ever set for an Email(MS365)/Gmail send made with
    *  the WYSIWYG editor — the plain-text `text` is still always sent
@@ -222,6 +225,7 @@ export function MessageComposer({
   conversationId,
   channelType,
   availableChannels,
+  inboxOffChannels = [],
   sessionExpired: whatsappSessionExpired,
   onSend,
   onSendMedia,
@@ -262,7 +266,11 @@ export function MessageComposer({
   const [selectedChannel, setSelectedChannel] = useState<ChannelType>(channelType);
   // The 24-hour customer-service window is a WhatsApp rule. Email, web chat,
   // Messenger and Instagram have no template fallback, so never lock them.
-  const sessionExpired = whatsappSessionExpired && selectedChannel === "whatsapp";
+  const whatsappExpired = whatsappSessionExpired && selectedChannel === "whatsapp";
+  // An email channel whose mailbox is switched off as the customer care inbox: history stays readable, replying by email is not offered.
+  const emailInboxOff = inboxOffChannels.includes(selectedChannel);
+  // What locks the customer-facing box: the 24-hour window, or the email inbox being off.
+  const sessionExpired = whatsappExpired || emailInboxOff;
   const manualChannelPickRef = useRef(false);
   useEffect(() => {
     manualChannelPickRef.current = false;
@@ -1359,7 +1367,14 @@ export function MessageComposer({
           />
         </div>
       )}
-      {sessionExpired && !isComment && (
+      {emailInboxOff && !isComment && (
+        <div role="status" data-email-inbox-off={selectedChannel} className="mb-2 rounded-lg bg-amber-500/10 px-3 py-2">
+          <p className="text-xs text-amber-400">
+            {selectedChannel === "gmail" ? t("gmailInboxOffHint") : t("emailInboxOffHint")}
+          </p>
+        </div>
+      )}
+      {whatsappExpired && !isComment && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
           <p className="text-xs text-amber-400">
             {t("sessionExpiredHint")}
@@ -1753,7 +1768,7 @@ export function MessageComposer({
                 }}
                 // A pasted picture becomes an attachment chip, not part of the text.
                 onImageFiles={inputsDisabled ? undefined : (files) => void stagePastedImages(files)}
-                placeholder={sessionExpired ? t("sessionExpiredPlaceholder") : t("typeEmailPlaceholder")}
+                placeholder={emailInboxOff ? t("emailInboxOffPlaceholder") : sessionExpired ? t("sessionExpiredPlaceholder") : t("typeEmailPlaceholder")}
                 disabled={sessionExpired || readOnly}
               />
             ) : (
@@ -1769,9 +1784,11 @@ export function MessageComposer({
                     ? t("readOnlyPlaceholder")
                     : isComment
                       ? t("commentPlaceholder")
-                      : sessionExpired
-                        ? t("sessionExpiredPlaceholder")
-                        : t("typeMessagePlaceholder")
+                      : emailInboxOff
+                        ? t("emailInboxOffPlaceholder")
+                        : sessionExpired
+                          ? t("sessionExpiredPlaceholder")
+                          : t("typeMessagePlaceholder")
                 }
                 disabled={(!isComment && sessionExpired) || readOnly}
                 rows={1}

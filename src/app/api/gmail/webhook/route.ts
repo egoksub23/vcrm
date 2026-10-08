@@ -34,6 +34,7 @@ import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { getValidAccessToken } from '@/lib/gmail/token'
 import { decideIngest } from '@/lib/gmail/ingest-guard'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import {
   getMessage,
   listHistory,
@@ -134,6 +135,12 @@ async function processNotification(emailAddress: string, token: string) {
   // === false, not falsy — undefined (a row read before this column
   // existed) means "not yet backfilled", not "paused".
   if (config.enabled === false) return
+  // Not used for the customer care inbox (migration 179) — the same ack and
+  // drop. The watch is normally stopped when the inbox is switched off, so
+  // this is for a push already in flight. history_id is deliberately left
+  // where it is: switching the inbox back on moves it to "now", so nothing
+  // received while it was off is ever fetched.
+  if (inboxIsOff(config)) return
 
   let accessToken: string
   try {

@@ -2,7 +2,7 @@
 title: The Inbox at a glance
 description: The Chats, Emails and Comments tabs, the conversation list, the open chat and the right-hand column.
 order: 1
-updated: 2026-09-25
+updated: 2026-10-08
 ---
 
 The Inbox is where you read and answer customers. This page shows what is on the screen. Later pages show how to do each task.
@@ -31,7 +31,7 @@ At the top of the list are three tabs. Each has a number.
 | **Emails** | Email and Gmail | Email conversations with unread messages |
 | **Comments** | Public comments on Facebook, Instagram and TikTok posts | Comments still waiting for a first response |
 
-The number counts conversations, not single messages. Comments have their own page: see [Social comments](/help/inbox/social-comments).
+The number counts conversations, not single messages. If an admin switches a mailbox off as the **Customer care inbox** (Settings > Channels), its conversations stay in the **Emails** tab as history, but no new email arrives and you cannot reply by email. See [Reply to customers](/help/inbox/reply-to-customers). Comments have their own page: see [Social comments](/help/inbox/social-comments).
 
 ## Reading the list
 

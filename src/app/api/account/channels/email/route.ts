@@ -3,10 +3,17 @@
 //
 //   GET    — connection status. Any member can read. Never returns
 //            tokens, only { connected, mailbox_address, connected_at,
-//            needs_reauth, status, enabled }.
-//   PATCH  — pause/resume, { enabled } (migration 097). Admin+. Leaves
-//            the saved token/subscription untouched — distinct from
-//            DELETE.
+//            needs_reauth, status, enabled, inbox_enabled, send_problem }.
+//   PATCH  — two independent switches, either or both (admin+):
+//              { enabled }       the master pause (migration 097): nothing
+//                                in, nothing out. Leaves the saved token
+//                                and subscription untouched.
+//              { inbox_enabled } use the mailbox for the customer care
+//                                inbox (migration 179). Off deletes the Graph
+//                                subscription (nothing new is ingested; the
+//                                mailbox still sends Halo's own email), on
+//                                creates a new one and ingests from then on.
+//            Both are distinct from DELETE.
 //   DELETE — disconnect. Admin+. Best-effort deletes the Graph
 //            subscription too, so Microsoft stops billing/tracking a
 //            notification target that no longer has anywhere to go.
@@ -15,8 +22,11 @@ import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { mailboxSendProblem } from '@/lib/email/mailbox-types'
 import { getValidAccessToken } from '@/lib/ms365/token'
 import { deleteSubscription } from '@/lib/ms365/mail-api'
+import { realInboxSwitchDeps, setMs365Inbox } from '@/lib/ms365/inbox-switch'
+import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import type { EmailConnectionStatus } from '@/types'
 
 export async function GET() {
@@ -25,7 +35,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from('email_config')
-      .select('mailbox_address, connected_at, needs_reauth, status, enabled')
+      .select('mailbox_address, connected_at, needs_reauth, status, enabled, inbox_enabled')
       .eq('account_id', ctx.accountId)
       .maybeSingle()
 
@@ -42,6 +52,9 @@ export async function GET() {
           needs_reauth: data.needs_reauth,
           status: data.status,
           enabled: data.enabled,
+          inbox_enabled: data.inbox_enabled,
+          // whether Halo can send its own email through the mailbox (Secure Sign, invitations, notifications): the inbox switch plays no part
+          send_problem: mailboxSendProblem(data),
         }
       : { connected: false, needs_reauth: false, status: 'disconnected' }
 
@@ -96,22 +109,51 @@ export async function DELETE() {
 export async function PATCH(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
-    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
-    if (typeof body?.enabled !== 'boolean') {
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown; inbox_enabled?: unknown } | null
+    const wantsEnabled = body?.enabled !== undefined
+    const wantsInbox = body?.inbox_enabled !== undefined
+    if (!wantsEnabled && !wantsInbox) {
+      return NextResponse.json({ error: 'enabled or inbox_enabled is required' }, { status: 400 })
+    }
+    if (wantsEnabled && typeof body?.enabled !== 'boolean') {
       return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
     }
-
-    const { error } = await ctx.supabase
-      .from('email_config')
-      .update({ enabled: body.enabled })
-      .eq('account_id', ctx.accountId)
-
-    if (error) {
-      console.error('[PATCH /api/account/channels/email] update error:', error)
-      return NextResponse.json({ error: 'Failed to update Email' }, { status: 500 })
+    if (wantsInbox && typeof body?.inbox_enabled !== 'boolean') {
+      return NextResponse.json({ error: 'inbox_enabled must be a boolean' }, { status: 400 })
     }
 
-    return NextResponse.json({ success: true, enabled: body.enabled })
+    const result: Record<string, unknown> = { success: true }
+
+    if (wantsEnabled) {
+      const { error } = await ctx.supabase
+        .from('email_config')
+        .update({ enabled: body!.enabled })
+        .eq('account_id', ctx.accountId)
+
+      if (error) {
+        console.error('[PATCH /api/account/channels/email] update error:', error)
+        return NextResponse.json({ error: 'Failed to update Email' }, { status: 500 })
+      }
+      result.enabled = body!.enabled
+    }
+
+    if (wantsInbox) {
+      // The flag is written as the signed-in person (so the audit trail names them); the subscription is the service role's.
+      const outcome = await setMs365Inbox(
+        { accountId: ctx.accountId, enabled: body!.inbox_enabled as boolean, baseUrl: getOAuthBaseUrl(request) },
+        realInboxSwitchDeps(async (accountId, value) => {
+          const { error } = await ctx.supabase.from('email_config').update({ inbox_enabled: value }).eq('account_id', accountId)
+          return error ? { message: error.message } : null
+        }),
+      )
+      if (!outcome.ok) {
+        return NextResponse.json({ error: outcome.error, code: outcome.code }, { status: outcome.status })
+      }
+      result.inbox_enabled = outcome.inbox_enabled
+      result.subscription = outcome.subscription
+    }
+
+    return NextResponse.json(result)
   } catch (err) {
     return toErrorResponse(err)
   }

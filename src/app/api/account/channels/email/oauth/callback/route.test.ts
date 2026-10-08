@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
   taken: [] as { id: string }[],
+  existing: null as { id: string; inbox_enabled?: boolean } | null,
   saveError: null as { code?: string; message: string } | null,
   writes: [] as { op: string; row: Record<string, unknown> }[],
   filters: [] as { fn: string; args: unknown[] }[],
@@ -19,7 +20,7 @@ vi.mock('@/lib/flows/admin-client', () => ({
       chain.neq = rec('neq')
       chain.eq = rec('eq')
       chain.limit = rec('limit')
-      chain.maybeSingle = async () => ({ data: null, error: null })
+      chain.maybeSingle = async () => ({ data: h.existing, error: null })
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: h.taken, error: null })
       chain.insert = async (row: Record<string, unknown>) => (h.writes.push({ op: 'insert', row }), { error: h.saveError })
       chain.update = (row: Record<string, unknown>) => ({
@@ -51,6 +52,7 @@ const location = (res: Response) => new URL(res.headers.get('location') ?? '', '
 
 beforeEach(() => {
   h.taken = []
+  h.existing = null
   h.saveError = null
   h.writes = []
   h.filters = []
@@ -87,5 +89,32 @@ describe('GET /api/account/channels/email/oauth/callback: one workspace per mail
     const res = await call()
     expect(location(res).searchParams.get('oauth_error')).toBe('mailbox_in_use')
     expect(h.completed).not.toHaveBeenCalled()
+  })
+})
+
+// A reconnect (the person signs in again after the access expired) must not change what the mailbox is used for.
+describe('GET /api/account/channels/email/oauth/callback: reconnecting', () => {
+  it('creates a subscription for a new connection and for a reconnect of a mailbox used for the customer care inbox', async () => {
+    await call()
+    expect(h.subscribe).toHaveBeenCalledTimes(1)
+    expect(h.writes[0].row).toMatchObject({ subscription_id: 'sub-1', subscription_expires_at: '2026-10-05T00:00:00Z', subscription_notification_url: 'https://halo.example.com/api/email/webhook' })
+    h.writes = []
+    h.existing = { id: 'cfg-1', inbox_enabled: true }
+    await call()
+    expect(h.subscribe).toHaveBeenCalledTimes(2)
+    expect(h.writes[0]).toMatchObject({ op: 'update', row: { subscription_id: 'sub-1', needs_reauth: false } })
+  })
+
+  it('creates NO subscription when the mailbox is not used for the customer care inbox: reconnecting a send-only mailbox never starts putting its mail into the Inbox', async () => {
+    h.existing = { id: 'cfg-1', inbox_enabled: false }
+    const res = await call()
+    expect(location(res).searchParams.get('connected')).toBe('1')
+    expect(h.subscribe).not.toHaveBeenCalled()
+    expect(h.writes).toHaveLength(1)
+    expect(h.writes[0].row).toMatchObject({ subscription_id: null, subscription_expires_at: null, subscription_notification_url: null, needs_reauth: false, status: 'connected' })
+    // the switch itself is not written by the reconnect
+    expect(h.writes[0].row).not.toHaveProperty('inbox_enabled')
+    expect(h.writes[0].row).not.toHaveProperty('enabled')
+    expect(h.completed).toHaveBeenCalled()
   })
 })

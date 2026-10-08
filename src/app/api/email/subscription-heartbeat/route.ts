@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentAccount, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
 
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
 
   if (!config) {
     return NextResponse.json({ skipped: true, reason: 'not_connected' })
+  }
+
+  // The mailbox is not used for the customer care inbox (migration 179): it has no subscription on purpose, so there is nothing to keep alive.
+  // A plain skip: no claim is taken, nothing is created, nothing is logged as a problem.
+  if (inboxIsOff(config)) {
+    return NextResponse.json({ skipped: true, reason: 'inbox_off' })
   }
 
   const cutoff = new Date(Date.now() - HEARTBEAT_INTERVAL_MS).toISOString()

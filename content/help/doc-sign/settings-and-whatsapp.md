@@ -2,7 +2,7 @@
 title: Settings and the WhatsApp template
 description: Set the defaults for new documents, the consent wording, the sender name and the WhatsApp message template, and see which mailbox your email is sent from.
 order: 10
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 Secure Sign settings are the starting point for every new document. A category, a template or the sender can change them for one document.
@@ -34,7 +34,7 @@ At the top of **General** is an **Email** card. It shows how Secure Sign sends i
 | **Sent from support@yourcompany.com via your connected Microsoft 365 mailbox** (or **Gmail mailbox**) | Messages go out from that mailbox, under your workspace's name. Replies go to the address your workspace set for replies, or to the mailbox. |
 | **Sent by the platform sender** | You have no connected mailbox that can send, so messages go out from the platform's own address. Connect a mailbox to send from your own address. |
 | **Not set up** | There is no mailbox and no platform sender, so nothing is sent. The document's page says so for each person. Connect a mailbox. |
-| A line about a mailbox that **needs to be reconnected** or **is switched off** | Secure Sign skips it. Fix it in Settings > Channels. |
+| A line about a mailbox that **needs to be reconnected** or **is paused** | Secure Sign skips it. Fix it in Settings > Channels (reconnect it, or switch off **Pause this mailbox completely**). |
 
 The link on the card opens **Settings > Channels** on the tab of that mailbox (**Email** for Microsoft 365, **Gmail** for Gmail). If you connected both, Microsoft 365 is used.
 
@@ -44,6 +44,7 @@ What to know about sending from a mailbox:
 
 - **Gmail** keeps every message in the mailbox's **Sent** folder, so anyone who can open that mailbox can read the signing links in it. **Microsoft 365** messages are not kept in Sent Items.
 - Secure Sign messages are never added to the Halo Inbox, even when they are sent to the mailbox's own address.
+- The mailbox is used for Secure Sign even when it is switched off as the **Customer care inbox** in Settings > Channels. That switch only decides whether customers' emails come into the Halo Inbox. Only **Pause this mailbox completely** stops Secure Sign sending through it.
 - A mailbox can only send so many messages. Gmail allows about 500 a day (2,000 for Google Workspace); Microsoft 365 about 30 a minute. When it is reached, the person shows "The email did not arrive" with the reason. Wait, then use **Resend**.
 - A signed copy is attached to the email when it is small enough: up to 2.5 MB through Microsoft 365 and 17 MB through Gmail. A larger one is not attached; the email links to it instead.
 

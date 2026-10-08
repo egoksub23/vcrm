@@ -58,11 +58,14 @@ An admin can optionally target an invite at a specific email address
   discarding it — the invitation stays pending for the admin/user to
   resolve manually (same "your account already contains data" guard the
   link-accept flow has always had).
-- **Sends an email when Resend is configured** (`RESEND_API_KEY` — see
-  "Email delivery" below), or, without Resend, when the account has a
-  connected, enabled Microsoft 365 mailbox (Settings → Channels →
-  Email) that doesn't need reauth — the invite goes out from that
-  mailbox instead. If neither is available, no email goes out — the
+- **Sends an email** as the workspace through the shared workspace
+  sender (`src/lib/email/workspace-mail.ts`): from the workspace's own
+  connected mailbox (Settings → Channels → Email or Gmail) when it has
+  one that is connected, not paused and doesn't need reauth — whether or
+  not that mailbox is also used as the customer care inbox — otherwise
+  through Resend when it is configured (`RESEND_API_KEY` — see "Email
+  delivery" below). The very first invitation of a workspace that has
+  no mailbox yet goes by Resend. If neither is available, no email goes out — the
   admin still shares the invite the same way as any link invite
   (WhatsApp, Slack, verbally), same as before this existed; auto-join
   on sign-in works either way. Whichever sender is used, the
@@ -73,7 +76,11 @@ An admin can optionally target an invite at a specific email address
   login for specific users — everyone can always still use a password
   unless you build that enforcement separately.
 
-## Email delivery (optional — Resend)
+## Email delivery (optional — Resend, or the workspace's own mailbox)
+
+A workspace that has connected a mailbox (Settings → Channels) sends its
+invitations from that mailbox, so none of the setup below is needed for it;
+Resend is the fallback and the sender for a workspace with no mailbox.
 
 By default, an email-targeted invite is never emailed — the admin
 copies the link from the create-invite dialog and shares it themselves

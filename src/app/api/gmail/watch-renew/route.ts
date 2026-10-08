@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
 import { suspendedAccountIds } from '@/lib/platform/active'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getValidAccessToken } from '@/lib/gmail/token'
 import { watchMailbox } from '@/lib/gmail/gmail-api'
 
@@ -34,17 +35,20 @@ export const GET = cronRoute('gmail-watch-renew', CRON_INTERVALS['gmail-watch-re
   // so a backlog is worked through over successive runs; suspended
   // workspaces are left alone.
   const soon = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+  // A mailbox that is not used for the customer care inbox (migration 179) has no watch on purpose: it is left out here, not counted, not renewed,
+  // not reported.
   const { data: configs, error } = await admin
     .from('gmail_config')
     .select('*')
     .eq('status', 'connected')
+    .neq('inbox_enabled', false)
     .or(`watch_expiration.is.null,watch_expiration.lte.${soon}`)
     .order('watch_expiration', { ascending: true, nullsFirst: true })
     .limit(500)
 
   if (error) return { status: 500, body: { error: error.message } }
   const suspended = await suspendedAccountIds(admin)
-  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string))
+  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string) && !inboxIsOff(c))
   if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0

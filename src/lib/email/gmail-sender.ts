@@ -1,11 +1,14 @@
 /**
- * Sending a workspace's own transactional email (Doc Sign: invitations, codes, signed copies) through the Gmail mailbox it connected in
- * Settings > Channels > Gmail, from that mailbox's address. The second supported mailbox (see mailbox.ts for the order); Microsoft 365 is first.
+ * Sending a workspace's own transactional email (Secure Sign: invitations, codes, signed copies; team invitations; notifications) through the Gmail
+ * mailbox it connected in Settings > Channels > Gmail, from that mailbox's address. The second supported mailbox (see mailbox.ts for the order);
+ * Microsoft 365 is first.
  *
- * `loadGmailMailbox` says whether the workspace has a Gmail mailbox that can send; a ready one hands back a `send` that:
+ * `loadGmailMailbox` says whether the workspace has a Gmail mailbox that can send. That depends on the connection (connected, not needing a new
+ * sign-in) and the master pause (`enabled`); it does NOT depend on `inbox_enabled`, the switch for using the mailbox as the customer care inbox.
+ * A ready one hands back a `send` that:
  *   - writes the mail as the mailbox (From: the workspace's name and the mailbox's address, Reply-To as the workspace set it);
- *   - marks it with headers (`X-Halo-Sign: 1`, `Auto-Submitted`) so Halo's own inbox ingestion never reads it back as a customer's message
- *     (lib/gmail/ingest-guard.ts);
+ *   - marks it with headers (`X-Halo-System: 1` on everything, whoever sends it; the caller's own marks such as Secure Sign's `X-Halo-Sign: 1`;
+ *     `Auto-Submitted`) so Halo's own inbox ingestion never reads it back as a customer's message (lib/gmail/ingest-guard.ts);
  *   - spaces sends out (Gmail allows only a few a second), tries once more on a per-second limit, and stops asking Gmail for a while once the
  *     day's sending limit is reached, so a bulk send does not hammer a mailbox that cannot send;
  *   - never throws anything but a `MailSendError`, whose `reason` names why (revoked access, a limit, a refused address, a message too big).
@@ -18,7 +21,8 @@ import { GmailApiError } from "@/lib/gmail/errors";
 import { sendNewMail } from "@/lib/gmail/gmail-api";
 import { getValidAccessToken, type GmailConfigRow } from "@/lib/gmail/token";
 
-import { PLAIN_EMAIL, realSleep, SendThrottle, type MailboxOptions, type MailboxState, type OutgoingEmail } from "./mailbox-types";
+import { HALO_SYSTEM_HEADERS } from "./halo-mail-marker";
+import { mailboxSendProblem, PLAIN_EMAIL, realSleep, SendThrottle, type MailboxOptions, type MailboxState, type OutgoingEmail } from "./mailbox-types";
 import { safeReplyTo } from "./resend";
 import { MailSendError } from "./send-reason";
 
@@ -43,7 +47,10 @@ export type GmailMailboxRow = GmailConfigRow & {
   email_address: string;
   status?: string | null;
   needs_reauth?: boolean | null;
+  /** The master pause: false = nothing in, nothing out. */
   enabled?: boolean | null;
+  /** Use this mailbox for the customer care inbox. Not read here: it does not decide whether Halo can send through the mailbox. */
+  inbox_enabled?: boolean | null;
 };
 
 export interface GmailSenderDeps {
@@ -126,13 +133,11 @@ export async function loadGmailMailbox(accountId: string, opts: MailboxOptions =
   const address = String(config.email_address ?? "").trim();
   if (!address) return { kind: "none" };
   // a status written by the channel itself: only "connected" can send
-  if (config.status && config.status !== "connected") return { kind: "problem", provider: "gmail", address, problem: "reconnect" };
-  if (config.needs_reauth === true) return { kind: "problem", provider: "gmail", address, problem: "reconnect" };
-  // === false, not falsy: a row read before the column existed is not paused
-  if (config.enabled === false) return { kind: "problem", provider: "gmail", address, problem: "paused" };
+  const problem = mailboxSendProblem(config);
+  if (problem) return { kind: "problem", provider: "gmail", address, problem };
 
   const key = `gmail:${accountId}`;
-  const headers = { ...opts.headers, "Auto-Submitted": "auto-generated" };
+  const headers = { ...opts.headers, ...HALO_SYSTEM_HEADERS, "Auto-Submitted": "auto-generated" };
   return {
     kind: "ready",
     provider: "gmail",

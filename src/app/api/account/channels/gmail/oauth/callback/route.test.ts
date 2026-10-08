@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
   taken: [] as { id: string }[],
-  existing: null as { id: string; pubsub_verify_token: string; history_id: string | null } | null,
+  existing: null as { id: string; pubsub_verify_token: string; history_id: string | null; inbox_enabled?: boolean } | null,
   saveError: null as { code?: string; message: string } | null,
   writes: [] as { op: string; row: Record<string, unknown> }[],
   filters: [] as { fn: string; args: unknown[] }[],
@@ -110,5 +110,33 @@ describe('GET /api/account/channels/gmail/oauth/callback: one workspace per mail
     } finally {
       err.mockRestore()
     }
+  })
+})
+
+// A reconnect (the person signs in again after the access expired) must not change what the mailbox is used for.
+describe('GET /api/account/channels/gmail/oauth/callback: reconnecting', () => {
+  beforeEach(() => {
+    process.env.GMAIL_PUBSUB_TOPIC = 'projects/p/topics/t'
+  })
+
+  it('registers a watch for a new connection and for a reconnect of a mailbox used for the customer care inbox', async () => {
+    await call()
+    expect(h.watch).toHaveBeenCalledTimes(1)
+    h.existing = { id: 'g-1', pubsub_verify_token: 'tok', history_id: '55', inbox_enabled: true }
+    await call()
+    expect(h.watch).toHaveBeenCalledTimes(2)
+    expect(h.writes.at(-1)?.row).toMatchObject({ watch_expiration: '2026-10-09T00:00:00Z', history_id: '55', needs_reauth: false })
+  })
+
+  it('registers NO watch when the mailbox is not used for the customer care inbox: reconnecting a send-only mailbox never starts putting its mail into the Inbox', async () => {
+    h.existing = { id: 'g-1', pubsub_verify_token: 'tok', history_id: '55', inbox_enabled: false }
+    const res = await call()
+    expect(location(res).searchParams.get('connected')).toBe('1')
+    expect(h.watch).not.toHaveBeenCalled()
+    expect(h.writes).toHaveLength(1)
+    expect(h.writes[0].row).toMatchObject({ watch_expiration: null, history_id: '55', needs_reauth: false, status: 'connected' })
+    // the switch itself is not written by the reconnect
+    expect(h.writes[0].row).not.toHaveProperty('inbox_enabled')
+    expect(h.writes[0].row).not.toHaveProperty('enabled')
   })
 })

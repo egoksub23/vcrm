@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   config: { id: "e1", account_id: "A", connected_by_user_id: "U", mailbox_address: "support@vircle.com", subscription_id: "sub1", client_state: "enc:state", enabled: true } as Record<string, unknown>,
   pending: [] as Promise<unknown>[],
   findContact: vi.fn(async () => null),
+  fetched: 0,
 }));
 
 vi.mock("next/server", async () => {
@@ -24,7 +25,7 @@ vi.mock("@supabase/supabase-js", () => {
 });
 vi.mock("@/lib/whatsapp/encryption", () => ({ decrypt: (v: string) => v.replace(/^enc:/, "") }));
 vi.mock("@/lib/ms365/token", () => ({ getValidAccessToken: async () => "tok" }));
-vi.mock("@/lib/ms365/mail-api", () => ({ getMessage: async () => h.message, listAttachments: async () => [], downloadAttachmentBytes: async () => null }));
+vi.mock("@/lib/ms365/mail-api", () => ({ getMessage: async () => (h.fetched++, h.message), listAttachments: async () => [], downloadAttachmentBytes: async () => null }));
 vi.mock("@/lib/meta/contact-identity", () => ({ findOrCreateContactByExternalId: (...a: unknown[]) => (h.findContact as unknown as (...x: unknown[]) => unknown)(...a) }));
 vi.mock("@/lib/whatsapp/mirror-inbound-media", () => ({ mirrorInboundMedia: async () => null }));
 vi.mock("@/lib/conversations/find-or-create", () => ({ findOrCreateConversation: async () => null }));
@@ -57,6 +58,9 @@ async function notify() {
 }
 
 beforeEach(() => {
+  h.fetched = 0;
+  h.config.enabled = true;
+  delete h.config.inbox_enabled;
   h.findContact.mockClear();
   vi.spyOn(console, "info").mockImplementation(() => undefined);
 });
@@ -90,5 +94,36 @@ describe("Microsoft 365 webhook: what becomes a conversation", () => {
     h.message = { ...customer, fromAddress: "SUPPORT@vircle.com" };
     await notify();
     expect(h.findContact).not.toHaveBeenCalled();
+  });
+});
+
+// The two switches of a mailbox: `enabled` is the master pause (nothing in, nothing out); `inbox_enabled` is "use this mailbox for the customer care
+// inbox". Either one off, and a customer's notification is acknowledged and dropped before anything is fetched or stored.
+describe("Microsoft 365 webhook: the mailbox switches", () => {
+  it("drops a customer's message, without fetching it, when the mailbox is not used for the customer care inbox", async () => {
+    h.message = { ...customer };
+    h.config.inbox_enabled = false;
+    await notify();
+    expect(h.findContact).not.toHaveBeenCalled();
+    expect(h.fetched).toBe(0);
+  });
+
+  it("drops it too when the whole mailbox is paused, whatever the inbox switch says", async () => {
+    h.message = { ...customer };
+    h.config.enabled = false;
+    h.config.inbox_enabled = true;
+    await notify();
+    expect(h.findContact).not.toHaveBeenCalled();
+    expect(h.fetched).toBe(0);
+  });
+
+  it("takes it again once the inbox is back on, and treats a row without the column as on", async () => {
+    h.message = { ...customer };
+    h.config.inbox_enabled = true;
+    await notify();
+    expect(h.findContact).toHaveBeenCalledTimes(1);
+    delete h.config.inbox_enabled;
+    await notify();
+    expect(h.findContact).toHaveBeenCalledTimes(2);
   });
 });

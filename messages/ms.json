@@ -420,7 +420,10 @@
         "gmail": "Gmail",
         "vircle_chat": "Vircle Chat"
       },
-      "modeKnowledge": "Pengetahuan"
+      "modeKnowledge": "Pengetahuan",
+      "emailInboxOffHint": "Peti masuk e-mel dimatikan. Hidupkannya di Tetapan > Saluran > E-mel untuk membalas.",
+      "gmailInboxOffHint": "Peti masuk Gmail dimatikan. Hidupkannya di Tetapan > Saluran > Gmail untuk membalas.",
+      "emailInboxOffPlaceholder": "Peti masuk e-mel dimatikan"
     },
     "bubble": {
       "photo": "Foto",
@@ -3103,13 +3106,13 @@
       },
       "email": {
         "title": "E-mel",
-        "description": "Sambungkan peti mel Microsoft 365 atau Outlook untuk menghantar dan menerima e-mel daripada Peti Masuk anda.",
+        "description": "Sambungkan peti mel Microsoft 365 atau Outlook. Halo menghantar e-melnya sendiri daripadanya (Secure Sign, jemputan, pemberitahuan), dan anda juga boleh menggunakannya sebagai peti masuk khidmat pelanggan anda.",
         "notConnected": "Belum ada peti mel disambungkan.",
         "connectButton": "Sambung Microsoft 365",
         "connectedAs": "Disambungkan — {mailbox}",
         "connectedAtLabel": "Disambungkan",
         "disconnect": "Putuskan sambungan",
-        "disconnectConfirmDescription": "Putuskan sambungan peti mel ini? Perbualan e-mel akan berhenti disegerakkan sehingga anda menyambung semula.",
+        "disconnectConfirmDescription": "Putuskan sambungan peti mel ini? E-mel baharu akan berhenti masuk ke Peti Masuk, dan Halo akan berhenti menghantar e-melnya sendiri daripadanya, sehingga anda menyambung semula.",
         "disconnectFailed": "Gagal memutuskan sambungan e-mel",
         "disconnected": "Sambungan e-mel diputuskan",
         "connected": "E-mel disambungkan",
@@ -3125,13 +3128,13 @@
       },
       "gmail": {
         "title": "Gmail",
-        "description": "Sambungkan peti mel Gmail untuk menghantar dan menerima e-mel daripada Peti Masuk anda.",
+        "description": "Sambungkan peti mel Gmail. Halo menghantar e-melnya sendiri daripadanya (Secure Sign, jemputan, pemberitahuan), dan anda juga boleh menggunakannya sebagai peti masuk khidmat pelanggan anda.",
         "notConnected": "Belum ada akaun Gmail disambungkan.",
         "connectButton": "Sambung Gmail",
         "connectedAs": "Disambungkan — {mailbox}",
         "connectedAtLabel": "Disambungkan",
         "disconnect": "Putuskan sambungan",
-        "disconnectConfirmDescription": "Putuskan sambungan akaun Gmail ini? Perbualan e-mel akan berhenti disegerakkan sehingga anda menyambung semula.",
+        "disconnectConfirmDescription": "Putuskan sambungan akaun Gmail ini? E-mel baharu akan berhenti masuk ke Peti Masuk, dan Halo akan berhenti menghantar e-melnya sendiri daripadanya, sehingga anda menyambung semula.",
         "disconnectFailed": "Gagal memutuskan sambungan Gmail",
         "disconnected": "Sambungan Gmail diputuskan",
         "connected": "Gmail disambungkan",
@@ -3286,6 +3289,35 @@
         "sampleAdded": "Komen contoh ditambah. Buka tab Komen dalam peti masuk.",
         "sampleCleared": "Komen contoh dialih keluar",
         "sampleFailed": "Tidak dapat mengubah komen contoh"
+      },
+      "mailbox": {
+        "inboxTitle": "Peti masuk khidmat pelanggan",
+        "inboxDescription": "Terima e-mel pelanggan anda ke dalam Peti Masuk Halo dan benarkan ejen membalas dari sana. Apabila ini dimatikan, e-mel yang sudah ada dalam Peti Masuk kekal sebagai sejarah, tiada e-mel baharu masuk dan membalas melalui e-mel tidak ditawarkan. Peti mel kekal disambungkan.",
+        "inboxOffNote": "Dimatikan: tiada e-mel baharu masuk ke Peti Masuk dan ejen tidak boleh membalas melalui e-mel. E-mel yang tiba semasa ia dimatikan tidak diimport apabila anda menghidupkannya semula.",
+        "on": "Hidup",
+        "off": "Mati",
+        "inboxOnToast": "Peti masuk khidmat pelanggan dihidupkan. E-mel baharu akan masuk ke Peti Masuk mulai sekarang.",
+        "inboxOffToast": "Peti masuk khidmat pelanggan dimatikan. Tiada yang baharu masuk; perbualan sedia ada kekal sebagai sejarah.",
+        "inboxOffStopFailed": "Peti masuk khidmat pelanggan dimatikan. Pembekal e-mel tidak dapat diberitahu untuk menghentikan pemberitahuannya, jadi Halo mengabaikannya; ia berhenti dengan sendirinya dalam beberapa hari.",
+        "inboxOnNoPush": "Dihidupkan, tetapi pemberitahuan tolak untuk Gmail belum disediakan, jadi e-mel baharu tidak akan masuk sehingga ia disediakan. Lihat tetapan pemberitahuan tolak di bawah.",
+        "sendTitle": "Hantar e-mel Halo dari peti mel ini",
+        "send": {
+          "used": "Digunakan untuk Secure Sign, jemputan dan pemberitahuan",
+          "paused": "Tidak digunakan sekarang: peti mel ini dijeda. Teruskan peti mel untuk menghantar e-mel Halo dari sini.",
+          "reconnect": "Tidak digunakan sekarang: peti mel ini perlu disambung semula."
+        },
+        "sendDescription": "E-mel Halo sendiri (dokumen Secure Sign, jemputan pasukan, pemberitahuan) dihantar dari {mailbox}, sama ada peti masuk khidmat pelanggan dihidupkan atau tidak.",
+        "sendDescriptionNoAddress": "E-mel Halo sendiri (dokumen Secure Sign, jemputan pasukan, pemberitahuan) dihantar dari peti mel ini, sama ada peti masuk khidmat pelanggan dihidupkan atau tidak.",
+        "pauseTitle": "Jeda peti mel ini sepenuhnya",
+        "pauseDescription": "Menghentikan semuanya, masuk dan keluar: tiada e-mel baharu masuk ke Peti Masuk dan Halo tidak menghantar apa-apa dari peti mel ini (tiada balasan, tiada e-mel Secure Sign, tiada jemputan). Sambungan dikekalkan, jadi anda boleh meneruskannya pada bila-bila masa.",
+        "pausedToast": "Peti mel dijeda. Tiada yang masuk atau keluar sehingga anda meneruskannya.",
+        "resumedToast": "Peti mel diteruskan.",
+        "refusal": {
+          "needs_reconnect": "Sambung semula peti mel dahulu, kemudian cuba lagi.",
+          "start_failed": "Tidak dapat mula menerima e-mel. Cuba lagi, atau sambung semula peti mel.",
+          "not_connected": "Peti mel ini tidak disambungkan.",
+          "failed": "Tidak dapat mengemas kini. Cuba lagi."
+        }
       }
     },
     "autoLabels": {
@@ -6540,7 +6572,8 @@
       "pause_while_pending": "jeda semasa menunggu",
       "at_risk_percent": "peratusan berisiko",
       "conditions": "syarat",
-      "require_ticket_resolution": "penyelesaian diperlukan"
+      "require_ticket_resolution": "penyelesaian diperlukan",
+      "inbox_enabled": "peti masuk khidmat pelanggan"
     },
     "activity": {
       "button": "Aktiviti",
@@ -7638,7 +7671,7 @@
         "platformNote": "Tiada peti mel disambungkan, jadi e-mel dihantar dari alamat platform sendiri. Untuk menghantar dari alamat anda sendiri, sambungkan peti mel.",
         "problem": {
           "reconnect": "Peti mel {address} perlu disambung semula: aksesnya telah ditarik balik atau telah tamat tempoh.",
-          "paused": "Peti mel {address} telah dimatikan.",
+          "paused": "Peti mel {address} dijeda (\"Jeda peti mel ini sepenuhnya\" dihidupkan di Tetapan > Saluran).",
           "unavailable": "Peti mel yang disambungkan tidak dapat dibaca sekarang."
         },
         "platformInstead": "Penghantar platform digunakan sehingga itu dibetulkan.",
@@ -7660,7 +7693,8 @@
           "manage": "Buka tetapan saluran peti mel ini",
           "connectMicrosoft365": "Sambungkan peti mel Microsoft 365",
           "connectGmail": "Sambungkan peti mel Gmail"
-        }
+        },
+        "inboxOffNote": "Peti mel digunakan untuk ini walaupun ia dimatikan sebagai peti masuk khidmat pelanggan di Tetapan > Saluran."
       }
     },
     "detail": {

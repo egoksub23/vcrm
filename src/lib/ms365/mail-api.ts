@@ -387,13 +387,22 @@ export async function renewSubscription(args: {
 }
 
 /** Best-effort — callers (disconnect) don't fail the local operation
- *  just because Graph's side 404s (already expired/deleted). */
+ *  just because Graph's side 404s (already expired/deleted). Never throws.
+ *  Answers whether Graph confirmed the subscription is gone (a 2xx, or a
+ *  404 because it was already gone), for callers that report it (switching
+ *  the customer care inbox off); `false` means it may still be alive and
+ *  will lapse by itself within the subscription's lifetime (about 3 days). */
 export async function deleteSubscription(args: {
   accessToken: string
   subscriptionId: string
-}): Promise<void> {
-  await fetch(`${GRAPH_BASE}/subscriptions/${encodeURIComponent(args.subscriptionId)}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${args.accessToken}` },
-  }).catch(() => undefined)
+}): Promise<boolean> {
+  try {
+    const response = await fetch(`${GRAPH_BASE}/subscriptions/${encodeURIComponent(args.subscriptionId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${args.accessToken}` },
+    })
+    return response.ok || response.status === 404
+  } catch {
+    return false
+  }
 }

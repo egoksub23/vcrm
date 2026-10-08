@@ -8,22 +8,22 @@
  *
  * Three independent signals, any one of which keeps a message out:
  *   1. the label SENT: Gmail's own statement that the mailbox sent it (never true of a message somebody else sent us);
- *   2. the header `X-Halo-Sign: 1` that Doc Sign writes on every message it sends, also found inside the original that a delivery-failure
+ *   2. the header `X-Halo-System: 1` that Halo writes on every message it sends through the mailbox (and `X-Halo-Sign: 1` on Secure Sign's), also found inside the original that a delivery-failure
  *      notice carries back, so the bounce of a signing mail is not ingested either;
  *   3. the sender being the connected mailbox itself (the older rule).
  */
 
-import { HALO_SIGN_HEADER, textCarriesMarker } from '@/lib/email/halo-mail-marker'
+import { HALO_MARKER_HEADERS, textCarriesMarker } from '@/lib/email/halo-mail-marker'
 
 import { decodeBase64Url, getHeader, type GmailPayloadPart } from './mime'
 
 /** Parts that hold an original message's headers (a bounce quotes the message it could not deliver). */
 const QUOTED_ORIGINAL = new Set(['message/rfc822', 'text/rfc822-headers'])
 
-/** True when the message, or the original a delivery-failure notice quotes, carries the Doc Sign header. */
+/** True when the message, or the original a delivery-failure notice quotes, carries one of Halo's own marks (X-Halo-System on everything Halo sends, X-Halo-Sign on Secure Sign's). */
 export function isHaloSignMessage(payload: GmailPayloadPart | undefined): boolean {
   if (!payload) return false
-  if (getHeader(payload.headers, HALO_SIGN_HEADER) !== null) return true
+  if (HALO_MARKER_HEADERS.some((name) => getHeader(payload.headers, name) !== null)) return true
   if (payload.mimeType && QUOTED_ORIGINAL.has(payload.mimeType) && payload.body?.data) {
     try {
       if (textCarriesMarker(decodeBase64Url(payload.body.data).toString('utf-8'))) return true

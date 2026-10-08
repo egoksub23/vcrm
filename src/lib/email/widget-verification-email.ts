@@ -1,5 +1,5 @@
-import { loadEmailIdentity } from './identity';
-import { sendEmail } from './resend';
+import { technicalOfDetail } from './send-reason';
+import { realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from './workspace-mail';
 
 function escapeHtml(value: string): string {
   return value
@@ -16,16 +16,25 @@ function escapeHtml(value: string): string {
  * reaches this once it has already decided email-code verification is
  * both configured and the right channel, so a failure here should
  * propagate as a real error, not be swallowed.
+ *
+ * The code comes from the workspace the widget belongs to, so it goes out
+ * by the shared workspace sender (lib/email/workspace-mail.ts): the
+ * workspace's connected mailbox when it has one that can send, else the
+ * platform sender (Resend). Without a workspace there is only the
+ * platform sender.
  */
-export async function sendVerificationCodeEmail(args: {
-  to: string;
-  code: string;
-  /** The widget's own display name (Settings → Channels → Web Widget),
-   *  not the CRM account's name — this is what the visitor recognizes. */
-  widgetName: string;
-  /** The workspace the widget belongs to: its sender name and reply-to are used. */
-  accountId?: string;
-}): Promise<void> {
+export async function sendVerificationCodeEmail(
+  args: {
+    to: string;
+    code: string;
+    /** The widget's own display name (Settings → Channels → Web Widget),
+     *  not the CRM account's name — this is what the visitor recognizes. */
+    widgetName: string;
+    /** The workspace the widget belongs to: its mailbox, sender name and reply-to are used. */
+    accountId?: string;
+  },
+  deps: WorkspaceMailDeps = realWorkspaceMailDeps,
+): Promise<void> {
   const subject = `Your verification code: ${args.code}`;
   const text = [
     `Your verification code for ${args.widgetName} chat is: ${args.code}`,
@@ -47,6 +56,10 @@ export async function sendVerificationCodeEmail(args: {
     </div>
   `.trim();
 
-  const identity = args.accountId ? await loadEmailIdentity(args.accountId) : {};
-  await sendEmail({ to: args.to, subject, html, text, ...identity });
+  if (!args.accountId) {
+    await deps.sendEmail({ to: args.to, subject, html, text });
+    return;
+  }
+  const result = await sendWorkspaceEmail(args.accountId, { to: args.to, subject, html, text }, deps);
+  if (result.status !== 'sent') throw new Error(technicalOfDetail(result.detail) || result.detail || 'send failed');
 }

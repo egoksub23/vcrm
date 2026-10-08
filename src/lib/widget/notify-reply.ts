@@ -13,6 +13,10 @@
 // every failure is caught and logged, since a notification miss must
 // never be visible to the agent sending the reply.
 //
+// Sent as the workspace by the shared workspace sender
+// (lib/email/workspace-mail.ts): its connected mailbox when it has one
+// that can send, else the platform sender (Resend), else not at all.
+//
 // Restricted to a VERIFIED identity's email (migration 110's
 // email-code flow, or a signed in-app token) — an unverified typed
 // claim's email could be a stranger's, and emailing "you have a new
@@ -21,8 +25,7 @@
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { loadEmailIdentity } from '@/lib/email/identity';
-import { isResendConfigured, sendEmail } from '@/lib/email/resend';
+import { canSendWorkspaceEmail, realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from '@/lib/email/workspace-mail';
 
 /** Below this, assume the visitor is still looking at the page and
  *  will see the reply arrive live via Realtime — no need to email. */
@@ -44,9 +47,10 @@ export async function notifyWidgetVisitorOfReply(
     conversationId: string;
     contactId: string;
     contactEmail: string | null;
-  }
+  },
+  deps: WorkspaceMailDeps = realWorkspaceMailDeps
 ): Promise<void> {
-  if (!args.contactEmail || !isResendConfigured()) return;
+  if (!args.contactEmail) return;
 
   try {
     const { data: visitors } = await admin
@@ -73,6 +77,10 @@ export async function notifyWidgetVisitorOfReply(
     // for every message in the same away period, only the first.
     if (note && new Date(note.notified_at).getTime() >= mostRecentSeen) return;
 
+    // The cheap checks above come first (this runs after every reply to a widget visitor). Checked before anything is recorded: a reply that could
+    // not be mailed must not count as "already notified".
+    if (!(await canSendWorkspaceEmail(args.accountId, deps))) return;
+
     await admin
       .from('widget_reply_notifications')
       .upsert(
@@ -84,13 +92,19 @@ export async function notifyWidgetVisitorOfReply(
         { onConflict: 'conversation_id' }
       );
 
-    await sendEmail({
-      ...(await loadEmailIdentity(args.accountId)),
-      to: args.contactEmail,
-      subject: 'You have a new reply',
-      html: `<p>${escapeHtml('You have a new reply waiting for you. Reopen the chat to see it.')}</p>`,
-      text: 'You have a new reply waiting for you. Reopen the chat to see it.',
-    });
+    const result = await sendWorkspaceEmail(
+      args.accountId,
+      {
+        to: args.contactEmail,
+        subject: 'You have a new reply',
+        html: `<p>${escapeHtml('You have a new reply waiting for you. Reopen the chat to see it.')}</p>`,
+        text: 'You have a new reply waiting for you. Reopen the chat to see it.',
+      },
+      deps
+    );
+    if (result.status !== 'sent') {
+      console.error('[widget/notify-reply] not sent:', result.detail);
+    }
   } catch (err) {
     console.error(
       '[widget/notify-reply] failed:',

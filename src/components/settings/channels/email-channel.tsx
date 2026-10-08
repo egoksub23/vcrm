@@ -10,7 +10,7 @@ import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SettingsPanelHead } from '../settings-panel-head';
-import { ChannelEnabledSwitch } from './channel-enabled-switch';
+import { MailboxSwitches } from './mailbox-switches';
 import type { EmailConnectionStatus } from '@/types';
 
 const BASE = '/api/account/channels/email';
@@ -33,8 +33,9 @@ export function EmailChannel() {
   const [disconnecting, setDisconnecting] = useState(false);
   const loadedAccountIdRef = useRef<string | null>(null);
 
-  const fetchStatus = useCallback(async () => {
-    setLoading(true);
+  // `quiet`: refresh in place after a switch (no spinner over the whole panel)
+  const fetchStatus = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     try {
       const res = await fetch(BASE);
       const data = await res.json();
@@ -107,17 +108,6 @@ export function EmailChannel() {
       <SettingsPanelHead
         title={t('title')}
         description={t('description')}
-        action={
-          status?.connected ? (
-            <ChannelEnabledSwitch
-              enabled={status.enabled ?? true}
-              onChange={(next) => setStatus((prev) => (prev ? { ...prev, enabled: next } : prev))}
-              patchUrl={BASE}
-              disabled={!canManageChannels}
-              idPrefix="email"
-            />
-          ) : undefined
-        }
       />
 
       {status?.needs_reauth ? (
@@ -170,6 +160,20 @@ export function EmailChannel() {
           )}
         </CardContent>
       </Card>
+
+      {status?.connected ? (
+        <MailboxSwitches
+          patchUrl={BASE}
+          idPrefix="email"
+          mailbox={status}
+          address={status.mailbox_address}
+          disabled={!canManageChannels}
+          onChange={(patch) => {
+            setStatus((prev) => (prev ? { ...prev, ...patch } : prev));
+            if (patch.inbox_enabled !== undefined) void fetchStatus(true);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

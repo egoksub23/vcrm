@@ -17,6 +17,15 @@ setup this app can't create on your behalf, because it needs
 project-level GCP permissions no single Gmail OAuth token can grant.
 Don't skip it if you need inbound mail.
 
+A connected mailbox does two jobs, and each has its own switch in
+Settings → Channels → Gmail (migration 179):
+
+| Control | What it does |
+|---|---|
+| **Customer care inbox** (`inbox_enabled`) | On: customers' emails come into the Halo Inbox and agents reply from there (needs steps 3 to 5). Off: nothing new comes in, the Inbox does not offer email replies, emails already in the Inbox stay as history. The Pub/Sub setup is not needed (and not shown) while it is off. |
+| **Send Halo emails from this mailbox** | Not a switch: a status line. Halo's own emails (Secure Sign, team invitations, notifications) go out from the mailbox whenever it is connected, does not need reconnecting, and is not paused, **whatever the inbox switch says**. |
+| **Pause this mailbox completely** (`enabled`) | The master switch: nothing in, nothing out. The token is kept. |
+
 ## 1. Create a Google Cloud project (if you don't have one)
 
 In the [Google Cloud Console](https://console.cloud.google.com), create
@@ -103,7 +112,9 @@ time, so it needs that env var to already be set.
 ## 5. Keep the watch alive
 
 A Gmail watch registration expires after at most 7 days and must be
-renewed, or inbound mail stops arriving silently. Point a scheduled
+renewed, or inbound mail stops arriving silently. (A mailbox whose
+**Customer care inbox** is off has no watch on purpose: the renewal job
+skips it without an error and never reports it as a problem.) Point a scheduled
 pinger (the same one driving `/api/automations/cron` and
 `/api/email/subscription-renew`, if you already use those) at:
 
@@ -117,6 +128,29 @@ Header: x-cron-secret: <AUTOMATION_CRON_SECRET>
 `docs/automations-and-cron.md` for pinger options — same guidance,
 just a third URL to hit alongside the other two.
 
+## Switching the Customer care inbox off and on
+
+- **Off.** The flag is saved first, so the webhook drops any push still in flight.
+  Then Halo stops the Gmail watch (`users.stop`) and clears `watch_expiration`.
+  If Google cannot be reached or the token is dead, the inbox is still off (the
+  webhook ignores the pushes) and the watch lapses by itself within a week; the
+  screen says so. `history_id` is left alone. Nothing already in the Inbox is
+  touched.
+- **On.** The mailbox must be connected and not need reconnecting. Halo registers
+  a new watch against `GMAIL_PUBSUB_TOPIC` (when it is set) and moves
+  `history_id` to the watch's own history id, i.e. **now**, so the mail that
+  arrived while the inbox was off is never replayed. Then it saves the flag. The
+  screen says nothing earlier is imported. Without `GMAIL_PUBSUB_TOPIC` the flag
+  is saved with no watch, and the screen says new mail will not arrive until the
+  Pub/Sub setup is done.
+- **Reconnecting** keeps the choice: a mailbox with its inbox off gets no watch
+  from the reconnect.
+- The Inbox does not offer Gmail as a channel to reply on, and the server refuses
+  to send an Inbox email reply or new mail (`email_inbox_off`, HTTP 400) while the
+  inbox is off, for automations and the AI as well.
+- Both switches are audited (Settings → Audit: Gmail, `enabled`, `customer care
+  inbox`).
+
 ## How replies are threaded
 
 Same behavior as the Microsoft 365 channel: the first message to a
@@ -126,11 +160,14 @@ via Gmail's own `threadId` (so it groups correctly in Gmail's UI) and
 proper `In-Reply-To`/`References` headers (so it threads correctly in
 any other mail client too).
 
-## Secure Sign sends through this mailbox
+## Halo's own emails send through this mailbox
 
-When Secure Sign is on for the workspace and no Microsoft 365 mailbox can send, its invitations, reminders, codes and signed copies are sent from the connected
-Gmail mailbox (`gmail.send`), from its address under the workspace's name. They carry `X-Halo-Sign: 1` and `Auto-Submitted: auto-generated`, and the push
-webhook refuses any message that carries the mark, has the label `SENT` or comes from the mailbox itself, so they never become inbox conversations. Gmail
+Every email Halo sends **as the workspace** goes through one shared sender (`src/lib/email/workspace-mail.ts`): a Microsoft 365 mailbox that can send first, else
+this Gmail mailbox, else the platform's Resend sender, else nothing. That covers Secure Sign's invitations, reminders, codes and signed copies, team
+invitations, incident notifications and the web widget's verification codes and "you have a new reply" notice (platform-level mail such as a new customer's
+welcome stays on Resend). They are sent with `gmail.send`, from the mailbox's address under the workspace's name, and carry `X-Halo-System: 1` (Secure Sign's
+also `X-Halo-Sign: 1`) and `Auto-Submitted: auto-generated`. The push webhook refuses any message that carries either mark, has the label `SENT` or comes from
+the mailbox itself, so none of it becomes an inbox conversation. Gmail
 keeps every message in the Sent folder, where anyone who can open the mailbox can read the signing links. Sending limits apply (about 500 messages a day for a
 consumer account, 2,000 for Google Workspace, and a few a second): Secure Sign spaces its sends, tries once more after a per-second limit, stops asking for ten
 minutes after the daily limit and reports the reason. Up to 17 MB of signed files are attached (Gmail's 25 MB limit counts the encoded message); above that a

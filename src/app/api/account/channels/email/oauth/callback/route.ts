@@ -19,6 +19,7 @@ import { randomBytes } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { exchangeCodeForTokens, getMailboxProfile, getOAuthBaseUrl } from '@/lib/ms365/oauth'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { createSubscription } from '@/lib/ms365/mail-api'
 import {
   findPendingEmailConnectionByState,
@@ -86,19 +87,25 @@ export async function GET(request: Request) {
       return settingsRedirect(baseUrl, { oauth_error: 'mailbox_in_use' })
     }
 
-    const clientState = randomBytes(24).toString('base64url')
-    const notificationUrl = `${baseUrl}/api/email/webhook`
-    const subscription = await createSubscription({
-      accessToken: tokens.accessToken,
-      notificationUrl,
-      clientState,
-    })
-
     const { data: existing } = await db
       .from('email_config')
-      .select('id')
+      .select('id, inbox_enabled')
       .eq('account_id', pending.account_id)
       .maybeSingle()
+
+    // A reconnect of a mailbox that is not used for the customer care inbox (migration 179) keeps it that way: no subscription is created, so
+    // reconnecting a send-only mailbox never starts putting its mail into the Inbox. The switch is in Settings > Channels > Email.
+    const inboxOff = !!existing && inboxIsOff(existing)
+
+    const clientState = randomBytes(24).toString('base64url')
+    const notificationUrl = `${baseUrl}/api/email/webhook`
+    const subscription = inboxOff
+      ? null
+      : await createSubscription({
+          accessToken: tokens.accessToken,
+          notificationUrl,
+          clientState,
+        })
 
     const row = {
       account_id: pending.account_id,
@@ -109,9 +116,9 @@ export async function GET(request: Request) {
       access_token_expires_at: new Date(Date.now() + tokens.expiresInSeconds * 1000).toISOString(),
       refresh_token: encrypt(tokens.refreshToken),
       client_state: encrypt(clientState),
-      subscription_id: subscription.id,
-      subscription_expires_at: subscription.expirationDateTime,
-      subscription_notification_url: notificationUrl,
+      subscription_id: subscription?.id ?? null,
+      subscription_expires_at: subscription?.expirationDateTime ?? null,
+      subscription_notification_url: subscription ? notificationUrl : null,
       needs_reauth: false,
       status: 'connected' as const,
       connected_at: new Date().toISOString(),

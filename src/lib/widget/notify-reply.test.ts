@@ -3,14 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   isResendConfigured: vi.fn(),
   sendEmail: vi.fn(),
+  mailbox: vi.fn(),
 }));
 
-vi.mock('@/lib/email/resend', () => ({
-  isResendConfigured: h.isResendConfigured,
-  sendEmail: h.sendEmail,
-}));
+import type { WorkspaceMailDeps } from '@/lib/email/workspace-mail';
+import { notifyWidgetVisitorOfReply as notify } from './notify-reply';
 
-import { notifyWidgetVisitorOfReply } from './notify-reply';
+// The reply notice is mail of the workspace: it goes through the shared workspace sender (its connected mailbox when that can send, else the platform
+// sender), with the dependencies injected here.
+const deps: WorkspaceMailDeps = {
+  emailConfigured: () => h.isResendConfigured(),
+  sendEmail: (a) => h.sendEmail(a),
+  loadIdentity: async () => ({ fromName: 'Acme' }),
+  mailbox: (id) => h.mailbox(id),
+};
+const notifyWidgetVisitorOfReply = (admin: Parameters<typeof notify>[0], args: Parameters<typeof notify>[1]) => notify(admin, args, deps);
 
 interface FakeState {
   visitors: { identity_level: string; last_seen_at: string | null }[];
@@ -56,6 +63,7 @@ const ARGS = {
 beforeEach(() => {
   h.isResendConfigured.mockReset().mockReturnValue(true);
   h.sendEmail.mockReset().mockResolvedValue(undefined);
+  h.mailbox.mockReset().mockResolvedValue({ kind: 'none' });
   state = { visitors: [], notification: null };
   upserts.length = 0;
 });
@@ -70,7 +78,7 @@ describe('notifyWidgetVisitorOfReply', () => {
     expect(h.sendEmail).not.toHaveBeenCalled();
   });
 
-  it('does nothing when Resend is not configured', async () => {
+  it('does nothing when there is no way to send: no usable mailbox and no platform sender', async () => {
     h.isResendConfigured.mockReturnValue(false);
     state.visitors = [
       {
@@ -151,6 +159,31 @@ describe('notifyWidgetVisitorOfReply', () => {
     ];
     await notifyWidgetVisitorOfReply(fakeAdmin(), ARGS);
     expect(h.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('goes through the workspace mailbox when it can send, even without a platform sender, from the workspace', async () => {
+    const sent: unknown[] = [];
+    h.isResendConfigured.mockReturnValue(false);
+    h.mailbox.mockResolvedValue({
+      kind: 'ready',
+      provider: 'gmail',
+      address: 'support@acme.test',
+      attachBytes: 1,
+      send: async (m: unknown) => void sent.push(m),
+    });
+    state.visitors = [{ identity_level: 'verified', last_seen_at: new Date(Date.now() - 10 * 60_000).toISOString() }];
+    await notifyWidgetVisitorOfReply(fakeAdmin(), ARGS);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: 'visitor@example.com', fromName: 'Acme' });
+    expect(h.sendEmail).not.toHaveBeenCalled();
+    expect(upserts).toHaveLength(1);
+  });
+
+  it('records nothing when nothing can send, so the reply is mailed once a way exists', async () => {
+    h.isResendConfigured.mockReturnValue(false);
+    state.visitors = [{ identity_level: 'verified', last_seen_at: new Date(Date.now() - 10 * 60_000).toISOString() }];
+    await notifyWidgetVisitorOfReply(fakeAdmin(), ARGS);
+    expect(upserts).toHaveLength(0);
   });
 
   it('never throws — a failure is caught and swallowed', async () => {

@@ -1,4 +1,4 @@
-import { isResendConfigured, sendEmail } from './resend';
+import { realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from './workspace-mail';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 
 function escapeHtml(value: string): string {
@@ -54,38 +54,56 @@ function buildIncidentEmail(args: {
   return { subject, html, text };
 }
 
+/** What the senders in this file need: the shared workspace mail dependencies, and the lookup of who to email. */
+export interface IncidentEmailDeps {
+  mail: WorkspaceMailDeps;
+  /** The address and workspace of each person (service role: the recipients were already chosen by the SQL side, which is the authorization boundary). */
+  loadRecipients: (userIds: readonly string[]) => Promise<{ email: string | null; account_id: string | null }[]>;
+}
+
+export const realIncidentEmailDeps: IncidentEmailDeps = {
+  mail: realWorkspaceMailDeps,
+  loadRecipients: async (userIds) => {
+    const { data } = await supabaseAdmin().from('profiles').select('user_id, email, account_id').in('user_id', userIds as string[]);
+    return (data ?? []) as { email: string | null; account_id: string | null }[];
+  },
+};
+
 /**
- * Best-effort email for one incident notification — never throws.
- * Resend is the only sender here (unlike invitation-email.ts's MS365
- * fallback): incident notifications are a supplementary channel on top
- * of the in-app notification, which always lands regardless, so an
- * unconfigured or failing send is logged and dropped rather than
- * chased with a fallback sender.
+ * Best-effort email for one incident notification, sent as the person's workspace by the shared workspace sender: through the workspace's connected
+ * mailbox when it has one that can send, else the platform sender (Resend). Never throws. Incident notifications are a supplementary channel on top of
+ * the in-app notification, which always lands regardless, so a workspace with no way to send, or a failing send, is logged and dropped rather than
+ * chased with another sender.
  */
-export async function sendIncidentNotificationEmail(args: {
-  to: string;
-  kind: IncidentEmailKind;
-  key: string;
-  title: string;
-  severity: string;
-  detail?: string;
-  incidentId: string;
-  appBaseUrl: string;
-}): Promise<void> {
-  if (!isResendConfigured()) return;
-
+export async function sendIncidentNotificationEmail(
+  args: {
+    to: string;
+    /** The workspace the recipient belongs to: its mailbox and sender name are used. */
+    accountId: string;
+    kind: IncidentEmailKind;
+    key: string;
+    title: string;
+    severity: string;
+    detail?: string;
+    incidentId: string;
+    appBaseUrl: string;
+  },
+  deps: WorkspaceMailDeps = realWorkspaceMailDeps,
+): Promise<void> {
   const url = `${args.appBaseUrl.replace(/\/$/, '')}/incidents/${args.incidentId}`;
-  const { subject, html, text } = buildIncidentEmail({
-    kind: args.kind,
-    key: args.key,
-    title: args.title,
-    severity: args.severity,
-    detail: args.detail,
-    url,
-  });
-
   try {
-    await sendEmail({ to: args.to, subject, html, text });
+    const { subject, html, text } = buildIncidentEmail({
+      kind: args.kind,
+      key: args.key,
+      title: args.title,
+      severity: args.severity,
+      detail: args.detail,
+      url,
+    });
+    const result = await sendWorkspaceEmail(args.accountId, { to: args.to, subject, html, text }, deps);
+    if (result.status === 'failed') {
+      console.error(`[incident-notification-email] send failed for incident ${args.incidentId}:`, result.detail);
+    }
   } catch (err) {
     console.error(`[incident-notification-email] send failed for incident ${args.incidentId}:`, err);
   }
@@ -93,46 +111,46 @@ export async function sendIncidentNotificationEmail(args: {
 
 /**
  * Emails every user_id in `userIds` about one incident event, best-effort
- * and in parallel — a bad address or a down Resend never blocks the
+ * and in parallel — a bad address or a down mail service never blocks the
  * caller (the raise route, the escalation cron, the manual-escalate
- * route). Looks up each recipient's email from `profiles` (service role
- * — bypasses RLS, which is fine here since the recipients were already
- * chosen by the SQL side, which is the actual authorization boundary).
+ * route). Each recipient is emailed as their own workspace (their profile
+ * says which), so the mailbox that sends is that workspace's.
  */
-export async function notifyIncidentEmail(args: {
-  userIds: readonly string[];
-  kind: IncidentEmailKind;
-  key: string;
-  title: string;
-  severity: string;
-  detail?: string;
-  incidentId: string;
-  appBaseUrl: string;
-}): Promise<void> {
-  if (!isResendConfigured() || args.userIds.length === 0) return;
+export async function notifyIncidentEmail(
+  args: {
+    userIds: readonly string[];
+    kind: IncidentEmailKind;
+    key: string;
+    title: string;
+    severity: string;
+    detail?: string;
+    incidentId: string;
+    appBaseUrl: string;
+  },
+  deps: IncidentEmailDeps = realIncidentEmailDeps,
+): Promise<void> {
+  if (args.userIds.length === 0) return;
 
-  const admin = supabaseAdmin();
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('user_id, email')
-    .in('user_id', args.userIds);
-
-  const emails = (profiles ?? [])
-    .map((p) => (p as { email: string | null }).email)
-    .filter((e): e is string => Boolean(e));
+  const recipients = (await deps.loadRecipients(args.userIds)).filter(
+    (p): p is { email: string; account_id: string } => Boolean(p.email) && Boolean(p.account_id),
+  );
 
   await Promise.allSettled(
-    emails.map((to) =>
-      sendIncidentNotificationEmail({
-        to,
-        kind: args.kind,
-        key: args.key,
-        title: args.title,
-        severity: args.severity,
-        detail: args.detail,
-        incidentId: args.incidentId,
-        appBaseUrl: args.appBaseUrl,
-      }),
+    recipients.map((p) =>
+      sendIncidentNotificationEmail(
+        {
+          to: p.email,
+          accountId: p.account_id,
+          kind: args.kind,
+          key: args.key,
+          title: args.title,
+          severity: args.severity,
+          detail: args.detail,
+          incidentId: args.incidentId,
+          appBaseUrl: args.appBaseUrl,
+        },
+        deps.mail,
+      ),
     ),
   );
 }

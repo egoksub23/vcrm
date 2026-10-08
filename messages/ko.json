@@ -420,7 +420,10 @@
         "gmail": "Gmail",
         "vircle_chat": "Vircle Chat"
       },
-      "modeKnowledge": "지식"
+      "modeKnowledge": "지식",
+      "emailInboxOffHint": "이메일 받은편지함이 꺼져 있습니다. 답장하려면 설정 > 채널 > 이메일에서 켜세요.",
+      "gmailInboxOffHint": "Gmail 받은편지함이 꺼져 있습니다. 답장하려면 설정 > 채널 > Gmail에서 켜세요.",
+      "emailInboxOffPlaceholder": "이메일 받은편지함이 꺼져 있습니다"
     },
     "bubble": {
       "photo": "사진",
@@ -3103,13 +3106,13 @@
       },
       "email": {
         "title": "이메일",
-        "description": "받은편지함에서 이메일을 주고받으려면 Microsoft 365 또는 Outlook 메일함을 연결하세요.",
+        "description": "Microsoft 365 또는 Outlook 메일함을 연결하세요. Halo가 직접 보내는 이메일(Secure Sign, 초대, 알림)이 이 메일함에서 발송되며, 고객 지원 받은편지함으로도 사용할 수 있습니다.",
         "notConnected": "아직 연결된 메일함이 없습니다.",
         "connectButton": "Microsoft 365 연결",
         "connectedAs": "연결됨 — {mailbox}",
         "connectedAtLabel": "연결일",
         "disconnect": "연결 해제",
-        "disconnectConfirmDescription": "이 메일함 연결을 해제하시겠습니까? 다시 연결할 때까지 이메일 대화 동기화가 중지됩니다.",
+        "disconnectConfirmDescription": "이 메일함 연결을 해제하시겠습니까? 다시 연결할 때까지 새 이메일이 받은편지함에 들어오지 않고 Halo도 이 메일함에서 자체 이메일을 보내지 않습니다.",
         "disconnectFailed": "이메일 연결 해제에 실패했습니다",
         "disconnected": "이메일 연결이 해제되었습니다",
         "connected": "이메일이 연결되었습니다",
@@ -3125,13 +3128,13 @@
       },
       "gmail": {
         "title": "Gmail",
-        "description": "받은편지함에서 이메일을 주고받으려면 Gmail 계정을 연결하세요.",
+        "description": "Gmail 계정을 연결하세요. Halo가 직접 보내는 이메일(Secure Sign, 초대, 알림)이 이 계정에서 발송되며, 고객 지원 받은편지함으로도 사용할 수 있습니다.",
         "notConnected": "아직 연결된 Gmail 계정이 없습니다.",
         "connectButton": "Gmail 연결",
         "connectedAs": "연결됨 — {mailbox}",
         "connectedAtLabel": "연결일",
         "disconnect": "연결 해제",
-        "disconnectConfirmDescription": "이 Gmail 계정 연결을 해제하시겠습니까? 다시 연결할 때까지 이메일 대화 동기화가 중지됩니다.",
+        "disconnectConfirmDescription": "이 Gmail 계정 연결을 해제하시겠습니까? 다시 연결할 때까지 새 이메일이 받은편지함에 들어오지 않고 Halo도 이 계정에서 자체 이메일을 보내지 않습니다.",
         "disconnectFailed": "Gmail 연결 해제에 실패했습니다",
         "disconnected": "Gmail 연결이 해제되었습니다",
         "connected": "Gmail이 연결되었습니다",
@@ -3286,6 +3289,35 @@
         "sampleAdded": "샘플 댓글을 추가했습니다. 받은편지함의 댓글 탭을 여세요.",
         "sampleCleared": "샘플 댓글을 제거했습니다",
         "sampleFailed": "샘플 댓글을 변경하지 못했습니다"
+      },
+      "mailbox": {
+        "inboxTitle": "고객 지원 받은편지함",
+        "inboxDescription": "고객이 보낸 이메일을 Halo 받은편지함으로 받고, 상담원이 그곳에서 답장할 수 있게 합니다. 끄면 받은편지함에 이미 있는 이메일은 기록으로 남고, 새 이메일은 들어오지 않으며, 이메일로 답장하는 기능도 제공되지 않습니다. 메일함은 계속 연결된 상태로 유지됩니다.",
+        "inboxOffNote": "꺼짐: 새 이메일이 받은편지함에 들어오지 않고 상담원이 이메일로 답장할 수 없습니다. 꺼져 있는 동안 도착한 이메일은 다시 켜도 가져오지 않습니다.",
+        "on": "켬",
+        "off": "끔",
+        "inboxOnToast": "고객 지원 받은편지함이 켜졌습니다. 지금부터 새 이메일이 받은편지함으로 들어옵니다.",
+        "inboxOffToast": "고객 지원 받은편지함이 꺼졌습니다. 새 이메일은 들어오지 않으며 기존 대화는 기록으로 남습니다.",
+        "inboxOffStopFailed": "고객 지원 받은편지함이 꺼졌습니다. 메일 제공업체에 알림 중지를 요청하지 못해 Halo가 알림을 무시합니다. 알림은 며칠 안에 저절로 멈춥니다.",
+        "inboxOnNoPush": "켜졌지만 Gmail 푸시 알림이 아직 설정되지 않아 설정하기 전까지 새 이메일이 들어오지 않습니다. 아래 푸시 알림 설정을 확인하세요.",
+        "sendTitle": "이 메일함으로 Halo 이메일 보내기",
+        "send": {
+          "used": "Secure Sign, 초대, 알림에 사용됩니다",
+          "paused": "지금은 사용되지 않음: 이 메일함이 일시 중지되었습니다. 다시 시작하면 Halo 이메일이 이 메일함에서 발송됩니다.",
+          "reconnect": "지금은 사용되지 않음: 이 메일함을 다시 연결해야 합니다."
+        },
+        "sendDescription": "Halo가 직접 보내는 이메일(Secure Sign 문서, 팀 초대, 알림)은 고객 지원 받은편지함이 켜져 있든 꺼져 있든 {mailbox}에서 발송됩니다.",
+        "sendDescriptionNoAddress": "Halo가 직접 보내는 이메일(Secure Sign 문서, 팀 초대, 알림)은 고객 지원 받은편지함이 켜져 있든 꺼져 있든 이 메일함에서 발송됩니다.",
+        "pauseTitle": "이 메일함을 완전히 일시 중지",
+        "pauseDescription": "받는 것과 보내는 것을 모두 멈춥니다. 새 이메일이 받은편지함에 들어오지 않고 Halo도 이 메일함에서 아무것도 보내지 않습니다(답장, Secure Sign 이메일, 초대 모두 포함). 연결은 유지되므로 언제든 다시 시작할 수 있습니다.",
+        "pausedToast": "메일함이 일시 중지되었습니다. 다시 시작할 때까지 보내고 받는 이메일이 없습니다.",
+        "resumedToast": "메일함이 다시 시작되었습니다.",
+        "refusal": {
+          "needs_reconnect": "먼저 메일함을 다시 연결한 후 다시 시도하세요.",
+          "start_failed": "이메일 수신을 시작하지 못했습니다. 다시 시도하거나 메일함을 다시 연결하세요.",
+          "not_connected": "이 메일함은 연결되어 있지 않습니다.",
+          "failed": "업데이트하지 못했습니다. 다시 시도하세요."
+        }
       }
     },
     "autoLabels": {
@@ -7269,7 +7301,8 @@
       "pause_while_pending": "보류 중 일시 정지",
       "at_risk_percent": "위험 기준 비율",
       "conditions": "조건",
-      "require_ticket_resolution": "해결 유형 필수"
+      "require_ticket_resolution": "해결 유형 필수",
+      "inbox_enabled": "고객 지원 받은편지함"
     },
     "activity": {
       "button": "활동",
@@ -8992,7 +9025,7 @@
         "platformNote": "연결된 메일함이 없어 플랫폼의 주소로 이메일이 발송됩니다. 내 주소로 보내려면 메일함을 연결하세요.",
         "problem": {
           "reconnect": "메일함 {address}을(를) 다시 연결해야 합니다. 접근 권한이 취소되었거나 만료되었습니다.",
-          "paused": "메일함 {address}이(가) 꺼져 있습니다.",
+          "paused": "메일함 {address}이(가) 일시 중지되었습니다(설정 > 채널에서 ‘이 메일함을 완전히 일시 중지’가 켜져 있습니다).",
           "unavailable": "연결된 메일함을 지금은 읽을 수 없습니다."
         },
         "platformInstead": "문제가 해결될 때까지 플랫폼 발신 서비스가 사용됩니다.",
@@ -9014,7 +9047,8 @@
           "manage": "이 메일함의 채널 설정 열기",
           "connectMicrosoft365": "Microsoft 365 메일함 연결",
           "connectGmail": "Gmail 메일함 연결"
-        }
+        },
+        "inboxOffNote": "설정 > 채널에서 이 메일함을 고객 지원 받은편지함으로 사용하지 않도록 꺼 두어도 이 용도로는 계속 사용됩니다."
       }
     },
     "detail": {

@@ -392,9 +392,13 @@ Settings shows **Web verification**: `none` (live), `email_code` (live,
 migration 110 — see below) and `whatsapp_code` (stored, still "coming
 soon"). It is `verification_mode` on `web_widget_config` and is reported to
 the widget as `verification: { mode }`. The API refuses to switch to
-`whatsapp_code` today; switching to `email_code` additionally requires
-`RESEND_API_KEY` to be configured (`isResendConfigured()`), since there
-would otherwise be nothing to actually send the code with.
+`whatsapp_code` today; switching to `email_code` additionally requires a way to
+send the code (`canSendWorkspaceEmail()`): a connected mailbox of the workspace
+that can send (Settings → Channels → Email or Gmail, connected, not paused, not
+needing a reconnect, whether or not it is also the customer care inbox), or
+`RESEND_API_KEY` to be configured. The code is sent as the workspace by the shared
+workspace sender, mailbox first. There would otherwise be nothing to actually send
+the code with.
 
 To add `whatsapp_code` later: implement its own send/verify pair mirroring
 `src/lib/widget/email-verification.ts` / `src/app/api/widget/verify-code/route.ts`
@@ -549,8 +553,8 @@ send.
   could be a stranger's typo or guess, and notifying it would leak that
   a conversation exists to whoever typed it. This is deliberately more
   conservative than what the identity itself is trusted for elsewhere.
-- No email is sent (silently) when `RESEND_API_KEY` isn't configured,
-  the visitor has no verified email at all, or the visitor is a plain
+- No email is sent (silently) when the workspace has neither a mailbox that can
+  send nor `RESEND_API_KEY` configured, the visitor has no verified email at all, or the visitor is a plain
   `guest` — the widget-only "appears next time they open it" behavior
   is always the floor, this is additive.
 - **Not built**: real push (Web Push for a browser tab, or native push
@@ -740,12 +744,12 @@ editing anything under `widget/src/`, then hard-refresh the test page.
 - **Checking the schema** — `supabase migration list` should show 092 and
   110; the verify scripts are `supabase/ci/verify-092-widget-v2.sql` and
   `supabase/ci/verify-110-widget-email-verification.sql`.
-- **"Set RESEND_API_KEY before enabling email-code verification"** —
-  Settings → Channels → Web Widget → Web verification refused to save
-  `email_code` because `isResendConfigured()` is false. Set
-  `RESEND_API_KEY` (and, for real deliverability, `RESEND_FROM_EMAIL` —
-  see `.env.local.example` and `docs/sso-login-setup.md`'s "Email
-  delivery" section) first.
+- **"Connect a mailbox in Settings > Channels, or set RESEND_API_KEY, before
+  enabling email-code verification"** — Settings → Channels → Web Widget → Web
+  verification refused to save `email_code` because the workspace has no way to
+  send the code. Connect a mailbox (Email or Gmail), or set `RESEND_API_KEY` (and,
+  for real deliverability, `RESEND_FROM_EMAIL` — see `.env.local.example` and
+  `docs/sso-login-setup.md`'s "Email delivery" section).
 - **A visitor's claim never leads to a code / just says nothing
   matched** — with `email_code` verification on, an unmatched phone/email,
   or a match with no email on file, both get the same "we could not find

@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.85.0] — 2026-10-08
+
+**Migration required: 179.** Apply it BEFORE the new app: the channel settings and the renewal jobs read the new column.
+
+### Added
+
+- **The email inbox and the mailbox are now separate.** Settings > Channels > Email (and Gmail) has a **Customer care inbox** switch: off means no new mail comes into the Inbox, the mailbox's change notifications are stopped, replying by email is not offered (existing conversations stay as history), and the mailbox stays connected. Turning it on again starts from that moment; mail that arrived while it was off is not imported. **Pause this mailbox completely** remains the master switch for everything in and out.
+- A **Send Halo emails from this mailbox** status line shows whether the mailbox is in use for Halo's own emails, or why not (paused, needs reconnecting).
+- A shared workspace sender: Halo's emails for a workspace go out through its connected mailbox (Microsoft 365, then Gmail), falling back to the platform sender. Secure Sign, team invitations, incident notifications and web chat verification codes and reply notices use it. Platform-level mail, such as the welcome message for a new workspace, stays on the platform sender. Messages sent through a mailbox carry a marker so they never come back into the Inbox.
+- Changes to the email switches are now recorded in the audit trail.
+
+### Changed
+
+- Team invitations used to try the platform sender first and ignored the pause; they now try the workspace's mailbox first and respect the pause. Incident emails now go out under the workspace's sender name.
+- The first-run checklist no longer counts a mailbox whose inbox is off as a customer channel.
+
 ## [0.84.0] — 2026-10-08
 
 **Migration required: 178.** Apply it BEFORE the new app: sealing now calls a function that only exists after 178.

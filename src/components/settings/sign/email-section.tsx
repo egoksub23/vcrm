@@ -136,6 +136,7 @@ export function EmailStatusCard({ email: e, canEdit, test, onTest }: { email: Em
             {e.fromName ? <li>{t("nameNote", { name: e.fromName })}</li> : null}
             {e.provider ? <li>{t(`keptNote.${e.provider}`)}</li> : null}
             <li>{t("inboxNote")}</li>
+            <li>{t("inboxOffNote")}</li>
           </ul>
         ) : null}
 

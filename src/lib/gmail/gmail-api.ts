@@ -243,12 +243,20 @@ export async function watchMailbox(args: {
 }
 
 /** Best-effort — callers (disconnect) don't fail the local operation
- *  just because Google's side already lapsed. */
-export async function stopWatch(args: { accessToken: string }): Promise<void> {
-  await fetch(`${GMAIL_API_BASE}/stop`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${args.accessToken}` },
-  }).catch(() => undefined)
+ *  just because Google's side already lapsed. Never throws. Answers whether
+ *  Google confirmed the watch is stopped (a 2xx), for callers that report it
+ *  (switching the customer care inbox off); `false` means it may still be
+ *  alive and will lapse by itself within a week. */
+export async function stopWatch(args: { accessToken: string }): Promise<boolean> {
+  try {
+    const response = await fetch(`${GMAIL_API_BASE}/stop`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${args.accessToken}` },
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 export async function getCurrentHistoryId(args: { accessToken: string }): Promise<string> {

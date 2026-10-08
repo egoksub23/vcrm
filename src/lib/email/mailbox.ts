@@ -1,12 +1,15 @@
 /**
- * The workspace's connected mailbox, for the mail Halo sends as the workspace (Doc Sign). A workspace may have connected a Microsoft 365 mailbox
- * (Settings > Channels > Email), a Gmail mailbox (Settings > Channels > Gmail), or both; there is no "primary email channel" setting, so the order is
- * fixed:
+ * The workspace's connected mailbox, for the mail Halo sends as the workspace (Secure Sign, team invitations, notifications: see workspace-mail.ts).
+ * A workspace may have connected a Microsoft 365 mailbox (Settings > Channels > Email), a Gmail mailbox (Settings > Channels > Gmail), or both; there
+ * is no "primary email channel" setting, so the order is fixed:
  *
  *   1. a Microsoft 365 mailbox that can send;
  *   2. else a Gmail mailbox that can send;
  *   3. else the mailbox that is connected but cannot send (Microsoft 365 first), reported as a problem, so the answer is "reconnect it", not "set one up";
  *   4. else none.
+ *
+ * "Can send" means connected, not needing a new sign-in, and not paused (`enabled`, the master switch). Whether the mailbox is also used for the
+ * customer care inbox (`inbox_enabled`) plays no part: a mailbox kept only for sending is a usable sender.
  *
  * Throws only when a connection cannot be read at all (the caller treats that as `unavailable`).
  */

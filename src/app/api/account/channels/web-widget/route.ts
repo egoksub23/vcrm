@@ -12,7 +12,7 @@ import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { isResendConfigured } from '@/lib/email/resend'
+import { canSendWorkspaceEmail } from '@/lib/email/workspace-mail'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import type { WebWidgetConfig } from '@/types'
 
@@ -157,10 +157,12 @@ export async function PUT(request: Request) {
           { status: 400 },
         )
       }
-      if (body.verification_mode === 'email_code' && !isResendConfigured()) {
+      // The code is mailed as the workspace: through its connected mailbox when it can send, else the platform sender.
+      if (body.verification_mode === 'email_code' && !(await canSendWorkspaceEmail(ctx.accountId))) {
         return NextResponse.json(
           {
-            error: 'Set RESEND_API_KEY before enabling email-code verification (see .env.local.example)',
+            error:
+              'Connect a mailbox in Settings > Channels, or set RESEND_API_KEY, before enabling email-code verification (see .env.local.example)',
             code: 'bad_request',
           },
           { status: 400 },

@@ -73,7 +73,13 @@ describe("sending through the Gmail mailbox", () => {
       replyTo: "help@vircle.com",
       attachments: [{ name: "Agreement signed.pdf", contentType: "application/pdf", contentBytesBase64: "AAAA" }],
     });
-    expect(w.calls[0].headers).toEqual({ "X-Halo-Sign": "1", "Auto-Submitted": "auto-generated" });
+    expect(w.calls[0].headers).toEqual({ "X-Halo-Sign": "1", "X-Halo-System": "1", "Auto-Submitted": "auto-generated" });
+  });
+
+  it("writes X-Halo-System on every message, with or without a caller's own marks", async () => {
+    const w = world(row());
+    await ready(await loadGmailMailbox("A", {}, w.deps)).send(mail());
+    expect(w.calls[0].headers).toEqual({ "X-Halo-System": "1", "Auto-Submitted": "auto-generated" });
   });
 
   it("drops a Reply-To that is not one plain address", async () => {

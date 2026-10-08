@@ -44,6 +44,8 @@ describe.each(LOCALES)("the Email card (%s)", (locale) => {
     expect(out).toContain(fill(text(locale, "admin.email.nameNote"), { name: "Vircle" }));
     expect(out).toContain(text(locale, "admin.email.keptNote.microsoft365"));
     expect(out).toContain(text(locale, "admin.email.inboxNote"));
+    // the mailbox is used for Secure Sign even when it is switched off as the customer care inbox
+    expect(out).toContain(text(locale, "admin.email.inboxOffNote"));
     expect(out).toContain(`href="${CHANNEL_LINK.microsoft365}"`);
     expect(out).toContain(text(locale, "admin.email.link.manage"));
     expect(out).toContain('data-email-via="mailbox"');

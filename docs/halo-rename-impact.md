@@ -162,7 +162,7 @@ lines to add are (use the same secret the existing lines use):
 **Row 7, recreate the Microsoft 365 mail subscription after the switch.** In the Supabase SQL editor:
 
 ```
-update email_config set subscription_id = null, subscription_expires_at = null where status = 'connected';
+update email_config set subscription_id = null, subscription_expires_at = null where status = 'connected' and inbox_enabled;
 ```
 
 Then run the renewal job once by hand, or wait for the nightly run. It creates a fresh subscription pointing at the new

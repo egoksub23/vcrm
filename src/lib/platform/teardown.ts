@@ -8,8 +8,8 @@
 //   WhatsApp           the app's subscription to the customer's WABA (the phone number
 //                      stays registered: it is theirs)
 //   Messenger, Instagram   the Page's subscription to this app
-//   Gmail              the push watch
-//   Microsoft 365      the mail subscription
+//   Gmail              the push watch (none while the mailbox is not used for the customer care inbox)
+//   Microsoft 365      the mail subscription (none while the mailbox is not used for the customer care inbox)
 //   Jira               the webhooks (and the stored tokens, links and sync history)
 //
 // Each result is recorded on the deletion tombstone. A failure never stops the
@@ -23,6 +23,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { unsubscribePage } from '@/lib/comments/meta-comments'
 import { stopWatch } from '@/lib/gmail/gmail-api'
 import { getValidAccessToken as gmailToken } from '@/lib/gmail/token'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { disconnect } from '@/lib/jira/connection'
 import { isJiraConfigured } from '@/lib/jira/oauth'
 import { clientForConnection, jiraStore } from '@/lib/jira/service'
@@ -71,12 +72,16 @@ export async function teardownWorkspaceChannels(db: SupabaseClient, accountId: s
   await step(results, 'gmail', async () => {
     const { data } = await db.from('gmail_config').select('*').eq('account_id', accountId).maybeSingle()
     if (!data) return 'not connected'
+    // switched off as the customer care inbox (migration 179): the watch was already stopped
+    if (inboxIsOff(data)) return 'inbox off, no watch'
     await stopWatch({ accessToken: await gmailToken(data) })
   })
 
   await step(results, 'email', async () => {
     const { data } = await db.from('email_config').select('*').eq('account_id', accountId).maybeSingle()
-    if (!data?.subscription_id) return 'not connected'
+    if (!data) return 'not connected'
+    // switched off as the customer care inbox (migration 179): the subscription was already deleted
+    if (!data.subscription_id) return inboxIsOff(data) ? 'inbox off, no subscription' : 'no subscription'
     await deleteSubscription({ accessToken: await ms365Token(data), subscriptionId: data.subscription_id })
   })
 

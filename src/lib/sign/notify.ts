@@ -1,22 +1,21 @@
 // ============================================================
-// Sending what Doc Sign sends: invitations, reminders, codes, the signed copy and outcomes. Email goes
+// Sending what Secure Sign sends: invitations, reminders, codes, the signed copy and outcomes. Email goes
 // out through the workspace's own connected mailbox (Microsoft 365, else Gmail: Settings > Channels) when it
 // has one, from that mailbox's address under the workspace's name; otherwise through the platform's Resend sender;
 // otherwise it is not sent and says so. The message itself (words, files, identity) is the same whichever
 // way it goes; only the last step differs. WhatsApp only when the sender chose it for a signer, through
-// the workspace's own WhatsApp number and the approved template named in Doc Sign settings. Every
+// the workspace's own WhatsApp number and the approved template named in Secure Sign settings. Every
 // function returns a result and never throws: a message that could not be delivered is something to show
 // and record, not a reason to fail a signature.
 // ============================================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { loadEmailIdentity } from "@/lib/email/identity";
 import { loadMailboxState } from "@/lib/email/mailbox";
-import type { MailboxProblem, MailboxProvider, MailboxState, OutgoingEmail } from "@/lib/email/mailbox-types";
-import { isResendConfigured, sendEmail, type EmailAttachment, type EmailIdentity } from "@/lib/email/resend";
-import { MailSendError, reasonDetail, type SendReason } from "@/lib/email/send-reason";
+import type { MailboxProvider } from "@/lib/email/mailbox-types";
+import type { EmailAttachment } from "@/lib/email/resend";
 import { HALO_SIGN_HEADER, HALO_SIGN_VALUE } from "@/lib/email/halo-mail-marker";
+import { chooseEmailTransport as chooseWorkspaceTransport, realWorkspaceMailDeps, sendWorkspaceEmail, type EmailTransport, type WorkspaceMailDeps } from "@/lib/email/workspace-mail";
 import { sendTemplateMessage } from "@/lib/whatsapp/meta-api";
 import { decrypt } from "@/lib/whatsapp/encryption";
 
@@ -35,84 +34,33 @@ export interface Delivery {
   detail?: string;
 }
 
-export interface NotifyDeps {
-  /** The platform sender (Resend) is set up. */
-  emailConfigured: () => boolean;
-  /** Send through the platform sender. */
-  sendEmail: typeof sendEmail;
-  loadIdentity: (accountId: string) => Promise<EmailIdentity>;
+/** What Secure Sign needs to send: the shared workspace mail dependencies (the connected mailbox, the platform sender, the workspace's identity), and WhatsApp. */
+export interface NotifyDeps extends WorkspaceMailDeps {
   sendWhatsApp: (admin: SupabaseClient, args: { accountId: string; to: string; templateName: string; language: string; params: string[] }) => Promise<void>;
-  /**
-   * The workspace's connected mailbox (Microsoft 365 or Gmail), when it has one: a ready mailbox is used for every email in preference to the platform sender.
-   * Absent (as in the tests that predate it), only the platform sender is used.
-   */
-  mailbox?: (accountId: string) => Promise<MailboxState>;
 }
 
 /**
- * What every Doc Sign message sent through a mailbox carries. `X-Halo-Sign` keeps it out of Halo's own inbox ingestion (lib/gmail/ingest-guard.ts,
- * lib/ms365/ingest-guard.ts): the mail holds a person's signing link or a signed document, and the inbox is read by the whole team. Each mailbox sender
- * adds its own "a system sent this, do not auto-reply" header.
+ * What every Secure Sign message sent through a mailbox carries, on top of the `X-Halo-System` mark every mailbox sender writes on all Halo mail.
+ * `X-Halo-Sign` keeps it out of Halo's own inbox ingestion (lib/gmail/ingest-guard.ts, lib/ms365/ingest-guard.ts): the mail holds a person's signing
+ * link or a signed document, and the inbox is read by the whole team. Each mailbox sender adds its own "a system sent this, do not auto-reply" header.
  */
 export const SIGN_MAIL_HEADERS: Record<string, string> = { [HALO_SIGN_HEADER]: HALO_SIGN_VALUE };
 
 export const realDeps: NotifyDeps = {
-  emailConfigured: isResendConfigured,
-  sendEmail,
-  loadIdentity: loadEmailIdentity,
+  ...realWorkspaceMailDeps,
   sendWhatsApp: sendWhatsAppTemplate,
   mailbox: (accountId) => loadMailboxState(accountId, { headers: SIGN_MAIL_HEADERS }),
 };
 
 // ---- which way email goes -----------------------------------------------------------------------------------
+// The choice (a ready connected mailbox, else the platform sender, else none) and the send itself are the shared workspace sender's (lib/email/workspace-mail.ts);
+// Secure Sign adds its own limit on the files of one message.
 
-/** How a workspace's email goes out: through its connected mailbox, through the platform sender, or not at all. */
-export type EmailTransport =
-  | { via: "mailbox"; provider: MailboxProvider; address: string; attachBytes: number; send: (m: OutgoingEmail) => Promise<void> }
-  /** `skipped`: a mailbox is connected but could not be used, so the platform sender took its place. */
-  | { via: "platform"; skipped: MailboxTrouble | null }
-  /** Nothing can send. `problem` is set when a mailbox is connected but cannot send (so the answer is "reconnect it", not "set one up"). */
-  | { via: "none"; problem: MailboxTrouble | null };
+export type { EmailTransport, MailboxTrouble } from "@/lib/email/workspace-mail";
 
-/** A connected mailbox that cannot send. `provider` is null when the connection could not be read at all. */
-export interface MailboxTrouble {
-  provider: MailboxProvider | null;
-  address: string;
-  problem: MailboxProblem;
-}
-
-/**
- * Choose the transport for a workspace: a ready connected mailbox first; else the platform sender when it is set up; else none.
- * Never throws: a mailbox that cannot be read counts as one that cannot send.
- */
-export async function chooseEmailTransport(deps: NotifyDeps, accountId: string): Promise<EmailTransport> {
-  let problem: MailboxTrouble | null = null;
-  if (deps.mailbox) {
-    try {
-      const state = await deps.mailbox(accountId);
-      if (state.kind === "ready") return { via: "mailbox", provider: state.provider, address: state.address, attachBytes: Math.min(state.attachBytes, ENVELOPE_ATTACH_BYTES), send: state.send };
-      if (state.kind === "problem") problem = { provider: state.provider, address: state.address, problem: state.problem };
-    } catch (err) {
-      console.error("[sign] could not read the connected mailbox:", err instanceof Error ? err.message : err);
-      problem = { provider: null, address: "", problem: "unavailable" };
-    }
-  }
-  if (deps.emailConfigured()) return { via: "platform", skipped: problem };
-  return { via: "none", problem };
-}
-
-const PROBLEM_REASON: Record<MailboxProblem, SendReason> = { reconnect: "mailbox_reconnect", paused: "mailbox_paused", unavailable: "service_unavailable" };
-
-/** The delivery to report when no transport can send. */
-function undeliverable(t: Extract<EmailTransport, { via: "none" }>): Delivery {
-  if (t.problem) return { channel: "email", status: "failed", detail: reasonDetail(PROBLEM_REASON[t.problem.problem], t.problem.address ? `mailbox ${t.problem.address}` : "") };
-  return { channel: "email", status: "not_configured", detail: reasonDetail("not_set_up", "no connected mailbox and the platform sender is not set up") };
-}
-
-/** What went wrong, as the `detail` of a failed delivery: a named reason when we know it, otherwise the service's own words. */
-function failureDetail(err: unknown): string {
-  if (err instanceof MailSendError) return err.message;
-  return err instanceof Error ? err.message.slice(0, 200) : "send failed";
+/** The transport for a workspace's Secure Sign email: the shared choice, with Secure Sign's limit on the files of one message. */
+export function chooseEmailTransport(deps: NotifyDeps, accountId: string): Promise<EmailTransport> {
+  return chooseWorkspaceTransport(deps, accountId, { attachCap: ENVELOPE_ATTACH_BYTES });
 }
 
 /** The public address of a signer's link. */
@@ -149,25 +97,16 @@ type MessageBuilder = (attachBytes: number) => { m: Rendered; attachments?: Emai
  * many bytes of files this transport takes); only the last step differs. Always answers with a Delivery.
  */
 async function emailVia(deps: NotifyDeps, accountId: string, to: string, identityName: string | null, build: MessageBuilder): Promise<Delivery> {
-  const transport = await chooseEmailTransport(deps, accountId);
-  if (transport.via === "none") return undeliverable(transport);
-  try {
-    const { m, attachments } = build(transport.via === "mailbox" ? transport.attachBytes : ENVELOPE_ATTACH_BYTES);
-    const identity = await deps.loadIdentity(accountId);
-    const message = {
-      to,
-      subject: m.subject,
-      html: m.html,
-      text: m.text,
-      fromName: identityName ?? identity.fromName,
-      replyTo: identity.replyTo,
-      ...(attachments?.length ? { attachments } : {}),
-    };
-    await (transport.via === "mailbox" ? transport.send(message) : deps.sendEmail(message));
-    return { channel: "email", status: "sent" };
-  } catch (err) {
-    return { channel: "email", status: "failed", detail: failureDetail(err) };
-  }
+  const result = await sendWorkspaceEmail(
+    accountId,
+    ({ attachBytes }) => {
+      const { m, attachments } = build(attachBytes);
+      return { to, subject: m.subject, html: m.html, text: m.text, ...(attachments?.length ? { attachments } : {}) };
+    },
+    deps,
+    { attachCap: ENVELOPE_ATTACH_BYTES, fromName: identityName },
+  );
+  return result.status === "sent" ? { channel: "email", status: "sent" } : { channel: "email", status: result.status, detail: result.detail };
 }
 
 /** A message without files of its own. */

@@ -1611,6 +1611,57 @@ describe('sendMessageToConversation — disabled channel (migration 097)', () =>
     expect(sendNewMail).not.toHaveBeenCalled();
   });
 
+  it('blocks an Email send when the mailbox is not used for the customer care inbox (inbox_enabled false), with a clear error, even though it is connected and not paused', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email', {
+      emailConfig: { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: true, inbox_enabled: false },
+    });
+    const err = await sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('email_inbox_off');
+    expect(err.status).toBe(400);
+    expect(err.message).toBe('The email inbox is switched off. Turn it on in Settings > Channels > Email to reply.');
+    expect(sendNewMail).not.toHaveBeenCalled();
+    expect(sendReplyText).not.toHaveBeenCalled();
+    // nothing was stored as a message
+    expect(captured.message).toBeUndefined();
+  });
+
+  it('still sends an Email when inbox_enabled is true or the column does not exist yet', async () => {
+    for (const emailConfig of [
+      { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: true, inbox_enabled: true },
+      { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: true },
+    ]) {
+      const captured: CapturedWrites = {};
+      const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email', { emailConfig });
+      await sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' });
+    }
+    expect(sendNewMail).toHaveBeenCalledTimes(2);
+  });
+
+  it('says the pause first when the mailbox is both paused and not used for the inbox', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'email', {
+      emailConfig: { id: 'ec-1', mailbox_address: 'agent@company.com', enabled: false, inbox_enabled: false },
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' })
+    ).rejects.toThrow(/Email is currently disabled/);
+  });
+
+  it('blocks a Gmail send when the mailbox is not used for the customer care inbox (inbox_enabled false)', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail', {
+      gmailConfig: { id: 'gc-1', email_address: 'agent@gmail.com', enabled: true, inbox_enabled: false },
+    });
+    const err = await sendMessageToConversation(db, 'acct-1', { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' }).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('email_inbox_off');
+    expect(err.message).toBe('The Gmail inbox is switched off. Turn it on in Settings > Channels > Gmail to reply.');
+    expect(sendNewGmailMock).not.toHaveBeenCalled();
+    expect(captured.message).toBeUndefined();
+  });
+
   it('blocks a Gmail send when gmail_config.enabled is false', async () => {
     const captured: CapturedWrites = {};
     const db = sendPathDb([], captured, { id: 'ct-1', phone: '', email: 'jane@example.com' }, 'gmail', {

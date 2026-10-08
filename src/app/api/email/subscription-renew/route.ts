@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
 import { suspendedAccountIds } from '@/lib/platform/active'
 
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
 
@@ -33,17 +34,20 @@ export const GET = cronRoute('mailbox-renew', CRON_INTERVALS['mailbox-renew'], a
   // large backlog is worked through over successive runs instead of one
   // run that never finishes; suspended workspaces are left alone.
   const soon = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  // A mailbox that is not used for the customer care inbox (migration 179) has no subscription on purpose: it is left out here, not counted, not
+  // renewed, not reported.
   const { data: configs, error } = await admin
     .from('email_config')
     .select('*')
     .eq('status', 'connected')
+    .neq('inbox_enabled', false)
     .or(`subscription_expires_at.is.null,subscription_expires_at.lte.${soon}`)
     .order('subscription_expires_at', { ascending: true, nullsFirst: true })
     .limit(500)
 
   if (error) return { status: 500, body: { error: error.message } }
   const suspended = await suspendedAccountIds(admin)
-  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string))
+  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string) && !inboxIsOff(c))
   if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0

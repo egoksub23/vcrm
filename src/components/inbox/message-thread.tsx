@@ -42,6 +42,8 @@ import {
 import { CHANNEL_ICONS } from "./channel-icons";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
 import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
+import { useMailInbox } from "@/hooks/use-mail-inbox";
+import { composerChannels } from "@/lib/inbox/mail-inbox";
 import { notifyVircleRead } from "@/lib/vircle-chat/client";
 import { VircleTypingIndicator } from "./vircle-typing-indicator";
 import { format, isToday, isYesterday, differenceInHours, formatDistanceToNow } from "date-fns";
@@ -530,11 +532,14 @@ export function MessageThread({
   // (migration 060) — opening an Email(MS365) conversation specifically,
   // on top of the Inbox-page-mount ping. Same 24h server-side rate
   // limit, so this is just another cheap chance to catch it.
+  // Not when the mailbox is switched off as the customer care inbox: it has no subscription on purpose (the server skips the ping too).
+  const mailInbox = useMailInbox();
+  const emailInboxOff = mailInbox.offChannels.includes("email");
   useEffect(() => {
-    if (conversationId && conversation?.last_channel_type === "email") {
+    if (conversationId && conversation?.last_channel_type === "email" && !emailInboxOff) {
       pingEmailSubscriptionHeartbeat();
     }
-  }, [conversationId, conversation?.last_channel_type]);
+  }, [conversationId, conversation?.last_channel_type, emailInboxOff]);
 
   // Reset the server-side unread_count to 0 whenever an unread count
   // surfaces on the active conversation — covers both (a) opening a
@@ -577,11 +582,24 @@ export function MessageThread({
   // than every channel type that exists in the abstract. Always
   // includes the current last_channel_type rollup even if `messages`
   // hasn't loaded yet, so the selector is never empty.
-  const availableChannels = useMemo(() => {
+  //
+  // An email channel whose mailbox is switched off as the customer care
+  // inbox (migration 179) is not offered while there is another channel to
+  // reply on; when it is the only one, the composer shows it read-only with
+  // a notice. The conversation and its messages stay as history.
+  const usedChannels = useMemo(() => {
     const set = new Set<ChannelType>(messages.map((m) => m.channel_type));
     if (conversation) set.add(conversation.last_channel_type);
     return Array.from(set);
   }, [messages, conversation]);
+  const composer = useMemo(
+    () =>
+      conversation
+        ? composerChannels({ used: usedChannels, last: conversation.last_channel_type, off: mailInbox.offChannels })
+        : { channels: usedChannels, initial: undefined },
+    [usedChannels, conversation, mailInbox.offChannels],
+  );
+  const availableChannels = composer.channels;
 
   // Web Widget v2: for a contact that has used the web widget, show whether
   // the visitor's identity was verified by the host app or only claimed,
@@ -2143,8 +2161,9 @@ export function MessageThread({
       {/* Composer */}
       <MessageComposer
         conversationId={conversation.id}
-        channelType={conversation.last_channel_type}
+        channelType={composer.initial ?? conversation.last_channel_type}
         availableChannels={availableChannels}
+        inboxOffChannels={mailInbox.offChannels}
         sessionExpired={sessionInfo.expired}
         onSend={handleSend}
         onSendMedia={handleSendMedia}

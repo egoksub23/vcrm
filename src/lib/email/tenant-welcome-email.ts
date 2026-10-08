@@ -4,6 +4,11 @@
 // (src/app/api/platform/accounts/route.ts). Pure builder + a best-effort
 // sender: with no RESEND_API_KEY it reports `false` and the console shows
 // the one-time link to the operator instead.
+//
+// Deliberately NOT sent through the workspace-aware sender (workspace-mail.ts):
+// this is platform mail, sent by the operator to a workspace that has just
+// been created and cannot have connected a mailbox yet, so it always goes by
+// the platform sender (Resend).
 // ============================================================
 import { isResendConfigured, sendEmail } from './resend';
 

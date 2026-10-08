@@ -61,6 +61,7 @@ import { GatewayError, sendToGateway } from '@/lib/vircle-chat/gateway';
 import { notifyVircleReads } from '@/lib/vircle-chat/read-receipts';
 import { VircleSendError } from '@/lib/vircle-chat/errors';
 import { guessMimeType } from '@/lib/vircle-chat/media';
+import { inboxIsOff } from '@/lib/email/mailbox-types';
 import { getValidAccessToken } from '@/lib/ms365/token';
 import { sendNewMail, sendReplyText, sendReplyWithAttachment, sendReplyHtml } from '@/lib/ms365/mail-api';
 import { GraphApiError } from '@/lib/ms365/errors';
@@ -75,6 +76,12 @@ import { failureFromError, type StoredFailure } from '@/lib/messages/failure-rea
 import { insertFailedMessageRow, insertMessageRowCompat } from '@/lib/messages/persist-failed';
 import { notifyWidgetVisitorOfReply } from '@/lib/widget/notify-reply';
 import { notifyAppUserOfReplyViaPush } from '@/lib/widget/notify-app-push';
+
+/** What the Inbox says when a reply cannot go because the mailbox is not used for the customer care inbox (migration 179). */
+export const EMAIL_INBOX_OFF_MESSAGE = {
+  email: 'The email inbox is switched off. Turn it on in Settings > Channels > Email to reply.',
+  gmail: 'The Gmail inbox is switched off. Turn it on in Settings > Channels > Gmail to reply.',
+} as const;
 
 export const MEDIA_KINDS = ['image', 'video', 'document', 'audio'] as const;
 export const VALID_MESSAGE_TYPES = [
@@ -923,6 +930,13 @@ export async function sendMessageToConversation(
         400
       );
     }
+    // The mailbox is connected and not paused, but it is not used for the
+    // customer care inbox (migration 179): the Inbox does not send email
+    // from it — a reply, a new mail, an automation, the AI. (Halo's own
+    // mail, such as Secure Sign, does not come through here.)
+    if (inboxIsOff(cfg)) {
+      throw new SendMessageError('email_inbox_off', EMAIL_INBOX_OFF_MESSAGE.email, 400);
+    }
     try {
       const accessToken = await getValidAccessToken(cfg);
 
@@ -1011,6 +1025,11 @@ export async function sendMessageToConversation(
         'Gmail is currently disabled. Enable it in Settings → Channels to send messages.',
         400
       );
+    }
+    // Connected and not paused, but not used for the customer care inbox
+    // (migration 179): see the Email branch above.
+    if (inboxIsOff(cfg)) {
+      throw new SendMessageError('email_inbox_off', EMAIL_INBOX_OFF_MESSAGE.gmail, 400);
     }
     try {
       const accessToken = await getValidGmailAccessToken(cfg);

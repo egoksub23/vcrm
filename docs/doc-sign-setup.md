@@ -26,9 +26,12 @@ on for a workspace and keep it running. What users do is in the User Guide (**Se
 
   Either one is enough. **Settings > Secure Sign > General > Email** shows which one a workspace is using,
   with the mailbox's address, and has a **Send a test email to me** button. What to know about the
-  mailbox: mail through it is marked `X-Halo-Sign: 1`, and Halo's own inbox ingestion refuses anything
-  carrying that mark, so a signing link or a signed document is never read into the shared inbox
-  (section 9c). Through Microsoft 365 no copy is kept in Sent Items; Gmail always keeps one in its Sent
+  mailbox: mail through it is marked `X-Halo-Sign: 1` (and `X-Halo-System: 1`, which every email Halo sends
+  through a mailbox carries), and Halo's own inbox ingestion refuses anything carrying either mark, so a
+  signing link or a signed document is never read into the shared inbox (section 9c). The mailbox is used
+  whether or not it is also switched on as the **Customer care inbox** (Settings > Channels): that switch is
+  about customers' mail coming in, not about Halo sending; only **Pause this mailbox completely** stops Secure
+  Sign sending through it. Through Microsoft 365 no copy is kept in Sent Items; Gmail always keeps one in its Sent
   folder. Files go on the message only when they fit: up to 2.5 MB through Microsoft 365, 17 MB through
   Gmail, 20 MB through the platform sender; above that the message carries a link instead.
 - **`ENCRYPTION_KEY`** is set (it already is for WhatsApp and Jira). Sealing certificates are
@@ -454,7 +457,8 @@ is sealed at once, and its state is shown in the list, not as "everyone has sign
 ## 9b. Which way email goes, and why a message did not arrive
 
 For each message Secure Sign asks the workspace's connected mailboxes first: a Microsoft 365 mailbox that can send, else a Gmail mailbox that can send; a
-mailbox that is switched off in Settings > Channels, or needs reconnecting, is skipped. With none ready, the platform sender (`RESEND_API_KEY`) is used.
+mailbox that is paused in Settings > Channels (**Pause this mailbox completely**), or needs reconnecting, is skipped. A mailbox with its **Customer care inbox** switched off
+is NOT skipped: it still sends. With none ready, the platform sender (`RESEND_API_KEY`) is used.
 With neither, the message is not sent and the person's row says so. There is no "primary email channel" setting: Microsoft 365 wins when both are connected.
 
 **Settings > Secure Sign > General > Email** (people with Secure Sign settings) names the one in use, for example "Sent from support@vircle.com via your connected
@@ -483,8 +487,9 @@ Mail sent through a connected mailbox can come back to Halo's own inbox ingestio
 sender's own address) is delivered to its Inbox, and a bounce of a message Secure Sign sent arrives there too. The inbox is read by everyone with inbox access,
 and these messages hold a person's signing link or a signed document, so Halo refuses them on the ingestion path, by independent signals:
 
-- every Secure Sign message carries the header `X-Halo-Sign: 1` (the Microsoft 365 webhook reads it from `internetMessageHeaders`, the Gmail webhook from the
-  message headers), and is refused when it has it;
+- every message Halo sends through a mailbox carries the header `X-Halo-System: 1` (added by the mailbox senders themselves), and Secure Sign's also
+  `X-Halo-Sign: 1` (the Microsoft 365 webhook reads them from `internetMessageHeaders`, the Gmail webhook from the message headers); a message with either is
+  refused;
 - a delivery-failure notice that quotes the original's headers is refused when the quoted text has the header (Exchange puts them in the body; Gmail in a
   `text/rfc822-headers` part);
 - Gmail only: the label `SENT` (Gmail's own statement that the mailbox sent it) is refused;

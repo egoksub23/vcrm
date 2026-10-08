@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pingEmailSubscriptionHeartbeat } from "@/lib/ms365/subscription-heartbeat-client";
+import { useMailInbox } from "@/hooks/use-mail-inbox";
 import { claimConversation } from "@/lib/inbox/claim-conversation";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 
@@ -297,10 +298,14 @@ function InboxPageInner() {
   // cron (migration 060) — pings the Graph mail subscription's
   // keep-alive whenever an agent opens the Inbox. The route itself
   // rate-limits to once per 24h per account, so it's safe to fire on
-  // every mount without any gating here.
+  // every mount without any gating here. Not when the Microsoft 365 mailbox
+  // is switched off as the customer care inbox (migration 179): it has no
+  // subscription on purpose (the route skips the ping too).
+  const mailInbox = useMailInbox();
+  const emailInboxOff = mailInbox.offChannels.includes("email");
   useEffect(() => {
-    pingEmailSubscriptionHeartbeat();
-  }, []);
+    if (mailInbox.loaded && !emailInboxOff) pingEmailSubscriptionHeartbeat();
+  }, [mailInbox.loaded, emailInboxOff]);
 
   // Handle realtime message events
   const handleMessageEvent = useCallback(

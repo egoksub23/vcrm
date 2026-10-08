@@ -1,12 +1,16 @@
 /**
- * Sending a workspace's own transactional email (Doc Sign: invitations, codes, signed copies) through the Microsoft 365 mailbox it connected in
- * Settings > Channels > Email, from that mailbox's address, with Microsoft Graph's `sendMail`. The first supported mailbox (see mailbox.ts for the order).
+ * Sending a workspace's own transactional email (Secure Sign: invitations, codes, signed copies; team invitations; notifications) through the Microsoft
+ * 365 mailbox it connected in Settings > Channels > Email, from that mailbox's address, with Microsoft Graph's `sendMail`. The first supported mailbox
+ * (see mailbox.ts for the order).
  *
- * `loadMs365Mailbox` says whether the workspace has a Microsoft 365 mailbox that can send; a ready one hands back a `send` that:
+ * `loadMs365Mailbox` says whether the workspace has a Microsoft 365 mailbox that can send. That depends on the connection (connected, not needing a new
+ * sign-in) and the master pause (`enabled`); it does NOT depend on `inbox_enabled`, the switch for using the mailbox as the customer care inbox: a
+ * mailbox kept only for sending Halo's mail is the point of that switch. A ready one hands back a `send` that:
  *   - writes the mail as the mailbox (From: the workspace's name and the mailbox's address, Reply-To as the workspace set it); when Exchange refuses
  *     the name on `from` it is sent once more without it, under the mailbox's own name;
- *   - marks it with internet message headers (`X-Halo-Sign: 1`, and `X-Auto-Response-Suppress: All` so out-of-office replies are not sent back) so Halo's
- *     own inbox ingestion never reads it back as a customer's message (lib/ms365/ingest-guard.ts);
+ *   - marks it with internet message headers (`X-Halo-System: 1` on everything, whoever sends it; the caller's own marks such as Secure Sign's
+ *     `X-Halo-Sign: 1`; and `X-Auto-Response-Suppress: All` so out-of-office replies are not sent back) so Halo's own inbox ingestion never reads it
+ *     back as a customer's message (lib/ms365/ingest-guard.ts);
  *   - keeps no copy in Sent Items (`saveToSentItems: false`): the mail carries one person's signing link or a signed document, and Doc Sign's own audit
  *     trail records that it was sent, so it is not left lying in a mailbox that other people can open;
  *   - spaces sends out (a mailbox may send about 30 a minute), honours the `Retry-After` of a throttled call once, and stops asking Microsoft for
@@ -24,7 +28,8 @@ import { GraphApiError } from "@/lib/ms365/errors";
 import { sendNewMail } from "@/lib/ms365/mail-api";
 import { getValidAccessToken, type EmailConfigRow } from "@/lib/ms365/token";
 
-import { PLAIN_EMAIL, RATE_LIMIT_RETRY_MAX_MS, realSleep, SendThrottle, type MailboxOptions, type MailboxState, type OutgoingEmail } from "./mailbox-types";
+import { HALO_SYSTEM_HEADERS } from "./halo-mail-marker";
+import { mailboxSendProblem, PLAIN_EMAIL, RATE_LIMIT_RETRY_MAX_MS, realSleep, SendThrottle, type MailboxOptions, type MailboxState, type OutgoingEmail } from "./mailbox-types";
 import { safeReplyTo } from "./resend";
 import { MailSendError } from "./send-reason";
 
@@ -50,7 +55,10 @@ export type Ms365MailboxRow = EmailConfigRow & {
   mailbox_address: string;
   status?: string | null;
   needs_reauth?: boolean | null;
+  /** The master pause: false = nothing in, nothing out. */
   enabled?: boolean | null;
+  /** Use this mailbox for the customer care inbox. Not read here: it does not decide whether Halo can send through the mailbox. */
+  inbox_enabled?: boolean | null;
 };
 
 export interface Ms365SenderDeps {
@@ -145,14 +153,12 @@ export async function loadMs365Mailbox(accountId: string, opts: MailboxOptions =
   if (!config) return { kind: "none" };
   const address = String(config.mailbox_address ?? "").trim();
   if (!address) return { kind: "none" };
-  if (config.status && config.status !== "connected") return { kind: "problem", provider: "microsoft365", address, problem: "reconnect" };
-  if (config.needs_reauth === true) return { kind: "problem", provider: "microsoft365", address, problem: "reconnect" };
-  // === false, not falsy: a row read before the column existed is not paused
-  if (config.enabled === false) return { kind: "problem", provider: "microsoft365", address, problem: "paused" };
+  const problem = mailboxSendProblem(config);
+  if (problem) return { kind: "problem", provider: "microsoft365", address, problem };
 
   const key = `microsoft365:${accountId}`;
   // Graph accepts only `X-...` internet message headers
-  const headers = { ...opts.headers, "X-Auto-Response-Suppress": "All" };
+  const headers = { ...opts.headers, ...HALO_SYSTEM_HEADERS, "X-Auto-Response-Suppress": "All" };
   return {
     kind: "ready",
     provider: "microsoft365",

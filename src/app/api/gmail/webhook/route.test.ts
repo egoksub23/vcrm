@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   config: { id: "g1", account_id: "A", connected_by_user_id: "U", email_address: "support@vircle.com", pubsub_verify_token: "secret", history_id: "100", enabled: true } as Record<string, unknown>,
   pending: [] as Promise<unknown>[],
   findContact: vi.fn(async () => null),
+  fetched: 0,
+  listed: 0,
 }));
 
 vi.mock("next/server", async () => {
@@ -24,8 +26,8 @@ vi.mock("@supabase/supabase-js", () => {
 });
 vi.mock("@/lib/gmail/token", () => ({ getValidAccessToken: async () => "tok" }));
 vi.mock("@/lib/gmail/gmail-api", () => ({
-  getMessage: async () => h.message,
-  listHistory: async () => ({ newMessageIds: ["m1"], latestHistoryId: "101", historyExpired: false }),
+  getMessage: async () => (h.fetched++, h.message),
+  listHistory: async () => (h.listed++, { newMessageIds: ["m1"], latestHistoryId: "101", historyExpired: false }),
   getCurrentHistoryId: async () => "100",
   downloadAttachmentBytes: async () => null,
 }));
@@ -51,6 +53,10 @@ async function push() {
 }
 
 beforeEach(() => {
+  h.fetched = 0;
+  h.listed = 0;
+  h.config.enabled = true;
+  delete h.config.inbox_enabled;
   h.findContact.mockClear();
   vi.spyOn(console, "info").mockImplementation(() => undefined);
 });
@@ -84,5 +90,37 @@ describe("Gmail webhook: what becomes a conversation", () => {
     h.message = { ...customer, fromAddress: "Support@Vircle.com" };
     await push();
     expect(h.findContact).not.toHaveBeenCalled();
+  });
+});
+
+// The two switches of a mailbox: `enabled` is the master pause (nothing in, nothing out); `inbox_enabled` is "use this mailbox for the customer care
+// inbox". Either one off, and a push is acknowledged and dropped before anything is listed, fetched or stored; the history baseline is not touched.
+describe("Gmail webhook: the mailbox switches", () => {
+  it("drops a customer's message, without listing or fetching, when the mailbox is not used for the customer care inbox", async () => {
+    h.message = { ...customer };
+    h.config.inbox_enabled = false;
+    await push();
+    expect(h.findContact).not.toHaveBeenCalled();
+    expect(h.listed).toBe(0);
+    expect(h.fetched).toBe(0);
+  });
+
+  it("drops it too when the whole mailbox is paused, whatever the inbox switch says", async () => {
+    h.message = { ...customer };
+    h.config.enabled = false;
+    h.config.inbox_enabled = true;
+    await push();
+    expect(h.findContact).not.toHaveBeenCalled();
+    expect(h.listed).toBe(0);
+  });
+
+  it("takes it again once the inbox is back on, and treats a row without the column as on", async () => {
+    h.message = { ...customer };
+    h.config.inbox_enabled = true;
+    await push();
+    expect(h.findContact).toHaveBeenCalledTimes(1);
+    delete h.config.inbox_enabled;
+    await push();
+    expect(h.findContact).toHaveBeenCalledTimes(2);
   });
 });

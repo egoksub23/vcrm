@@ -23,6 +23,7 @@ import { randomBytes } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { exchangeCodeForTokens, getUserEmailAddress, getOAuthBaseUrl } from '@/lib/gmail/oauth'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { watchMailbox, getCurrentHistoryId } from '@/lib/gmail/gmail-api'
 import {
   findPendingGmailConnectionByState,
@@ -79,13 +80,17 @@ export async function GET(request: Request) {
 
     const { data: existing } = await db
       .from('gmail_config')
-      .select('id, pubsub_verify_token, history_id')
+      .select('id, pubsub_verify_token, history_id, inbox_enabled')
       .eq('account_id', pending.account_id)
       .maybeSingle()
 
+    // A reconnect of a mailbox that is not used for the customer care inbox (migration 179) keeps it that way: no watch is registered, so
+    // reconnecting a send-only mailbox never starts putting its mail into the Inbox. The switch is in Settings > Channels > Gmail.
+    const inboxOff = !!existing && inboxIsOff(existing)
+
     const pubsubTopic = process.env.GMAIL_PUBSUB_TOPIC?.trim()
     let watchExpiration: string | null = null
-    if (pubsubTopic) {
+    if (pubsubTopic && !inboxOff) {
       const watch = await watchMailbox({ accessToken: tokens.accessToken, topicName: pubsubTopic })
       watchExpiration = watch.expiration
     }

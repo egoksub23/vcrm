@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   requireCapability: vi.fn(),
-  isResendConfigured: vi.fn(),
+  canSend: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/account', () => ({
@@ -16,8 +16,8 @@ vi.mock('@/lib/rate-limit', () => ({
   rateLimitResponse: vi.fn(),
   RATE_LIMITS: { adminAction: {} },
 }));
-vi.mock('@/lib/email/resend', () => ({
-  isResendConfigured: h.isResendConfigured,
+vi.mock('@/lib/email/workspace-mail', () => ({
+  canSendWorkspaceEmail: h.canSend,
 }));
 
 import { PUT } from './route';
@@ -48,15 +48,15 @@ const put = (body: Record<string, unknown>) =>
 
 beforeEach(() => {
   h.requireCapability.mockReset().mockResolvedValue(ctx());
-  h.isResendConfigured.mockReset().mockReturnValue(false);
+  h.canSend.mockReset().mockResolvedValue(false);
 });
 
 describe('PUT /api/account/channels/web-widget — verification_mode', () => {
-  it('accepts "none" regardless of Resend configuration', async () => {
+  it('accepts "none" regardless of how email can be sent', async () => {
     expect((await put({ verification_mode: 'none' })).status).toBe(200);
   });
 
-  it('rejects switching to "email_code" when Resend is not configured', async () => {
+  it('rejects switching to "email_code" when the workspace has no way to send email (no usable mailbox, no platform sender)', async () => {
     const res = await put({ verification_mode: 'email_code' });
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -64,13 +64,14 @@ describe('PUT /api/account/channels/web-widget — verification_mode', () => {
     expect(body.error).toMatch(/RESEND_API_KEY/);
   });
 
-  it('accepts "email_code" once Resend is configured', async () => {
-    h.isResendConfigured.mockReturnValue(true);
+  it('accepts "email_code" once the workspace can send email (a connected mailbox or the platform sender)', async () => {
+    h.canSend.mockResolvedValue(true);
     expect((await put({ verification_mode: 'email_code' })).status).toBe(200);
+    expect(h.canSend).toHaveBeenCalledWith('a1');
   });
 
   it('still rejects the not-yet-implemented "whatsapp_code" mode', async () => {
-    h.isResendConfigured.mockReturnValue(true);
+    h.canSend.mockResolvedValue(true);
     const res = await put({ verification_mode: 'whatsapp_code' });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/not available yet/i);

@@ -420,7 +420,10 @@
         "gmail": "Gmail",
         "vircle_chat": "Vircle Chat"
       },
-      "modeKnowledge": "Knowledge"
+      "modeKnowledge": "Knowledge",
+      "emailInboxOffHint": "The email inbox is switched off. Turn it on in Settings > Channels > Email to reply.",
+      "gmailInboxOffHint": "The Gmail inbox is switched off. Turn it on in Settings > Channels > Gmail to reply.",
+      "emailInboxOffPlaceholder": "The email inbox is switched off"
     },
     "bubble": {
       "photo": "Photo",
@@ -3103,13 +3106,13 @@
       },
       "email": {
         "title": "Email",
-        "description": "Connect a Microsoft 365 or Outlook mailbox to send and receive email from your Inbox.",
+        "description": "Connect a Microsoft 365 or Outlook mailbox. Halo sends its own emails from it (Secure Sign, invitations, notifications), and you can also use it as your customer care inbox.",
         "notConnected": "No mailbox connected yet.",
         "connectButton": "Connect Microsoft 365",
         "connectedAs": "Connected — {mailbox}",
         "connectedAtLabel": "Connected",
         "disconnect": "Disconnect",
-        "disconnectConfirmDescription": "Disconnect this mailbox? Email conversations will stop syncing until you reconnect.",
+        "disconnectConfirmDescription": "Disconnect this mailbox? New emails will stop coming into the Inbox, and Halo will stop sending its own emails from it, until you reconnect.",
         "disconnectFailed": "Failed to disconnect Email",
         "disconnected": "Email disconnected",
         "connected": "Email connected",
@@ -3125,13 +3128,13 @@
       },
       "gmail": {
         "title": "Gmail",
-        "description": "Connect a Gmail mailbox to send and receive email from your Inbox.",
+        "description": "Connect a Gmail mailbox. Halo sends its own emails from it (Secure Sign, invitations, notifications), and you can also use it as your customer care inbox.",
         "notConnected": "No Gmail account connected yet.",
         "connectButton": "Connect Gmail",
         "connectedAs": "Connected — {mailbox}",
         "connectedAtLabel": "Connected",
         "disconnect": "Disconnect",
-        "disconnectConfirmDescription": "Disconnect this Gmail account? Email conversations will stop syncing until you reconnect.",
+        "disconnectConfirmDescription": "Disconnect this Gmail account? New emails will stop coming into the Inbox, and Halo will stop sending its own emails from it, until you reconnect.",
         "disconnectFailed": "Failed to disconnect Gmail",
         "disconnected": "Gmail disconnected",
         "connected": "Gmail connected",
@@ -3286,6 +3289,35 @@
         "sampleAdded": "Sample comments added. Open the Comments tab in the inbox.",
         "sampleCleared": "Sample comments removed",
         "sampleFailed": "Could not change the sample comments"
+      },
+      "mailbox": {
+        "inboxTitle": "Customer care inbox",
+        "inboxDescription": "Receive your customers' emails into the Halo Inbox, and let agents reply from there. When this is off, emails already in the Inbox stay as history, nothing new comes in, and replying by email is not offered. The mailbox stays connected.",
+        "inboxOffNote": "Switched off: no new email comes into the Inbox and agents cannot reply by email. Emails that arrive while it is off are not imported when you switch it back on.",
+        "on": "On",
+        "off": "Off",
+        "inboxOnToast": "Customer care inbox switched on. New emails will arrive in the Inbox from now on.",
+        "inboxOffToast": "Customer care inbox switched off. Nothing new comes in; existing conversations stay as history.",
+        "inboxOffStopFailed": "Customer care inbox switched off. The mail provider could not be told to stop its notifications, so Halo ignores them; they stop by themselves within a few days.",
+        "inboxOnNoPush": "Switched on, but push notifications for Gmail are not set up yet, so new emails will not arrive until they are. See the push notification setup below.",
+        "sendTitle": "Send Halo emails from this mailbox",
+        "send": {
+          "used": "Used for Secure Sign, invitations and notifications",
+          "paused": "Not used right now: this mailbox is paused. Resume it to send Halo's emails from it.",
+          "reconnect": "Not used right now: this mailbox needs to be reconnected."
+        },
+        "sendDescription": "Halo's own emails (Secure Sign documents, team invitations, notifications) go out from {mailbox}, whether or not the customer care inbox is on.",
+        "sendDescriptionNoAddress": "Halo's own emails (Secure Sign documents, team invitations, notifications) go out from this mailbox, whether or not the customer care inbox is on.",
+        "pauseTitle": "Pause this mailbox completely",
+        "pauseDescription": "Stops everything, in and out: no new email comes into the Inbox, and Halo sends nothing from this mailbox (no replies, no Secure Sign emails, no invitations). The connection is kept, so you can resume at any time.",
+        "pausedToast": "Mailbox paused. Nothing comes in or goes out until you resume it.",
+        "resumedToast": "Mailbox resumed.",
+        "refusal": {
+          "needs_reconnect": "Reconnect the mailbox first, then try again.",
+          "start_failed": "Could not start receiving email. Try again, or reconnect the mailbox.",
+          "not_connected": "This mailbox is not connected.",
+          "failed": "Could not update. Try again."
+        }
       }
     },
     "autoLabels": {
@@ -7269,7 +7301,8 @@
       "pause_while_pending": "pause while pending",
       "at_risk_percent": "at-risk percentage",
       "conditions": "conditions",
-      "require_ticket_resolution": "resolution required"
+      "require_ticket_resolution": "resolution required",
+      "inbox_enabled": "customer care inbox"
     },
     "activity": {
       "button": "Activity",
@@ -8992,7 +9025,7 @@
         "platformNote": "No mailbox is connected, so email goes out from the platform's own address. To send from your own address, connect a mailbox.",
         "problem": {
           "reconnect": "The mailbox {address} needs to be reconnected: its access was revoked or has expired.",
-          "paused": "The mailbox {address} is switched off.",
+          "paused": "The mailbox {address} is paused (\"Pause this mailbox completely\" is on in Settings > Channels).",
           "unavailable": "The connected mailbox could not be read just now."
         },
         "platformInstead": "The platform sender is used until that is fixed.",
@@ -9014,7 +9047,8 @@
           "manage": "Open the channel settings of this mailbox",
           "connectMicrosoft365": "Connect a Microsoft 365 mailbox",
           "connectGmail": "Connect a Gmail mailbox"
-        }
+        },
+        "inboxOffNote": "The mailbox is used for this even when it is switched off as the customer care inbox in Settings > Channels."
       }
     },
     "detail": {

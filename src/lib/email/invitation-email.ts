@@ -1,9 +1,5 @@
-import { loadEmailIdentity } from './identity';
-import { isResendConfigured, sendEmail } from './resend';
-import { supabaseAdmin } from '@/lib/flows/admin-client';
-import { getValidAccessToken, type EmailConfigRow } from '@/lib/ms365/token';
-import { sendNewMail } from '@/lib/ms365/mail-api';
-import { GraphApiError } from '@/lib/ms365/errors';
+import { technicalOfDetail } from './send-reason';
+import { realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from './workspace-mail';
 
 function escapeHtml(value: string): string {
   return value
@@ -61,81 +57,29 @@ function buildInvitationEmail(args: {
 }
 
 /**
- * Sends the invite email, trying Resend first (if configured) and
- * falling back to the account's own connected Microsoft 365 mailbox
- * (Settings → Channels → Email) when Resend isn't set up — reuses the
- * same channel customer replies already go out through rather than
- * requiring a second, dedicated transactional-email setup. Returns
- * `false` (never throws) when NEITHER sender is usable — the caller
- * falls back to today's "share the link yourself" flow rather than
- * failing invite creation over an optional feature. Throws if a
- * sender IS usable but the send itself fails, so the caller can tell
- * "no mail sender set up" apart from "sender set up but broken right
- * now".
+ * Sends the invite email as the workspace, by the shared workspace sender (lib/email/workspace-mail.ts): through the workspace's own connected mailbox
+ * (Settings > Channels > Email or Gmail) when it has one that can send, from that mailbox's address under the workspace's name; otherwise through the
+ * platform sender (Resend). Whether the mailbox is also used for the customer care inbox is not asked: a mailbox switched off as an inbox still sends
+ * this; only the master pause ("Pause this mailbox completely") stops it.
+ *
+ * Returns `false` (never throws) when NO way of sending is usable (no mailbox that can send and no platform sender): the caller falls back to the
+ * "share the link yourself" flow rather than failing invite creation over an optional feature. Throws if a way IS usable but the send itself fails,
+ * so the caller can tell "no mail sender set up" apart from "sender set up but broken right now".
  */
-export async function sendInvitationEmail(args: {
-  to: string;
-  accountId: string;
-  accountName: string;
-  role: string;
-  url: string;
-  expiresInDays: number;
-}): Promise<boolean> {
+export async function sendInvitationEmail(
+  args: {
+    to: string;
+    accountId: string;
+    accountName: string;
+    role: string;
+    url: string;
+    expiresInDays: number;
+  },
+  deps: WorkspaceMailDeps = realWorkspaceMailDeps,
+): Promise<boolean> {
   const { subject, html, text } = buildInvitationEmail(args);
-
-  if (isResendConfigured()) {
-    await sendEmail({ to: args.to, subject, html, text, ...(await loadEmailIdentity(args.accountId)) });
-    return true;
-  }
-
-  return sendViaConnectedMailbox({ accountId: args.accountId, to: args.to, subject, html, text });
-}
-
-/**
- * Fallback sender for accounts with no Resend key set. Returns false
- * only when no mailbox is connected at all, or it needs reauth (a
- * dead/revoked token) — those are the only "not usable right now"
- * states. Deliberately ignores `email_config.enabled`: that flag is
- * the channel's "pause without disconnecting" switch (migration 097,
- * see `ChannelEnabledSwitch`) for the *customer-facing* side — pulling
- * inbound mail into the Inbox and letting agents reply through it. A
- * paused channel still has a perfectly live OAuth connection, and an
- * admin who disables it specifically to stop it acting as a support
- * channel still wants it usable for the app's own internal sends
- * (like this one) — so this check is narrower than send-message.ts's
- * customer-facing send path on purpose, not an oversight. On an auth
- * failure mid-send, flips `needs_reauth` the same way that path does
- * before rethrowing.
- */
-async function sendViaConnectedMailbox(args: {
-  accountId: string;
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-}): Promise<boolean> {
-  const admin = supabaseAdmin();
-  const { data: cfg } = await admin
-    .from('email_config')
-    .select('*')
-    .eq('account_id', args.accountId)
-    .maybeSingle();
-  if (!cfg || cfg.needs_reauth) return false;
-
-  try {
-    const accessToken = await getValidAccessToken(cfg as EmailConfigRow);
-    await sendNewMail({
-      accessToken,
-      toAddress: args.to,
-      subject: args.subject,
-      text: args.text,
-      html: args.html,
-    });
-    return true;
-  } catch (err) {
-    if (err instanceof GraphApiError && err.isAuthError) {
-      await admin.from('email_config').update({ needs_reauth: true }).eq('id', cfg.id);
-    }
-    throw err;
-  }
+  const result = await sendWorkspaceEmail(args.accountId, { to: args.to, subject, html, text }, deps);
+  if (result.status === 'sent') return true;
+  if (result.via === 'none') return false;
+  throw new Error(technicalOfDetail(result.detail) || result.detail || 'Failed to send email');
 }

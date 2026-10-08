@@ -40,6 +40,7 @@ import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { getValidAccessToken } from '@/lib/ms365/token'
 import { decideMs365Ingest } from '@/lib/ms365/ingest-guard'
+import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getMessage, listAttachments, downloadAttachmentBytes } from '@/lib/ms365/mail-api'
 
 export const maxDuration = 60
@@ -132,6 +133,12 @@ async function processNotifications(body: { value?: GraphNotification[] }) {
     // === false, not falsy — undefined (a row read before this column
     // existed) means "not yet backfilled", not "paused".
     if (config.enabled === false) continue
+    // Not used for the customer care inbox (migration 179) — the same ack
+    // and drop. The subscription is normally deleted when the inbox is
+    // switched off, so this is for a notification already in flight (or a
+    // subscription Graph could not be told to delete), which would
+    // otherwise put mail into the Inbox that its owner switched off.
+    if (inboxIsOff(config)) continue
 
     await processMessage(config, notification.resourceData.id)
   }

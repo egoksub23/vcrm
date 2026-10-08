@@ -921,8 +921,13 @@ export interface EmailConnectionStatus {
   connected_at?: string | null;
   needs_reauth: boolean;
   status: 'connected' | 'disconnected' | 'error';
-  /** Manual pause switch, independent of `status` (migration 097). */
+  /** The master pause, independent of `status` (migration 097): false = nothing in, nothing out. */
   enabled?: boolean;
+  /** Use this mailbox for the customer care inbox (migration 179), independent of `enabled`. false = nothing new is ingested and the Inbox does not
+   *  offer email replies; Halo can still send its own email through the mailbox. */
+  inbox_enabled?: boolean;
+  /** Why Halo cannot send its own email (Secure Sign, invitations, notifications) through this mailbox now; null when it can. */
+  send_problem?: 'reconnect' | 'paused' | null;
 }
 
 /** Gmail channel connection status — migration 058. Unlike every other
@@ -939,8 +944,13 @@ export interface GmailConnectionStatus {
   status: 'connected' | 'disconnected' | 'error';
   pubsub_configured: boolean;
   push_endpoint_url: string | null;
-  /** Manual pause switch, independent of `status` (migration 097). */
+  /** The master pause, independent of `status` (migration 097): false = nothing in, nothing out. */
   enabled?: boolean;
+  /** Use this mailbox for the customer care inbox (migration 179), independent of `enabled`. false = nothing new is ingested and the Inbox does not
+   *  offer email replies; Halo can still send its own email through the mailbox. */
+  inbox_enabled?: boolean;
+  /** Why Halo cannot send its own email (Secure Sign, invitations, notifications) through this mailbox now; null when it can. */
+  send_problem?: 'reconnect' | 'paused' | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

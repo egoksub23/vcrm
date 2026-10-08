@@ -2,7 +2,7 @@
 title: Reply to customers
 description: Send text, emoji, snippets, files, photos, voice notes and WhatsApp templates, and fix a message that did not send.
 order: 2
-updated: 2026-09-21
+updated: 2026-10-08
 ---
 
 Use the reply box at the bottom of an open chat to answer a customer. This page covers every way to send a message.
@@ -67,6 +67,10 @@ Your browser asks for permission to use the microphone the first time. While you
 ## Reply to an email
 
 In the **Emails** tab the reply box is an editor with bold, italic, underline, strikethrough, lists and links. <kbd>Enter</kbd> starts a new line there, so press the **Send** button. The customer's earlier message is added below your reply automatically. Older emails in the thread are folded to one line. Click one to open it, and use **View plain text** or **View formatted** to switch views.
+
+### When the email inbox is switched off
+
+An admin can switch a mailbox off as the **Customer care inbox** (Settings > Channels > Email or Gmail). The conversations and messages already in the **Emails** tab stay, so you can still read them. But no new email comes in, and you cannot reply by email: the reply box is locked and says "The email inbox is switched off. Turn it on in Settings > Channels > Email to reply." (for Gmail, "Gmail" in its place). If the customer has used another channel too, for example WhatsApp, the reply box starts on that channel and email is not in the channel list. Internal notes still work. Emails that arrive while the inbox is off are not imported when it is switched back on.
 
 ## The 24-hour window and WhatsApp templates
 

@@ -75,8 +75,14 @@ describe("sending through the Microsoft 365 mailbox", () => {
       attachments: [{ name: "Agreement signed.pdf", contentType: "application/pdf", contentBytesBase64: "AAAA" }],
     });
     const headers = w.calls[0].headers as Record<string, string>;
-    expect(headers).toEqual({ "X-Halo-Sign": "1", "X-Auto-Response-Suppress": "All" });
+    expect(headers).toEqual({ "X-Halo-Sign": "1", "X-Halo-System": "1", "X-Auto-Response-Suppress": "All" });
     for (const name of Object.keys(headers)) expect(name).toMatch(/^X-/);
+  });
+
+  it("writes X-Halo-System on every message, with or without a caller's own marks", async () => {
+    const w = world(row());
+    await ready(await loadMs365Mailbox("A", {}, w.deps)).send(mail());
+    expect(w.calls[0].headers).toEqual({ "X-Halo-System": "1", "X-Auto-Response-Suppress": "All" });
   });
 
   it("refuses an address that is not an address, without calling Microsoft", async () => {
