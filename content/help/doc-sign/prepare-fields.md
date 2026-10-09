@@ -32,6 +32,18 @@ Add, rename or remove roles in the roles panel. If you remove a role that has fi
 
 You can move, resize, copy and delete a field, and nudge it with the arrow keys. Page thumbnails and zoom help with long documents.
 
+## Place signature blocks for every document at once
+
+When you send a document (or a document collection), the third step, **Signature blocks**, is one editor for all of its documents. You do not open the documents one by one.
+
+- **The middle** is one long scroll: every page of every document, in the order the people will see them. Each document starts with a slim header such as "2 of 3 · Resignation Letter · 1 page" and how many blocks it has. The header stays at the top while you read that document.
+- **The left column** says who a new block is for. Each person who must sign is a coloured chip with the name and the email under it. Click a person, then click a page, draw on it, or drag a field type onto it. **Add a signature block for** the person puts one in the middle of the page you are looking at. Under the field types you see the properties of the selected block, and (to open) the blocks, the problems and the roles of the document in view.
+- **The right column** lists the documents with their number, pages and blocks. A small warning marks a document where a person who must sign has no block yet. The document in view is open and shows its pages as small pictures. Click a document to go to its first page, or a picture to go to that page. The list follows you as you scroll.
+- **A phone** can look at the pages but not place blocks. The right column becomes a **Jump to document** menu.
+- **Undo and redo** work on the document that holds the selected block (or the document in view when nothing is selected). **Delete**, the arrow keys, copy and paste work on the selected block's document in the same way.
+
+Each document is saved on its own a moment after each change. **Continue** and the other steps wait until every document is saved. A document made from a template keeps its layout locked until you open **Document options** in its header and choose **Edit fields**.
+
 ## Field types
 
 | Type | What it collects |

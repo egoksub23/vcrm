@@ -402,50 +402,48 @@ describe("the People step", () => {
 describe("the Signature blocks step", () => {
   const docs = [upload(1, who, { [ALI]: 3 }), upload(2, who), processDoc(3, { mode: "form", hasForm: true, fromTemplate: true })];
   for (const locale of LOCALES) {
-    it(`is a card for each document of a collection with its title, pages, status and who has something to sign (${locale})`, () => {
+    it(`is one editor for the whole collection: the people and fields on the left, the documents on the right, a header for each document in the scroll (${locale})`, () => {
       const html = page(locale, <BlocksStep process={fakeProcess({ kind: "collection", docs, people: who, step: "blocks" })} />);
+      expect(html).toContain("data-blocks-editor");
+      expect(html).toContain("data-person-selector");
+      expect(html).toContain("data-tool-palette");
+      expect(html).toContain("data-doc-navigator");
+      expect(html).toContain("data-coverage-summary");
+      expect(html.match(/data-doc-header/g)).toHaveLength(3);
+      expect(html.match(/data-nav-doc=/g)).toHaveLength(3);
       for (const d of docs) expect(html).toContain(d.title);
-      expect(html.match(/data-doc-card=/g)).toHaveLength(3);
-      expect(html).toContain('data-doc-card="00000001-0000-4000-8000-000000000000" data-state="partial"');
-      expect(html).toContain('data-doc-card="00000002-0000-4000-8000-000000000000" data-state="empty"');
-      // who has a block and who has nothing here
-      expect(html).toContain('data-covered="true"');
-      expect(html).toContain('data-covered="false"');
-      // the people who must sign, in a strip, with their blocks
-      expect(html).toContain("data-people-strip");
-      expect(html.match(/data-person="/g)).toHaveLength(2);
-      // a button to open each document's editor
-      expect(html.match(/<button/g)?.length).toBeGreaterThanOrEqual(3);
+      // a quick button for each person who must sign, and none for the person who only gets a copy
+      expect(html).toContain(`data-quick-role="${ALI}"`);
+      expect(html).toContain(`data-quick-role="${BALA}"`);
+      expect(html).not.toContain('data-quick-role="pp_cara0001"');
     });
   }
 
-  it("says in words how many blocks are placed and for whom, and what is missing", () => {
+  it("no longer opens the documents one by one", () => {
     const html = page("en", <BlocksStep process={fakeProcess({ kind: "collection", docs, people: who, step: "blocks" })} />);
-    expect(html).toContain("3 blocks placed · assigned to Ali");
-    expect(html).toContain("No signature block yet");
-    expect(html).toContain("Bala");
-    expect(html).toContain("has nothing to sign here");
-    expect(html).toContain("Open editor");
-    expect(html).toContain(">Edit<");
-    expect(html).toContain("Form");
-    expect(html).toContain("no block yet");
+    for (const gone of ["data-doc-card", "Open editor", "Save and next document", "Back to the documents", "data-people-strip"]) expect(html).not.toContain(gone);
   });
 
-  it("shows the editor for a document on its own, under the strip of the people who must sign", () => {
+  it("shows how many documents each person has a block on, from the document list", () => {
+    const html = page("en", <BlocksStep process={fakeProcess({ kind: "collection", docs, people: who, step: "blocks" })} />);
+    // Ali has blocks on document 1 of his 2 documents; Bala has none yet
+    expect(html).toMatch(/data-person="pp_aliaaaa1" data-on="1" data-of="2" data-covered="false"/);
+    expect(html).toMatch(/data-person="pp_balabbbb2" data-on="0" data-of="2" data-covered="false"/);
+    expect(html).toContain("on 1 of 2 documents");
+  });
+
+  it("is the same editor for a document on its own, as a collection of one", () => {
     const html = page("en", <BlocksStep process={fakeProcess({ kind: "single", docs: [upload(1, who, { [ALI]: 1 })], people: who, step: "blocks" })} />);
-    expect(html).toContain("data-people-strip");
-    expect(html).toContain("Loading the editor");
-    expect(html).not.toContain("data-doc-card");
-    expect(html).not.toContain("Back to the documents");
+    expect(html).toContain("data-blocks-editor");
+    expect(html.match(/data-doc-header/g)).toHaveLength(1);
+    expect(html.match(/data-nav-doc=/g)).toHaveLength(1);
+    expect(html).toContain("1 of 1");
+    expect(html).not.toContain("Save and next document");
   });
 
-  it("opens a collection's document with the way back and the way on", () => {
-    const open = (openDocId: string | null) => page("en", <BlocksStep process={fakeProcess({ kind: "collection", docs, people: who, step: "blocks", over: { openDocId } })} />);
-    const first = open(docs[0].id);
-    expect(first).toContain("Back to the documents");
-    expect(first).toContain("Save and next document");
-    expect(first).toContain("Document 1 of 3: Document 1");
-    expect(open(docs[2].id)).toContain("Save and back to the documents");
+  it("tells the reader a draft they may not change cannot be changed", () => {
+    const html = page("en", <BlocksStep process={fakeProcess({ kind: "single", docs: [upload(1, who, { [ALI]: 1 })], people: who, step: "blocks", over: { canSend: false } })} />);
+    expect(html).toContain("You can look at this draft but not change it.");
   });
 });
 

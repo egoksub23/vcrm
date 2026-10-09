@@ -243,6 +243,19 @@ export function defaultSize(type: FieldType, aspect: number): { w: number; h: nu
   return { w: wUnits, h: round(hUnits / a) };
 }
 
+/**
+ * Where a new signature block goes on a page: centred, at `centreY` (a fraction of the page height, the middle of the part in view), moved down
+ * past any block already there so two never sit on one another. `aspect` is page height divided by page width.
+ */
+export function signatureRectFor(fields: readonly { page: number; x: number; y: number }[], page: number, aspect: number, centreY: number): Rect {
+  const { w, h } = defaultSize("signature", aspect);
+  const cy = Math.min(0.92, Math.max(0.08, centreY));
+  const x = Math.max(0, 0.5 - w / 2);
+  let y = Math.max(0, Math.min(1 - h, cy - h / 2));
+  for (let i = 0; i < 12 && fields.some((f) => f.page === page && Math.abs(f.y - y) < h * 0.9 && Math.abs(f.x - x) < w * 0.9); i++) y = Math.min(1 - h, y + h * 1.1);
+  return { x, y, w, h };
+}
+
 /** The types a person fills in or signs (they are "required" by default); the rest are written by the engine or the sender. */
 export function defaultRequired(type: FieldType): boolean {
   return type !== "static_text" && type !== "date_signed" && type !== "name" && type !== "checkbox";

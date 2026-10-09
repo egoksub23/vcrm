@@ -21,7 +21,7 @@ You need permission to send documents. A collection holds **2 to 6 documents**, 
 2. Add the documents: drop several files at once or choose them, tick templates, or both. Drag a document, or use the arrows, to put them in the order the people will see them.
 3. Give the collection a title and, if you like, a contact, a ticket or a deal. Click **Create the collection**.
 4. On the collection page, open **People** and add each person **once** (see below). Do this first, so the editor has the people to offer when you place signature blocks.
-5. Click **Prepare** on each document to place its fields, exactly as for a document on its own. When you place a signature block (or any field), you give it to one of the people who must sign.
+5. In **Signature blocks**, scroll through all the documents in one editor and place the blocks. The documents are listed on the right, so you can jump straight to any of them, and you pick the person a block is for on the left. When you place a signature block (or any field), you give it to one of the people who must sign.
 6. In **Options**, set the signing order, the expiry, the reminders and whether a code is needed. These apply to every document of the collection.
 7. Open **Review and send**. It lists, document by document, what still needs fixing. When it is clear, click **Send**.
 

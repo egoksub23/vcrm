@@ -27,6 +27,8 @@ export function fakeProcess(args: { kind?: "single" | "collection"; docs: Proces
     options,
     step: args.step ?? "send",
     openDocId: null,
+    openBlockKey: null,
+    landingNonce: 0,
     setOpenDocId: noop,
     showInvalid: false,
     moving: false,

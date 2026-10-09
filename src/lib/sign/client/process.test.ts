@@ -12,6 +12,7 @@ import {
   nextStep,
   optionIssuesOf,
   previousStep,
+  problemBlock,
   problemTarget,
   processProblems,
   processRights,
@@ -228,6 +229,14 @@ describe("where a problem is put right", () => {
     expect(problemTarget({ code: "signer_without_signature", role: ALI, document: "d1" })).toEqual({ step: "blocks", documentId: "d1" });
     expect(problemTarget({ code: "document_nobody", document: "d2" })).toEqual({ step: "blocks", documentId: "d2" });
     expect(problemTarget({ code: "field_outside_page", field: "f1", document: "d1" })).toEqual({ step: "blocks", documentId: "d1" });
+  });
+
+  it("names the block a problem is about, only where the editor can open on it", () => {
+    expect(problemBlock({ code: "field_outside_page", field: "f1", document: "d1" })).toBe("f1");
+    expect(problemBlock({ code: "signer_without_signature", role: ALI, document: "d1" })).toBeNull();
+    expect(problemBlock({ code: "field_outside_page", field: "f1" })).toBeNull();
+    expect(problemBlock({ code: "title_required", field: "x" })).toBeNull();
+    expect(problemBlock({ code: "signer_email", field: "x", document: "d1" })).toBeNull();
   });
 
   it("tags a document on its own's problems with the document, so the same mapping reads them", () => {

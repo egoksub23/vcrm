@@ -84,34 +84,54 @@ export function Palette({ tool, onTool, roles, activeRole, onActiveRole, disable
           })}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={t("palette.label")}>
-        {PALETTE_ORDER.map((type) => {
-          const Icon = FIELD_ICONS[type];
-          const on = tool === type;
-          return (
-            <button
-              key={type}
-              type="button"
-              disabled={disabled || full}
-              aria-pressed={on}
-              draggable={!disabled && !full}
-              onDragStart={(e) => {
-                e.dataTransfer.setData(FIELD_DRAG_TYPE, type);
-                e.dataTransfer.effectAllowed = "copy";
-              }}
-              onClick={() => onTool(on ? null : type)}
-              title={t(`typeHints.${type}`)}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-                on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted",
-              )}
-            >
-              <Icon className="size-3.5" aria-hidden />
-              {t(`types.${type}`)}
-            </button>
-          );
-        })}
-      </div>
+      <PaletteTypes tool={tool} onTool={onTool} disabled={disabled} full={full} />
+    </div>
+  );
+}
+
+interface PaletteTypesProps {
+  tool: FieldType | null;
+  onTool: (type: FieldType | null) => void;
+  disabled: boolean;
+  full: boolean;
+  /** The row's layout (a wrapping row by default; the multi-document editor's column of tools sets a grid). */
+  className?: string;
+  /** Added to each button (for example `w-full justify-start` in a grid). */
+  buttonClassName?: string;
+}
+
+/** The field types as buttons: choose one, then click or drag on a page. A type can also be dragged onto a page. */
+export function PaletteTypes({ tool, onTool, disabled, full, className, buttonClassName }: PaletteTypesProps) {
+  const t = useTranslations("Sign.editor");
+  return (
+    <div className={className ?? "flex flex-wrap items-center gap-1"} role="toolbar" aria-label={t("palette.label")}>
+      {PALETTE_ORDER.map((type) => {
+        const Icon = FIELD_ICONS[type];
+        const on = tool === type;
+        return (
+          <button
+            key={type}
+            type="button"
+            disabled={disabled || full}
+            aria-pressed={on}
+            draggable={!disabled && !full}
+            onDragStart={(e) => {
+              e.dataTransfer.setData(FIELD_DRAG_TYPE, type);
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+            onClick={() => onTool(on ? null : type)}
+            title={t(`typeHints.${type}`)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+              on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted",
+              buttonClassName,
+            )}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            {t(`types.${type}`)}
+          </button>
+        );
+      })}
     </div>
   );
 }

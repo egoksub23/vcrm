@@ -339,6 +339,12 @@ export function problemTarget(issue: SignIssue): ProblemTarget {
   return { step: "blocks", documentId: fix.documentId };
 }
 
+/** The block a problem is about, when it is put right on the signature blocks step and the problem names one: the editor opens on that block. */
+export function problemBlock(issue: SignIssue): string | null {
+  const target = problemTarget(issue);
+  return target.step === "blocks" && target.documentId && issue.field ? issue.field : null;
+}
+
 const dedupe = (issues: readonly SignIssue[], ignoreDocument = false): SignIssue[] => {
   const seen = new Set<string>();
   return issues.filter((i) => {

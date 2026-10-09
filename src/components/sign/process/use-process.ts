@@ -79,6 +79,10 @@ export function useProcess({ source, api, asked }: Args) {
   const [options, setOptions] = useState<DraftOptions>(init.options);
   const [step, setStepState] = useState<StepId>(init.step);
   const [openDocId, setOpenDocId] = useState<string | null>(asked?.doc ?? null);
+  // the block a Fix button names (select it when the signature blocks step opens), and a count that changes each time the step is asked to land
+  // somewhere (so asking for the same document twice scrolls there twice)
+  const [openBlockKey, setOpenBlockKey] = useState<string | null>(null);
+  const [landingNonce, setLandingNonce] = useState(0);
   const [showInvalid, setShowInvalid] = useState(false);
   const [moving, setMoving] = useState(false);
   const [blocked, setBlocked] = useState<BlockedNotice | null>(null);
@@ -220,7 +224,7 @@ export function useProcess({ source, api, asked }: Args) {
     }
   };
 
-  const goStep = async (next: StepId, documentId?: string | null): Promise<void> => {
+  const goStep = async (next: StepId, documentId?: string | null, blockKey?: string | null): Promise<void> => {
     if (moving) return;
     const forward = PROCESS_STEPS.indexOf(next) > PROCESS_STEPS.indexOf(step);
     if (forward && !access[next].open) {
@@ -242,6 +246,8 @@ export function useProcess({ source, api, asked }: Args) {
       await apiRef.current.reload();
       setSendErrorCode(null);
       setOpenDocId(next === "blocks" ? (documentId ?? (kind === "single" ? (docsRef.current[0]?.id ?? null) : null)) : null);
+      setOpenBlockKey(next === "blocks" && documentId ? (blockKey ?? null) : null);
+      setLandingNonce((n) => n + 1);
       setStepState(next);
       syncUrl(next, documentId ?? null);
     } finally {
@@ -292,6 +298,8 @@ export function useProcess({ source, api, asked }: Args) {
     options,
     step,
     openDocId,
+    openBlockKey,
+    landingNonce,
     setOpenDocId,
     showInvalid,
     moving,

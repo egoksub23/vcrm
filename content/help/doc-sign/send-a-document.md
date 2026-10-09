@@ -30,10 +30,10 @@ A Word file is converted to a PDF first. You see every page of the result before
 
 The draft opens in a workspace with four steps along the top. Your work is saved as you go.
 
-1. **Fields** shows the pages. Place the fields people have to fill in or sign. Each field belongs to a **role**, and in the next step each role is given to a person. See [Prepare the fields](/help/doc-sign/prepare-fields). When you started from a template this is done already; check it.
+1. **Documents** is the file or files, and the title.
 2. **People** lists everyone on the document, and what each one is: **Signature required** or **Receives a copy**. See the next section and [Signing order](/help/doc-sign/signing-order).
-3. **Options** sets the title, category, contact, an optional **ticket** and **deal** to attach the document to, the language of the invitation, a message to the signers, the expiry date, the reminders, and whether each signer needs a verification code. Anything you leave alone follows the category and then the workspace settings.
-4. **Review** shows everything in one place. If something is missing, it lists what to fix and takes you to the right step.
+3. **Signature blocks** shows the pages of every document in one scroll, with the people and the field types on the left and the list of documents on the right. Place the blocks people have to sign and give each to a person. See [Prepare the fields](/help/doc-sign/prepare-fields). When you started from a template this is done already; check it.
+4. **Review and send** shows everything in one place, with the options (the category, a message to the signers, the expiry date, the reminders, whether each signer needs a verification code, a contact, a **ticket** and a **deal**). If something is missing, it lists what to fix and takes you to the right step, and to the right document and block when it can.
 
 ## Who must sign and who receives a copy
 

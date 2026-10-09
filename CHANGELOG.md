@@ -9,6 +9,18 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.88.0] — 2026-10-09
+
+No migration.
+
+### Changed
+
+- **Step 3, Signature blocks, is one scrolling editor** for a document collection and for a single document, laid out like DocuSign's. The centre is one continuous scroll from page 1 of the first document to the last page of the last, with a header before each document ("2 of 3 · title · 1 page", and how many blocks it has). The right column is a document navigator: every document with its page and block count, the current one expanded with page thumbnails, and a warning when a person who must sign has no block on it; click a document or a page to jump there, and it follows your scrolling. The left column has the people (name and email, one colour each), the "Add a signature block for…" buttons, the field types, and the selected block's settings, plus the block list, problems and roles for the document in view.
+- Documents open and draw only as you near them, so six long documents stay light. Each document saves by itself, one "Saved" indicator covers them all, and leaving the step saves everything first.
+- "Open editor", "Save and next document" and "Back to the documents" are gone. Edit fields, Replace file, Save as template and merge values for a document are under "Document options" in its header.
+- On a tablet the left and right columns slide over the scroll; on a phone the editor is for looking only, with a "Jump to document" menu.
+- A Fix button on Review and send lands on the document, and on the block when it names one.
+
 ## [0.87.0] — 2026-10-08
 
 **Migration required: 181.** Apply it BEFORE the new app: the list and the verify page read the new columns.

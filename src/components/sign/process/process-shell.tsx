@@ -173,7 +173,7 @@ export function ProcessShell({ source, api, asked, onOpen }: Props) {
         stepper={<ProcessStepper current={step} status={status} access={access} onGo={(s) => void process.goStep(s)} formOnly={process.formOnly} />}
         notice={notice}
         summary={<ProcessSummary summary={process.summary} kind={process.kind} onGo={(s, doc) => void process.goStep(s, doc)} />}
-        wide={step === "blocks" && (single || !!process.openDocId)}
+        wide={step === "blocks"}
         stepLabel={stepName(step)}
         footer={
           <ProcessFooter

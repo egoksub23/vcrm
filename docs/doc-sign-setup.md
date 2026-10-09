@@ -394,6 +394,16 @@ A completed document is a sealed legal record, so cancelling it never touches it
 - **Not done, on purpose.** No file is renamed or re-made, and no filename gets a "cancelled" suffix (a download is the record, byte for byte). The workspace audit log (`audit_row_change`) does not track `cancelled_at`: the document's own hash-chained history is the record. A bulk batch's result file has no document status column, so it is unchanged.
 - **Rollout.** Apply `181_sign_cancel_completed.sql` before the code that goes with it is deployed (the list and the verify page read the new columns). Idempotent. Proof: `supabase/ci/verify-181-sign-cancel-completed.sql`.
 
+## 8n. The signature blocks step: every document in one scroll (no migration)
+
+Step 3 of the sending process is one editor for a document on its own and for a collection (a single document is a collection of one). Code: `src/components/sign/blocks/` (the editor, a document's part of the scroll, the navigator, the left column, the data hook), `src/lib/sign/client/blocks-nav.ts` (the arithmetic: current document and page from the scroll, jump targets, which files to open, coverage, where the step lands) and `src/lib/sign/client/save-hub.ts` (one debounced save queue per document). `DraftFieldsEditor` and `FieldEditor` are still the template editor's; the process no longer uses them.
+
+- **Layout.** Desktop (1040 px and wider): the people and field types on the left, one scroll of every page of every document in the middle, the document navigator on the right. Tablet (640 to 1039): the scroll alone, with **Tools** and **Documents** buttons that slide the columns over it, and a **Jump to document** menu. Phone (under 640): looking only, with the **Jump to document** menu and the existing notice.
+- **Files.** Every document's blocks, roles and values are read when the step opens (so the coverage is right). A document's PDF is fetched only when it comes within about 1,600 px of the screen or is jumped to, at most three are open at once (any that are on the screen are always open), and one that goes far away is closed; its page sizes are kept, so the scroll keeps its length. Pages are drawn when within about 900 px of the scroll and their canvases are given back beyond about 2,800 px.
+- **Saving.** Each document saves to its own document (`PATCH /api/sign/documents/[id]`) through its own queue; the step shows one Saved/Saving/error state, and leaving the step (Continue, Back, the stepper, Send) flushes every document through `process.editorFlush`. Roles are written for a template's documents as before; for an uploaded file the server keeps the roles in step with the people and ignores what is sent.
+- **Undo.** Per document: the stack of the document that holds the selected block (the document in view when nothing is selected).
+- **Landing.** `?step=blocks&doc=<id>` scrolls to that document. A Fix button on Review and send that names a document opens there, and when the problem names a block (`issue.field`) that block is selected and brought into view.
+
 ## 9. Troubleshooting
 
 | What you see | Likely cause and fix |

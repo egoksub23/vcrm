@@ -15,7 +15,7 @@ import type { SignCategory } from "@/hooks/use-sign-categories";
 import type { SignIssue } from "@/lib/sign/client/api";
 import { defaultExpiryDate, fromDateInput, parseReminderDays } from "@/lib/sign/client/draft-options";
 import { errorKey } from "@/lib/sign/client/errors";
-import { documentCover, problemTarget, type ProblemTarget, type ProcessHeadroom } from "@/lib/sign/client/process";
+import { documentCover, problemBlock, problemTarget, type ProblemTarget, type ProcessHeadroom } from "@/lib/sign/client/process";
 import { isCopy } from "@/lib/sign/envelopes";
 
 import { FormReviewSummary } from "../send/form-review-summary";
@@ -68,7 +68,7 @@ export function SendStep({ process, categories, defaultExpiryDays, now, headroom
       document.getElementById("process-options")?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-    void process.goStep(target.step, target.documentId);
+    void process.goStep(target.step, target.documentId, problemBlock(issue));
   };
 
   // the problems by document, a document's layout problems as one line
