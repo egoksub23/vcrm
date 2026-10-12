@@ -6309,6 +6309,10 @@
       "menu_compliance": {
         "label": "Permintaan pematuhan",
         "description": "Lihat item menu Pematuhan dan buka senarai permintaan. Ia tidak membuka permintaan dengan sendirinya: menyemak, meluluskan, mendedahkan dan melaksanakan masing-masing mempunyai kebenaran sendiri. Berfungsi hanya apabila pengendali menghidupkan Permintaan pematuhan untuk ruang kerja. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_raise": {
+        "label": "Bangkitkan permintaan pematuhan",
+        "description": "Bangkitkan permintaan pematuhan daripada perbualan Peti Masuk atau tiket. Tidak memerlukan menu Pematuhan: orang itu hanya melihat rujukan dan status permintaan yang dibangkitkannya, bukan butiran pelanggan. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -11789,7 +11793,10 @@
       "audit_failed": "Rekod tindakan ini tidak dapat disimpan, jadi tiada apa dipaparkan atau diubah. Cuba lagi.",
       "storage_failed": "Fail tidak dapat disimpan atau dibaca. Cuba lagi.",
       "server_error": "Sesuatu tidak kena. Cuba lagi sebentar nanti.",
-      "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi."
+      "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
+      "customer_reason_required": "Tulis apa yang dimaklumkan kepada pelanggan tentang penolakan.",
+      "category_required": "Pilih kategori sebab untuk penolakan.",
+      "duplicate_open": "Pelanggan ini sudah mempunyai permintaan terbuka jenis ini."
     },
     "form": {
       "choose": "Pilih...",
@@ -11833,7 +11840,9 @@
         "staff": "Seorang kakitangan",
         "inbox": "Peti Masuk",
         "ticket": "Tiket"
-      }
+      },
+      "emailVerified": "E-mel disahkan dengan kod",
+      "language": "Bahasa pelanggan"
     },
     "answers": {
       "title": "Butiran permintaan",
@@ -11927,7 +11936,25 @@
       "approve": "Lulus",
       "reject": "Tolak",
       "sendBack": "Hantar semula kepada pegawai",
-      "notYet": "Permintaan belum sampai kepada Ketua Pematuhan."
+      "notYet": "Permintaan belum sampai kepada Ketua Pematuhan.",
+      "internalHint": "Dalaman: hanya orang yang mempunyai akses kepada permintaan ini membacanya. Pelanggan tidak dimaklumkan perkara ini.",
+      "rejectionTitle": "Jika anda menolak permintaan ini",
+      "categoryLabel": "Kategori sebab (untuk laporan)",
+      "categoryChoose": "Pilih satu kategori",
+      "category": "Kategori sebab",
+      "categories": {
+        "identity_failed": "Identiti tidak dapat disahkan",
+        "incomplete_information": "Maklumat atau dokumen tidak lengkap",
+        "dues_outstanding": "Tunggakan belum dijelaskan",
+        "not_eligible": "Tidak layak",
+        "duplicate": "Permintaan pendua",
+        "customer_withdrew": "Pelanggan menarik balik permintaan",
+        "other": "Lain-lain"
+      },
+      "customerReasonLabel": "Apa yang dimaklumkan kepada pelanggan",
+      "customerReasonHint": "Berasingan daripada nota dalaman. Gunakan perkataan yang mudah, tanpa butiran bank dan nombor telefon. Semak pratonton sebelum menolak.",
+      "customerReasonShown": "Dimaklumkan kepada pelanggan",
+      "rejectNeeds": "Untuk menolak: tulis nota dalaman, pilih kategori dan tulis apa yang dimaklumkan kepada pelanggan."
     },
     "execution": {
       "title": "Senarai semak operasi",
@@ -12011,7 +12038,10 @@
         "created_backdated": "Mencipta permintaan ({source}) dengan tarikh permintaan yang ditetapkan secara manual",
         "assigned": "Menugaskan permintaan",
         "unassigned": "Mengalihkan penerima tugas",
-        "other": "Mengemas kini permintaan"
+        "other": "Mengemas kini permintaan",
+        "notice_sent": "E-mel dihantar: {notice}",
+        "notice_failed": "E-mel tidak dihantar: {notice} ({reason})",
+        "notice_skipped": "E-mel dilangkau: {notice} ({reason})"
       }
     },
     "blocked": {
@@ -12082,7 +12112,244 @@
       "keyWillBe": "Kuncinya ialah",
       "createType": "Cipta jenis",
       "cancel": "Batal",
-      "saved": "Disimpan."
+      "saved": "Disimpan.",
+      "publicForms": {
+        "title": "Borang awam",
+        "intro": "Borang yang diisi ibu bapa melalui pautan yang anda kongsi, menggantikan borang Airtable lama. Ibu bapa mengesahkan e-mel mereka dengan kod terlebih dahulu. Borang hanya berfungsi apabila Permintaan pematuhan dihidupkan untuk ruang kerja anda dan borang dihidupkan di sini.",
+        "loading": "Memuatkan...",
+        "types": {
+          "closure": "Borang penutupan akaun",
+          "withdrawal": "Borang pengeluaran dana"
+        },
+        "isOn": "Hidup",
+        "isOff": "Mati",
+        "notReady": "Jenis permintaan ini dimatikan atau kekurangan medan yang diperlukan borang (laksanakan kemas kini pangkalan data terkini). Borang belum boleh dihidupkan.",
+        "enable": "Terima permintaan melalui borang ini",
+        "enableHint": "Apabila dimatikan, sesiapa yang membuka pautan melihat \"Borang ini tidak tersedia\".",
+        "address": "Alamat untuk dikongsi",
+        "copy": "Salin",
+        "copied": "Disalin",
+        "open": "Buka",
+        "newAddress": "Alamat baharu",
+        "newAddressHint": "Alamat baharu menghentikan alamat lama berfungsi serta-merta. Alamat ini rawak supaya tidak dapat diteka.",
+        "noAddress": "Alamat dibuat apabila anda menyimpan buat kali pertama.",
+        "notice": "Notis tambahan di atas borang",
+        "noticeHint": "Pilihan. Dipaparkan dalam bahasa yang dipilih ibu bapa; bahasa yang dibiarkan kosong memaparkan teks Bahasa Inggeris.",
+        "languages": {
+          "en": "Bahasa Inggeris",
+          "ms": "Bahasa Melayu",
+          "zh": "Bahasa Cina",
+          "ko": "Bahasa Korea"
+        },
+        "turnstile": "Minta semakan Cloudflare Turnstile",
+        "turnstileHint": "Disemak apabila ibu bapa meminta kod e-mel.",
+        "turnstileMissing": "Tidak tersedia: pengendali belum menetapkan kunci Turnstile untuk pelayan ini.",
+        "maxAmount": "Jumlah terbesar diterima (RM)",
+        "maxAmountHint": "Ibu bapa tidak boleh meminta lebih daripada RM {amount} melalui borang ini.",
+        "maxAmountInvalid": "Masukkan jumlah melebihi sifar dengan paling banyak dua tempat perpuluhan.",
+        "banks": "Bank dalam senarai",
+        "banksPlaceholder": "Satu bank setiap baris",
+        "banksHint": "Biarkan kosong untuk menggunakan senarai bank Malaysia terbina dalam. Borang sentiasa menawarkan \"Bank lain\" juga.",
+        "saved": "Disimpan."
+      }
+    },
+    "reportsLink": "Laporan",
+    "badge": {
+      "waiting": "{count, plural, other {# permintaan menunggu anda}}"
+    },
+    "notices": {
+      "title": "E-mel kepada pelanggan",
+      "askMore": "Minta maklumat tambahan",
+      "askMoreLabel": "Apa yang anda perlukan daripada pelanggan?",
+      "askMoreHint": "Gunakan perkataan yang mudah. Jangan tulis nombor akaun bank atau nombor telefon: ia akan ditolak. Pelanggan membalas melalui e-mel.",
+      "language": "Bahasa e-mel",
+      "languageCase": "Bahasa pelanggan ({language})",
+      "preview": "Pratonton e-mel",
+      "previewTitle": "Apa yang akan diterima pelanggan",
+      "previewFirst": "Pratonton e-mel sebelum menghantarnya.",
+      "send": "Hantar e-mel",
+      "cancel": "Batal",
+      "none": "Tiada e-mel dihantar mengenai permintaan ini.",
+      "noAddress": "Tiada alamat e-mel pada permintaan ini, jadi tiada e-mel boleh dihantar.",
+      "sendAgain": "Hantar semula",
+      "system": "Sistem",
+      "notifyReceived": "E-melkan pengesahan kepada pelanggan",
+      "notifyApprove": "Maklumkan pelanggan bahawa ia diluluskan (mati kecuali anda tandakan)",
+      "notifyReject": "Maklumkan pelanggan, menggunakan perkataan di atas",
+      "notifyComplete": "Maklumkan pelanggan bahawa ia telah selesai",
+      "toast": {
+        "sent": "E-mel telah dihantar kepada pelanggan.",
+        "failed": "Permintaan telah dikemas kini, tetapi e-mel tidak dihantar ({reason}). Anda boleh menghantarnya semula daripada permintaan ini.",
+        "skipped": "Permintaan telah dikemas kini. Tiada e-mel dihantar kerana tiada alamat padanya."
+      },
+      "kinds": {
+        "received": "Pengesahan",
+        "more_info": "Maklumat tambahan diperlukan",
+        "approved": "Diluluskan",
+        "rejected": "Tidak diluluskan",
+        "completed": "Selesai",
+        "signoff_waiting": "Menunggu kelulusan (kakitangan)",
+        "clock_alert": "Amaran tarikh akhir (kakitangan)"
+      },
+      "status": {
+        "claimed": "Sedang dihantar",
+        "sent": "Dihantar",
+        "failed": "Tidak dihantar",
+        "skipped": "Dilangkau"
+      },
+      "reasons": {
+        "not_set_up": "tiada cara menghantar e-mel disediakan",
+        "mailbox_reconnect": "peti mel yang disambungkan perlu disambungkan semula",
+        "mailbox_paused": "peti mel yang disambungkan dimatikan",
+        "daily_limit": "had penghantaran harian peti mel telah habis",
+        "rate_limited": "perkhidmatan mel meminta kami memperlahankan penghantaran",
+        "address_rejected": "alamat ditolak",
+        "attachment_too_large": "mesej terlalu besar",
+        "service_unavailable": "perkhidmatan mel tidak dapat dihubungi",
+        "send_failed": "ia tidak dapat dihantar",
+        "no_address": "tiada alamat e-mel pada permintaan",
+        "no_recipients": "tiada penerima",
+        "not_found": "permintaan tidak ditemui",
+        "not_waiting": "permintaan tidak sedang menunggu"
+      }
+    },
+    "raise": {
+      "button": "Bangkitkan permintaan pematuhan",
+      "title": "Bangkitkan permintaan pematuhan",
+      "intro": "Gunakan ini apabila pelanggan meminta untuk menutup akaun, mengeluarkan dana atau menukar nombor telefon berdaftar. Pasukan pematuhan menyemak identiti mereka dan meneruskannya.",
+      "loading": "Memuatkan...",
+      "noTypes": "Tiada jenis permintaan untuk dibangkitkan.",
+      "type": "Jenis permintaan",
+      "openExists": "Pelanggan ini sudah mempunyai permintaan terbuka jenis ini.",
+      "openExistsRef": "Ia ialah {reference}.",
+      "customer": "Pelanggan",
+      "name": "Nama",
+      "phone": "Nombor telefon",
+      "email": "Alamat e-mel",
+      "channel": "Bagaimana permintaan diterima",
+      "channelPlaceholder": "WhatsApp, panggilan telefon, e-mel...",
+      "details": "Butiran",
+      "tickHelp": "Tandakan kotak hanya jika pelanggan telah mengesahkannya kepada anda.",
+      "when": "Bila pelanggan meminta",
+      "whenNow": "Sekarang",
+      "whenEarlier": "Lebih awal",
+      "whenAt": "Tarikh dan masa",
+      "whenReason": "Mengapa lebih awal?",
+      "whenReasonHelp": "Jam permintaan bermula pada masa ini, jadi sebabnya dicatat pada permintaan.",
+      "note": "Nota untuk pasukan pematuhan (pilihan)",
+      "notify": "E-melkan pengesahan kepada pelanggan",
+      "notifyNoEmail": "Tambah alamat e-mel untuk menghantar pengesahan.",
+      "submit": "Bangkitkan permintaan",
+      "submitting": "Membangkitkan...",
+      "cancel": "Batal",
+      "followHint": "Anda boleh mengikuti statusnya di sini selepas ini.",
+      "done": {
+        "title": "{reference} telah dibangkitkan",
+        "body": "Pasukan pematuhan akan meneruskannya. Statusnya dipaparkan pada perbualan atau tiket ini.",
+        "open": "Buka permintaan",
+        "close": "Tutup"
+      },
+      "mine": {
+        "title": "Permintaan yang saya bangkitkan",
+        "empty": "Anda belum membangkitkan sebarang permintaan."
+      },
+      "chip": {
+        "title": "Permintaan pematuhan {reference}: {status}"
+      },
+      "status": {
+        "received": "Diterima",
+        "in_review": "Dalam semakan",
+        "in_progress": "Sedang diproses",
+        "done": "Selesai",
+        "not_approved": "Tidak diluluskan",
+        "closed": "Ditutup"
+      }
+    },
+    "reports": {
+      "back": "Kembali ke permintaan",
+      "title": "Laporan pematuhan",
+      "intro": "Permintaan yang dibuat dalam tempoh yang anda pilih. Angka sahaja: tiada nama, nombor telefon atau butiran bank.",
+      "filters": "Tempoh dan jenis laporan",
+      "period": "Tempoh",
+      "presets": {
+        "last30": "30 hari lepas",
+        "last90": "90 hari lepas",
+        "thisYear": "Tahun ini",
+        "all": "Sepanjang masa",
+        "custom": "Pilih tarikh"
+      },
+      "from": "Dari",
+      "to": "Hingga",
+      "type": "Jenis",
+      "allTypes": "Semua jenis",
+      "exportCsv": "Eksport CSV",
+      "exportNote": "CSV mengandungi sehingga 5,000 permintaan: rujukan, jenis, sumber, status, tarikh, hari dan hasil. Setiap eksport direkodkan bersama siapa yang membuatnya dan penapis. Permintaan disimpan selama tujuh tahun.",
+      "badRange": "Hari pertama tidak boleh selepas hari terakhir.",
+      "loading": "Memuatkan...",
+      "truncated": "Tempoh ini mempunyai lebih daripada {count} permintaan, jadi angka adalah mengenai {count} yang terkini. Pilih tempoh yang lebih pendek.",
+      "total": "Permintaan",
+      "open": "Masih terbuka",
+      "finished": "Selesai",
+      "none": "Tiada apa-apa untuk dipaparkan bagi tempoh ini.",
+      "count": "Bilangan",
+      "share": "Bahagian",
+      "formerMember": "Bekas ahli",
+      "retention": "Permintaan dan jejaknya disimpan selama tujuh tahun dan tidak pernah dipadam oleh Halo.",
+      "byType": {
+        "title": "Permintaan mengikut jenis dan status",
+        "type": "Jenis",
+        "total": "Jumlah"
+      },
+      "clock": {
+        "title": "Berbanding sasaran dan tarikh akhir",
+        "note": "Bagi permintaan yang mempunyai jam (penutupan akaun): selesai dalam sasaran amalan, selesai selepasnya tetapi dalam tarikh henti muktamad, selesai selepas tarikh henti muktamad, dan masih terbuka melepasi tarikh henti muktamad.",
+        "none": "Tiada permintaan yang mempunyai jam untuk dilaporkan dalam tempoh ini.",
+        "row": "Hasil",
+        "withinTarget": "Selesai dalam sasaran",
+        "afterTarget": "Selesai selepas sasaran, dalam tarikh henti muktamad",
+        "afterStop": "Selesai selepas tarikh henti muktamad",
+        "openPastStop": "Masih terbuka melepasi tarikh henti muktamad"
+      },
+      "timing": {
+        "title": "Hari untuk keputusan dan penyiapan",
+        "note": "Dikira dari hari permintaan dibuat.",
+        "row": "Ukuran",
+        "toDecision": "Permintaan hingga keputusan",
+        "toCompletion": "Permintaan hingga selesai",
+        "average": "Purata (hari)",
+        "median": "Median (hari)"
+      },
+      "signoffs": {
+        "title": "Kelulusan mengikut orang",
+        "person": "Orang",
+        "approved": "Diluluskan",
+        "rejected": "Ditolak"
+      },
+      "rejections": {
+        "title": "Penolakan mengikut sebab",
+        "category": "Sebab",
+        "categories": {
+          "identity_failed": "Identiti tidak dapat disahkan",
+          "incomplete_information": "Maklumat atau dokumen tidak lengkap",
+          "dues_outstanding": "Tunggakan belum dijelaskan",
+          "not_eligible": "Tidak layak",
+          "duplicate": "Permintaan pendua",
+          "customer_withdrew": "Pelanggan menarik balik permintaan",
+          "other": "Lain-lain",
+          "uncategorised": "Tiada kategori direkodkan"
+        }
+      },
+      "ageing": {
+        "title": "Usia permintaan yang masih terbuka",
+        "note": "Hari sejak permintaan dibuat. Permintaan yang telah selesai atau ditutup tidak dikira.",
+        "age": "Usia",
+        "buckets": {
+          "d0_7": "0 hingga 7 hari",
+          "d8_14": "8 hingga 14 hari",
+          "d15_30": "15 hingga 30 hari",
+          "d31_plus": "Lebih daripada 30 hari"
+        }
+      }
     }
   }
 }

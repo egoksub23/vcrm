@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { createType, getTypes, patchType } from "./api";
 import { errorKey, fieldLabel } from "./helpers";
 import { Notice } from "./parts";
+import { PublicFormsSettings } from "./public-forms-settings";
 
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const LANGS = ["ms", "zh", "ko"] as const;
@@ -341,6 +342,7 @@ export function ComplianceSettingsPanel() {
       {types?.map((ty) => (
         <TypeEditor key={`${ty.key}-${ty.checklist.length}-${ty.fields.length}`} type={ty} onSaved={(saved) => setTypes((all) => all?.map((x) => (x.key === saved.key ? saved : x)) ?? all)} />
       ))}
+      <PublicFormsSettings />
       {adding ? (
         <NewTypeForm
           onCancel={() => setAdding(false)}

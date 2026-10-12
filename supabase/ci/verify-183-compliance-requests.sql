@@ -54,6 +54,7 @@ DECLARE
   v_ts2   timestamptz;
   k       text;
   fn      text;
+  v_after184 boolean;
 BEGIN
   EXECUTE $f$
     CREATE FUNCTION pg_temp.run(u UUID, q TEXT, r TEXT DEFAULT 'authenticated') RETURNS TEXT
@@ -304,12 +305,15 @@ BEGIN
   IF v_res <> '4' THEN RAISE EXCEPTION 'FAIL the owner should see the 4 cases of A (saw %)', v_res; END IF;
   v_res := pg_temp.run(uAd, 'SELECT count(*)::text FROM compliance_requests');
   IF v_res <> '4' THEN RAISE EXCEPTION 'FAIL the admin should see exactly the 4 cases of A (saw %)', v_res; END IF;
+  -- Part A let the person who raised a case read it; migration 184 (Part B) took that away (the raiser gets a minimal projection from a server route
+  -- instead), so on a database that has 184 the agent reads nothing. verify-184 proves that side.
+  v_after184 := to_regclass('public.compliance_public_forms') IS NOT NULL;
   v_res := pg_temp.run(uG, 'SELECT count(*)::text FROM compliance_requests');
-  IF v_res <> '1' THEN RAISE EXCEPTION 'FAIL an agent without the capability should see only the case they raised (saw %)', v_res; END IF;
+  IF v_res <> (CASE WHEN v_after184 THEN '0' ELSE '1' END) THEN RAISE EXCEPTION 'FAIL an agent without the capability should see only the case they raised, and nothing once 184 is applied (saw %)', v_res; END IF;
   v_res := pg_temp.run(uG, 'SELECT count(*)::text FROM compliance_request_events');
-  IF v_res <> '1' THEN RAISE EXCEPTION 'FAIL the agent should see the events of their own case only (saw %)', v_res; END IF;
+  IF v_res <> (CASE WHEN v_after184 THEN '0' ELSE '1' END) THEN RAISE EXCEPTION 'FAIL the agent should see the events of their own case only, and nothing once 184 is applied (saw %)', v_res; END IF;
   v_res := pg_temp.run(uG, 'SELECT count(*)::text FROM compliance_request_checklist');
-  IF v_res <> '3' THEN RAISE EXCEPTION 'FAIL the agent should see the checklist of their own case only (saw %)', v_res; END IF;
+  IF v_res <> (CASE WHEN v_after184 THEN '0' ELSE '3' END) THEN RAISE EXCEPTION 'FAIL the agent should see the checklist of their own case only, and nothing once 184 is applied (saw %)', v_res; END IF;
   v_res := pg_temp.run(uV, 'SELECT count(*)::text FROM compliance_requests');
   IF v_res <> '0' THEN RAISE EXCEPTION 'FAIL a viewer saw a case (saw %)', v_res; END IF;
   v_res := pg_temp.run(uB, 'SELECT count(*)::text FROM compliance_requests');

@@ -1,6 +1,6 @@
 # Compliance requests: spec
 
-Status: agreed with the owner, not built. Build starts after the KYC review (`docs/kyc-review-plan.md`) ships, because both use the same feature switch, permissions pattern and access log.
+Status: agreed with the owner. Part A (the core) is built in migration 183 and Part B (the public parent forms, the emails, raising from the Inbox and tickets, the reports and the menu badge) in migration 184; how they are built is `docs/compliance-requests.md`. They use the same feature switch, permissions pattern and access log as the KYC review (`docs/kyc-review-plan.md`).
 Menu: a **Compliance** area with Incidents, Requests and KYC review. Route: `/compliance`. Reference format: `CMP-2026-000001`.
 
 ## 1. Why a third kind of case

@@ -16,7 +16,7 @@ import { checkAnswers } from "../fields";
 import { normalisePhone } from "../reference";
 import { openSensitive, sealSensitive } from "../secrets";
 import { isDataEditable } from "../transitions";
-import { SOURCES, type RequestSource } from "../types";
+import { SOURCES, LOCALES, type CustomerLocale, type RequestSource } from "../types";
 import { logEvent } from "./events";
 import { loadRow, loadType } from "./read";
 import type { ComplianceCaller } from "./rows";
@@ -25,6 +25,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface CreateRequestInput {
+  /** A case id chosen by the caller (the public form uploads the files under the case's folder before the case exists). Omit for a new one. */
+  id?: string;
   accountId: string;
   typeKey: string;
   /** Where the request came from: the public form, a member of staff, the Inbox, a ticket. */
@@ -47,6 +49,10 @@ export interface CreateRequestInput {
   incidentId?: string | null;
   kycValidationRef?: string | null;
   isTest?: boolean;
+  /** The language the customer's emails go out in (the form's language choice, or the contact's). Omit: the contact's, else English. */
+  customerLocale?: CustomerLocale | null;
+  /** When the customer proved the email address with the emailed code (the public form). */
+  emailVerifiedAt?: string | null;
 }
 
 const idOrNull = (v: string | null | undefined, what: string): string | null => {
@@ -80,8 +86,9 @@ export async function createComplianceRequest(admin: SupabaseClient, input: Crea
     if (!Number.isFinite(t)) throw new ComplianceError("validation_failed", "That request date is not valid.", 400, [{ field: "received_at", code: "invalid" }]);
     receivedAt = new Date(t).toISOString();
   }
-  const id = randomUUID();
+  const id = input.id ? (idOrNull(input.id, "id") as string) : randomUUID();
   const dataEnc = sealSensitive(id, checked.answers.sensitive);
+  const locale = input.customerLocale && (LOCALES as readonly string[]).includes(input.customerLocale) ? input.customerLocale : null;
   const { data, error } = await admin
     .from("compliance_requests")
     .insert({
@@ -103,6 +110,8 @@ export async function createComplianceRequest(admin: SupabaseClient, input: Crea
       created_by: input.createdBy ?? null,
       assigned_to: idOrNull(input.assignedTo, "assigned_to"),
       is_test: input.isTest === true,
+      customer_locale: locale,
+      email_verified_at: input.emailVerifiedAt ?? null,
       ...(receivedAt ? { received_at: receivedAt } : {}),
     })
     .select("id, reference")

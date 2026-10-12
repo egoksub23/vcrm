@@ -21,7 +21,8 @@ An admin sets this in **Settings**, **Roles & permissions**, under **Compliance 
 | **Sign off compliance requests** | The Head of Compliance: approve, reject or send a request back, pause the clock, approve despite outstanding dues with a reason. |
 | **Reveal bank details in compliance requests** | Show the bank details in full for two minutes. |
 | **Carry out compliance requests** | Operations: tick the checklist and mark a request executing or complete. |
-| **Manage compliance settings** | Change the request types in **Settings**, **Compliance**. |
+| **Manage compliance settings** | Change the request types and the public forms in **Settings**, **Compliance**. |
+| **Raise compliance requests** | Press **Raise compliance request** in an Inbox conversation or on a ticket. It does **not** need the Compliance menu: the person sees only the reference and status of what they raised. |
 
 A panel you may not use is read-only and says why.
 
@@ -53,6 +54,55 @@ For something a customer asked in a chat or on the phone, press **New request**.
 4. Fill in the form. Bank details are stored **encrypted**. A closure needs the three ticks (every child has finished school, every allowance is cancelled, the customer confirms) and the bank name, account number and account holder.
 5. Press **Create request**. Documents (such as an authorization letter when the bank account holder's name differs) are added on the request afterwards.
 
+## Raise a request from the Inbox or a ticket
+
+If you hold the **Raise compliance requests** permission, a conversation and a ticket show a **Raise compliance request** button next to the other header buttons (only when Compliance is switched on for your workspace).
+
+1. Press it and choose the **type**. The customer's name, phone and email come from the contact; correct them if they are wrong. The channel is the conversation's.
+2. Fill in the type's fields (for a phone number change: the current number, the new number, how the request arrived and a note). **Tick a box only if the customer has confirmed it to you.**
+3. **When the customer asked** is *Now*. Choose *Earlier* only if the customer really asked earlier; you must give the date, the time and why, because the request's clock starts then and the reason is written on the request.
+4. Tick **Email the customer a confirmation** if you want them to get one (it needs an email address).
+5. Press **Raise request**. A line, **Compliance request CMP-2026-000014 raised**, is added to the conversation as an internal note, or to the ticket as a comment. Everyone who can open it reads that line; only people who hold the Compliance menu see it as a link.
+
+You cannot raise a second request of the same type for a customer who already has one open. If you hold a compliance permission the message names it; if not, it only says one is already open, so that raising can never be used to find out whether someone has a request.
+
+After you raise it you see a small chip on the conversation or ticket, for example **CMP-2026-000014 · In review**, and a short list, **My raised requests**, with the reference, the type and the status of what **you** raised. You never see the customer's answers, bank details or reasons unless you also hold a compliance permission. The words in the chip are: Received, In review (identity check, officer review and sign-off), In progress (approved and being carried out), Done, Not approved and Closed.
+
+## Public forms: what the parent sees
+
+Parents no longer need the old Airtable form. An administrator switches on a form in **Settings**, **Compliance**, **Public forms**, copies its address and shares it (in a message, an email or on a website). The parent:
+
+1. Opens the address on their phone, chooses English, Bahasa Melayu, Chinese or Korean, and enters their **email address**. We send a 6-digit **code** to it (valid 15 minutes, five tries, three codes an hour). Nothing reaches the workspace until the form is submitted.
+2. Fills in the form. **Account closure**: their name, their registered phone number in the `+60` form, whether they want to close the account (*No* creates nothing and shows "No request was made"), two required ticks (every child has finished school; every allowance is stopped and cancelled in the app), the bank for the refund (chosen from a list), the account number and the account holder's name, and a declaration. The page warns that closing closes both the Parent (Principal) and every Child (Supplementary) account for good, and that closing only a Child account goes through Customer Support. **Fund withdrawal** (not a closure): name, phone, amount in RM (up to the limit you set), why (over top-up or another reason), transaction references, an optional proof, the bank details and the declaration.
+3. If the **name on the bank account does not match the account holder's name given at the top of the form** (ignoring capital letters, spaces, punctuation, titles such as Encik, Puan or Dato' and *bin* / *binti*), the form requires an **authorization letter** (PDF, JPG or PNG, up to 10 MB).
+4. Presses **Submit**. They see a confirmation with the **reference** and a plain "what happens next". They are told we **aim to complete a closure within 14 days** of the request; the regulatory stop is never mentioned to customers.
+
+What arrives in Compliance: a request of source **Form** (channel *web form*), the customer's email marked **confirmed by code**, the bank details **encrypted** like any other, the letter in the private store, and the language the parent chose. The identity check is **not** done: your officer does it as for every request. If the email or the phone number matches exactly one contact of your workspace the request is linked to it; otherwise it is not linked (you can link it on the request). The form never creates a contact.
+
+A parent who submits again while their request of the same type is still open gets the same confirmation and no second request is created. A rejected or finished request does not stop a new one.
+
+## Emails to the customer
+
+All emails go out from your workspace's connected mailbox when it has one, otherwise from the platform sender, in the customer's language (the language chosen on the form, else the contact's, else English). They never contain bank details, the full phone number, a file or a link to a screen of your team.
+
+| Email | When |
+|---|---|
+| **Confirmation** | When a parent submits the form. For a request you create or raise, tick **Email the customer a confirmation** (on by default when there is an address). |
+| **More information needed** | When you press **Ask for more information** in the **Emails to the customer** panel. Write what you need, **preview** it, then send. It is recorded with your name. Do not write bank account numbers or phone numbers: they are refused. |
+| **Approved** | Off unless you tick *Tell the customer it is approved* when you approve. |
+| **Not approved** | When the Head of Compliance rejects: a **category** (for the reports) and **what the customer is told** are required, separate from the internal note; **preview** it, and untick the box if you do not want it emailed. |
+| **Completed** | When Operations presses **Mark complete** (the tick is on by default). |
+
+Each email is sent **once**: a double click or a retry never sends it twice. If one cannot be delivered (for example the mailbox needs reconnecting) the request still moves, the panel shows **Not sent** with the reason in words, and you can press **Send again**. When a request reaches the Head of Compliance, the people who can sign it off get a notification and an email (not the person who did the identity check, who cannot sign it off); the people who can review or sign off also get an email for the 5-days-to-the-stop alert and when the stop is reached (the 10-day alert is a notification only).
+
+## Reports
+
+**Compliance**, **Reports** (for officers and the Head) shows the requests made in a period you choose (the last 30 or 90 days, this year, all time, or your own dates): counts by type and status; for the requests with a clock, how many were completed **within the target**, **after it but within the stop**, **after the stop**, or are **still open past the stop**; the average and median days to a decision and to completion; sign-offs by person; rejections by category; and the age of the open requests. **Export CSV** gives up to 5,000 requests with the reference, type, source, status, dates, days and outcome. **No name, phone number or bank detail is in the report or the file.** Every export is recorded with who made it and the filters.
+
+## The number on the menu
+
+The **Compliance** item in the sidebar shows a number for the people who can act: the Head of Compliance sees the requests awaiting their sign-off (not one whose identity check they recorded); officers see the requests waiting for an identity check or a review. It disappears at zero.
+
 ## Work a request
 
 Open a request to see where it is on the bar at the top: **Received, Identity check, Officer review, Sign-off, Execution, Closed**.
@@ -60,7 +110,7 @@ Open a request to see where it is on the bar at the top: **Received, Identity ch
 1. **Identity check.** Check the person is the account holder (a call back to the registered number, a video call, an ID document, a verification in the chat, in person, or another way you describe), choose **Verified** or **Not verified** (a note is required if not), and press **Record identity check**. **You are recorded as the person who checked.**
 2. **Account standing** (closures). Record whether the customer owes anything. For now you enter this by hand; later it will be filled in from the back office.
 3. **Officer review.** Choose a recommendation (approve, reject, more information needed) with notes, and press **Submit for sign-off**. You cannot recommend approval after a failed identity check.
-4. **Sign-off.** The Head of Compliance presses **Approve**, **Reject** (a reason is needed) or **Send back to the officer** (a note is needed). **The person who recorded the identity check cannot sign the same request off**: the buttons are switched off and the page tells you why. A closure with dues outstanding can only be approved if the Head types a reason.
+4. **Sign-off.** The Head of Compliance presses **Approve**, **Reject** (an internal note, a reason category and the words the customer is told are needed) or **Send back to the officer** (a note is needed). **The person who recorded the identity check cannot sign the same request off**: the buttons are switched off and the page tells you why. A closure with dues outstanding can only be approved if the Head types a reason.
 5. **Execution.** Operations ticks each step of the checklist (for a closure: close the account in the back office, refund the balance, tell the customer), with their name and the time recorded. **Mark complete** works when every step is ticked.
 6. **Close.** Tell the customer, then **Close the request**. A request that was rejected is closed the same way. A duplicate, or one the customer withdrew, can be **closed without a decision** with a reason, before the sign-off.
 
@@ -85,3 +135,15 @@ The **Timeline** lists everything, newest first: who opened the request, every s
 ## For administrators: Settings > Compliance
 
 Each request type has its name (also in Malay, Chinese and Korean), the **target** and **hard stop** in days (leave empty for none), whether it needs an identity check, checks account standing or allows a pause, whether it is on, and its **operations checklist**. Changing the clocks affects **new requests only**. The fields of the three standard types are fixed; you can add your own types with their own fields.
+
+### Public forms
+
+Under the request types, **Public forms** has one card for the account closure form and one for the fund withdrawal form (a phone number change is only ever raised by staff). For each:
+
+- **Accept requests through this form** switches it on or off. When it is off, or when your workspace does not have Compliance requests switched on, anyone who opens the address sees "This form is not available".
+- **Address to share**: random, so it cannot be guessed. **New address** stops the old one working at once.
+- **Extra notice above the form**: optional text for each language; a language left empty shows the English text.
+- **Turnstile**: a Cloudflare check when a parent asks for a code. It is available only when the operator has set the Turnstile keys for the server.
+- **Largest amount accepted** (withdrawal form) and the **banks in the list** (one per line; empty uses the built-in list of Malaysian banks; *Other bank* is always offered).
+
+To try a form safely, switch it on in a **test workspace** (see the operator notes in `docs/compliance-requests.md`), use an email address you control, and complete a request: it appears in the list marked as coming from the form. Close it without a decision (a note is required) when you have finished testing.

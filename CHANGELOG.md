@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.91.0] — 2026-10-13
+
+**Migration required: 184** (and 183 from 0.90.0, if not yet applied). Apply both BEFORE the new app.
+
+### Added
+
+- **Public forms for parents** at `/c/<address>` replacing the Airtable closure form: **Account closure** and **Fund withdrawal** (phone number changes stay staff-raised). The parent first gets a 6-digit code by email, so we know they control that address. The closure form refuses to submit without the school-completion and allowance acknowledgements, requires an authorization letter when the bank holder's name does not match the account holder's, and says "we aim to complete within 14 days". Bank details are encrypted and never shown back. Each form is switched on per type in Settings > Compliance, with an optional Turnstile check.
+- **Customer emails in four languages** from the workspace mailbox: received (with the reference), more information needed (written by staff, previewed), rejected (with the customer's reason), and completed. Staff get an in-app and email notice when a case waits for sign-off, and emails at 5 days to the stop and on a breach. Every email is sent once only and its result is recorded.
+- **Raise a compliance request** from an Inbox conversation or a ticket. A new permission, `compliance.raise`, can be given to agents. An agent sees only a status chip and a "My raised requests" list, never the customer's data. Duplicate open requests for the same contact are refused.
+- **Reports** (Compliance > Reports): closures against the 14-day target and the 30-day stop, days to decision and to completion, sign-offs by person, rejections by category, ageing, and a CSV export without names, phone numbers or bank details (each export is logged).
+- A count on the Compliance menu for people with cases waiting.
+
+### Changed
+
+- The person who raised a case no longer reads the case through the database; they get a minimal status through a dedicated route.
+
 ## [0.90.0] — 2026-10-13
 
 **Migration required: 183.** Apply it BEFORE the new app.

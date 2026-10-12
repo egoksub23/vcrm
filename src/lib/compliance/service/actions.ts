@@ -10,9 +10,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ComplianceError, complianceError, fromDatabase } from "../errors";
 import { openSensitive, revealedFields } from "../secrets";
 import { canMove, makerCheckerAllows, viewerMayMove } from "../transitions";
-import { IDENTITY_METHODS, IDENTITY_OUTCOMES, RECOMMENDATIONS, type IdentityMethod, type IdentityOutcome, type Recommendation, type RequestStatus } from "../types";
+import { IDENTITY_METHODS, IDENTITY_OUTCOMES, RECOMMENDATIONS, REJECTION_CATEGORIES, type IdentityMethod, type IdentityOutcome, type Recommendation, type RejectionCategory, type RequestStatus } from "../types";
 import { identityOf } from "./rows";
 import { logEvent } from "./events";
+import { checkCustomerText, notifySignoffWaiting, realNoticeDeps, sendCustomerNotice, type NoticeDeps, type NoticeResult } from "./notices";
 import { loadRow, loadType } from "./read";
 import type { ComplianceCaller } from "./rows";
 
@@ -26,12 +27,27 @@ export interface TransitionInput {
   recommendation?: string | null;
   /** Approving a closure whose dues are outstanding: why the Head approves anyway. */
   overrideReason?: string | null;
+  /** Rejecting: what the reports group the rejection under, and the words the customer is told (separate from the internal note). Both required. */
+  reasonCategory?: string | null;
+  customerReason?: string | null;
+  /**
+   * Tell the customer by email (migration 184). Rejecting and completing default to yes, approving to no. The result never blocks the move: it comes back
+   * in the answer (sent, failed with a reason, skipped when there is no address).
+   */
+  notify?: boolean;
+}
+
+export interface TransitionResult {
+  from: RequestStatus;
+  to: RequestStatus;
+  /** What happened to the customer's email, when one was asked for. */
+  notice?: NoticeResult;
 }
 
 const NOTE_MAX = 2000;
 const oneOf = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === "string" && (list as readonly string[]).includes(v);
 
-export async function transitionRequest(admin: SupabaseClient, caller: ComplianceCaller, id: string, input: TransitionInput): Promise<{ from: RequestStatus; to: RequestStatus }> {
+export async function transitionRequest(admin: SupabaseClient, caller: ComplianceCaller, id: string, input: TransitionInput, deps: NoticeDeps = realNoticeDeps): Promise<TransitionResult> {
   const row = await loadRow(admin, caller.accountId, id);
   const to = input.to;
   if (!canMove(row.status, to)) throw complianceError("invalid_transition");
@@ -61,10 +77,36 @@ export async function transitionRequest(admin: SupabaseClient, caller: Complianc
     if (to === "approved" && (input.overrideReason ?? "").trim() !== "") payload.override_reason = (input.overrideReason ?? "").trim().slice(0, NOTE_MAX);
   }
   if ((to === "rejected" || (row.status === "awaiting_signoff" && to === "officer_review")) && note === "") throw complianceError("note_required");
+  let customerReason: string | null = null;
+  if (to === "rejected") {
+    // the reports group rejections by category and the customer is told the reason: both are decided BEFORE the case moves
+    if (!oneOf<RejectionCategory>(REJECTION_CATEGORIES, input.reasonCategory)) throw complianceError("category_required");
+    if ((input.customerReason ?? "").trim() === "") throw complianceError("customer_reason_required");
+    let secrets: { values: string[]; phone: string | null } = { values: [], phone: row.customer_phone };
+    try {
+      secrets = { values: Object.values(openSensitive(row.id, row.data_enc)), phone: row.customer_phone };
+    } catch {
+      // unreadable protected answers: the text is still checked against the phone number
+    }
+    customerReason = checkCustomerText(input.customerReason, secrets);
+    payload.reason_category = input.reasonCategory;
+    payload.customer_reason = customerReason;
+  }
 
   const { error } = await admin.rpc("compliance_transition", { p_request: row.id, p_to: to, p_actor: caller.userId, p_note: note === "" ? null : note, p_payload: payload });
   if (error) throw fromDatabase(error);
-  return { from: row.status, to };
+
+  // the emails (migration 184): after the move, never part of it. A failure is a recorded result, not an error.
+  let notice: NoticeResult | undefined;
+  try {
+    if (to === "awaiting_signoff") await notifySignoffWaiting(admin, deps, caller.accountId, row.id);
+    if (to === "approved" && input.notify === true) notice = await sendCustomerNotice(admin, deps, { accountId: caller.accountId, requestId: row.id, kind: "approved", actor: caller.userId });
+    if (to === "rejected" && input.notify !== false) notice = await sendCustomerNotice(admin, deps, { accountId: caller.accountId, requestId: row.id, kind: "rejected", text: customerReason, actor: caller.userId });
+    if (to === "completed" && input.notify !== false) notice = await sendCustomerNotice(admin, deps, { accountId: caller.accountId, requestId: row.id, kind: "completed", actor: caller.userId });
+  } catch (err) {
+    console.error("[compliance] a notice after a move failed:", err instanceof Error ? err.name : "error");
+  }
+  return { from: row.status, to, ...(notice ? { notice } : {}) };
 }
 
 export async function tickStep(admin: SupabaseClient, caller: ComplianceCaller, id: string, stepKey: string, done: boolean, note?: string | null): Promise<void> {

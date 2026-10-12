@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NoAccess } from "@/components/auth/no-access";
 import { Button } from "@/components/ui/button";
 import { useCapability } from "@/hooks/use-auth";
+import { notifyComplianceChanged } from "@/hooks/use-compliance-waiting";
 import { useNow } from "@/hooks/use-now";
 import { computeClock } from "@/lib/compliance/clock";
 import type { RequestDetail } from "@/lib/compliance/types";
@@ -31,6 +32,7 @@ import {
   FilesPanel,
   IdentityPanel,
   LinksPanel,
+  NoticesPanel,
   REVEAL_MS,
   ReviewPanel,
   SensitivePanel,
@@ -107,6 +109,8 @@ export function RequestDetailScreen({ id }: { id: string }) {
       }
       await load();
       setBusy(false);
+      // the sidebar's badge asks again (a case moved)
+      notifyComplianceChanged();
       return true;
     },
     [load],
@@ -210,6 +214,7 @@ export function RequestDetailScreen({ id }: { id: string }) {
           <SignoffPanel {...props} />
           <ClockPanel {...props} />
           <ExecutionPanel {...props} />
+          <NoticesPanel {...props} />
           <CloseWithoutDecision {...props} />
         </div>
       </div>

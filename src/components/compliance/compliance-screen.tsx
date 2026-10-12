@@ -6,7 +6,7 @@
 // browser except the filters in memory.
 // ============================================================
 
-import { ClipboardCheck, Plus, Search, X } from "lucide-react";
+import { BarChart3, ClipboardCheck, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,7 +38,8 @@ export function ComplianceScreen() {
   const now = useNow(60_000);
 
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [draftQ, setDraftQ] = useState("");
+  // a link from a conversation or a ticket ("Compliance request CMP-... raised") opens the list searched for that reference
+  const [draftQ, setDraftQ] = useState(() => (typeof window === "undefined" ? "" : (new URLSearchParams(window.location.search).get("q") ?? "").slice(0, 100)));
   const [list, setList] = useState<RequestList | null>(null);
   const [types, setTypes] = useState<RequestTypeRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -97,12 +98,20 @@ export function ComplianceScreen() {
           <ClipboardCheck className="size-5 text-muted-foreground" aria-hidden />
           <h1 className="text-xl font-semibold text-foreground">{t("title")}</h1>
         </div>
-        {canCreate ? (
-          <Button onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
-            <Plus className="size-4" aria-hidden />
-            {t("newRequest")}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {canCreate ? (
+            <Link href="/compliance/reports" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted">
+              <BarChart3 className="size-4" aria-hidden />
+              {t("reportsLink")}
+            </Link>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
+              <Plus className="size-4" aria-hidden />
+              {t("newRequest")}
+            </Button>
+          ) : null}
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
 

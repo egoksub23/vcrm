@@ -24,6 +24,7 @@ import {
   CHECKLIST_COLUMNS,
   EVENT_COLUMNS,
   FILE_COLUMNS,
+  NOTICE_COLUMNS,
   REQUEST_COLUMNS,
   checklistFromRow,
   eventFromRow,
@@ -31,6 +32,7 @@ import {
   identityOf,
   loadPeople,
   loadTypes,
+  noticeFromRow,
   personRef,
   reviewOf,
   signoffOf,
@@ -40,6 +42,7 @@ import {
   type ComplianceCaller,
   type EventDbRow,
   type FileDbRow,
+  type NoticeDbRow,
   type RequestRow,
 } from "./rows";
 
@@ -245,13 +248,14 @@ export async function getRequestDetail(admin: SupabaseClient, caller: Compliance
   if (opts.logView !== false && !(await logEvent(admin, { accountId: caller.accountId, requestId: row.id, actor: caller.userId, kind: "view" }))) {
     throw complianceError("audit_failed");
   }
-  const [types, people, checklist, files, events, links] = await Promise.all([
+  const [types, people, checklist, files, events, links, notices] = await Promise.all([
     loadTypes(admin, caller.accountId),
     loadPeople(admin, caller.accountId),
     admin.from("compliance_request_checklist").select(CHECKLIST_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("position", { ascending: true }),
     admin.from("compliance_request_files").select(FILE_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("uploaded_at", { ascending: true }),
     admin.from("compliance_request_events").select(EVENT_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("seq", { ascending: false }).limit(EVENTS_CAP),
     linksOf(admin, caller.accountId, row),
+    admin.from("compliance_notices").select(NOTICE_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("claimed_at", { ascending: false }).limit(60),
   ]);
   const type = types.find((t) => t.key === row.type_key) ?? null;
   const summary = summaryFromRow(row, type ?? undefined, people);
@@ -266,6 +270,9 @@ export async function getRequestDetail(admin: SupabaseClient, caller: Compliance
   return {
     ...summary,
     channel: row.channel,
+    customerLocale: row.customer_locale,
+    emailVerifiedAt: row.email_verified_at,
+    notices: ((notices.data ?? []) as unknown as NoticeDbRow[]).map((n) => noticeFromRow(n, people)),
     type,
     data: (row.data ?? {}) as RequestDetail["data"],
     sensitive,

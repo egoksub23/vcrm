@@ -6309,6 +6309,10 @@
       "menu_compliance": {
         "label": "合规请求",
         "description": "查看“合规”菜单项并打开请求列表。它本身不能打开请求：审核、签批、显示信息和执行各有各自的权限。仅在运营方为工作区开启合规请求时有效。默认：所有者和管理员。"
+      },
+      "compliance_raise": {
+        "label": "发起合规请求",
+        "description": "从收件箱对话或工单发起合规请求。不需要“合规”菜单：发起人只能看到所发起请求的编号和状态，看不到客户的详细资料。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -11789,7 +11793,10 @@
       "audit_failed": "无法保存此操作的记录，因此没有显示或更改任何内容。请重试。",
       "storage_failed": "无法存储或读取该文件。请重试。",
       "server_error": "出了点问题。请稍后重试。",
-      "network": "无法连接服务器。请检查网络后重试。"
+      "network": "无法连接服务器。请检查网络后重试。",
+      "customer_reason_required": "请填写向客户说明拒绝原因的内容。",
+      "category_required": "请选择拒绝原因的类别。",
+      "duplicate_open": "此客户已有一个同类型的未结请求。"
     },
     "form": {
       "choose": "请选择...",
@@ -11833,7 +11840,9 @@
         "staff": "员工",
         "inbox": "收件箱",
         "ticket": "工单"
-      }
+      },
+      "emailVerified": "邮箱已通过验证码确认",
+      "language": "客户语言"
     },
     "answers": {
       "title": "请求详情",
@@ -11927,7 +11936,25 @@
       "approve": "批准",
       "reject": "拒绝",
       "sendBack": "退回给专员",
-      "notYet": "请求尚未交给合规负责人。"
+      "notYet": "请求尚未交给合规负责人。",
+      "internalHint": "仅供内部查看：只有能访问此请求的人可以阅读。不会告知客户。",
+      "rejectionTitle": "如果您拒绝此请求",
+      "categoryLabel": "原因类别（用于报表）",
+      "categoryChoose": "请选择类别",
+      "category": "原因类别",
+      "categories": {
+        "identity_failed": "无法确认身份",
+        "incomplete_information": "信息或文件不完整",
+        "dues_outstanding": "仍有未清款项",
+        "not_eligible": "不符合条件",
+        "duplicate": "重复的请求",
+        "customer_withdrew": "客户撤回了请求",
+        "other": "其他"
+      },
+      "customerReasonLabel": "告知客户的内容",
+      "customerReasonHint": "与内部备注分开。请用通俗的语言，不要写银行资料或电话号码。拒绝前请先查看预览。",
+      "customerReasonShown": "已告知客户",
+      "rejectNeeds": "要拒绝：请填写内部备注，选择类别，并填写告知客户的内容。"
     },
     "execution": {
       "title": "运营清单",
@@ -12011,7 +12038,10 @@
         "created_backdated": "创建了请求（{source}），请求日期为手动设置",
         "assigned": "分配了请求",
         "unassigned": "取消了负责人",
-        "other": "更新了请求"
+        "other": "更新了请求",
+        "notice_sent": "已发送邮件：{notice}",
+        "notice_failed": "邮件未发送：{notice}（{reason}）",
+        "notice_skipped": "已跳过邮件：{notice}（{reason}）"
       }
     },
     "blocked": {
@@ -12082,7 +12112,244 @@
       "keyWillBe": "其标识为",
       "createType": "创建类型",
       "cancel": "取消",
-      "saved": "已保存。"
+      "saved": "已保存。",
+      "publicForms": {
+        "title": "公开表单",
+        "intro": "家长通过您分享的链接填写的表单，用来取代原来的 Airtable 表单。家长需要先用验证码确认邮箱。只有当您的工作区已开启“合规请求”且此处开启了表单时，表单才可用。",
+        "loading": "加载中…",
+        "types": {
+          "closure": "账户关闭表单",
+          "withdrawal": "资金提取表单"
+        },
+        "isOn": "已开启",
+        "isOff": "已关闭",
+        "notReady": "此请求类型已关闭，或缺少表单所需的字段（请应用最新的数据库更新）。暂时无法开启表单。",
+        "enable": "通过此表单接收请求",
+        "enableHint": "关闭后，任何打开链接的人都会看到“此表单暂不可用”。",
+        "address": "要分享的链接",
+        "copy": "复制",
+        "copied": "已复制",
+        "open": "打开",
+        "newAddress": "更换链接",
+        "newAddressHint": "更换链接后，旧链接立即失效。链接是随机生成的，无法被猜到。",
+        "noAddress": "首次保存时会生成链接。",
+        "notice": "表单上方的附加提示",
+        "noticeHint": "选填。以家长选择的语言显示；某种语言留空时显示英文内容。",
+        "languages": {
+          "en": "英语",
+          "ms": "马来语",
+          "zh": "中文",
+          "ko": "韩语"
+        },
+        "turnstile": "要求通过 Cloudflare Turnstile 验证",
+        "turnstileHint": "家长申请邮箱验证码时会进行验证。",
+        "turnstileMissing": "不可用：运营方尚未为此服务器设置 Turnstile 密钥。",
+        "maxAmount": "可接受的最高金额（令吉）",
+        "maxAmountHint": "家长通过此表单申请的金额不能超过 RM {amount}。",
+        "maxAmountInvalid": "请输入大于零且最多两位小数的金额。",
+        "banks": "列表中的银行",
+        "banksPlaceholder": "每行一家银行",
+        "banksHint": "留空则使用内置的马来西亚银行列表。表单始终还会提供“其他银行”选项。",
+        "saved": "已保存。"
+      }
+    },
+    "reportsLink": "报表",
+    "badge": {
+      "waiting": "{count, plural, other {有 # 个请求等待您处理}}"
+    },
+    "notices": {
+      "title": "发给客户的邮件",
+      "askMore": "请客户补充信息",
+      "askMoreLabel": "您需要客户提供什么？",
+      "askMoreHint": "请用通俗的语言。不要写银行账号或电话号码，写了会被拒绝。客户通过邮件回复。",
+      "language": "邮件语言",
+      "languageCase": "客户的语言（{language}）",
+      "preview": "预览邮件",
+      "previewTitle": "客户将收到的内容",
+      "previewFirst": "发送前请先预览邮件。",
+      "send": "发送邮件",
+      "cancel": "取消",
+      "none": "尚未就此请求发送过邮件。",
+      "noAddress": "此请求没有邮箱地址，无法发送邮件。",
+      "sendAgain": "重新发送",
+      "system": "系统",
+      "notifyReceived": "向客户发送确认邮件",
+      "notifyApprove": "告知客户已获批准（默认不发送，勾选后才发送）",
+      "notifyReject": "用上面的内容告知客户",
+      "notifyComplete": "告知客户已完成",
+      "toast": {
+        "sent": "已向客户发送邮件。",
+        "failed": "请求已更新，但邮件未发送（{reason}）。您可以在请求页面重新发送。",
+        "skipped": "请求已更新。因为没有邮箱地址，所以未发送邮件。"
+      },
+      "kinds": {
+        "received": "确认邮件",
+        "more_info": "需要补充信息",
+        "approved": "已批准",
+        "rejected": "未获批准",
+        "completed": "已完成",
+        "signoff_waiting": "等待签批（内部）",
+        "clock_alert": "期限提醒（内部）"
+      },
+      "status": {
+        "claimed": "发送中",
+        "sent": "已发送",
+        "failed": "未发送",
+        "skipped": "已跳过"
+      },
+      "reasons": {
+        "not_set_up": "尚未设置发送邮件的方式",
+        "mailbox_reconnect": "已连接的邮箱需要重新连接",
+        "mailbox_paused": "已连接的邮箱已关闭",
+        "daily_limit": "邮箱今日的发送额度已用完",
+        "rate_limited": "邮件服务要求我们放慢发送速度",
+        "address_rejected": "邮箱地址被拒绝",
+        "attachment_too_large": "邮件太大",
+        "service_unavailable": "无法连接邮件服务",
+        "send_failed": "无法送达",
+        "no_address": "请求上没有邮箱地址",
+        "no_recipients": "没有可发送的对象",
+        "not_found": "未找到该请求",
+        "not_waiting": "请求并未在等待中"
+      }
+    },
+    "raise": {
+      "button": "发起合规请求",
+      "title": "发起合规请求",
+      "intro": "当客户要求关闭账户、提取资金或更改注册手机号码时使用。合规团队会核实其身份并接手处理。",
+      "loading": "加载中…",
+      "noTypes": "没有可发起的请求类型。",
+      "type": "请求类型",
+      "openExists": "此客户已有一个同类型的未结请求。",
+      "openExistsRef": "编号为 {reference}。",
+      "customer": "客户",
+      "name": "姓名",
+      "phone": "手机号码",
+      "email": "邮箱地址",
+      "channel": "请求的来源方式",
+      "channelPlaceholder": "WhatsApp、电话、邮件…",
+      "details": "详细信息",
+      "tickHelp": "只有客户已向您确认的项目才可勾选。",
+      "when": "客户提出请求的时间",
+      "whenNow": "现在",
+      "whenEarlier": "更早",
+      "whenAt": "日期和时间",
+      "whenReason": "为什么更早？",
+      "whenReasonHelp": "请求的计时从这个时间开始，因此原因会记录在请求上。",
+      "note": "给合规团队的备注（选填）",
+      "notify": "向客户发送确认邮件",
+      "notifyNoEmail": "填写邮箱地址后才能发送确认邮件。",
+      "submit": "发起请求",
+      "submitting": "正在发起…",
+      "cancel": "取消",
+      "followHint": "之后您可以在这里查看它的状态。",
+      "done": {
+        "title": "已发起 {reference}",
+        "body": "合规团队将接手处理。状态会显示在此对话或工单上。",
+        "open": "打开请求",
+        "close": "关闭"
+      },
+      "mine": {
+        "title": "我发起的请求",
+        "empty": "您还没有发起过请求。"
+      },
+      "chip": {
+        "title": "合规请求 {reference}：{status}"
+      },
+      "status": {
+        "received": "已收到",
+        "in_review": "审核中",
+        "in_progress": "办理中",
+        "done": "已完成",
+        "not_approved": "未获批准",
+        "closed": "已关闭"
+      }
+    },
+    "reports": {
+      "back": "返回请求列表",
+      "title": "合规报表",
+      "intro": "您所选时间段内提出的请求。这里只有数字：没有姓名、电话号码或银行资料。",
+      "filters": "报表时间段和类型",
+      "period": "时间段",
+      "presets": {
+        "last30": "最近 30 天",
+        "last90": "最近 90 天",
+        "thisYear": "今年",
+        "all": "全部时间",
+        "custom": "自选日期"
+      },
+      "from": "开始",
+      "to": "结束",
+      "type": "类型",
+      "allTypes": "全部类型",
+      "exportCsv": "导出 CSV",
+      "exportNote": "CSV 最多包含 5,000 条请求：编号、类型、来源、状态、日期、天数和结果。每次导出都会记录操作人和筛选条件。请求保存七年。",
+      "badRange": "开始日期不能晚于结束日期。",
+      "loading": "加载中…",
+      "truncated": "此时间段内的请求超过 {count} 条，因此数字只涵盖最新的 {count} 条。请选择更短的时间段。",
+      "total": "请求总数",
+      "open": "未结",
+      "finished": "已结束",
+      "none": "此时间段内没有可显示的内容。",
+      "count": "数量",
+      "share": "占比",
+      "formerMember": "已离开的成员",
+      "retention": "请求及其记录保存七年，Halo 绝不会删除。",
+      "byType": {
+        "title": "按类型和状态统计的请求",
+        "type": "类型",
+        "total": "合计"
+      },
+      "clock": {
+        "title": "与目标和最后期限对比",
+        "note": "针对设有计时的请求（账户关闭）：在实际目标内完成、超过目标但在最后期限内完成、超过最后期限完成，以及超过最后期限仍未结。",
+        "none": "此时间段内没有设有计时的请求。",
+        "row": "结果",
+        "withinTarget": "在目标内完成",
+        "afterTarget": "超过目标但在最后期限内完成",
+        "afterStop": "超过最后期限后完成",
+        "openPastStop": "超过最后期限仍未结"
+      },
+      "timing": {
+        "title": "决定和完成所需天数",
+        "note": "从提出请求的当天算起。",
+        "row": "指标",
+        "toDecision": "从请求到决定",
+        "toCompletion": "从请求到完成",
+        "average": "平均（天）",
+        "median": "中位数（天）"
+      },
+      "signoffs": {
+        "title": "各人的签批",
+        "person": "人员",
+        "approved": "批准",
+        "rejected": "拒绝"
+      },
+      "rejections": {
+        "title": "按原因统计的拒绝",
+        "category": "原因",
+        "categories": {
+          "identity_failed": "无法确认身份",
+          "incomplete_information": "信息或文件不完整",
+          "dues_outstanding": "仍有未清款项",
+          "not_eligible": "不符合条件",
+          "duplicate": "重复的请求",
+          "customer_withdrew": "客户撤回了请求",
+          "other": "其他",
+          "uncategorised": "未记录类别"
+        }
+      },
+      "ageing": {
+        "title": "未结请求的时长",
+        "note": "从提出请求至今的天数。已完成或已关闭的请求不计入。",
+        "age": "时长",
+        "buckets": {
+          "d0_7": "0 至 7 天",
+          "d8_14": "8 至 14 天",
+          "d15_30": "15 至 30 天",
+          "d31_plus": "超过 30 天"
+        }
+      }
     }
   }
 }

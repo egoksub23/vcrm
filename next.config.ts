@@ -5,7 +5,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /**
  * The Content-Security-Policy, with the extra addresses a route may reach. Only Doc Sign's public registration
- * page (/r/<slug>) passes any: it may load Cloudflare Turnstile (its script, its frame and its check) when the
+ * pages (/r/<slug> and /c/<slug>) pass any: it may load Cloudflare Turnstile (its script, its frame and its check) when the
  * operator has set the Turnstile keys; every other route gets the plain policy.
  */
 function buildCsp(extra: { script?: string; frame?: string; connect?: string } = {}): string {
@@ -199,6 +199,18 @@ const nextConfig: NextConfig = {
         // rule wins. Each visit is drawn with its own signed form token, so the page must never be shared from a
         // cache; and it may load Cloudflare Turnstile (an optional check the operator switches on with two keys).
         source: "/r/:slug*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: buildCsp({ script: TURNSTILE_ORIGIN, frame: TURNSTILE_ORIGIN, connect: TURNSTILE_ORIGIN }),
+          },
+        ],
+      },
+      {
+        // Compliance requests, the parent forms (/c/<slug>): the same treatment as the registration pages. Each visit is drawn with its own signed form
+        // token and session, so the page must never be shared from a cache; and it may load Cloudflare Turnstile (optional, switched on per form).
+        source: "/c/:slug*",
         headers: [
           { key: "Cache-Control", value: "private, no-store" },
           {

@@ -7038,6 +7038,10 @@
       "menu_compliance": {
         "label": "컴플라이언스 요청",
         "description": "컴플라이언스 메뉴 항목을 보고 요청 목록을 엽니다. 이것만으로는 요청을 열 수 없습니다. 검토, 승인, 열람, 처리는 각각 별도의 권한이 있습니다. 운영자가 워크스페이스에 컴플라이언스 요청을 켠 경우에만 작동합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_raise": {
+        "label": "컴플라이언스 요청 등록",
+        "description": "받은 편지함 대화나 티켓에서 컴플라이언스 요청을 등록합니다. 컴플라이언스 메뉴가 필요하지 않으며, 등록한 사람은 자신이 등록한 요청의 참조 번호와 상태만 볼 수 있고 고객 정보는 볼 수 없습니다. 기본값: 소유자와 관리자."
       }
     },
     "group": {
@@ -13141,7 +13145,10 @@
       "audit_failed": "이 작업의 기록을 저장하지 못해 아무것도 표시하거나 변경하지 않았습니다. 다시 시도하세요.",
       "storage_failed": "파일을 저장하거나 읽지 못했습니다. 다시 시도하세요.",
       "server_error": "문제가 발생했습니다. 잠시 후 다시 시도하세요.",
-      "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요."
+      "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+      "customer_reason_required": "고객에게 알릴 거절 사유를 작성해 주세요.",
+      "category_required": "거절 사유 분류를 선택해 주세요.",
+      "duplicate_open": "이 고객에게는 같은 유형의 진행 중인 요청이 이미 있습니다."
     },
     "form": {
       "choose": "선택...",
@@ -13185,7 +13192,9 @@
         "staff": "직원",
         "inbox": "받은 편지함",
         "ticket": "티켓"
-      }
+      },
+      "emailVerified": "이메일을 코드로 확인함",
+      "language": "고객 언어"
     },
     "answers": {
       "title": "요청 내용",
@@ -13279,7 +13288,25 @@
       "approve": "승인",
       "reject": "거부",
       "sendBack": "담당자에게 되돌리기",
-      "notYet": "요청이 아직 컴플라이언스 책임자에게 넘어가지 않았습니다."
+      "notYet": "요청이 아직 컴플라이언스 책임자에게 넘어가지 않았습니다.",
+      "internalHint": "내부용: 이 요청에 접근할 수 있는 사람만 읽습니다. 고객에게는 알리지 않습니다.",
+      "rejectionTitle": "이 요청을 거절하는 경우",
+      "categoryLabel": "사유 분류(보고서용)",
+      "categoryChoose": "분류 선택",
+      "category": "사유 분류",
+      "categories": {
+        "identity_failed": "신원을 확인할 수 없음",
+        "incomplete_information": "정보나 서류가 부족함",
+        "dues_outstanding": "미결제 금액이 있음",
+        "not_eligible": "대상이 아님",
+        "duplicate": "중복된 요청",
+        "customer_withdrew": "고객이 요청을 철회함",
+        "other": "기타"
+      },
+      "customerReasonLabel": "고객에게 알릴 내용",
+      "customerReasonHint": "내부 메모와 별도입니다. 쉬운 말로 쓰고 은행 정보나 전화번호는 넣지 마세요. 거절하기 전에 미리 보기를 확인하세요.",
+      "customerReasonShown": "고객에게 알린 내용",
+      "rejectNeeds": "거절하려면 내부 메모를 쓰고, 분류를 선택하고, 고객에게 알릴 내용을 작성하세요."
     },
     "execution": {
       "title": "운영 체크리스트",
@@ -13363,7 +13390,10 @@
         "created_backdated": "요청을 만듦({source}), 요청일은 직접 설정",
         "assigned": "요청을 배정함",
         "unassigned": "담당자를 해제함",
-        "other": "요청을 업데이트함"
+        "other": "요청을 업데이트함",
+        "notice_sent": "이메일 발송: {notice}",
+        "notice_failed": "이메일 발송 실패: {notice}({reason})",
+        "notice_skipped": "이메일 건너뜀: {notice}({reason})"
       }
     },
     "blocked": {
@@ -13434,7 +13464,244 @@
       "keyWillBe": "식별 키는",
       "createType": "유형 만들기",
       "cancel": "취소",
-      "saved": "저장되었습니다."
+      "saved": "저장되었습니다.",
+      "publicForms": {
+        "title": "공개 양식",
+        "intro": "기존 Airtable 양식을 대신해, 보호자가 공유한 링크에서 작성하는 양식입니다. 보호자는 먼저 코드로 이메일을 확인합니다. 워크스페이스에서 컴플라이언스 요청이 켜져 있고 여기서 양식을 켠 경우에만 작동합니다.",
+        "loading": "불러오는 중...",
+        "types": {
+          "closure": "계정 해지 양식",
+          "withdrawal": "자금 인출 양식"
+        },
+        "isOn": "켜짐",
+        "isOff": "꺼짐",
+        "notReady": "이 요청 유형이 꺼져 있거나 양식에 필요한 항목이 없습니다(최신 데이터베이스 업데이트를 적용하세요). 아직 양식을 켤 수 없습니다.",
+        "enable": "이 양식으로 요청 받기",
+        "enableHint": "꺼져 있으면 링크를 여는 사람에게 “이 양식은 현재 이용할 수 없습니다”가 표시됩니다.",
+        "address": "공유할 주소",
+        "copy": "복사",
+        "copied": "복사됨",
+        "open": "열기",
+        "newAddress": "새 주소",
+        "newAddressHint": "새 주소를 만들면 이전 주소는 즉시 작동하지 않습니다. 주소는 무작위라 추측할 수 없습니다.",
+        "noAddress": "처음 저장할 때 주소가 만들어집니다.",
+        "notice": "양식 위에 표시할 추가 안내",
+        "noticeHint": "선택 사항입니다. 보호자가 선택한 언어로 표시되며, 비워 둔 언어는 영어 안내가 표시됩니다.",
+        "languages": {
+          "en": "영어",
+          "ms": "말레이어",
+          "zh": "중국어",
+          "ko": "한국어"
+        },
+        "turnstile": "Cloudflare Turnstile 확인 요구",
+        "turnstileHint": "보호자가 이메일 코드를 요청할 때 확인합니다.",
+        "turnstileMissing": "사용할 수 없음: 운영자가 이 서버에 Turnstile 키를 설정하지 않았습니다.",
+        "maxAmount": "접수 가능한 최대 금액(RM)",
+        "maxAmountHint": "보호자는 이 양식으로 RM {amount}를 넘는 금액을 요청할 수 없습니다.",
+        "maxAmountInvalid": "0보다 크고 소수점 둘째 자리까지인 금액을 입력하세요.",
+        "banks": "목록에 표시할 은행",
+        "banksPlaceholder": "한 줄에 은행 하나",
+        "banksHint": "비워 두면 내장된 말레이시아 은행 목록을 사용합니다. 양식에는 항상 “기타 은행”도 함께 표시됩니다.",
+        "saved": "저장되었습니다."
+      }
+    },
+    "reportsLink": "보고서",
+    "badge": {
+      "waiting": "{count, plural, other {처리를 기다리는 요청 #건}}"
+    },
+    "notices": {
+      "title": "고객에게 보낸 이메일",
+      "askMore": "추가 정보 요청",
+      "askMoreLabel": "고객에게 무엇이 필요하신가요?",
+      "askMoreHint": "쉬운 말로 쓰세요. 은행 계좌 번호나 전화번호는 쓸 수 없으며 거부됩니다. 고객은 이메일로 답장합니다.",
+      "language": "이메일 언어",
+      "languageCase": "고객 언어({language})",
+      "preview": "이메일 미리 보기",
+      "previewTitle": "고객이 받게 될 내용",
+      "previewFirst": "보내기 전에 이메일을 미리 확인하세요.",
+      "send": "이메일 보내기",
+      "cancel": "취소",
+      "none": "이 요청에 대해 보낸 이메일이 없습니다.",
+      "noAddress": "이 요청에는 이메일 주소가 없어 이메일을 보낼 수 없습니다.",
+      "sendAgain": "다시 보내기",
+      "system": "시스템",
+      "notifyReceived": "고객에게 접수 확인 이메일 보내기",
+      "notifyApprove": "승인되었음을 고객에게 알림(선택해야만 발송)",
+      "notifyReject": "위의 내용으로 고객에게 알림",
+      "notifyComplete": "완료되었음을 고객에게 알림",
+      "toast": {
+        "sent": "고객에게 이메일을 보냈습니다.",
+        "failed": "요청은 처리되었지만 이메일이 발송되지 않았습니다({reason}). 요청 화면에서 다시 보낼 수 있습니다.",
+        "skipped": "요청은 처리되었습니다. 이메일 주소가 없어 이메일은 보내지 않았습니다."
+      },
+      "kinds": {
+        "received": "접수 확인",
+        "more_info": "추가 정보 필요",
+        "approved": "승인됨",
+        "rejected": "승인되지 않음",
+        "completed": "완료",
+        "signoff_waiting": "최종 승인 대기(직원)",
+        "clock_alert": "기한 알림(직원)"
+      },
+      "status": {
+        "claimed": "발송 중",
+        "sent": "발송됨",
+        "failed": "발송 실패",
+        "skipped": "건너뜀"
+      },
+      "reasons": {
+        "not_set_up": "이메일 발송 방법이 설정되어 있지 않음",
+        "mailbox_reconnect": "연결된 메일함을 다시 연결해야 함",
+        "mailbox_paused": "연결된 메일함이 꺼져 있음",
+        "daily_limit": "메일함의 일일 발송 한도를 모두 사용함",
+        "rate_limited": "메일 서비스가 발송 속도를 늦추라고 요청함",
+        "address_rejected": "주소가 거부됨",
+        "attachment_too_large": "메시지가 너무 큼",
+        "service_unavailable": "메일 서비스에 연결할 수 없음",
+        "send_failed": "전달할 수 없음",
+        "no_address": "요청에 이메일 주소가 없음",
+        "no_recipients": "받을 사람이 없음",
+        "not_found": "요청을 찾을 수 없음",
+        "not_waiting": "요청이 대기 상태가 아님"
+      }
+    },
+    "raise": {
+      "button": "컴플라이언스 요청 등록",
+      "title": "컴플라이언스 요청 등록",
+      "intro": "고객이 계정 해지, 자금 인출, 등록된 전화번호 변경을 요청했을 때 사용하세요. 컴플라이언스 팀이 신원을 확인하고 이후를 처리합니다.",
+      "loading": "불러오는 중...",
+      "noTypes": "등록할 수 있는 요청 유형이 없습니다.",
+      "type": "요청 유형",
+      "openExists": "이 고객에게는 같은 유형의 진행 중인 요청이 이미 있습니다.",
+      "openExistsRef": "{reference}입니다.",
+      "customer": "고객",
+      "name": "이름",
+      "phone": "전화번호",
+      "email": "이메일 주소",
+      "channel": "요청이 접수된 경로",
+      "channelPlaceholder": "WhatsApp, 전화, 이메일...",
+      "details": "세부 정보",
+      "tickHelp": "고객이 직접 확인해 준 항목만 체크하세요.",
+      "when": "고객이 요청한 시각",
+      "whenNow": "지금",
+      "whenEarlier": "더 이른 시각",
+      "whenAt": "날짜 및 시간",
+      "whenReason": "왜 더 이른 시각인가요?",
+      "whenReasonHelp": "요청의 기한은 이 시각부터 계산되므로 사유가 요청에 기록됩니다.",
+      "note": "컴플라이언스 팀에 남길 메모(선택)",
+      "notify": "고객에게 접수 확인 이메일 보내기",
+      "notifyNoEmail": "확인 이메일을 보내려면 이메일 주소를 입력하세요.",
+      "submit": "요청 등록",
+      "submitting": "등록 중...",
+      "cancel": "취소",
+      "followHint": "이후 여기에서 진행 상태를 확인할 수 있습니다.",
+      "done": {
+        "title": "{reference} 등록됨",
+        "body": "컴플라이언스 팀이 이후를 처리합니다. 진행 상태는 이 대화나 티켓에 표시됩니다.",
+        "open": "요청 열기",
+        "close": "닫기"
+      },
+      "mine": {
+        "title": "내가 등록한 요청",
+        "empty": "등록한 요청이 없습니다."
+      },
+      "chip": {
+        "title": "컴플라이언스 요청 {reference}: {status}"
+      },
+      "status": {
+        "received": "접수됨",
+        "in_review": "검토 중",
+        "in_progress": "처리 중",
+        "done": "완료",
+        "not_approved": "승인되지 않음",
+        "closed": "종료됨"
+      }
+    },
+    "reports": {
+      "back": "요청 목록으로",
+      "title": "컴플라이언스 보고서",
+      "intro": "선택한 기간에 접수된 요청입니다. 숫자만 표시되며 이름, 전화번호, 은행 정보는 없습니다.",
+      "filters": "보고서 기간과 유형",
+      "period": "기간",
+      "presets": {
+        "last30": "최근 30일",
+        "last90": "최근 90일",
+        "thisYear": "올해",
+        "all": "전체 기간",
+        "custom": "날짜 선택"
+      },
+      "from": "시작",
+      "to": "종료",
+      "type": "유형",
+      "allTypes": "모든 유형",
+      "exportCsv": "CSV 내보내기",
+      "exportNote": "CSV에는 최대 5,000건의 요청이 포함됩니다: 참조 번호, 유형, 경로, 상태, 날짜, 일수, 결과. 내보낼 때마다 내보낸 사람과 필터가 기록됩니다. 요청은 7년간 보관됩니다.",
+      "badRange": "시작일은 종료일보다 늦을 수 없습니다.",
+      "loading": "불러오는 중...",
+      "truncated": "이 기간에는 요청이 {count}건을 넘어, 수치는 최신 {count}건 기준입니다. 더 짧은 기간을 선택하세요.",
+      "total": "요청",
+      "open": "진행 중",
+      "finished": "종료",
+      "none": "이 기간에 표시할 내용이 없습니다.",
+      "count": "건수",
+      "share": "비율",
+      "formerMember": "이전 구성원",
+      "retention": "요청과 그 기록은 7년간 보관되며 Halo가 삭제하지 않습니다.",
+      "byType": {
+        "title": "유형 및 상태별 요청",
+        "type": "유형",
+        "total": "합계"
+      },
+      "clock": {
+        "title": "목표 및 기한 대비",
+        "note": "기한이 있는 요청(계정 해지) 기준: 실무 목표 이내 완료, 목표를 넘겼지만 최종 기한 이내 완료, 최종 기한 이후 완료, 최종 기한이 지났는데 아직 진행 중.",
+        "none": "이 기간에 보고할 기한 있는 요청이 없습니다.",
+        "row": "결과",
+        "withinTarget": "목표 이내 완료",
+        "afterTarget": "목표 이후, 최종 기한 이내 완료",
+        "afterStop": "최종 기한 이후 완료",
+        "openPastStop": "최종 기한이 지났는데 진행 중"
+      },
+      "timing": {
+        "title": "결정 및 완료까지 걸린 일수",
+        "note": "요청한 날부터 계산합니다.",
+        "row": "항목",
+        "toDecision": "요청부터 결정까지",
+        "toCompletion": "요청부터 완료까지",
+        "average": "평균(일)",
+        "median": "중앙값(일)"
+      },
+      "signoffs": {
+        "title": "담당자별 최종 승인",
+        "person": "담당자",
+        "approved": "승인",
+        "rejected": "거절"
+      },
+      "rejections": {
+        "title": "사유별 거절",
+        "category": "사유",
+        "categories": {
+          "identity_failed": "신원을 확인할 수 없음",
+          "incomplete_information": "정보나 서류가 부족함",
+          "dues_outstanding": "미결제 금액이 있음",
+          "not_eligible": "대상이 아님",
+          "duplicate": "중복된 요청",
+          "customer_withdrew": "고객이 요청을 철회함",
+          "other": "기타",
+          "uncategorised": "분류가 기록되지 않음"
+        }
+      },
+      "ageing": {
+        "title": "진행 중인 요청의 경과 기간",
+        "note": "요청한 날부터 지난 일수입니다. 완료되었거나 종료된 요청은 포함하지 않습니다.",
+        "age": "경과 기간",
+        "buckets": {
+          "d0_7": "0~7일",
+          "d8_14": "8~14일",
+          "d15_30": "15~30일",
+          "d31_plus": "30일 초과"
+        }
+      }
     }
   }
 }

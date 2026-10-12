@@ -5,11 +5,13 @@
 // GET: the list, newest first, with the header counts of the workspace's open cases and the filters' choices. It carries no answers and no
 // sensitive value. POST: a member of staff raises a case (for a request that came in a chat): the body is the type's key, the customer's name, email,
 // phone, the channel, the request date (optional; audited as back-dated in the created event), the answers of the type's form, and optional links
-// (contactId, conversationId, ticketId, incidentId, kycValidationRef). The sensitive answers are encrypted before they are stored.
+// (contactId, conversationId, ticketId, incidentId, kycValidationRef) and `notify` (migration 184: email the customer the confirmation; default yes when
+// an email address is given; the answer's `notice` says what happened). The sensitive answers are encrypted before they are stored.
 // menu.compliance alone opens neither: a work capability (review, approve, execute or reveal) is needed as well.
 // ============================================================
 import { complianceStaff, failure, json, readJsonBody } from "@/lib/compliance/http";
 import { READ_CAPABILITIES } from "@/lib/compliance/routes-support";
+import { sendCustomerNotice, realNoticeDeps } from "@/lib/compliance/service/notices";
 import { listRequests, parseListFilters } from "@/lib/compliance/service/read";
 import { createComplianceRequest } from "@/lib/compliance/service/write";
 
@@ -46,6 +48,11 @@ export async function POST(request: Request) {
       incidentId: str("incidentId"),
       kycValidationRef: str("kycValidationRef"),
     });
-    return json(created, 201);
+    // "Notify the customer" (migration 184): the confirmation email, on by default when there is an address. Never blocks the case.
+    let notice;
+    if (b.notify !== false && (str("customerEmail") ?? "").trim() !== "") {
+      notice = await sendCustomerNotice(admin, realNoticeDeps, { accountId: caller.accountId, requestId: created.id, kind: "received", actor: caller.userId }).catch(() => undefined);
+    }
+    return json({ ...created, ...(notice ? { notice } : {}) }, 201);
   });
 }

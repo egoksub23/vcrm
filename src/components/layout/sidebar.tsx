@@ -13,6 +13,8 @@ import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { useMyTicketMentions } from "@/hooks/use-my-ticket-mentions";
 import { TicketsWaitingBadge } from "@/components/tickets/tickets-waiting-badge";
 import { AwaitingBadge } from "@/components/sign/awaiting-badge";
+import { ComplianceWaitingBadge } from "@/components/compliance/waiting-badge";
+import { useComplianceWaiting } from "@/hooks/use-compliance-waiting";
 import { useAwaitingSignature } from "@/hooks/use-sign-shortcuts";
 import { badgeLabel } from "@/lib/approvals/rules";
 import {
@@ -140,6 +142,8 @@ export function Sidebar({
   const { count: ticketsWaiting } = useMyTicketMentions(!capabilitiesLoading && hasCap("menu.tickets"));
   // Doc Sign documents whose turn it is for this person, who is a Halo user named on them (sign.sign). Nothing is fetched for a role without it.
   const { count: signAwaiting } = useAwaitingSignature(!capabilitiesLoading && hasCap("menu.sign") && hasCap("sign.sign"));
+  // Compliance requests waiting for this person (migration 184): to sign off (compliance.approve) or to check and review (compliance.review). Nothing is fetched for anyone else.
+  const { count: complianceWaiting } = useComplianceWaiting(!capabilitiesLoading && hasCap("menu.compliance") && (hasCap("compliance.review") || hasCap("compliance.approve")));
 
   // Only matters at lg+ — mobile always shows the full drawer regardless
   // of `pinned`. Tracked via matchMedia rather than a CSS-only approach
@@ -400,6 +404,7 @@ export function Sidebar({
                       <span className="flex-1">{t(item.labelKey as string)}</span>
                     )}
                     {item.href === "/sign" && signAwaiting > 0 && <AwaitingBadge count={signAwaiting} />}
+                    {item.href === "/compliance" && complianceWaiting > 0 && <ComplianceWaitingBadge count={complianceWaiting} />}
                     {item.href === "/settings" && pendingApprovals > 0 && (
                       <span
                         aria-label={t("pendingApprovals", { count: pendingApprovals })}

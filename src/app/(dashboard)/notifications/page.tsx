@@ -43,6 +43,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   sign_your_turn: FileSignature,
   sign_bulk_done: FileSignature,
   compliance_clock: ClipboardCheck,
+  compliance_signoff: ClipboardCheck,
 };
 
 export default function NotificationsPage() {
@@ -150,7 +151,7 @@ export default function NotificationsPage() {
       } else if (n.type === "sign_bulk_done") {
         // a batch has no document: its screen lists the batches
         router.push("/sign/bulk");
-      } else if (n.type === "compliance_clock") {
+      } else if (n.type === "compliance_clock" || n.type === "compliance_signoff") {
         // a clock alert opens the request it is about (the list when the request is gone)
         router.push(n.compliance_request_id ? `/compliance/${n.compliance_request_id}` : "/compliance");
       } else if (n.ticket_id) {

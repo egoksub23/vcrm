@@ -1,6 +1,9 @@
 // ============================================================
 // Compliance requests: the HTTP edge. What every /api/compliance route does the same way, so each route file is only what is particular to it.
 //
+//   complianceRaiser  requireCapability('compliance.raise') (Part B, migration 184): for the Inbox and ticket buttons. It does NOT need menu.compliance;
+//                     the caller's own session is passed on (what they may open is decided by row level security) and whether they hold a compliance
+//                     permission, which decides whether they may be told a reference that exists
 //   complianceStaff   requireCapability('menu.compliance') (the operator's `compliance` flag removes the capability, so a workspace with the flag off
 //                     gets a 403 here), then the capability this route needs, a rate limit per person, and the service-role client scoped to the
 //                     caller's workspace with the caller's permissions as a `Viewer`
@@ -18,6 +21,7 @@ import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 import { ComplianceError, STATUS_OF } from "./errors";
+import type { RaiseCaller } from "./service/raise";
 import type { ComplianceCaller } from "./service/rows";
 import type { ErrorCode } from "./types";
 
@@ -105,3 +109,23 @@ export async function readJsonBody<T = Record<string, unknown>>(request: Request
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ---- raising from the Inbox and from tickets (migration 184) ----------------------------------------------------------------------------
+
+export interface RaiserCall {
+  admin: SupabaseClient;
+  caller: RaiseCaller;
+}
+
+export async function complianceRaiser(opts: { bucket: string; perMinute?: number }, handler: (call: RaiserCall) => Promise<Response>): Promise<Response> {
+  try {
+    const auth = await requireCapability("compliance.raise");
+    const rate = checkRateLimit(`compliance:${auth.userId}:${opts.bucket}`, { limit: opts.perMinute ?? 60, windowMs: 60_000 });
+    if (!rate.success) return rateLimited(rate.reset);
+    const caps = auth.capabilities;
+    const sees = caps.has("menu.compliance") || ["compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage"].some((c) => caps.has(c));
+    return await handler({ admin: supabaseAdmin(), caller: { accountId: auth.accountId, userId: auth.userId, userDb: auth.supabase, sees } });
+  } catch (err) {
+    return answer(err);
+  }
+}

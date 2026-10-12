@@ -82,6 +82,8 @@ export class FakeDb {
   failNext: Record<string, string> = {};
   /** What the database fills in for a table's new row (its column defaults and triggers): merged under what the insert gives. */
   insertDefaults: Record<string, (given: Row) => Row> = {};
+  /** Unique constraints by table (each a list of columns): an insert that repeats one fails with Postgres' 23505, as the real database would. */
+  uniques: Record<string, string[][]> = {};
 
   seed(table: string, rows: Row[]): this {
     this.tables[table] = [...(this.tables[table] ?? []), ...rows.map((r) => ({ ...(COLUMN_DEFAULTS[table] ?? {}), ...r }))];
@@ -283,6 +285,10 @@ class Query implements PromiseLike<Result> {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
       for (const p of list) {
         const row: Row = { id: randomUUID(), created_at: now, updated_at: now, ...(COLUMN_DEFAULTS[this.table] ?? {}), ...(this.db.insertDefaults[this.table]?.(p) ?? {}), ...p };
+        if (this.op === "insert") {
+          const clash = (this.db.uniques[this.table] ?? []).find((cols) => rows.some((r) => cols.every((c) => r[c] === row[c])));
+          if (clash) return { data: null, error: { message: `duplicate key value violates unique constraint (${clash.join(", ")})`, code: "23505" } as unknown as { message: string } };
+        }
         if (this.op === "upsert") {
           const existing = rows.find((r) => this.conflict.every((c) => r[c] === row[c]));
           if (existing && this.ignoreDuplicates) continue;

@@ -1,13 +1,16 @@
 // ============================================================
 // POST /api/compliance/requests/[id]/transition   (menu.compliance and the capability the move needs)
 //
-// Body: { to, note?, identity?: { method, methodOther?, outcome }, recommendation?, overrideReason? }.
+// Body: { to, note?, identity?: { method, methodOther?, outcome }, recommendation?, overrideReason?, reasonCategory?, customerReason?, notify? }.
 //   to officer_review (from received / identity_check)   record the identity check          compliance.review (or approve)
 //   to identity_check / awaiting_signoff / closed         start, hand over with a recommendation, close without a decision   compliance.review (or approve)
-//   to approved / rejected                                sign-off (reject needs a reason in note)   compliance.approve, and not the person who did the identity check
+//   to approved / rejected                                sign-off (reject needs a reason in note, a reasonCategory and a customerReason: the words the
+//                                                         customer is told)   compliance.approve, and not the person who did the identity check
 //   to officer_review (from awaiting_signoff)             send back (note required)         compliance.approve
 //   to executing / completed                              operations                        compliance.execute (completed needs every step ticked)
 //   to closed (from rejected / completed)                 customer told                     compliance.review (or approve)
+// `notify` (migration 184) tells the customer by email: rejecting and completing default to yes, approving to no. The answer carries what happened to
+// that email in `notice`; a failure to send never stops the move.
 // The permission is checked here for an early answer and again in the database function (compliance_transition) for the named person, which also
 // holds the transition table, the maker-checker rule and the row lock.
 // ============================================================
@@ -29,6 +32,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       identity: identity ? { method: String(identity.method ?? ""), methodOther: typeof identity.methodOther === "string" ? identity.methodOther : null, outcome: String(identity.outcome ?? "") } : null,
       recommendation: typeof b.recommendation === "string" ? b.recommendation : null,
       overrideReason: typeof b.overrideReason === "string" ? b.overrideReason : null,
+      reasonCategory: typeof b.reasonCategory === "string" ? b.reasonCategory : null,
+      customerReason: typeof b.customerReason === "string" ? b.customerReason : null,
+      ...(typeof b.notify === "boolean" ? { notify: b.notify } : {}),
     });
     return json(result);
   });

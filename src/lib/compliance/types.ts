@@ -41,6 +41,8 @@ export const EVENT_KINDS = [
   "standing",
   "assigned",
   "clock_alert",
+  // Migration 184: an email about the case (sent, failed, or not sent with the reason), customer or staff
+  "notice",
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
@@ -120,7 +122,17 @@ export interface SignoffRecord {
   at?: string | null;
   reason?: string | null;
   overrideReason?: string | null;
+  /** Migration 184: a rejection's category (for the reports) and the words the customer is told (separate from the internal note). */
+  reasonCategory?: RejectionCategory | null;
+  customerReason?: string | null;
 }
+
+/** What the reports group the rejections by (migration 184 validates the same list). */
+export const REJECTION_CATEGORIES = ["identity_failed", "incomplete_information", "dues_outstanding", "not_eligible", "duplicate", "customer_withdrew", "other"] as const;
+export type RejectionCategory = (typeof REJECTION_CATEGORIES)[number];
+
+export const LOCALES = ["en", "ms", "zh", "ko"] as const;
+export type CustomerLocale = (typeof LOCALES)[number];
 
 export interface StandingRecord {
   /** null/absent: not recorded yet. */
@@ -174,6 +186,21 @@ export interface RequestLinks {
   kycValidationRef: string | null;
 }
 
+/** One email about a case, as the screens show it (never the address or the text of a customer email's bank details: it has none). */
+export interface NoticeSummary {
+  kind: NoticeKind;
+  audience: "customer" | "staff";
+  status: "claimed" | "sent" | "failed" | "skipped";
+  /** A named reason when it did not go. */
+  detail: string | null;
+  language: CustomerLocale | null;
+  claimedAt: string;
+  by: PersonRef | null;
+}
+
+export const NOTICE_KINDS = ["received", "more_info", "approved", "rejected", "completed", "signoff_waiting", "clock_alert"] as const;
+export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
 /** The row of the list. */
 export interface RequestSummary {
   id: string;
@@ -219,6 +246,12 @@ export interface SensitiveField {
 
 export interface RequestDetail extends RequestSummary {
   channel: string | null;
+  /** Migration 184. The language the customer's emails go out in. */
+  customerLocale: CustomerLocale | null;
+  /** Migration 184. When the customer proved the email address with the emailed code (the public form); null for a case staff made. */
+  emailVerifiedAt: string | null;
+  /** The emails the workspace sent about this case (the latest of each), for the "Notify the customer" panel. */
+  notices: NoticeSummary[];
   type: RequestTypeRow | null;
   data: Record<string, unknown>;
   sensitive: SensitiveField[];
@@ -291,6 +324,9 @@ export const ERROR_CODES = [
   "encryption_unavailable",
   "audit_failed",
   "storage_failed",
+  "customer_reason_required",
+  "category_required",
+  "duplicate_open",
   "server_error",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

@@ -7038,6 +7038,10 @@
       "menu_compliance": {
         "label": "Compliance requests",
         "description": "See the Compliance menu item and open the list of requests. It does not open a request by itself: reviewing, signing off, revealing and executing each have their own permission. Works only while the operator has Compliance requests switched on for the workspace. Default: Owner and Admin."
+      },
+      "compliance_raise": {
+        "label": "Raise compliance requests",
+        "description": "Raise a compliance request from an Inbox conversation or a ticket. Does not need the Compliance menu: the person sees only the reference and the status of what they raised, never the customer's details. Default: Owner and Admin."
       }
     },
     "group": {
@@ -13141,7 +13145,10 @@
       "audit_failed": "The record of this action could not be saved, so nothing was shown or changed. Try again.",
       "storage_failed": "The file could not be stored or read. Try again.",
       "server_error": "Something went wrong. Try again in a moment.",
-      "network": "Could not reach the server. Check your connection and try again."
+      "network": "Could not reach the server. Check your connection and try again.",
+      "customer_reason_required": "Write what the customer is told about the rejection.",
+      "category_required": "Choose a reason category for the rejection.",
+      "duplicate_open": "This customer already has an open request of this type."
     },
     "form": {
       "choose": "Choose...",
@@ -13185,7 +13192,9 @@
         "staff": "A member of staff",
         "inbox": "The Inbox",
         "ticket": "A ticket"
-      }
+      },
+      "emailVerified": "Email confirmed by code",
+      "language": "Customer's language"
     },
     "answers": {
       "title": "Request details",
@@ -13279,7 +13288,25 @@
       "approve": "Approve",
       "reject": "Reject",
       "sendBack": "Send back to the officer",
-      "notYet": "The request is not with the Head of Compliance yet."
+      "notYet": "The request is not with the Head of Compliance yet.",
+      "internalHint": "Internal: only people with access to this request read it. The customer is not told this.",
+      "rejectionTitle": "If you reject this request",
+      "categoryLabel": "Reason category (for the reports)",
+      "categoryChoose": "Choose a category",
+      "category": "Reason category",
+      "categories": {
+        "identity_failed": "Identity could not be confirmed",
+        "incomplete_information": "Information or documents missing",
+        "dues_outstanding": "Outstanding dues",
+        "not_eligible": "Not eligible",
+        "duplicate": "Duplicate request",
+        "customer_withdrew": "Customer withdrew the request",
+        "other": "Other"
+      },
+      "customerReasonLabel": "What the customer is told",
+      "customerReasonHint": "Separate from the internal note. Plain words, no bank details and no phone numbers. Check the preview before you reject.",
+      "customerReasonShown": "Told to the customer",
+      "rejectNeeds": "To reject: write the internal note, choose a category and write what the customer is told."
     },
     "execution": {
       "title": "Operations checklist",
@@ -13363,7 +13390,10 @@
         "created_backdated": "Created the request ({source}) with a request date set by hand",
         "assigned": "Assigned the request",
         "unassigned": "Removed the assignee",
-        "other": "Updated the request"
+        "other": "Updated the request",
+        "notice_sent": "Email sent: {notice}",
+        "notice_failed": "Email not sent: {notice} ({reason})",
+        "notice_skipped": "Email skipped: {notice} ({reason})"
       }
     },
     "blocked": {
@@ -13434,7 +13464,244 @@
       "keyWillBe": "Its key will be",
       "createType": "Create type",
       "cancel": "Cancel",
-      "saved": "Saved."
+      "saved": "Saved.",
+      "publicForms": {
+        "title": "Public forms",
+        "intro": "The forms parents fill in at a link you share, instead of the old Airtable form. A parent confirms their email with a code first. A form works only while Compliance requests is on for your workspace and the form is switched on here.",
+        "loading": "Loading...",
+        "types": {
+          "closure": "Account closure form",
+          "withdrawal": "Fund withdrawal form"
+        },
+        "isOn": "On",
+        "isOff": "Off",
+        "notReady": "This request type is switched off or is missing fields the form needs (apply the latest database update). The form cannot be switched on yet.",
+        "enable": "Accept requests through this form",
+        "enableHint": "When it is off, anyone who opens the link sees \"This form is not available\".",
+        "address": "Address to share",
+        "copy": "Copy",
+        "copied": "Copied",
+        "open": "Open",
+        "newAddress": "New address",
+        "newAddressHint": "A new address stops the old one working at once. The address is random so it cannot be guessed.",
+        "noAddress": "The address is made when you save for the first time.",
+        "notice": "Extra notice above the form",
+        "noticeHint": "Optional. Shown in the language the parent has chosen; a language left empty shows the English text.",
+        "languages": {
+          "en": "English",
+          "ms": "Bahasa Melayu",
+          "zh": "Chinese",
+          "ko": "Korean"
+        },
+        "turnstile": "Ask for the Cloudflare Turnstile check",
+        "turnstileHint": "Checked when a parent asks for an email code.",
+        "turnstileMissing": "Not available: the operator has not set the Turnstile keys for this server.",
+        "maxAmount": "Largest amount accepted (RM)",
+        "maxAmountHint": "A parent cannot ask for more than RM {amount} through this form.",
+        "maxAmountInvalid": "Enter an amount above zero with at most two decimals.",
+        "banks": "Banks in the list",
+        "banksPlaceholder": "One bank per line",
+        "banksHint": "Leave empty to use the built-in list of Malaysian banks. The form always offers \"Other bank\" as well.",
+        "saved": "Saved."
+      }
+    },
+    "reportsLink": "Reports",
+    "badge": {
+      "waiting": "{count, plural, one {# request is waiting for you} other {# requests are waiting for you}}"
+    },
+    "notices": {
+      "title": "Emails to the customer",
+      "askMore": "Ask for more information",
+      "askMoreLabel": "What do you need from the customer?",
+      "askMoreHint": "Plain words. Do not write bank account numbers or phone numbers: they are refused. The customer replies by email.",
+      "language": "Language of the email",
+      "languageCase": "The customer's language ({language})",
+      "preview": "Preview the email",
+      "previewTitle": "What the customer will receive",
+      "previewFirst": "Preview the email before you send it.",
+      "send": "Send email",
+      "cancel": "Cancel",
+      "none": "No email has been sent about this request.",
+      "noAddress": "There is no email address on this request, so nothing can be emailed.",
+      "sendAgain": "Send again",
+      "system": "The system",
+      "notifyReceived": "Email the customer a confirmation",
+      "notifyApprove": "Tell the customer it is approved (off unless you tick it)",
+      "notifyReject": "Tell the customer, using the words above",
+      "notifyComplete": "Tell the customer it is complete",
+      "toast": {
+        "sent": "Email sent to the customer.",
+        "failed": "The request moved, but the email was not sent ({reason}). You can send it again from the request.",
+        "skipped": "The request moved. No email was sent because there is no address on it."
+      },
+      "kinds": {
+        "received": "Confirmation",
+        "more_info": "More information needed",
+        "approved": "Approved",
+        "rejected": "Not approved",
+        "completed": "Completed",
+        "signoff_waiting": "Waiting for sign-off (staff)",
+        "clock_alert": "Deadline alert (staff)"
+      },
+      "status": {
+        "claimed": "Sending",
+        "sent": "Sent",
+        "failed": "Not sent",
+        "skipped": "Skipped"
+      },
+      "reasons": {
+        "not_set_up": "no way to send email is set up",
+        "mailbox_reconnect": "the connected mailbox needs to be reconnected",
+        "mailbox_paused": "the connected mailbox is switched off",
+        "daily_limit": "the mailbox's daily sending limit is used up",
+        "rate_limited": "the mail service asked us to slow down",
+        "address_rejected": "the address was refused",
+        "attachment_too_large": "the message was too large",
+        "service_unavailable": "the mail service could not be reached",
+        "send_failed": "it could not be delivered",
+        "no_address": "no email address on the request",
+        "no_recipients": "nobody to send it to",
+        "not_found": "the request was not found",
+        "not_waiting": "the request was not waiting"
+      }
+    },
+    "raise": {
+      "button": "Raise compliance request",
+      "title": "Raise a compliance request",
+      "intro": "Use this when the customer has asked to close their account, withdraw funds or change their registered phone number. The compliance team checks their identity and takes it from here.",
+      "loading": "Loading...",
+      "noTypes": "There is no request type to raise.",
+      "type": "Request type",
+      "openExists": "This customer already has an open request of this type.",
+      "openExistsRef": "It is {reference}.",
+      "customer": "Customer",
+      "name": "Name",
+      "phone": "Phone number",
+      "email": "Email address",
+      "channel": "How the request arrived",
+      "channelPlaceholder": "WhatsApp, phone call, email...",
+      "details": "Details",
+      "tickHelp": "Tick a box only if the customer has confirmed it to you.",
+      "when": "When the customer asked",
+      "whenNow": "Now",
+      "whenEarlier": "Earlier",
+      "whenAt": "Date and time",
+      "whenReason": "Why is it earlier?",
+      "whenReasonHelp": "The request's clock starts at this time, so the reason is written on the request.",
+      "note": "Note for the compliance team (optional)",
+      "notify": "Email the customer a confirmation",
+      "notifyNoEmail": "Add an email address to send a confirmation.",
+      "submit": "Raise request",
+      "submitting": "Raising...",
+      "cancel": "Cancel",
+      "followHint": "You can follow its status here afterwards.",
+      "done": {
+        "title": "Raised {reference}",
+        "body": "The compliance team will take it from here. Its status shows on this conversation or ticket.",
+        "open": "Open the request",
+        "close": "Close"
+      },
+      "mine": {
+        "title": "My raised requests",
+        "empty": "You have not raised any requests."
+      },
+      "chip": {
+        "title": "Compliance request {reference}: {status}"
+      },
+      "status": {
+        "received": "Received",
+        "in_review": "In review",
+        "in_progress": "In progress",
+        "done": "Done",
+        "not_approved": "Not approved",
+        "closed": "Closed"
+      }
+    },
+    "reports": {
+      "back": "Back to requests",
+      "title": "Compliance reports",
+      "intro": "The requests made in the period you choose. The figures are numbers only: no names, phone numbers or bank details.",
+      "filters": "Report period and type",
+      "period": "Period",
+      "presets": {
+        "last30": "Last 30 days",
+        "last90": "Last 90 days",
+        "thisYear": "This year",
+        "all": "All time",
+        "custom": "Choose dates"
+      },
+      "from": "From",
+      "to": "To",
+      "type": "Type",
+      "allTypes": "All types",
+      "exportCsv": "Export CSV",
+      "exportNote": "The CSV has up to 5,000 requests: reference, type, source, status, dates, days and outcome. Every export is recorded with who made it and the filters. Requests are kept for seven years.",
+      "badRange": "The first day cannot be after the last day.",
+      "loading": "Loading...",
+      "truncated": "This period has more than {count} requests, so the figures are about the newest {count}. Choose a shorter period.",
+      "total": "Requests",
+      "open": "Still open",
+      "finished": "Finished",
+      "none": "Nothing to show for this period.",
+      "count": "Number",
+      "share": "Share",
+      "formerMember": "Former member",
+      "retention": "Requests and their trail are kept for seven years and are never deleted by Halo.",
+      "byType": {
+        "title": "Requests by type and status",
+        "type": "Type",
+        "total": "Total"
+      },
+      "clock": {
+        "title": "Against the target and the deadline",
+        "note": "For the requests that have a clock (account closures): completed within the practice target, completed after it but within the hard stop, completed after the hard stop, and still open past the hard stop.",
+        "none": "No request with a clock to report on in this period.",
+        "row": "Outcome",
+        "withinTarget": "Completed within the target",
+        "afterTarget": "Completed after the target, within the hard stop",
+        "afterStop": "Completed after the hard stop",
+        "openPastStop": "Still open past the hard stop"
+      },
+      "timing": {
+        "title": "Days to a decision and to completion",
+        "note": "Counted from the day the request was made.",
+        "row": "Measure",
+        "toDecision": "Request to decision",
+        "toCompletion": "Request to completion",
+        "average": "Average (days)",
+        "median": "Median (days)"
+      },
+      "signoffs": {
+        "title": "Sign-offs by person",
+        "person": "Person",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "rejections": {
+        "title": "Rejections by reason",
+        "category": "Reason",
+        "categories": {
+          "identity_failed": "Identity could not be confirmed",
+          "incomplete_information": "Information or documents missing",
+          "dues_outstanding": "Outstanding dues",
+          "not_eligible": "Not eligible",
+          "duplicate": "Duplicate request",
+          "customer_withdrew": "Customer withdrew the request",
+          "other": "Other",
+          "uncategorised": "No category recorded"
+        }
+      },
+      "ageing": {
+        "title": "Age of the open requests",
+        "note": "Days since the request was made. Requests that are completed or closed are not counted.",
+        "age": "Age",
+        "buckets": {
+          "d0_7": "0 to 7 days",
+          "d8_14": "8 to 14 days",
+          "d15_30": "15 to 30 days",
+          "d31_plus": "More than 30 days"
+        }
+      }
     }
   }
 }

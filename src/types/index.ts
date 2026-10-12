@@ -400,7 +400,9 @@ export type NotificationType =
   /** Migration 173: a bulk batch the recipient started has finished (or was stopped by the system). Carries no document. */
   | 'sign_bulk_done'
   /** Migration 183: a Compliance request is 10 or 5 days from its regulatory hard stop, or has reached it. Carries `compliance_request_id`. */
-  | 'compliance_clock';
+  | 'compliance_clock'
+  /** Migration 184: a Compliance request reached the Head of Compliance's sign-off. Carries `compliance_request_id`. */
+  | 'compliance_signoff';
 
 export interface Notification {
   id: string;

@@ -48,7 +48,8 @@ describe("migration 183", () => {
       expect(DEFAULT_CAPABILITIES.agent.has(key)).toBe(false);
     }
     // every compliance capability the code knows is in the migration, and nothing else
-    const known = CAPABILITIES.map((c) => c.key).filter((k) => k.startsWith("compliance.") || k === "menu.compliance");
+    // (compliance.raise is Part B's, migration 184: migration-184.test.ts checks it)
+    const known = CAPABILITIES.map((c) => c.key).filter((k) => (k.startsWith("compliance.") || k === "menu.compliance") && k !== "compliance.raise");
     expect([...known].sort()).toEqual([...CAPS].sort());
     // no custom role is invented (the owner defines Head of Compliance and Compliance Officer in the roles screen)
     expect(code).not.toMatch(/account_roles|Head of Compliance'|Compliance Officer'/);
@@ -65,7 +66,8 @@ describe("migration 183", () => {
     const list = (re: RegExp) => [...(code.match(re)?.[1] ?? "").matchAll(/'(\w+)'/g)].map((m) => m[1]);
     expect(list(/status\s+TEXT NOT NULL DEFAULT 'received'\s+CHECK \(status IN \(([^)]*)\)/)).toEqual([...REQUEST_STATUSES]);
     expect(list(/source\s+TEXT NOT NULL CHECK \(source IN \(([^)]*)\)/)).toEqual([...SOURCES]);
-    expect(list(/kind\s+TEXT NOT NULL CHECK \(kind IN \(([^)]*)\)/).sort()).toEqual([...EVENT_KINDS].sort());
+    // ('notice' is Part B's event kind: migration 184 widens the check, migration-184.test.ts checks it)
+    expect(list(/kind\s+TEXT NOT NULL CHECK \(kind IN \(([^)]*)\)/).sort()).toEqual(EVENT_KINDS.filter((k) => k !== "notice").sort());
   });
 
   it("widens the notification types with compliance_clock and adds the case it is about", () => {

@@ -12,6 +12,7 @@ import type {
   EventKind,
   FieldDef,
   IdentityCheck,
+  NoticeSummary,
   PersonRef,
   RequestEvent,
   RequestFile,
@@ -70,11 +71,13 @@ export interface RequestRow {
   assigned_to: string | null;
   is_test: boolean;
   created_at: string;
+  customer_locale: "en" | "ms" | "zh" | "ko" | null;
+  email_verified_at: string | null;
 }
 
 /** Every column the server reads (data_enc included: only the detail, the reveal and the edit use it). */
 export const REQUEST_COLUMNS =
-  "id, account_id, reference, type_key, status, received_at, source, channel, customer_name, customer_email, customer_phone, contact_id, conversation_id, ticket_id, incident_id, kyc_validation_ref, data, data_enc, identity_check, review, signoff, account_standing, outcome_reason, target_days, hard_stop_days, target_due_at, hard_stop_at, clock_paused_at, decided_at, completed_at, closed_at, retention_until, created_by, assigned_to, is_test, created_at";
+  "id, account_id, reference, type_key, status, received_at, source, channel, customer_name, customer_email, customer_phone, contact_id, conversation_id, ticket_id, incident_id, kyc_validation_ref, data, data_enc, identity_check, review, signoff, account_standing, outcome_reason, target_days, hard_stop_days, target_due_at, hard_stop_at, clock_paused_at, decided_at, completed_at, closed_at, retention_until, created_by, assigned_to, is_test, created_at, customer_locale, email_verified_at";
 
 export interface TypeDbRow {
   id: string;
@@ -170,7 +173,15 @@ export function reviewOf(j: Json | null): ReviewRecord {
 }
 export function signoffOf(j: Json | null): SignoffRecord {
   const o = j ?? {};
-  return { decision: str(o.decision) as SignoffRecord["decision"] ?? undefined, by: str(o.by), at: str(o.at), reason: str(o.reason), overrideReason: str(o.override_reason) };
+  return {
+    decision: str(o.decision) as SignoffRecord["decision"] ?? undefined,
+    by: str(o.by),
+    at: str(o.at),
+    reason: str(o.reason),
+    overrideReason: str(o.override_reason),
+    reasonCategory: str(o.reason_category) as SignoffRecord["reasonCategory"],
+    customerReason: str(o.customer_reason),
+  };
 }
 export function standingOf(j: Json | null): StandingRecord {
   const o = j ?? {};
@@ -254,6 +265,26 @@ export interface EventDbRow {
 }
 export const EVENT_COLUMNS = "id, kind, at, actor, detail";
 export const eventFromRow = (r: EventDbRow, people: PeopleMap): RequestEvent => ({ id: r.id, kind: r.kind, at: r.at, actor: personRef(people, r.actor), detail: r.detail ?? {} });
+
+export interface NoticeDbRow {
+  kind: NoticeSummary["kind"];
+  audience: NoticeSummary["audience"];
+  status: NoticeSummary["status"];
+  detail: string | null;
+  language: NoticeSummary["language"];
+  claimed_by: string | null;
+  claimed_at: string;
+}
+export const NOTICE_COLUMNS = "kind, audience, status, detail, language, claimed_by, claimed_at";
+export const noticeFromRow = (r: NoticeDbRow, people: PeopleMap): NoticeSummary => ({
+  kind: r.kind,
+  audience: r.audience,
+  status: r.status,
+  detail: r.detail,
+  language: r.language,
+  claimedAt: r.claimed_at,
+  by: personRef(people, r.claimed_by),
+});
 
 /** Field definitions by key (a lookup for the services). */
 export const fieldMap = (fields: readonly FieldDef[]): Map<string, FieldDef> => new Map(fields.map((f) => [f.key, f]));

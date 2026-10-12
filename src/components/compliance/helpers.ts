@@ -165,6 +165,12 @@ export function eventLine(e: Pick<RequestEvent, "kind" | "detail">): EventLine {
       return { key: "clock_resume", values: {}, text: str(d.note) || null };
     case "clock_alert":
       return { key: "clock_alert", values: { threshold: typeof d.threshold === "number" ? d.threshold : 0 }, text: null };
+    case "notice":
+      return {
+        key: d.status === "failed" ? "notice_failed" : d.status === "skipped" ? "notice_skipped" : "notice_sent",
+        values: { notice: str(d.notice), audience: str(d.audience), reason: str(d.reason), count: typeof d.recipients === "number" ? d.recipients : 0 },
+        text: str(d.text) || null,
+      };
     case "created":
       return { key: d.backdated === true ? "created_backdated" : "created", values: { source: str(d.source) }, text: null };
     case "assigned":
@@ -266,6 +272,6 @@ const KNOWN_ERRORS = new Set([
   "forbidden", "not_found", "invalid_request", "rate_limited", "invalid_transition", "maker_checker", "note_required", "identity_incomplete", "identity_not_passed",
   "recommendation_required", "dues_outstanding", "checklist_incomplete", "not_ready_to_execute", "frozen", "closed", "pause_not_allowed", "not_paused", "already_paused",
   "no_clock", "unsupported_file", "file_too_large", "too_many_files", "link_other_workspace", "type_unavailable", "assignee_cannot_see_requests", "validation_failed",
-  "reveal_unavailable", "encryption_unavailable", "audit_failed", "storage_failed", "server_error", "network",
+  "reveal_unavailable", "encryption_unavailable", "audit_failed", "storage_failed", "customer_reason_required", "category_required", "duplicate_open", "server_error", "network",
 ]);
 export const errorKey = (code: string): string => (KNOWN_ERRORS.has(code) ? code : "server_error");

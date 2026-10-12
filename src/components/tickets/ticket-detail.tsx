@@ -9,6 +9,7 @@ import type { Editor } from "@tiptap/react";
 import { Eye, EyeOff, Link2, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RaiseCompliance } from "@/components/compliance/raise";
 import { RichTextEditor } from "@/components/inbox/rich-text-editor";
 import {
   Dialog,
@@ -437,6 +438,8 @@ export function TicketDetail({
         </nav>
         {detail.saving ? <span className="text-[11px] text-muted-foreground">{t("saving")}</span> : null}
         <div className="ml-auto flex items-center gap-1">
+          {/* Raise a compliance request (migration 184): for a person who holds compliance.raise. Their own raised requests show as status chips. */}
+          <RaiseCompliance ticketId={ticket.id} />
           <Button variant="ghost" size="sm" onClick={() => void copyLink()}>
             <Link2 className="size-3.5" />
             {t("copyLink")}

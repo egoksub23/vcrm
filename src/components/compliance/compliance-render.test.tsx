@@ -99,6 +99,9 @@ const summary = (over: Partial<RequestSummary> = {}): RequestSummary => ({
 const detail = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   ...summary(),
   channel: "whatsapp",
+  customerLocale: null,
+  emailVerifiedAt: null,
+  notices: [],
   type: closureType,
   data: { confirm_closure: true, children_finished_school: true, allowances_cancelled: false, reason: "Moving abroad" },
   sensitive: [

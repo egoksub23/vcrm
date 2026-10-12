@@ -7,6 +7,7 @@ import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { TagChip } from "./tag-chip";
+import { RaiseCompliance } from "@/components/compliance/raise";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -1593,6 +1594,8 @@ export function MessageThread({
         </div>
 
         <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+          {/* Raise a compliance request (migration 184): for a person who holds compliance.raise. Their own raised requests show as status chips. */}
+          <RaiseCompliance conversationId={conversation.id} />
           {/* Contact-panel toggle — desktop only. The contact sidebar
               eats a chunk of horizontal width that crowds the thread on
               smaller laptops; this lets agents reclaim it when they just

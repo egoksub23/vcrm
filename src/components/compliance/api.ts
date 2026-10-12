@@ -3,6 +3,9 @@
 // A failed call is `{ ok: false, code, status, issues? }`; the code is one the server chose (src/lib/compliance/types.ts ERROR_CODES) or `network`.
 // ============================================================
 
+import type { PublicFormPatch, PublicFormsAnswer } from "@/lib/compliance/public/settings-types";
+import type { RaiseContext, RaiseResult, RaisedItem } from "@/lib/compliance/raise-types";
+import type { ComplianceReport } from "@/lib/compliance/reports";
 import type { RequestDetail, RequestList, RequestStatus, RequestTypeRow, Viewer } from "@/lib/compliance/types";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; code: string; status: number; issues?: { field?: string; code: string }[] };
@@ -92,8 +95,28 @@ export interface TransitionBody {
   identity?: { method: string; methodOther?: string; outcome: string };
   recommendation?: string;
   overrideReason?: string;
+  /** A rejection: what the reports group it under, and the words the customer is told. */
+  reasonCategory?: string;
+  customerReason?: string;
+  /** Email the customer (rejecting and completing default to yes, approving to no). */
+  notify?: boolean;
 }
-export const transition = (id: string, body: TransitionBody) => call<{ from: string; to: string }>("POST", `${BASE}/requests/${id}/transition`, body);
+/** What happened to the customer's email, when one was asked for. */
+export interface NoticeOutcome {
+  status: "sent" | "failed" | "skipped" | "duplicate";
+  detail?: string;
+  language?: string;
+}
+export const transition = (id: string, body: TransitionBody) => call<{ from: string; to: string; notice?: NoticeOutcome }>("POST", `${BASE}/requests/${id}/transition`, body);
+
+export interface NoticePreview {
+  subject: string;
+  body: string;
+  language: string;
+  hasAddress: boolean;
+}
+export const previewNotice = (id: string, body: { kind: string; text?: string; language?: string }) => call<{ preview: NoticePreview }>("POST", `${BASE}/requests/${id}/notices`, { action: "preview", ...body });
+export const sendNotice = (id: string, body: { kind: string; text?: string; nonce?: string; language?: string; resend?: boolean }) => call<{ notice: NoticeOutcome }>("POST", `${BASE}/requests/${id}/notices`, { action: "send", ...body });
 export const tickStep = (id: string, step: string, done: boolean, note?: string) => call<{ ok: true }>("POST", `${BASE}/requests/${id}/steps/${encodeURIComponent(step)}`, { done, note });
 export const setStanding = (id: string, duesOutstanding: boolean, notes?: string) => call<{ ok: true }>("POST", `${BASE}/requests/${id}/standing`, { duesOutstanding, notes });
 export const clockAction = (id: string, action: "pause" | "resume", note: string) => call<{ ok: true }>("POST", `${BASE}/requests/${id}/clock`, { action, note });
@@ -122,3 +145,29 @@ export interface LinkChoice {
   label: string;
 }
 export const lookupLinks = (kind: LinkChoice["kind"], q: string) => call<{ choices: LinkChoice[] }>("GET", `${BASE}/links?kind=${kind}&q=${encodeURIComponent(q)}`);
+
+// ---- Part B: raising from the Inbox and from tickets, the public forms' settings, the badge and the reports --------------------------------------
+
+export type RaiseTarget = { conversationId: string } | { ticketId: string };
+const targetQuery = (t: RaiseTarget): string => ("conversationId" in t ? `conversationId=${encodeURIComponent(t.conversationId)}` : `ticketId=${encodeURIComponent(t.ticketId)}`);
+export const getRaiseContext = (t: RaiseTarget) => call<RaiseContext>("GET", `${BASE}/raise/context?${targetQuery(t)}`);
+export const raiseRequest = (body: Record<string, unknown>) => call<RaiseResult>("POST", `${BASE}/raise`, body);
+export const getRaised = (t?: RaiseTarget) => call<{ items: RaisedItem[] }>("GET", `${BASE}/raised${t ? `?${targetQuery(t)}` : ""}`);
+
+export const getPublicForms = () => call<PublicFormsAnswer>("GET", `${BASE}/public-forms`);
+export const patchPublicForm = (typeKey: string, patch: PublicFormPatch) => call<PublicFormsAnswer>("PATCH", `${BASE}/public-forms`, { typeKey, ...patch });
+
+export const getBadge = () => call<{ count: number }>("GET", `${BASE}/badge`);
+
+export interface ReportQuery {
+  /** yyyy-mm-dd, the browser's local day */
+  from: string;
+  to: string;
+  type?: string;
+}
+const reportQuery = (q: ReportQuery): string => {
+  const p = new URLSearchParams(listQuery({ from: q.from, to: q.to, type: q.type }));
+  return p.toString();
+};
+export const getReport = (q: ReportQuery) => call<ComplianceReport>("GET", `${BASE}/reports?${reportQuery(q)}`);
+export const reportCsvUrl = (q: ReportQuery) => `${BASE}/reports/export?${reportQuery(q)}`;

@@ -33,6 +33,7 @@ import { useCapability } from "@/hooks/use-auth";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { FailedMessageNotice } from "./failed-message-notice";
 import { parseAiSourcesNote } from "@/lib/inbox/kb-agent";
+import { raisedNoteHref, raisedNoteReference } from "@/lib/compliance/raised-note";
 
 interface MessageBubbleProps {
   message: Message;
@@ -351,6 +352,7 @@ export function MessageBubble({
   const tKnowledge = useTranslations("Knowledge.agent");
   // Source links open the Knowledge page: only offer them with menu.knowledge.
   const canOpenKnowledge = useCapability("menu.knowledge");
+  const canOpenCompliance = useCapability("menu.compliance");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
@@ -366,6 +368,7 @@ export function MessageBubble({
     // answered from. Internal rows never reach the customer, so this is
     // for agents only.
     const sourcesNote = parseAiSourcesNote(message.content_text);
+    const complianceReference = raisedNoteReference(message.content_text);
     if (sourcesNote) {
       return (
         <div className="flex justify-center px-2">
@@ -406,7 +409,16 @@ export function MessageBubble({
             </span>
           </div>
           <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
-            {message.content_text}
+            {complianceReference && canOpenCompliance ? (
+              // "Compliance request CMP-... raised" (migration 184): the reference is a link only for a person who holds the Compliance menu
+              <>
+                {message.content_text?.slice(0, message.content_text.indexOf(complianceReference))}
+                <a href={raisedNoteHref(complianceReference)} className="font-mono font-medium text-primary hover:underline">{complianceReference}</a>
+                {message.content_text?.slice(message.content_text.indexOf(complianceReference) + complianceReference.length)}
+              </>
+            ) : (
+              message.content_text
+            )}
           </p>
           {message.status === "failed" && (
             <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400">

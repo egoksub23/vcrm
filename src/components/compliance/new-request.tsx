@@ -104,6 +104,8 @@ export function NewRequest({ types, onCreated, onCancel }: { types: RequestTypeR
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState("");
   const [received, setReceived] = useState("");
+  const [notify, setNotify] = useState(true);
+  const tn = useTranslations("Compliance.notices");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
@@ -131,6 +133,7 @@ export function NewRequest({ types, onCreated, onCancel }: { types: RequestTypeR
       customerEmail: email,
       customerPhone: phone,
       channel,
+      notify: notify && email.trim() !== "",
       ...(iso ? { receivedAt: iso } : {}),
       answers: answersFromForm(type.fields, values),
     });
@@ -202,6 +205,11 @@ export function NewRequest({ types, onCreated, onCancel }: { types: RequestTypeR
           <p className="mt-1 text-xs text-muted-foreground">{t("receivedHint")}</p>
         </div>
       </fieldset>
+
+      <label className="flex items-start gap-2 text-sm text-foreground">
+        <input type="checkbox" className="mt-0.5 size-4 accent-[var(--primary)]" checked={notify && email.trim() !== ""} disabled={email.trim() === ""} onChange={(e) => setNotify(e.target.checked)} />
+        <span>{email.trim() === "" ? tn("noAddress") : tn("notifyReceived")}</span>
+      </label>
 
       <fieldset className={cn("grid gap-3")}>
         <legend className="mb-1 text-sm font-semibold text-foreground">{t("details")}</legend>

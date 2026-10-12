@@ -11,13 +11,15 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { l10n } from "@/lib/compliance/fields";
 import { actionsFor, isDataEditable, type ActionKey, type ActionState } from "@/lib/compliance/transitions";
 import { fileFieldsOf } from "@/lib/compliance/fields";
-import { IDENTITY_METHODS, RECOMMENDATIONS, type L10n, type RequestDetail } from "@/lib/compliance/types";
+import { IDENTITY_METHODS, RECOMMENDATIONS, REJECTION_CATEGORIES, type L10n, type RequestDetail } from "@/lib/compliance/types";
 import { cn } from "@/lib/utils";
 
 import {
@@ -26,17 +28,20 @@ import {
   editRequest,
   fileUrl,
   lookupLinks,
+  previewNotice,
   reveal as revealApi,
+  sendNotice,
   setStanding,
   tickStep,
   transition,
   uploadFile,
   type ApiResult,
   type LinkChoice,
+  type NoticeOutcome,
   type RevealResult,
   type TransitionBody,
 } from "./api";
-import { REVEAL_MS, answersFromForm, collapseViews, eventLine, fieldLabel, formatWhen, localInputToIso, revealExpired, revealSecondsLeft } from "./helpers";
+import { REVEAL_MS, answersFromForm, collapseViews, errorKey, eventLine, fieldLabel, formatWhen, localInputToIso, revealExpired, revealSecondsLeft } from "./helpers";
 import { FieldInput } from "./new-request";
 import { Notice, Panel, Person, Row } from "./parts";
 
@@ -160,6 +165,8 @@ export function CustomerPanel({ d, act, busy }: PanelProps) {
           <Row label={t("channel")}>{d.channel ?? <span className="text-muted-foreground">{tc("none")}</span>}</Row>
           <Row label={t("received")}>{formatWhen(d.receivedAt, locale)}</Row>
           <Row label={t("source")}>{t(`sources.${d.source}`)}</Row>
+          {d.emailVerifiedAt ? <Row label={t("emailVerified")}>{formatWhen(d.emailVerifiedAt, locale)}</Row> : null}
+          {d.customerLocale ? <Row label={t("language")}>{d.customerLocale.toUpperCase()}</Row> : null}
         </dl>
       )}
     </Panel>
@@ -548,11 +555,44 @@ export function ReviewPanel({ d, act, busy }: PanelProps) {
 // ------------------------------------------------------------
 // Head of Compliance sign-off
 // ------------------------------------------------------------
+/** Run one move and, when it asked for an email, say how that went (a failed or skipped email never stops the move; it is told here). */
+function useMove() {
+  const tn = useTranslations("Compliance.notices");
+  return async (id: string, body: TransitionBody): Promise<ApiResult<{ from: string; to: string; notice?: NoticeOutcome }>> => {
+    const res = await transition(id, body);
+    if (res.ok && res.data.notice) {
+      const n = res.data.notice;
+      if (n.status === "sent") toast.success(tn("toast.sent"));
+      else if (n.status === "failed") toast.warning(tn("toast.failed", { reason: reasonWord(tn, n.detail) }));
+      else if (n.status === "skipped") toast.message(tn("toast.skipped"));
+    }
+    return res;
+  };
+}
+
+/** The words for a named reason an email did not go; an unknown reason reads as the general one. */
+function reasonWord(tn: (k: string) => string, reason: string | null | undefined): string {
+  try {
+    return tn(`reasons.${reason || "send_failed"}`);
+  } catch {
+    return tn("reasons.send_failed");
+  }
+}
+
 export function SignoffPanel({ d, act, busy }: PanelProps) {
   const t = useTranslations("Compliance.signoff");
+  const tn = useTranslations("Compliance.notices");
+  const tErr = useTranslations("Compliance.errors");
   const locale = useLocale();
+  const move = useMove();
   const [reason, setReason] = useState("");
   const [override, setOverride] = useState("");
+  const [category, setCategory] = useState("");
+  const [customerReason, setCustomerReason] = useState("");
+  const [notifyReject, setNotifyReject] = useState(true);
+  const [notifyApprove, setNotifyApprove] = useState(false);
+  const [preview, setPreview] = useState<{ subject: string; body: string; language: string } | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const actions = actionsOf(d, override.trim() !== "");
   const approve = find(actions, "approve");
   const reject = find(actions, "reject");
@@ -560,6 +600,19 @@ export function SignoffPanel({ d, act, busy }: PanelProps) {
   const s = d.signoff;
   const needsOverride = !!d.type?.checkDues && d.standing.duesOutstanding === true;
   const name = d.events.find((e) => e.kind === "signoff")?.actor?.name ?? null;
+  const hasEmail = !!d.customerEmail;
+  const rejectReady = reason.trim() !== "" && category !== "" && customerReason.trim() !== "";
+
+  const showPreview = async () => {
+    setPreviewError(null);
+    const res = await previewNotice(d.id, { kind: "rejected", text: customerReason });
+    if (!res.ok) {
+      setPreview(null);
+      setPreviewError(errorKey(res.code));
+      return;
+    }
+    setPreview(res.data.preview);
+  };
 
   return (
     <Panel id="cmp-signoff" title={t("title")}>
@@ -575,6 +628,8 @@ export function SignoffPanel({ d, act, busy }: PanelProps) {
             <Person person={s.by ? { id: s.by, name } : null} /> · {formatWhen(s.at, locale)}
           </Row>
           {s.reason ? <Row label={t("reason")}>{s.reason}</Row> : null}
+          {s.reasonCategory ? <Row label={t("category")}>{t(`categories.${s.reasonCategory}`)}</Row> : null}
+          {s.customerReason ? <Row label={t("customerReasonShown")}>{s.customerReason}</Row> : null}
           {s.overrideReason ? <Row label={t("override")}>{s.overrideReason}</Row> : null}
         </dl>
       ) : null}
@@ -592,13 +647,50 @@ export function SignoffPanel({ d, act, busy }: PanelProps) {
           <div>
             <label htmlFor="cmp-signoff-reason" className="mb-1 block text-sm font-medium">{t("reasonLabel")}</label>
             <Textarea id="cmp-signoff-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} rows={3} />
+            <p className="mt-1 text-xs text-muted-foreground">{t("internalHint")}</p>
           </div>
+
+          <fieldset className="space-y-2 rounded-lg border border-border p-3">
+            <legend className="px-1 text-sm font-medium">{t("rejectionTitle")}</legend>
+            <div>
+              <label htmlFor="cmp-reject-category" className="mb-1 block text-sm font-medium">{t("categoryLabel")}</label>
+              <select id="cmp-reject-category" className={SELECT} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">{t("categoryChoose")}</option>
+                {REJECTION_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{t(`categories.${c}`)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="cmp-reject-customer" className="mb-1 block text-sm font-medium">{t("customerReasonLabel")}</label>
+              <Textarea id="cmp-reject-customer" value={customerReason} onChange={(e) => { setCustomerReason(e.target.value); setPreview(null); }} maxLength={1000} rows={3} />
+              <p className="mt-1 text-xs text-muted-foreground">{t("customerReasonHint")}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => void showPreview()} disabled={busy || customerReason.trim() === "" || !hasEmail}>
+                {tn("preview")}
+              </Button>
+              {!hasEmail ? <span className="text-xs text-muted-foreground">{tn("noAddress")}</span> : null}
+            </div>
+            {previewError ? <p role="alert" className="text-xs text-destructive">{tErr(previewError)}</p> : null}
+            {preview ? <EmailPreview preview={preview} /> : null}
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[var(--primary)]" checked={notifyReject && hasEmail} disabled={!hasEmail} onChange={(e) => setNotifyReject(e.target.checked)} />
+              <span>{tn("notifyReject")}</span>
+            </label>
+          </fieldset>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 size-4 accent-[var(--primary)]" checked={notifyApprove && hasEmail} disabled={!hasEmail} onChange={(e) => setNotifyApprove(e.target.checked)} />
+            <span>{tn("notifyApprove")}</span>
+          </label>
+
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void act(() => transition(d.id, { to: "approved", note: reason, ...(override.trim() ? { overrideReason: override } : {}) }))} disabled={busy || !approve?.enabled} aria-describedby="cmp-signoff-why">
+            <Button onClick={() => void act(() => move(d.id, { to: "approved", note: reason, notify: notifyApprove && hasEmail, ...(override.trim() ? { overrideReason: override } : {}) }))} disabled={busy || !approve?.enabled} aria-describedby="cmp-signoff-why">
               <Busy busy={busy} />
               {t("approve")}
             </Button>
-            <Button variant="destructive" onClick={() => void act(() => transition(d.id, { to: "rejected", note: reason }))} disabled={busy || !reject?.enabled || reason.trim() === ""}>
+            <Button variant="destructive" onClick={() => void act(() => move(d.id, { to: "rejected", note: reason, reasonCategory: category, customerReason, notify: notifyReject && hasEmail }))} disabled={busy || !reject?.enabled || !rejectReady}>
               {t("reject")}
             </Button>
             <Button variant="outline" onClick={() => void act(() => transition(d.id, { to: "officer_review", note: reason }))} disabled={busy || !back?.enabled || reason.trim() === ""}>
@@ -608,11 +700,142 @@ export function SignoffPanel({ d, act, busy }: PanelProps) {
           <div id="cmp-signoff-why">
             <Why action={approve} />
             {approve?.enabled && reason.trim() === "" ? <p className="mt-1 text-xs text-muted-foreground">{t("reasonNeeded")}</p> : null}
+            {reject?.enabled && reason.trim() !== "" && !rejectReady ? <p className="mt-1 text-xs text-muted-foreground">{t("rejectNeeds")}</p> : null}
           </div>
         </div>
       ) : !s.decision ? (
         <p className="text-sm text-muted-foreground">{t("notYet")}</p>
       ) : null}
+    </Panel>
+  );
+}
+
+/** What an email would say: its subject and its text, in the language it would go out in. Nothing here sends anything. */
+function EmailPreview({ preview }: { preview: { subject: string; body: string; language: string } }) {
+  const tn = useTranslations("Compliance.notices");
+  return (
+    <div className="space-y-1 rounded-lg border border-dashed border-border bg-muted/40 p-2 text-sm" aria-label={tn("previewTitle")}>
+      <p className="text-xs font-medium text-muted-foreground">{tn("previewTitle")} · {preview.language.toUpperCase()}</p>
+      <p className="font-medium">{preview.subject}</p>
+      <pre className="whitespace-pre-wrap break-words font-sans text-sm">{preview.body}</pre>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// The customer's emails: what was sent, the one a person writes, and sending a failed one again
+// ------------------------------------------------------------
+export function NoticesPanel({ d, act, busy }: PanelProps) {
+  const t = useTranslations("Compliance.notices");
+  const tErr = useTranslations("Compliance.errors");
+  const locale = useLocale();
+  const canWrite = d.viewer.canReview || d.viewer.canApprove;
+  const customer = d.notices.filter((n) => n.audience === "customer");
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [language, setLanguage] = useState("");
+  const [nonce, setNonce] = useState("");
+  const [preview, setPreview] = useState<{ subject: string; body: string; language: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+
+  const start = () => {
+    // one nonce per composer: a double click or a retry of THIS message is one email
+    setNonce(typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `n${Date.now()}${Math.random().toString(36).slice(2)}`);
+    setText("");
+    setPreview(null);
+    setError(null);
+    setOpen(true);
+  };
+  const doPreview = async () => {
+    setError(null);
+    const res = await previewNotice(d.id, { kind: "more_info", text, language: language || undefined });
+    if (!res.ok) {
+      setPreview(null);
+      setError(errorKey(res.code));
+      return;
+    }
+    setPreview(res.data.preview);
+  };
+  const doSend = async () => {
+    setWorking(true);
+    setError(null);
+    const ok = await act(async () => {
+      const res = await sendNotice(d.id, { kind: "more_info", text, nonce, language: language || undefined });
+      if (res.ok && res.data.notice.status === "sent") toast.success(t("toast.sent"));
+      else if (res.ok && res.data.notice.status !== "duplicate") toast.warning(t("toast.failed", { reason: reasonWord(t, res.data.notice.detail) }));
+      return res;
+    });
+    setWorking(false);
+    if (ok) setOpen(false);
+  };
+  const again = (kind: string) => void act(() => sendNotice(d.id, { kind, resend: true }));
+
+  if (!canWrite && customer.length === 0) return null;
+  return (
+    <Panel
+      id="cmp-notices"
+      title={t("title")}
+      aside={
+        canWrite && d.status !== "closed" && !open ? (
+          <Button variant="outline" size="sm" onClick={start} disabled={busy || !d.customerEmail}>
+            {t("askMore")}
+          </Button>
+        ) : null
+      }
+    >
+      {!d.customerEmail ? <p className="mb-2 text-sm text-muted-foreground">{t("noAddress")}</p> : null}
+      {open ? (
+        <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
+          <label htmlFor="cmp-more-info" className="block text-sm font-medium">{t("askMoreLabel")}</label>
+          <Textarea id="cmp-more-info" value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} maxLength={1000} rows={4} />
+          <p className="text-xs text-muted-foreground">{t("askMoreHint")}</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label htmlFor="cmp-more-lang" className="mb-1 block text-xs font-medium text-muted-foreground">{t("language")}</label>
+              <select id="cmp-more-lang" className={SELECT} value={language} onChange={(e) => { setLanguage(e.target.value); setPreview(null); }}>
+                <option value="">{t("languageCase", { language: (d.customerLocale ?? "en").toUpperCase() })}</option>
+                {(["en", "ms", "zh", "ko"] as const).map((l) => (
+                  <option key={l} value={l}>{l.toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => void doPreview()} disabled={working || text.trim() === ""}>{t("preview")}</Button>
+          </div>
+          {error ? <p role="alert" className="text-xs text-destructive">{tErr(error)}</p> : null}
+          {preview ? <EmailPreview preview={preview} /> : null}
+          <div className="flex gap-2">
+            <Button onClick={() => void doSend()} disabled={working || busy || text.trim() === "" || !preview}>
+              {working ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+              {t("send")}
+            </Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>{t("cancel")}</Button>
+          </div>
+          {!preview && text.trim() !== "" ? <p className="text-xs text-muted-foreground">{t("previewFirst")}</p> : null}
+        </div>
+      ) : null}
+      {customer.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("none")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {customer.map((n, i) => (
+            <li key={`${n.kind}-${n.claimedAt}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm" data-notice-status={n.status}>
+              <span className="font-medium">{t(`kinds.${n.kind}`)}</span>
+              <span className={cn("inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-medium", n.status === "sent" ? "bg-emerald-500/15 text-[light-dark(#047857,#6ee7b7)]" : n.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground")}>
+                {t(`status.${n.status}`)}
+              </span>
+              {n.status === "failed" || n.status === "skipped" ? <span className="text-xs text-muted-foreground">{reasonWord(t, n.detail)}</span> : null}
+              <span className="text-xs text-muted-foreground">
+                {n.language ? `${n.language.toUpperCase()} · ` : ""}
+                <Person person={n.by} fallback={t("system")} /> · {formatWhen(n.claimedAt, locale)}
+              </span>
+              {n.status === "failed" && canWrite && d.customerEmail && n.kind !== "more_info" ? (
+                <Button variant="ghost" size="sm" onClick={() => again(n.kind)} disabled={busy}>{t("sendAgain")}</Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   );
 }
@@ -628,6 +851,9 @@ export function ExecutionPanel({ d, act, busy }: PanelProps) {
   const complete = find(actions, "complete");
   const close = find(actions, "close");
   const [closeNote, setCloseNote] = useState("");
+  const [notifyDone, setNotifyDone] = useState(true);
+  const tn = useTranslations("Compliance.notices");
+  const move = useMove();
   const canTick = d.viewer.canExecute && (d.status === "approved" || d.status === "executing");
   const open = d.status === "approved" || d.status === "executing" || d.status === "completed" || d.status === "closed";
 
@@ -671,12 +897,18 @@ export function ExecutionPanel({ d, act, busy }: PanelProps) {
           </Button>
         ) : null}
         {complete ? (
-          <Button onClick={() => void act(() => transition(d.id, { to: "completed" }))} disabled={busy || !complete.enabled}>
+          <Button onClick={() => void act(() => move(d.id, { to: "completed", notify: notifyDone && !!d.customerEmail }))} disabled={busy || !complete.enabled}>
             <Busy busy={busy} />
             {t("complete")}
           </Button>
         ) : null}
       </div>
+      {complete ? (
+        <label className="mt-2 flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-0.5 size-4 accent-[var(--primary)]" checked={notifyDone && !!d.customerEmail} disabled={!d.customerEmail} onChange={(e) => setNotifyDone(e.target.checked)} />
+          <span>{d.customerEmail ? tn("notifyComplete") : tn("noAddress")}</span>
+        </label>
+      ) : null}
       <Why action={complete} />
       {close ? (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
@@ -965,6 +1197,10 @@ export function TimelinePanel({ d, act, busy }: PanelProps) {
           if (line.key === "review") values.recommendation = word("review.recommendations", String(values.recommendation));
           if (line.key === "signoff" || line.key === "signoff_override") values.decision = word("signoff.decisions", String(values.decision));
           if (line.key === "created" || line.key === "created_backdated") values.source = word("customer.sources", String(values.source));
+          if (line.key === "notice_sent" || line.key === "notice_failed" || line.key === "notice_skipped") {
+            values.notice = word("notices.kinds", String(values.notice));
+            values.reason = word("notices.reasons", String(values.reason));
+          }
           return (
             <li key={e.id} className="border-l-2 border-border pl-3" data-kind={e.kind}>
               <p className="text-sm text-foreground">

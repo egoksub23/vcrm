@@ -483,6 +483,8 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "compliance.reveal",
   "compliance.execute",
   "compliance.manage",
+  // Migration 184: raising a request from the Inbox or a ticket is brand new, server routes only: no earlier floor. Owner and Admin by default.
+  "compliance.raise",
 ]);
 
 // ============================================================

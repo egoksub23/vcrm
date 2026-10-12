@@ -299,6 +299,9 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("compliance.reveal", "compliance", ADMIN_UP, "agent"),
   def("compliance.execute", "compliance", ADMIN_UP, "agent"),
   def("compliance.manage", "compliance", ADMIN_UP, "agent"),
+  // Migration 184. Raise a request from an Inbox conversation or a ticket. It does NOT need menu.compliance: a person who only raises sees a status chip
+  // and a short list of what they raised (reference, type, status), never the customer's data. Default: Owner and Admin; grantable down to Agent.
+  def("compliance.raise", "compliance", ADMIN_UP, "agent"),
 
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
@@ -373,6 +376,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "compliance.reveal"
   | "compliance.execute"
   | "compliance.manage"
+  | "compliance.raise"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

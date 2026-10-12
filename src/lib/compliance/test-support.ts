@@ -167,3 +167,55 @@ export const CLOSURE_ANSWERS = {
   bank_account_number: ACCOUNT_NUMBER,
   bank_account_holder: HOLDER,
 };
+
+// ---- Part B (migration 184): the public parent forms ----------------------------------------------------------------------------------------------
+
+const DECLARATION = { key: "declaration", type: "acknowledge", required: false, sensitive: false, label: L("I declare that the details are true") };
+const BANK = [
+  { key: "bank_name", type: "text", required: true, sensitive: true, label: L("Bank name") },
+  { key: "bank_account_number", type: "text", required: true, sensitive: true, label: L("Bank account number") },
+  { key: "bank_account_holder", type: "text", required: true, sensitive: true, label: L("Bank account holder name") },
+];
+const LETTER = { key: "authorization_letter", type: "file", required: false, sensitive: false, label: L("Authorization letter") };
+
+/** The closure type as migration 184 leaves it: the standard fields plus the declaration. */
+export const CLOSURE_FIELDS_184 = [...CLOSURE_FIELDS, DECLARATION];
+
+/** The withdrawal type as migrations 183 and 184 leave it. */
+export const WITHDRAWAL_FIELDS_184 = [
+  { key: "amount", type: "number", required: true, sensitive: false, label: L("Amount") },
+  { key: "reason", type: "multiline", required: true, sensitive: false, label: L("Reason") },
+  { key: "transaction_refs", type: "multiline", required: false, sensitive: false, label: L("Transaction references") },
+  ...BANK,
+  LETTER,
+  { key: "reason_kind", type: "choice", required: false, sensitive: false, label: L("Why"), options: [{ value: "over_topup", label: L("Over top-up") }, { value: "other", label: L("Other") }] },
+  DECLARATION,
+  { key: "proof", type: "file", required: false, sensitive: false, label: L("Proof") },
+];
+
+export const FORM_CLOSURE = "f0000000-0000-4000-8000-0000000000c1";
+export const FORM_WITHDRAWAL = "f0000000-0000-4000-8000-0000000000d1";
+export const SLUG_CLOSURE = "close-account-abc23456";
+export const SLUG_WITHDRAWAL = "withdraw-funds-xyz23456";
+
+/** `world()` with the compliance flag on, the two types carrying the public form's fields, and both public forms switched on. */
+export function publicWorld(): FakeDb {
+  const db = world();
+  const types = db.rows("compliance_request_types") as Record<string, unknown>[];
+  for (const t of types) {
+    if (t.key === "closure") t.fields = CLOSURE_FIELDS_184;
+    if (t.key === "withdrawal") t.fields = WITHDRAWAL_FIELDS_184;
+  }
+  // the unique constraints migration 184 adds
+  db.uniques.compliance_notices = [["request_id", "kind", "key"]];
+  // the database stamps the clock from the type when a case is made
+  const base = db.insertDefaults.compliance_requests;
+  db.insertDefaults.compliance_requests = (given) => ({ ...base(given), target_days: given.type_key === "closure" ? 14 : null, hard_stop_days: given.type_key === "closure" ? 30 : null });
+  db.seed("accounts", [{ id: ACCOUNT, name: "Vircle", brand_name: null, brand_logo_url: null, locale: "en" }]);
+  db.seed("account_platform", [{ account_id: ACCOUNT, status: "active", features: { compliance: true } }]);
+  db.seed("compliance_public_forms", [
+    { id: FORM_CLOSURE, account_id: ACCOUNT, type_key: "closure", enabled: true, slug: SLUG_CLOSURE, notice: { en: "Read this first" }, turnstile: false, max_amount: 10000, banks: null },
+    { id: FORM_WITHDRAWAL, account_id: ACCOUNT, type_key: "withdrawal", enabled: true, slug: SLUG_WITHDRAWAL, notice: {}, turnstile: false, max_amount: 5000, banks: null },
+  ]);
+  return db;
+}

@@ -273,6 +273,26 @@ export const RATE_LIMITS = {
   signRegisterForm: { limit: 60, windowMs: 60 * 60_000 },
   /** Valid submissions that name one email address, across EVERY registration page of every workspace (the address is a keyed hash): a stranger cannot make Halo mail one person from many pages. */
   signRegisterEmail: { limit: 6, windowMs: 24 * 60 * 60_000 },
+
+  // ---- Compliance requests, the public parent forms (`/c/<slug>`, `/api/compliance/public/<slug>/*`), checked with checkSharedRateLimit. The address is
+  // kept as a keyed hash, never raw.
+
+  /** Every post to a public compliance form from one address (codes, code entries and submissions), valid or not. */
+  complianceAttemptsIp: { limit: 60, windowMs: 60 * 60_000 },
+  /** Every post to one public compliance form, whoever sends it. */
+  complianceAttemptsForm: { limit: 800, windowMs: 60 * 60_000 },
+  /** Codes asked for from one address: each one sends an email. */
+  complianceCodeIp: { limit: 8, windowMs: 60 * 60_000 },
+  /** Codes asked for one email address on one form: three an hour. */
+  complianceCodeEmail: { limit: 3, windowMs: 60 * 60_000 },
+  /** Codes sent for one form in an hour (bounds the mail a workspace can be made to send). */
+  complianceCodeForm: { limit: 300, windowMs: 60 * 60_000 },
+  /** Submissions with valid details from one address. */
+  complianceSubmitIp: { limit: 5, windowMs: 60 * 60_000 },
+  /** Submissions with valid details to one form. */
+  complianceSubmitForm: { limit: 60, windowMs: 60 * 60_000 },
+  /** Submissions that name one email address, across every form: a person has one or two requests, not dozens. */
+  complianceSubmitEmail: { limit: 6, windowMs: 24 * 60 * 60_000 },
 } as const;
 
 /** Window for the per-workspace broadcast recipient cap: the operator's

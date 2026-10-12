@@ -163,6 +163,7 @@ describe("catalogue", () => {
         "compliance.reveal",
         "compliance.execute",
         "compliance.manage",
+        "compliance.raise",
       ].sort(),
     );
   });
@@ -502,7 +503,7 @@ describe("KYC review capabilities (migration 182)", () => {
 });
 
 describe("Compliance requests capabilities (migration 183)", () => {
-  const COMPLIANCE = ["menu.compliance", "compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage"] as const;
+  const COMPLIANCE = ["menu.compliance", "compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage", "compliance.raise"] as const;
 
   it("exist, in the menus and compliance groups, app tier, grantable down to an agent", () => {
     expect(getCapability("menu.compliance")).toMatchObject({ group: "menus", enforcedBy: "app", minGrantRole: "agent" });

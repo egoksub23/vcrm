@@ -49,6 +49,9 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   encryption_unavailable: 503,
   audit_failed: 503,
   storage_failed: 502,
+  customer_reason_required: 400,
+  category_required: 400,
+  duplicate_open: 409,
   server_error: 500,
 };
 
@@ -94,6 +97,7 @@ const DB_CODES: [string, ErrorCode][] = [
   ["compliance_received_at_out_of_range", "validation_failed"],
   ["compliance_unknown_field", "invalid_request"],
   ["compliance_bad_patch", "invalid_request"],
+  ["compliance_bad_category", "invalid_request"],
   ["compliance_bad_clock_action", "invalid_request"],
   ["compliance_frozen", "frozen"],
   ["compliance_closed", "closed"],
@@ -109,6 +113,9 @@ const DB_CODES: [string, ErrorCode][] = [
   ["compliance_must_start_received", "invalid_request"],
 ];
 
+/** The names of the database exceptions this module maps (a test checks every `compliance_*` the migrations can raise is in it). */
+export const DB_CODE_LIST: readonly string[] = DB_CODES.map(([needle]) => needle);
+
 /** A ComplianceError for a database error (a Supabase error object or an Error), reading only the migration's `compliance_*` code. */
 export function fromDatabase(e: { message?: string; code?: string } | null | undefined): ComplianceError {
   const msg = e?.message ?? "";
@@ -116,6 +123,8 @@ export function fromDatabase(e: { message?: string; code?: string } | null | und
   if (e?.code === "42501") return err("forbidden");
   if (e?.code === "23503") return err("invalid_request");
   if (e?.code === "22P02") return err("invalid_request");
+  // the one-open-request-per-email index (migration 184); any other unique violation is not something a person can fix
+  if (e?.code === "23505" && msg.includes("compliance_requests_form_open_email")) return err("duplicate_open");
   return err("server_error");
 }
 
