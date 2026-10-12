@@ -8502,6 +8502,8 @@
     "job_mailbox-renew": "Microsoft 365 mailbox renewal",
     "job_gmail-watch-renew": "Gmail watch renewal",
     "job_usage-snapshot": "Daily usage snapshot",
+    "job_compliance-clock": "Compliance deadline alerts",
+    "job_workspace-deletion": "Workspace deletion",
     "encTitle": "Stored secrets",
     "encDesc": "Channel tokens, API keys and webhook secrets are encrypted. After you start a key rotation, re-encrypt moves everything stored earlier to the new key so the old one can be retired.",
     "encLoadFailed": "Could not load encryption status.",

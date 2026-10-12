@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.91.1] — 2026-10-13
+
+No migration.
+
+### Fixed
+
+- The Platform page's Background jobs card showed `Platform.job_compliance-clock` and `Platform.job_workspace-deletion` as raw keys; they now read "Compliance deadline alerts" and "Workspace deletion" (English and Korean).
+
 ## [0.91.0] — 2026-10-13
 
 **Migration required: 184** (and 183 from 0.90.0, if not yet applied). Apply both BEFORE the new app.
