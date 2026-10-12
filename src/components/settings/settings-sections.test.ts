@@ -87,6 +87,7 @@ describe("settings sections and capabilities", () => {
         s !== "sla" &&
         s !== "incidents" &&
         s !== "sign" &&
+        s !== "compliance" &&
         s !== "workspace",
     );
     for (const s of rest) expect(canSeeSection(s, holds())).toBe(true);
@@ -96,11 +97,25 @@ describe("settings sections and capabilities", () => {
   it("shows everything to someone who holds all the gating capabilities", () => {
     expect(
       visibleSections(
-        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage", "sign.settings", "settings.workspace"),
+        holds("roles.manage", "api.manage", "audit.view", "approvals.review", "jira.connect", "sla.configure", "incidents.manage", "sign.settings", "compliance.manage", "settings.workspace"),
       ),
     ).toEqual([
       ...SETTINGS_SECTIONS,
     ]);
+  });
+});
+
+describe("the Compliance section (migration 183)", () => {
+  it("sits in the workspace group behind compliance.manage, right after Secure Sign", () => {
+    expect(SECTION_META.compliance.group).toBe("workspace");
+    expect(SECTION_META.compliance.capability).toBe("compliance.manage");
+    expect(resolveSection("compliance")).toBe("compliance");
+    expect(canSeeSection("compliance", holds())).toBe(false);
+    expect(canSeeSection("compliance", holds("compliance.manage"))).toBe(true);
+    // the other compliance permissions never show it
+    expect(canSeeSection("compliance", holds("menu.compliance", "compliance.review", "compliance.approve"))).toBe(false);
+    const order = [...SETTINGS_SECTIONS];
+    expect(order.indexOf("compliance")).toBe(order.indexOf("sign") + 1);
   });
 });
 

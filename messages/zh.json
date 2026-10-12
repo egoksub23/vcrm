@@ -53,7 +53,8 @@
     "pendingApprovals": "{count} 个{count, plural, =1 {提案} other {提案}}等待审批",
     "platform": "平台",
     "sign": "Secure Sign",
-    "kyc": "KYC 审核"
+    "kyc": "KYC 审核",
+    "compliance": "合规"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -80,7 +81,8 @@
     "menuSettings": "设置",
     "menuSignOut": "退出登录",
     "sign": "Secure Sign",
-    "kyc": "KYC 审核"
+    "kyc": "KYC 审核",
+    "compliance": "合规请求"
   },
   "Help": {
     "pageTitle": "用户指南",
@@ -3536,7 +3538,8 @@
       "approvals": "审批",
       "integrations": "集成",
       "sla": "SLA 与营业时间",
-      "incidents": "事件"
+      "incidents": "事件",
+      "compliance": "合规"
     },
     "groups": {
       "account": "账户",
@@ -6282,6 +6285,30 @@
       "menu_kyc": {
         "label": "KYC 审核",
         "description": "查看 KYC 审核菜单项，并打开该页面查询好友 ID 及其验证记录。打开证件图片需要“查看证件图片”权限；查看被遮盖的完整数值需要“显示 KYC 敏感详情”权限。每次查看都会被记录。仅在运营方为工作区开启 KYC 审核时有效。默认：所有者和管理员。"
+      },
+      "compliance_approve": {
+        "label": "签批合规请求",
+        "description": "最终签批（合规负责人）：批准或拒绝请求、退回给专员、暂停和恢复时限、说明原因后在有未结款项时仍批准。记录某请求身份核实的人永远不能签批该请求。需要“合规”菜单。默认：所有者和管理员。"
+      },
+      "compliance_execute": {
+        "label": "执行合规请求",
+        "description": "为已批准的请求勾选运营清单（在后台关闭账户、退款、告知客户），记录由谁在何时完成，并标记为执行中或已完成。需要“合规”菜单。默认：所有者和管理员。"
+      },
+      "compliance_manage": {
+        "label": "管理合规设置",
+        "description": "在“设置 > 合规”中编辑请求类型：名称、目标和最后期限天数（适用于新请求）、身份核实、欠款和暂停开关、运营清单以及自定义类型。需要“合规”菜单。默认：所有者和管理员。"
+      },
+      "compliance_reveal": {
+        "label": "显示合规请求中的银行信息",
+        "description": "使用“显示”完整查看请求的银行名称、账号和账户持有人，持续两分钟。每次显示都会记录在请求的时间线中。没有此权限则保持遮盖。需要“合规”菜单。默认：所有者和管理员。"
+      },
+      "compliance_review": {
+        "label": "审核合规请求",
+        "description": "打开请求、记录身份核实、审核并给出建议、添加备注、编辑详情、关联工单、分配和关闭。需要“合规”菜单。默认：所有者和管理员。"
+      },
+      "menu_compliance": {
+        "label": "合规请求",
+        "description": "查看“合规”菜单项并打开请求列表。它本身不能打开请求：审核、签批、显示信息和执行各有各自的权限。仅在运营方为工作区开启合规请求时有效。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -6298,7 +6325,8 @@
       "workspace": "工作区",
       "people": "人员",
       "sign": "Secure Sign",
-      "kyc": "KYC 审核"
+      "kyc": "KYC 审核",
+      "compliance": "合规请求"
     },
     "preset": {
       "support-manager": {
@@ -11615,6 +11643,446 @@
   },
   "Platform": {
     "feature_kyc": "KYC 审核",
-    "feature_kyc_desc": "面向员工的身份验证后端界面（儿童的证件图片和验证记录），只读，并带有访问日志。在运营方开启之前，所有工作区均为关闭。需要服务器上设置 KYC_DOC_API_BASE_URL 和 KYC_DOC_API_KEY。"
+    "feature_kyc_desc": "面向员工的身份验证后端界面（儿童的证件图片和验证记录），只读，并带有访问日志。在运营方开启之前，所有工作区均为关闭。需要服务器上设置 KYC_DOC_API_BASE_URL 和 KYC_DOC_API_KEY。",
+    "feature_compliance": "合规请求",
+    "feature_compliance_desc": "账户关闭、提款和手机号码变更，包含身份核实、合规负责人签批、监管时限、加密的银行信息和七年审计记录。在运营方开启之前，所有工作区均为关闭。"
+  },
+  "Compliance": {
+    "title": "合规请求",
+    "intro": "需要身份核实、合规负责人签批并受监管时限约束的账户关闭、提款和手机号码变更。",
+    "newRequest": "新建请求",
+    "back": "返回请求列表",
+    "retry": "重试",
+    "loading": "加载中...",
+    "showing": "{count, plural, =0 {没有请求} other {# 个请求}}",
+    "footer": "每次打开请求以及每次显示银行信息，都会记录在该请求的时间线中。请求保存七年。",
+    "test": "测试",
+    "unassigned": "未分配",
+    "formerMember": "已离开的成员",
+    "none": "无",
+    "yes": "是",
+    "no": "否",
+    "save": "保存",
+    "cancel": "取消",
+    "notConnected": "{what}尚未接入：目前需要手动填写。",
+    "receivedOn": "请求日期 {date}",
+    "retention": "保存至 {date}（七年）。",
+    "counts": {
+      "label": "未完成请求的进展",
+      "needsIdentityCheck": "待核实身份",
+      "inReview": "审核中",
+      "awaitingSignoff": "待签批",
+      "executing": "执行中",
+      "pastTarget": "已超目标",
+      "nearStop": "临近最后期限",
+      "breached": "已逾期"
+    },
+    "filters": {
+      "label": "筛选请求",
+      "search": "搜索",
+      "searchPlaceholder": "编号、姓名、邮箱或电话",
+      "type": "类型",
+      "allTypes": "所有类型",
+      "status": "状态",
+      "allStatuses": "所有状态",
+      "due": "时限",
+      "anyClock": "任意时限",
+      "assignee": "负责人",
+      "anyone": "任何人",
+      "from": "从",
+      "to": "至",
+      "mine": "我的",
+      "clear": "清除筛选"
+    },
+    "columns": {
+      "reference": "编号",
+      "customer": "客户",
+      "status": "状态",
+      "clock": "时限",
+      "assignee": "负责人",
+      "received": "请求日期"
+    },
+    "empty": {
+      "title": "还没有请求",
+      "body": "客户申请关闭账户、提款或更改手机号码时，请求会显示在这里。",
+      "filteredTitle": "没有符合的请求",
+      "filteredBody": "修改或清除筛选条件以查看更多。"
+    },
+    "pager": {
+      "label": "分页",
+      "previous": "上一页",
+      "next": "下一页",
+      "page": "第 {page} 页，共 {pages} 页"
+    },
+    "status": {
+      "received": "已收到",
+      "identity_check": "身份核实",
+      "officer_review": "专员审核",
+      "awaiting_signoff": "待签批",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "executing": "执行中",
+      "completed": "已完成",
+      "closed": "已关闭"
+    },
+    "clock": {
+      "state": {
+        "none": "无时限",
+        "on_track": "按计划",
+        "target_passed": "已超目标",
+        "near_stop": "临近最后期限",
+        "breached": "已逾期",
+        "paused": "已暂停",
+        "done": "已结束"
+      },
+      "none": "第 {day} 天",
+      "paused": "在第 {day} 天暂停",
+      "done": "{days, plural, other {用时 # 天完成}}",
+      "dayOf": "第 {day} 天，目标 {target} 天",
+      "dayOnly": "第 {day} 天",
+      "stopOnly": "第 {day} 天",
+      "toStop": "{count, plural, other {距最后期限还有 # 天}}",
+      "stopToday": "已到最后期限日",
+      "overStop": "{count, plural, other {已超最后期限 # 天}}"
+    },
+    "steps": {
+      "label": "进度",
+      "received": "已收到",
+      "identity_check": "身份核实",
+      "officer_review": "专员审核",
+      "signoff": "签批",
+      "execution": "执行",
+      "closed": "已关闭",
+      "done": "已完成",
+      "current": "当前步骤",
+      "rejected": "已拒绝"
+    },
+    "errors": {
+      "forbidden": "您没有执行此操作的权限。",
+      "not_found": "找不到该请求。",
+      "invalid_request": "无法完成。请检查输入后重试。",
+      "rate_limited": "尝试次数过多。请等待一分钟后再试。",
+      "invalid_transition": "请求当前状态不能这样变更。请刷新页面。",
+      "maker_checker": "记录身份核实的人不能签批此请求，必须由另一位合规负责人完成。",
+      "note_required": "需要填写备注。",
+      "identity_incomplete": "请选择核实身份的方式和结果。如选择“其他”，请说明方式。",
+      "identity_not_passed": "身份核实未通过，因此不能批准此请求。",
+      "recommendation_required": "请先选择建议。",
+      "dues_outstanding": "存在未结款项。请在例外说明框中填写仍然批准的原因。",
+      "checklist_incomplete": "请先勾选清单中的每个步骤。",
+      "not_ready_to_execute": "请求必须先获批准，才能勾选工作步骤。",
+      "frozen": "此请求已交给合规负责人或已结束，答案不能再编辑。",
+      "closed": "此请求已关闭。",
+      "pause_not_allowed": "此请求类型不允许暂停时限。",
+      "not_paused": "时限没有被暂停。",
+      "already_paused": "时限已经暂停。",
+      "no_clock": "此请求没有时限。",
+      "unsupported_file": "只能上传 PDF、JPG 和 PNG 文件。",
+      "file_too_large": "文件太大（最大 10 MB）。",
+      "too_many_files": "此请求的文件数量已达上限。",
+      "link_other_workspace": "该项目不在此工作区中。",
+      "type_unavailable": "该请求类型不可用。",
+      "assignee_cannot_see_requests": "该成员看不到合规请求，因此不能分配给他。",
+      "validation_failed": "部分答案需要处理。请检查字段后重试。",
+      "reveal_unavailable": "目前无法显示这些信息。",
+      "encryption_unavailable": "目前无法读取或保存受保护的信息。请联系管理员检查加密密钥。",
+      "audit_failed": "无法保存此操作的记录，因此没有显示或更改任何内容。请重试。",
+      "storage_failed": "无法存储或读取该文件。请重试。",
+      "server_error": "出了点问题。请稍后重试。",
+      "network": "无法连接服务器。请检查网络后重试。"
+    },
+    "form": {
+      "choose": "请选择...",
+      "yes": "是",
+      "no": "否",
+      "mustTick": "必须勾选。",
+      "fixThis": "请检查此答案。",
+      "encrypted": "（加密存储）",
+      "fileLater": "创建请求后在请求中添加"
+    },
+    "new": {
+      "title": "新建请求",
+      "intro": "用于客户通过聊天或电话提出的请求。时限从请求日期开始计算。",
+      "type": "请求类型",
+      "customer": "客户",
+      "name": "姓名",
+      "email": "邮箱",
+      "phone": "电话",
+      "channel": "渠道",
+      "channelPlaceholder": "WhatsApp、电话、邮件...",
+      "received": "请求日期",
+      "receivedHint": "暂时留空即可。如果客户更早提出，请填写当时的日期和时间：系统会记录这是手动设置的。",
+      "details": "详细信息",
+      "create": "创建请求",
+      "cancel": "取消",
+      "noTypes": "没有可选择的请求类型。管理员可以在“设置 > 合规”中开启。",
+      "requiredHint": "{count, plural, other {还有 # 项必填内容未填写}}"
+    },
+    "customer": {
+      "title": "客户",
+      "edit": "编辑",
+      "name": "姓名",
+      "email": "邮箱",
+      "phone": "电话",
+      "channel": "渠道",
+      "received": "请求日期",
+      "receivedEditHint": "留空则保持原日期。修改日期会移动各项期限，并会被记录。",
+      "source": "来源",
+      "sources": {
+        "form": "公开表单",
+        "staff": "员工",
+        "inbox": "收件箱",
+        "ticket": "工单"
+      }
+    },
+    "answers": {
+      "title": "请求详情",
+      "edit": "编辑",
+      "none": "此请求类型没有更多详情。"
+    },
+    "sensitive": {
+      "title": "银行及受保护信息",
+      "reveal": "显示",
+      "hide": "立即隐藏",
+      "unreadable": "受保护的信息已存储，但目前无法读取。请联系管理员检查加密密钥。",
+      "notGiven": "未提供",
+      "hidesIn": "{seconds, plural, other {# 秒}}后再次隐藏。",
+      "revealHint": "当前为遮盖显示。点击显示可完整查看两分钟，并会记录您的查看。",
+      "noReveal": "当前为遮盖显示。您需要“显示银行信息”的权限才能完整查看。"
+    },
+    "standing": {
+      "title": "账户状况",
+      "intro": "客户是否有欠款（未付零用钱、费用）？目前需要手动填写。",
+      "blocksApproval": "存在未结款项。除非合规负责人记录原因，否则不能批准此请求。",
+      "question": "未结款项",
+      "noDues": "没有未结款项",
+      "dues": "有未结款项",
+      "notes": "备注",
+      "save": "保存账户状况",
+      "notRecorded": "尚未记录",
+      "recordedBy": "记录于",
+      "sourceApi": "自动检查",
+      "sourceManual": "手动填写",
+      "backOffice": "与后台系统的自动检查"
+    },
+    "identity": {
+      "title": "身份核实",
+      "intro": "确认提出请求的人就是账户持有人，然后记录核实方式和结果。系统会记录您为核实人。",
+      "method": "核实方式",
+      "methodOther": "请说明方式",
+      "methods": {
+        "call_back": "回拨登记号码",
+        "video_call": "视频通话",
+        "id_document": "身份证件",
+        "chat_verification": "在聊天中验证",
+        "in_person": "当面核实",
+        "other": "其他"
+      },
+      "outcome": "结果",
+      "outcomes": {
+        "pass": "已核实",
+        "fail": "未核实"
+      },
+      "notRequired": "此请求类型不需要身份核实。",
+      "notNeeded": "此请求类型不需要身份核实。请继续进入专员审核。",
+      "notes": "备注",
+      "byYou": "将记录为由您在此刻核实。",
+      "record": "记录身份核实",
+      "continue": "继续进入专员审核",
+      "start": "由我来核实身份",
+      "verifiedBy": "核实人",
+      "sendBackNote": "需要重新核实身份的原因",
+      "sendBack": "退回重新核实身份",
+      "none": "没有记录身份核实。"
+    },
+    "review": {
+      "title": "专员审核",
+      "recommendation": "建议",
+      "recommendations": {
+        "approve": "批准",
+        "reject": "拒绝",
+        "more_info": "需要更多信息"
+      },
+      "notes": "给合规负责人的备注",
+      "by": "建议人",
+      "sentBack": "退回说明",
+      "submit": "提交签批",
+      "notYet": "身份核实后，专员的建议会显示在这里。"
+    },
+    "signoff": {
+      "title": "合规负责人签批",
+      "decision": "决定",
+      "decisions": {
+        "approved": "已批准",
+        "rejected": "已拒绝"
+      },
+      "by": "签批人",
+      "reason": "原因",
+      "override": "尽管有未结款项仍批准，原因是",
+      "onlyHead": "只有合规负责人可以签批。",
+      "overrideLabel": "尽管有未结款项仍批准的原因",
+      "overrideHint": "存在未结款项时批准必须填写。会与决定一并保存。",
+      "reasonLabel": "原因（拒绝或退回时必填）",
+      "reasonNeeded": "拒绝或退回需要填写原因。",
+      "approve": "批准",
+      "reject": "拒绝",
+      "sendBack": "退回给专员",
+      "notYet": "请求尚未交给合规负责人。"
+    },
+    "execution": {
+      "title": "运营清单",
+      "notYet": "批准后才开始处理。",
+      "doneBy": "完成人",
+      "noSteps": "此请求类型没有清单。",
+      "onlyOperations": "只有拥有运营权限的人可以勾选这些步骤。",
+      "markExecuting": "标记为执行中",
+      "complete": "标记为完成",
+      "closeRejected": "告知客户已被拒绝，然后关闭请求",
+      "closeCompleted": "告知客户已完成，然后关闭请求",
+      "closeNotePlaceholder": "可选备注，例如如何通知客户",
+      "close": "关闭请求",
+      "withdrawnReason": "无决定而关闭的原因（重复、客户撤回...）",
+      "closeWithoutDecision": "无决定关闭",
+      "keepOpen": "保持打开"
+    },
+    "clockPanel": {
+      "title": "暂停时限",
+      "body": "在等待客户期间停止天数计算。仅在合规负责人决定后使用。会连同原因一并记录。",
+      "pausedBody": "时限已暂停。恢复后，各项期限会顺延暂停的时长。",
+      "note": "原因",
+      "pause": "暂停时限",
+      "resume": "恢复时限"
+    },
+    "files": {
+      "title": "文件",
+      "add": "添加文件",
+      "haveCount": "{count, plural, other {# 个文件}}",
+      "missing": "未添加",
+      "attach": "添加",
+      "none": "还没有文件。",
+      "rules": "PDF、JPG 或 PNG，最大 10 MB。文件私密存储，且不能删除。"
+    },
+    "links": {
+      "title": "关联",
+      "contact": "联系人",
+      "conversation": "对话",
+      "conversationText": "此请求来源的聊天",
+      "ticket": "工单",
+      "incident": "事件",
+      "kyc": "KYC 核查",
+      "open": "打开",
+      "unlink": "取消关联",
+      "none": "尚未关联任何内容。",
+      "addLabel": "关联到",
+      "search": "搜索",
+      "searchPlaceholder": "编号、姓名、电话或主题",
+      "find": "查找",
+      "noMatches": "没有匹配项。",
+      "kycLabel": "KYC 验证编号"
+    },
+    "timeline": {
+      "title": "时间线",
+      "addNote": "添加备注",
+      "saveNote": "添加备注",
+      "system": "Halo",
+      "kinds": {
+        "status": "状态从 {from} 变为 {to}",
+        "note": "添加了备注",
+        "identity_check": "记录了身份核实：{method}，{outcome}",
+        "review": "建议：{recommendation}",
+        "signoff": "签批：{decision}",
+        "signoff_override": "签批：{decision}，尽管有未结款项",
+        "step_done": "勾选了一个步骤",
+        "step_undone": "取消勾选一个步骤",
+        "reveal": "显示了银行信息",
+        "reveal_refused": "尝试显示银行信息但未被允许",
+        "view": "打开了请求",
+        "view_many": "打开了请求（{count} 次）",
+        "view_file": "打开了文件 {name}",
+        "attachment": "添加了文件 {name}",
+        "link": "更改了关联（{field}）",
+        "edited": "编辑了：{fields}",
+        "standing_dues": "记录了存在未结款项",
+        "standing_clear": "记录了没有未结款项",
+        "clock_pause": "暂停了时限",
+        "clock_resume": "恢复了时限",
+        "clock_alert": "提醒：{threshold, plural, =0 {已到最后期限日} other {距最后期限还有 # 天}}",
+        "created": "创建了请求（{source}）",
+        "created_backdated": "创建了请求（{source}），请求日期为手动设置",
+        "assigned": "分配了请求",
+        "unassigned": "取消了负责人",
+        "other": "更新了请求"
+      }
+    },
+    "blocked": {
+      "no_permission": "您没有此步骤的权限。",
+      "maker_checker": "此请求的身份核实由您记录，因此必须由其他人签批。",
+      "identity_not_passed": "身份核实未通过，因此不能批准。可以拒绝或退回。",
+      "dues_outstanding": "存在未结款项。请在例外说明框中填写原因后才能批准。",
+      "checklist_incomplete": "请先勾选清单中的每个步骤。",
+      "no_recommendation": "专员尚未给出建议。"
+    },
+    "settings": {
+      "title": "合规请求",
+      "intro": "客户可以提出的请求类型、每种类型允许的时长，以及运营团队需要完成的工作。时限的修改只适用于新请求。",
+      "loading": "加载中...",
+      "noPermission": "您需要“管理合规设置”的权限才能查看。",
+      "standard": "标准",
+      "active": "启用",
+      "name": "名称",
+      "nameIn": "{language}名称",
+      "languages": {
+        "ms": "马来语",
+        "zh": "中文",
+        "ko": "韩语"
+      },
+      "clocks": "时限",
+      "targetDays": "目标（天）",
+      "stopDays": "最后期限（天）",
+      "noClock": "无限制",
+      "clocksHint": "从请求日期起算。超过目标后请求变为橙色；距最后期限 10 天内变为红色，并在 10 天、5 天和期限当天发出提醒。",
+      "clocksInvalid": "请输入整数天数，且最后期限不能早于目标。",
+      "switches": {
+        "identityCheck": "需要身份核实",
+        "identityCheckHint": "在有人记录通过的身份核实之前，请求不能被批准。",
+        "dues": "检查账户状况",
+        "duesHint": "显示未结款项区块；有未结款项时禁止批准，除非负责人记录原因。",
+        "pause": "负责人可暂停时限",
+        "pauseHint": "默认关闭。暂停一定会连同原因一并记录。"
+      },
+      "checklist": "运营清单",
+      "checklistHint": "批准后由运营团队逐项勾选的步骤。它们会复制到每个新请求，因此修改只适用于新请求。",
+      "stepLabel": "步骤 {n}",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "removeStep": "删除步骤",
+      "translations": "翻译",
+      "addStep": "添加步骤",
+      "fields": "表单字段",
+      "fieldsFixed": "标准请求类型的字段是固定的，因为员工表单和公开表单都基于它们。",
+      "fieldTypes": {
+        "text": "文本",
+        "multiline": "长文本",
+        "phone": "电话",
+        "email": "邮箱",
+        "number": "数字",
+        "date": "日期",
+        "choice": "选项",
+        "yesno": "是 / 否",
+        "acknowledge": "勾选框",
+        "file": "文件"
+      },
+      "required": "必填",
+      "sensitive": "受保护",
+      "fieldLabel": "字段 {n} 名称",
+      "fieldType": "字段类型",
+      "removeField": "删除字段",
+      "addField": "添加字段",
+      "newType": "新建请求类型",
+      "keyWillBe": "其标识为",
+      "createType": "创建类型",
+      "cancel": "取消",
+      "saved": "已保存。"
+    }
   }
 }

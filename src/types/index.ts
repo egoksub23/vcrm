@@ -398,7 +398,9 @@ export type NotificationType =
   /** Migration 167: it is the recipient's turn to sign a Doc Sign document (they are a Halo user on it). */
   | 'sign_your_turn'
   /** Migration 173: a bulk batch the recipient started has finished (or was stopped by the system). Carries no document. */
-  | 'sign_bulk_done';
+  | 'sign_bulk_done'
+  /** Migration 183: a Compliance request is 10 or 5 days from its regulatory hard stop, or has reached it. Carries `compliance_request_id`. */
+  | 'compliance_clock';
 
 export interface Notification {
   id: string;
@@ -419,6 +421,8 @@ export interface Notification {
   sembang_task_id?: string;
   /** Migration 159. The Doc Sign document a sign_* notification is about. */
   sign_document_id?: string;
+  /** Migration 183. The Compliance request a compliance_clock notification is about. */
+  compliance_request_id?: string;
   /** Who triggered it. Null when an automation/system assigned it. */
   actor_user_id?: string;
   title: string;

@@ -61,6 +61,13 @@ function orCondition(part: string): Filter {
       return (r) => text(r) !== null && (text(r) as string) < value;
     case "lte":
       return (r) => text(r) !== null && (text(r) as string) <= value;
+    case "like":
+    case "ilike": {
+      // % matches any run of characters, _ one character (the wildcard * of PostgREST's URL form is read as %)
+      const source = value.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/[%*]/g, ".*").replace(/_/g, ".");
+      const re = new RegExp(`^${source}$`, op === "ilike" ? "is" : "s");
+      return (r) => text(r) !== null && re.test(text(r) as string);
+    }
     default:
       throw new Error(`FakeDb: or() does not know the operator "${op}"`);
   }

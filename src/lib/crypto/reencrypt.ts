@@ -39,6 +39,8 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedTable[] = [
   { table: 'sign_certificates', pk: 'id', columns: ['p12_enc', 'passphrase_enc'] },
   // a form field marked sensitive (migration 168): the answer, encrypted; the other rows of the table have NULL here
   { table: 'sign_answers', pk: 'id', columns: ['value_enc'] },
+  // the sensitive answers of a Compliance request (migration 183): bank details, bound to the case's id inside the ciphertext
+  { table: 'compliance_requests', pk: 'id', columns: ['data_enc'] },
 ]
 
 const PAGE = 200

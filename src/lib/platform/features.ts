@@ -38,7 +38,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc", "compliance"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -97,7 +97,7 @@ export function parsePlatformRow(row: unknown): AccountPlatform {
  * them on. KYC review holds identity documents of children, so a missing row or key must never switch it on (migration 182 also writes
  * an explicit false for every workspace and the signup seed does the same for new ones; this is the belt to those braces).
  */
-export const DEFAULT_OFF_FEATURES: readonly string[] = ["kyc"];
+export const DEFAULT_OFF_FEATURES: readonly string[] = ["kyc", "compliance"];
 
 export function isFeatureEnabled(
   platform: AccountPlatform | null | undefined,
@@ -138,6 +138,9 @@ const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => bool
   // KYC review (migration 182): the menu, the screen and every /api/kyc route. Off for every workspace, existing and new, until
   // the operator turns it on; only the operator console can (the migration writes an explicit false, as 157 did for sign).
   kyc: (c) => c === "menu.kyc" || c.startsWith("kyc."),
+  // Compliance requests (migration 183): the menu, the area and every /api/compliance route. Off for every workspace until the operator turns it on
+  // (an explicit false is written for each; the app also reads an absent key as off).
+  compliance: (c) => c === "menu.compliance" || c.startsWith("compliance."),
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */

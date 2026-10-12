@@ -53,7 +53,8 @@
     "pendingApprovals": "승인 대기 중인 제안 {count}건",
     "platform": "플랫폼",
     "sign": "Secure Sign",
-    "kyc": "KYC 검토"
+    "kyc": "KYC 검토",
+    "compliance": "컴플라이언스"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -80,7 +81,8 @@
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
     "sign": "Secure Sign",
-    "kyc": "KYC 검토"
+    "kyc": "KYC 검토",
+    "compliance": "컴플라이언스 요청"
   },
   "Help": {
     "pageTitle": "사용 가이드",
@@ -3536,7 +3538,8 @@
       "approvals": "승인",
       "integrations": "연동",
       "sla": "SLA 및 업무 시간",
-      "incidents": "인시던트"
+      "incidents": "인시던트",
+      "compliance": "컴플라이언스"
     },
     "groups": {
       "account": "계정",
@@ -7011,6 +7014,30 @@
       "menu_kyc": {
         "label": "KYC 검토",
         "description": "KYC 검토 메뉴 항목을 보고 화면을 열어 친구 ID를 조회하고 검증 기록을 읽습니다. 신분증 이미지를 열려면 '신분증 이미지 보기' 권한이, 가려진 값을 전체로 보려면 'KYC 민감 정보 표시' 권한이 필요합니다. 조회할 때마다 기록됩니다. 운영자가 워크스페이스에 KYC 검토를 켠 경우에만 작동합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_approve": {
+        "label": "컴플라이언스 요청 승인",
+        "description": "최종 승인(컴플라이언스 책임자): 요청 승인 또는 거부, 담당자에게 되돌리기, 기한 일시 중지 및 재개, 사유를 적고 미납 금액이 있어도 승인. 요청의 신원 확인을 기록한 사람은 그 요청을 승인할 수 없습니다. 컴플라이언스 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_execute": {
+        "label": "컴플라이언스 요청 처리",
+        "description": "승인된 요청의 운영 체크리스트(백오피스에서 계정 해지, 환불, 고객 안내)를 처리한 사람과 시간을 남기며 체크하고, 처리 중 또는 완료로 표시합니다. 컴플라이언스 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_manage": {
+        "label": "컴플라이언스 설정 관리",
+        "description": "설정 > 컴플라이언스에서 요청 유형을 편집합니다: 이름, 목표 및 최종 기한 일수(새 요청에 적용), 신원 확인·미납 금액·일시 중지 스위치, 운영 체크리스트, 사용자 정의 유형. 컴플라이언스 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_reveal": {
+        "label": "컴플라이언스 요청의 은행 정보 열람",
+        "description": "‘보기’를 사용해 요청의 은행 이름, 계좌 번호, 예금주를 2분 동안 전체 열람합니다. 모든 열람은 요청의 타임라인에 기록됩니다. 이 권한이 없으면 가려진 상태로 유지됩니다. 컴플라이언스 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "compliance_review": {
+        "label": "컴플라이언스 요청 검토",
+        "description": "요청을 열고, 신원 확인을 기록하고, 검토 후 의견을 내고, 메모를 추가하고, 내용을 수정하고, 티켓을 연결하고, 배정하고, 종료합니다. 컴플라이언스 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "menu_compliance": {
+        "label": "컴플라이언스 요청",
+        "description": "컴플라이언스 메뉴 항목을 보고 요청 목록을 엽니다. 이것만으로는 요청을 열 수 없습니다. 검토, 승인, 열람, 처리는 각각 별도의 권한이 있습니다. 운영자가 워크스페이스에 컴플라이언스 요청을 켠 경우에만 작동합니다. 기본값: 소유자와 관리자."
       }
     },
     "group": {
@@ -7027,7 +7054,8 @@
       "workspace": "워크스페이스",
       "people": "사람",
       "sign": "Secure Sign",
-      "kyc": "KYC 검토"
+      "kyc": "KYC 검토",
+      "compliance": "컴플라이언스 요청"
     },
     "preset": {
       "support-manager": {
@@ -8493,7 +8521,9 @@
     "meter_sign_documents_per_month": "월간 서명 문서",
     "job_sign-jobs": "Secure Sign 작업 (봉인, 만료, 알림)",
     "feature_kyc": "KYC 검토",
-    "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 읽기 전용이며 접근 기록이 있습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다."
+    "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 읽기 전용이며 접근 기록이 있습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다.",
+    "feature_compliance": "컴플라이언스 요청",
+    "feature_compliance_desc": "신원 확인, 컴플라이언스 책임자 승인, 규제 기한, 암호화된 은행 정보, 7년간의 감사 기록이 있는 계정 해지·출금·전화번호 변경 요청입니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다."
   },
   "Sign": {
     "admin": {
@@ -12967,6 +12997,444 @@
         "forbidden": "허용되지 않음",
         "error": "오류"
       }
+    }
+  },
+  "Compliance": {
+    "title": "컴플라이언스 요청",
+    "intro": "신원 확인, 컴플라이언스 책임자의 승인, 규제 기한이 필요한 계정 해지, 출금, 전화번호 변경 요청입니다.",
+    "newRequest": "새 요청",
+    "back": "요청 목록으로",
+    "retry": "다시 시도",
+    "loading": "불러오는 중...",
+    "showing": "{count, plural, =0 {요청 없음} other {요청 #건}}",
+    "footer": "요청을 열 때마다, 그리고 은행 정보를 표시할 때마다 해당 요청의 타임라인에 기록됩니다. 요청은 7년간 보관됩니다.",
+    "test": "테스트",
+    "unassigned": "담당자 없음",
+    "formerMember": "탈퇴한 멤버",
+    "none": "없음",
+    "yes": "예",
+    "no": "아니요",
+    "save": "저장",
+    "cancel": "취소",
+    "notConnected": "{what}은(는) 아직 연결되지 않았습니다. 지금은 직접 입력합니다.",
+    "receivedOn": "요청일 {date}",
+    "retention": "{date}까지 보관됩니다(7년).",
+    "counts": {
+      "label": "진행 중인 요청 현황",
+      "needsIdentityCheck": "신원 확인 필요",
+      "inReview": "검토 중",
+      "awaitingSignoff": "승인 대기",
+      "executing": "처리 중",
+      "pastTarget": "목표 초과",
+      "nearStop": "최종 기한 임박",
+      "breached": "기한 위반"
+    },
+    "filters": {
+      "label": "요청 필터",
+      "search": "검색",
+      "searchPlaceholder": "참조 번호, 이름, 이메일 또는 전화번호",
+      "type": "유형",
+      "allTypes": "모든 유형",
+      "status": "상태",
+      "allStatuses": "모든 상태",
+      "due": "기한",
+      "anyClock": "모든 기한",
+      "assignee": "담당자",
+      "anyone": "누구나",
+      "from": "시작",
+      "to": "종료",
+      "mine": "내 요청",
+      "clear": "필터 지우기"
+    },
+    "columns": {
+      "reference": "참조 번호",
+      "customer": "고객",
+      "status": "상태",
+      "clock": "기한",
+      "assignee": "담당자",
+      "received": "요청일"
+    },
+    "empty": {
+      "title": "아직 요청이 없습니다",
+      "body": "고객이 계정 해지, 출금 또는 전화번호 변경을 요청하면 여기에 표시됩니다.",
+      "filteredTitle": "일치하는 요청이 없습니다",
+      "filteredBody": "필터를 변경하거나 지워서 더 많은 요청을 확인하세요."
+    },
+    "pager": {
+      "label": "페이지",
+      "previous": "이전",
+      "next": "다음",
+      "page": "{pages}페이지 중 {page}페이지"
+    },
+    "status": {
+      "received": "접수됨",
+      "identity_check": "신원 확인",
+      "officer_review": "담당자 검토",
+      "awaiting_signoff": "승인 대기",
+      "approved": "승인됨",
+      "rejected": "거부됨",
+      "executing": "처리 중",
+      "completed": "완료됨",
+      "closed": "종료됨"
+    },
+    "clock": {
+      "state": {
+        "none": "기한 없음",
+        "on_track": "정상",
+        "target_passed": "목표 초과",
+        "near_stop": "최종 기한 임박",
+        "breached": "기한 위반",
+        "paused": "일시 중지",
+        "done": "종료"
+      },
+      "none": "{day}일째",
+      "paused": "{day}일째에 일시 중지",
+      "done": "{days, plural, other {#일 만에 종료}}",
+      "dayOf": "{day}일째 / 목표 {target}일",
+      "dayOnly": "{day}일째",
+      "stopOnly": "{day}일째",
+      "toStop": "{count, plural, other {최종 기한까지 #일}}",
+      "stopToday": "최종 기한일에 도달했습니다",
+      "overStop": "{count, plural, other {최종 기한 #일 초과}}"
+    },
+    "steps": {
+      "label": "진행 상황",
+      "received": "접수",
+      "identity_check": "신원 확인",
+      "officer_review": "담당자 검토",
+      "signoff": "승인",
+      "execution": "처리",
+      "closed": "종료",
+      "done": "완료",
+      "current": "현재 단계",
+      "rejected": "거부됨"
+    },
+    "errors": {
+      "forbidden": "이 작업을 수행할 권한이 없습니다.",
+      "not_found": "요청을 찾을 수 없습니다.",
+      "invalid_request": "처리할 수 없습니다. 입력한 내용을 확인하고 다시 시도하세요.",
+      "rate_limited": "시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요.",
+      "invalid_transition": "요청이 현재 상태에서 그렇게 이동할 수 없습니다. 페이지를 새로 고치세요.",
+      "maker_checker": "신원 확인을 기록한 사람은 이 요청을 승인할 수 없습니다. 다른 컴플라이언스 책임자가 해야 합니다.",
+      "note_required": "메모가 필요합니다.",
+      "identity_incomplete": "신원 확인 방법과 결과를 선택하세요. ‘기타’를 선택했다면 방법을 적어 주세요.",
+      "identity_not_passed": "신원 확인을 통과하지 못했으므로 요청을 승인할 수 없습니다.",
+      "recommendation_required": "먼저 의견을 선택하세요.",
+      "dues_outstanding": "미납 금액이 있습니다. 예외 사유 입력란에 그래도 승인하는 이유를 적어 주세요.",
+      "checklist_incomplete": "체크리스트의 모든 단계를 먼저 체크하세요.",
+      "not_ready_to_execute": "작업을 체크하려면 먼저 요청이 승인되어야 합니다.",
+      "frozen": "이 요청은 컴플라이언스 책임자에게 넘어갔거나 종료되어 더 이상 답변을 수정할 수 없습니다.",
+      "closed": "이 요청은 종료되었습니다.",
+      "pause_not_allowed": "이 요청 유형은 기한을 일시 중지할 수 없습니다.",
+      "not_paused": "기한이 일시 중지되어 있지 않습니다.",
+      "already_paused": "기한이 이미 일시 중지되어 있습니다.",
+      "no_clock": "이 요청에는 기한이 없습니다.",
+      "unsupported_file": "PDF, JPG, PNG 파일만 업로드할 수 있습니다.",
+      "file_too_large": "파일이 너무 큽니다(최대 10MB).",
+      "too_many_files": "이 요청의 파일 수 한도에 도달했습니다.",
+      "link_other_workspace": "해당 항목은 이 워크스페이스에 없습니다.",
+      "type_unavailable": "해당 요청 유형을 사용할 수 없습니다.",
+      "assignee_cannot_see_requests": "그 사람은 컴플라이언스 요청을 볼 수 없으므로 담당자로 지정할 수 없습니다.",
+      "validation_failed": "일부 답변을 확인해야 합니다. 입력란을 확인하고 다시 시도하세요.",
+      "reveal_unavailable": "지금은 정보를 표시할 수 없습니다.",
+      "encryption_unavailable": "지금은 보호된 정보를 읽거나 저장할 수 없습니다. 관리자에게 암호화 키 확인을 요청하세요.",
+      "audit_failed": "이 작업의 기록을 저장하지 못해 아무것도 표시하거나 변경하지 않았습니다. 다시 시도하세요.",
+      "storage_failed": "파일을 저장하거나 읽지 못했습니다. 다시 시도하세요.",
+      "server_error": "문제가 발생했습니다. 잠시 후 다시 시도하세요.",
+      "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요."
+    },
+    "form": {
+      "choose": "선택...",
+      "yes": "예",
+      "no": "아니요",
+      "mustTick": "반드시 체크해야 합니다.",
+      "fixThis": "이 답변을 확인하세요.",
+      "encrypted": "(암호화하여 저장)",
+      "fileLater": "요청을 만든 뒤 요청에서 추가하세요"
+    },
+    "new": {
+      "title": "새 요청",
+      "intro": "고객이 채팅이나 전화로 한 요청을 위한 양식입니다. 기한은 요청일부터 계산됩니다.",
+      "type": "요청 유형",
+      "customer": "고객",
+      "name": "이름",
+      "email": "이메일",
+      "phone": "전화번호",
+      "channel": "채널",
+      "channelPlaceholder": "WhatsApp, 전화, 이메일...",
+      "received": "요청일",
+      "receivedHint": "지금은 비워 두세요. 고객이 더 일찍 요청했다면 그 날짜와 시간을 입력하세요. 직접 설정했다는 사실이 기록됩니다.",
+      "details": "상세 정보",
+      "create": "요청 만들기",
+      "cancel": "취소",
+      "noTypes": "선택할 수 있는 요청 유형이 없습니다. 관리자가 설정 > 컴플라이언스에서 켤 수 있습니다.",
+      "requiredHint": "{count, plural, other {필수 답변 #개가 비어 있습니다}}"
+    },
+    "customer": {
+      "title": "고객",
+      "edit": "수정",
+      "name": "이름",
+      "email": "이메일",
+      "phone": "전화번호",
+      "channel": "채널",
+      "received": "요청일",
+      "receivedEditHint": "비워 두면 날짜가 유지됩니다. 날짜를 바꾸면 기한이 함께 이동하며 기록됩니다.",
+      "source": "접수 경로",
+      "sources": {
+        "form": "공개 양식",
+        "staff": "직원",
+        "inbox": "받은 편지함",
+        "ticket": "티켓"
+      }
+    },
+    "answers": {
+      "title": "요청 내용",
+      "edit": "수정",
+      "none": "이 요청 유형에는 추가 내용이 없습니다."
+    },
+    "sensitive": {
+      "title": "은행 및 보호된 정보",
+      "reveal": "보기",
+      "hide": "지금 숨기기",
+      "unreadable": "보호된 정보가 저장되어 있지만 지금은 읽을 수 없습니다. 관리자에게 암호화 키 확인을 요청하세요.",
+      "notGiven": "제공되지 않음",
+      "hidesIn": "{seconds, plural, other {#초}} 후에 다시 숨겨집니다.",
+      "revealHint": "가려진 상태로 표시됩니다. ‘보기’를 누르면 2분 동안 전체가 표시되고 열람 사실이 기록됩니다.",
+      "noReveal": "가려진 상태로 표시됩니다. 전체를 보려면 은행 정보 열람 권한이 필요합니다."
+    },
+    "standing": {
+      "title": "계정 상태",
+      "intro": "고객이 갚아야 할 금액(미지급 용돈, 수수료)이 있습니까? 지금은 직접 입력합니다.",
+      "blocksApproval": "미납 금액이 있습니다. 컴플라이언스 책임자가 사유를 기록하지 않으면 요청을 승인할 수 없습니다.",
+      "question": "미납 금액",
+      "noDues": "미납 금액 없음",
+      "dues": "미납 금액 있음",
+      "notes": "메모",
+      "save": "계정 상태 저장",
+      "notRecorded": "아직 기록되지 않음",
+      "recordedBy": "기록",
+      "sourceApi": "자동 확인",
+      "sourceManual": "직접 입력",
+      "backOffice": "백오피스와의 자동 확인"
+    },
+    "identity": {
+      "title": "신원 확인",
+      "intro": "요청한 사람이 계정 소유자인지 확인한 뒤 방법과 결과를 기록하세요. 확인한 사람으로 본인이 기록됩니다.",
+      "method": "확인 방법",
+      "methodOther": "방법을 설명하세요",
+      "methods": {
+        "call_back": "등록된 번호로 회신 통화",
+        "video_call": "화상 통화",
+        "id_document": "신분증",
+        "chat_verification": "채팅에서 확인",
+        "in_person": "직접 대면",
+        "other": "기타"
+      },
+      "outcome": "결과",
+      "outcomes": {
+        "pass": "확인됨",
+        "fail": "확인되지 않음"
+      },
+      "notRequired": "이 요청 유형은 신원 확인이 필요하지 않습니다.",
+      "notNeeded": "이 요청 유형은 신원 확인이 필요하지 않습니다. 담당자 검토로 진행하세요.",
+      "notes": "메모",
+      "byYou": "지금 본인이 확인한 것으로 기록됩니다.",
+      "record": "신원 확인 기록",
+      "continue": "담당자 검토로 진행",
+      "start": "제가 신원 확인을 하겠습니다",
+      "verifiedBy": "확인한 사람",
+      "sendBackNote": "신원 확인을 다시 해야 하는 이유",
+      "sendBack": "신원 확인을 다시 하도록 되돌리기",
+      "none": "기록된 신원 확인이 없습니다."
+    },
+    "review": {
+      "title": "담당자 검토",
+      "recommendation": "의견",
+      "recommendations": {
+        "approve": "승인",
+        "reject": "거부",
+        "more_info": "추가 정보 필요"
+      },
+      "notes": "컴플라이언스 책임자에게 전달할 메모",
+      "by": "의견 작성자",
+      "sentBack": "되돌린 사유",
+      "submit": "승인 요청",
+      "notYet": "신원 확인 후 담당자의 의견이 여기에 표시됩니다."
+    },
+    "signoff": {
+      "title": "컴플라이언스 책임자 승인",
+      "decision": "결정",
+      "decisions": {
+        "approved": "승인됨",
+        "rejected": "거부됨"
+      },
+      "by": "승인한 사람",
+      "reason": "사유",
+      "override": "미납 금액이 있지만 승인한 이유",
+      "onlyHead": "컴플라이언스 책임자만 승인할 수 있습니다.",
+      "overrideLabel": "미납 금액이 있어도 승인하는 이유",
+      "overrideHint": "미납 금액이 있는 상태에서 승인하려면 필수입니다. 결정과 함께 보관됩니다.",
+      "reasonLabel": "사유(거부 또는 되돌리기 시 필수)",
+      "reasonNeeded": "거부하거나 되돌리려면 사유가 필요합니다.",
+      "approve": "승인",
+      "reject": "거부",
+      "sendBack": "담당자에게 되돌리기",
+      "notYet": "요청이 아직 컴플라이언스 책임자에게 넘어가지 않았습니다."
+    },
+    "execution": {
+      "title": "운영 체크리스트",
+      "notYet": "승인 후에 작업이 시작됩니다.",
+      "doneBy": "처리한 사람",
+      "noSteps": "이 요청 유형에는 체크리스트가 없습니다.",
+      "onlyOperations": "운영 권한이 있는 사람만 이 단계를 체크할 수 있습니다.",
+      "markExecuting": "처리 중으로 표시",
+      "complete": "완료로 표시",
+      "closeRejected": "고객에게 거부되었음을 알린 뒤 요청을 종료하세요",
+      "closeCompleted": "고객에게 완료되었음을 알린 뒤 요청을 종료하세요",
+      "closeNotePlaceholder": "선택 메모(예: 고객에게 안내한 방법)",
+      "close": "요청 종료",
+      "withdrawnReason": "결정 없이 종료하는 이유(중복, 고객 철회 등)",
+      "closeWithoutDecision": "결정 없이 종료",
+      "keepOpen": "열어 두기"
+    },
+    "clockPanel": {
+      "title": "기한 일시 중지",
+      "body": "고객을 기다리는 동안 일수 계산을 멈춥니다. 컴플라이언스 책임자가 결정한 경우에만 사용하세요. 사유와 함께 기록됩니다.",
+      "pausedBody": "기한이 일시 중지되었습니다. 재개하면 중지된 시간만큼 기한이 뒤로 밀립니다.",
+      "note": "사유",
+      "pause": "기한 일시 중지",
+      "resume": "기한 재개"
+    },
+    "files": {
+      "title": "문서",
+      "add": "파일 추가",
+      "haveCount": "{count, plural, other {파일 #개}}",
+      "missing": "추가되지 않음",
+      "attach": "추가",
+      "none": "아직 문서가 없습니다.",
+      "rules": "PDF, JPG 또는 PNG, 최대 10MB. 파일은 비공개로 저장되며 삭제할 수 없습니다."
+    },
+    "links": {
+      "title": "연결",
+      "contact": "연락처",
+      "conversation": "대화",
+      "conversationText": "이 요청이 시작된 채팅",
+      "ticket": "티켓",
+      "incident": "인시던트",
+      "kyc": "KYC 확인",
+      "open": "열기",
+      "unlink": "연결 해제",
+      "none": "아직 연결된 항목이 없습니다.",
+      "addLabel": "연결 대상",
+      "search": "검색",
+      "searchPlaceholder": "번호, 이름, 전화번호 또는 제목",
+      "find": "찾기",
+      "noMatches": "일치하는 항목이 없습니다.",
+      "kycLabel": "KYC 검증 참조"
+    },
+    "timeline": {
+      "title": "타임라인",
+      "addNote": "메모 추가",
+      "saveNote": "메모 추가",
+      "system": "Halo",
+      "kinds": {
+        "status": "{from}에서 {to}(으)로 이동",
+        "note": "메모를 추가함",
+        "identity_check": "신원 확인을 기록함: {method}, {outcome}",
+        "review": "의견: {recommendation}",
+        "signoff": "승인 결정: {decision}",
+        "signoff_override": "승인 결정: {decision}, 미납 금액이 있음에도",
+        "step_done": "단계를 체크함",
+        "step_undone": "단계 체크를 해제함",
+        "reveal": "은행 정보를 열람함",
+        "reveal_refused": "은행 정보를 열람하려 했으나 허용되지 않음",
+        "view": "요청을 열람함",
+        "view_many": "요청을 열람함({count}회)",
+        "view_file": "파일 {name}을(를) 열람함",
+        "attachment": "파일 {name}을(를) 추가함",
+        "link": "연결을 변경함({field})",
+        "edited": "수정함: {fields}",
+        "standing_dues": "미납 금액이 있다고 기록함",
+        "standing_clear": "미납 금액이 없다고 기록함",
+        "clock_pause": "기한을 일시 중지함",
+        "clock_resume": "기한을 재개함",
+        "clock_alert": "알림: {threshold, plural, =0 {최종 기한일에 도달함} other {최종 기한까지 #일}}",
+        "created": "요청을 만듦({source})",
+        "created_backdated": "요청을 만듦({source}), 요청일은 직접 설정",
+        "assigned": "요청을 배정함",
+        "unassigned": "담당자를 해제함",
+        "other": "요청을 업데이트함"
+      }
+    },
+    "blocked": {
+      "no_permission": "이 단계를 수행할 권한이 없습니다.",
+      "maker_checker": "이 요청의 신원 확인을 본인이 기록했으므로 다른 사람이 승인해야 합니다.",
+      "identity_not_passed": "신원 확인을 통과하지 못해 승인할 수 없습니다. 거부하거나 되돌릴 수 있습니다.",
+      "dues_outstanding": "미납 금액이 있습니다. 그래도 승인하려면 예외 사유 입력란에 사유를 적으세요.",
+      "checklist_incomplete": "체크리스트의 모든 단계를 먼저 체크하세요.",
+      "no_recommendation": "담당자가 아직 의견을 내지 않았습니다."
+    },
+    "settings": {
+      "title": "컴플라이언스 요청",
+      "intro": "고객이 할 수 있는 요청의 종류, 각각 걸릴 수 있는 기간, 운영팀이 처리할 작업입니다. 기한 변경은 새 요청에만 적용됩니다.",
+      "loading": "불러오는 중...",
+      "noPermission": "이 내용을 보려면 컴플라이언스 설정 관리 권한이 필요합니다.",
+      "standard": "기본 제공",
+      "active": "사용",
+      "name": "이름",
+      "nameIn": "{language} 이름",
+      "languages": {
+        "ms": "말레이어",
+        "zh": "중국어",
+        "ko": "한국어"
+      },
+      "clocks": "기한",
+      "targetDays": "목표(일)",
+      "stopDays": "최종 기한(일)",
+      "noClock": "제한 없음",
+      "clocksHint": "요청일부터 계산합니다. 목표를 넘기면 요청이 주황색으로, 최종 기한 10일 전부터는 빨간색으로 바뀌고 10일 전, 5일 전, 기한 당일에 알림이 갑니다.",
+      "clocksInvalid": "정수 일수를 입력하세요. 최종 기한은 목표보다 앞설 수 없습니다.",
+      "switches": {
+        "identityCheck": "신원 확인 필요",
+        "identityCheckHint": "누군가 통과한 신원 확인을 기록하기 전에는 요청을 승인할 수 없습니다.",
+        "dues": "계정 상태 확인",
+        "duesHint": "미납 금액 블록을 표시합니다. 미납 금액이 있으면 책임자가 사유를 기록하지 않는 한 승인이 차단됩니다.",
+        "pause": "책임자가 기한을 일시 중지할 수 있음",
+        "pauseHint": "기본값은 꺼짐입니다. 일시 중지는 항상 사유와 함께 기록됩니다."
+      },
+      "checklist": "운영 체크리스트",
+      "checklistHint": "승인 후 운영팀이 체크하는 단계입니다. 새 요청마다 복사되므로 변경은 새 요청에만 적용됩니다.",
+      "stepLabel": "{n}단계",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "removeStep": "단계 삭제",
+      "translations": "번역",
+      "addStep": "단계 추가",
+      "fields": "양식 입력란",
+      "fieldsFixed": "기본 요청 유형의 입력란은 직원용 양식과 공개 양식이 이를 기반으로 하므로 고정되어 있습니다.",
+      "fieldTypes": {
+        "text": "텍스트",
+        "multiline": "긴 텍스트",
+        "phone": "전화번호",
+        "email": "이메일",
+        "number": "숫자",
+        "date": "날짜",
+        "choice": "선택",
+        "yesno": "예 / 아니요",
+        "acknowledge": "체크박스",
+        "file": "파일"
+      },
+      "required": "필수",
+      "sensitive": "보호됨",
+      "fieldLabel": "입력란 {n} 이름",
+      "fieldType": "입력란 유형",
+      "removeField": "입력란 삭제",
+      "addField": "입력란 추가",
+      "newType": "새 요청 유형",
+      "keyWillBe": "식별 키는",
+      "createType": "유형 만들기",
+      "cancel": "취소",
+      "saved": "저장되었습니다."
     }
   }
 }

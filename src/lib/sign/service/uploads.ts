@@ -18,6 +18,8 @@ import { randomUUID } from "node:crypto";
 
 import { fieldVisible, FILE_KINDS, MAX_UPLOAD_MB, type DataField, type FileKind, type FormDefinition, type StoredFile } from "../forms";
 import type { RemoveUploadResult, UploadResult } from "../forms/api-types";
+import { detectFileKind } from "@/lib/net/file-kind";
+
 import { sha256Hex } from "../pdf/load";
 import { documentPath, getFile, putFile, removeFiles, safeFileName } from "../storage";
 import { isDelegate } from "../forward";
@@ -34,14 +36,8 @@ export const DEFAULT_MAX_FILES = 1;
 
 const MIME: Record<FileKind, string> = { pdf: "application/pdf", jpg: "image/jpeg", png: "image/png" };
 
-/** What the bytes are, from their first bytes: a PDF, a JPEG or a PNG; null for anything else. */
-export function detectKind(bytes: Uint8Array): FileKind | null {
-  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) return "pdf";
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
-  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  if (bytes.length >= 8 && png.every((b, i) => bytes[i] === b)) return "png";
-  return null;
-}
+/** What the bytes are, from their first bytes: a PDF, a JPEG or a PNG; null for anything else (the check is shared: src/lib/net/file-kind.ts). */
+export const detectKind = (bytes: Uint8Array): FileKind | null => detectFileKind(bytes);
 
 interface Target {
   doc: SignDocumentRow;

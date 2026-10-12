@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
+import { BarChart3, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
 
 // The sidebar's rows, in order. A plain module (no hooks), so the order and the capability of each row can be tested.
 
@@ -49,7 +49,10 @@ export const bottomNavItems: NavItem[] = [
   { href: "/incidents", labelKey: "incidents", icon: ShieldAlert, capability: "menu.incidents" },
   // KYC review (compliance: the ID verification back end), directly below Incidents and above Secure Sign. Gated by menu.kyc and the operator's `kyc` flag (off by default).
   { href: "/kyc", labelKey: "kyc", icon: ShieldCheck, capability: "menu.kyc" },
-  // Secure Sign (the e-signing module): below KYC review. Same capability as before; the page and the feature flag still gate it.
+  // Compliance requests (account closure, withdrawal, phone change with a clock and a sign-off): directly below KYC review, above Secure Sign. Gated by
+  // menu.compliance and the operator's `compliance` flag (off by default).
+  { href: "/compliance", labelKey: "compliance", icon: ClipboardCheck, capability: "menu.compliance" },
+  // Secure Sign (the e-signing module): below Compliance. Same capability as before; the page and the feature flag still gate it.
   { href: "/sign", labelKey: "sign", icon: FileSignature, capability: "menu.sign" },
 ];
 

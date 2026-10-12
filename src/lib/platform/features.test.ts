@@ -146,3 +146,31 @@ describe("kyc (KYC review, migration 182): off unless the operator says so", () 
     expect(applyFeatureFlags(plain, null)).toBe(plain);
   });
 });
+
+describe("compliance (Compliance requests, migration 183): off unless the operator says so", () => {
+  const all = ["menu.inbox", "menu.compliance", "compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage", "menu.kyc", "kyc.view", "tickets.delete"];
+
+  it("is a feature the operator console offers, and reads as off when the key is absent, the row is missing or the platform could not be read", () => {
+    expect(PLATFORM_FEATURES).toContain("compliance");
+    expect(DEFAULT_OFF_FEATURES).toContain("compliance");
+    expect(isFeatureEnabled(DEFAULT_PLATFORM, "compliance")).toBe(false);
+    expect(isFeatureEnabled(null, "compliance")).toBe(false);
+    expect(isFeatureEnabled(undefined, "compliance")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { compliance: false } }), "compliance")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { compliance: "true" } }), "compliance")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { compliance: true } }), "compliance")).toBe(true);
+  });
+
+  it("removes menu.compliance and every compliance.* capability, and nothing else, while it is off", () => {
+    const kept = ["menu.inbox", "menu.kyc", "kyc.view", "tickets.delete"];
+    expect([...applyFeatureFlags(new Set(all), parsePlatformRow({ features: { kyc: true } }))].sort()).toEqual([...kept].sort());
+    expect([...applyFeatureFlags(new Set(all), null)].sort()).toEqual(["menu.inbox", "tickets.delete"]);
+  });
+
+  it("keeps them when the operator turned it on, independently of the other modules", () => {
+    const on = parsePlatformRow({ features: { compliance: true } });
+    expect([...applyFeatureFlags(new Set(all), on)].sort()).toEqual(["menu.compliance", "compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage", "menu.inbox", "tickets.delete"].sort());
+    const both = parsePlatformRow({ features: { compliance: true, kyc: true } });
+    expect([...applyFeatureFlags(new Set(all), both)].sort()).toEqual([...all].sort());
+  });
+});

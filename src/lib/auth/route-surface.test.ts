@@ -33,6 +33,8 @@ const AUTH_MARKER = new RegExp(
     'staff\\(',
     // KYC review's wrapper (lib/kyc/http.ts): requireCapability('menu.kyc'), a rate limit, the caller's workspace
     'kycStaff\\(',
+    // Compliance requests' wrapper (lib/compliance/http.ts): requireCapability('menu.compliance'), a rate limit, the caller's workspace
+    'complianceStaff\\(',
   ].join('|'),
 )
 const ADMIN_CLIENT = /supabaseAdmin|createAdminClient|SUPABASE_SERVICE_ROLE_KEY|admin-client|supabase\/admin/
@@ -84,6 +86,7 @@ const SYSTEM_ROUTES: Record<string, { why: string; mustContain: string }> = {
   'usage/snapshot-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'platform/deletion-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
   'sla/tickets-cron': { why: 'system-wide job', mustContain: 'cronRoute' },
+  'compliance/clock-cron': { why: 'system-wide job (clock alerts of Compliance requests across workspaces; the database function reads only workspaces with the flag on)', mustContain: 'cronRoute' },
   'sign/jobs-cron': { why: 'system-wide job (seal, expire, remind, across workspaces)', mustContain: 'cronRoute' },
   'tiktok/webhook': { why: 'provider webhook, matched to a workspace by the connected account id', mustContain: 'verifyTikTokSignature' },
 }

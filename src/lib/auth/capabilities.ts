@@ -58,6 +58,7 @@ export type CapabilityGroup =
   | "incidents"
   | "sign"
   | "kyc"
+  | "compliance"
   | "ai"
   | "channels"
   | "workspace"
@@ -76,6 +77,7 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
   "incidents",
   "sign",
   "kyc",
+  "compliance",
   "ai",
   "channels",
   "workspace",
@@ -145,6 +147,10 @@ export const MENU_CAPABILITIES = [
   // and menu.sign it is not plain nav access: the people it shows are children, so it is Owner and Admin
   // only until an admin grants it. App tier: the data is behind a server route, not a table the browser reads.
   "menu.kyc",
+  // Compliance requests (migration 183): customer instructions that carry identity and bank details and a regulatory clock (account closure, withdrawal,
+  // phone change). Owner and Admin only until an admin grants it (the owner defines Head of Compliance / Compliance Officer as custom roles). App tier:
+  // the data is behind server routes; the table policies read it through has_capability(), but no browser writes.
+  "menu.compliance",
   // Not a real "menu" in the sense every other entry here is (see the
   // special-cased def() for it below, not the menu() helper) — it stays
   // in this array only so the CapabilityKey union and the PAGE_ACCESS
@@ -175,7 +181,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // 'database' tier and grantable down to Agent; the parity table in
   // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
-  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc").map((k) =>
+  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc" && k !== "menu.compliance").map((k) =>
     menu(k.slice("menu.".length)),
   ),
   // Sembang (internal team chat) is the one "menu" capability that is
@@ -196,6 +202,8 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("menu.sign", "menus", AGENT_UP, "agent", "database"),
   // KYC review: see the menu item and the screen (migration 182). Owner and Admin by default, grantable down to Agent.
   def("menu.kyc", "menus", ADMIN_UP, "agent"),
+  // Compliance requests: see the menu item and the area (migration 183). Owner and Admin by default, grantable down to Agent.
+  def("menu.compliance", "menus", ADMIN_UP, "agent"),
 
   // ---- Inbox ----
   def("messages.send", "inbox", AGENT_UP, "agent", "database"),
@@ -278,6 +286,20 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("kyc.view", "kyc", ADMIN_UP, "agent"),
   def("kyc.reveal", "kyc", ADMIN_UP, "agent"),
 
+  // ---- Compliance requests (migration 183) ----
+  // menu.compliance (above, in Menus) opens the area and lists the cases; each route then checks its own capability. All server routes (the service role
+  // writes; the database re-checks the actor's capability inside its functions), so app tier. Default: Owner and Admin, nobody else.
+  //   review   do the identity check and the review, add notes, recommend, assign, edit, close
+  //   approve  the final sign-off (Head of Compliance), send back, pause the clock
+  //   reveal   read the bank details and other sensitive answers in full
+  //   execute  tick the operations checklist and complete the work
+  //   manage   the request type definitions and their settings
+  def("compliance.review", "compliance", ADMIN_UP, "agent"),
+  def("compliance.approve", "compliance", ADMIN_UP, "agent"),
+  def("compliance.reveal", "compliance", ADMIN_UP, "agent"),
+  def("compliance.execute", "compliance", ADMIN_UP, "agent"),
+  def("compliance.manage", "compliance", ADMIN_UP, "agent"),
+
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
   def("ai.configure", "ai", ADMIN_UP, "agent", "database"),
@@ -346,6 +368,11 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sign.reveal-sensitive"
   | "kyc.view"
   | "kyc.reveal"
+  | "compliance.review"
+  | "compliance.approve"
+  | "compliance.reveal"
+  | "compliance.execute"
+  | "compliance.manage"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

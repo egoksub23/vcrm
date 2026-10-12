@@ -138,7 +138,7 @@ describe("catalogue", () => {
         // protected by the action capabilities and the read policies.
         // menu.sembang is the deliberate exception (it IS a table guard,
         // see the previous test) so it's excluded here.
-        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc"),
+        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc" && k !== "menu.compliance"),
         "reports.view",
         // the action is a call to the AI provider, made by the server
         "ai.use",
@@ -156,6 +156,13 @@ describe("catalogue", () => {
         "menu.kyc",
         "kyc.view",
         "kyc.reveal",
+        // Compliance requests (migration 183): server routes only; the database re-checks the actor inside its functions
+        "menu.compliance",
+        "compliance.review",
+        "compliance.approve",
+        "compliance.reveal",
+        "compliance.execute",
+        "compliance.manage",
       ].sort(),
     );
   });
@@ -491,5 +498,40 @@ describe("KYC review capabilities (migration 182)", () => {
     expect(capabilityI18nId("menu.kyc")).toBe("menu_kyc");
     expect(capabilityI18nId("kyc.view")).toBe("kyc_view");
     expect(capabilityI18nId("kyc.reveal")).toBe("kyc_reveal");
+  });
+});
+
+describe("Compliance requests capabilities (migration 183)", () => {
+  const COMPLIANCE = ["menu.compliance", "compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage"] as const;
+
+  it("exist, in the menus and compliance groups, app tier, grantable down to an agent", () => {
+    expect(getCapability("menu.compliance")).toMatchObject({ group: "menus", enforcedBy: "app", minGrantRole: "agent" });
+    for (const k of COMPLIANCE.slice(1)) expect(getCapability(k), k).toMatchObject({ group: "compliance", enforcedBy: "app", minGrantRole: "agent" });
+    expect(CAPABILITY_GROUPS).toContain("compliance");
+  });
+
+  it("default to the owner and the admin only; nobody else, and no named role is seeded (the owner defines Head of Compliance and Compliance Officer as custom roles)", () => {
+    for (const k of COMPLIANCE) {
+      expect([...(getCapability(k)?.defaultRoles ?? [])].sort(), k).toEqual(["admin", "owner"]);
+      expect(DEFAULT_CAPABILITIES.owner.has(k), k).toBe(true);
+      expect(DEFAULT_CAPABILITIES.admin.has(k), k).toBe(true);
+      expect(DEFAULT_CAPABILITIES.agent.has(k), k).toBe(false);
+      expect(DEFAULT_CAPABILITIES.viewer.has(k), k).toBe(false);
+    }
+  });
+
+  it("can be granted to an agent (so to a custom role built on one) and never to a viewer", () => {
+    for (const k of COMPLIANCE) {
+      expect(roleCanBeGranted("agent", k), k).toBe(true);
+      expect(roleCanBeGranted("viewer", k), k).toBe(false);
+      expect(resolveCapabilities("agent", { [k]: true }).has(k), k).toBe(true);
+      expect(resolveCapabilities("admin", { [k]: false }).has(k), k).toBe(false);
+    }
+  });
+
+  it("derive i18n ids", () => {
+    expect(capabilityI18nId("menu.compliance")).toBe("menu_compliance");
+    expect(capabilityI18nId("compliance.approve")).toBe("compliance_approve");
+    expect(capabilityI18nId("compliance.reveal")).toBe("compliance_reveal");
   });
 });

@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Coins,
+  ClipboardSignature,
   FileSignature,
   History,
   KeyRound,
@@ -50,6 +51,7 @@ export const SETTINGS_SECTIONS = [
   'sla',
   'incidents',
   'sign',
+  'compliance',
   'status-colors',
   'team',
   'roles',
@@ -99,6 +101,9 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   // Doc Sign (migration 157): Settings > Doc Sign (sign.settings). The operator's `sign` flag removes
   // every sign.* capability, so the tab is absent for a workspace that does not have Doc Sign.
   sign: { id: 'sign', label: 'Secure Sign', icon: FileSignature, group: 'workspace', capability: 'sign.settings' },
+  // Compliance requests (migration 183): Settings > Compliance (compliance.manage). The operator's `compliance` flag removes every compliance.*
+  // capability, so the tab is absent for a workspace that does not have it.
+  compliance: { id: 'compliance', label: 'Compliance', icon: ClipboardSignature, group: 'workspace', capability: 'compliance.manage' },
   'status-colors': { id: 'status-colors', label: 'Status colors', icon: SwatchBook, group: 'workspace' },
   team: { id: 'team', label: 'Team', icon: UsersRound, group: 'workspace' },
   roles: { id: 'roles', label: 'Roles & permissions', icon: ShieldCheck, group: 'workspace', capability: 'roles.manage' },

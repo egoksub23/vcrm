@@ -32,6 +32,7 @@ import { IntegrationsPanel } from '@/components/settings/integrations/integratio
 import { SlaPanel } from '@/components/settings/sla/sla-panel';
 import { IncidentsSettingsPanel } from '@/components/settings/incidents/incidents-settings-panel';
 import { SignSettingsPanel } from '@/components/settings/sign/sign-settings-panel';
+import { ComplianceSettingsPanel } from '@/components/compliance/settings';
 import { useApprovalsCount } from '@/hooks/use-approvals-count';
 import { badgeLabel } from '@/lib/approvals/rules';
 import { NoAccess } from '@/components/auth/no-access';
@@ -121,6 +122,7 @@ function SettingsPageInner() {
     sla: <SlaPanel />,
     incidents: <IncidentsSettingsPanel />,
     sign: <SignSettingsPanel />,
+    compliance: <ComplianceSettingsPanel />,
     'status-colors': <StatusColorsTab />,
     team: <TeamSection />,
     roles: <RolesPermissionsTab />,

@@ -53,7 +53,8 @@
     "pendingApprovals": "{count} {count, plural, =1 {cadangan} other {cadangan}} menunggu kelulusan",
     "platform": "Platform",
     "sign": "Secure Sign",
-    "kyc": "Semakan KYC"
+    "kyc": "Semakan KYC",
+    "compliance": "Pematuhan"
   },
   "Header": {
     "dashboard": "Papan pemuka",
@@ -80,7 +81,8 @@
     "menuSettings": "Tetapan",
     "menuSignOut": "Log keluar",
     "sign": "Secure Sign",
-    "kyc": "Semakan KYC"
+    "kyc": "Semakan KYC",
+    "compliance": "Permintaan pematuhan"
   },
   "Help": {
     "pageTitle": "Panduan Pengguna",
@@ -3536,7 +3538,8 @@
       "approvals": "Kelulusan",
       "integrations": "Integrasi",
       "sla": "SLA & waktu perniagaan",
-      "incidents": "Insiden"
+      "incidents": "Insiden",
+      "compliance": "Pematuhan"
     },
     "groups": {
       "account": "Akaun",
@@ -6282,6 +6285,30 @@
       "menu_kyc": {
         "label": "Semakan KYC",
         "description": "Lihat item menu Semakan KYC dan buka skrin untuk mencari ID rakan dan membaca pengesahannya. Membuka imej ID memerlukan Lihat imej ID; membaca nilai yang ditutup sepenuhnya memerlukan Tunjukkan butiran sensitif KYC. Setiap pandangan direkodkan. Hanya berfungsi apabila pengendali menghidupkan Semakan KYC untuk ruang kerja. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_approve": {
+        "label": "Meluluskan permintaan pematuhan",
+        "description": "Kelulusan akhir (Ketua Pematuhan): lulus atau tolak permintaan, hantar semula kepada pegawai, jeda dan sambung jam, mengetepikan tunggakan dengan sebab. Orang yang merekodkan semakan identiti sesuatu permintaan tidak boleh meluluskan permintaan itu. Memerlukan menu Pematuhan. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_execute": {
+        "label": "Melaksanakan permintaan pematuhan",
+        "description": "Tandakan senarai semak operasi bagi permintaan yang diluluskan (tutup akaun di back office, bayaran balik, maklumkan pelanggan), dengan siapa dan bila, dan tandakan sedang dilaksanakan atau selesai. Memerlukan menu Pematuhan. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_manage": {
+        "label": "Urus tetapan pematuhan",
+        "description": "Sunting jenis permintaan dalam Tetapan > Pematuhan: nama, hari sasaran dan had mutlak (untuk permintaan baharu), suis semakan identiti, tunggakan dan jeda, senarai semak operasi, dan jenis tersuai. Memerlukan menu Pematuhan. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_reveal": {
+        "label": "Dedahkan butiran bank dalam permintaan pematuhan",
+        "description": "Gunakan Dedahkan untuk membaca nama bank, nombor akaun dan pemegang akaun sesuatu permintaan sepenuhnya, selama dua minit. Setiap pendedahan direkodkan dalam garis masa permintaan. Tanpa kebenaran ini ia kekal bertopeng. Memerlukan menu Pematuhan. Lalai: Pemilik dan Pentadbir."
+      },
+      "compliance_review": {
+        "label": "Semak permintaan pematuhan",
+        "description": "Buka permintaan, rekod semakan identiti, semak dan syorkan, tambah nota, sunting butiran, paut tiket, tugaskan dan tutup. Memerlukan menu Pematuhan. Lalai: Pemilik dan Pentadbir."
+      },
+      "menu_compliance": {
+        "label": "Permintaan pematuhan",
+        "description": "Lihat item menu Pematuhan dan buka senarai permintaan. Ia tidak membuka permintaan dengan sendirinya: menyemak, meluluskan, mendedahkan dan melaksanakan masing-masing mempunyai kebenaran sendiri. Berfungsi hanya apabila pengendali menghidupkan Permintaan pematuhan untuk ruang kerja. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -6298,7 +6325,8 @@
       "workspace": "Ruang kerja",
       "people": "Orang",
       "sign": "Secure Sign",
-      "kyc": "Semakan KYC"
+      "kyc": "Semakan KYC",
+      "compliance": "Permintaan pematuhan"
     },
     "preset": {
       "support-manager": {
@@ -11615,6 +11643,446 @@
   },
   "Platform": {
     "feature_kyc": "Semakan KYC",
-    "feature_kyc_desc": "Skrin kakitangan untuk bahagian belakang pengesahan ID (imej ID dan rekod pengesahan kanak-kanak), baca sahaja, dengan log akses. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya. Memerlukan KYC_DOC_API_BASE_URL dan KYC_DOC_API_KEY pada pelayan."
+    "feature_kyc_desc": "Skrin kakitangan untuk bahagian belakang pengesahan ID (imej ID dan rekod pengesahan kanak-kanak), baca sahaja, dengan log akses. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya. Memerlukan KYC_DOC_API_BASE_URL dan KYC_DOC_API_KEY pada pelayan.",
+    "feature_compliance": "Permintaan pematuhan",
+    "feature_compliance_desc": "Penutupan akaun, pengeluaran dan pertukaran nombor telefon dengan semakan identiti, kelulusan Ketua Pematuhan, jam peraturan, butiran bank yang disulitkan dan jejak audit tujuh tahun. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya."
+  },
+  "Compliance": {
+    "title": "Permintaan pematuhan",
+    "intro": "Penutupan akaun, pengeluaran dan pertukaran nombor telefon yang memerlukan semakan identiti, kelulusan Ketua Pematuhan dan jam peraturan.",
+    "newRequest": "Permintaan baharu",
+    "back": "Kembali ke permintaan",
+    "retry": "Cuba lagi",
+    "loading": "Memuatkan...",
+    "showing": "{count, plural, =0 {Tiada permintaan} other {# permintaan}}",
+    "footer": "Setiap kali permintaan dibuka, dan setiap kali butiran bank dipaparkan, ia direkodkan dalam garis masa permintaan. Permintaan disimpan selama tujuh tahun.",
+    "test": "Ujian",
+    "unassigned": "Belum ditugaskan",
+    "formerMember": "Bekas ahli",
+    "none": "Tiada",
+    "yes": "Ya",
+    "no": "Tidak",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "notConnected": "{what} belum disambungkan: buat masa ini ia dimasukkan secara manual.",
+    "receivedOn": "Dimohon pada {date}",
+    "retention": "Disimpan sehingga {date} (tujuh tahun).",
+    "counts": {
+      "label": "Kedudukan permintaan yang terbuka",
+      "needsIdentityCheck": "Perlu semakan identiti",
+      "inReview": "Dalam semakan",
+      "awaitingSignoff": "Menunggu kelulusan",
+      "executing": "Sedang dilaksanakan",
+      "pastTarget": "Melepasi sasaran",
+      "nearStop": "Hampir had mutlak",
+      "breached": "Dilanggar"
+    },
+    "filters": {
+      "label": "Tapis permintaan",
+      "search": "Cari",
+      "searchPlaceholder": "Rujukan, nama, e-mel atau telefon",
+      "type": "Jenis",
+      "allTypes": "Semua jenis",
+      "status": "Status",
+      "allStatuses": "Semua status",
+      "due": "Jam",
+      "anyClock": "Mana-mana jam",
+      "assignee": "Ditugaskan kepada",
+      "anyone": "Sesiapa sahaja",
+      "from": "Dari",
+      "to": "Hingga",
+      "mine": "Milik saya",
+      "clear": "Kosongkan penapis"
+    },
+    "columns": {
+      "reference": "Rujukan",
+      "customer": "Pelanggan",
+      "status": "Status",
+      "clock": "Jam",
+      "assignee": "Ditugaskan kepada",
+      "received": "Dimohon"
+    },
+    "empty": {
+      "title": "Belum ada permintaan",
+      "body": "Apabila pelanggan memohon untuk menutup akaun, mengeluarkan wang atau menukar nombor telefon, permintaan itu muncul di sini.",
+      "filteredTitle": "Tiada permintaan yang sepadan",
+      "filteredBody": "Ubah atau kosongkan penapis untuk melihat lebih banyak."
+    },
+    "pager": {
+      "label": "Halaman",
+      "previous": "Sebelumnya",
+      "next": "Seterusnya",
+      "page": "Halaman {page} daripada {pages}"
+    },
+    "status": {
+      "received": "Diterima",
+      "identity_check": "Semakan identiti",
+      "officer_review": "Semakan pegawai",
+      "awaiting_signoff": "Menunggu kelulusan",
+      "approved": "Diluluskan",
+      "rejected": "Ditolak",
+      "executing": "Sedang dilaksanakan",
+      "completed": "Selesai",
+      "closed": "Ditutup"
+    },
+    "clock": {
+      "state": {
+        "none": "Tiada jam",
+        "on_track": "Mengikut jadual",
+        "target_passed": "Melepasi sasaran",
+        "near_stop": "Hampir had mutlak",
+        "breached": "Dilanggar",
+        "paused": "Dijeda",
+        "done": "Selesai"
+      },
+      "none": "Hari {day}",
+      "paused": "Dijeda pada hari {day}",
+      "done": "{days, plural, other {Selesai dalam # hari}}",
+      "dayOf": "Hari {day} daripada sasaran {target}",
+      "dayOnly": "Hari {day}",
+      "stopOnly": "Hari {day}",
+      "toStop": "{count, plural, other {# hari lagi ke had mutlak}}",
+      "stopToday": "Tarikh had mutlak telah tiba",
+      "overStop": "{count, plural, other {# hari melepasi had mutlak}}"
+    },
+    "steps": {
+      "label": "Kemajuan",
+      "received": "Diterima",
+      "identity_check": "Semakan identiti",
+      "officer_review": "Semakan pegawai",
+      "signoff": "Kelulusan",
+      "execution": "Pelaksanaan",
+      "closed": "Ditutup",
+      "done": "selesai",
+      "current": "langkah semasa",
+      "rejected": "ditolak"
+    },
+    "errors": {
+      "forbidden": "Anda tidak mempunyai kebenaran untuk berbuat demikian.",
+      "not_found": "Permintaan itu tidak ditemui.",
+      "invalid_request": "Perkara itu tidak dapat dilakukan. Semak apa yang anda masukkan dan cuba lagi.",
+      "rate_limited": "Terlalu banyak percubaan. Tunggu seminit dan cuba lagi.",
+      "invalid_transition": "Permintaan tidak boleh bergerak begitu dari kedudukannya sekarang. Muat semula halaman.",
+      "maker_checker": "Orang yang merekodkan semakan identiti tidak boleh meluluskan permintaan ini. Ketua Pematuhan yang lain mesti melakukannya.",
+      "note_required": "Nota diperlukan.",
+      "identity_incomplete": "Pilih cara identiti disemak dan keputusannya. Jika anda memilih Lain-lain, nyatakan caranya.",
+      "identity_not_passed": "Semakan identiti belum lulus, jadi permintaan tidak boleh diluluskan.",
+      "recommendation_required": "Pilih saranan dahulu.",
+      "dues_outstanding": "Terdapat tunggakan. Rekodkan sebab anda tetap meluluskan dalam kotak pengecualian.",
+      "checklist_incomplete": "Tandakan setiap langkah senarai semak dahulu.",
+      "not_ready_to_execute": "Permintaan mesti diluluskan sebelum kerja ditandakan.",
+      "frozen": "Permintaan ini berada pada Ketua Pematuhan atau telah selesai, jadi jawapan tidak boleh disunting lagi.",
+      "closed": "Permintaan ini telah ditutup.",
+      "pause_not_allowed": "Jenis permintaan ini tidak membenarkan jam dijeda.",
+      "not_paused": "Jam tidak dijeda.",
+      "already_paused": "Jam sudah dijeda.",
+      "no_clock": "Permintaan ini tiada jam.",
+      "unsupported_file": "Hanya fail PDF, JPG dan PNG boleh dimuat naik.",
+      "file_too_large": "Fail itu terlalu besar (maksimum 10 MB).",
+      "too_many_files": "Permintaan ini telah mencapai had bilangan fail.",
+      "link_other_workspace": "Item itu tiada dalam ruang kerja ini.",
+      "type_unavailable": "Jenis permintaan itu tidak tersedia.",
+      "assignee_cannot_see_requests": "Orang itu tidak dapat melihat permintaan pematuhan, jadi permintaan tidak boleh ditugaskan kepadanya.",
+      "validation_failed": "Sesetengah jawapan perlu diperhatikan. Semak medan dan cuba lagi.",
+      "reveal_unavailable": "Butiran tidak dapat dipaparkan sekarang.",
+      "encryption_unavailable": "Butiran yang dilindungi tidak dapat dibaca atau disimpan sekarang. Minta pentadbir menyemak kunci penyulitan.",
+      "audit_failed": "Rekod tindakan ini tidak dapat disimpan, jadi tiada apa dipaparkan atau diubah. Cuba lagi.",
+      "storage_failed": "Fail tidak dapat disimpan atau dibaca. Cuba lagi.",
+      "server_error": "Sesuatu tidak kena. Cuba lagi sebentar nanti.",
+      "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi."
+    },
+    "form": {
+      "choose": "Pilih...",
+      "yes": "Ya",
+      "no": "Tidak",
+      "mustTick": "Ini mesti ditandakan.",
+      "fixThis": "Semak jawapan ini.",
+      "encrypted": "(disimpan dengan penyulitan)",
+      "fileLater": "tambahkannya pada permintaan selepas ia dicipta"
+    },
+    "new": {
+      "title": "Permintaan baharu",
+      "intro": "Untuk permintaan yang dibuat pelanggan dalam sembang atau melalui telefon. Jam bermula pada tarikh permintaan.",
+      "type": "Jenis permintaan",
+      "customer": "Pelanggan",
+      "name": "Nama",
+      "email": "E-mel",
+      "phone": "Telefon",
+      "channel": "Saluran",
+      "channelPlaceholder": "WhatsApp, telefon, e-mel...",
+      "received": "Dimohon pada",
+      "receivedHint": "Biarkan kosong untuk sekarang. Jika pelanggan memohon lebih awal, masukkan tarikh dan masa itu: ia direkodkan bahawa ia ditetapkan secara manual.",
+      "details": "Butiran",
+      "create": "Cipta permintaan",
+      "cancel": "Batal",
+      "noTypes": "Tiada jenis permintaan untuk dipilih. Pentadbir boleh menghidupkannya di Tetapan > Pematuhan.",
+      "requiredHint": "{count, plural, other {# jawapan wajib belum diisi}}"
+    },
+    "customer": {
+      "title": "Pelanggan",
+      "edit": "Sunting",
+      "name": "Nama",
+      "email": "E-mel",
+      "phone": "Telefon",
+      "channel": "Saluran",
+      "received": "Dimohon pada",
+      "receivedEditHint": "Biarkan kosong untuk mengekalkan tarikh. Mengubahnya menggerakkan tarikh akhir dan direkodkan.",
+      "source": "Datang daripada",
+      "sources": {
+        "form": "Borang awam",
+        "staff": "Seorang kakitangan",
+        "inbox": "Peti Masuk",
+        "ticket": "Tiket"
+      }
+    },
+    "answers": {
+      "title": "Butiran permintaan",
+      "edit": "Sunting",
+      "none": "Jenis permintaan ini tiada butiran lanjut."
+    },
+    "sensitive": {
+      "title": "Butiran bank dan butiran dilindungi",
+      "reveal": "Dedahkan",
+      "hide": "Sembunyikan sekarang",
+      "unreadable": "Butiran dilindungi disimpan tetapi tidak dapat dibaca sekarang. Minta pentadbir menyemak kunci penyulitan.",
+      "notGiven": "Tidak diberikan",
+      "hidesIn": "Disembunyikan semula dalam {seconds, plural, other {# saat}}.",
+      "revealHint": "Dipaparkan bertopeng. Dedahkan menunjukkannya sepenuhnya selama dua minit dan merekodkan bahawa anda melakukannya.",
+      "noReveal": "Dipaparkan bertopeng. Anda memerlukan kebenaran untuk mendedahkan butiran bank bagi melihatnya sepenuhnya."
+    },
+    "standing": {
+      "title": "Kedudukan akaun",
+      "intro": "Adakah pelanggan berhutang apa-apa (elaun belum dibayar, yuran)? Dimasukkan secara manual buat masa ini.",
+      "blocksApproval": "Terdapat tunggakan. Permintaan tidak boleh diluluskan melainkan Ketua Pematuhan merekodkan sebab.",
+      "question": "Tunggakan",
+      "noDues": "Tiada tunggakan",
+      "dues": "Ada tunggakan",
+      "notes": "Nota",
+      "save": "Simpan kedudukan",
+      "notRecorded": "Belum direkodkan",
+      "recordedBy": "Direkodkan",
+      "sourceApi": "Disemak secara automatik",
+      "sourceManual": "Dimasukkan secara manual",
+      "backOffice": "Semakan automatik dengan back office"
+    },
+    "identity": {
+      "title": "Semakan identiti",
+      "intro": "Pastikan orang yang membuat permintaan ialah pemegang akaun, kemudian rekodkan caranya dan keputusannya. Anda direkodkan sebagai orang yang menyemak.",
+      "method": "Cara semakan",
+      "methodOther": "Terangkan caranya",
+      "methods": {
+        "call_back": "Dihubungi semula pada nombor berdaftar",
+        "video_call": "Panggilan video",
+        "id_document": "Dokumen pengenalan",
+        "chat_verification": "Disahkan dalam sembang",
+        "in_person": "Secara bersemuka",
+        "other": "Lain-lain"
+      },
+      "outcome": "Keputusan",
+      "outcomes": {
+        "pass": "Disahkan",
+        "fail": "Tidak disahkan"
+      },
+      "notRequired": "Jenis permintaan ini tidak memerlukan semakan identiti.",
+      "notNeeded": "Jenis permintaan ini tidak memerlukan semakan identiti. Teruskan ke semakan pegawai.",
+      "notes": "Nota",
+      "byYou": "Direkodkan sebagai disemak oleh anda, sekarang.",
+      "record": "Rekod semakan identiti",
+      "continue": "Teruskan ke semakan pegawai",
+      "start": "Saya akan membuat semakan identiti",
+      "verifiedBy": "Disemak oleh",
+      "sendBackNote": "Sebab semakan identiti baharu diperlukan",
+      "sendBack": "Hantar semula untuk semakan identiti baharu",
+      "none": "Tiada semakan identiti direkodkan."
+    },
+    "review": {
+      "title": "Semakan pegawai",
+      "recommendation": "Saranan",
+      "recommendations": {
+        "approve": "Lulus",
+        "reject": "Tolak",
+        "more_info": "Maklumat lanjut diperlukan"
+      },
+      "notes": "Nota untuk Ketua Pematuhan",
+      "by": "Disarankan oleh",
+      "sentBack": "Dihantar semula dengan",
+      "submit": "Hantar untuk kelulusan",
+      "notYet": "Saranan pegawai muncul di sini selepas semakan identiti."
+    },
+    "signoff": {
+      "title": "Kelulusan Ketua Pematuhan",
+      "decision": "Keputusan",
+      "decisions": {
+        "approved": "Diluluskan",
+        "rejected": "Ditolak"
+      },
+      "by": "Diluluskan oleh",
+      "reason": "Sebab",
+      "override": "Diluluskan walaupun ada tunggakan kerana",
+      "onlyHead": "Hanya Ketua Pematuhan boleh memberi kelulusan.",
+      "overrideLabel": "Sebab meluluskan walaupun ada tunggakan",
+      "overrideHint": "Diperlukan untuk meluluskan semasa ada tunggakan. Ia disimpan bersama keputusan.",
+      "reasonLabel": "Sebab (diperlukan untuk menolak atau menghantar semula)",
+      "reasonNeeded": "Penolakan atau penghantaran semula memerlukan sebab.",
+      "approve": "Lulus",
+      "reject": "Tolak",
+      "sendBack": "Hantar semula kepada pegawai",
+      "notYet": "Permintaan belum sampai kepada Ketua Pematuhan."
+    },
+    "execution": {
+      "title": "Senarai semak operasi",
+      "notYet": "Kerja bermula selepas kelulusan.",
+      "doneBy": "Dilakukan oleh",
+      "noSteps": "Jenis permintaan ini tiada senarai semak.",
+      "onlyOperations": "Hanya orang yang mempunyai kebenaran operasi boleh menandakan langkah ini.",
+      "markExecuting": "Tandakan sedang dilaksanakan",
+      "complete": "Tandakan selesai",
+      "closeRejected": "Maklumkan pelanggan ia ditolak, kemudian tutup permintaan",
+      "closeCompleted": "Maklumkan pelanggan ia telah selesai, kemudian tutup permintaan",
+      "closeNotePlaceholder": "Nota pilihan, contohnya bagaimana pelanggan dimaklumkan",
+      "close": "Tutup permintaan",
+      "withdrawnReason": "Sebab ditutup tanpa keputusan (pendua, pelanggan menarik balik...)",
+      "closeWithoutDecision": "Tutup tanpa keputusan",
+      "keepOpen": "Biarkan terbuka"
+    },
+    "clockPanel": {
+      "title": "Jeda jam",
+      "body": "Menghentikan kiraan hari sementara menunggu pelanggan. Gunakan hanya apabila Ketua Pematuhan telah memutuskannya. Ia direkodkan bersama sebab.",
+      "pausedBody": "Jam dijeda. Menyambung semula menggerakkan tarikh akhir ke hadapan sebanyak masa yang dijeda.",
+      "note": "Sebab",
+      "pause": "Jeda jam",
+      "resume": "Sambung jam"
+    },
+    "files": {
+      "title": "Dokumen",
+      "add": "Tambah fail",
+      "haveCount": "{count, plural, other {# fail}}",
+      "missing": "belum ditambah",
+      "attach": "Tambah",
+      "none": "Belum ada dokumen.",
+      "rules": "PDF, JPG atau PNG, sehingga 10 MB. Fail disimpan secara peribadi dan tidak boleh dibuang."
+    },
+    "links": {
+      "title": "Pautan",
+      "contact": "Kenalan",
+      "conversation": "Perbualan",
+      "conversationText": "Sembang tempat ia bermula",
+      "ticket": "Tiket",
+      "incident": "Insiden",
+      "kyc": "Semakan KYC",
+      "open": "Buka",
+      "unlink": "Nyahpaut",
+      "none": "Belum dipautkan kepada apa-apa.",
+      "addLabel": "Paut kepada",
+      "search": "Cari",
+      "searchPlaceholder": "Nombor, nama, telefon atau subjek",
+      "find": "Cari",
+      "noMatches": "Tiada yang sepadan.",
+      "kycLabel": "Rujukan pengesahan KYC"
+    },
+    "timeline": {
+      "title": "Garis masa",
+      "addNote": "Tambah nota",
+      "saveNote": "Tambah nota",
+      "system": "Halo",
+      "kinds": {
+        "status": "Berubah daripada {from} kepada {to}",
+        "note": "Menambah nota",
+        "identity_check": "Merekodkan semakan identiti: {method}, {outcome}",
+        "review": "Mengesyorkan: {recommendation}",
+        "signoff": "Memberi keputusan: {decision}",
+        "signoff_override": "Memberi keputusan: {decision}, walaupun ada tunggakan",
+        "step_done": "Menandakan satu langkah",
+        "step_undone": "Membuang tanda satu langkah",
+        "reveal": "Mendedahkan butiran bank",
+        "reveal_refused": "Cuba mendedahkan butiran bank tetapi tidak dibenarkan",
+        "view": "Membuka permintaan",
+        "view_many": "Membuka permintaan ({count} kali)",
+        "view_file": "Membuka fail {name}",
+        "attachment": "Menambah fail {name}",
+        "link": "Mengubah pautan ({field})",
+        "edited": "Menyunting: {fields}",
+        "standing_dues": "Merekodkan bahawa ada tunggakan",
+        "standing_clear": "Merekodkan bahawa tiada tunggakan",
+        "clock_pause": "Menjeda jam",
+        "clock_resume": "Menyambung jam",
+        "clock_alert": "Amaran: {threshold, plural, =0 {tarikh had mutlak telah tiba} other {# hari lagi ke had mutlak}}",
+        "created": "Mencipta permintaan ({source})",
+        "created_backdated": "Mencipta permintaan ({source}) dengan tarikh permintaan yang ditetapkan secara manual",
+        "assigned": "Menugaskan permintaan",
+        "unassigned": "Mengalihkan penerima tugas",
+        "other": "Mengemas kini permintaan"
+      }
+    },
+    "blocked": {
+      "no_permission": "Anda tidak mempunyai kebenaran untuk langkah ini.",
+      "maker_checker": "Anda merekodkan semakan identiti pada permintaan ini, jadi orang lain mesti meluluskannya.",
+      "identity_not_passed": "Semakan identiti tidak lulus, jadi ia tidak boleh diluluskan. Ia boleh ditolak atau dihantar semula.",
+      "dues_outstanding": "Terdapat tunggakan. Taip sebab dalam kotak pengecualian untuk tetap meluluskan.",
+      "checklist_incomplete": "Tandakan setiap langkah senarai semak dahulu.",
+      "no_recommendation": "Pegawai belum membuat saranan."
+    },
+    "settings": {
+      "title": "Permintaan pematuhan",
+      "intro": "Jenis permintaan yang boleh dibuat pelanggan, berapa lama setiap satu boleh mengambil masa dan apa yang operasi lakukan. Perubahan pada jam hanya terpakai untuk permintaan baharu.",
+      "loading": "Memuatkan...",
+      "noPermission": "Anda memerlukan kebenaran mengurus tetapan pematuhan untuk melihat ini.",
+      "standard": "Standard",
+      "active": "Hidup",
+      "name": "Nama",
+      "nameIn": "Nama dalam {language}",
+      "languages": {
+        "ms": "Bahasa Melayu",
+        "zh": "Bahasa Cina",
+        "ko": "Bahasa Korea"
+      },
+      "clocks": "Jam",
+      "targetDays": "Sasaran (hari)",
+      "stopDays": "Had mutlak (hari)",
+      "noClock": "Tiada had",
+      "clocksHint": "Dikira dari tarikh permintaan. Selepas sasaran permintaan bertukar jingga; dalam 10 hari sebelum had mutlak ia bertukar merah dan amaran dihantar pada 10 hari, 5 hari dan pada had mutlak.",
+      "clocksInvalid": "Masukkan hari yang bulat, dan had mutlak tidak boleh lebih awal daripada sasaran.",
+      "switches": {
+        "identityCheck": "Memerlukan semakan identiti",
+        "identityCheckHint": "Permintaan tidak boleh diluluskan sehingga seseorang merekodkan semakan identiti yang lulus.",
+        "dues": "Semak kedudukan akaun",
+        "duesHint": "Menunjukkan blok tunggakan; kelulusan disekat semasa ada tunggakan melainkan Ketua merekodkan sebab.",
+        "pause": "Ketua boleh menjeda jam",
+        "pauseHint": "Mati secara lalai. Jeda sentiasa direkodkan bersama sebab."
+      },
+      "checklist": "Senarai semak operasi",
+      "checklistHint": "Langkah yang ditandakan oleh operasi selepas kelulusan. Ia disalin ke setiap permintaan baharu, jadi perubahan hanya terpakai untuk permintaan baharu.",
+      "stepLabel": "Langkah {n}",
+      "moveUp": "Alih ke atas",
+      "moveDown": "Alih ke bawah",
+      "removeStep": "Buang langkah",
+      "translations": "Terjemahan",
+      "addStep": "Tambah langkah",
+      "fields": "Medan borang",
+      "fieldsFixed": "Medan bagi jenis permintaan standard adalah tetap, kerana borang kakitangan dan borang awam dibina di atasnya.",
+      "fieldTypes": {
+        "text": "Teks",
+        "multiline": "Teks panjang",
+        "phone": "Telefon",
+        "email": "E-mel",
+        "number": "Nombor",
+        "date": "Tarikh",
+        "choice": "Pilihan",
+        "yesno": "Ya / tidak",
+        "acknowledge": "Kotak tanda",
+        "file": "Fail"
+      },
+      "required": "Wajib",
+      "sensitive": "Dilindungi",
+      "fieldLabel": "Nama medan {n}",
+      "fieldType": "Jenis medan",
+      "removeField": "Buang medan",
+      "addField": "Tambah medan",
+      "newType": "Jenis permintaan baharu",
+      "keyWillBe": "Kuncinya ialah",
+      "createType": "Cipta jenis",
+      "cancel": "Batal",
+      "saved": "Disimpan."
+    }
   }
 }

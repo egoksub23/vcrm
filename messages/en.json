@@ -53,7 +53,8 @@
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval",
     "platform": "Platform",
     "sign": "Secure Sign",
-    "kyc": "KYC review"
+    "kyc": "KYC review",
+    "compliance": "Compliance"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -80,7 +81,8 @@
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
     "sign": "Secure Sign",
-    "kyc": "KYC review"
+    "kyc": "KYC review",
+    "compliance": "Compliance requests"
   },
   "Help": {
     "pageTitle": "User Guide",
@@ -3536,7 +3538,8 @@
       "approvals": "Approvals",
       "integrations": "Integrations",
       "sla": "SLA & business hours",
-      "incidents": "Incidents"
+      "incidents": "Incidents",
+      "compliance": "Compliance"
     },
     "groups": {
       "account": "Account",
@@ -7011,6 +7014,30 @@
       "menu_kyc": {
         "label": "KYC review",
         "description": "See the KYC review menu item and open the screen to look a friend ID up and read its validations. Opening an ID image needs View ID images; reading masked values in full needs Reveal sensitive KYC details. Every look is recorded. Works only while the operator has KYC review switched on for the workspace. Default: Owner and Admin."
+      },
+      "compliance_approve": {
+        "label": "Sign off compliance requests",
+        "description": "The final sign-off (Head of Compliance): approve or reject a request, send it back to the officer, pause and resume the clock, override outstanding dues with a reason. The person who recorded a request's identity check can never sign that request off. Needs the Compliance menu. Default: Owner and Admin."
+      },
+      "compliance_execute": {
+        "label": "Carry out compliance requests",
+        "description": "Tick the operations checklist of an approved request (close the account in the back office, refund, tell the customer), with who and when, and mark it executing or complete. Needs the Compliance menu. Default: Owner and Admin."
+      },
+      "compliance_manage": {
+        "label": "Manage compliance settings",
+        "description": "Edit the request types in Settings > Compliance: names, the target and hard stop days (for new requests), the identity check, dues and pause switches, the operations checklist, and custom types. Needs the Compliance menu. Default: Owner and Admin."
+      },
+      "compliance_reveal": {
+        "label": "Reveal bank details in compliance requests",
+        "description": "Use Reveal to read a request's bank name, account number and account holder in full, for two minutes. Every reveal is recorded in the request's timeline. Without this permission they stay masked. Needs the Compliance menu. Default: Owner and Admin."
+      },
+      "compliance_review": {
+        "label": "Review compliance requests",
+        "description": "Open requests, record the identity check, review and recommend, add notes, edit the details, link tickets, assign and close. Needs the Compliance menu. Default: Owner and Admin."
+      },
+      "menu_compliance": {
+        "label": "Compliance requests",
+        "description": "See the Compliance menu item and open the list of requests. It does not open a request by itself: reviewing, signing off, revealing and executing each have their own permission. Works only while the operator has Compliance requests switched on for the workspace. Default: Owner and Admin."
       }
     },
     "group": {
@@ -7027,7 +7054,8 @@
       "workspace": "Workspace",
       "people": "People",
       "sign": "Secure Sign",
-      "kyc": "KYC review"
+      "kyc": "KYC review",
+      "compliance": "Compliance requests"
     },
     "preset": {
       "support-manager": {
@@ -8493,7 +8521,9 @@
     "meter_sign_documents_per_month": "Signing documents per month",
     "job_sign-jobs": "Secure Sign jobs (sealing, expiry, reminders)",
     "feature_kyc": "KYC review",
-    "feature_kyc_desc": "Staff screen over the ID verification back end (children's ID images and validation records), read-only, with an access log. Off for every workspace until the operator turns it on. Needs KYC_DOC_API_BASE_URL and KYC_DOC_API_KEY on the server."
+    "feature_kyc_desc": "Staff screen over the ID verification back end (children's ID images and validation records), read-only, with an access log. Off for every workspace until the operator turns it on. Needs KYC_DOC_API_BASE_URL and KYC_DOC_API_KEY on the server.",
+    "feature_compliance": "Compliance requests",
+    "feature_compliance_desc": "Account closures, withdrawals and phone number changes with an identity check, a Head of Compliance sign-off, a regulatory clock, encrypted bank details and a seven-year audit trail. Off for every workspace until the operator turns it on."
   },
   "Sign": {
     "admin": {
@@ -12967,6 +12997,444 @@
         "forbidden": "Not allowed",
         "error": "Error"
       }
+    }
+  },
+  "Compliance": {
+    "title": "Compliance requests",
+    "intro": "Account closures, withdrawals and phone number changes that need an identity check, a Head of Compliance sign-off and a regulatory clock.",
+    "newRequest": "New request",
+    "back": "Back to requests",
+    "retry": "Try again",
+    "loading": "Loading...",
+    "showing": "{count, plural, =0 {No requests} one {# request} other {# requests}}",
+    "footer": "Every time a request is opened, and every time bank details are shown, it is recorded in the request's timeline. Requests are kept for seven years.",
+    "test": "Test",
+    "unassigned": "Unassigned",
+    "formerMember": "Former member",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "save": "Save",
+    "cancel": "Cancel",
+    "notConnected": "{what} is not connected yet: for now it is entered by hand.",
+    "receivedOn": "Requested on {date}",
+    "retention": "Kept until {date} (seven years).",
+    "counts": {
+      "label": "Where the open requests are",
+      "needsIdentityCheck": "Needs identity check",
+      "inReview": "In review",
+      "awaitingSignoff": "Awaiting sign-off",
+      "executing": "Executing",
+      "pastTarget": "Past target",
+      "nearStop": "Near hard stop",
+      "breached": "Breached"
+    },
+    "filters": {
+      "label": "Filter requests",
+      "search": "Search",
+      "searchPlaceholder": "Reference, name, email or phone",
+      "type": "Type",
+      "allTypes": "All types",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "due": "Clock",
+      "anyClock": "Any clock",
+      "assignee": "Assigned to",
+      "anyone": "Anyone",
+      "from": "From",
+      "to": "To",
+      "mine": "Mine",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "reference": "Reference",
+      "customer": "Customer",
+      "status": "Status",
+      "clock": "Clock",
+      "assignee": "Assigned to",
+      "received": "Requested"
+    },
+    "empty": {
+      "title": "No requests yet",
+      "body": "When a customer asks to close an account, withdraw money or change their phone number, the request appears here.",
+      "filteredTitle": "No requests match",
+      "filteredBody": "Change or clear the filters to see more."
+    },
+    "pager": {
+      "label": "Pages",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page} of {pages}"
+    },
+    "status": {
+      "received": "Received",
+      "identity_check": "Identity check",
+      "officer_review": "Officer review",
+      "awaiting_signoff": "Awaiting sign-off",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "executing": "Executing",
+      "completed": "Completed",
+      "closed": "Closed"
+    },
+    "clock": {
+      "state": {
+        "none": "No clock",
+        "on_track": "On track",
+        "target_passed": "Past target",
+        "near_stop": "Near hard stop",
+        "breached": "Breached",
+        "paused": "Paused",
+        "done": "Finished"
+      },
+      "none": "Day {day}",
+      "paused": "Paused on day {day}",
+      "done": "{days, plural, one {Finished in # day} other {Finished in # days}}",
+      "dayOf": "Day {day} of {target} target",
+      "dayOnly": "Day {day}",
+      "stopOnly": "Day {day}",
+      "toStop": "{count, plural, one {# day to stop} other {# days to stop}}",
+      "stopToday": "Hard stop date reached",
+      "overStop": "{count, plural, one {# day past the stop} other {# days past the stop}}"
+    },
+    "steps": {
+      "label": "Progress",
+      "received": "Received",
+      "identity_check": "Identity check",
+      "officer_review": "Officer review",
+      "signoff": "Sign-off",
+      "execution": "Execution",
+      "closed": "Closed",
+      "done": "done",
+      "current": "current step",
+      "rejected": "rejected"
+    },
+    "errors": {
+      "forbidden": "You do not have permission to do that.",
+      "not_found": "That request was not found.",
+      "invalid_request": "That could not be done. Check what you entered and try again.",
+      "rate_limited": "Too many attempts. Wait a minute and try again.",
+      "invalid_transition": "The request cannot move that way from where it is. Reload the page.",
+      "maker_checker": "The person who recorded the identity check cannot sign this request off. Another Head of Compliance must do it.",
+      "note_required": "A note is required.",
+      "identity_incomplete": "Choose how the identity was checked and the result. If you chose Other, say how.",
+      "identity_not_passed": "The identity check has not passed, so the request cannot be approved.",
+      "recommendation_required": "Choose a recommendation first.",
+      "dues_outstanding": "Dues are outstanding. Record why you approve anyway in the override box.",
+      "checklist_incomplete": "Tick every step of the checklist first.",
+      "not_ready_to_execute": "The request must be approved before the work is ticked off.",
+      "frozen": "This request is with the Head of Compliance or finished, so the answers can no longer be edited.",
+      "closed": "This request is closed.",
+      "pause_not_allowed": "This request type does not allow the clock to be paused.",
+      "not_paused": "The clock is not paused.",
+      "already_paused": "The clock is already paused.",
+      "no_clock": "This request has no clock.",
+      "unsupported_file": "Only PDF, JPG and PNG files can be uploaded.",
+      "file_too_large": "That file is too large (10 MB at most).",
+      "too_many_files": "This request has reached its limit of files.",
+      "link_other_workspace": "That item is not in this workspace.",
+      "type_unavailable": "That request type is not available.",
+      "assignee_cannot_see_requests": "That person cannot see compliance requests, so the request cannot be assigned to them.",
+      "validation_failed": "Some answers need attention. Check the fields and try again.",
+      "reveal_unavailable": "The details cannot be shown right now.",
+      "encryption_unavailable": "The protected details cannot be read or saved right now. Ask an administrator to check the encryption key.",
+      "audit_failed": "The record of this action could not be saved, so nothing was shown or changed. Try again.",
+      "storage_failed": "The file could not be stored or read. Try again.",
+      "server_error": "Something went wrong. Try again in a moment.",
+      "network": "Could not reach the server. Check your connection and try again."
+    },
+    "form": {
+      "choose": "Choose...",
+      "yes": "Yes",
+      "no": "No",
+      "mustTick": "This must be ticked.",
+      "fixThis": "Check this answer.",
+      "encrypted": "(stored encrypted)",
+      "fileLater": "add it on the request after creating it"
+    },
+    "new": {
+      "title": "New request",
+      "intro": "For a request a customer made in a chat or on the phone. The clock starts on the request date.",
+      "type": "Type of request",
+      "customer": "Customer",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "channel": "Channel",
+      "channelPlaceholder": "WhatsApp, phone, email...",
+      "received": "Requested on",
+      "receivedHint": "Leave empty for now. If the customer asked earlier, enter that date and time: it is recorded that it was set by hand.",
+      "details": "Details",
+      "create": "Create request",
+      "cancel": "Cancel",
+      "noTypes": "There is no request type to choose from. An administrator can switch one on in Settings > Compliance.",
+      "requiredHint": "{count, plural, one {# required answer missing} other {# required answers missing}}"
+    },
+    "customer": {
+      "title": "Customer",
+      "edit": "Edit",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "channel": "Channel",
+      "received": "Requested on",
+      "receivedEditHint": "Leave empty to keep the date. Changing it moves the deadlines and is recorded.",
+      "source": "Came from",
+      "sources": {
+        "form": "The public form",
+        "staff": "A member of staff",
+        "inbox": "The Inbox",
+        "ticket": "A ticket"
+      }
+    },
+    "answers": {
+      "title": "Request details",
+      "edit": "Edit",
+      "none": "This request type has no further details."
+    },
+    "sensitive": {
+      "title": "Bank and protected details",
+      "reveal": "Reveal",
+      "hide": "Hide now",
+      "unreadable": "The protected details are stored but cannot be read right now. Ask an administrator to check the encryption key.",
+      "notGiven": "Not given",
+      "hidesIn": "Hidden again in {seconds, plural, one {# second} other {# seconds}}.",
+      "revealHint": "Shown masked. Reveal shows them in full for two minutes and records that you did.",
+      "noReveal": "Shown masked. You need the permission to reveal bank details to see them in full."
+    },
+    "standing": {
+      "title": "Account standing",
+      "intro": "Does the customer owe anything (unpaid allowances, fees)? Entered by hand for now.",
+      "blocksApproval": "Dues are outstanding. The request cannot be approved unless the Head of Compliance records a reason.",
+      "question": "Outstanding dues",
+      "noDues": "No dues outstanding",
+      "dues": "Dues outstanding",
+      "notes": "Notes",
+      "save": "Save standing",
+      "notRecorded": "Not recorded yet",
+      "recordedBy": "Recorded",
+      "sourceApi": "Checked automatically",
+      "sourceManual": "Entered by hand",
+      "backOffice": "The automatic check with the back office"
+    },
+    "identity": {
+      "title": "Identity check",
+      "intro": "Check that the person asking is the account holder, then record how and the result. You are recorded as the person who checked.",
+      "method": "How it was checked",
+      "methodOther": "Describe how",
+      "methods": {
+        "call_back": "Called back on the registered number",
+        "video_call": "Video call",
+        "id_document": "ID document",
+        "chat_verification": "Verified in the chat",
+        "in_person": "In person",
+        "other": "Other"
+      },
+      "outcome": "Result",
+      "outcomes": {
+        "pass": "Verified",
+        "fail": "Not verified"
+      },
+      "notRequired": "This request type does not need an identity check.",
+      "notNeeded": "This request type does not need an identity check. Continue to the officer review.",
+      "notes": "Notes",
+      "byYou": "Recorded as checked by you, now.",
+      "record": "Record identity check",
+      "continue": "Continue to officer review",
+      "start": "I will do the identity check",
+      "verifiedBy": "Checked by",
+      "sendBackNote": "Why it needs a new identity check",
+      "sendBack": "Send back for a new identity check",
+      "none": "No identity check was recorded."
+    },
+    "review": {
+      "title": "Officer review",
+      "recommendation": "Recommendation",
+      "recommendations": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "more_info": "More information needed"
+      },
+      "notes": "Notes for the Head of Compliance",
+      "by": "Recommended by",
+      "sentBack": "Sent back with",
+      "submit": "Submit for sign-off",
+      "notYet": "The officer's recommendation appears here after the identity check."
+    },
+    "signoff": {
+      "title": "Head of Compliance sign-off",
+      "decision": "Decision",
+      "decisions": {
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "by": "Signed off by",
+      "reason": "Reason",
+      "override": "Approved despite outstanding dues because",
+      "onlyHead": "Only the Head of Compliance can sign off.",
+      "overrideLabel": "Why approve although dues are outstanding",
+      "overrideHint": "Required to approve while dues are outstanding. It is kept with the decision.",
+      "reasonLabel": "Reason (required to reject or send back)",
+      "reasonNeeded": "A rejection or a send-back needs a reason.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "sendBack": "Send back to the officer",
+      "notYet": "The request is not with the Head of Compliance yet."
+    },
+    "execution": {
+      "title": "Operations checklist",
+      "notYet": "The work starts after approval.",
+      "doneBy": "Done by",
+      "noSteps": "This request type has no checklist.",
+      "onlyOperations": "Only people with the operations permission can tick these steps.",
+      "markExecuting": "Mark as being executed",
+      "complete": "Mark complete",
+      "closeRejected": "Tell the customer it was rejected, then close the request",
+      "closeCompleted": "Tell the customer it is done, then close the request",
+      "closeNotePlaceholder": "Optional note, for example how the customer was told",
+      "close": "Close the request",
+      "withdrawnReason": "Why it is closed without a decision (a duplicate, the customer withdrew...)",
+      "closeWithoutDecision": "Close without a decision",
+      "keepOpen": "Keep it open"
+    },
+    "clockPanel": {
+      "title": "Pause the clock",
+      "body": "Stops the days counting while we wait for the customer. Use it only when the Head of Compliance has decided to. It is recorded with the reason.",
+      "pausedBody": "The clock is paused. Resuming moves the deadlines later by the time paused.",
+      "note": "Reason",
+      "pause": "Pause the clock",
+      "resume": "Resume the clock"
+    },
+    "files": {
+      "title": "Documents",
+      "add": "Add a file",
+      "haveCount": "{count, plural, one {# file} other {# files}}",
+      "missing": "not added",
+      "attach": "Add",
+      "none": "No documents yet.",
+      "rules": "PDF, JPG or PNG, up to 10 MB. Files are stored privately and cannot be removed."
+    },
+    "links": {
+      "title": "Links",
+      "contact": "Contact",
+      "conversation": "Conversation",
+      "conversationText": "The chat this came from",
+      "ticket": "Ticket",
+      "incident": "Incident",
+      "kyc": "KYC check",
+      "open": "Open",
+      "unlink": "Unlink",
+      "none": "Not linked to anything yet.",
+      "addLabel": "Link to",
+      "search": "Search",
+      "searchPlaceholder": "Number, name, phone or subject",
+      "find": "Find",
+      "noMatches": "Nothing matches.",
+      "kycLabel": "KYC validation reference"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "addNote": "Add a note",
+      "saveNote": "Add note",
+      "system": "Halo",
+      "kinds": {
+        "status": "Moved from {from} to {to}",
+        "note": "Added a note",
+        "identity_check": "Recorded the identity check: {method}, {outcome}",
+        "review": "Recommended: {recommendation}",
+        "signoff": "Signed off: {decision}",
+        "signoff_override": "Signed off: {decision}, despite outstanding dues",
+        "step_done": "Ticked a step",
+        "step_undone": "Unticked a step",
+        "reveal": "Revealed the bank details",
+        "reveal_refused": "Tried to reveal the bank details and was not allowed",
+        "view": "Opened the request",
+        "view_many": "Opened the request ({count} times)",
+        "view_file": "Opened the file {name}",
+        "attachment": "Added the file {name}",
+        "link": "Changed a link ({field})",
+        "edited": "Edited: {fields}",
+        "standing_dues": "Recorded that dues are outstanding",
+        "standing_clear": "Recorded that no dues are outstanding",
+        "clock_pause": "Paused the clock",
+        "clock_resume": "Resumed the clock",
+        "clock_alert": "Alert: {threshold, plural, =0 {the hard stop date was reached} one {# day to the hard stop} other {# days to the hard stop}}",
+        "created": "Created the request ({source})",
+        "created_backdated": "Created the request ({source}) with a request date set by hand",
+        "assigned": "Assigned the request",
+        "unassigned": "Removed the assignee",
+        "other": "Updated the request"
+      }
+    },
+    "blocked": {
+      "no_permission": "You do not have the permission for this step.",
+      "maker_checker": "You recorded the identity check on this request, so someone else must sign it off.",
+      "identity_not_passed": "The identity check did not pass, so it cannot be approved. It can be rejected or sent back.",
+      "dues_outstanding": "Dues are outstanding. Type a reason in the override box to approve anyway.",
+      "checklist_incomplete": "Tick every step of the checklist first.",
+      "no_recommendation": "The officer has not made a recommendation yet."
+    },
+    "settings": {
+      "title": "Compliance requests",
+      "intro": "The kinds of request customers can make, how long each may take and what operations does about it. Changes to the clocks apply to new requests only.",
+      "loading": "Loading...",
+      "noPermission": "You need the permission to manage compliance settings to see this.",
+      "standard": "Standard",
+      "active": "On",
+      "name": "Name",
+      "nameIn": "Name in {language}",
+      "languages": {
+        "ms": "Malay",
+        "zh": "Chinese",
+        "ko": "Korean"
+      },
+      "clocks": "Clocks",
+      "targetDays": "Target (days)",
+      "stopDays": "Hard stop (days)",
+      "noClock": "No limit",
+      "clocksHint": "Counted from the request date. Past the target a request turns amber; within 10 days of the hard stop it turns red and alerts go out at 10 days, 5 days and at the stop.",
+      "clocksInvalid": "Enter whole days, and the hard stop cannot be before the target.",
+      "switches": {
+        "identityCheck": "Needs an identity check",
+        "identityCheckHint": "The request cannot be approved until someone has recorded a passed identity check.",
+        "dues": "Check account standing",
+        "duesHint": "Shows the outstanding dues block; approval is blocked while dues are outstanding unless the Head records a reason.",
+        "pause": "The Head may pause the clock",
+        "pauseHint": "Off by default. A pause is always recorded with a reason."
+      },
+      "checklist": "Operations checklist",
+      "checklistHint": "The steps operations ticks off after approval. They are copied onto each new request, so changes apply to new requests only.",
+      "stepLabel": "Step {n}",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeStep": "Remove step",
+      "translations": "Translations",
+      "addStep": "Add a step",
+      "fields": "Form fields",
+      "fieldsFixed": "The fields of a standard request type are fixed, because the staff form and the public form are built on them.",
+      "fieldTypes": {
+        "text": "Text",
+        "multiline": "Long text",
+        "phone": "Phone",
+        "email": "Email",
+        "number": "Number",
+        "date": "Date",
+        "choice": "Choice",
+        "yesno": "Yes / no",
+        "acknowledge": "Tick box",
+        "file": "File"
+      },
+      "required": "Required",
+      "sensitive": "Protected",
+      "fieldLabel": "Field {n} name",
+      "fieldType": "Field type",
+      "removeField": "Remove field",
+      "addField": "Add a field",
+      "newType": "New request type",
+      "keyWillBe": "Its key will be",
+      "createType": "Create type",
+      "cancel": "Cancel",
+      "saved": "Saved."
     }
   }
 }

@@ -37,6 +37,7 @@ export const PAGE_ACCESS: readonly PageAccessEntry[] = [
   { prefix: "/sembang", cap: "menu.sembang", labelKey: "sembang" },
   { prefix: "/incidents", cap: "menu.incidents", labelKey: "incidents" },
   { prefix: "/kyc", cap: "menu.kyc", labelKey: "kyc" },
+  { prefix: "/compliance", cap: "menu.compliance", labelKey: "compliance" },
   { prefix: "/sign", cap: "menu.sign", labelKey: "sign" },
   { prefix: "/agents", cap: "menu.agents", labelKey: "aiAgents" },
   { prefix: "/reports", cap: "menu.reports", labelKey: "reports" },

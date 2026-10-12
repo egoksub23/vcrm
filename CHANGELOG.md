@@ -9,6 +9,19 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.90.0] — 2026-10-13
+
+**Migration required: 183.** Apply it BEFORE the new app.
+
+### Added
+
+- **Compliance requests (part A).** A new **Compliance** menu (after KYC review) for requests that need a compliance decision: account closure, fund withdrawal (not a closure) and phone number change. Off for every workspace until the operator turns on the `compliance` feature. Cases get a reference such as `CMP-2026-000001` and move through Received, Identity check, Officer review, Head of Compliance sign-off, Execution and Closed. The database enforces the order of the steps, that the person who did the identity check cannot sign the case off, and that a closure with dues outstanding needs an override reason from the Head.
+- **Clocks.** A closure has a 14-day target and a 30-day hard stop. The list and the case show the state in words and icons (on track, past target, near the stop, breached, paused, finished). An hourly check raises an in-app alert once at 10 days, 5 days and the stop. A pause needs the Head of Compliance and a note.
+- **Bank details and identifiers** are encrypted with the key ring, shown masked, and revealed only to people with the new Reveal permission; each reveal is logged. Cases, their history, checklist and files are visible only to people with a compliance permission and the person who raised the case, and are kept for 7 years: the database refuses to delete them.
+- **Six new permissions:** `menu.compliance`, `compliance.review`, `compliance.approve`, `compliance.reveal`, `compliance.execute` and `compliance.manage`. Owner and Admin by default; create the Head of Compliance and Compliance Officer as custom roles and grant them as needed.
+- A case's page has the customer, the answers, bank details, the identity check, the officer review, the sign-off, the account standing, the operations checklist, files, links to a contact, chat, ticket, incident or KYC record, and a timeline. Settings > Compliance edits the request types, clocks and checklists.
+- Part B (the public parent form, customer emails, raising a case from a chat or ticket, reports) follows.
+
 ## [0.89.0] — 2026-10-12
 
 **Migration required: 182.** Apply it BEFORE the new app.

@@ -47,8 +47,8 @@ describe("migration 182", () => {
     expect(code).toMatch(/CREATE OR REPLACE FUNCTION public\.account_platform_seed\(\)/);
     const seed = code.slice(code.indexOf("account_platform_seed()"), code.indexOf("account_platform_seed() FROM"));
     for (const f of ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc"]) expect(seed, f).toMatch(new RegExp(`"${f}": false`));
-    // and the seed names every flag the console offers
-    for (const f of PLATFORM_FEATURES) expect(seed, f).toContain(`"${f}": false`);
+    // and the seed names every flag the console offered at the time (a flag added by a later migration is in that migration's own seed: 183 for compliance)
+    for (const f of PLATFORM_FEATURES.filter((x) => x !== "compliance")) expect(seed, f).toContain(`"${f}": false`);
     // the code reads an absent key as off too
     expect(DEFAULT_OFF_FEATURES).toContain("kyc");
   });
