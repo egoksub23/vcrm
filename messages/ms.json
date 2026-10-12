@@ -52,7 +52,8 @@
     "userGuide": "Panduan Pengguna",
     "pendingApprovals": "{count} {count, plural, =1 {cadangan} other {cadangan}} menunggu kelulusan",
     "platform": "Platform",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "Semakan KYC"
   },
   "Header": {
     "dashboard": "Papan pemuka",
@@ -78,7 +79,8 @@
     "menuProfile": "Profil",
     "menuSettings": "Tetapan",
     "menuSignOut": "Log keluar",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "Semakan KYC"
   },
   "Help": {
     "pageTitle": "Panduan Pengguna",
@@ -6268,6 +6270,18 @@
       "sign_reveal_sensitive": {
         "label": "Tunjukkan jawapan sensitif",
         "description": "Gunakan Tunjukkan pada jawapan sensitif (nombor kad pengenalan, akaun bank) untuk membacanya sepenuhnya. Setiap pendedahan direkodkan dalam sejarah dokumen. Tanpa kebenaran ini jawapan kekal ditutup. Berasingan daripada menghantar dokumen. Lalai: Pemilik dan Pentadbir."
+      },
+      "kyc_reveal": {
+        "label": "Tunjukkan butiran sensitif KYC",
+        "description": "Gunakan Tunjukkan dalam Semakan KYC untuk membaca nombor ID, tarikh lahir, alamat dan nilai lain kanak-kanak yang ditutup secara penuh, selama dua minit. Setiap pendedahan direkodkan. Tanpa kebenaran ini nilai kekal ditutup. Memerlukan menu Semakan KYC. Lalai: Pemilik dan Pentadbir."
+      },
+      "kyc_view": {
+        "label": "Lihat imej ID",
+        "description": "Buka imej ID yang disimpan bagi satu pengesahan dalam Semakan KYC. Imej diambil untuk setiap paparan, dipaparkan dengan tera air nama dan masa anda, dan tidak pernah disimpan dalam Halo. Setiap paparan direkodkan. Memerlukan menu Semakan KYC. Lalai: Pemilik dan Pentadbir."
+      },
+      "menu_kyc": {
+        "label": "Semakan KYC",
+        "description": "Lihat item menu Semakan KYC dan buka skrin untuk mencari ID rakan dan membaca pengesahannya. Membuka imej ID memerlukan Lihat imej ID; membaca nilai yang ditutup sepenuhnya memerlukan Tunjukkan butiran sensitif KYC. Setiap pandangan direkodkan. Hanya berfungsi apabila pengendali menghidupkan Semakan KYC untuk ruang kerja. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -6283,7 +6297,8 @@
       "channels": "Saluran dan integrasi",
       "workspace": "Ruang kerja",
       "people": "Orang",
-      "sign": "Secure Sign"
+      "sign": "Secure Sign",
+      "kyc": "Semakan KYC"
     },
     "preset": {
       "support-manager": {
@@ -11433,5 +11448,173 @@
         "other": "{detail}"
       }
     }
+  },
+  "Kyc": {
+    "title": "Semakan KYC",
+    "readOnlyNotice": "Baca sahaja. Keputusan belum tersedia.",
+    "uatBanner": "Persekitaran ujian (UAT). Apa yang anda lihat datang daripada bahagian belakang UAT, bukan pengeluaran.",
+    "provisionalNote": "Nama medan adalah sementara: tiada medan dalam respons ini sepadan dengan nama yang dijangka oleh skrin, jadi semuanya dipaparkan dalam senarai umum. Jurutera membetulkannya di satu tempat, src/lib/kyc/adapter.ts.",
+    "recordedFooter": "Setiap paparan halaman ini direkodkan.",
+    "retry": "Cuba lagi",
+    "tabs": {
+      "label": "Bahagian semakan KYC",
+      "review": "Semakan",
+      "log": "Log akses"
+    },
+    "setup": {
+      "title": "Semakan KYC belum disediakan",
+      "adminBody": "Tetapkan pemboleh ubah ini dalam persekitaran pelayan, kemudian mulakan semula Halo:",
+      "optional": "KYC_DOC_ALLOWED_IMAGE_HOSTS adalah pilihan: hos yang boleh digunakan oleh alamat imej bertandatangan selain domain bahagian belakang itu sendiri.",
+      "othersBody": "Semakan KYC belum disediakan. Minta pentadbir.",
+      "checkConnection": "Semak sambungan ke bahagian belakang",
+      "checking": "Menyemak…",
+      "reachable": "Bahagian belakang menjawab semakan kesihatannya.",
+      "unreachable": "Bahagian belakang tidak menjawab semakan kesihatannya."
+    },
+    "search": {
+      "label": "ID rakan",
+      "placeholder": "Tampal atau taip ID rakan",
+      "hint": "Tekan Enter untuk mencari. Huruf, nombor dan . _ @ : + - sahaja.",
+      "button": "Cari",
+      "clear": "Kosongkan",
+      "invalid": "Gunakan huruf, nombor dan . _ @ : + - sahaja (1 hingga 100 aksara).",
+      "recent": "Terkini:",
+      "clearRecent": "Kosongkan terkini"
+    },
+    "list": {
+      "title": "Pengesahan",
+      "forFriend": "Pengesahan untuk {id}",
+      "start": "Cari ID rakan untuk melihat pengesahannya.",
+      "loading": "Memuatkan pengesahan",
+      "empty": "Tiada pengesahan untuk ID ini",
+      "select": "Pilih satu pengesahan untuk melihat butirannya.",
+      "count": "{count, plural, other {# pengesahan}}",
+      "typeUnknown": "ID",
+      "noTime": "Tiada masa",
+      "noId": "Tiada id",
+      "score": "Skor {score}"
+    },
+    "status": {
+      "positive": "Lulus",
+      "pending": "Menunggu",
+      "negative": "Gagal",
+      "neutral": "Tidak dinilai",
+      "unknown": "Tidak diketahui"
+    },
+    "detail": {
+      "back": "Kembali ke hasil",
+      "heading": "Pengesahan",
+      "dataTitle": "Butiran",
+      "hidden": "Disembunyikan",
+      "maskedValue": "(ditutup)",
+      "reveal": "Tunjukkan butiran sensitif",
+      "revealing": "Menunjukkan…",
+      "hideAgain": "Sembunyikan semula",
+      "revealNote": "Dipaparkan selama 2 minit, kemudian disembunyikan semula. Pendedahan ini direkodkan.",
+      "noRevealPermission": "Anda tidak mempunyai kebenaran untuk menunjukkan butiran sensitif.",
+      "otherFields": "Medan lain",
+      "noOther": "Tiada medan lain.",
+      "technical": "Butiran teknikal",
+      "withheld": "{count, plural, other {# medan tidak dipaparkan (pautan atau rujukan fail).}}",
+      "fields": {
+        "type": "Jenis",
+        "status": "Status",
+        "submitted": "Dihantar",
+        "updated": "Dikemas kini",
+        "score": "Skor",
+        "reason": "Sebab",
+        "name": "Nama",
+        "idNumber": "Nombor ID",
+        "dob": "Tarikh lahir",
+        "address": "Alamat",
+        "validationId": "Id pengesahan",
+        "rawStatus": "Status seperti dihantar",
+        "friendId": "ID rakan",
+        "createdIso": "Masa (UTC)"
+      }
+    },
+    "image": {
+      "title": "Imej ID",
+      "toolbar": "Kawalan imej",
+      "zoomIn": "Zum masuk",
+      "zoomOut": "Zum keluar",
+      "zoomLevel": "Zum {level}",
+      "rotate": "Putar 90 darjah",
+      "fit": "Muatkan dalam tetingkap",
+      "actualSize": "Saiz sebenar",
+      "reset": "Tetap semula",
+      "loading": "Memuatkan imej",
+      "covered": "Imej disembunyikan.",
+      "coveredWhy": "Ia disembunyikan selepas 3 minit tanpa aktiviti, atau apabila tab ini berada di latar belakang. Memaparkannya semula direkodkan semula.",
+      "show": "Klik untuk tunjuk",
+      "viewerLabel": "Pemapar imej ID. Kekunci: + dan - zum, 0 tetap semula, R putar, F tukar antara muat dan saiz sebenar, kekunci anak panah menatal.",
+      "alt": "Imej dokumen ID",
+      "watermarkNote": "Tera air menunjukkan siapa yang melihat dan bila. Ia menghalang penyalinan tetapi tidak dapat menghalang tangkapan skrin.",
+      "noId": "Pengesahan ini tidak mempunyai id yang boleh digunakan, jadi imejnya tidak dapat dibuka.",
+      "noPermission": "Anda tidak mempunyai kebenaran untuk melihat imej ID."
+    },
+    "errors": {
+      "not_configured": "Semakan KYC belum disediakan pada pelayan ini.",
+      "upstream_unreachable": "Perkhidmatan pengesahan tidak dapat dicapai. Cuba lagi sebentar lagi.",
+      "upstream_unauthorized": "Perkhidmatan pengesahan tidak menerima akses Halo. Minta pentadbir.",
+      "not_found": "Itu tidak ditemui.",
+      "bad_response": "Perkhidmatan pengesahan menghantar jawapan yang tidak dapat dibaca.",
+      "image_too_large": "Imej terlalu besar untuk dipaparkan.",
+      "image_type_unsupported": "Fail yang disimpan bukan imej JPEG, PNG atau WebP, jadi ia tidak dapat dipaparkan.",
+      "image_host_blocked": "Alamat imej tidak dibenarkan, jadi imej tidak diambil. Minta pentadbir.",
+      "invalid_request": "Permintaan itu tidak sah.",
+      "rate_limited": "Terlalu banyak permintaan. Tunggu sebentar dan cuba lagi.",
+      "forbidden": "Anda tidak mempunyai kebenaran untuk berbuat demikian.",
+      "audit_failed": "Akses tidak dapat direkodkan, jadi tiada apa-apa dipaparkan. Cuba lagi.",
+      "network": "Sambungan ke Halo gagal. Semak sambungan anda dan cuba lagi.",
+      "generic": "Sesuatu telah berlaku. Cuba lagi.",
+      "unauthorizedAdmin": "Kunci ditolak. Semak KYC_DOC_API_KEY pada pelayan.",
+      "imageHostAdmin": "Tambah hos imej ke KYC_DOC_ALLOWED_IMAGE_HOSTS pada pelayan (log pelayan menamakan hos tersebut)."
+    },
+    "log": {
+      "title": "Log akses",
+      "intro": "Siapa yang mencari ID rakan mana, membuka imej atau menunjukkan nilai. Ia tidak pernah menyimpan kunci, imej atau nilai itu sendiri, tidak boleh diubah dan tidak dipangkas.",
+      "person": "Orang",
+      "allPeople": "Semua orang",
+      "friendId": "ID rakan",
+      "friendInvalid": "Gunakan huruf, nombor dan . _ @ : + - sahaja (1 hingga 100 aksara).",
+      "action": "Tindakan",
+      "allActions": "Semua tindakan",
+      "from": "Dari",
+      "to": "Hingga",
+      "apply": "Guna",
+      "reset": "Tetap semula",
+      "export": "Eksport CSV",
+      "exportNote": "Eksport menggunakan penapis yang digunakan dan mengandungi paling banyak 5,000 baris.",
+      "empty": "Tiada baris yang sepadan.",
+      "loading": "Memuatkan…",
+      "loadMore": "Muat lagi",
+      "formerMember": "Bekas ahli",
+      "columns": {
+        "time": "Masa",
+        "person": "Orang",
+        "action": "Tindakan",
+        "friend": "ID rakan",
+        "validation": "Pengesahan",
+        "outcome": "Hasil"
+      },
+      "actions": {
+        "lookup": "Dicari",
+        "list": "Senarai dimuat semula",
+        "view_image": "Imej dibuka",
+        "reveal": "Nilai ditunjukkan",
+        "config_error": "Ralat penyediaan"
+      },
+      "outcomes": {
+        "ok": "OK",
+        "not_found": "Tiada ditemui",
+        "forbidden": "Tidak dibenarkan",
+        "error": "Ralat"
+      }
+    }
+  },
+  "Platform": {
+    "feature_kyc": "Semakan KYC",
+    "feature_kyc_desc": "Skrin kakitangan untuk bahagian belakang pengesahan ID (imej ID dan rekod pengesahan kanak-kanak), baca sahaja, dengan log akses. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya. Memerlukan KYC_DOC_API_BASE_URL dan KYC_DOC_API_KEY pada pelayan."
   }
 }

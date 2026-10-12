@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_OFF_FEATURES,
   DEFAULT_PLATFORM,
+  PLATFORM_FEATURES,
   applyFeatureFlags,
   isFeatureEnabled,
   limitFor,
@@ -100,5 +102,47 @@ describe("applyFeatureFlags", () => {
     const both = new Set(["menu.incidents", "jira.link", "tickets.delete"]);
     const out = applyFeatureFlags(both, parsePlatformRow({ features: { incidents: false, jira: false } }));
     expect([...out]).toEqual(["tickets.delete"]);
+  });
+});
+
+describe("kyc (KYC review, migration 182): off unless the operator says so", () => {
+  const all = ["menu.inbox", "menu.kyc", "kyc.view", "kyc.reveal", "menu.sign", "sign.send", "tickets.delete"];
+
+  it("is a feature the operator console offers", () => {
+    expect(PLATFORM_FEATURES).toContain("kyc");
+    expect(DEFAULT_OFF_FEATURES).toContain("kyc");
+  });
+
+  it("reads as OFF when the key is absent, the row is missing or the platform could not be read (unlike every other flag)", () => {
+    expect(isFeatureEnabled(DEFAULT_PLATFORM, "kyc")).toBe(false);
+    expect(isFeatureEnabled(null, "kyc")).toBe(false);
+    expect(isFeatureEnabled(undefined, "kyc")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: {} }), "kyc")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { kyc: false } }), "kyc")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { kyc: "true" } }), "kyc")).toBe(false);
+    expect(isFeatureEnabled(parsePlatformRow({ features: { kyc: true } }), "kyc")).toBe(true);
+    // the other flags keep their permissive reading
+    expect(isFeatureEnabled(null, "incidents")).toBe(true);
+    expect(isFeatureEnabled(DEFAULT_PLATFORM, "sign")).toBe(true);
+  });
+
+  it("removes menu.kyc and every kyc.* capability, and nothing else, for a workspace with no kyc key", () => {
+    const out = applyFeatureFlags(new Set(all), DEFAULT_PLATFORM);
+    expect([...out].sort()).toEqual(["menu.inbox", "menu.sign", "sign.send", "tickets.delete"]);
+    expect([...applyFeatureFlags(new Set(all), null)].sort()).toEqual(["menu.inbox", "menu.sign", "sign.send", "tickets.delete"]);
+    expect([...applyFeatureFlags(new Set(all), parsePlatformRow({ features: { kyc: false } }))].sort()).toEqual(["menu.inbox", "menu.sign", "sign.send", "tickets.delete"]);
+  });
+
+  it("keeps them when the operator turned it on, and leaves the other modules alone", () => {
+    const on = parsePlatformRow({ features: { kyc: true } });
+    expect([...applyFeatureFlags(new Set(all), on)].sort()).toEqual([...all].sort());
+    const signOff = parsePlatformRow({ features: { kyc: true, sign: false } });
+    expect([...applyFeatureFlags(new Set(all), signOff)].sort()).toEqual(["kyc.reveal", "kyc.view", "menu.inbox", "menu.kyc", "tickets.delete"]);
+  });
+
+  it("returns the same set when nothing was removed", () => {
+    const plain = new Set(["menu.inbox", "tickets.delete"]);
+    expect(applyFeatureFlags(plain, DEFAULT_PLATFORM)).toBe(plain);
+    expect(applyFeatureFlags(plain, null)).toBe(plain);
   });
 });

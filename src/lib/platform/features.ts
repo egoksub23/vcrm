@@ -9,6 +9,9 @@
 // permissive default (active, nothing limited, every feature on). A new
 // flag must therefore never switch an existing feature off for tenants
 // that predate it; the operator turns things off explicitly.
+// The one deliberate exception is DEFAULT_OFF_FEATURES below: a feature that
+// holds especially sensitive data (KYC review, children's ID) reads as OFF
+// unless the operator turned it on explicitly.
 // ============================================================
 
 export type AccountStatus = "active" | "suspended";
@@ -18,7 +21,7 @@ export interface AccountPlatform {
   plan: string;
   /** e.g. `{ seats: 10 }`. An absent key means unlimited. */
   limits: Record<string, number>;
-  /** e.g. `{ incidents: false }`. An absent key means enabled. */
+  /** e.g. `{ incidents: false }`. An absent key means enabled, except for DEFAULT_OFF_FEATURES (KYC review), where it means disabled. */
   features: Record<string, boolean>;
   suspendedReason: string | null;
   /** When the workspace will be deleted, if the owner or the operator asked (migration 153). */
@@ -35,7 +38,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -89,10 +92,18 @@ export function parsePlatformRow(row: unknown): AccountPlatform {
   };
 }
 
+/**
+ * Features that read as OFF when the key is absent, the platform row is missing or it could not be read: only an explicit `true` turns
+ * them on. KYC review holds identity documents of children, so a missing row or key must never switch it on (migration 182 also writes
+ * an explicit false for every workspace and the signup seed does the same for new ones; this is the belt to those braces).
+ */
+export const DEFAULT_OFF_FEATURES: readonly string[] = ["kyc"];
+
 export function isFeatureEnabled(
   platform: AccountPlatform | null | undefined,
   feature: string,
 ): boolean {
+  if (DEFAULT_OFF_FEATURES.includes(feature)) return platform?.features[feature] === true;
   return platform?.features[feature] !== false;
 }
 
@@ -124,6 +135,9 @@ const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => bool
   // The Merchant Registration add-on has no capability of its own: its templates are read and
   // sent through the sign.* ones, and the installer reads the flag directly.
   sign_merchant: () => false,
+  // KYC review (migration 182): the menu, the screen and every /api/kyc route. Off for every workspace, existing and new, until
+  // the operator turns it on; only the operator console can (the migration writes an explicit false, as 157 did for sign).
+  kyc: (c) => c === "menu.kyc" || c.startsWith("kyc."),
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */
@@ -131,12 +145,12 @@ export function applyFeatureFlags<T extends ReadonlySet<string>>(
   capabilities: T,
   platform: AccountPlatform | null | undefined,
 ): T | Set<string> {
-  if (!platform) return capabilities;
+  // A missing platform row reads as permissive for every feature except the default-off ones (KYC review).
   const disabled = PLATFORM_FEATURES.filter((f) => !isFeatureEnabled(platform, f));
   if (disabled.length === 0) return capabilities;
   const kept = new Set<string>();
   for (const cap of capabilities) {
     if (!disabled.some((f) => FEATURE_CAPABILITIES[f](cap))) kept.add(cap);
   }
-  return kept;
+  return kept.size === capabilities.size ? capabilities : kept;
 }

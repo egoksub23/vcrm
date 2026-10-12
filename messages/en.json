@@ -52,7 +52,8 @@
     "userGuide": "User Guide",
     "pendingApprovals": "{count} {count, plural, =1 {proposal} other {proposals}} waiting for approval",
     "platform": "Platform",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC review"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -78,7 +79,8 @@
     "menuProfile": "Profile",
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC review"
   },
   "Help": {
     "pageTitle": "User Guide",
@@ -6997,6 +6999,18 @@
       "sign_reveal_sensitive": {
         "label": "Reveal sensitive answers",
         "description": "Use Reveal on a sensitive answer (an ID number, a bank account) to read it in full. Every reveal is recorded in the document's history. Without this permission the answer stays masked. Separate from sending documents. Default: Owner and Admin."
+      },
+      "kyc_reveal": {
+        "label": "Reveal sensitive KYC details",
+        "description": "Use Reveal in KYC review to read a child's ID number, date of birth, address and other masked values in full, for two minutes. Every reveal is recorded. Without this permission the values stay masked. Needs the KYC review menu. Default: Owner and Admin."
+      },
+      "kyc_view": {
+        "label": "View ID images",
+        "description": "Open the stored ID image of a validation in KYC review. The image is fetched for each view, shown with a watermark of your name and the time, and never stored in Halo. Every view is recorded. Needs the KYC review menu. Default: Owner and Admin."
+      },
+      "menu_kyc": {
+        "label": "KYC review",
+        "description": "See the KYC review menu item and open the screen to look a friend ID up and read its validations. Opening an ID image needs View ID images; reading masked values in full needs Reveal sensitive KYC details. Every look is recorded. Works only while the operator has KYC review switched on for the workspace. Default: Owner and Admin."
       }
     },
     "group": {
@@ -7012,7 +7026,8 @@
       "channels": "Channels and integrations",
       "workspace": "Workspace",
       "people": "People",
-      "sign": "Secure Sign"
+      "sign": "Secure Sign",
+      "kyc": "KYC review"
     },
     "preset": {
       "support-manager": {
@@ -8476,7 +8491,9 @@
     "feature_sign_merchant": "Secure Sign: Merchant Registration",
     "feature_sign_merchant_desc": "The Merchant Registration add-on for Secure Sign (merchant application and e-invoice details). Needs Secure Sign. Off for most customers.",
     "meter_sign_documents_per_month": "Signing documents per month",
-    "job_sign-jobs": "Secure Sign jobs (sealing, expiry, reminders)"
+    "job_sign-jobs": "Secure Sign jobs (sealing, expiry, reminders)",
+    "feature_kyc": "KYC review",
+    "feature_kyc_desc": "Staff screen over the ID verification back end (children's ID images and validation records), read-only, with an access log. Off for every workspace until the operator turns it on. Needs KYC_DOC_API_BASE_URL and KYC_DOC_API_KEY on the server."
   },
   "Sign": {
     "admin": {
@@ -12785,6 +12802,170 @@
         "attachment_too_large": "The message with its files was too large to send.",
         "service_unavailable": "The mail service could not be reached just now. Try again in a moment.",
         "other": "{detail}"
+      }
+    }
+  },
+  "Kyc": {
+    "title": "KYC review",
+    "readOnlyNotice": "Read-only. Decisions are not available yet.",
+    "uatBanner": "Test environment (UAT). What you see comes from the UAT back end, not from production.",
+    "provisionalNote": "Field names are provisional: none of this response's fields matched the names the screen expects, so everything is shown in the generic list. Engineers fix this in one place, src/lib/kyc/adapter.ts.",
+    "recordedFooter": "Every view of this page is recorded.",
+    "retry": "Retry",
+    "tabs": {
+      "label": "KYC review sections",
+      "review": "Review",
+      "log": "Access log"
+    },
+    "setup": {
+      "title": "KYC review is not set up",
+      "adminBody": "Set these variables in the server's environment, then restart Halo:",
+      "optional": "KYC_DOC_ALLOWED_IMAGE_HOSTS is optional: hosts the signed image address may use besides the back end's own domain.",
+      "othersBody": "KYC review is not set up yet. Ask an administrator.",
+      "checkConnection": "Check connection to the back end",
+      "checking": "Checking…",
+      "reachable": "The back end answers its health check.",
+      "unreachable": "The back end does not answer its health check."
+    },
+    "search": {
+      "label": "Friend ID",
+      "placeholder": "Paste or type a friend ID",
+      "hint": "Press Enter to search. Letters, numbers and . _ @ : + - only.",
+      "button": "Search",
+      "clear": "Clear",
+      "invalid": "Use only letters, numbers and . _ @ : + - (1 to 100 characters).",
+      "recent": "Recent:",
+      "clearRecent": "Clear recent"
+    },
+    "list": {
+      "title": "Validations",
+      "forFriend": "Validations for {id}",
+      "start": "Search a friend ID to see its validations.",
+      "loading": "Loading validations",
+      "empty": "No validations for this ID",
+      "select": "Select a validation to see its details.",
+      "count": "{count, plural, one {# validation} other {# validations}}",
+      "typeUnknown": "ID",
+      "noTime": "No time",
+      "noId": "No id",
+      "score": "Score {score}"
+    },
+    "status": {
+      "positive": "Passed",
+      "pending": "Pending",
+      "negative": "Failed",
+      "neutral": "Not rated",
+      "unknown": "Unknown"
+    },
+    "detail": {
+      "back": "Back to results",
+      "heading": "Validation",
+      "dataTitle": "Details",
+      "hidden": "Hidden",
+      "maskedValue": "(masked)",
+      "reveal": "Reveal sensitive details",
+      "revealing": "Revealing…",
+      "hideAgain": "Hide again",
+      "revealNote": "Shown for 2 minutes, then hidden again. This reveal is recorded.",
+      "noRevealPermission": "You do not have permission to reveal sensitive details.",
+      "otherFields": "Other fields",
+      "noOther": "No other fields.",
+      "technical": "Technical details",
+      "withheld": "{count, plural, one {# field is not shown (a link or file reference).} other {# fields are not shown (links or file references).}}",
+      "fields": {
+        "type": "Type",
+        "status": "Status",
+        "submitted": "Submitted",
+        "updated": "Updated",
+        "score": "Score",
+        "reason": "Reason",
+        "name": "Name",
+        "idNumber": "ID number",
+        "dob": "Date of birth",
+        "address": "Address",
+        "validationId": "Validation id",
+        "rawStatus": "Status as sent",
+        "friendId": "Friend ID",
+        "createdIso": "Time (UTC)"
+      }
+    },
+    "image": {
+      "title": "ID image",
+      "toolbar": "Image controls",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomLevel": "Zoom {level}",
+      "rotate": "Rotate 90 degrees",
+      "fit": "Fit to window",
+      "actualSize": "Actual size",
+      "reset": "Reset",
+      "loading": "Loading the image",
+      "covered": "The image is hidden.",
+      "coveredWhy": "It is hidden after 3 minutes without activity, or when this tab is in the background. Showing it again is recorded again.",
+      "show": "Click to show",
+      "viewerLabel": "ID image viewer. Keys: + and - zoom, 0 resets, R rotates, F switches between fit and actual size, arrow keys scroll.",
+      "alt": "ID document image",
+      "watermarkNote": "The watermark shows who is viewing and when. It deters copying but cannot stop a screenshot.",
+      "noId": "This validation has no usable id, so its image cannot be opened.",
+      "noPermission": "You do not have permission to view the ID image."
+    },
+    "errors": {
+      "not_configured": "KYC review is not set up on this server.",
+      "upstream_unreachable": "The verification service could not be reached. Try again in a moment.",
+      "upstream_unauthorized": "The verification service did not accept Halo's access. Ask an administrator.",
+      "not_found": "That was not found.",
+      "bad_response": "The verification service sent an answer that could not be read.",
+      "image_too_large": "The image is too large to show.",
+      "image_type_unsupported": "The stored file is not a JPEG, PNG or WebP image, so it cannot be shown.",
+      "image_host_blocked": "The image address was not allowed, so the image was not fetched. Ask an administrator.",
+      "invalid_request": "That request was not valid.",
+      "rate_limited": "Too many requests. Wait a moment and try again.",
+      "forbidden": "You do not have permission to do that.",
+      "audit_failed": "The access could not be recorded, so nothing was shown. Try again.",
+      "network": "The connection to Halo failed. Check your connection and try again.",
+      "generic": "Something went wrong. Try again.",
+      "unauthorizedAdmin": "The key was rejected. Check KYC_DOC_API_KEY on the server.",
+      "imageHostAdmin": "Add the image host to KYC_DOC_ALLOWED_IMAGE_HOSTS on the server (the server log names the host)."
+    },
+    "log": {
+      "title": "Access log",
+      "intro": "Who looked up which friend ID, opened an image or revealed a value. It never holds keys, images or the values themselves, cannot be edited and is not trimmed.",
+      "person": "Person",
+      "allPeople": "Everyone",
+      "friendId": "Friend ID",
+      "friendInvalid": "Use only letters, numbers and . _ @ : + - (1 to 100 characters).",
+      "action": "Action",
+      "allActions": "All actions",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "reset": "Reset",
+      "export": "Export CSV",
+      "exportNote": "The export uses the applied filters and holds at most 5,000 rows.",
+      "empty": "No rows match.",
+      "loading": "Loading…",
+      "loadMore": "Load more",
+      "formerMember": "Former member",
+      "columns": {
+        "time": "Time",
+        "person": "Person",
+        "action": "Action",
+        "friend": "Friend ID",
+        "validation": "Validation",
+        "outcome": "Outcome"
+      },
+      "actions": {
+        "lookup": "Looked up",
+        "list": "Reloaded list",
+        "view_image": "Opened image",
+        "reveal": "Revealed values",
+        "config_error": "Set-up error"
+      },
+      "outcomes": {
+        "ok": "OK",
+        "not_found": "Nothing found",
+        "forbidden": "Not allowed",
+        "error": "Error"
       }
     }
   }

@@ -1,0 +1,177 @@
+# KYC review
+
+Phase 1, read-only. A staff screen under **Incidents** (menu **KYC review**, route `/kyc`) over the ID verification back end ("doc-processor"), which holds ID images and validation records of **children**. This is the most sensitive data Halo touches, and every choice below follows from that. The plan, the phases and the questions for compliance are in `docs/kyc-review-plan.md`.
+
+What a reviewer can do today: look a **friend ID** up, read the validations on file (newest first), open the stored **ID image**, and (with a separate permission) **reveal** the masked values for two minutes. Nothing can be approved or rejected yet, and the screen says so.
+
+What Halo stores: **nothing of the child's**. The image is fetched from the back end each time it is shown and streamed to the reviewer; it is not saved. The only thing Halo keeps is the **access log**: who looked at which friend ID, when, and what happened (section 6).
+
+> The back end's Postman collection has no example responses, so every field name below is a **guess** (section 8). The screen says "Field names are provisional" when none of a response's fields matched. Nothing in this document or in the code has been checked against the real service (section 10).
+
+## 1. Turn it on
+
+Three things have to be true, in this order.
+
+### 1.1 The server knows the back end (environment)
+
+Set these in the server's environment file (`.env.local`; `docker-compose.yml` reads it through `env_file`, so a container restart picks them up). They are **server-only**: never `NEXT_PUBLIC_`, never logged, never returned by any route, never in an error message or an access log row.
+
+| Variable | Value |
+|---|---|
+| `KYC_DOC_API_BASE_URL` | UAT: `https://apis-uat.vircle.com/verify_doc`. Production: the production base URL (ask the doc-processor engineers). Must be `https`, with no user name, query or fragment. |
+| `KYC_DOC_API_KEY` | The back end's `x-api-key` (`UAT_general-api-key` for UAT, `Prod_general-api-key` for production). Enter it on the server only; never paste it in chat or email. |
+| `KYC_DOC_ALLOWED_IMAGE_HOSTS` | Optional. Comma separated hosts the **signed image address** may point to besides the back end's own domain, for example `*.s3.ap-southeast-1.amazonaws.com`. A leading `*.` matches any subdomain. Needed when the back end signs links on a storage host (very likely). |
+
+Until both of the first two are set, the screen shows **"not set up"**: administrators see which variable names are missing (names only), everyone else sees "Ask an administrator". Restart Halo after changing them.
+
+**UAT versus production.** The screen compares the base URL with a few words (`uat`, `staging`, `sandbox`, `test`, `dev`, `qa` as a part of the host name). When it looks like a test environment the screen shows a **UAT** badge and a banner, so nobody mistakes test data for production. To move to production, change the two variables and restart; there is no other switch.
+
+### 1.2 The operator turns the `kyc` feature on for a workspace
+
+`kyc` is a platform feature flag, **off for every workspace** that exists and every workspace made from now on (migration 182 writes an explicit `false` for each, and the signup seed does the same). Beyond that, the code reads an **absent key, a missing platform row or an unreadable one as off** for this flag only (every other flag reads absent as on): see `DEFAULT_OFF_FEATURES` in `src/lib/platform/features.ts`. Only the operator can turn it on.
+
+To turn it on for **one** workspace (the owner will do this for the Vircle workspace only): sign in as a platform operator, open **Platform**, open the workspace, **Edit**, switch **KYC review** on, **Save**. Switching it off removes the menu item and every `menu.kyc` / `kyc.*` permission from everyone in that workspace at once, so the page and all the routes answer 403.
+
+### 1.3 Permissions
+
+Defaults below; an admin changes them per role in **Settings > Roles & permissions** (group **KYC review**). All three are app-tier (server routes; there is no table a browser reads with them) and can be granted down to **Agent**, never to Viewer.
+
+| Permission | What it allows | Default |
+|---|---|---|
+| `menu.kyc` | See the menu item, open the screen, look a friend ID up, read the **masked** validations. Required for all the others. | Owner, Admin |
+| `kyc.view` | Open the stored ID image. | Owner, Admin |
+| `kyc.reveal` | Reveal the masked values (ID number, date of birth, address ...) of one validation for two minutes. | Owner, Admin |
+
+Every other role, and every custom role built on one, has none of them until an admin grants it. The **Access log** tab is for **admins and owners only**, whatever permissions a custom role has.
+
+## 2. What the screen does
+
+- **Search**: a friend ID (1 to 100 characters of `A-Z a-z 0-9 . _ @ : + -`). Enter searches; paste is fine; the clear button empties it. The last eight ids searched are remembered **per person in this browser** (ids only, never data), with a "Clear recent" link.
+- **Results (left)**: one row per validation, newest first: type chip (NRIC ...), status chip (an icon and the word the back end sent, green / amber / red / grey by its meaning; never colour alone), time (relative; the exact time in the browser's time zone in the tooltip), a short id, a score if there is one. Empty: "No validations for this ID".
+- **Detail (right)**: the image viewer (zoom, rotate, fit or actual size, keys `+ - 0 R F`, loading skeleton, "Could not load the image" with Retry), then the data card: known fields as labelled rows with the sensitive ones masked, the other fields in a generic list, and a collapsed **Technical details** (validation id, status as sent).
+- **Phone width**: the list takes the screen; opening a validation shows the detail with a back arrow.
+- **Footer**: "Every view of this page is recorded."
+- **Access log tab** (admins and owners): section 6.
+
+## 3. Masking and Reveal
+
+Masking is done **on the server**, in the adapter, before anything is put in an answer. The browser never receives a sensitive value it has not been allowed to show; a copy of the page source or the network tab holds only the masked text.
+
+| Field | How it is masked |
+|---|---|
+| ID number (NRIC, passport, document number ...) | first 2 and last 2 characters with six dots between (`15••••••34`) when it has at least 10 characters; otherwise hidden. |
+| Date of birth, address, phone, email, parent / guardian, gender, nationality ... | hidden ("Hidden" with a lock). |
+| Any other field whose key matches the adapter's sensitive patterns (section 8) | by the rule above. |
+| Links, storage paths, tokens, very long values (the back end's own image address, for example) | **not sent at all**; the technical details say how many were left out. |
+
+A note for compliance: the first two digits of a Malaysian NRIC are the year of birth, so the partial mask shows that. If that is not acceptable, change `maskValue` in `src/lib/kyc/adapter.ts` to hide ID numbers fully.
+
+**Reveal.** The data card has **Reveal sensitive details** (only for people with `kyc.reveal`; others see a note). It calls `GET /api/kyc/validations?friend_id=...&reveal=1&validation_id=...`, which the server honours only for a caller who holds `kyc.reveal`, for that **one** validation (every other row stays masked), at most ten a minute per person (counted in the database, so it holds across servers). The values are hidden again after **two minutes**, when the reviewer opens another validation, searches again, leaves the tab or the page goes to the background. Every reveal is written to the access log before the values are returned.
+
+## 4. The ID image
+
+`GET /api/kyc/validations/{id}/image` (needs `menu.kyc` and `kyc.view`):
+
+1. asks the back end for a signed URL (`GET /validations/{id}/url`, with the key; the answer may be JSON, plain text or a redirect: the redirect's `Location` is read, not followed);
+2. checks that URL (section 5) and fetches the image **on the server**, with a 10 second deadline and a **15 MB** cap, sending **no key** to the image host;
+3. accepts only **JPEG, PNG or WebP**, checking both the declared type and the first bytes. **PDF is refused on purpose** (it can carry active content); if the back end stores PDFs, ask the engineers for page images;
+4. writes the access log row; only then sends the bytes, with `Cache-Control: no-store, no-cache, private`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Referrer-Policy: no-referrer` and a sandboxing `Content-Security-Policy`. The back end's URL is never sent to the browser.
+
+In the browser the bytes become a blob URL that is revoked when the viewer closes, the validation changes, the image is covered or the page is left.
+
+**What the viewer does to deter copying, and what it cannot do.** A diagonal repeating watermark ("viewer name · time · Halo", a CSS background over the image, so it follows zoom and scroll); no download button; right-click and dragging the image are switched off; the image is hidden behind **Click to show** after **three minutes without interaction** and as soon as the tab is hidden (showing it again fetches it again, and is recorded again). **None of this can stop a screenshot or a photo of the screen.** It makes a leaked image traceable to a person and a time, and the access log shows who opened which validation.
+
+## 5. Security model in one place
+
+| Concern | What the code does |
+|---|---|
+| Key and base URL | Only in `src/lib/kyc/config.ts` (server). The routes return only which variable **names** are missing (to admins) and whether the base URL looks like UAT. Errors carry a code, never text from the network or the back end. A test searches every answer, every header and every log line for the key. |
+| Feature flag | `kyc` off by default (section 1.2); a switched-off workspace has no `menu.kyc` or `kyc.*`, so every route answers 403. |
+| Who | `requireCapability("menu.kyc")` on every route; `kyc.view` / `kyc.reveal` inside; `access-log` routes also need the admin role. A refused attempt is recorded as `forbidden`. |
+| Signed image address | https only, no credentials, port 443, a plain DNS name (an IP address in any notation, `localhost`, `.local`, `.internal` ... are refused), and the host must be on the **back end's registrable domain** (not when that is a shared hosting domain such as `amazonaws.com`) or in `KYC_DOC_ALLOWED_IMAGE_HOSTS`. The connection itself goes through `pinnedFetch`, which refuses a private, loopback or link-local address whatever the name resolves to, and **no redirect is followed** anywhere. Rejected addresses are named (host only, never the query) in the server log so an admin can fix the allow-list. |
+| Inputs | `friend_id` 1 to 100 characters of `[A-Za-z0-9._@:+-]`; `limit` clamped to 1..100 (default 50); the validation id must start with a letter or digit and use `[A-Za-z0-9._:@+-]` (so `..` can never walk the back end's path); anything else is a 400 and is neither sent upstream nor logged. |
+| Limits | per person per minute: 30 lookups, 120 images, 10 reveals (shared, database-backed), 60 access-log reads, 6 CSV exports, 6 health checks. A 429 reaches neither the back end nor the log. |
+| Timeouts and sizes | 10 s for every upstream call (covering the body as well as the headers); lists capped at 2 MB; images at 15 MB; a size or time overrun is an error, never a partial image. |
+| Log first | If the access log row cannot be written, **nothing is returned** (503 `audit_failed`): the log is never skipped. |
+
+Error codes the routes use (the screen words each in four languages; the back end's own words are never passed on): `not_configured` (503), `upstream_unreachable` (502: network, timeout, 5xx, 429), `upstream_unauthorized` (502: the key was rejected; admins are told to check `KYC_DOC_API_KEY`), `not_found` (404), `bad_response` (502), `image_too_large`, `image_type_unsupported`, `image_host_blocked` (502), `invalid_request` (400), `rate_limited` (429), `forbidden` (403), `audit_failed` (503). An unknown friend id is **not** an error: the back end's 404, or an empty list, shows "No validations for this ID".
+
+Routes (all `GET`, all `Cache-Control: no-store`):
+
+| Route | Guards |
+|---|---|
+| `/api/kyc/status[?check=1]` | `menu.kyc`; `check=1` (back end `/health`, no key) admins only, 6 a minute |
+| `/api/kyc/validations?friend_id=&limit=&reload=&reveal=1&validation_id=` | `menu.kyc`; `reveal=1` also `kyc.reveal` and the shared reveal limiter |
+| `/api/kyc/validations/{id}/image?friend_id=` | `menu.kyc` and `kyc.view` |
+| `/api/kyc/access-log?user_id=&friend_id=&action=&from=&to=&before=&limit=` | `menu.kyc` and admin or owner |
+| `/api/kyc/access-log/export?...` | the same, CSV, at most 5,000 rows |
+
+## 6. Privacy and the access log
+
+**Table `kyc_access_log`** (migration 182). Each row: workspace, person, **action** (`lookup`, `list`, `view_image`, `reveal`, `config_error`), **friend ID** (as typed, trimmed, only if it passes the check above), **validation ID**, **outcome** (`ok`, `not_found`, `forbidden`, `error`) and the time. A row is written for every search (`lookup`), every reload of a list (`list`), every image shown (`view_image`), every reveal (`reveal`) and every set-up or rejected-key error (`config_error`); a refused attempt is a row with outcome `forbidden`; a search that finds nothing has outcome `not_found`.
+
+**What is NOT stored**: the API key, the base URL, any image or image address, any field value (no name, no ID number, no date of birth), anything the back end answered, the search results. The writer builds the row from named arguments, so nothing else can reach it; tests check every audit row of every route.
+
+- **Who can read it**: workspace admins and owners (row level security; the screen reads it through a server route). No browser role can insert, update or delete (privileges revoked, no policy), and the table is **append-only** in the database (a trigger refuses every `UPDATE`, `DELETE` and `TRUNCATE`, even from the service role), with the single exception the audit log has: a workspace being purged by `delete_workspace_data` (workspace deletion, PDPA erasure).
+- **Retention**: **not trimmed** by any job. Rows stay until the workspace is deleted. There is no purge setting; if compliance wants one, decide the period first (`docs/kyc-review-plan.md`, question 4).
+- **Export and deletion**: the table is part of the workspace export (the export discovers every table with an `account_id`; it excludes secrets only) and is removed with the workspace. The deleted login of a reviewer does not touch their rows (no foreign key on the person; the screen shows "Former member").
+- **The Access log tab** (admins and owners) lists the latest rows with filters (person, friend ID, action, date from / to) and "Load more"; **Export CSV** applies the same filters and holds at most **5,000 rows** (the response header `X-Truncated` says when it was cut). Cells that start with `= + - @` are guarded against spreadsheet formulas.
+- **A limit of what the friend ID in a `view_image` row proves**: the back end has no call that returns one validation by id, so the screen sends the friend ID it searched with, and the server records it if it is well formed. The back end gives Halo no way to check that the validation belongs to that friend, so treat that column as "what the reviewer was looking at" rather than proof. Anyone holding `kyc.view` can also open any validation id they can guess; the permission, not the id, is the protection.
+- **Not recorded**: that an admin read or exported the log itself. Add an action to the enum in a later migration if compliance wants that.
+
+The log records that a person looked at a child's record, which is itself personal data about the reviewer and the child: under the PDPA, decide who may see it and for how long (plan, section 6).
+
+## 7. Setting it up and checking it
+
+1. Set the two variables (UAT first), restart Halo.
+2. Platform console: turn **KYC review** on for the workspace.
+3. Sign in as an owner or admin of that workspace: **KYC review** appears directly below Incidents. As an admin, the **Check connection to the back end** link at the bottom asks `/health` (no key).
+4. Search a friend ID that exists in UAT. If the list says "could not be read" or every field is under "Other fields" with the note "Field names are provisional", the response shape differs from the guesses: section 8.
+5. Open a validation: the image, then **Reveal**; open the **Access log** tab and check the rows.
+
+If a user says **"The verification service did not accept Halo's access"** the key is wrong or expired. **"The image address was not allowed"** means the signed address is on a host that is neither the back end's domain nor in `KYC_DOC_ALLOWED_IMAGE_HOSTS`: the server log has a line `[kyc] image_host_blocked (host_not_allowed:<host>)`.
+
+## 8. For engineers: the adapter's provisional guesses
+
+All of them are in `src/lib/kyc/adapter.ts` (tests: `adapter.test.ts`). **Nothing else in Halo knows a vendor field name.** When real samples arrive, correct the tables, add the samples as test fixtures, and delete the "provisional" wording from the screen if you wish.
+
+Keys are compared after lower-casing and dropping every character that is not a letter or digit (`created_at`, `createdAt` and `Created-At` are all `createdat`).
+
+**The list** (`GET /validations?...`): an array; or an object holding an array under `validations`, `items`, `data`, `results`, `records`, `rows`, `documents` or `checks` (at the top or one level down); or a single record; or `{}` (nothing on file). Anything else (an error object, text) is `bad_response`. A 404 is an empty list.
+
+| Meaning | Keys tried, in order |
+|---|---|
+| Record id (top level only) | `id`, `validationid`, `uuid`, `recordid`, `requestid`, `checkid` |
+| Friend id | `friendid`, `userid`, `customerid`, `memberid` |
+| Type | `type`, `documenttype`, `doctype`, `idtype`, `kind`, `validationtype` |
+| Status | `status`, `validationstatus`, `verificationstatus`, `state`, `decision`, `result`, `outcome`, `verdict` |
+| Created | `createdat`, `created`, `timestamp`, `submittedat`, `checkedat`, `createdon`, `date`, `time` (ISO text, epoch seconds or milliseconds) |
+| Updated | `updatedat`, `modifiedat`, `updated`, `lastupdated`, `processedat` |
+| Reason | `reason`, `message`, `failurereason`, `errormessage`, `error`, `detail`, `remarks`, `comment`, `note` |
+| Score | `confidence`, `score`, `confidencescore`, `matchscore`, `similarity`, `probability` (0 to 1 is shown as a percentage) |
+| Name | `name`, `fullname`, `holdername`, `cardholdername`, `namefromid`, `extractedname` |
+| ID number (partial mask) | `nric`, `idnumber`, `icnumber`, `icno`, `icnum`, `idno`, `documentnumber`, `documentno`, `passportnumber`, `passportno`, `identitynumber`, `mykad`, `mykid`, `nationalid` |
+| Date of birth (hidden) | `dateofbirth`, `dob`, `birthdate`, `birthday`, `dateofbirthiso` |
+| Address (hidden) | `address`, `fulladdress`, `residentialaddress`, `addressline1`, `homeaddress` |
+
+Nested objects are flattened to dotted paths (three levels, 20 array entries); a field is found by its last segment, shallowest first. Every other scalar is shown in "Other fields" with its path.
+
+**Status words** (a negative word beats a pending one beats a positive one, so `not_verified` is red): positive `approved approve verified passed pass ok success successful valid accepted matched match true`; pending `pending review processing queued submitted waiting inprogress progress manual flagged new created uploaded started`; negative `rejected reject failed fail invalid mismatch declined denied error unverified unreadable blocked expired false no not cancelled canceled`. Anything else is grey and shows the raw word.
+
+**Sensitive keys**: a key containing `nric icnum icno idnum idno identity passport mykad mykid nationalid nationalno documentnum documentno docnum docno ssn taxid license licence` is masked partially; one containing `dob birth address street postcode postalcode zipcode phone mobile msisdn email parent guardian mother father gender sex race religion nationality` is hidden.
+
+**Never sent to the browser**: a key containing `url uri link href bucket s3 storage filepath path signature signed token secret password apikey accesskey secretkey credential authorization base64 imagedata blob objectkey imagekey filekey`, a value that starts with a scheme (`https://`, `s3://`, `data:` ...), a value over 600 characters, and a string value under an `image`, `photo`, `selfie`, `picture`, `scan`, `file` or `document` key that is long or contains `/`.
+
+**The signed URL** (`GET /validations/{id}/url`): a redirect (its `Location`); a JSON object with the address under `url`, `signedurl`, `link`, `href`, `downloadurl`, `presignedurl`, `imageurl`, `documenturl` or `location` (top level, or in a nested object); a JSON string; or plain text that is the address. Anything else is `bad_response`.
+
+To fix a guess: edit the table in `adapter.ts`, add the real sample to `adapter.test.ts`, run `npx vitest run src/lib/kyc`. The test `adapter.test.ts > the guesses are listed in one place` also checks that every key above appears in this document.
+
+## 9. Tests, and what they do not cover
+
+- `src/lib/kyc/*.test.ts`: the adapter (arrays, objects, odd shapes, missing fields, masking, link withholding, URL extraction), the SSRF guard (private addresses in every notation, look-alike hosts, shared domains, schemes, ports), the configuration, the upstream client with an injected `fetch` (timeouts that hold even for a fetch that ignores the abort signal, size caps for declared and streamed bodies, wrong types, lying types, redirects).
+- `src/app/api/kyc/kyc-routes.test.ts`: every route with an injected back end: not set up, rejected key, timeouts-as-failures, masking on the server, reveal permission and limiter, an audit row for every action and no key or value in any row, header, answer or log line, input validation, per-person rate limits, the log-first rule, the admin-only log and CSV.
+- `src/lib/auth/*.test.ts`, `src/lib/platform/features.test.ts`: the three permissions (catalogue, defaults, parity with migration 182) and the default-off flag; `src/components/layout/nav-items.test.ts`: the menu row.
+- `src/components/kyc/*.test.*`: the pure helpers (idle cover, reveal timer, watermark, zoom state and keys, recent searches) and the markup of every state in all four languages.
+- `supabase/ci/verify-182-kyc-review.sql` (run it rolled back against production): the permissions, the flag, the log's privileges and append-only rule, the workspace export and deletion.
+
+**Not covered by a test** (there is no DOM renderer in this repo): clicking, typing and focus movement, the 5 second idle check and the visibility listener that cover the image, the two-minute reveal timer, blob URL creation and revocation, the browser's real right-click and drag handling, the phone layout and dark mode appearance, and any call to the **real** back end. **No one has run this against the real doc-processor API** (UAT or production): its response shapes, status words and signed URL host are all unconfirmed, and so is the headers-and-redirect behaviour of its `/url` call.

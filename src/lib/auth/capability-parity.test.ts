@@ -471,6 +471,11 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "sign.sign",
   // Migration 176: Reveal on a sensitive answer, split off sign.send. Brand new, server route only: no earlier floor to compare against.
   "sign.reveal-sensitive",
+  // Migration 182: KYC review is brand new, server routes only (the ID back end is reached with a key that stays on the server): no earlier floor
+  // to compare against. Owner and Admin by default, like sign.reveal-sensitive.
+  "menu.kyc",
+  "kyc.view",
+  "kyc.reveal",
 ]);
 
 // ============================================================

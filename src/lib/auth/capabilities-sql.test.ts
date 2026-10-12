@@ -28,6 +28,7 @@ const migrationFiles = [
   "116_incident_reporting.sql",
   "157_sign_foundation.sql",
   "176_sign_private_reveal_copy_prefix.sql",
+  "182_kyc_review.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

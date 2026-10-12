@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.89.0] — 2026-10-12
+
+**Migration required: 182.** Apply it BEFORE the new app.
+
+### Added
+
+- **KYC review (read-only).** A new **KYC review** menu directly below Incidents: a staff screen over the Vircle ID verification back end. Search by friend ID, see that child's validations, and open the ID image. It is switched off for every workspace until the operator turns on the `kyc` feature, and it needs `KYC_DOC_API_BASE_URL` and `KYC_DOC_API_KEY` on the server (see `docs/kyc-review.md`). The screen says decisions are not available yet.
+- **Privacy by design:** the API key stays on the server; ID images are never stored in Halo, are fetched per view and streamed with no-store headers, and the vendor's link never reaches the browser; ID number, date of birth, address and similar fields are masked by the server until someone with the new **Reveal** permission asks, and re-hide after two minutes; every image carries a watermark with the viewer's name and time, has no download button and is covered after three minutes idle. These deter copying and cannot stop a screenshot.
+- **Three new permissions:** `menu.kyc` (see the screen), `kyc.view` (open an ID image) and `kyc.reveal` (see unmasked details). Owner and Admin by default; others only when an admin grants them.
+- **Access log:** every lookup, image view and reveal is recorded (who, when, which child; never keys, images or field values) in an append-only log that admins and owners can read and export (up to 5,000 rows) from an Access log tab.
+- Plans: `docs/kyc-review-plan.md` and `docs/compliance-requests-spec.md`.
+
+### Changed
+
+- The `kyc` feature is off when a workspace has no explicit setting, unlike the other features, so it can never switch on by accident.
+
 ## [0.88.0] — 2026-10-09
 
 No migration.

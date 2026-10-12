@@ -31,6 +31,8 @@ const AUTH_MARKER = new RegExp(
     'checkCronSecret', 'Signature', 'verifyVisitorJwt', 'requireUser', 'requireSession',
     // Doc Sign's staff() wrapper (lib/sign/http.ts): requireCapability, then a rate limit
     'staff\\(',
+    // KYC review's wrapper (lib/kyc/http.ts): requireCapability('menu.kyc'), a rate limit, the caller's workspace
+    'kycStaff\\(',
   ].join('|'),
 )
 const ADMIN_CLIENT = /supabaseAdmin|createAdminClient|SUPABASE_SERVICE_ROLE_KEY|admin-client|supabase\/admin/

@@ -52,7 +52,8 @@
     "userGuide": "用户指南",
     "pendingApprovals": "{count} 个{count, plural, =1 {提案} other {提案}}等待审批",
     "platform": "平台",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC 审核"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -78,7 +79,8 @@
     "menuProfile": "个人资料",
     "menuSettings": "设置",
     "menuSignOut": "退出登录",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC 审核"
   },
   "Help": {
     "pageTitle": "用户指南",
@@ -6268,6 +6270,18 @@
       "sign_reveal_sensitive": {
         "label": "查看敏感答案",
         "description": "对敏感答案（身份证号码、银行账号）使用“显示”以查看完整内容。每次查看都会记录在文档历史中。没有此权限时，答案保持遮盖。与发送文档的权限分开。默认：所有者和管理员。"
+      },
+      "kyc_reveal": {
+        "label": "显示 KYC 敏感详情",
+        "description": "在 KYC 审核中使用“显示”，可在两分钟内查看儿童的证件号码、出生日期、地址及其他被遮盖的完整数值。每次显示都会被记录。没有此权限时，这些数值保持遮盖。需要拥有 KYC 审核菜单。默认：所有者和管理员。"
+      },
+      "kyc_view": {
+        "label": "查看证件图片",
+        "description": "在 KYC 审核中打开某条验证记录所存储的证件图片。每次查看都会重新获取图片，并带有您的姓名和时间水印，不会存储在 Halo 中。每次查看都会被记录。需要拥有 KYC 审核菜单。默认：所有者和管理员。"
+      },
+      "menu_kyc": {
+        "label": "KYC 审核",
+        "description": "查看 KYC 审核菜单项，并打开该页面查询好友 ID 及其验证记录。打开证件图片需要“查看证件图片”权限；查看被遮盖的完整数值需要“显示 KYC 敏感详情”权限。每次查看都会被记录。仅在运营方为工作区开启 KYC 审核时有效。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -6283,7 +6297,8 @@
       "channels": "渠道与集成",
       "workspace": "工作区",
       "people": "人员",
-      "sign": "Secure Sign"
+      "sign": "Secure Sign",
+      "kyc": "KYC 审核"
     },
     "preset": {
       "support-manager": {
@@ -11433,5 +11448,173 @@
         "other": "{detail}"
       }
     }
+  },
+  "Kyc": {
+    "title": "KYC 审核",
+    "readOnlyNotice": "只读。暂不提供审批决定。",
+    "uatBanner": "测试环境（UAT）。您看到的内容来自 UAT 后端，而非正式环境。",
+    "provisionalNote": "字段名称为暂定：此响应中没有任何字段与屏幕预期的名称相符，因此全部显示在通用列表中。工程师只需在一处修正：src/lib/kyc/adapter.ts。",
+    "recordedFooter": "对此页面的每次查看都会被记录。",
+    "retry": "重试",
+    "tabs": {
+      "label": "KYC 审核分区",
+      "review": "审核",
+      "log": "访问日志"
+    },
+    "setup": {
+      "title": "KYC 审核尚未设置",
+      "adminBody": "请在服务器环境中设置以下变量，然后重启 Halo：",
+      "optional": "KYC_DOC_ALLOWED_IMAGE_HOSTS 为可选项：除后端自身域名外，签名图片地址可使用的主机。",
+      "othersBody": "KYC 审核尚未设置。请联系管理员。",
+      "checkConnection": "检查与后端的连接",
+      "checking": "正在检查…",
+      "reachable": "后端已响应健康检查。",
+      "unreachable": "后端没有响应健康检查。"
+    },
+    "search": {
+      "label": "好友 ID",
+      "placeholder": "粘贴或输入好友 ID",
+      "hint": "按 Enter 搜索。仅限字母、数字和 . _ @ : + -。",
+      "button": "搜索",
+      "clear": "清除",
+      "invalid": "仅可使用字母、数字和 . _ @ : + -（1 至 100 个字符）。",
+      "recent": "最近：",
+      "clearRecent": "清除最近记录"
+    },
+    "list": {
+      "title": "验证记录",
+      "forFriend": "{id} 的验证记录",
+      "start": "搜索好友 ID 以查看其验证记录。",
+      "loading": "正在加载验证记录",
+      "empty": "此 ID 没有验证记录",
+      "select": "选择一条验证记录以查看详情。",
+      "count": "{count, plural, other {# 条验证记录}}",
+      "typeUnknown": "ID",
+      "noTime": "无时间",
+      "noId": "无编号",
+      "score": "分数 {score}"
+    },
+    "status": {
+      "positive": "通过",
+      "pending": "待处理",
+      "negative": "未通过",
+      "neutral": "未评级",
+      "unknown": "未知"
+    },
+    "detail": {
+      "back": "返回结果",
+      "heading": "验证记录",
+      "dataTitle": "详情",
+      "hidden": "已隐藏",
+      "maskedValue": "（已遮盖）",
+      "reveal": "显示敏感详情",
+      "revealing": "正在显示…",
+      "hideAgain": "重新隐藏",
+      "revealNote": "显示 2 分钟后自动重新隐藏。此次显示会被记录。",
+      "noRevealPermission": "您没有显示敏感详情的权限。",
+      "otherFields": "其他字段",
+      "noOther": "没有其他字段。",
+      "technical": "技术详情",
+      "withheld": "{count, plural, other {有 # 个字段未显示（链接或文件引用）。}}",
+      "fields": {
+        "type": "类型",
+        "status": "状态",
+        "submitted": "提交时间",
+        "updated": "更新时间",
+        "score": "分数",
+        "reason": "原因",
+        "name": "姓名",
+        "idNumber": "证件号码",
+        "dob": "出生日期",
+        "address": "地址",
+        "validationId": "验证编号",
+        "rawStatus": "原始状态",
+        "friendId": "好友 ID",
+        "createdIso": "时间（UTC）"
+      }
+    },
+    "image": {
+      "title": "证件图片",
+      "toolbar": "图片控制",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomLevel": "缩放 {level}",
+      "rotate": "旋转 90 度",
+      "fit": "适应窗口",
+      "actualSize": "实际大小",
+      "reset": "重置",
+      "loading": "正在加载图片",
+      "covered": "图片已隐藏。",
+      "coveredWhy": "无操作 3 分钟后，或此标签页在后台时，图片会被隐藏。再次显示也会被记录。",
+      "show": "点击显示",
+      "viewerLabel": "证件图片查看器。按键：+ 和 - 缩放，0 重置，R 旋转，F 在适应窗口与实际大小之间切换，方向键滚动。",
+      "alt": "证件文件图片",
+      "watermarkNote": "水印显示谁在查看以及查看时间。它可以威慑复制，但无法阻止截屏。",
+      "noId": "此验证记录没有可用的编号，因此无法打开其图片。",
+      "noPermission": "您没有查看证件图片的权限。"
+    },
+    "errors": {
+      "not_configured": "此服务器尚未设置 KYC 审核。",
+      "upstream_unreachable": "无法连接验证服务。请稍后重试。",
+      "upstream_unauthorized": "验证服务不接受 Halo 的访问。请联系管理员。",
+      "not_found": "未找到。",
+      "bad_response": "验证服务返回了无法读取的答复。",
+      "image_too_large": "图片过大，无法显示。",
+      "image_type_unsupported": "存储的文件不是 JPEG、PNG 或 WebP 图片，因此无法显示。",
+      "image_host_blocked": "图片地址不被允许，因此未获取图片。请联系管理员。",
+      "invalid_request": "该请求无效。",
+      "rate_limited": "请求过多。请稍候再试。",
+      "forbidden": "您没有执行此操作的权限。",
+      "audit_failed": "无法记录此次访问，因此未显示任何内容。请重试。",
+      "network": "与 Halo 的连接失败。请检查网络后重试。",
+      "generic": "出现问题。请重试。",
+      "unauthorizedAdmin": "密钥被拒绝。请检查服务器上的 KYC_DOC_API_KEY。",
+      "imageHostAdmin": "请在服务器上把图片主机添加到 KYC_DOC_ALLOWED_IMAGE_HOSTS（服务器日志会写明该主机）。"
+    },
+    "log": {
+      "title": "访问日志",
+      "intro": "谁查询了哪个好友 ID、打开了图片或显示了数值。日志从不保存密钥、图片或数值本身，无法编辑，也不会被清理。",
+      "person": "人员",
+      "allPeople": "所有人",
+      "friendId": "好友 ID",
+      "friendInvalid": "仅可使用字母、数字和 . _ @ : + -（1 至 100 个字符）。",
+      "action": "操作",
+      "allActions": "所有操作",
+      "from": "从",
+      "to": "到",
+      "apply": "应用",
+      "reset": "重置",
+      "export": "导出 CSV",
+      "exportNote": "导出使用已应用的筛选条件，最多 5,000 行。",
+      "empty": "没有符合条件的记录。",
+      "loading": "正在加载…",
+      "loadMore": "加载更多",
+      "formerMember": "已离开的成员",
+      "columns": {
+        "time": "时间",
+        "person": "人员",
+        "action": "操作",
+        "friend": "好友 ID",
+        "validation": "验证记录",
+        "outcome": "结果"
+      },
+      "actions": {
+        "lookup": "查询",
+        "list": "重新加载列表",
+        "view_image": "打开图片",
+        "reveal": "显示数值",
+        "config_error": "设置错误"
+      },
+      "outcomes": {
+        "ok": "成功",
+        "not_found": "未找到",
+        "forbidden": "不允许",
+        "error": "错误"
+      }
+    }
+  },
+  "Platform": {
+    "feature_kyc": "KYC 审核",
+    "feature_kyc_desc": "面向员工的身份验证后端界面（儿童的证件图片和验证记录），只读，并带有访问日志。在运营方开启之前，所有工作区均为关闭。需要服务器上设置 KYC_DOC_API_BASE_URL 和 KYC_DOC_API_KEY。"
   }
 }

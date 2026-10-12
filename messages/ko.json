@@ -52,7 +52,8 @@
     "userGuide": "사용 가이드",
     "pendingApprovals": "승인 대기 중인 제안 {count}건",
     "platform": "플랫폼",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC 검토"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -78,7 +79,8 @@
     "menuProfile": "프로필",
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
-    "sign": "Secure Sign"
+    "sign": "Secure Sign",
+    "kyc": "KYC 검토"
   },
   "Help": {
     "pageTitle": "사용 가이드",
@@ -6997,6 +6999,18 @@
       "sign_reveal_sensitive": {
         "label": "민감한 답변 표시",
         "description": "민감한 답변(신분증 번호, 은행 계좌)에서 '표시'를 사용해 전체 내용을 읽습니다. 표시할 때마다 문서 기록에 남습니다. 이 권한이 없으면 답변은 가려진 채로 유지됩니다. 문서 발송 권한과는 별개입니다. 기본값: 소유자와 관리자."
+      },
+      "kyc_reveal": {
+        "label": "KYC 민감 정보 표시",
+        "description": "KYC 검토에서 '표시'를 사용해 아동의 신분증 번호, 생년월일, 주소 등 가려진 값을 2분 동안 전체로 봅니다. 표시할 때마다 기록됩니다. 이 권한이 없으면 값은 가려진 채로 유지됩니다. KYC 검토 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "kyc_view": {
+        "label": "신분증 이미지 보기",
+        "description": "KYC 검토에서 검증 기록에 저장된 신분증 이미지를 엽니다. 이미지는 볼 때마다 가져오며 이름과 시각이 담긴 워터마크와 함께 표시되고 Halo에는 저장되지 않습니다. 볼 때마다 기록됩니다. KYC 검토 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "menu_kyc": {
+        "label": "KYC 검토",
+        "description": "KYC 검토 메뉴 항목을 보고 화면을 열어 친구 ID를 조회하고 검증 기록을 읽습니다. 신분증 이미지를 열려면 '신분증 이미지 보기' 권한이, 가려진 값을 전체로 보려면 'KYC 민감 정보 표시' 권한이 필요합니다. 조회할 때마다 기록됩니다. 운영자가 워크스페이스에 KYC 검토를 켠 경우에만 작동합니다. 기본값: 소유자와 관리자."
       }
     },
     "group": {
@@ -7012,7 +7026,8 @@
       "channels": "채널 및 연동",
       "workspace": "워크스페이스",
       "people": "사람",
-      "sign": "Secure Sign"
+      "sign": "Secure Sign",
+      "kyc": "KYC 검토"
     },
     "preset": {
       "support-manager": {
@@ -8476,7 +8491,9 @@
     "feature_sign_merchant": "Secure Sign: 가맹점 등록",
     "feature_sign_merchant_desc": "Secure Sign의 가맹점 등록 애드온(가맹점 신청서와 전자세금계산서 정보)입니다. Secure Sign이 필요합니다. 대부분의 고객에게는 꺼 둡니다.",
     "meter_sign_documents_per_month": "월간 서명 문서",
-    "job_sign-jobs": "Secure Sign 작업 (봉인, 만료, 알림)"
+    "job_sign-jobs": "Secure Sign 작업 (봉인, 만료, 알림)",
+    "feature_kyc": "KYC 검토",
+    "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 읽기 전용이며 접근 기록이 있습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다."
   },
   "Sign": {
     "admin": {
@@ -12785,6 +12802,170 @@
         "attachment_too_large": "파일을 포함한 메시지가 너무 커서 보낼 수 없습니다.",
         "service_unavailable": "지금은 메일 서비스에 연결할 수 없습니다. 잠시 후 다시 시도하세요.",
         "other": "{detail}"
+      }
+    }
+  },
+  "Kyc": {
+    "title": "KYC 검토",
+    "readOnlyNotice": "읽기 전용입니다. 아직 승인 결정은 할 수 없습니다.",
+    "uatBanner": "테스트 환경(UAT)입니다. 보이는 내용은 운영이 아닌 UAT 백엔드에서 가져온 것입니다.",
+    "provisionalNote": "필드 이름은 임시입니다. 이 응답의 어떤 필드도 화면이 기대하는 이름과 일치하지 않아 모든 항목을 일반 목록으로 표시합니다. 엔지니어는 src/lib/kyc/adapter.ts 한 곳에서 수정합니다.",
+    "recordedFooter": "이 페이지를 볼 때마다 기록됩니다.",
+    "retry": "다시 시도",
+    "tabs": {
+      "label": "KYC 검토 구역",
+      "review": "검토",
+      "log": "접근 기록"
+    },
+    "setup": {
+      "title": "KYC 검토가 설정되지 않았습니다",
+      "adminBody": "서버 환경에 다음 변수를 설정한 뒤 Halo를 다시 시작하세요:",
+      "optional": "KYC_DOC_ALLOWED_IMAGE_HOSTS는 선택 사항입니다. 백엔드 자체 도메인 외에 서명된 이미지 주소가 사용할 수 있는 호스트입니다.",
+      "othersBody": "KYC 검토가 아직 설정되지 않았습니다. 관리자에게 문의하세요.",
+      "checkConnection": "백엔드 연결 확인",
+      "checking": "확인하는 중…",
+      "reachable": "백엔드가 상태 확인에 응답합니다.",
+      "unreachable": "백엔드가 상태 확인에 응답하지 않습니다."
+    },
+    "search": {
+      "label": "친구 ID",
+      "placeholder": "친구 ID를 붙여넣거나 입력하세요",
+      "hint": "Enter를 눌러 검색하세요. 영문자, 숫자, . _ @ : + - 만 사용할 수 있습니다.",
+      "button": "검색",
+      "clear": "지우기",
+      "invalid": "영문자, 숫자, . _ @ : + - 만 사용하세요(1~100자).",
+      "recent": "최근:",
+      "clearRecent": "최근 기록 지우기"
+    },
+    "list": {
+      "title": "검증 기록",
+      "forFriend": "{id}의 검증 기록",
+      "start": "친구 ID를 검색하면 검증 기록이 표시됩니다.",
+      "loading": "검증 기록을 불러오는 중",
+      "empty": "이 ID에 대한 검증 기록이 없습니다",
+      "select": "검증 기록을 선택하면 자세한 내용이 표시됩니다.",
+      "count": "{count, plural, other {검증 기록 #건}}",
+      "typeUnknown": "ID",
+      "noTime": "시간 없음",
+      "noId": "ID 없음",
+      "score": "점수 {score}"
+    },
+    "status": {
+      "positive": "통과",
+      "pending": "대기 중",
+      "negative": "실패",
+      "neutral": "미평가",
+      "unknown": "알 수 없음"
+    },
+    "detail": {
+      "back": "결과로 돌아가기",
+      "heading": "검증 기록",
+      "dataTitle": "상세 정보",
+      "hidden": "숨김",
+      "maskedValue": "(가려짐)",
+      "reveal": "민감한 정보 표시",
+      "revealing": "표시하는 중…",
+      "hideAgain": "다시 숨기기",
+      "revealNote": "2분 동안 표시된 뒤 다시 숨겨집니다. 이 표시는 기록됩니다.",
+      "noRevealPermission": "민감한 정보를 표시할 권한이 없습니다.",
+      "otherFields": "기타 필드",
+      "noOther": "다른 필드가 없습니다.",
+      "technical": "기술 정보",
+      "withheld": "{count, plural, other {필드 #개는 표시되지 않습니다(링크 또는 파일 참조).}}",
+      "fields": {
+        "type": "유형",
+        "status": "상태",
+        "submitted": "제출 시각",
+        "updated": "업데이트 시각",
+        "score": "점수",
+        "reason": "사유",
+        "name": "이름",
+        "idNumber": "신분증 번호",
+        "dob": "생년월일",
+        "address": "주소",
+        "validationId": "검증 ID",
+        "rawStatus": "원본 상태",
+        "friendId": "친구 ID",
+        "createdIso": "시각(UTC)"
+      }
+    },
+    "image": {
+      "title": "신분증 이미지",
+      "toolbar": "이미지 컨트롤",
+      "zoomIn": "확대",
+      "zoomOut": "축소",
+      "zoomLevel": "배율 {level}",
+      "rotate": "90도 회전",
+      "fit": "창에 맞추기",
+      "actualSize": "실제 크기",
+      "reset": "초기화",
+      "loading": "이미지를 불러오는 중",
+      "covered": "이미지가 숨겨졌습니다.",
+      "coveredWhy": "3분 동안 활동이 없거나 이 탭이 백그라운드에 있으면 숨겨집니다. 다시 표시하는 것도 다시 기록됩니다.",
+      "show": "클릭하여 표시",
+      "viewerLabel": "신분증 이미지 뷰어. 키: + 와 - 는 확대/축소, 0 은 초기화, R 은 회전, F 는 창에 맞추기와 실제 크기 전환, 방향키는 스크롤.",
+      "alt": "신분증 문서 이미지",
+      "watermarkNote": "워터마크에는 보고 있는 사람과 시각이 표시됩니다. 복사를 억제하지만 화면 캡처를 막을 수는 없습니다.",
+      "noId": "이 검증 기록에는 사용할 수 있는 ID가 없어 이미지를 열 수 없습니다.",
+      "noPermission": "신분증 이미지를 볼 권한이 없습니다."
+    },
+    "errors": {
+      "not_configured": "이 서버에는 KYC 검토가 설정되어 있지 않습니다.",
+      "upstream_unreachable": "검증 서비스에 연결할 수 없습니다. 잠시 후 다시 시도하세요.",
+      "upstream_unauthorized": "검증 서비스가 Halo의 접근을 받아들이지 않았습니다. 관리자에게 문의하세요.",
+      "not_found": "찾을 수 없습니다.",
+      "bad_response": "검증 서비스가 읽을 수 없는 응답을 보냈습니다.",
+      "image_too_large": "이미지가 너무 커서 표시할 수 없습니다.",
+      "image_type_unsupported": "저장된 파일이 JPEG, PNG, WebP 이미지가 아니어서 표시할 수 없습니다.",
+      "image_host_blocked": "이미지 주소가 허용되지 않아 이미지를 가져오지 않았습니다. 관리자에게 문의하세요.",
+      "invalid_request": "요청이 올바르지 않습니다.",
+      "rate_limited": "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+      "forbidden": "이 작업을 할 권한이 없습니다.",
+      "audit_failed": "접근을 기록할 수 없어 아무것도 표시하지 않았습니다. 다시 시도하세요.",
+      "network": "Halo에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+      "generic": "문제가 발생했습니다. 다시 시도하세요.",
+      "unauthorizedAdmin": "키가 거부되었습니다. 서버의 KYC_DOC_API_KEY를 확인하세요.",
+      "imageHostAdmin": "서버의 KYC_DOC_ALLOWED_IMAGE_HOSTS에 이미지 호스트를 추가하세요(서버 로그에 호스트 이름이 표시됩니다)."
+    },
+    "log": {
+      "title": "접근 기록",
+      "intro": "누가 어떤 친구 ID를 조회하고, 이미지를 열고, 값을 표시했는지 보여 줍니다. 키, 이미지, 값 자체는 저장하지 않으며, 수정할 수 없고 삭제되지도 않습니다.",
+      "person": "사용자",
+      "allPeople": "모든 사용자",
+      "friendId": "친구 ID",
+      "friendInvalid": "영문자, 숫자, . _ @ : + - 만 사용하세요(1~100자).",
+      "action": "작업",
+      "allActions": "모든 작업",
+      "from": "시작",
+      "to": "종료",
+      "apply": "적용",
+      "reset": "초기화",
+      "export": "CSV 내보내기",
+      "exportNote": "내보내기는 적용된 필터를 사용하며 최대 5,000행입니다.",
+      "empty": "일치하는 행이 없습니다.",
+      "loading": "불러오는 중…",
+      "loadMore": "더 보기",
+      "formerMember": "이전 구성원",
+      "columns": {
+        "time": "시각",
+        "person": "사용자",
+        "action": "작업",
+        "friend": "친구 ID",
+        "validation": "검증 기록",
+        "outcome": "결과"
+      },
+      "actions": {
+        "lookup": "조회",
+        "list": "목록 다시 불러오기",
+        "view_image": "이미지 열기",
+        "reveal": "값 표시",
+        "config_error": "설정 오류"
+      },
+      "outcomes": {
+        "ok": "성공",
+        "not_found": "찾을 수 없음",
+        "forbidden": "허용되지 않음",
+        "error": "오류"
       }
     }
   }

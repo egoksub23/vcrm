@@ -57,6 +57,7 @@ export type CapabilityGroup =
   | "sembang"
   | "incidents"
   | "sign"
+  | "kyc"
   | "ai"
   | "channels"
   | "workspace"
@@ -74,6 +75,7 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
   "sembang",
   "incidents",
   "sign",
+  "kyc",
   "ai",
   "channels",
   "workspace",
@@ -139,6 +141,10 @@ export const MENU_CAPABILITIES = [
   // nav access: contracts are not for every role, so the policies of every sign_* table read
   // it through has_capability() (migration 157). Default Owner, Admin and Agent.
   "menu.sign",
+  // KYC review (migration 182): the staff screen over the ID verification back end. Like menu.sembang
+  // and menu.sign it is not plain nav access: the people it shows are children, so it is Owner and Admin
+  // only until an admin grants it. App tier: the data is behind a server route, not a table the browser reads.
+  "menu.kyc",
   // Not a real "menu" in the sense every other entry here is (see the
   // special-cased def() for it below, not the menu() helper) — it stays
   // in this array only so the CapabilityKey union and the PAGE_ACCESS
@@ -169,7 +175,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // 'database' tier and grantable down to Agent; the parity table in
   // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
-  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign").map((k) =>
+  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc").map((k) =>
     menu(k.slice("menu.".length)),
   ),
   // Sembang (internal team chat) is the one "menu" capability that is
@@ -188,6 +194,8 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("menu.sembang", "menus", ADMIN_UP, "agent", "database"),
   // Doc Sign: see the section and read its documents, templates and audit trail (migration 157).
   def("menu.sign", "menus", AGENT_UP, "agent", "database"),
+  // KYC review: see the menu item and the screen (migration 182). Owner and Admin by default, grantable down to Agent.
+  def("menu.kyc", "menus", ADMIN_UP, "agent"),
 
   // ---- Inbox ----
   def("messages.send", "inbox", AGENT_UP, "agent", "database"),
@@ -263,6 +271,13 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // the service role), so app tier. Default: Owner and Admin. What the sealed PDF, the zip and the uploads show is a separate decision (F8).
   def("sign.reveal-sensitive", "sign", ADMIN_UP, "agent"),
 
+  // ---- KYC review (migration 182) ----
+  // menu.kyc (above, in Menus) opens the screen and may look a person up. These two decide what a reviewer can do with what the ID verification
+  // back end holds about a child. All server routes (the back end is reached with a key that never leaves the server), so app tier.
+  // view: open the stored ID image. reveal: read the masked values (ID number, date of birth, address ...) in full. Default: Owner and Admin.
+  def("kyc.view", "kyc", ADMIN_UP, "agent"),
+  def("kyc.reveal", "kyc", ADMIN_UP, "agent"),
+
   // ---- AI ----
   def("ai.use", "ai", AGENT_UP, "agent"),
   def("ai.configure", "ai", ADMIN_UP, "agent", "database"),
@@ -329,6 +344,8 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sign.settings"
   | "sign.sign"
   | "sign.reveal-sensitive"
+  | "kyc.view"
+  | "kyc.reveal"
   | "ai.use"
   | "ai.configure"
   | "channels.manage"

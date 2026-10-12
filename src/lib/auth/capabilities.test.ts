@@ -138,7 +138,7 @@ describe("catalogue", () => {
         // protected by the action capabilities and the read policies.
         // menu.sembang is the deliberate exception (it IS a table guard,
         // see the previous test) so it's excluded here.
-        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign"),
+        ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc"),
         "reports.view",
         // the action is a call to the AI provider, made by the server
         "ai.use",
@@ -152,6 +152,10 @@ describe("catalogue", () => {
         "sign.reveal-sensitive",
         "sign.sign",
         "sign.void",
+        // KYC review (migration 182): server routes only; the ID back end is reached with a key that never leaves the server
+        "menu.kyc",
+        "kyc.view",
+        "kyc.reveal",
       ].sort(),
     );
   });
@@ -451,5 +455,41 @@ describe("legacy useCan actions", () => {
         "view-only",
       ].sort(),
     );
+  });
+});
+
+describe("KYC review capabilities (migration 182)", () => {
+  const KYC = ["menu.kyc", "kyc.view", "kyc.reveal"] as const;
+
+  it("exist, in the menus and kyc groups, app tier, read-only is not claimed", () => {
+    expect(getCapability("menu.kyc")).toMatchObject({ group: "menus", enforcedBy: "app", minGrantRole: "agent" });
+    expect(getCapability("kyc.view")).toMatchObject({ group: "kyc", enforcedBy: "app", minGrantRole: "agent" });
+    expect(getCapability("kyc.reveal")).toMatchObject({ group: "kyc", enforcedBy: "app", minGrantRole: "agent" });
+    expect(CAPABILITY_GROUPS).toContain("kyc");
+  });
+
+  it("default to the owner and the admin only; an agent, a viewer or a custom role built on them gets none until an admin grants it", () => {
+    for (const k of KYC) {
+      expect([...(getCapability(k)?.defaultRoles ?? [])].sort(), k).toEqual(["admin", "owner"]);
+      expect(DEFAULT_CAPABILITIES.owner.has(k), k).toBe(true);
+      expect(DEFAULT_CAPABILITIES.admin.has(k), k).toBe(true);
+      expect(DEFAULT_CAPABILITIES.agent.has(k), k).toBe(false);
+      expect(DEFAULT_CAPABILITIES.viewer.has(k), k).toBe(false);
+    }
+  });
+
+  it("can be granted down to an agent and never to a viewer (children's ID data)", () => {
+    for (const k of KYC) {
+      expect(roleCanBeGranted("agent", k), k).toBe(true);
+      expect(roleCanBeGranted("viewer", k), k).toBe(false);
+      expect(resolveCapabilities("agent", { [k]: true }).has(k), k).toBe(true);
+      expect(resolveCapabilities("admin", { [k]: false }).has(k), k).toBe(false);
+    }
+  });
+
+  it("derive i18n ids", () => {
+    expect(capabilityI18nId("menu.kyc")).toBe("menu_kyc");
+    expect(capabilityI18nId("kyc.view")).toBe("kyc_view");
+    expect(capabilityI18nId("kyc.reveal")).toBe("kyc_reveal");
   });
 });
