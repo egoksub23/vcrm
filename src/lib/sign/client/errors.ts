@@ -68,6 +68,7 @@ export const KNOWN_ERROR_CODES = [
   "bad_signers",
   // sending
   "not_ready",
+  "static_text_does_not_fit",
   "no_signer",
   "sign_limit_reached",
   // envelopes (migration 171)

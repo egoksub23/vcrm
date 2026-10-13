@@ -8325,7 +8325,7 @@
         "bad_options": "{field} memerlukan sekurang-kurangnya satu pilihan. Setiap pilihan mestilah berbeza dan sehingga 100 aksara.",
         "bad_date_format": "{field} mempunyai format tarikh yang tidak sah.",
         "bad_decimals": "{field} mesti mempunyai 0 hingga 6 tempat perpuluhan.",
-        "bad_static_text": "{field} memerlukan teksnya (sehingga 2000 aksara).",
+        "bad_static_text": "{field} memerlukan teksnya (sehingga 6000 aksara).",
         "bad_merge_key": "{field} mempunyai nama nilai yang tidak sah. Gunakan huruf, digit dan garis bawah, bermula dengan huruf.",
         "bad_font_size": "{field} mesti mempunyai saiz fon antara 5 dan 32.",
         "bad_label": "Label {field} terlalu panjang (sehingga 100 aksara)."
@@ -9787,7 +9787,8 @@
         "private_not_allowed": "Hanya orang yang memuat naik ini, atau admin, boleh mengubahnya.",
         "private_fixed": "Sama ada ini peribadi tidak boleh diubah selepas ia dihantar.",
         "private_cannot_join": "Dokumen peribadi tidak boleh ditambah ke koleksi yang tidak peribadi.",
-        "bad_private": "Pilih sama ada ini peribadi."
+        "bad_private": "Pilih sama ada ini peribadi.",
+        "static_text_does_not_fit": "Sebahagian teks tetap dalam dokumen ini, seperti yuran platform atau terma utama, terlalu panjang untuk kotaknya dan akan terpotong dalam salinan bertandatangan. Pendekkannya pada langkah medan (atau besarkan kotaknya), kemudian hantar semula."
       },
       "records": {
         "ticketLabel": "Pautkan ke tiket",

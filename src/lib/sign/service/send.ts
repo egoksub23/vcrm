@@ -139,6 +139,24 @@ export async function assertRoomToSend(ctx: SignCtx, doc: { test?: boolean }): P
 }
 
 /**
+ * The sender's fixed text (static text, such as the platform fee and key terms of the Merchant Application) must be printed in full: the
+ * engine's own verdict while freezing is used (the same fit logic as the template editor's warning, `staticFitProblems`). Text that would be
+ * cut is refused here, before anything is stored or sent, because the frozen file is the one every signer sees and the sealed copy is made from.
+ */
+export function assertFixedTextFits(doc: Pick<SignDocumentRow, "fields_snapshot">, warnings: readonly { field: string; code: string }[]): void {
+  const cut = new Set(warnings.filter((x) => x.code === "text_truncated").map((x) => x.field));
+  const bad = doc.fields_snapshot.filter((f) => cut.has(f.key) && f.type === "static_text" && !f.merge);
+  if (bad.length === 0) return;
+  const names = bad.map((f) => `"${f.label?.trim() || f.key}" on page ${f.page + 1}`).join(", ");
+  throw new SignError(
+    "static_text_does_not_fit",
+    `The fixed text in ${names} does not fit its box and would be cut off in the signed copy. Shorten the text or make the box bigger, then send again.`,
+    400,
+    bad.map((f) => ({ code: "static_text_does_not_fit", field: f.key })),
+  );
+}
+
+/**
  * Freeze: write the sender's values onto the file and fingerprint it, and store it under its own name. From here the file never changes.
  * A test document (F-10) is marked TEST on every page before it is fingerprinted: signers see the mark while they sign and the sealed
  * copy inherits it. The caller removes the stored file if the database then refuses the send.
@@ -146,6 +164,7 @@ export async function assertRoomToSend(ctx: SignCtx, doc: { test?: boolean }): P
 export async function freezeForSend(ctx: SignCtx, doc: SignDocumentRow, w: Workspace): Promise<{ path: string; sha256: string; size: number }> {
   const working = await getFile(ctx.admin, doc.base_path!, ctx.accountId);
   const plain = await freezeBase(working, doc.fields_snapshot, doc.merge_values, { locale: doc.locale, timeZone: w.timeZone });
+  assertFixedTextFits(doc, plain.warnings);
   const frozen = doc.test ? { ...plain, ...(await markTestPages(plain.bytes)) } : plain;
   const path = documentPath(ctx.accountId, doc.id, "base", `sent-${frozen.sha256}.pdf`);
   await putFile(ctx.admin, path, frozen.bytes, "application/pdf");

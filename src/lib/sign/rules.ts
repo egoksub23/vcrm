@@ -16,6 +16,12 @@ export const MAX_FIELDS = 300;
 export const MAX_ROLES = 6;
 export const MAX_SIGNERS = 20;
 export const MAX_TEXT = 2000;
+/**
+ * The most a sender's fixed text (a static_text placement) may hold. Larger than an answer (MAX_TEXT) because fixed text is where long
+ * wording lives, such as the numbered key terms of the Merchant Application (up to 15 points). Whether a text FITS its box is a different
+ * question, answered by the engine (`staticFitProblems`): this is only the ceiling a request may carry.
+ */
+export const MAX_STATIC_TEXT = 6000;
 export const MAX_SINGLE_LINE = 200;
 export const MAX_IMAGE_BYTES = 400 * 1024;
 
@@ -102,7 +108,7 @@ export function validateFields(fields: readonly PlacedField[], roles: readonly S
     if (f.type === "number" && f.decimals !== undefined && (!Number.isInteger(f.decimals) || f.decimals < 0 || f.decimals > 6)) {
       issues.push({ code: "bad_decimals", ...at });
     }
-    if (f.type === "static_text" && !f.merge && (!f.text || f.text.length > MAX_TEXT)) issues.push({ code: "bad_static_text", ...at });
+    if (f.type === "static_text" && !f.merge && (!f.text || f.text.length > MAX_STATIC_TEXT)) issues.push({ code: "bad_static_text", ...at });
     if (f.merge !== undefined && !KEY_RE.test(f.merge)) issues.push({ code: "bad_merge_key", ...at });
     if (f.fontSize !== undefined && (!isFiniteNumber(f.fontSize) || f.fontSize < 5 || f.fontSize > 32)) issues.push({ code: "bad_font_size", ...at });
     if (f.label !== undefined && f.label.length > 100) issues.push({ code: "bad_label", ...at });

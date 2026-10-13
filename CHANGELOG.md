@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.93.0] — 2026-10-13
+
+No migration.
+
+### Changed
+
+- **Merchant Registration add-on 3.0.** An installed template is not changed: **Update** adds a draft "Merchant Application (updated)" beside it, and documents already made keep their old form.
+- **Part 5 (commercial terms) is two boxes** under the same bilingual headings: Platform fee and Key terms. The key terms box is a full page and holds about 15 numbered points (up to 6,000 characters in all). Text that does not fit is refused when sending, with a clear message, instead of being cut off in the signed PDF. The default wording is in one file, `default-terms.ts`, as clearly marked placeholders.
+- **Type of business** is now Sole proprietor, Partnership, Sdn. Bhd., **Club, society or co-operative** (with a required upload of the latest minutes of meeting) and Others. Bhd. is removed.
+- **Business Code or MSIC code by type:** sole proprietors and partnerships give a Business Code (up to 5 codes of 5 digits); the others give MSIC codes. The unused one is hidden and prints blank.
+- **SST is a question:** "Do you pay SST?"; only on Yes does it ask for the type of tax (Service tax or Sales tax), the percentage (6, 8 or 10) and the SST registration number.
+- **Removed:** Registration ID type, Business activity, Contact person designation, the e-invoice person in charge and the separate e-invoice email.
+- **Contacts** are now Person in charge (name, email, phone), Operations responsible (name, email), Finance responsible (name, email) and one "E-invoice and payment receipt email". The contact person's name, email and phone keep their field keys, so writing answers back to the contact still works.
+
 ## [0.92.1] — 2026-10-13
 
 **Migration required: 186.** Apply it BEFORE the new app: without it the closure and withdrawal forms would say "not available".

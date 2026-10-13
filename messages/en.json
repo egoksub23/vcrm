@@ -9685,7 +9685,7 @@
         "bad_options": "{field} needs at least one option. Each option must be different and up to 100 characters.",
         "bad_date_format": "{field} has a date format that is not valid.",
         "bad_decimals": "{field} must have between 0 and 6 decimal places.",
-        "bad_static_text": "{field} needs its text (up to 2000 characters).",
+        "bad_static_text": "{field} needs its text (up to 6000 characters).",
         "bad_merge_key": "{field} has a value name that is not valid. Use letters, digits and underscores, starting with a letter.",
         "bad_font_size": "{field} must have a font size between 5 and 32.",
         "bad_label": "The label of {field} is too long (up to 100 characters)."
@@ -11147,7 +11147,8 @@
         "private_not_allowed": "Only the person who uploaded this, or an admin, can change this.",
         "private_fixed": "Whether this is private cannot change once it has been sent.",
         "private_cannot_join": "A private document cannot be added to a collection that is not private.",
-        "bad_private": "Choose whether this is private."
+        "bad_private": "Choose whether this is private.",
+        "static_text_does_not_fit": "Some fixed text in this document, such as the platform fee or the key terms, is too long for its box and would be cut off in the signed copy. Shorten it in the fields step (or make its box bigger), then send again."
       },
       "records": {
         "ticketLabel": "Link to a ticket",

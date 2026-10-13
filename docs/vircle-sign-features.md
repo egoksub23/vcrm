@@ -404,16 +404,16 @@ Fields that exist in both are asked once.
 |---|---|---|---|---|---|
 | Company legal name (as per SSM) | multi-line | Yes | Registered name | Yes | Proposal: ask once; print on both lines of the MA |
 | Trading name (if different) | text | No | Company name | | Shown only if different |
-| Type of business | choice: sole proprietor, partnership, Sdn. Bhd., Bhd., others (+ text) | Yes | Yes | | Drives the document uploads (part 4) |
-| BRN type | choice | No | | Yes | Options to supply |
-| Business registration no. (BRN) | text, digits only, no hyphens | Yes | Company registration no. | Yes | Length rule to confirm |
+| Type of business | choice: sole proprietor, partnership, Sdn. Bhd., club / society / co-operative, others (+ text) | Yes | Yes | | Drives the codes asked here and the document uploads (part 4). *3.0: Bhd. removed, club / society / co-operative added* |
+| Business registration no. | text, digits only, no hyphens | Yes | Company registration no. | Yes | Length rule to confirm. *3.0: the Registration ID type is no longer asked (LHDN MyInvois may want it; the owner decided to remove it), and "(BRN)" is dropped from the label* |
 | When must you comply with e-invoicing | choice | Yes | | Yes | Phase options to supply |
 | Tax identification number (TIN) | text | Yes | | Yes | |
-| Tax type (SST or not applicable) | choice | No | | Yes | |
-| Tax percentage | number | If SST | | Yes | Shown only when tax type is SST |
-| SST registration no. | text | If SST | GST No. (replace?) | Yes | Shown only when tax type is SST |
-| Business MSIC code(s), one or more | list of entries | Yes | | Yes | Search picker in P2 |
-| Business activity (as per SSM) | multi-line | No | | Yes | |
+| Do you pay SST? (`sst_payer`) | choice: Yes, No | Yes | | Yes | 3.0 |
+| Type of tax (`sst_tax_type`) | choice: Service tax, Sales tax | If Yes | | Yes | Shown and required only when SST is Yes (3.0, replaces the tax type) |
+| Tax percentage (`sst_rate`) | choice: 6%, 8%, 10% (stored 6, 8, 10) | If Yes | | Yes | Shown and required only when SST is Yes (3.0, was a typed number) |
+| SST registration no. (`sst_no`) | text | If Yes | GST No. (replace?) | Yes | Shown and required only when SST is Yes |
+| Business code(s) (`business_codes`), up to 5 | list of 5-digit codes | Sole proprietor, partnership | | | Hidden for the other types (3.0) |
+| MSIC code(s) (`msic_codes`), up to 10 | list of entries | Sdn. Bhd., club / society / co-operative, others | | Yes | Search picker; hidden for sole proprietor and partnership (3.0) |
 
 **Part 2. Address and contacts**
 
@@ -425,10 +425,10 @@ Fields that exist in both are asked once.
 | State | choice (Malaysian states) | Yes | Yes | Yes | |
 | Country | choice, default Malaysia | Yes | Yes | | |
 | Company contact no. | phone, +60 | Yes | | Yes | |
-| Contact person: name, designation, contact no., email | text, text, phone, email | Yes | Yes (section B) | | |
-| e-Invoice person in charge: name | text | Yes | | Yes | |
-| e-Invoice person in charge: email (finance, for queries) | email | No | | Yes | Marked optional on your screenshot |
-| e-Invoice email (where all e-invoices are sent) | email | Yes | | Yes | |
+| Person in charge: name, email, phone (`contact_name`, `contact_email`, `contact_phone`) | text, email, phone | Yes | Yes (section B) | | 3.0: the old contact person, same keys (the contact write-back still works); the designation was removed |
+| Operations responsible: name, email (`ops_name`, `ops_email`) | text, email | Yes | | | 3.0, new |
+| Finance responsible: name, email (`finance_name`, `finance_email`) | text, email | Yes | | | 3.0, new; replaces the e-invoice person in charge and the finance email |
+| E-invoice and payment receipt email (`einvoice_email`) | email | Yes | | Yes | 3.0: one email for both; the e-invoice person in charge is gone |
 
 **Part 3. Bank account**
 
@@ -445,17 +445,21 @@ Fields that exist in both are asked once.
 
 | Upload | Shown when | Req |
 |---|---|---|
-| Form 9, Form 49 and bank statement header | Sdn. Bhd. or Bhd. | Yes |
+| Form 9, Form 49 and bank statement header | Sdn. Bhd. | Yes |
 | Form D and bank statement header | Sole proprietor or partnership | Yes |
+| Latest minutes of meeting (3.0) | Club, society or co-operative | Yes |
 | Photocopy of director or owner ID | Always | Yes |
 | Up to 3 pictures of the business premise | Always | At least 1 (to confirm) |
 
 **Part 5. Commercial terms** (read only, from the chosen template's own wording; the merchant ticks "I have read and accept")
 
-Platform fee for FPX, credit card and debit card; the payment channel note; the nine key terms
-(partner, right to decline, information requests, account access, refund and void, termination
-notice of 60 days, binding effect of the merchant terms, hardware, settlement twice weekly).
-Different fees or terms mean a different template (F-98); the values are ordinary text in the template.
+Two boxes of text the sender writes (since Merchant Registration 3.0; before that, thirteen):
+**Platform fee / Yuran platform** (one line each for FPX, credit card and debit card, and the payment
+channel note) and **Key terms / Terma utama** (up to 15 numbered points; the default points are the nine
+headings the template used to have: partner, right to decline, information requests, account access,
+refund and void, termination notice of 60 days, binding effect of the merchant terms, hardware,
+settlement twice weekly). Different fees or terms mean a different template (F-98); the values are
+ordinary text in the template. The default text is in one file, `default-terms.ts`.
 
 **Part 6. Review and sign**
 

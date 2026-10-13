@@ -8325,7 +8325,7 @@
         "bad_options": "{field} 至少需要一个选项。每个选项必须不同，最多 100 个字符。",
         "bad_date_format": "{field} 的日期格式无效。",
         "bad_decimals": "{field} 的小数位数必须在 0 到 6 之间。",
-        "bad_static_text": "{field} 需要填写文字（最多 2000 个字符）。",
+        "bad_static_text": "{field} 需要填写文字（最多 6000 个字符）。",
         "bad_merge_key": "{field} 的取值名称无效。请使用字母、数字和下划线，并以字母开头。",
         "bad_font_size": "{field} 的字号必须在 5 到 32 之间。",
         "bad_label": "{field} 的标签太长（最多 100 个字符）。"
@@ -9787,7 +9787,8 @@
         "private_not_allowed": "只有上传者或管理员可以更改此项。",
         "private_fixed": "发送后，是否私密就不能再更改。",
         "private_cannot_join": "私密文档不能添加到非私密的文件集中。",
-        "bad_private": "请选择是否私密。"
+        "bad_private": "请选择是否私密。",
+        "static_text_does_not_fit": "本文件中的部分固定文字（例如平台费用或主要条款）太长，放不进它的框，签署副本中会被截断。请在“字段”步骤中缩短文字（或放大该框），然后重新发送。"
       },
       "records": {
         "ticketLabel": "关联工单",

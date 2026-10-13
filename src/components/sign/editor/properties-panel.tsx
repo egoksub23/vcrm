@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ANSWERED_TYPES, SENDER_ROLE } from "@/lib/sign/rules";
+import { ANSWERED_TYPES, MAX_STATIC_TEXT, SENDER_ROLE } from "@/lib/sign/rules";
 import { DATE_FORMAT_PRESETS, applyMerge, canMerge, isValidDateFormat, roleKindAllows, sanitizeKey, suggestMergeKey } from "@/lib/sign/client/layout";
 import { bindPlacement, bindableFields, takesOptionValue, unbindPlacement } from "@/lib/sign/client/form-printing";
 import { pick } from "@/lib/sign/forms/text";
@@ -132,7 +132,7 @@ export function PropertiesPanel({ field, fields, roles, readOnly, typeLabels, me
 
       {field.type === "static_text" && !field.merge ? (
         <FormRow label={t("props.staticText")} htmlFor={id("text")}>
-          <Textarea id={id("text")} rows={3} value={field.text ?? ""} disabled={readOnly} maxLength={2000} onChange={(e) => set("text", e.target.value, `text:${field.key}`)} aria-invalid={!field.text} />
+          <Textarea id={id("text")} rows={field.multiline && field.h > 0.1 ? 14 : 3} value={field.text ?? ""} disabled={readOnly} maxLength={MAX_STATIC_TEXT} onChange={(e) => set("text", e.target.value, `text:${field.key}`)} aria-invalid={!field.text} />
         </FormRow>
       ) : bound ? null : (
         <FormRow label={t("props.label")} htmlFor={id("label")} hint={answered ? t("props.labelHint") : undefined}>

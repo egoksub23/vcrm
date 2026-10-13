@@ -4,8 +4,9 @@
 // One description produces both things that must agree: the drawing instructions the PDF is made from
 // (render.ts) and the placed fields on it (`PlacedField[]`). Every box is a rectangle this file chose, so
 // each placement is exactly the rectangle that was drawn: nothing is measured from a picture and nothing can
-// drift. The file is workspace-neutral (no logo, no company name) and carries no legal wording: the fees and
-// the nine key terms are headings with a placeholder paragraph the sender replaces.
+// drift. The file is workspace-neutral (no logo, no company name) and carries no legal wording: Part 5 is two
+// boxes of text the sender writes (the platform fee, and up to 15 numbered key terms), each starting with the
+// placeholder points of ./default-terms.ts.
 //
 // Pure and synchronous: no fonts and no I/O. (The width of every printed label is checked against its
 // column when the PDF is drawn, so a label that does not fit fails the build, not a signer.)
@@ -15,8 +16,10 @@
 
 import type { PlacedField } from "../../pdf/types";
 import { SENDER_ROLE } from "../../rules";
-// The page is drawn from the generation-1 form: its tick boxes need the options typed in, and the PDF must not change when a field moves to a shared list.
-import { DIRECTOR_ROLE, MERCHANT_FORM_V1 as MERCHANT_FORM, MERCHANT_ROLE, PART, TERM_HEADINGS } from "./form";
+// The page is drawn from the generation-3 form (add-on 3.0). Its tick boxes (the entity type, the SST question) have their options typed in, so
+// the drawing never depends on a shared list: a field that moves to a shared list does not change the PDF.
+import { DEFAULT_COMMERCIAL_TERMS, DEFAULT_KEY_TERMS } from "./default-terms";
+import { DIRECTOR_ROLE, MERCHANT_FORM, MERCHANT_ROLE, PART } from "./form";
 
 export const PAGE = { w: 595.28, h: 841.89 } as const;
 const M = 40;
@@ -86,9 +89,10 @@ const partNo = (key: string) => MERCHANT_FORM.parts.findIndex((x) => x.key === k
 
 /** Where the form's own label is too long for its column on paper, a shorter one in the same two languages. */
 const PRINT_LABEL: Record<string, string> = {
-  contact_phone: "Contact person: phone / Orang dihubungi: telefon",
-  einv_pic_email: "e-Invoice person in charge: email / E-mel pegawai e-Invois",
   finance_contact: "Finance contact person / Orang hubungan kewangan",
+  einvoice_email: "E-invoice and payment receipt email / E-mel e-Invois dan resit pembayaran",
+  business_codes: "Business code(s) / Kod perniagaan",
+  msic_codes: "MSIC code(s) / Kod MSIC",
 };
 
 /** A cell that prints the answer to a data field. */
@@ -224,10 +228,11 @@ function company(): Block {
       { value: "sole_prop", at: 0, w: 150 },
       { value: "partnership", at: 190, w: 110 },
       { value: "sdn_bhd", at: 330, w: 70 },
-      { value: "bhd", at: 420, w: 60 },
     ],
     b.y,
   );
+  b.y += 11 + 8;
+  b.choiceTicks("business_type", [{ value: "society_coop", at: 0, w: 300 }], b.y);
   b.y += 11 + 8;
   b.choiceTicks("business_type", [{ value: "other", at: 0, w: 110 }], b.y);
   b.text(M + 190, b.y + 2.6, "Specify / Nyatakan:", 7.6, { maxW: 150, tone: "muted" });
@@ -235,13 +240,32 @@ function company(): Block {
   b.rect(otherBox.x, otherBox.y, otherBox.w, otherBox.h, { stroke: "line", fill: "tint", lw: 0.6 });
   b.place(data("business_type_other").spec as Spec, otherBox);
   b.y += BOX_H + 6;
-  b.row([data("brn_type"), data("brn")]);
+  b.row([data("brn"), data("tin")]);
   b.row([data("einvoice_phase")]);
-  b.row([data("tin"), data("tax_type")]);
-  b.row([data("tax_percent", 0.8, { type: "number", decimals: 2, align: "left" }), data("sst_no", 1.2)]);
-  b.row([data("msic_codes")]);
-  b.row([data("business_activity", 1, { h: 30, multiline: true })]);
+  // SST: a yes or no, and only for those who pay it the type of tax, the percentage and the registration number (blank on paper otherwise)
+  b.text(M, b.y + 2.6, bi(fieldOf("sst_payer").label), 7.6, { maxW: 200 });
+  b.choiceTicks(
+    "sst_payer",
+    [
+      { value: "yes", at: 215, w: 50 },
+      { value: "no", at: 290, w: 60 },
+    ],
+    b.y,
+  );
+  b.y += 11 + 7;
+  b.row([data("sst_tax_type", 1), data("sst_rate", 0.9), data("sst_no", 1.1)]);
+  // the code that applies to the entity type: both boxes are drawn, the unused one prints blank, and a note says which is whose
+  b.row([data("business_codes", 1), data("msic_codes", 1.2)]);
+  b.y -= ROW_GAP - 1;
+  b.note("Sole proprietor and partnership: Business code. Others: MSIC code.", { size: 7 });
+  b.note("Pemilik tunggal dan perkongsian: Kod perniagaan. Lain-lain: Kod MSIC.", { size: 7 });
   return b;
+}
+
+/** A small heading over a group of contact boxes. */
+function contactGroup(b: Block, title: string) {
+  b.text(M, b.y, title, 7.9, { bold: true, tone: "ink", maxW: CW });
+  b.y += 11;
 }
 
 function contacts(): Block {
@@ -250,9 +274,12 @@ function contacts(): Block {
   b.row([data("address", 1, { h: 40, multiline: true })]);
   b.row([data("city", 2), data("postcode", 1), data("state", 2)]);
   b.row([data("country"), data("company_phone")]);
-  b.row([data("contact_name", 2), data("contact_designation", 1.4)]);
-  b.row([data("contact_phone", 1), data("contact_email", 2)]);
-  b.row([data("einv_pic_name"), data("einv_pic_email")]);
+  contactGroup(b, "Person in charge / Orang yang bertanggungjawab");
+  b.row([data("contact_name", 2, { label: "Name / Nama" }), data("contact_email", 2, { label: "Email / E-mel" }), data("contact_phone", 1.3, { label: "Phone / Telefon" })]);
+  contactGroup(b, "Operations responsible / Orang bertanggungjawab operasi");
+  b.row([data("ops_name", 1, { label: "Name / Nama" }), data("ops_email", 1, { label: "Email / E-mel" })]);
+  contactGroup(b, "Finance responsible / Orang bertanggungjawab kewangan");
+  b.row([data("finance_name", 1, { label: "Name / Nama" }), data("finance_email", 1, { label: "Email / E-mel" })]);
   b.row([data("einvoice_email")]);
   return b;
 }
@@ -273,8 +300,9 @@ function documents(): Block {
   b.note("Dimuat naik bersama permohonan ini dan disimpan bersama rekod bertandatangan.", { size: 7.4 });
   b.y += 3;
   const items: [string, string][] = [
-    ["Sdn. Bhd. or Bhd.: Form 9, Form 49 and a bank statement header.", "Sdn. Bhd. atau Bhd.: Borang 9, Borang 49 dan pengepala penyata bank."],
+    ["Sdn. Bhd.: Form 9, Form 49 and a bank statement header.", "Sdn. Bhd.: Borang 9, Borang 49 dan pengepala penyata bank."],
     ["Sole proprietor or partnership: Form D and a bank statement header.", "Pemilik tunggal atau perkongsian: Borang D dan pengepala penyata bank."],
+    ["Club, society or co-operative: the latest minutes of meeting.", "Kelab, persatuan atau koperasi: minit mesyuarat terkini."],
     ["Photocopy of the identity card of a director or the owner.", "Salinan kad pengenalan pengarah atau pemilik."],
     ["One to three pictures of the business premise.", "Satu hingga tiga gambar premis perniagaan."],
   ];
@@ -288,41 +316,40 @@ function documents(): Block {
   return b;
 }
 
-function feesBlock(): Block {
+/**
+ * Part 5, "Commercial terms / Terma komersial": exactly TWO boxes of text the sender writes (static text, role sender; the merchant sees them
+ * printed, read-only), one page.
+ *   * the platform fee: about a quarter of the page, for the fee lines and the payment channel note;
+ *   * the key terms: ALL the rest of the page, for up to 15 numbered points.
+ * Both print at a fixed 8 pt, wrapped to the box with the sender's line breaks kept. A text that does not fit is refused when a document is
+ * sent (never cut), so the boxes are sized for what the owner will write: 49 lines for the key terms and 17 for the fee box at 8 pt (the
+ * worst-case tests in merchant.test.ts print 15 points of 250 and of 350 characters, in Malay and English, and check every line is inside).
+ */
+export const PART5 = {
+  /** Fixed font size of both boxes, in points. */
+  fontSize: 8,
+  /** Height of the platform fee box: about a quarter of the A4 page (841.89 pt). */
+  feeBoxH: 176,
+} as const;
+
+function termsBlock(): Block {
   const b = new Block();
   b.breakBefore = true;
   b.bar(PART.terms);
   b.text(M, b.y, "Platform fee / Yuran platform", 8.4, { bold: true, maxW: CW });
   b.y += 13;
-  const fee = (key: string, label: string, text: string): Cell => ({
-    w: 1,
-    label,
-    spec: { key: `p_${key}`, type: "static_text", role: SENDER_ROLE, text, label },
-  });
-  b.row([fee("fee_fpx", "FPX", "[Insert the agreed fee]"), fee("fee_credit", "Credit card / Kad kredit", "[Insert the agreed fee]"), fee("fee_debit", "Debit card / Kad debit", "[Insert the agreed fee]")]);
-  b.row([
-    {
-      w: 1,
-      label: "Payment channel note / Nota saluran pembayaran",
-      h: 28,
-      spec: { key: "p_channel_note", type: "static_text", role: SENDER_ROLE, text: "[Insert the payment channel note]", multiline: true, fontSize: 8.5, label: "Payment channel note" },
-    },
-  ]);
+  const fee = { x: M, y: b.y, w: CW, h: PART5.feeBoxH };
+  b.rect(fee.x, fee.y, fee.w, fee.h, { stroke: "line", fill: "panel", lw: 0.6 });
+  b.place({ key: "p_commercial_terms", type: "static_text", role: SENDER_ROLE, text: DEFAULT_COMMERCIAL_TERMS, multiline: true, fontSize: PART5.fontSize, label: "Platform fee" }, fee);
+  b.y += fee.h + 10;
   b.text(M, b.y, "Key terms / Terma utama", 8.4, { bold: true, maxW: CW });
-  b.y += 16;
-  return b;
-}
-
-/** One key term: its heading and a marked paragraph for the agreed wording. */
-function termBlock(i: number): Block {
-  const t = TERM_HEADINGS[i];
-  const b = new Block();
-  b.text(M, b.y, `5.${i + 1}   ${bi(t.title)}`, 8.2, { bold: true, maxW: CW });
-  b.y += 11.5;
-  const box = { x: M, y: b.y, w: CW, h: 36 };
-  b.rect(box.x, box.y, box.w, box.h, { stroke: "line", fill: "panel", lw: 0.6 });
-  b.place({ key: `p_term_${t.key}`, type: "static_text", role: SENDER_ROLE, text: "[Insert the agreed wording]", multiline: true, fontSize: 8.5, label: t.title.en }, box);
-  b.y += 36 + 4;
+  b.y += 13;
+  // the rest of the page, down to where the acceptance line sits (rounded down so the group never overflows by a rounding error)
+  const h = Math.floor((BOTTOM - M - acceptBlock().height - 4 - b.y) * 100) / 100;
+  const terms = { x: M, y: b.y, w: CW, h };
+  b.rect(terms.x, terms.y, terms.w, terms.h, { stroke: "line", fill: "panel", lw: 0.6 });
+  b.place({ key: "p_key_terms", type: "static_text", role: SENDER_ROLE, text: DEFAULT_KEY_TERMS, multiline: true, fontSize: PART5.fontSize, label: "Key terms" }, terms);
+  b.y += h + 4;
   return b;
 }
 
@@ -374,9 +401,8 @@ function groups(): Block[][] {
     [contacts()],
     [bank()],
     [documents()],
-    [feesBlock(), termBlock(0)],
-    ...TERM_HEADINGS.slice(1).map((_, i) => [termBlock(i + 1)]),
-    [acceptBlock()],
+    // Part 5 and the acceptance line are one page, the two boxes filling it
+    [termsBlock(), acceptBlock()],
     [signing()],
   ];
 }

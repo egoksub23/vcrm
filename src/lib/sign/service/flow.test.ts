@@ -273,6 +273,21 @@ describe("sendDocument", () => {
     expect(t.db.rpcCalls.some((c) => c.name === "sign_send_document")).toBe(false);
   });
 
+  it("refuses fixed text that does not fit its box, naming the box, and stores and sends nothing (never cuts it silently)", async () => {
+    const doc = await draftWithLayout();
+    await setSigners(t.ctx, doc.id, [signerInput(), signerInput({ roleKey: "director", fullName: "Gokula", email: "g@vircle.example", orderNo: 2 })]);
+    await updateDraft(t.ctx, doc.id, { fields: fields.map((f) => (f.key === "fee" ? { ...f, text: "Wording of the fee. ".repeat(60) } : f)) });
+    const before = t.db.files.size;
+    const err = await sendDocument(t.ctx, doc.id).catch((e) => e);
+    expect(err).toBeInstanceOf(SignError);
+    expect(err).toMatchObject({ code: "static_text_does_not_fit", status: 400, issues: [{ code: "static_text_does_not_fit", field: "fee" }] });
+    expect(err.message).toContain('"fee" on page 1');
+    expect(t.db.rpcCalls.some((c) => c.name === "sign_send_document")).toBe(false);
+    expect(t.db.files.size).toBe(before);
+    expect(t.mail).toHaveLength(0);
+    expect(t.db.rows("sign_documents")[0].status).toBe("draft");
+  });
+
   it("removes the frozen file when the database refuses the send", async () => {
     const doc = await draftWithLayout();
     await setSigners(t.ctx, doc.id, [signerInput(), signerInput({ roleKey: "director", fullName: "Gokula", email: "g@vircle.example", orderNo: 2 })]);

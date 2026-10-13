@@ -2,8 +2,8 @@
 // Merchant Application: the roles and the form (docs/vircle-sign-features.md, Appendix A, parts 1 to 6).
 //
 // Pure data, shared with the layout of the template file (layout.ts prints the labels from here, so a
-// label is written once). Nothing in this file is a legal text: the commercial terms are headings with
-// wording the owner supplies (see layout.ts and the report that came with it).
+// label is written once). Nothing in this file is a legal text: the commercial terms (Part 5) are two boxes of
+// text the sender writes, with neutral placeholder points (default-terms.ts).
 //
 // Roles
 //   merchant   a signer. Holds every part (1 to 6) and signs.
@@ -18,7 +18,7 @@
 // are sensible Malaysian values marked "to confirm" in the report. Values are stable keys; change a label
 // freely, never a value that answers already use.
 //
-// Two generations of the form (add-on version 1.1 and 2.0, see ../merchant.ts)
+// Three generations of the form (add-on version 1.1, 2.0 and 3.0, see ../merchant.ts)
 //   1  every option typed in below, nothing marked sensitive: what version 1.1 installed. It is kept (MERCHANT_FORM_V1) because the
 //      template file is DRAWN from it (the tick boxes need the options, so the PDF does not change) and because an update must
 //      recognise a template that still equals it.
@@ -26,6 +26,10 @@
 //      states, countries, banks, company ID types, e-invoice phases, tax types, MSIC), so an admin who relabels or adds a bank
 //      changes it once; and the answers that identify a person or an account are sensitive (encrypted, masked on the sender's screen,
 //      left out of exports and the API, never written to the contact): see SENSITIVE_FIELDS for which and why.
+//   3  (the default, MERCHANT_FORM) generation 2 with the owner's decisions of add-on 3.0 (see "generation 3" below the data fields): new entity
+//      types, codes by entity type, SST asked only of those who pay it, new contacts, minutes of meeting for a society. Part 5 is two
+//      boxes of text the sender writes (./default-terms.ts), so the acknowledgement no longer lists the nine old headings. Generation 2 is
+//      kept (MERCHANT_FORM_V2) for the add-on's history.
 //
 // What the shared module cannot say per field (a custom validation message) is worded once per error code
 // by the signing page; the help texts below tell the person the shape that is expected.
@@ -158,8 +162,8 @@ export const BANKS: FieldOption[] = [
 export interface MerchantFormOptions {
   /** Who completes the bank part. Default the merchant; "finance" hands it to the optional finance filler. */
   bankRole?: typeof MERCHANT_ROLE | typeof FINANCE_ROLE;
-  /** 1: the form of add-on 1.1 (options typed in). 2 (default): shared option lists and sensitive answers. */
-  generation?: 1 | 2;
+  /** 1: the form of add-on 1.1 (options typed in). 2: of 2.0 (shared option lists, sensitive answers). 3 (default): of 3.0 (Part 5 is two boxes of text). */
+  generation?: 1 | 2 | 3;
 }
 
 export const PART = {
@@ -171,8 +175,12 @@ export const PART = {
   signing: "signing",
 } as const;
 
-/** The nine key terms, as headings only. The wording under each is the owner's to supply. */
-export const TERM_HEADINGS: { key: string; title: L10n }[] = [
+/**
+ * The nine key-term headings of add-on versions 1.1 and 2.0, which printed one box under each. Version 3.0 has ONE box of numbered points
+ * whose default text is in ./default-terms.ts. These stay because generations 1 and 2 of the form list them in the acknowledgement (an
+ * update recognises a template by its exact content, so the old wording must not change) and so the old boxes can be mapped to the new points.
+ */
+export const LEGACY_TERM_HEADINGS: { key: string; title: L10n }[] = [
   { key: "partner", title: L("Partner", "Rakan kongsi", "合作伙伴", "파트너") },
   { key: "decline", title: L("Right to decline", "Hak menolak", "拒绝权", "거절할 권리") },
   { key: "information", title: L("Information requests", "Permintaan maklumat", "信息请求", "정보 요청") },
@@ -184,8 +192,17 @@ export const TERM_HEADINGS: { key: string; title: L10n }[] = [
   { key: "settlement", title: L("Settlement: twice weekly", "Penyelesaian: dua kali seminggu", "结算：每周两次", "정산: 주 2회") },
 ];
 
-function acknowledgeText(): L10n {
-  const list = (lang: Lang | "en") => TERM_HEADINGS.map((t) => `- ${t.title[lang] ?? t.title.en}`).join("\n");
+/** The words beside the "I have read and accept" tick. Generations 1 and 2 list the nine old headings; generation 3 does not (Part 5 is the sender's own text). */
+function acknowledgeText(listHeadings: boolean): L10n {
+  const list = (lang: Lang | "en") => LEGACY_TERM_HEADINGS.map((t) => `- ${t.title[lang] ?? t.title.en}`).join("\n");
+  if (!listHeadings) {
+    return {
+      en: "The fees and the key terms are printed in Part 5 of the document. You can read them on the Review and sign step.\n\nBy ticking, you confirm that you have read and accept the fees and the key terms.",
+      ms: "Yuran dan terma utama dicetak dalam Bahagian 5 dokumen. Anda boleh membacanya pada langkah Semak dan tandatangan.\n\nDengan menanda, anda mengesahkan bahawa anda telah membaca dan menerima yuran dan terma utama.",
+      zh: "费用和主要条款印在文件的第5部分，您可以在“核对并签署”步骤中阅读。\n\n勾选即表示您确认已阅读并接受这些费用和主要条款。",
+      ko: "수수료와 주요 약관은 문서의 5부에 인쇄되어 있으며, \"검토 및 서명\" 단계에서 읽을 수 있습니다.\n\n체크하시면 수수료와 주요 약관을 읽고 동의하신 것으로 확인합니다.",
+    };
+  }
   return {
     en: `The fees and the key terms are printed in Part 5 of the document. You can read them on the Review and sign step.\n\nThe key terms are:\n${list("en")}\n\nBy ticking, you confirm that you have read and accept the fees and the key terms.`,
     ms: `Yuran dan terma utama dicetak dalam Bahagian 5 dokumen. Anda boleh membacanya pada langkah Semak dan tandatangan.\n\nTerma utama ialah:\n${list("ms")}\n\nDengan menanda, anda mengesahkan bahawa anda telah membaca dan menerima yuran dan terma utama.`,
@@ -246,7 +263,8 @@ const FILE_HELP = L("PDF, JPG or PNG, up to 8 MB for each file.", "PDF, JPG atau
 const DIGITS_HELP = L("Digits only, no spaces or hyphens.", "Digit sahaja, tanpa ruang atau sengkang.", "仅限数字，不含空格或连字符。", "숫자만 입력하세요(공백·하이픈 제외).");
 const PHONE_HELP = L("Start with 0 or +60, for example 012 345 6789.", "Mulakan dengan 0 atau +60, contohnya 012 345 6789.", "以 0 或 +60 开头，例如 012 345 6789。", "0 또는 +60으로 시작하세요(예: 012 345 6789).");
 
-function fields(): DataField[] {
+/** The data fields of add-on versions 1.1 and 2.0, exactly as they shipped (frozen: an update recognises a template by its exact content). */
+function legacyFields(listHeadings: boolean): DataField[] {
   const f = (d: DataField): DataField => d;
   return [
     // ---- part 1: company and tax -----------------------------------------------------------------------------------
@@ -613,7 +631,7 @@ function fields(): DataField[] {
       type: "acknowledge",
       part: PART.terms,
       required: true,
-      text: acknowledgeText(),
+      text: acknowledgeText(listHeadings),
       label: L("I have read and accept the fees and key terms", "Saya telah membaca dan menerima yuran dan terma utama", "我已阅读并接受费用和主要条款", "수수료와 주요 약관을 읽었으며 동의합니다"),
     }),
 
@@ -635,6 +653,180 @@ function fields(): DataField[] {
       label: L("Official company stamp", "Cop rasmi syarikat", "公司公章", "회사 공식 직인"),
       help: L("A clear picture of the stamp, PNG or JPG. Optional.", "Gambar cop yang jelas, PNG atau JPG. Pilihan.", "清晰的印章图片，PNG 或 JPG。可不填。", "직인의 선명한 사진(PNG 또는 JPG). 선택 사항입니다."),
     }),
+  ];
+}
+
+// ---- generation 3 (add-on 3.0): the owner's decisions on the business details, the contacts and the documents -----------------------
+//
+//   Entity type      Sole proprietor, Partnership, Sdn. Bhd., Club/society/co-operative, Others. "Bhd." is gone; the rules that said "Sdn. Bhd. or Bhd."
+//                    say Sdn. Bhd. only.
+//   Registration     "Registration ID type" is gone (only the registration number stays, labelled without "(BRN)": for a club, society or
+//                    co-operative it is its own registration number). Flag: LHDN MyInvois asks for the ID type with the number.
+//   Codes            Sole proprietor and Partnership: `business_codes` (up to 5 codes of 5 digits), required, hidden for the others.
+//                    Sdn. Bhd., Club/society/co-operative and Others: `msic_codes` as before, required, hidden for sole proprietor and partnership.
+//   SST              `sst_payer` (yes or no, required). Only when Yes: `sst_tax_type` (Service tax / Sales tax), `sst_rate` (6, 8 or 10) and
+//                    `sst_no`, all required. They replace the unconditional tax type, tax percentage and SST number.
+//   Business activity  gone.
+//   Contacts         Person in charge (contact_name, contact_email, contact_phone: the same keys, so the contact write-back keeps working),
+//                    Operations responsible (ops_name, ops_email), Finance responsible (finance_name, finance_email), and ONE
+//                    `einvoice_email` for e-invoices and payment receipts. The contact's designation and the e-invoice person are gone.
+//   Documents        Club/society/co-operative: `doc_minutes`, the latest minutes of meeting, required for that type only.
+
+/** The kinds of entity of version 3.0. The keys sole_prop, partnership, sdn_bhd and other are the ones answers already use. */
+export const BUSINESS_TYPES_V3: FieldOption[] = [
+  BUSINESS_TYPES[0],
+  BUSINESS_TYPES[1],
+  BUSINESS_TYPES[2],
+  opt("society_coop", L("Club, society or co-operative", "Kelab, persatuan atau koperasi", "俱乐部、社团或合作社", "클럽, 협회 또는 협동조합")),
+  BUSINESS_TYPES[4],
+];
+
+const SDN_BHD: Rule = { op: "eq", field: "business_type", value: "sdn_bhd" };
+const SOCIETY_COOP: Rule = { op: "eq", field: "business_type", value: "society_coop" };
+/** Who gives a Business code (the others give MSIC codes). */
+const GIVES_BUSINESS_CODE: Rule = SOLE_OR_PARTNERSHIP;
+const GIVES_MSIC: Rule = { op: "in", field: "business_type", values: ["sdn_bhd", "society_coop", "other"] };
+const PAYS_SST: Rule = { op: "eq", field: "sst_payer", value: "yes" };
+
+const YES_NO: FieldOption[] = [opt("yes", L("Yes", "Ya", "是", "예")), opt("no", L("No", "Tidak", "否", "아니요"))];
+/** The SST rates. The same in every language, so each carries its own percent sign. */
+export const SST_RATES: FieldOption[] = ["6", "8", "10"].map((v) => opt(v, { en: `${v}%` }));
+
+function fieldsV3(): DataField[] {
+  const old = legacyFields(false);
+  const get = (key: string, patch: Partial<DataField> = {}): DataField => {
+    const found = old.find((x) => x.key === key);
+    if (!found) throw new Error(`merchant form: no field "${key}" to carry over`);
+    return { ...found, ...patch };
+  };
+  const person = (key: string, type: "text" | "email" | "phone", who: L10n, what: L10n, extra: Partial<DataField> = {}): DataField => ({
+    key,
+    type,
+    part: PART.contacts,
+    required: true,
+    ...(type === "text" ? { maxLength: 100 } : {}),
+    label: L(`${who.en}: ${what.en}`, `${who.ms}: ${what.ms}`, `${who.zh}：${what.zh}`, `${who.ko}: ${what.ko}`),
+    ...extra,
+  });
+  const PIC = L("Person in charge", "Orang yang bertanggungjawab", "负责人", "담당자");
+  const OPS = L("Operations responsible", "Orang bertanggungjawab operasi", "运营负责人", "운영 담당자");
+  const FIN = L("Finance responsible", "Orang bertanggungjawab kewangan", "财务负责人", "재무 담당자");
+  const NAME = L("name", "nama", "姓名", "이름");
+  const EMAIL = L("email", "e-mel", "电子邮件", "이메일");
+  const PHONE = L("phone", "telefon", "电话", "연락처");
+
+  return [
+    // ---- part 1: company and tax ---------------------------------------------------------------------------------------
+    get("legal_name"),
+    get("trading_name"),
+    get("business_type", { options: BUSINESS_TYPES_V3 }),
+    get("business_type_other"),
+    get("brn", {
+      label: L("Business registration no.", "No. pendaftaran perniagaan", "商业注册号", "사업자 등록번호"),
+      help: L("The registration number of the business, club, society or co-operative. Digits only, without hyphens.", "No. pendaftaran perniagaan, kelab, persatuan atau koperasi. Digit sahaja, tanpa sengkang.", "企业、俱乐部、社团或合作社的注册号。仅限数字，不含连字符。", "사업체, 클럽, 협회 또는 협동조합의 등록번호입니다. 숫자만 입력하세요(하이픈 제외)."),
+    }),
+    get("einvoice_phase"),
+    get("tin"),
+    {
+      key: "sst_payer",
+      type: "choice",
+      part: PART.company,
+      required: true,
+      options: YES_NO,
+      label: L("Do you pay SST?", "Adakah anda membayar SST?", "您是否缴纳 SST？", "SST를 납부하십니까?"),
+    },
+    {
+      key: "sst_tax_type",
+      type: "choice",
+      part: PART.company,
+      required: false,
+      requiredIf: PAYS_SST,
+      visibleIf: PAYS_SST,
+      options: [opt("service_tax", L("Service tax", "Cukai perkhidmatan", "服务税", "서비스세")), opt("sales_tax", L("Sales tax", "Cukai jualan", "销售税", "판매세"))],
+      label: L("Type of tax", "Jenis cukai", "税种", "세금 유형"),
+    },
+    {
+      key: "sst_rate",
+      type: "choice",
+      part: PART.company,
+      required: false,
+      requiredIf: PAYS_SST,
+      visibleIf: PAYS_SST,
+      options: SST_RATES,
+      label: L("Tax percentage (%)", "Peratusan cukai (%)", "税率（%）", "세율 (%)"),
+    },
+    get("sst_no", { requiredIf: PAYS_SST, visibleIf: PAYS_SST }),
+    {
+      key: "business_codes",
+      type: "list",
+      part: PART.company,
+      required: false,
+      requiredIf: GIVES_BUSINESS_CODE,
+      visibleIf: GIVES_BUSINESS_CODE,
+      maxItems: 5,
+      itemFormat: "digits",
+      itemLength: 5,
+      itemMinLength: 5,
+      label: L("Business code(s)", "Kod perniagaan", "业务代码", "사업 코드"),
+      help: L("Add each 5-digit code on its own, up to 5. For a sole proprietor or a partnership.", "Tambah setiap kod 5 digit satu demi satu, sehingga 5. Untuk pemilik tunggal atau perkongsian.", "逐个添加5位数代码，最多5个。适用于独资经营或合伙经营。", "5자리 코드를 하나씩 추가하세요(최대 5개). 개인사업자 또는 파트너십용입니다."),
+    },
+    get("msic_codes", {
+      required: false,
+      requiredIf: GIVES_MSIC,
+      visibleIf: GIVES_MSIC,
+      label: L("MSIC code(s)", "Kod MSIC", "MSIC 代码", "MSIC 코드"),
+      help: L("Add each 5-digit code on its own, up to 10. For a Sdn. Bhd., a club, society or co-operative, and other businesses.", "Tambah setiap kod 5 digit satu demi satu, sehingga 10. Untuk Sdn. Bhd., kelab, persatuan atau koperasi, dan perniagaan lain.", "逐个添加5位数代码，最多10个。适用于 Sdn. Bhd.、俱乐部、社团或合作社及其他企业。", "5자리 코드를 하나씩 추가하세요(최대 10개). Sdn. Bhd., 클럽·협회·협동조합 및 기타 사업체용입니다."),
+    }),
+
+    // ---- part 2: address and contacts ----------------------------------------------------------------------------------
+    get("address"),
+    get("city"),
+    get("postcode"),
+    get("state"),
+    get("country"),
+    get("company_phone"),
+    // the person in charge: the old contact person's keys (so the contact write-back, bulk columns and registration mappings that name them keep working)
+    person("contact_name", "text", PIC, NAME, { contactField: "name" }),
+    person("contact_email", "email", PIC, EMAIL, { contactField: "email", writeBack: "if_empty" }),
+    person("contact_phone", "phone", PIC, PHONE, { help: PHONE_HELP }),
+    person("ops_name", "text", OPS, NAME),
+    person("ops_email", "email", OPS, EMAIL),
+    person("finance_name", "text", FIN, NAME),
+    person("finance_email", "email", FIN, EMAIL),
+    get("einvoice_email", {
+      label: L("E-invoice and payment receipt email", "E-mel e-Invois dan resit pembayaran", "电子发票及付款收据邮箱", "전자세금계산서 및 결제 영수증 이메일"),
+      help: L("E-invoices and payment receipts are sent to this address.", "E-Invois dan resit pembayaran dihantar ke alamat ini.", "电子发票和付款收据都将发送到此邮箱。", "전자세금계산서와 결제 영수증이 이 주소로 발송됩니다."),
+    }),
+
+    // ---- part 3: bank account (unchanged) ---------------------------------------------------------------------------------
+    ...old.filter((x) => x.part === PART.bank),
+
+    // ---- part 4: documents -----------------------------------------------------------------------------------------------
+    get("doc_form9", { visibleIf: SDN_BHD }),
+    get("doc_form49", { visibleIf: SDN_BHD }),
+    get("doc_form_d"),
+    {
+      key: "doc_minutes",
+      type: "file",
+      part: PART.documents,
+      required: true,
+      visibleIf: SOCIETY_COOP,
+      accept: ["pdf", "jpg", "png"],
+      maxMb: 8,
+      maxFiles: 3,
+      minFiles: 1,
+      label: L("Latest minutes of meeting", "Minit mesyuarat terkini", "最新会议记录", "최근 회의록"),
+      help: FILE_HELP,
+    },
+    get("doc_registration_other"),
+    get("doc_bank_statement"),
+    get("doc_owner_id"),
+    get("premise_pictures"),
+
+    // ---- parts 5 and 6 (the same fields; the acknowledgement no longer lists headings) --------------------------------------
+    get("terms_accepted", { text: acknowledgeText(false) }),
+    get("signer_designation"),
+    get("company_stamp"),
   ];
 }
 
@@ -683,10 +875,11 @@ function generation2(list: DataField[]): DataField[] {
   });
 }
 
-/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler, `{ generation: 1 }` for the form of add-on 1.1. */
+/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler, `{ generation: 1 }` or `{ generation: 2 }` for the form of add-on 1.1 or 2.0. */
 export function merchantForm(opts: MerchantFormOptions = {}): FormDefinition {
-  const base = fields();
-  return { version: 1, parts: parts(opts), fields: opts.generation === 1 ? base : generation2(base) };
+  const generation = opts.generation ?? 3;
+  const base = generation < 3 ? legacyFields(true) : fieldsV3();
+  return { version: 1, parts: parts(opts), fields: generation === 1 ? base : generation2(base) };
 }
 
 /** The default form: the merchant fills every part. */
@@ -694,3 +887,6 @@ export const MERCHANT_FORM: FormDefinition = merchantForm();
 
 /** The form of add-on version 1.1 (options typed in, nothing sensitive): the template file is drawn from it, and an update recognises it. */
 export const MERCHANT_FORM_V1: FormDefinition = merchantForm({ generation: 1 });
+
+/** The form of add-on version 2.0 (shared lists, sensitive answers, the acknowledgement lists the nine old headings): kept for the add-on's history. */
+export const MERCHANT_FORM_V2: FormDefinition = merchantForm({ generation: 2 });

@@ -2,7 +2,7 @@
 title: Categories and add-ons
 description: Group documents and templates in categories with their own starting choices, and install ready-made add-on packs.
 order: 8
-updated: 2026-10-08
+updated: 2026-10-13
 ---
 
 A **category** labels documents and templates and sets the starting choices for them. An **add-on** is a ready-made pack for a business process, such as signing merchant agreements. Both are managed in **Settings**, under **Secure Sign**, by someone allowed to manage Secure Sign settings.
@@ -74,6 +74,8 @@ What happens to each template of the add-on depends on whether you have changed 
 | **You have edited it** (moved a field, changed the form, the roles or the starting choices) | It is left **exactly as it is**. A new copy named **“Merchant Application (updated)”** is added next to it as a draft, so you can compare and switch over when you like. |
 | **You deleted it** | Nothing is brought back. Press **Install again** if you want it. |
 
+Some updates change the template file itself, not only its fields (Merchant Registration 3.0 is one: it redraws the commercial terms page). A template keeps the file it was made with, so for such an update **every** template, edited or not, is left exactly as it is and the new one is added next to it as **“Merchant Application (updated)”**. Nothing is overwritten and nothing is lost: look at the copy, and switch over when you like.
+
 When the update is done, a note under the heading tells you which of these happened to each template, and it stays until you close it.
 
 An update never changes a document that was already sent, and a draft you started earlier keeps the version it was made from. The change is recorded in the workspace audit log: who updated it, from which version to which. Pressing **Update** twice is harmless; the second time there is nothing left to do.
@@ -81,6 +83,22 @@ An update never changes a document that was already sent, and a draft you starte
 ### Merchant Registration
 
 The first add-on, **Merchant Registration**, is for signing merchant agreements. It sets up the **Merchant agreements** category and the **Merchant Application** template, which a merchant fills in parts and signs.
+
+**What version 3.0 changed** (the commercial terms page, which is Part 5, “Commercial terms / Terma komersial”):
+
+- Part 5 is now just **two boxes of text you write**, instead of thirteen: **Platform fee / Yuran platform** (about a quarter of the page) and **Key terms / Terma utama** (the rest of the page). The merchant sees both printed and cannot change them.
+- **Platform fee** starts with one line each for FPX, Credit card, Debit card and the payment channel note, with a marked place for each agreed rate. Replace the marked places with your own, and add or remove lines as you need.
+- **Key terms** starts with nine numbered points, one for each of the old headings (partner, right to decline, information requests, account access, refund and void, termination, binding effect, hardware, settlement). Each is marked “[insert the agreed wording / masukkan perkataan yang dipersetujui]”. Replace them with your agreed wording, and add points up to about **15**, each of about 250 characters, in English and Bahasa Malaysia.
+- **How to edit them.** Open the template, choose the box, and write in the text area of its properties. Start a new line for each point; a blank line is kept as a blank line, and long lines wrap to the box. The text can be up to **6,000 characters**, and the printed size is the same for every document (8 pt).
+- **Text that does not fit is never cut off.** Saving the template warns you that a box would cut its text. If you send anyway, the send is **refused** with a message naming the box, until you shorten the text or make the box bigger. The key terms box holds about 49 lines and the platform fee box about 17.
+- Different fees or terms for another group of merchants are another template: duplicate this one.
+- **Types of business** are now Sole proprietor, Partnership, Sdn. Bhd., **Club, society or co-operative** and Others. “Bhd.” is gone. A club, society or co-operative uploads its **latest minutes of meeting** (PDF, JPG or PNG, like the other uploads); the list of documents on the page says so.
+- **Codes follow the type of business.** A sole proprietor or a partnership gives up to **5 Business codes** (5 digits each). A Sdn. Bhd., a club, society or co-operative, and Others give the **MSIC codes** as before. The one that does not apply is not asked and prints blank, and a small note under the two boxes says which is whose.
+- **SST is asked as Yes or No** (“Do you pay SST?”). Only for Yes, the merchant is also asked the **type of tax** (Service tax or Sales tax), the **percentage** (6, 8 or 10) and the **SST registration number**; all three are then required.
+- **No longer asked:** the Registration ID type, the Business activity, and the contact person's designation. The registration number stays. (If you submit to LHDN MyInvois, check whether you still need the ID type.)
+- **Contacts** are: **Person in charge** (name, email, phone), **Operations responsible** (name, email), **Finance responsible** (name, email) and one **E-invoice and payment receipt email**. All are required. The old e-invoice person in charge and the separate e-invoice email are gone.
+- The words next to the “I have read and accept” tick no longer list the nine old headings.
+- Because the template file changed, **Update** adds a new draft template named **“Merchant Application (updated)”** and leaves your current one, and every document and draft made from it, exactly as they are. A draft you already started keeps its own thirteen boxes; only documents you start from the new template have two. To move wording across, copy it by hand: the four fee boxes become the four lines of Platform fee, and the nine key-term boxes become points 1 to 9 of Key terms, in the order of the headings above.
 
 **What version 2.0 changed** (for a workspace that installed 1.1):
 
