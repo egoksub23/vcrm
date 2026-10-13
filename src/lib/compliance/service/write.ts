@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { BANK_OWN_KEY, NAME_DIFFERS_KEY, nameDiffersFlag } from "../bank-own";
 import { complianceError, fromDatabase, ComplianceError } from "../errors";
 import { checkAnswers } from "../fields";
 import { normalisePhone } from "../reference";
@@ -93,6 +94,9 @@ export async function createComplianceRequest(admin: SupabaseClient, input: Crea
   }
   const id = input.id ? (idOrNull(input.id, "id") as string) : randomUUID();
   const dataEnc = sealSensitive(id, checked.answers.sensitive);
+  // migration 186: when the answer to "does this bank account belong to you" is Yes, the case carries the staff flag "the bank holder name differs from the
+  // account holder name" (a boolean, computed here, never typed and never given back to the person who filled the form)
+  const differs = nameDiffersFlag(checked.answers.data, checked.answers.sensitive, customer.name);
   const locale = input.customerLocale && (LOCALES as readonly string[]).includes(input.customerLocale) ? input.customerLocale : null;
   const { data, error } = await admin
     .from("compliance_requests")
@@ -110,7 +114,7 @@ export async function createComplianceRequest(admin: SupabaseClient, input: Crea
       ticket_id: idOrNull(input.ticketId, "ticket_id"),
       incident_id: idOrNull(input.incidentId, "incident_id"),
       kyc_validation_ref: (input.kycValidationRef ?? "").trim().slice(0, 200) || null,
-      data: checked.answers.data,
+      data: differs === null ? checked.answers.data : { ...checked.answers.data, [NAME_DIFFERS_KEY]: differs },
       data_enc: dataEnc,
       created_by: input.createdBy ?? null,
       assigned_to: idOrNull(input.assignedTo, "assigned_to"),
@@ -150,6 +154,7 @@ export async function editRequest(admin: SupabaseClient, caller: ComplianceCalle
   const row = await loadRow(admin, caller.accountId, id);
   const type = await loadType(admin, caller.accountId, row.type_key);
   const patch: Record<string, unknown> = {};
+  let sensitiveNow: Record<string, string> | null = null; // the sensitive answers as they will be, when this edit changes them
 
   const touchesAnswers = input.answers !== undefined || input.sensitive !== undefined;
   const touchesCustomer = input.customerName !== undefined || input.customerEmail !== undefined || input.customerPhone !== undefined || input.channel !== undefined || input.receivedAt !== undefined;
@@ -184,9 +189,21 @@ export async function editRequest(admin: SupabaseClient, caller: ComplianceCalle
       if (!caller.viewer.canReveal) throw complianceError("forbidden");
       const merged = { ...openSensitive(row.id, row.data_enc), ...checked.answers.sensitive };
       patch.data_enc = sealSensitive(row.id, merged);
+      sensitiveNow = merged;
     }
     // a sent field the form does not know is ignored; an ordinary answer is merged into the stored ones
     if (Object.keys(checked.answers.data).length > 0) patch.data = { ...(row.data ?? {}), ...checked.answers.data };
+  }
+
+  // migration 186: the staff flag follows the answer, the bank holder name and the account holder name when an edit changes one of them
+  const dataNow = (patch.data as Record<string, unknown> | undefined) ?? row.data ?? {};
+  if (type && (patch.customer_name !== undefined || sensitiveNow !== null || (patch.data !== undefined && (patch.data as Record<string, unknown>)[BANK_OWN_KEY] !== (row.data ?? {})[BANK_OWN_KEY]))) {
+    try {
+      const flag = nameDiffersFlag(dataNow, sensitiveNow ?? openSensitive(row.id, row.data_enc), (patch.customer_name as string | undefined) ?? row.customer_name);
+      if (flag !== null && flag !== dataNow[NAME_DIFFERS_KEY]) patch.data = { ...dataNow, [NAME_DIFFERS_KEY]: flag };
+    } catch {
+      // the stored bank answers could not be opened: the flag stays as it was (the sensitive panel says so)
+    }
   }
 
   if (input.contactId !== undefined) patch.contact_id = idOrNull(input.contactId, "contact_id");

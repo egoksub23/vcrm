@@ -4,13 +4,13 @@
 //
 // The submission is a plain object (the "payload" of the multipart post). Nothing is guessed: a value that is not what the field asks for is a problem
 // with a code, and the page words the code in the parent's language. The refusals that matter most are enforced here and nowhere else in the
-// browser's reach: a closure without its acknowledgements is never accepted, and a bank account holder name that does not match the Vircle account
-// holder name needs an authorization letter.
+// browser's reach: a closure without its acknowledgements is never accepted, the question "Does this bank account belong to you?" must be answered, and
+// when the answer is No an authorization letter must come with the form. (Before migration 186 the letter was demanded when the typed names differed; names are now
+// only an information flag for staff, see names.ts.)
 // ============================================================
 
 import { malaysianPhone, bankAccountNumber, cleanLine, cleanText, parseAmount } from "./amount";
 import { chosenBank } from "./banks";
-import { namesMatch } from "./names";
 
 export const PUBLIC_TYPES = ["closure", "withdrawal"] as const;
 export type PublicType = (typeof PUBLIC_TYPES)[number];
@@ -31,6 +31,7 @@ export type PublicFieldId =
   | "reasonKind"
   | "reasonText"
   | "transactionRefs"
+  | "bankOwn"
   | "bankChoice"
   | "bankOther"
   | "accountNumber"
@@ -58,7 +59,9 @@ export interface PublicValue {
   phone: string;
   /** The answers of the type's fields, by key (the sensitive ones included: the service encrypts those). */
   answers: Record<string, unknown>;
-  /** The bank account holder name differs from the Vircle account holder name: an authorization letter must come with it. */
+  /** The parent's answer to "Does this bank account belong to you, the Vircle account holder?". */
+  bankOwn: boolean;
+  /** The account is somebody else's (bankOwn is false): an authorization letter must come with the form. When it is the parent's own, a letter is neither asked nor kept. */
   needsLetter: boolean;
 }
 
@@ -69,8 +72,8 @@ export type ReasonKind = (typeof REASON_KINDS)[number];
 
 const yes = (v: unknown): boolean => v === true || v === "true" || v === "yes";
 
-/** The bank account holder name differs from the Vircle account holder name (so a letter is needed). Either name empty counts as different. */
-export const needsAuthorizationLetter = (accountHolder: string, bankHolder: string): boolean => !namesMatch(accountHolder, bankHolder);
+/** The answer to a Yes / No question: true, false, or null when there is none (nothing chosen, or something that is neither). */
+export const yesNoAnswer = (v: unknown): boolean | null => (v === true || v === "true" || v === "yes" ? true : v === false || v === "false" || v === "no" ? false : null);
 
 /**
  * Check a submission of the closure or withdrawal form. The email is NOT part of it: it comes from the verified session (the service compares the typed
@@ -129,7 +132,10 @@ export function parsePublicSubmission(type: PublicType, body: unknown, rules: Pu
     }
   }
 
-  // the refund account (both forms)
+  // the refund account (both forms). First: is it the parent's own? Asked before the account number, and answered Yes or No; nothing is assumed.
+  const own = yesNoAnswer(b.bankOwn);
+  if (own === null) bad("bankOwn", typeof b.bankOwn === "string" && b.bankOwn.trim() !== "" ? "not_a_choice" : "required");
+  else answers.bank_account_is_own = own;
   const bank = chosenBank(b.bankChoice, b.bankOther, rules.banks);
   if (!bank) bad(b.bankChoice === "__other__" ? "bankOther" : "bankChoice", typeof b.bankChoice === "string" && b.bankChoice !== "" ? (b.bankChoice === "__other__" ? "required" : "not_a_choice") : "required");
   const number = bankAccountNumber(b.accountNumber);
@@ -144,7 +150,7 @@ export function parsePublicSubmission(type: PublicType, body: unknown, rules: Pu
   answers.declaration = yes(b.declaration);
 
   if (Object.keys(problems).length > 0 || !name || (phone === null && !rules.phoneFromCase)) return { ok: false, problems };
-  return { ok: true, value: { type, name, phone: phone ?? "", answers, needsLetter: needsAuthorizationLetter(name, holder ?? "") } };
+  return { ok: true, value: { type, name, phone: phone ?? "", answers, bankOwn: own === true, needsLetter: own === false } };
 }
 
 // ---- the files --------------------------------------------------------------------------------------------------------

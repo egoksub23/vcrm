@@ -13224,7 +13224,8 @@
     "answers": {
       "title": "Request details",
       "edit": "Edit",
-      "none": "This request type has no further details."
+      "none": "This request type has no further details.",
+      "notAsked": "Not asked (older form)"
     },
     "sensitive": {
       "title": "Bank and protected details",
@@ -13793,6 +13794,11 @@
         "resendHelp": "Sending again makes a new link and the old one stops working.",
         "failed": "That could not be done. Try again."
       }
+    },
+    "bankOwn": {
+      "nameDiffers": "Bank holder name differs from the account holder name: check before paying.",
+      "thirdParty": "Payout to a third party: authorization letter on file",
+      "thirdPartyMissing": "Payout to a third party: the authorization letter is missing"
     }
   }
 }

@@ -58,6 +58,7 @@ function payload(over: Record<string, unknown> = {}) {
     phone: "012-334 4556",
     childrenFinished: true,
     allowancesStopped: true,
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: ACCOUNT_NUMBER,
     accountHolder: "Siti Aminah",
@@ -122,18 +123,31 @@ describe("the whole way through the routes", () => {
 
   it("takes the authorization letter in the same post and keeps it in the private bucket", async () => {
     const cookie = await confirmed();
-    const res = await submit(multipart({ accountHolder: "Ahmad Yusof" }, { letter: PDF }), cookie);
+    const res = await submit(multipart({ bankOwn: "no", accountHolder: "Ahmad Yusof" }, { letter: PDF }), cookie);
     expect(res.status).toBe(200);
     expect(db.rows("compliance_request_files")).toHaveLength(1);
     expect(db.files.size).toBe(1);
   });
 
-  it("asks for the letter when the names differ and says which control (a code, never a stored value)", async () => {
+  it("asks for the letter after a No and says which control (a code, never a stored value)", async () => {
     const cookie = await confirmed();
-    const res = await submit(multipart({ accountHolder: "Ahmad Yusof" }), cookie);
+    const res = await submit(multipart({ bankOwn: "no", accountHolder: "Ahmad Yusof" }), cookie);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ code: "invalid", problems: { letter: "file_required" } });
     expect(db.rows("compliance_requests")).toHaveLength(0);
+  });
+
+  it("takes a Yes with a different holder name without a letter, and refuses an unanswered question, server-side", async () => {
+    const cookie = await confirmed();
+    const missing = await submit(multipart({ bankOwn: "" }), cookie);
+    expect(missing.status).toBe(400);
+    expect(await missing.json()).toEqual({ code: "invalid", problems: { bankOwn: "required" } });
+    expect(db.rows("compliance_requests")).toHaveLength(0);
+    const res = await submit(multipart({ bankOwn: "yes", accountHolder: "Ahmad Yusof" }), cookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, reference: expect.stringMatching(/^CMP-\d{4}-\d{6}$/) });
+    // the flag is for staff: it is in the case, and not in anything the route said
+    expect((db.rows("compliance_requests")[0] as any).data).toMatchObject({ bank_account_is_own: true, name_differs: true });
   });
 
   it("refuses a closure without the acknowledgements, server-side", async () => {
@@ -252,7 +266,7 @@ describe("the submission route", () => {
 
   it("refuses a file that is not a PDF or an image, whatever its name says", async () => {
     const cookie = await confirmed();
-    const f = multipart({ accountHolder: "Ahmad Yusof" });
+    const f = multipart({ bankOwn: "no", accountHolder: "Ahmad Yusof" });
     f.set("letter", new File([new TextEncoder().encode("<html>x</html>")], "letter.pdf", { type: "application/pdf" }));
     const res = await submit(f, cookie);
     expect(res.status).toBe(400);

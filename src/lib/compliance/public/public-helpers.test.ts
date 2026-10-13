@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { bankAccountNumber, cleanEmail, cleanLine, cleanText, malaysianPhone, maskEmail, parseAmount } from "./amount";
 import { DEFAULT_BANKS, OTHER_BANK, banksFor, chosenBank, parseBankList } from "./banks";
-import { nameKey, nameWords, namesMatch } from "./names";
+import { holderNameDiffers, nameKey, nameWords, namesMatch } from "./names";
 import {
   CODE_MAX_ATTEMPTS,
   CODE_TTL_MS,
@@ -21,7 +21,7 @@ import {
   sessionCookieName,
   sessionHolds,
 } from "./session";
-import { needsAuthorizationLetter, parsePublicSubmission } from "./validate";
+import { parsePublicSubmission, yesNoAnswer } from "./validate";
 
 describe("namesMatch: is the bank account holder the same person as the Vircle account holder", () => {
   it("ignores case, spaces, punctuation and accents", () => {
@@ -58,10 +58,53 @@ describe("namesMatch: is the bank account holder the same person as the Vircle a
     expect(namesMatch("Dr", "Dr")).toBe(true); // a lone title is a name, not nothing
   });
 
-  it("asks for a letter exactly when the names differ", () => {
-    expect(needsAuthorizationLetter("Siti Aminah", "SITI AMINAH")).toBe(false);
-    expect(needsAuthorizationLetter("Siti Aminah", "Ahmad Yusof")).toBe(true);
-    expect(needsAuthorizationLetter("Siti Aminah", "")).toBe(true);
+  it("sets aside the Malaysian connectors and honorifics in the way people really type them (migration 186)", () => {
+    // son / daughter of: a/l a/p a.l. a.p. a / l s/o d/o, with or without dots, spaces and capitals
+    for (const connector of ["a/l", "A/L", "a/p", "A/P", "a.l.", "A.L.", "a.p.", "a / l", "s/o", "S/O", "d/o", "bin", "binti", "bte", "bt", "b.", "bt.", "anak", "al", "ap"]) {
+      expect(namesMatch(`Gokula Krishnan ${connector} Subramaniam`, "Gokula Krishnan Subramaniam"), connector).toBe(true);
+    }
+    // honorifics, one or stacked, only at the start
+    for (const title of ["Mr", "Mrs", "Ms", "Mdm", "Dr", "Dr.", "Dato", "Dato'", "Datuk", "Datin", "Tan Sri", "Puan Sri", "Dato Sri", "Datuk Seri", "Haji", "Hajjah", "Hj.", "Encik", "Cik", "Prof"]) {
+      expect(namesMatch(`${title} Ahmad Ali`, "Ahmad Ali"), title).toBe(true);
+    }
+    expect(namesMatch("Dato' Haji Ahmad bin Ali", "AHMAD ALI")).toBe(true);
+  });
+
+  it("matches the owner's examples as the same person", () => {
+    expect(namesMatch("Gokula Krishnan a/l Subramaniam", "Gokula Krishnan Subramaniam")).toBe(true);
+    expect(namesMatch("Siti Aminah binti Ahmad", "AHMAD SITI AMINAH")).toBe(true);
+    expect(namesMatch("Dr. Lee Mei Ling", "LEE MEI LING")).toBe(true);
+  });
+
+  it("still tells clearly different names apart", () => {
+    expect(namesMatch("Gokula Krishnan a/l Subramaniam", "Gokula Krishnan a/l Rajendran")).toBe(false);
+    expect(namesMatch("Siti Aminah binti Ahmad", "Siti Aminah binti Yusof")).toBe(false);
+    expect(namesMatch("Ahmad Ali", "Ahmad Ali Hassan")).toBe(false);
+    expect(namesMatch("Tan Wei Ming", "Lim Wei Ming")).toBe(false);
+    expect(namesMatch("Mr Tan", "Mrs Lim")).toBe(false);
+  });
+
+  it("does not drop an a, l, s or o that is only a letter of a name", () => {
+    expect(nameWords("Ali bin Salleh")).toEqual(["ali", "salleh"]);
+    expect(nameWords("Sarah Leong")).toEqual(["sarah", "leong"]);
+    expect(nameWords("Ong Soo Ling")).toEqual(["ong", "soo", "ling"]);
+  });
+});
+
+describe("holderNameDiffers: the staff information flag, never a gate", () => {
+  it("is true only for an account the parent called their own whose names differ once normalised", () => {
+    expect(holderNameDiffers(true, "Siti Aminah", "Ahmad Yusof")).toBe(true);
+    expect(holderNameDiffers(true, "Siti Aminah", "SITI AMINAH")).toBe(false);
+    expect(holderNameDiffers(true, "Gokula Krishnan Subramaniam", "Gokula Krishnan a/l Subramaniam")).toBe(false);
+    expect(holderNameDiffers(true, "Siti Aminah Yusof", "Siti Aminah Zahra")).toBe(true);
+  });
+
+  it("is false for a third-party account (a letter is on file), an unasked question and a missing name", () => {
+    expect(holderNameDiffers(false, "Siti Aminah", "Ahmad Yusof")).toBe(false);
+    expect(holderNameDiffers(null, "Siti Aminah", "Ahmad Yusof")).toBe(false);
+    expect(holderNameDiffers(undefined, "Siti Aminah", "Ahmad Yusof")).toBe(false);
+    expect(holderNameDiffers(true, "", "Ahmad Yusof")).toBe(false);
+    expect(holderNameDiffers(true, "Siti Aminah", null)).toBe(false);
   });
 });
 
@@ -256,23 +299,25 @@ describe("parsePublicSubmission", () => {
     childrenFinished: true,
     allowancesStopped: true,
     reason: "Moving abroad",
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: "8800 1234 5678",
     accountHolder: "SITI AMINAH BT YUSOF",
     declaration: true,
   };
-  const withdrawal = { name: "Siti Aminah", phone: "+60123344556", amount: "RM 120.50", reasonKind: "over_topup", transactionRefs: "TX1\nTX2", bankChoice: OTHER_BANK, bankOther: "Bank of Elsewhere", accountNumber: "123456789", accountHolder: "Siti Aminah", declaration: true };
+  const withdrawal = { name: "Siti Aminah", phone: "+60123344556", amount: "RM 120.50", reasonKind: "over_topup", transactionRefs: "TX1\nTX2", bankOwn: "yes", bankChoice: OTHER_BANK, bankOther: "Bank of Elsewhere", accountNumber: "123456789", accountHolder: "Siti Aminah", declaration: true };
 
   it("accepts a complete closure and maps it to the type's fields", () => {
     const r = parsePublicSubmission("closure", closure, rules);
     expect(r).toMatchObject({ ok: true });
     if (!r.ok || "declined" in r) throw new Error("expected a value");
-    expect(r.value).toMatchObject({ type: "closure", name: "Siti Aminah binti Yusof", phone: "+60123344556", needsLetter: false });
+    expect(r.value).toMatchObject({ type: "closure", name: "Siti Aminah binti Yusof", phone: "+60123344556", bankOwn: true, needsLetter: false });
     expect(r.value.answers).toEqual({
       confirm_closure: true,
       children_finished_school: true,
       allowances_cancelled: true,
       reason: "Moving abroad",
+      bank_account_is_own: true,
       bank_name: "Maybank",
       bank_account_number: "880012345678",
       bank_account_holder: "SITI AMINAH BT YUSOF",
@@ -296,12 +341,52 @@ describe("parsePublicSubmission", () => {
     expect(parsePublicSubmission("closure", { ...closure, wantClose: undefined }, rules)).toMatchObject({ ok: false, problems: { wantClose: "required" } });
   });
 
-  it("asks for an authorization letter exactly when the bank holder name differs", () => {
-    const same = parsePublicSubmission("closure", closure, rules);
+  it("asks for an authorization letter exactly when the parent says the bank account is NOT theirs, whatever the names are", () => {
+    for (const type of ["closure", "withdrawal"] as const) {
+      const body = type === "closure" ? closure : withdrawal;
+      const own = parsePublicSubmission(type, body, rules);
+      const notOwn = parsePublicSubmission(type, { ...body, bankOwn: "no" }, rules);
+      if (!own.ok || "declined" in own || !notOwn.ok || "declined" in notOwn) throw new Error("expected values");
+      expect(own.value).toMatchObject({ bankOwn: true, needsLetter: false });
+      expect(notOwn.value).toMatchObject({ bankOwn: false, needsLetter: true });
+      expect(own.value.answers.bank_account_is_own).toBe(true);
+      expect(notOwn.value.answers.bank_account_is_own).toBe(false);
+    }
+  });
+
+  it("no longer asks for a letter, or refuses anything, because the typed names differ", () => {
     const other = parsePublicSubmission("closure", { ...closure, accountHolder: "Ahmad Yusof" }, rules);
-    if (!same.ok || "declined" in same || !other.ok || "declined" in other) throw new Error("expected values");
-    expect(same.value.needsLetter).toBe(false);
-    expect(other.value.needsLetter).toBe(true);
+    if (!other.ok || "declined" in other) throw new Error("expected a value");
+    expect(other.value.needsLetter).toBe(false);
+    // the letter is wanted for 'No' even when the names are the very same
+    const same = parsePublicSubmission("closure", { ...closure, bankOwn: "no", accountHolder: "Siti Aminah binti Yusof" }, rules);
+    if (!same.ok || "declined" in same) throw new Error("expected a value");
+    expect(same.value.needsLetter).toBe(true);
+  });
+
+  it("REQUIRES the answer: nothing chosen, blank or something else is refused, with no default", () => {
+    for (const type of ["closure", "withdrawal"] as const) {
+      const body = type === "closure" ? closure : withdrawal;
+      for (const value of [undefined, "", null, "maybe", 3]) {
+        const r = parsePublicSubmission(type, { ...body, bankOwn: value }, rules);
+        expect(r.ok, `${type} ${String(value)}`).toBe(false);
+        if (!r.ok) expect(r.problems.bankOwn, `${type} ${String(value)}`).toBe(value === "maybe" ? "not_a_choice" : "required");
+      }
+      const none = { ...body } as Record<string, unknown>;
+      delete none.bankOwn;
+      expect(parsePublicSubmission(type, none, rules)).toMatchObject({ ok: false, problems: { bankOwn: "required" } });
+    }
+    expect(yesNoAnswer("yes")).toBe(true);
+    expect(yesNoAnswer("no")).toBe(false);
+    expect(yesNoAnswer(true)).toBe(true);
+    expect(yesNoAnswer("false")).toBe(false);
+    expect(yesNoAnswer("")).toBeNull();
+  });
+
+  it("keeps the holder name required in both cases", () => {
+    for (const bankOwn of ["yes", "no"]) {
+      expect(parsePublicSubmission("closure", { ...closure, bankOwn, accountHolder: "" }, rules)).toMatchObject({ ok: false, problems: { accountHolder: "required" } });
+    }
   });
 
   it("names every field that is wrong", () => {

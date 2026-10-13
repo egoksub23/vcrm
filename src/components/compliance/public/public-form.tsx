@@ -33,6 +33,7 @@ import {
   checkBeforeSending,
   emptyValues,
   firstProblem,
+  holderLabel,
   isOtherBank,
   letterNeeded,
   linkIsGone,
@@ -698,6 +699,28 @@ function RequestStep({
             </Section>
 
             <Section title={words.form.bank.title} intro={words.form.bank.intro}>
+              <fieldset className="space-y-2" role="radiogroup" aria-required="true" aria-invalid={!!problems.bankOwn} aria-describedby="cmp-bankOwn-err" data-bank-own>
+                <legend className="mb-1 text-sm font-medium">{words.form.bank.own.question}</legend>
+                {(["yes", "no"] as const).map((v) => (
+                  <label key={v} className={cn("flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2", values.bankOwn === v ? "border-primary bg-primary/5" : "border-border")}>
+                    <input
+                      type="radio"
+                      name="bankOwn"
+                      value={v}
+                      data-field={v === "yes" ? "bankOwn" : undefined}
+                      checked={values.bankOwn === v}
+                      onChange={() => {
+                        set("bankOwn", v);
+                        // a letter picked while the answer was No is dropped when it becomes Yes: it is neither shown nor sent
+                        if (v === "yes") setFiles((s) => ({ ...s, letter: null }));
+                      }}
+                      className="size-5 accent-[var(--primary)]"
+                    />
+                    <span>{v === "yes" ? words.form.bank.own.yes : words.form.bank.own.no}</span>
+                  </label>
+                ))}
+                <FieldError id="bankOwn" problems={problems} words={words} />
+              </fieldset>
               <div>
                 <label htmlFor="cmp-bankChoice" className="mb-1 block text-sm font-medium">{words.form.bank.choice}</label>
                 <select id="cmp-bankChoice" data-field="bankChoice" className={SELECT} value={values.bankChoice} onChange={(e) => set("bankChoice", e.target.value)} aria-invalid={!!problems.bankChoice} aria-describedby="cmp-bankChoice-err">
@@ -711,7 +734,7 @@ function RequestStep({
               </div>
               {isOtherBank(values.bankChoice) ? <TextField id="bankOther" label={words.form.bank.otherName} value={values.bankOther} onChange={(v) => set("bankOther", v)} problems={problems} words={words} maxLength={80} /> : null}
               <TextField id="accountNumber" label={words.form.bank.number} help={words.form.bank.numberHelp} value={values.accountNumber} onChange={(v) => set("accountNumber", v)} problems={problems} words={words} inputMode="numeric" autoComplete="off" maxLength={30} />
-              <TextField id="accountHolder" label={words.form.bank.holder} help={words.form.bank.holderHelp} value={values.accountHolder} onChange={(v) => set("accountHolder", v)} problems={problems} words={words} autoComplete="off" maxLength={120} />
+              <TextField id="accountHolder" label={holderLabel(words, values)} help={words.form.bank.holderHelp} value={values.accountHolder} onChange={(v) => set("accountHolder", v)} problems={problems} words={words} autoComplete="off" maxLength={120} />
               {needLetter ? (
                 <div className="space-y-2 rounded-xl border border-border p-3">
                   <p className="text-sm font-medium">{words.form.letter.title}</p>
@@ -813,7 +836,7 @@ function FieldError({ id, problems, words }: { id: PublicFieldId; problems: Publ
   const p = problems[id];
   return (
     <p id={`cmp-${id}-err`} role={p ? "alert" : undefined} className={cn("mt-1 text-sm text-destructive", !p && "hidden")}>
-      {p ? problemText(words, p) : null}
+      {p ? problemText(words, p, id) : null}
     </p>
   );
 }

@@ -36,6 +36,7 @@ const view = (over: Partial<LinkView> = {}): LinkView => ({
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ");
 const page = (v: LinkView, locale: (typeof LOCALES)[number], initial?: React.ComponentProps<typeof LinkRoot>["initial"]) => renderToStaticMarkup(<LinkRoot view={v} initialLocale={locale} initial={initial} />);
+const ownGroup = (html: string): string => html.match(/<fieldset[^>]*data-bank-own[^>]*>[\s\S]*?<\/fieldset>/)?.[0] ?? "";
 
 describe.each(LOCALES)("the personal closure form in %s", (locale) => {
   const w = ALL_PUBLIC_WORDS[locale];
@@ -100,11 +101,28 @@ describe.each(LOCALES)("the personal closure form in %s", (locale) => {
     expect(html).toContain('value="Siti Aminah"');
   });
 
-  it("asks for the authorization letter only when the bank holder name differs", () => {
-    const same = page(view(), locale, { step: "form", values: { wantClose: "yes", name: "Siti Aminah binti Yusof", accountHolder: "SITI AMINAH BT YUSOF" } });
-    expect(text(same)).not.toContain(w.form.letter.why);
-    const differs = page(view(), locale, { step: "form", values: { wantClose: "yes", name: "Siti Aminah", accountHolder: "Ahmad Yusof" } });
-    expect(text(differs)).toContain(w.form.letter.why);
+  it("asks \"does this bank account belong to you?\" with Yes / No and nothing chosen, before the account number", () => {
+    const html = page(view(), locale, { step: "form", values: { wantClose: "yes" } });
+    const group = ownGroup(html);
+    expect(group).toContain('role="radiogroup"');
+    expect(group).toContain('aria-required="true"');
+    expect(text(group)).toContain(w.form.bank.own.question);
+    expect(text(group)).toContain(w.form.bank.own.yes);
+    expect(text(group)).toContain(w.form.bank.own.no);
+    expect(group).not.toMatch(/checked/);
+    expect(html.indexOf("data-bank-own")).toBeLessThan(html.indexOf('id="cmp-accountNumber"'));
+  });
+
+  it("asks for the authorization letter only after a No, whatever the names are", () => {
+    const unanswered = page(view(), locale, { step: "form", values: { wantClose: "yes", name: "Siti Aminah", accountHolder: "Ahmad Yusof" } });
+    expect(text(unanswered)).not.toContain(w.form.letter.why);
+    const yes = page(view(), locale, { step: "form", values: { wantClose: "yes", bankOwn: "yes", name: "Siti Aminah", accountHolder: "Ahmad Yusof" } });
+    expect(text(yes)).not.toContain(w.form.letter.why);
+    expect(yes).not.toContain('type="file"');
+    const no = page(view(), locale, { step: "form", values: { wantClose: "yes", bankOwn: "no", name: "Siti Aminah", accountHolder: "Siti Aminah" } });
+    expect(text(no)).toContain(w.form.letter.why);
+    expect(text(no)).toContain(w.form.bank.holderOther);
+    expect(no).toContain('type="file"');
   });
 
   it("ends on the confirmation: the reference, what happens next, the 14-day aim and never the 30-day stop; nothing typed is shown back", () => {
@@ -152,6 +170,7 @@ describe.each(LOCALES)("the personal closure form in %s", (locale) => {
   it("paints without a single React warning", () => {
     page(view(), locale);
     page(view(), locale, { step: "form", values: { wantClose: "yes" } });
+    page(view(), locale, { step: "form", values: { wantClose: "yes", bankOwn: "no" } });
     page(view(), locale, { step: "done", reference: "CMP-2026-000014" });
     expect(errors).toEqual([]);
   });
@@ -164,6 +183,7 @@ describe("what the personal form's handlers call", () => {
     name: "Siti Aminah",
     childrenFinished: true,
     allowancesStopped: true,
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: "8800123456789012",
     accountHolder: "Siti Aminah",
@@ -184,16 +204,22 @@ describe("what the personal form's handlers call", () => {
     expect(checkBeforeSending("closure", values(), {}, { ...rules, phoneFromCase: false }, { email: "a@example.test" })).toEqual({ phone: "required" });
   });
 
-  it("keeps the closure rules: both ticks and the declaration, and a letter when the names differ", () => {
+  it("keeps the closure rules: both ticks, the declaration, the Yes / No answer, and a letter after a No", () => {
     expect(checkBeforeSending("closure", values({ childrenFinished: false, declaration: false }), {}, rules, { email: "a@example.test" })).toEqual({ childrenFinished: "must_acknowledge", declaration: "must_acknowledge" });
-    expect(checkBeforeSending("closure", values({ accountHolder: "Ahmad bin Ali" }), {}, rules, { email: "a@example.test" })).toEqual({ letter: "file_required" });
+    expect(checkBeforeSending("closure", values({ bankOwn: "" }), {}, rules, { email: "a@example.test" })).toEqual({ bankOwn: "required" });
+    expect(checkBeforeSending("closure", values({ bankOwn: "no", accountHolder: "Ahmad bin Ali" }), {}, rules, { email: "a@example.test" })).toEqual({ letter: "file_required" });
+    // a different holder name asks for nothing when the account is the parent's own
+    expect(checkBeforeSending("closure", values({ accountHolder: "Ahmad bin Ali" }), {}, rules, { email: "a@example.test" })).toEqual({});
   });
 
   it("posts the link's own token with the form, in the payload, and the letter as a file", () => {
-    const form = buildForm(values(), { token: "page.token", email: "a@example.test", locale: "ms", linkToken: "LINK.TOKEN" }, { letter: { name: "l.pdf", size: 3, file: new File(["abc"], "l.pdf", { type: "application/pdf" }) } }, "");
+    const form = buildForm(values({ bankOwn: "no" }), { token: "page.token", email: "a@example.test", locale: "ms", linkToken: "LINK.TOKEN" }, { letter: { name: "l.pdf", size: 3, file: new File(["abc"], "l.pdf", { type: "application/pdf" }) } }, "");
     const payload = JSON.parse(String(form.get("payload")));
-    expect(payload).toMatchObject({ linkToken: "LINK.TOKEN", token: "page.token", email: "a@example.test", locale: "ms", website: "", name: "Siti Aminah" });
+    expect(payload).toMatchObject({ linkToken: "LINK.TOKEN", token: "page.token", email: "a@example.test", locale: "ms", website: "", name: "Siti Aminah", bankOwn: "no" });
     expect(form.get("letter")).toBeInstanceOf(File);
+    // the answer is Yes: the letter picked earlier is dropped, not sent
+    const dropped = buildForm(values({ bankOwn: "yes" }), { token: "page.token", email: "a@example.test", locale: "ms", linkToken: "LINK.TOKEN" }, { letter: { name: "l.pdf", size: 3, file: new File(["abc"], "l.pdf", { type: "application/pdf" }) } }, "");
+    expect(dropped.get("letter")).toBeNull();
     // the public form's post carries no link token
     expect(JSON.parse(String(buildForm(values(), { token: "t", email: "a@example.test", locale: "en" }, {}, "").get("payload"))).linkToken).toBeUndefined();
   });

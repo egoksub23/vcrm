@@ -25,6 +25,7 @@ import type { RequestDetail } from "@/lib/compliance/types";
 import { editRequest, getDetail, type ApiResult, type RevealResult } from "./api";
 import {
   AnswersPanel,
+  BankFlags,
   ClockPanel,
   CloseWithoutDecision,
   CustomerPanel,
@@ -204,6 +205,7 @@ export function RequestDetailScreen({ id }: { id: string }) {
         <div className="space-y-4">
           <CustomerPanel {...props} />
           <AnswersPanel {...props} />
+          <BankFlags d={d} />
           <SensitivePanel {...props} revealed={revealed} onRevealed={(r) => setRevealed({ result: r, until: Date.now() + Math.min(REVEAL_MS, r.expiresInSeconds * 1000) })} onHide={hide} />
           <StandingPanel {...props} />
           <FilesPanel {...props} />

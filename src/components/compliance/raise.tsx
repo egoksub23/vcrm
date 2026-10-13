@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCapability } from "@/hooks/use-auth";
+import { BANK_OWN_KEY } from "@/lib/compliance/bank-own";
 import type { ChatLinkOutcome, NotSentReason } from "@/lib/compliance/chat-link/types";
 import { checkAnswers, visibleFields } from "@/lib/compliance/fields";
 import type { RaiseContext, RaisedItem } from "@/lib/compliance/raise-types";
@@ -91,12 +92,13 @@ export function closureChoice(typeKey: string, target: RaiseTarget, chatLink: Ra
 
 /**
  * The fields a member of staff is asked, for the answers so far: only the ones the type shows (`showIf`), and, when the closure form goes to the customer
- * in the chat, without the confirmations (acknowledge fields) and the protected details (bank details), which the customer gives on their own form.
+ * in the chat, without the confirmations (acknowledge fields), the protected details (bank details) and the question whether the bank account is the
+ * customer's own, which the customer answers on their own form.
  * The same list decides what is required, what is checked and what is sent.
  */
 export function fieldsToAsk(fields: readonly FieldDef[], values: FormValues, sendClosureForm: boolean): FieldDef[] {
   const shown = visibleFields(fields, values);
-  return sendClosureForm ? shown.filter((f) => f.type !== "acknowledge" && !f.sensitive) : shown;
+  return sendClosureForm ? shown.filter((f) => f.type !== "acknowledge" && !f.sensitive && f.key !== BANK_OWN_KEY) : shown;
 }
 
 /**

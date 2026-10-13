@@ -151,11 +151,13 @@ export interface CheckedAnswers {
 
 /**
  * Is this field asked, given the answers so far? A field with no `showIf` always is. One with it is asked while the answer to the field it names is one
- * of the listed values (an unanswered or unknown controlling field hides it). Used by the check below, by the forms and by the case's detail.
+ * of the listed values (an unanswered or unknown controlling field hides it; a yes / no answer is compared as "true" or "false"). Used by the check below, by the forms and by the case's detail.
  */
 export function isShown(field: FieldDef, _fields: readonly FieldDef[], answers: Record<string, unknown>): boolean {
   if (!field.showIf) return true;
   const v = answers[field.showIf.field];
+  // a yes / no answer is stored as true or false and listed as "true" or "false" (migration 186: the authorization letter is asked while the bank account is not the customer's own)
+  if (typeof v === "boolean") return field.showIf.in.includes(String(v));
   return typeof v === "string" && field.showIf.in.includes(v.trim());
 }
 
@@ -276,3 +278,11 @@ export function checkAnswers(fields: readonly FieldDef[], input: Record<string, 
 
 /** The file fields of a type (the documents it expects), for the Files panel. */
 export const fileFieldsOf = (fields: readonly FieldDef[]): FieldDef[] => fields.filter((f) => f.type === "file");
+
+/**
+ * The documents a case is expected to have: the file fields that are asked for its answers. A file field that depends on an answer (migration 186: the
+ * authorization letter, asked while the bank account is not the customer's own) is left out once the answer says it is not asked, and stays listed while
+ * the question was never answered (a case from before the question existed).
+ */
+export const expectedFileFields = (fields: readonly FieldDef[], answers: Record<string, unknown>): FieldDef[] =>
+  fileFieldsOf(fields).filter((f) => !f.showIf || isShown(f, fields, answers) || isBlank(answers[f.showIf.field]));

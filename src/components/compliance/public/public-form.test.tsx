@@ -16,6 +16,7 @@ import {
   checkBeforeSending,
   emptyValues,
   firstProblem,
+  holderLabel,
   letterNeeded,
   problemText,
   startStep,
@@ -49,6 +50,8 @@ const view = (over: Partial<PublicView> = {}): PublicView => ({
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ");
 const page = (v: PublicView, locale: (typeof LOCALES)[number], initial?: React.ComponentProps<typeof PublicRoot>["initial"]) => renderToStaticMarkup(<PublicRoot view={v} initialLocale={locale} initial={initial} />);
+/** The markup of the "does this bank account belong to you?" group, or "" when the page has none. */
+const ownGroup = (html: string): string => html.match(/<fieldset[^>]*data-bank-own[^>]*>[\s\S]*?<\/fieldset>/)?.[0] ?? "";
 
 describe.each(LOCALES)("the parent form in %s", (locale) => {
   const w = ALL_PUBLIC_WORDS[locale];
@@ -102,13 +105,61 @@ describe.each(LOCALES)("the parent form in %s", (locale) => {
     expect(html).not.toContain(w.form.letter.why);
   });
 
-  it("asks for the authorization letter only when the bank holder name differs, and says why", () => {
-    const same = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes", name: "Siti Aminah binti Yusof", accountHolder: "SITI AMINAH BT YUSOF" } });
-    expect(text(same)).not.toContain(w.form.letter.why);
-    const differs = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes", name: "Siti Aminah", accountHolder: "Ahmad Yusof" } });
-    expect(text(differs)).toContain(w.form.letter.why);
-    expect(text(differs)).toContain(w.form.letter.help);
-    expect(differs).toContain('type="file"');
+  it("asks \"does this bank account belong to you?\" first in the bank section, as an accessible Yes / No group with nothing chosen", () => {
+    const html = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes" } });
+    const group = ownGroup(html);
+    expect(group).not.toBe("");
+    expect(group).toContain('role="radiogroup"');
+    expect(group).toContain('aria-required="true"');
+    expect(group).toContain("<legend");
+    expect(text(group)).toContain(w.form.bank.own.question);
+    expect(text(group)).toContain(w.form.bank.own.yes);
+    expect(text(group)).toContain(w.form.bank.own.no);
+    expect(group.match(/type="radio"/g)).toHaveLength(2);
+    expect(group.match(/name="bankOwn"/g)).toHaveLength(2);
+    expect(group).toContain('value="yes"');
+    expect(group).toContain('value="no"');
+    // no default: neither is checked
+    expect(group).not.toMatch(/checked/);
+    // the first radio is where focus goes when the answer is missing; the error line belongs to the group
+    expect(group).toContain('data-field="bankOwn"');
+    expect(group).toContain('id="cmp-bankOwn-err"');
+    // the question comes after the bank intro and before the bank list and the account number
+    expect(html.indexOf(w.form.bank.intro)).toBeLessThan(html.indexOf("data-bank-own"));
+    expect(html.indexOf("data-bank-own")).toBeLessThan(html.indexOf('id="cmp-bankChoice"'));
+    expect(html.indexOf('id="cmp-bankChoice"')).toBeLessThan(html.indexOf('id="cmp-accountNumber"'));
+  });
+
+  it("shows no letter section until the answer is No, and the holder label says 'as on the bank account' then", () => {
+    const unanswered = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes" } });
+    expect(text(unanswered)).not.toContain(w.form.letter.why);
+    expect(unanswered).not.toContain('type="file"');
+    expect(text(unanswered)).toContain(w.form.bank.holder);
+    const yes = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes", bankOwn: "yes", name: "Siti Aminah", accountHolder: "Ahmad Yusof" } });
+    // Yes: no letter, even though the typed names are different
+    expect(text(yes)).not.toContain(w.form.letter.why);
+    expect(yes).not.toContain('type="file"');
+    expect(ownGroup(yes)).toMatch(/value="yes"[^>]*checked|checked[^>]*value="yes"/);
+    expect(text(yes)).not.toContain(w.form.bank.holderOther);
+    const no = page(view(), locale, { step: "form", email: "siti@example.test", values: { wantClose: "yes", bankOwn: "no", name: "Siti Aminah", accountHolder: "Siti Aminah" } });
+    // No: the letter is asked, whatever the names are, with the instruction that it is signed by the account holder
+    expect(text(no)).toContain(w.form.letter.title);
+    expect(text(no)).toContain(w.form.letter.why);
+    expect(text(no)).toContain(w.form.letter.help);
+    expect(no).toContain('type="file"');
+    expect(text(no)).toContain(w.form.bank.holderOther);
+    expect(ownGroup(no)).toMatch(/value="no"[^>]*checked|checked[^>]*value="no"/);
+  });
+
+  it("asks the same question on the withdrawal form, with the letter only after a No", () => {
+    const base = { step: "form" as const, email: "siti@example.test" };
+    const html = page(view({ type: "withdrawal", targetDays: null }), locale, base);
+    expect(text(ownGroup(html))).toContain(w.form.bank.own.question);
+    expect(text(html)).not.toContain(w.form.letter.why);
+    const no = page(view({ type: "withdrawal", targetDays: null }), locale, { ...base, values: { bankOwn: "no" } });
+    expect(text(no)).toContain(w.form.letter.why);
+    const yes = page(view({ type: "withdrawal", targetDays: null }), locale, { ...base, values: { bankOwn: "yes" } });
+    expect(text(yes)).not.toContain(w.form.letter.why);
   });
 
   it("shows the withdrawal form: not a closure, the amount with its maximum, the reasons, the optional proof, no warning about closing", () => {
@@ -170,6 +221,7 @@ describe.each(LOCALES)("the parent form in %s", (locale) => {
     const pages = [
       page(view(), locale),
       page(view(), locale, { step: "form", email: "a@b.co", values: { wantClose: "yes", name: "A", accountHolder: "B" } }),
+      page(view(), locale, { step: "form", email: "a@b.co", values: { wantClose: "yes", bankOwn: "no", name: "A", accountHolder: "B" } }),
       page(view({ type: "withdrawal" }), locale, { step: "form", email: "a@b.co", values: { reasonKind: "other" } }),
       page(view(), locale, { step: "done", email: "a@b.co", reference: "CMP-2026-000001" }),
     ];
@@ -201,6 +253,22 @@ describe("the words", () => {
     }
   });
 
+  it("words the bank account question, its answers and the letter in every language, without a name comparison or a flag", () => {
+    for (const l of LOCALES) {
+      const b = ALL_PUBLIC_WORDS[l].form.bank;
+      for (const v of [b.own.question, b.own.yes, b.own.no, b.own.required, b.holderOther, ALL_PUBLIC_WORDS[l].form.letter.why]) expect(v.trim().length, l).toBeGreaterThan(0);
+      // the question says Vircle once; it names no staff check
+      expect(b.own.question, l).toContain("Vircle");
+      const all = JSON.stringify(ALL_PUBLIC_WORDS[l]);
+      expect(all, l).not.toMatch(/name_differs|check before paying|differs from the account holder/i);
+    }
+    expect(ALL_PUBLIC_WORDS.en.form.bank.own.question).toBe("Does this bank account belong to you, the Vircle account holder?");
+    expect(ALL_PUBLIC_WORDS.en.form.bank.holderOther).toBe("Name of the bank account holder (as on the bank account)");
+    // the letter sentence says it is signed by the bank account holder and allows the payment
+    expect(ALL_PUBLIC_WORDS.en.form.letter.why).toMatch(/signed by the bank account holder/);
+    expect(ALL_PUBLIC_WORDS.en.form.letter.why).toMatch(/pay into this account/);
+  });
+
   it("never tells a parent about the regulatory stop, and never says 'envelope'", () => {
     for (const l of LOCALES) {
       const all = leaves(ALL_PUBLIC_WORDS[l]).map(([, v]) => v).join(" ");
@@ -222,6 +290,7 @@ describe("the helpers the handlers use", () => {
     phone: "0123344556",
     childrenFinished: true,
     allowancesStopped: true,
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: "8800123456",
     accountHolder: "Siti Aminah",
@@ -242,14 +311,42 @@ describe("the helpers the handlers use", () => {
     expect(firstProblem({})).toBeNull();
   });
 
-  it("wants the letter exactly when the names differ, and refuses a file over 10 MB", () => {
-    expect(letterNeeded({ name: "Siti Aminah", accountHolder: "SITI AMINAH" })).toBe(false);
-    expect(letterNeeded({ name: "Siti Aminah", accountHolder: "Ahmad" })).toBe(true);
-    expect(letterNeeded({ name: "", accountHolder: "Ahmad" })).toBe(false);
-    expect(checkBeforeSending("closure", closure({ accountHolder: "Ahmad Yusof" }), {}, rules)).toEqual({ letter: "file_required" });
-    expect(checkBeforeSending("closure", closure({ accountHolder: "Ahmad Yusof" }), { letter: { name: "l.pdf", size: 1000 } }, rules)).toEqual({});
-    expect(checkBeforeSending("closure", closure({ accountHolder: "Ahmad Yusof" }), { letter: { name: "l.pdf", size: 11 * 1024 * 1024 } }, rules)).toEqual({ letter: "file_size" });
+  it("wants the letter exactly when the answer is No, and refuses a file over 10 MB", () => {
+    expect(letterNeeded({ bankOwn: "yes" })).toBe(false);
+    expect(letterNeeded({ bankOwn: "no" })).toBe(true);
+    expect(letterNeeded({ bankOwn: "" })).toBe(false);
+    const no = closure({ bankOwn: "no", accountHolder: "Ahmad Yusof" });
+    expect(checkBeforeSending("closure", no, {}, rules)).toEqual({ letter: "file_required" });
+    expect(checkBeforeSending("closure", no, { letter: { name: "l.pdf", size: 1000 } }, rules)).toEqual({});
+    expect(checkBeforeSending("closure", no, { letter: { name: "l.pdf", size: 11 * 1024 * 1024 } }, rules)).toEqual({ letter: "file_size" });
+    expect(checkBeforeSending("closure", no, { letter: { name: "empty.pdf", size: 0 } }, rules)).toEqual({ letter: "file_required" });
     expect(checkBeforeSending("closure", closure({ wantClose: "no" }), {}, rules)).toEqual({});
+  });
+
+  it("does not want a letter, nor look at one, when the answer is Yes: a different name asks for nothing", () => {
+    expect(checkBeforeSending("closure", closure({ accountHolder: "Ahmad Yusof" }), {}, rules)).toEqual({});
+    // a letter chosen while the answer was No and kept after it became Yes is not checked (and not sent: see the post below)
+    expect(checkBeforeSending("closure", closure({ bankOwn: "yes" }), { letter: { name: "big.pdf", size: 11 * 1024 * 1024 } }, rules)).toEqual({});
+  });
+
+  it("needs the answer: nothing chosen is a problem on the group, found first among the bank controls", () => {
+    const p = checkBeforeSending("closure", closure({ bankOwn: "", bankChoice: "" }), {}, rules);
+    expect(p).toEqual({ bankOwn: "required", bankChoice: "required" });
+    expect(firstProblem(p)).toBe("bankOwn");
+    expect(checkBeforeSending("withdrawal", { ...closure({ bankOwn: "" }), wantClose: "", amount: "100", reasonKind: "over_topup" }, {}, rules)).toEqual({ bankOwn: "required" });
+    for (const l of LOCALES) {
+      expect(problemText(ALL_PUBLIC_WORDS[l], "required", "bankOwn")).toBe(ALL_PUBLIC_WORDS[l].form.bank.own.required);
+      expect(problemText(ALL_PUBLIC_WORDS[l], "required", "accountNumber")).toBe(ALL_PUBLIC_WORDS[l].form.problem.required);
+    }
+  });
+
+  it("labels the holder name 'as on the bank account' only for a No", () => {
+    for (const l of LOCALES) {
+      const w = ALL_PUBLIC_WORDS[l];
+      expect(holderLabel(w, { bankOwn: "no" })).toBe(w.form.bank.holderOther);
+      expect(holderLabel(w, { bankOwn: "yes" })).toBe(w.form.bank.holder);
+      expect(holderLabel(w, { bankOwn: "" })).toBe(w.form.bank.holder);
+    }
   });
 
   it("checks a withdrawal's amount and reason", () => {
@@ -261,9 +358,14 @@ describe("the helpers the handlers use", () => {
     const file = new File([new Uint8Array([1, 2, 3])], "letter.pdf", { type: "application/pdf" });
     const form = buildForm(closure(), { token: "tok", email: "siti@example.test", locale: "ms" }, { letter: { name: "letter.pdf", size: 3, file } });
     const payload = JSON.parse(String(form.get("payload")));
-    expect(payload).toMatchObject({ token: "tok", email: "siti@example.test", locale: "ms", website: "", wantClose: "yes", name: "Siti Aminah" });
-    expect((form.get("letter") as File).name).toBe("letter.pdf");
+    expect(payload).toMatchObject({ token: "tok", email: "siti@example.test", locale: "ms", website: "", wantClose: "yes", name: "Siti Aminah", bankOwn: "yes" });
+    // the answer is Yes: a letter picked earlier in the session is dropped and not sent
+    expect(form.get("letter")).toBeNull();
     expect(form.get("proof")).toBeNull();
+    // the answer is No: the letter goes by its own name
+    const notOwn = buildForm(closure({ bankOwn: "no" }), { token: "tok", email: "siti@example.test", locale: "ms" }, { letter: { name: "letter.pdf", size: 3, file } });
+    expect(JSON.parse(String(notOwn.get("payload")))).toMatchObject({ bankOwn: "no" });
+    expect((notOwn.get("letter") as File).name).toBe("letter.pdf");
     const caught = JSON.parse(String(buildForm(closure(), { token: "t", email: "e", locale: "en" }, {}, "filled").get("payload")));
     expect(caught.website).toBe("filled");
   });

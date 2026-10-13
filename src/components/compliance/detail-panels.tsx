@@ -16,9 +16,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { BANK_OWN_KEY, bankFlagList } from "@/lib/compliance/bank-own";
 import { l10n, visibleFields } from "@/lib/compliance/fields";
 import { actionsFor, isDataEditable, type ActionKey, type ActionState } from "@/lib/compliance/transitions";
-import { fileFieldsOf } from "@/lib/compliance/fields";
+import { expectedFileFields } from "@/lib/compliance/fields";
 import { IDENTITY_METHODS, RECOMMENDATIONS, REJECTION_CATEGORIES, type L10n, type RequestDetail } from "@/lib/compliance/types";
 import { cn } from "@/lib/utils";
 
@@ -242,15 +243,52 @@ export function AnswersPanel({ d, act, busy }: PanelProps) {
         <dl>
           {shown.map((f) => {
             const text = answerText(f, d.data[f.key], locale, tc("yes"), tc("no"));
+            // a case made before the question "does this bank account belong to you?" existed: say so instead of "None"
+            const notAsked = f.key === BANK_OWN_KEY && text === "";
             return (
               <Row key={f.key} label={fieldLabel(f, locale)}>
-                {text !== "" ? text : <span className="text-muted-foreground">{tc("none")}</span>}
+                {text !== "" ? text : <span className="text-muted-foreground">{notAsked ? t("notAsked") : tc("none")}</span>}
               </Row>
             );
           })}
         </dl>
       )}
     </Panel>
+  );
+}
+
+// ------------------------------------------------------------
+// Whose bank account the payout goes to: the two notes staff are given (migration 186). Nothing is shown for an own account whose names agree, nor for an
+// older case that was never asked (its answer row says "Not asked (older form)").
+// ------------------------------------------------------------
+export function BankFlags({ d }: { d: RequestDetail }) {
+  const t = useTranslations("Compliance.bankOwn");
+  const flags = bankFlagList(d.data, d.files);
+  if (flags.length === 0) return null;
+  const canOpen = d.viewer.canReview || d.viewer.canApprove || d.viewer.canReveal;
+  return (
+    <div className="space-y-2" data-bank-flags>
+      {flags.map((flag) =>
+        flag.kind === "name_differs" ? (
+          <Notice key="name_differs" tone="warn" icon={<AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />}>
+            <span data-flag="name_differs">{t("nameDiffers")}</span>
+          </Notice>
+        ) : flag.file ? (
+          <Notice key="third_party" icon={<FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />}>
+            <span data-flag="third_party">{t("thirdParty")}</span>{" "}
+            {canOpen ? (
+              <a href={fileUrl(d.id, flag.file.id)} download className="break-all text-primary underline-offset-2 hover:underline">{flag.file.name}</a>
+            ) : (
+              <span className="break-all">{flag.file.name}</span>
+            )}
+          </Notice>
+        ) : (
+          <Notice key="third_party" tone="warn" icon={<AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />}>
+            <span data-flag="third_party_missing">{t("thirdPartyMissing")}</span>
+          </Notice>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -984,7 +1022,8 @@ export function FilesPanel({ d, act, busy }: PanelProps) {
   const locale = useLocale();
   const canUpload = (d.viewer.canReview || d.viewer.canApprove) && d.status !== "closed";
   const canOpen = d.viewer.canReview || d.viewer.canApprove || d.viewer.canReveal;
-  const expected = fileFieldsOf(d.type?.fields ?? []);
+  // the authorization letter is expected only while the bank account is somebody else's (its showIf); a case that was never asked keeps it listed
+  const expected = expectedFileFields(d.type?.fields ?? [], d.data);
   const input = useRef<HTMLInputElement | null>(null);
   const [field, setField] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);

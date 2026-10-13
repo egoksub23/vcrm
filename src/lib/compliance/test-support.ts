@@ -163,6 +163,7 @@ export const CLOSURE_ANSWERS = {
   children_finished_school: true,
   allowances_cancelled: true,
   reason: "Moving abroad",
+  bank_account_is_own: true,
   bank_name: BANK_NAME,
   bank_account_number: ACCOUNT_NUMBER,
   bank_account_holder: HOLDER,
@@ -178,11 +179,28 @@ const BANK = [
 ];
 const LETTER = { key: "authorization_letter", type: "file", required: false, sensitive: false, label: L("Authorization letter") };
 
-/** The closure type as migration 184 leaves it: the standard fields plus the declaration. */
-export const CLOSURE_FIELDS_184 = [...CLOSURE_FIELDS, DECLARATION];
+/** Migration 186: the question "does this bank account belong to you?" ... */
+export const BANK_OWN = { key: "bank_account_is_own", type: "yesno", required: true, sensitive: false, label: L("Does this bank account belong to you, the Vircle account holder?") };
+/** ... and the letter asked while the answer is No. */
+export const LETTER_186 = { key: "authorization_letter", type: "file", required: true, sensitive: false, label: L("Authorization letter"), showIf: { field: "bank_account_is_own", in: ["false"] } };
 
-/** The withdrawal type as migrations 183 and 184 leave it. */
-export const WITHDRAWAL_FIELDS_184 = [
+/** A type's fields as migration 186 leaves them: the question right before the bank name and a conditional, required letter. */
+export function withBankOwn<T extends { key: string }>(fields: readonly T[]): (T | typeof BANK_OWN | typeof LETTER_186)[] {
+  const out: (T | typeof BANK_OWN | typeof LETTER_186)[] = [];
+  for (const f of fields) {
+    if (f.key === "bank_name") out.push(BANK_OWN);
+    out.push(f.key === "authorization_letter" ? LETTER_186 : f);
+  }
+  return out;
+}
+
+/** The closure type as migration 184 leaves it: the standard fields plus the declaration. */
+export const CLOSURE_FIELDS_184_OLD = [...CLOSURE_FIELDS, DECLARATION];
+/** ... and as migration 186 leaves it. */
+export const CLOSURE_FIELDS_184 = withBankOwn(CLOSURE_FIELDS_184_OLD);
+
+/** The withdrawal type as migrations 183 and 184 left it. */
+export const WITHDRAWAL_FIELDS_184_OLD = [
   { key: "amount", type: "number", required: true, sensitive: false, label: L("Amount") },
   { key: "reason", type: "multiline", required: true, sensitive: false, label: L("Reason") },
   { key: "transaction_refs", type: "multiline", required: false, sensitive: false, label: L("Transaction references") },
@@ -192,6 +210,8 @@ export const WITHDRAWAL_FIELDS_184 = [
   DECLARATION,
   { key: "proof", type: "file", required: false, sensitive: false, label: L("Proof") },
 ];
+/** ... and as migration 186 leaves it. */
+export const WITHDRAWAL_FIELDS_184 = withBankOwn(WITHDRAWAL_FIELDS_184_OLD);
 
 export const FORM_CLOSURE = "f0000000-0000-4000-8000-0000000000c1";
 export const FORM_WITHDRAWAL = "f0000000-0000-4000-8000-0000000000d1";

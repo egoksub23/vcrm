@@ -9,7 +9,8 @@
 // email address, a phone number or a request is known; or anything stored about them.
 //
 // [NATIVE REVIEW] The Malay, Chinese and Korean wording was written for this build and has not been read by a native speaker of each language. The
-// Malay and Korean forms of the closure warning (Parent / Child account) and the declaration are the ones most worth a careful read.
+// Malay and Korean forms of the closure warning (Parent / Child account) and the declaration are the ones most worth a careful read. Also worth a read:
+// the question "Does this bank account belong to you?", its Yes / No and the authorization letter sentence (form.bank.own, form.bank.holderOther, form.letter.why).
 // ============================================================
 
 import type { CustomerLocale } from "../types";
@@ -53,7 +54,22 @@ export interface PublicWords {
     name: { label: string; help: string };
     phone: { label: string; help: string };
     email: { label: string; help: string };
-    bank: { title: string; intro: string; choice: string; choose: string; other: string; otherName: string; number: string; numberHelp: string; holder: string; holderHelp: string };
+    bank: {
+      title: string;
+      intro: string;
+      /** "Does this bank account belong to you, the Vircle account holder?": asked first, answered Yes or No (no default). */
+      own: { question: string; yes: string; no: string; required: string };
+      choice: string;
+      choose: string;
+      other: string;
+      otherName: string;
+      number: string;
+      numberHelp: string;
+      holder: string;
+      holderHelp: string;
+      /** The holder name's label while the answer is No (the account is somebody else's). */
+      holderOther: string;
+    };
     letter: { title: string; why: string; help: string; choose: string; none: string; remove: string; optionalTitle: string };
     declaration: { title: string; text: string };
     submit: string;
@@ -157,6 +173,7 @@ const EN: PublicWords = {
     bank: {
       title: "Bank account for the refund",
       intro: "Any refund is paid only into this bank account.",
+      own: { question: "Does this bank account belong to you, the Vircle account holder?", yes: "Yes", no: "No", required: "Please choose Yes or No." },
       choice: "Bank",
       choose: "Choose your bank",
       other: "Other bank",
@@ -165,10 +182,11 @@ const EN: PublicWords = {
       numberHelp: "Numbers only.",
       holder: "Name of the bank account holder",
       holderHelp: "As it appears on the bank account.",
+      holderOther: "Name of the bank account holder (as on the bank account)",
     },
     letter: {
       title: "Authorization letter",
-      why: "The name on the bank account is different from the name on your Vircle account. Please upload a letter, signed by the bank account holder, that allows us to pay into this account.",
+      why: "Because this bank account does not belong to you, we need an authorization letter. The letter must be signed by the bank account holder and must allow us to pay into this account.",
       help: "PDF, JPG or PNG, up to 10 MB.",
       choose: "Choose a file",
       none: "No file chosen",
@@ -285,6 +303,7 @@ const MS: PublicWords = {
     bank: {
       title: "Akaun bank untuk bayaran balik",
       intro: "Sebarang bayaran balik hanya dibuat ke akaun bank ini.",
+      own: { question: "Adakah akaun bank ini milik anda, pemegang akaun Vircle?", yes: "Ya", no: "Tidak", required: "Sila pilih Ya atau Tidak." },
       choice: "Bank",
       choose: "Pilih bank anda",
       other: "Bank lain",
@@ -293,10 +312,11 @@ const MS: PublicWords = {
       numberHelp: "Nombor sahaja.",
       holder: "Nama pemegang akaun bank",
       holderHelp: "Seperti yang tertera pada akaun bank.",
+      holderOther: "Nama pemegang akaun bank (seperti pada akaun bank)",
     },
     letter: {
       title: "Surat kebenaran",
-      why: "Nama pada akaun bank berbeza daripada nama pada akaun Vircle anda. Sila muat naik surat, yang ditandatangani oleh pemegang akaun bank, yang membenarkan kami membuat bayaran ke akaun ini.",
+      why: "Oleh sebab akaun bank ini bukan milik anda, kami memerlukan surat kebenaran. Surat itu mesti ditandatangani oleh pemegang akaun bank dan membenarkan kami membuat bayaran ke akaun ini.",
       help: "PDF, JPG atau PNG, sehingga 10 MB.",
       choose: "Pilih fail",
       none: "Tiada fail dipilih",
@@ -413,6 +433,7 @@ const ZH: PublicWords = {
     bank: {
       title: "用于退款的银行账户",
       intro: "任何退款只会转入此银行账户。",
+      own: { question: "这个银行账户是否属于您本人（Vircle 账户持有人）？", yes: "是", no: "否", required: "请选择“是”或“否”。" },
       choice: "银行",
       choose: "请选择您的银行",
       other: "其他银行",
@@ -421,10 +442,11 @@ const ZH: PublicWords = {
       numberHelp: "仅填数字。",
       holder: "银行账户持有人姓名",
       holderHelp: "与银行账户上的姓名一致。",
+      holderOther: "银行账户持有人姓名（与银行账户上的一致）",
     },
     letter: {
       title: "授权书",
-      why: "银行账户上的姓名与您的 Vircle 账户姓名不同。请上传一份由银行账户持有人签署的授权书，允许我们将款项转入该账户。",
+      why: "由于此银行账户不属于您本人，我们需要一份授权书。授权书必须由银行账户持有人签署，并允许我们将款项转入该账户。",
       help: "PDF、JPG 或 PNG，最大 10 MB。",
       choose: "选择文件",
       none: "未选择文件",
@@ -541,6 +563,7 @@ const KO: PublicWords = {
     bank: {
       title: "환불받을 은행 계좌",
       intro: "환불은 이 은행 계좌로만 지급됩니다.",
+      own: { question: "이 은행 계좌는 Vircle 계정 명의자 본인의 계좌입니까?", yes: "예", no: "아니요", required: "'예' 또는 '아니요'를 선택해 주세요." },
       choice: "은행",
       choose: "은행을 선택하세요",
       other: "기타 은행",
@@ -549,10 +572,11 @@ const KO: PublicWords = {
       numberHelp: "숫자만 입력하세요.",
       holder: "은행 계좌 예금주 이름",
       holderHelp: "은행 계좌에 표시된 이름과 같게 입력하세요.",
+      holderOther: "은행 계좌 예금주 이름(은행 계좌에 표시된 대로)",
     },
     letter: {
       title: "위임장",
-      why: "은행 계좌의 이름이 Vircle 계정의 이름과 다릅니다. 이 계좌로 입금하는 것을 허락한다는 내용의, 은행 계좌 예금주가 서명한 위임장을 올려 주세요.",
+      why: "이 은행 계좌는 본인 명의가 아니므로 위임장이 필요합니다. 위임장은 은행 계좌 예금주가 서명해야 하며, 이 계좌로 입금하는 것을 허락하는 내용이어야 합니다.",
       help: "PDF, JPG 또는 PNG, 최대 10MB.",
       choose: "파일 선택",
       none: "선택한 파일 없음",

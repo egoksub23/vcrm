@@ -52,7 +52,7 @@ For something a customer asked in a chat or on the phone, press **New request**.
 2. Enter the customer's name, email and phone (a number like `012-345 6789` becomes `+60123456789`) and the channel.
 3. Leave **Requested on** empty, or set the day and time the customer really asked: the clock starts then, and the request records that you set it by hand.
 4. Fill in the form. Bank details are stored **encrypted**. A closure needs the three ticks (every child has finished school, every allowance is cancelled, the customer confirms) and the bank name, account number and account holder.
-5. Press **Create request**. Documents (such as an authorization letter when the bank account holder's name differs) are added on the request afterwards.
+5. Press **Create request**. Documents (such as an authorization letter when the refund goes to a bank account that is not the customer's own) are added on the request afterwards.
 
 ## Raise a request from the Inbox or a ticket
 
@@ -86,7 +86,7 @@ For an **account closure** raised from a conversation, the dialog has the box **
 2. A personal link is made and sent into the chat as a **card**: the title *Account closure form*, one line asking the customer to open the form and fill in their details, and a button (*Open closure form*) in the customer's language (the contact's language, else English). It is a tappable card, not a long web address.
 3. In your Inbox the card shows a status line: **Sent**, **Opened**, **Submitted**, **Expired**, **Withdrawn** or **Replaced**. It never shows the address.
 
-**What the customer does.** They tap the button and see the closure form: the same one as the public closure form, with the two required ticks, the bank account, the authorization letter if the bank account holder's name does not match their name, and the declaration. There is **no code to enter**. Their name is filled in from your contact (they can correct it), they **type their email address**, and their registered phone number is shown **masked** (for example `+6012•••••881`) and cannot be changed: it is the number they are chatting with you on. When they submit, they see the reference and what happens next.
+**What the customer does.** They tap the button and see the closure form: the same one as the public closure form, with the two required ticks, the bank account, the question **Does this bank account belong to you?**, the authorization letter if the answer is *No*, and the declaration. There is **no code to enter**. Their name is filled in from your contact (they can correct it), they **type their email address**, and their registered phone number is shown **masked** (for example `+6012•••••881`) and cannot be changed: it is the number they are chatting with you on. When they submit, they see the reference and what happens next.
 
 **What you see.** The form updates the request you raised (it does not make a second one): the answers are on it, the bank details encrypted like any other. The officer still does the identity check, which is **not** done by the form. The people who review closures get a notification, and the conversation gets an internal note **Closure form submitted · CMP-2026-000014**.
 
@@ -109,8 +109,8 @@ The link is shown to you **once**, in that message, and is not kept anywhere. If
 Parents no longer need the old Airtable form. An administrator switches on a form in **Settings**, **Compliance**, **Public forms**, copies its address and shares it (in a message, an email or on a website). The parent:
 
 1. Opens the address on their phone, chooses English, Bahasa Melayu, Chinese or Korean, and enters their **email address**. We send a 6-digit **code** to it (valid 15 minutes, five tries, three codes an hour). Nothing reaches the workspace until the form is submitted.
-2. Fills in the form. **Account closure**: their name, their registered phone number in the `+60` form, whether they want to close the account (*No* creates nothing and shows "No request was made"), two required ticks (every child has finished school; every allowance is stopped and cancelled in the app), the bank for the refund (chosen from a list), the account number and the account holder's name, and a declaration. The page warns that closing closes both the Parent (Principal) and every Child (Supplementary) account for good, and that closing only a Child account goes through Customer Support. **Fund withdrawal** (not a closure): name, phone, amount in RM (up to the limit you set), why (over top-up or another reason), transaction references, an optional proof, the bank details and the declaration.
-3. If the **name on the bank account does not match the account holder's name given at the top of the form** (ignoring capital letters, spaces, punctuation, titles such as Encik, Puan or Dato' and *bin* / *binti*), the form requires an **authorization letter** (PDF, JPG or PNG, up to 10 MB).
+2. Fills in the form. **Account closure**: their name, their registered phone number in the `+60` form, whether they want to close the account (*No* creates nothing and shows "No request was made"), two required ticks (every child has finished school; every allowance is stopped and cancelled in the app), the question **Does this bank account belong to you?** (*Yes* or *No*), the bank for the refund (chosen from a list), the account number and the bank account holder's name, and a declaration. The page warns that closing closes both the Parent (Principal) and every Child (Supplementary) account for good, and that closing only a Child account goes through Customer Support. **Fund withdrawal** (not a closure): name, phone, amount in RM (up to the limit you set), why (over top-up or another reason), transaction references, an optional proof, the bank details and the declaration.
+3. If they answer **No** to *Does this bank account belong to you?*, the form requires an **authorization letter** (PDF, JPG or PNG, up to 10 MB). The letter must be signed by the bank account holder and must allow us to pay into that account, and the name field then reads *Name of the bank account holder (as on the bank account)*. If they answer **Yes**, no letter is shown or kept, even if they chose a file before changing their answer. The question must be answered; nothing is chosen at first.
 4. Presses **Submit**. They see a confirmation with the **reference** and a plain "what happens next". They are told we **aim to complete a closure within 14 days** of the request; the regulatory stop is never mentioned to customers.
 
 What arrives in Compliance: a request of source **Form** (channel *web form*), the customer's email marked **confirmed by code**, the bank details **encrypted** like any other, the letter in the private store, and the language the parent chose. The identity check is **not** done: your officer does it as for every request. If the email or the phone number matches exactly one contact of your workspace the request is linked to it; otherwise it is not linked (you can link it on the request). The form never creates a contact.
@@ -155,6 +155,13 @@ You can add **notes** at any time in the timeline. The answers and the customer'
 ## Bank details
 
 Bank and other protected details show **masked**, for example `•••• 9012`. With the reveal permission, **Reveal** shows them in full for **two minutes**, then they hide again; they also hide if you switch to another tab or press **Hide now**. Every reveal is written to the timeline.
+
+**Whose account is it?** On a closure or withdrawal, **Answers** shows what the customer said to *Does this bank account belong to you?*. Above the bank details you may see one calm note:
+
+- **Bank holder name differs from the account holder name: check before paying.** The customer said the account is their own, but the name on the bank account still differs from the account holder's name once capital letters, spaces, punctuation, titles (Encik, Puan, Dato', Dr, Tan Sri and the like) and *bin*, *binti*, *a/l*, *a/p* and *s/o* are set aside. It is only a prompt to look before you pay; it blocks nothing, and the customer is never shown it.
+- **Payout to a third party: authorization letter on file.** The customer said the account is not theirs. The note links to the letter; open it before you pay.
+
+A request made before this question existed shows **Not asked (older form)**. Nothing is assumed for it. When you type a customer's bank details yourself (not through the form), you are asked the same question.
 
 ## Documents and links
 

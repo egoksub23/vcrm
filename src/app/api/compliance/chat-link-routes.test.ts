@@ -312,11 +312,11 @@ describe("raising with the closure form", () => {
     expect(r.status).toBe(429);
     expect(h.sends).toHaveLength(0);
     // a raise that sends nothing is not held by it
-    expect((await postRaise(jsonReq("POST", "/api/compliance/raise", body({ sendClosureForm: false, answers: { confirm_closure: true, children_finished_school: true, allowances_cancelled: true, bank_name: "Maybank", bank_account_number: ACCOUNT_NUMBER, bank_account_holder: "Aminah" } })))).status).toBe(201);
+    expect((await postRaise(jsonReq("POST", "/api/compliance/raise", body({ sendClosureForm: false, answers: { confirm_closure: true, children_finished_school: true, allowances_cancelled: true, bank_account_is_own: true, bank_name: "Maybank", bank_account_number: ACCOUNT_NUMBER, bank_account_holder: "Aminah" } })))).status).toBe(201);
   });
 
   it("sends nothing unless asked", async () => {
-    const r = await read(await postRaise(jsonReq("POST", "/api/compliance/raise", body({ sendClosureForm: false, answers: { confirm_closure: true, children_finished_school: true, allowances_cancelled: true, bank_name: "Maybank", bank_account_number: ACCOUNT_NUMBER, bank_account_holder: "Aminah" } }))));
+    const r = await read(await postRaise(jsonReq("POST", "/api/compliance/raise", body({ sendClosureForm: false, answers: { confirm_closure: true, children_finished_school: true, allowances_cancelled: true, bank_account_is_own: true, bank_name: "Maybank", bank_account_number: ACCOUNT_NUMBER, bank_account_holder: "Aminah" } }))));
     expect(r.status).toBe(201);
     expect(r.body.chatLink).toBeUndefined();
     expect(h.sends).toHaveLength(0);
@@ -334,6 +334,7 @@ describe("the public route", () => {
     phone: "",
     childrenFinished: true,
     allowancesStopped: true,
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: ACCOUNT_NUMBER,
     accountHolder: "Siti Aminah",

@@ -11870,7 +11870,8 @@
     "answers": {
       "title": "Butiran permintaan",
       "edit": "Sunting",
-      "none": "Jenis permintaan ini tiada butiran lanjut."
+      "none": "Jenis permintaan ini tiada butiran lanjut.",
+      "notAsked": "Tidak ditanya (borang lama)"
     },
     "sensitive": {
       "title": "Butiran bank dan butiran dilindungi",
@@ -12439,6 +12440,11 @@
         "resendHelp": "Menghantar semula membuat pautan baharu dan pautan lama berhenti berfungsi.",
         "failed": "Tindakan itu tidak dapat dilakukan. Cuba lagi."
       }
+    },
+    "bankOwn": {
+      "nameDiffers": "Nama pemegang akaun bank berbeza daripada nama pemegang akaun: semak sebelum membayar.",
+      "thirdParty": "Bayaran kepada pihak ketiga: surat kebenaran ada dalam fail",
+      "thirdPartyMissing": "Bayaran kepada pihak ketiga: surat kebenaran tiada"
     }
   }
 }

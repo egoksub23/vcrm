@@ -87,6 +87,7 @@ describe("the closure form when the phone number comes from the chat", () => {
     name: "Siti Aminah",
     childrenFinished: true,
     allowancesStopped: true,
+    bankOwn: "yes",
     bankChoice: "Maybank",
     accountNumber: "8800123456789012",
     accountHolder: "Siti Aminah",
@@ -106,6 +107,8 @@ describe("the closure form when the phone number comes from the chat", () => {
       ok: false,
       problems: { childrenFinished: "must_acknowledge", declaration: "must_acknowledge" },
     });
-    expect(parsePublicSubmission("closure", { ...body, accountHolder: "Ahmad" }, { ...rules, phoneFromCase: true })).toMatchObject({ ok: true, value: { needsLetter: true } });
+    // the letter follows the answer to "does this bank account belong to you?", not the names
+    expect(parsePublicSubmission("closure", { ...body, accountHolder: "Ahmad" }, { ...rules, phoneFromCase: true })).toMatchObject({ ok: true, value: { needsLetter: false } });
+    expect(parsePublicSubmission("closure", { ...body, bankOwn: "no" }, { ...rules, phoneFromCase: true })).toMatchObject({ ok: true, value: { needsLetter: true } });
   });
 });

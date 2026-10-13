@@ -75,6 +75,7 @@ const body = (over: Record<string, unknown> = {}) => ({
   childrenFinished: true,
   allowancesStopped: true,
   reason: "",
+  bankOwn: "yes",
   bankChoice: "Maybank",
   accountNumber: ACCOUNT_NUMBER,
   accountHolder: "SITI AMINAH BT YUSOF",
@@ -203,7 +204,7 @@ describe("filling in the form", () => {
     const c = theCase();
     expect(c).toMatchObject({ customer_name: "Siti Aminah binti Yusof", customer_email: "siti.typed@example.test", customer_phone: "+60123456881", customer_locale: "ms", status: "received", source: "inbox", created_by: AGENT });
     // the ordinary answers are merged into what the agent had; the protected ones are NOT in data
-    expect(c.data).toMatchObject({ reason: "Moving abroad", confirm_closure: true, children_finished_school: true, allowances_cancelled: true, declaration: true });
+    expect(c.data).toMatchObject({ reason: "Moving abroad", confirm_closure: true, children_finished_school: true, allowances_cancelled: true, declaration: true, bank_account_is_own: true, name_differs: false });
     expect(JSON.stringify(c.data)).not.toContain(ACCOUNT_NUMBER);
     expect(c.data_enc).toEqual(expect.any(String));
     expect(c.data_enc).not.toContain(ACCOUNT_NUMBER);
@@ -294,8 +295,8 @@ describe("the same rules as the public closure form", () => {
     expect(await submit({ email: undefined })).toMatchObject({ kind: "invalid", problems: { email: "required" } });
   });
 
-  it("asks for an authorization letter only when the bank holder's name differs, and checks the file by its bytes", async () => {
-    const diff = { accountHolder: "Ahmad bin Ali" };
+  it("asks for an authorization letter only after a No, and checks the file by its bytes", async () => {
+    const diff = { bankOwn: "no", accountHolder: "Ahmad bin Ali" };
     expect(await submit(diff)).toMatchObject({ kind: "invalid", problems: { letter: "file_required" } });
     expect(await submit(diff, { letter: { bytes: HTML, name: "letter.pdf" } })).toMatchObject({ kind: "invalid", problems: { letter: "file_type" } });
     expect(await submit(diff, { letter: { bytes: new Uint8Array(10 * 1024 * 1024 + 1).fill(1), name: "big.pdf" } })).toMatchObject({ kind: "invalid", problems: { letter: "file_size" } });
@@ -309,13 +310,57 @@ describe("the same rules as the public closure form", () => {
     expect(db.files.size).toBe(1);
   });
 
-  it("does not need a letter when the names match despite titles and spelling", async () => {
-    expect((await submit({ name: "Puan Siti Aminah binti Yusof", accountHolder: "SITI AMINAH BT YUSOF" })).kind).toBe("ok");
+  it("does not need a letter after a Yes, even when the typed names differ, and applies to the existing case", async () => {
+    expect((await submit({ name: "Siti Aminah", accountHolder: "Ahmad bin Ali" })).kind).toBe("ok");
     expect(db.files.size).toBe(0);
+    expect(db.rows("compliance_request_files")).toHaveLength(0);
+    expect(cases()).toHaveLength(1);
+    expect(theCase().data).toMatchObject({ reason: "Moving abroad", bank_account_is_own: true, name_differs: true });
+  });
+
+  it("needs the Yes / No answer: nothing chosen is refused and the link still works", async () => {
+    for (const bankOwn of [undefined, "", "maybe"]) {
+      expect(await submit({ bankOwn })).toMatchObject({ kind: "invalid", problems: { bankOwn: bankOwn === "maybe" ? "not_a_choice" : "required" } });
+    }
+    expect(links()[0].submitted_at).toBeNull();
+    expect(theCase().data).toEqual({ reason: "Moving abroad" });
+  });
+
+  it("DROPS a letter sent with a Yes: not looked at (not even a rubbish file), not stored, no file row", async () => {
+    expect((await submit({ bankOwn: "yes" }, { letter: { bytes: HTML, name: "letter.pdf" } })).kind).toBe("ok");
+    expect(db.files.size).toBe(0);
+    expect(db.rows("compliance_request_files")).toHaveLength(0);
+    expect(theCase().data).toMatchObject({ bank_account_is_own: true });
+  });
+
+  it("stores a No as the answer with the letter on file, and flags no name difference", async () => {
+    expect((await submit({ bankOwn: "no", accountHolder: "Ahmad bin Ali" }, { letter: { bytes: PDF, name: "letter.pdf" } })).kind).toBe("ok");
+    expect(theCase().data).toMatchObject({ bank_account_is_own: false, name_differs: false });
+    expect((db.rows("compliance_request_files") as any[]).map((f) => f.field_key)).toEqual(["authorization_letter"]);
+    // the bank holder name is still protected, whatever the answer
+    expect(JSON.stringify(theCase().data)).not.toContain("Ahmad");
+    expect(openSensitive(REQ, theCase().data_enc)).toMatchObject({ bank_account_holder: "Ahmad bin Ali" });
+  });
+
+  it("does not flag the same person written another way (a/l, bin, titles), and flags a real difference", async () => {
+    expect((await submit({ name: "Gokula Krishnan Subramaniam", accountHolder: "Gokula Krishnan a/l Subramaniam" })).kind).toBe("ok");
+    expect(theCase().data.name_differs).toBe(false);
+  });
+
+  it("never gives the flag, a name or the answer back to the page", async () => {
+    // the page for a link shows nothing of the case's answers
+    theCase().data = { reason: "Moving abroad", bank_account_is_own: true, name_differs: true };
+    expect(JSON.stringify(await loadLinkPage(env(), token, "203.0.113.9", null))).not.toMatch(/differ|bank_account_is_own/);
+    const failed = await submit({ childrenFinished: false, accountHolder: "Ahmad bin Ali" });
+    expect(JSON.stringify(failed)).not.toMatch(/differ|Ahmad/);
+    const r = await submit({ name: "Siti Aminah", accountHolder: "Ahmad bin Ali" });
+    expect(Object.keys(r).sort()).toEqual(["kind", "reference"]);
+    // and the timeline names only the link
+    expect(JSON.stringify(events())).not.toMatch(/differ|Ahmad|bank_account_is_own/);
   });
 
   it("removes the stored letter when the claim is refused (a link used a moment ago)", async () => {
-    const diff = { accountHolder: "Ahmad bin Ali" };
+    const diff = { bankOwn: "no", accountHolder: "Ahmad bin Ali" };
     const attempt = submit(diff, { letter: { bytes: PDF, name: "letter.pdf" } });
     // another submission wins the claim while this one is storing its file
     links()[0].submitted_at = "2026-10-13T10:00:01Z";
@@ -383,7 +428,7 @@ describe("the guards", () => {
   });
 
   it("fails calmly, and removes what it stored, when the database refuses", async () => {
-    const diff = { accountHolder: "Ahmad bin Ali" };
+    const diff = { bankOwn: "no", accountHolder: "Ahmad bin Ali" };
     db.rpcHandlers.compliance_apply_form_link = () => ({ data: null, error: { message: "boom" } });
     expect(await submit(diff, { letter: { bytes: PDF, name: "letter.pdf" } })).toEqual({ kind: "failed" });
     expect(db.files.size).toBe(0);

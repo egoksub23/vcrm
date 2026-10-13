@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_FIELDS, checkAnswers, cleanL10n, fileFieldsOf, l10n, stepKeyFrom, validateChecklist, validateFieldDefs } from "./fields";
-import { CLOSURE_ANSWERS, CLOSURE_FIELDS, L } from "./test-support";
+import { MAX_FIELDS, checkAnswers, cleanL10n, expectedFileFields, fileFieldsOf, isShown, l10n, stepKeyFrom, validateChecklist, validateFieldDefs, visibleFields } from "./fields";
+import { CLOSURE_ANSWERS, CLOSURE_FIELDS, L, withBankOwn } from "./test-support";
 import type { FieldDef } from "./types";
 
 const fields = CLOSURE_FIELDS as unknown as FieldDef[];
@@ -139,5 +139,51 @@ describe("checkAnswers", () => {
 
   it("finds the file fields of a type", () => {
     expect(fileFieldsOf(fields).map((f) => f.key)).toEqual(["authorization_letter"]);
+  });
+});
+
+describe("the bank account question (migration 186): a yes / no answer controls the authorization letter", () => {
+  const defs = withBankOwn(CLOSURE_FIELDS) as unknown as FieldDef[];
+  const letter = defs.find((f) => f.key === "authorization_letter")!;
+
+  it("shows a field that depends on a yes / no answer by true or false, and hides it while the question is unanswered", () => {
+    expect(isShown(letter, defs, { bank_account_is_own: false })).toBe(true);
+    expect(isShown(letter, defs, { bank_account_is_own: true })).toBe(false);
+    expect(isShown(letter, defs, {})).toBe(false);
+    // a stored string answer (what a staff form holds) works too
+    expect(isShown(letter, defs, { bank_account_is_own: "false" })).toBe(true);
+    expect(isShown(letter, defs, { bank_account_is_own: "true" })).toBe(false);
+    expect(visibleFields(defs, { bank_account_is_own: true }).some((f) => f.key === "authorization_letter")).toBe(false);
+  });
+
+  it("puts the question right before the bank details and keeps the letter a required, conditional file", () => {
+    const keys = defs.map((f) => f.key);
+    expect(keys.indexOf("bank_account_is_own")).toBe(keys.indexOf("bank_name") - 1);
+    expect(letter).toMatchObject({ type: "file", required: true, showIf: { field: "bank_account_is_own", in: ["false"] } });
+    const q = defs.find((f) => f.key === "bank_account_is_own")!;
+    expect(q).toMatchObject({ type: "yesno", required: true, sensitive: false });
+    expect(validateFieldDefs(defs).ok).toBe(true);
+  });
+
+  it("requires the answer, accepts true and false, and never asks the file field through the answers", () => {
+    const base = { ...CLOSURE_ANSWERS } as Record<string, unknown>;
+    delete base.bank_account_is_own;
+    const missing = checkAnswers(defs, base);
+    expect(missing.ok).toBe(false);
+    expect(!missing.ok && missing.issues).toEqual([{ field: "bank_account_is_own", code: "required" }]);
+    for (const v of [true, false, "true", "false"]) {
+      const r = checkAnswers(defs, { ...base, bank_account_is_own: v });
+      expect(r.ok && r.answers.data.bank_account_is_own, String(v)).toBe(v === true || v === "true");
+    }
+    expect(checkAnswers(defs, { ...base, bank_account_is_own: "maybe" })).toMatchObject({ ok: false, issues: [{ field: "bank_account_is_own", code: "invalid" }] });
+    // a letter is never an answer
+    const withFile = checkAnswers(defs, { ...base, bank_account_is_own: false, authorization_letter: "x.pdf" });
+    expect(withFile.ok && "authorization_letter" in withFile.answers.data).toBe(false);
+  });
+
+  it("expects the letter among a case's documents only after a No (and while the question was never answered)", () => {
+    expect(expectedFileFields(defs, { bank_account_is_own: false }).map((f) => f.key)).toEqual(["authorization_letter"]);
+    expect(expectedFileFields(defs, { bank_account_is_own: true })).toEqual([]);
+    expect(expectedFileFields(defs, {}).map((f) => f.key)).toEqual(["authorization_letter"]);
   });
 });

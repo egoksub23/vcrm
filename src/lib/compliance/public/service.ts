@@ -9,7 +9,8 @@
 //      session (an HttpOnly cookie, 60 minutes) that carries a hash of that address.
 //   3. They fill the form. A submission needs: the page's signed form token (genuine, for THIS form, 8 seconds to 2 hours old), the session, the same
 //      address typed again, the hidden field empty, the optional Turnstile check (done when the code is asked for, where the email cost is), and details
-//      that pass parsePublicSubmission, plus the files: PDF, JPEG or PNG by their first bytes, 10 MB each, a letter when the bank holder name differs.
+//      that pass parsePublicSubmission, plus the files: PDF, JPEG or PNG by their first bytes, 10 MB each, an authorization letter when the parent says the
+//      bank account is NOT their own (a letter sent with a "Yes" is dropped, never stored).
 //   4. One OPEN request per type per verified address: a repeat is answered exactly like a first request (the same confirmation, with the reference of
 //      the request the person already has, which they have proved they own the address for) and creates nothing. Two posts at the same moment are
 //      held apart by a unique index in the database.
@@ -78,8 +79,8 @@ export const FORM_COLUMNS = "id, account_id, type_key, enabled, slug, notice, tu
 
 /** The fields a type must carry for the public form to record everything it asks. */
 const REQUIRED_KEYS: Record<PublicType, string[]> = {
-  closure: ["confirm_closure", "children_finished_school", "allowances_cancelled", "bank_name", "bank_account_number", "bank_account_holder", "authorization_letter", "declaration"],
-  withdrawal: ["amount", "reason", "bank_name", "bank_account_number", "bank_account_holder", "authorization_letter", "declaration", "reason_kind", "proof"],
+  closure: ["confirm_closure", "children_finished_school", "allowances_cancelled", "bank_account_is_own", "bank_name", "bank_account_number", "bank_account_holder", "authorization_letter", "declaration"],
+  withdrawal: ["amount", "reason", "bank_account_is_own", "bank_name", "bank_account_number", "bank_account_holder", "authorization_letter", "declaration", "reason_kind", "proof"],
 };
 
 /** Can this type take the public form? It must be active and have every field the form fills. */
@@ -358,6 +359,8 @@ const isUniqueViolation = (e: unknown): boolean => {
 function filesProblems(files: SubmitRequest["files"], type: PublicType, needsLetter: boolean): PublicProblems {
   const problems: PublicProblems = {};
   for (const f of fileFieldsFor(type)) {
+    // a letter sent with "this account is mine" is dropped: not looked at, not stored
+    if (f.id === "letter" && !needsLetter) continue;
     const part = files[f.id];
     if (!part || part.bytes.byteLength === 0) {
       if (f.id === "letter" && needsLetter) problems.letter = "file_required";
@@ -421,6 +424,7 @@ export async function submitPublicForm(env: PublicEnv, req: SubmitRequest): Prom
     //    closure that needs one without it
     requestId = randomUUID();
     for (const f of fileFieldsFor(found.type)) {
+      if (f.id === "letter" && !value.needsLetter) continue;
       const part = req.files[f.id];
       if (!part || part.bytes.byteLength === 0) continue;
       stored.push({ part: f.id, fieldKey: f.fieldKey, file: await putEvidence(env.admin, form.account_id, requestId, part) });

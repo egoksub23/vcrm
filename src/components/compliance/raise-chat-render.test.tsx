@@ -23,10 +23,10 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: str
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 
 import { NOT_SENT_REASONS, type ChatLinkOutcome } from "@/lib/compliance/chat-link/types";
-import type { RaiseContext } from "@/lib/compliance/raise-types";
+import { raiseFieldsOf, type RaiseContext } from "@/lib/compliance/raise-types";
 import type { FieldDef, L10n } from "@/lib/compliance/types";
 import { typeFromRow } from "@/lib/compliance/service/rows";
-import { TYPE_ROWS } from "@/lib/compliance/test-support";
+import { TYPE_ROWS, withBankOwn } from "@/lib/compliance/test-support";
 
 import { RaiseDone, RaiseForm, closureChoice, fieldsToAsk, invalidAnswerFields, orderTypeChoices, typeChoiceLabel } from "./raise";
 
@@ -167,6 +167,13 @@ describe("fieldsToAsk", () => {
   it("leaves out the confirmations and the bank details when the closure form goes to the customer, and requires none of them", () => {
     const asked = fieldsToAsk(closureFields, {}, true);
     expect(keys(asked)).toEqual(["reason"]);
+  });
+  it("with the migration 186 closure type: the bank question is asked with the bank details by hand, and left to the customer's own form when it is sent", () => {
+    const fields186 = withBankOwn(closureFields) as FieldDef[];
+    expect(keys(fieldsToAsk(fields186, {}, false))).toEqual(["confirm_closure", "children_finished_school", "allowances_cancelled", "reason", "bank_account_is_own", "bank_name", "bank_account_number", "bank_account_holder"]);
+    expect(keys(fieldsToAsk(fields186, {}, true))).toEqual(["reason"]);
+    // the letter is a file: never asked of staff
+    expect(keys(raiseFieldsOf(fields186))).not.toContain("authorization_letter");
   });
   it("asks only what the choice in Account change needs", () => {
     expect(keys(fieldsToAsk(ACCOUNT_CHANGE_FIELDS, {}, false))).toEqual(["what_changes"]);

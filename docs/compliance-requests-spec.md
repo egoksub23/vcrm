@@ -14,8 +14,8 @@ Requests link to tickets, incidents, contacts and KYC validations; they are neve
 
 | Type | Comes from | Key data |
 |---|---|---|
-| Account closure | public parent form; or raised from a chat or ticket | holder name, email, registered phone (`+60…`), confirmation to close, ticks that every child has finished school and every allowance is cancelled, bank name / account number / holder name for the refund, authorization letter if the bank holder name differs |
-| Fund withdrawal (not a closure) | form or chat | holder name, phone, amount, reason (for example an over top-up), transaction references or proof, bank details, authorization letter if the names differ |
+| Account closure | public parent form; or raised from a chat or ticket | holder name, email, registered phone (`+60…`), confirmation to close, ticks that every child has finished school and every allowance is cancelled, bank name / account number / holder name for the refund, whether the bank account is the customer's own (since migration 186) and, if it is not, an authorization letter |
+| Fund withdrawal (not a closure) | form or chat | holder name, phone, amount, reason (for example an over top-up), transaction references or proof, bank details, whether the bank account is the customer's own (since migration 186) and, if it is not, an authorization letter |
 | Phone number change (since migration 185: **Account change**) | a customer-care chat, raised by an agent | what changes (the parent's phone number, the parent's email address or a child's name; never a parent's name), the current and the new value (for a child: which child and the new name), channel, link to the conversation, how identity was verified (method, who, when, notes) |
 
 New types can be added later without code: each type is a definition of fields, required checks and a checklist.

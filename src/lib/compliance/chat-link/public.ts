@@ -4,8 +4,8 @@
 //
 // The link is the parent's key: 256 random bits, personal to ONE case, single-use, expiring (14 days). There is no emailed code on this form: the parent is
 // already talking to us in that chat, and the link was sent into it by a member of staff. They type their email address (required, only validated: it is not
-// proved) and fill the SAME closure form as the public one (/c/<slug>): the acknowledgements, the bank details, the authorization letter when the bank holder
-// name differs from the account holder name, the declaration. The name comes from the contact and can be corrected; the registered phone number comes from the
+// proved) and fill the SAME closure form as the public one (/c/<slug>): the acknowledgements, "does this bank account belong to you?", the bank
+// details, the authorization letter when the answer is No, the declaration. The name comes from the contact and can be corrected; the registered phone number comes from the
 // chat, is shown masked and cannot be edited.
 //
 // ONE neutral answer. An unknown, malformed, expired, used, withdrawn or replaced link, a workspace with Compliance off, a case that has moved on to sign-off or
@@ -27,6 +27,7 @@ import { postInternalComment } from "@/lib/conversations/comment-write";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { isTooFast, issueFormToken, readFormToken } from "@/lib/sign/registration/token";
 
+import { NAME_DIFFERS_KEY, nameDiffersFlag } from "../bank-own";
 import { complianceEnabled } from "../feature";
 import { checkAnswers } from "../fields";
 import { formSubmittedNoteText } from "../raised-note";
@@ -171,6 +172,8 @@ const asObject = (v: unknown): Record<string, unknown> => (v && typeof v === "ob
 function fileProblems(files: LinkSubmitRequest["files"], needsLetter: boolean, detect: (b: Uint8Array) => unknown): PublicProblems {
   const problems: PublicProblems = {};
   for (const f of fileFieldsFor("closure")) {
+    // a letter sent with "this account is mine" is dropped: not looked at, not stored
+    if (f.id === "letter" && !needsLetter) continue;
     const part = files[f.id];
     if (!part || part.bytes.byteLength === 0) {
       if (f.id === "letter" && needsLetter) problems.letter = "file_required";
@@ -226,6 +229,9 @@ export async function submitLinkForm(env: PublicEnv, req: LinkSubmitRequest, det
   // 7. the answers, encrypted exactly as a case made any other way, merged with what is already protected on this case
   const answers = checkAnswers(type.fields, value.answers);
   if (!answers.ok) return { kind: "invalid", problems: {} };
+  // migration 186: the staff flag, computed here from what was typed; it is stored with the case and never sent back to the page
+  const differs = nameDiffersFlag(answers.answers.data, answers.answers.sensitive, value.name);
+  const caseData = differs === null ? answers.answers.data : { ...answers.answers.data, [NAME_DIFFERS_KEY]: differs };
   let dataEnc: string | null;
   try {
     dataEnc = sealSensitive(row.id, { ...openSensitive(row.id, row.data_enc), ...answers.answers.sensitive });
@@ -240,6 +246,7 @@ export async function submitLinkForm(env: PublicEnv, req: LinkSubmitRequest, det
   };
   try {
     for (const f of fileFieldsFor("closure")) {
+      if (f.id === "letter" && !value.needsLetter) continue;
       const part = req.files[f.id];
       if (!part || part.bytes.byteLength === 0) continue;
       stored.push({ fieldKey: f.fieldKey, file: await putEvidence(env.admin, link.account_id, row.id, part) });
@@ -250,7 +257,7 @@ export async function submitLinkForm(env: PublicEnv, req: LinkSubmitRequest, det
       p_name: value.name,
       p_email: email,
       p_phone: row.customer_phone ? null : value.phone || null,
-      p_data: answers.answers.data,
+      p_data: caseData,
       p_data_enc: dataEnc,
       p_locale: locale,
     });

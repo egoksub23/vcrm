@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.92.1] — 2026-10-13
+
+**Migration required: 186.** Apply it BEFORE the new app: without it the closure and withdrawal forms would say "not available".
+
+### Changed
+
+- **The closure and withdrawal forms ask whether the bank account is the parent's own.** A required Yes or No question, "Does this bank account belong to you, the Vircle account holder?", comes before the account number. Only **No** asks for the authorization letter (signed by the bank account holder); **Yes** shows no letter and drops any file already picked. The bank holder's name is still collected. This replaces the rule that guessed from the two names, and applies to the public forms and to the personal closure link sent in a chat.
+- If the holder's name looks different from the account holder's, the compliance officer now sees a calm flag on the case ("check before paying"), and a No shows "payout to a third party: authorization letter on file". Parents never see either. Name matching also ignores more Malaysian connectors and titles (a/l, a/p, binti, Dato' and so on). Cases made earlier show "Not asked (older form)".
+
 ## [0.92.0] — 2026-10-13
 
 **Migration required: 185.** Apply it BEFORE the new app.

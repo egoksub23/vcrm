@@ -6,7 +6,6 @@
 
 import { cleanEmail } from "@/lib/compliance/public/amount";
 import { OTHER_BANK } from "@/lib/compliance/public/banks";
-import { namesMatch } from "@/lib/compliance/public/names";
 import { PUBLIC_MAX_FILE_BYTES, fileFieldsFor, parsePublicSubmission, type PublicFieldId, type PublicProblemCode, type PublicProblems, type PublicType } from "@/lib/compliance/public/validate";
 import type { PublicWords } from "@/lib/compliance/public/words";
 import type { CustomerLocale } from "@/lib/compliance/types";
@@ -23,6 +22,8 @@ export interface FormValues {
   reasonKind: "" | "over_topup" | "other";
   reasonText: string;
   transactionRefs: string;
+  /** "Does this bank account belong to you, the Vircle account holder?" Nothing is chosen at first: the parent must answer. */
+  bankOwn: "" | "yes" | "no";
   bankChoice: string;
   bankOther: string;
   accountNumber: string;
@@ -41,6 +42,7 @@ export const emptyValues = (): FormValues => ({
   reasonKind: "",
   reasonText: "",
   transactionRefs: "",
+  bankOwn: "",
   bankChoice: "",
   bankOther: "",
   accountNumber: "",
@@ -56,10 +58,9 @@ export interface PickedFile {
 }
 export type PickedFiles = Partial<Record<"letter" | "proof", PickedFile | null>>;
 
-/** The bank account holder name differs from the account holder name (so the form asks for a letter). Nothing is asked until both are typed. */
-export function letterNeeded(values: Pick<FormValues, "name" | "accountHolder">): boolean {
-  if (values.name.trim() === "" || values.accountHolder.trim() === "") return false;
-  return !namesMatch(values.name, values.accountHolder);
+/** The parent says the bank account is somebody else's, so the form asks for the authorization letter. Nothing is asked until the question is answered. */
+export function letterNeeded(values: Pick<FormValues, "bankOwn">): boolean {
+  return values.bankOwn === "no";
 }
 
 /** The form's own check before it posts: the server's rules for the details, and the files the form can see. The server decides again. */
@@ -77,6 +78,8 @@ export function checkBeforeSending(
   if (extra.email !== undefined && !cleanEmail(extra.email)) problems.email = extra.email.trim() === "" ? "required" : "invalid";
   for (const f of fileFieldsFor(type)) {
     const picked = files[f.id];
+    // a letter chosen earlier and kept after the answer became Yes is not checked: it is not sent
+    if (f.id === "letter" && !letterNeeded(values)) continue;
     if (picked) {
       if (picked.size > PUBLIC_MAX_FILE_BYTES) problems[f.id] = "file_size";
       else if (picked.size === 0) problems[f.id] = "file_required";
@@ -90,7 +93,7 @@ export function checkBeforeSending(
 /** The first control with a problem, in the order the form lists them (so focus goes to the top-most one). */
 export const FIELD_ORDER: PublicFieldId[] = [
   "wantClose", "name", "phone", "email", "childrenFinished", "allowancesStopped", "reason", "amount", "reasonKind", "reasonText", "transactionRefs",
-  "bankChoice", "bankOther", "accountNumber", "accountHolder", "letter", "proof", "declaration",
+  "bankOwn", "bankChoice", "bankOther", "accountNumber", "accountHolder", "letter", "proof", "declaration",
 ];
 export const firstProblem = (problems: PublicProblems): PublicFieldId | null => FIELD_ORDER.find((id) => problems[id]) ?? null;
 
@@ -107,6 +110,8 @@ export function buildForm(values: FormValues, meta: PostMeta, files: PickedFiles
   const form = new FormData();
   form.set("payload", JSON.stringify({ ...values, token: meta.token, email: meta.email, locale: meta.locale, website: honeypot, ...(meta.linkToken ? { linkToken: meta.linkToken } : {}) }));
   for (const id of ["letter", "proof"] as const) {
+    // a letter picked while the answer was No is dropped when the answer is Yes at the end: it is not sent
+    if (id === "letter" && !letterNeeded(values)) continue;
     const f = files[id];
     if (f?.file) form.set(id, f.file, f.name);
   }
@@ -159,8 +164,15 @@ export function verifyErrorKey(code: string): keyof PublicWords["verify"]["error
   }
 }
 
-/** A problem as a sentence, in the page's language. */
-export const problemText = (words: PublicWords, code: PublicProblemCode | undefined): string => (code ? words.form.problem[code] : "");
+/** A problem as a sentence, in the page's language. The Yes / No question about the bank account has its own sentence for "not answered". */
+export function problemText(words: PublicWords, code: PublicProblemCode | undefined, id?: PublicFieldId): string {
+  if (!code) return "";
+  if (id === "bankOwn" && code === "required") return words.form.bank.own.required;
+  return words.form.problem[code];
+}
+
+/** The label of the bank account holder name: it says "(as on the bank account)" while the account is somebody else's. */
+export const holderLabel = (words: PublicWords, values: Pick<FormValues, "bankOwn">): string => (values.bankOwn === "no" ? words.form.bank.holderOther : words.form.bank.holder);
 
 /** The sentence under a code that wants it (the tries left in a wrong code). */
 export function wrongCodeText(words: PublicWords, attemptsLeft: number): string {

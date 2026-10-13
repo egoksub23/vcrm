@@ -73,6 +73,7 @@ const closureBody = (over: Record<string, unknown> = {}) => ({
   allowancesStopped: true,
   reason: "Moving abroad",
   bankChoice: "Maybank",
+  bankOwn: "yes",
   accountNumber: ACCOUNT_NUMBER,
   accountHolder: "SITI AMINAH BT YUSOF",
   declaration: true,
@@ -88,6 +89,7 @@ const withdrawalBody = (over: Record<string, unknown> = {}) => ({
   amount: "120.50",
   reasonKind: "over_topup",
   transactionRefs: "TX-1",
+  bankOwn: "yes",
   bankChoice: OTHER_BANK,
   bankOther: "Bank of Elsewhere",
   accountNumber: "123456789",
@@ -353,11 +355,11 @@ describe("a submission", () => {
     expect(sent).toHaveLength(0);
   });
 
-  it("needs an authorization letter exactly when the bank holder name differs, and keeps it in the private bucket tied to the case", async () => {
-    const body = closureBody({ accountHolder: "Ahmad Yusof" });
+  it("needs an authorization letter exactly when the parent says the bank account is NOT theirs, and keeps it in the private bucket tied to the case", async () => {
+    const body = closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" });
     expect(await submit({ body })).toMatchObject({ kind: "invalid", problems: { letter: "file_required" } });
     expect(cases()).toHaveLength(0);
-    const r = await submit({ body: closureBody({ accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } });
+    const r = await submit({ body: closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } });
     expect(r).toMatchObject({ kind: "ok" });
     const files = db.rows("compliance_request_files") as any[];
     expect(files).toHaveLength(1);
@@ -366,12 +368,84 @@ describe("a submission", () => {
     expect([...db.files.keys()]).toEqual([files[0].path]);
   });
 
-  it("does not ask for the letter when the names agree once case, titles and bt/bin are set aside", async () => {
-    expect(await submit({ body: closureBody({ accountHolder: "Puan Siti Aminah Yusof" }) })).toMatchObject({ kind: "ok" });
+  it("does not ask for the letter when the answer is Yes, even when the typed names differ", async () => {
+    expect(await submit({ body: closureBody({ bankOwn: "yes", accountHolder: "Ahmad Yusof" }) })).toMatchObject({ kind: "ok" });
+    expect(cases()).toHaveLength(1);
+    expect(db.rows("compliance_request_files")).toHaveLength(0);
+  });
+
+  it("asks for the letter on a No even when the names are the very same", async () => {
+    expect(await submit({ body: closureBody({ bankOwn: "no", accountHolder: "Siti Aminah binti Yusof" }) })).toMatchObject({ kind: "invalid", problems: { letter: "file_required" } });
+    expect(cases()).toHaveLength(0);
+  });
+
+  it("REFUSES a submission whose bank account question is not answered, on both forms", async () => {
+    for (const bankOwn of [undefined, "", "maybe"]) {
+      expect(await submit({ body: closureBody({ bankOwn }) })).toMatchObject({ kind: "invalid", problems: { bankOwn: bankOwn === "maybe" ? "not_a_choice" : "required" } });
+      expect(await submitW({ body: withdrawalBody({ bankOwn }) })).toMatchObject({ kind: "invalid", problems: { bankOwn: bankOwn === "maybe" ? "not_a_choice" : "required" } });
+    }
+    expect(cases()).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("DROPS a letter that came with a Yes: not looked at, not stored, no file row, even a file that is not a letter at all", async () => {
+    const r = await submit({ body: closureBody({ bankOwn: "yes" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } });
+    expect(r).toMatchObject({ kind: "ok" });
+    expect(cases()).toHaveLength(1);
+    expect(db.rows("compliance_request_files")).toHaveLength(0);
+    expect(db.files.size).toBe(0);
+    // a rubbish letter sent with a Yes is not an error either: it is dropped without being read
+    mailFails = false;
+    const again = await submit({ body: closureBody({ bankOwn: "yes", email: "other@example.com" }), files: { letter: { bytes: HTML, name: "letter.pdf" } }, sessionValue: sessionFor(FORM_CLOSURE, "other@example.com") });
+    expect(again).toMatchObject({ kind: "ok" });
+    expect(db.files.size).toBe(0);
+    // and the same on the withdrawal form, whose proof is still kept
+    const w = await submitW({ body: withdrawalBody({ bankOwn: "yes" }), files: { letter: { bytes: PDF, name: "letter.pdf" }, proof: { bytes: PNG, name: "p.png" } } });
+    expect(w).toMatchObject({ kind: "ok" });
+    expect((db.rows("compliance_request_files") as any[]).map((f) => f.field_key)).toEqual(["proof"]);
+  });
+
+  it("stores the answer as an ordinary (not protected) answer, and the staff flag name_differs only when the answer is Yes and the names differ", async () => {
+    expect(await submit({ body: closureBody({ bankOwn: "yes", accountHolder: "Ahmad Yusof" }) })).toMatchObject({ kind: "ok" });
+    expect(cases()[0].data).toMatchObject({ bank_account_is_own: true, name_differs: true });
+    expect(JSON.stringify(cases()[0].data)).not.toContain("Ahmad");
+    expect(JSON.stringify(cases()[0].data)).not.toContain(ACCOUNT_NUMBER);
+  });
+
+  it("does not flag the same person written another way: connectors and honorifics are set aside", async () => {
+    expect(await submit({ body: closureBody({ name: "Gokula Krishnan Subramaniam", accountHolder: "Gokula Krishnan a/l Subramaniam" }) })).toMatchObject({ kind: "ok" });
+    expect(cases()[0].data).toMatchObject({ bank_account_is_own: true, name_differs: false });
+    expect(await submit({ body: closureBody({ name: "Siti Aminah binti Ahmad", accountHolder: "AHMAD SITI AMINAH", email: "two@example.com" }), sessionValue: sessionFor(FORM_CLOSURE, "two@example.com") })).toMatchObject({ kind: "ok" });
+    expect(cases()[1].data).toMatchObject({ name_differs: false });
+  });
+
+  it("flags nothing for a third-party account: a letter is on file instead, and the answer is stored as No", async () => {
+    expect(await submit({ body: closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } })).toMatchObject({ kind: "ok" });
+    expect(cases()[0].data).toMatchObject({ bank_account_is_own: false, name_differs: false });
+    expect((db.rows("compliance_request_files") as any[]).map((f) => f.field_key)).toEqual(["authorization_letter"]);
+  });
+
+  it("never lets the parent see the flag: not in the answer, not in the confirmation email, not in the trail", async () => {
+    const r = await submit({ body: closureBody({ bankOwn: "yes", accountHolder: "Ahmad Yusof" }) });
+    expect(Object.keys(r).sort()).toEqual(["kind", "reference"]);
+    expect(JSON.stringify(r)).not.toMatch(/differ/i);
+    const mail = sent.map((m) => `${m.subject} ${m.text} ${m.html}`).join("\n");
+    expect(mail).not.toMatch(/differ|name_differs|check before paying/i);
+    const trail = JSON.stringify(db.rows("compliance_request_events")) + JSON.stringify(db.rows("compliance_notices"));
+    expect(trail).not.toMatch(/name_differs|differ/i);
+    // an invalid submission does not mention it either
+    const bad = await submit({ body: closureBody({ childrenFinished: false, accountHolder: "Ahmad Yusof" }) });
+    expect(JSON.stringify(bad)).not.toMatch(/differ/i);
+  });
+
+  it("answers the withdrawal in the same way: the answer stored, the flag only for a Yes with different names", async () => {
+    expect(await submitW({ body: withdrawalBody({ accountHolder: "Ahmad Yusof" }) })).toMatchObject({ kind: "ok" });
+    expect(cases()[0].data).toMatchObject({ bank_account_is_own: true, name_differs: true });
+    expect(await submitW({ body: withdrawalBody({ bankOwn: "no", email: "w2@example.com" }), sessionValue: sessionFor(FORM_WITHDRAWAL, "w2@example.com") })).toMatchObject({ kind: "invalid", problems: { letter: "file_required" } });
   });
 
   it("checks an upload by its first bytes and its size before anything is stored", async () => {
-    const body = () => closureBody({ accountHolder: "Ahmad Yusof" });
+    const body = () => closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" });
     expect(await submit({ body: body(), files: { letter: { bytes: HTML, name: "letter.pdf" } } })).toMatchObject({ kind: "invalid", problems: { letter: "file_type" } });
     const big = new Uint8Array(10 * 1024 * 1024 + 1);
     big.set(PDF);
@@ -389,7 +463,7 @@ describe("a submission", () => {
         return (target as any)[prop];
       },
     });
-    const r = await submit({ body: closureBody({ accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } }, env(failing as any));
+    const r = await submit({ body: closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "letter.pdf" } } }, env(failing as any));
     expect(r).toEqual({ kind: "failed" });
     expect(cases()).toHaveLength(0);
   });
@@ -504,7 +578,7 @@ describe("a submission", () => {
   });
 
   it("writes only 'created' (source form) and the notice into the trail: no bank detail, no phone, no address", async () => {
-    await submit({ body: closureBody({ accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "l.pdf" } } });
+    await submit({ body: closureBody({ bankOwn: "no", accountHolder: "Ahmad Yusof" }), files: { letter: { bytes: PDF, name: "l.pdf" } } });
     const events = db.rows("compliance_request_events") as any[];
     // (the 'created' and 'attachment' events are written by the database's triggers, which this in-memory database does not run)
     expect(events.map((e) => e.kind)).toEqual(["notice"]);
