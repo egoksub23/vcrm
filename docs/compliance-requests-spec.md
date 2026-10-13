@@ -1,6 +1,6 @@
 # Compliance requests: spec
 
-Status: agreed with the owner. Part A (the core) is built in migration 183 and Part B (the public parent forms, the emails, raising from the Inbox and tickets, the reports and the menu badge) in migration 184; how they are built is `docs/compliance-requests.md`. They use the same feature switch, permissions pattern and access log as the KYC review (`docs/kyc-review-plan.md`).
+Status: agreed with the owner. Part A (the core) is built in migration 183 and Part B (the public parent forms, the emails, raising from the Inbox and tickets, the reports and the menu badge) in migration 184, and Part C (linked to the chat: one Raise ticket menu, Account change, the personal closure form sent in the chat, the Inbox column) in migration 185; how they are built is `docs/compliance-requests.md`. They use the same feature switch, permissions pattern and access log as the KYC review (`docs/kyc-review-plan.md`).
 Menu: a **Compliance** area with Incidents, Requests and KYC review. Route: `/compliance`. Reference format: `CMP-2026-000001`.
 
 ## 1. Why a third kind of case
@@ -16,7 +16,7 @@ Requests link to tickets, incidents, contacts and KYC validations; they are neve
 |---|---|---|
 | Account closure | public parent form; or raised from a chat or ticket | holder name, email, registered phone (`+60…`), confirmation to close, ticks that every child has finished school and every allowance is cancelled, bank name / account number / holder name for the refund, authorization letter if the bank holder name differs |
 | Fund withdrawal (not a closure) | form or chat | holder name, phone, amount, reason (for example an over top-up), transaction references or proof, bank details, authorization letter if the names differ |
-| Phone number change | a customer-care chat, raised by an agent | current phone, new phone, channel, link to the conversation, how identity was verified (method, who, when, notes) |
+| Phone number change (since migration 185: **Account change**) | a customer-care chat, raised by an agent | what changes (the parent's phone number, the parent's email address or a child's name; never a parent's name), the current and the new value (for a child: which child and the new name), channel, link to the conversation, how identity was verified (method, who, when, notes) |
 
 New types can be added later without code: each type is a definition of fields, required checks and a checklist.
 

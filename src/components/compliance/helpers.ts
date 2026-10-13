@@ -4,7 +4,7 @@
 // ============================================================
 
 import type { ClockView } from "@/lib/compliance/clock";
-import { l10n } from "@/lib/compliance/fields";
+import { l10n, visibleFields } from "@/lib/compliance/fields";
 import type { DisabledReason } from "@/lib/compliance/transitions";
 import type { EventKind, FieldDef, L10n, RequestEvent, RequestStatus, RequestSummary } from "@/lib/compliance/types";
 
@@ -171,6 +171,13 @@ export function eventLine(e: Pick<RequestEvent, "kind" | "detail">): EventLine {
         values: { notice: str(d.notice), audience: str(d.audience), reason: str(d.reason), count: typeof d.recipients === "number" ? d.recipients : 0 },
         text: str(d.text) || null,
       };
+    case "form_link": {
+      // minted, sent, resent, opened, revoked (migration 185); the detail names the action and the channel, never the link
+      const action = ["minted", "sent", "resent", "opened", "revoked", "not_sent"].includes(str(d.action)) ? str(d.action) : "other";
+      return { key: `form_link_${action}`, values: { channel: str(d.channel) }, text: null };
+    }
+    case "form_submitted":
+      return { key: "form_submitted", values: {}, text: null };
     case "created":
       return { key: d.backdated === true ? "created_backdated" : "created", values: { source: str(d.source) }, text: null };
     case "assigned":
@@ -250,7 +257,7 @@ export function emptyForm(fields: readonly FieldDef[]): FormValues {
 /** The answers to send: what was typed, without the empty ones (the server says which required ones are missing). */
 export function answersFromForm(fields: readonly FieldDef[], values: FormValues): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of fields) {
+  for (const f of visibleFields(fields, values)) {
     if (f.type === "file") continue;
     const v = values[f.key];
     if (f.type === "acknowledge") out[f.key] = v === true;
@@ -261,7 +268,7 @@ export function answersFromForm(fields: readonly FieldDef[], values: FormValues)
 
 /** Which required fields are still empty (for the "N required fields" hint and disabling Create). */
 export function missingRequired(fields: readonly FieldDef[], values: FormValues): string[] {
-  return fields
+  return visibleFields(fields, values)
     .filter((f) => f.required && f.type !== "file")
     .filter((f) => (f.type === "acknowledge" ? values[f.key] !== true : typeof values[f.key] !== "string" || (values[f.key] as string).trim() === ""))
     .map((f) => f.key);
@@ -272,6 +279,6 @@ const KNOWN_ERRORS = new Set([
   "forbidden", "not_found", "invalid_request", "rate_limited", "invalid_transition", "maker_checker", "note_required", "identity_incomplete", "identity_not_passed",
   "recommendation_required", "dues_outstanding", "checklist_incomplete", "not_ready_to_execute", "frozen", "closed", "pause_not_allowed", "not_paused", "already_paused",
   "no_clock", "unsupported_file", "file_too_large", "too_many_files", "link_other_workspace", "type_unavailable", "assignee_cannot_see_requests", "validation_failed",
-  "reveal_unavailable", "encryption_unavailable", "audit_failed", "storage_failed", "customer_reason_required", "category_required", "duplicate_open", "server_error", "network",
+  "reveal_unavailable", "encryption_unavailable", "audit_failed", "storage_failed", "customer_reason_required", "category_required", "duplicate_open", "form_link_not_allowed", "form_link_submitted", "server_error", "network",
 ]);
 export const errorKey = (code: string): string => (KNOWN_ERRORS.has(code) ? code : "server_error");

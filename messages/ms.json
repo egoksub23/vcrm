@@ -631,7 +631,14 @@
       },
       "empty": "Belum ada tiket untuk kenalan ini.",
       "emptyFiltered": "Tiada tiket dalam paparan ini.",
-      "thisChat": "Sembang ini"
+      "thisChat": "Sembang ini",
+      "generalTitle": "Tiket am",
+      "complianceTitle": "Permintaan pematuhan",
+      "complianceNone": "Belum ada permintaan",
+      "complianceSummary": "{total} permintaan · {open} terbuka",
+      "complianceEmpty": "Belum ada permintaan pematuhan untuk sembang atau kenalan ini.",
+      "complianceLoading": "Memuatkan permintaan pematuhan",
+      "complianceFailed": "Permintaan pematuhan tidak dapat dimuatkan. Mencuba lagi sebentar lagi."
     },
     "contactFields": {
       "name": "Nama",
@@ -804,6 +811,20 @@
           "action": "Cuba lagi. Jika terus gagal, tanya admin anda dan nyatakan kod tersebut."
         }
       }
+    },
+    "raiseMenu": {
+      "technical": "Tiket teknikal atau maklumat",
+      "compliance": "Permintaan pematuhan"
+    },
+    "linkCard": {
+      "ariaCard": "Kad borang penutupan: {title}",
+      "preview": "Ini menunjukkan apa yang dilihat pelanggan. Butang ini hanya berfungsi dalam sembang pelanggan.",
+      "statusLabel": "Pautan borang",
+      "actions": "Tindakan borang penutupan",
+      "resend": "Hantar semula",
+      "withdraw": "Tarik balik",
+      "working": "Sedang diproses...",
+      "failedHint": "Kad borang penutupan tidak boleh dihantar semula dengan Hantar semula biasa. Gunakan Hantar semula pada kad ini atau pada permintaan."
     }
   },
   "Contacts": {
@@ -11796,7 +11817,9 @@
       "network": "Tidak dapat menghubungi pelayan. Semak sambungan anda dan cuba lagi.",
       "customer_reason_required": "Tulis apa yang dimaklumkan kepada pelanggan tentang penolakan.",
       "category_required": "Pilih kategori sebab untuk penolakan.",
-      "duplicate_open": "Pelanggan ini sudah mempunyai permintaan terbuka jenis ini."
+      "duplicate_open": "Pelanggan ini sudah mempunyai permintaan terbuka jenis ini.",
+      "form_link_not_allowed": "Borang penutupan tidak boleh dihantar untuk permohonan ini. Ia mestilah penutupan akaun yang belum sampai kepada Ketua Pematuhan.",
+      "form_link_submitted": "Pelanggan telah pun mengisi borang penutupan untuk permohonan ini."
     },
     "form": {
       "choose": "Pilih...",
@@ -12041,7 +12064,15 @@
         "other": "Mengemas kini permintaan",
         "notice_sent": "E-mel dihantar: {notice}",
         "notice_failed": "E-mel tidak dihantar: {notice} ({reason})",
-        "notice_skipped": "E-mel dilangkau: {notice} ({reason})"
+        "notice_skipped": "E-mel dilangkau: {notice} ({reason})",
+        "form_link_minted": "Membuat pautan borang penutupan peribadi",
+        "form_link_sent": "Menghantar borang penutupan dalam sembang",
+        "form_link_resent": "Menghantar semula borang penutupan dalam sembang",
+        "form_link_opened": "Pelanggan membuka borang penutupan",
+        "form_link_revoked": "Pautan borang penutupan berhenti berfungsi (ditarik balik atau diganti)",
+        "form_link_not_sent": "Membuat pautan borang penutupan yang tidak dapat dihantar dalam sembang",
+        "form_link_other": "Mengemas kini pautan borang penutupan",
+        "form_submitted": "Pelanggan mengisi borang penutupan"
       }
     },
     "blocked": {
@@ -12236,7 +12267,7 @@
       "whenAt": "Tarikh dan masa",
       "whenReason": "Mengapa lebih awal?",
       "whenReasonHelp": "Jam permintaan bermula pada masa ini, jadi sebabnya dicatat pada permintaan.",
-      "note": "Nota untuk pasukan pematuhan (pilihan)",
+      "note": "Penerangan",
       "notify": "E-melkan pengesahan kepada pelanggan",
       "notifyNoEmail": "Tambah alamat e-mel untuk menghantar pengesahan.",
       "submit": "Bangkitkan permintaan",
@@ -12263,7 +12294,18 @@
         "done": "Selesai",
         "not_approved": "Tidak diluluskan",
         "closed": "Ditutup"
-      }
+      },
+      "noteHelp": "Pilihan. Ia ditambah sebagai nota pada garis masa permintaan untuk pasukan pematuhan.",
+      "parentNameNote": "Nama ibu bapa tidak boleh ditukar di sini.",
+      "types": {
+        "closure": "Penutupan akaun",
+        "withdrawal": "Pengeluaran",
+        "phone_change": "Pertukaran maklumat akaun"
+      },
+      "sendClosureForm": "Hantar borang penutupan kepada pelanggan dalam sembang ini",
+      "sendClosureFormHelp": "Pelanggan membuka borang peribadi untuk mengesahkan penutupan dan memberikan butiran bank. Anda tidak perlu mengisinya.",
+      "sendClosureFormManual": "Tanpa borang, isi sendiri pengesahan dan butiran bank di bawah.",
+      "sendClosureFormUnavailable": "Tidak tersedia untuk sembang ini."
     },
     "reports": {
       "back": "Kembali ke permintaan",
@@ -12349,6 +12391,53 @@
           "d15_30": "15 hingga 30 hari",
           "d31_plus": "Lebih daripada 30 hari"
         }
+      }
+    },
+    "chatLink": {
+      "state": {
+        "created": "Belum dihantar",
+        "sent": "Dihantar",
+        "opened": "Dibuka",
+        "submitted": "Dihantar balik",
+        "expired": "Tamat tempoh",
+        "revoked": "Ditarik balik",
+        "replaced": "Diganti"
+      },
+      "outcome": {
+        "sentCard": "Borang penutupan telah dihantar dalam sembang ini sebagai kad yang boleh diketik.",
+        "sentText": "Borang penutupan telah dihantar dalam sembang ini sebagai baris pautan, kerana saluran ini tidak dapat memaparkan butang.",
+        "notSent": "Borang penutupan tidak dihantar.",
+        "reason": {
+          "window_expired": "Tetingkap WhatsApp 24 jam telah tamat, jadi mesej dengan butang tidak boleh dihantar sekarang. Salin pautan dan kongsikannya dengan cara lain, atau hantar borang semula selepas pelanggan menulis kepada anda.",
+          "channel_unsupported": "Saluran ini tidak dapat membawa borang. Salin pautan dan kongsikannya dengan cara lain.",
+          "send_failed": "Mesej tidak dapat dihantar. Salin pautan dan kongsikannya dengan cara lain, atau cuba Hantar semula.",
+          "no_channel": "Tiada sembang untuk menghantarnya. Salin pautan dan kongsikannya dengan cara lain.",
+          "not_configured": "Saluran ini dimatikan atau belum disediakan. Salin pautan dan kongsikannya dengan cara lain."
+        },
+        "unavailable": {
+          "not_closure": "Hanya penutupan akaun mempunyai borang penutupan.",
+          "no_key": "Pautan tidak dapat dibuat kerana pelayan tiada kunci penyulitan. Hubungi pentadbir.",
+          "no_conversation": "Tiada perbualan untuk menghantar borang."
+        }
+      },
+      "copy": "Salin pautan",
+      "copied": "Pautan disalin",
+      "copyHint": "Pautan ini hanya dipaparkan sekarang dan tidak disimpan. Ia hanya berfungsi sekali, untuk pelanggan ini sahaja, selama 14 hari.",
+      "panel": {
+        "title": "Pautan borang penutupan",
+        "intro": "Pautan peribadi yang dihantar kepada pelanggan dalam sembang. Ia hanya berfungsi sekali, selama 14 hari.",
+        "empty": "Tiada pautan borang penutupan dibuat untuk permohonan ini.",
+        "made": "Dibuat {when}",
+        "expires": "Tamat {when}",
+        "sentAt": "Dihantar {when}",
+        "openedAt": "Dibuka {when}",
+        "submittedAt": "Diserahkan {when}",
+        "by": "oleh {name}",
+        "resend": "Hantar semula",
+        "revoke": "Tarik balik pautan",
+        "working": "Sedang diproses...",
+        "resendHelp": "Menghantar semula membuat pautan baharu dan pautan lama berhenti berfungsi.",
+        "failed": "Tindakan itu tidak dapat dilakukan. Cuba lagi."
       }
     }
   }

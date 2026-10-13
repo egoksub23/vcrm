@@ -135,3 +135,22 @@ describe('getPreferredLanguage', () => {
     expect(await getPreferredLanguage(dbReturning(null, true), 'c1')).toBeNull()
   })
 })
+
+describe('buildConversationContext, a closure form link card (migration 185)', () => {
+  it('describes the card as a plain line from its title and never as the raw type', async () => {
+    const out = await buildConversationContext(
+      fakeDb([
+        { sender_type: 'customer', content_text: 'done, thanks', content_type: 'text' },
+        { sender_type: 'agent', content_text: 'Account closure form', content_type: 'link_card' },
+        { sender_type: 'agent', content_text: null, content_type: 'link_card' },
+      ]),
+      'conv-1',
+    )
+    expect(out).toEqual([
+      { role: 'assistant', content: '[Link card sent]' },
+      { role: 'assistant', content: '[Account closure form sent]' },
+      { role: 'user', content: 'done, thanks' },
+    ])
+    expect(JSON.stringify(out)).not.toContain('link_card')
+  })
+})

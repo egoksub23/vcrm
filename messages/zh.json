@@ -631,7 +631,14 @@
       },
       "empty": "此联系人暂无工单。",
       "emptyFiltered": "此视图中没有工单。",
-      "thisChat": "此聊天"
+      "thisChat": "此聊天",
+      "generalTitle": "一般工单",
+      "complianceTitle": "合规请求",
+      "complianceNone": "暂无请求",
+      "complianceSummary": "共 {total} 项请求 · {open} 项未完成",
+      "complianceEmpty": "此聊天或联系人暂无合规请求。",
+      "complianceLoading": "正在加载合规请求",
+      "complianceFailed": "无法加载合规请求，稍后将重试。"
     },
     "contactFields": {
       "name": "姓名",
@@ -804,6 +811,20 @@
           "action": "请重试。如果仍然失败，请联系管理员并提供错误代码。"
         }
       }
+    },
+    "raiseMenu": {
+      "technical": "技术或信息工单",
+      "compliance": "合规请求"
+    },
+    "linkCard": {
+      "ariaCard": "关闭账户表格卡片：{title}",
+      "preview": "此处显示客户看到的样子。按钮只在客户的聊天中有效。",
+      "statusLabel": "表格链接",
+      "actions": "关闭账户表格操作",
+      "resend": "重新发送",
+      "withdraw": "撤回",
+      "working": "处理中...",
+      "failedHint": "关闭账户表格卡片不能用普通的“重发”重新发送。请在此卡片或该请求上使用“重新发送”。"
     }
   },
   "Contacts": {
@@ -11796,7 +11817,9 @@
       "network": "无法连接服务器。请检查网络后重试。",
       "customer_reason_required": "请填写向客户说明拒绝原因的内容。",
       "category_required": "请选择拒绝原因的类别。",
-      "duplicate_open": "此客户已有一个同类型的未结请求。"
+      "duplicate_open": "此客户已有一个同类型的未结请求。",
+      "form_link_not_allowed": "无法为此申请发送关闭账户表格。它必须是尚未提交给合规主管的账户关闭申请。",
+      "form_link_submitted": "客户已填写此申请的关闭账户表格。"
     },
     "form": {
       "choose": "请选择...",
@@ -12041,7 +12064,15 @@
         "other": "更新了请求",
         "notice_sent": "已发送邮件：{notice}",
         "notice_failed": "邮件未发送：{notice}（{reason}）",
-        "notice_skipped": "已跳过邮件：{notice}（{reason}）"
+        "notice_skipped": "已跳过邮件：{notice}（{reason}）",
+        "form_link_minted": "生成了专属关闭账户表格链接",
+        "form_link_sent": "已在聊天中发送关闭账户表格",
+        "form_link_resent": "已在聊天中重新发送关闭账户表格",
+        "form_link_opened": "客户打开了关闭账户表格",
+        "form_link_revoked": "关闭账户表格链接已失效（已撤回或被替换）",
+        "form_link_not_sent": "生成了关闭账户表格链接，但无法在聊天中发送",
+        "form_link_other": "更新了关闭账户表格链接",
+        "form_submitted": "客户已填写关闭账户表格"
       }
     },
     "blocked": {
@@ -12236,7 +12267,7 @@
       "whenAt": "日期和时间",
       "whenReason": "为什么更早？",
       "whenReasonHelp": "请求的计时从这个时间开始，因此原因会记录在请求上。",
-      "note": "给合规团队的备注（选填）",
+      "note": "说明",
       "notify": "向客户发送确认邮件",
       "notifyNoEmail": "填写邮箱地址后才能发送确认邮件。",
       "submit": "发起请求",
@@ -12263,7 +12294,18 @@
         "done": "已完成",
         "not_approved": "未获批准",
         "closed": "已关闭"
-      }
+      },
+      "noteHelp": "选填。它会作为备注添加到请求的时间线，供合规团队查看。",
+      "parentNameNote": "此处无法更改家长的姓名。",
+      "types": {
+        "closure": "关闭账户",
+        "withdrawal": "提款",
+        "phone_change": "账户信息变更"
+      },
+      "sendClosureForm": "在此聊天中向客户发送关闭账户表格",
+      "sendClosureFormHelp": "客户会打开一份专属表格，确认关闭账户并填写银行信息。您无需填写这些内容。",
+      "sendClosureFormManual": "不发送表格时，请您自行填写下方的确认项和银行信息。",
+      "sendClosureFormUnavailable": "此聊天无法使用。"
     },
     "reports": {
       "back": "返回请求列表",
@@ -12349,6 +12391,53 @@
           "d15_30": "15 至 30 天",
           "d31_plus": "超过 30 天"
         }
+      }
+    },
+    "chatLink": {
+      "state": {
+        "created": "未发送",
+        "sent": "已发送",
+        "opened": "已打开",
+        "submitted": "已提交",
+        "expired": "已过期",
+        "revoked": "已撤回",
+        "replaced": "已被替换"
+      },
+      "outcome": {
+        "sentCard": "关闭账户表格已作为可点击的卡片发送到此聊天。",
+        "sentText": "关闭账户表格已作为链接文字发送到此聊天，因为此渠道无法显示按钮。",
+        "notSent": "关闭账户表格未发送。",
+        "reason": {
+          "window_expired": "WhatsApp 的 24 小时窗口已关闭，现在无法发送带按钮的消息。请复制链接并通过其他方式分享，或在客户再次来信后重新发送表格。",
+          "channel_unsupported": "此渠道无法发送该表格。请复制链接并通过其他方式分享。",
+          "send_failed": "消息无法发送。请复制链接并通过其他方式分享，或再试一次“重新发送”。",
+          "no_channel": "没有可发送的聊天。请复制链接并通过其他方式分享。",
+          "not_configured": "此渠道已关闭或尚未设置。请复制链接并通过其他方式分享。"
+        },
+        "unavailable": {
+          "not_closure": "只有关闭账户申请才有关闭账户表格。",
+          "no_key": "服务器没有加密密钥，无法生成链接。请联系管理员。",
+          "no_conversation": "没有可发送表格的对话。"
+        }
+      },
+      "copy": "复制链接",
+      "copied": "链接已复制",
+      "copyHint": "此链接仅在此刻显示，不会被保存。它只能使用一次，仅限此客户，有效期 14 天。",
+      "panel": {
+        "title": "关闭账户表格链接",
+        "intro": "在聊天中发送给客户的专属链接，只能使用一次，有效期 14 天。",
+        "empty": "尚未为此申请生成关闭账户表格链接。",
+        "made": "生成于 {when}",
+        "expires": "到期时间 {when}",
+        "sentAt": "发送于 {when}",
+        "openedAt": "打开于 {when}",
+        "submittedAt": "提交于 {when}",
+        "by": "操作人：{name}",
+        "resend": "重新发送",
+        "revoke": "撤回链接",
+        "working": "处理中...",
+        "resendHelp": "重新发送会生成新链接，旧链接随即失效。",
+        "failed": "无法完成该操作，请重试。"
       }
     }
   }

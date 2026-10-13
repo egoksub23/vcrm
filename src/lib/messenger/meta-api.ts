@@ -47,6 +47,53 @@ export async function sendMessengerText(args: SendMessengerTextArgs): Promise<Me
   return { messageId: data.message_id }
 }
 
+export interface SendMessengerButtonCardArgs {
+  pageId: string
+  pageAccessToken: string
+  recipientPsid: string
+  /** The words above the button (Messenger allows 640 characters). */
+  text: string
+  /** The button's label (20 characters at most). */
+  buttonTitle: string
+  /** Where the button goes (https). */
+  url: string
+}
+
+/** The JSON body of a button template (exported so the shape is tested). */
+export function messengerButtonCardPayload(args: Omit<SendMessengerButtonCardArgs, 'pageId' | 'pageAccessToken'>): Record<string, unknown> {
+  return {
+    recipient: { id: args.recipientPsid },
+    message: {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'button',
+          text: Array.from(args.text).slice(0, 640).join(''),
+          buttons: [{ type: 'web_url', url: args.url, title: Array.from(args.buttonTitle).slice(0, 20).join('') }],
+        },
+      },
+    },
+    messaging_type: 'RESPONSE',
+  }
+}
+
+/** A card with one web button (Messenger's button template). */
+export async function sendMessengerButtonCard(args: SendMessengerButtonCardArgs): Promise<MetaSendResult> {
+  const response = await fetch(`${META_API_BASE}/${args.pageId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${args.pageAccessToken}`,
+    },
+    body: JSON.stringify(messengerButtonCardPayload(args)),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Messenger API error: ${response.status}`)
+  }
+  const data = (await response.json()) as SendResponse
+  return { messageId: data.message_id }
+}
+
 export type MessengerMediaKind = 'image' | 'video' | 'audio' | 'file'
 
 export interface SendMessengerMediaArgs {

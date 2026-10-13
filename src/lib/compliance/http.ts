@@ -4,6 +4,9 @@
 //   complianceRaiser  requireCapability('compliance.raise') (Part B, migration 184): for the Inbox and ticket buttons. It does NOT need menu.compliance;
 //                     the caller's own session is passed on (what they may open is decided by row level security) and whether they hold a compliance
 //                     permission, which decides whether they may be told a reference that exists
+//   complianceLinkActor requireAnyCapability(compliance.raise, compliance.review, compliance.approve) (migration 185): for the personal closure form link in a chat
+//                     (resend, withdraw, the status of a card). A person who holds only compliance.raise acts on the cases they raised; review and
+//                     approve act on any. It does NOT need menu.compliance
 //   complianceStaff   requireCapability('menu.compliance') (the operator's `compliance` flag removes the capability, so a workspace with the flag off
 //                     gets a 403 here), then the capability this route needs, a rate limit per person, and the service-role client scoped to the
 //                     caller's workspace with the caller's permissions as a `Viewer`
@@ -15,11 +18,12 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { requireAnyCapability, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+import type { LinkActor } from "./chat-link/read";
 import { ComplianceError, STATUS_OF } from "./errors";
 import type { RaiseCaller } from "./service/raise";
 import type { ComplianceCaller } from "./service/rows";
@@ -125,6 +129,33 @@ export async function complianceRaiser(opts: { bucket: string; perMinute?: numbe
     const caps = auth.capabilities;
     const sees = caps.has("menu.compliance") || ["compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage"].some((c) => caps.has(c));
     return await handler({ admin: supabaseAdmin(), caller: { accountId: auth.accountId, userId: auth.userId, userDb: auth.supabase, sees } });
+  } catch (err) {
+    return answer(err);
+  }
+}
+
+// ---- the personal closure form link in a chat (migration 185) ---------------------------------------------------------------------------------
+
+export interface LinkCall {
+  admin: SupabaseClient;
+  actor: LinkActor;
+  /** The person's own session: what they may open is decided by row level security. */
+  userDb: SupabaseClient;
+}
+
+export async function complianceLinkActor(opts: { bucket: string; perMinute?: number }, handler: (call: LinkCall) => Promise<Response>): Promise<Response> {
+  try {
+    const auth = await requireAnyCapability(["compliance.raise", "compliance.review", "compliance.approve"]);
+    const rate = checkRateLimit(`compliance:${auth.userId}:${opts.bucket}`, { limit: opts.perMinute ?? 60, windowMs: 60_000 });
+    if (!rate.success) return rateLimited(rate.reset);
+    const caps = auth.capabilities;
+    const actor: LinkActor = {
+      accountId: auth.accountId,
+      userId: auth.userId,
+      canReview: caps.has("compliance.review") || caps.has("compliance.approve"),
+      canRaise: caps.has("compliance.raise"),
+    };
+    return await handler({ admin: supabaseAdmin(), actor, userDb: auth.supabase });
   } catch (err) {
     return answer(err);
   }

@@ -293,6 +293,20 @@ export const RATE_LIMITS = {
   complianceSubmitForm: { limit: 60, windowMs: 60 * 60_000 },
   /** Submissions that name one email address, across every form: a person has one or two requests, not dozens. */
   complianceSubmitEmail: { limit: 6, windowMs: 24 * 60 * 60_000 },
+
+  // ---- Compliance requests, the personal closure form link (migration 185): minting and sending it (staff, per person and per case), and the public page
+  // and its submission (`/c/link/<token>`, `/api/compliance/form-link/submit`), checked with checkSharedRateLimit. The caller's address is a keyed hash.
+
+  /** Links a member of staff makes and sends (the raise with the form, Resend): each puts a message in a customer's chat. */
+  complianceLinkSendUser: { limit: 30, windowMs: 60 * 60_000 },
+  /** Links made for one case: a case is sent a form, not dozens. */
+  complianceLinkSendCase: { limit: 8, windowMs: 60 * 60_000 },
+  /** Opens and posts to a personal link page from one address, valid or not (a wrong token is a post too). */
+  complianceLinkAttemptsIp: { limit: 90, windowMs: 60 * 60_000 },
+  /** Posts to one link, whoever sends them. */
+  complianceLinkAttemptsLink: { limit: 60, windowMs: 60 * 60_000 },
+  /** Submissions with valid details from one address. */
+  complianceLinkSubmitIp: { limit: 5, windowMs: 60 * 60_000 },
 } as const;
 
 /** Window for the per-workspace broadcast recipient cap: the operator's

@@ -34,6 +34,8 @@ import { CHANNEL_ICONS } from "./channel-icons";
 import { FailedMessageNotice } from "./failed-message-notice";
 import { parseAiSourcesNote } from "@/lib/inbox/kb-agent";
 import { raisedNoteHref, raisedNoteReference } from "@/lib/compliance/raised-note";
+import { cardView } from "@/lib/compliance/chat-link/card-view";
+import { LinkCard } from "./link-card";
 
 interface MessageBubbleProps {
   message: Message;
@@ -350,6 +352,7 @@ export function MessageBubble({
   // uses — no new i18n keys needed across the 4 locale files.
   const tChannel = useTranslations("Inbox.messageThread");
   const tKnowledge = useTranslations("Knowledge.agent");
+  const tLinkCard = useTranslations("Inbox.linkCard");
   // Source links open the Knowledge page: only offer them with menu.knowledge.
   const canOpenKnowledge = useCapability("menu.knowledge");
   const canOpenCompliance = useCapability("menu.compliance");
@@ -427,6 +430,55 @@ export function MessageBubble({
             </p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // The closure form card (migration 185): a card with a picture of the
+  // customer's button, the link's status and, for a person who manages it,
+  // Send again / Withdraw. Never a bubble of raw text and never an address:
+  // the row holds only the card's words and the link's id. A card that
+  // failed to send gets the failed-message notice WITHOUT Resend (the
+  // generic resend route refuses cards): Send again is on the card itself.
+  if (message.content_type === "link_card") {
+    const ChannelIcon = CHANNEL_ICONS[message.channel_type];
+    return (
+      <div className={cn("flex flex-col", isAgent ? "items-end" : "items-start")}>
+        {senderLabel && (
+          <span className="mb-0.5 px-1 text-[10px] font-medium text-muted-foreground">
+            {senderLabel}
+          </span>
+        )}
+        {reply && (
+          <div className="mb-1 w-full max-w-sm">
+            <ReplyQuote authorLabel={reply.authorLabel} preview={reply.preview} onPrimary={false} />
+          </div>
+        )}
+        <LinkCard
+          view={cardView(message)}
+          failed={notSent}
+          meta={
+            <div className="flex items-center justify-end gap-1">
+              <span title={tChannel(`channel.${message.channel_type}`)}>
+                <ChannelIcon className="h-2.5 w-2.5 text-muted-foreground" />
+              </span>
+              <span className="text-[10px] text-muted-foreground">{time}</span>
+              {isAgent && <StatusIcon status={message.status} title={failure} />}
+            </div>
+          }
+          notice={
+            notSent ? (
+              <FailedMessageNotice message={message} onDelete={onDeleteFailed} hint={tLinkCard("failedHint")} />
+            ) : undefined
+          }
+        />
+        {reactions && reactions.length > 0 && onToggleReaction && (
+          <MessageReactions
+            reactions={reactions}
+            currentUserId={currentUserId}
+            onToggle={onToggleReaction}
+          />
+        )}
       </div>
     );
   }

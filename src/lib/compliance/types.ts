@@ -3,6 +3,8 @@
 // browser may import this file.
 // ============================================================
 
+import type { FormLinkView } from "./chat-link/types";
+
 export const REQUEST_STATUSES = [
   "received",
   "identity_check",
@@ -43,6 +45,9 @@ export const EVENT_KINDS = [
   "clock_alert",
   // Migration 184: an email about the case (sent, failed, or not sent with the reason), customer or staff
   "notice",
+  // Migration 185: the personal closure form link sent in a chat (minted, sent, resent, opened, revoked) and the form coming back
+  "form_link",
+  "form_submitted",
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
@@ -70,6 +75,11 @@ export interface FieldDef {
   help?: L10n;
   /** `choice` only. */
   options?: { value: string; label: L10n }[];
+  /**
+   * Migration 185: the field is asked (and required, when `required`) only while the answer to another field is one of `in`. A field that is not
+   * shown is skipped by the check and dropped from the answers. Account change uses it: the phone, email and child-name pairs depend on what_changes.
+   */
+  showIf?: { field: string; in: string[] };
 }
 
 export const SENSITIVE_FIELD_TYPES: readonly FieldType[] = ["text", "multiline", "number", "phone", "email", "date"];
@@ -246,6 +256,8 @@ export interface SensitiveField {
 
 export interface RequestDetail extends RequestSummary {
   channel: string | null;
+  /** Migration 185. The personal closure form links made for this case (newest first): their state, never an address. */
+  formLinks: FormLinkView[];
   /** Migration 184. The language the customer's emails go out in. */
   customerLocale: CustomerLocale | null;
   /** Migration 184. When the customer proved the email address with the emailed code (the public form); null for a case staff made. */
@@ -327,6 +339,9 @@ export const ERROR_CODES = [
   "customer_reason_required",
   "category_required",
   "duplicate_open",
+  // Migration 185: the personal closure form link
+  "form_link_not_allowed",
+  "form_link_submitted",
   "server_error",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

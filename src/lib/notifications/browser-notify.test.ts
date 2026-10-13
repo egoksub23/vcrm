@@ -319,3 +319,15 @@ describe("browser-only helpers without a window", () => {
     expect(getNotificationPermission()).toBe("unsupported");
   });
 });
+
+describe("buildNotificationContent, a closure form link card (migration 185)", () => {
+  it("reads the card as its title and never as the raw type", () => {
+    const out = buildNotificationContent(
+      customerMsg({ content_type: "link_card", content_text: "Account closure form" }),
+      "Ada",
+    );
+    expect(out).toEqual({ title: "Ada", body: "Account closure form" });
+    expect(buildNotificationContent(customerMsg({ content_type: "link_card", content_text: null }), "Ada").body).toBe("");
+    expect(JSON.stringify(out)).not.toContain("link_card");
+  });
+});

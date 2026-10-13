@@ -370,6 +370,9 @@ export function toWidgetMessage(raw: Record<string, unknown> | null | undefined)
   const created = raw.created_at
   if (typeof created !== 'string' || Number.isNaN(Date.parse(created))) return null
   const str = (v: unknown): string | null => (typeof v === 'string' ? v : null)
+  // A closure form card (migration 185) is an agent-side record of a card sent on ANOTHER channel of a merged conversation: it is not for the web chat's
+  // visitor (the card's title alone would read as an unexplained line), so it is skipped like any row that cannot be placed.
+  if (str(raw.content_type) === 'link_card') return null
   return {
     id: raw.id,
     sender_type: (str(raw.sender_type) ?? 'agent') as WidgetMessage['sender_type'],

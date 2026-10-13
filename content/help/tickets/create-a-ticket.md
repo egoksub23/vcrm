@@ -2,7 +2,7 @@
 title: Create a ticket
 description: Raise a ticket from a chat, from a contact or from the Tickets page.
 order: 2
-updated: 2026-09-21
+updated: 2026-10-14
 ---
 
 Raise a ticket when a problem cannot be solved in the chat and someone must follow it up. It takes about a minute.
@@ -11,7 +11,7 @@ Raise a ticket when a problem cannot be solved in the chat and someone must foll
 
 | Start here | What is filled in for you |
 |---|---|
-| A chat: click **Raise Ticket** in the chat header | The contact, and a link back to this chat. |
+| A chat: click **Raise ticket** in the chat header, then **Technical or information ticket** (if the header button has no menu, click it) | The contact, and a link back to this chat. |
 | A contact profile: click **New Ticket** | The contact. There is no link to a chat. |
 | Beside a chat, in **Ticket history**: click **New** | The contact, and a link back to that chat. |
 | The **Tickets** page: click **New Ticket** | Nothing. You choose the contact. |

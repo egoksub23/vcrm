@@ -40,8 +40,16 @@ export function cleanL10n(v: unknown, max = 200): L10n | null {
 }
 
 export interface DefinitionIssue {
-  code: "bad_fields" | "too_many_fields" | "bad_key" | "duplicate_key" | "bad_type" | "bad_label" | "bad_sensitive" | "bad_options" | "bad_checklist" | "too_many_steps";
+  code: "bad_fields" | "too_many_fields" | "bad_key" | "duplicate_key" | "bad_type" | "bad_label" | "bad_sensitive" | "bad_options" | "bad_checklist" | "too_many_steps" | "bad_show_if";
   field?: string;
+}
+
+function cleanShowIf(v: unknown): FieldDef["showIf"] | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const field = typeof o.field === "string" ? o.field : "";
+  const values = Array.isArray(o.in) ? o.in.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 80).slice(0, 40) : [];
+  return KEY_RE.test(field) && values.length > 0 ? { field, in: values } : null;
 }
 
 /** Validate and clean a type's field definitions. */
@@ -76,6 +84,9 @@ export function validateFieldDefs(input: unknown): { ok: true; fields: FieldDef[
     const def: FieldDef = { key, type, label, required: f.required === true, sensitive };
     const help = f.help === undefined ? null : cleanL10n(f.help, 400);
     if (help) def.help = help;
+    const showIf = cleanShowIf(f.showIf);
+    if (f.showIf !== undefined && !showIf) issues.push({ code: "bad_show_if", field: key });
+    if (showIf) def.showIf = showIf;
     if (type === "choice") {
       const opts = Array.isArray(f.options) ? f.options : [];
       const options: { value: string; label: L10n }[] = [];
@@ -138,17 +149,33 @@ export interface CheckedAnswers {
   sensitive: Record<string, string>;
 }
 
+/**
+ * Is this field asked, given the answers so far? A field with no `showIf` always is. One with it is asked while the answer to the field it names is one
+ * of the listed values (an unanswered or unknown controlling field hides it). Used by the check below, by the forms and by the case's detail.
+ */
+export function isShown(field: FieldDef, _fields: readonly FieldDef[], answers: Record<string, unknown>): boolean {
+  if (!field.showIf) return true;
+  const v = answers[field.showIf.field];
+  return typeof v === "string" && field.showIf.in.includes(v.trim());
+}
+
+/** The fields to ask for the answers so far (the order of the type). */
+export const visibleFields = (fields: readonly FieldDef[], answers: Record<string, unknown>): FieldDef[] => fields.filter((f) => isShown(f, fields, answers));
+
 const isBlank = (v: unknown): boolean => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
 /**
  * Check `input` against the type's fields. `partial` skips the "required" check (an edit that sends only some fields); everything sent is still checked.
  * Unknown keys are dropped. File fields are skipped (uploaded through their own route).
  */
-export function checkAnswers(fields: readonly FieldDef[], input: Record<string, unknown>, opts: { partial?: boolean } = {}): { ok: true; answers: CheckedAnswers } | { ok: false; issues: AnswerIssue[] } {
+export function checkAnswers(fields: readonly FieldDef[], input: Record<string, unknown>, opts: { partial?: boolean; context?: Record<string, unknown> } = {}): { ok: true; answers: CheckedAnswers } | { ok: false; issues: AnswerIssue[] } {
   const issues: AnswerIssue[] = [];
   const out: CheckedAnswers = { data: {}, sensitive: {} };
+  // an edit sends only some fields: the answers already stored decide what is shown for the rest
+  const seen = { ...(opts.context ?? {}), ...input };
   for (const f of fields) {
     if (f.type === "file") continue;
+    if (!isShown(f, fields, seen)) continue;
     const raw = input[f.key];
     if (raw === undefined && opts.partial) continue;
     if (f.type === "acknowledge") {

@@ -31,6 +31,10 @@ const MEDIA_PLACEHOLDER: Record<string, string> = {
  *  matches the old behaviour for an empty/whitespace-only text row). */
 function describe(m: DbMessage): string | null {
   const text = m.content_text?.trim()
+  // A link card (migration 185) is a tappable card whose row text is only its
+  // title (e.g. "Account closure form"): the model sees that a form was sent,
+  // as a plain line, never the card's words or any address.
+  if (m.content_type === 'link_card') return text ? `[${text} sent]` : '[Link card sent]'
   if (text) return text
   return MEDIA_PLACEHOLDER[m.content_type] ?? null
 }

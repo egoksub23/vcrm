@@ -121,6 +121,7 @@ const detail = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   checklist: [],
   files: [],
   events: [],
+  formLinks: [],
   createdBy: { id: "u1", name: "Olivia Officer" },
   viewer: viewer(),
   ...over,

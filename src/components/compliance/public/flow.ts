@@ -4,6 +4,7 @@
 // markup tests and the interaction tests can use it without a DOM renderer.
 // ============================================================
 
+import { cleanEmail } from "@/lib/compliance/public/amount";
 import { OTHER_BANK } from "@/lib/compliance/public/banks";
 import { namesMatch } from "@/lib/compliance/public/names";
 import { PUBLIC_MAX_FILE_BYTES, fileFieldsFor, parsePublicSubmission, type PublicFieldId, type PublicProblemCode, type PublicProblems, type PublicType } from "@/lib/compliance/public/validate";
@@ -62,10 +63,18 @@ export function letterNeeded(values: Pick<FormValues, "name" | "accountHolder">)
 }
 
 /** The form's own check before it posts: the server's rules for the details, and the files the form can see. The server decides again. */
-export function checkBeforeSending(type: PublicType, values: FormValues, files: PickedFiles, rules: { maxAmount: number; banks: readonly string[] }): PublicProblems {
+export function checkBeforeSending(
+  type: PublicType,
+  values: FormValues,
+  files: PickedFiles,
+  rules: { maxAmount: number; banks: readonly string[]; phoneFromCase?: boolean },
+  /** The personal closure form (migration 185): the email the parent typed is required and checked here (there is no emailed code to prove it). */
+  extra: { email?: string } = {},
+): PublicProblems {
   const parsed = parsePublicSubmission(type, { ...values }, rules);
   const problems: PublicProblems = parsed.ok ? {} : { ...parsed.problems };
   if (parsed.ok && "declined" in parsed) return {};
+  if (extra.email !== undefined && !cleanEmail(extra.email)) problems.email = extra.email.trim() === "" ? "required" : "invalid";
   for (const f of fileFieldsFor(type)) {
     const picked = files[f.id];
     if (picked) {
@@ -80,7 +89,7 @@ export function checkBeforeSending(type: PublicType, values: FormValues, files: 
 
 /** The first control with a problem, in the order the form lists them (so focus goes to the top-most one). */
 export const FIELD_ORDER: PublicFieldId[] = [
-  "wantClose", "name", "phone", "childrenFinished", "allowancesStopped", "reason", "amount", "reasonKind", "reasonText", "transactionRefs",
+  "wantClose", "name", "phone", "email", "childrenFinished", "allowancesStopped", "reason", "amount", "reasonKind", "reasonText", "transactionRefs",
   "bankChoice", "bankOther", "accountNumber", "accountHolder", "letter", "proof", "declaration",
 ];
 export const firstProblem = (problems: PublicProblems): PublicFieldId | null => FIELD_ORDER.find((id) => problems[id]) ?? null;
@@ -89,12 +98,14 @@ export interface PostMeta {
   token: string;
   email: string;
   locale: CustomerLocale;
+  /** The personal closure form's own token (migration 185): posted back with the form. */
+  linkToken?: string;
 }
 
 /** The multipart post: the details as JSON in `payload`, and the files by their own names. The honeypot is always sent, empty. */
 export function buildForm(values: FormValues, meta: PostMeta, files: PickedFiles, honeypot = ""): FormData {
   const form = new FormData();
-  form.set("payload", JSON.stringify({ ...values, token: meta.token, email: meta.email, locale: meta.locale, website: honeypot }));
+  form.set("payload", JSON.stringify({ ...values, token: meta.token, email: meta.email, locale: meta.locale, website: honeypot, ...(meta.linkToken ? { linkToken: meta.linkToken } : {}) }));
   for (const id of ["letter", "proof"] as const) {
     const f = files[id];
     if (f?.file) form.set(id, f.file, f.name);
@@ -123,6 +134,9 @@ export function submitErrorKey(code: string): keyof PublicWords["form"]["errors"
       return "failed";
   }
 }
+
+/** The personal closure form: the server found no usable link (unknown, used, withdrawn, replaced, expired, or Compliance off). The page then shows its one calm page. */
+export const linkIsGone = (code: string): boolean => code === "not_found";
 
 /** The server's code for a failed code request or entry as the key of the sentence in `verify.errors`. */
 export function verifyErrorKey(code: string): keyof PublicWords["verify"]["errors"] {

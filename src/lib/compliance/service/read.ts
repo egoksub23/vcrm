@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { linksOfRequest } from "../chat-link/read";
 import { DUE_FILTERS, computeClock, inDueBucket, isFinished, type DueFilter } from "../clock";
 import { complianceError } from "../errors";
 import { normalisePhone, searchKind } from "../reference";
@@ -248,7 +249,7 @@ export async function getRequestDetail(admin: SupabaseClient, caller: Compliance
   if (opts.logView !== false && !(await logEvent(admin, { accountId: caller.accountId, requestId: row.id, actor: caller.userId, kind: "view" }))) {
     throw complianceError("audit_failed");
   }
-  const [types, people, checklist, files, events, links, notices] = await Promise.all([
+  const [types, people, checklist, files, events, links, notices, formLinks] = await Promise.all([
     loadTypes(admin, caller.accountId),
     loadPeople(admin, caller.accountId),
     admin.from("compliance_request_checklist").select(CHECKLIST_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("position", { ascending: true }),
@@ -256,6 +257,8 @@ export async function getRequestDetail(admin: SupabaseClient, caller: Compliance
     admin.from("compliance_request_events").select(EVENT_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("seq", { ascending: false }).limit(EVENTS_CAP),
     linksOf(admin, caller.accountId, row),
     admin.from("compliance_notices").select(NOTICE_COLUMNS).eq("request_id", row.id).eq("account_id", caller.accountId).order("claimed_at", { ascending: false }).limit(60),
+    // before migration 185 is applied there is no table: the case still opens, with no links
+    linksOfRequest(admin, caller.accountId, row.id).catch(() => []),
   ]);
   const type = types.find((t) => t.key === row.type_key) ?? null;
   const summary = summaryFromRow(row, type ?? undefined, people);
@@ -270,6 +273,7 @@ export async function getRequestDetail(admin: SupabaseClient, caller: Compliance
   return {
     ...summary,
     channel: row.channel,
+    formLinks,
     customerLocale: row.customer_locale,
     emailVerifiedAt: row.email_verified_at,
     notices: ((notices.data ?? []) as unknown as NoticeDbRow[]).map((n) => noticeFromRow(n, people)),

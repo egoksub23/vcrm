@@ -67,7 +67,7 @@ describe("migration 183", () => {
     expect(list(/status\s+TEXT NOT NULL DEFAULT 'received'\s+CHECK \(status IN \(([^)]*)\)/)).toEqual([...REQUEST_STATUSES]);
     expect(list(/source\s+TEXT NOT NULL CHECK \(source IN \(([^)]*)\)/)).toEqual([...SOURCES]);
     // ('notice' is Part B's event kind: migration 184 widens the check, migration-184.test.ts checks it)
-    expect(list(/kind\s+TEXT NOT NULL CHECK \(kind IN \(([^)]*)\)/).sort()).toEqual(EVENT_KINDS.filter((k) => k !== "notice").sort());
+    expect(list(/kind\s+TEXT NOT NULL CHECK \(kind IN \(([^)]*)\)/).sort()).toEqual(EVENT_KINDS.filter((k) => k !== "notice" && k !== "form_link" && k !== "form_submitted").sort());
   });
 
   it("widens the notification types with compliance_clock and adds the case it is about", () => {

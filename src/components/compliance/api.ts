@@ -3,8 +3,9 @@
 // A failed call is `{ ok: false, code, status, issues? }`; the code is one the server chose (src/lib/compliance/types.ts ERROR_CODES) or `network`.
 // ============================================================
 
+import type { CardStatus, ChatLinkOutcome } from "@/lib/compliance/chat-link/types";
 import type { PublicFormPatch, PublicFormsAnswer } from "@/lib/compliance/public/settings-types";
-import type { RaiseContext, RaiseResult, RaisedItem } from "@/lib/compliance/raise-types";
+import type { LinkedItem, RaiseContext, RaiseResult, RaisedItem } from "@/lib/compliance/raise-types";
 import type { ComplianceReport } from "@/lib/compliance/reports";
 import type { RequestDetail, RequestList, RequestStatus, RequestTypeRow, Viewer } from "@/lib/compliance/types";
 
@@ -153,6 +154,15 @@ const targetQuery = (t: RaiseTarget): string => ("conversationId" in t ? `conver
 export const getRaiseContext = (t: RaiseTarget) => call<RaiseContext>("GET", `${BASE}/raise/context?${targetQuery(t)}`);
 export const raiseRequest = (body: Record<string, unknown>) => call<RaiseResult>("POST", `${BASE}/raise`, body);
 export const getRaised = (t?: RaiseTarget) => call<{ items: RaisedItem[] }>("GET", `${BASE}/raised${t ? `?${targetQuery(t)}` : ""}`);
+
+/** Migration 185. The requests linked to a conversation or its contact, for the Inbox column. `enabled: false` when the workspace has Compliance off. */
+export const getLinked = (conversationId: string) => call<{ enabled: boolean; items: LinkedItem[] }>("GET", `${BASE}/linked?conversationId=${encodeURIComponent(conversationId)}`);
+/** Migration 185. The status of the closure form cards in a conversation. */
+export const getCardStatuses = (conversationId: string, ids?: readonly string[]) =>
+  call<{ links: CardStatus[] }>("GET", `${BASE}/form-links?conversationId=${encodeURIComponent(conversationId)}${ids && ids.length > 0 ? `&ids=${ids.map(encodeURIComponent).join(",")}` : ""}`);
+/** Migration 185. Send the case's closure form again (a new link; the old one stops working), or withdraw the active one. */
+export const resendClosureForm = (requestId: string) => call<{ chatLink: ChatLinkOutcome }>("POST", `${BASE}/requests/${requestId}/form-link`, { action: "resend" });
+export const revokeClosureForm = (requestId: string) => call<{ revoked: boolean }>("POST", `${BASE}/requests/${requestId}/form-link`, { action: "revoke" });
 
 export const getPublicForms = () => call<PublicFormsAnswer>("GET", `${BASE}/public-forms`);
 export const patchPublicForm = (typeKey: string, patch: PublicFormPatch) => call<PublicFormsAnswer>("PATCH", `${BASE}/public-forms`, { typeKey, ...patch });

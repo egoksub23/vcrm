@@ -42,6 +42,7 @@ import {
   useRevealTimer,
   type Act,
 } from "./detail-panels";
+import { FormLinkPanel } from "./form-link-panel";
 import { errorKey, formatDay, typeLabel } from "./helpers";
 import { ClockChip, ClockText, Notice, Person, StatusChip, StepBar, TypeChip } from "./parts";
 
@@ -214,6 +215,7 @@ export function RequestDetailScreen({ id }: { id: string }) {
           <SignoffPanel {...props} />
           <ClockPanel {...props} />
           <ExecutionPanel {...props} />
+          <FormLinkPanel {...props} />
           <NoticesPanel {...props} />
           <CloseWithoutDecision {...props} />
         </div>

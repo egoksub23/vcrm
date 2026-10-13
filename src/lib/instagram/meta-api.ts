@@ -46,6 +46,56 @@ export async function sendInstagramText(args: SendInstagramTextArgs): Promise<Me
   return { messageId: data.message_id }
 }
 
+export interface SendInstagramGenericCardArgs {
+  igBusinessAccountId: string
+  pageAccessToken: string
+  recipientIgsid: string
+  title: string
+  subtitle: string
+  buttonTitle: string
+  /** Where the button goes (https). */
+  url: string
+}
+
+/** The JSON body of a generic template with one web button (exported so the shape is tested). */
+export function instagramGenericCardPayload(args: Omit<SendInstagramGenericCardArgs, 'igBusinessAccountId' | 'pageAccessToken'>): Record<string, unknown> {
+  return {
+    recipient: { id: args.recipientIgsid },
+    message: {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'generic',
+          elements: [
+            {
+              title: Array.from(args.title).slice(0, 80).join(''),
+              subtitle: Array.from(args.subtitle).slice(0, 80).join(''),
+              buttons: [{ type: 'web_url', url: args.url, title: Array.from(args.buttonTitle).slice(0, 20).join('') }],
+            },
+          ],
+        },
+      },
+    },
+  }
+}
+
+/** A card with one web button (Instagram's generic template). */
+export async function sendInstagramGenericCard(args: SendInstagramGenericCardArgs): Promise<MetaSendResult> {
+  const response = await fetch(`${META_API_BASE}/${args.igBusinessAccountId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${args.pageAccessToken}`,
+    },
+    body: JSON.stringify(instagramGenericCardPayload(args)),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Instagram API error: ${response.status}`)
+  }
+  const data = (await response.json()) as SendResponse
+  return { messageId: data.message_id }
+}
+
 export type InstagramMediaKind = 'image' | 'video' | 'audio' | 'file'
 
 export interface SendInstagramMediaArgs {

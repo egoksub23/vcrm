@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { l10n } from "@/lib/compliance/fields";
+import { l10n, visibleFields } from "@/lib/compliance/fields";
 import { actionsFor, isDataEditable, type ActionKey, type ActionState } from "@/lib/compliance/transitions";
 import { fileFieldsOf } from "@/lib/compliance/fields";
 import { IDENTITY_METHODS, RECOMMENDATIONS, REJECTION_CATEGORIES, type L10n, type RequestDetail } from "@/lib/compliance/types";
@@ -192,6 +192,9 @@ export function AnswersPanel({ d, act, busy }: PanelProps) {
   const canEdit = (d.viewer.canReview || d.viewer.canApprove) && isDataEditable(d.status) && fields.length > 0;
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState<Record<string, string | boolean>>({});
+  // a field that depends on another answer (Account change: the pair that belongs to what is changing) is shown only while that answer says so
+  // (when only reading, an answer that is stored is shown whatever the choice: a case made before the type had the choice keeps its phone numbers on view)
+  const shown = editing ? visibleFields(fields, values) : fields.filter((f) => visibleFields([f], d.data).length > 0 || (d.data[f.key] !== undefined && d.data[f.key] !== null && d.data[f.key] !== ""));
 
   const startEdit = () => {
     const v: Record<string, string | boolean> = {};
@@ -222,7 +225,7 @@ export function AnswersPanel({ d, act, busy }: PanelProps) {
       {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t("none")}</p> : null}
       {editing ? (
         <div className="space-y-3">
-          {fields.map((f) => (
+          {shown.map((f) => (
             <FieldInput key={f.key} idPrefix="cmp-a" field={f} value={values[f.key] ?? ""} onChange={(v) => setValues({ ...values, [f.key]: v })} />
           ))}
           <div className="flex gap-2">
@@ -237,7 +240,7 @@ export function AnswersPanel({ d, act, busy }: PanelProps) {
         </div>
       ) : (
         <dl>
-          {fields.map((f) => {
+          {shown.map((f) => {
             const text = answerText(f, d.data[f.key], locale, tc("yes"), tc("no"));
             return (
               <Row key={f.key} label={fieldLabel(f, locale)}>

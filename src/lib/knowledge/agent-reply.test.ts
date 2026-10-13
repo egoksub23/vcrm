@@ -44,3 +44,18 @@ describe('pickAgentReply', () => {
     expect(pickAgentReply([], AFTER)).toBeNull()
   })
 })
+
+describe('pickAgentReply, a closure form link card', () => {
+  it('never takes the card (its row text is a title) as the human reply', () => {
+    expect(
+      pickAgentReply(
+        [
+          msg({ content_type: 'link_card', content_text: 'Account closure form', created_at: '2026-05-01T10:04:00Z' }),
+          msg({ content_text: 'The real reply', created_at: '2026-05-01T10:06:00Z' }),
+        ],
+        AFTER,
+      ),
+    ).toBe('The real reply')
+    expect(pickAgentReply([msg({ content_type: 'link_card', content_text: 'Account closure form' })], AFTER)).toBeNull()
+  })
+})

@@ -2,7 +2,7 @@
 title: The Inbox at a glance
 description: The Chats, Emails and Comments tabs, the conversation list, the open chat and the right-hand column.
 order: 1
-updated: 2026-10-08
+updated: 2026-10-14
 ---
 
 The Inbox is where you read and answer customers. This page shows what is on the screen. Later pages show how to do each task.
@@ -17,7 +17,7 @@ On a computer the Inbox has three main areas, from left to right:
 
 ![The Inbox with the conversation list on the left, an open chat in the middle and the customer details on the right](/help/img/inbox-overview-01-layout.png)
 
-On a wide screen there is one more column between the chat and the customer details. It holds **Ticket history** and **Session notes** for this customer. Open or close it with the ticket button in the chat header.
+On a wide screen there is one more column between the chat and the customer details. It holds **Ticket history** and **Session notes** for this customer. Ticket history has two parts: **General tickets**, and, if your workspace uses Compliance requests, **Compliance requests** for this chat and this customer (if you do not hold a compliance permission, only the requests you raised yourself, with a reference, a type and a status). Open or close it with the ticket button in the chat header.
 
 On a phone or small tablet you see one panel at a time. Tap a chat to open it, and use the back arrow at the top left to return to the list. The right-hand columns are not shown on small screens.
 
@@ -72,7 +72,7 @@ The buttons on the right of the header are:
 - **Ticket** and **panel** toggles for the side columns.
 - **Refresh**.
 - The channel name.
-- **Raise Ticket**.
+- **Raise ticket**: a menu with **Technical or information ticket** and, if you may raise them and your workspace uses Compliance, **Compliance request**. See [Create a ticket](/help/tickets/create-a-ticket) and [Compliance requests](/help/compliance/compliance-requests).
 - **Priority**, **Status**, **Assign**, **Team** and **Labels**.
 
 Messages from the customer are on the left. Yours are on the right. Internal comments are wide amber cards that the customer never sees.

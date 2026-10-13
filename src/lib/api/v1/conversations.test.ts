@@ -52,3 +52,29 @@ describe('serializeMessage', () => {
     expect(serializeMessage(agent).direction).toBe('outbound');
   });
 });
+
+describe('serializeMessage, a closure form link card (migration 185)', () => {
+  it('exposes the card as content_type link_card with its title and nothing from send_payload', () => {
+    const card = {
+      id: 'm9',
+      conversation_id: 'conv1',
+      sender_type: 'agent',
+      content_type: 'link_card',
+      content_text: 'Account closure form',
+      status: 'sent',
+      created_at: '2026-01-01T00:00:00Z',
+      send_payload: {
+        link_card: { link_id: '11111111-1111-4111-8111-111111111111', title: 'Account closure form', body: 'Open the form', button: 'Open closure form', locale: 'en' },
+      },
+    } as unknown as Message;
+    const out = serializeMessage(card);
+    expect(out.content_type).toBe('link_card');
+    expect(out.content_text).toBe('Account closure form');
+    expect(out.direction).toBe('outbound');
+    expect(out).not.toHaveProperty('send_payload');
+    const wire = JSON.stringify(out);
+    expect(wire).not.toContain('11111111-1111-4111-8111-111111111111');
+    expect(wire).not.toContain('Open closure form');
+    expect(wire).not.toContain('http');
+  });
+});

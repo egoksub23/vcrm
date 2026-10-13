@@ -3,6 +3,7 @@
 // so the browser may import this file (the services that fill them are service/raise.ts).
 // ============================================================
 
+import type { ChatLinkOutcome, NotSentReason } from "./chat-link/types";
 import type { FieldDef, RequestStatus } from "./types";
 
 /** The fields the public form fills for itself (a declaration the customer ticked on the web, the choice behind the reason, a proof upload): not asked of a member of staff. */
@@ -14,6 +15,12 @@ export const raiseFieldsOf = (fields: readonly FieldDef[]): FieldDef[] => fields
 export interface RaiseContext {
   contact: { id: string; name: string | null; phone: string | null; email: string | null; language: string | null } | null;
   channel: string | null;
+  /**
+   * Migration 185. Can the account closure form be put in THIS conversation as a tappable card (or the plain line where the channel has no button)? The
+   * dialog's "Send the closure form to the customer in this chat" is ticked by default only when it can. `reason` says why not (the 24-hour WhatsApp window
+   * is closed, the channel cannot carry it, there is no conversation); the agent still gets the link to copy.
+   */
+  chatLink: { available: boolean; reason?: NotSentReason };
   types: { key: string; label: string; labelL10n: Partial<Record<"ms" | "zh" | "ko", string>>; fields: FieldDef[] }[];
   /** Types for which this customer already has an open request (a flag only: the reference is not given). */
   open: string[];
@@ -25,6 +32,8 @@ export interface RaiseResult {
   /** Only for a person who holds a compliance permission: the case, to open it. */
   id?: string;
   notice?: { status: "sent" | "failed" | "skipped" | "duplicate"; detail?: string; language?: string };
+  /** Migration 185. What came of the closure form for the chat, when the agent asked for it. Holds the personal address ONLY when it was not sent (Copy link). */
+  chatLink?: ChatLinkOutcome;
 }
 
 export type RaiserStatus = "received" | "in_review" | "in_progress" | "done" | "not_approved" | "closed";
@@ -60,4 +69,13 @@ export interface RaisedItem {
   raisedAt: string;
   /** Only for a person who holds a compliance permission. */
   id?: string;
+}
+
+/**
+ * Migration 185. A request linked to an Inbox conversation or its contact, as the column shows it: the raiser's projection, plus the case's own step for a
+ * person who holds a compliance permission (who also gets the id, to open it). Nobody else gets more than the projection.
+ */
+export interface LinkedItem extends RaisedItem {
+  /** Only for a person who holds a compliance permission. */
+  step?: RequestStatus;
 }

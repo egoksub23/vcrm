@@ -45,6 +45,11 @@ export interface PublicRules {
   maxAmount: number;
   /** The banks the list offers. */
   banks: readonly string[];
+  /**
+   * The registered phone number is not asked: it comes from the chat and is already on the case (the personal closure form link, migration 185). The
+   * value's `phone` is then empty and the service keeps the case's own.
+   */
+  phoneFromCase?: boolean;
 }
 
 export interface PublicValue {
@@ -86,8 +91,8 @@ export function parsePublicSubmission(type: PublicType, body: unknown, rules: Pu
 
   const name = cleanLine(b.name, 120);
   if (!name) bad("name", typeof b.name === "string" && b.name.trim().length > 120 ? "too_long" : "required");
-  const phone = malaysianPhone(b.phone);
-  if (!phone) bad("phone", typeof b.phone === "string" && b.phone.trim() !== "" ? "invalid" : "required");
+  const phone = rules.phoneFromCase ? "" : malaysianPhone(b.phone);
+  if (!rules.phoneFromCase && !phone) bad("phone", typeof b.phone === "string" && b.phone.trim() !== "" ? "invalid" : "required");
 
   const answers: Record<string, unknown> = {};
 
@@ -138,8 +143,8 @@ export function parsePublicSubmission(type: PublicType, body: unknown, rules: Pu
   if (!yes(b.declaration)) bad("declaration", "must_acknowledge");
   answers.declaration = yes(b.declaration);
 
-  if (Object.keys(problems).length > 0 || !name || !phone) return { ok: false, problems };
-  return { ok: true, value: { type, name, phone, answers, needsLetter: needsAuthorizationLetter(name, holder ?? "") } };
+  if (Object.keys(problems).length > 0 || !name || (phone === null && !rules.phoneFromCase)) return { ok: false, problems };
+  return { ok: true, value: { type, name, phone: phone ?? "", answers, needsLetter: needsAuthorizationLetter(name, holder ?? "") } };
 }
 
 // ---- the files --------------------------------------------------------------------------------------------------------

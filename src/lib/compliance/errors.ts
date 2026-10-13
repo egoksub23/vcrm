@@ -52,6 +52,8 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   customer_reason_required: 400,
   category_required: 400,
   duplicate_open: 409,
+  form_link_not_allowed: 409,
+  form_link_submitted: 409,
   server_error: 500,
 };
 
@@ -65,6 +67,8 @@ const MESSAGES: Partial<Record<ErrorCode, string>> = {
   note_required: "A note is required.",
   frozen: "This request can no longer be edited.",
   closed: "This request is closed.",
+  form_link_not_allowed: "A closure form cannot be sent for this request.",
+  form_link_submitted: "The closure form for this request has already been filled in.",
   server_error: "Something went wrong.",
 };
 
@@ -87,6 +91,14 @@ const DB_CODES: [string, ErrorCode][] = [
   ["compliance_maker_checker", "maker_checker"],
   ["compliance_note_required", "note_required"],
   ["compliance_note_too_long", "validation_failed"],
+  ["compliance_form_link_submitted", "form_link_submitted"],
+  // the guard on the links table: no route should ever trip it with a value of its own (a bug or a direct write)
+  ["compliance_form_link_change_refused", "forbidden"],
+  ["compliance_form_link_fixed_fields", "invalid_request"],
+  ["compliance_form_link_not_allowed", "form_link_not_allowed"],
+  ["compliance_form_link_not_found", "not_found"],
+  // the customer's own submission: a link that cannot be used any more is, to everyone, just not found
+  ["compliance_form_link_invalid", "not_found"],
   ["compliance_request_not_found", "not_found"],
   ["compliance_step_not_found", "not_found"],
   ["compliance_not_allowed", "forbidden"],

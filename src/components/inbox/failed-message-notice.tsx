@@ -20,6 +20,8 @@ interface FailedMessageNoticeProps {
   resending?: boolean;
   /** Full-width card layout (rendered email) instead of a chat bubble's tail. */
   wide?: boolean;
+  /** An extra line under the reason, e.g. where to resend a message the generic Resend refuses (a closure form card). */
+  hint?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function FailedMessageNotice({
   onDelete,
   resending = false,
   wide = false,
+  hint,
 }: FailedMessageNoticeProps) {
   const t = useTranslations("Inbox.failure");
   const tChannel = useTranslations("Inbox.messageThread");
@@ -66,6 +69,7 @@ export function FailedMessageNotice({
           <p className="font-semibold text-red-600 dark:text-red-400">{t("notSent")}</p>
           <p className="break-words text-foreground">{text ? text.title : t("noReason")}</p>
           {text && <p className="break-words text-muted-foreground">{text.action}</p>}
+          {hint && <p className="break-words text-muted-foreground" data-testid="failed-message-hint">{hint}</p>}
         </div>
         {hasReason && (
           <Popover>

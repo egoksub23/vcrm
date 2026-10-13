@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { approvalNotificationHref, isApprovalNotification } from "@/lib/approvals/notifications";
 import { ticketNotificationHref } from "@/lib/notifications/ticket-link";
+import { complianceNotificationHref, isComplianceNotification } from "@/lib/compliance/notification-href";
 
 // Icon per notification type — a one-line add per new type.
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
@@ -44,6 +45,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   sign_bulk_done: FileSignature,
   compliance_clock: ClipboardCheck,
   compliance_signoff: ClipboardCheck,
+  compliance_form: ClipboardCheck,
 };
 
 export default function NotificationsPage() {
@@ -151,9 +153,9 @@ export default function NotificationsPage() {
       } else if (n.type === "sign_bulk_done") {
         // a batch has no document: its screen lists the batches
         router.push("/sign/bulk");
-      } else if (n.type === "compliance_clock" || n.type === "compliance_signoff") {
-        // a clock alert opens the request it is about (the list when the request is gone)
-        router.push(n.compliance_request_id ? `/compliance/${n.compliance_request_id}` : "/compliance");
+      } else if (isComplianceNotification(n.type)) {
+        // a clock alert, a sign-off or a closure form that came back opens the request it is about (the list when the request is gone)
+        router.push(complianceNotificationHref(n.compliance_request_id));
       } else if (n.ticket_id) {
         router.push(ticketNotificationHref(n));
       } else if (n.sign_document_id) {

@@ -4,6 +4,8 @@ Part A, the core. A customer's instruction that Vircle must act on, and be able 
 
 Menu **Compliance** (route `/compliance`, the case at `/compliance/[id]`, settings at **Settings > Compliance**), directly below **KYC review** and above **Secure Sign**. The KYC screen stays at `/kyc`. Product wording is "Compliance requests" and "Secure Sign".
 
+> **Part C** (migration **185**, verify script `supabase/ci/verify-185-compliance-chat-link.sql`) links requests to the chat: one **Raise ticket** menu in the Inbox, **Account change** in place of the phone number change, a personal account closure form sent in the chat as a tappable card, and a **Compliance requests** section beside the ticket history. It is **sections 22 to 30**; it renames the phone number change type (sections 2, 10 and 17), widens the raise dialog and adds two timeline event kinds, a notification type and a message type.
+>
 > **Part B** (migration **184**, verify script `supabase/ci/verify-184-compliance-intake.sql`) adds the public parent forms at `/c/<slug>`, the emails to the customer and to staff, "Raise compliance request" in the Inbox and on tickets, the reports and their CSV, and the menu badge. Sections 1 to 13 describe Part A; **sections 14 to 21 describe Part B**, which also changes three things above, marked *(changed in Part B)*: who can read a case (section 2 and 4), the hourly job (section 8), and the sign-off of a rejection (section 3).
 
 ## 1. Turn it on
@@ -309,3 +311,151 @@ The Compliance item in the sidebar shows a number for people who can act and not
 **Tests.** `public/public-helpers.test.ts` (names, amounts, phones, banks, code hashing, attempts, expiry, session signing, the form's rules), `public/service.test.ts` (the whole public flow on the in-memory database: the form behind an address, codes, sessions, the happy path, acknowledgements, the letter, uploads, repeats, the race, contact matching within the workspace), `app/api/compliance/public/public-routes.test.ts` (the three routes end to end), `components/compliance/public/public-form.test.tsx` (the form's markup in four languages and the helpers its handlers call), `service/notices.test.ts` + `messages.test.ts` (every email in four languages, no secrets, once-only claims, failures recorded), `service/raise.test.ts` (the dialog, the raise, duplicates, the request date, the raiser's projection), `reports.test.ts` + `service/reports.test.ts`, `app/api/compliance/part-b-routes.test.ts` (raise needs `compliance.raise` and not the menu, the projection, notices, settings, reports, export, badge, the job), `components/compliance/part-b-render.test.tsx`, `migration-184.test.ts`, capability catalogue / parity / SQL tests, `route-surface.test.ts`, `security-headers.test.ts`.
 **Proved in PGlite** (Postgres in WASM, with a stand-in for what 184 reads that has the real tables' NOT NULL columns): 184 three times in a row; `verify-184` ending in `ROLLBACK-OK`; `verify-183` still passing after 184; the catalogue guards for the new objects; four mutations of 184 (restore the raiser's read, drop the unique index, accept any category, drop the notice's unique claim) each made `verify-184` fail. PGlite is not production: `has_capability`, the signup flow and the export functions are simplified, so run `verify-184` against production in a rolled-back transaction before relying on it.
 **Not covered by a test** (no DOM renderer): clicking, typing, focus moving to the first problem, the file picker, the Turnstile widget, the four-second wait after "too fast", the toasts after a move, the date-range debounce, the phone layout and the dark appearance. **Not verified at all:** a real mailbox or Resend (an injected sender stands in; nothing was sent), the real private bucket (the in-memory storage stands in), real Cloudflare Turnstile, the running app in a browser, and the `X-Halo-System` mark on a real Microsoft 365 or Gmail message.
+
+---
+
+# Part C: linked to the chat
+
+## 22. What Part C adds, and the migration
+
+Migration **185** (`supabase/migrations/185_compliance_chat_link.sql`; idempotent; apply it **before** the code is deployed; it needs 183 and 184). Verify script `supabase/ci/verify-185-compliance-chat-link.sql` (self-contained; run it rolled back against production with the text of 183, 184 and 185 in front when they are not applied yet; it ends in `ROLLBACK-OK: ...`).
+
+| Part | What |
+|---|---|
+| The link | `compliance_form_links`: a personal, single-use, expiring link to the account closure form, made for one case and sent in the conversation the case was raised from. Only a **keyed hash** of the token is stored. One **active** link per case (a partial unique index). Readable by `menu.compliance` holders (never the token hash), written by nothing but the functions. Follows the case's retention (refuses delete under it, a workspace purge excepted). |
+| The functions | `compliance_mint_form_link` (mint, replacing the old link in the same transaction), `compliance_form_link_sent` (delivered, or not delivered with a named reason), `compliance_revoke_form_link`, `compliance_form_link_opened`, `compliance_apply_form_link` (the atomic claim, section 26). All `SECURITY DEFINER`, `search_path` pinned, `REVOKE`d from `PUBLIC, anon, authenticated`, `EXECUTE` to `service_role`: `verify-guard-catalog.sql` needs no change. Each checks the capability (`compliance.raise`, `review` or `approve`) for the **named person**. |
+| The timeline | Two event kinds: `form_link` (detail: `action` = minted, sent, resent, opened, revoked, not_sent; the channel, the link's id, a named reason; **never** the token, the address or an answer) and `form_submitted`. |
+| The message | `messages.content_type` accepts `link_card`. The live constraint is read and widened (added `NOT VALID`, then validated, so the table is not locked while it reads every row). |
+| Notifications | the type `compliance_form` ("a closure form was submitted"). |
+| Account change | `compliance_account_change_fields(account)`: the standard type `phone_change` becomes **Account change** (section 27). The signup seed calls it for a workspace made later. |
+| Fields | A field definition may carry `showIf: { field, in: [...] }` (section 27): asked and required only while the answer to another field is one of the values. |
+
+No new capability is added (the link actions use `compliance.raise`, `compliance.review` and `compliance.approve`), so the capability parity tests and the roles screen are unchanged.
+
+## 23. The Inbox menu and the raise dialog
+
+In an Inbox conversation's header **Raise Ticket** and **Raise compliance request** are now **one** control, **Raise ticket**:
+
+- A person who holds `compliance.raise` (which the operator's `compliance` flag removes together with every other `compliance.*` capability) gets a **menu** with **Technical or information ticket** (opens the existing create-ticket dialog, unchanged, with the contact and the conversation) and **Compliance request** (opens the raise dialog). The status chips of what the person raised sit beside it.
+- Anyone else gets the old single button that opens the ticket dialog. The ticket page keeps its **Raise compliance request** button.
+- The existing ticket Types are bug, feature request, technical, billing, account, general and other. There is **no "transaction matter"** type (billing is the closest); none was added.
+
+The raise dialog (`GET /api/compliance/raise/context`, `POST /api/compliance/raise`) now has type choices **Account change**, **Withdrawal** and **Account closure** (the system types by key; a custom type keeps its own name); a **Description** (the old note: it becomes a note on the case's timeline); the customer's name, phone, email and the channel prefilled from the contact and the conversation; and when the customer asked. For an **account closure** raised from a conversation there is a checkbox **Send the closure form to the customer in this chat**:
+
+- It is ticked by default when the chat can take it (`RaiseContext.chatLink.available`); otherwise it is unticked and disabled and says why (the 24-hour WhatsApp window is closed, the channel cannot carry it). From a ticket it is not shown (a ticket has no chat).
+- Ticked, the dialog hides the acknowledgements and the bank details (the customer fills them in) and posts `sendClosureForm: true`. Unticked, every staff field is asked as before.
+
+## 24. The case first, then the link
+
+1. **The case is made first** by `createComplianceRequest` (source `inbox`, linked to the contact and the conversation, status `received`, the clock running from the request time). With the form sent, the agent's answers are checked but not required to be complete (`answersPartial`).
+2. **Then the link** is minted: 32 random bytes, only their keyed hash stored (section 26), expiring in **14 days** (1 to 30 allowed); `compliance_mint_form_link` revokes any link still active for the case ("replaced").
+3. **Then the card** is put in the conversation through the shared send pipeline (`sendMessageToConversation`, message type `link_card`), with its retries, failed-message row and delivery states. `compliance_form_link_sent` stamps `sent_at` and remembers the message (or records `not_sent` with a reason).
+4. **A problem with the chat never undoes the case.** The raise answers `201` with the reference and `chatLink`:
+   - `{ status: "sent", mode: "card" | "text" }` (no address in the answer), or
+   - `{ status: "not_sent", reason, url }` when the link was made but not sent: the personal **`url` is in that answer once**, for the agent who just made it (**Copy link**), is held by the dialog only while it is open, and is stored nowhere; or
+   - `{ status: "unavailable", reason }` (not a closure, no encryption key).
+
+**Manual.** An agent starts every send (the checkbox, or **Send again**). Nothing sends by itself. **No WhatsApp template is used or configured**: outside the 24-hour window the link is made and the agent gets the explanation and **Copy link**.
+
+### Link states
+
+`linkState()` (`src/lib/compliance/chat-link/link-state.ts`) is the one definition, from the row alone:
+
+| State | When | Shown |
+|---|---|---|
+| Not sent (`created`) | made, not put in a chat (copied, or the send failed) | grey |
+| Sent | delivered to the chat | blue |
+| Opened | the customer opened the page (first time recorded) | blue |
+| Submitted | the form came back; the link is used up | green |
+| Expired | past its expiry unused | amber |
+| Withdrawn (`revoked`) | an agent withdrew it | grey |
+| Replaced | a newer link was made for the case | grey |
+
+**Send again** (the Inbox card, or the case page) mints a new link and the old one stops working at once; it is refused after a form came back (`form_link_submitted`) and when the case has moved on to the Head of Compliance (`form_link_not_allowed`). **Withdraw** revokes the active link. "Opened" is recorded when the page is drawn, so a mail scanner or a link-preview robot that fetches the address can mark it opened too; it is a status line, not evidence that the parent read it.
+
+### Who may
+
+Sending, sending again and withdrawing need `compliance.raise`, `compliance.review` or `compliance.approve`. A holder of **review or approve** may act on any case; a person who holds **only compliance.raise** may act on the cases **they raised** (`created_by`). The route checks it (`mayActOnLink`) and the database checks the capability again for the named person. Limits: 20 requests a minute per person on the route, **30 links an hour per person and 8 an hour per case**.
+
+## 25. The card and each channel
+
+The message row is `content_type = 'link_card'`, `content_text` = the title (so the conversation list reads "Account closure form"), and `send_payload.link_card = { link_id, title, body, button, locale }`. **The address is never in the row, its metadata, the conversation's preview, the timeline or a log**: it is part of what goes to the channel and nothing that is stored. The words (`src/lib/compliance/chat-link/card.ts`) are English, Malay, Chinese or Korean: the contact's language, else the case's, else English (a conversation has no language of its own). English: title "Account closure form", body "To close your Vircle account, please open the form below and fill in your details.", button "Open closure form" (WhatsApp allows 20 characters; the Malay, Chinese and Korean buttons are shorter).
+
+| Channel | What is sent | Fallback |
+|---|---|---|
+| WhatsApp | an `interactive` message of type **`cta_url`** (header = title, body, one button `display_text` + `url`), Graph API v21.0 as every other WhatsApp call; **only inside the 24-hour window** (the composer's own check, `loadWhatsappWindowOpen`, is made again inside the send) | window closed: the link is made, the agent is told, **Copy link** |
+| Messenger | a button template with one `web_url` button | send fails: Copy link |
+| Instagram | a generic template with one `web_url` button | send fails: Copy link |
+| Email, Gmail | an HTML email (a new mail titled "Account closure form", or a reply in the thread) with a button and the address in text under it; the stored row has no HTML | send fails: Copy link |
+| Vircle Chat | the **plain line** "Account closure form: &lt;address&gt;" (the gateway takes text; there is no button) | |
+| Web chat (widget) | **not sent**: the visitor reads the conversation's message rows directly, so the address would have to be stored there; the card rows are also hidden from the widget | **Copy link** |
+| Any other channel, no conversation | not sent | **Copy link** |
+
+Delivery follows the channel's normal states (sent, delivered, read, failed) and the existing failed-message UI, **except that a failed card is not resent by the generic Resend** (that route refuses message types it does not know: the address cannot be rebuilt from the row). The agent uses **Send again**, which makes a new link.
+
+Every place that switches on the message type treats `link_card` as an ordinary outgoing message with the title as its text: the thread (a card, not a bubble of text), the conversation list, notifications, AI context and summaries ("[Account closure form sent]"), the public API's message output, the web chat. See section 30.
+
+## 26. The personal page: `/c/link/<token>`
+
+Public, no login, **no emailed code**, `noindex`, `Cache-Control: private, no-store` and the same Content-Security-Policy as `/c/<slug>` (`next.config.ts`'s `/c/:slug*` rule matches it), `Referrer-Policy: no-referrer` (the address is the parent's key), its own minimal frame, language switch in English, Bahasa Melayu, Chinese and Korean.
+
+**The token.** `<link id, 32 hex>.<32 random bytes, base64url>`. The id half is not a secret: it says which row to read. The row is found by it and the keyed hash (`HMAC-SHA-256` under a key derived from the key ring, `src/lib/compliance/chat-link/token.ts`) of the whole token is compared in **constant time** (`timingSafeEqual`; a missing link is compared against a dummy hash). The token is shown once, in the address sent to the customer, and never stored.
+
+**One calm page.** An unknown, malformed, wrong-secret, used, withdrawn, replaced or expired link, a workspace with Compliance off, a case that has moved on to sign-off or is closed, a type that cannot take the form: all are "not found" and the page says one sentence: **"This link is not valid any more. Please contact support."** (four languages; it names no workspace and never says which reason).
+
+**The form** is the public closure form's own (`RequestStep`, the same `parsePublicSubmission`): the 14-day aim and the warning about Parent and Child accounts, the question (*No* changes nothing and the link keeps working), the two required ticks, the optional reason, the bank (a list, or Other), the account number, the account holder, the **authorization letter required when the account holder name does not match the Vircle account holder name** (`names.ts`), the declaration. Different from `/c/<slug>`:
+
+- **No email step.** The parent **types** their email (required, validated, not proved). It is prefilled with the contact's address as an editable suggestion.
+- The **name** is prefilled from the contact and can be corrected.
+- The **registered phone number** is shown **masked** (`+6012•••••881`) and cannot be edited: it comes from the chat. If the case has no phone number the form asks for it.
+
+**Submission** (`POST /api/compliance/form-link/submit`, multipart, one optional file): rate limits per caller address and per link (the address kept as a keyed hash); the hidden field; the page's signed form token (this link's, 3 seconds to 2 hours old); strict validation; the files by their first bytes and size. It then **updates the existing case, never a new one**: the protected answers are encrypted into `data_enc` exactly as in Parts A and B (merged with any already there), the ordinary answers are merged into `data`, the name and the email typed are stored (the email is **not** marked confirmed), the phone only when the case had none, the language, the files go into the private `compliance-files` bucket. **`compliance_apply_form_link` does the claim and the update in one transaction**, under row locks on the link and the case: the link must still be usable and the case still in received, identity check or officer review; the link is marked used; the `form_submitted` event is written (it names only the link). Two submissions at once: the second finds the link used and gets the same neutral answer, so nothing is applied twice. **The identity check stays NOT done.**
+
+Afterwards, best effort and never an error for the parent: the holders of `compliance.review` get an in-app notification (`compliance_form`), and the conversation gets an internal note **"Closure form submitted · CMP-2026-000014"** (the reference is a link only for people who hold the Compliance menu, like the raised note), written as the agent who sent the link. No email goes to the parent from this page.
+
+The parent sees a confirmation with the reference and "what happens next" (the same words as the public form; the aim is "within 14 days", **never the 30-day stop**). **Nothing the parent typed is ever displayed back**, and no answer says whether a request or an email is known.
+
+| Route | Guards |
+|---|---|
+| `GET /c/link/<token>` | per-caller limit (shared across servers), the link found and compared in constant time, one neutral page, a signed form token per visit, the first open recorded once |
+| `POST /api/compliance/form-link/submit` | everything above; an unusable link is one `404 {code:"not_found"}`; `400 {code:"invalid", problems}`; `400 {code, token}` (try again with a fresh page token); `429`; `503`; never a stored value, a link or the database's words. In `route-surface.test.ts` `PUBLIC_ROUTES` with the reasons |
+
+## 27. Account change
+
+The standard type `phone_change` (key unchanged) is **Account change** (Malay "Pertukaran maklumat akaun", Chinese "账户信息变更", Korean "계정 정보 변경"); the migration relabels it only while it still has 183's words, so an administrator's edit survives. Its fields:
+
+| Field | Asked when | Check |
+|---|---|---|
+| `what_changes` (required) | always, first | **Parent phone number**, **Parent email address** or **Child's name**. There is **no option for a parent's name**; the field's help and the dialog say so in one line: "A parent's name cannot be changed here." |
+| `current_phone`, `new_phone` | parent phone number | normalised to `+60...`, both required |
+| `current_email`, `new_email` | parent email address | validated, both required |
+| `child_current_name`, `child_new_name` | child's name | which child (the current name) and the new name, both required |
+
+`showIf` is evaluated by `checkAnswers` (the service and the dialog share it): a field that is not shown is skipped and dropped from the answers, and an edit that sends one field uses the choice already stored (`context`). Existing cases keep their `current_phone` / `new_phone` answers. The operations step "update_phone" keeps its key and (while untouched) now reads "Make the change in the back office". "How the request arrived" is the dialog's channel; the note is the Description.
+
+## 28. The Inbox column
+
+The **Ticket history** column is two sections: **General tickets** (today's list, filters and counts, "1 total · 0 active") and **Compliance requests** (counts like "2 requests · 1 open"), each with its own empty state and its own scroll. `GET /api/compliance/linked?conversationId=` answers:
+
+| Who | Sees |
+|---|---|
+| a workspace with Compliance **off** | `{ enabled: false }`: the section is **not drawn at all** |
+| a person who holds a compliance permission (`menu.compliance` or any work permission) | every request linked to this conversation **or its contact**: reference, type, status in plain words, when it was raised, and the id; each row opens `/compliance/<id>` for a person who holds the Compliance menu |
+| anyone else (for example a person who holds only `compliance.raise`) | only the requests **they raised**, as the raiser's minimal projection: reference, type, status, when. **No customer data, bank data or reasons, no id, no link** |
+
+The conversation is read with the caller's own session. The ticket detail page keeps its button and shows nothing new. The personal-link cards in the thread read their status from `GET /api/compliance/form-links?conversationId=` (state and expiry for each; the case's id only for a person who may resend or withdraw), polled every 30 seconds while a card is waiting.
+
+## 29. Security notes
+
+- The token is 256 random bits, shown once, stored only as a keyed hash; the page compares in constant time; one active link per case; single use by an atomic database claim; 14 days; withdrawable; every one of mint, send, resend, withdraw, open and submit is a timeline event that names the action, the channel and the link's id and **nothing else** (tests search every table and event for the token and the address).
+- The address is never in a message row, a failed row, the conversation preview, a log or a URL the staff side builds. The only copy outside the customer's chat is the one handed to the agent in the raise or resend answer when the chat could not take it.
+- Everything is behind the `compliance` feature and `compliance.raise` / `review` / `approve`. The public side answers 404 for a workspace with the flag off.
+- The email the parent types is not proof. The case is not treated as email-verified (`email_verified_at` stays empty) and the identity check is still the officer's.
+
+## 30. Tests, and what is not verified
+
+- `supabase/ci/verify-185-compliance-chat-link.sql` **ran in PGlite** (Postgres in WASM, with a stand-in for what 185 reads that has the real tables' NOT NULL columns and a `messages` table with the real content-type constraint): 185 three times in a row, the verify ending in `ROLLBACK-OK`, `verify-183` and `verify-184` still passing after 185, the catalogue guards for the new objects, and four mutations of 185 (a non-unique "one active" index, a claim that ignores a used link, the token hash granted to the browser, a "parent name" option) each made the verify fail. PGlite is not production: `has_capability`, the signup flow and the export functions are simplified. **Run `verify-185` against production in a rolled-back transaction before relying on it.** It deliberately does not delete a conversation or a contact.
+- `src/lib/compliance/chat-link/*.test.ts` (the state machine, the masked phone, the token, the card and each channel's plan, the service on the in-memory database with the database functions as a stand-in, the public page and submission), `service/raise-chat.test.ts` (the case first, the dialog's context, Account change), `src/lib/whatsapp/send-link-card.test.ts` (the exact `cta_url` payload, the window, a failed send, every channel, **no address in any stored row**), `app/api/compliance/chat-link-routes.test.ts` (the staff and public routes and who may), `components/compliance/*` and `components/inbox/*` render tests in four languages for the dialog, the menu, the column, the card, the link panel and the personal form, `migration-185.test.ts` (the text of the migration), `route-surface.test.ts`.
+- **Not covered by a test** (no DOM renderer): clicking, ticking, typing, focus, opening the menu with the keyboard, the Copy link clipboard, the file picker, the polling timers, the 360 px layout, the dark appearance.
+- **Not verified at all**: any real WhatsApp, Messenger, Instagram, email or Vircle gateway delivery (an injected client stands in; the `cta_url`, button-template and generic-template payloads follow Meta's documentation but were not sent to Meta), a real mailbox, the real private bucket, and the running app in a browser.
+- **Wording needing a native review**: the Malay, Chinese and Korean words of the card (`chat-link/card.ts`), of the personal page (`chat-link/link-words.ts`), of the menu, the dialog, the column, the link panel and the messages in `Compliance.chatLink`, `Compliance.raise`, `Inbox.raiseMenu`, `Inbox.ticketHistory` and `Inbox.linkCard`.

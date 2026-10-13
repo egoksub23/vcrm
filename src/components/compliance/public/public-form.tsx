@@ -17,6 +17,8 @@ import { useLanguage } from "@/components/sign/signer/use-language";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { linkWords } from "@/lib/compliance/chat-link/link-words";
+import type { LinkView } from "@/lib/compliance/chat-link/types";
 import { maskEmail } from "@/lib/compliance/public/amount";
 import { OTHER_BANK } from "@/lib/compliance/public/banks";
 import type { PublicView } from "@/lib/compliance/public/settings-types";
@@ -33,6 +35,7 @@ import {
   firstProblem,
   isOtherBank,
   letterNeeded,
+  linkIsGone,
   problemText,
   startStep,
   submitErrorKey,
@@ -241,6 +244,102 @@ function PublicFlow({ view, locale, words, initial }: FlowProps) {
   );
 }
 
+// ---- the personal closure form (migration 185): /c/link/<token> ---------------------------------------------------------------------------
+
+/** The one page for a link that does not work, whatever the reason. It does not name the workspace and says nothing about why. */
+export function LinkNotValid({ initialLocale }: { initialLocale: CustomerLocale }) {
+  const [locale, setLocale] = useLanguage(initialLocale);
+  const words = publicWords(locale);
+  return (
+    <div lang={locale}>
+      <Frame workspace={null} words={words} locale={locale} onLocale={setLocale}>
+        <LinkGone locale={locale} />
+      </Frame>
+    </div>
+  );
+}
+
+function LinkGone({ locale }: { locale: CustomerLocale }) {
+  const lw = linkWords(locale);
+  return (
+    <section className="mx-auto flex max-w-md flex-col items-center gap-4 py-10 text-center" aria-labelledby="cmp-gone-title">
+      <Info className="size-12 text-muted-foreground" aria-hidden />
+      <h1 id="cmp-gone-title" className="text-2xl font-semibold leading-snug">{lw.invalid.title}</h1>
+      <p className="text-muted-foreground">{lw.invalid.body}</p>
+    </section>
+  );
+}
+
+type LinkStep = "form" | "declined" | "done" | "gone";
+
+export function LinkRoot({ view, initialLocale, initial }: { view: LinkView; initialLocale: CustomerLocale; initial?: { step?: LinkStep; reference?: string | null; values?: Partial<FormValues> } }) {
+  const [locale, setLocale] = useLanguage(initialLocale);
+  const words = publicWords(locale);
+  return (
+    <div lang={locale}>
+      <Frame workspace={view.workspace} words={words} locale={locale} onLocale={setLocale}>
+        <LinkFlow view={view} locale={locale} words={words} initial={initial} />
+      </Frame>
+    </div>
+  );
+}
+
+function LinkFlow({ view, locale, words, initial }: { view: LinkView; locale: CustomerLocale; words: PublicWords; initial?: { step?: LinkStep; reference?: string | null; values?: Partial<FormValues> } }) {
+  const [step, setStep] = useState<LinkStep>(initial?.step ?? "form");
+  const [token, setToken] = useState(view.token);
+  const [reference, setReference] = useState<string | null>(initial?.reference ?? null);
+  const lw = linkWords(locale);
+  // the same closure form as the public one: the page is drawn from a view of the same shape
+  const pv: PublicView = { slug: "", type: "closure", workspace: view.workspace, notice: {}, maxAmount: 0, banks: view.banks, targetDays: view.targetDays, token, captchaKey: null, sessionActive: true };
+  if (step === "gone") return <LinkGone locale={locale} />;
+  const at = step === "done" ? 1 : 0;
+  return (
+    <div className="space-y-5">
+      <ol className="flex items-center gap-2 text-xs text-muted-foreground" aria-label={lw.step.form}>
+        {([["form", lw.step.form], ["done", lw.step.done]] as const).map(([k, label], i) => (
+          <li key={k} className={cn("flex items-center gap-1.5", i === at && "font-semibold text-foreground")} aria-current={i === at ? "step" : undefined}>
+            <span className={cn("flex size-5 items-center justify-center rounded-full border text-[10px]", i <= at ? "border-primary bg-primary text-primary-foreground" : "border-border")}>{i + 1}</span>
+            {label}
+            {i < 1 ? <span aria-hidden className="mx-1 h-px w-4 bg-border" /> : null}
+          </li>
+        ))}
+      </ol>
+
+      {step === "form" ? (
+        <RequestStep
+          view={pv}
+          locale={locale}
+          words={words}
+          base=""
+          email=""
+          token={token}
+          initialValues={initial?.values}
+          onToken={setToken}
+          onDeclined={() => setStep("declined")}
+          onSessionEnded={() => setStep("gone")}
+          onDone={(ref) => {
+            setReference(ref);
+            setStep("done");
+          }}
+          link={{ linkToken: view.linkToken, maskedPhone: view.maskedPhone, name: view.name, email: view.email, onGone: () => setStep("gone") }}
+        />
+      ) : null}
+
+      {step === "declined" ? (
+        <section className="space-y-3 rounded-xl border border-border p-4" aria-labelledby="cmp-declined">
+          <h1 id="cmp-declined" className="text-xl font-semibold">{words.closure.declined.title}</h1>
+          <p>{words.closure.declined.body}</p>
+          <Button type="button" variant="outline" className="h-12 px-5 text-base" onClick={() => setStep("form")}>
+            {words.closure.declined.back}
+          </Button>
+        </section>
+      ) : null}
+
+      {step === "done" ? <DoneStep view={pv} words={words} email="" reference={reference} /> : null}
+    </div>
+  );
+}
+
 // ---- step 1: the address and the code -------------------------------------------------------------------------------
 
 function VerifyStep({ view, locale, words, base, initialEmail, onVerified }: { view: PublicView; locale: CustomerLocale; words: PublicWords; base: string; initialEmail: string; onVerified: (email: string) => void }) {
@@ -376,6 +475,7 @@ function RequestStep({
   onDeclined,
   onSessionEnded,
   onDone,
+  link,
 }: {
   view: PublicView;
   locale: CustomerLocale;
@@ -388,17 +488,23 @@ function RequestStep({
   onDeclined: () => void;
   onSessionEnded: () => void;
   onDone: (reference: string | null) => void;
+  /**
+   * The personal closure form (migration 185): no emailed code, the email is typed here, the registered phone number is shown masked and not editable, and
+   * the post goes to the link's own route. `onGone` shows the one calm page when the server says the link is no good (whatever the reason).
+   */
+  link?: { linkToken: string; maskedPhone: string | null; name: string; email: string; onGone: () => void };
 }) {
   const closure = view.type === "closure";
-  const [values, setValues] = useState<FormValues>(() => ({ ...emptyValues(), ...initialValues }));
+  const lw = linkWords(locale);
+  const [values, setValues] = useState<FormValues>(() => ({ ...emptyValues(), ...(link ? { name: link.name } : {}), ...initialValues }));
   const [files, setFiles] = useState<PickedFiles>({});
   const [problems, setProblems] = useState<PublicProblems>({});
-  const [typedEmail, setTypedEmail] = useState("");
+  const [typedEmail, setTypedEmail] = useState(link?.email ?? "");
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const retried = useRef(false);
-  const rules = { maxAmount: view.maxAmount, banks: view.banks };
+  const rules = { maxAmount: view.maxAmount, banks: view.banks, phoneFromCase: !!link?.maskedPhone };
   const set = <K extends keyof FormValues>(k: K, v: FormValues[K]) => {
     setValues((s) => ({ ...s, [k]: v }));
     setProblems((p) => (p[k as PublicFieldId] ? { ...p, [k]: undefined } : p));
@@ -419,7 +525,13 @@ function RequestStep({
     setBanner(null);
     let res: Response;
     try {
-      res = await fetch(`${base}/submit`, { method: "POST", cache: "no-store", credentials: "same-origin", headers: { Accept: "application/json" }, body: buildForm(values, { token: tokenToUse, email: (email || typedEmail).trim().toLowerCase(), locale }, files, honey()) });
+      res = await fetch(link ? "/api/compliance/form-link/submit" : `${base}/submit`, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        body: buildForm(values, { token: tokenToUse, email: (link ? typedEmail : email || typedEmail).trim().toLowerCase(), locale, ...(link ? { linkToken: link.linkToken } : {}) }, files, honey()),
+      });
     } catch {
       setBusy(false);
       setBanner(words.form.errors.network);
@@ -438,6 +550,11 @@ function RequestStep({
       return;
     }
     const code = String(data.code ?? "");
+    // the personal form only: a link that no longer works (used, withdrawn, replaced, expired) is the one calm page, whatever the reason
+    if (link && linkIsGone(code)) {
+      link.onGone();
+      return;
+    }
     if (code === "invalid" && data.problems && typeof data.problems === "object") {
       const p = data.problems as PublicProblems;
       setProblems(p);
@@ -464,7 +581,7 @@ function RequestStep({
 
   const submit = () => {
     retried.current = false;
-    const found = checkBeforeSending(view.type, values, files, rules);
+    const found = checkBeforeSending(view.type, values, files, rules, link ? { email: typedEmail } : {});
     setProblems(found);
     if (Object.keys(found).length > 0) {
       setBanner(words.form.fixAbove);
@@ -529,8 +646,22 @@ function RequestStep({
           <>
             <Section title={words.form.aboutYou}>
               <TextField id="name" label={words.form.name.label} help={words.form.name.help} value={values.name} onChange={(v) => set("name", v)} problems={problems} words={words} autoComplete="name" maxLength={120} />
-              <TextField id="phone" label={words.form.phone.label} help={words.form.phone.help} value={values.phone} onChange={(v) => set("phone", v)} problems={problems} words={words} type="tel" inputMode="tel" autoComplete="tel" maxLength={20} />
-              {email ? (
+              {link?.maskedPhone ? (
+                // the number comes from the chat: shown masked so the parent recognises it, and not editable
+                <div>
+                  <p className="mb-1 text-sm font-medium">{lw.phone.label}</p>
+                  <p className="flex min-h-12 items-center gap-2 rounded-lg border border-input bg-muted px-3 font-mono text-base" data-masked-phone>
+                    <ShieldCheck className="size-4 shrink-0 text-emerald-600" aria-hidden />
+                    {link.maskedPhone}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{lw.phone.help}</p>
+                </div>
+              ) : (
+                <TextField id="phone" label={words.form.phone.label} help={words.form.phone.help} value={values.phone} onChange={(v) => set("phone", v)} problems={problems} words={words} type="tel" inputMode="tel" autoComplete="tel" maxLength={20} />
+              )}
+              {link ? (
+                <TextField id="email" label={lw.email.label} help={lw.email.help} value={typedEmail} onChange={setTypedEmail} problems={problems} words={words} type="email" inputMode="email" autoComplete="email" maxLength={254} />
+              ) : email ? (
                 <div>
                   <p className="mb-1 text-sm font-medium">{words.form.email.label}</p>
                   <p className="flex min-h-12 items-center gap-2 rounded-lg border border-input bg-muted px-3 text-base"><ShieldCheck className="size-4 shrink-0 text-emerald-600" aria-hidden />{maskEmail(email)}</p>

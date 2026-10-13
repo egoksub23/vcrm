@@ -402,7 +402,9 @@ export type NotificationType =
   /** Migration 183: a Compliance request is 10 or 5 days from its regulatory hard stop, or has reached it. Carries `compliance_request_id`. */
   | 'compliance_clock'
   /** Migration 184: a Compliance request reached the Head of Compliance's sign-off. Carries `compliance_request_id`. */
-  | 'compliance_signoff';
+  | 'compliance_signoff'
+  /** Migration 185: a customer filled in the personal closure form sent in a chat. */
+  | 'compliance_form';
 
 export interface Notification {
   id: string;
@@ -734,7 +736,12 @@ export type ContentType =
   | 'location'
   | 'template'
   /** Customer tapped a reply button or list row on a message we sent. */
-  | 'interactive';
+  | 'interactive'
+  /**
+   * Migration 185: a tappable card with one button that opens a personal address (the account closure form of a Compliance request). The row keeps the
+   * card's words and the link's id in `send_payload.link_card` and its title in `content_text`; the address itself is never stored.
+   */
+  | 'link_card';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface Message {
@@ -790,6 +797,11 @@ export interface Message {
    * 'interactive'` and `sender_type` is agent/bot. Migration 035.
    */
   interactive_payload?: InteractiveMessagePayload;
+  /**
+   * What a resend needs that the columns do not carry (migration 094): a template's language and parameters, a document's file name. For a `link_card`
+   * (migration 185) it holds `link_card: { link_id, title, body, button, locale }`: the words and the link's id, never the address.
+   */
+  send_payload?: Record<string, unknown> | null;
   /**
    * True when the AI auto-reply bot generated + sent this message (as
    * opposed to a human agent or a deterministic Flow/automation send,

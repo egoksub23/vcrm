@@ -20,6 +20,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { postInternalComment } from "@/lib/conversations/comment-write";
 
+import { planDelivery } from "../chat-link/channels";
+import { realChatLinkDeps, sendClosureForm, type ChatLinkDeps } from "../chat-link/service";
 import { ComplianceError, complianceError } from "../errors";
 import { raisedNoteText } from "../raised-note";
 import { normalisePhone } from "../reference";
@@ -95,9 +97,16 @@ async function findOpen(admin: SupabaseClient, accountId: string, typeKey: strin
 }
 
 /** What the dialog needs: the contact (to prefill), the channel, the types with the fields a person fills, and which types already have an open request. */
-export async function raiseContext(admin: SupabaseClient, caller: RaiseCaller, target: RaiseTarget): Promise<RaiseContext> {
+export async function raiseContext(admin: SupabaseClient, caller: RaiseCaller, target: RaiseTarget, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseContext> {
   const t = await resolveTarget(caller, target);
   const contact = await loadContact(admin, caller.accountId, t.contactId);
+  // can the closure form go into this chat as a card? (a ticket has no chat)
+  let chatLink: RaiseContext["chatLink"];
+  if (t.kind !== "conversation") chatLink = { available: false, reason: "no_channel" };
+  else {
+    const plan = planDelivery(t.channel, { whatsappWindowOpen: t.channel === "whatsapp" ? await chat.windowOpen(admin, t.id) : false });
+    chatLink = plan.send ? { available: true } : { available: false, reason: plan.reason };
+  }
   const types = (await loadTypes(admin, caller.accountId)).filter((x) => x.active);
   const phone = contact?.phone ? normalisePhone(contact.phone) : null;
   const open: string[] = [];
@@ -105,6 +114,7 @@ export async function raiseContext(admin: SupabaseClient, caller: RaiseCaller, t
   return {
     contact,
     channel: t.channel,
+    chatLink,
     types: types.map((x) => ({ key: x.key, label: x.label, labelL10n: x.labelL10n, fields: raiseFieldsOf(x.fields) })),
     open,
   };
@@ -130,11 +140,16 @@ export interface RaiseInput {
   note?: string | null;
   /** Email the customer the confirmation (needs an address). */
   notify?: boolean;
+  /**
+   * Account closure raised from a conversation: send the customer the personal closure form in that chat (migration 185). The case is made FIRST; the
+   * acknowledgements and bank details are then the customer's to fill in, so they are not asked of the agent. A problem with the chat never undoes the case.
+   */
+  sendClosureForm?: boolean;
 }
 
 const NOTE_MAX = 1000;
 
-export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, input: RaiseInput, deps: NoticeDeps = realNoticeDeps): Promise<RaiseResult> {
+export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, input: RaiseInput, deps: NoticeDeps = realNoticeDeps, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseResult> {
   const type = await loadType(admin, caller.accountId, input.typeKey);
   if (!type || !type.active) throw complianceError("type_unavailable");
   const t = await resolveTarget(caller, input.target);
@@ -161,9 +176,13 @@ export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, i
   const reason = (input.receivedAtReason ?? "").trim();
   if (reason.length > NOTE_MAX) throw new ComplianceError("validation_failed", "That reason is too long.", 400, [{ field: "received_at_reason", code: "too_long" }]);
 
+  // the closure form goes to the customer in this chat: the customer fills in the acknowledgements and the bank details, so the agent's answers may be partial
+  const sendForm = input.sendClosureForm === true && type.key === "closure" && t.kind === "conversation";
+
   const created = await createComplianceRequest(admin, {
     accountId: caller.accountId,
     typeKey: type.key,
+    answersPartial: sendForm,
     source: t.kind === "conversation" ? "inbox" : "ticket",
     channel: (input.channel ?? "").trim() || t.channel || (t.kind === "ticket" ? "ticket" : null),
     customerName: input.customerName,
@@ -188,7 +207,16 @@ export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, i
   let notice: NoticeResult | undefined;
   if (input.notify === true && email) notice = await sendCustomerNotice(admin, deps, { accountId: caller.accountId, requestId: created.id, kind: "received", actor: caller.userId }).catch(() => undefined);
 
-  return { reference: created.reference, status: "received", ...(caller.sees ? { id: created.id } : {}), ...(notice ? { notice } : {}) };
+  // THEN the link: the case exists already, so nothing about the chat can undo it
+  let chatLink: RaiseResult["chatLink"];
+  if (sendForm) {
+    chatLink = await sendClosureForm(admin, chat, { accountId: caller.accountId, requestId: created.id, actor: caller.userId, conversationId: t.id, resend: false }).catch((err) => {
+      console.error("[compliance] the closure form link could not be made:", err instanceof ComplianceError ? err.code : "error");
+      return undefined;
+    });
+  }
+
+  return { reference: created.reference, status: "received", ...(caller.sees ? { id: created.id } : {}), ...(notice ? { notice } : {}), ...(chatLink ? { chatLink } : {}) };
 }
 
 /** The line left on the conversation (an internal note) or the ticket (a comment): "Compliance request CMP-2026-000014 raised". Never fails the raise. */

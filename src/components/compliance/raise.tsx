@@ -12,7 +12,7 @@
 import { ClipboardSignature, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { TONE } from "@/components/comments/chips";
 import { Button } from "@/components/ui/button";
@@ -20,17 +20,20 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCapability } from "@/hooks/use-auth";
+import type { ChatLinkOutcome, NotSentReason } from "@/lib/compliance/chat-link/types";
+import { checkAnswers, visibleFields } from "@/lib/compliance/fields";
 import type { RaiseContext, RaisedItem } from "@/lib/compliance/raise-types";
 import type { FieldDef } from "@/lib/compliance/types";
 import { cn } from "@/lib/utils";
 
 import { getRaiseContext, getRaised, raiseRequest, type RaiseTarget } from "./api";
+import { ChatLinkResult } from "./chat-link-parts";
 import { answersFromForm, emptyForm, errorKey, localInputToIso, missingRequired, type FormValues } from "./helpers";
 import { FieldInput } from "./new-request";
 import { Notice } from "./parts";
 
 const SELECT = "h-8 w-full rounded-lg border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-const TONE_OF: Record<RaisedItem["status"], string> = {
+export const TONE_OF: Record<RaisedItem["status"], string> = {
   received: TONE.muted,
   in_review: TONE.primary,
   in_progress: TONE.warn,
@@ -41,16 +44,83 @@ const TONE_OF: Record<RaisedItem["status"], string> = {
 
 export const targetOf = (conversationId?: string | null, ticketId?: string | null): RaiseTarget | null => (conversationId ? { conversationId } : ticketId ? { ticketId } : null);
 
-// ---- the button, the chips and the dialog -----------------------------------------------------------------------------------------
+// ---- pure pieces of the dialog (exported so each can be tested without a browser) ----------------------------------------------------
 
-export function RaiseCompliance({ conversationId, ticketId, className }: { conversationId?: string | null; ticketId?: string | null; className?: string }) {
-  const t = useTranslations("Compliance.raise");
-  const can = useCapability("compliance.raise");
-  const canOpen = useCapability("menu.compliance");
-  const target = useMemo(() => targetOf(conversationId, ticketId), [conversationId, ticketId]);
-  const [open, setOpen] = useState(false);
+type Translate = (key: string) => string;
+
+/** The three system types in the order the dialog lists them; any other (custom) type follows, in its own order. */
+const TYPE_ORDER: readonly string[] = ["phone_change", "withdrawal", "closure"];
+
+/**
+ * The words of a type in the choice list. The three system types have the dialog's own short names ("Account closure", "Withdrawal", "Account change"),
+ * whatever label the database holds; a custom type keeps its own label, in the person's language when it has one. `t` translates a key under Compliance.raise.
+ */
+export function typeChoiceLabel(key: string, dbLabel: string, dbLabelL10n: Partial<Record<"ms" | "zh" | "ko", string>>, locale: string, t: Translate): string {
+  if (TYPE_ORDER.includes(key)) return t(`types.${key}`);
+  const own = (dbLabelL10n as Record<string, string | undefined>)[locale];
+  return own && own.trim() !== "" ? own : dbLabel;
+}
+
+/** The type choices in the order the dialog shows them: phone_change, withdrawal, closure, then the others as they came. Never changes the input. */
+export function orderTypeChoices<T extends { key: string }>(types: readonly T[]): T[] {
+  const rank = (key: string) => {
+    const i = TYPE_ORDER.indexOf(key);
+    return i === -1 ? TYPE_ORDER.length : i;
+  };
+  return types
+    .map((type, index) => ({ type, index }))
+    .sort((a, b) => rank(a.type.key) - rank(b.type.key) || a.index - b.index)
+    .map((x) => x.type);
+}
+
+/** How the "Send the closure form to the customer in this chat" tick looks for this type, target and chat. */
+export interface ClosureChoice {
+  /** Only an account closure raised from a conversation has it (a ticket has no chat to send in). */
+  show: boolean;
+  checked: boolean;
+  disabled: boolean;
+  /** Why it is off, when the chat cannot take the form. */
+  reason: NotSentReason | null;
+}
+
+export function closureChoice(typeKey: string, target: RaiseTarget, chatLink: RaiseContext["chatLink"], ticked: boolean): ClosureChoice {
+  if (typeKey !== "closure" || !("conversationId" in target)) return { show: false, checked: false, disabled: false, reason: null };
+  if (!chatLink.available) return { show: true, checked: false, disabled: true, reason: chatLink.reason ?? "no_channel" };
+  return { show: true, checked: ticked, disabled: false, reason: null };
+}
+
+/**
+ * The fields a member of staff is asked, for the answers so far: only the ones the type shows (`showIf`), and, when the closure form goes to the customer
+ * in the chat, without the confirmations (acknowledge fields) and the protected details (bank details), which the customer gives on their own form.
+ * The same list decides what is required, what is checked and what is sent.
+ */
+export function fieldsToAsk(fields: readonly FieldDef[], values: FormValues, sendClosureForm: boolean): FieldDef[] {
+  const shown = visibleFields(fields, values);
+  return sendClosureForm ? shown.filter((f) => f.type !== "acknowledge" && !f.sensitive) : shown;
+}
+
+/**
+ * The fields whose answers the server would refuse (a phone number it cannot read, an email address that is not one ...), by the server's own check, so the
+ * person is told before the request is sent. A field that is merely empty is not named here: the Raise button stays off until the required ones are filled.
+ */
+export function invalidAnswerFields(asked: readonly FieldDef[], answers: Record<string, unknown>): string[] {
+  const res = checkAnswers(asked, answers, { partial: true });
+  return res.ok ? [] : res.issues.map((i) => i.field);
+}
+
+/** What the form hands back after a successful raise. */
+export interface RaiseDoneInfo {
+  reference: string;
+  id?: string;
+  /** What came of the closure form, when it was asked for. Holds the personal address ONLY when the chat could not take it. */
+  chatLink?: ChatLinkOutcome;
+}
+
+// ---- what this person raised on a conversation or ticket ---------------------------------------------------------------------------
+
+/** The status chips' data: what this person raised on the target, loaded when they may raise and reloaded after a raise. */
+export function useRaised(target: RaiseTarget | null, enabled: boolean) {
   const [items, setItems] = useState<RaisedItem[]>([]);
-  const key = conversationId ?? ticketId ?? "";
 
   const refresh = useCallback(async () => {
     if (!target) return;
@@ -59,11 +129,25 @@ export function RaiseCompliance({ conversationId, ticketId, className }: { conve
   }, [target]);
 
   useEffect(() => {
-    if (!can || !target) return;
+    if (!enabled || !target) return;
     // load-on-change fetch whose result sets state
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
-  }, [can, target, key, refresh]);
+  }, [enabled, target, refresh]);
+
+  return { items, refresh };
+}
+
+// ---- the button, the chips and the dialog -----------------------------------------------------------------------------------------
+
+/** The ticket page's button (the Inbox header has its own menu, RaiseTicketMenu, that opens the same dialog). */
+export function RaiseCompliance({ conversationId, ticketId, className }: { conversationId?: string | null; ticketId?: string | null; className?: string }) {
+  const t = useTranslations("Compliance.raise");
+  const can = useCapability("compliance.raise");
+  const canOpen = useCapability("menu.compliance");
+  const target = useMemo(() => targetOf(conversationId, ticketId), [conversationId, ticketId]);
+  const [open, setOpen] = useState(false);
+  const { items, refresh } = useRaised(target, can);
 
   if (!can || !target) return null;
 
@@ -80,23 +164,27 @@ export function RaiseCompliance({ conversationId, ticketId, className }: { conve
         <ClipboardSignature className="size-4" aria-hidden />
         <span className="hidden sm:inline">{t("button")}</span>
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t("title")}</DialogTitle>
-            <DialogDescription>{t("intro")}</DialogDescription>
-          </DialogHeader>
-          {open ? (
-            <RaiseDialogBody
-              target={target}
-              canOpen={canOpen}
-              onRaised={() => void refresh()}
-              onClose={() => setOpen(false)}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <RaiseComplianceDialog open={open} onOpenChange={setOpen} target={target} canOpen={canOpen} onRaised={() => void refresh()} />
     </div>
+  );
+}
+
+/**
+ * The raise dialog, shared by the ticket page's button and the Inbox header's menu. The form (and with it the closure form's personal address, which
+ * only a "not sent" outcome carries) exists only while the dialog is open: closing it drops everything.
+ */
+export function RaiseComplianceDialog({ open, onOpenChange, target, canOpen, onRaised }: { open: boolean; onOpenChange: (open: boolean) => void; target: RaiseTarget; canOpen: boolean; onRaised?: () => void }) {
+  const t = useTranslations("Compliance.raise");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("intro")}</DialogDescription>
+        </DialogHeader>
+        {open ? <RaiseDialogBody target={target} canOpen={canOpen} onRaised={() => onRaised?.()} onClose={() => onOpenChange(false)} /> : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -154,12 +242,35 @@ export function RaisedList({ items, canOpen }: { items: RaisedItem[]; canOpen: b
 
 // ---- the dialog ---------------------------------------------------------------------------------------------------------------
 
+/** What the person sees once the case is made: its reference and, when the closure form was asked for, what came of it (with Copy link if the chat could not take it). */
+export function RaiseDone({ done, canOpen, onClose }: { done: RaiseDoneInfo; canOpen: boolean; onClose: () => void }) {
+  const t = useTranslations("Compliance.raise");
+  return (
+    <div className="space-y-3">
+      <Notice>
+        {t("done.title", { reference: done.reference })}
+      </Notice>
+      <p className="text-sm text-muted-foreground">{t("done.body")}</p>
+      {done.chatLink ? <ChatLinkResult outcome={done.chatLink} /> : null}
+      <div className="flex flex-wrap gap-2">
+        {canOpen && done.id ? (
+          <Link href={`/compliance/${done.id}`} className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted">
+            {t("done.open")}
+          </Link>
+        ) : null}
+        <Button variant="outline" size="sm" onClick={onClose}>{t("done.close")}</Button>
+      </div>
+    </div>
+  );
+}
+
 function RaiseDialogBody({ target, canOpen, onRaised, onClose }: { target: RaiseTarget; canOpen: boolean; onRaised: () => void; onClose: () => void }) {
   const t = useTranslations("Compliance.raise");
   const tErr = useTranslations("Compliance.errors");
   const [ctx, setCtx] = useState<RaiseContext | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ reference: string; id?: string } | null>(null);
+  // the personal address (only in a "not sent" outcome) lives here and nowhere else; it goes when this body unmounts with the dialog
+  const [done, setDone] = useState<RaiseDoneInfo | null>(null);
   const [mine, setMine] = useState<RaisedItem[]>([]);
 
   useEffect(() => {
@@ -175,24 +286,7 @@ function RaiseDialogBody({ target, canOpen, onRaised, onClose }: { target: Raise
     };
   }, [target]);
 
-  if (done) {
-    return (
-      <div className="space-y-3">
-        <Notice>
-          {t("done.title", { reference: done.reference })}
-        </Notice>
-        <p className="text-sm text-muted-foreground">{t("done.body")}</p>
-        <div className="flex flex-wrap gap-2">
-          {canOpen && done.id ? (
-            <Link href={`/compliance/${done.id}`} className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted">
-              {t("done.open")}
-            </Link>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={onClose}>{t("done.close")}</Button>
-        </div>
-      </div>
-    );
-  }
+  if (done) return <RaiseDone done={done} canOpen={canOpen} onClose={onClose} />;
   if (error && !ctx) return <Notice tone="danger">{tErr(error)}</Notice>;
   if (!ctx) {
     return (
@@ -231,20 +325,22 @@ export function RaiseForm({
   target: RaiseTarget;
   context: RaiseContext;
   canOpen: boolean;
-  onRaised: (r: { reference: string; id?: string }) => void;
+  onRaised: (r: RaiseDoneInfo) => void;
   onCancel: () => void;
   /** For tests and previews. */
-  initial?: { typeKey?: string; whenEarlier?: boolean; error?: string; duplicate?: string | null };
+  initial?: { typeKey?: string; whenEarlier?: boolean; error?: string; duplicate?: string | null; values?: FormValues; sendClosureForm?: boolean; invalid?: string[] };
 }) {
   const t = useTranslations("Compliance.raise");
   const tErr = useTranslations("Compliance.errors");
   const tType = useTranslations("Compliance");
+  const tLink = useTranslations("Compliance.chatLink");
   const locale = useLocale();
-  const first = context.types.find((x) => !context.open.includes(x.key)) ?? context.types[0];
+  const choices = useMemo(() => orderTypeChoices(context.types), [context.types]);
+  const first = choices.find((x) => !context.open.includes(x.key)) ?? choices[0];
   const [typeKey, setTypeKey] = useState(initial?.typeKey ?? first?.key ?? "");
   const type = context.types.find((x) => x.key === typeKey) ?? null;
   const fields: FieldDef[] = type?.fields ?? [];
-  const [values, setValues] = useState<FormValues>(() => emptyForm(fields));
+  const [values, setValues] = useState<FormValues>(() => ({ ...emptyForm(fields), ...initial?.values }));
   const [name, setName] = useState(context.contact?.name ?? "");
   const [email, setEmail] = useState(context.contact?.email ?? "");
   const [phone, setPhone] = useState(context.contact?.phone ?? "");
@@ -254,10 +350,12 @@ export function RaiseForm({
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [notify, setNotify] = useState(false);
+  // "Send the closure form to the customer in this chat": ticked from the start when this chat can take it
+  const [tickSend, setTickSend] = useState(initial?.sendClosureForm ?? context.chatLink.available);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(initial?.error ?? null);
   const [duplicate, setDuplicate] = useState<string | null>(initial?.duplicate ?? null);
-  const [invalid, setInvalid] = useState<Set<string>>(new Set());
+  const [invalid, setInvalid] = useState<Set<string>>(new Set(initial?.invalid ?? []));
 
   const pick = (key: string) => {
     setTypeKey(key);
@@ -267,13 +365,15 @@ export function RaiseForm({
     setDuplicate(null);
   };
 
-  const missing = missingRequired(fields, values);
+  const closure = closureChoice(typeKey, target, context.chatLink, tickSend);
+  const asked = fieldsToAsk(fields, values, closure.checked);
+  const missing = missingRequired(asked, values);
   const isoAt = earlier ? localInputToIso(at) : "";
   const whenOk = !earlier || (isoAt !== "" && reason.trim() !== "");
   const alreadyOpen = !!type && context.open.includes(type.key);
   const ready = !!type && name.trim() !== "" && missing.length === 0 && whenOk && !alreadyOpen && !busy;
   const hasEmail = email.trim() !== "";
-  const label = (x: { label: string; labelL10n: Partial<Record<"ms" | "zh" | "ko", string>> }) => (x.labelL10n as Record<string, string | undefined>)[locale] || x.label;
+  const tChoice: Translate = (key) => t(key as never);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -282,6 +382,15 @@ export function RaiseForm({
     setError(null);
     setDuplicate(null);
     setInvalid(new Set());
+    const answers = answersFromForm(asked, values);
+    // the server's own check of the answers, first, so a phone number it cannot read is named on its field before anything is sent
+    const bad = invalidAnswerFields(asked, answers);
+    if (bad.length > 0) {
+      setInvalid(new Set(bad));
+      setError("validation_failed");
+      setBusy(false);
+      return;
+    }
     const res = await raiseRequest({
       typeKey: type.key,
       ...target,
@@ -292,7 +401,8 @@ export function RaiseForm({
       ...(isoAt ? { receivedAt: isoAt, receivedAtReason: reason } : {}),
       note,
       notify: notify && hasEmail,
-      answers: answersFromForm(fields, values),
+      ...(closure.checked ? { sendClosureForm: true } : {}),
+      answers,
     });
     setBusy(false);
     if (!res.ok) {
@@ -303,7 +413,7 @@ export function RaiseForm({
       if (ref) setDuplicate(ref);
       return;
     }
-    onRaised({ reference: res.data.reference, id: res.data.id });
+    onRaised({ reference: res.data.reference, id: res.data.id, chatLink: res.data.chatLink });
   };
 
   if (!type) return <Notice>{t("noTypes")}</Notice>;
@@ -313,8 +423,8 @@ export function RaiseForm({
       <div>
         <label htmlFor="cmp-rs-type" className="mb-1 block text-sm font-medium text-foreground">{t("type")}</label>
         <select id="cmp-rs-type" className={SELECT} value={typeKey} onChange={(e) => pick(e.target.value)}>
-          {context.types.map((x) => (
-            <option key={x.key} value={x.key}>{label(x)}</option>
+          {choices.map((x) => (
+            <option key={x.key} value={x.key}>{typeChoiceLabel(x.key, x.label, x.labelL10n, locale, tChoice)}</option>
           ))}
         </select>
         {alreadyOpen ? (
@@ -346,11 +456,33 @@ export function RaiseForm({
 
       <fieldset className="grid gap-3">
         <legend className="mb-1 text-sm font-semibold text-foreground">{t("details")}</legend>
-        <p className="text-xs text-muted-foreground">{t("tickHelp")}</p>
-        {fields.map((f) => (
-          <FieldInput key={`${type.key}-${f.key}`} idPrefix="cmp-rs" field={f} value={values[f.key] ?? (f.type === "acknowledge" ? false : "")} onChange={(v) => setValues({ ...values, [f.key]: v })} invalid={invalid.has(f.key)} />
+        {closure.show ? (
+          <div>
+            <label className="flex items-start gap-2 text-sm font-medium text-foreground">
+              <input
+                id="cmp-rs-send-form"
+                type="checkbox"
+                checked={closure.checked}
+                disabled={closure.disabled}
+                onChange={(e) => setTickSend(e.target.checked)}
+                aria-describedby="cmp-rs-send-form-help"
+                className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]"
+              />
+              <span>{t("sendClosureForm")}</span>
+            </label>
+            <p id="cmp-rs-send-form-help" className="mt-1 text-xs text-muted-foreground" data-closure-form={closure.disabled ? "unavailable" : closure.checked ? "on" : "off"}>
+              {closure.disabled && closure.reason ? `${t("sendClosureFormUnavailable")} ${tLink(`outcome.reason.${closure.reason}`)}` : closure.checked ? t("sendClosureFormHelp") : t("sendClosureFormManual")}
+            </p>
+          </div>
+        ) : null}
+        {asked.some((f) => f.type === "acknowledge") ? <p className="text-xs text-muted-foreground">{t("tickHelp")}</p> : null}
+        {asked.map((f) => (
+          <Fragment key={`${type.key}-${f.key}`}>
+            <FieldInput idPrefix="cmp-rs" field={f} value={values[f.key] ?? (f.type === "acknowledge" ? false : "")} onChange={(v) => setValues({ ...values, [f.key]: v })} invalid={invalid.has(f.key)} />
+            {type.key === "phone_change" && f.key === "what_changes" ? <p className="-mt-2 text-xs text-muted-foreground">{t("parentNameNote")}</p> : null}
+          </Fragment>
         ))}
-        {fields.length === 0 ? <p className="text-sm text-muted-foreground">{tType("none")}</p> : null}
+        {asked.length === 0 ? <p className="text-sm text-muted-foreground">{tType("none")}</p> : null}
       </fieldset>
 
       <fieldset className="space-y-2">
@@ -382,7 +514,8 @@ export function RaiseForm({
 
       <div>
         <label htmlFor="cmp-rs-note" className="mb-1 block text-sm font-medium text-foreground">{t("note")}</label>
-        <Textarea id="cmp-rs-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} />
+        <Textarea id="cmp-rs-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} aria-describedby="cmp-rs-note-help" />
+        <p id="cmp-rs-note-help" className="mt-1 text-xs text-muted-foreground">{t("noteHelp")}</p>
       </div>
 
       <div>

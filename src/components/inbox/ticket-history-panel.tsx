@@ -6,9 +6,12 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
+import { isFeatureEnabled } from "@/lib/platform/features";
 import { cn } from "@/lib/utils";
+import { ComplianceRequestsSection, showLinkedSection, useLinkedCompliance, type LinkedHeld } from "./linked-compliance";
 import { isActiveStatus } from "@/lib/tickets/constants";
 import { Button } from "@/components/ui/button";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
@@ -51,20 +54,33 @@ const PRIORITY_TEXT: Record<TicketPriority, string> = {
  * thread and the contact column so an agent can read past tickets while
  * talking to the customer. Live (realtime on the contact's tickets), and
  * clicking a row opens the same detail sheet as the Tickets page.
+ *
+ * Two sections (migration 185): "General tickets" (all of the above) and
+ * "Compliance requests" (the requests linked to this chat or its contact,
+ * see linked-compliance.tsx). Each has its own empty state and scrolls on
+ * its own. The compliance section is not drawn at all in a workspace that
+ * has Compliance off.
  */
 export function TicketHistoryPanel({
   contactId,
   conversationId,
+  initial,
 }: {
   contactId: string | null;
   conversationId: string | null;
+  /** For tests and previews: what the first render holds (there is no network in a static render). */
+  initial?: { rows?: Row[]; linked?: LinkedHeld };
 }) {
   const t = useTranslations("Inbox.ticketHistory");
   const tt = useTranslations("Tickets.common");
   const { keyOf } = useTicketKeyPrefix();
   const canRaise = useCapability("tickets.work");
+  const { platform } = useAuth();
+  const featureOn = isFeatureEnabled(platform, "compliance");
+  const linked = useLinkedCompliance(conversationId, featureOn, initial?.linked);
+  const showCompliance = !!conversationId && showLinkedSection(featureOn, linked);
 
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<Row[]>(initial?.rows ?? []);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -119,10 +135,15 @@ export function TicketHistoryPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <section
+        aria-label={showCompliance ? t("generalTitle") : t("title")}
+        data-testid="tickets-section"
+        className={cn("flex min-h-0 flex-col", showCompliance ? "flex-[3_1_0%]" : "flex-1")}
+      >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <TicketIcon className="h-4 w-4 text-primary" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{showCompliance ? t("generalTitle") : t("title")}</h3>
           <p className="text-[11px] text-muted-foreground">
             {rows.length === 0
               ? t("none")
@@ -209,6 +230,13 @@ export function TicketHistoryPanel({
           </ul>
         )}
       </div>
+      </section>
+
+      {showCompliance ? (
+        <div className="min-h-0 flex-[2_1_0%] border-t-2 border-border">
+          <ComplianceRequestsSection data={linked} />
+        </div>
+      ) : null}
 
       <TicketDetailDialog
         ticketId={openId}

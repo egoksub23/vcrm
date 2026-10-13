@@ -631,7 +631,14 @@
       },
       "empty": "이 연락처의 티켓이 아직 없습니다.",
       "emptyFiltered": "이 보기에 해당하는 티켓이 없습니다.",
-      "thisChat": "이 채팅"
+      "thisChat": "이 채팅",
+      "generalTitle": "일반 티켓",
+      "complianceTitle": "컴플라이언스 요청",
+      "complianceNone": "요청 없음",
+      "complianceSummary": "전체 {total}건 · 진행 중 {open}건",
+      "complianceEmpty": "이 채팅 또는 연락처의 컴플라이언스 요청이 아직 없습니다.",
+      "complianceLoading": "컴플라이언스 요청을 불러오는 중",
+      "complianceFailed": "컴플라이언스 요청을 불러오지 못했습니다. 잠시 후 다시 시도합니다."
     },
     "contactFields": {
       "name": "이름",
@@ -804,6 +811,20 @@
           "action": "다시 시도하세요. 계속 실패하면 관리자에게 알리고 오류 코드를 전달하세요."
         }
       }
+    },
+    "raiseMenu": {
+      "technical": "기술 또는 정보 티켓",
+      "compliance": "컴플라이언스 요청"
+    },
+    "linkCard": {
+      "ariaCard": "계정 해지 양식 카드: {title}",
+      "preview": "고객에게 보이는 모습입니다. 이 버튼은 고객의 채팅에서만 작동합니다.",
+      "statusLabel": "양식 링크",
+      "actions": "해지 양식 작업",
+      "resend": "다시 보내기",
+      "withdraw": "회수",
+      "working": "처리 중...",
+      "failedHint": "해지 양식 카드는 일반 재전송으로 다시 보낼 수 없습니다. 이 카드 또는 해당 요청에서 '다시 보내기'를 사용하세요."
     }
   },
   "Contacts": {
@@ -13150,7 +13171,9 @@
       "network": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
       "customer_reason_required": "고객에게 알릴 거절 사유를 작성해 주세요.",
       "category_required": "거절 사유 분류를 선택해 주세요.",
-      "duplicate_open": "이 고객에게는 같은 유형의 진행 중인 요청이 이미 있습니다."
+      "duplicate_open": "이 고객에게는 같은 유형의 진행 중인 요청이 이미 있습니다.",
+      "form_link_not_allowed": "이 요청에는 해지 양식을 보낼 수 없습니다. 아직 컴플라이언스 총괄에게 넘어가지 않은 계정 해지 요청이어야 합니다.",
+      "form_link_submitted": "고객이 이 요청의 해지 양식을 이미 작성했습니다."
     },
     "form": {
       "choose": "선택...",
@@ -13395,7 +13418,15 @@
         "other": "요청을 업데이트함",
         "notice_sent": "이메일 발송: {notice}",
         "notice_failed": "이메일 발송 실패: {notice}({reason})",
-        "notice_skipped": "이메일 건너뜀: {notice}({reason})"
+        "notice_skipped": "이메일 건너뜀: {notice}({reason})",
+        "form_link_minted": "개인 해지 양식 링크를 만들었습니다",
+        "form_link_sent": "채팅으로 해지 양식을 보냈습니다",
+        "form_link_resent": "채팅으로 해지 양식을 다시 보냈습니다",
+        "form_link_opened": "고객이 해지 양식을 열었습니다",
+        "form_link_revoked": "해지 양식 링크를 더 이상 사용할 수 없습니다(회수 또는 대체)",
+        "form_link_not_sent": "해지 양식 링크를 만들었지만 채팅으로 보내지 못했습니다",
+        "form_link_other": "해지 양식 링크를 수정했습니다",
+        "form_submitted": "고객이 해지 양식을 작성했습니다"
       }
     },
     "blocked": {
@@ -13590,7 +13621,7 @@
       "whenAt": "날짜 및 시간",
       "whenReason": "왜 더 이른 시각인가요?",
       "whenReasonHelp": "요청의 기한은 이 시각부터 계산되므로 사유가 요청에 기록됩니다.",
-      "note": "컴플라이언스 팀에 남길 메모(선택)",
+      "note": "설명",
       "notify": "고객에게 접수 확인 이메일 보내기",
       "notifyNoEmail": "확인 이메일을 보내려면 이메일 주소를 입력하세요.",
       "submit": "요청 등록",
@@ -13617,7 +13648,18 @@
         "done": "완료",
         "not_approved": "승인되지 않음",
         "closed": "종료됨"
-      }
+      },
+      "noteHelp": "선택 사항입니다. 컴플라이언스 팀이 볼 수 있도록 요청의 타임라인에 메모로 추가됩니다.",
+      "parentNameNote": "부모의 이름은 여기에서 변경할 수 없습니다.",
+      "types": {
+        "closure": "계정 해지",
+        "withdrawal": "출금",
+        "phone_change": "계정 정보 변경"
+      },
+      "sendClosureForm": "이 채팅에서 고객에게 해지 양식 보내기",
+      "sendClosureFormHelp": "고객이 개인 양식을 열어 해지를 확인하고 은행 정보를 입력합니다. 직원이 입력할 필요는 없습니다.",
+      "sendClosureFormManual": "양식을 보내지 않으면 아래의 확인 항목과 은행 정보를 직접 입력해 주세요.",
+      "sendClosureFormUnavailable": "이 채팅에서는 사용할 수 없습니다."
     },
     "reports": {
       "back": "요청 목록으로",
@@ -13703,6 +13745,53 @@
           "d15_30": "15~30일",
           "d31_plus": "30일 초과"
         }
+      }
+    },
+    "chatLink": {
+      "state": {
+        "created": "미발송",
+        "sent": "발송됨",
+        "opened": "열람함",
+        "submitted": "제출됨",
+        "expired": "만료됨",
+        "revoked": "회수됨",
+        "replaced": "대체됨"
+      },
+      "outcome": {
+        "sentCard": "계정 해지 양식을 이 채팅에 탭할 수 있는 카드로 보냈습니다.",
+        "sentText": "이 채널은 버튼을 표시할 수 없어 계정 해지 양식을 링크 문구로 이 채팅에 보냈습니다.",
+        "notSent": "계정 해지 양식을 보내지 못했습니다.",
+        "reason": {
+          "window_expired": "WhatsApp 24시간 창이 닫혀 지금은 버튼이 있는 메시지를 보낼 수 없습니다. 링크를 복사해 다른 방법으로 전달하거나, 고객이 다시 메시지를 보낸 뒤 양식을 다시 보내 주세요.",
+          "channel_unsupported": "이 채널로는 양식을 보낼 수 없습니다. 링크를 복사해 다른 방법으로 전달해 주세요.",
+          "send_failed": "메시지를 보내지 못했습니다. 링크를 복사해 다른 방법으로 전달하거나 다시 보내기를 시도해 주세요.",
+          "no_channel": "양식을 보낼 채팅이 없습니다. 링크를 복사해 다른 방법으로 전달해 주세요.",
+          "not_configured": "이 채널이 꺼져 있거나 설정되지 않았습니다. 링크를 복사해 다른 방법으로 전달해 주세요."
+        },
+        "unavailable": {
+          "not_closure": "계정 해지 요청에만 해지 양식이 있습니다.",
+          "no_key": "서버에 암호화 키가 없어 링크를 만들 수 없습니다. 관리자에게 문의해 주세요.",
+          "no_conversation": "양식을 보낼 대화가 없습니다."
+        }
+      },
+      "copy": "링크 복사",
+      "copied": "링크를 복사했습니다",
+      "copyHint": "이 링크는 지금만 표시되며 저장되지 않습니다. 이 고객만 한 번 사용할 수 있고 14일간 유효합니다.",
+      "panel": {
+        "title": "해지 양식 링크",
+        "intro": "채팅으로 고객에게 보낸 개인 링크입니다. 한 번만 사용할 수 있고 14일간 유효합니다.",
+        "empty": "이 요청에 대해 만든 해지 양식 링크가 없습니다.",
+        "made": "생성 {when}",
+        "expires": "만료 {when}",
+        "sentAt": "발송 {when}",
+        "openedAt": "열람 {when}",
+        "submittedAt": "제출 {when}",
+        "by": "{name}",
+        "resend": "다시 보내기",
+        "revoke": "링크 회수",
+        "working": "처리 중...",
+        "resendHelp": "다시 보내면 새 링크가 만들어지고 이전 링크는 사용할 수 없게 됩니다.",
+        "failed": "처리하지 못했습니다. 다시 시도해 주세요."
       }
     }
   }

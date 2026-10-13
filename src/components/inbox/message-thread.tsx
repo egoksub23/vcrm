@@ -7,7 +7,9 @@ import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
 import { TagChip } from "./tag-chip";
-import { RaiseCompliance } from "@/components/compliance/raise";
+import { CardStatusProvider } from "./card-status";
+import { countLinkCards } from "@/lib/compliance/chat-link/card-view";
+import { RaiseTicketMenu } from "@/components/inbox/raise-ticket-menu";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -1594,8 +1596,6 @@ export function MessageThread({
         </div>
 
         <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-          {/* Raise a compliance request (migration 184): for a person who holds compliance.raise. Their own raised requests show as status chips. */}
-          <RaiseCompliance conversationId={conversation.id} />
           {/* Contact-panel toggle — desktop only. The contact sidebar
               eats a chunk of horizontal width that crowds the thread on
               smaller laptops; this lets agents reclaim it when they just
@@ -1716,19 +1716,18 @@ export function MessageThread({
               );
             })()}
 
-          {/* Raise Ticket — opens the create-ticket dialog pre-filled
-              with this contact + conversation, so the new ticket links
-              straight back to the chat it came from. */}
-          <button
-            type="button"
-            onClick={() => setRaiseTicketOpen(true)}
-            disabled={!canWorkTickets}
-            title={canWorkTickets ? t("raiseTicket") : readOnlyTitle("raise tickets")}
-            className="inline-flex disabled:cursor-not-allowed disabled:opacity-50 h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <TicketIcon className="h-3 w-3" />
-            <span className="hidden sm:inline">{t("raiseTicket")}</span>
-          </button>
+          {/* Raise ticket — ONE control. The ticket entry opens the
+              create-ticket dialog pre-filled with this contact +
+              conversation (so the new ticket links straight back to the
+              chat it came from); where the person holds compliance.raise
+              (migration 184; the capability goes with the workspace's
+              compliance flag) it is a menu that also offers "Compliance
+              request", and their raised requests show as status chips. */}
+          <RaiseTicketMenu
+            conversationId={conversation.id}
+            canWorkTickets={canWorkTickets}
+            onRaiseTicket={() => setRaiseTicketOpen(true)}
+          />
 
           {/* Priority dropdown — manual set; the set_priority automation
               step (migration 047) sets the same column. */}
@@ -1983,7 +1982,9 @@ export function MessageThread({
         }}
       />
 
-      {/* Messages Area */}
+      {/* Messages Area. The closure form cards in it share ONE status fetch
+          (CardStatusProvider; migration 185). */}
+      <CardStatusProvider conversationId={conversation.id} cardCount={countLinkCards(visibleMessages)}>
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -2101,7 +2102,9 @@ export function MessageThread({
                         }}
                         onTrash={() => void handleMoveToTrash(msg.id)}
                         onAddToKnowledge={
-                          canAddKnowledge ? () => openKnowledgeDialog(seedFromMessage(msg)) : undefined
+                          canAddKnowledge && msg.content_type !== "link_card"
+                            ? () => openKnowledgeDialog(seedFromMessage(msg))
+                            : undefined
                         }
                         wide={!!msg.content_html}
                       >
@@ -2115,7 +2118,8 @@ export function MessageThread({
                           senderLabel={senderLabel}
                           isLatestEmail={msg.id === latestEmailMessageId}
                           onResend={
-                            msg.status === "failed" && !msg.id.startsWith("temp-")
+                            // a closure form card is resent from the card (Send again) or the case: the generic route refuses it
+                            msg.status === "failed" && !msg.id.startsWith("temp-") && msg.content_type !== "link_card"
                               ? () => void handleResend(msg)
                               : undefined
                           }
@@ -2144,6 +2148,7 @@ export function MessageThread({
           </div>
         )}
       </div>
+      </CardStatusProvider>
 
       {/* AI auto-reply banner — take over an active bot, or resume it
           after a handoff. Renders nothing unless the account has

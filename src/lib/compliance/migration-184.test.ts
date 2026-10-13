@@ -52,7 +52,8 @@ describe("migration 184", () => {
 
   it("agrees with the TypeScript constants: the event kinds (with 'notice'), the rejection categories, the notice kinds", () => {
     const list = (re: RegExp) => [...(code.match(re)?.[1] ?? "").matchAll(/'(\w+)'/g)].map((m) => m[1]);
-    expect(list(/CHECK \(kind IN \(([^)]*)\)\);/).sort()).toEqual([...EVENT_KINDS].sort());
+    // (185 added form_link and form_submitted after this list)
+    expect(list(/CHECK \(kind IN \(([^)]*)\)\);/).sort()).toEqual(EVENT_KINDS.filter((k) => k !== "form_link" && k !== "form_submitted").sort());
     expect(list(/IF v_cat IS NOT NULL AND NOT \(v_cat IN \(([^)]*)\)\)/)).toEqual([...REJECTION_CATEGORIES]);
     expect(list(/kind\s+TEXT NOT NULL CHECK \(kind IN \(([^)]*)\)/).sort()).toEqual([...NOTICE_KINDS].sort());
     expect(code).toContain("ARRAY['compliance_signoff']");

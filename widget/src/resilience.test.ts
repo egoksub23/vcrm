@@ -67,6 +67,13 @@ describe('Realtime / history rows', () => {
     expect(toWidgetMessages(undefined)).toEqual([])
   })
 
+  it('a closure form card row from another channel of a merged conversation is skipped', () => {
+    const base = { created_at: '2026-09-21T12:00:00Z', sender_type: 'agent', content_text: 'Account closure form' }
+    const card = { ...base, id: 'card', content_type: 'link_card' }
+    expect(toWidgetMessage(card)).toBeNull()
+    expect(toWidgetMessages([card, { ...base, id: 'text', content_type: 'text' }]).map((r) => r.id)).toEqual(['text'])
+  })
+
   it('a live agent voice note is merged into the list and queued for a delivered receipt', () => {
     const image = toWidgetMessage({
       id: '179c74d6-b491-4d3d-a4b9-936f1c4f3e35',

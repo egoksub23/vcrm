@@ -28,6 +28,7 @@ import {
   sendMediaMessage,
   sendInteractiveButtons,
   sendInteractiveList,
+  sendInteractiveCtaUrl,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
 import {
@@ -50,8 +51,11 @@ import {
   templateBodyParams,
   templateContentText,
 } from '@/lib/whatsapp/template-body';
-import { sendMessengerText, sendMessengerMedia, type MessengerMediaKind } from '@/lib/messenger/meta-api';
-import { sendInstagramText, sendInstagramMedia, type InstagramMediaKind } from '@/lib/instagram/meta-api';
+import { sendMessengerText, sendMessengerMedia, sendMessengerButtonCard, type MessengerMediaKind } from '@/lib/messenger/meta-api';
+import { sendInstagramText, sendInstagramMedia, sendInstagramGenericCard, type InstagramMediaKind } from '@/lib/instagram/meta-api';
+import { loadWhatsappWindowOpen } from '@/lib/messages/window';
+import { cardEmail, cardWords, fallbackText, storedCard } from '@/lib/compliance/chat-link/card';
+import type { CustomerLocale } from '@/lib/compliance/types';
 import { MetaApiError } from '@/lib/meta/errors';
 import { isPrivateMediaUrl } from '@/lib/storage/media-urls';
 import { randomUUID } from 'node:crypto';
@@ -90,6 +94,22 @@ export const VALID_MESSAGE_TYPES = [
   'interactive',
   ...MEDIA_KINDS,
 ] as const;
+
+/**
+ * The link card (Compliance requests, migration 185): a tappable card with one button that opens a personal address. It is NOT one of the message types
+ * the dashboard or the public API may send (VALID_MESSAGE_TYPES): only server code that passes `linkCard` can. The address is part of what goes to the
+ * channel and of nothing that is stored: the message row keeps the card's words and the link's id (`send_payload.link_card`), never `url`.
+ */
+export const LINK_CARD_TYPE = 'link_card';
+
+export interface LinkCardParams {
+  /** The personal address (http or https). Sent to the channel; never stored. */
+  url: string;
+  /** The compliance_form_links row the card stands for. */
+  linkId: string;
+  /** The language of the card's words. */
+  locale: CustomerLocale;
+}
 
 /**
  * Typed failure with a machine `code` and a suggested HTTP `status`.
@@ -142,6 +162,8 @@ export interface SendMessageParams {
   templateMessageParams?: unknown;
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
+  /** For `messageType === 'link_card'` (server code only): the personal address and the link it stands for. */
+  linkCard?: LinkCardParams | null;
   replyToMessageId?: string | null;
   /** Explicit channel pick for a conversation that spans more than one
    *  channel (migration 048's merge-by-contact) — the dashboard
@@ -206,8 +228,9 @@ export function validateSendMessageParams(params: {
   mediaUrl?: string | null;
   templateName?: string | null;
   interactivePayload?: InteractiveMessagePayload | null;
+  linkCard?: LinkCardParams | null;
 }): void {
-  const { messageType, contentText, mediaUrl, templateName, interactivePayload } =
+  const { messageType, contentText, mediaUrl, templateName, interactivePayload, linkCard } =
     params;
 
   if (!messageType) {
@@ -215,6 +238,18 @@ export function validateSendMessageParams(params: {
   }
 
   const isMediaKind = (MEDIA_KINDS as readonly string[]).includes(messageType);
+
+  // A link card is for server code that hands over the card itself; a request from the dashboard or the public API never can.
+  if (messageType === LINK_CARD_TYPE) {
+    if (
+      !linkCard ||
+      !/^https?:\/\//i.test(linkCard.url ?? '') ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkCard.linkId ?? '')
+    ) {
+      throw new SendMessageError('bad_request', 'A link card needs its address and its link', 400);
+    }
+    return;
+  }
 
   if (!(VALID_MESSAGE_TYPES as readonly string[]).includes(messageType)) {
     throw new SendMessageError(
@@ -336,6 +371,7 @@ export async function sendMessageToConversation(
     templateParams,
     templateMessageParams,
     interactivePayload,
+    linkCard = null,
     replyToMessageId,
     channelOverride = null,
     senderType = 'agent',
@@ -358,6 +394,7 @@ export async function sendMessageToConversation(
     mediaUrl,
     templateName,
     interactivePayload,
+    linkCard,
   });
 
   // The workspace's monthly outbound message limit (migration 152). Fails open when it cannot be read.
@@ -369,6 +406,7 @@ export async function sendMessageToConversation(
   }
 
   const isMediaKind = (MEDIA_KINDS as readonly string[]).includes(messageType);
+  const isLinkCard = messageType === LINK_CARD_TYPE && linkCard !== null;
 
   // Conversation + contact, account-scoped.
   const { data: conversation, error: convError } = await db
@@ -400,6 +438,14 @@ export async function sendMessageToConversation(
   // server-side guard). The visitor's widget confirms delivery / reading
   // through POST /api/widget/receipt.
   const isWidgetConversation = channel === 'web_widget';
+  // The web chat's visitor reads the conversation's message rows directly, so a card's address would have to be stored in them: it is never sent there.
+  if (isWidgetConversation && isLinkCard) {
+    throw new SendMessageError(
+      'link_card_unsupported',
+      'The web-chat channel cannot carry a link card. Copy the link and share it another way.',
+      400
+    );
+  }
   if (isWidgetConversation && messageType !== 'text' && !isMediaKind) {
     throw new SendMessageError(
       'bad_request',
@@ -455,7 +501,8 @@ export async function sendMessageToConversation(
       isGmailConversation ||
       isVircleConversation) &&
     messageType !== 'text' &&
-    !isMediaKind
+    !isMediaKind &&
+    !isLinkCard
   ) {
     throw new SendMessageError(
       'bad_request',
@@ -536,6 +583,16 @@ export async function sendMessageToConversation(
     }
   }
 
+  // A card is an interactive message: on WhatsApp it only goes inside the 24-hour customer-service window (the same rule the composer shows).
+  if (isLinkCard && channel === 'whatsapp' && !(await loadWhatsappWindowOpen(db, conversationId))) {
+    throw new SendMessageError(
+      'window_closed',
+      'The 24-hour WhatsApp window has closed, so a message with a button cannot be sent now.',
+      409
+    );
+  }
+  const cardText = isLinkCard ? cardWords(linkCard!.locale) : null;
+
   // Resolve the reply target to its Meta message_id. The parent must
   // belong to this same conversation — otherwise a caller could quote
   // messages they can't see by guessing UUIDs.
@@ -600,7 +657,9 @@ export async function sendMessageToConversation(
   // most importantly) sends none, and storing null there left the
   // Inbox rendering an empty bubble — issue #483.
   const persistedText =
-    messageType === 'interactive'
+    isLinkCard
+      ? cardText!.title
+      : messageType === 'interactive'
       ? interactivePayload!.body
       : messageType === 'template'
         ? templateContentText(
@@ -621,6 +680,8 @@ export async function sendMessageToConversation(
     if (templateMessageParams) sendPayload.template_message_params = templateMessageParams;
   }
   if (filename) sendPayload.filename = filename;
+  // The card keeps its words and the link's id, NEVER the address (a failed card cannot be resent from this row: the address is made again with a new link).
+  if (isLinkCard) sendPayload.link_card = storedCard(linkCard!.linkId, linkCard!.locale);
 
   const baseRow: Record<string, unknown> = {
     conversation_id: conversationId,
@@ -706,6 +767,19 @@ export async function sendMessageToConversation(
           link: await linkForPlatform(db, accountId, mediaUrl!),
           caption: contentText || undefined,
           filename: filename || undefined,
+          contextMessageId,
+        });
+        return result.messageId;
+      }
+      if (isLinkCard) {
+        const result = await sendInteractiveCtaUrl({
+          phoneNumberId: cfg.phone_number_id,
+          accessToken,
+          to: phone,
+          headerText: cardText!.title,
+          bodyText: cardText!.body,
+          displayText: cardText!.button,
+          url: linkCard!.url,
           contextMessageId,
         });
         return result.messageId;
@@ -820,7 +894,16 @@ export async function sendMessageToConversation(
     }
     const pageAccessToken = decrypt(cfg.page_access_token);
     try {
-      const result = isMediaKind
+      const result = isLinkCard
+        ? await sendMessengerButtonCard({
+            pageId: cfg.page_id,
+            pageAccessToken,
+            recipientPsid: contact.messenger_psid,
+            text: `${cardText!.title}\n${cardText!.body}`,
+            buttonTitle: cardText!.button,
+            url: linkCard!.url,
+          })
+        : isMediaKind
         ? await sendMessengerMedia({
             pageId: cfg.page_id,
             pageAccessToken,
@@ -874,7 +957,17 @@ export async function sendMessageToConversation(
     }
     const pageAccessToken = decrypt(cfg.page_access_token);
     try {
-      const result = isMediaKind
+      const result = isLinkCard
+        ? await sendInstagramGenericCard({
+            igBusinessAccountId: cfg.ig_business_account_id,
+            pageAccessToken,
+            recipientIgsid: contact.instagram_igsid,
+            title: cardText!.title,
+            subtitle: cardText!.body,
+            buttonTitle: cardText!.button,
+            url: linkCard!.url,
+          })
+        : isMediaKind
         ? await sendInstagramMedia({
             igBusinessAccountId: cfg.ig_business_account_id,
             pageAccessToken,
@@ -962,10 +1055,13 @@ export async function sendMessageToConversation(
         };
       }
 
-      const text = contentText || '';
+      // A link card is sent as an HTML email with a button; what is stored (content_html) stays empty, so the address is not kept.
+      const mailCard = isLinkCard ? cardEmail(linkCard!.locale, linkCard!.url) : null;
+      const text = mailCard ? mailCard.text : contentText || '';
+      const html = mailCard ? mailCard.html : contentHtml;
       if (replyToMessageId) {
-        if (contentHtml) {
-          await sendReplyHtml({ accessToken, replyToMessageId, html: contentHtml, attachment });
+        if (html) {
+          await sendReplyHtml({ accessToken, replyToMessageId, html, attachment });
         } else if (attachment) {
           await sendReplyWithAttachment({ accessToken, replyToMessageId, text, attachment });
         } else {
@@ -975,9 +1071,9 @@ export async function sendMessageToConversation(
         await sendNewMail({
           accessToken,
           toAddress: contact.email,
-          subject: 'New message',
+          subject: mailCard ? mailCard.subject : 'New message',
           text,
-          html: contentHtml || undefined,
+          html: html || undefined,
           attachment,
         });
       }
@@ -1056,7 +1152,9 @@ export async function sendMessageToConversation(
         };
       }
 
-      const text = contentText || '';
+      const mailCard = isLinkCard ? cardEmail(linkCard!.locale, linkCard!.url) : null;
+      const text = mailCard ? mailCard.text : contentText || '';
+      const html = mailCard ? mailCard.html : contentHtml;
       if (replyToMessageId) {
         const threading = await getGmailThreadingInfo({ accessToken, messageId: replyToMessageId });
         const subject = threading.subject
@@ -1071,16 +1169,16 @@ export async function sendMessageToConversation(
           toAddress: contact.email,
           subject,
           text,
-          html: contentHtml || undefined,
+          html: html || undefined,
           attachment,
         });
       } else {
         await sendNewGmail({
           accessToken,
           toAddress: contact.email,
-          subject: 'New message',
+          subject: mailCard ? mailCard.subject : 'New message',
           text,
-          html: contentHtml || undefined,
+          html: html || undefined,
           attachment,
         });
       }
@@ -1139,8 +1237,8 @@ export async function sendMessageToConversation(
             email: (contact.email as string | null) || null,
           },
           conversationId: (conversation.vircle_conversation_id as string | null) ?? null,
-          type: messageType as 'text' | 'image' | 'video' | 'audio' | 'document',
-          text: contentText || null,
+          type: (isLinkCard ? 'text' : messageType) as 'text' | 'image' | 'video' | 'audio' | 'document',
+          text: isLinkCard ? fallbackText(linkCard!.locale, linkCard!.url) : contentText || null,
           media: isMediaKind
             ? {
                 url: await linkForPlatform(db, accountId, mediaUrl!),

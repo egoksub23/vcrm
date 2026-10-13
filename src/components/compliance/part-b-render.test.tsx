@@ -112,6 +112,7 @@ const detail = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   checklist: [],
   files: [],
   events: [],
+  formLinks: [],
   createdBy: null,
   viewer: viewer(),
   ...over,
@@ -121,6 +122,7 @@ const props = (d: RequestDetail) => ({ d, act: noop, busy: false, now: Date.pars
 const context: RaiseContext = {
   contact: { id: "c1", name: "Siti Aminah", phone: "012-334 4556", email: "siti@example.test", language: "ms" },
   channel: "whatsapp",
+  chatLink: { available: true },
   types: [
     { key: "closure", label: "Account closure", labelL10n: { ms: "Penutupan akaun", zh: "关闭账户", ko: "계정 해지" }, fields: closureType.fields.filter((f) => f.type !== "file") },
     { key: "phone_change", label: "Phone number change", labelL10n: {}, fields: typeFromRow(TYPE_ROWS[2]).fields },
@@ -180,7 +182,7 @@ describe.each(LOCALES)("Compliance requests, Part B, in %s", (locale) => {
   const t = (ns: string) => tr(locale, `Compliance.${ns}`);
 
   it("shows the raise dialog: the types, the customer prefilled from the contact, the staff fields, the date, the note, the notify tick, and no file field", () => {
-    const html = page(locale, <RaiseForm target={{ conversationId: "cv1" }} context={context} canOpen onRaised={() => undefined} onCancel={() => undefined} />);
+    const html = page(locale, <RaiseForm target={{ conversationId: "cv1" }} context={context} canOpen onRaised={() => undefined} onCancel={() => undefined} initial={{ typeKey: "closure", sendClosureForm: false }} />);
     const s = text(html);
     const r = t("raise");
     for (const k of ["type", "customer", "name", "phone", "email", "channel", "details", "tickHelp", "when", "whenNow", "whenEarlier", "note", "notify", "submit", "cancel"]) expect(s, k).toContain(r(k));

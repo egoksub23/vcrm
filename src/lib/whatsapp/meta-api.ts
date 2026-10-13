@@ -1020,6 +1020,80 @@ export async function sendInteractiveButtons(
   return { messageId: data.messages[0].id }
 }
 
+/**
+ * A call-to-action URL message: a body, an optional header and footer, and ONE button that opens an address. Meta's limits: the button's label is at most
+ * 20 characters, the header text 60, the body 1024; the address must be http(s). Like every interactive message it only goes inside the 24-hour
+ * customer-service window. Validated before the network call.
+ *   https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-cta-url-messages
+ */
+export const CTA_URL_LIMITS = { displayTextMaxLength: 20, urlMaxLength: 2000 } as const
+
+export interface SendInteractiveCtaUrlArgs {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  bodyText: string
+  /** The button's label (at most 20 characters). */
+  displayText: string
+  /** Where the button goes (http or https). */
+  url: string
+  headerText?: string
+  footerText?: string
+  contextMessageId?: string
+}
+
+/** The JSON body Meta is sent for a call-to-action URL message (exported so the shape is tested). */
+export function ctaUrlPayload(args: Pick<SendInteractiveCtaUrlArgs, 'to' | 'bodyText' | 'displayText' | 'url' | 'headerText' | 'footerText' | 'contextMessageId'>): Record<string, unknown> {
+  const { to, bodyText, displayText, url, headerText, footerText, contextMessageId } = args
+  validateInteractiveBody(bodyText)
+  validateInteractiveHeaderFooter(headerText, footerText)
+  if (!displayText || Array.from(displayText).length > CTA_URL_LIMITS.displayTextMaxLength) {
+    throw new Error(`The button label must be 1-${CTA_URL_LIMITS.displayTextMaxLength} characters.`)
+  }
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error('The button address is not a valid URL.')
+  }
+  if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || url.length > CTA_URL_LIMITS.urlMaxLength) {
+    throw new Error('The button address must be an http or https URL.')
+  }
+  const interactive: Record<string, unknown> = {
+    type: 'cta_url',
+    body: { text: bodyText },
+    action: { name: 'cta_url', parameters: { display_text: displayText, url } },
+  }
+  if (headerText) interactive.header = { type: 'text', text: headerText }
+  if (footerText) interactive.footer = { text: footerText }
+  const body: Record<string, unknown> = {
+    messaging_product: 'whatsapp',
+    ...recipientFields(to),
+    type: 'interactive',
+    interactive,
+  }
+  if (contextMessageId) body.context = { message_id: contextMessageId }
+  return body
+}
+
+/** Send a call-to-action URL message (a tappable card with a button). Inside the 24-hour window only. */
+export async function sendInteractiveCtaUrl(args: SendInteractiveCtaUrlArgs): Promise<MetaSendResult> {
+  const body = ctaUrlPayload(args)
+  const response = await fetch(`${META_API_BASE}/${args.phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${args.accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+  const data = await response.json()
+  return { messageId: data.messages[0].id }
+}
+
 export interface InteractiveListRow {
   /** Stable id sent back in the webhook when tapped (≤ 200 chars). */
   id: string

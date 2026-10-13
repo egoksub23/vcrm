@@ -9,6 +9,17 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.92.0] — 2026-10-13
+
+**Migration required: 185.** Apply it BEFORE the new app.
+
+### Added
+
+- **One Raise ticket menu in the Inbox.** The two buttons become one dropdown: a technical or information ticket (the existing dialog) or a **Compliance request** (Account change, Withdrawal or Account closure) for agents who hold the raise permission. The raise dialog has a description and is prefilled from the contact and the conversation.
+- **Account change** covers a parent's phone number, a parent's email address and a child's name. A parent's name cannot be changed.
+- **Send the closure form in the chat.** Raising an Account closure creates the case first (the 14-day and 30-day clocks start then) and can send the customer a tappable message, "Account closure form · Open form", instead of a raw link: a WhatsApp button inside the 24-hour window, a button on Messenger and Instagram, an email with a button, and a plain line on Vircle Chat. The link is personal, single use and expires; the parent types their email (no code), their name is prefilled and their phone is shown masked. Submitting fills the existing case, adds a note to the conversation and notifies the compliance team. An agent can resend or withdraw a link, and when the chat cannot take the message they get a Copy link fallback. The address is never stored in the message.
+- **The Inbox ticket column is split** into General tickets and Compliance requests. People without compliance access see only the requests they raised, never customer details.
+
 ## [0.91.1] — 2026-10-13
 
 No migration.

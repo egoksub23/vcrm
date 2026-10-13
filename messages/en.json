@@ -631,7 +631,14 @@
       },
       "empty": "No tickets for this contact yet.",
       "emptyFiltered": "No tickets in this view.",
-      "thisChat": "This chat"
+      "thisChat": "This chat",
+      "generalTitle": "General tickets",
+      "complianceTitle": "Compliance requests",
+      "complianceNone": "No requests yet",
+      "complianceSummary": "{total, plural, =1 {# request} other {# requests}} · {open} open",
+      "complianceEmpty": "No compliance requests for this chat or contact yet.",
+      "complianceLoading": "Loading compliance requests",
+      "complianceFailed": "Compliance requests could not be loaded. Trying again shortly."
     },
     "contactFields": {
       "name": "Name",
@@ -804,6 +811,20 @@
           "action": "Try again. If it keeps failing, ask your admin and quote the code."
         }
       }
+    },
+    "raiseMenu": {
+      "technical": "Technical or information ticket",
+      "compliance": "Compliance request"
+    },
+    "linkCard": {
+      "ariaCard": "Closure form card: {title}",
+      "preview": "This shows what the customer sees. The button works only in the customer's chat.",
+      "statusLabel": "Form link",
+      "actions": "Closure form actions",
+      "resend": "Send again",
+      "withdraw": "Withdraw",
+      "working": "Working...",
+      "failedHint": "A closure form card cannot be resent with Resend. Use Send again on this card or on the request."
     }
   },
   "Contacts": {
@@ -13150,7 +13171,9 @@
       "network": "Could not reach the server. Check your connection and try again.",
       "customer_reason_required": "Write what the customer is told about the rejection.",
       "category_required": "Choose a reason category for the rejection.",
-      "duplicate_open": "This customer already has an open request of this type."
+      "duplicate_open": "This customer already has an open request of this type.",
+      "form_link_not_allowed": "A closure form cannot be sent for this request. It must be an account closure that has not yet reached the Head of Compliance.",
+      "form_link_submitted": "The customer has already filled in the closure form for this request."
     },
     "form": {
       "choose": "Choose...",
@@ -13395,7 +13418,15 @@
         "other": "Updated the request",
         "notice_sent": "Email sent: {notice}",
         "notice_failed": "Email not sent: {notice} ({reason})",
-        "notice_skipped": "Email skipped: {notice} ({reason})"
+        "notice_skipped": "Email skipped: {notice} ({reason})",
+        "form_link_minted": "Made a personal closure form link",
+        "form_link_sent": "Sent the closure form in the chat",
+        "form_link_resent": "Sent the closure form in the chat again",
+        "form_link_opened": "The customer opened the closure form",
+        "form_link_revoked": "A closure form link stopped working (withdrawn or replaced)",
+        "form_link_not_sent": "Made a closure form link that could not be sent in the chat",
+        "form_link_other": "Updated the closure form link",
+        "form_submitted": "The customer filled in the closure form"
       }
     },
     "blocked": {
@@ -13590,7 +13621,7 @@
       "whenAt": "Date and time",
       "whenReason": "Why is it earlier?",
       "whenReasonHelp": "The request's clock starts at this time, so the reason is written on the request.",
-      "note": "Note for the compliance team (optional)",
+      "note": "Description",
       "notify": "Email the customer a confirmation",
       "notifyNoEmail": "Add an email address to send a confirmation.",
       "submit": "Raise request",
@@ -13617,7 +13648,18 @@
         "done": "Done",
         "not_approved": "Not approved",
         "closed": "Closed"
-      }
+      },
+      "noteHelp": "Optional. It is added as a note on the request's timeline for the compliance team.",
+      "parentNameNote": "A parent's name cannot be changed here.",
+      "types": {
+        "closure": "Account closure",
+        "withdrawal": "Withdrawal",
+        "phone_change": "Account change"
+      },
+      "sendClosureForm": "Send the closure form to the customer in this chat",
+      "sendClosureFormHelp": "The customer opens a personal form to confirm the closure and give their bank details. You do not fill those in.",
+      "sendClosureFormManual": "Without the form, fill in the confirmations and the bank details below yourself.",
+      "sendClosureFormUnavailable": "Not available for this chat."
     },
     "reports": {
       "back": "Back to requests",
@@ -13703,6 +13745,53 @@
           "d15_30": "15 to 30 days",
           "d31_plus": "More than 30 days"
         }
+      }
+    },
+    "chatLink": {
+      "state": {
+        "created": "Not sent",
+        "sent": "Sent",
+        "opened": "Opened",
+        "submitted": "Submitted",
+        "expired": "Expired",
+        "revoked": "Withdrawn",
+        "replaced": "Replaced"
+      },
+      "outcome": {
+        "sentCard": "The closure form was sent in this chat as a tappable card.",
+        "sentText": "The closure form was sent in this chat as a link line, because this channel cannot show a button.",
+        "notSent": "The closure form was not sent.",
+        "reason": {
+          "window_expired": "The 24-hour WhatsApp window has closed, so a message with a button cannot be sent now. Copy the link and share it another way, or send the form again once the customer has written to you.",
+          "channel_unsupported": "This channel cannot carry the form. Copy the link and share it another way.",
+          "send_failed": "The message could not be sent. Copy the link and share it another way, or try Send again.",
+          "no_channel": "There is no chat to send it in. Copy the link and share it another way.",
+          "not_configured": "This channel is switched off or not set up. Copy the link and share it another way."
+        },
+        "unavailable": {
+          "not_closure": "Only an account closure has a closure form.",
+          "no_key": "The link could not be made because the server has no encryption key. Ask an administrator.",
+          "no_conversation": "There is no conversation to send the form in."
+        }
+      },
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "copyHint": "This link is shown only now and is not stored. It works once, for this customer only, for 14 days.",
+      "panel": {
+        "title": "Closure form link",
+        "intro": "The personal link sent to the customer in the chat. It works once, for 14 days.",
+        "empty": "No closure form link has been made for this request.",
+        "made": "Made {when}",
+        "expires": "Expires {when}",
+        "sentAt": "Sent {when}",
+        "openedAt": "Opened {when}",
+        "submittedAt": "Submitted {when}",
+        "by": "by {name}",
+        "resend": "Send again",
+        "revoke": "Withdraw the link",
+        "working": "Working...",
+        "resendHelp": "Sending again makes a new link and the old one stops working.",
+        "failed": "That could not be done. Try again."
       }
     }
   }

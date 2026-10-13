@@ -53,6 +53,11 @@ export interface CreateRequestInput {
   customerLocale?: CustomerLocale | null;
   /** When the customer proved the email address with the emailed code (the public form). */
   emailVerifiedAt?: string | null;
+  /**
+   * The answers are the ones the agent has now; the rest comes later (migration 185: a closure raised from a chat with the form sent to the customer, who
+   * fills in the acknowledgements and the bank details). What is sent is still checked; what is missing is not refused.
+   */
+  answersPartial?: boolean;
 }
 
 const idOrNull = (v: string | null | undefined, what: string): string | null => {
@@ -77,7 +82,7 @@ export async function createComplianceRequest(admin: SupabaseClient, input: Crea
   const type = await loadType(admin, input.accountId, input.typeKey);
   if (!type || !type.active) throw complianceError("type_unavailable");
   const customer = cleanCustomer(input);
-  const checked = checkAnswers(type.fields, input.answers ?? {});
+  const checked = checkAnswers(type.fields, input.answers ?? {}, { partial: input.answersPartial === true });
   if (!checked.ok) throw new ComplianceError("validation_failed", "Some answers need attention.", 400, checked.issues);
 
   let receivedAt: string | undefined;
@@ -171,7 +176,7 @@ export async function editRequest(admin: SupabaseClient, caller: ComplianceCalle
     const checked = checkAnswers(
       type.fields,
       { ...(input.answers ?? {}), ...(input.sensitive ?? {}) },
-      { partial: true },
+      { partial: true, context: row.data ?? {} },
     );
     if (!checked.ok) throw new ComplianceError("validation_failed", "Some answers need attention.", 400, checked.issues);
     if (Object.keys(checked.answers.sensitive).length > 0) {

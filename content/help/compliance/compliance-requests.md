@@ -1,11 +1,11 @@
 ---
 title: Compliance requests
-description: Handle account closures, withdrawals and phone number changes with an identity check, a Head of Compliance sign-off, a clock and a record of every step.
+description: Handle account closures, withdrawals and account changes with an identity check, a Head of Compliance sign-off, a clock and a record of every step, and raise them from a chat.
 order: 2
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
-Compliance requests is where your team handles the things a customer asks for that carry real consequences: **closing an account**, **withdrawing money**, and **changing the phone number** on an account. Each request has a clock, an identity check, a recommendation from an officer, a final sign-off from the Head of Compliance, a checklist for operations, and a timeline that records everything. It sits in the sidebar as **Compliance**, directly below **KYC review**.
+Compliance requests is where your team handles the things a customer asks for that carry real consequences: **closing an account**, **withdrawing money**, and **changing account details** (a parent's phone number or email address, or a child's name). Each request has a clock, an identity check, a recommendation from an officer, a final sign-off from the Head of Compliance, a checklist for operations, and a timeline that records everything. It sits in the sidebar as **Compliance**, directly below **KYC review**.
 
 > [!NOTE]
 > Compliance is switched on for a workspace by the platform operator; until then there is no menu item. Requests are kept for **seven years** and cannot be deleted.
@@ -22,7 +22,7 @@ An admin sets this in **Settings**, **Roles & permissions**, under **Compliance 
 | **Reveal bank details in compliance requests** | Show the bank details in full for two minutes. |
 | **Carry out compliance requests** | Operations: tick the checklist and mark a request executing or complete. |
 | **Manage compliance settings** | Change the request types and the public forms in **Settings**, **Compliance**. |
-| **Raise compliance requests** | Press **Raise compliance request** in an Inbox conversation or on a ticket. It does **not** need the Compliance menu: the person sees only the reference and status of what they raised. |
+| **Raise compliance requests** | Choose **Compliance request** in the **Raise ticket** menu of an Inbox conversation, or press **Raise compliance request** on a ticket. It also lets the person send, send again and withdraw the closure form of a request **they raised**. It does **not** need the Compliance menu: the person sees only the reference and status of what they raised. |
 
 A panel you may not use is read-only and says why.
 
@@ -48,7 +48,7 @@ The clock starts on the **request date**. Alerts go to the people who can review
 
 For something a customer asked in a chat or on the phone, press **New request**.
 
-1. Choose the **type**: account closure, fund withdrawal, phone number change (an admin may add more).
+1. Choose the **type**: account closure, fund withdrawal, account change (an admin may add more).
 2. Enter the customer's name, email and phone (a number like `012-345 6789` becomes `+60123456789`) and the channel.
 3. Leave **Requested on** empty, or set the day and time the customer really asked: the clock starts then, and the request records that you set it by hand.
 4. Fill in the form. Bank details are stored **encrypted**. A closure needs the three ticks (every child has finished school, every allowance is cancelled, the customer confirms) and the bank name, account number and account holder.
@@ -56,17 +56,53 @@ For something a customer asked in a chat or on the phone, press **New request**.
 
 ## Raise a request from the Inbox or a ticket
 
-If you hold the **Raise compliance requests** permission, a conversation and a ticket show a **Raise compliance request** button next to the other header buttons (only when Compliance is switched on for your workspace).
+In an Inbox conversation the header has **one** button, **Raise ticket**. If you hold the **Raise compliance requests** permission (and Compliance is switched on for your workspace) it opens a small menu:
 
-1. Press it and choose the **type**. The customer's name, phone and email come from the contact; correct them if they are wrong. The channel is the conversation's.
-2. Fill in the type's fields (for a phone number change: the current number, the new number, how the request arrived and a note). **Tick a box only if the customer has confirmed it to you.**
-3. **When the customer asked** is *Now*. Choose *Earlier* only if the customer really asked earlier; you must give the date, the time and why, because the request's clock starts then and the reason is written on the request.
-4. Tick **Email the customer a confirmation** if you want them to get one (it needs an email address).
-5. Press **Raise request**. A line, **Compliance request CMP-2026-000014 raised**, is added to the conversation as an internal note, or to the ticket as a comment. Everyone who can open it reads that line; only people who hold the Compliance menu see it as a link.
+- **Technical or information ticket** opens the usual new-ticket window, with the contact and the chat filled in. See [Create a ticket](/help/tickets/create-a-ticket).
+- **Compliance request** opens the dialog below.
+
+If you do not hold the permission, or Compliance is off, **Raise ticket** is the single button it always was. A ticket has its own **Raise compliance request** button.
+
+1. Choose the **type**: **Account change**, **Withdrawal** or **Account closure**. The customer's name, phone and email come from the contact; correct them if they are wrong. How the request arrived is the conversation's channel.
+2. Write a **Description** (optional): it is added to the request's timeline for the team.
+3. Fill in the type's fields.
+   - **Account change.** Choose **what is changing**: the parent's phone number, the parent's email address or a child's name. Then enter the current and the new value (for a child: which child, by their current name, and the new name). Phone numbers like `012-345 6789` become `+60123456789`; email addresses are checked. **A parent's name cannot be changed here**, and the dialog says so.
+   - **Withdrawal.** The amount, the reason, the bank details.
+   - **Account closure.** See the next section: normally you send the customer the closure form instead of typing their bank details.
+   **Tick a box only if the customer has confirmed it to you.**
+4. **When the customer asked** is *Now*. Choose *Earlier* only if the customer really asked earlier; you must give the date, the time and why, because the request's clock starts then and the reason is written on the request.
+5. Tick **Email the customer a confirmation** if you want them to get one (it needs an email address).
+6. Press **Raise request**. A line, **Compliance request CMP-2026-000014 raised**, is added to the conversation as an internal note, or to the ticket as a comment. Everyone who can open it reads that line; only people who hold the Compliance menu see it as a link.
 
 You cannot raise a second request of the same type for a customer who already has one open. If you hold a compliance permission the message names it; if not, it only says one is already open, so that raising can never be used to find out whether someone has a request.
 
 After you raise it you see a small chip on the conversation or ticket, for example **CMP-2026-000014 · In review**, and a short list, **My raised requests**, with the reference, the type and the status of what **you** raised. You never see the customer's answers, bank details or reasons unless you also hold a compliance permission. The words in the chip are: Received, In review (identity check, officer review and sign-off), In progress (approved and being carried out), Done, Not approved and Closed.
+
+## Send the closure form in the chat
+
+For an **account closure** raised from a conversation, the dialog has the box **Send the closure form to the customer in this chat**. It is ticked when the chat can take it. Ticked, you do not enter the ticks or the bank details: the customer does.
+
+1. Press **Raise request**. The request is created **first**, so it exists whatever happens next, with its clock running from the request time.
+2. A personal link is made and sent into the chat as a **card**: the title *Account closure form*, one line asking the customer to open the form and fill in their details, and a button (*Open closure form*) in the customer's language (the contact's language, else English). It is a tappable card, not a long web address.
+3. In your Inbox the card shows a status line: **Sent**, **Opened**, **Submitted**, **Expired**, **Withdrawn** or **Replaced**. It never shows the address.
+
+**What the customer does.** They tap the button and see the closure form: the same one as the public closure form, with the two required ticks, the bank account, the authorization letter if the bank account holder's name does not match their name, and the declaration. There is **no code to enter**. Their name is filled in from your contact (they can correct it), they **type their email address**, and their registered phone number is shown **masked** (for example `+6012•••••881`) and cannot be changed: it is the number they are chatting with you on. When they submit, they see the reference and what happens next.
+
+**What you see.** The form updates the request you raised (it does not make a second one): the answers are on it, the bank details encrypted like any other. The officer still does the identity check, which is **not** done by the form. The people who review closures get a notification, and the conversation gets an internal note **Closure form submitted · CMP-2026-000014**.
+
+**If it cannot be sent in the chat.** The request is still created, and a message tells you why, with **Copy link**:
+
+- **WhatsApp and the 24 hours.** A message with a button can only go inside the 24-hour window that starts with the customer's last message (the timer in the chat header). When it has run out, Halo does not send anything; copy the link and share it another way, or send the form again when the customer has written to you. Sending is always **your** choice: Halo never sends it by itself and does not use a WhatsApp template for this.
+- **A channel that cannot carry it.** The web chat cannot, because anything sent there is stored in the conversation and the link is never stored.
+- **A failure.** If the channel refuses the message, you are told and can copy the link or press **Send again**.
+
+The link is shown to you **once**, in that message, and is not kept anywhere. If you lose it, send the form again.
+
+**How each channel shows it.** WhatsApp: a message with a button. Messenger and Instagram: a card with a button. Email and Gmail: an email with a button (and the address under it). The in-app chat channel: one line, *Account closure form: address*, because that channel has no button. The web chat: not sent (copy the link).
+
+**Send again, and withdraw.** On the card in the chat, or on the request in the **Closure form link** panel, **Send again** makes a new link and the old one stops working at once; **Withdraw** stops the link without sending another. A link works **once**, for **14 days**, for that customer only. If the customer has already filled in the form, or the request has moved on to the Head of Compliance, it cannot be sent again. If you hold only the *Raise compliance requests* permission you can do this for the requests you raised; the officers and the Head can do it for any request. Everything is recorded in the request's timeline (made, sent, sent again, opened, withdrawn, submitted), without the address.
+
+**If the customer opens an old link.** They see one calm page: *This link is not valid any more. Please contact support.* It does not say whether the link was used, withdrawn, replaced or expired.
 
 ## Public forms: what the parent sees
 
