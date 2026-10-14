@@ -54,7 +54,7 @@ export function bindableFields(form: FormDefinition, p: PlacedField): DataField[
   return form.fields.filter((f) => canPrintIn(f, p.type));
 }
 
-/** The placement type a new "Place" action makes for a data field; null for a field that cannot be printed (files). */
+/** The placement type a new "Place" action makes for a data field; a file field is printed as the names of its files. */
 export function placementTypeFor(field: DataField): FieldType | null {
   switch (field.type) {
     case "number":
@@ -66,15 +66,13 @@ export function placementTypeFor(field: DataField): FieldType | null {
       return "checkbox";
     case "image":
       return "upload";
-    case "file":
-      return null;
     default:
       return "text";
   }
 }
 
 /** How much taller than a one-line box a field's answer needs. */
-const tall = (field: DataField): boolean => field.type === "multiline" || field.type === "list";
+const tall = (field: DataField): boolean => field.type === "multiline" || field.type === "list" || field.type === "file";
 
 /** The size a new bound placement starts at (fractions of the page); `aspect` is page height over page width. */
 export function boundSize(field: DataField, type: FieldType, aspect: number): { w: number; h: number } {
@@ -92,7 +90,7 @@ export function bindPlacement(p: PlacedField, field: DataField, dataValue?: stri
   delete rest.label;
   const bound: PlacedField = { ...rest, data: field.key, role: SENDER_ROLE, required: false };
   if (dataValue !== undefined && takesOptionValue(field, p.type)) bound.dataValue = dataValue;
-  if ((field.type === "multiline" || field.type === "list") && p.type === "text" && p.multiline === undefined) bound.multiline = true;
+  if ((field.type === "multiline" || field.type === "list" || field.type === "file") && p.type === "text" && p.multiline === undefined) bound.multiline = true;
   return bound;
 }
 

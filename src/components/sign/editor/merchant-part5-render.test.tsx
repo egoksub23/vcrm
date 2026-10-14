@@ -45,7 +45,7 @@ describe("the Merchant Application in the placement editor", () => {
   it("draws every placement of the template, and Part 5 as exactly two text boxes and the acceptance tick", () => {
     const all = [...html.matchAll(/data-field="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(all).size).toBe(MERCHANT_PLACEMENTS.length);
-    expect(MERCHANT_PLACEMENTS).toHaveLength(51);
+    expect(MERCHANT_PLACEMENTS).toHaveLength(60);
     expect(onPage(2)).toEqual(["p_commercial_terms", "p_key_terms", "p_terms_accepted"]);
     // none of the thirteen boxes of the earlier versions
     expect(all.filter((k) => /^p_(term_|fee_|channel_note)/.test(k))).toEqual([]);

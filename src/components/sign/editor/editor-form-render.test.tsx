@@ -90,7 +90,10 @@ describe("a bound placement in the properties panel", () => {
   it("lists only the data fields the placement can print, and a tick box also picks the option", () => {
     const text = renderToStaticMarkup(<PropertiesPanel {...props} field={placement({ key: "t", type: "text", role: "merchant" })} />);
     expect(text).toContain('value="legal_name"');
-    expect(text).not.toContain('value="form9"');
+    // a file field is offered to a text box too: it prints the names of the files uploaded
+    expect(text).toContain('value="form9"');
+    const picture = renderToStaticMarkup(<PropertiesPanel {...props} field={placement({ key: "u", type: "upload", role: "merchant" })} />);
+    expect(picture).not.toContain('value="form9"');
     const tick = renderToStaticMarkup(<PropertiesPanel {...props} field={bindPlacement(placement({ key: "k", type: "checkbox" }), form.fields[2], "sst")} />);
     expect(tick).toContain("editor.fillOption");
     expect(tick).toContain('value="sst" selected');

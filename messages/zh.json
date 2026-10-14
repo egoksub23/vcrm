@@ -825,6 +825,28 @@
       "withdraw": "撤回",
       "working": "处理中...",
       "failedHint": "关闭账户表格卡片不能用普通的“重发”重新发送。请在此卡片或该请求上使用“重新发送”。"
+    },
+    "backOffice": {
+      "railLabel": "在 Vircle Back Office 中打开",
+      "railTitle": "Vircle Back Office",
+      "railHint": "打开这位家长的记录",
+      "railRegion": "快捷操作",
+      "expandRail": "显示标签",
+      "collapseRail": "隐藏标签",
+      "panelTitle": "Vircle Back Office",
+      "panelSubtitle": "客户服务",
+      "close": "关闭",
+      "findTitle": "查找应用用户",
+      "phoneLabel": "电话号码",
+      "phonePlaceholder": "例如 +60123456789 或 0123456789",
+      "search": "搜索",
+      "findAnother": "查找其他用户",
+      "openInNewTab": "在新标签页中打开",
+      "noPhone": "此联系人没有电话号码。请输入一个来搜索。",
+      "openedInTab": "已在新标签页中打开。如果没有反应，请使用“在新标签页中打开”。",
+      "frameTitle": "Vircle Back Office 客户服务视图",
+      "frameLoading": "正在加载 Back Office...",
+      "frameNote": "如果页面没有显示或要求您登录，请使用“在新标签页中打开”。"
     }
   },
   "Contacts": {
@@ -8777,7 +8799,8 @@
           "letters": "仅字母",
           "alnum": "字母和数字",
           "upper_alnum": "大写字母和数字",
-          "postcode_my": "马来西亚邮政编码（5 位数字）"
+          "postcode_my": "马来西亚邮政编码（5 位数字）",
+          "alnum_hyphen": "字母、数字和连字符（如 123456-A）"
         },
         "minLength": "最短（字符数）",
         "maxLength": "最长（字符数）",
@@ -8988,7 +9011,8 @@
         "bad_sensitive": "{field} 不能标记为敏感。只有键入的答案（文本、数字、电子邮件、电话、日期、列表）可以。",
         "sensitive_contact_field": "{field} 是敏感字段，不能用来填写联系人字段。请去掉其中一个。",
         "sensitive_default": "{field} 是敏感字段，不能设置初始值或锁定。请去掉初始值或锁定。",
-        "sensitive_in_rule": "有规则在比较 {field} 的值，而它是敏感字段。规则只能判断它是否为空。"
+        "sensitive_in_rule": "有规则在比较 {field} 的值，而它是敏感字段。规则只能判断它是否为空。",
+        "bad_stamp": "“{field}”的印章设置不正确。它需要图片字段（或接受 PNG 的文件字段），并用本表单中真实存在的文本字段提供名称和号码。"
       },
       "warnings": {
         "unknown": "表单中有内容值得检查。",
@@ -10505,7 +10529,8 @@
         "letters": "仅限字母",
         "alnum": "仅限字母和数字",
         "upper_alnum": "仅限大写字母和数字",
-        "postcode_my": "5 位数字"
+        "postcode_my": "5 位数字",
+        "alnum_hyphen": "仅限字母、数字和连字符"
       },
       "file": {
         "choose": "选择文件",
@@ -10566,7 +10591,8 @@
         "not_shown": "这个答案不需要填写。",
         "missing_required": "这一项必须填写。",
         "answer_does_not_fit": "这个答案对于打印位置来说太长，请缩短它。",
-        "generic": "无法保存。请修改后再试。"
+        "generic": "无法保存。请修改后再试。",
+        "format_alnum_hyphen": "请只输入字母、数字和连字符，例如 123456-A。"
       },
       "save": {
         "saving": "正在保存...",
@@ -10647,6 +10673,48 @@
         "submit": "提交",
         "submitting": "正在提交…",
         "afterwards": "提交后无法再修改答复。"
+      },
+      "stamp": {
+        "way": {
+          "label": "您想如何添加公司印章？",
+          "upload": "上传您的印章",
+          "create": "根据公司资料生成印章"
+        },
+        "needs": {
+          "title": "请先填写公司资料",
+          "body": "印章由公司名称和注册号生成。请先填写下列资料，再回到这里。",
+          "go": "前往：{field}"
+        },
+        "note": "这是根据您的公司资料生成的电子印章图样。",
+        "alt": {
+          "plain": "公司印章预览：{name}，注册号 {number}。",
+          "withOld": "公司印章预览：{name}，注册号 {number}，旧注册号 {old}。",
+          "saved": "您的公司印章，根据公司资料生成。"
+        },
+        "numberWarning": "新的注册号通常为12位数字。使用此印章前，请核对您填写的号码。",
+        "stale": "自您生成此印章后，公司资料已有更改。请替换印章以更新。",
+        "use": "使用此印章",
+        "making": "正在生成印章",
+        "another": "选择其他方式",
+        "replace": "替换此印章",
+        "remove": "移除 / 选择其他方式",
+        "created": "根据公司资料生成",
+        "problem": {
+          "unsupported": "此设备无法生成印章。请改为上传印章图片。",
+          "tooBig": "生成的印章图片过大，无法保存。请改为上传印章图片。",
+          "notSaved": "印章未能保存。请检查网络连接后重试。"
+        }
+      },
+      "document": {
+        "badge": {
+          "required": "必填",
+          "requiredForType": "您的企业类型必填",
+          "optional": "选填"
+        },
+        "progress": {
+          "required": "已添加 {done}/{total} 份必填文件",
+          "optional": "已添加 {done}/{total} 份选填文件"
+        }
       }
     },
     "verify": {

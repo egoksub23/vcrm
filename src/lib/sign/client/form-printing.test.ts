@@ -28,7 +28,10 @@ describe("what can be printed where", () => {
     expect(canPrintIn(field("legal_name"), "text")).toBe(true);
     expect(canPrintIn(field("legal_name"), "signature")).toBe(false);
     expect(canPrintIn(field("tax_pct"), "number")).toBe(true);
-    expect(canPrintIn(field("form9"), "text")).toBe(false);
+    // a file is printed as the names of its files, in a text box, and never drawn
+    expect(canPrintIn(field("form9"), "text")).toBe(true);
+    expect(canPrintIn(field("form9"), "upload")).toBe(false);
+    expect(canPrintIn(field("form9"), "checkbox")).toBe(false);
     expect(takesOptionValue(field("tax_type"), "checkbox")).toBe(true);
     expect(takesOptionValue(field("tax_type"), "text")).toBe(false);
     expect(takesOptionValue(field("legal_name"), "checkbox")).toBe(false);
@@ -37,7 +40,7 @@ describe("what can be printed where", () => {
   it("offers a placement only the data fields it can print", () => {
     const names = (p: PlacedField) => bindableFields(form, p).map((f) => f.key);
     expect(names(placement({ key: "a", type: "number" }))).toEqual(["tax_pct"]);
-    expect(names(placement({ key: "a", type: "text" }))).toEqual(["legal_name", "biz_type", "tax_type", "tax_pct", "msic", "account_no"]);
+    expect(names(placement({ key: "a", type: "text" }))).toEqual(["legal_name", "biz_type", "tax_type", "tax_pct", "msic", "account_no", "form9"]);
     expect(names(placement({ key: "a", type: "checkbox" }))).toEqual(["legal_name", "biz_type", "tax_type", "msic", "account_no"]);
     expect(names(placement({ key: "a", type: "signature" }))).toEqual([]);
     expect(names(placement({ key: "a", type: "static_text", text: "x" }))).toEqual([]);
@@ -49,7 +52,7 @@ describe("what can be printed where", () => {
     expect(placementTypeFor({ ...field("legal_name"), type: "date" })).toBe("date");
     expect(placementTypeFor({ ...field("legal_name"), type: "yesno" })).toBe("checkbox");
     expect(placementTypeFor({ ...field("legal_name"), type: "image" })).toBe("upload");
-    expect(placementTypeFor(field("form9"))).toBeNull();
+    expect(placementTypeFor(field("form9"))).toBe("text");
   });
 });
 
@@ -96,8 +99,10 @@ describe("binding", () => {
     const corner = createBoundPlacement({ field: field("legal_name"), page: 0, centre: { x: 1, y: 1 }, aspect: 1.4142, taken: new Set() })!;
     expect(corner.x + corner.w).toBeLessThanOrEqual(1);
     expect(corner.y + corner.h).toBeLessThanOrEqual(1);
-    // a file cannot be printed
-    expect(createBoundPlacement({ field: field("form9"), page: 0, centre: { x: 0.5, y: 0.5 }, aspect: 1.4, taken: new Set() })).toBeNull();
+    // a file is printed as its names: a tall, multi-line text box
+    const files = createBoundPlacement({ field: field("form9"), page: 0, centre: { x: 0.5, y: 0.5 }, aspect: 1.4, taken: new Set() })!;
+    expect(files).toMatchObject({ type: "text", data: "form9", multiline: true });
+    expect(files.h).toBeGreaterThan(boundSize(field("legal_name"), "text", 1.4142).h);
     // a multi-line field is taller than a one-line one
     expect(boundSize(field("msic"), "text", 1.4142).h).toBeGreaterThan(boundSize(field("legal_name"), "text", 1.4142).h);
     // never a key a data field uses

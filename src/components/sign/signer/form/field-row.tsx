@@ -11,9 +11,10 @@ import { useId, type ReactNode } from "react";
 import { History, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { STAMP_FILE_NAME } from "@/lib/sign/client/stamp";
 import { displayValue } from "@/lib/sign/forms/text";
-import type { DataAnswerInput, DataField, FormValueView } from "@/lib/sign/forms/types";
-import { toAnswerMap, type FormRejection } from "@/lib/sign/client/signer-form";
+import type { AnswerMap, DataAnswerInput, DataField, FormDefinition, FormValueView } from "@/lib/sign/forms/types";
+import { documentBadge, toAnswerMap, type FormRejection } from "@/lib/sign/client/signer-form";
 import { cn } from "@/lib/utils";
 
 import { ChoiceControl, MultichoiceControl, AcknowledgeControl, YesNoControl } from "./choice-control";
@@ -22,6 +23,7 @@ import { FileControl, ImageControl } from "./file-control";
 import { useFormLocale, useFormText, useProblemText } from "./form-ui";
 import { ListControl } from "./list-control";
 import { SensitiveControl } from "./sensitive-control";
+import { StampChoice } from "./stamp-card";
 import { TextControl } from "./text-control";
 
 /** These are a set of controls under one heading, not one control under a label. */
@@ -44,9 +46,14 @@ export interface FieldRowProps {
   onBlur: () => void;
   onUpload?: (key: string, file: File, onProgress?: (fraction: number) => void) => Promise<void>;
   onRemoveUpload?: (key: string, fileId: string) => Promise<void>;
+  /** For a picture field that can make its picture from other answers (a company stamp): the form and the answers as they stand. */
+  definition?: FormDefinition;
+  answers?: AnswerMap;
+  /** Take the person to another field of the form (a detail the stamp needs). */
+  onGoToField?: (key: string) => void;
 }
 
-export function FieldRow({ field, input, stored, required, unconfirmed, rejection, onInput, onBlur, onUpload, onRemoveUpload }: FieldRowProps) {
+export function FieldRow({ field, input, stored, required, unconfirmed, rejection, onInput, onBlur, onUpload, onRemoveUpload, definition, answers, onGoToField }: FieldRowProps) {
   const t = useTranslations("Sign.signerForm");
   const text = useFormText();
   const locale = useFormLocale();
@@ -60,11 +67,23 @@ export function FieldRow({ field, input, stored, required, unconfirmed, rejectio
   const problem = problemText(rejection);
   const describedBy = [help ? helpId : null, problem ? errorId : null].filter(Boolean).join(" ") || undefined;
   const group = isGroup(field);
+  // a document to upload says in words whether it is needed, for the answers so far (a star alone does not say "for whom")
+  const badge = field.type === "file" && !field.locked ? documentBadge(field, required) : null;
 
   const heading = (
     <>
       {label}
-      {required ? (
+      {badge ? (
+        <span
+          data-document-badge={badge}
+          className={cn(
+            "ml-2 inline-flex items-center rounded-full border px-2 py-0.5 align-middle text-xs font-medium leading-snug",
+            badge === "optional" ? "bg-muted text-muted-foreground" : "border-[color:light-dark(#bae6fd,#0369a1)] bg-[color:light-dark(#f0f9ff,#082f4966)] text-[light-dark(#075985,#bae6fd)]",
+          )}
+        >
+          {t(`document.badge.${badge}`)}
+        </span>
+      ) : required ? (
         <>
           <span aria-hidden> *</span>
           <span className="sr-only"> ({t("field.required")})</span>
@@ -110,12 +129,66 @@ export function FieldRow({ field, input, stored, required, unconfirmed, rejectio
       case "list":
         body = <ListControl {...control} />;
         break;
-      case "file":
-        body = <FileControl field={field} id={id} describedBy={describedBy} files={stored && "files" in stored ? stored.files : []} onUpload={onUpload} onRemoveUpload={onRemoveUpload} />;
+      case "file": {
+        const files = stored && "files" in stored ? stored.files : [];
+        const plain = <FileControl field={field} id={id} describedBy={describedBy} files={files} onUpload={onUpload} onRemoveUpload={onRemoveUpload} />;
+        const made = files.find((f) => f.name === STAMP_FILE_NAME);
+        body =
+          field.stamp && definition && answers && onUpload ? (
+            <StampChoice
+              field={field}
+              id={id}
+              definition={definition}
+              answers={answers}
+              picture={null}
+              savedName={made ? made.name : null}
+              onGoToField={onGoToField}
+              onRemove={() => {
+                if (made && onRemoveUpload) void onRemoveUpload(field.key, made.id).catch(() => undefined);
+              }}
+              onUse={async ({ file }) => {
+                try {
+                  // a stamp made again replaces the one made before
+                  if (made && onRemoveUpload) await onRemoveUpload(field.key, made.id);
+                  await onUpload(field.key, file);
+                  return true;
+                } catch {
+                  return false;
+                }
+              }}
+            >
+              {plain}
+            </StampChoice>
+          ) : (
+            plain
+          );
         break;
-      case "image":
-        body = <ImageControl {...control} />;
+      }
+      case "image": {
+        const picture = typeof input.image === "string" && input.image ? input.image : null;
+        body =
+          field.stamp && definition && answers ? (
+            <StampChoice
+              field={field}
+              id={id}
+              definition={definition}
+              answers={answers}
+              picture={picture}
+              onGoToField={onGoToField}
+              onRemove={() => onInput({ image: "" })}
+              onUse={async ({ dataUrl }) => {
+                // the same answer a chosen picture gives: the page saves it, and the browser and the server check it as any picture
+                onInput({ image: dataUrl });
+                return true;
+              }}
+            >
+              <ImageControl {...control} />
+            </StampChoice>
+          ) : (
+            <ImageControl {...control} />
+          );
         break;
+      }
       default:
         body = <TextControl {...control} />;
     }

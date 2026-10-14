@@ -2,7 +2,7 @@
 title: Categories and add-ons
 description: Group documents and templates in categories with their own starting choices, and install ready-made add-on packs.
 order: 8
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 A **category** labels documents and templates and sets the starting choices for them. An **add-on** is a ready-made pack for a business process, such as signing merchant agreements. Both are managed in **Settings**, under **Secure Sign**, by someone allowed to manage Secure Sign settings.
@@ -74,7 +74,7 @@ What happens to each template of the add-on depends on whether you have changed 
 | **You have edited it** (moved a field, changed the form, the roles or the starting choices) | It is left **exactly as it is**. A new copy named **“Merchant Application (updated)”** is added next to it as a draft, so you can compare and switch over when you like. |
 | **You deleted it** | Nothing is brought back. Press **Install again** if you want it. |
 
-Some updates change the template file itself, not only its fields (Merchant Registration 3.0 is one: it redraws the commercial terms page). A template keeps the file it was made with, so for such an update **every** template, edited or not, is left exactly as it is and the new one is added next to it as **“Merchant Application (updated)”**. Nothing is overwritten and nothing is lost: look at the copy, and switch over when you like.
+Some updates change the template file itself, not only its fields (Merchant Registration 3.0 and 3.1 are such updates: 3.0 redraws the commercial terms page and 3.1 the documents page). A template keeps the file it was made with, so for such an update **every** template, edited or not, is left exactly as it is and the new one is added next to it as **“Merchant Application (updated)”**. Nothing is overwritten and nothing is lost: look at the copy, and switch over when you like.
 
 When the update is done, a note under the heading tells you which of these happened to each template, and it stays until you close it.
 
@@ -83,6 +83,14 @@ An update never changes a document that was already sent, and a draft you starte
 ### Merchant Registration
 
 The first add-on, **Merchant Registration**, is for signing merchant agreements. It sets up the **Merchant agreements** category and the **Merchant Application** template, which a merchant fills in parts and signs.
+
+**What version 3.1 changed** (the company stamp, the old registration number and the documents):
+
+- **The merchant can create the company stamp.** On the last step of the form, the stamp has two choices: **Upload your stamp**, as before, or **Create a stamp from your company details**. Creating opens a card with a preview of a round stamp in dark blue ink: the company name round the outer edge, the registration number in the middle, the old registration number in brackets under it, and a small star at the bottom. The preview follows what the merchant types. If the company name or the registration number is not filled in yet, the card says so and has a button to go to each. **Use this stamp** saves it like any picture the merchant uploaded, and the signed copy prints it in the same place as an uploaded stamp. **Remove / choose another way** takes it away again. The card says: “This is a digital imprint made from your company details.” It is not an official seal; a merchant who has a stamp file can still upload it.
+- **New question: Old registration number (if any).** It is asked of a Sdn. Bhd., a club, society or co-operative, and Others, and is never required. Write it with letters, digits and hyphens, for example 123456-A (up to 20 characters). It is printed beside the registration number and appears on the stamp. A sole proprietor or a partnership is not asked.
+- **The documents step is clearer.** Each document says whether it is **Required for your business type**, **Required** or **Optional**, and a step with several documents says **how many are added** (for example “3 of 5 required documents added”).
+- **Part 4 of the printed application lists each document with the name of the file the merchant uploaded.** The list now matches the form for every type of business: a club, society or co-operative also gives a bank statement header, an ID and pictures of the premise. A line stays blank when the document is not needed for the merchant's type. A long file name is shortened to fit on one line, so a merchant never has to rename a file to sign. File names in Chinese, Japanese or Korean print as question marks unless your platform operator has installed the font for them.
+- Because the template file changed, **Update** adds a new draft template named **“Merchant Application (updated)”** (“(updated 2)” if the copy from an earlier update is still there) and leaves your current one, and every document and draft made from it, exactly as they are. The new question and the stamp choice are in the new template only.
 
 **What version 3.0 changed** (the commercial terms page, which is Part 5, “Commercial terms / Terma komersial”):
 

@@ -93,6 +93,26 @@ On the **Contact** tab, top to bottom:
 
 The **Knowledge** tab searches your team's articles. See [Use articles in chat](/help/knowledge/use-articles-in-chat).
 
+## Open the parent's record in the Back Office
+
+If your workspace has the Back Office connected, you can open the parent's record there without leaving the Inbox. Nothing shows if it is not connected.
+
+- **On a wide screen**, a narrow strip runs down the far right edge, next to the customer details. It stays there for every chat, whichever tab you are on. It shows one icon, the Back Office button. The small arrow at the top of the strip shows or hides the words beside the icon. Halo remembers your choice on this computer.
+- **On a smaller screen**, the same icon is in the chat header.
+
+Click it. A panel slides in from the right across the chat. It is called **Back Office - Customer care** and has a **Find an app user** box.
+
+1. The box already holds the customer's phone number, exactly as Halo has it. If the customer has no phone number (for example a web chat visitor), the box is empty: type a number.
+2. Click **Search** or press Enter.
+3. The Back Office opens in a **new tab**. The panel says so. If nothing happens (a pop-up blocker can stop the tab), click **Open in new tab**.
+4. To look up someone else, click **Find another user**, or change the number and search again.
+
+Press Esc or the close button to close the panel.
+
+If your administrator has switched on the embedded view, **Search** shows the Back Office inside the panel instead of a new tab. This only works if the Back Office allows being shown inside Halo and allows sign-in there. If the page does not appear or asks you to sign in, click **Open in new tab**. Administrators: the setting is `BACK_OFFICE_EMBED` (see `docs/back-office-link.md`). Keep it off unless the Back Office team has confirmed it works.
+
+You sign in to the Back Office separately from Halo. If it says access denied, you do not have the Customer Care page there: ask whoever manages Back Office access.
+
 ## Tips
 
 - Use **Unread** to find what you have not seen, and **Mine** to see your own chats.

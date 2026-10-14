@@ -29,6 +29,8 @@ const FORMAT_RE: Record<Exclude<TextFormat, "any">, RegExp> = {
   alnum: /^[\p{L}\p{N}\p{M}]+$/u,
   upper_alnum: /^[A-Z0-9]+$/,
   postcode_my: /^\d{5}$/,
+  // a registration number such as 123456-A: letters and digits, with single hyphens between groups
+  alnum_hyphen: /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/,
 };
 
 /** Does `s` have the shape `format` asks for? */

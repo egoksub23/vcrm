@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useCallback, useEffect, useRef } from "react";
+import { Suspense, useState, useCallback, useEffect, useReducer, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,11 @@ import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { InboxSideColumn } from "@/components/inbox/inbox-side-column";
 import { PaneResizeHandle } from "@/components/inbox/pane-resize-handle";
+import { BackOfficeRail, useBackOfficeRailExpanded } from "@/components/inbox/back-office-rail";
+import { BackOfficePanel } from "@/components/inbox/back-office-panel";
+import { useBackOfficeLink } from "@/hooks/use-back-office-link";
+import { PANEL_CLOSED, panelReducer } from "@/lib/back-office/panel";
+import { backOfficeEnabled, backOfficeRailWidthPx } from "@/lib/back-office/rail";
 import { usePaneWidth } from "@/hooks/use-pane-width";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
@@ -142,10 +147,25 @@ function InboxPageInner() {
   const ticketPane = usePaneWidth("wacrm:inbox:ticket-width", PANE_DEFAULT_PX.tickets);
   const contactPane = usePaneWidth("wacrm:inbox:contact-width", PANE_DEFAULT_PX.contact);
   const rowRef = useRef<HTMLDivElement>(null);
-  /** Most a panel may grow to: the row, less the thread's minimum and every other open panel. */
+
+  // Vircle Back Office: a narrow rail on the right (xl and wider; below that the same action is a button in the conversation header)
+  // that opens a slide-over panel across the chat. Drawn only when the server has a valid Back Office address.
+  const backOffice = useBackOfficeLink();
+  const backOfficeBaseUrl = backOfficeEnabled(backOffice.baseUrl) ? backOffice.baseUrl : null;
+  const backOfficeRail = useBackOfficeRailExpanded();
+  const [backOfficePanel, dispatchBackOfficePanel] = useReducer(panelReducer, PANEL_CLOSED);
+  const activeContactPhone = activeContact?.phone;
+  const openBackOffice = useCallback(
+    () => dispatchBackOfficePanel({ type: "open", contactPhone: activeContactPhone }),
+    [activeContactPhone],
+  );
+
+  /** Most a panel may grow to: the row, less the thread's minimum and every other open panel (and the Back Office rail, where it is drawn: xl+). */
   const maxPaneWidth = (which: "list" | "tickets" | "contact") => {
     const row = rowRef.current?.clientWidth ?? window.innerWidth;
+    const railPx = backOfficeBaseUrl && window.innerWidth >= 1280 ? backOfficeRailWidthPx(backOfficeRail.expanded) : 0;
     const others =
+      railPx +
       (which !== "list" ? listPane.width : 0) +
       (which !== "tickets" && ticketPanelOpen ? ticketPane.width : 0) +
       (which !== "contact" && contactPanelOpen ? contactPane.width : 0);
@@ -869,6 +889,7 @@ function InboxPageInner() {
             onToggleContactPanel={handleToggleContactPanel}
             ticketPanelOpen={ticketPanelOpen}
             onToggleTicketPanel={handleToggleTicketPanel}
+            onOpenBackOffice={backOfficeBaseUrl ? openBackOffice : undefined}
           />
         </div>
 
@@ -930,7 +951,26 @@ function InboxPageInner() {
           </div>
           </>
         )}
+
+        {/* Quick actions rail, always on the far right beside the Customer information panel (even when that panel is hidden). */}
+        {backOfficeBaseUrl && (
+          <BackOfficeRail
+            expanded={backOfficeRail.expanded}
+            onToggleExpanded={backOfficeRail.toggle}
+            onOpen={openBackOffice}
+          />
+        )}
       </div>
+      )}
+
+      {backOfficeBaseUrl && (
+        <BackOfficePanel
+          state={backOfficePanel}
+          dispatch={dispatchBackOfficePanel}
+          baseUrl={backOfficeBaseUrl}
+          embed={backOffice.embed}
+          contactPhone={activeContactPhone}
+        />
       )}
     </div>
   );

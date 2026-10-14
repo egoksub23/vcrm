@@ -19,7 +19,7 @@ import { AlertCircle, Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { SaveState, SignerLocale } from "@/lib/sign/client/signer-flow";
-import { effectiveAnswers, invalidDrafts, latestSaved, partAfter, partRows, type Drafts, type FormRejections } from "@/lib/sign/client/signer-form";
+import { effectiveAnswers, invalidDrafts, latestSaved, partAfter, partOfField, partRows, type Drafts, type FormRejections } from "@/lib/sign/client/signer-form";
 import type { DataAnswerInput, SignerFormView } from "@/lib/sign/forms/types";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +179,10 @@ function Flow({ view, busy, onChange, onUpload, onRemoveUpload, onConfirmPart, o
           onUpload={onUpload}
           onRemoveUpload={onRemoveUpload}
           onConfirmPart={onConfirmPart}
+          onGoToField={(key) => {
+            const part = partOfField(definition, key);
+            if (part && rows.some((r) => r.part.key === part)) leave({ kind: "part", key: part, focus: key });
+          }}
         />
       ) : (
         <FormOverview

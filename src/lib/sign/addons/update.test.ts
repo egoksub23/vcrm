@@ -10,8 +10,8 @@ import { withSystemLists } from "./fixtures";
 import { canonicalJson, contentFingerprint, equalsAny } from "./fingerprint";
 import { ADDON_REGISTRY, changesSince, type AddonManifest, type AddonRegistry } from "./index";
 import { defaultReadSource, installAddon, listAddonCards } from "./install";
-import { MERCHANT_PLACEMENTS_V2, merchantAddon } from "./merchant";
-import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_ROLES, merchantForm } from "./merchant/form";
+import { MERCHANT_PLACEMENTS_V2, MERCHANT_PLACEMENTS_V3, merchantAddon } from "./merchant";
+import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_ROLES, merchantForm } from "./merchant/form";
 import { MERCHANT_PLACEMENTS } from "./merchant/layout";
 import { copyName, updateAddon } from "./update";
 
@@ -38,6 +38,17 @@ const V20: AddonRegistry = {
     changes: (merchantAddon.changes ?? []).filter((c) => c.version === "2.0"),
     history: (merchantAddon.history ?? []).filter((h) => h.version === "1.1"),
     templates: [{ ...merchantAddon.templates[0], fields: MERCHANT_PLACEMENTS_V2, form: MERCHANT_FORM_V2 }],
+  },
+};
+
+/** Add-on 3.0 as it was shipped: Part 5 as two boxes, the form of generation 3, before the stamp, the old registration number and Part 4's file names. */
+const V30: AddonRegistry = {
+  merchant: {
+    ...merchantAddon,
+    version: "3.0",
+    changes: (merchantAddon.changes ?? []).filter((c) => c.version !== "3.1"),
+    history: (merchantAddon.history ?? []).filter((h) => h.version !== "3.0"),
+    templates: [{ ...merchantAddon.templates[0], fields: MERCHANT_PLACEMENTS_V3, form: MERCHANT_FORM_V3 }],
   },
 };
 
@@ -264,7 +275,7 @@ describe("updating the Merchant add-on from 1.1 to 2.0 (the same template file: 
   });
 });
 
-describe("updating the Merchant add-on to 3.0: Part 5 is two boxes, on a new template file", () => {
+describe("updating the Merchant add-on from 2.0 (and 1.1): Part 5 is two boxes, on a new template file", () => {
   /** A workspace that installed 2.0 (the nine-box Part 5, its own template file) and has not touched anything. */
   async function onVersion20() {
     await installAddon(t.ctx, "merchant", { registry: V20, readSource: readOld });
@@ -283,18 +294,18 @@ describe("updating the Merchant add-on to 3.0: Part 5 is two boxes, on a new tem
   it("adds the new template as a draft copy beside the old one, which stays exactly as it is, with all its versions", async () => {
     const tpl = await onVersion20();
     const snapshot = JSON.stringify([t.db.rows("sign_templates").find((x) => x.id === tpl.id), versionsOf(tpl.id)]);
-    expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: true, installed: { version: "2.0" }, version: "3.0" });
+    expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: true, installed: { version: "2.0" }, version: "3.1" });
 
     const r = await updateAddon(t.ctx, "merchant");
-    expect(r).toMatchObject({ key: "merchant", fromVersion: "2.0", toVersion: "3.0", upToDate: false, templates: [{ name: "Merchant Application", outcome: "copied", copyName: "Merchant Application (updated)" }] });
+    expect(r).toMatchObject({ key: "merchant", fromVersion: "2.0", toVersion: "3.1", upToDate: false, templates: [{ name: "Merchant Application", outcome: "copied", copyName: "Merchant Application (updated)" }] });
     // the old template, its versions and its (old) file are untouched
     expect(JSON.stringify([t.db.rows("sign_templates").find((x) => x.id === tpl.id), versionsOf(tpl.id)])).toBe(snapshot);
     expect(t.db.rows("sign_templates")).toHaveLength(2);
 
     const copy = t.db.rows("sign_templates").find((x) => x.name === "Merchant Application (updated)")!;
-    expect(copy).toMatchObject({ status: "draft", addon_key: "merchant", addon_version: "3.0", customised: false });
+    expect(copy).toMatchObject({ status: "draft", addon_key: "merchant", addon_version: "3.1", customised: false });
     const now = currentOf(copy);
-    // the new file, the two boxes, and the generation-3 form
+    // the new file, the two boxes, and the generation-4 form
     const shipped = await defaultReadSource("merchant", "assets/merchant-application.pdf");
     expect(now.source_sha256).toBe(sha256Hex(shipped));
     expect(now.fields).toEqual(MERCHANT_PLACEMENTS);
@@ -302,14 +313,14 @@ describe("updating the Merchant add-on to 3.0: Part 5 is two boxes, on a new tem
     expect(now.roles).toEqual(MERCHANT_ROLES);
     const ack = (now.form as FormDefinition).fields.find((f) => f.key === "terms_accepted")!;
     expect(ack.text?.en).not.toContain("- Partner");
-    expect(t.db.rows("sign_addons")[0]).toMatchObject({ installed_version: "3.0", installed_by: USER, status: "installed" });
-    expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: false, installed: { version: "3.0" } });
+    expect(t.db.rows("sign_addons")[0]).toMatchObject({ installed_version: "3.1", installed_by: USER, status: "installed" });
+    expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: false, installed: { version: "3.1" } });
   });
 
   it("does the same from 1.1, and pressing Update again does nothing", async () => {
     await onVersion11();
     const r = await updateAddon(t.ctx, "merchant");
-    expect(r).toMatchObject({ fromVersion: "1.1", toVersion: "3.0", templates: [{ outcome: "copied", copyName: "Merchant Application (updated)" }] });
+    expect(r).toMatchObject({ fromVersion: "1.1", toVersion: "3.1", templates: [{ outcome: "copied", copyName: "Merchant Application (updated)" }] });
     const again = await updateAddon(t.ctx, "merchant");
     expect(again).toMatchObject({ upToDate: true, templates: [] });
     expect(t.db.rows("sign_templates")).toHaveLength(2);
@@ -358,6 +369,69 @@ describe("updating the Merchant add-on to 3.0: Part 5 is two boxes, on a new tem
   });
 });
 
+describe("updating the Merchant add-on to 3.1: the stamp, the old registration number, Part 4 with the file names", () => {
+  /** A workspace that installed 3.0 and has not touched anything. */
+  async function onVersion30() {
+    await installAddon(t.ctx, "merchant", { registry: V30, readSource: readOld });
+    return t.db.rows("sign_templates")[0];
+  }
+  const fieldKeys = (form: unknown) => (form as FormDefinition).fields.map((f) => f.key);
+
+  it("ships a different template file again, so a 3.0 template is not changed in place: a draft copy is added and the installed one stays as it is", async () => {
+    const tpl = await onVersion30();
+    const snapshot = JSON.stringify([t.db.rows("sign_templates").find((x) => x.id === tpl.id), versionsOf(tpl.id)]);
+    expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: true, installed: { version: "3.0" }, version: "3.1" });
+    const r = await updateAddon(t.ctx, "merchant");
+    expect(r).toMatchObject({ fromVersion: "3.0", toVersion: "3.1", upToDate: false, templates: [{ name: "Merchant Application", outcome: "copied", copyName: "Merchant Application (updated)" }] });
+    expect(JSON.stringify([t.db.rows("sign_templates").find((x) => x.id === tpl.id), versionsOf(tpl.id)])).toBe(snapshot);
+    expect(fieldKeys(currentOf(tpl).form)).not.toContain("brn_old");
+
+    const copy = t.db.rows("sign_templates").find((x) => x.name === "Merchant Application (updated)")!;
+    expect(copy).toMatchObject({ status: "draft", addon_key: "merchant", addon_version: "3.1", customised: false });
+    const now = currentOf(copy);
+    expect(now.fields).toEqual(MERCHANT_PLACEMENTS);
+    expect(fieldKeys(now.form)).toContain("brn_old");
+    expect((now.form as FormDefinition).fields.find((f) => f.key === "company_stamp")?.stamp).toEqual({ nameField: "legal_name", newNumberField: "brn", oldNumberField: "brn_old" });
+    expect((now.fields as typeof MERCHANT_PLACEMENTS).some((f) => f.key === "p_doc_form9")).toBe(true);
+    expect(t.db.rows("sign_addons")[0]).toMatchObject({ installed_version: "3.1", status: "installed" });
+    // pressing Update again does nothing
+    expect(await updateAddon(t.ctx, "merchant")).toMatchObject({ upToDate: true, templates: [] });
+    expect(t.db.rows("sign_templates")).toHaveLength(2);
+  });
+
+  it("names the copy (updated 2) when the copy of an earlier update is still there, and touches no document", async () => {
+    const tpl = await onVersion30();
+    const v = currentOf(tpl);
+    const doc = { id: "d1", account_id: ACCT, title: "Sent", status: "sent", template_version_id: v.id, fields_snapshot: v.fields, roles_snapshot: v.roles, form_snapshot: v.form, merge_values: {} };
+    t.db.seed("sign_documents", [doc]);
+    t.db.seed("sign_templates", [{ id: "old-copy", account_id: ACCT, name: "Merchant Application (updated)", addon_key: "merchant", addon_version: "3.0", current_version_id: v.id, created_at: "2026-10-10T00:00:00Z" }]);
+    const before = JSON.stringify(t.db.rows("sign_documents"));
+    const r = await updateAddon(t.ctx, "merchant");
+    expect(r.templates).toEqual([{ name: "Merchant Application", outcome: "copied", copyName: "Merchant Application (updated 2)" }]);
+    expect(JSON.stringify(t.db.rows("sign_documents"))).toBe(before);
+    expect(t.db.rows("sign_templates").map((x) => x.name).sort()).toEqual(["Merchant Application", "Merchant Application (updated 2)", "Merchant Application (updated)"]);
+  });
+
+  it("words what 3.1 changed in four languages, with the same five points each, and says what Update does to the template", () => {
+    const one = merchantAddon.changes!.find((c) => c.version === "3.1")!;
+    for (const lang of ["en", "ms", "zh", "ko"] as const) {
+      expect(one.items[lang], lang).toHaveLength(5);
+      for (const line of one.items[lang]!) expect(line.trim().length).toBeGreaterThan(20);
+      expect(one.items[lang]!.join(" ")).toContain("Merchant Application (updated)");
+    }
+    expect(merchantAddon.changes!.map((c) => c.version)).toEqual(["3.1", "3.0", "2.0"]);
+  });
+
+  it("keeps 3.0 in the add-on's history, on the placements and the form 3.0 shipped", () => {
+    const h = merchantAddon.history!.find((x) => x.version === "3.0")!;
+    expect(h.templates[0]).toMatchObject({ name: "Merchant Application", form: MERCHANT_FORM_V3, fields: MERCHANT_PLACEMENTS_V3 });
+    expect(MERCHANT_PLACEMENTS_V3.some((p) => p.key === "p_doc_form9" || p.key === "p_brn_old")).toBe(false);
+    expect(MERCHANT_PLACEMENTS_V3.some((p) => p.key === "p_key_terms")).toBe(true);
+    expect(fieldKeys(MERCHANT_FORM_V3)).not.toContain("brn_old");
+    expect(MERCHANT_FORM_V3.fields.find((f) => f.key === "company_stamp")?.stamp).toBeUndefined();
+  });
+});
+
 describe("installing again on a workspace that has an older version", () => {
   it("adds what is missing but does not move the recorded version forward: only Update does", async () => {
     await onVersion11();
@@ -370,9 +444,10 @@ describe("installing again on a workspace that has an older version", () => {
 
 describe("what an update says", () => {
   it("lists the changes newer than the installed version, oldest first, up to the current one", () => {
-    expect(changesSince(merchantAddon, "1.1").map((c) => c.version)).toEqual(["2.0", "3.0"]);
-    expect(changesSince(merchantAddon, "2.0").map((c) => c.version)).toEqual(["3.0"]);
-    expect(changesSince(merchantAddon, "3.0")).toEqual([]);
+    expect(changesSince(merchantAddon, "1.1").map((c) => c.version)).toEqual(["2.0", "3.0", "3.1"]);
+    expect(changesSince(merchantAddon, "2.0").map((c) => c.version)).toEqual(["3.0", "3.1"]);
+    expect(changesSince(merchantAddon, "3.0").map((c) => c.version)).toEqual(["3.1"]);
+    expect(changesSince(merchantAddon, "3.1")).toEqual([]);
     const many = { ...merchantAddon, version: "2.1", changes: [{ version: "2.1", items: { en: ["b"] } }, { version: "2.0", items: { en: ["a"] } }, { version: "3.0", items: { en: ["future"] } }] };
     expect(changesSince(many, "1.1").map((c) => c.version)).toEqual(["2.0", "2.1"]);
   });

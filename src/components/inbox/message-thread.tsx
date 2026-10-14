@@ -41,6 +41,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Ticket as TicketIcon,
+  Building2,
 } from "lucide-react";
 import { CHANNEL_ICONS } from "./channel-icons";
 import { CreateTicketDialog } from "@/components/tickets/create-ticket-dialog";
@@ -172,6 +173,11 @@ interface MessageThreadProps {
   /** Ticket-history column beside the thread (xl+). */
   ticketPanelOpen?: boolean;
   onToggleTicketPanel?: () => void;
+  /**
+   * Opens the Vircle Back Office panel. Passed only when the Back Office is configured. Shown as a header button below xl, where the
+   * Back Office rail beside the Customer information panel is not drawn.
+   */
+  onOpenBackOffice?: () => void;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -237,8 +243,10 @@ export function MessageThread({
   onToggleContactPanel,
   ticketPanelOpen,
   onToggleTicketPanel,
+  onOpenBackOffice,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
+  const tBackOffice = useTranslations("Inbox.backOffice");
   const tTimer = useTranslations("Inbox.sessionTimer");
   const tQuote = useTranslations("Inbox.replyQuote");
   const tFailure = useTranslations("Inbox.failure");
@@ -1614,6 +1622,19 @@ export function MessageThread({
               )}
             >
               <TicketIcon className="h-4 w-4" />
+            </button>
+          )}
+
+          {onOpenBackOffice && (
+            <button
+              type="button"
+              onClick={onOpenBackOffice}
+              aria-label={tBackOffice("railLabel")}
+              title={tBackOffice("railLabel")}
+              aria-haspopup="dialog"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden"
+            >
+              <Building2 className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
 

@@ -148,6 +148,8 @@ export function signerFormView(form: FormDefinition, signer: Pick<SignerLike, "i
   for (const f of ownFields) {
     if (f.visibleIf) ruleFields(f.visibleIf).forEach((k) => referred.add(k));
     if (f.requiredIf) ruleFields(f.requiredIf).forEach((k) => referred.add(k));
+    // a picture made from other answers (a company stamp) needs them on the page, even when another part of the form holds them
+    if (f.stamp) [f.stamp.nameField, f.stamp.newNumberField, f.stamp.oldNumberField].forEach((k) => k && referred.add(k));
   }
   const ownKeys = new Set(ownFields.map((f) => f.key));
   const foreignKeys = new Set([...referred].filter((k) => !ownKeys.has(k) && form.fields.some((f) => f.key === k)));

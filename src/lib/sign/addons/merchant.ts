@@ -1,5 +1,5 @@
 // ============================================================
-// Merchant Registration (add-on `merchant`), version 3.0.
+// Merchant Registration (add-on `merchant`), version 3.1.
 //
 // What it installs, as drafts to review:
 //   * the category "Merchant agreements";
@@ -28,16 +28,25 @@
 //        template can be given the new layout as a new version of itself (a version keeps its file): an Update adds the new template as a
 //        draft "Merchant Application (updated)" beside the current one, and leaves the current one, and every document and draft made from
 //        it, exactly as they are. The placements of 1.1 and 2.0 are frozen in ./merchant/history/placements-v2.json.
+//   3.1  the company stamp can be created from the company details (a `stamp` option on the picture field), a new optional old registration
+//        number, a badge and a counter on the documents of the signing page, and Part 4 of the printed application lists each document with the
+//        name of the file uploaded (and its list now matches the form for every type of business). The page changed, so the template FILE
+//        changed again: an Update adds the new template as a draft "(updated)" copy beside the current one, as 3.0 did, and touches no
+//        document. The placements of 3.0 are frozen in ./merchant/history/placements-v3.json and its form is MERCHANT_FORM_V3.
 // ============================================================
 
 import type { PlacedField } from "../pdf/types";
 import type { AddonManifest } from "./index";
-import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_ROLES } from "./merchant/form";
+import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_ROLES } from "./merchant/form";
 import { MERCHANT_PLACEMENTS } from "./merchant/layout";
 import placementsV2 from "./merchant/history/placements-v2.json";
+import placementsV3 from "./merchant/history/placements-v3.json";
 
 /** The placed fields of versions 1.1 and 2.0 (nine key-term boxes and four fee boxes in Part 5), as shipped: never edited. */
 export const MERCHANT_PLACEMENTS_V2 = placementsV2 as unknown as PlacedField[];
+
+/** The placed fields of version 3.0 (two boxes in Part 5; Part 4 a bulleted list; no old registration number), as shipped: never edited. */
+export const MERCHANT_PLACEMENTS_V3 = placementsV3 as unknown as PlacedField[];
 
 const MERCHANT_DEFAULTS = { code_required: false, sign_in_order: false, locale: "en", expiry_days: 30, reminder_days: [3, 7] } as const;
 
@@ -46,8 +55,8 @@ export const MERCHANT_TEMPLATE_SOURCE = "assets/merchant-application.pdf";
 
 export const merchantAddon: AddonManifest = {
   key: "merchant",
-  // 3.0: Part 5 is two boxes of text on a new template file. 2.0: shared option lists and sensitive answers. 1.1 added the Merchant Application template and its form (1.0 only had the category)
-  version: "3.0",
+  // 3.1: the stamp can be created from the company details, the old registration number, Part 4 prints the uploaded file names (a new template file again). 3.0: Part 5 is two boxes of text on a new template file. 2.0: shared option lists and sensitive answers. 1.1 added the Merchant Application template and its form (1.0 only had the category)
+  version: "3.1",
   nameKey: "merchant.name",
   // not "merchant.description": the 1.0 text said the template was still to come
   descriptionKey: "merchant.about",
@@ -72,6 +81,39 @@ export const merchantAddon: AddonManifest = {
     },
   ],
   changes: [
+    {
+      version: "3.1",
+      items: {
+        en: [
+          "Company stamp: the merchant can now choose between uploading a picture of the stamp and creating one from the company details (the company name round the edge, the registration number in the middle and the old registration number in brackets under it). A preview follows what the merchant types, and the stamp is saved like any uploaded picture and printed in the same place on the signed copy.",
+          "New optional question, Old registration number (if any), for a Sdn. Bhd., a club, society or co-operative, and Others. It is printed beside the registration number and goes on the stamp.",
+          "Documents: each document on the signing page now says whether it is required for the merchant’s business type or optional, and a part with several documents says how many have been added (for example, 3 of 5 required documents).",
+          "Part 4 of the printed application now lists each document with the name of the file the merchant uploaded, and its list matches the form for every type of business (a club, society or co-operative also gives a bank statement header).",
+          "Because the template file changed, Update adds a new draft template named “Merchant Application (updated)” beside your current one (“(updated 2)” if a copy from an earlier update is still there). Your current template, and every document and draft made from it, stay exactly as they are: switch over when you like.",
+        ],
+        ms: [
+          "Cop syarikat: peniaga kini boleh memilih antara memuat naik gambar cop dan mencipta satu daripada butiran syarikat (nama syarikat di sekeliling, nombor pendaftaran di tengah dan nombor pendaftaran lama dalam kurungan di bawahnya). Pratonton mengikuti apa yang ditaip oleh peniaga, dan cop disimpan seperti mana-mana gambar yang dimuat naik serta dicetak di tempat yang sama pada salinan bertandatangan.",
+          "Soalan pilihan baharu, No. pendaftaran lama (jika ada), untuk Sdn. Bhd., kelab, persatuan atau koperasi, dan Lain-lain. Ia dicetak di sebelah nombor pendaftaran dan dimasukkan ke dalam cop.",
+          "Dokumen: setiap dokumen pada halaman menandatangani kini menyatakan sama ada ia wajib untuk jenis perniagaan peniaga atau pilihan, dan bahagian yang mempunyai beberapa dokumen menyatakan berapa yang telah ditambah (contohnya, 3 daripada 5 dokumen wajib).",
+          "Bahagian 4 permohonan bercetak kini menyenaraikan setiap dokumen dengan nama fail yang dimuat naik oleh peniaga, dan senarainya sepadan dengan borang bagi setiap jenis perniagaan (kelab, persatuan atau koperasi juga memberikan pengepala penyata bank).",
+          "Kerana fail templat berubah, Kemas kini menambah templat draf baharu bernama “Merchant Application (updated)” di sebelah templat semasa anda (“(updated 2)” jika salinan daripada kemas kini terdahulu masih ada). Templat semasa anda, dan setiap dokumen serta draf yang dibuat daripadanya, kekal seperti sedia ada: beralihlah apabila anda mahu.",
+        ],
+        zh: [
+          "公司印章：商户现在可以选择上传印章图片，或根据公司资料生成印章（公司名称环绕边缘，注册号在中间，旧注册号以括号显示在其下）。预览会随商户的输入而变化，印章与其他上传的图片一样保存，并印在签署副本的同一位置。",
+          "新增可选问题“旧注册号（如有）”，适用于 Sdn. Bhd.、俱乐部、社团或合作社，以及其他类型。它会印在注册号旁边，并出现在印章上。",
+          "文件：签署页面上的每份文件现在会标明对该商户的企业类型是必需还是可选；包含多份文件的部分会显示已添加的数量（例如“已添加 3/5 份必填文件”）。",
+          "打印版申请表的第4部分现在列出每份文件以及商户上传的文件名，且列表与各企业类型的表单一致（俱乐部、社团或合作社也需提供银行对账单抬头页）。",
+          "由于模板文件已更改，更新会在您当前的模板旁新增一份名为“Merchant Application (updated)”的草稿模板（若更早的更新留下的副本仍在，则为“(updated 2)”）。您当前的模板，以及由它创建的所有文件和草稿，都保持原样；您可以随时切换。",
+        ],
+        ko: [
+          "회사 직인: 가맹점이 직인 사진을 업로드하거나 회사 정보로 직인을 만들 수 있습니다(가장자리에 회사 이름, 가운데에 등록번호, 그 아래 괄호 안에 이전 등록번호). 미리보기는 입력하는 대로 바뀌며, 직인은 업로드한 사진과 똑같이 저장되어 서명본의 같은 위치에 인쇄됩니다.",
+          "새로운 선택 질문 “이전 등록번호 (있는 경우)”가 Sdn. Bhd., 클럽·협회·협동조합, 기타에 추가되었습니다. 등록번호 옆에 인쇄되고 직인에도 들어갑니다.",
+          "서류: 서명 화면의 각 서류에 가맹점의 사업 유형에 필수인지 선택인지 표시되고, 서류가 여러 개인 부분에는 추가한 개수가 표시됩니다(예: 필수 서류 5개 중 3개 추가됨).",
+          "인쇄된 신청서 4부에 각 서류와 가맹점이 업로드한 파일 이름이 표시되며, 목록은 모든 사업 유형의 양식과 일치합니다(클럽·협회·협동조합도 은행 거래내역서 첫 면을 제출).",
+          "템플릿 파일이 바뀌었으므로, 업데이트하면 현재 템플릿 옆에 “Merchant Application (updated)”라는 새 초안 템플릿이 추가됩니다(이전 업데이트의 사본이 남아 있으면 “(updated 2)”). 현재 템플릿과 그것으로 만든 모든 문서와 초안은 그대로 유지되며, 원하실 때 바꿔 쓰시면 됩니다.",
+        ],
+      },
+    },
     {
       version: "3.0",
       items: {
@@ -150,6 +192,10 @@ export const merchantAddon: AddonManifest = {
     {
       version: "2.0",
       templates: [{ name: "Merchant Application", roles: MERCHANT_ROLES, fields: MERCHANT_PLACEMENTS_V2, form: MERCHANT_FORM_V2, defaults: { ...MERCHANT_DEFAULTS, reminder_days: [...MERCHANT_DEFAULTS.reminder_days] } }],
+    },
+    {
+      version: "3.0",
+      templates: [{ name: "Merchant Application", roles: MERCHANT_ROLES, fields: MERCHANT_PLACEMENTS_V3, form: MERCHANT_FORM_V3, defaults: { ...MERCHANT_DEFAULTS, reminder_days: [...MERCHANT_DEFAULTS.reminder_days] } }],
     },
   ],
 };

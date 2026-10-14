@@ -51,8 +51,9 @@ function staticKeys(): string[] {
 const FAMILIES: Record<string, readonly string[]> = {
   status: ["not_started", "in_progress", "done", "needs_change"],
   problems: PROBLEM_CODES,
-  format: ["digits", "letters", "alnum", "upper_alnum", "postcode_my"],
+  format: ["digits", "letters", "alnum", "upper_alnum", "postcode_my", "alnum_hyphen"],
   image: ["pictureTooBig", "pictureUnreadable"],
+  "document.badge": ["required", "requiredForType", "optional"],
   notice: ["missing_required", "invalid_answers", "answer_does_not_fit"],
   errors: FORM_ERROR_CODES,
 };
@@ -82,7 +83,7 @@ run("Sign.signerForm messages", () => {
       const other = leaves(messages![locale]);
       expect([...other.keys()].sort()).toEqual([...en.keys()].sort());
       const translator = (m: Tree, loc: string) => createTranslator({ locale: loc, messages: m as never, namespace: undefined, onError: () => {} }) as unknown as (k: string, v: object) => string;
-      const values = { count: 2, done: 1, total: 3, percent: 40, part: "Bank", number: 2, label: "Legal name", max: 5, name: "Ali", detail: "5", types: "PDF, JPG", mb: 5, when: "2 minutes ago", item: "Bank", query: "bank", shown: 5 };
+      const values = { count: 2, done: 1, total: 3, percent: 40, part: "Bank", number: 2, label: "Legal name", max: 5, name: "Ali", detail: "5", types: "PDF, JPG", mb: 5, when: "2 minutes ago", item: "Bank", query: "bank", shown: 5, field: "Company legal name", old: "123456-A" };
       const asEn = translator(messages!.en, "en");
       const asOther = translator(messages![locale], locale);
       for (const key of en.keys()) {

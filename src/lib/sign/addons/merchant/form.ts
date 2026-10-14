@@ -18,7 +18,7 @@
 // are sensible Malaysian values marked "to confirm" in the report. Values are stable keys; change a label
 // freely, never a value that answers already use.
 //
-// Three generations of the form (add-on version 1.1, 2.0 and 3.0, see ../merchant.ts)
+// Four generations of the form (add-on version 1.1, 2.0, 3.0 and 3.1, see ../merchant.ts)
 //   1  every option typed in below, nothing marked sensitive: what version 1.1 installed. It is kept (MERCHANT_FORM_V1) because the
 //      template file is DRAWN from it (the tick boxes need the options, so the PDF does not change) and because an update must
 //      recognise a template that still equals it.
@@ -26,10 +26,12 @@
 //      states, countries, banks, company ID types, e-invoice phases, tax types, MSIC), so an admin who relabels or adds a bank
 //      changes it once; and the answers that identify a person or an account are sensitive (encrypted, masked on the sender's screen,
 //      left out of exports and the API, never written to the contact): see SENSITIVE_FIELDS for which and why.
-//   3  (the default, MERCHANT_FORM) generation 2 with the owner's decisions of add-on 3.0 (see "generation 3" below the data fields): new entity
+//   3  generation 2 with the owner's decisions of add-on 3.0 (see "generation 3" below the data fields): new entity
 //      types, codes by entity type, SST asked only of those who pay it, new contacts, minutes of meeting for a society. Part 5 is two
-//      boxes of text the sender writes (./default-terms.ts), so the acknowledgement no longer lists the nine old headings. Generation 2 is
-//      kept (MERCHANT_FORM_V2) for the add-on's history.
+//      boxes of text the sender writes (./default-terms.ts), so the acknowledgement no longer lists the nine old headings. Kept
+//      (MERCHANT_FORM_V3) for the add-on's history, exactly as 3.0 shipped it.
+//   4  (the default, MERCHANT_FORM) generation 3 with add-on 3.1 (see "generation 4"): the optional old registration number, and a company
+//      stamp the merchant can create from the company details instead of uploading one. Generation 2 is kept (MERCHANT_FORM_V2).
 //
 // What the shared module cannot say per field (a custom validation message) is worded once per error code
 // by the signing page; the help texts below tell the person the shape that is expected.
@@ -162,8 +164,8 @@ export const BANKS: FieldOption[] = [
 export interface MerchantFormOptions {
   /** Who completes the bank part. Default the merchant; "finance" hands it to the optional finance filler. */
   bankRole?: typeof MERCHANT_ROLE | typeof FINANCE_ROLE;
-  /** 1: the form of add-on 1.1 (options typed in). 2: of 2.0 (shared option lists, sensitive answers). 3 (default): of 3.0 (Part 5 is two boxes of text). */
-  generation?: 1 | 2 | 3;
+  /** 1: the form of add-on 1.1 (options typed in). 2: of 2.0 (shared option lists, sensitive answers). 3: of 3.0 (Part 5 is two boxes of text). 4 (default): of 3.1 (old registration number, a stamp made from the company details). */
+  generation?: 1 | 2 | 3 | 4;
 }
 
 export const PART = {
@@ -830,6 +832,60 @@ function fieldsV3(): DataField[] {
   ];
 }
 
+// ---- generation 4 (add-on 3.1): the old registration number, and a stamp made from the company details --------------------------------
+//
+//   brn_old        "Old registration number (if any)": the number a company had before the 12-digit one (for example 123456-A). Optional, letters,
+//                  digits and hyphens, up to 20. Asked of a Sdn. Bhd., a club, society or co-operative, and Others; a sole proprietor and a
+//                  partnership are not asked (their business number is the one number). It is printed beside the registration number on the
+//                  application and goes into the stamp, in brackets under the new number.
+//   company_stamp  the same picture field, with `stamp` set: the merchant chooses between uploading a picture and creating the stamp from
+//                  the company name (`legal_name`), the registration number (`brn`) and the old number (`brn_old`). The stamp is drawn in the
+//                  browser and saved as an ordinary uploaded picture, so the field, its answers and the printing are those of 3.0.
+
+const HAS_OLD_NUMBER: Rule = { op: "in", field: "business_type", values: ["sdn_bhd", "society_coop", "other"] };
+
+/** The stamp's sources in this form. */
+export const COMPANY_STAMP_SOURCE = { nameField: "legal_name", newNumberField: "brn", oldNumberField: "brn_old" } as const;
+
+function fieldsV4(): DataField[] {
+  const out: DataField[] = [];
+  for (const f of fieldsV3()) {
+    out.push(
+      f.key === "company_stamp"
+        ? {
+            ...f,
+            stamp: { ...COMPANY_STAMP_SOURCE },
+            help: L(
+              "Upload a clear picture of your stamp (PNG or JPG), or create one from your company details. Optional.",
+              "Muat naik gambar cop anda yang jelas (PNG atau JPG), atau cipta satu daripada butiran syarikat anda. Pilihan.",
+              "上传清晰的印章图片（PNG 或 JPG），或根据公司资料生成一枚。可不填。",
+              "직인의 선명한 사진(PNG 또는 JPG)을 업로드하거나 회사 정보로 직인을 만드세요. 선택 사항입니다.",
+            ),
+          }
+        : f,
+    );
+    if (f.key === "brn") {
+      out.push({
+        key: "brn_old",
+        type: "text",
+        part: PART.company,
+        required: false,
+        visibleIf: HAS_OLD_NUMBER,
+        format: "alnum_hyphen",
+        maxLength: 20,
+        label: L("Old registration number (if any)", "No. pendaftaran lama (jika ada)", "旧注册号（如有）", "이전 등록번호 (있는 경우)"),
+        help: L(
+          "The number before the 12-digit one, for example 123456-A. Leave empty if there is none.",
+          "Nombor sebelum nombor 12 digit, contohnya 123456-A. Biarkan kosong jika tiada.",
+          "12位注册号之前的旧号码，例如 123456-A。没有请留空。",
+          "12자리 번호 이전의 번호입니다(예: 123456-A). 없으면 비워 두세요.",
+        ),
+      });
+    }
+  }
+  return out;
+}
+
 /** The choices that take their options from a shared list in generation 2, and which list. `business_type` stays typed in: it is this add-on's own five. */
 export const LIST_FIELDS: Readonly<Record<string, string>> = {
   brn_type: "company_id_types",
@@ -875,15 +931,18 @@ function generation2(list: DataField[]): DataField[] {
   });
 }
 
-/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler, `{ generation: 1 }` or `{ generation: 2 }` for the form of add-on 1.1 or 2.0. */
+/** The Merchant Application form. Pass `{ bankRole: "finance" }` to give the bank part to the finance filler, `{ generation: 1 }`, `{ generation: 2 }` or `{ generation: 3 }` for the form of add-on 1.1, 2.0 or 3.0. */
 export function merchantForm(opts: MerchantFormOptions = {}): FormDefinition {
-  const generation = opts.generation ?? 3;
-  const base = generation < 3 ? legacyFields(true) : fieldsV3();
+  const generation = opts.generation ?? 4;
+  const base = generation < 3 ? legacyFields(true) : generation === 3 ? fieldsV3() : fieldsV4();
   return { version: 1, parts: parts(opts), fields: generation === 1 ? base : generation2(base) };
 }
 
 /** The default form: the merchant fills every part. */
 export const MERCHANT_FORM: FormDefinition = merchantForm();
+
+/** The form of add-on version 3.0 (before the old registration number and the stamp made from the company details): kept for the add-on's history. */
+export const MERCHANT_FORM_V3: FormDefinition = merchantForm({ generation: 3 });
 
 /** The form of add-on version 1.1 (options typed in, nothing sensitive): the template file is drawn from it, and an update recognises it. */
 export const MERCHANT_FORM_V1: FormDefinition = merchantForm({ generation: 1 });

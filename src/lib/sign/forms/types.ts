@@ -54,7 +54,7 @@ export interface FieldOption {
 }
 
 /** Fixed shapes for text, so a pattern is never free regular-expression text from a form author. */
-export const TEXT_FORMATS = ["any", "digits", "letters", "alnum", "upper_alnum", "postcode_my"] as const;
+export const TEXT_FORMATS = ["any", "digits", "letters", "alnum", "upper_alnum", "postcode_my", "alnum_hyphen"] as const;
 export type TextFormat = (typeof TEXT_FORMATS)[number];
 
 export const FILE_KINDS = ["pdf", "jpg", "png"] as const;
@@ -62,6 +62,20 @@ export type FileKind = (typeof FILE_KINDS)[number];
 
 /** The contact fields an answer can fill when the form is submitted. `custom:<name>` is a custom contact field. */
 export const CONTACT_FIELDS = ["name", "email", "company"] as const;
+
+/**
+ * Where a picture field gets its answer from when the signer asks the form to MAKE the picture instead of uploading one (a company
+ * stamp made from the company's own details). Each entry is the key of another data field of the same form; the picture is drawn in the
+ * browser from those answers (client/stamp.ts) and saved like any picture the signer uploaded. The server only checks that the keys are real.
+ */
+export interface StampSource {
+  /** The company's legal name: a text or multi-line field. Printed round the outer ring. */
+  nameField: string;
+  /** The new registration number: a text field. Printed on the first line inside the ring. */
+  newNumberField: string;
+  /** The old registration number, if the form asks it: a text field. Printed in brackets on the second line. Optional. */
+  oldNumberField?: string;
+}
 
 export interface DataField {
   /** Unique in the form and never the same as a placed field's key. Letters, digits, underscore. */
@@ -107,6 +121,11 @@ export interface DataField {
   maxMb?: number;
   maxFiles?: number;
   minFiles?: number;
+  /**
+   * A picture field (type `image`, or a `file` field that takes PNG) that offers a second way to answer: "Create a stamp from your
+   * company details". Absent, the field is an ordinary upload. See `StampSource`; validate.ts checks the keys.
+   */
+  stamp?: StampSource;
   // acknowledge: the text the signer reads and accepts
   text?: L10n;
 

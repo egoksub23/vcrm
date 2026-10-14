@@ -18,7 +18,7 @@ import { fieldRequired } from "@/lib/sign/forms/rules";
 import { fieldsOfPart } from "@/lib/sign/forms/completion";
 import type { AnswerMap, DataAnswerInput, FormDefinition, SignerFormView } from "@/lib/sign/forms/types";
 import type { SaveState } from "@/lib/sign/client/signer-flow";
-import { inputFromView, requiredLeft, showWhileTyping, type Drafts, type FormRejection, type FormRejections, type PartRow } from "@/lib/sign/client/signer-form";
+import { documentProgress, inputFromView, requiredLeft, showWhileTyping, type Drafts, type FormRejection, type FormRejections, type PartRow } from "@/lib/sign/client/signer-form";
 
 import { FieldRow } from "./field-row";
 import { useFormText } from "./form-ui";
@@ -48,10 +48,12 @@ interface PartScreenProps {
   onUpload?: (key: string, file: File, onProgress?: (fraction: number) => void) => Promise<void>;
   onRemoveUpload?: (key: string, fileId: string) => Promise<void>;
   onConfirmPart?: (partKey: string) => void;
+  /** Open another part of the form at one of its fields (a detail a stamp is made from that is asked there). */
+  onGoToField?: (key: string) => void;
 }
 
 export function PartScreen(props: PartScreenProps) {
-  const { definition, row, total, answers, view, drafts, rejected, invalid, hasNext, saveState, busy, lastSavedAt, focusField, onInput, onBack, onNext, onUpload, onRemoveUpload, onConfirmPart } = props;
+  const { definition, row, total, answers, view, drafts, rejected, invalid, hasNext, saveState, busy, lastSavedAt, focusField, onInput, onBack, onNext, onUpload, onRemoveUpload, onConfirmPart, onGoToField } = props;
   const t = useTranslations("Sign.signerForm");
   const text = useFormText();
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
@@ -63,6 +65,8 @@ export function PartScreen(props: PartScreenProps) {
   const description = text(part.description);
   const unconfirmed = fields.filter((f) => view.unconfirmed.includes(f.key));
   const left = requiredLeft(row);
+  // "2 of 4 required documents added", for a part that asks for several documents
+  const documents = documentProgress(definition, part.key, answers);
 
   // what is wrong with a field, if it is time to say so
   function problemOf(key: string): FormRejection | null {
@@ -79,6 +83,12 @@ export function PartScreen(props: PartScreenProps) {
     const control = wrapper?.querySelector<HTMLElement>("input:not([type=file]), textarea, select, button");
     (control ?? wrapper)?.scrollIntoView({ block: "center" });
     control?.focus({ preventScroll: true });
+  }
+
+  // a detail this part's stamp is made from: in this part it is focused here, in another the form opens that part at it
+  function goTo(key: string) {
+    if (fields.some((f) => f.key === key)) focusIn(key);
+    else onGoToField?.(key);
   }
 
   // arriving from the review step with an answer to change: take the person to it
@@ -103,6 +113,12 @@ export function PartScreen(props: PartScreenProps) {
         <p className="text-sm text-muted-foreground">{t("part.position", { number: row.number, total })}</p>
         <h1 className="text-2xl font-semibold leading-snug break-words">{text(part.title)}</h1>
         {description ? <p className="text-base leading-relaxed text-muted-foreground whitespace-pre-wrap break-words">{description}</p> : null}
+        {documents ? (
+          <p role="status" data-document-progress className="text-sm font-medium">
+            {t("document.progress.required", { done: documents.required.done, total: documents.required.total })}
+            {documents.optional.total > 0 ? <span className="font-normal text-muted-foreground">{` · ${t("document.progress.optional", { done: documents.optional.done, total: documents.optional.total })}`}</span> : null}
+          </p>
+        ) : null}
         <SaveStatus saveState={saveState} busy={busy} lastSavedAt={lastSavedAt} />
       </header>
 
@@ -138,6 +154,9 @@ export function PartScreen(props: PartScreenProps) {
               onBlur={() => setTouched((cur) => (cur.has(field.key) ? cur : new Set(cur).add(field.key)))}
               onUpload={onUpload}
               onRemoveUpload={onRemoveUpload}
+              definition={definition}
+              answers={answers}
+              onGoToField={goTo}
             />
           ))}
         </div>

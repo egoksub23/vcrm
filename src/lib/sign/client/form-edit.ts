@@ -264,6 +264,11 @@ export function renameField(form: FormDefinition, from: string, to: string): For
       const next: DataField = { ...f, key: f.key === from ? to : f.key };
       if (f.visibleIf) next.visibleIf = rename(f.visibleIf);
       if (f.requiredIf) next.requiredIf = rename(f.requiredIf);
+      // a picture field that makes its picture from other answers follows them
+      if (f.stamp) {
+        const { nameField, newNumberField, oldNumberField } = f.stamp;
+        next.stamp = { nameField: map(nameField), newNumberField: map(newNumberField), ...(oldNumberField !== undefined ? { oldNumberField: map(oldNumberField) } : {}) };
+      }
       return next;
     }),
     parts: form.parts.map((p) => (p.visibleIf && refersTo(p.visibleIf, new Set([from])) ? { ...p, visibleIf: rename(p.visibleIf) } : p)),

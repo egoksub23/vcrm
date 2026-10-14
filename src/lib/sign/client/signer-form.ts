@@ -18,7 +18,7 @@ import type { AnswerInput } from "../rules";
 import { checkDataAnswer, type CheckResult } from "../forms/check";
 import { fieldsOfPart, partProgress } from "../forms/completion";
 import type { FitProblem, PrintedValue } from "../forms/api-types";
-import { fieldVisible, partVisible } from "../forms/rules";
+import { fieldRequired, fieldVisible, partVisible } from "../forms/rules";
 import {
   FILE_KINDS,
   MAX_FILES_PER_FIELD,
@@ -240,6 +240,52 @@ export const partsLeft = (rows: readonly PartRow[]): number => rows.filter(needs
 export type RowStatus = PartState | "needs_change";
 export const rowStatus = (row: PartRow): RowStatus => (row.needsChange ? "needs_change" : row.state);
 
+// ---- documents ---------------------------------------------------------------------------------------------------------------
+
+/** What a document to upload says about itself: needed whatever the answers (`required`), needed for the answers so far (`requiredForType`), or `optional`. */
+export type DocumentBadge = "required" | "requiredForType" | "optional";
+
+/**
+ * The badge of a document field. `required` is the form's answer for the answers so far (`fieldRequired`: shown, and required outright or by
+ * its own rule). A document that is shown or required only for some answers (the minutes of a society, Form 9 of a Sdn. Bhd.) is the one that
+ * says "for your business type": the person sees at once that it is theirs.
+ */
+export function documentBadge(field: Pick<DataField, "visibleIf" | "requiredIf">, required: boolean): DocumentBadge {
+  if (!required) return "optional";
+  return field.visibleIf || field.requiredIf ? "requiredForType" : "required";
+}
+
+export interface DocumentProgress {
+  required: { done: number; total: number };
+  optional: { done: number; total: number };
+}
+
+/** Documents and pictures a person is asked to add. */
+const isDocumentField = (f: DataField): boolean => f.type === "file" || f.type === "image";
+
+/**
+ * "N of M documents added" for a part with two or more document fields shown (null for any other part: one upload needs no counter). The
+ * required ones, which are only the shown ones that the answers so far require, and the optional ones are counted apart. A document is
+ * added when it has at least its smallest number of files (one when the form names none).
+ */
+export function documentProgress(definition: FormDefinition, partKey: string, answers: AnswerMap): DocumentProgress | null {
+  const docs = fieldsOfPart(definition, partKey, answers).filter(isDocumentField);
+  if (docs.length < 2) return null;
+  const added = (f: DataField): boolean => {
+    const v = answers[f.key];
+    if (!v) return false;
+    if ("files" in v) return v.files.length >= Math.max(1, f.minFiles ?? 1);
+    return true;
+  };
+  const out: DocumentProgress = { required: { done: 0, total: 0 }, optional: { done: 0, total: 0 } };
+  for (const f of docs) {
+    const bucket = fieldRequired(definition, f, answers) ? out.required : out.optional;
+    bucket.total += 1;
+    if (added(f)) bucket.done += 1;
+  }
+  return out;
+}
+
 /** Required answers still to give in one part. */
 export const requiredLeft = (row: Pick<PartRow, "done" | "total">): number => Math.max(0, row.total - row.done);
 
@@ -347,6 +393,7 @@ export const PROBLEM_CODES = [
   "format_alnum",
   "format_upper_alnum",
   "format_postcode_my",
+  "format_alnum_hyphen",
   "bad_email",
   "bad_phone",
   "not_a_number",

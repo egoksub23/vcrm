@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.94.0] — 2026-10-14
+
+No migration.
+
+### Added
+
+- **Open in Vircle Back Office, from the Inbox.** A slim rail beside the Customer information panel (and the same icon in the chat header on narrower screens) opens a slide-over panel across the chat with a phone box prefilled from the contact. Search opens the parent's record in the Back Office in a new tab: the link is `<back office address>#q=<phone>` with the number URL-encoded, built in the browser so the number never reaches Halo's server or any log. The panel can also show the Back Office inside it once `BACK_OFFICE_EMBED=true` is set and the Back Office allows being framed. Set the address with `BACK_OFFICE_USER_URL` in the server's `.env.local`; without it nothing is shown. See `docs/back-office-link.md`.
+- **Merchant Registration add-on 3.1.** The merchant can **create a company stamp** from their company details (company name round the ring, the 12-digit registration number and the old number in brackets, a star) or upload their own. A new optional old registration number field. Each document upload says whether it is required for the business type, the Documents step shows "N of M required documents added", and Part 4 of the signed agreement prints the uploaded file names. **Update** adds a draft "Merchant Application (updated)"; installed templates and sent documents are not changed.
+
 ## [0.93.0] — 2026-10-13
 
 No migration.

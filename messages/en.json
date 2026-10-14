@@ -825,6 +825,28 @@
       "withdraw": "Withdraw",
       "working": "Working...",
       "failedHint": "A closure form card cannot be resent with Resend. Use Send again on this card or on the request."
+    },
+    "backOffice": {
+      "railLabel": "Open in Vircle Back Office",
+      "railTitle": "Vircle Back Office",
+      "railHint": "Open this parent's record",
+      "railRegion": "Quick actions",
+      "expandRail": "Show labels",
+      "collapseRail": "Hide labels",
+      "panelTitle": "Vircle Back Office",
+      "panelSubtitle": "Customer care",
+      "close": "Close",
+      "findTitle": "Find an app user",
+      "phoneLabel": "Phone number",
+      "phonePlaceholder": "e.g. +60123456789 or 0123456789",
+      "search": "Search",
+      "findAnother": "Find another user",
+      "openInNewTab": "Open in new tab",
+      "noPhone": "No phone number on this contact. Type one to search.",
+      "openedInTab": "Opened in a new tab. If nothing happened, use Open in new tab.",
+      "frameTitle": "Vircle Back Office customer care view",
+      "frameLoading": "Loading the Back Office...",
+      "frameNote": "If the page does not appear or asks you to sign in, use Open in new tab."
     }
   },
   "Contacts": {
@@ -10137,7 +10159,8 @@
           "letters": "Letters only",
           "alnum": "Letters and digits",
           "upper_alnum": "Capital letters and digits",
-          "postcode_my": "Malaysian postcode (5 digits)"
+          "postcode_my": "Malaysian postcode (5 digits)",
+          "alnum_hyphen": "Letters, digits and hyphens (such as 123456-A)"
         },
         "minLength": "Shortest (characters)",
         "maxLength": "Longest (characters)",
@@ -10348,7 +10371,8 @@
         "bad_sensitive": "{field} cannot be marked sensitive. Only typed answers (text, number, email, phone, date, list) can.",
         "sensitive_contact_field": "{field} is sensitive, so it cannot fill a contact field. Remove one of the two.",
         "sensitive_default": "{field} is sensitive, so it cannot have a starting value or be locked. Remove the starting value or the lock.",
-        "sensitive_in_rule": "A rule compares the value of {field}, which is sensitive. A rule may only ask whether it is empty."
+        "sensitive_in_rule": "A rule compares the value of {field}, which is sensitive. A rule may only ask whether it is empty.",
+        "bad_stamp": "The stamp of {field} is not set up correctly. It needs a picture field (or a file field that takes PNG) and real text fields of this form for the name and the numbers."
       },
       "warnings": {
         "unknown": "Something in the form is worth checking.",
@@ -11865,7 +11889,8 @@
         "letters": "Letters only",
         "alnum": "Letters and numbers only",
         "upper_alnum": "Capital letters and numbers only",
-        "postcode_my": "5 digits"
+        "postcode_my": "5 digits",
+        "alnum_hyphen": "Letters, digits and hyphens only"
       },
       "file": {
         "choose": "Choose a file",
@@ -11926,7 +11951,8 @@
         "not_shown": "This answer is not needed.",
         "missing_required": "This is required.",
         "answer_does_not_fit": "This answer is too long for where it prints. Shorten it.",
-        "generic": "This could not be saved. Please change it and try again."
+        "generic": "This could not be saved. Please change it and try again.",
+        "format_alnum_hyphen": "Use letters, digits and hyphens only, for example 123456-A."
       },
       "save": {
         "saving": "Saving...",
@@ -12007,6 +12033,48 @@
         "submit": "Submit",
         "submitting": "Submitting...",
         "afterwards": "You cannot change your answers once you submit."
+      },
+      "stamp": {
+        "way": {
+          "label": "How do you want to add your company stamp?",
+          "upload": "Upload your stamp",
+          "create": "Create a stamp from your company details"
+        },
+        "needs": {
+          "title": "Fill in your company details first",
+          "body": "The stamp is made from your company name and registration number. Add the details below, then come back here.",
+          "go": "Go to: {field}"
+        },
+        "note": "This is a digital imprint made from your company details.",
+        "alt": {
+          "plain": "Preview of your company stamp: {name}, registration number {number}.",
+          "withOld": "Preview of your company stamp: {name}, registration number {number}, old registration number {old}.",
+          "saved": "Your company stamp, created from your company details."
+        },
+        "numberWarning": "A new registration number normally has 12 digits. Check the number you entered before you use this stamp.",
+        "stale": "Your company details have changed since you created this stamp. Replace it to update it.",
+        "use": "Use this stamp",
+        "making": "Making your stamp",
+        "another": "Choose another way",
+        "replace": "Replace this stamp",
+        "remove": "Remove / choose another way",
+        "created": "Created from your company details",
+        "problem": {
+          "unsupported": "This device could not make the stamp. Upload a picture of your stamp instead.",
+          "tooBig": "The stamp picture came out too large to save. Upload a picture of your stamp instead.",
+          "notSaved": "The stamp could not be saved. Check your connection and try again."
+        }
+      },
+      "document": {
+        "badge": {
+          "required": "Required",
+          "requiredForType": "Required for your business type",
+          "optional": "Optional"
+        },
+        "progress": {
+          "required": "{done} of {total} required {total, plural, one {document} other {documents}} added",
+          "optional": "{done} of {total} optional added"
+        }
       }
     },
     "verify": {

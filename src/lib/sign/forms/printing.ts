@@ -20,6 +20,35 @@ import type { AnswerMap, DataField, FormDefinition } from "./types";
 /** The placements that print a data field. */
 export const boundPlacements = (fields: readonly PlacedField[]): PlacedField[] => fields.filter((f) => !!f.data);
 
+/** How much room a file name may take on paper: a letter or digit is 1, a wide (Chinese, Japanese, Korean) character is 2. */
+export const PRINTED_NAME_UNITS = 44;
+
+const isWide = (cp: number): boolean => (cp >= 0x1100 && cp <= 0x11ff) || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xff00 && cp <= 0xff60) || (cp >= 0xffe0 && cp <= 0xffe6);
+const unitsOf = (s: string): number => Array.from(s).reduce((n, ch) => n + (isWide(ch.codePointAt(0) as number) ? 2 : 1), 0);
+
+/**
+ * A file name as it is printed on the signed document: control characters and line breaks become spaces, and a name longer than
+ * `maxUnits` is cut in the middle of its first part and ends with "…" and its extension (`very-long-na….pdf`), so it always fits on one
+ * line of a box and the person is never asked to rename a file to sign.
+ */
+export function printedFileName(name: string, maxUnits = PRINTED_NAME_UNITS): string {
+  const clean = name.normalize("NFC").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  if (unitsOf(clean) <= maxUnits) return clean;
+  const dot = clean.lastIndexOf(".");
+  const ext = dot > 0 && clean.length - dot <= 6 ? clean.slice(dot) : "";
+  const stem = ext ? clean.slice(0, dot) : clean;
+  const room = Math.max(1, maxUnits - unitsOf(ext) - 1);
+  let out = "";
+  let used = 0;
+  for (const ch of Array.from(stem)) {
+    const w = isWide(ch.codePointAt(0) as number) ? 2 : 1;
+    if (used + w > room) break;
+    out += ch;
+    used += w;
+  }
+  return `${out.trimEnd()}…${ext}`;
+}
+
 /** The value one bound placement draws, or null when it draws nothing. */
 export function valueForPlacement(placement: PlacedField, field: DataField, answers: AnswerMap, form: FormDefinition, locale: SignLocale): FieldValue | null {
   if (!fieldVisible(form, field, answers)) return null;
@@ -44,6 +73,12 @@ export function valueForPlacement(placement: PlacedField, field: DataField, answ
 
   if (placement.type === "date" && "text" in answer) return { text: answer.text };
   if (placement.type === "number" && "text" in answer) return { text: answer.text };
+
+  if ("files" in answer) {
+    // the names of the uploaded files (never the files), each shortened so a long name can never make the box overflow
+    const names = answer.files.map((f) => printedFileName(f.name)).filter((n) => n !== "");
+    return names.length > 0 ? { text: names.join(placement.multiline ? "\n" : ", ") } : null;
+  }
 
   const separator = placement.multiline ? "\n" : ", ";
   const text = displayValue(field, answer, locale, separator);

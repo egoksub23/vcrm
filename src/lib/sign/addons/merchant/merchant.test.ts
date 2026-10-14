@@ -30,11 +30,11 @@ import type { FieldValue, PlacedField } from "../../pdf/types";
 import { MAX_STATIC_TEXT, SENDER_ROLE, validateFields, validateRoles } from "../../rules";
 import { SignError } from "../../service/errors";
 import { assertFixedTextFits } from "../../service/send";
-import { MERCHANT_PLACEMENTS_V2, merchantAddon } from "../merchant";
+import { MERCHANT_PLACEMENTS_V2, MERCHANT_PLACEMENTS_V3, merchantAddon } from "../merchant";
 import { resolvedWithSystemLists } from "../fixtures";
 import { DEFAULT_COMMERCIAL_TERMS, DEFAULT_FEE_LINES, DEFAULT_KEY_POINTS, DEFAULT_KEY_TERMS, KEY_TERMS_MAX_POINTS, commercialTermsText, keyTermsText } from "./default-terms";
-import { DIRECTOR_ROLE, FINANCE_ROLE, LEGACY_TERM_HEADINGS, LIST_FIELDS, MERCHANT_FORM as SHIPPED_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_ROLE, MERCHANT_ROLES, SENSITIVE_FIELDS, merchantForm } from "./form";
-import { MERCHANT_PLACEMENTS, PART5, buildMerchantLayout } from "./layout";
+import { DIRECTOR_ROLE, FINANCE_ROLE, LEGACY_TERM_HEADINGS, LIST_FIELDS, MERCHANT_FORM as SHIPPED_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_ROLE, MERCHANT_ROLES, SENSITIVE_FIELDS, merchantForm } from "./form";
+import { DOCUMENT_ROWS, MERCHANT_PLACEMENTS, PART5, buildMerchantLayout } from "./layout";
 import { buildMerchantAssets, renderMerchantPdf, summarize, summarySha256 } from "./render";
 
 // What a document carries: the form the add-on ships (its choices name shared lists) with the lists' items copied in, as a template version
@@ -236,12 +236,16 @@ describe("the form is sound and follows Appendix A", () => {
 
 // ---- the real engine ---------------------------------------------------------------------------------------------------
 
+/** Uploaded files, as the stored answer holds them: only the names are ever printed. */
+const uploaded = (...names: string[]): FormValue => ({ files: names.map((name, i) => ({ id: `file-${i}`, name, mime: "application/pdf", size: 2048, sha256: "0".repeat(64), path: `x/${name}` })) });
+
 /** A made-up company. No real merchant, person, number or bank account is used anywhere in this repository. */
 const SAMPLE: Record<string, FormValue> = {
   legal_name: { text: "KEDAI RUNCIT CONTOH JAYA ENTERPRISE SDN. BHD. (FORMERLY CONTOH TRADING)" },
   trading_name: { text: "Kedai Contoh Jaya" },
   business_type: { text: "sdn_bhd" },
   brn: { text: "202001000001" },
+  brn_old: { text: "123456-A" },
   einvoice_phase: { text: "phase_3" },
   tin: { text: "C0000000001" },
   sst_payer: { text: "yes" },
@@ -271,6 +275,12 @@ const SAMPLE: Record<string, FormValue> = {
   finance_contact: { text: "Ali Bin Contoh" },
   terms_accepted: { checked: true },
   signer_designation: { text: "Pengarah" },
+  // a Sdn. Bhd.'s documents: the longest names a merchant could plausibly give (a long one, one with an accent) among ordinary ones
+  doc_form9: uploaded("form9.pdf"),
+  doc_form49: uploaded("form49-page1.pdf", "form49-page2.pdf"),
+  doc_bank_statement: uploaded("maybank-statement-header.pdf"),
+  doc_owner_id: uploaded("director-1-front.jpg", "director-1-back.jpg", "scan-of-the-identity-card-of-the-second-director-of-the-company-in-high-resolution-final-version.jpg", "salinan-kad-pengenalan-pengarah-kedua-édition-2026.jpg"),
+  premise_pictures: uploaded("shopfront.jpg", "inside.jpg"),
 };
 
 async function withImages(): Promise<{ answers: AnswerMap; image: FieldValue["image"] }> {
@@ -300,9 +310,9 @@ async function valuesFor(locale: "en" | "ms") {
 
 describe("on the real engine", () => {
   // the placements a complete application (a Sdn. Bhd. that pays SST) leaves empty: the four types of business that were not chosen, the
-  // "No" of the SST question, the Business code (only a sole proprietor or a partnership gives one) and the two "other" boxes,
+  // "No" of the SST question, the Business code (only a sole proprietor or a partnership gives one), the documents of the other types of business (Form D, the minutes, the registration document of "others") and the two "other" boxes,
   // which are hidden while their rule does not hold
-  const EMPTY = ["p_bank_name_other", "p_business_codes", "p_business_type_is_other", "p_business_type_is_partnership", "p_business_type_is_sole_prop", "p_business_type_is_society_coop", "p_business_type_other", "p_sst_payer_is_no"];
+  const EMPTY = ["p_bank_name_other", "p_business_codes", "p_business_type_is_other", "p_business_type_is_partnership", "p_business_type_is_sole_prop", "p_business_type_is_society_coop", "p_business_type_other", "p_doc_form_d", "p_doc_minutes", "p_doc_registration_other", "p_sst_payer_is_no"];
 
   it("prints a complete set of answers without a single warning, and every value lands on a placement", async () => {
     const { values } = await valuesFor("en");
@@ -459,7 +469,8 @@ describe("generation 2 of the form: shared lists and sensitive answers", () => {
     expect(old("state").options).toHaveLength(16);
     expect(merchantForm({ generation: 1 })).toEqual(MERCHANT_FORM_V1);
     expect(merchantForm({ generation: 2 })).toEqual(MERCHANT_FORM_V2);
-    expect(merchantForm({ generation: 3 })).toEqual(SHIPPED_FORM);
+    expect(merchantForm({ generation: 3 })).toEqual(MERCHANT_FORM_V3);
+    expect(merchantForm({ generation: 4 })).toEqual(SHIPPED_FORM);
     expect(merchantForm()).toEqual(SHIPPED_FORM);
     // same parts, same fields, same labels, in the same order, in every generation
     expect(MERCHANT_FORM_V2.fields.map((f) => [f.key, f.type, f.part])).toEqual(MERCHANT_FORM_V1.fields.map((f) => [f.key, f.type, f.part]));
@@ -479,11 +490,12 @@ describe("generation 2 of the form: shared lists and sensitive answers", () => {
     expect(ack(SHIPPED_FORM)).toMatchObject({ type: "acknowledge", required: true });
   });
 
-  it("is add-on 3.0, with 1.1 and 2.0 kept in its history on the placements those versions shipped (the nine-box Part 5)", () => {
-    expect(merchantAddon.version).toBe("3.0");
-    expect(merchantAddon.history?.map((h) => h.version)).toEqual(["1.1", "2.0"]);
-    expect(merchantAddon.history?.map((h) => h.templates[0].form)).toEqual([MERCHANT_FORM_V1, MERCHANT_FORM_V2]);
-    for (const h of merchantAddon.history ?? []) expect(h.templates[0].fields).toBe(MERCHANT_PLACEMENTS_V2);
+  it("is add-on 3.1, with 1.1, 2.0 and 3.0 kept in its history on the placements those versions shipped (the nine-box Part 5)", () => {
+    expect(merchantAddon.version).toBe("3.1");
+    expect(merchantAddon.history?.map((h) => h.version)).toEqual(["1.1", "2.0", "3.0"]);
+    expect(merchantAddon.history?.map((h) => h.templates[0].form)).toEqual([MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3]);
+    for (const h of (merchantAddon.history ?? []).slice(0, 2)) expect(h.templates[0].fields).toBe(MERCHANT_PLACEMENTS_V2);
+    expect(merchantAddon.history?.[2].templates[0].fields).toBe(MERCHANT_PLACEMENTS_V3);
     // the frozen placements are the old Part 5 (thirteen sender boxes, none of which the new template has) and the old business details and contacts
     const old = MERCHANT_PLACEMENTS_V2.filter((p) => p.type === "static_text" && p.role === SENDER_ROLE && p.page === 2 && p.key !== "p_fw_no");
     expect(old.map((p) => p.key)).toEqual(["p_fee_fpx", "p_fee_credit", "p_fee_debit", "p_channel_note", ...LEGACY_TERM_HEADINGS.map((t) => `p_term_${t.key}`)]);
@@ -572,10 +584,10 @@ describe("Part 5 is two boxes of text the sender writes", () => {
     expect(page5).toHaveLength(3);
     // nothing of the old thirteen is left, anywhere
     expect(placements.filter((p) => /^p_(term_|fee_|channel_note)/.test(p.key))).toEqual([]);
-    expect(placements).toHaveLength(51);
-    // the sender's text is the placement's own text: the form has no data field for it (the 45 fields are the business, contact, bank, document and signing answers)
+    expect(placements).toHaveLength(60);
+    // the sender's text is the placement's own text: the form has no data field for it (the 46 fields are the business, contact, bank, document and signing answers)
     expect(MERCHANT_FORM.fields.some((f) => /(^|_)terms$/.test(f.key) && f.key !== "terms_accepted")).toBe(false);
-    expect(SHIPPED_FORM.fields).toHaveLength(45);
+    expect(SHIPPED_FORM.fields).toHaveLength(46);
   });
 
   it("keeps the bilingual part heading and the two bilingual section headings, and drops the 5.1 to 5.9 sub-headings", () => {
@@ -748,9 +760,9 @@ describe("generation 3 of the form: entity type, codes, SST, contacts and docume
     const before = new Set(keys(MERCHANT_FORM_V2));
     const after = new Set(keys(MERCHANT_FORM));
     expect([...before].filter((k) => !after.has(k)).sort()).toEqual(["brn_type", "business_activity", "contact_designation", "einv_pic_email", "einv_pic_name", "tax_percent", "tax_type"]);
-    expect([...after].filter((k) => !before.has(k)).sort()).toEqual(["business_codes", "doc_minutes", "finance_email", "finance_name", "ops_email", "ops_name", "sst_payer", "sst_rate", "sst_tax_type"]);
+    expect([...after].filter((k) => !before.has(k)).sort()).toEqual(["brn_old", "business_codes", "doc_minutes", "finance_email", "finance_name", "ops_email", "ops_name", "sst_payer", "sst_rate", "sst_tax_type"]);
     // the keys that stayed the same are the same field, unless this change is about them
-    const changed = new Set(["business_type", "brn", "sst_no", "msic_codes", "contact_name", "contact_email", "contact_phone", "einvoice_email", "doc_form9", "doc_form49", "terms_accepted"]);
+    const changed = new Set(["business_type", "brn", "sst_no", "msic_codes", "contact_name", "contact_email", "contact_phone", "einvoice_email", "doc_form9", "doc_form49", "terms_accepted", "company_stamp"]);
     for (const f of SHIPPED_FORM.fields.filter((x) => before.has(x.key) && !changed.has(x.key))) {
       const was = MERCHANT_FORM_V2.fields.find((x) => x.key === f.key);
       expect(f, f.key).toEqual(was);
@@ -898,9 +910,10 @@ describe("generation 3 of the form: entity type, codes, SST, contacts and docume
     const texts = ops.map((o) => o.text);
     expect(texts).toContain("Sole proprietor and partnership: Business code. Others: MSIC code.");
     expect(texts).toContain("Pemilik tunggal dan perkongsian: Kod perniagaan. Lain-lain: Kod MSIC.");
-    expect(texts).toContain("Club, society or co-operative: the latest minutes of meeting.");
-    expect(texts).toContain("Kelab, persatuan atau koperasi: minit mesyuarat terkini.");
-    expect(texts).toContain("Sdn. Bhd.: Form 9, Form 49 and a bank statement header.");
+    // Part 4 (3.1): one line for the minutes of meeting, in both languages, with the box that prints the name of the file
+    expect(texts).toContain("Latest minutes of meeting (club, society or co-operative)");
+    expect(texts).toContain("Minit mesyuarat terkini (kelab, persatuan atau koperasi)");
+    expect(texts).toContain("Form 9 (Sdn. Bhd.)");
     expect(texts.some((t) => /Bhd\.\s*(or|atau)\s*Bhd|\bBhd\.:/.test(t) && !/Sdn\. Bhd/.test(t))).toBe(false);
     // the two boxes sit side by side, with the note just below
     const box = (k: string) => placements.find((p) => p.key === k)!;
@@ -918,5 +931,153 @@ describe("generation 3 of the form: entity type, codes, SST, contacts and docume
     const texts = buildMerchantLayout().ops.flatMap((o) => (o.k === "text" ? [o.text] : []));
     for (const h of ["Person in charge / Orang yang bertanggungjawab", "Operations responsible / Orang bertanggungjawab operasi", "Finance responsible / Orang bertanggungjawab kewangan", "Do you pay SST? / Adakah anda membayar SST?"]) expect(texts).toContain(h);
     expect(texts).toContain("Club, society or co-operative / Kelab, persatuan atau koperasi");
+  });
+});
+
+
+// ---- add-on 3.1: the old registration number, the stamp made from the company details, Part 4 with the file names -----------------------
+
+describe("generation 4 of the form: the old registration number and the company stamp", () => {
+  const field = (k: string): DataField => MERCHANT_FORM.fields.find((f) => f.key === k)!;
+  const TYPES = ["sole_prop", "partnership", "sdn_bhd", "society_coop", "other"] as const;
+  const withType = (t: string): AnswerMap => ({ business_type: { text: t } });
+
+  it("adds exactly one field to 3.0, right after the registration number, and changes one: the stamp", () => {
+    const keys = MERCHANT_FORM.fields.map((f) => f.key);
+    const v3 = MERCHANT_FORM_V3.fields.map((f) => f.key);
+    expect(keys.filter((k) => !v3.includes(k))).toEqual(["brn_old"]);
+    expect(v3.filter((k) => !keys.includes(k))).toEqual([]);
+    expect(keys[keys.indexOf("brn") + 1]).toBe("brn_old");
+    for (const f of SHIPPED_FORM.fields.filter((x) => v3.includes(x.key) && x.key !== "company_stamp")) expect(f, f.key).toEqual(MERCHANT_FORM_V3.fields.find((x) => x.key === f.key));
+    // no existing key was renamed or removed
+    expect(v3.every((k) => keys.includes(k))).toBe(true);
+    expect(MERCHANT_FORM_V3.fields.find((f) => f.key === "company_stamp")).not.toHaveProperty("stamp");
+  });
+
+  it("asks the old registration number, optionally, of a Sdn. Bhd., a club, society or co-operative, and Others, and not of a sole proprietor or a partnership", () => {
+    const f = field("brn_old");
+    expect(f).toMatchObject({ type: "text", part: "company", required: false, format: "alnum_hyphen", maxLength: 20 });
+    expect(f.sensitive).toBeUndefined();
+    expect(f.label).toEqual({ en: "Old registration number (if any)", ms: "No. pendaftaran lama (jika ada)", zh: "旧注册号（如有）", ko: "이전 등록번호 (있는 경우)" });
+    const shown = TYPES.filter((t) => fieldVisible(MERCHANT_FORM, f, withType(t)));
+    expect(shown).toEqual(["sdn_bhd", "society_coop", "other"]);
+    for (const t of TYPES) expect(fieldRequired(MERCHANT_FORM, f, withType(t)), t).toBe(false);
+    // never needed to finish the form, whatever the type
+    for (const t of TYPES) expect(missingFormRequired(MERCHANT_FORM, MERCHANT_ROLE, withType(t)).map((x) => x.key)).not.toContain("brn_old");
+  });
+
+  it("takes letters, digits and hyphens like 123456-A, up to 20, and nothing else", () => {
+    const f = field("brn_old");
+    for (const ok of ["123456-A", "001234567-K", "654321-X"]) expect(checkDataAnswer(f, { text: ok }), ok).toMatchObject({ ok: true });
+    for (const bad of ["123 456-A", "123456--A", "-A", "123456/A", "A_1"]) expect(checkDataAnswer(f, { text: bad }), bad).toMatchObject({ ok: false, code: "format_alnum_hyphen" });
+    expect(checkDataAnswer(f, { text: "1".repeat(21) })).toMatchObject({ ok: false, code: "text_too_long" });
+    expect(checkDataAnswer(f, { text: "" })).toEqual({ ok: true, value: null });
+  });
+
+  it("prints it beside the registration number, and not for a type that is not asked it", async () => {
+    const box = (k: string) => placements.find((p) => p.key === k)!;
+    expect(box("p_brn_old")).toMatchObject({ type: "text", data: "brn_old", role: SENDER_ROLE });
+    expect(box("p_brn_old").page).toBe(box("p_brn").page);
+    expect(box("p_brn_old").y).toBeCloseTo(box("p_brn").y, 5);
+    expect(box("p_brn_old").x).toBeGreaterThan(box("p_brn").x);
+    const answers = (await withImages()).answers;
+    expect(boundValues(placements, MERCHANT_FORM, answers, "en").p_brn_old).toEqual({ text: "123456-A" });
+    expect(boundValues(placements, MERCHANT_FORM, { ...answers, business_type: { text: "sole_prop" } }, "en").p_brn_old).toBeUndefined();
+  });
+
+  it("switches the stamp on for company_stamp, from the legal name, the registration number and the old number, and the form is sound", () => {
+    const f = field("company_stamp");
+    expect(f).toMatchObject({ type: "image", required: false, part: "signing" });
+    expect(f.stamp).toEqual({ nameField: "legal_name", newNumberField: "brn", oldNumberField: "brn_old" });
+    expect(validateForm(MERCHANT_FORM, MERCHANT_ROLES, placements)).toEqual([]);
+    // the sources are real fields of the same role, so the signer's page has them
+    for (const k of Object.values(f.stamp!)) expect(MERCHANT_FORM.fields.find((x) => x.key === k)?.part).toBe("company");
+    expect(f.help?.en).toContain("create one from your company details");
+    for (const lang of ["ms", "zh", "ko"] as const) expect(f.help?.[lang]?.length, lang).toBeGreaterThan(10);
+  });
+
+  it("still prints a created stamp like an uploaded one: the same upload placement, from the same answer", async () => {
+    const stamp = placements.find((p) => p.data === "company_stamp")!;
+    expect(stamp.type).toBe("upload");
+    const png = await scribblePng();
+    const dataUrl = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+    const values = boundValues(placements, MERCHANT_FORM, { ...SAMPLE, company_stamp: { image: dataUrl, mime: "image/png" } }, "en");
+    expect(values[stamp.key]).toMatchObject({ image: { mime: "image/png" } });
+  });
+});
+
+describe("Part 4 lists the documents of the form, with the names of the files uploaded", () => {
+  const TYPES = ["sole_prop", "partnership", "sdn_bhd", "society_coop", "other"] as const;
+  const docFields = MERCHANT_FORM.fields.filter((f) => f.type === "file");
+  const withType = (t: string): AnswerMap => ({ business_type: { text: t } });
+
+  it("has one line and one text box for every document field of the form, in the order the form asks them, and nothing else", () => {
+    expect(DOCUMENT_ROWS.map((r) => r.key)).toEqual(docFields.map((f) => f.key));
+    const boxes = placements.filter((p) => p.data && docFields.some((f) => f.key === p.data));
+    expect(boxes.map((p) => p.data)).toEqual(docFields.map((f) => f.key));
+    for (const b of boxes) expect(b).toMatchObject({ type: "text", role: SENDER_ROLE, multiline: true, fontSize: 7 });
+    // all on one page, below the Part 4 heading
+    expect(new Set(boxes.map((b) => b.page)).size).toBe(1);
+  });
+
+  it("says, for every type of business, exactly the documents the form requires and the ones it only offers", () => {
+    for (const t of TYPES) {
+      const answers = withType(t);
+      const required = docFields.filter((f) => fieldRequired(MERCHANT_FORM, f, answers)).map((f) => f.key);
+      const optional = docFields.filter((f) => fieldVisible(MERCHANT_FORM, f, answers) && !fieldRequired(MERCHANT_FORM, f, answers)).map((f) => f.key);
+      expect(DOCUMENT_ROWS.filter((r) => r.required.includes(t)).map((r) => r.key), `${t}: required`).toEqual(required);
+      expect(DOCUMENT_ROWS.filter((r) => r.optional?.includes(t)).map((r) => r.key), `${t}: optional`).toEqual(optional);
+    }
+    // the case that was missing before 3.1: a club, society or co-operative also gives a bank statement header, an ID and pictures
+    expect(DOCUMENT_ROWS.find((r) => r.key === "doc_bank_statement")?.required).toContain("society_coop");
+    expect(DOCUMENT_ROWS.find((r) => r.key === "doc_minutes")?.required).toEqual(["society_coop"]);
+  });
+
+  it("words every line in English and Bahasa Melayu and says for whom it is, and prints those words", () => {
+    const texts = buildMerchantLayout().ops.flatMap((o) => (o.k === "text" ? [o.text] : []));
+    for (const r of DOCUMENT_ROWS) {
+      expect(texts, r.key).toContain(r.en);
+      expect(texts, r.key).toContain(r.ms);
+    }
+    expect(DOCUMENT_ROWS.find((r) => r.key === "doc_registration_other")?.en).toContain("others");
+    expect(DOCUMENT_ROWS.find((r) => r.key === "doc_form9")?.en).toContain("Sdn. Bhd.");
+    // the old checklist wording is gone
+    expect(texts).not.toContain("Uploaded with this application and kept with the signed record.");
+  });
+
+  it("gives each box room for the files its field takes, one line each", () => {
+    const H = buildMerchantLayout().pageSize.h;
+    for (const f of docFields) {
+      const box = placements.find((p) => p.data === f.key)!;
+      expect(box.h * H, f.key).toBeGreaterThanOrEqual((f.maxFiles ?? 1) * 7 * 1.2 + 3);
+    }
+  });
+
+  it("prints the file names of a Sdn. Bhd. on the sealed file, long and accented ones shortened to one line, with no warning", async () => {
+    const { values, bound } = await valuesFor("en");
+    expect(bound.p_doc_form49).toEqual({ text: "form49-page1.pdf\nform49-page2.pdf" });
+    const owner = (bound.p_doc_owner_id as { text: string }).text.split("\n");
+    expect(owner).toHaveLength(4);
+    expect(owner[2].endsWith("….jpg")).toBe(true);
+    expect(owner[3]).toContain("kedua-é");
+    expect(bound.p_doc_form_d).toBeUndefined();
+    const result = await stampFields(committedPdf(), placements, values, { locale: "en", timeZone: "Asia/Kuala_Lumpur" });
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("never asks the signer to rename a file: the longest names fit their boxes (no text_truncated, so the answer is never too long)", async () => {
+    const names = Array.from({ length: 4 }, (_, i) => `${"very-long-file-name-".repeat(15)}${i}.pdf`);
+    const answers: AnswerMap = { ...SAMPLE, doc_owner_id: uploaded(...names), doc_form49: uploaded(...names.slice(0, 3)), premise_pictures: uploaded(...names.slice(0, 3)) };
+    const fit = await fitProblems(committedPdf(), placements, MERCHANT_FORM, answers, "en");
+    expect(fit.filter((p) => p.field.startsWith("doc_") || p.field === "premise_pictures")).toEqual([]);
+  });
+
+  it("prints nothing for a document that was not asked of this type of business", () => {
+    const answers: AnswerMap = { ...SAMPLE, business_type: { text: "sole_prop" } };
+    const bound = boundValues(placements, MERCHANT_FORM, answers, "en");
+    // Form 9 and 49 are for a Sdn. Bhd.: hidden answers are ignored
+    expect(bound.p_doc_form9).toBeUndefined();
+    expect(bound.p_doc_form49).toBeUndefined();
+    expect(bound.p_doc_bank_statement).toEqual({ text: "maybank-statement-header.pdf" });
   });
 });

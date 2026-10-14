@@ -406,6 +406,7 @@ Fields that exist in both are asked once.
 | Trading name (if different) | text | No | Company name | | Shown only if different |
 | Type of business | choice: sole proprietor, partnership, Sdn. Bhd., club / society / co-operative, others (+ text) | Yes | Yes | | Drives the codes asked here and the document uploads (part 4). *3.0: Bhd. removed, club / society / co-operative added* |
 | Business registration no. | text, digits only, no hyphens | Yes | Company registration no. | Yes | Length rule to confirm. *3.0: the Registration ID type is no longer asked (LHDN MyInvois may want it; the owner decided to remove it), and "(BRN)" is dropped from the label* |
+| Old registration number (if any) (`brn_old`, 3.1) | text: letters, digits and hyphens (123456-A), up to 20 | No | | | Asked of Sdn. Bhd., club / society / co-operative and others; not of a sole proprietor or a partnership. Printed beside the registration number and on the company stamp |
 | When must you comply with e-invoicing | choice | Yes | | Yes | Phase options to supply |
 | Tax identification number (TIN) | text | Yes | | Yes | |
 | Do you pay SST? (`sst_payer`) | choice: Yes, No | Yes | | Yes | 3.0 |
@@ -450,6 +451,9 @@ Fields that exist in both are asked once.
 | Latest minutes of meeting (3.0) | Club, society or co-operative | Yes |
 | Photocopy of director or owner ID | Always | Yes |
 | Up to 3 pictures of the business premise | Always | At least 1 (to confirm) |
+| Registration document | Others | No |
+
+Every type also gives the bank statement header, the ID and the premise pictures. Since 3.1 the signing page badges each upload (Required, Required for your business type, Optional) and counts the documents added, and Part 4 of the printed application lists every document with the name of each file uploaded.
 
 **Part 5. Commercial terms** (read only, from the chosen template's own wording; the merchant ticks "I have read and accept")
 
@@ -466,7 +470,7 @@ ordinary text in the template. The default text is in one file, `default-terms.t
 | Item | Type | Req | Notes |
 |---|---|---|---|
 | Authorised signature | signature | Yes | |
-| Official company stamp | image upload | Yes | To confirm |
+| Official company stamp | image upload, or created from the company details (3.1: a round stamp made from the company name, the registration number and the old number, saved as an ordinary PNG) | No | To confirm |
 | Name | text, prefilled from contact person | Yes | |
 | Designation | text | Yes | |
 | Date | date signed (automatic) | Yes | |

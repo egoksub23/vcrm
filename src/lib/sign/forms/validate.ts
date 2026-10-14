@@ -39,10 +39,41 @@ export function placementTypesFor(type: DataField["type"]): readonly PlacedField
     case "image":
       return ["upload"];
     case "file":
-      return [];
+      // the names of the files uploaded (printing.ts shortens each so it always fits); a file itself is never drawn
+      return ["text"];
     default:
       return [];
   }
+}
+
+/** The data field types a stamp can be made from: a name and a number are typed text. */
+const STAMP_SOURCE_TYPES: readonly DataField["type"][] = ["text", "multiline"];
+
+/**
+ * The `stamp` option of a picture field (types.ts `StampSource`). It is only a picture the browser draws from other answers, so what is
+ * checked is that it can work: the field takes a picture (an `image`, or a `file` that accepts PNG, since the stamp is made as a PNG),
+ * and every key it names is a real, different text field of this form. `detail` says which part is wrong: `type`, `png`, `shape`,
+ * or the name of the property (`nameField`, `newNumberField`, `oldNumberField`).
+ */
+export function stampProblems(f: DataField, form: Pick<FormDefinition, "fields">): Issue[] {
+  const at = { field: f.key };
+  const bad = (detail: string): Issue => ({ code: "bad_stamp", ...at, detail });
+  const s = f.stamp as unknown;
+  if (typeof s !== "object" || s === null || Array.isArray(s)) return [bad("shape")];
+  const issues: Issue[] = [];
+  if (f.type !== "image" && f.type !== "file") issues.push(bad("type"));
+  else if (f.type === "file" && !(f.accept ?? []).includes("png")) issues.push(bad("png"));
+  const byKey = new Map(form.fields.map((x) => [x.key, x]));
+  const src = s as Record<string, unknown>;
+  for (const prop of ["nameField", "newNumberField", "oldNumberField"] as const) {
+    const key = src[prop];
+    if (key === undefined && prop === "oldNumberField") continue;
+    const target = typeof key === "string" ? byKey.get(key) : undefined;
+    if (!target || target.key === f.key || !STAMP_SOURCE_TYPES.includes(target.type)) issues.push(bad(prop));
+  }
+  const known = new Set(["nameField", "newNumberField", "oldNumberField"]);
+  if (Object.keys(src).some((k) => !known.has(k))) issues.push(bad("shape"));
+  return issues;
 }
 
 export function isFormDefinition(v: unknown): v is FormDefinition {
@@ -122,6 +153,7 @@ export function validateForm(form: FormDefinition, roles: readonly SignRole[], p
       if (f.maxFiles !== undefined && (!Number.isInteger(f.maxFiles) || f.maxFiles < 1 || f.maxFiles > MAX_FILES_PER_FIELD)) issues.push({ code: "bad_limit", ...at });
       if (f.minFiles !== undefined && (!Number.isInteger(f.minFiles) || f.minFiles < 0 || f.minFiles > (f.maxFiles ?? 1))) issues.push({ code: "bad_limit", ...at });
     }
+    if (f.stamp !== undefined) issues.push(...stampProblems(f, form));
     if (f.type === "acknowledge" && !l10nOk(f.text, 8000)) issues.push({ code: "bad_acknowledge_text", ...at });
     if (f.contactField !== undefined && !(CONTACT_FIELDS as readonly string[]).includes(f.contactField) && !/^custom:[\p{L}\p{N} _.\-]{1,60}$/u.test(f.contactField)) {
       issues.push({ code: "bad_contact_field", ...at });

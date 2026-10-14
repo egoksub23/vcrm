@@ -825,6 +825,28 @@
       "withdraw": "Tarik balik",
       "working": "Sedang diproses...",
       "failedHint": "Kad borang penutupan tidak boleh dihantar semula dengan Hantar semula biasa. Gunakan Hantar semula pada kad ini atau pada permintaan."
+    },
+    "backOffice": {
+      "railLabel": "Buka dalam Vircle Back Office",
+      "railTitle": "Vircle Back Office",
+      "railHint": "Buka rekod ibu bapa ini",
+      "railRegion": "Tindakan pantas",
+      "expandRail": "Tunjukkan label",
+      "collapseRail": "Sembunyikan label",
+      "panelTitle": "Vircle Back Office",
+      "panelSubtitle": "Khidmat pelanggan",
+      "close": "Tutup",
+      "findTitle": "Cari pengguna app",
+      "phoneLabel": "Nombor telefon",
+      "phonePlaceholder": "cth. +60123456789 atau 0123456789",
+      "search": "Cari",
+      "findAnother": "Cari pengguna lain",
+      "openInNewTab": "Buka dalam tab baharu",
+      "noPhone": "Kenalan ini tiada nombor telefon. Taip satu untuk membuat carian.",
+      "openedInTab": "Dibuka dalam tab baharu. Jika tiada apa berlaku, gunakan Buka dalam tab baharu.",
+      "frameTitle": "Paparan khidmat pelanggan Vircle Back Office",
+      "frameLoading": "Memuatkan Back Office...",
+      "frameNote": "Jika halaman tidak muncul atau meminta anda log masuk, gunakan Buka dalam tab baharu."
     }
   },
   "Contacts": {
@@ -8777,7 +8799,8 @@
           "letters": "Huruf sahaja",
           "alnum": "Huruf dan digit",
           "upper_alnum": "Huruf besar dan digit",
-          "postcode_my": "Poskod Malaysia (5 digit)"
+          "postcode_my": "Poskod Malaysia (5 digit)",
+          "alnum_hyphen": "Huruf, digit dan sengkang (seperti 123456-A)"
         },
         "minLength": "Terpendek (aksara)",
         "maxLength": "Terpanjang (aksara)",
@@ -8988,7 +9011,8 @@
         "bad_sensitive": "{field} tidak boleh ditanda sebagai sensitif. Hanya jawapan yang ditaip (teks, nombor, e-mel, telefon, tarikh, senarai) boleh.",
         "sensitive_contact_field": "{field} sensitif, jadi ia tidak boleh mengisi medan kenalan. Buang salah satu.",
         "sensitive_default": "{field} sensitif, jadi ia tidak boleh mempunyai nilai permulaan atau dikunci. Buang nilai permulaan atau kunci itu.",
-        "sensitive_in_rule": "Satu peraturan membandingkan nilai {field}, yang sensitif. Peraturan hanya boleh bertanya sama ada ia kosong."
+        "sensitive_in_rule": "Satu peraturan membandingkan nilai {field}, yang sensitif. Peraturan hanya boleh bertanya sama ada ia kosong.",
+        "bad_stamp": "Cop bagi {field} tidak ditetapkan dengan betul. Ia memerlukan medan gambar (atau medan fail yang menerima PNG) dan medan teks sebenar dalam borang ini untuk nama dan nombor."
       },
       "warnings": {
         "unknown": "Sesuatu dalam borang patut disemak.",
@@ -10505,7 +10529,8 @@
         "letters": "Huruf sahaja",
         "alnum": "Huruf dan nombor sahaja",
         "upper_alnum": "Huruf besar dan nombor sahaja",
-        "postcode_my": "5 digit"
+        "postcode_my": "5 digit",
+        "alnum_hyphen": "Huruf, digit dan sengkang sahaja"
       },
       "file": {
         "choose": "Pilih fail",
@@ -10566,7 +10591,8 @@
         "not_shown": "Jawapan ini tidak diperlukan.",
         "missing_required": "Ini wajib diisi.",
         "answer_does_not_fit": "Jawapan ini terlalu panjang untuk tempat ia dicetak. Pendekkannya.",
-        "generic": "Ini tidak dapat disimpan. Sila ubah dan cuba lagi."
+        "generic": "Ini tidak dapat disimpan. Sila ubah dan cuba lagi.",
+        "format_alnum_hyphen": "Gunakan huruf, digit dan sengkang sahaja, contohnya 123456-A."
       },
       "save": {
         "saving": "Sedang menyimpan...",
@@ -10647,6 +10673,48 @@
         "submit": "Hantar",
         "submitting": "Menghantar...",
         "afterwards": "Anda tidak boleh mengubah jawapan selepas menghantar."
+      },
+      "stamp": {
+        "way": {
+          "label": "Bagaimana anda mahu menambah cop syarikat anda?",
+          "upload": "Muat naik cop anda",
+          "create": "Cipta cop daripada butiran syarikat anda"
+        },
+        "needs": {
+          "title": "Isi butiran syarikat anda dahulu",
+          "body": "Cop dibuat daripada nama dan nombor pendaftaran syarikat anda. Tambah butiran di bawah, kemudian kembali ke sini.",
+          "go": "Pergi ke: {field}"
+        },
+        "note": "Ini ialah cop digital yang dijana daripada butiran syarikat anda.",
+        "alt": {
+          "plain": "Pratonton cop syarikat anda: {name}, nombor pendaftaran {number}.",
+          "withOld": "Pratonton cop syarikat anda: {name}, nombor pendaftaran {number}, nombor pendaftaran lama {old}.",
+          "saved": "Cop syarikat anda, dicipta daripada butiran syarikat anda."
+        },
+        "numberWarning": "Nombor pendaftaran baharu biasanya 12 digit. Semak nombor yang anda masukkan sebelum menggunakan cop ini.",
+        "stale": "Butiran syarikat anda telah berubah sejak anda mencipta cop ini. Gantikannya untuk mengemas kini.",
+        "use": "Guna cop ini",
+        "making": "Sedang membuat cop anda",
+        "another": "Pilih cara lain",
+        "replace": "Gantikan cop ini",
+        "remove": "Buang / pilih cara lain",
+        "created": "Dicipta daripada butiran syarikat anda",
+        "problem": {
+          "unsupported": "Peranti ini tidak dapat membuat cop. Muat naik gambar cop anda sebaliknya.",
+          "tooBig": "Gambar cop terlalu besar untuk disimpan. Muat naik gambar cop anda sebaliknya.",
+          "notSaved": "Cop tidak dapat disimpan. Semak sambungan anda dan cuba lagi."
+        }
+      },
+      "document": {
+        "badge": {
+          "required": "Wajib",
+          "requiredForType": "Wajib untuk jenis perniagaan anda",
+          "optional": "Pilihan"
+        },
+        "progress": {
+          "required": "{done} daripada {total} dokumen wajib telah ditambah",
+          "optional": "{done} daripada {total} dokumen pilihan telah ditambah"
+        }
       }
     },
     "verify": {

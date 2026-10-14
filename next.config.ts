@@ -42,6 +42,22 @@ function buildCsp(extra: { script?: string; frame?: string; connect?: string } =
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 /**
+ * The origin of the Vircle Back Office page, for the Inbox's optional embedded view (BACK_OFFICE_EMBED): the one address the policy lets the
+ * Inbox frame. Headers are computed when `next build` runs and stored with the build, so this follows BACK_OFFICE_USER_URL AS IT WAS AT BUILD TIME
+ * (the variable itself is read at runtime everywhere else). Unset or not an https URL: no frame-src is added and the policy is exactly as before.
+ * The policy is Report-Only today, so a missing origin is reported in the console, not blocked.
+ */
+function backOfficeFrameOrigin(): string | undefined {
+  try {
+    const url = new URL((process.env.BACK_OFFICE_USER_URL ?? "").trim());
+    // 'self' stays: naming frame-src replaces the fallback to default-src ('self').
+    return url.protocol === "https:" && !url.username && !url.password ? `'self' ${url.origin}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Baseline security headers applied to every response.
  *
  * CSP ships as `Content-Security-Policy-Report-Only` so the browser
@@ -75,7 +91,7 @@ const SECURITY_HEADERS = [
   },
   {
     key: "Content-Security-Policy-Report-Only",
-    value: buildCsp(),
+    value: buildCsp({ frame: backOfficeFrameOrigin() }),
   },
 ] as const;
 

@@ -819,6 +819,9 @@ describe("route handlers use capabilities, not role floors", () => {
       if (
         r.key.startsWith("account/roles") ||
         r.key.startsWith("account/capabilities") ||
+        // The Inbox's Back Office link (an address and a switch from the server's settings): menu.inbox is a UI-only menu
+        // capability, not a route floor, so nothing to compare against.
+        r.key === "account/back-office-link" ||
         r.key.startsWith("account/audit") ||
         r.key.startsWith("account/approvals") ||
         r.key.startsWith("integrations/jira") ||

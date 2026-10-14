@@ -39,6 +39,7 @@ export const FORM_ISSUE_CODES = [
   "bad_limit",
   "bad_file_types",
   "bad_file_size",
+  "bad_stamp",
   "bad_acknowledge_text",
   "bad_contact_field",
   "rule_shape",

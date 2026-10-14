@@ -43,6 +43,8 @@ is included.
   `META_APP_SECRET`, …) is read at **runtime** from `.env.local` via
   `env_file` and is never baked into the image — safe to change with
   just a container restart.
+  This includes `BACK_OFFICE_USER_URL` and `BACK_OFFICE_EMBED` (the Inbox's Vircle Back Office link; see
+  `docs/back-office-link.md`).
 
 ## Plain Docker (no Compose)
 

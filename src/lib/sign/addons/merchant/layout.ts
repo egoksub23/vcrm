@@ -93,6 +93,7 @@ const PRINT_LABEL: Record<string, string> = {
   einvoice_email: "E-invoice and payment receipt email / E-mel e-Invois dan resit pembayaran",
   business_codes: "Business code(s) / Kod perniagaan",
   msic_codes: "MSIC code(s) / Kod MSIC",
+  brn_old: "Old registration no. / No. pendaftaran lama",
 };
 
 /** A cell that prints the answer to a data field. */
@@ -240,8 +241,9 @@ function company(): Block {
   b.rect(otherBox.x, otherBox.y, otherBox.w, otherBox.h, { stroke: "line", fill: "tint", lw: 0.6 });
   b.place(data("business_type_other").spec as Spec, otherBox);
   b.y += BOX_H + 6;
-  b.row([data("brn"), data("tin")]);
-  b.row([data("einvoice_phase")]);
+  // the registration number and, beside it, the old one (blank for a sole proprietor and a partnership, who are not asked it)
+  b.row([data("brn"), data("brn_old")]);
+  b.row([data("tin", 1), data("einvoice_phase", 1.5)]);
   // SST: a yes or no, and only for those who pay it the type of tax, the percentage and the registration number (blank on paper otherwise)
   b.text(M, b.y + 2.6, bi(fieldOf("sst_payer").label), 7.6, { maxW: 200 });
   b.choiceTicks(
@@ -293,25 +295,57 @@ function bank(): Block {
   return b;
 }
 
+/**
+ * The documents of Part 4, one line each: what it is, for which types of business, and a box that prints the NAME of each file the merchant
+ * uploaded (a bound text placement on the file field: forms/printing.ts prints the names, shortened so a long one never overflows). `required` are
+ * the entity types (`business_type` values) for which the form requires the document, `optional` those for which it is shown and not required;
+ * a test works both out from the form's own rules and fails if this list says anything else, so the printed list cannot drift from the form.
+ */
+export interface DocumentRow {
+  key: string;
+  en: string;
+  ms: string;
+  required: readonly string[];
+  optional?: readonly string[];
+}
+
+const ALL_TYPES = ["sole_prop", "partnership", "sdn_bhd", "society_coop", "other"] as const;
+
+export const DOCUMENT_ROWS: readonly DocumentRow[] = [
+  { key: "doc_form9", en: "Form 9 (Sdn. Bhd.)", ms: "Borang 9 (Sdn. Bhd.)", required: ["sdn_bhd"] },
+  { key: "doc_form49", en: "Form 49 (Sdn. Bhd.)", ms: "Borang 49 (Sdn. Bhd.)", required: ["sdn_bhd"] },
+  { key: "doc_form_d", en: "Form D (sole proprietor or partnership)", ms: "Borang D (pemilik tunggal atau perkongsian)", required: ["sole_prop", "partnership"] },
+  { key: "doc_minutes", en: "Latest minutes of meeting (club, society or co-operative)", ms: "Minit mesyuarat terkini (kelab, persatuan atau koperasi)", required: ["society_coop"] },
+  { key: "doc_registration_other", en: "Registration document (others, if you have one)", ms: "Dokumen pendaftaran (lain-lain, jika ada)", required: [], optional: ["other"] },
+  { key: "doc_bank_statement", en: "Bank statement header (every business)", ms: "Pengepala penyata bank (semua perniagaan)", required: ALL_TYPES },
+  { key: "doc_owner_id", en: "Identity card of a director or the owner (every business)", ms: "Kad pengenalan pengarah atau pemilik (semua perniagaan)", required: ALL_TYPES },
+  { key: "premise_pictures", en: "Pictures of the business premise, 1 to 3 (every business)", ms: "Gambar premis perniagaan, 1 hingga 3 (semua perniagaan)", required: ALL_TYPES },
+];
+
+/** Point size of the file names, and the height of one line of them (the engine's line gap is 1.2 times the size). */
+const DOC_NAME_SIZE = 7;
+
 function documents(): Block {
   const b = new Block();
   b.bar(PART.documents);
-  b.note("Uploaded with this application and kept with the signed record.", { size: 7.4 });
-  b.note("Dimuat naik bersama permohonan ini dan disimpan bersama rekod bertandatangan.", { size: 7.4 });
+  b.note("Each line shows the file uploaded. A line stays blank when that document is not needed for your type of business.", { size: 7.4 });
+  b.note("Setiap baris menunjukkan fail yang dimuat naik. Baris dibiarkan kosong jika dokumen itu tidak diperlukan untuk jenis perniagaan anda.", { size: 7.2 });
   b.y += 3;
-  const items: [string, string][] = [
-    ["Sdn. Bhd.: Form 9, Form 49 and a bank statement header.", "Sdn. Bhd.: Borang 9, Borang 49 dan pengepala penyata bank."],
-    ["Sole proprietor or partnership: Form D and a bank statement header.", "Pemilik tunggal atau perkongsian: Borang D dan pengepala penyata bank."],
-    ["Club, society or co-operative: the latest minutes of meeting.", "Kelab, persatuan atau koperasi: minit mesyuarat terkini."],
-    ["Photocopy of the identity card of a director or the owner.", "Salinan kad pengenalan pengarah atau pemilik."],
-    ["One to three pictures of the business premise.", "Satu hingga tiga gambar premis perniagaan."],
-  ];
-  for (const [en, ms] of items) {
-    b.rect(M + 3, b.y + 3, 2.6, 2.6, { fill: "ink" });
-    b.text(M + 12, b.y, en, 7.8, { tone: "ink", maxW: CW - 12 });
-    b.y += 10;
-    b.text(M + 12, b.y, ms, 7.2, { tone: "muted", maxW: CW - 12 });
-    b.y += 12;
+  const x2 = M + 262;
+  const w2 = CW - 262;
+  b.text(M, b.y, "Document / Dokumen", LABEL_SIZE, { tone: "muted", maxW: 250 });
+  b.text(x2, b.y, "Uploaded file / Fail dimuat naik", LABEL_SIZE, { tone: "muted", maxW: w2 });
+  b.y += LABEL_H;
+  for (const r of DOCUMENT_ROWS) {
+    const f = fieldOf(r.key);
+    // room for every file the field takes, one line each (a name is shortened to one line)
+    const h = Math.max(21, Math.ceil((f.maxFiles ?? 1) * DOC_NAME_SIZE * 1.2 + 4));
+    b.text(M, b.y + 1.5, r.en, 7.8, { tone: "ink", maxW: 255 });
+    b.text(M, b.y + 11.5, r.ms, 7.2, { tone: "muted", maxW: 255 });
+    const box = { x: x2, y: b.y, w: w2, h };
+    b.rect(box.x, box.y, box.w, box.h, { stroke: "line", fill: "tint", lw: 0.6 });
+    b.place({ key: `p_${r.key}`, type: "text", role: SENDER_ROLE, data: r.key, multiline: true, fontSize: DOC_NAME_SIZE, label: f.label.en }, box);
+    b.y += h + 5;
   }
   return b;
 }
