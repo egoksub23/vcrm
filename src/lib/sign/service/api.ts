@@ -371,13 +371,22 @@ export async function summariesFor(ctx: SignCtx, docs: readonly ListedDocument[]
     if (v.error) raiseDatabaseError(v.error, "list template versions");
     for (const row of (v.data ?? []) as { id: string; template_id: string }[]) templateIds.set(row.id, row.template_id);
   }
-  const s = await ctx.admin.from("sign_signers").select("document_id, status").eq("account_id", ctx.accountId).in("document_id", docs.map((d) => d.id));
+  const s = await ctx.admin.from("sign_signers").select("id, document_id, status, alternate_of").eq("account_id", ctx.accountId).in("document_id", docs.map((d) => d.id));
   if (s.error) raiseDatabaseError(s.error, "list signers");
-  for (const row of (s.data ?? []) as { document_id: string; status: string }[]) {
-    const c = counts.get(row.document_id) ?? { total: 0, signed: 0 };
+  // the two people of a role (migration 187) are one place on the document: it counts once, and as signed when either of them has
+  const places = new Map<string, { document_id: string; signed: boolean }>();
+  let n = 0;
+  for (const row of (s.data ?? []) as { id?: string; document_id: string; status: string; alternate_of?: string | null }[]) {
+    const key = row.alternate_of ?? row.id ?? `#${n++}`;
+    const place = places.get(key) ?? { document_id: row.document_id, signed: false };
+    if (row.status === "signed") place.signed = true;
+    places.set(key, place);
+  }
+  for (const place of places.values()) {
+    const c = counts.get(place.document_id) ?? { total: 0, signed: 0 };
     c.total++;
-    if (row.status === "signed") c.signed++;
-    counts.set(row.document_id, c);
+    if (place.signed) c.signed++;
+    counts.set(place.document_id, c);
   }
   return { templateIds, counts };
 }

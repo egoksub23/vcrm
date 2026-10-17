@@ -16,7 +16,11 @@ export const OPEN_STATUSES: readonly DocumentStatus[] = ["sent", "in_progress"];
 /** A document in one of these will not change again (failed can be retried by an operator). */
 export const FINAL_STATUSES: readonly DocumentStatus[] = ["completed", "declined", "expired", "voided"];
 
-export const SIGNER_STATUSES = ["pending", "sent", "viewed", "signed", "declined"] as const;
+/**
+ * `not_needed` (migration 187): the person was invited as the ALTERNATE of another person of their role, and that person completed the role first. Terminal, and
+ * not a decline: nothing is waited for and nobody is reminded.
+ */
+export const SIGNER_STATUSES = ["pending", "sent", "viewed", "signed", "declined", "not_needed"] as const;
 export type SignerStatus = (typeof SIGNER_STATUSES)[number];
 
 /**
@@ -156,6 +160,11 @@ export interface SignSignerRow {
   forward_history: { name: string; at: string }[];
   /** Phase 2 (migration 171): in an envelope, the rows that are one person across its documents share this id; the person's row on their first document (the anchor) has its own id here. Null outside an envelope. */
   party_id?: string | null;
+  /**
+   * Migration 187: set only on the SECOND person of a role, the alternate: the id of the first person of the same role. Both are invited together and whoever
+   * completes the role first signs; the other becomes `not_needed`. Null for everyone else (and always for a person of a collection).
+   */
+  alternate_of?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -337,5 +346,8 @@ export const EVENT_TYPES = [
   // addresses). History only: left off the certificate, which was made when the document was sealed and is never made again.
   "cancelled",
   "cancel_notice_sent",
+  // migration 187: the other person of a role completed it first, so this alternate did not need to sign (the signer on the event is the one who did not sign;
+  // the detail names who completed the role). In the history and on the certificate.
+  "alternate_not_needed",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

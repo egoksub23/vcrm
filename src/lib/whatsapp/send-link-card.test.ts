@@ -48,6 +48,7 @@ vi.mock("@/lib/instagram/meta-api", async (original) => {
 vi.mock("@/lib/ms365/token", () => ({ getValidAccessToken: async () => "ms-token" }));
 vi.mock("@/lib/ms365/mail-api", () => ({
   sendNewMail: async (a: any) => void h.calls.push({ fn: "email_new", args: a }),
+  sendMailViaDraft: async () => ({ purge: Promise.resolve(true) }),
   sendReplyText: async (a: any) => void h.calls.push({ fn: "email_reply_text", args: a }),
   sendReplyWithAttachment: async (a: any) => void h.calls.push({ fn: "email_reply_attachment", args: a }),
   sendReplyHtml: async (a: any) => void h.calls.push({ fn: "email_reply_html", args: a }),

@@ -1,8 +1,8 @@
 ---
 title: How long signed documents are kept
-description: A signed document is kept for a set number of years and cannot be deleted before then. Where you set the period, what it covers and what it does not.
+description: A signed document is kept for a set number of years and cannot be deleted before then. Where you set the period, what it covers, how to delete it afterwards and what it does not cover.
 order: 20
-updated: 2026-10-07
+updated: 2026-10-17
 ---
 
 A signed document is a record. Secure Sign keeps every completed document for a period you choose, called the **retention period**. Until the end of it, nobody can delete the document, not even the workspace owner.
@@ -20,7 +20,23 @@ Until that date:
 - The document, its signed PDF, the certificate pages and its history cannot be deleted by anyone: not by you, not by the workspace owner, not by an administrator.
 - The retention date cannot be shortened. It can only be moved later.
 
-After that date the rule no longer stops a deletion. Secure Sign never deletes anything by itself, and there is no button to delete a signed document yet.
+After that date the rule no longer stops a deletion. Secure Sign never deletes anything by itself: a person with permission to manage Secure Sign settings can delete the document, as described below.
+
+## Delete a signed document after its date
+
+Once the retention date has passed, a **Delete** button appears at the top of the document's page, next to the download buttons. It is shown only to people who can manage Secure Sign settings, and only for a completed document (a completed document that was later cancelled counts too). Before the date, nothing new is shown: the page says the document is kept until that date.
+
+1. Open the document from the Secure Sign list.
+2. Click **Delete**.
+3. Read the message. The signed PDF, the certificate and every signer's answers and uploads are removed for good. This cannot be undone and nothing can be recovered afterwards. The dialog shows the document's reference so you can be sure it is the right one. Download the signed copy first if you still need it.
+4. Click **Delete permanently**.
+
+You go back to the Secure Sign list and a message confirms what was deleted. If Secure Sign refuses (for example the retention date has not passed after all, or you do not have permission), the dialog shows the reason and nothing is deleted.
+
+A **document collection** is deleted as a whole, from the collection's page, and only when every document in it is past its retention date. The button appears on the collection's page; deleting it removes all of its documents with their files. A document that belongs to a collection cannot be deleted on its own.
+
+> [!WARNING]
+> Deleting is permanent and cannot be undone from Secure Sign. Keep your own download if the record may matter later.
 
 ## Set the period
 

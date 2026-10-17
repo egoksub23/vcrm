@@ -343,7 +343,7 @@ export function retypeField(field: DataField, type: DataFieldType, seeds: FormSe
   if (field.type === type) return field;
   const fresh = createDataField({ type, part: field.part, key: field.key, label: field.label.en, seeds });
   const next: DataField = { ...fresh, label: field.label, required: field.required };
-  for (const k of ["help", "placeholder", "requiredIf", "visibleIf", "writeBack", "locked"] as const) {
+  for (const k of ["help", "placeholder", "validationMessage", "requiredIf", "visibleIf", "writeBack", "locked"] as const) {
     if (field[k] !== undefined) Object.assign(next, { [k]: field[k] });
   }
   if (field.sensitive === true && canBeSensitive(type)) {

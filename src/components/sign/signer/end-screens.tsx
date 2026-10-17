@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 import { formatDay, useBrowserTimeZone } from "./dates";
 
-type EndState = "signed" | "sealing" | "completed" | "declined" | "expired" | "voided" | "failed" | "not_invited";
+type EndState = "signed" | "sealing" | "completed" | "declined" | "expired" | "voided" | "failed" | "not_invited" | "completed_by_other";
 
 interface EndScreenProps {
   state: EndState;
@@ -148,6 +148,15 @@ export function EndScreen({ state, view, token, canDownload }: EndScreenProps) {
       return (
         <Frame icon={<AlertTriangle className="size-12 text-amber-600 dark:text-amber-400" aria-hidden />} title={t("end.failed.title")}>
           <p>{t("end.failed.body")}</p>
+        </Frame>
+      );
+    case "completed_by_other":
+      // migration 187: the other person of this role completed it first. Not a decline and not an error: nothing is left for this person to do, and nothing of
+      // the document (nor who completed it) is shown.
+      return (
+        <Frame icon={<CheckCircle2 className="size-12 text-muted-foreground" aria-hidden />} title={formOnly ? t("end.completedByOtherForm.title") : t("end.completedByOther.title")}>
+          <p>{formOnly ? t("end.completedByOtherForm.body", { workspace: view.workspace.name }) : t("end.completedByOther.body", { workspace: view.workspace.name })}</p>
+          <p className="text-sm text-muted-foreground">{t("end.completedByOther.nothingToDo")}</p>
         </Frame>
       );
     case "not_invited":

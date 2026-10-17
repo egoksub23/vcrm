@@ -128,7 +128,8 @@ export interface CertificateSigner {
   role: string;
   /** Ordinal, shown only when the document needed signing order. */
   order?: number;
-  status: "signed" | "declined" | "pending";
+  /** `not_needed` (migration 187): invited as the alternate of another person of the role, who completed it first. */
+  status: "signed" | "declined" | "pending" | "not_needed";
   signedAt?: Date;
   ip?: string;
   device?: string;
@@ -218,6 +219,8 @@ export interface CertificateLabels {
   statusSigned: string;
   statusDeclined: string;
   statusPending: string;
+  /** An alternate who did not need to sign because the other person of their role completed it (migration 187). */
+  statusNotNeeded: string;
   note: string;
   page: string;
   of: string;

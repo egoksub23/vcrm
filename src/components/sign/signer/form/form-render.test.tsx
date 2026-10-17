@@ -294,6 +294,28 @@ run("a part", () => {
     expect(html).toMatch(/aria-describedby="[^"]*-error"/);
   });
 
+  it("words a turned-down answer with the field's own message in the signer's language, and with the general one when it has none", () => {
+    const custom = { ...definition, fields: definition.fields.map((f) => (f.key === "email" ? { ...f, validationMessage: L("Use the address your invoices go to", "Guna alamat tempat invois anda dihantar") } : f)) };
+    const rejected = { email: { code: "bad_email" }, phone: { code: "bad_phone" } };
+    const en = part("contact", { rejected, view: view({ definition: custom }) });
+    expect(en).toContain("Use the address your invoices go to");
+    expect(en).not.toContain("Enter an email address like name@example.com.");
+    // the field without a message keeps the general sentence
+    expect(en).toContain("Enter a phone number, for example 012-345 6789.");
+    const ms = flow({ start: { part: "contact" }, rejected, view: view({ definition: custom }) }, "ms");
+    expect(ms).toContain("Guna alamat tempat invois anda dihantar");
+    // a language the author left empty falls back to the English message, never to the general sentence
+    const zh = flow({ start: { part: "contact" }, rejected, view: view({ definition: custom }) }, "zh");
+    expect(zh).toContain("Use the address your invoices go to");
+    // a reason that is not about the answer is never replaced
+    const net = part("contact", { rejected: { email: { code: "network" } }, view: view({ definition: custom }) });
+    expect(net).toContain("No connection. Check your internet and try again.");
+    expect(net).not.toContain("Use the address your invoices go to");
+    // the field as it was before the message existed
+    expect(part("contact", { rejected, view: view() })).toContain("Enter an email address like name@example.com.");
+    expect(errors).toEqual([]);
+  });
+
   it("says when a part is complete, and goes to the overview from the last one", () => {
     const html = part("terms", { view: view({ answers: { agree: { checked: true } } }) });
     expect(html).toContain("This part is complete.");

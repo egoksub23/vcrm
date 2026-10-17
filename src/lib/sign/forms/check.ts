@@ -9,6 +9,8 @@
 
 import { decodeImageDataUrl } from "../rules";
 import { MAX_SINGLE_LINE, MAX_TEXT } from "../rules";
+import type { SignLocale } from "../types";
+import { pick } from "./text";
 import { type DataAnswerInput, type DataField, type FormValue, type TextFormat } from "./types";
 
 export type CheckResult = { ok: true; value: FormValue | null } | { ok: false; code: string; detail?: string };
@@ -172,6 +174,60 @@ export function checkDataAnswer(field: DataField, input: DataAnswerInput | undef
     default:
       return { ok: false, code: "unknown_type" };
   }
+}
+
+/**
+ * The reasons an answer is turned down that are about what was entered (the codes of `checkDataAnswer` and of a file the field
+ * does not accept), as opposed to the page's own failures (no network, too many tries, a field that is not shown). Only these may
+ * be worded by a field's `validationMessage`.
+ */
+export const VALIDATION_PROBLEM_CODES: ReadonlySet<string> = new Set([
+  "bad_text",
+  "text_too_long",
+  "text_too_short",
+  "format_digits",
+  "format_letters",
+  "format_alnum",
+  "format_upper_alnum",
+  "format_postcode_my",
+  "format_alnum_hyphen",
+  "item_format_digits",
+  "item_format_letters",
+  "item_format_alnum",
+  "item_format_upper_alnum",
+  "item_format_postcode_my",
+  "item_format_alnum_hyphen",
+  "bad_email",
+  "bad_phone",
+  "not_a_number",
+  "too_many_decimals",
+  "number_too_small",
+  "number_too_big",
+  "not_a_date",
+  "not_an_option",
+  "not_yes_no",
+  "bad_item",
+  "item_too_long",
+  "item_too_short",
+  "too_many_items",
+  "too_few_items",
+  "duplicate_item",
+  "bad_image",
+  "file_type",
+  "file_too_large",
+  "file_empty",
+  "too_many_files",
+  "too_few_files",
+]);
+
+/**
+ * The sentence the author of a field wrote for when an answer to it is turned down, in the signer's language (English where that
+ * language was left empty), or null when the field has none or the reason is not about the answer: the caller then uses the general
+ * sentence for the reason. One function for the browser (instant feedback) and any server text, like the check itself.
+ */
+export function customProblemMessage(field: Pick<DataField, "validationMessage">, code: string | null | undefined, locale: SignLocale): string | null {
+  if (!code || !field.validationMessage || !VALIDATION_PROBLEM_CODES.has(code)) return null;
+  return pick(field.validationMessage, locale).trim() || null;
 }
 
 /** Is a stored value still sound for its field? (Re-checked by the server at the gate.) */

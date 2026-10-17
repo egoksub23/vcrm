@@ -37,6 +37,15 @@ export function maskText(value: string, char: string = MASK_CHAR): string {
   return t.length > MASK_MIN_LENGTH ? `${hidden} ${t.slice(-REVEAL_LAST)}` : hidden;
 }
 
+/**
+ * A value hidden completely, for a screen whose reader may not see it at all: `••••` whatever the value (no last characters, no
+ * length), or `""` for a value that was empty (that something was empty is not a secret). Used for the old and new value of a
+ * contact write-back in the history of a document.
+ */
+export function hideText(value: string, char: string = MASK_CHAR): string {
+  return value.trim() === "" ? "" : char.repeat(4);
+}
+
 /** A stored value masked the way `maskText` does: text, and each entry of a list. Anything else is returned as it is. */
 export function maskValue(value: FormValue | FormValueView, char: string = MASK_CHAR): FormValueView {
   if ("text" in value) return { text: maskText(value.text, char) };

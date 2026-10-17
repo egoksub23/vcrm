@@ -380,6 +380,8 @@ export interface SignerInput {
   channel: "email" | "whatsapp";
   orderNo: number;
   internalUserId?: string | null;
+  /** Migration 187: the id of the person's row this one can sign instead of (the row is made first; it must carry its `id` here). A document on its own only. */
+  alternateOf?: string | null;
 }
 
 /** Replace a draft's signing list. Details are checked again at send; this stops what could never be valid. */
@@ -403,6 +405,7 @@ export async function setSigners(ctx: SignCtx, documentId: string, signers: Sign
     return {
       ...(s.id ? { id: s.id } : {}),
       ...(s.partyId ? { party_id: s.partyId } : {}),
+      ...(s.alternateOf ? { alternate_of: s.alternateOf } : {}),
       account_id: ctx.accountId,
       document_id: documentId,
       role_key: s.roleKey,
@@ -419,9 +422,18 @@ export async function setSigners(ctx: SignCtx, documentId: string, signers: Sign
   const del = await ctx.admin.from("sign_signers").delete().eq("document_id", documentId).eq("account_id", ctx.accountId);
   if (del.error) raiseDatabaseError(del.error, "clear signers");
   if (rows.length === 0) return [];
-  const ins = await ctx.admin.from("sign_signers").insert(rows).select("*");
+  // an alternate's row points at the person's (migration 187): the people go in first, then the alternates, so the database finds the row it is pointed at
+  const people = rows.filter((r) => !("alternate_of" in r));
+  const alternates = rows.filter((r) => "alternate_of" in r);
+  const ins = await ctx.admin.from("sign_signers").insert(people).select("*");
   if (ins.error) raiseDatabaseError(ins.error, "insert signers");
-  return (ins.data ?? []) as SignSignerRow[];
+  const out = (ins.data ?? []) as SignSignerRow[];
+  if (alternates.length > 0) {
+    const alt = await ctx.admin.from("sign_signers").insert(alternates).select("*");
+    if (alt.error) raiseDatabaseError(alt.error, "insert alternate signers");
+    out.push(...((alt.data ?? []) as SignSignerRow[]));
+  }
+  return out;
 }
 
 /** Every stored file that belongs to a document: the rows kept for it, its own paths, and the files its answers point at. Only its own folder, never a template's file or another document's. */

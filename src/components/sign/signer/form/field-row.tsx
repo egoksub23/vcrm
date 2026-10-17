@@ -64,7 +64,7 @@ export function FieldRow({ field, input, stored, required, unconfirmed, rejectio
 
   const label = text(field.label);
   const help = text(field.help);
-  const problem = problemText(rejection);
+  const problem = problemText(rejection, field);
   const describedBy = [help ? helpId : null, problem ? errorId : null].filter(Boolean).join(" ") || undefined;
   const group = isGroup(field);
   // a document to upload says in words whether it is needed, for the answers so far (a star alone does not say "for whom")

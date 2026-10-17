@@ -9299,7 +9299,10 @@
         "moveStep": "Step {step}",
         "moveNew": "A new step at the end",
         "moved": "{name} was moved to another step.",
-        "undeliveredEmailSetup": "The email was not sent because of how email is set up, not because of this address. Once that is fixed, use Resend."
+        "undeliveredEmailSetup": "The email was not sent because of how email is set up, not because of this address. Once that is fixed, use Resend.",
+        "alternateOf": "Can sign instead of {name}. Whoever completes it first signs.",
+        "hasAlternate": "{name} can sign instead. Whoever completes it first signs.",
+        "notNeeded": "Did not need to sign: {name} completed it first."
       },
       "confirm": {
         "cancel": "Cancel",
@@ -9420,6 +9423,12 @@
           "brokenHint": "An entry in the history does not match the chain. Tell an administrator.",
           "unknown": "Not checked",
           "unknownHint": "The check could not be run just now."
+        },
+        "changes": {
+          "title": "Contact changes",
+          "line": "{field}: {old} → {new}",
+          "empty": "(empty)",
+          "hidden": "The values are hidden. Only people who may reveal sensitive answers can see them."
         }
       },
       "events": {
@@ -9486,7 +9495,9 @@
         "cancelled": "{sender} cancelled this completed document. It is no longer in force.",
         "cancelledCollection": "{sender} cancelled the document collection {reference} ({count, plural, one {# document} other {# documents}}). It is no longer in force.",
         "cancel_notice_sent": "{sent, plural, one {# person was} other {# people were}} emailed that it was cancelled",
-        "cancel_notice_sentSome": "{sent, plural, one {# person was} other {# people were}} emailed that it was cancelled; {failed, plural, one {# email} other {# emails}} could not be delivered"
+        "cancel_notice_sentSome": "{sent, plural, one {# person was} other {# people were}} emailed that it was cancelled; {failed, plural, one {# email} other {# emails}} could not be delivered",
+        "alternate_not_needed": "{actor} was invited as an alternate and did not need to sign: {by} completed it first",
+        "alternate_not_neededForm": "{actor} was invited as an alternate and did not need to fill in the form: {by} completed it first"
       },
       "errors": {
         "document_not_found": "That document was not found.",
@@ -9620,6 +9631,20 @@
         "note": "The signed copy and its certificate are kept as a record of what was signed, but this document is no longer in force.",
         "noteCollection": "Every document in the collection was cancelled with it. The signed copies and certificates are kept as a record of what was signed, but they are no longer in force.",
         "withCollection": "It was cancelled together with its collection:"
+      },
+      "delete": {
+        "open": "Delete",
+        "title": "Delete this document permanently?",
+        "titleCollection": "Delete this document collection permanently?",
+        "body": "This removes the sealed PDF, the certificate and every signer's answers and uploads for good. It cannot be undone and nothing can be recovered afterwards.",
+        "bodyCollection": "This removes all {count, plural, one {# document} other {# documents}} in this collection for good: each sealed PDF, each certificate and every signer's answers and uploads. It cannot be undone and nothing can be recovered afterwards.",
+        "reference": "Reference: {reference}",
+        "retentionEnded": "Its retention period ended on {date}.",
+        "warning": "This cannot be undone. Download the signed copy first if you still need it.",
+        "keep": "Keep it",
+        "action": "Delete permanently",
+        "done": "{reference} was deleted",
+        "failed": "Could not delete it. Try again."
       }
     },
     "editor": {
@@ -10139,7 +10164,9 @@
         "helpHint": "A short line under the question.",
         "placeholder": "Example shown in the box (optional)",
         "acknowledge": "Text to read and accept",
-        "acknowledgeHint": "The signer reads this and ticks a box to accept."
+        "acknowledgeHint": "The signer reads this and ticks a box to accept.",
+        "validationMessage": "Message when the answer is not accepted (optional)",
+        "validationMessageHint": "Shown to the signer instead of the standard message when their answer for this field fails a check (too short, wrong format, not a number). Leave empty to use the standard message."
       },
       "key": {
         "title": "Key",
@@ -10372,7 +10399,8 @@
         "sensitive_contact_field": "{field} is sensitive, so it cannot fill a contact field. Remove one of the two.",
         "sensitive_default": "{field} is sensitive, so it cannot have a starting value or be locked. Remove the starting value or the lock.",
         "sensitive_in_rule": "A rule compares the value of {field}, which is sensitive. A rule may only ask whether it is empty.",
-        "bad_stamp": "The stamp of {field} is not set up correctly. It needs a picture field (or a file field that takes PNG) and real text fields of this form for the name and the numbers."
+        "bad_stamp": "The stamp of {field} is not set up correctly. It needs a picture field (or a file field that takes PNG) and real text fields of this form for the name and the numbers.",
+        "bad_validation_message": "The message shown when an answer to {field} is not accepted is too long, or has no English text."
       },
       "warnings": {
         "unknown": "Something in the form is worth checking.",
@@ -10681,7 +10709,8 @@
           "viewed": "Opened",
           "signed": "Signed",
           "filled": "Filled in",
-          "declined": "Declined"
+          "declined": "Declined",
+          "not_needed": "Not needed"
         },
         "cancelled": "Cancelled"
       },
@@ -11071,7 +11100,7 @@
         "form_mode_signature": "A form without a signature cannot have a place to sign.",
         "form_mode_placement": "A form without a signature has nothing placed on a page.",
         "form_mode_signer_role": "A form without a signature cannot have a role that signs.",
-        "role_shared": "The role {role} has more than one person. Each signature belongs to one person, so give the role to one person only."
+        "role_shared": "The role {role} has more than one person. Each signature belongs to one person, so give the role to one person only. If a second person may sign instead, add them as the person who can sign instead on the People step."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -11172,7 +11201,13 @@
         "private_fixed": "Whether this is private cannot change once it has been sent.",
         "private_cannot_join": "A private document cannot be added to a collection that is not private.",
         "bad_private": "Choose whether this is private.",
-        "static_text_does_not_fit": "Some fixed text in this document, such as the platform fee or the key terms, is too long for its box and would be cut off in the signed copy. Shorten it in the fields step (or make its box bigger), then send again."
+        "static_text_does_not_fit": "Some fixed text in this document, such as the platform fee or the key terms, is too long for its box and would be cut off in the signed copy. Shorten it in the fields step (or make its box bigger), then send again.",
+        "completed_by_other": "This was already completed by someone else.",
+        "alternate_invalid": "Someone who can sign instead has to share the role of one other person on this document, and cannot be a Halo user.",
+        "alternate_same_person": "The person who can sign instead has to be someone else, with another email address.",
+        "alternate_fixed": "Who can sign instead of whom cannot be changed. Change the people on the draft instead.",
+        "alternate_needs_draft": "Someone who can sign instead is named before the document is sent, and not on a document collection.",
+        "alternate_not_in_collection": "A document with someone who can sign instead cannot be added to a document collection."
       },
       "records": {
         "ticketLabel": "Link to a ticket",
@@ -11328,7 +11363,11 @@
           "person_without_work": "{name} has nothing to sign yet. Open a document and assign a field to them, or change them to receive a copy.",
           "document_nobody": "Nobody has anything to do on this document yet. Open it and assign a signature block to a person.",
           "too_many_copies": "Up to {range} people can receive a copy.",
-          "too_many_roles": "A collection with an uploaded file can have up to {range} people who must sign."
+          "too_many_roles": "A collection with an uploaded file can have up to {range} people who must sign.",
+          "alternate_name": "Enter a name for the person who can sign instead of {name}.",
+          "alternate_email": "Enter a valid email address for the person who can sign instead of {name}.",
+          "alternate_duplicate": "The person who can sign instead of {name} is already on the list. Use another email address.",
+          "alternate_not_here": "{name} cannot have someone who can sign instead here. This is only for a person who is not a Halo user, on a document on its own."
         },
         "banner": {
           "title": "Document {number} of {count} in a document collection",
@@ -11497,7 +11536,8 @@
       "doc": {
         "reference": "Reference {reference}",
         "expires": "Expires {date}",
-        "messageFromSender": "Message from the sender"
+        "messageFromSender": "Message from the sender",
+        "alternate": "{name} was also asked to do this. Whoever completes it first does it for both of you; the other person is told it was already completed."
       },
       "fill": {
         "barLabel": "Your progress",
@@ -11697,6 +11737,15 @@
           "titleCollection": "These documents were cancelled on {date}",
           "note": "The signed copy below remains a record of what was signed. It is no longer in force.",
           "noteForm": "The record below remains a record of what was submitted. It is no longer in force."
+        },
+        "completedByOther": {
+          "title": "Already completed",
+          "body": "{workspace} asked two people to do this, and the other person completed it first.",
+          "nothingToDo": "There is nothing left for you to do, and you will not get any more reminders."
+        },
+        "completedByOtherForm": {
+          "title": "Already completed",
+          "body": "{workspace} asked two people to fill in this form, and the other person completed it first."
         }
       },
       "others": {
@@ -11784,7 +11833,8 @@
           "expired": "Expired",
           "voided": "Cancelled",
           "failed": "Problem",
-          "not_invited": "Not your turn yet"
+          "not_invited": "Not your turn yet",
+          "completed_by_other": "Done by someone else"
         },
         "end": {
           "completed": {
@@ -12791,7 +12841,14 @@
         "typeFiller": "Fills in",
         "limitSigners": "Up to {max} people can be asked to sign.",
         "limitRoles": "Up to {max} people can be asked to sign an uploaded file. Each one becomes a role on that document.",
-        "sentByWhatsapp": "Sent by WhatsApp"
+        "sentByWhatsapp": "Sent by WhatsApp",
+        "alternate": {
+          "add": "Add someone who can sign instead",
+          "title": "Can sign instead",
+          "hint": "Both get their own link at the same time. Whoever completes it first signs for {name}; the other is told it was already completed and gets no reminders.",
+          "remove": "Remove",
+          "removeFor": "Remove the person who can sign instead of {name}"
+        }
       },
       "blocks": {
         "heading": "Signature blocks",

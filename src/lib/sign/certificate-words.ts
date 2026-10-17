@@ -31,6 +31,7 @@ const MS: CertificateLabels = {
   statusSigned: "Ditandatangani",
   statusDeclined: "Ditolak",
   statusPending: "Belum ditandatangani",
+  statusNotNeeded: "Pengganti: tidak perlu menandatangani",
   note: "Peristiwa penandatanganan di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Fail ini dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
   page: "Halaman perakuan",
   of: "daripada",
@@ -64,6 +65,7 @@ const ZH: CertificateLabels = {
   statusSigned: "已签署",
   statusDeclined: "已拒绝",
   statusPending: "未签署",
+  statusNotNeeded: "备选人：无需签署",
   note: "上述签署事件保存在审计记录中，每条记录都带有前一条记录的指纹。本文件以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
   page: "证书页",
   of: "共",
@@ -97,6 +99,7 @@ const KO: CertificateLabels = {
   statusSigned: "서명함",
   statusDeclined: "거부함",
   statusPending: "미서명",
+  statusNotNeeded: "대체자: 서명할 필요 없음",
   note: "위의 서명 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 파일은 디지털 서명으로 봉인되었으며, 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
   page: "증명서 페이지",
   of: "/",
@@ -121,6 +124,7 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     signedOn: "Submitted",
     statusSigned: "Submitted",
     statusPending: "Not submitted",
+    statusNotNeeded: "Alternate: did not need to submit",
     note: "The events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This file records what was submitted and is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
     signedFile: "Sealed record",
     signedFingerprint: "SHA-256 of the sealed record",
@@ -134,6 +138,7 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     signedOn: "Dihantar",
     statusSigned: "Dihantar",
     statusPending: "Belum dihantar",
+    statusNotNeeded: "Pengganti: tidak perlu menghantar",
     note: "Peristiwa di atas disimpan dalam jejak audit; setiap catatan membawa cap jari catatan sebelumnya. Fail ini merekodkan apa yang dihantar dan dimeterai dengan tandatangan digital: jika mana-mana halamannya diubah selepas dimeterai, pembaca PDF akan memberitahu.",
     signedFile: "Rekod termeterai",
     signedFingerprint: "SHA-256 rekod termeterai",
@@ -147,6 +152,7 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     signedOn: "提交时间",
     statusSigned: "已提交",
     statusPending: "未提交",
+    statusNotNeeded: "备选人：无需提交",
     note: "上述事件保存在审计记录中，每条记录都带有前一条记录的指纹。本文件记录所提交的内容，并以数字签名封存：封存之后若任何一页被改动，PDF 阅读器会提示。",
     signedFile: "封存的记录",
     signedFingerprint: "封存记录的 SHA-256",
@@ -160,6 +166,7 @@ const FORM_LABELS: Record<SignLocale, Partial<CertificateLabels>> = {
     signedOn: "제출 일시",
     statusSigned: "제출함",
     statusPending: "미제출",
+    statusNotNeeded: "대체자: 제출할 필요 없음",
     note: "위의 이벤트는 감사 기록에 보관되며, 각 항목에는 바로 앞 항목의 지문이 담겨 있습니다. 이 파일은 제출된 내용을 기록하며 디지털 서명으로 봉인되었습니다. 봉인 후 어느 페이지든 변경되면 PDF 리더가 알려 줍니다.",
     signedFile: "봉인된 기록",
     signedFingerprint: "봉인된 기록의 SHA-256",
@@ -213,6 +220,8 @@ const EVENTS: Record<SignLocale, EventWords> = {
     envelope_sent: "This document was sent as part of document collection {reference} ({count} documents)",
     envelope_completed: "Every document of document collection {reference} was completed",
     envelope_declined: "{by} declined document collection {reference}",
+    alternate_not_needed: "{actor} was invited as an alternate and did not need to sign: {by} completed the role first",
+    alternate_not_needed_form: "{actor} was invited as an alternate and did not need to fill in the form: {by} completed it first",
     all_submitted: "Everyone had submitted",
     created_form: "{sender} created the form",
     sent_form: "{sender} sent the form",
@@ -260,6 +269,8 @@ const EVENTS: Record<SignLocale, EventWords> = {
     envelope_sent: "Dokumen ini dihantar sebagai sebahagian daripada koleksi dokumen {reference} ({count} dokumen)",
     envelope_completed: "Semua dokumen dalam koleksi dokumen {reference} telah disempurnakan",
     envelope_declined: "{by} menolak koleksi dokumen {reference}",
+    alternate_not_needed: "{actor} dijemput sebagai pengganti dan tidak perlu menandatangani: {by} telah melengkapkan peranan itu dahulu",
+    alternate_not_needed_form: "{actor} dijemput sebagai pengganti dan tidak perlu mengisi borang: {by} telah melengkapkannya dahulu",
     all_submitted: "Semua pihak telah menghantar",
     created_form: "{sender} mencipta borang",
     sent_form: "{sender} menghantar borang",
@@ -307,6 +318,8 @@ const EVENTS: Record<SignLocale, EventWords> = {
     envelope_sent: "本文件作为文件集 {reference}（共 {count} 份）的一部分发送",
     envelope_completed: "文件集 {reference} 中的所有文件均已完成",
     envelope_declined: "{by} 拒绝了文件集 {reference}",
+    alternate_not_needed: "{actor} 被邀请为备选人，无需签署：{by} 已先完成该角色",
+    alternate_not_needed_form: "{actor} 被邀请为备选人，无需填写表格：{by} 已先完成",
     all_submitted: "所有人均已提交",
     created_form: "{sender} 创建了表格",
     sent_form: "{sender} 发送了表格",
@@ -354,6 +367,8 @@ const EVENTS: Record<SignLocale, EventWords> = {
     envelope_sent: "이 문서는 문서 모음 {reference}(문서 {count}건)의 일부로 발송되었습니다",
     envelope_completed: "문서 모음 {reference}의 모든 문서가 완료되었습니다",
     envelope_declined: "{by}님이 문서 모음 {reference}을(를) 거부했습니다",
+    alternate_not_needed: "{actor}님은 대체 서명자로 초대되었으며 서명할 필요가 없었습니다: {by}님이 먼저 이 역할을 완료했습니다",
+    alternate_not_needed_form: "{actor}님은 대체자로 초대되었으며 양식을 작성할 필요가 없었습니다: {by}님이 먼저 완료했습니다",
     all_submitted: "모든 분이 제출을 마쳤습니다",
     created_form: "{sender}님이 양식을 만들었습니다",
     sent_form: "{sender}님이 양식을 발송했습니다",
@@ -403,7 +418,7 @@ export function eventSentence(type: string, locale: SignLocale, names: { actor: 
   // envelopes (migration 171): the envelope's reference, how many documents it holds, and who declined it
   values.reference = text(detail.reference, 40) || "-";
   values.count = typeof detail.count === "number" ? String(detail.count) : "-";
-  values.by = text(detail.by_name, 160) || names.actor || "-";
+  values.by = text(detail.by_name, 160) || text(detail.completed_by_name, 160) || names.actor || "-";
   const partKey = text(detail.part, 80);
   values.part = partKey ? (extras.partTitle?.(partKey) ?? partKey) : "-";
   if (type === "invited") {

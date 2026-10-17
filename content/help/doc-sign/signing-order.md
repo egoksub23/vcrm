@@ -2,7 +2,7 @@
 title: Signing order
 description: Invite everyone at once, or one person after another, and what happens when someone declines.
 order: 4
-updated: 2026-10-07
+updated: 2026-10-17
 ---
 
 By default everyone on a document is invited at once and anyone can sign first. If your document needs people to sign one after another, tick **This document needs signing order**.
@@ -19,6 +19,8 @@ With the box ticked, each person has a step number. With it off, no numbers are 
 
 **People who share a number sign together.** Give two people the same step number and they form one step: both are invited when the step begins, and the next step begins only when both have signed. The page shows them under a heading such as **Step 1 (2 people)**. See [Forwarding and signing together](/help/doc-sign/forwarding-and-parallel-signing).
 
+**Someone who can sign instead sits in the same step.** If a person has a second person who can sign instead of them, the two are one place in the step: both are invited when the step begins, and the step is finished as soon as one of them has completed it. The next step is then invited, and the history names whoever finished. The step heading counts the pair once. Moving one of them to another step moves both. See [Someone who can sign instead](/help/doc-sign/someone-who-can-sign-instead).
+
 > [!IMPORTANT]
 > The signing order cannot be changed after the document is sent.
 
@@ -31,7 +33,7 @@ A person whose step has not begun has no link yet. They are messaged, with a lin
 
 ## Reminders and stops
 
-- Reminders go only to the people whose step it is.
+- Reminders go only to the people whose step it is. A person who was named to sign instead of someone, and was not needed because that person completed it first, is not reminded.
 - A **decline**, a **cancel** or an **expiry** stops the whole chain. Nobody after that can sign.
 - On the document's page, a person who is not invited yet shows "Not invited yet". Until their step begins you can still correct their name or email with **Change recipient**, or move them to a later step with **Move to**.
 

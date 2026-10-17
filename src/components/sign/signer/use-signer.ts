@@ -156,6 +156,8 @@ export function useSigner({ token, initialView, initialSessionOk, locale, envelo
           return true;
         case "signer_not_open":
         case "consent_required":
+        // the other person of the role completed it first (migration 187): the page becomes the friendly "already completed" one
+        case "completed_by_other":
           void refresh();
           return true;
         default:

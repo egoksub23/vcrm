@@ -145,6 +145,21 @@ describe("FieldProperties render", () => {
     expect(get("tax_pct")).toContain("type.decimals");
   });
 
+  it("offers the message for a failed answer next to the other texts, for the types an answer can fail", () => {
+    for (const type of DATA_FIELD_TYPES) {
+      const form = sampleForm();
+      const r = addField(form, { part: "company", type, seeds, taken: new Set() })!;
+      const field = r.form.fields.find((f) => f.key === r.key)!;
+      const html = renderToStaticMarkup(<FieldProperties {...baseProps({ field, form: r.form })} />);
+      if (type === "yesno" || type === "acknowledge") expect(html, type).not.toContain("texts.validationMessage");
+      else expect(html, type).toContain("texts.validationMessage");
+    }
+    // what is stored is shown back
+    const form = sampleForm();
+    const field = { ...form.fields.find((f) => f.key === "account_no")!, validationMessage: { en: "Use the digits only" } };
+    expect(renderToStaticMarkup(<FieldProperties {...baseProps({ field, form })} />)).toContain("Use the digits only");
+  });
+
   it("reads the visibility rule back in plain words, from lists", () => {
     const form = sampleForm();
     const html = renderToStaticMarkup(<FieldProperties {...baseProps({ field: form.fields.find((f) => f.key === "tax_pct")!, form })} />);

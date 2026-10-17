@@ -147,14 +147,14 @@ describe("which way email goes", () => {
 });
 
 describe("the files that fit through each transport", () => {
-  it("through Microsoft 365 a signed copy over 2.5 MB is not attached and the message carries the link instead; under it, it is attached", async () => {
+  it("through Microsoft 365 a signed copy over 4 MB is not attached and the message carries the link instead; under it, it is attached", async () => {
     const small: OutgoingEmail[] = [];
-    await deliverCompleted(world({ state: readyMailbox(small) }).deps, doc, ws, to, pdf(2), "https://halo.test/dl");
+    await deliverCompleted(world({ state: readyMailbox(small) }).deps, doc, ws, to, pdf(3.5), "https://halo.test/dl");
     expect(small[0].attachments).toHaveLength(1);
     expect(small[0].text).toContain("attached to this message");
 
     const big: OutgoingEmail[] = [];
-    await deliverCompleted(world({ state: readyMailbox(big) }).deps, doc, ws, to, pdf(3), "https://halo.test/dl");
+    await deliverCompleted(world({ state: readyMailbox(big) }).deps, doc, ws, to, pdf(4.5), "https://halo.test/dl");
     expect(big[0].attachments).toBeUndefined();
     expect(big[0].text).not.toContain("attached to this message");
     expect(big[0].html).toContain("https://halo.test/dl");
@@ -188,20 +188,20 @@ describe("the files that fit through each transport", () => {
     expect(sent[0].attachments!.map((a) => a.filename)).toEqual(["One.pdf", "Three.pdf"]);
 
     const ms: OutgoingEmail[] = [];
-    await deliverEnvelopeCompleted(world({ state: readyMailbox(ms) }).deps, env, ws, to, [pdf(2, "One.pdf"), pdf(1, "Two.pdf"), pdf(0.4, "Three.pdf")]);
+    await deliverEnvelopeCompleted(world({ state: readyMailbox(ms) }).deps, env, ws, to, [pdf(3, "One.pdf"), pdf(1.5, "Two.pdf"), pdf(0.8, "Three.pdf")]);
     expect(ms[0].attachments!.map((a) => a.filename)).toEqual(["One.pdf", "Three.pdf"]);
   });
 
   it("applies the same budget to the people who receive a copy, and names the file left out with the page that checks it", async () => {
     const one: OutgoingEmail[] = [];
-    await deliverCopy(world({ state: readyMailbox(one) }).deps, doc, ws, { name: "Cara", email: "cara@example.com" }, pdf(3), "https://halo.test/verify/d1");
+    await deliverCopy(world({ state: readyMailbox(one) }).deps, doc, ws, { name: "Cara", email: "cara@example.com" }, pdf(4.5), "https://halo.test/verify/d1");
     expect(one[0].attachments).toBeUndefined();
     expect(one[0].text).toContain("https://halo.test/verify/d1");
 
     const many: OutgoingEmail[] = [];
     const files = [
-      { ...pdf(2, "One.pdf"), title: "One", verifyUrl: "https://halo.test/verify/1" },
-      { ...pdf(2, "Two.pdf"), title: "Two", verifyUrl: "https://halo.test/verify/2" },
+      { ...pdf(2.5, "One.pdf"), title: "One", verifyUrl: "https://halo.test/verify/1" },
+      { ...pdf(2.5, "Two.pdf"), title: "Two", verifyUrl: "https://halo.test/verify/2" },
     ];
     await deliverEnvelopeCopy(world({ state: readyMailbox(many) }).deps, env, ws, { name: "Cara", email: "cara@example.com" }, files);
     expect(many[0].attachments!.map((a) => a.filename)).toEqual(["One.pdf"]);

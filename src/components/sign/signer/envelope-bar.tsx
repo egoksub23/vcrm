@@ -27,6 +27,8 @@ const STATE_ICON: Record<PageState, typeof Circle> = {
   voided: XCircle,
   failed: XCircle,
   not_invited: Clock,
+  // (never in a document collection: an alternate is for a document on its own, migration 187)
+  completed_by_other: CheckCircle2,
 };
 
 const STATE_TONE: Record<PageState, string> = {
@@ -39,6 +41,7 @@ const STATE_TONE: Record<PageState, string> = {
   voided: "text-muted-foreground",
   failed: "text-red-700 dark:text-red-300",
   not_invited: "text-muted-foreground",
+  completed_by_other: "text-muted-foreground",
 };
 
 /** One document's line: its place, its title and the person's state on it, in words as well as an icon. */

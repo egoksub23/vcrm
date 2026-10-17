@@ -523,8 +523,14 @@ The document with its people. What the fields mean:
   when there are none, and always empty for a document of a collection (a
   collection's copy recipients belong to the collection). They are not signers.
 - `signers[].status`: `pending` (not invited yet: signing order), `sent`
-  (invited), `viewed`, `signed`, `declined` (with `decline_reason`). `signed_at`
-  is when they signed.
+  (invited), `viewed`, `signed`, `declined` (with `decline_reason`),
+  `not_needed` (a second person of the same role, named in Halo as someone who
+  can sign instead, whose role the other person completed first; not a decline).
+  `signed_at` is when they signed. The API never names a second person for a
+  role: a document that gives two people the same role cannot be sent, it is a
+  `400` `not_ready` with the issue `role_shared`. Only a person in Halo can name someone who can sign instead;
+  the document then lists both people, and the one who did not need to sign has
+  the status `not_needed` and no `signed_at`.
 - `cancelled`, `cancelled_at`, `cancelled_by` and `cancel_reason`: a person in
   Halo (the one who sent the document, or an admin) can cancel a document
   **after** it is completed, with a reason. The document stays `completed` and

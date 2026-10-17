@@ -12,7 +12,7 @@ import { deliverCompleted, deliverCopy, deliverEnvelopeCompleted, deliverEnvelop
 import type { SignLocale } from "./types";
 
 // The signed-copy emails when the certificate is a file of its own (migration 178): the signed document(s) AND the certificate(s) go as separate
-// attachments within the transport's attachment budget (2.5 MB through Microsoft 365, 17 MB through Gmail, 20 MB through the platform sender); whatever does
+// attachments within the transport's attachment budget (4 MB through Microsoft 365, 17 MB through Gmail, 20 MB through the platform sender); whatever does
 // not fit goes the way a file that does not fit always did, and the words say exactly what is attached.
 
 const MB = 1024 * 1024;
@@ -48,9 +48,9 @@ describe("the signers' and the sender's signed copy (one document)", () => {
     }
   });
 
-  it("through Microsoft 365 (2.5 MB in all) the certificate that no longer fits is named as not attached, the signed document that fits still goes", async () => {
+  it("through Microsoft 365 (4 MB in all) the certificate that no longer fits is named as not attached, the signed document that fits still goes", async () => {
     const w = world(MS365_ATTACH_BYTES);
-    await deliverCompleted(w.deps, doc, ws, to, signed(2.4, 0.2));
+    await deliverCompleted(w.deps, doc, ws, to, signed(3.9, 0.2));
     expect(names(w.sent[0])).toEqual(["SGN-1-signed.pdf"]);
     expect(w.sent[0].text).toContain("The signed copy is attached to this message.");
     expect(w.sent[0].text).toContain("The certificate is a separate file that could not be attached to this message.");
@@ -59,7 +59,7 @@ describe("the signers' and the sender's signed copy (one document)", () => {
 
   it("when the signed document is too large and the certificate is not, only the certificate goes and the message does not claim the signed copy", async () => {
     const w = world(MS365_ATTACH_BYTES);
-    await deliverCompleted(w.deps, doc, ws, to, signed(3, 0.2));
+    await deliverCompleted(w.deps, doc, ws, to, signed(4.5, 0.2));
     expect(names(w.sent[0])).toEqual(["SGN-1-certificate.pdf"]);
     expect(w.sent[0].text).not.toContain("The signed copy is attached");
     expect(w.sent[0].text).toContain("The certificate is attached to this message as a separate file.");
@@ -114,13 +114,13 @@ describe("a copy for a person who receives one (one document)", () => {
 
   it("names the page that checks the copy when it is too large, still attaches the certificate that fits, and asks the sender for what is missing; never a download link", async () => {
     const w = world(MS365_ATTACH_BYTES);
-    await deliverCopy(w.deps, doc, ws, { name: "Cara", email: "cara@example.com" }, signed(3, 0.2), verify);
+    await deliverCopy(w.deps, doc, ws, { name: "Cara", email: "cara@example.com" }, signed(4.5, 0.2), verify);
     expect(names(w.sent[0])).toEqual(["SGN-1-certificate.pdf"]);
     expect(w.sent[0].text).toContain("The signed copy is too large to attach. Ask Gokula for it.");
     expect(w.sent[0].text).toContain(verify);
     expect(w.sent[0].text).toContain("The certificate is attached to this message as a separate file.");
     const tight = world(MS365_ATTACH_BYTES);
-    await deliverCopy(tight.deps, doc, ws, { name: "Cara", email: "cara@example.com" }, signed(2.45, 0.2), verify);
+    await deliverCopy(tight.deps, doc, ws, { name: "Cara", email: "cara@example.com" }, signed(3.95, 0.2), verify);
     expect(names(tight.sent[0])).toEqual(["SGN-1-signed.pdf"]);
     expect(tight.sent[0].text).toContain("is a separate file that could not be attached to this message: ask Gokula for it.");
   });
@@ -152,12 +152,12 @@ describe("a collection", () => {
 
   it("says how many of the certificates are attached, and where the rest are to be had (the signer's own link; the sender for a person who receives a copy)", async () => {
     const w = world(MS365_ATTACH_BYTES);
-    await deliverEnvelopeCompleted(w.deps, env, ws, to, [pair(1, 2.2, 0.2), pair(2, 0.1, 0.1), pair(3, 0.1, 0.1)]);
-    // 2.2 + 0.2 = 2.4, then 0.1 more fits, nothing after
+    await deliverEnvelopeCompleted(w.deps, env, ws, to, [pair(1, 3.7, 0.2), pair(2, 0.05, 0.1), pair(3, 0.1, 0.1)]);
+    // 3.7 + 0.2 = 3.9, then 0.05 more fits, nothing after
     expect(names(w.sent[0])).toEqual(["D1-signed.pdf", "D1-certificate.pdf", "D2-signed.pdf"]);
     expect(w.sent[0].text).toContain("1 of the 3 certificates are attached to this message as separate files. The others could not be attached: open your signing link to download them.");
     const copy = world(MS365_ATTACH_BYTES);
-    await deliverEnvelopeCopy(copy.deps, env, ws, { name: "Cara", email: "cara@example.com" }, [pair(1, 2.2, 0.2), pair(2, 0.1, 0.1), pair(3, 0.1, 0.1)]);
+    await deliverEnvelopeCopy(copy.deps, env, ws, { name: "Cara", email: "cara@example.com" }, [pair(1, 3.7, 0.2), pair(2, 0.05, 0.1), pair(3, 0.1, 0.1)]);
     expect(copy.sent[0].text).toContain("1 of the 3 certificates are attached to this message as separate files. The others could not be attached: ask Gokula for them.");
     expect(copy.sent[0].text).toContain("2 of the 3 signed copies are attached");
     expect(copy.sent[0].text).toContain("Document 3: https://halo.test/verify/d3");
@@ -165,7 +165,7 @@ describe("a collection", () => {
 
   it("says the certificates are separate files that could not be attached when none fits", async () => {
     const w = world(MS365_ATTACH_BYTES);
-    await deliverEnvelopeCompleted(w.deps, env, ws, to, [pair(1, 2.5, 0.1), pair(2, 1, 0.1)]);
+    await deliverEnvelopeCompleted(w.deps, env, ws, to, [pair(1, 3.95, 0.1), pair(2, 1, 0.1)]);
     expect(names(w.sent[0])).toEqual(["D1-signed.pdf"]);
     expect(w.sent[0].text).toContain("The certificates are separate files and could not be attached to this message: open your signing link to download them.");
   });

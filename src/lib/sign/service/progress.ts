@@ -33,7 +33,9 @@ export async function loadProgress(ctx: SignCtx, documentId: string): Promise<St
     const parts = rolePartsOf(form, role.key);
     if (parts.length === 0) continue;
     // the person of the role (not someone handed a part of it), and what they handed over
-    const signer = signers.find((s) => s.role_key === role.key && !isDelegate(s)) ?? null;
+    // (a role with two people, migration 187: the one who completed it, else the first)
+    const holders = signers.filter((s) => s.role_key === role.key && !isDelegate(s));
+    const signer = holders.find((s) => s.status === "signed") ?? holders[0] ?? null;
     const delegations = signer ? delegationsOf(signers, signer.id) : [];
     const progress = roleProgress(form, role.key, state.map, state.savedAt);
     const titleOf = new Map<string, L10n>(parts.map((p) => [p.key, p.title]));

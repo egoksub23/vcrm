@@ -27,6 +27,23 @@ import { emitSignEvent } from "./outbound";
 
 const toDraft = (s: SignSignerRow): SignerDraft => ({ role_key: s.role_key, kind: s.kind, full_name: s.full_name, email: s.email, phone: s.phone, channel: s.channel, order_no: s.order_no });
 
+/**
+ * The people of a role who are not delegates, for the rule "a role is one person's". Two are allowed only when the second is the first's ALTERNATE (migration 187):
+ * a row that points at the other, of the same kind and step, with another address, neither a Halo user, and no third. Returns the roles that break the rule.
+ */
+export function sharedRoles(signers: readonly SignSignerRow[]): string[] {
+  const byRole = new Map<string, SignSignerRow[]>();
+  for (const s of signers) if (!s.part_keys || s.part_keys.length === 0) byRole.set(s.role_key, [...(byRole.get(s.role_key) ?? []), s]);
+  const bad: string[] = [];
+  for (const [role, list] of byRole) {
+    if (list.length <= 1) continue;
+    const [a, b] = list;
+    const ok = list.length === 2 && (b.alternate_of === a.id || a.alternate_of === b.id) && a.kind === b.kind && a.order_no === b.order_no && !a.internal_user_id && !b.internal_user_id && a.email.trim().toLowerCase() !== b.email.trim().toLowerCase();
+    if (!ok) bad.push(role);
+  }
+  return bad;
+}
+
 export interface InvitationResult {
   signerId: string;
   name: string;
@@ -99,10 +116,10 @@ export function readinessProblems(doc: SignDocumentRow, signers: readonly SignSi
     mode: doc.mode,
   });
   // A role is one person's: two people on one role would both be asked for the same places, and the sealed file would carry only the first
-  // person's answers on them. (A person handed a part of a form is a row of the same role, but only after the send.)
-  const held = new Map<string, number>();
-  for (const s of signers) if (!s.part_keys || s.part_keys.length === 0) held.set(s.role_key, (held.get(s.role_key) ?? 0) + 1);
-  for (const [role, n] of held) if (n > 1) problems.push({ code: "role_shared", role });
+  // person's answers on them. (A person handed a part of a form is a row of the same role, but only after the send. The one exception is the
+  // ALTERNATE of migration 187: the second person of a role, named by the sender, who is invited with the first; whoever completes the role first
+  // signs, and the other is told it was already done. The database holds the same line.)
+  for (const role of sharedRoles(signers)) problems.push({ code: "role_shared", role });
   // a form must be sound with the placements that print it, and every part needs a person to complete it
   const form = formOf(doc);
   // a form without a signature is only a form: without a part there is nothing to fill in (the rest of its rules are sendProblems')
@@ -240,7 +257,8 @@ export async function voidDocument(ctx: SignCtx, documentId: string, reason: str
     await emitSignEvent(ctx, { ...doc, status: "voided" }, "voided"); // the automation trigger and the webhook; never throws
     const w = await workspaceFor(ctx, doc);
     const facts = docFacts(doc, ctx);
-    for (const s of signers.filter((x) => x.invited_at && x.status !== "signed" && x.status !== "declined")) {
+    // (an alternate who was not needed was never waited for: they are not told about a cancellation either)
+    for (const s of signers.filter((x) => x.invited_at && x.status !== "signed" && x.status !== "declined" && x.status !== "not_needed")) {
       await deliverOutcome(ctx.deps, facts, w, { name: s.full_name, email: s.email, channel: s.channel, locale: doc.locale }, { kind: "voided" });
     }
   }

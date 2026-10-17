@@ -17,7 +17,7 @@ import type { EnvelopePerson } from "@/lib/sign/envelopes";
 import { FormProblemText } from "../send/form-problem-text";
 
 /** The codes worded by the collection's own messages (the shared list of people, the size). */
-const PEOPLE_CODES = new Set(["envelope_size", "envelope_too_many_pages", "duplicate_person", "person_without_document", "role_two_people", "person_without_work", "document_nobody", "too_many_copies", "too_many_roles"]);
+const PEOPLE_CODES = new Set(["envelope_size", "envelope_too_many_pages", "duplicate_person", "person_without_document", "role_two_people", "alternate_name", "alternate_email", "alternate_duplicate", "alternate_not_here", "person_without_work", "document_nobody", "too_many_copies", "too_many_roles"]);
 
 /**
  * Split a document's problems into the ones with words of their own and the layout ones (a field off the page, a role with a bad name...): those are

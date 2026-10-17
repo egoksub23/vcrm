@@ -2,7 +2,7 @@
 title: API and integrations
 description: Let your own system send documents for signature, follow them and fetch the signed copy, using an API key with Secure Sign permissions.
 order: 14
-updated: 2026-10-07
+updated: 2026-10-17
 ---
 
 If you have a system of your own, such as a merchant onboarding app, it can send documents for signature without anyone opening Secure Sign. It talks to Halo through the **API**. Your developer does the connecting; this page explains what you need to set up and what to expect.
@@ -43,6 +43,7 @@ You cannot add a permission to a key later. Make a new key and revoke the old on
 - **A private document is invisible to the API.** A document or collection that someone in Halo marked [private](/help/doc-sign/private-documents) is never listed or opened by a key, and a key never creates one.
 - **The reference is the document number.** It is the number shown on the document and on the certificate, so choose something you recognise.
 - **People who only receive a copy.** Pass them in `copy_to`. They get the signed PDF by email when the document is completed, never a link, and they are never in the list of signers. The API gives their names back, not their emails. They are part of the same call, so a repeated call with the same reference does not add them twice. See [Receive a copy of the signed document](/help/doc-sign/copies).
+- **One person for each role.** A document that gives two people the same role cannot be sent: it is refused as not ready, with the issue `role_shared`. A second person who can sign instead of the first ([someone who can sign instead](/help/doc-sign/someone-who-can-sign-instead)) is named on the People step in Halo, not through the API. A document made that way shows both people in the list of signers; the one who did not need to sign has the status `not_needed`, and the document's progress counts the role once.
 - **Reminders keep the 24-hour rule.** The same person cannot be reminded again within 24 hours.
 - **The signed copy comes only after completion.** Before everyone has signed, the download is refused.
 - **Use events instead of checking again and again.** Your system can be told when a document is signed, declined or expires, instead of asking every few minutes.

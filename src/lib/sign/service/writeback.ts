@@ -1,9 +1,10 @@
 // ============================================================
 // Forms and the contact. Two directions, both through the data field's `contactField`:
 //
-//   prefill     the first time a signer opens their page, fields they have not answered start with the contact's
+//   prefill     every time a signer's page is built, fields they have not made their own start with the contact's
 //               value (source "contact": shown for the signer to confirm) or the field's own default (source
-//               "sender"). Never overwrites an answer.
+//               "sender"); a contact value the sender corrects later replaces an unconfirmed one. Never overwrites
+//               what the signer typed, saved, confirmed or emptied (see `prefillAnswers`).
 //   write-back  once the signer has signed, what they confirmed fills the contact (name, email, company or a
 //               custom field of the workspace), respecting "only if empty", and each change is an audit event
 //               with the old and the new value (personal data, and the trail the plan asks for).
@@ -14,7 +15,7 @@
 import { checkDataAnswer, displayValue, fieldVisible, type DataAnswerInput, type DataField, type FormDefinition, type FormValue } from "../forms";
 import type { SignDocumentRow, SignSignerRow } from "../types";
 import { logEvent, type SignCtx } from "./context";
-import { ownDataFields, type AnswerRow, type FormState } from "./form-state";
+import { ownDataFields, ownDataFieldsFor, type AnswerRow, type FormState } from "./form-state";
 import { sealAnswer } from "./sensitive";
 
 const COLUMNS = ["name", "email", "company"] as const;
@@ -86,19 +87,46 @@ function acceptable(field: DataField, raw: string): FormValue | null {
   return r.ok ? r.value : null;
 }
 
+/** Can this field be started from the contact or a default? Such a field keeps a marker when the signer empties it (see `saveAnswers`). */
+export const canBePrefilled = (f: Pick<DataField, "contactField" | "defaultValue" | "type">): boolean => !!(f.contactField || f.defaultValue) && f.type !== "file" && f.type !== "image" && f.type !== "acknowledge";
+
 /**
- * Start a signer's unanswered, visible fields from the contact and from the fields' defaults. Returns the rows
- * it wrote (so the caller need not read them again). Failures are logged and give nothing.
+ * Start a signer's fields from the contact and from the fields' defaults. Runs every time the page is built, and
+ * touches only what the signer has not made their own:
+ *
+ *   - no row for the field: the value is added (a value the sender supplied after the first view shows up);
+ *   - a row the prefill itself wrote (source "contact" or "sender", never confirmed): replaced when the
+ *     contact now gives a different value (a correction shows up), and left alone when there is no value to give;
+ *   - a row of source "signer" or "forwarded" (typed, saved, or confirmed), and the empty marker `saveAnswers` leaves
+ *     when the signer emptied a prefilled field (value null, source "signer"): never touched.
+ *
+ * `rows` are the document's answers as loaded; `signers` are the people of the document (a part handed to a delegate
+ * is not prefilled for the person who handed it over). Returns the rows it wrote (so the caller need not read them
+ * again). Failures are logged and give nothing.
  */
-export async function prefillAnswers(ctx: SignCtx, doc: SignDocumentRow, signer: SignSignerRow, form: FormDefinition, state: FormState): Promise<AnswerRow[]> {
+export async function prefillAnswers(ctx: SignCtx, doc: SignDocumentRow, signer: SignSignerRow, form: FormDefinition, state: FormState, rows: readonly AnswerRow[] = [], signers: readonly SignSignerRow[] = []): Promise<AnswerRow[]> {
   try {
-    const own = ownDataFields(form, signer.role_key);
-    const wanted = [...own.values()].filter((f) => !state.map[f.key] && (f.contactField || f.defaultValue) && fieldVisible(form, f, state.map));
+    const own = ownDataFieldsFor(form, signer, signers);
+    const mine = new Map(rows.filter((r) => r.signer_id === signer.id).map((r) => [r.field_key, r]));
+    const wanted = [...own.values()].filter((f) => {
+      if (!canBePrefilled(f) || !fieldVisible(form, f, state.map)) return false;
+      const there = mine.get(f.key);
+      if (there) {
+        // the signer's own answer, or their deliberate empty: never touched. Only what a prefill wrote and nobody has confirmed may be refreshed.
+        if (there.value === null || there.value === undefined) return false;
+        if (there.source !== "contact" && there.source !== "sender") return false;
+        // a default is part of the frozen form and cannot have changed; only a field that reads the contact can have something new to say
+        return !!f.contactField;
+      }
+      return !state.map[f.key]; // an answer of another person of the role counts as answered, as it always has
+    });
     if (wanted.length === 0) return [];
     const contact = doc.contact_id && wanted.some((f) => f.contactField) ? await loadContact(ctx, doc.contact_id) : null;
 
     const at = ctx.now().toISOString();
-    const rows: AnswerRow[] = [];
+    const written: AnswerRow[] = [];
+    const fresh: AnswerRow[] = [];
+    const refreshed: AnswerRow[] = [];
     for (const f of wanted) {
       let value: FormValue | null = null;
       let source: "contact" | "sender" = "contact";
@@ -110,18 +138,38 @@ export async function prefillAnswers(ctx: SignCtx, doc: SignDocumentRow, signer:
         value = acceptable(f, f.defaultValue);
         source = "sender";
       }
-      if (value) rows.push({ signer_id: signer.id, field_key: f.key, value, source, saved_at: at });
+      if (!value) continue;
+      const there = mine.get(f.key);
+      const row: AnswerRow = { signer_id: signer.id, field_key: f.key, value, source, saved_at: at };
+      if (!there) {
+        fresh.push(row);
+      } else if (JSON.stringify(there.value) !== JSON.stringify(value) || there.source !== source) {
+        refreshed.push(row);
+      }
     }
-    if (rows.length === 0) return [];
-    const { error } = await ctx.admin.from("sign_answers").upsert(
-      rows.map((r) => ({ account_id: ctx.accountId, document_id: doc.id, ...r, ...sealAnswer(own.get(r.field_key), r.value, { documentId: doc.id, fieldKey: r.field_key }) })),
-      { onConflict: "document_id,signer_id,field_key", ignoreDuplicates: true },
-    );
-    if (error) {
-      console.error("[sign] could not prefill answers:", error.message);
-      return [];
+    if (fresh.length) {
+      const { error } = await ctx.admin.from("sign_answers").upsert(
+        fresh.map((r) => ({ account_id: ctx.accountId, document_id: doc.id, ...r, ...sealAnswer(own.get(r.field_key), r.value, { documentId: doc.id, fieldKey: r.field_key }) })),
+        { onConflict: "document_id,signer_id,field_key", ignoreDuplicates: true },
+      );
+      if (error) console.error("[sign] could not prefill answers:", error.message);
+      else written.push(...fresh);
     }
-    return rows;
+    for (const r of refreshed) {
+      // the filter on the source is part of the write: an answer the signer saves in the meantime is not overwritten
+      const { data, error } = await ctx.admin
+        .from("sign_answers")
+        .update({ ...sealAnswer(own.get(r.field_key), r.value, { documentId: doc.id, fieldKey: r.field_key }), source: r.source, saved_at: r.saved_at })
+        .eq("document_id", doc.id)
+        .eq("account_id", ctx.accountId)
+        .eq("signer_id", signer.id)
+        .eq("field_key", r.field_key)
+        .in("source", ["contact", "sender"])
+        .select("field_key");
+      if (error) console.error("[sign] could not refresh a prefilled answer:", error.message);
+      else if (((data as unknown[] | null) ?? []).length > 0) written.push(r);
+    }
+    return written;
   } catch (err) {
     console.error("[sign] prefill failed:", err instanceof Error ? err.message : err);
     return [];

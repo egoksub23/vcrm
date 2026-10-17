@@ -104,6 +104,26 @@ export interface RevealSensitiveResult {
   value: FormValueView;
 }
 
+/** One contact field a signer's answers changed (a `writeback` event), as the sender's history is given it. */
+export interface WritebackChange {
+  /** The event's number in the document's history. */
+  seq: number;
+  /** `name`, `email`, `company` or `custom:<name>`. */
+  field: string;
+  /** The contact's value before and after. Both are `""` for a value that was empty; when `masked` is true a value that was not empty is `••••` and the real one never left the server. */
+  old: string;
+  new: string;
+  /** The reader may not see the values (they lack sign.reveal-sensitive). */
+  masked: boolean;
+}
+
+/** GET /api/sign/documents/[id]/writebacks (menu.sign): the contact changes a document's answers made. The values come only with sign.reveal-sensitive. */
+export interface WritebackHistory {
+  /** The reader holds sign.reveal-sensitive, so the values are the real ones. */
+  mayReveal: boolean;
+  changes: WritebackChange[];
+}
+
 /** POST /api/sign/documents/[id]/expiry (sign.send) — body `{ expiresAt }` an ISO time in the future; answer `{ expiresAt }`. */
 export interface ExtendExpiryResult {
   expiresAt: string;

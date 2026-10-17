@@ -37,6 +37,8 @@ export interface EnvelopeDocumentSummary {
   completedAt: string | null;
   /** Migration 181: when this (completed) document was cancelled, with its collection. Null for a document that was not. */
   cancelledAt?: string | null;
+  /** The date this (completed) document is kept until (migration 165). Null for a document that is not completed or has none. */
+  retainUntil?: string | null;
   hasFinalFile: boolean;
   /** Migration 178: the document's certificate is a file of its own (offered beside the signed file). False for a document sealed earlier: it is inside the signed file. */
   hasCertificate?: boolean;
@@ -67,6 +69,7 @@ export function summarizeDocument(d: SignDocumentRow): EnvelopeDocumentSummary {
     categoryId: d.category_id,
     completedAt: d.completed_at,
     cancelledAt: d.status === "completed" ? (d.cancelled_at ?? null) : null,
+    retainUntil: d.status === "completed" ? (d.retain_until ?? null) : null,
     hasFinalFile: !!d.final_path,
     hasCertificate: !!d.final_path && !!d.certificate_path,
   };

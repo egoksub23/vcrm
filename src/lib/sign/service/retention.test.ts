@@ -148,6 +148,17 @@ describe("deleting a signed document", () => {
     expect(filesOf(other.id).length).toBeGreaterThan(0);
   });
 
+  it("goes after its date even when it was cancelled after completion (the status stays completed, the date is unchanged), and is kept before it", async () => {
+    const stamp = { cancelled_at: "2026-10-01T00:00:00Z", cancelled_by: USER, cancel_reason: "Signed by mistake" };
+    const past = await documentIn("completed", { retain_until: "2026-10-06T08:00:00Z", ...stamp });
+    const ahead = await documentIn("completed", { retain_until: "2033-10-06T08:00:00Z", ...stamp });
+    expect(await codeOf(deleteDocument(ctx, ahead.id))).toMatchObject({ code: "document_retained", status: 409 });
+    expect(filesOf(ahead.id).length).toBeGreaterThan(0);
+    await deleteDocument(ctx, past.id);
+    expect(db.rows("sign_documents").map((r) => r.id)).toEqual([ahead.id]);
+    expect(filesOf(past.id)).toHaveLength(0);
+  });
+
   it("keeps the files when the database refuses after all (the date moved, or it is the database's rule)", async () => {
     const d = await documentIn("completed", { retain_until: "2026-10-06T08:00:00Z" });
     db.failNext.sign_documents = "sign_document_retained";

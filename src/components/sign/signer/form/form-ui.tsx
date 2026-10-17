@@ -9,8 +9,9 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 
+import { customProblemMessage } from "@/lib/sign/forms/check";
 import { pick } from "@/lib/sign/forms/text";
-import type { L10n } from "@/lib/sign/forms/types";
+import type { DataField, L10n } from "@/lib/sign/forms/types";
 import { problemKey, type FormRejection } from "@/lib/sign/client/signer-form";
 import type { SignerLocale } from "@/lib/sign/client/signer-flow";
 
@@ -25,11 +26,18 @@ export function useFormText(): (text: L10n | undefined) => string {
   return (text) => pick(text, locale);
 }
 
-/** The words for a rejection: its reason, with the number it carries (a limit), or the general sentence for a reason the page has never seen. */
-export function useProblemText(): (rejection: FormRejection | null | undefined) => string | null {
+/**
+ * The words for a rejection: its reason, with the number it carries (a limit), or the general sentence for a reason the page has never seen.
+ * Given the field, the sentence its author wrote for a failed answer (in the page's language) comes first; a field without one, or a reason that
+ * is not about the answer (no network, too many tries), gets the general sentence.
+ */
+export function useProblemText(): (rejection: FormRejection | null | undefined, field?: Pick<DataField, "validationMessage">) => string | null {
   const t = useTranslations("Sign.signerForm");
-  return (rejection) => {
+  const { locale } = useContext(FormUi);
+  return (rejection, field) => {
     if (!rejection) return null;
+    const custom = field ? customProblemMessage(field, rejection.code, locale) : null;
+    if (custom) return custom;
     return t(`problems.${problemKey(rejection.code)}`, { detail: rejection.detail ?? "" });
   };
 }

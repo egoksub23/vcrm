@@ -774,6 +774,57 @@ describe("deleting, and another workspace", () => {
     expect(db.rows("sign_documents")).toHaveLength(2);
   });
 
+  it("deletes a completed (here also cancelled) envelope once the LAST document's retention date has passed: every row and every file of every document, nothing of anyone else's", async () => {
+    const { envelope, ids } = await draftEnvelope();
+    await sendEnvelope(ctx, envelope.id);
+    const finals: string[] = [];
+    for (const id of ids) {
+      const final = `account-${ACCT}/${id}/final/${"c".repeat(64)}.pdf`;
+      const upload = `account-${ACCT}/${id}/upload/u1-id.jpg`;
+      db.files.set(final, new Uint8Array([1]));
+      db.files.set(upload, new Uint8Array([2]));
+      finals.push(final, upload);
+      db.seed("sign_document_files", [{ account_id: ACCT, document_id: id, kind: "signed", path: final, name: "signed.pdf" }]);
+      db.seed("sign_answers", [{ account_id: ACCT, document_id: id, signer_id: "s1", field_key: "id", value: null, file_path: upload }]);
+      Object.assign(docRow(id), { status: "completed", final_path: final, cancelled_at: "2026-10-01T00:00:00Z" });
+    }
+    docRow(ids[0]).retain_until = "2026-10-06T08:00:00Z";
+    docRow(ids[1]).retain_until = "2026-10-06T08:00:01Z"; // one second still to go
+    Object.assign(db.rows("sign_envelopes")[0], { status: "completed", cancelled_at: "2026-10-01T00:00:00Z" });
+    // a template's file is never ours to remove
+    db.files.set(`account-${ACCT}/templates/${TPL_A}/v1.pdf`, new Uint8Array([7]));
+
+    // not before the last date: nothing is touched, files included
+    await expect(deleteEnvelope(ctx, envelope.id)).rejects.toMatchObject({ code: "document_retained", status: 409 });
+    expect(db.rows("sign_envelopes")).toHaveLength(1);
+    expect(db.rows("sign_documents")).toHaveLength(2);
+    for (const p of finals) expect(db.files.has(p), p).toBe(true);
+
+    docRow(ids[1]).retain_until = "2026-10-06T08:00:00Z";
+    await deleteEnvelope(ctx, envelope.id);
+    expect(db.rows("sign_envelopes")).toHaveLength(0);
+    expect(db.rows("sign_documents")).toHaveLength(0);
+    for (const p of finals) expect(db.files.has(p), p).toBe(false);
+    expect([...db.files.keys()].filter((p) => ids.some((id) => p.includes(`/${id}/`)))).toHaveLength(0);
+    expect(db.files.has(`account-${ACCT}/templates/${TPL_A}/v1.pdf`)).toBe(true);
+  });
+
+  it("keeps every file when the database refuses the first row after all (the rule is the database's too)", async () => {
+    const { envelope, ids } = await draftEnvelope();
+    await sendEnvelope(ctx, envelope.id);
+    const finals = ids.map((id) => `account-${ACCT}/${id}/final/${"c".repeat(64)}.pdf`);
+    ids.forEach((id, i) => {
+      db.files.set(finals[i], new Uint8Array([1]));
+      Object.assign(docRow(id), { status: "completed", final_path: finals[i], retain_until: "2026-10-06T08:00:00Z" });
+    });
+    db.rows("sign_envelopes")[0].status = "completed";
+    db.failNext.sign_documents = "sign_document_retained";
+    await expect(deleteEnvelope(ctx, envelope.id)).rejects.toMatchObject({ code: "document_retained", status: 409 });
+    expect(db.rows("sign_envelopes")).toHaveLength(1);
+    expect(db.rows("sign_documents")).toHaveLength(2);
+    for (const p of finals) expect(db.files.has(p), p).toBe(true);
+  });
+
   it("does not let another workspace read, send, void or change an envelope by its id", async () => {
     const { envelope } = await draftEnvelope();
     const other: SignCtx = { ...ctx, accountId: OTHER };

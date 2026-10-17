@@ -66,7 +66,12 @@ export function valuesFor(
   const out: Record<string, FieldValue> = {};
   const byRole = new Map<string, SignSignerRow>();
   // the places on the page belong to the signer of the role; a person handed one part of the form only fills that part
-  for (const s of signers) if (!isDelegate(s) && !byRole.has(s.role_key)) byRole.set(s.role_key, s);
+  // (a role with two people, migration 187: the places are those of the person who completed it, never of the one who was not needed)
+  for (const s of signers) {
+    if (isDelegate(s)) continue;
+    const have = byRole.get(s.role_key);
+    if (!have || (s.status === "signed" && have.status !== "signed")) byRole.set(s.role_key, s);
+  }
   const answerOf = new Map(answers.filter((a) => a.value).map((a) => [`${a.signer_id}:${a.field_key}`, a.value as StoredAnswer]));
   for (const f of answerFields(fields)) {
     const signer = byRole.get(f.role);
@@ -141,7 +146,7 @@ export function certificateData(
       email: s.email,
       role: isDelegate(s) ? `${roleLabel.get(s.role_key) ?? s.role_key} (${(s.part_keys ?? []).map(partTitle).join(", ")})` : (roleLabel.get(s.role_key) ?? s.role_key),
       order: doc.sign_in_order && !isDelegate(s) ? stepOf.get(s.id) : undefined,
-      status: s.status === "signed" ? "signed" : s.status === "declined" ? "declined" : "pending",
+      status: s.status === "signed" ? "signed" : s.status === "declined" ? "declined" : s.status === "not_needed" ? "not_needed" : "pending",
       signedAt: s.signed_at ? new Date(s.signed_at) : undefined,
       ip: s.ip ?? undefined,
       device: deviceOf(s),

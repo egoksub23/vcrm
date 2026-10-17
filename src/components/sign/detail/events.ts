@@ -4,6 +4,7 @@
 // technical detail kept apart behind a "Details" disclosure. Pure.
 // ============================================================
 
+import type { WritebackChange } from "@/lib/sign/forms/api-types";
 import { EVENT_TYPES, type EventType } from "@/lib/sign/types";
 
 /** A row of `sign_events` as the browser reads it (the hashes stay in the database). */
@@ -21,6 +22,22 @@ export interface SignEventRow {
 }
 
 export const EVENT_COLUMNS = "id, doc_seq, signer_id, type, actor_type, actor_user_id, detail, ip, device, created_at";
+
+/**
+ * What the history asks for of a `writeback` event instead of `detail`: the contact field that changed and the contact, never the
+ * old and new value (those are personal data, given only to a person who may reveal sensitive answers, by the server:
+ * service/writeback-history.ts). The two names are read out of the `detail` JSON by the query itself, so the values are not sent.
+ */
+export const WRITEBACK_COLUMNS = "id, doc_seq, signer_id, type, actor_type, actor_user_id, ip, device, created_at, field:detail->>field, contact_id:detail->>contact_id";
+
+/** A write-back row as `WRITEBACK_COLUMNS` selects it, made into a row like any other (its `detail` holds the field and the contact, nothing else). */
+export function writebackEventRow(raw: Omit<SignEventRow, "detail"> & { field?: string | null; contact_id?: string | null }): SignEventRow {
+  const { field, contact_id, ...rest } = raw;
+  const detail: Record<string, unknown> = {};
+  if (typeof field === "string" && field) detail.field = field;
+  if (typeof contact_id === "string" && contact_id) detail.contact_id = contact_id;
+  return { ...rest, detail };
+}
 
 export interface EventSigner {
   id: string;
@@ -48,6 +65,8 @@ export interface DescribeContext {
   formatDay?: (iso: string) => string;
   /** `form` for a form without a signature (migration 169): the history says "submitted" and "the form", never "signed". */
   mode?: string | null;
+  /** Forms (write-back): what the server says changed in the contact for the event with this number, values real or masked as the server decided; none when it was not asked. */
+  changesFor?: (seq: number) => readonly WritebackChange[];
 }
 
 export type DetailKind = "ip" | "device" | "consent" | "fingerprint" | "certificateFingerprint" | "channel" | "delivery" | "error";
@@ -81,11 +100,13 @@ export interface EventLine {
   contactFields: string[];
   /** Something the line can link to (the contact whose record the answers updated). */
   link: { kind: "contact"; id: string } | null;
+  /** Forms (write-back): the contact fields this event changed with their old and new value, as the server gave them (a mask unless the reader may reveal sensitive answers). Empty until the server answers. */
+  changes: WritebackChange[];
 }
 
 const KNOWN: ReadonlySet<string> = new Set<EventType>(EVENT_TYPES);
 /** The events a form without a signature words differently (`events.<type>Form`). */
-const FORM_WORDED: ReadonlySet<string> = new Set(["created", "sent", "viewed", "consented", "submitted", "declined", "sealed", "completed", "downloaded"]);
+const FORM_WORDED: ReadonlySet<string> = new Set(["created", "sent", "viewed", "consented", "submitted", "declined", "sealed", "completed", "downloaded", "alternate_not_needed"]);
 const FAILURES: ReadonlySet<string> = new Set(["delivery_failed", "code_failed", "seal_failed", "seal_attempt_failed"]);
 const MINOR: ReadonlySet<string> = new Set(["saved"]);
 /** Events of a form: worded under `Sign.progress.events`. */
@@ -176,6 +197,9 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     values.step = typeof detail.to_step === "number" ? String(detail.to_step) : "";
   } else if (row.type === "forwarding_changed") {
     if (typeof detail.allow === "boolean") key = detail.allow ? "events.forwarding_on" : "events.forwarding_off";
+  } else if (row.type === "alternate_not_needed") {
+    // migration 187: the other person of the role completed it first; the actor is the alternate who did not need to sign, `by` the one who did
+    values.by = text(detail.completed_by_name, 160) ?? ctx.someone;
   } else if (row.type === "recipient_changed") {
     const from = text(detail.from_email, 200);
     const to = text(detail.to_email, 200);
@@ -261,6 +285,7 @@ export function describeEvent(row: SignEventRow, ctx: DescribeContext): EventLin
     details,
     contactFields,
     link,
+    changes: row.type === "writeback" ? [...(ctx.changesFor?.(row.doc_seq) ?? [])] : [],
   };
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PlacedField } from "../pdf/types";
 import type { SignRole } from "../types";
-import { checkDataAnswer, evalRule, fieldRequired, fieldVisible, formSendProblems, missingFormRequired, normalizePhoneMy, overallPercent, partProgress, roleProgress, ruleProblems, signReady, unsoundAnswers, validateForm, boundValues, displayValue, pick, dependencyCycle, type AnswerMap, type DataField, type FormDefinition, type L10n } from "./index";
+import { checkDataAnswer, customProblemMessage, MAX_VALIDATION_MESSAGE, VALIDATION_PROBLEM_CODES, evalRule, fieldRequired, fieldVisible, formSendProblems, missingFormRequired, normalizePhoneMy, overallPercent, partProgress, roleProgress, ruleProblems, signReady, unsoundAnswers, validateForm, boundValues, displayValue, pick, dependencyCycle, type AnswerMap, type DataField, type FormDefinition, type L10n } from "./index";
 
 const L = (en: string, ms?: string): L10n => ({ en, ...(ms ? { ms } : {}) });
 
@@ -220,6 +220,76 @@ describe("validateForm", () => {
   it("a part needs a person before sending", () => {
     expect(formSendProblems(form, [{ role_key: "merchant" }]).map((i) => i.part)).toEqual(["bank"]);
     expect(formSendProblems(form, [{ role_key: "merchant" }, { role_key: "finance" }])).toEqual([]);
+  });
+});
+
+describe("a field's own message for a failed answer", () => {
+  const withMessage = (over: Partial<DataField>): FormDefinition => ({ ...form, fields: form.fields.map((x) => (x.key === "brn" ? { ...x, ...over } : x)) });
+  const brn = (over: Partial<DataField> = {}): DataField => ({ ...f("brn"), ...over });
+
+  it("is optional, and a form without one is valid and checks exactly as before", () => {
+    expect(form.fields.some((x) => x.validationMessage !== undefined)).toBe(false);
+    expect(validateForm(form, roles)).toEqual([]);
+    // the check itself never reads the message: the same codes with or without it
+    const before = checkDataAnswer(brn(), { text: "123" });
+    const after = checkDataAnswer(brn({ validationMessage: L("Use your 12-digit number") }), { text: "123" });
+    expect(after).toEqual(before);
+    expect(after).toEqual({ ok: false, code: "text_too_short", detail: "8" });
+  });
+
+  it("is accepted with English and any other language, and refused when empty, without English, or too long", () => {
+    expect(validateForm(withMessage({ validationMessage: { en: "Use your number", ms: "Guna nombor anda", zh: "请使用您的号码", ko: "번호를 사용하세요" } }), roles)).toEqual([]);
+    for (const bad of [{ en: "" }, { en: "  " }, { en: "", ms: "Hanya Melayu" }, { en: "x".repeat(MAX_VALIDATION_MESSAGE + 1) }, { en: "ok", ko: "x".repeat(MAX_VALIDATION_MESSAGE + 1) }, { en: 5 } as unknown as L10n]) {
+      expect(validateForm(withMessage({ validationMessage: bad }), roles), JSON.stringify(bad)).toEqual([{ code: "bad_validation_message", field: "brn" }]);
+    }
+    expect(validateForm(withMessage({ validationMessage: { en: "x".repeat(MAX_VALIDATION_MESSAGE) } }), roles)).toEqual([]);
+  });
+
+  it("is used for a failed answer in the signer's language, with English where that language is empty", () => {
+    const field = brn({ validationMessage: { en: "Use your 12-digit number", ms: "Guna nombor 12 digit anda" } });
+    expect(customProblemMessage(field, "text_too_short", "en")).toBe("Use your 12-digit number");
+    expect(customProblemMessage(field, "text_too_short", "ms")).toBe("Guna nombor 12 digit anda");
+    expect(customProblemMessage(field, "format_digits", "zh")).toBe("Use your 12-digit number");
+    expect(customProblemMessage(field, "file_too_large", "ko")).toBe("Use your 12-digit number");
+  });
+
+  it("falls back to the general message: no message, a blank one, or a reason that is not about the answer", () => {
+    expect(customProblemMessage(brn(), "text_too_short", "en")).toBeNull();
+    expect(customProblemMessage(brn({ validationMessage: { en: "  " } }), "text_too_short", "en")).toBeNull();
+    const field = brn({ validationMessage: L("Use your number") });
+    for (const code of ["network", "rate_limited", "upload_failed", "not_shown", "locked", "missing_required", "answer_does_not_fit", "generic", "use_upload", "", null, undefined]) {
+      expect(customProblemMessage(field, code, "en"), String(code)).toBeNull();
+    }
+  });
+
+  it("covers every code the check can fail with, except the ones that are not about what was typed", () => {
+    // the codes checkDataAnswer produces for a typed answer: all but these two are the author's to word
+    const typed: Record<string, [DataField["type"], Parameters<typeof checkDataAnswer>[1], Partial<DataField>?]> = {
+      text_too_long: ["text", { text: "abcdef" }, { maxLength: 3 }],
+      format_digits: ["text", { text: "abc" }, { format: "digits" }],
+      bad_email: ["email", { text: "nope" }],
+      bad_phone: ["phone", { text: "12" }],
+      not_a_number: ["number", { text: "abc" }],
+      number_too_big: ["number", { text: "9" }, { max: 5 }],
+      not_a_date: ["date", { text: "2026-02-31" }],
+      not_an_option: ["choice", { text: "zzz" }, { options: [{ value: "a", label: L("A") }] }],
+      too_many_items: ["list", { list: ["1", "2", "3"] }, { maxItems: 2 }],
+      item_format_digits: ["list", { list: ["x"] }, { itemFormat: "digits" }],
+      bad_image: ["image", { image: "not a picture" }],
+    };
+    for (const [code, [type, input, extra]] of Object.entries(typed)) {
+      const field: DataField = { key: "k", type, part: "company", label: L("K"), required: false, validationMessage: L("Custom"), ...extra };
+      const r = checkDataAnswer(field, input);
+      expect(r.ok ? "ok" : r.code, code).toBe(code);
+      expect(customProblemMessage(field, r.ok ? null : r.code, "en"), code).toBe("Custom");
+    }
+    for (const code of ["use_upload", "unknown_type", "unknown_value"]) expect(VALIDATION_PROBLEM_CODES.has(code)).toBe(false);
+  });
+
+  it("keeps a merchant add-on style definition (no message anywhere) valid and unchanged", () => {
+    const frozen = JSON.parse(JSON.stringify(form)) as FormDefinition;
+    expect(validateForm(frozen, roles)).toEqual([]);
+    expect(frozen).toEqual(form);
   });
 });
 

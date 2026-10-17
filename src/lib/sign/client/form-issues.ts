@@ -34,6 +34,7 @@ export const FORM_ISSUE_CODES = [
   "bad_data_label",
   "bad_data_help",
   "bad_data_placeholder",
+  "bad_validation_message",
   "bad_options",
   "bad_format",
   "bad_limit",

@@ -23,6 +23,7 @@ import {
   withDerivedRoles,
   type EnvelopeDocLite,
   type EnvelopePerson,
+  type PersonAlternate,
   type PersonType,
 } from "../envelopes";
 import { reminderText, toDateInput, optionsPatch, type DraftOptions, type OptionsPatch } from "./draft-options";
@@ -77,6 +78,8 @@ export interface PersonPayload {
   incomplete?: boolean;
   /** A document on its own only: the person is a Halo user of this workspace (a countersigner). */
   internalUserId?: string;
+  /** A document on its own only: someone who can sign instead of this person (migration 187). */
+  alternate?: PersonAlternate;
 }
 
 /**
@@ -96,6 +99,9 @@ const nameOk = (p: EnvelopePerson) => {
 };
 const emailOk = (p: EnvelopePerson) => EMAIL_RE.test(p.email.trim()) && p.email.trim().length <= 254;
 
+/** Someone who can sign instead of a person (migration 187) needs a name and an address of their own. */
+export const alternateIsComplete = (a: PersonAlternate): boolean => !!a.fullName.trim() && a.fullName.trim().length <= 160 && EMAIL_RE.test(a.email.trim()) && a.email.trim().length <= 254;
+
 /**
  * Is this person finished enough to be saved: a name and an address; for a person who must sign also a phone for WhatsApp, a step, and a place on
  * the documents: an uploaded file gives every person a role, so one is enough, and with only template documents a template role must have been
@@ -106,6 +112,8 @@ export function personIsComplete(p: EnvelopePerson, docs: readonly EnvelopeDocLi
   if (isCopy(p)) return true;
   if (p.channel === "whatsapp" && normalizePhone(p.phone) === null) return false;
   if (!Number.isInteger(p.step) || p.step < 1) return false;
+  // someone who can sign instead is part of the person: a half-typed one keeps the person from being saved (the screen marks what is missing)
+  if (p.alternate && !alternateIsComplete(p.alternate)) return false;
   const derived = withDerivedRoles(docs, [p]);
   const mine = derived.people[0];
   return derived.docs.some((d) => !!mine.roles[d.id] && d.roles.some((r) => r.key === mine.roles[d.id]));
@@ -152,6 +160,7 @@ export function peoplePayload(people: readonly EnvelopePerson[], docs: readonly 
         type: "signer",
         key: p.key,
         ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}),
+        ...(p.alternate && !p.internalUserId ? { alternate: { fullName: p.alternate.fullName.trim(), email: p.alternate.email.trim() } } : {}),
       }),
     ),
     ...unfinished.map(asUnfinished),
@@ -209,8 +218,34 @@ export const removePerson = (people: readonly EnvelopePerson[], key: string): En
  * roles are matched again (only roles nobody has).
  */
 export function updatePerson(people: readonly EnvelopePerson[], key: string, patch: Partial<Omit<EnvelopePerson, "key" | "roles">>, docs?: readonly EnvelopeDocLite[]): EnvelopePerson[] {
-  const next = people.map((p) => (p.key === key ? { ...p, ...patch } : p));
+  const next = people.map((p) => {
+    if (p.key !== key) return p;
+    const changed = { ...p, ...patch };
+    // a Halo user signs from inside Halo and has nobody who signs instead (the database refuses it too)
+    if (patch.internalUserId && changed.alternate) delete changed.alternate;
+    return changed;
+  });
   return docs && patch.fullName !== undefined ? matchTemplateRoles(next, docs) : next;
+}
+
+/** Name someone who can sign instead of a person (migration 187), empty to be typed. Not for a person who receives a copy or a Halo user. */
+export function addAlternate(people: readonly EnvelopePerson[], key: string): EnvelopePerson[] {
+  return people.map((p) => (p.key === key && isSigner(p) && !p.internalUserId && !p.alternate ? { ...p, alternate: { fullName: "", email: "" } } : p));
+}
+
+/** Change the name or the address of the person who can sign instead. */
+export function updateAlternate(people: readonly EnvelopePerson[], key: string, patch: Partial<PersonAlternate>): EnvelopePerson[] {
+  return people.map((p) => (p.key === key && p.alternate ? { ...p, alternate: { ...p.alternate, ...patch } } : p));
+}
+
+/** Take the person who can sign instead off a person. */
+export function removeAlternate(people: readonly EnvelopePerson[], key: string): EnvelopePerson[] {
+  return people.map((p) => {
+    if (p.key !== key || !p.alternate) return p;
+    const rest = { ...p };
+    delete rest.alternate;
+    return rest;
+  });
 }
 
 /** Give a person a role on a document (`roleKey` "" takes them off it). */
@@ -233,7 +268,15 @@ export function setPersonType(people: readonly EnvelopePerson[], key: string, ty
   if (!me || (me.type ?? "signer") === type) return [...people];
   if (type === "copy") {
     if (people.filter(isCopy).length >= MAX_COPY_RECIPIENTS) return [...people];
-    return grouped(people.map((p) => (p.key === key ? { ...p, type: "copy" as const, roles: {}, channel: "email" as const, phone: "", step: 1 } : p)));
+    return grouped(
+      people.map((p) => {
+        if (p.key !== key) return p;
+        // (a person who receives a copy has nobody who signs instead)
+        const { alternate, ...rest } = p;
+        void alternate;
+        return { ...rest, type: "copy" as const, roles: {}, channel: "email" as const, phone: "", step: 1 };
+      }),
+    );
   }
   if (people.filter(isSigner).length >= MAX_SIGNERS) return [...people];
   const step = people.filter(isSigner).reduce((m, p) => Math.max(m, p.step), 0) + 1;
@@ -311,6 +354,10 @@ export const ENVELOPE_PEOPLE_CODES: ReadonlySet<string> = new Set([
   "person_without_document",
   "person_without_work",
   "role_two_people",
+  "alternate_name",
+  "alternate_email",
+  "alternate_duplicate",
+  "alternate_not_here",
   "envelope_size",
   "envelope_too_many_pages",
   "too_many_copies",
@@ -337,6 +384,10 @@ const PEOPLE = new Set([
   "person_without_document",
   "person_without_work",
   "role_two_people",
+  "alternate_name",
+  "alternate_email",
+  "alternate_duplicate",
+  "alternate_not_here",
   "too_many_copies",
   "too_many_roles",
 ]);

@@ -25,7 +25,7 @@ import { loadEnvelope, loadEnvelopeDocuments } from "./envelope-data";
 import { SignError, raiseDatabaseError } from "./errors";
 import { formOf, formState, loadAnswerRows, loadFormState, missingFor, ownDataFieldsFor, recordPartChanges, recordSaved, roleHasParts, signerFormView, standing, unsoundFor, type FormState } from "./form-state";
 import { sealAnswer } from "./sensitive";
-import { prefillAnswers, writeBackToContact } from "./writeback";
+import { canBePrefilled, prefillAnswers, writeBackToContact } from "./writeback";
 
 /** One document of a person of an envelope, with that person's row on it. */
 export interface PartyMember {
@@ -110,12 +110,15 @@ export function signerCtx(base: Omit<SignCtx, "accountId" | "userId">, lookup: L
 // ---- what the page shows -------------------------------------------------------------------
 
 /** The state a signer's page is in. `active` is the only one in which anything can be done. */
-export type PageState = "active" | "signed" | "sealing" | "completed" | "declined" | "expired" | "voided" | "failed" | "not_invited";
+export type PageState = "active" | "signed" | "sealing" | "completed" | "declined" | "expired" | "voided" | "failed" | "not_invited" | "completed_by_other";
 
 export function pageState(doc: SignDocumentRow, signer: SignSignerRow): PageState {
+  // The other person of their role completed it first (migration 187): the friendly page, not a decline and not an error. Unless the document itself
+  // ended some other way (declined, expired, cancelled), which is the more useful thing to tell them.
+  const notNeeded = signer.status === "not_needed";
   switch (doc.status) {
     case "completed":
-      return "completed";
+      return notNeeded ? "completed_by_other" : "completed";
     case "declined":
       return "declined";
     case "expired":
@@ -123,11 +126,12 @@ export function pageState(doc: SignDocumentRow, signer: SignSignerRow): PageStat
     case "voided":
       return "voided";
     case "failed":
-      return signer.status === "signed" ? "signed" : "failed";
+      return signer.status === "signed" ? "signed" : notNeeded ? "completed_by_other" : "failed";
     case "sealing":
-      return "sealing";
+      return notNeeded ? "completed_by_other" : "sealing";
     case "sent":
     case "in_progress":
+      if (notNeeded) return "completed_by_other";
       if (signer.status === "signed") return "signed";
       if (signer.status === "declined") return "declined";
       if (signer.status === "pending") return "not_invited";
@@ -215,6 +219,11 @@ export interface SigningView {
   envelope?: EnvelopeView;
   workspace: { name: string; logoUrl: string | null };
   signer: { name: string; roleKey: string; kind: "signer" | "filler"; status: SignSignerRow["status"] };
+  /**
+   * Migration 187: the other person of this role (they can sign instead of each other, and whoever completes it first signs). Present while that person is
+   * still open, so the page can say so; absent when there is none or they are done. Only a name: nothing of what they have entered.
+   */
+  alternate?: { name: string };
   /** This person was handed parts of someone else's form (they complete those parts, never sign, and see nothing else). */
   delegate?: boolean;
   /** The name of the person who handed this turn or these parts over, to say who asked. */
@@ -300,6 +309,21 @@ function envelopeView(lookup: Lookup, current: PartyMember, withDocuments: boole
 }
 
 /**
+ * The other places on the document, one row for each, as the person's page lists them. A delegate is the business of the person who handed them a part. The two
+ * people of a role (migration 187) are one place: the one who completed it when there is one, else the first; and the person's own role is never "someone else".
+ */
+export function otherPlaces(signers: readonly SignSignerRow[], me: Pick<SignSignerRow, "id" | "role_key">): SignSignerRow[] {
+  const places = new Map<string, SignSignerRow>();
+  for (const s of signers) {
+    if (s.id === me.id || isDelegate(s) || s.role_key === me.role_key) continue;
+    const key = s.alternate_of ?? s.id;
+    const have = places.get(key);
+    if (!have || (s.status === "signed" && have.status !== "signed")) places.set(key, s);
+  }
+  return [...places.values()];
+}
+
+/**
  * The placed fields a person's page is given: their own (their role), the sender's (static text, merge and form-printing places), and the places of
  * other people that have been ANSWERED (those people have signed; their answers are drawn read only). A place that belongs to someone else and
  * has no answer yet is not part of this person's page at all: it is not theirs to see, and the server would refuse an answer for it anyway.
@@ -344,20 +368,30 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
     // the person's sitting is what the page is for: it is active while any document is still to do, whichever one is on the screen
     base.needsConsent = base.envelope.state === "active" && lookup.party.members.some((m) => pageState(m.doc, m.signer) === "active" && !m.signer.consented_at);
   }
-  if (needsCode || state === "not_invited") return base;
+  // (a person who was not needed is shown nothing of the document: no code, no pages, no answers; only that it was completed by someone else)
+  if (needsCode || state === "not_invited" || state === "completed_by_other") return base;
 
   const form = formOf(doc);
   const dataKeys = new Set(form ? form.fields.map((f) => f.key) : []);
   const [rows, signers] = await Promise.all([loadAnswerRows(ctx, doc.id), loadAllSigners(ctx, doc.id)]);
+  // the other person of this role, while they can still complete it (the two people share the role, so they are one place on the document, never "waiting for")
+  const twin = isDelegate(signer) ? undefined : signers.find((x) => x.id !== signer.id && !isDelegate(x) && x.role_key === signer.role_key && (x.status === "sent" || x.status === "viewed" || x.status === "pending"));
+  if (twin && state === "active") base.alternate = { name: twin.full_name };
   const delegate = isDelegate(signer);
   base.delegate = delegate;
   const history = signer.forward_history ?? [];
   base.forwardedFrom = delegate ? (signers.find((x) => x.id === signer.delegated_by)?.full_name ?? null) : (history[history.length - 1]?.name ?? null);
   const left = forwardsLeft(signer);
   base.forwarding = state === "active" && doc.allow_forwarding && !delegate && left > 0 ? { canTurn: true, canPart: !!form && partsAnswered(form, signer, signers).length > 0, remaining: left } : null;
-  // the first time a signer with a form is shown it, their unanswered fields start from the contact and the defaults (never a delegate: the contact's details are not theirs to see)
-  if (form && !delegate && roleHasParts(form, signer.role_key) && state === "active" && !signer.viewed_at) {
-    rows.push(...(await prefillAnswers(ctx, doc, signer, form, formState(form, signers, rows))));
+  // every time a signer with a form is shown it, the fields they have not made their own start from the contact and the defaults, so a value the sender
+  // corrects or supplies after the first look reaches them (never a delegate: the contact's details are not theirs to see). What the signer typed, saved,
+  // confirmed or emptied is never touched (writeback.ts `prefillAnswers`).
+  if (form && !delegate && roleHasParts(form, signer.role_key) && state === "active") {
+    for (const w of await prefillAnswers(ctx, doc, signer, form, formState(form, signers, rows), rows, signers)) {
+      const at = rows.findIndex((r) => r.signer_id === w.signer_id && r.field_key === w.field_key);
+      if (at >= 0) rows.splice(at, 1);
+      rows.push(w);
+    }
   }
   // a delegate is shown the parts they were handed and nothing else of the document: no pages, no placed fields, nobody else
   if (delegate) {
@@ -380,7 +414,7 @@ export async function buildView(ctx: SignCtx, lookup: Lookup, sessionOk: boolean
     answers: mine,
     othersAnswers: others,
     // a delegate is the business of the person who handed them a part, not a person of the document
-    others: signers.filter((s) => s.id !== signer.id && !isDelegate(s)).map((s) => ({ name: s.full_name, roleKey: s.role_key, kind: s.kind, status: s.status, orderNo: s.order_no, signedAt: s.signed_at })),
+    others: otherPlaces(signers, signer).map((s) => ({ name: s.full_name, roleKey: s.role_key, kind: s.kind, status: s.status, orderNo: s.order_no, signedAt: s.signed_at })),
     missing: missingRequired(doc.fields_snapshot, signer.role_key, answered).map((f) => f.key),
     form: form && roleHasParts(form, signer.role_key) ? signerFormView(form, signer, formState(form, signers, rows), signers) : null,
     delegations: delegationsOf(signers, signer.id),
@@ -460,7 +494,10 @@ export async function recordConsent(ctx: SignCtx, lookup: Lookup, locale: string
 // ---- answers --------------------------------------------------------------------------------------
 
 export function assertOpen(lookup: Lookup): void {
-  if (pageState(lookup.doc, lookup.signer) !== "active") throw new SignError("signer_not_open", "This document can no longer be completed.", 409);
+  const state = pageState(lookup.doc, lookup.signer);
+  // the other person of the role completed it first (migration 187): said as it is, so the page can show the friendly "already completed" screen
+  if (state === "completed_by_other") throw new SignError("completed_by_other", "This was already completed by someone else.", 409);
+  if (state !== "active") throw new SignError("signer_not_open", "This document can no longer be completed.", 409);
 }
 
 export function assertConsented(lookup: Lookup): void {
@@ -555,7 +592,10 @@ export async function saveAnswers(ctx: SignCtx, lookup: Lookup, input: Record<st
       live = live.filter((p) => !hidden.includes(p));
     }
     for (const p of live) {
-      if (p.value === null) clears.push(p.key);
+      // A field that could be started from the contact or a default keeps an empty marker when the signer empties it, so the next view does
+      // not fill it again (writeback.ts `prefillAnswers`). The marker holds no value and is ignored by everything that reads answers.
+      if (p.value === null && canBePrefilled(p.field)) upserts.push({ ...row(p.key, null), value: null, value_enc: null, sensitive: false });
+      else if (p.value === null) clears.push(p.key);
       else upserts.push(row(p.key, p.value, p.field));
       saved.push(p.key);
     }
@@ -711,7 +751,8 @@ export async function declineSigning(ctx: SignCtx, lookup: Lookup, reason: strin
   const outcome = { kind: "declined" as const, by: lookup.signer.full_name, reason };
   if (info.senderEmail) await deliverOutcome(ctx.deps, facts, w, { name: info.senderName, email: info.senderEmail, channel: "email", locale: lookup.doc.locale }, outcome);
   const all = await loadAllSigners(ctx, lookup.doc.id);
-  for (const s of all.filter((x) => x.id !== lookup.signer.id && x.invited_at && x.status !== "signed")) {
+  // (an alternate who was not needed is not told: they were never waited for)
+  for (const s of all.filter((x) => x.id !== lookup.signer.id && x.invited_at && x.status !== "signed" && x.status !== "not_needed")) {
     await deliverOutcome(ctx.deps, facts, w, { name: s.full_name, email: s.email, channel: s.channel, locale: lookup.doc.locale }, outcome);
   }
 }

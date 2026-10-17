@@ -46,6 +46,7 @@ export function formTexts(form: FormDefinition): L10n[] {
     out.push(f.label);
     if (f.help) out.push(f.help);
     if (f.placeholder) out.push(f.placeholder);
+    if (f.validationMessage) out.push(f.validationMessage);
     if (f.text) out.push(f.text);
     // the options of a shared list are worded in Settings > Doc Sign > Lists, not here
     if (f.optionList === undefined) for (const o of f.options ?? []) out.push(o.label);

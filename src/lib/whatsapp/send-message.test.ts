@@ -216,6 +216,7 @@ const sendReplyText = vi.fn(async () => undefined);
 const sendReplyWithAttachment = vi.fn(async () => undefined);
 vi.mock('@/lib/ms365/mail-api', () => ({
   sendNewMail: (...args: unknown[]) => (sendNewMail as unknown as (...a: unknown[]) => unknown)(...args),
+  sendMailViaDraft: async () => ({ purge: Promise.resolve(true) }),
   sendReplyText: (...args: unknown[]) =>
     (sendReplyText as unknown as (...a: unknown[]) => unknown)(...args),
   sendReplyWithAttachment: (...args: unknown[]) =>

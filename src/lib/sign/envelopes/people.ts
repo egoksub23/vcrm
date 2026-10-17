@@ -38,6 +38,15 @@ export interface EnvelopeDocLite {
   fromTemplate?: boolean;
 }
 
+/**
+ * Migration 187: someone who can sign INSTEAD of a person (the second person of their role). Both are invited together; whoever completes the role first signs
+ * and the other is told it was already completed. The alternate is reached by email and is never a Halo user. A document on its own only.
+ */
+export interface PersonAlternate {
+  fullName: string;
+  email: string;
+}
+
 export interface EnvelopePerson {
   /** A key for the screen (and, for a person who must sign, the key of their role on the documents that have none of their own). */
   key: string;
@@ -61,6 +70,8 @@ export interface EnvelopePerson {
   partyId?: string;
   /** A document on its own only: the person is a Halo user of this workspace (a countersigner); their name and email are theirs. */
   internalUserId?: string | null;
+  /** A document on its own only: someone who can sign instead of this person (migration 187). Same role, same step; whoever completes it first wins. */
+  alternate?: PersonAlternate;
 }
 
 /** What one saved row of the signing list is (a person's role on one document). */
@@ -76,6 +87,8 @@ export interface EnvelopeSignerRow {
   channel: SignChannel;
   orderNo: number;
   internalUserId?: string | null;
+  /** Migration 187: set on the row of an alternate: the id of the row of the person they can sign instead of (same document, same role). */
+  alternateOf?: string;
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -131,8 +144,12 @@ export function seedPeople(docs: readonly EnvelopeDocLite[]): EnvelopePerson[] {
  */
 export function peopleFromRows(rows: readonly SignSignerRow[]): EnvelopePerson[] {
   const groups = new Map<string, SignSignerRow[]>();
+  // an alternate (migration 187) is not a person of their own on this screen: they hang from the person they can sign instead of
+  const alternates = new Map<string, SignSignerRow>();
+  for (const r of rows) if (r.alternate_of) alternates.set(r.alternate_of, r);
   for (const r of rows) {
     if (r.part_keys && r.part_keys.length > 0) continue; // never in an envelope; ignored if it ever happens
+    if (r.alternate_of) continue;
     const key = r.party_id ?? r.id;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
@@ -140,6 +157,7 @@ export function peopleFromRows(rows: readonly SignSignerRow[]): EnvelopePerson[]
   for (const [key, list] of groups) {
     const first = list.find((r) => r.id === key) ?? list[0];
     const own = list.find((r) => PERSON_KEY_RE.test(r.role_key));
+    const alt = alternates.get(first.id);
     people.push({
       key: own ? own.role_key : key,
       partyId: key,
@@ -150,6 +168,7 @@ export function peopleFromRows(rows: readonly SignSignerRow[]): EnvelopePerson[]
       step: first.order_no,
       roles: Object.fromEntries(list.map((r) => [r.document_id, r.role_key])),
       ...(first.internal_user_id ? { internalUserId: first.internal_user_id } : {}),
+      ...(alt ? { alternate: { fullName: alt.full_name, email: alt.email } } : {}),
     });
   }
   return people.sort((a, b) => a.step - b.step || a.fullName.localeCompare(b.fullName));
@@ -202,6 +221,19 @@ export function peopleIssues(docs: readonly EnvelopeDocLite[], people: readonly 
       seenUsers.add(p.internalUserId);
     }
     if (!isSigner(p)) return;
+    if (p.alternate) {
+      // someone who can sign instead (migration 187): a name and an address of their own, another person than anybody else on the list, and never a Halo user's alternate
+      const alt = p.alternate;
+      if (!alt.fullName.trim() || alt.fullName.trim().length > 160) issues.push({ code: "alternate_name", ...at });
+      const altEmail = alt.email.trim();
+      if (!EMAIL_RE.test(altEmail) || altEmail.length > 254) issues.push({ code: "alternate_email", ...at });
+      const altLower = altEmail.toLowerCase();
+      if (altLower) {
+        if (seen.has(altLower)) issues.push({ code: "alternate_duplicate", ...at });
+        seen.set(altLower, i);
+      }
+      if (p.internalUserId) issues.push({ code: "alternate_not_here", ...at });
+    }
     if (p.channel === "whatsapp" && !normalizePhone(p.phone)) issues.push({ code: "signer_phone", ...at });
     if (!Number.isInteger(p.step) || p.step < 1) issues.push({ code: "signer_order", ...at });
     let on = 0;
@@ -255,6 +287,23 @@ export function rowsFor(docs: readonly EnvelopeDocLite[], people: readonly Envel
         orderNo: opts.ordered ? Math.max(1, Math.floor(p.step || 1)) : place,
         ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}),
       });
+      // someone who can sign instead (migration 187): a row of the same role, kind and step beside the person's own, pointing at it
+      if (p.alternate && !p.internalUserId) {
+        const own = rows[rows.length - 1];
+        rows.push({
+          id: opts.newId(),
+          partyId: own.partyId,
+          documentId: own.documentId,
+          roleKey: own.roleKey,
+          kind: own.kind,
+          fullName: p.alternate.fullName.trim(),
+          email: p.alternate.email.trim(),
+          phone: null,
+          channel: "email",
+          orderNo: own.orderNo,
+          alternateOf: own.id,
+        });
+      }
     });
   });
   return rows;

@@ -86,6 +86,12 @@ export interface DataField {
   label: L10n;
   help?: L10n;
   placeholder?: L10n;
+  /**
+   * The sentence a signer reads when what they entered for this field is turned down (too short, the wrong shape, not a number ...),
+   * instead of the general one for that reason. Optional; a language left empty falls back to English, and no message at all
+   * falls back to the general sentence. See `customProblemMessage` (check.ts) and `MAX_VALIDATION_MESSAGE`.
+   */
+  validationMessage?: L10n;
   required: boolean;
   /** Required only when this rule holds (in addition to `required`). */
   requiredIf?: Rule;
@@ -171,6 +177,8 @@ export const MAX_OPTIONS = 100;
 export const MAX_RULE_NODES = 20;
 export const MAX_RULE_DEPTH = 4;
 export const MAX_UPLOAD_MB = 10;
+/** The longest custom validation message of a field, in characters, in each language. */
+export const MAX_VALIDATION_MESSAGE = 200;
 export const MAX_FILES_PER_FIELD = 10;
 
 // ---- answers --------------------------------------------------------------------------------------

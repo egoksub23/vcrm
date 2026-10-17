@@ -47,7 +47,8 @@ export async function notifyExpired(ctx: SignCtx, doc: SignDocumentRow, signers:
     const { info, w } = await workspace(ctx, doc);
     const facts = docFacts(doc, ctx);
     if (info.senderEmail) await deliverOutcome(ctx.deps, facts, w, { name: info.senderName, email: info.senderEmail, channel: "email", locale: doc.locale }, { kind: "expired" });
-    for (const s of signers.filter((x) => x.invited_at && x.status !== "signed" && x.status !== "declined")) {
+    // (an alternate who was not needed was never waited for, so an expiry is nothing to them)
+    for (const s of signers.filter((x) => x.invited_at && x.status !== "signed" && x.status !== "declined" && x.status !== "not_needed")) {
       await deliverOutcome(ctx.deps, facts, w, { name: s.full_name, email: s.email, channel: s.channel, locale: s.locale ?? doc.locale }, { kind: "expired" });
     }
   } catch (err) {

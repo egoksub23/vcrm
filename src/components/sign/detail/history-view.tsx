@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { asLocale } from "@/lib/sign/client/progress-logic";
 import { pick } from "@/lib/sign/forms/text";
 import { nameResolver } from "@/lib/sign/forward";
+import type { WritebackChange, WritebackHistory } from "@/lib/sign/forms/api-types";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignSignerRow } from "@/lib/sign/types";
 
@@ -37,9 +38,11 @@ interface Props {
   contactId?: string | null;
   /** `form` for a form without a signature: the history is worded as submitting. */
   mode?: string | null;
+  /** The contact changes a write-back made, with their values as the server allows this reader to see them (a mask without sign.reveal-sensitive). */
+  writebacks?: WritebackHistory | null;
 }
 
-export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical, form, contactId, mode }: Props) {
+export function HistoryView({ events, chain, loading, failed, signers, signInOrder, technical, form, contactId, mode, writebacks }: Props) {
   const t = useTranslations("Sign.detail");
   const locale = useLocale();
   const { nameOf } = useAccountMembers();
@@ -66,9 +69,10 @@ export function HistoryView({ events, chain, loading, failed, signers, signInOrd
       formatDay: (iso: string) => formatDay(iso, locale) || iso.slice(0, 10),
       contactId,
       mode,
+      changesFor: (seq: number) => (writebacks ? writebacks.changes.filter((c) => c.seq === seq) : []),
     };
     return orderEvents(events, newestFirst).map((e) => describeEvent(e, ctx));
-  }, [events, signers, signInOrder, nameOf, newestFirst, t, form, locale, contactId, mode]);
+  }, [events, signers, signInOrder, nameOf, newestFirst, t, form, locale, contactId, mode, writebacks]);
 
   const shown = lines.filter((l) => showMinor || !l.minor);
   const hasMinor = lines.some((l) => l.minor);
@@ -178,6 +182,29 @@ function FormEventText({ line }: { line: EventLine }) {
   );
 }
 
+/**
+ * What a write-back changed in the contact: the field, and the value before and after. A reader without sign.reveal-sensitive is given
+ * a mask for every value (by the server, which never sent the real one) and is told why.
+ */
+export function ContactChanges({ changes }: { changes: readonly WritebackChange[] }) {
+  const t = useTranslations("Sign.detail");
+  const words = useTranslations("Sign.progress");
+  const word = (f: string) => (f === "name" || f === "email" || f === "company" ? words(`contactFields.${f}`) : f.startsWith("custom:") ? f.slice(7) : f);
+  const empty = t("history.changes.empty");
+  return (
+    <div className="text-xs">
+      <ul className="grid gap-0.5 rounded-lg bg-muted/50 p-2" aria-label={t("history.changes.title")}>
+        {changes.map((c, i) => (
+          <li key={`${c.seq}-${c.field}-${i}`} className="min-w-0 break-words text-foreground">
+            {t("history.changes.line", { field: word(c.field), old: c.old || empty, new: c.new || empty })}
+          </li>
+        ))}
+      </ul>
+      {changes.some((c) => c.masked) && <p className="mt-1 text-muted-foreground">{t("history.changes.hidden")}</p>}
+    </div>
+  );
+}
+
 function HistoryItem({ line, locale, technical }: { line: EventLine; locale: string; technical: boolean }) {
   const t = useTranslations("Sign.detail");
   const details = visibleDetails(line, technical);
@@ -196,6 +223,7 @@ function HistoryItem({ line, locale, technical }: { line: EventLine; locale: str
         {line.actorType === "system" ? ` · ${t("history.bySystem")}` : ""}
       </p>
       {line.reason && <p className="text-xs text-foreground break-words">{t("history.reason", { reason: line.reason })}</p>}
+      {line.changes.length > 0 && <ContactChanges changes={line.changes} />}
       {details.length > 0 && (
         <details className="group text-xs">
           <summary className="inline-flex cursor-pointer list-none items-center rounded-md px-1 py-0.5 text-primary hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">{t("history.details")}</summary>

@@ -53,6 +53,7 @@ export const DEFAULT_CERTIFICATE_LABELS: CertificateLabels = {
   statusSigned: "Signed",
   statusDeclined: "Declined",
   statusPending: "Not signed",
+  statusNotNeeded: "Alternate: did not need to sign",
   note: "The signing events above are kept in an audit trail in which each entry carries a fingerprint of the one before it. This file is sealed with a digital signature: if any page of it is changed after sealing, a PDF reader will say so.",
   page: "Certificate page",
   of: "of",
@@ -238,7 +239,7 @@ async function drawCertificate(doc: PDFDocument, data: CertificateData, options:
   // Signers
   section(c, L.signers);
   for (const s of data.signers) {
-    const statusLabel = s.status === "signed" ? L.statusSigned : s.status === "declined" ? L.statusDeclined : L.statusPending;
+    const statusLabel = s.status === "signed" ? L.statusSigned : s.status === "declined" ? L.statusDeclined : s.status === "not_needed" ? L.statusNotNeeded : L.statusPending;
     const color = s.status === "signed" ? GOOD : s.status === "declined" ? BAD : MUTED;
     c.ensure(58);
     const head = s.order ? `${s.order}. ${s.name}` : s.name;

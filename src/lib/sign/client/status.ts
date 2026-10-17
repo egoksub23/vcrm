@@ -13,7 +13,7 @@ import type { DocumentStatus, SignerKind, SignerStatus } from "../types";
 export const SIGN_STATUS_NAMESPACE = "Sign.send";
 
 const DOCUMENT_STATUS_SET: ReadonlySet<string> = new Set<DocumentStatus>(["draft", "sent", "in_progress", "sealing", "completed", "declined", "expired", "voided", "failed"]);
-const SIGNER_STATUS_SET: ReadonlySet<string> = new Set<SignerStatus>(["pending", "sent", "viewed", "signed", "declined"]);
+const SIGNER_STATUS_SET: ReadonlySet<string> = new Set<SignerStatus>(["pending", "sent", "viewed", "signed", "declined", "not_needed"]);
 
 /** The message key (relative to `Sign.send`) for a document status. An unknown status reads as "unknown". */
 export function documentStatusKey(status: string, cancelled?: boolean | null): string {
@@ -51,6 +51,8 @@ export const SIGNER_BADGE: Record<SignerStatus, string> = {
   viewed: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
   signed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   declined: "bg-red-500/15 text-red-700 dark:text-red-300",
+  // an alternate whose role the other person completed (migration 187): nothing was refused, so no colour
+  not_needed: MUTED,
 };
 
 /**
@@ -102,7 +104,13 @@ export function waitingSummary(documentStatus: string, signers: readonly Waiting
  * How many of the people on a document have finished (signed, or filled in), and how many there are. A person who was
  * handed one part of someone's form is part of that person's turn, not another person of the document.
  */
-export function signerProgress(signers: readonly { status: string; part_keys?: string[] | null }[]): { done: number; total: number } {
+export function signerProgress(signers: readonly { id?: string; status: string; part_keys?: string[] | null; alternate_of?: string | null }[]): { done: number; total: number } {
   const people = signers.filter((s) => !(s.part_keys && s.part_keys.length > 0));
-  return { done: people.filter((s) => s.status === "signed").length, total: people.length };
+  // the two people of a role (migration 187) are one place: it is done when either has signed
+  const places = new Map<string, boolean>();
+  people.forEach((s, i) => {
+    const key = s.alternate_of ?? s.id ?? `#${i}`;
+    places.set(key, (places.get(key) ?? false) || s.status === "signed");
+  });
+  return { done: [...places.values()].filter(Boolean).length, total: places.size };
 }

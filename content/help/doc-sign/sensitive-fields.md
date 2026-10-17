@@ -2,7 +2,7 @@
 title: Sensitive fields
 description: Keep ID numbers and bank account numbers private on a form. They are stored encrypted, shown masked to your team, and left out of exports.
 order: 24
-updated: 2026-10-07
+updated: 2026-10-17
 ---
 
 Some answers on a form are more private than others: an IC or passport number, a bank account number, a tax ID. Mark such a question as **Sensitive** and Secure Sign looks after it differently from an ordinary answer.
@@ -39,6 +39,8 @@ The certificate pages at the end never show an answer.
 ## Who can reveal an answer
 
 Everyone who can see Secure Sign sees the masked answer. **Reveal** needs its own permission, **Reveal sensitive answers**. Owners and admins have it by default. Sending documents does not give it, so a person can send and follow documents without being able to read the numbers people typed in. An admin can give the permission to a role that needs it, for example a compliance or operations role, in **Settings**; see [Roles and permissions](/help/getting-started/roles-and-permissions). A person without it sees the masked answer and no **Reveal** button. Each reveal counts against a limit of 20 a minute per person.
+
+The same permission decides who sees the old and new value of a contact detail that a form updated, in a document's history. Everyone else sees which field changed and **••••** instead of the values (see [Forms in parts](/help/doc-sign/forms-in-parts)).
 
 This permission is only about **Reveal**. It does not change what the signed PDF prints (see above), and a private document is also hidden from people who may not see it. See [Private documents](/help/doc-sign/private-documents).
 

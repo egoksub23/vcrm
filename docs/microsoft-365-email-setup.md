@@ -49,6 +49,7 @@ In the [Azure Portal](https://portal.azure.com) → **Microsoft Entra ID**
 **Delegated permissions** — add:
 
 - `Mail.Read`
+- `Mail.ReadWrite` (only for the optional large-files switch, see below)
 - `Mail.Send`
 - `User.Read`
 - `offline_access` (this is what lets the connection stay alive without
@@ -141,16 +142,38 @@ Gmail), then the platform's Resend sender, then nothing. That covers Secure Sign
 notifications, the web widget's verification codes and its "you have a new reply" notice. Platform-level mail with no workspace behind it (the operator's
 "your workspace is ready" email) stays on Resend. A paused or reconnect-needing mailbox is skipped and the platform sender is used when it is set up.
 The mailbox needs `Mail.Send` (reconnect a mailbox connected before that permission was asked for). Every message carries `X-Halo-System: 1` (and Secure
-Sign's also `X-Halo-Sign: 1`), keeps no copy in Sent Items, and the change-notification webhook above refuses any message that carries either mark (or quotes
+Sign's also `X-Halo-Sign: 1`), keeps no copy in Sent Items (see the large files below for the one case where that is best effort), and the change-notification webhook above refuses any message that carries either mark (or quotes
 one, as a delivery-failure notice does), so none of it becomes an inbox conversation. Exchange Online limits apply (about 30 messages a minute and 10,000 recipients a day per mailbox); Secure Sign spaces its sends and reports
-a throttled message with its reason. Files go inline in the one `sendMail` call, so up to 2.5 MB of signed files are attached and anything larger is replaced
-by a link; a draft with an upload session (large attachments) is not built. See `docs/doc-sign-setup.md` sections 1, 9b and 9c.
+a throttled message with its reason. Up to 2.5 MB of signed files (raw bytes, all files of a message together) are attached and anything larger is replaced by a link;
+with the large-files switch on (below) the limit is 4 MB.
+
+**The large-files switch (`MS365_LARGE_ATTACHMENTS`).** Off by default, so nothing changes for a mailbox already connected. To turn it on: (1) add
+`Mail.ReadWrite` (delegated) to the Azure app registration's API permissions; (2) set `MS365_LARGE_ATTACHMENTS=true` in the server's `.env.local` and
+restart; (3) at once reconnect each Microsoft 365 mailbox (Settings > Channels > Email), because Halo now names `Mail.ReadWrite` when it connects and on every
+token refresh, and a mailbox that never consented to it is refused until it is reconnected. While the switch is off, Halo does not ask for that permission
+and the draft route is never used.
+
+**How the files go.** A message whose encoded call stays under about 3.5 MB (files as base64, plus the text) goes inline in the one `sendMail` call, with
+`saveToSentItems: false`. Graph takes about 3 MB for one inline attachment and about 4 MB for the call, and base64 adds a third, so a larger message goes by
+Graph's draft and upload session route instead: `POST /me/messages` creates the draft (words, recipients, from, reply-to and the `X-Halo-*` headers, no files),
+each file is put on it through `createUploadSession` in chunks of 3,840 KiB (a multiple of 320 KiB, under the 4 MB one PUT may carry; the upload address needs
+no `Authorization` header), then `POST /me/messages/{id}/send`. A failure part-way deletes the draft for good and is reported like any other failed send.
+This route is used only while `MS365_LARGE_ATTACHMENTS` is on, and needs the **`Mail.ReadWrite`** permission (see the switch above). A mailbox connected without it
+gets a refusal on such a message and is marked as needing a reconnect (Settings > Channels > Email > reconnect). Messages with small files keep working
+through `Mail.Send` alone.
+
+**A copy may stay in Sent Items.** `send` on a draft cannot be told to keep no copy, so after it succeeds Halo asks for the sent copy to be removed for good
+(`permanentDelete`, using the draft's immutable id so it still names the mail after Exchange moves it to Sent Items). This is best effort and runs in the
+background, with a few tries a few seconds apart because the move is not instant; it never delays or fails the send. **If it fails, a copy of that message
+(which carries a signing link or a signed document) remains in the mailbox's Sent Items** and can be read by anyone who can open that mailbox. Messages that
+go inline never leave a copy. See `docs/doc-sign-setup.md` sections 1, 9b and 9c.
 
 ## What's not supported yet
 
-- **Attachments over ~3 MB.** Graph's inline attachment upload (used
-  here) caps out there; larger files need Graph's chunked upload-session
-  API, deferred to a later release.
+- **Attachments over 2.5 MB in all** (4 MB with the large-files switch on) on Halo's own mail (Secure Sign): the message
+  carries a link instead. (Smaller ones go inline, or by upload session when the switch is on, see
+  above.) The inbox composer still sends one inline attachment only, about
+  3 MB at most.
 - **Templates and interactive buttons/lists** (automation
   `send_template`, `send_buttons`, `send_list` steps) are WhatsApp-only,
   same as every other non-WhatsApp channel — email has no equivalent

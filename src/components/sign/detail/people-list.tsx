@@ -67,7 +67,8 @@ export function PeopleList({ document: doc, signers, undelivered, reasons, caps,
           <li key={`step-${g.step}`} className="list-none">
             {doc.sign_in_order && (
               <p className="border-b border-border bg-muted/40 px-4 py-1.5 text-xs font-semibold text-muted-foreground" data-step={g.step}>
-                {t("people.step", { step: g.step, count: g.people.length })}
+                {/* (the two people of a role, migration 187, are one place in the step) */}
+                {t("people.step", { step: g.step, count: new Set(g.people.map((p) => p.alternate_of ?? p.id)).size })}
               </p>
             )}
             <ul className="divide-y divide-border">
@@ -107,6 +108,9 @@ function SignerRow({ document: doc, signer, signers, nested, partTitle, undelive
   const ChannelIcon = signer.channel === "whatsapp" ? MessageCircle : Mail;
   const history = signer.forward_history ?? [];
   const giver = nested ? signers.find((s) => s.id === signer.delegated_by) : null;
+  // migration 187: the other person of this role, if the sender named one who can sign instead
+  const twin = signer.alternate_of ? signers.find((s) => s.id === signer.alternate_of) : signers.find((s) => s.alternate_of === signer.id);
+  const completedByTwin = signer.status === "not_needed" && twin?.status === "signed";
 
   return (
     <li className={cn("grid gap-3 p-4", nested && "border-l-2 border-l-primary/30 bg-muted/20 pl-6")}>
@@ -139,6 +143,12 @@ function SignerRow({ document: doc, signer, signers, nested, partTitle, undelive
         <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium", signerBadgeClass(signer.status))}>{ts(signerStatusKey(signer.status, signer.kind))}</span>
       </div>
 
+      {twin && (
+        <p data-alternate className="text-xs text-foreground">
+          {t(signer.alternate_of ? "people.alternateOf" : "people.hasAlternate", { name: twin.full_name })}
+        </p>
+      )}
+      {completedByTwin && twin && <p className="text-xs text-muted-foreground">{t("people.notNeeded", { name: twin.full_name })}</p>}
       {actions.notInvited && <p className="text-xs text-muted-foreground">{t("people.notInvited")}</p>}
       {actions.move && <MoveStep document={doc} signer={signer} signers={signers} onChanged={onChanged} />}
       {isDelegate(signer) && (

@@ -16,7 +16,7 @@ interface World {
 function world(opts: { state?: MailboxState | (() => Promise<MailboxState>); platform?: boolean; platformFails?: Error; mailboxFails?: Error; noMailboxDep?: boolean; identity?: () => Promise<{ fromName?: string | null; replyTo?: string | null }> } = {}): World {
   const platform: OutgoingEmail[] = [];
   const mailbox: OutgoingEmail[] = [];
-  const state = opts.state ?? ({ kind: "ready", provider: "microsoft365", address: "support@vircle.com", attachBytes: 2.5 * 1024 * 1024, send: async (m: OutgoingEmail) => {
+  const state = opts.state ?? ({ kind: "ready", provider: "microsoft365", address: "support@vircle.com", attachBytes: 4 * 1024 * 1024, send: async (m: OutgoingEmail) => {
     if (opts.mailboxFails) throw opts.mailboxFails;
     mailbox.push(m);
   } } as MailboxState);
@@ -134,7 +134,7 @@ describe("files", () => {
     await sendWorkspaceEmail("A", builder, world().deps, { attachCap: 1024 });
     await sendWorkspaceEmail("A", builder, world({ platform: true, state: { kind: "none" } }).deps, { attachCap: 20 * 1024 * 1024 });
     await sendWorkspaceEmail("A", builder, world({ platform: true, state: { kind: "none" } }).deps);
-    expect(seen).toEqual([2.5 * 1024 * 1024, 1024, 20 * 1024 * 1024, Infinity]);
+    expect(seen).toEqual([4 * 1024 * 1024, 1024, 20 * 1024 * 1024, Infinity]);
   });
 
   it("go on the message as the caller gave them, and are not added when there are none", async () => {

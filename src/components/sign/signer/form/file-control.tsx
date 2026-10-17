@@ -183,7 +183,7 @@ export function FileControl({ field, id, describedBy, files, onUpload, onRemoveU
       </p>
       {failure ? (
         <p id={errorId} role="alert" className="text-sm font-medium text-destructive">
-          {problemText(failure)}
+          {problemText(failure, field)}
         </p>
       ) : null}
     </div>

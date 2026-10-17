@@ -285,7 +285,7 @@ export async function listNeedsAttention(ctx: SignCtx): Promise<AttentionItem[]>
   for (const doc of stopped) {
     const signers = peopleOf.get(doc.id) ?? [];
     const reason: AttentionReason = doc.status === "declined" ? "declined" : doc.status === "expired" ? "expired" : "failed";
-    const who = reason === "declined" ? signers.filter((s) => s.status === "declined") : reason === "expired" ? signers.filter((s) => s.status !== "signed" && s.status !== "declined" && s.status !== "pending") : [];
+    const who = reason === "declined" ? signers.filter((s) => s.status === "declined") : reason === "expired" ? signers.filter((s) => s.status !== "signed" && s.status !== "declined" && s.status !== "pending" && s.status !== "not_needed") : [];
     items.push({ documentId: doc.id, title: doc.title, reference: doc.reference, status: doc.status, reasons: [reason], people: who.map((s) => s.full_name), at: doc.updated_at });
   }
   for (const doc of openDocs) {

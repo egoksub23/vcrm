@@ -51,7 +51,7 @@ const FAMILIES: Record<string, string[]> = {
   envelope: ["next", "finish", "introTitle", "introTitleFill"],
   // a completed document that was cancelled afterwards (migration 181): the notice picks its words with a condition
   "end.cancelled": ["title", "titleCollection", "note", "noteForm"],
-  "envelope.state": ["active", "signed", "sealing", "completed", "declined", "expired", "voided", "failed", "not_invited"],
+  "envelope.state": ["active", "signed", "sealing", "completed", "declined", "expired", "voided", "failed", "not_invited", "completed_by_other"],
   others: ["signed", "declined", "turn", "invited", "waiting", "done", "title"],
   "sheet.signature": ["drawFailed", "pictureTooBig", "pictureUnreadable"],
   "sheet.picture": ["pictureTooBig", "pictureUnreadable"],

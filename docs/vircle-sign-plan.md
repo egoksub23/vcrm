@@ -108,7 +108,7 @@ security on, and `updated_at` triggers. Names start `sign_`. Migrations start at
 | `sign_template_versions` | Immutable version of a template | version no., source file path and SHA-256, page count, `fields` (json), `roles` (json), defaults (expiry, reminders, order, language, subject, message) |
 | `sign_documents` | One document sent for signing | reference (SGN-2026-000123), title, status, **category**, template version (nullable), contact, ticket, deal, `merge_values`, `fields_snapshot`, **`sign_in_order` flag**, locale, expires at, sent at, completed at, **original upload (path, type, SHA-256)**, **converted PDF**, base file and SHA-256, final file and SHA-256, void reason, created by |
 | `sign_document_files` | Files that belong to a document | kind (source, annex, signer upload, signed, certificate), path, name, size, SHA-256 |
-| `sign_signers` | A person who signs | role key, **full name**, **email**, phone, channel, **order number (step)**, **invited at**, status, **token hash**, code hash and attempts, viewed, signed and declined times, decline reason, IP, device, locale, consent version |
+| `sign_signers` | A person who signs | role key, **full name**, **email**, phone, channel, **order number (step)**, **invited at**, status, **token hash**, code hash and attempts, viewed, signed and declined times, decline reason, IP, device, locale, consent version, **`alternate_of`** (the person this one can sign instead of; migration 187) |
 | `sign_answers` | Everything entered, in form mode or on the page | document, signer, data field key, value (json) or file, source (signer, sender, contact, colleague), saved at, sensitive flag |
 | `sign_forms` | An immutable form definition per version | ordered parts, data field keys in each part, text per language |
 | `sign_data_fields` | Definition of each data field | key, labels and help per language, type, options or option list, validation, required rule, show-if rule, contact field it fills, assigned role, sensitive flag |
@@ -122,7 +122,17 @@ security on, and `updated_at` triggers. Names start `sign_`. Migrations start at
 **Document status:** `draft`, `sent`, `in_progress`, `sealing`, `completed`, `declined`, `expired`,
 `voided`, `failed`. Allowed moves are enforced by a trigger, not only by the app.
 
-**Signer status:** `pending`, `sent`, `viewed`, `signed`, `declined`.
+**Signer status:** `pending`, `sent`, `viewed`, `signed`, `declined`, `not_needed` (migration 187: a person invited as the
+*alternate* of another person of their role, who completed the role first; terminal, not a decline).
+
+**Alternate signer (migration 187).** `sign_signers.alternate_of` is set only on the SECOND person of a role: the id of the
+first person's row, same document, role, kind and step, another address. Both are invited together. Whoever completes the
+role first signs: the database makes that claim inside `sign_complete_signer`, under the lock it already takes on the
+document row, so two submissions in the same second cannot both complete. The winner's transaction marks the other person
+(and any part they had handed to a delegate) `not_needed` and logs `alternate_not_needed`; a step, and the document, are
+done when every person is `signed` or `not_needed`. One alternate for each person, a draft document on its own only (never
+a document collection, a Halo user or a delegate). The sealed file and the certificate carry the person who completed the
+role; the certificate and the history name the other as an alternate who did not need to sign.
 
 **Signing order.** Each signer has an order number. In Phase 1 each number holds one signer; sharing a
 number (a parallel step) is a Phase 2 option that the tables already allow. With the checkbox

@@ -95,6 +95,13 @@ const DB_CODES: Record<string, { code: string; status: number; message: string }
   sign_document_cancel_is_write_once: { code: "document_already_cancelled", status: 409, message: "This document was already cancelled." },
   sign_envelope_cancel_needs_completed: { code: "envelope_not_completed", status: 409, message: "Only a completed document collection can be cancelled." },
   sign_envelope_cancel_is_write_once: { code: "envelope_already_cancelled", status: 409, message: "This document collection was already cancelled." },
+  // an alternate signer, the second person of a role (migration 187)
+  completed_by_other: { code: "completed_by_other", status: 409, message: "This was already completed by someone else." },
+  sign_alternate_invalid: { code: "alternate_invalid", status: 400, message: "Someone who can sign instead has to share the role of one other person of the document, and cannot be a Halo user or a person's alternate." },
+  sign_alternate_same_person: { code: "alternate_same_person", status: 400, message: "The person who can sign instead has to be another person." },
+  sign_alternate_is_fixed: { code: "alternate_fixed", status: 409, message: "Who a person can sign instead of cannot change." },
+  sign_alternate_needs_a_draft_document: { code: "alternate_needs_draft", status: 409, message: "Someone who can sign instead is named before the document is sent, and not on a document collection." },
+  sign_alternate_not_in_collection: { code: "alternate_not_in_collection", status: 409, message: "A document with someone who can sign instead cannot join a document collection." },
   // the unique (account_id, reference) of sign_documents: only a caller that chose its own reference (the public API) can hit it
   sign_documents_reference: { code: "reference_in_use", status: 409, message: "That reference is already used by another document." },
 };

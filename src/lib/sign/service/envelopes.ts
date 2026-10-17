@@ -12,7 +12,7 @@ import { forgetAccountUsage, signSendHeadroom } from "@/lib/platform/usage";
 
 import { cleanReminderDays, expiryFor, resolveDefaults } from "../defaults";
 import { summarizeDocument, type EnvelopeDocumentSummary } from "../envelopes/summary";
-import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, PERSON_KEY_RE, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, newPersonKey, peopleFromRows, peopleIssues, pruneRows, rowsFor, syncDocumentRoles, withDerivedRoles, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry, type PersonType } from "../envelopes";
+import { ENVELOPE_MAX_BYTES, ENVELOPE_MAX_DOCUMENTS, ENVELOPE_MAX_PAGES, ENVELOPE_MIN_DOCUMENTS, PERSON_KEY_RE, canVoidEnvelope, defaultOrder, deriveEnvelopeStatus, newPersonKey, peopleFromRows, peopleIssues, pruneRows, rowsFor, syncDocumentRoles, withDerivedRoles, type EnvelopeDocLite, type EnvelopePerson, type OrderEntry, type PersonAlternate, type PersonType } from "../envelopes";
 import type { ConvertOptions } from "../convert";
 import { REMIND_GAP_MS } from "../defaults";
 import { MAX_ROLES, type Issue } from "../rules";
@@ -428,6 +428,8 @@ export interface EnvelopePersonInput {
   key?: string;
   /** A document on its own only: the person is a Halo user of this workspace (a countersigner). */
   internalUserId?: string | null;
+  /** A document on its own only: someone who can sign instead of this person (migration 187). A document collection refuses it. */
+  alternate?: PersonAlternate;
   /**
    * A person the screen is still filling in (no valid address yet, say). They are not saved as a signer (nothing is checked or invited), but their
    * role on the uploaded documents is KEPT with the fields assigned to it, so a half-typed address never takes work away. A new person with no name
@@ -438,7 +440,8 @@ export interface EnvelopePersonInput {
 
 /** Write a signing list to the documents (the same service a document alone uses), each person's rows tied together, the anchor on their first document. */
 async function writeSigners(ctx: SignCtx, env: SignEnvelopeRow, docs: readonly SignDocumentRow[], people: readonly EnvelopePerson[]): Promise<SignSignerRow[]> {
-  const rows = rowsFor(docs.map(lite), people, { ordered: env.sign_in_order, newId: randomUUID });
+  // (an alternate is never written to a collection: planSigners refuses one, and the database too)
+  const rows = rowsFor(docs.map(lite), people, { ordered: env.sign_in_order, newId: randomUUID }).filter((r) => !r.alternateOf);
   const out: SignSignerRow[] = [];
   for (const d of docs) {
     const mine: SignerInput[] = rows
@@ -494,7 +497,7 @@ export function planSigners(docs: readonly SignDocumentRow[], people: readonly E
       let key = mayKeep(p.key) && !used.has(p.key) ? p.key : newPersonKey();
       while (used.has(key)) key = newPersonKey();
       used.add(key);
-      const person: EnvelopePerson = { key, fullName: p.fullName, email: p.email, phone: p.phone ?? "", channel: p.channel, step: Math.max(1, Math.floor(p.step ?? i + 1)), roles: p.roles ?? {}, ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}) };
+      const person: EnvelopePerson = { key, fullName: p.fullName, email: p.email, phone: p.phone ?? "", channel: p.channel, step: Math.max(1, Math.floor(p.step ?? i + 1)), roles: p.roles ?? {}, ...(p.internalUserId ? { internalUserId: p.internalUserId } : {}), ...(p.alternate && !p.incomplete ? { alternate: p.alternate } : {}) };
       return { person, incomplete: !!p.incomplete };
     });
   const list = entries.map((e) => e.person);
@@ -505,6 +508,12 @@ export function planSigners(docs: readonly SignDocumentRow[], people: readonly E
   const finished = new Set(entries.filter((e) => !e.incomplete).map((e) => e.person.key));
   const derivedFinished = derived.people.filter((p) => finished.has(p.key));
   const issues = peopleIssues(derived.docs, derivedFinished, { ordered: opts.ordered }).filter((i) => i.code !== "person_without_document");
+  // someone who can sign instead of a person (migration 187) is for a document on its own: a collection's people are one person across several documents
+  if (docs.some((d) => !!d.envelope_id)) {
+    derivedFinished.forEach((p, i) => {
+      if (p.alternate) issues.push({ code: "alternate_not_here", detail: String(i) });
+    });
+  }
   // a person on no document is simply not saved (the screen lets a row be half made); every other problem stops the save
   if (issues.length > 0) throw new SignError("bad_signers", "The signing list is not valid.", 400, issues);
   return { list, derivedFinished };

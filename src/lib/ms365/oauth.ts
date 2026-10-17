@@ -38,7 +38,15 @@ function clientSecret(): string {
 // already-connected account only picks this up on its next reconnect,
 // since Microsoft won't grant a new scope to an existing consent grant
 // without the user going through it again.
-const SCOPES = ['offline_access', 'Mail.Read', 'Mail.Send', 'User.Read', 'Calendars.ReadWrite']
+// Mail.ReadWrite is for sending a message with files too big for one sendMail call (a draft, an upload session, then send, and the removal of the
+// copy that leaves in Sent Items); a mailbox connected before it was asked for is refused on such a send and so marked as needing a reconnect.
+// It is asked for (on connecting and on every token refresh) only while the operator has switched the route on with MS365_LARGE_ATTACHMENTS=true:
+// a refresh that names a scope the mailbox never consented to is refused, so adding it for everyone would break mailboxes already connected.
+function scopes(): string[] {
+  const v = (process.env.MS365_LARGE_ATTACHMENTS ?? '').trim().toLowerCase()
+  const base = ['offline_access', 'Mail.Read', 'Mail.Send', 'User.Read', 'Calendars.ReadWrite']
+  return v === 'true' || v === '1' ? [...base.slice(0, 2), 'Mail.ReadWrite', ...base.slice(2)] : base
+}
 
 export function buildMs365OAuthUrl(args: { state: string; redirectUri: string }): string {
   const params = new URLSearchParams({
@@ -46,7 +54,7 @@ export function buildMs365OAuthUrl(args: { state: string; redirectUri: string })
     redirect_uri: args.redirectUri,
     response_type: 'code',
     response_mode: 'query',
-    scope: SCOPES.join(' '),
+    scope: scopes().join(' '),
     state: args.state,
     // Always show the account picker — the admin connecting a mailbox
     // may be signed into a different Microsoft account in their browser.
@@ -113,7 +121,7 @@ export async function exchangeCodeForTokens(args: {
       redirect_uri: args.redirectUri,
       grant_type: 'authorization_code',
       code: args.code,
-      scope: SCOPES.join(' '),
+      scope: scopes().join(' '),
     }),
   )
 }
@@ -130,7 +138,7 @@ export async function refreshAccessToken(args: { refreshToken: string }): Promis
       client_secret: clientSecret(),
       grant_type: 'refresh_token',
       refresh_token: args.refreshToken,
-      scope: SCOPES.join(' '),
+      scope: scopes().join(' '),
     }),
   )
 }

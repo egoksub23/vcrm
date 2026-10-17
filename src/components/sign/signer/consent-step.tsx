@@ -50,7 +50,7 @@ export function ConsentStep({ token, view, onAgree, onDecline }: ConsentStepProp
 
   return (
     <div className="space-y-6">
-      {view.envelope ? <EnvelopeIntro envelope={view.envelope} fill={view.document.mode === "form" && view.signer.kind === "filler"} /> : <DocumentIntro document={view.document} />}
+      {view.envelope ? <EnvelopeIntro envelope={view.envelope} fill={view.document.mode === "form" && view.signer.kind === "filler"} /> : <DocumentIntro document={view.document} alternate={view.alternate?.name} />}
 
       <section className="space-y-4 rounded-xl border bg-card p-4" aria-labelledby="consent-title">
         <div className="space-y-1">

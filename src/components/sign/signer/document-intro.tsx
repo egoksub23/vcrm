@@ -9,7 +9,7 @@ import type { SigningView } from "@/lib/sign/service/signing";
 
 import { formatDay, useBrowserTimeZone } from "./dates";
 
-export function DocumentIntro({ document, headingId }: { document: SigningView["document"]; headingId?: string }) {
+export function DocumentIntro({ document, headingId, alternate }: { document: SigningView["document"]; headingId?: string; alternate?: string }) {
   const t = useTranslations("Sign.signer");
   const locale = useLocale();
   const zone = useBrowserTimeZone();
@@ -25,6 +25,12 @@ export function DocumentIntro({ document, headingId }: { document: SigningView["
           {document.reference ? t("doc.reference", { reference: document.reference }) : null}
           {document.reference && expires ? " · " : null}
           {expires ? t("doc.expires", { date: expires }) : null}
+        </p>
+      ) : null}
+      {alternate ? (
+        // migration 187: the sender named another person who can do this instead; whoever completes it first does
+        <p role="note" data-alternate-note className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+          {t("doc.alternate", { name: alternate })}
         </p>
       ) : null}
       {document.message ? (

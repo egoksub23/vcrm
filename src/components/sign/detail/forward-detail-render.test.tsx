@@ -20,7 +20,7 @@ vi.mock("@/hooks/use-account-members", () => ({
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => React.createElement("a", { href, ...rest }, children) }));
 
 import { roleViews } from "@/lib/sign/client/progress-logic";
-import type { StaffProgress } from "@/lib/sign/forms/api-types";
+import type { StaffProgress, WritebackHistory } from "@/lib/sign/forms/api-types";
 import type { FormDefinition } from "@/lib/sign/forms/types";
 import type { SignDocumentRow, SignSignerRow } from "@/lib/sign/types";
 import { describeEvent } from "./events";
@@ -237,6 +237,30 @@ describe.skipIf(LOCALES.length === 0)("the detail screen shows steps and forward
       const [view] = roleViews(progress, locale === "ms" ? "ms" : "en");
       const card = page(locale, <RoleProgressCard view={view} role={d.roles_snapshot[0]} device={null} now={Date.parse("2026-10-06T12:00:00Z")} canRemind={false} remindHeldUntil={null} onRemind={() => {}} />);
       expect(card).toContain("Finance Fiona");
+    });
+
+    it(`a write-back shows the values the server gave this reader: real for someone who may reveal, a mask for everyone else (${locale})`, () => {
+      const signers = [signer({ id: "s1", full_name: "Siti Director", order_no: 2 })];
+      const events = [{ id: "e1", doc_seq: 3, signer_id: "s1", type: "writeback", actor_type: "signer" as const, actor_user_id: null, detail: { field: "email" }, ip: null, device: null, created_at: "2026-10-06T09:00:00Z" }];
+      const history = (writebacks: WritebackHistory | null) => page(locale, <HistoryView events={events} chain={null} loading={false} failed={false} signers={signers} signInOrder technical form={FORM} writebacks={writebacks} />);
+
+      const masked = history({ mayReveal: false, changes: [{ seq: 3, field: "email", old: "••••", new: "••••", masked: true }] });
+      expect(masked).toContain("••••");
+      expect(masked).not.toContain("ali@old.example");
+      expect(masked).not.toMatch(/Sign\.(detail|progress)\./);
+      if (locale === "en") expect(masked).toContain("The values are hidden");
+
+      const real = history({ mayReveal: true, changes: [{ seq: 3, field: "email", old: "ali@old.example", new: "ali@new.example", masked: false }] });
+      expect(real).toContain("ali@old.example");
+      expect(real).toContain("ali@new.example");
+      expect(real).not.toContain("••••");
+      expect(real).not.toMatch(/Sign\.(detail|progress)\./);
+
+      // nothing from the server yet: the line, and no values
+      const none = history(null);
+      expect(none.match(/<li\b/g)).toHaveLength(1);
+      expect(none).not.toContain("ali@");
+      expect(none).not.toContain("••••");
     });
 
     it(`the history carries the new events (${locale})`, () => {

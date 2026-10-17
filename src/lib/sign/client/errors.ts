@@ -110,6 +110,13 @@ export const KNOWN_ERROR_CODES = [
   "private_fixed",
   "private_cannot_join",
   "bad_private",
+  // someone who can sign instead of another person of a role (migration 187)
+  "completed_by_other",
+  "alternate_invalid",
+  "alternate_same_person",
+  "alternate_fixed",
+  "alternate_needs_draft",
+  "alternate_not_in_collection",
   // the edge
   "save_failed",
   "network",

@@ -151,15 +151,28 @@ export function installEnvelopeRpcs(db: FakeDb, o: EnvelopeRpcOptions) {
     const s = signer(a.p_signer);
     if (!s) return fail("signer_not_found");
     const d = doc(s.document_id)!;
+    // migration 187: the first-wins claim comes before everything about the document (it may already be sealing)
+    if (s.status === "not_needed") return fail("completed_by_other");
     if (d.status !== "sent" && d.status !== "in_progress") return fail("document_not_open");
     if (s.status === "signed") return fail("already_signed");
     if (s.status !== "sent" && s.status !== "viewed") return fail("signer_not_open");
     if (!s.consented_at) return fail("consent_required");
+    const primary = (s.alternate_of as string | null | undefined) ?? (s.id as string);
+    const pair = (x: Row) => x.document_id === d.id && x.id !== s.id && (x.id === primary || x.alternate_of === primary);
+    if (!s.part_keys && signers().some((x) => pair(x) && x.status === "signed" && !x.part_keys)) return fail("completed_by_other");
     Object.assign(s, { status: "signed", signed_at: o.now(), consent_version: a.p_consent ?? s.consent_version });
     if (d.status === "sent") setDoc(d, "in_progress");
     log(d.id, "signed");
+    // the other person of the role (and a part they had handed to someone) is not needed any more
+    if (!s.part_keys) {
+      const closing = signers().filter((x) => x.document_id === d.id && x.id !== s.id && ["pending", "sent", "viewed"].includes(x.status as string) && (pair(x) || signers().some((y) => y.id === x.delegated_by && pair(y))));
+      for (const x of closing) {
+        x.status = "not_needed";
+        log(d.id, "alternate_not_needed", { role: s.role_key, completed_by: s.id, completed_by_name: s.full_name });
+      }
+    }
     let sealing = false;
-    if (!signers().some((x) => x.document_id === d.id && x.status !== "signed")) {
+    if (!signers().some((x) => x.document_id === d.id && x.status !== "signed" && x.status !== "not_needed")) {
       setDoc(d, "sealing");
       Object.assign(d, { sealing_started_at: null, sealing_attempts: 0 });
       sealing = true;

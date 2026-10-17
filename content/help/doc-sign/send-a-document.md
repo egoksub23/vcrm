@@ -2,7 +2,7 @@
 title: Send a document for signature
 description: Start a document from a file or a template, set who signs, check it and send it.
 order: 2
-updated: 2026-10-08
+updated: 2026-10-17
 ---
 
 This page walks through sending one document, from choosing the file to pressing **Send for signature**.
@@ -42,6 +42,8 @@ On the People step, every person has a name, an email and a type.
 - **Signature required** is a person who signs or fills in their part. They have a **role** (which fields are theirs) and, when signing order is on, a **step**. The link always goes to their email. They get a private link.
 - **Receives a copy** is a person who does not sign. They have only a name and an email. They never get a link, and when the document is completed they get the signed PDF by email. See [Receive a copy of the signed document](/help/doc-sign/copies).
 
+When one signature is enough but either of two people may give it, click **Add someone who can sign instead** under the person. Both are invited together with a link each, and whoever completes it first signs. The other is told it was already completed, and the document does not wait for them. See [Someone who can sign instead](/help/doc-sign/someone-who-can-sign-instead).
+
 When you type in the name box, Halo searches your contacts. Choose a contact and the name and the email are filled in. You can still edit the email.
 
 To add a person who works at your own company, you can also pick them from your workspace users. Their signing is described in [Countersign in Halo](/help/doc-sign/countersign-in-halo).
@@ -75,6 +77,7 @@ If you tick **Needs a verification code** on the Options step, each signer must 
 - **A person saved with WhatsApp before it is set up.** The People step marks them **Sent by WhatsApp**. WhatsApp needs an approved message template; if none is set, the person is not reached. See [Settings and the WhatsApp template](/help/doc-sign/settings-and-whatsapp).
 - **Putting the same email address on the list twice when signing order is on.** Each signer must then be a different person.
 - **Adding someone who only needs the final file as a person who must sign.** Choose **Receives a copy** instead. They then get the signed file without a link or anything to do.
+- **Giving one role to two people when both must sign.** A role is one person's: a second person can only be named as someone who can sign instead, and then only one of them signs. If both must sign, add both as separate people, each with their own signature blocks.
 
 ## Related pages
 
@@ -82,4 +85,5 @@ If you tick **Needs a verification code** on the Options step, each signer must 
 - [Receive a copy of the signed document](/help/doc-sign/copies)
 - [Private documents](/help/doc-sign/private-documents)
 - [Signing order](/help/doc-sign/signing-order)
+- [Someone who can sign instead](/help/doc-sign/someone-who-can-sign-instead)
 - [What the signer sees](/help/doc-sign/what-the-signer-sees)

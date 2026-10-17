@@ -162,7 +162,7 @@ export function DocumentStep({ token, view, content, answers, rejected, saveStat
     <>
       <div className="mx-auto w-full max-w-6xl px-3 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
         <div className="min-w-0 space-y-4">
-          <DocumentIntro document={view.document} />
+          <DocumentIntro document={view.document} alternate={view.alternate?.name} />
           {formReview ? (
             <ReviewPanel review={formReview.review} form={formReview.form} locale={locale} onChangeAnswer={formReview.onChangeAnswer} onOpenAnswer={formReview.onOpenAnswer} onRetry={formReview.onRetry} />
           ) : null}

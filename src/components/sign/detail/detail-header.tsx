@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Archive, Award, Ban, ChevronRight, CircleOff, Download, Eye, FileDown, Loader2 } from "lucide-react";
+import { Archive, Award, Ban, ChevronRight, CircleOff, Download, Eye, FileDown, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,11 +31,13 @@ interface Props {
   onVoid: () => void;
   /** Migration 181: open the cancel dialog (the button shows only when `actions.cancel`). */
   onCancel?: () => void;
+  /** Open the delete dialog. Given only when the person may delete this signed record now (sign.settings, retention date passed); absent otherwise, and then no button shows. */
+  onDelete?: () => void;
   /** F-95: the sender's switch for forwarding, while the document is open (absent when it cannot change). */
   forwarding?: { allowed: boolean; busy: boolean; onChange: (allow: boolean) => void };
 }
 
-export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid, onCancel, forwarding }: Props) {
+export function DetailHeader({ document: doc, links, actions, downloading, onView, onDownload, onVoid, onCancel, onDelete, forwarding }: Props) {
   const t = useTranslations("Sign.detail");
   const ts = useTranslations(SIGN_STATUS_NAMESPACE);
   const locale = useLocale();
@@ -109,6 +111,12 @@ export function DetailHeader({ document: doc, links, actions, downloading, onVie
             <Button variant="outline" className="text-destructive" onClick={onCancel}>
               <CircleOff aria-hidden />
               {t("cancel.action")}
+            </Button>
+          )}
+          {onDelete && (
+            <Button variant="outline" className="text-destructive" onClick={onDelete}>
+              <Trash2 aria-hidden />
+              {t("delete.open")}
             </Button>
           )}
         </div>

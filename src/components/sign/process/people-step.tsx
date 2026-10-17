@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { addPerson, countByType, normalizePersonSteps, personHasInput, personIsComplete, removePerson, setPersonType, setTemplateMatch, templateMatches, updatePerson } from "@/lib/sign/client/envelope-form";
+import { addAlternate, addPerson, countByType, normalizePersonSteps, personHasInput, personIsComplete, removeAlternate, removePerson, setPersonType, setTemplateMatch, templateMatches, updateAlternate, updatePerson } from "@/lib/sign/client/envelope-form";
 import { MAX_COPY_RECIPIENTS, isCopy, isSigner, isUploadDoc, roleCoverage, type EnvelopeDocLite, type EnvelopePerson } from "@/lib/sign/envelopes";
 import { MAX_ROLES, MAX_SIGNERS, normalizePhone } from "@/lib/sign/rules";
 
@@ -64,6 +64,8 @@ export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], peo
   /** The person a Halo user is being chosen for (a document on its own only). */
   const [haloFor, setHaloFor] = useState<string | null>(null);
   const allowHalo = kind === "single" && !formOnly;
+  // someone who can sign instead of a person (migration 187): a document on its own only, and not for a Halo user
+  const allowAlternate = kind === "single";
   const change = (next: EnvelopePerson[]) => onPeople(ordered ? normalizePersonSteps(next) : next);
 
   const counts = countByType(people);
@@ -112,7 +114,11 @@ export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], peo
           const byWhatsapp = !copy && p.channel === "whatsapp";
           const phoneBad = touched && byWhatsapp && normalizePhone(p.phone) === null;
           // a person who must sign needs a place on the documents: an uploaded file gives every person one, a template's role must be matched
-          const rolesBad = touched && !copy && !personIsComplete({ ...p, fullName: "x", email: "x@x.xx", phone: "+60123456789", step: 1 }, docs);
+          const rolesBad = touched && !copy && !personIsComplete({ ...p, fullName: "x", email: "x@x.xx", phone: "+60123456789", step: 1, ...(p.alternate ? { alternate: { fullName: "x", email: "x@x.xx" } } : {}) }, docs);
+          // the person who can sign instead (migration 187): shown wrong once typed in or after the review was asked for
+          const altTouched = showInvalid || !!(p.alternate && (p.alternate.fullName.trim() || p.alternate.email.trim()));
+          const altNameBad = altTouched && !!p.alternate && (!p.alternate.fullName.trim() || p.alternate.fullName.trim().length > 160);
+          const altEmailBad = altTouched && !!p.alternate && !EMAIL_RE.test(p.alternate.email.trim());
           return (
             <li key={p.key} data-person-type={copy ? "copy" : "signer"} className="space-y-3 rounded-xl border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-2">
@@ -221,13 +227,50 @@ export function ProcessPeople({ kind, formOnly = false, docs, workDocs = [], peo
                     {th("haloUserRemove")}
                   </Button>
                 </div>
-              ) : allowHalo && !copy ? (
+              ) : allowHalo && !copy && !p.alternate ? (
                 <div>
                   <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={() => setHaloFor(p.key)}>
                     <ShieldCheck aria-hidden />
                     {th("chooseHaloUser")}
                   </Button>
                 </div>
+              ) : null}
+              {allowAlternate && !copy && !p.internalUserId ? (
+                p.alternate ? (
+                  <div data-alternate-box className="space-y-2 rounded-lg border border-dashed border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground">{tp("alternate.title")}</p>
+                      <Button type="button" variant="ghost" size="xs" disabled={readOnly} aria-label={tp("alternate.removeFor", { name: nameOf(p, i) })} onClick={() => change(removeAlternate(people, p.key))}>
+                        <Trash2 aria-hidden />
+                        {tp("alternate.remove")}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{tp("alternate.hint", { name: nameOf(p, i) })}</p>
+                    <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label htmlFor={`${p.key}-alt-name`} className="text-xs font-medium text-foreground">
+                          {t("fullName")}
+                        </label>
+                        <Input id={`${p.key}-alt-name`} value={p.alternate.fullName} maxLength={160} autoComplete="off" disabled={readOnly} aria-invalid={altNameBad} onChange={(e) => change(updateAlternate(people, p.key, { fullName: e.target.value }))} />
+                        {altNameBad ? <p className="text-xs text-destructive">{t("errors.name")}</p> : null}
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor={`${p.key}-alt-email`} className="text-xs font-medium text-foreground">
+                          {t("email")}
+                        </label>
+                        <Input id={`${p.key}-alt-email`} type="email" value={p.alternate.email} maxLength={254} autoComplete="off" disabled={readOnly} aria-invalid={altEmailBad} onChange={(e) => change(updateAlternate(people, p.key, { email: e.target.value }))} />
+                        {altEmailBad ? <p className="text-xs text-destructive">{t("errors.email")}</p> : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Button type="button" variant="ghost" size="xs" disabled={readOnly} onClick={() => change(addAlternate(people, p.key))}>
+                      <Plus aria-hidden />
+                      {tp("alternate.add")}
+                    </Button>
+                  </div>
+                )
               ) : null}
               {copy ? <p className="text-xs text-muted-foreground">{t("copyLine")}</p> : null}
               {rolesBad ? <p className="text-xs text-destructive">{t("errors.noDocument")}</p> : null}

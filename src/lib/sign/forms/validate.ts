@@ -11,7 +11,7 @@ import type { SignRole } from "../types";
 import { listProblems, takesOptions, type ListProblemOptions } from "./lists";
 import { dependencyCycle, ruleProblems } from "./rules";
 import { sensitiveProblems } from "./sensitive";
-import { CONTACT_FIELDS, DATA_FIELD_TYPES, FILE_KINDS, MAX_DATA_FIELDS, MAX_FILES_PER_FIELD, MAX_OPTIONS, MAX_PARTS, MAX_UPLOAD_MB, TEXT_FORMATS, type DataField, type FormDefinition, type L10n } from "./types";
+import { CONTACT_FIELDS, DATA_FIELD_TYPES, FILE_KINDS, MAX_DATA_FIELDS, MAX_FILES_PER_FIELD, MAX_OPTIONS, MAX_PARTS, MAX_UPLOAD_MB, MAX_VALIDATION_MESSAGE, TEXT_FORMATS, type DataField, type FormDefinition, type L10n } from "./types";
 
 const KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
 const OPTION_RE = /^[A-Za-z0-9][A-Za-z0-9_.\-]{0,59}$/;
@@ -125,6 +125,7 @@ export function validateForm(form: FormDefinition, roles: readonly SignRole[], p
     if (!l10nOk(f.label, 200)) issues.push({ code: "bad_data_label", ...at });
     if (f.help !== undefined && !l10nOk(f.help, 600)) issues.push({ code: "bad_data_help", ...at });
     if (f.placeholder !== undefined && !l10nOk(f.placeholder, 120)) issues.push({ code: "bad_data_placeholder", ...at });
+    if (f.validationMessage !== undefined && !l10nOk(f.validationMessage, MAX_VALIDATION_MESSAGE)) issues.push({ code: "bad_validation_message", ...at });
 
     if (takesOptions(f.type)) {
       const o = f.options ?? [];

@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.95.0] — 2026-10-17
+
+**Migration required: `187_sign_alternate_signers.sql`.** Apply it before the new code is deployed.
+
+### Added
+
+- **Secure Sign: someone who can sign instead.** In the People step a signing person can have an alternate on the same role (two finance contacts, or two directors where one is enough). Both are invited together; whoever completes the role first fills the places and signs, and the other person's link then says it was already completed by someone else. The sealed file shows who signed, and the certificate lists the other person as "Alternate: did not need to sign". The first-wins claim is made in the database, so two people submitting in the same second cannot both complete. Not available for document collections or through the public API.
+- **Secure Sign: delete a signed document after its retention date.** A Delete button on the document and collection screens, shown only to people with the Secure Sign settings permission and only once the retention date has passed, with a clear confirmation. The database rule is unchanged.
+- **Secure Sign forms: a custom validation message per field,** set in the form builder in English, Malay, Chinese and Korean, shown to the signer in their language.
+- **Larger signed files through Microsoft 365 (optional switch).** With `MS365_LARGE_ATTACHMENTS=true`, a message can carry up to 4 MB of signed files (a draft with an upload session; the copy it leaves in Sent Items is removed on a best-effort basis). It needs the Microsoft `Mail.ReadWrite` permission and a reconnect of each mailbox, so it is off by default and the limit stays 2.5 MB. See `docs/microsoft-365-email-setup.md`.
+
+### Changed
+
+- **Secure Sign forms fill in the contact's data on every view,** not only the first, but never over something the signer typed or cleared themselves.
+- **Secure Sign history: the old and new values of a contact write-back are masked** unless the person holds the reveal permission. (Reading them straight from the database is a separate gap, recorded in the security review as F23.)
+
 ## [0.94.0] — 2026-10-14
 
 No migration.

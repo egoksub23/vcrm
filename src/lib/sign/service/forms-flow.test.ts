@@ -316,19 +316,109 @@ describe("the signer's view of a form", () => {
     NO_PATH(view);
   });
 
-  it("is idempotent, never overwrites an answer, and does not start again once the page was opened", async () => {
+  it("is idempotent and never overwrites an answer the signer made", async () => {
     await sentWorld();
     await buildView(t.ctx, await look("merchant"), false);
     await saveAnswers(t.ctx, await look("merchant"), { legalName: { text: "Changed Sdn Bhd" } });
     await buildView(t.ctx, await look("merchant"), false);
     expect(t.db.rows("sign_answers").filter((a) => a.field_key === "legalName")).toHaveLength(1);
     expect(answerRow("legalName")).toMatchObject({ value: { text: "Changed Sdn Bhd" }, source: "signer" });
+    // a view that changes nothing writes nothing
+    const before = JSON.stringify(t.db.rows("sign_answers"));
+    await buildView(t.ctx, await look("merchant"), false);
+    expect(JSON.stringify(t.db.rows("sign_answers"))).toBe(before);
+  });
 
-    // a person whose page was already opened is not prefilled afterwards
-    t.db.tables.sign_answers = [];
-    Object.assign(t.db.rows("sign_signers").find((s) => s.role_key === "merchant")!, { viewed_at: "2026-10-06T08:00:00Z" });
-    const again = await buildView(t.ctx, await look("merchant"), false);
-    expect(again.content!.form!.answers).toEqual({});
+  it("applies the contact on every view, not only the first: a value supplied or corrected after the signer first looked reaches them", async () => {
+    await sentWorld();
+    // the contact has nothing the form can use when the signer first opens the page
+    const contact = t.db.rows("contacts").find((c) => c.id === "c1")!;
+    Object.assign(contact, { company: "  ", email: "" });
+    t.db.tables.contact_custom_values = [];
+    const merchant = t.db.rows("sign_signers").find((s) => s.role_key === "merchant")!;
+    const first = (await buildView(t.ctx, await look("merchant"), false)).content!.form!;
+    expect(Object.keys(first.answers).sort()).toEqual(["country", "ref"]);
+    Object.assign(merchant, { viewed_at: "2026-10-06T08:00:00Z" }); // the first look is on record
+
+    // the sender supplies the missing details: the next view has them, marked for the signer to confirm
+    t.advance(60_000);
+    Object.assign(contact, { company: "Kedai Runcit Ali Sdn Bhd", email: "ali@new.example" });
+    t.db.seed("contact_custom_values", [{ id: "cv1", contact_id: "c1", custom_field_id: "cf1", value: "Selangor" }]);
+    const second = (await buildView(t.ctx, await look("merchant"), false)).content!.form!;
+    expect(second.answers.legalName).toEqual({ text: "Kedai Runcit Ali Sdn Bhd" });
+    expect(second.answers.contactEmail).toEqual({ text: "ali@new.example" });
+    expect(second.answers.region).toEqual({ text: "Selangor" });
+    expect([...second.unconfirmed].sort()).toEqual(["contactEmail", "legalName", "region"]);
+    expect(answerRow("legalName")).toMatchObject({ source: "contact" });
+
+    // a correction of a value the signer has not confirmed replaces it
+    t.advance(60_000);
+    Object.assign(contact, { email: "ali@corrected.example" });
+    const third = (await buildView(t.ctx, await look("merchant"), false)).content!.form!;
+    expect(third.answers.contactEmail).toEqual({ text: "ali@corrected.example" });
+    expect(t.db.rows("sign_answers").filter((a) => a.field_key === "contactEmail")).toHaveLength(1);
+    expect(answerRow("contactEmail")).toMatchObject({ source: "contact", saved_at: new Date(Date.parse("2026-10-06T08:00:00Z") + 120_000).toISOString() });
+    // the sender's default is part of the form and is not touched by a later view
+    expect(answerRow("country")).toMatchObject({ source: "sender", value: { text: "Malaysia" } });
+    // a contact value that goes away leaves what was shown (it was never confirmed, and still reads "from our records")
+    Object.assign(contact, { email: "" });
+    expect((await buildView(t.ctx, await look("merchant"), false)).content!.form!.answers.contactEmail).toEqual({ text: "ali@corrected.example" });
+  });
+
+  it("never overwrites what the signer typed, confirmed or emptied, however the contact changes afterwards", async () => {
+    await sentWorld();
+    const contact = t.db.rows("contacts").find((c) => c.id === "c1")!;
+    const merchant = t.db.rows("sign_signers").find((s) => s.role_key === "merchant")!;
+    await buildView(t.ctx, await look("merchant"), false);
+    Object.assign(merchant, { viewed_at: "2026-10-06T08:00:00Z" });
+
+    // typed over the contact's value; the signer's own empty for a contact field and for a default; one contact value left alone
+    await saveAnswers(t.ctx, await look("merchant"), { legalName: { text: "What I typed Sdn Bhd" }, region: { text: "" }, country: { text: "" } });
+    expect(answerRow("legalName")).toMatchObject({ source: "signer" });
+    // emptying leaves a marker with no value, so a later view does not fill the field again
+    expect(answerRow("region")).toMatchObject({ value: null, source: "signer" });
+    expect(answerRow("country")).toMatchObject({ value: null, source: "signer" });
+
+    Object.assign(contact, { company: "Sender corrected Sdn Bhd", email: "ali@corrected.example" });
+    t.db.rows("contact_custom_values")[0].value = "Perak";
+    const view = (await buildView(t.ctx, await look("merchant"), false)).content!.form!;
+    expect(view.answers.legalName).toEqual({ text: "What I typed Sdn Bhd" });
+    expect(view.answers.region).toBeUndefined();
+    expect(view.answers.country).toBeUndefined();
+    // the value the signer left alone follows the correction
+    expect(view.answers.contactEmail).toEqual({ text: "ali@corrected.example" });
+    expect(answerRow("legalName")).toMatchObject({ value: { text: "What I typed Sdn Bhd" }, source: "signer" });
+    expect(answerRow("region")).toMatchObject({ value: null });
+    // the markers are no answers: nothing counts them as answered, and the part is not complete because of them
+    expect(view.unconfirmed).toEqual(["contactEmail"]);
+    expect(view.progress.find((p) => p.key === "tax")).toMatchObject({ done: 0 });
+
+    // confirming a part makes its contact values the signer's own: later corrections do not change them
+    await saveAnswers(t.ctx, await look("merchant"), {}, { confirmParts: ["company"] });
+    Object.assign(contact, { email: "ali@evenlater.example" });
+    const after = (await buildView(t.ctx, await look("merchant"), false)).content!.form!;
+    expect(after.answers.contactEmail).toEqual({ text: "ali@corrected.example" });
+    expect(answerRow("contactEmail")).toMatchObject({ source: "signer" });
+
+    // typing again after emptying is an answer like any other, and replaces the marker
+    await saveAnswers(t.ctx, await look("merchant"), { region: { text: "Johor" } });
+    expect(t.db.rows("sign_answers").filter((a) => a.field_key === "region")).toHaveLength(1);
+    expect(answerRow("region")).toMatchObject({ value: { text: "Johor" }, source: "signer" });
+    // a field with nothing to start it from is simply deleted when it is emptied, as before
+    await saveAnswers(t.ctx, await look("merchant"), { brn: { text: "20190123456" } });
+    await saveAnswers(t.ctx, await look("merchant"), { brn: { text: "" } });
+    expect(answerRow("brn")).toBeUndefined();
+  });
+
+  it("writes nothing for a person whose fields have nothing to start from, view after view", async () => {
+    await sentWorld();
+    await buildView(t.ctx, await look("merchant"), false);
+    const rows = t.db.rows("sign_answers").length;
+    expect(rows).toBeGreaterThan(0);
+    // the finance filler has no contact-mapped field and no default: their views write nothing
+    await buildView(t.ctx, await look("finance"), false);
+    await buildView(t.ctx, await look("finance"), false);
+    expect(t.db.rows("sign_answers")).toHaveLength(rows);
   });
 
   it("skips an empty contact value and one the field would not accept", async () => {
@@ -985,6 +1075,41 @@ describe("sealing a form document", () => {
     expect(v.legalName).toBeUndefined();
     const plain = valuesFor(doc.fields_snapshot as PlacedField[], signers, answers);
     expect(plain.p_brn).toBeUndefined();
+  });
+});
+
+describe("printing what a later view prefilled", () => {
+  const printed = () => {
+    const doc = t.db.rows("sign_documents")[0];
+    const signers = t.db.rows("sign_signers") as never[];
+    const answers = t.db.rows("sign_answers").map((a) => ({ signer_id: a.signer_id as string, field_key: a.field_key as string, value: a.value as never, source: a.source as never, saved_at: a.saved_at as string }));
+    return valuesFor(doc.fields_snapshot as PlacedField[], signers, answers, { definition: FORM, locale: "en" });
+  };
+
+  it("prints the refreshed value, the signer's own value, and nothing for a field the signer emptied", async () => {
+    await sentWorld();
+    const contact = t.db.rows("contacts").find((c) => c.id === "c1")!;
+    await buildView(t.ctx, await look("merchant"), false);
+    expect(printed().p_legal).toEqual({ text: "Kedai Runcit Ali" });
+
+    // the sender corrects the contact before the next view: that is what is printed
+    t.advance(60_000);
+    Object.assign(contact, { company: "Kedai Runcit Ali Sdn Bhd" });
+    await buildView(t.ctx, await look("merchant"), false);
+    expect(printed().p_legal).toEqual({ text: "Kedai Runcit Ali Sdn Bhd" });
+
+    // the signer's own value wins over any later correction
+    await saveAnswers(t.ctx, await look("merchant"), { legalName: { text: "Signer Chosen Bhd" } });
+    Object.assign(contact, { company: "Another Correction" });
+    await buildView(t.ctx, await look("merchant"), false);
+    expect(printed().p_legal).toEqual({ text: "Signer Chosen Bhd" });
+
+    // emptied by the signer: nothing is printed, however the contact changes, and the marker is no value at all
+    await saveAnswers(t.ctx, await look("merchant"), { legalName: { text: "" } });
+    Object.assign(contact, { company: "Yet Another" });
+    await buildView(t.ctx, await look("merchant"), false);
+    expect(printed().p_legal).toBeUndefined();
+    expect(answerRow("legalName")).toMatchObject({ value: null, source: "signer" });
   });
 });
 

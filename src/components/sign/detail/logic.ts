@@ -4,7 +4,7 @@
 // that did not arrive, and which failure code reads as which sentence.
 // ============================================================
 
-import { waitingSummary } from "@/lib/sign/client/status";
+import { signerProgress, waitingSummary } from "@/lib/sign/client/status";
 import { canCancelRow, type CancelViewer } from "@/lib/sign/cancel";
 import { REMIND_GAP_MS as REMIND_GAP } from "@/lib/sign/defaults";
 import type { DocumentStatus, SignSignerRow } from "@/lib/sign/types";
@@ -57,7 +57,7 @@ export interface BannerDoc {
   mode?: string | null;
 }
 
-export type BannerSigner = Pick<SignSignerRow, "full_name" | "status" | "order_no" | "declined_at" | "decline_reason"> & Partial<Pick<SignSignerRow, "part_keys">>;
+export type BannerSigner = Pick<SignSignerRow, "full_name" | "status" | "order_no" | "declined_at" | "decline_reason"> & Partial<Pick<SignSignerRow, "id" | "part_keys" | "alternate_of">>;
 
 /** What is happening to the document, as data; the screen words it in the reader's language. */
 export function bannerFor(doc: BannerDoc, signers: readonly BannerSigner[], caps: Pick<DetailCaps, "settings">): Banner {
@@ -68,9 +68,10 @@ export function bannerFor(doc: BannerDoc, signers: readonly BannerSigner[], caps
     case "sent":
     case "in_progress": {
       const w = waitingSummary(doc.status, signers, 2);
-      // a person who was handed one part of someone's form is part of that person's turn, not another signer
-      const people = signers.filter((s) => !(s.part_keys && s.part_keys.length > 0));
-      return { kind: "waiting", names: w.names, more: w.more, done: people.filter((s) => s.status === "signed").length, total: people.length, ...form };
+      // a person who was handed one part of someone's form is part of that person's turn, not another signer; the two people of a role (an alternate,
+      // migration 187) are one place, done when either has signed
+      const { done, total } = signerProgress(signers);
+      return { kind: "waiting", names: w.names, more: w.more, done, total, ...form };
     }
     case "sealing":
       return { kind: "sealing", ...form, ...(doc.seal_error?.trim() ? { stuck: true as const, error: caps.settings ? doc.seal_error.trim() : null } : {}) };
@@ -103,6 +104,54 @@ export function retentionState(retainUntil: string | null | undefined, now: Date
   const end = new Date(retainUntil).getTime();
   if (Number.isNaN(end)) return null;
   return end > now.getTime() ? "kept" : "ended";
+}
+
+// ---- deleting a signed record once its retention date has passed -----------------------------
+
+/** What decides whether a signed document may be deleted: its state and its retention date. */
+export interface RetainedFacts {
+  status: string;
+  retain_until?: string | null;
+}
+
+/**
+ * The Delete action for a signed document (completed, which includes one cancelled afterwards: cancelling only adds a stamp and the status stays
+ * `completed`). Shown only to someone with sign.settings, and only once the retention date has passed, by the same test the banner uses. Before
+ * that nothing is shown (the banner says it is kept until the date). A signed document without a date is kept, so it has no Delete either.
+ * The server and the database ask again; this only decides whether to offer it.
+ */
+export function canDeleteSigned(doc: RetainedFacts, caps: Pick<DetailCaps, "settings">, now: Date): boolean {
+  return caps.settings && doc.status === "completed" && retentionState(doc.retain_until, now) === "ended";
+}
+
+/** What decides whether a whole document collection may be deleted: its own state and, for each document, the same facts. */
+export interface RetainedCollectionFacts {
+  status: string;
+  documents: readonly { status: string; retainUntil?: string | null }[];
+}
+
+/** The Delete action for a document collection: it is completed, and every document in it is signed and past its retention date (the server asks the same). */
+export function canDeleteSignedCollection(collection: RetainedCollectionFacts, caps: Pick<DetailCaps, "settings">, now: Date): boolean {
+  return caps.settings && collection.status === "completed" && collection.documents.length > 0 && collection.documents.every((d) => d.status === "completed" && retentionState(d.retainUntil, now) === "ended");
+}
+
+/** The last of the documents' retention dates: the day the whole collection became free to delete. Null when none has a date. */
+export function latestRetention(documents: readonly { retainUntil?: string | null }[]): string | null {
+  let latest: string | null = null;
+  for (const d of documents) {
+    if (!d.retainUntil || Number.isNaN(new Date(d.retainUntil).getTime())) continue;
+    if (latest === null || new Date(d.retainUntil).getTime() > new Date(latest).getTime()) latest = d.retainUntil;
+  }
+  return latest;
+}
+
+/**
+ * The server's own reason for a refused delete (retention not over, no permission, the record changed meanwhile), to show as it is; null when
+ * the failure was not a refusal (the network, a server fault), for which the screen uses its own sentence.
+ */
+export function deleteRefusalReason(failure: { status?: number; message?: string } | null | undefined): string | null {
+  if (!failure || (failure.status !== 403 && failure.status !== 404 && failure.status !== 409)) return null;
+  return failure.message?.trim() || null;
 }
 
 export type BannerTone = "info" | "success" | "danger" | "warning" | "muted";

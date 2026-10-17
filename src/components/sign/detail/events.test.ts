@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { HIDDEN_EVENTS } from "@/lib/sign/certificate-words";
 import { EVENT_TYPES } from "@/lib/sign/types";
 
-import { chainState, describeEvent, latestWriteback, orderEvents, visibleDetails, type DescribeContext, type SignEventRow } from "./events";
+import { chainState, describeEvent, EVENT_COLUMNS, latestWriteback, orderEvents, visibleDetails, WRITEBACK_COLUMNS, writebackEventRow, type DescribeContext, type SignEventRow } from "./events";
 
 const ctx = (over: Partial<DescribeContext> = {}): DescribeContext => ({
   signers: [
@@ -152,6 +152,37 @@ describe("the events of a form", () => {
     expect(describeEvent(row({ type: "writeback", detail: { fields: ["name", { field: "custom:Branch" }, "name"] } }), form).contactFields).toEqual(["name", "custom:Branch"]);
     expect(describeEvent(row({ type: "writeback", detail: { field: "name" } }), ctx()).link).toBeNull();
     expect(describeEvent(row({ type: "writeback", detail: {} }), form).values.hasFields).toBe("no");
+  });
+
+  it("never asks the database for a write-back's values: the columns name the field and the contact, not the detail", () => {
+    expect(WRITEBACK_COLUMNS).not.toMatch(/(^|, )detail(,|$)/);
+    expect(WRITEBACK_COLUMNS).toContain("field:detail->>field");
+    expect(WRITEBACK_COLUMNS).toContain("contact_id:detail->>contact_id");
+    expect(WRITEBACK_COLUMNS).not.toMatch(/old|new/);
+    // every other event is still read in full
+    expect(EVENT_COLUMNS).toMatch(/(^|, )detail(,|$)/);
+    const { detail, ...rest } = row({ type: "writeback", actor_type: "signer", signer_id: "s1" });
+    expect(detail).toEqual({});
+    const made = writebackEventRow({ ...rest, field: "email", contact_id: "c9" });
+    expect(made.detail).toEqual({ field: "email", contact_id: "c9" });
+    expect(writebackEventRow({ ...rest, field: null, contact_id: null }).detail).toEqual({});
+    const line = describeEvent(made, form);
+    expect(line.contactFields).toEqual(["email"]);
+    expect(line.link).toEqual({ kind: "contact", id: "c9" });
+    expect(line.changes).toEqual([]);
+  });
+
+  it("carries what the server says changed, masked or not as the server decided, and only for the event it belongs to", () => {
+    const changes = [
+      { seq: 4, field: "email", old: "••••", new: "••••", masked: true },
+      { seq: 9, field: "name", old: "A", new: "B", masked: false },
+    ];
+    const withChanges = ctx({ changesFor: (seq) => changes.filter((c) => c.seq === seq) });
+    expect(describeEvent(row({ type: "writeback", doc_seq: 4, detail: { field: "email" } }), withChanges).changes).toEqual([changes[0]]);
+    expect(describeEvent(row({ type: "writeback", doc_seq: 5, detail: { field: "email" } }), withChanges).changes).toEqual([]);
+    // only a write-back has changes, and the sentence itself never holds a value
+    expect(describeEvent(row({ type: "sent", doc_seq: 4 }), withChanges).changes).toEqual([]);
+    expect(JSON.stringify(describeEvent(row({ type: "writeback", doc_seq: 9, detail: { field: "name" } }), withChanges).values)).not.toContain("B");
   });
 
   it("words the new expiry as a day when the event carries one", () => {

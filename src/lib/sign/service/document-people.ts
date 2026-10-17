@@ -43,6 +43,19 @@ export async function setDocumentPeople(ctx: SignCtx, documentId: string, people
 
   const fresh = await loadDocument(ctx, documentId);
   const rows = rowsFor([lite(fresh)], derivedFinished, { ordered, newId: randomUUID });
-  const inputs: SignerInput[] = rows.map((r) => ({ roleKey: r.roleKey, kind: r.kind, fullName: r.fullName, email: r.email, phone: r.phone, channel: r.channel, orderNo: r.orderNo, ...(r.internalUserId ? { internalUserId: r.internalUserId } : {}) }));
+  // a person who has someone who can sign instead keeps the id the alternate's row points at (migration 187); everybody else gets one from the database
+  const pointedAt = new Set(rows.flatMap((r) => (r.alternateOf ? [r.alternateOf] : [])));
+  const inputs: SignerInput[] = rows.map((r) => ({
+    ...(pointedAt.has(r.id) || r.alternateOf ? { id: r.id } : {}),
+    ...(r.alternateOf ? { alternateOf: r.alternateOf } : {}),
+    roleKey: r.roleKey,
+    kind: r.kind,
+    fullName: r.fullName,
+    email: r.email,
+    phone: r.phone,
+    channel: r.channel,
+    orderNo: r.orderNo,
+    ...(r.internalUserId ? { internalUserId: r.internalUserId } : {}),
+  }));
   return setSigners(ctx, documentId, inputs);
 }

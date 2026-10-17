@@ -375,3 +375,36 @@ describe("the downloads of a collection", () => {
     expect(html).not.toContain("Download all (zip)");
   });
 });
+
+// ---- Delete, once every document's retention date has passed -------------------------------------------------------------------
+
+describe("deleting a signed collection", () => {
+  const withRetention = (status: "sent" | "completed", dates: (string | null)[], cancelled = false): EnvelopeData => {
+    const d = detail(status, []);
+    return { ...d, envelope: { ...d.envelope, ...(cancelled ? { cancelled_at: "2026-09-01T00:00:00Z" } : {}) }, documents: d.documents.map((x, i) => ({ ...x, retainUntil: dates[i] ?? null })) };
+  };
+  const ENDED = "2020-01-01T00:00:00Z";
+  const AHEAD = "2099-01-01T00:00:00Z";
+  const html = (locale: string, data: EnvelopeData) => page(locale, <EnvelopeDetail data={data} reload={async () => null} />);
+
+  for (const locale of LOCALES) {
+    it(`shows Delete only when the collection is completed, every retention date has passed and the person manages Secure Sign settings, a cancelled one too (${locale})`, () => {
+      const label = `>${at(wording(locale), "detail.delete.open")}<`;
+      expect(html(locale, withRetention("completed", [ENDED, ENDED]))).toContain(label);
+      expect(html(locale, withRetention("completed", [ENDED, ENDED], true))).toContain(label);
+      // before the date, or while one document is still kept or has none: nothing new
+      expect(html(locale, withRetention("completed", [ENDED, AHEAD]))).not.toContain(label);
+      expect(html(locale, withRetention("completed", [ENDED, null]))).not.toContain(label);
+      expect(html(locale, withRetention("completed", [AHEAD, AHEAD]))).not.toContain(label);
+      // not signed
+      expect(html(locale, withRetention("sent", [ENDED, ENDED]))).not.toContain(label);
+      // without sign.settings
+      hoisted.can.value = false;
+      try {
+        expect(html(locale, withRetention("completed", [ENDED, ENDED]))).not.toContain(label);
+      } finally {
+        hoisted.can.value = true;
+      }
+    });
+  }
+});

@@ -7939,7 +7939,10 @@
         "moveStep": "第 {step} 步",
         "moveNew": "末尾新增一步",
         "moved": "{name} 已移至其他步骤。",
-        "undeliveredEmailSetup": "邮件未能发出是因为电子邮件的设置，而不是这个地址的问题。问题解决后，请使用“重新发送”。"
+        "undeliveredEmailSetup": "邮件未能发出是因为电子邮件的设置，而不是这个地址的问题。问题解决后，请使用“重新发送”。",
+        "alternateOf": "可代替 {name} 签署。谁先完成，谁就签署。",
+        "hasAlternate": "{name} 可代为签署。谁先完成，谁就签署。",
+        "notNeeded": "无需签署：{name} 已先完成。"
       },
       "confirm": {
         "cancel": "取消",
@@ -8060,6 +8063,12 @@
           "brokenHint": "历史记录中有一条与链条不符。请告知管理员。",
           "unknown": "未核验",
           "unknownHint": "目前无法进行核验。"
+        },
+        "changes": {
+          "title": "联系人变更",
+          "line": "{field}：{old} → {new}",
+          "empty": "（空）",
+          "hidden": "具体数值已隐藏。只有被允许查看敏感答案的人才能看到。"
         }
       },
       "events": {
@@ -8126,7 +8135,9 @@
         "cancelled": "{sender} 取消了这份已完成的文件。它已不再有效。",
         "cancelledCollection": "{sender} 取消了文件集 {reference}（{count, plural, other {# 份文件}}）。它已不再有效。",
         "cancel_notice_sent": "已通过邮件通知 {sent, plural, other {# 人}}，告知已取消",
-        "cancel_notice_sentSome": "已通过邮件通知 {sent, plural, other {# 人}}，告知已取消；{failed, plural, other {# 封邮件}}未能送达"
+        "cancel_notice_sentSome": "已通过邮件通知 {sent, plural, other {# 人}}，告知已取消；{failed, plural, other {# 封邮件}}未能送达",
+        "alternate_not_needed": "{actor} 被邀请为备选人，无需签署：{by} 已先完成",
+        "alternate_not_neededForm": "{actor} 被邀请为备选人，无需填写表格：{by} 已先完成"
       },
       "errors": {
         "document_not_found": "找不到该文件。",
@@ -8260,6 +8271,20 @@
         "note": "已签署的副本及其证书作为已签署内容的记录保留，但此文件已不再有效。",
         "noteCollection": "文件集中的每份文件都随之取消。已签署的副本和证书作为已签署内容的记录保留，但已不再有效。",
         "withCollection": "它随所属文件集一并取消："
+      },
+      "delete": {
+        "open": "删除",
+        "title": "要永久删除此文件吗？",
+        "titleCollection": "要永久删除此文件集吗？",
+        "body": "这将永久移除封存的 PDF、证书，以及每位签署人的回答和上传内容。此操作无法撤销，之后也无法恢复。",
+        "bodyCollection": "这将永久移除此文件集中的全部 {count, plural, other {# 份文件}}：每份封存的 PDF、每份证书，以及每位签署人的回答和上传内容。此操作无法撤销，之后也无法恢复。",
+        "reference": "编号：{reference}",
+        "retentionEnded": "其保留期限已于 {date} 结束。",
+        "warning": "此操作无法撤销。如果仍需要已签署的副本，请先下载。",
+        "keep": "保留",
+        "action": "永久删除",
+        "done": "{reference} 已删除",
+        "failed": "无法删除。请重试。"
       }
     },
     "editor": {
@@ -8779,7 +8804,9 @@
         "helpHint": "显示在问题下方的一行简短说明。",
         "placeholder": "输入框中的示例（可选）",
         "acknowledge": "需阅读并同意的文字",
-        "acknowledgeHint": "签署人阅读后勾选方框表示同意。"
+        "acknowledgeHint": "签署人阅读后勾选方框表示同意。",
+        "validationMessage": "答案不被接受时的提示（可选）",
+        "validationMessageHint": "当签署人对此字段的答案未通过检查（太短、格式不对、不是数字）时，显示此提示以代替标准提示。留空则使用标准提示。"
       },
       "key": {
         "title": "键名",
@@ -9012,7 +9039,8 @@
         "sensitive_contact_field": "{field} 是敏感字段，不能用来填写联系人字段。请去掉其中一个。",
         "sensitive_default": "{field} 是敏感字段，不能设置初始值或锁定。请去掉初始值或锁定。",
         "sensitive_in_rule": "有规则在比较 {field} 的值，而它是敏感字段。规则只能判断它是否为空。",
-        "bad_stamp": "“{field}”的印章设置不正确。它需要图片字段（或接受 PNG 的文件字段），并用本表单中真实存在的文本字段提供名称和号码。"
+        "bad_stamp": "“{field}”的印章设置不正确。它需要图片字段（或接受 PNG 的文件字段），并用本表单中真实存在的文本字段提供名称和号码。",
+        "bad_validation_message": "“{field}”的答案不被接受时显示的提示过长，或没有英文文本。"
       },
       "warnings": {
         "unknown": "表单中有内容值得检查。",
@@ -9321,7 +9349,8 @@
           "viewed": "已打开",
           "signed": "已签署",
           "filled": "已填写",
-          "declined": "已拒绝"
+          "declined": "已拒绝",
+          "not_needed": "无需处理"
         },
         "cancelled": "已取消"
       },
@@ -9711,7 +9740,7 @@
         "form_mode_signature": "无需签署的表格不能有签署位置。",
         "form_mode_placement": "无需签署的表格在页面上不放置任何内容。",
         "form_mode_signer_role": "无需签署的表格不能有需要签署的角色。",
-        "role_shared": "角色“{role}”有多个人。每个签名只属于一个人，请只把该角色指定给一个人。"
+        "role_shared": "角色 {role} 有不止一个人。每个签名属于一个人，因此请只把该角色交给一个人。如果允许第二个人代为签署，请在“人员”步骤中把他们添加为可代为签署的人。"
       },
       "errors": {
         "generic": "出了点问题，请重试。",
@@ -9812,7 +9841,13 @@
         "private_fixed": "发送后，是否私密就不能再更改。",
         "private_cannot_join": "私密文档不能添加到非私密的文件集中。",
         "bad_private": "请选择是否私密。",
-        "static_text_does_not_fit": "本文件中的部分固定文字（例如平台费用或主要条款）太长，放不进它的框，签署副本中会被截断。请在“字段”步骤中缩短文字（或放大该框），然后重新发送。"
+        "static_text_does_not_fit": "本文件中的部分固定文字（例如平台费用或主要条款）太长，放不进它的框，签署副本中会被截断。请在“字段”步骤中缩短文字（或放大该框），然后重新发送。",
+        "completed_by_other": "此事项已由其他人完成。",
+        "alternate_invalid": "可代为签署的人必须与本文件中的另一人共用同一角色，且不能是 Halo 用户。",
+        "alternate_same_person": "可代为签署的人必须是另一个人，并使用不同的电子邮件地址。",
+        "alternate_fixed": "谁可以代替谁签署，设定后无法更改。请改为修改草稿中的人员。",
+        "alternate_needs_draft": "可代为签署的人需在文件发送之前指定，且不能用于文件集。",
+        "alternate_not_in_collection": "带有可代为签署之人的文件不能加入文件集。"
       },
       "records": {
         "ticketLabel": "关联工单",
@@ -9968,7 +10003,11 @@
           "person_without_work": "{name} 目前没有需要签署的内容。请打开一份文件并为其分配字段，或将其改为接收副本。",
           "document_nobody": "这份文件目前没有任何人需要处理。请打开它，并将签名块分配给某位人员。",
           "too_many_copies": "最多 {range} 人可以接收副本。",
-          "too_many_roles": "包含已上传文件的文件集最多可有 {range} 位必须签署的人员。"
+          "too_many_roles": "包含已上传文件的文件集最多可有 {range} 位必须签署的人员。",
+          "alternate_name": "请填写可代替 {name} 签署的人的姓名。",
+          "alternate_email": "请填写可代替 {name} 签署的人的有效电子邮件地址。",
+          "alternate_duplicate": "可代替 {name} 签署的人已在名单中。请使用其他电子邮件地址。",
+          "alternate_not_here": "{name} 在这里不能指定可代为签署的人。此功能只适用于非 Halo 用户、且为单独文件的情况。"
         },
         "banner": {
           "title": "文件集中第 {number} 份,共 {count} 份",
@@ -10137,7 +10176,8 @@
       "doc": {
         "reference": "编号 {reference}",
         "expires": "{date} 到期",
-        "messageFromSender": "发送者的留言"
+        "messageFromSender": "发送者的留言",
+        "alternate": "{name} 也被要求办理此事。谁先完成，就由谁代你们两人办理；另一人会被告知已经完成。"
       },
       "fill": {
         "barLabel": "您的进度",
@@ -10337,6 +10377,15 @@
           "titleCollection": "这些文件已于 {date} 取消",
           "note": "下方的已签署副本仍是已签署内容的记录，但已不再有效。",
           "noteForm": "下方的记录仍是所提交内容的记录，但已不再有效。"
+        },
+        "completedByOther": {
+          "title": "已经完成",
+          "body": "{workspace} 请两个人来办理此事，另一人已先完成。",
+          "nothingToDo": "您无需再做任何事，也不会再收到提醒。"
+        },
+        "completedByOtherForm": {
+          "title": "已经完成",
+          "body": "{workspace} 请两个人来填写此表格，另一人已先完成。"
         }
       },
       "others": {
@@ -10424,7 +10473,8 @@
           "expired": "已过期",
           "voided": "已取消",
           "failed": "出现问题",
-          "not_invited": "尚未轮到您"
+          "not_invited": "尚未轮到您",
+          "completed_by_other": "已由他人完成"
         },
         "end": {
           "completed": {
@@ -11431,7 +11481,14 @@
         "typeFiller": "填写表单",
         "limitSigners": "最多可以邀请 {max} 位人员签署。",
         "limitRoles": "对于上传的文件，最多可以邀请 {max} 位人员签署。每个人都是该文件上的一个角色。",
-        "sentByWhatsapp": "通过 WhatsApp 发送"
+        "sentByWhatsapp": "通过 WhatsApp 发送",
+        "alternate": {
+          "add": "添加可代为签署的人",
+          "title": "可代为签署",
+          "hint": "两个人同时各收到自己的链接。谁先完成，谁就代表 {name} 签署；另一人会被告知已经有人完成，并且不会收到提醒。",
+          "remove": "移除",
+          "removeFor": "移除可代替 {name} 签署的人"
+        }
       },
       "blocks": {
         "heading": "签名块",

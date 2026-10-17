@@ -108,6 +108,14 @@ in a worker or a separate process (recommendation 5 in the load notes); not done
 The certificate pages made the file longer than the 200-page limit the engine applies when it opens a file, so every attempt failed and the document ended as failed after five tries.
 Fix: `sealPdf` opens the file with room for the pages the engine adds (`SEAL_EXTRA_PAGES`). Test: `pdf/engine-limits.test.ts` seals a 200-page document, and a 260-page file is still refused.
 
+**F22 (low, privacy) The old and new contact values of a write-back were in every history page of anyone with the menu.**
+A `writeback` event keeps the contact's old and new value in its `detail`, and the document's history read the whole row from `sign_events` (readable at `menu.sign`) into the browser,
+although the screen only named the field. Fix: the history no longer selects `detail` for write-back rows (`WRITEBACK_COLUMNS` in `components/sign/detail/events.ts` reads only the field name
+and the contact id out of the JSON). The values come from `GET /api/sign/documents/[id]/writebacks` (`service/writeback-history.ts`), which gives them only to a caller who holds
+`sign.reveal-sensitive` (the capability that guards sensitive answers) and `••••` for every non-empty value to everyone else (never the last characters, never the length); a private
+document the caller may not see is "not found". Tests: `writebacks/route.test.ts`, `detail/events.test.ts`, `detail/forward-detail-render.test.tsx`. The audit chain itself is unchanged (the values stay in it, as the hash covers them).
+Not closed: see F23.
+
 ### Reported, not changed
 
 **F8 (medium, design) Sensitive answers: "Reveal" needs its own permission, the file does not.**
@@ -166,6 +174,13 @@ makes). Template, tag and account are pinned by a trigger. Insert pins `created_
 The per-address limits trust the right-most `X-Forwarded-For` entry (1 hop by default). Wrong hops means every visitor looks like one address (documented in
 doc-sign-setup.md section 8d) or, if the app is reachable without the proxy, an attacker picks the address. The signer-side routes build links from
 `originOf(request)` and so depend on the first variable too.
+
+**F23 (low, needs a migration) A signed-in member with only `menu.sign` can still read the write-back values by calling the API directly.**
+F22 stops the values reaching the browser through the app. The table itself is unchanged: the `sign_events_select` policy lets any `menu.sign` member read every column, including `detail`,
+so a member who sends their own request to the database API (not through the screen) can still read the old and new contact values of a write-back. Closing it needs a migration, for example
+the history read through a `security_invoker` view or a function that drops `detail` for write-back rows unless the caller holds `sign.reveal-sensitive`, with the table's `SELECT` for
+`authenticated` revoked (the chain check `sign_verify_chain` is a function and is not affected). The same holds for `sign_answers.value` (non-sensitive answers are readable at `menu.sign` by design).
+Not done in this package because it changes how the table is read.
 
 ### What held up (tried, did not break)
 

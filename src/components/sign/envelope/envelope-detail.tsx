@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Archive, ArrowLeft, Award, Bell, CircleOff, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send } from "lucide-react";
+import { Archive, ArrowLeft, Award, Bell, CircleOff, Download, ExternalLink, Loader2, Mail, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -33,8 +33,9 @@ import { cn } from "@/lib/utils";
 
 import { CancelDialog, audienceOf } from "../detail/cancel-dialog";
 import { CancelledBanner } from "../detail/cancelled-banner";
+import { DeleteSignedDialog } from "../detail/delete-dialog";
 import { ChangeRecipientDialog, ConfirmSignerStep, LinkDialog, type UndeliveredLink } from "../detail/signer-dialogs";
-import { detailErrorKey, type RecipientForm } from "../detail/logic";
+import { canDeleteSignedCollection, detailErrorKey, latestRetention, type RecipientForm } from "../detail/logic";
 import { SealRetry } from "../detail/seal-retry";
 import { VoidDialog } from "../detail/void-dialog";
 import { useDeliveryReason } from "../delivery-reason";
@@ -81,6 +82,7 @@ export function EnvelopeDetail({ data, reload }: Props) {
   const [link, setLink] = useState<UndeliveredLink | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [extending, setExtending] = useState(false);
   const [copyBusy, setCopyBusy] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -90,6 +92,8 @@ export function EnvelopeDetail({ data, reload }: Props) {
   // migration 181: a completed collection can be cancelled, as a whole, by the person who made it and by admins; it then reads Cancelled
   const cancelled = isCancelled(env);
   const canCancel = canCancelRow(env, { userId: user?.id, isAdmin: isAdmin || isOwner });
+  // once every document's retention date has passed, whoever manages Secure Sign settings can delete the collection with all of its files (a cancelled one too)
+  const canDelete = canDeleteSignedCollection({ status: env.status, documents }, { settings: canSettings }, new Date(now));
   const { done, total } = documentsDone(statuses);
   const people = peopleFromRows(signers);
   const rowsOf = (key: string) => signers.filter((s) => (s.party_id ?? s.id) === key);
@@ -174,6 +178,12 @@ export function EnvelopeDetail({ data, reload }: Props) {
             <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => setCancelling(true)}>
               <CircleOff aria-hidden />
               {td("cancel.action")}
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => setDeleting(true)}>
+              <Trash2 aria-hidden />
+              {td("delete.open")}
             </Button>
           ) : null}
         </div>
@@ -357,6 +367,9 @@ export function EnvelopeDetail({ data, reload }: Props) {
           onClose={() => setCancelling(false)}
           onCancelled={async () => void (await reload())}
         />
+      ) : null}
+      {deleting && canDelete ? (
+        <DeleteSignedDialog target={{ kind: "collection", id: env.id, documents: documents.length }} reference={env.reference} title={env.title} retainUntil={latestRetention(documents)} onClose={() => setDeleting(false)} />
       ) : null}
       {extending ? <ExtendDialog envelopeId={env.id} current={env.expires_at} onClose={() => setExtending(false)} onDone={async () => void (await reload())} /> : null}
     </div>

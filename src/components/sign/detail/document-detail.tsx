@@ -27,13 +27,14 @@ import { myOpenPlace } from "@/lib/sign/turn";
 
 import { CancelDialog, audienceOf } from "./cancel-dialog";
 import { CancelledBanner } from "./cancelled-banner";
+import { DeleteSignedDialog } from "./delete-dialog";
 import { DetailHeader, type DownloadKind } from "./detail-header";
 import { DocumentViewer } from "./document-viewer";
 import { CopyRecipients } from "./copy-recipients";
 import { downloadFile, downloadName } from "./download";
 import { FilesList } from "./files-list";
 import { HistoryView } from "./history-view";
-import { bannerFor, detailErrorKey, documentActions, undeliveredDetails, type DetailCaps } from "./logic";
+import { bannerFor, canDeleteSigned, detailErrorKey, documentActions, undeliveredDetails, type DetailCaps } from "./logic";
 import { PeopleList } from "./people-list";
 import { ProgressTab } from "./progress/progress-tab";
 import { SealRetry } from "./seal-retry";
@@ -68,6 +69,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const [downloading, setDownloading] = useState<DownloadKind | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [forwardingBusy, setForwardingBusy] = useState(false);
 
   if (loading) {
@@ -99,6 +101,8 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
   const viewer = { userId: user?.id, isAdmin: isAdmin || isOwner };
   const actions = inEnvelope ? { ...documentActions(doc, caps, viewer), void: false } : documentActions(doc, caps, viewer);
   const cancelled = isCancelled(doc);
+  // a signed record whose retention date has passed can be deleted by whoever manages Secure Sign settings; a document of a collection goes with its collection (that page offers it)
+  const canDelete = !inEnvelope && canDeleteSigned(doc, caps, new Date());
   const banner = bannerFor(doc, data.signers, caps);
   const undelivered = undeliveredDetails(events.events ?? []);
   const viewKind = viewChoice && viewChoice === "base" && doc.base_path ? "base" : viewChoice === "final" && actions.downloadSigned ? "final" : actions.viewKind;
@@ -138,6 +142,7 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         onDownload={(k) => void download(k)}
         onVoid={() => setVoiding(true)}
         onCancel={() => setCancelling(true)}
+        onDelete={canDelete ? () => setDeleting(true) : undefined}
         forwarding={canSend && !inEnvelope && (doc.status === "sent" || doc.status === "in_progress") ? { allowed: doc.allow_forwarding, busy: forwardingBusy, onChange: (allow) => void changeForwarding(allow) } : undefined}
       />
 
@@ -210,11 +215,12 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
-          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} form={doc.form_snapshot} contactId={doc.contact_id} mode={doc.mode} />
+          <HistoryView events={events.events} chain={events.chain} loading={events.loading} failed={events.failed} signers={data.signers} signInOrder={doc.sign_in_order} technical={canSettings} form={doc.form_snapshot} contactId={doc.contact_id} mode={doc.mode} writebacks={events.writebacks} />
         </TabsContent>
       </Tabs>
 
       {voiding && <VoidDialog documentId={documentId} title={doc.title} onClose={() => setVoiding(false)} onVoided={reload} />}
+      {deleting && canDelete && <DeleteSignedDialog target={{ kind: "document", id: documentId }} reference={doc.reference} title={doc.title} retainUntil={doc.retain_until} onClose={() => setDeleting(false)} />}
       {cancelling && (
         <CancelDialog
           target={inEnvelope && data.envelope ? { kind: "collection", id: data.envelope.id, documents: data.envelope.documents.length } : { kind: "document", id: documentId }}

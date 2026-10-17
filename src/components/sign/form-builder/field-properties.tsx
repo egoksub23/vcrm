@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cleanDataKey, DATA_KEY_RE } from "@/lib/sign/client/form-keys";
 import { pick } from "@/lib/sign/forms/text";
-import { DATA_FIELD_TYPES, type DataField, type DataFieldType, type FormDefinition, type L10n, type Rule } from "@/lib/sign/forms/types";
+import { DATA_FIELD_TYPES, MAX_VALIDATION_MESSAGE, type DataField, type DataFieldType, type FormDefinition, type L10n, type Rule } from "@/lib/sign/forms/types";
 import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { SignLocale } from "@/lib/sign/types";
 
@@ -24,6 +24,8 @@ import { RuleEditor } from "./rule-editor";
 import { TypeSettings } from "./type-settings";
 
 const PLACEHOLDER_TYPES: readonly DataFieldType[] = ["text", "multiline", "email", "phone", "number", "list"];
+/** Types an answer can be turned down for (a yes or no and an acceptance cannot be wrong). */
+const MESSAGE_TYPES: readonly DataFieldType[] = ["text", "multiline", "email", "phone", "number", "date", "choice", "multichoice", "list", "file", "image"];
 
 export interface FieldPropertiesProps {
   field: DataField;
@@ -53,7 +55,7 @@ export function FieldProperties(p: FieldPropertiesProps) {
   const Icon = DATA_TYPE_ICONS[field.type];
   const k = field.key;
   const change = (c: Partial<DataField> | ((f: DataField) => DataField), coalesce?: string) => p.onPatch(k, c, coalesce);
-  const setL10n = (prop: "label" | "help" | "placeholder" | "text") => (next: L10n | undefined, coalesceKey: string) =>
+  const setL10n = (prop: "label" | "help" | "placeholder" | "text" | "validationMessage") => (next: L10n | undefined, coalesceKey: string) =>
     change((f) => {
       const copy: DataField = { ...f };
       if (next === undefined) delete copy[prop];
@@ -109,6 +111,9 @@ export function FieldProperties(p: FieldPropertiesProps) {
         ) : null}
         <L10nField label={t("texts.help")} value={field.help} lang={lang} multiline rows={2} maxLength={600} disabled={readOnly} hint={t("texts.helpHint")} coalesceKey="help" onChange={setL10n("help")} />
         {PLACEHOLDER_TYPES.includes(field.type) ? <L10nField label={t("texts.placeholder")} value={field.placeholder} lang={lang} maxLength={120} disabled={readOnly} coalesceKey="placeholder" onChange={setL10n("placeholder")} /> : null}
+        {MESSAGE_TYPES.includes(field.type) ? (
+          <L10nField label={t("texts.validationMessage")} value={field.validationMessage} lang={lang} maxLength={MAX_VALIDATION_MESSAGE} disabled={readOnly} hint={t("texts.validationMessageHint")} coalesceKey="validationMessage" onChange={setL10n("validationMessage")} />
+        ) : null}
       </Section>
 
       <Section title={t("key.title")}>

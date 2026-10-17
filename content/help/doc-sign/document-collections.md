@@ -78,7 +78,7 @@ People who **receive a copy** get **one email** as well, with all the signed PDF
 - **Cancel the collection** stops every document and tells the waiting people once. You can cancel only while no document has been signed by everyone yet. After that the collection can no longer be cancelled this way.
 - **Cancel a completed collection.** Once every document is signed, the person who sent the collection, or an admin, can still cancel it as a whole with **Cancel document** on its page or in the list. It needs a reason, can notify everyone, and cancels **all** the documents in it together. The signed copies and certificates are not changed, and you can still download them, but the collection is marked **Cancelled** and is no longer in force. See [Remind, resend and cancel](/help/doc-sign/remind-resend-and-cancel#cancel-a-completed-document).
 - If a person **declines**, every document that is not yet fully signed is declined, and the collection stops.
-- You can delete a collection that is still a draft. One that was sent is cancelled instead, and a signed one is kept for its retention period. See [Retention](/help/doc-sign/retention).
+- You can delete a collection that is still a draft. One that was sent is cancelled instead, and a signed one is kept for its retention period, after which a person who manages Secure Sign settings can delete it. See [Retention](/help/doc-sign/retention#delete-a-signed-document-after-its-date).
 
 > [!NOTE]
 > A document of a collection cannot be forwarded to someone else, and a test document cannot be put in a collection. A collection cannot be made from the automation builder or the public API yet; you make it here.
@@ -87,7 +87,7 @@ People who **receive a copy** get **one email** as well, with all the signed PDF
 
 - **Adding the same person twice, once for each document.** Add them once. In the editor, give their signature blocks to them. The same email address twice is refused.
 - **Leaving a person who must sign with nothing to do.** A person with no field given to them on any document blocks **Send**. The review says so, document by document, with a link that opens the document. Give them a field, or remove them. A document with nobody to sign it is flagged the same way.
-- **Giving one template role to two people.** A role on a document goes to one person. If two people must sign, the template needs two roles.
+- **Giving one template role to two people.** A role on a document goes to one person. If two people must sign, the template needs two roles. (Naming a second person who can sign instead is for a document on its own, not for a collection. See [Someone who can sign instead](/help/doc-sign/someone-who-can-sign-instead).)
 - **Adding a person who receives a copy as a person who must sign.** Choose **Receives a copy** for people who only need the final file. They get no link and nothing to sign.
 - **Expecting to change the people after sending.** Once sent, use **Change recipient** for someone who has not signed anything. A person who must sign cannot be added to a sent collection. A person who receives a copy can still be added until the collection is completed.
 - **Trying to cancel one document.** Cancel the whole collection. A single document of a collection cannot be cancelled or reminded on its own.

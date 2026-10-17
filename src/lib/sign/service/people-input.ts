@@ -26,6 +26,10 @@ export function parsePeople(raw: readonly unknown[]): EnvelopePersonInput[] {
       key: typeof x.key === "string" ? x.key : undefined,
       incomplete: x.incomplete === true,
       internalUserId: typeof x.internalUserId === "string" && UUID.test(x.internalUserId) ? x.internalUserId : null,
+      // someone who can sign instead (migration 187): anything that is not a name and an address is read as an empty one, said when the list is checked
+      ...(typeof x.alternate === "object" && x.alternate !== null && !Array.isArray(x.alternate)
+        ? { alternate: { fullName: String((x.alternate as Record<string, unknown>).fullName ?? ""), email: String((x.alternate as Record<string, unknown>).email ?? "") } }
+        : {}),
     } satisfies EnvelopePersonInput;
   });
 }

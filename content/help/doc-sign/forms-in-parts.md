@@ -2,7 +2,7 @@
 title: Forms in parts
 description: Send a form the signer fills in over several sittings, follow how far they have got, remind them about what is left, and extend the expiry.
 order: 11
-updated: 2026-10-06
+updated: 2026-10-17
 ---
 
 Some documents need more than a signature. A merchant application, for example, asks for company details, an address, tax details, a bank account and some files. A **form in parts** lets the signer fill all of that in on their phone, a little at a time, and then sign. You see how far they have got without asking them.
@@ -14,6 +14,7 @@ A form belongs to a [template](/help/doc-sign/templates). It is a list of **part
 - **Asking and printing are separate.** Each question is asked once. Its answer can be printed in one place on the document, in several places, or not at all (kept only as data).
 - **Each part has a role.** A part is completed by one role, for example the merchant or the finance team. A role either **signs** or only **fills in** (it never reaches the signing step).
 - **Some questions appear only when they should.** A tax percentage, for example, is asked only when the tax type needs one. An answer that a rule hides is ignored.
+- **Your own words when an answer is not accepted.** Each question has the usual messages for a wrong answer, such as "Enter an email address like name@example.com". In the form builder you can write your own sentence for a question, under its other texts, in English and optionally in Bahasa Melayu, Chinese and Korean (up to 200 characters each). The signer then reads your sentence, in their language, instead of the usual one. A language you leave empty shows the English sentence, and a question with no sentence keeps the usual messages. Problems that are not about the answer itself, such as a lost connection, always use the usual messages.
 - **Different terms are different templates.** If another group of merchants has other fees or clauses, use another template for them. A document always uses the form and the terms of the template version it was started from. A later change to the template never alters a document that was already sent.
 
 > [!NOTE]
@@ -35,6 +36,7 @@ Each person gets one private link. It opens an overview of their own parts, each
 
 - Every answer is **saved on our side as they go**. They can close the page, switch phones, and come back through the **same link**. If you turned on a verification code, they may be asked for a new code after a while.
 - Details taken from the contact are shown to the signer to confirm. Until they confirm them, they are marked as not yet confirmed.
+- **The form fills from the contact every time the signer opens the page, not only the first time.** If you correct the contact, or add a detail the contact did not have, after the signer first looked, the next time they open or reload the page the new detail is there. This only touches details the signer has not made their own. A detail they typed, changed, confirmed ("Confirm this part"), or deliberately cleared is never replaced. A detail from the contact that they have not confirmed yet is replaced when the contact now holds a different value. If the contact's value is removed, the earlier detail stays until the signer changes it. Starting values set in the form (such as a default country) are not repeated for a question the signer cleared.
 - **Review and sign** opens only when every required question in their parts is answered. They then see the real document with their answers printed on it, and sign. We check everything again when the signature arrives, so it cannot be skipped.
 - If an answer is too long for the place where it prints, the signer is told which answer to shorten before they can sign.
 - A person whose role only fills in does not sign. They finish their parts and are done.
@@ -70,7 +72,7 @@ If the document will expire before they finish, click **Extend expiry**, choose 
 
 ## Details that update the contact
 
-When a signer signs, answers that are linked to a contact field update the contact, for example the name, email, company or a custom field. A question can be set to fill the contact always, or only when that contact field is empty. Only answers the signer confirmed are written. The history says that the contact was updated, which fields changed and links to the contact. It shows that a field changed, not the old and new values. Those are kept in the audit trail. See [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf).
+When a signer signs, answers that are linked to a contact field update the contact, for example the name, email, company or a custom field. A question can be set to fill the contact always, or only when that contact field is empty. Only answers the signer confirmed are written. The history says that the contact was updated, which fields changed and links to the contact. The old and new values are personal data, so the history shows them only to people who have the **Reveal sensitive answers** permission (see [Sensitive fields](/help/doc-sign/sensitive-fields)). Everyone else who can see Secure Sign sees which field changed and **••••** in place of each value. The values are also kept in the audit trail. See [The audit trail and the sealed PDF](/help/doc-sign/audit-trail-and-sealed-pdf).
 
 ## Tips
 

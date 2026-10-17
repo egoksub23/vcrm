@@ -228,8 +228,9 @@ describe("changing a field's type", () => {
   it("keeps what is shared and drops what belongs to the old type", () => {
     const form = sampleForm();
     const choice = form.fields.find((f) => f.key === "tax_type")!;
-    const text = retypeField({ ...choice, help: L("Pick one"), contactField: "company", locked: true }, "text", seeds);
+    const text = retypeField({ ...choice, help: L("Pick one"), contactField: "company", locked: true, validationMessage: L("Pick one of the two") }, "text", seeds);
     expect(text.type).toBe("text");
+    expect(text.validationMessage).toEqual(L("Pick one of the two"));
     expect(text.options).toBeUndefined();
     expect(text.label).toEqual(choice.label);
     expect(text.help).toEqual(L("Pick one"));

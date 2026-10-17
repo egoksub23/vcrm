@@ -7939,7 +7939,10 @@
         "moveStep": "Langkah {step}",
         "moveNew": "Langkah baharu di hujung",
         "moved": "{name} dipindahkan ke langkah lain.",
-        "undeliveredEmailSetup": "E-mel tidak dihantar kerana cara e-mel disediakan, bukan kerana alamat ini. Setelah itu dibetulkan, gunakan Hantar semula."
+        "undeliveredEmailSetup": "E-mel tidak dihantar kerana cara e-mel disediakan, bukan kerana alamat ini. Setelah itu dibetulkan, gunakan Hantar semula.",
+        "alternateOf": "Boleh menandatangani sebagai ganti {name}. Siapa yang melengkapkannya dahulu akan menandatangani.",
+        "hasAlternate": "{name} boleh menandatangani sebagai ganti. Siapa yang melengkapkannya dahulu akan menandatangani.",
+        "notNeeded": "Tidak perlu menandatangani: {name} telah melengkapkannya dahulu."
       },
       "confirm": {
         "cancel": "Batal",
@@ -8060,6 +8063,12 @@
           "brokenHint": "Satu catatan dalam sejarah tidak sepadan dengan rantai. Maklumkan kepada pentadbir.",
           "unknown": "Belum disemak",
           "unknownHint": "Semakan tidak dapat dijalankan sekarang."
+        },
+        "changes": {
+          "title": "Perubahan kenalan",
+          "line": "{field}: {old} → {new}",
+          "empty": "(kosong)",
+          "hidden": "Nilai disembunyikan. Hanya orang yang dibenarkan mendedahkan jawapan sensitif boleh melihatnya."
         }
       },
       "events": {
@@ -8126,7 +8135,9 @@
         "cancelled": "{sender} membatalkan dokumen yang telah selesai ini. Ia tidak lagi berkuat kuasa.",
         "cancelledCollection": "{sender} membatalkan koleksi dokumen {reference} ({count, plural, other {# dokumen}}). Ia tidak lagi berkuat kuasa.",
         "cancel_notice_sent": "{sent, plural, other {# orang}} dimaklumkan melalui e-mel bahawa ia dibatalkan",
-        "cancel_notice_sentSome": "{sent, plural, other {# orang}} dimaklumkan melalui e-mel bahawa ia dibatalkan; {failed, plural, other {# e-mel}} tidak dapat dihantar"
+        "cancel_notice_sentSome": "{sent, plural, other {# orang}} dimaklumkan melalui e-mel bahawa ia dibatalkan; {failed, plural, other {# e-mel}} tidak dapat dihantar",
+        "alternate_not_needed": "{actor} dijemput sebagai pengganti dan tidak perlu menandatangani: {by} telah melengkapkannya dahulu",
+        "alternate_not_neededForm": "{actor} dijemput sebagai pengganti dan tidak perlu mengisi borang: {by} telah melengkapkannya dahulu"
       },
       "errors": {
         "document_not_found": "Dokumen itu tidak ditemui.",
@@ -8260,6 +8271,20 @@
         "note": "Salinan yang ditandatangani dan sijilnya disimpan sebagai rekod apa yang ditandatangani, tetapi dokumen ini tidak lagi berkuat kuasa.",
         "noteCollection": "Setiap dokumen dalam koleksi dibatalkan bersamanya. Salinan yang ditandatangani dan sijil disimpan sebagai rekod apa yang ditandatangani, tetapi tidak lagi berkuat kuasa.",
         "withCollection": "Ia dibatalkan bersama koleksinya:"
+      },
+      "delete": {
+        "open": "Padam",
+        "title": "Padam dokumen ini secara kekal?",
+        "titleCollection": "Padam koleksi dokumen ini secara kekal?",
+        "body": "Ini membuang PDF yang dimeterai, sijil serta semua jawapan dan muat naik setiap penandatangan untuk selama-lamanya. Ia tidak boleh dibatalkan dan tiada apa-apa yang boleh dipulihkan selepas itu.",
+        "bodyCollection": "Ini membuang semua {count, plural, other {# dokumen}} dalam koleksi ini untuk selama-lamanya: setiap PDF yang dimeterai, setiap sijil serta semua jawapan dan muat naik setiap penandatangan. Ia tidak boleh dibatalkan dan tiada apa-apa yang boleh dipulihkan selepas itu.",
+        "reference": "Rujukan: {reference}",
+        "retentionEnded": "Tempoh pengekalannya tamat pada {date}.",
+        "warning": "Ini tidak boleh dibatalkan. Muat turun salinan yang ditandatangani dahulu jika anda masih memerlukannya.",
+        "keep": "Kekalkan",
+        "action": "Padam secara kekal",
+        "done": "{reference} telah dipadam",
+        "failed": "Tidak dapat memadamnya. Cuba lagi."
       }
     },
     "editor": {
@@ -8779,7 +8804,9 @@
         "helpHint": "Satu baris pendek di bawah soalan.",
         "placeholder": "Contoh dalam kotak (pilihan)",
         "acknowledge": "Teks untuk dibaca dan disetujui",
-        "acknowledgeHint": "Penandatangan membaca ini dan menanda kotak untuk bersetuju."
+        "acknowledgeHint": "Penandatangan membaca ini dan menanda kotak untuk bersetuju.",
+        "validationMessage": "Mesej apabila jawapan tidak diterima (pilihan)",
+        "validationMessageHint": "Ditunjukkan kepada penandatangan menggantikan mesej biasa apabila jawapan mereka bagi medan ini gagal semakan (terlalu pendek, format salah, bukan nombor). Biarkan kosong untuk menggunakan mesej biasa."
       },
       "key": {
         "title": "Kunci",
@@ -9012,7 +9039,8 @@
         "sensitive_contact_field": "{field} sensitif, jadi ia tidak boleh mengisi medan kenalan. Buang salah satu.",
         "sensitive_default": "{field} sensitif, jadi ia tidak boleh mempunyai nilai permulaan atau dikunci. Buang nilai permulaan atau kunci itu.",
         "sensitive_in_rule": "Satu peraturan membandingkan nilai {field}, yang sensitif. Peraturan hanya boleh bertanya sama ada ia kosong.",
-        "bad_stamp": "Cop bagi {field} tidak ditetapkan dengan betul. Ia memerlukan medan gambar (atau medan fail yang menerima PNG) dan medan teks sebenar dalam borang ini untuk nama dan nombor."
+        "bad_stamp": "Cop bagi {field} tidak ditetapkan dengan betul. Ia memerlukan medan gambar (atau medan fail yang menerima PNG) dan medan teks sebenar dalam borang ini untuk nama dan nombor.",
+        "bad_validation_message": "Mesej yang ditunjukkan apabila jawapan bagi {field} tidak diterima terlalu panjang, atau tiada teks Inggeris."
       },
       "warnings": {
         "unknown": "Sesuatu dalam borang patut disemak.",
@@ -9321,7 +9349,8 @@
           "viewed": "Telah dibuka",
           "signed": "Telah ditandatangani",
           "filled": "Telah diisi",
-          "declined": "Ditolak"
+          "declined": "Ditolak",
+          "not_needed": "Tidak diperlukan"
         },
         "cancelled": "Dibatalkan"
       },
@@ -9711,7 +9740,7 @@
         "form_mode_signature": "Borang tanpa tandatangan tidak boleh mempunyai tempat untuk menandatangani.",
         "form_mode_placement": "Borang tanpa tandatangan tidak mempunyai apa-apa yang diletakkan pada halaman.",
         "form_mode_signer_role": "Borang tanpa tandatangan tidak boleh mempunyai peranan yang menandatangani.",
-        "role_shared": "Peranan {role} mempunyai lebih daripada seorang. Setiap tandatangan milik seorang sahaja, jadi berikan peranan itu kepada seorang sahaja."
+        "role_shared": "Peranan {role} mempunyai lebih daripada seorang. Setiap tandatangan milik seorang, jadi berikan peranan itu kepada seorang sahaja. Jika orang kedua boleh menandatangani sebagai ganti, tambahkan mereka sebagai orang yang boleh menandatangani sebagai ganti pada langkah Orang."
       },
       "errors": {
         "generic": "Sesuatu telah berlaku. Sila cuba lagi.",
@@ -9812,7 +9841,13 @@
         "private_fixed": "Sama ada ini peribadi tidak boleh diubah selepas ia dihantar.",
         "private_cannot_join": "Dokumen peribadi tidak boleh ditambah ke koleksi yang tidak peribadi.",
         "bad_private": "Pilih sama ada ini peribadi.",
-        "static_text_does_not_fit": "Sebahagian teks tetap dalam dokumen ini, seperti yuran platform atau terma utama, terlalu panjang untuk kotaknya dan akan terpotong dalam salinan bertandatangan. Pendekkannya pada langkah medan (atau besarkan kotaknya), kemudian hantar semula."
+        "static_text_does_not_fit": "Sebahagian teks tetap dalam dokumen ini, seperti yuran platform atau terma utama, terlalu panjang untuk kotaknya dan akan terpotong dalam salinan bertandatangan. Pendekkannya pada langkah medan (atau besarkan kotaknya), kemudian hantar semula.",
+        "completed_by_other": "Ini telah pun dilengkapkan oleh orang lain.",
+        "alternate_invalid": "Orang yang boleh menandatangani sebagai ganti mesti berkongsi peranan dengan seorang lagi dalam dokumen ini, dan tidak boleh menjadi pengguna Halo.",
+        "alternate_same_person": "Orang yang boleh menandatangani sebagai ganti mesti orang lain, dengan alamat e-mel yang lain.",
+        "alternate_fixed": "Siapa yang boleh menandatangani sebagai ganti siapa tidak boleh diubah. Ubah orang dalam draf sebaliknya.",
+        "alternate_needs_draft": "Orang yang boleh menandatangani sebagai ganti dinamakan sebelum dokumen dihantar, dan bukan dalam koleksi dokumen.",
+        "alternate_not_in_collection": "Dokumen yang mempunyai orang yang boleh menandatangani sebagai ganti tidak boleh ditambah ke dalam koleksi dokumen."
       },
       "records": {
         "ticketLabel": "Pautkan ke tiket",
@@ -9968,7 +10003,11 @@
           "person_without_work": "{name} belum mempunyai apa-apa untuk ditandatangani. Buka dokumen dan tugaskan satu medan kepada mereka, atau tukar mereka kepada penerima salinan.",
           "document_nobody": "Belum ada sesiapa yang perlu melakukan apa-apa pada dokumen ini. Buka dokumen itu dan tugaskan satu blok tandatangan kepada seseorang.",
           "too_many_copies": "Sehingga {range} orang boleh menerima salinan.",
-          "too_many_roles": "Koleksi yang mengandungi fail yang dimuat naik boleh mempunyai sehingga {range} orang yang mesti menandatangani."
+          "too_many_roles": "Koleksi yang mengandungi fail yang dimuat naik boleh mempunyai sehingga {range} orang yang mesti menandatangani.",
+          "alternate_name": "Masukkan nama bagi orang yang boleh menandatangani sebagai ganti {name}.",
+          "alternate_email": "Masukkan alamat e-mel yang sah bagi orang yang boleh menandatangani sebagai ganti {name}.",
+          "alternate_duplicate": "Orang yang boleh menandatangani sebagai ganti {name} sudah ada dalam senarai. Gunakan alamat e-mel yang lain.",
+          "alternate_not_here": "{name} tidak boleh mempunyai orang yang boleh menandatangani sebagai ganti di sini. Ini hanya untuk orang yang bukan pengguna Halo, pada dokumen yang berdiri sendiri."
         },
         "banner": {
           "title": "Dokumen {number} daripada {count} dalam satu koleksi dokumen",
@@ -10137,7 +10176,8 @@
       "doc": {
         "reference": "Rujukan {reference}",
         "expires": "Tamat tempoh pada {date}",
-        "messageFromSender": "Mesej daripada penghantar"
+        "messageFromSender": "Mesej daripada penghantar",
+        "alternate": "{name} juga diminta melakukan ini. Siapa yang melengkapkannya dahulu melakukannya untuk kamu berdua; seorang lagi akan diberitahu bahawa ia sudah dilengkapkan."
       },
       "fill": {
         "barLabel": "Kemajuan anda",
@@ -10337,6 +10377,15 @@
           "titleCollection": "Dokumen ini dibatalkan pada {date}",
           "note": "Salinan yang ditandatangani di bawah kekal sebagai rekod apa yang ditandatangani. Ia tidak lagi berkuat kuasa.",
           "noteForm": "Rekod di bawah kekal sebagai rekod apa yang dihantar. Ia tidak lagi berkuat kuasa."
+        },
+        "completedByOther": {
+          "title": "Sudah dilengkapkan",
+          "body": "{workspace} meminta dua orang melakukan ini, dan seorang lagi telah melengkapkannya dahulu.",
+          "nothingToDo": "Tiada apa-apa lagi yang perlu anda lakukan, dan anda tidak akan menerima peringatan lagi."
+        },
+        "completedByOtherForm": {
+          "title": "Sudah dilengkapkan",
+          "body": "{workspace} meminta dua orang mengisi borang ini, dan seorang lagi telah melengkapkannya dahulu."
         }
       },
       "others": {
@@ -10424,7 +10473,8 @@
           "expired": "Tamat tempoh",
           "voided": "Dibatalkan",
           "failed": "Masalah",
-          "not_invited": "Belum giliran anda"
+          "not_invited": "Belum giliran anda",
+          "completed_by_other": "Dilakukan oleh orang lain"
         },
         "end": {
           "completed": {
@@ -11431,7 +11481,14 @@
         "typeFiller": "Mengisi borang",
         "limitSigners": "Sehingga {max} orang boleh diminta menandatangani.",
         "limitRoles": "Sehingga {max} orang boleh diminta menandatangani fail yang dimuat naik. Setiap seorang menjadi satu peranan pada dokumen itu.",
-        "sentByWhatsapp": "Dihantar melalui WhatsApp"
+        "sentByWhatsapp": "Dihantar melalui WhatsApp",
+        "alternate": {
+          "add": "Tambah orang yang boleh menandatangani sebagai ganti",
+          "title": "Boleh menandatangani sebagai ganti",
+          "hint": "Kedua-duanya mendapat pautan masing-masing pada masa yang sama. Siapa yang melengkapkannya dahulu akan menandatangani bagi pihak {name}; seorang lagi diberitahu bahawa ia sudah dilengkapkan dan tidak menerima peringatan.",
+          "remove": "Alih keluar",
+          "removeFor": "Alih keluar orang yang boleh menandatangani sebagai ganti {name}"
+        }
       },
       "blocks": {
         "heading": "Blok tandatangan",

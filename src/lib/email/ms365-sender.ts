@@ -11,21 +11,23 @@
  *   - marks it with internet message headers (`X-Halo-System: 1` on everything, whoever sends it; the caller's own marks such as Secure Sign's
  *     `X-Halo-Sign: 1`; and `X-Auto-Response-Suppress: All` so out-of-office replies are not sent back) so Halo's own inbox ingestion never reads it
  *     back as a customer's message (lib/ms365/ingest-guard.ts);
- *   - keeps no copy in Sent Items (`saveToSentItems: false`): the mail carries one person's signing link or a signed document, and Doc Sign's own audit
+ *   - keeps no copy in Sent Items (`saveToSentItems: false`; the draft route removes it afterwards): the mail carries one person's signing link or a signed document, and Doc Sign's own audit
  *     trail records that it was sent, so it is not left lying in a mailbox that other people can open;
  *   - spaces sends out (a mailbox may send about 30 a minute), honours the `Retry-After` of a throttled call once, and stops asking Microsoft for
  *     the time it named when still throttled, so a bulk send does not hammer a mailbox that cannot send;
  *   - never throws anything but a `MailSendError`, whose `reason` names why (revoked consent, a limit, a refused address, a message too big).
  *
- * Files travel inline in the one call, as the inbox composer's attachments do (Graph takes inline file attachments up to about 3 MB). A larger
- * file needs a draft and an upload session, which is not built: above `MS365_ATTACH_BYTES` the message carries a link instead.
+ * Files travel inline in the one call, as the inbox composer's attachments do (Graph takes inline file attachments up to about 3 MB, the call about 4 MB).
+ * A message whose encoded call would pass about 3.5 MB goes by a draft and an upload session per file instead (`sendMailViaDraft`); `send` cannot be told
+ * to keep no copy, so once it has answered the copy in Sent Items is removed, best effort and in the background (if that fails, the copy stays in Sent
+ * Items). Above `MS365_ATTACH_BYTES` of files the message carries a link instead.
  *
  * Every dependency is injectable, so the whole path is tested without Microsoft.
  */
 
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { GraphApiError } from "@/lib/ms365/errors";
-import { sendNewMail } from "@/lib/ms365/mail-api";
+import { sendMailViaDraft, sendNewMail } from "@/lib/ms365/mail-api";
 import { getValidAccessToken, type EmailConfigRow } from "@/lib/ms365/token";
 
 import { HALO_SYSTEM_HEADERS } from "./halo-mail-marker";
@@ -34,14 +36,33 @@ import { safeReplyTo } from "./resend";
 import { MailSendError } from "./send-reason";
 
 /**
- * The most the files on one message may add up to, as raw bytes, through Microsoft 365. The files go inline in one Graph call (limit about 3 MB for a file,
- * about 4 MB for the call, and base64 makes files a third larger), so 2.5 MB of files is what fits with the text around them. Above this the message
- * carries a link instead.
+ * The most the files on one message may add up to, as raw bytes, through Microsoft 365. A message whose encoded call fits in one `sendMail` goes that way;
+ * a larger one goes by a draft and an upload session per file (see `MS365_INLINE_SWITCH_BYTES`), which Graph bounds far above this. Above this budget the
+ * message carries a link instead.
  */
-export const MS365_ATTACH_BYTES = 2.5 * 1024 * 1024;
+export const MS365_ATTACH_BYTES = 4 * 1024 * 1024;
 
-/** The whole call as sent: the encoded files and the text. */
+/**
+ * What fits when the draft route is off: the files go inline in the one call. The draft route needs the `Mail.ReadWrite` permission, which a mailbox
+ * connected before it was asked for does not have, so it stays off until the operator sets `MS365_LARGE_ATTACHMENTS=true` and reconnects the mailbox
+ * (docs/microsoft-365-email-setup.md).
+ */
+export const MS365_INLINE_ATTACH_BYTES = 2.5 * 1024 * 1024;
+
+/** Whether the draft and upload session route is on (read at the time of the send, so a restart is all it takes). */
+export function largeAttachmentsOn(): boolean {
+  const v = (process.env.MS365_LARGE_ATTACHMENTS ?? "").trim().toLowerCase();
+  return v === "true" || v === "1";
+}
+
+/** The inline route's call limit: Graph takes about 4 MB for one `sendMail` call, files as base64 plus the text. */
 const MS365_REQUEST_LIMIT = 4 * 1024 * 1024;
+
+/**
+ * From this size of encoded call up, the files go by the draft and upload session route instead of inline. Under the call limit with room to spare, and (as
+ * base64 is a third larger) it keeps every inline file under the roughly 3 MB Graph takes for one inline attachment.
+ */
+const MS365_INLINE_SWITCH_BYTES = 3.5 * 1024 * 1024;
 
 /** The shortest gap between two sends from one mailbox: Exchange Online allows about 30 messages a minute. */
 export const MS365_SEND_SPACING_MS = 1_000;
@@ -65,6 +86,8 @@ export interface Ms365SenderDeps {
   loadConfig: (accountId: string) => Promise<Ms365MailboxRow | null>;
   getAccessToken: (config: Ms365MailboxRow) => Promise<string>;
   sendMail: typeof sendNewMail;
+  /** The draft + upload session route, for a message too big for one `sendMail` call. */
+  sendMailViaDraft: typeof sendMailViaDraft;
   markNeedsReauth: (configId: string) => Promise<void>;
   throttle: SendThrottle;
   sleep: (ms: number) => Promise<void>;
@@ -78,6 +101,7 @@ export const realMs365Deps: Ms365SenderDeps = {
   },
   getAccessToken: (config) => getValidAccessToken(config),
   sendMail: sendNewMail,
+  sendMailViaDraft,
   markNeedsReauth: async (configId) => {
     await supabaseAdmin().from("email_config").update({ needs_reauth: true }).eq("id", configId);
   },
@@ -140,6 +164,26 @@ function estimatedBytes(m: OutgoingEmail): number {
   return files + Buffer.byteLength(m.html) + Buffer.byteLength(m.text) + 2_000;
 }
 
+/** The bytes a base64 string holds. */
+function rawBytes(base64: string): number {
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+/**
+ * Which way a message goes, or why it cannot go at all. Pure. Each route has its own bound: the inline route keeps the call limit; the upload route is
+ * bounded only by the budget of raw file bytes the caller already respects (`MS365_ATTACH_BYTES`).
+ */
+function routeFor(m: OutgoingEmail, large: boolean = largeAttachmentsOn()): "inline" | "draft" {
+  const tooLarge = () => new MailSendError("attachment_too_large", "the message with its files is too large to send through Microsoft 365");
+  const files = m.attachments ?? [];
+  if (files.reduce((sum, a) => sum + rawBytes(a.content), 0) > (large ? MS365_ATTACH_BYTES : MS365_INLINE_ATTACH_BYTES)) throw tooLarge();
+  const encoded = estimatedBytes(m);
+  if (large && encoded > MS365_INLINE_SWITCH_BYTES && files.length) return "draft";
+  if (encoded > MS365_REQUEST_LIMIT) throw tooLarge();
+  return "inline";
+}
+
 const contentTypeOf = (filename: string) => (/\.pdf$/i.test(filename) ? "application/pdf" : "application/octet-stream");
 
 // ---- the mailbox ------------------------------------------------------------------------------------
@@ -163,11 +207,11 @@ export async function loadMs365Mailbox(accountId: string, opts: MailboxOptions =
     kind: "ready",
     provider: "microsoft365",
     address,
-    attachBytes: MS365_ATTACH_BYTES,
+    attachBytes: largeAttachmentsOn() ? MS365_ATTACH_BYTES : MS365_INLINE_ATTACH_BYTES,
     send: async (m) => {
       deps.throttle.assertOpen(key);
       if (!PLAIN_EMAIL.test(m.to.trim())) throw new MailSendError("address_rejected", "the address is not a valid email address");
-      if (estimatedBytes(m) > MS365_REQUEST_LIMIT) throw new MailSendError("attachment_too_large", "the message with its files is too large to send through Microsoft 365");
+      const route = routeFor(m);
 
       let accessToken: string;
       try {
@@ -183,7 +227,7 @@ export async function loadMs365Mailbox(accountId: string, opts: MailboxOptions =
       for (;;) {
         await deps.throttle.pace(key);
         try {
-          await deps.sendMail({
+          const args = {
             accessToken,
             toAddress: m.to.trim(),
             subject: m.subject,
@@ -194,7 +238,14 @@ export async function loadMs365Mailbox(accountId: string, opts: MailboxOptions =
             ...(replyTo ? { replyTo } : {}),
             headers,
             saveToSentItems: false,
-          });
+          };
+          if (route === "draft") {
+            const sent = await deps.sendMailViaDraft(args);
+            // removing the copy left in Sent Items runs on in the background and must never delay or fail the send
+            void Promise.resolve(sent?.purge).catch(() => undefined);
+          } else {
+            await deps.sendMail(args);
+          }
           return;
         } catch (err) {
           // Exchange does not let this mailbox write that name or address on `from`: send once more under the mailbox's own name

@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GraphApiError } from "@/lib/ms365/errors";
 
 import { SendThrottle, type MailboxState, type OutgoingEmail } from "./mailbox-types";
-import { classifyGraphError, loadMs365Mailbox, MS365_ATTACH_BYTES, MS365_SEND_SPACING_MS, type Ms365MailboxRow, type Ms365SenderDeps } from "./ms365-sender";
+import { classifyGraphError, loadMs365Mailbox, MS365_ATTACH_BYTES, MS365_INLINE_ATTACH_BYTES, MS365_SEND_SPACING_MS, type Ms365MailboxRow, type Ms365SenderDeps } from "./ms365-sender";
 import { MailSendError } from "./send-reason";
 
 function row(over: Partial<Ms365MailboxRow> = {}): Ms365MailboxRow {
   return { id: "e1", account_id: "A", access_token: "t", access_token_expires_at: "2030-01-01T00:00:00Z", refresh_token: "r", mailbox_address: "support@vircle.com", status: "connected", needs_reauth: false, enabled: true, ...over };
 }
 
-function world(config: Ms365MailboxRow | null, send: (args: Record<string, unknown>) => Promise<unknown> = async () => undefined) {
+function world(config: Ms365MailboxRow | null, send: (args: Record<string, unknown>) => Promise<unknown> = async () => undefined, sendViaDraft: (args: Record<string, unknown>) => Promise<unknown> = async () => ({ purge: Promise.resolve(true) })) {
   let now = 5_000_000;
   const slept: number[] = [];
   const sleep = async (ms: number) => {
@@ -18,6 +18,7 @@ function world(config: Ms365MailboxRow | null, send: (args: Record<string, unkno
     now += ms;
   };
   const calls: Record<string, unknown>[] = [];
+  const draftCalls: Record<string, unknown>[] = [];
   const reauth: string[] = [];
   const deps: Ms365SenderDeps = {
     loadConfig: async () => config,
@@ -26,13 +27,20 @@ function world(config: Ms365MailboxRow | null, send: (args: Record<string, unkno
       calls.push(args);
       return send(args);
     }) as unknown as Ms365SenderDeps["sendMail"],
+    sendMailViaDraft: (async (args: Record<string, unknown>) => {
+      draftCalls.push(args);
+      return sendViaDraft(args);
+    }) as unknown as Ms365SenderDeps["sendMailViaDraft"],
     markNeedsReauth: async (id) => void reauth.push(id),
     throttle: new SendThrottle(MS365_SEND_SPACING_MS, () => now, sleep),
     sleep,
   };
-  return { deps, calls, slept, reauth, advance: (ms: number) => void (now += ms) };
+  return { deps, calls, draftCalls, slept, reauth, advance: (ms: number) => void (now += ms) };
 }
 
+const MB = 1024 * 1024;
+/** A file of this many raw bytes, as the base64 an attachment carries. */
+const base64Of = (bytes: number) => Buffer.alloc(Math.floor(bytes), 1).toString("base64");
 const mail = (over: Partial<OutgoingEmail> = {}): OutgoingEmail => ({ to: "ali@example.com", subject: "Please sign", html: "<p>hi</p>", text: "hi", fromName: "Vircle", replyTo: "help@vircle.com", ...over });
 const ready = (s: MailboxState) => {
   if (s.kind !== "ready") throw new Error(`not ready: ${s.kind}`);
@@ -57,7 +65,30 @@ describe("the Microsoft 365 mailbox state", () => {
   });
 });
 
-describe("sending through the Microsoft 365 mailbox", () => {
+describe("with the large-files switch off (the default)", () => {
+  it("keeps the budget at 2.5 MB, refuses more, and never uses the draft route", async () => {
+    const w = world(row());
+    const state = ready(await loadMs365Mailbox("A", {}, w.deps));
+    expect(state.attachBytes).toBe(MS365_INLINE_ATTACH_BYTES);
+    const over = await failure(state.send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(3 * MB) }] })));
+    expect(over.reason).toBe("attachment_too_large");
+    expect(w.calls).toEqual([]);
+    expect(w.draftCalls).toEqual([]);
+    // a file that fits inline still goes inline
+    await state.send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(1 * MB) }] }));
+    expect(w.calls).toHaveLength(1);
+    expect(w.draftCalls).toEqual([]);
+  });
+});
+
+describe("sending through the Microsoft 365 mailbox (large-files switch on)", () => {
+  beforeEach(() => {
+    vi.stubEnv("MS365_LARGE_ATTACHMENTS", "true");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("sends as the mailbox with the Secure Sign marker, keeps no copy in Sent Items, and takes only X- headers", async () => {
     const w = world(row());
     const state = ready(await loadMs365Mailbox("A", { headers: { "X-Halo-Sign": "1" } }, w.deps));
@@ -92,11 +123,103 @@ describe("sending through the Microsoft 365 mailbox", () => {
     expect(w.calls).toHaveLength(0);
   });
 
-  it("refuses a call over the inline limit before asking", async () => {
+  it("allows 4 MB of raw file bytes in all", () => {
+    expect(MS365_ATTACH_BYTES).toBe(4 * MB);
+  });
+
+  it("sends files of 1 MB inline in the one sendMail call, with no copy kept in Sent Items", async () => {
     const w = world(row());
-    const e = await failure(ready(await loadMs365Mailbox("A", {}, w.deps)).send(mail({ attachments: [{ filename: "a.pdf", content: "A".repeat(5 * 1024 * 1024) }] })));
+    await ready(await loadMs365Mailbox("A", {}, w.deps)).send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(1 * MB) }] }));
+    expect(w.calls).toHaveLength(1);
+    expect(w.draftCalls).toHaveLength(0);
+    expect(w.calls[0]).toMatchObject({ saveToSentItems: false });
+  });
+
+  it("sends a 3.5 MB file by a draft and an upload session, as the mailbox, with the same headers and no copy asked for", async () => {
+    const w = world(row());
+    const content = base64Of(3.5 * MB);
+    await ready(await loadMs365Mailbox("A", { headers: { "X-Halo-Sign": "1" } }, w.deps)).send(mail({ attachments: [{ filename: "Agreement signed.pdf", content }] }));
+    expect(w.calls).toHaveLength(0);
+    expect(w.draftCalls).toHaveLength(1);
+    expect(w.draftCalls[0]).toMatchObject({
+      accessToken: "access",
+      toAddress: "ali@example.com",
+      subject: "Please sign",
+      fromAddress: "support@vircle.com",
+      fromName: "Vircle",
+      replyTo: "help@vircle.com",
+      saveToSentItems: false,
+      attachments: [{ name: "Agreement signed.pdf", contentType: "application/pdf", contentBytesBase64: content }],
+    });
+    expect(w.draftCalls[0].headers).toEqual({ "X-Halo-Sign": "1", "X-Halo-System": "1", "X-Auto-Response-Suppress": "All" });
+  });
+
+  it("sends files that add up to exactly the budget by the draft route", async () => {
+    const w = world(row());
+    await ready(await loadMs365Mailbox("A", {}, w.deps)).send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(2 * MB) }, { filename: "b.pdf", content: base64Of(2 * MB) }] }));
+    expect(w.draftCalls).toHaveLength(1);
+    expect(w.calls).toHaveLength(0);
+  });
+
+  it("refuses files over 4 MB in all before asking Microsoft, by either route", async () => {
+    const w = world(row());
+    const state = ready(await loadMs365Mailbox("A", {}, w.deps));
+    const one = await failure(state.send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(4.5 * MB) }] })));
+    expect(one.reason).toBe("attachment_too_large");
+    const two = await failure(state.send(mail({ attachments: [{ filename: "a.pdf", content: base64Of(2.5 * MB) }, { filename: "b.pdf", content: base64Of(2.5 * MB) }] })));
+    expect(two.reason).toBe("attachment_too_large");
+    expect(w.calls).toHaveLength(0);
+    expect(w.draftCalls).toHaveLength(0);
+  });
+
+  it("refuses a message with no files whose text alone is over the inline call limit", async () => {
+    const w = world(row());
+    const e = await failure(ready(await loadMs365Mailbox("A", {}, w.deps)).send(mail({ html: "x".repeat(4 * MB + 10) })));
     expect(e.reason).toBe("attachment_too_large");
     expect(w.calls).toHaveLength(0);
+    expect(w.draftCalls).toHaveLength(0);
+  });
+
+  it("maps a failure of the draft route to a MailSendError the way an inline one is, and marks the mailbox when the token is dead", async () => {
+    const big = mail({ attachments: [{ filename: "a.pdf", content: base64Of(3.5 * MB) }] });
+    const upload = world(row(), undefined, async () => {
+      throw graph("Request Entity Too Large", 413);
+    });
+    const e = await failure(ready(await loadMs365Mailbox("A", {}, upload.deps)).send(big));
+    expect(e).toBeInstanceOf(MailSendError);
+    expect(e.reason).toBe("attachment_too_large");
+
+    const dead = world(row(), undefined, async () => {
+      throw graph("Access token has expired or is not yet valid.", 401, "InvalidAuthenticationToken");
+    });
+    expect((await failure(ready(await loadMs365Mailbox("A", {}, dead.deps)).send(big))).reason).toBe("mailbox_reconnect");
+    expect(dead.reauth).toEqual(["e1"]);
+  });
+
+  it("sends the draft route once more without the from name when Exchange refuses it, and waits out a short throttle", async () => {
+    const big = mail({ attachments: [{ filename: "a.pdf", content: base64Of(3.5 * MB) }] });
+    let n = 0;
+    const w = world(row(), undefined, async () => {
+      n++;
+      if (n === 1) throw graph("The user is not allowed to send as this sender.", 403, "ErrorSendAsDenied");
+      if (n === 2) throw graph("Too many requests", 429, "TooManyRequests", 4);
+      return { purge: Promise.resolve(true) };
+    });
+    await ready(await loadMs365Mailbox("A", {}, w.deps)).send(big);
+    expect(w.draftCalls).toHaveLength(3);
+    expect(w.draftCalls[0]).toHaveProperty("fromAddress");
+    expect(w.draftCalls[1]).not.toHaveProperty("fromAddress");
+    expect(w.slept).toContain(4000);
+  });
+
+  it("does not fail the send, or wait for it, when removing the copy from Sent Items fails", async () => {
+    const big = mail({ attachments: [{ filename: "a.pdf", content: base64Of(3.5 * MB) }] });
+    const rejected = world(row(), undefined, async () => ({ purge: Promise.reject(new Error("permanentDelete refused")) }));
+    await expect(ready(await loadMs365Mailbox("A", {}, rejected.deps)).send(big)).resolves.toBeUndefined();
+    const never = world(row(), undefined, async () => ({ purge: new Promise<boolean>(() => undefined) }));
+    await expect(ready(await loadMs365Mailbox("A", {}, never.deps)).send(big)).resolves.toBeUndefined();
+    const nothing = world(row(), undefined, async () => undefined);
+    await expect(ready(await loadMs365Mailbox("A", {}, nothing.deps)).send(big)).resolves.toBeUndefined();
   });
 
   it("spaces the sends of one mailbox (about 30 a minute is the most Exchange Online allows)", async () => {

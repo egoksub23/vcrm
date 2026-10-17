@@ -39,7 +39,8 @@ export function recordData(
     reference: doc.reference ?? doc.id,
     workspaceName: info.workspaceName,
     // the people who hold a place first; a person handed one part of someone's form is named with their part
-    people: [...signers.filter((s) => !isDelegate(s)), ...signers.filter(isDelegate)].map((s) => ({ name: s.full_name, role: label(s.role_key) })),
+    // (an alternate who was not needed, migration 187, did not submit anything: the certificate pages say they were invited, this list is who did)
+    people: [...signers.filter((s) => !isDelegate(s)), ...signers.filter(isDelegate)].filter((s) => s.status !== "not_needed").map((s) => ({ name: s.full_name, role: label(s.role_key) })),
     submittedAt: submitted.length > 0 ? new Date(Math.max(...submitted)) : new Date(),
     timeZone: info.timeZone,
     chainHead: events.length > 0 ? events[events.length - 1].row_hash : "",

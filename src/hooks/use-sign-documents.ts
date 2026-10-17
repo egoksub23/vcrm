@@ -30,6 +30,8 @@ export interface SignListSigner {
   kind: SignerKind;
   /** A person handed one part of someone's form (migration 166): not counted as a person of the document. */
   part_keys?: string[] | null;
+  /** Migration 187: the person this one can sign instead of (the two people of a role are one place in the progress). */
+  alternate_of?: string | null;
 }
 
 export interface SignListRow {
@@ -65,7 +67,7 @@ export interface SignListRow {
 export type StatusCounts = Record<StatusGroup, number>;
 
 const SELECT =
-  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys)";
+  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys, alternate_of)";
 
 /** An envelope with its documents and their people (migration 171); the list shows it as one row. */
 const ENVELOPE_SELECT =
