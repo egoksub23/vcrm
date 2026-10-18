@@ -331,11 +331,66 @@ describe("extractSignedUrl", () => {
   });
 });
 
+// A record as the PRODUCTION doc-processor sent it on 18 Oct 2026 (ids made up).
+const PROD_RECORD = {
+  id: 7,
+  friend_id: "00000000-1111-2222-3333-444444444444",
+  doc_type: "nric",
+  s3_key: "Prod/00000000-1111-2222-3333-444444444444/nric_20261018T065853Z.jpg",
+  job_status: "complete",
+  capture_ok: true,
+  capture_code: "ok",
+  capture_message: "NRIC looks readable.",
+  extracted_id: null,
+  client_id_number: null,
+  validation_status: "NO_ID_ON_CLIENT",
+  detail: { source: "check", client_found: true, client_id_path: "duitnow.m.nric" },
+  review_status: null,
+  review_note: null,
+  reviewed_at: null,
+  created_at: "2026-10-18T06:58:53.123456+00:00",
+};
+
+describe("a record as the production back end sends it", () => {
+  it("reads the type, status, reason, friend id and time, and never passes the storage key on", () => {
+    const v = buildValidation(PROD_RECORD);
+    expect(v).toMatchObject({ id: "7", idUsable: true, friendId: PROD_RECORD.friend_id, type: "NRIC", reason: "NRIC looks readable.", fallback: false });
+    expect(v.status).toEqual({ raw: "NO_ID_ON_CLIENT", tone: "pending" });
+    expect(v.createdAt).toBe("2026-10-18T06:58:53.123Z");
+    expect(JSON.stringify(v)).not.toContain("Prod/");
+    expect(v.withheld).toBeGreaterThan(0);
+  });
+
+  it("colours UNREADABLE red and an unseen status by its words", () => {
+    expect(buildValidation({ ...PROD_RECORD, validation_status: "UNREADABLE" }).status.tone).toBe("negative");
+    expect(statusTone("NAME_MISMATCH")).toBe("negative");
+    expect(statusTone("MATCH")).toBe("positive");
+  });
+
+  it("masks the ID numbers it reads off the card and finds on Vircle's record, and reveals them for one validation", () => {
+    const filled = { ...PROD_RECORD, extracted_id: "150304101234", client_id_number: "150304101234" };
+    const masked = buildValidation(filled);
+    expect(masked.known.map((f) => [f.key, f.value, f.masked])).toEqual([
+      ["idNumber", "15••••••34", true],
+      ["clientIdNumber", "15••••••34", true],
+    ]);
+    expect(JSON.stringify(masked)).not.toContain("150304101234");
+    expect(buildValidation(filled, { reveal: true }).known.map((f) => f.value)).toEqual(["150304101234", "150304101234"]);
+  });
+
+  it("reads the page as {items: [...]}, newest first", () => {
+    const parsed = parseValidations({ items: [PROD_RECORD, { ...PROD_RECORD, id: 6, created_at: "2026-10-16T01:00:00+00:00" }] });
+    expect(parsed?.items.map((v) => v.id)).toEqual(["7", "6"]);
+    expect(parsed?.fallback).toBe(false);
+    expect(parseValidations({ items: [] })?.items).toEqual([]);
+  });
+});
+
 describe("the guesses are listed in one place", () => {
   it("exports every table the docs mention", () => {
     expect(ADAPTER_GUESSES.listKeys).toContain("validations");
     expect(ADAPTER_GUESSES.statusKeys).toContain("status");
-    expect(ADAPTER_GUESSES.known.map((k) => k.name)).toEqual(["name", "idNumber", "dob", "address"]);
+    expect(ADAPTER_GUESSES.known.map((k) => k.name)).toEqual(["name", "idNumber", "clientIdNumber", "dob", "address"]);
     expect(ADAPTER_GUESSES.urlKeys).toContain("signedurl");
   });
 });

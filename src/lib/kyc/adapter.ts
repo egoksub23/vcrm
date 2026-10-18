@@ -34,8 +34,8 @@ export const FRIEND_ID_KEYS = ["friendid", "userid", "customerid", "memberid"];
 export const TYPE_KEYS = ["type", "documenttype", "doctype", "idtype", "kind", "validationtype"];
 export const STATUS_KEYS = ["status", "validationstatus", "verificationstatus", "state", "decision", "result", "outcome", "verdict"];
 export const CREATED_KEYS = ["createdat", "created", "timestamp", "submittedat", "checkedat", "createdon", "date", "time"];
-export const UPDATED_KEYS = ["updatedat", "modifiedat", "updated", "lastupdated", "processedat"];
-export const REASON_KEYS = ["reason", "message", "failurereason", "errormessage", "error", "detail", "remarks", "comment", "note"];
+export const UPDATED_KEYS = ["updatedat", "modifiedat", "updated", "lastupdated", "processedat", "reviewedat"];
+export const REASON_KEYS = ["capturemessage", "reason", "message", "failurereason", "errormessage", "error", "detail", "remarks", "comment", "note"];
 export const SCORE_KEYS = ["confidence", "score", "confidencescore", "matchscore", "similarity", "probability"];
 
 /** Personal fields shown as labelled rows. `mode`: how a masked value looks ("partial" = first 2 and last 2 characters, "hidden" = nothing). */
@@ -47,7 +47,8 @@ export interface KnownDef {
 }
 export const KNOWN_FIELDS: KnownDef[] = [
   { name: "name", label: "Name", keys: ["name", "fullname", "holdername", "cardholdername", "namefromid", "extractedname"], mode: null },
-  { name: "idNumber", label: "ID number", keys: ["nric", "idnumber", "icnumber", "icno", "icnum", "idno", "documentnumber", "documentno", "passportnumber", "passportno", "identitynumber", "mykad", "mykid", "nationalid"], mode: "partial" },
+  { name: "idNumber", label: "ID number", keys: ["nric", "idnumber", "icnumber", "icno", "icnum", "idno", "extractedid", "documentnumber", "documentno", "passportnumber", "passportno", "identitynumber", "mykad", "mykid", "nationalid"], mode: "partial" },
+  { name: "clientIdNumber", label: "ID on Vircle record", keys: ["clientidnumber"], mode: "partial" },
   { name: "dob", label: "Date of birth", keys: ["dateofbirth", "dob", "birthdate", "birthday", "dateofbirthiso"], mode: "hidden" },
   { name: "address", label: "Address", keys: ["address", "fulladdress", "residentialaddress", "addressline1", "homeaddress"], mode: "hidden" },
 ];
@@ -187,9 +188,14 @@ export function toIso(v: string | number | boolean): string | null {
 // ------------------------------------------------------------
 // Status
 // ------------------------------------------------------------
+/** Statuses whose words alone would give the wrong colour (compared after norm()). NO_ID_ON_CLIENT: the document is readable but Vircle holds no ID number to compare it with, so a person has to look. */
+export const STATUS_TONE_OVERRIDES: Record<string, StatusTone> = { noidonclient: "pending" };
+
 /** The tone of a vendor status word. Negative beats pending beats positive, so "not_verified" and "verification_failed" are red, "pending_review" amber. */
 export function statusTone(raw: string | null): StatusTone {
   if (!raw) return "neutral";
+  const override = STATUS_TONE_OVERRIDES[norm(raw)];
+  if (override) return override;
   const words = raw
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .toLowerCase()

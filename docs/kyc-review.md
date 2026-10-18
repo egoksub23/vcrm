@@ -18,9 +18,9 @@ Set these in the server's environment file (`.env.local`; `docker-compose.yml` r
 
 | Variable | Value |
 |---|---|
-| `KYC_DOC_API_BASE_URL` | UAT: `https://apis-uat.vircle.com/verify_doc`. Production: the production base URL (ask the doc-processor engineers). Must be `https`, with no user name, query or fragment. |
+| `KYC_DOC_API_BASE_URL` | UAT: `https://apis-uat.vircle.com/verify_doc`. Production: `https://apis.vircle.com/verify_doc`. Must be `https`, with no user name, query or fragment. |
 | `KYC_DOC_API_KEY` | The back end's `x-api-key` (`UAT_general-api-key` for UAT, `Prod_general-api-key` for production). Enter it on the server only; never paste it in chat or email. |
-| `KYC_DOC_ALLOWED_IMAGE_HOSTS` | Optional. Comma separated hosts the **signed image address** may point to besides the back end's own domain, for example `*.s3.ap-southeast-1.amazonaws.com`. A leading `*.` matches any subdomain. Needed when the back end signs links on a storage host (very likely). |
+| `KYC_DOC_ALLOWED_IMAGE_HOSTS` | Optional. Comma separated hosts the **signed image address** may point to besides the back end's own domain, for production: `vircle-id-docs.s3.amazonaws.com`. A leading `*.` matches any subdomain. Needed when the back end signs links on a storage host (very likely). |
 
 Until both of the first two are set, the screen shows **"not set up"**: administrators see which variable names are missing (names only), everyone else sees "Ask an administrator". Restart Halo after changing them.
 
@@ -46,6 +46,7 @@ Every other role, and every custom role built on one, has none of them until an 
 
 ## 2. What the screen does
 
+- **Start page**: opens on the **latest ID checks of everybody**, newest first, 50 at a time (**Load older** for more). No friend ID is needed.
 - **Search**: a friend ID (1 to 100 characters of `A-Z a-z 0-9 . _ @ : + -`). Enter searches; paste is fine; the clear button empties it. The last eight ids searched are remembered **per person in this browser** (ids only, never data), with a "Clear recent" link.
 - **Results (left)**: one row per validation, newest first: type chip (NRIC ...), status chip (an icon and the word the back end sent, green / amber / red / grey by its meaning; never colour alone), time (relative; the exact time in the browser's time zone in the tooltip), a short id, a score if there is one. Empty: "No validations for this ID".
 - **Detail (right)**: the image viewer (zoom, rotate, fit or actual size, keys `+ - 0 R F`, loading skeleton, "Could not load the image" with Retry), then the data card: known fields as labelled rows with the sensitive ones masked, the other fields in a generic list, and a collapsed **Technical details** (validation id, status as sent).
@@ -131,9 +132,12 @@ The log records that a person looked at a child's record, which is itself person
 
 If a user says **"The verification service did not accept Halo's access"** the key is wrong or expired. **"The image address was not allowed"** means the signed address is on a host that is neither the back end's domain nor in `KYC_DOC_ALLOWED_IMAGE_HOSTS`: the server log has a line `[kyc] image_host_blocked (host_not_allowed:<host>)`.
 
-## 8. For engineers: the adapter's provisional guesses
+## 8. For engineers: the adapter's field names
 
-All of them are in `src/lib/kyc/adapter.ts` (tests: `adapter.test.ts`). **Nothing else in Halo knows a vendor field name.** When real samples arrive, correct the tables, add the samples as test fixtures, and delete the "provisional" wording from the screen if you wish.
+**Confirmed against production on 18 Oct 2026** (`GET https://apis.vircle.com/verify_doc/validations`, with and without `friend_id`; `GET /validations/{id}/url`): the list is `{"items": [...]}`, newest first by `id`; `limit` and `before_id` (the page before that id) work; `friend_id` is optional. A record is `id` (number), `friend_id` (a UUID), `doc_type` (`nric`, `passport`), `s3_key`, `job_status`, `capture_ok`, `capture_code` (`ok`, `blurry`, `too_dark`, `no_mrz`), `capture_message` (a sentence for the reviewer), `extracted_id`, `client_id_number`, `validation_status` (`NO_ID_ON_CLIENT`, `UNREADABLE` seen so far), `detail` (an object: `source`, `client_found`, `client_id_path`), `review_status`, `review_note`, `reviewed_at`, `created_at`. `/validations/{id}/url` answers `{"id","s3_key","url"}` where `url` is a signed link on `vircle-id-docs.s3.amazonaws.com`, so that host has to be in `KYC_DOC_ALLOWED_IMAGE_HOSTS`. `NO_ID_ON_CLIENT` is shown amber (the picture is readable, but Vircle holds no ID number to compare it with); `UNREADABLE` red. `extracted_id` and `client_id_number` are ID numbers and are masked. The tables below still list the other names the adapter would accept; the ones in this paragraph are the real ones.
+
+The older text follows. All of the tables are in `src/lib/kyc/adapter.ts` (tests: `adapter.test.ts`). **Nothing else in Halo knows a vendor field name.** When a new status word or field appears, correct the tables, add the sample as a test fixture, and delete the "provisional" wording from the screen if you wish.
+
 
 Keys are compared after lower-casing and dropping every character that is not a letter or digit (`created_at`, `createdAt` and `Created-At` are all `createdat`).
 
@@ -146,11 +150,12 @@ Keys are compared after lower-casing and dropping every character that is not a 
 | Type | `type`, `documenttype`, `doctype`, `idtype`, `kind`, `validationtype` |
 | Status | `status`, `validationstatus`, `verificationstatus`, `state`, `decision`, `result`, `outcome`, `verdict` |
 | Created | `createdat`, `created`, `timestamp`, `submittedat`, `checkedat`, `createdon`, `date`, `time` (ISO text, epoch seconds or milliseconds) |
-| Updated | `updatedat`, `modifiedat`, `updated`, `lastupdated`, `processedat` |
-| Reason | `reason`, `message`, `failurereason`, `errormessage`, `error`, `detail`, `remarks`, `comment`, `note` |
+| Updated | `updatedat`, `modifiedat`, `updated`, `lastupdated`, `processedat`, `reviewedat` |
+| Reason | `capturemessage`, `reason`, `message`, `failurereason`, `errormessage`, `error`, `detail`, `remarks`, `comment`, `note` |
 | Score | `confidence`, `score`, `confidencescore`, `matchscore`, `similarity`, `probability` (0 to 1 is shown as a percentage) |
 | Name | `name`, `fullname`, `holdername`, `cardholdername`, `namefromid`, `extractedname` |
-| ID number (partial mask) | `nric`, `idnumber`, `icnumber`, `icno`, `icnum`, `idno`, `documentnumber`, `documentno`, `passportnumber`, `passportno`, `identitynumber`, `mykad`, `mykid`, `nationalid` |
+| ID number (partial mask) | `nric`, `idnumber`, `icnumber`, `icno`, `icnum`, `idno`, `extractedid`, `documentnumber`, `documentno`, `passportnumber`, `passportno`, `identitynumber`, `mykad`, `mykid`, `nationalid` |
+| ID on Vircle's record (partial mask) | `clientidnumber` |
 | Date of birth (hidden) | `dateofbirth`, `dob`, `birthdate`, `birthday`, `dateofbirthiso` |
 | Address (hidden) | `address`, `fulladdress`, `residentialaddress`, `addressline1`, `homeaddress` |
 
@@ -174,4 +179,4 @@ To fix a guess: edit the table in `adapter.ts`, add the real sample to `adapter.
 - `src/components/kyc/*.test.*`: the pure helpers (idle cover, reveal timer, watermark, zoom state and keys, recent searches) and the markup of every state in all four languages.
 - `supabase/ci/verify-182-kyc-review.sql` (run it rolled back against production): the permissions, the flag, the log's privileges and append-only rule, the workspace export and deletion.
 
-**Not covered by a test** (there is no DOM renderer in this repo): clicking, typing and focus movement, the 5 second idle check and the visibility listener that cover the image, the two-minute reveal timer, blob URL creation and revocation, the browser's real right-click and drag handling, the phone layout and dark mode appearance, and any call to the **real** back end. **No one has run this against the real doc-processor API** (UAT or production): its response shapes, status words and signed URL host are all unconfirmed, and so is the headers-and-redirect behaviour of its `/url` call.
+**Not covered by a test** (there is no DOM renderer in this repo): clicking, typing and focus movement, the 5 second idle check and the visibility listener that cover the image, the two-minute reveal timer, blob URL creation and revocation, the browser's real right-click and drag handling, the phone layout and dark mode appearance, and any call to the **real** back end. The list and `/url` shapes were checked against the **production** API on 18 Oct 2026 (section 8). Not yet seen: the status words other than `NO_ID_ON_CLIENT` and `UNREADABLE`, a record whose `extracted_id` or `client_id_number` is filled, and anything about approving or rejecting (the records carry `review_status`, `review_note` and `reviewed_at`, so the back end has somewhere to keep a decision, but Halo has no call for it).

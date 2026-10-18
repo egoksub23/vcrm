@@ -13013,7 +13013,7 @@
     "search": {
       "label": "Friend ID",
       "placeholder": "Paste or type a friend ID",
-      "hint": "Press Enter to search. Letters, numbers and . _ @ : + - only.",
+      "hint": "Leave it empty to see the latest checks. To find one child, paste the friend ID and press Enter. Letters, numbers and . _ @ : + - only.",
       "button": "Search",
       "clear": "Clear",
       "invalid": "Use only letters, numbers and . _ @ : + - (1 to 100 characters).",
@@ -13031,7 +13031,10 @@
       "typeUnknown": "ID",
       "noTime": "No time",
       "noId": "No id",
-      "score": "Score {score}"
+      "score": "Score {score}",
+      "latest": "Latest ID checks",
+      "loadMore": "Load older",
+      "loadingMore": "Loading older checks"
     },
     "status": {
       "positive": "Passed",

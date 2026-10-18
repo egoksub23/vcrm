@@ -36,9 +36,16 @@ export function StatusChip({ status }: { status: KycValidation["status"] }) {
     <span className={cn(chip, "gap-1", TONE_CLASS[status.tone])} data-tone={status.tone}>
       <Icon className="size-3" aria-hidden />
       <span className="sr-only">{t(status.tone)}: </span>
-      <span>{status.raw ?? t("unknown")}</span>
+      <span>{status.raw ? humanStatus(status.raw) : t("unknown")}</span>
     </span>
   );
+}
+
+/** NO_ID_ON_CLIENT -> "No id on client", UNREADABLE -> "Unreadable". A status the back end already wrote in words is shown as sent. */
+export function humanStatus(raw: string): string {
+  if (!/_/.test(raw) && raw !== raw.toUpperCase()) return raw;
+  const s = raw.replace(/_+/g, " ").trim().toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ------------------------------------------------------------

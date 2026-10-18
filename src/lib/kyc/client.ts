@@ -2,7 +2,7 @@
 // KYC review: the calls to the doc-processor back end. Server only.
 //
 //   GET {base}/health                         no key; tells "service down" from "key rejected"
-//   GET {base}/validations?friend_id=&limit=  x-api-key
+//   GET {base}/validations?friend_id=&limit=&before_id=  x-api-key; friend_id is optional (without it: the latest of everybody); before_id pages back
 //   GET {base}/validations/{id}/url           x-api-key; a signed URL for the stored image (JSON, plain text or a redirect)
 //   (POST /check belongs to the mobile app and is never called from Halo.)
 //
@@ -108,9 +108,13 @@ export async function checkHealth(config: KycConfig, transport: KycTransport, op
   }
 }
 
-/** GET /validations?friend_id=&limit=. Returns the parsed JSON, unread by the adapter yet. */
-export async function fetchValidations(config: KycConfig, transport: KycTransport, friendId: string, limit: number, opts: CallOptions = {}): Promise<unknown> {
-  const url = `${config.baseUrl}/validations?friend_id=${encodeURIComponent(friendId)}&limit=${Math.max(1, Math.min(100, Math.trunc(limit)))}`;
+/** GET /validations?friend_id=&limit=&before_id=. An empty friend id leaves the filter out (the latest of everybody). Returns the parsed JSON, unread by the adapter yet. */
+export async function fetchValidations(config: KycConfig, transport: KycTransport, friendId: string, limit: number, opts: CallOptions & { beforeId?: string | null } = {}): Promise<unknown> {
+  const params: string[] = [];
+  if (friendId) params.push(`friend_id=${encodeURIComponent(friendId)}`);
+  params.push(`limit=${Math.max(1, Math.min(100, Math.trunc(limit)))}`);
+  if (opts.beforeId) params.push(`before_id=${encodeURIComponent(opts.beforeId)}`);
+  const url = `${config.baseUrl}/validations?${params.join("&")}`;
   try {
     return await withDeadline(opts.timeoutMs ?? API_TIMEOUT_MS, async (signal) => {
       const res = await transport.api(url, { method: "GET", redirect: "manual", signal, headers: apiHeaders(config) });

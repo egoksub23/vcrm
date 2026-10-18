@@ -345,11 +345,11 @@ describe("source rules for the KYC screens", () => {
     for (const f of files(join(root, "src")).filter((p) => /\.tsx?$/.test(p) && !/\.test\./.test(p))) {
       expect(read(f), f).not.toMatch(/NEXT_PUBLIC_KYC|NEXT_PUBLIC_[A-Z_]*DOC_API/);
     }
-  });
+  }, 60_000);
 
   it("reads the key and the base URL only in the server's configuration module (and passes process.env to it in the runtime)", () => {
     const users = files(join(root, "src")).filter((p) => /\.tsx?$/.test(p) && !/\.test\./.test(p) && !/test-support/.test(p) && /KYC_DOC_API_KEY|KYC_DOC_API_BASE_URL/.test(read(p))).map((p) => p.slice(root.length + 1).replace(/\\/g, "/"));
     // config.ts names them; the screen's setup notice only prints the NAMES of the missing variables (never a value)
     expect(users.sort()).toEqual(["src/components/kyc/parts.tsx", "src/lib/kyc/config.ts"]);
-  });
+  }, 60_000);
 });

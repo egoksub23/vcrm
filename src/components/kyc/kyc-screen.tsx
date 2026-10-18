@@ -62,8 +62,12 @@ export function KycScreen() {
   const [draft, setDraft] = useState("");
   const [draftInvalid, setDraftInvalid] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
-  const [friendId, setFriendId] = useState<string | null>(null);
+  // "" = the latest checks of everybody (the start page); otherwise the list is filtered to this friend id
+  const [friendId, setFriendId] = useState<string>("");
   const [phase, setPhase] = useState<Phase>("idle");
+  const [nextBeforeId, setNextBeforeId] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const started = useRef(false);
   const [errorCode, setErrorCode] = useState<string>("");
   const [items, setItems] = useState<KycValidation[]>([]);
   const [fallback, setFallback] = useState(false);
@@ -128,15 +132,49 @@ export function KycScreen() {
         return;
       }
       setItems(res.data.items);
+      setNextBeforeId(res.data.nextBeforeId);
       setFallback(res.data.fallback);
       setPhase("ready");
     },
     [],
   );
 
+  // The page opens on the latest checks of everybody, so nobody has to know a friend id to start.
+  useEffect(() => {
+    if (started.current || !status?.configured || !canMenu) return;
+    started.current = true;
+    // load-on-mount fetch whose result sets state
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void run("", false);
+  }, [status?.configured, canMenu, run]);
+
+  const loadMore = async () => {
+    if (!nextBeforeId || loadingMore || phase !== "ready") return;
+    const mine = seq.current;
+    setLoadingMore(true);
+    const res = await getValidations(friendId, { reload: true, beforeId: nextBeforeId });
+    setLoadingMore(false);
+    if (mine !== seq.current) return;
+    if (!res.ok) {
+      setErrorCode(res.code);
+      setPhase("error");
+      return;
+    }
+    setItems((cur) => {
+      const have = new Set(cur.map((v) => v.id).filter(Boolean));
+      return [...cur, ...res.data.items.filter((v) => !v.id || !have.has(v.id))];
+    });
+    setNextBeforeId(res.data.nextBeforeId);
+  };
+
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
     const id = normaliseFriendId(draft);
+    if (id === "") {
+      setDraftInvalid(false);
+      void run("", false);
+      return;
+    }
     if (!FRIEND_ID_RE.test(id)) {
       setDraftInvalid(true);
       return;
@@ -150,15 +188,9 @@ export function KycScreen() {
   };
 
   const clear = () => {
-    seq.current++;
     setDraft("");
     setDraftInvalid(false);
-    setFriendId(null);
-    setPhase("idle");
-    setItems([]);
-    openKey.current = null;
-    setSelectedKey(null);
-    setRevealed(null);
+    void run("", false);
   };
 
   const searchRecent = (id: string) => {
@@ -206,11 +238,12 @@ export function KycScreen() {
 
   // ---- reveal: two minutes, then hidden again; also hidden when the tab is left or the page goes to the background ----
   const reveal = async () => {
-    if (!selected || !friendId || !selected.idUsable) return;
+    const owner = selected?.friendId || friendId;
+    if (!selected || !owner || !selected.idUsable) return;
     setRevealing(true);
     setRevealError(null);
     const key = selectedKey ?? "";
-    const res = await getValidations(friendId, { revealValidationId: selected.id });
+    const res = await getValidations(owner, { revealValidationId: selected.id });
     setRevealing(false);
     if (openKey.current !== key) return;
     if (!res.ok) {
@@ -360,7 +393,7 @@ export function KycScreen() {
           <div className="grid gap-4 md:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
             <section aria-labelledby="kyc-results-title" className={cn("min-w-0", mobilePane === "detail" && "max-md:hidden")}>
               <h2 id="kyc-results-title" ref={listRef} tabIndex={-1} className="mb-2 text-sm font-medium text-foreground outline-none">
-                {friendId ? t("list.forFriend", { id: friendId }) : t("list.title")}
+                {friendId ? t("list.forFriend", { id: friendId }) : t("list.latest")}
               </h2>
               <div aria-live="polite">
                 {phase === "idle" ? <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{t("list.start")}</p> : null}
@@ -372,12 +405,17 @@ export function KycScreen() {
                     ))}
                   </div>
                 ) : null}
-                {phase === "error" ? <ErrorPanel code={errorCode} isAdmin={isAdmin} onRetry={() => friendId && void run(friendId, true)} /> : null}
+                {phase === "error" ? <ErrorPanel code={errorCode} isAdmin={isAdmin} onRetry={() => void run(friendId, true)} /> : null}
                 {phase === "ready" && items.length === 0 ? <p className="rounded-xl border border-dashed border-border p-4 text-sm text-foreground">{t("list.empty")}</p> : null}
                 {phase === "ready" && items.length > 0 ? (
                   <>
                     <p className="mb-1 text-xs text-muted-foreground">{t("list.count", { count: items.length })}</p>
                     <ValidationList items={items} selectedKey={selectedKey} onSelect={select} now={now} />
+                    {nextBeforeId ? (
+                      <Button type="button" variant="outline" className="mt-2 w-full" onClick={() => void loadMore()} disabled={loadingMore}>
+                        {loadingMore ? t("list.loadingMore") : t("list.loadMore")}
+                      </Button>
+                    ) : null}
                   </>
                 ) : null}
               </div>
@@ -402,7 +440,7 @@ export function KycScreen() {
                   </div>
                   {canView ? (
                     shown.idUsable ? (
-                      <ImageViewer key={shown.id} validationId={shown.id} friendId={friendId} viewerName={viewerName} locale={locale} isAdmin={isAdmin} />
+                      <ImageViewer key={shown.id} validationId={shown.id} friendId={shown.friendId || friendId || null} viewerName={viewerName} locale={locale} isAdmin={isAdmin} />
                     ) : (
                       <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{t("image.noId")}</p>
                     )

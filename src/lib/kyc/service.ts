@@ -78,8 +78,11 @@ export async function kycStatus(caller: KycCaller, rt: KycRuntime, opts: { check
 }
 
 export interface LookupInput {
+  /** "" = the latest checks of everybody (no filter). A reveal always has one. */
   friendId: string;
   limit: number;
+  /** The page before this validation id (the previous page's `nextBeforeId`), or null for the first page. */
+  beforeId?: string | null;
   /** A reload of a list already looked up: recorded as 'list' instead of 'lookup'. */
   reload: boolean;
   /** Show this validation's sensitive values in full. Needs kyc.reveal; recorded as 'reveal'. */
@@ -97,7 +100,7 @@ export async function lookupValidations(admin: SupabaseClient, caller: KycCaller
   const revealing = input.revealValidationId !== null;
   const action: KycAction = revealing ? "reveal" : input.reload ? "list" : "lookup";
   const record = (outcome: AccessLogInput["outcome"], as: KycAction = action) =>
-    writeAccessLog(admin, { accountId: caller.accountId, userId: caller.userId, action: as, friendId: input.friendId, validationId: input.revealValidationId, outcome });
+    writeAccessLog(admin, { accountId: caller.accountId, userId: caller.userId, action: as, friendId: input.friendId || null, validationId: input.revealValidationId, outcome });
 
   if (revealing && !caller.canReveal) {
     await record("forbidden");
@@ -112,13 +115,13 @@ export async function lookupValidations(admin: SupabaseClient, caller: KycCaller
 
   let body: unknown;
   try {
-    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit);
+    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit, { beforeId: input.beforeId ?? null });
   } catch (err) {
     const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
     if (code === "not_found") {
       // The back end does not know this friend id: an empty list, and a trace that someone looked.
       if (!(await record("not_found"))) return fail("audit_failed");
-      return revealing ? fail("not_found") : ok({ friendId: input.friendId, items: [], revealedId: null, fallback: false });
+      return revealing ? fail("not_found") : ok({ friendId: input.friendId, items: [], nextBeforeId: null, revealedId: null, fallback: false });
     }
     logCode(code);
     await record("error", code === "upstream_unauthorized" ? "config_error" : action);
@@ -137,7 +140,19 @@ export async function lookupValidations(admin: SupabaseClient, caller: KycCaller
   }
   // The log first: when it cannot be written nothing is shown.
   if (!(await record(parsed.items.length === 0 ? "not_found" : "ok"))) return fail("audit_failed");
-  return ok({ friendId: input.friendId, items: parsed.items, revealedId: revealing ? input.revealValidationId : null, fallback: parsed.fallback });
+  return ok({ friendId: input.friendId, items: parsed.items, nextBeforeId: nextPage(parsed.items, input.limit), revealedId: revealing ? input.revealValidationId : null, fallback: parsed.fallback });
+}
+
+/** A full page means there may be older ones: the cursor is the smallest numeric id on it. A page that came back short is the last. */
+export function nextPage(items: readonly { id: string }[], limit: number): string | null {
+  if (items.length < limit) return null;
+  let min: number | null = null;
+  for (const v of items) {
+    if (!/^[0-9]{1,12}$/.test(v.id)) continue;
+    const n = Number(v.id);
+    if (min === null || n < min) min = n;
+  }
+  return min === null ? null : String(min);
 }
 
 export interface ImageInput {

@@ -250,7 +250,7 @@ describe("GET /api/kyc/validations", () => {
   });
 
   describe("friend_id and limit", () => {
-    it.each(["", "   ", "a".repeat(101), "a b", "a/b", "a\\b", "../x", "x%2fy", "a;b", "<script>", "a\nb", "ünï", "a'b", 'a"b', "a?b", "a#b", "a&b=c", "a=b", "a,b", "a*b"])(
+    it.each(["a".repeat(101), "a b", "a/b", "a\\b", "../x", "x%2fy", "a;b", "<script>", "a\nb", "ünï", "a'b", 'a"b', "a?b", "a#b", "a&b=c", "a=b", "a,b", "a*b"])(
       "refuses the friend id %j with 400 and does nothing else",
       async (id) => {
         const res = await read(await get(getValidations, `/api/kyc/validations?friend_id=${encodeURIComponent(id)}`));
@@ -261,8 +261,38 @@ describe("GET /api/kyc/validations", () => {
       },
     );
 
-    it("refuses a missing friend id", async () => {
-      expect((await get(getValidations, "/api/kyc/validations")).status).toBe(400);
+    it("without a friend id lists the latest of everybody: no filter is sent upstream and the log row has no friend id", async () => {
+      for (const url of ["/api/kyc/validations", "/api/kyc/validations?friend_id=", "/api/kyc/validations?friend_id=%20%20"]) {
+        setup();
+        const res = await read(await get(getValidations, url));
+        expect(res.status).toBe(200);
+        expect(res.body.friendId).toBe("");
+        expect(api.calls.api).toHaveLength(1);
+        expect(api.calls.api[0].url).toBe(`${BASE_URL}/validations?limit=50`);
+        expect(logRows().at(-1)).toMatchObject({ action: "lookup", friend_id: null, outcome: "ok" });
+      }
+    });
+
+    it("pages back with before_id (digits only), and answers the next cursor only for a full page", async () => {
+      setup({ apiHandler: () => json({ items: [{ id: 9, doc_type: "nric", validation_status: "UNREADABLE" }, { id: 8, doc_type: "nric", validation_status: "UNREADABLE" }] }) });
+      const full = await read(await get(getValidations, "/api/kyc/validations?limit=2&before_id=10"));
+      expect(api.calls.api[0].url).toBe(`${BASE_URL}/validations?limit=2&before_id=10`);
+      expect(full.body.nextBeforeId).toBe("8");
+      const short = await read(await get(getValidations, "/api/kyc/validations?limit=3"));
+      expect(short.body.nextBeforeId).toBeNull();
+    });
+
+    it.each(["x", "1;2", "-1", "1.5", "../1", "1234567890123"])("refuses the before_id %j with 400 and does nothing else", async (id) => {
+      const res = await read(await get(getValidations, `/api/kyc/validations?before_id=${encodeURIComponent(id)}`));
+      expect(res.status).toBe(400);
+      expect(api.calls.api).toHaveLength(0);
+      expect(logRows()).toHaveLength(0);
+    });
+
+    it("refuses a reveal that names no friend id", async () => {
+      const res = await read(await get(getValidations, "/api/kyc/validations?reveal=1&validation_id=7"));
+      expect(res.status).toBe(400);
+      expect(api.calls.api).toHaveLength(0);
     });
 
     it.each(["a", "A1", "child-77", "x.y_z", "me@example.com", "tel:+60123456789", "a:b", "+60-12", "a".repeat(100)])("accepts the friend id %s", async (id) => {

@@ -11653,7 +11653,7 @@
     "search": {
       "label": "好友 ID",
       "placeholder": "粘贴或输入好友 ID",
-      "hint": "按 Enter 搜索。仅限字母、数字和 . _ @ : + -。",
+      "hint": "留空即可查看最新的检查记录。要查找某位孩子，请粘贴 Friend ID 并按 Enter。仅限字母、数字和 . _ @ : + -。",
       "button": "搜索",
       "clear": "清除",
       "invalid": "仅可使用字母、数字和 . _ @ : + -（1 至 100 个字符）。",
@@ -11671,7 +11671,10 @@
       "typeUnknown": "ID",
       "noTime": "无时间",
       "noId": "无编号",
-      "score": "分数 {score}"
+      "score": "分数 {score}",
+      "latest": "最新的身份证件检查",
+      "loadMore": "加载更早的记录",
+      "loadingMore": "正在加载更早的检查记录"
     },
     "status": {
       "positive": "通过",

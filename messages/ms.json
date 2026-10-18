@@ -11653,7 +11653,7 @@
     "search": {
       "label": "ID rakan",
       "placeholder": "Tampal atau taip ID rakan",
-      "hint": "Tekan Enter untuk mencari. Huruf, nombor dan . _ @ : + - sahaja.",
+      "hint": "Biarkan kosong untuk melihat semakan terkini. Untuk mencari seorang kanak-kanak, tampal friend ID dan tekan Enter. Huruf, nombor dan . _ @ : + - sahaja.",
       "button": "Cari",
       "clear": "Kosongkan",
       "invalid": "Gunakan huruf, nombor dan . _ @ : + - sahaja (1 hingga 100 aksara).",
@@ -11671,7 +11671,10 @@
       "typeUnknown": "ID",
       "noTime": "Tiada masa",
       "noId": "Tiada id",
-      "score": "Skor {score}"
+      "score": "Skor {score}",
+      "latest": "Semakan ID terkini",
+      "loadMore": "Muat yang lebih lama",
+      "loadingMore": "Memuatkan semakan yang lebih lama"
     },
     "status": {
       "positive": "Lulus",

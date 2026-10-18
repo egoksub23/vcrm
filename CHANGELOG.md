@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.95.2] — 2026-10-18
+
+No migration. To use KYC review in production the server needs three settings (see `docs/kyc-review.md` section 1): `KYC_DOC_API_BASE_URL=https://apis.vircle.com/verify_doc`, `KYC_DOC_API_KEY` (the production key) and `KYC_DOC_ALLOWED_IMAGE_HOSTS=vircle-id-docs.s3.amazonaws.com`; then restart and switch the `kyc` feature on for the workspace.
+
+### Changed
+
+- **KYC review opens on the latest ID checks of everybody.** No friend ID is needed any more: the page lists the newest checks first, 50 at a time (**Load older** for more). A friend ID is now only a filter; leave it empty (or press Clear) to go back to the latest. The list works with the production verification service, whose real field names are now used: the document type, the status, the sentence about the photo ("NRIC looks readable.", "Image is too dark" ...), the friend ID, the time and the reviewer fields. `NO_ID_ON_CLIENT` shows amber (readable, but Vircle holds no ID number to compare with), `UNREADABLE` red; the ID numbers read off the card and held on Vircle's record are masked until a reviewer with the reveal permission asks. Reveal and the image are scoped by the check's own friend ID.
+- The access log records a start-page or "Load older" view with no friend ID.
+
 ## [0.95.1] — 2026-10-18
 
 No migration.

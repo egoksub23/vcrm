@@ -55,8 +55,11 @@ export interface KycValidation {
 }
 
 export interface KycValidationList {
+  /** The friend id the list was filtered by; "" for the latest checks of everybody. */
   friendId: string;
   items: KycValidation[];
+  /** The id to pass as `before_id` for the next (older) page, or null when this page was the last. */
+  nextBeforeId: string | null;
   /** True when `reveal` was honoured for one validation (the one named in `revealedId`). */
   revealedId: string | null;
   /** True when any item fell back to the generic table (field names provisional). */
@@ -106,6 +109,8 @@ export const KYC_OUTCOMES = ["ok", "not_found", "forbidden", "error"] as const;
 
 /** Characters a friend id may hold, and its length. The same rule is applied by the route and the screen. */
 export const FRIEND_ID_RE = /^[A-Za-z0-9._@:+-]{1,100}$/;
+/** The cursor for the next page of the list: a validation id (the back end numbers them). */
+export const BEFORE_ID_RE = /^[0-9]{1,12}$/;
 /** Characters a validation id may hold (it goes into a vendor path, so nothing else is let through). It must start with a letter or digit, so `.` and `..` can never walk the path. */
 export const VALIDATION_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@+-]{0,199}$/;
 
