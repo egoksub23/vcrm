@@ -5,7 +5,7 @@
     "h": 841.89
   },
   "opCount": 177,
-  "opsSha256": "b46a2210d9eaa8325be53dfaa8e1a626f2cf2c0feddbe4b1414ed775a190f4fa",
+  "opsSha256": "f82ceed1b1039bc03bae6ec8858a3fca00f78ffc4cb4a919dbdd7f4283385cea",
   "placements": [
     {
       "required": false,
@@ -663,14 +663,14 @@
       "key": "p_commercial_terms",
       "type": "static_text",
       "role": "sender",
-      "text": "FPX: [insert the agreed rate / masukkan kadar yang dipersetujui]\nCredit card / Kad kredit: [insert the agreed rate / masukkan kadar yang dipersetujui]\nDebit card / Kad debit: [insert the agreed rate / masukkan kadar yang dipersetujui]\nPayment channel note / Nota saluran pembayaran: [insert the payment channel note / masukkan nota saluran pembayaran]",
+      "text": "Base platform cost per student : RM 0.00\n\nPOS, E-Store, Meal Plans\n3% or RM 0.10 whichever higher\n\nInvoice & Weblinks Payment Collection - non School Fees Store (Average Ticket sizes under 3,000)\nFPX / Duit now OBW : 1% or minimum RM 2\nPayment Gateway (Local Cards) : 1.8%\nPayment Gateway (Foreign Cards) : 2.75%\nE Wallet & Cross Border QR : 2.5%\nEmandate - recurring Payment Collection (card and casa Malaysia): 1% + RM 2 per collection\n\nInvoice & Weblinks Payment Collection - School Term Fees Store (Average Ticket sizes under 3,000)\nFPX (Casa and Credit Card) : 0.8%\nFPX (Credit Card) : 1% or minimum RM 2\nDuitnow OBW : 0.8% or minimum RM 2\nPayment Gateway (Local Debit Cards) : 1%\nPayment Gateway (Local Debit Cards) : 1.35%\nPayment Gateway (Foreign Cards) : 2.5%\nE Wallet & Cross Border QR : 2.5%\n\nAll platform fees are inclusive Bank and payment gateway charges (absorbed and paid by Vircle)\nAll platform fees are exclusive of any applicable taxes (if any is introduced in future)",
       "multiline": true,
       "fontSize": 8,
       "label": "Platform fee",
       "x": 0.0672,
       "y": 0.09384,
       "w": 0.86561,
-      "h": 0.20905,
+      "h": 0.2922,
       "page": 2
     },
     {
@@ -683,9 +683,9 @@
       "fontSize": 8,
       "label": "Key terms",
       "x": 0.0672,
-      "y": 0.33021,
+      "y": 0.41336,
       "w": 0.86561,
-      "h": 0.57239,
+      "h": 0.48924,
       "page": 2
     },
     {

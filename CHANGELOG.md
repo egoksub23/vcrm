@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.95.1] — 2026-10-18
+
+No migration.
+
+### Changed
+
+- **Merchant Registration add-on 3.2.** The Part 5 **Platform fee** box now starts with the agreed rates text (base platform cost, POS / E-Store / Meal Plans, invoice and web-link collection for non-school-fee and school-term-fee stores, the e-mandate fee and the two notes on bank charges and taxes) instead of placeholders. A copy of the template lets you change any of it. To fit it the Platform fee box holds 25 lines (was 17) and the **Key terms** box 42 (was 49): 15 points of about 250 characters still fit. An installed template is not changed: **Update** adds a draft "Merchant Application (updated)". The default text names Vircle, so another workspace must change it to its own rates.
+
 ## [0.95.0] — 2026-10-17
 
 **Migration required: `187_sign_alternate_signers.sql`.** Apply it before the new code is deployed.

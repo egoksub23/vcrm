@@ -49,7 +49,7 @@ describe("the registry", () => {
     expect(Object.keys(ADDON_REGISTRY)).toEqual(["merchant"]);
     const m = getAddon("merchant")!;
     expect(m.requires).toBe("sign_merchant");
-    expect(m.version).toBe("3.1");
+    expect(m.version).toBe("3.2");
     expect(m.category).toMatchObject({ key: "merchant_agreements", name: "Merchant agreements" });
     expect(m.templates.map((x) => x.name)).toEqual(["Merchant Application"]);
     expect(m.templates[0]).toMatchObject({ source: "assets/merchant-application.pdf", form: MERCHANT_FORM, roles: MERCHANT_ROLES, fields: MERCHANT_PLACEMENTS });
@@ -65,19 +65,19 @@ describe("the registry", () => {
 describe("installing the merchant add-on", () => {
   it("creates the category marked with the add-on and records the installed version", async () => {
     const result = await installAddon(t.ctx, "merchant");
-    expect(result).toMatchObject({ key: "merchant", version: "3.1", previousVersion: null, category: { key: "merchant_agreements", outcome: "created" }, templates: { created: ["Merchant Application"], skipped: [] } });
+    expect(result).toMatchObject({ key: "merchant", version: "3.2", previousVersion: null, category: { key: "merchant_agreements", outcome: "created" }, templates: { created: ["Merchant Application"], skipped: [] } });
     const cats = t.db.rows("sign_categories");
     expect(cats).toHaveLength(1);
     expect(cats[0]).toMatchObject({ account_id: ACCT, key: "merchant_agreements", name: "Merchant agreements", addon_key: "merchant", archived: false, code_required: false, sign_in_order: false, expiry_days: null });
     const rec = t.db.rows("sign_addons");
     expect(rec).toHaveLength(1);
-    expect(rec[0]).toMatchObject({ account_id: ACCT, addon_key: "merchant", installed_version: "3.1", status: "installed", installed_by: USER });
+    expect(rec[0]).toMatchObject({ account_id: ACCT, addon_key: "merchant", installed_version: "3.2", status: "installed", installed_by: USER });
   });
 
   it("is safe to repeat: nothing is added twice", async () => {
     await installAddon(t.ctx, "merchant");
     const again = await installAddon(t.ctx, "merchant");
-    expect(again).toMatchObject({ previousVersion: "3.1", category: { outcome: "existing" }, templates: { created: [], skipped: ["Merchant Application"] } });
+    expect(again).toMatchObject({ previousVersion: "3.2", category: { outcome: "existing" }, templates: { created: [], skipped: ["Merchant Application"] } });
     expect(t.db.rows("sign_categories")).toHaveLength(1);
     expect(t.db.rows("sign_addons")).toHaveLength(1);
     expect(t.db.rows("sign_templates")).toHaveLength(1);
@@ -215,7 +215,7 @@ describe("installing the Merchant Application", () => {
     await installAddon(t.ctx, "merchant");
     const tpl = t.db.rows("sign_templates");
     expect(tpl).toHaveLength(1);
-    expect(tpl[0]).toMatchObject({ name: "Merchant Application", status: "draft", addon_key: "merchant", addon_version: "3.1", customised: false });
+    expect(tpl[0]).toMatchObject({ name: "Merchant Application", status: "draft", addon_key: "merchant", addon_version: "3.2", customised: false });
     expect(tpl[0].category_id).toBe(t.db.rows("sign_categories")[0].id);
     const versions = t.db.rows("sign_template_versions");
     expect(versions).toHaveLength(2);
@@ -256,8 +256,8 @@ describe("installing the Merchant Application", () => {
     t.db.seed("sign_addons", [{ account_id: ACCT, addon_key: "merchant", installed_version: "1.0", installed_at: "2026-09-01T00:00:00Z", status: "installed" }]);
     expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: true });
     const r = await installAddon(t.ctx, "merchant");
-    expect(r).toMatchObject({ previousVersion: "1.0", version: "3.1", templates: { created: ["Merchant Application"], skipped: [] } });
-    expect(t.db.rows("sign_addons")[0].installed_version).toBe("3.1");
+    expect(r).toMatchObject({ previousVersion: "1.0", version: "3.2", templates: { created: ["Merchant Application"], skipped: [] } });
+    expect(t.db.rows("sign_addons")[0].installed_version).toBe("3.2");
     expect((await listAddonCards(t.ctx))[0].updateAvailable).toBe(false);
   });
 });
@@ -290,10 +290,10 @@ describe("the catalogue", () => {
   it("shows the add-on as available and not installed, then installed", async () => {
     let cards = await listAddonCards(t.ctx);
     expect(cards).toHaveLength(1);
-    expect(cards[0]).toMatchObject({ key: "merchant", version: "3.1", available: true, installed: null, updateAvailable: false, changes: [], category: { key: "merchant_agreements", name: "Merchant agreements" }, templates: { installable: 1, announced: 0 } });
+    expect(cards[0]).toMatchObject({ key: "merchant", version: "3.2", available: true, installed: null, updateAvailable: false, changes: [], category: { key: "merchant_agreements", name: "Merchant agreements" }, templates: { installable: 1, announced: 0 } });
     await installAddon(t.ctx, "merchant");
     cards = await listAddonCards(t.ctx);
-    expect(cards[0].installed).toMatchObject({ version: "3.1" });
+    expect(cards[0].installed).toMatchObject({ version: "3.2" });
     expect(cards[0].updateAvailable).toBe(false);
   });
 
@@ -306,7 +306,7 @@ describe("the catalogue", () => {
     t.db.seed("sign_addons", [{ account_id: ACCT, addon_key: "merchant", installed_version: "1.1", installed_at: "2026-09-01T00:00:00Z", status: "installed" }]);
     const card = (await listAddonCards(t.ctx))[0];
     expect(card).toMatchObject({ installed: { version: "1.1" }, updateAvailable: true });
-    expect(card.changes.map((c) => c.version)).toEqual(["2.0", "3.0", "3.1"]);
+    expect(card.changes.map((c) => c.version)).toEqual(["2.0", "3.0", "3.1", "3.2"]);
     for (const lang of ["en", "ms", "zh", "ko"] as const) for (const c of card.changes) expect(c.items[lang]?.length, `${c.version} ${lang}`).toBeGreaterThan(0);
   });
 
@@ -314,7 +314,7 @@ describe("the catalogue", () => {
     expect(compareVersions("1.10", "1.9")).toBeGreaterThan(0);
     expect(compareVersions("2.0", "10.0")).toBeLessThan(0);
     expect(compareVersions("1.1", "1.1")).toBe(0);
-    t.db.seed("sign_addons", [{ account_id: ACCT, addon_key: "merchant", installed_version: "3.1", installed_at: "2026-09-01T00:00:00Z", status: "installed" }]);
+    t.db.seed("sign_addons", [{ account_id: ACCT, addon_key: "merchant", installed_version: "3.2", installed_at: "2026-09-01T00:00:00Z", status: "installed" }]);
     expect((await listAddonCards(t.ctx))[0]).toMatchObject({ updateAvailable: false, changes: [] });
   });
 

@@ -1,5 +1,5 @@
 // ============================================================
-// Merchant Registration (add-on `merchant`), version 3.1.
+// Merchant Registration (add-on `merchant`), version 3.2.
 //
 // What it installs, as drafts to review:
 //   * the category "Merchant agreements";
@@ -10,10 +10,10 @@
 //     documents, commercial terms, review and sign), with wording in English and Bahasa Melayu and labels in
 //     Chinese and Korean for the fields that matter.
 //
-// Nothing here is a legal text. Part 5 is two boxes of text the sender writes (the platform fee, and up to 15 numbered key terms), each
-// starting with neutral placeholder points (./merchant/default-terms.ts: the owner's agreed default points go there); different groups of
-// merchants are different templates (duplicate the template). The signing consent stays the workspace's own or the product default until
-// the owner has the wording reviewed.
+// Nothing here is a legal text. Part 5 is two boxes of text the sender writes (the platform fee, and up to 15 numbered key terms): the fee box
+// starts with the owner's rate text (since 3.2) and the key terms with neutral placeholder points (./merchant/default-terms.ts holds both);
+// different groups of merchants are different templates (duplicate the template and change the text). The signing consent stays the
+// workspace's own or the product default until the owner has the wording reviewed.
 //
 // The template file and a summary of its layout are committed in ./merchant/assets/. The layout, the PDF
 // and the placements all come from ./merchant/layout.ts, and a test fails if they drift apart.
@@ -33,20 +33,29 @@
 //        name of the file uploaded (and its list now matches the form for every type of business). The page changed, so the template FILE
 //        changed again: an Update adds the new template as a draft "(updated)" copy beside the current one, as 3.0 did, and touches no
 //        document. The placements of 3.0 are frozen in ./merchant/history/placements-v3.json and its form is MERCHANT_FORM_V3.
+//   3.2  the Platform fee box of Part 5 starts with the owner's real rate text (23 lines) instead of placeholder lines, so the box is larger
+//        (25 lines instead of 17) and the Key terms box, which takes the rest of the page, a little smaller (42 lines instead of 49). The form
+//        is unchanged. The box is drawn in the PDF, so the template FILE changed once more: an Update adds the new template as a draft
+//        "(updated)" copy beside the current one and touches no document. The placements of 3.1 are frozen in
+//        ./merchant/history/placements-v3-1.json and its form is MERCHANT_FORM_V4.
 // ============================================================
 
 import type { PlacedField } from "../pdf/types";
 import type { AddonManifest } from "./index";
-import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_ROLES } from "./merchant/form";
+import { MERCHANT_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_FORM_V4, MERCHANT_ROLES } from "./merchant/form";
 import { MERCHANT_PLACEMENTS } from "./merchant/layout";
 import placementsV2 from "./merchant/history/placements-v2.json";
 import placementsV3 from "./merchant/history/placements-v3.json";
+import placementsV3_1 from "./merchant/history/placements-v3-1.json";
 
 /** The placed fields of versions 1.1 and 2.0 (nine key-term boxes and four fee boxes in Part 5), as shipped: never edited. */
 export const MERCHANT_PLACEMENTS_V2 = placementsV2 as unknown as PlacedField[];
 
 /** The placed fields of version 3.0 (two boxes in Part 5; Part 4 a bulleted list; no old registration number), as shipped: never edited. */
 export const MERCHANT_PLACEMENTS_V3 = placementsV3 as unknown as PlacedField[];
+
+/** The placed fields of version 3.1 (the Platform fee box of 17 lines holding four placeholder lines, the Key terms box of 49), as shipped: never edited. */
+export const MERCHANT_PLACEMENTS_V3_1 = placementsV3_1 as unknown as PlacedField[];
 
 const MERCHANT_DEFAULTS = { code_required: false, sign_in_order: false, locale: "en", expiry_days: 30, reminder_days: [3, 7] } as const;
 
@@ -55,8 +64,8 @@ export const MERCHANT_TEMPLATE_SOURCE = "assets/merchant-application.pdf";
 
 export const merchantAddon: AddonManifest = {
   key: "merchant",
-  // 3.1: the stamp can be created from the company details, the old registration number, Part 4 prints the uploaded file names (a new template file again). 3.0: Part 5 is two boxes of text on a new template file. 2.0: shared option lists and sensitive answers. 1.1 added the Merchant Application template and its form (1.0 only had the category)
-  version: "3.1",
+  // 3.2: the Platform fee box starts with the owner's rate text, so it is larger and the Key terms box smaller (a new template file again). 3.1: the stamp can be created from the company details, the old registration number, Part 4 prints the uploaded file names (a new template file again). 3.0: Part 5 is two boxes of text on a new template file. 2.0: shared option lists and sensitive answers. 1.1 added the Merchant Application template and its form (1.0 only had the category)
+  version: "3.2",
   nameKey: "merchant.name",
   // not "merchant.description": the 1.0 text said the template was still to come
   descriptionKey: "merchant.about",
@@ -81,6 +90,31 @@ export const merchantAddon: AddonManifest = {
     },
   ],
   changes: [
+    {
+      version: "3.2",
+      items: {
+        en: [
+          "Platform fee: the box in Part 5 now starts with a standard rate text instead of placeholder lines: the base platform cost per student, the rate for POS, E-Store and Meal Plans, and the rates for invoice and web link payment collection (the non school fees store and the school term fees store) by payment method, with a note on bank and payment gateway charges and on taxes. Check it and change it to your own rates before use: it is ordinary text that you edit in the template, and a copy of the template can have different text for another group of merchants.",
+          "The Platform fee box is larger to hold it (25 lines instead of 17) and the Key terms box is a little smaller (42 lines instead of 49). Fifteen numbered points of about 250 characters each still fit in Key terms; text that is longer than its box is refused when a document is sent, as before.",
+          "The form and its questions do not change. Because the template file changed (the boxes have new sizes), Update adds a new draft template named “Merchant Application (updated)” beside your current one (“(updated 2)” if a copy from an earlier update is still there). Your current template, and every document and draft made from it, stay exactly as they are: switch over when you like.",
+        ],
+        ms: [
+          "Yuran platform: kotak dalam Bahagian 5 kini bermula dengan teks kadar standard dan bukan baris pemegang tempat: kos platform asas bagi setiap pelajar, kadar untuk POS, E-Store dan Meal Plans, serta kadar pungutan bayaran invois dan pautan web (kedai bukan yuran sekolah dan kedai yuran penggal sekolah) mengikut kaedah pembayaran, bersama nota tentang caj bank dan gerbang pembayaran serta tentang cukai. Semak dan tukarkannya kepada kadar anda sendiri sebelum digunakan: ia teks biasa yang anda ubah dalam templat, dan salinan templat boleh mempunyai teks lain untuk kumpulan peniaga yang lain.",
+          "Kotak Yuran platform kini lebih besar untuk memuatkannya (25 baris dan bukan 17) dan kotak Terma utama sedikit lebih kecil (42 baris dan bukan 49). Lima belas perkara bernombor sebanyak kira-kira 250 aksara setiap satu masih muat dalam Terma utama; teks yang lebih panjang daripada kotaknya ditolak semasa dokumen dihantar, seperti sebelum ini.",
+          "Borang dan soalannya tidak berubah. Kerana fail templat berubah (kotak mempunyai saiz baharu), Kemas kini menambah templat draf baharu bernama “Merchant Application (updated)” di sebelah templat semasa anda (“(updated 2)” jika salinan daripada kemas kini terdahulu masih ada). Templat semasa anda, dan setiap dokumen serta draf yang dibuat daripadanya, kekal seperti sedia ada: beralihlah apabila anda mahu.",
+        ],
+        zh: [
+          "平台费用：第5部分的这个框现在以标准费率文字开头，不再是占位文字：每名学生的基础平台成本、POS、E-Store 和 Meal Plans 的费率，以及按付款方式列出的发票和网络链接收款费率（非学费商店和学期学费商店），并附有银行及支付网关费用和税项的说明。使用前请核对并改为您自己的费率：它是在模板中编辑的普通文字，模板副本可以为另一组商户使用不同的文字。",
+          "平台费用框变大以容纳这些文字（25 行，原为 17 行），主要条款框略微变小（42 行，原为 49 行）。主要条款中 15 条编号条款每条约 250 个字符仍可放下；比框更长的文字在发送文件时会被拒绝，与以前一样。",
+          "表单及其问题不变。由于模板文件已更改（框的大小不同），更新会在您当前的模板旁新增一份名为“Merchant Application (updated)”的草稿模板（若更早的更新留下的副本仍在，则为“(updated 2)”）。您当前的模板，以及由它创建的所有文件和草稿，都保持原样；您可以随时切换。",
+        ],
+        ko: [
+          "플랫폼 수수료: 5부의 이 칸은 이제 안내 문구 대신 표준 요율 문구로 시작합니다. 학생 1인당 기본 플랫폼 비용, POS, E-Store, Meal Plans 요율, 결제 수단별 청구서·웹 링크 결제 수금 요율(학비 외 스토어와 학기 학비 스토어), 그리고 은행 및 결제 게이트웨이 수수료와 세금에 대한 안내가 들어 있습니다. 사용하기 전에 확인하고 직접 정한 요율로 바꿔 쓰세요. 템플릿에서 수정하는 일반 텍스트이며, 템플릿 사본은 다른 가맹점 그룹에 다른 문구를 쓸 수 있습니다.",
+          "이 문구가 들어가도록 플랫폼 수수료 칸이 커졌고(17줄에서 25줄) 주요 약관 칸은 조금 작아졌습니다(49줄에서 42줄). 주요 약관에는 번호가 매겨진 15개 항목이 각각 약 250자까지 그대로 들어가며, 칸보다 긴 글은 이전처럼 문서를 보낼 때 거부됩니다.",
+          "양식과 질문은 그대로입니다. 템플릿 파일이 바뀌었으므로(칸 크기가 다름), 업데이트하면 현재 템플릿 옆에 “Merchant Application (updated)”라는 새 초안 템플릿이 추가됩니다(이전 업데이트의 사본이 남아 있으면 “(updated 2)”). 현재 템플릿과 그것으로 만든 모든 문서와 초안은 그대로 유지되며, 원하실 때 바꿔 쓰시면 됩니다.",
+        ],
+      },
+    },
     {
       version: "3.1",
       items: {
@@ -181,9 +215,10 @@ export const merchantAddon: AddonManifest = {
       },
     },
   ],
-  // the templates exactly as 1.1 and 2.0 shipped them (1.1: the form with every option typed in; 2.0: shared lists and sensitive answers; both with the
-  // nine-box Part 5 and so the old template file). A template that still equals one of these has not been edited. Since 3.0 ships a different file, an
-  // update never matches one in place (update.ts compares the file first): it adds the new template beside the old, which stays as it is.
+  // the templates exactly as 1.1, 2.0, 3.0 and 3.1 shipped them (1.1: the form with every option typed in; 2.0: shared lists and sensitive answers; both with the
+  // nine-box Part 5 and so the old template file; 3.0 and 3.1: the two-box Part 5 with its own placements and form). A template that still equals one of
+  // these has not been edited. Since 3.0 ships a different file with every version, an update never matches one in place (update.ts compares the file
+  // first): it adds the new template beside the old, which stays as it is.
   history: [
     {
       version: "1.1",
@@ -196,6 +231,10 @@ export const merchantAddon: AddonManifest = {
     {
       version: "3.0",
       templates: [{ name: "Merchant Application", roles: MERCHANT_ROLES, fields: MERCHANT_PLACEMENTS_V3, form: MERCHANT_FORM_V3, defaults: { ...MERCHANT_DEFAULTS, reminder_days: [...MERCHANT_DEFAULTS.reminder_days] } }],
+    },
+    {
+      version: "3.1",
+      templates: [{ name: "Merchant Application", roles: MERCHANT_ROLES, fields: MERCHANT_PLACEMENTS_V3_1, form: MERCHANT_FORM_V4, defaults: { ...MERCHANT_DEFAULTS, reminder_days: [...MERCHANT_DEFAULTS.reminder_days] } }],
     },
   ],
 };

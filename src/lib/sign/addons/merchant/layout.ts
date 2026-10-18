@@ -4,9 +4,9 @@
 // One description produces both things that must agree: the drawing instructions the PDF is made from
 // (render.ts) and the placed fields on it (`PlacedField[]`). Every box is a rectangle this file chose, so
 // each placement is exactly the rectangle that was drawn: nothing is measured from a picture and nothing can
-// drift. The file is workspace-neutral (no logo, no company name) and carries no legal wording: Part 5 is two
-// boxes of text the sender writes (the platform fee, and up to 15 numbered key terms), each starting with the
-// placeholder points of ./default-terms.ts.
+// drift. The file has no logo and no company name in the drawing and carries no legal wording: Part 5 is two
+// boxes of text the sender writes (the platform fee, and up to 15 numbered key terms), starting with the rate text
+// (3.2) and the placeholder points of ./default-terms.ts.
 //
 // Pure and synchronous: no fonts and no I/O. (The width of every printed label is checked against its
 // column when the PDF is drawn, so a label that does not fit fails the build, not a signer.)
@@ -353,17 +353,22 @@ function documents(): Block {
 /**
  * Part 5, "Commercial terms / Terma komersial": exactly TWO boxes of text the sender writes (static text, role sender; the merchant sees them
  * printed, read-only), one page.
- *   * the platform fee: about a quarter of the page, for the fee lines and the payment channel note;
+ *   * the platform fee: about 30% of the page, for the owner's rate text (23 lines, ./default-terms.ts) with two spare lines;
  *   * the key terms: ALL the rest of the page, for up to 15 numbered points.
  * Both print at a fixed 8 pt, wrapped to the box with the sender's line breaks kept. A text that does not fit is refused when a document is
- * sent (never cut), so the boxes are sized for what the owner will write: 49 lines for the key terms and 17 for the fee box at 8 pt (the
- * worst-case tests in merchant.test.ts print 15 points of 250 and of 350 characters, in Malay and English, and check every line is inside).
+ * sent (never cut), so the boxes are sized for what the owner will write: since add-on 3.2 the fee box holds 25 lines and the key terms box 42
+ * at 8 pt (before 3.2: 17 and 49). The engine prints a line every 1.2 times the font size (9.6 pt) inside 2 pt of padding on each side, so a box
+ * of height h holds floor((h - 4) / 9.6) lines. The worst-case tests in merchant.test.ts print 15 points of 250 characters (220 in capitals) and
+ * of 260 (about the most), in Malay and English, and check every line is inside.
  */
 export const PART5 = {
   /** Fixed font size of both boxes, in points. */
   fontSize: 8,
-  /** Height of the platform fee box: about a quarter of the A4 page (841.89 pt). */
-  feeBoxH: 176,
+  /**
+   * Height of the platform fee box, in points: 25 lines of 9.6 pt (240 pt) plus the 4 pt of padding plus 2 pt against the rounding of the
+   * stored fraction of the page, so the 23 lines of the default text and two spare lines fit. (176 pt, 17 lines, until add-on 3.1.)
+   */
+  feeBoxH: 246,
 } as const;
 
 function termsBlock(): Block {

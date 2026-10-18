@@ -32,6 +32,8 @@
 //      (MERCHANT_FORM_V3) for the add-on's history, exactly as 3.0 shipped it.
 //   4  (the default, MERCHANT_FORM) generation 3 with add-on 3.1 (see "generation 4"): the optional old registration number, and a company
 //      stamp the merchant can create from the company details instead of uploading one. Generation 2 is kept (MERCHANT_FORM_V2).
+//      Add-on 3.2 (the owner's platform fee text, a larger fee box) did not change the form: generation 4 is also its form, and MERCHANT_FORM_V4
+//      is what the history keeps for 3.1.
 //
 // What the shared module cannot say per field (a custom validation message) is worded once per error code
 // by the signing page; the help texts below tell the person the shape that is expected.
@@ -943,6 +945,9 @@ export const MERCHANT_FORM: FormDefinition = merchantForm();
 
 /** The form of add-on version 3.0 (before the old registration number and the stamp made from the company details): kept for the add-on's history. */
 export const MERCHANT_FORM_V3: FormDefinition = merchantForm({ generation: 3 });
+
+/** The form of add-on version 3.1. Add-on 3.2 changes only the text and the size of the platform fee box, so the current form is still this generation; kept apart for the add-on's history. */
+export const MERCHANT_FORM_V4: FormDefinition = merchantForm({ generation: 4 });
 
 /** The form of add-on version 1.1 (options typed in, nothing sensitive): the template file is drawn from it, and an update recognises it. */
 export const MERCHANT_FORM_V1: FormDefinition = merchantForm({ generation: 1 });

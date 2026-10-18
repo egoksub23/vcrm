@@ -459,8 +459,9 @@ Every type also gives the bank statement header, the ID and the premise pictures
 **Part 5. Commercial terms** (read only, from the chosen template's own wording; the merchant ticks "I have read and accept")
 
 Two boxes of text the sender writes (since Merchant Registration 3.0; before that, thirteen):
-**Platform fee / Yuran platform** (one line each for FPX, credit card and debit card, and the payment
-channel note) and **Key terms / Terma utama** (up to 15 numbered points; the default points are the nine
+**Platform fee / Yuran platform** (the owner's rate text since 3.2, 23 lines in a box of 25 lines; in 3.0
+and 3.1 one placeholder line each for FPX, credit card and debit card and the payment channel note, in a
+box of 17 lines) and **Key terms / Terma utama** (up to 15 numbered points, 42 lines since 3.2, 49 before; the default points are the nine
 headings the template used to have: partner, right to decline, information requests, account access,
 refund and void, termination notice of 60 days, binding effect of the merchant terms, hardware,
 settlement twice weekly). Different fees or terms mean a different template (F-98); the values are

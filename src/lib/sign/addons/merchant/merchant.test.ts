@@ -30,10 +30,10 @@ import type { FieldValue, PlacedField } from "../../pdf/types";
 import { MAX_STATIC_TEXT, SENDER_ROLE, validateFields, validateRoles } from "../../rules";
 import { SignError } from "../../service/errors";
 import { assertFixedTextFits } from "../../service/send";
-import { MERCHANT_PLACEMENTS_V2, MERCHANT_PLACEMENTS_V3, merchantAddon } from "../merchant";
+import { MERCHANT_PLACEMENTS_V2, MERCHANT_PLACEMENTS_V3, MERCHANT_PLACEMENTS_V3_1, merchantAddon } from "../merchant";
 import { resolvedWithSystemLists } from "../fixtures";
-import { DEFAULT_COMMERCIAL_TERMS, DEFAULT_FEE_LINES, DEFAULT_KEY_POINTS, DEFAULT_KEY_TERMS, KEY_TERMS_MAX_POINTS, commercialTermsText, keyTermsText } from "./default-terms";
-import { DIRECTOR_ROLE, FINANCE_ROLE, LEGACY_TERM_HEADINGS, LIST_FIELDS, MERCHANT_FORM as SHIPPED_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_ROLE, MERCHANT_ROLES, SENSITIVE_FIELDS, merchantForm } from "./form";
+import { DEFAULT_COMMERCIAL_LINES, DEFAULT_COMMERCIAL_TERMS, DEFAULT_KEY_POINTS, DEFAULT_KEY_TERMS, KEY_TERMS_MAX_POINTS, commercialTermsText, keyTermsText } from "./default-terms";
+import { DIRECTOR_ROLE, FINANCE_ROLE, LEGACY_TERM_HEADINGS, LIST_FIELDS, MERCHANT_FORM as SHIPPED_FORM, MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_FORM_V4, MERCHANT_ROLE, MERCHANT_ROLES, SENSITIVE_FIELDS, merchantForm } from "./form";
 import { DOCUMENT_ROWS, MERCHANT_PLACEMENTS, PART5, buildMerchantLayout } from "./layout";
 import { buildMerchantAssets, renderMerchantPdf, summarize, summarySha256 } from "./render";
 
@@ -396,7 +396,7 @@ describe("on the real engine", () => {
       p.key === "p_key_terms"
         ? { ...p, text: keyTermsText(DEFAULT_KEY_POINTS.map((k) => ({ ...k, text: "The Merchant appoints the Partner to collect payments on its behalf under the agreed terms, and agrees to follow the Partner's operating rules as updated from time to time with notice." }))) }
         : p.key === "p_commercial_terms"
-          ? { ...p, text: commercialTermsText(DEFAULT_FEE_LINES.map((l) => ({ ...l, text: "1.20% per transaction, minimum RM0.50" }))) }
+          ? { ...p, text: commercialTermsText(DEFAULT_COMMERCIAL_LINES.map((l) => (l.includes(":") ? `${l.slice(0, l.indexOf(":"))}: 1.20% per transaction, minimum RM0.50` : l))) }
           : p,
     );
     expect(await staticFitProblems(committedPdf(), reworded)).toEqual([]);
@@ -490,12 +490,15 @@ describe("generation 2 of the form: shared lists and sensitive answers", () => {
     expect(ack(SHIPPED_FORM)).toMatchObject({ type: "acknowledge", required: true });
   });
 
-  it("is add-on 3.1, with 1.1, 2.0 and 3.0 kept in its history on the placements those versions shipped (the nine-box Part 5)", () => {
-    expect(merchantAddon.version).toBe("3.1");
-    expect(merchantAddon.history?.map((h) => h.version)).toEqual(["1.1", "2.0", "3.0"]);
-    expect(merchantAddon.history?.map((h) => h.templates[0].form)).toEqual([MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3]);
+  it("is add-on 3.2, with 1.1, 2.0, 3.0 and 3.1 kept in its history on the placements those versions shipped (the nine-box Part 5 for the first two)", () => {
+    expect(merchantAddon.version).toBe("3.2");
+    expect(merchantAddon.history?.map((h) => h.version)).toEqual(["1.1", "2.0", "3.0", "3.1"]);
+    expect(merchantAddon.history?.map((h) => h.templates[0].form)).toEqual([MERCHANT_FORM_V1, MERCHANT_FORM_V2, MERCHANT_FORM_V3, MERCHANT_FORM_V4]);
     for (const h of (merchantAddon.history ?? []).slice(0, 2)) expect(h.templates[0].fields).toBe(MERCHANT_PLACEMENTS_V2);
     expect(merchantAddon.history?.[2].templates[0].fields).toBe(MERCHANT_PLACEMENTS_V3);
+    expect(merchantAddon.history?.[3].templates[0].fields).toBe(MERCHANT_PLACEMENTS_V3_1);
+    // 3.2 did not change the form: generation 4 is both what 3.1 shipped and what is current
+    expect(MERCHANT_FORM_V4).toEqual(SHIPPED_FORM);
     // the frozen placements are the old Part 5 (thirteen sender boxes, none of which the new template has) and the old business details and contacts
     const old = MERCHANT_PLACEMENTS_V2.filter((p) => p.type === "static_text" && p.role === SENDER_ROLE && p.page === 2 && p.key !== "p_fw_no");
     expect(old.map((p) => p.key)).toEqual(["p_fee_fpx", "p_fee_credit", "p_fee_debit", "p_channel_note", ...LEGACY_TERM_HEADINGS.map((t) => `p_term_${t.key}`)]);
@@ -605,11 +608,13 @@ describe("Part 5 is two boxes of text the sender writes", () => {
     expect(boxes).toEqual([Math.round(FEE.h * PAGE.h), Math.round(KEY.h * PAGE.h), 11]);
   });
 
-  it("gives the fee box about a quarter of the page and the key terms the rest of it, all on one page", () => {
+  it("gives the fee box about 30% of the page and the key terms the rest of it, all on one page", () => {
     expect(FEE.page).toBe(KEY.page);
-    expect(FEE.h).toBeGreaterThan(0.18);
-    expect(FEE.h).toBeLessThan(0.27);
-    expect(KEY.h).toBeGreaterThan(0.5);
+    expect(PART5.feeBoxH).toBe(246);
+    expect(FEE.h * PAGE.h).toBeCloseTo(246, 1);
+    expect(FEE.h).toBeGreaterThan(0.28);
+    expect(FEE.h).toBeLessThan(0.31);
+    expect(KEY.h).toBeGreaterThan(0.45);
     // the key terms box sits under the fee box and ends just above the acceptance tick, so the page is full
     const accept = page5.find((p) => p.key === "p_terms_accepted")!;
     expect(KEY.y).toBeGreaterThan(FEE.y + FEE.h);
@@ -622,15 +627,52 @@ describe("Part 5 is two boxes of text the sender writes", () => {
     expect(buildMerchantLayout().pageCount).toBe(KEY.page + 2);
   });
 
-  it("starts both boxes with the default points of default-terms.ts: one line per fee, and the nine old headings as points 1 to 9", () => {
+  /** The owner's platform fee text (add-on 3.2), line by line, with only the spaces before a colon made one space. */
+  const OWNER_FEE_TEXT = [
+    "Base platform cost per student : RM 0.00",
+    "",
+    "POS, E-Store, Meal Plans",
+    "3% or RM 0.10 whichever higher",
+    "",
+    "Invoice & Weblinks Payment Collection - non School Fees Store (Average Ticket sizes under 3,000)",
+    "FPX / Duit now OBW : 1% or minimum RM 2",
+    "Payment Gateway (Local Cards) : 1.8%",
+    "Payment Gateway (Foreign Cards) : 2.75%",
+    "E Wallet & Cross Border QR : 2.5%",
+    "Emandate - recurring Payment Collection (card and casa Malaysia): 1% + RM 2 per collection",
+    "",
+    "Invoice & Weblinks Payment Collection - School Term Fees Store (Average Ticket sizes under 3,000)",
+    "FPX (Casa and Credit Card) : 0.8%",
+    "FPX (Credit Card) : 1% or minimum RM 2",
+    "Duitnow OBW : 0.8% or minimum RM 2",
+    "Payment Gateway (Local Debit Cards) : 1%",
+    "Payment Gateway (Local Debit Cards) : 1.35%",
+    "Payment Gateway (Foreign Cards) : 2.5%",
+    "E Wallet & Cross Border QR : 2.5%",
+    "",
+    "All platform fees are inclusive Bank and payment gateway charges (absorbed and paid by Vircle)",
+    "All platform fees are exclusive of any applicable taxes (if any is introduced in future)",
+  ];
+
+  it("starts the fee box with the owner's rate text, line by line, and the key terms box with the nine old headings as points 1 to 9", () => {
     expect(FEE.text).toBe(DEFAULT_COMMERCIAL_TERMS);
     expect(KEY.text).toBe(DEFAULT_KEY_TERMS);
-    expect(DEFAULT_COMMERCIAL_TERMS.split("\n")).toEqual([
-      "FPX: [insert the agreed rate / masukkan kadar yang dipersetujui]",
-      "Credit card / Kad kredit: [insert the agreed rate / masukkan kadar yang dipersetujui]",
-      "Debit card / Kad debit: [insert the agreed rate / masukkan kadar yang dipersetujui]",
-      "Payment channel note / Nota saluran pembayaran: [insert the payment channel note / masukkan nota saluran pembayaran]",
-    ]);
+    const fee = DEFAULT_COMMERCIAL_TERMS.split("\n");
+    expect(fee).toHaveLength(23);
+    expect(fee).toEqual(OWNER_FEE_TEXT);
+    expect(DEFAULT_COMMERCIAL_LINES).toEqual(OWNER_FEE_TEXT);
+    // the owner's own spelling and capitals are kept as given
+    for (const spelling of ["Duit now OBW", "Emandate", "Duitnow OBW", "E Wallet"]) expect(DEFAULT_COMMERCIAL_TERMS, spelling).toContain(spelling);
+    // the line that appears twice, with its two rates (probably Credit Cards the second time: the owner's text is kept)
+    expect(fee.filter((l) => l.startsWith("Payment Gateway (Local Debit Cards)"))).toEqual(["Payment Gateway (Local Debit Cards) : 1%", "Payment Gateway (Local Debit Cards) : 1.35%"]);
+    // a space before the colon is ONE space (no tab, no run of spaces); the Emandate line has none, and the lines without a colon are as given
+    expect(DEFAULT_COMMERCIAL_TERMS).not.toMatch(/[ \t]{2,}:|\t/);
+    expect(fee[6]).toBe("FPX / Duit now OBW : 1% or minimum RM 2");
+    expect(fee[10]).toBe("Emandate - recurring Payment Collection (card and casa Malaysia): 1% + RM 2 per collection");
+    // five groups (base cost; POS; the two stores; the closing notes) divided by four blank lines, and no placeholder is left in this box
+    expect(fee.map((l, i) => (l === "" ? i : -1)).filter((i) => i >= 0)).toEqual([1, 4, 11, 20]);
+    expect(DEFAULT_COMMERCIAL_TERMS).not.toContain("[insert");
+    // the key terms keep their placeholders
     const lines = DEFAULT_KEY_TERMS.split("\n");
     expect(lines).toHaveLength(9);
     lines.forEach((line, i) => {
@@ -651,34 +693,59 @@ describe("Part 5 is two boxes of text the sender writes", () => {
       const lines = (await printed(stamped.bytes, KEY.page)).map((i) => i.str);
       expect(lines).toContain("1. Partner / Rakan kongsi: [insert the agreed wording / masukkan perkataan yang dipersetujui]");
       expect(lines).toContain("9. Settlement: twice weekly / Penyelesaian: dua kali seminggu: [insert the agreed wording / masukkan perkataan yang dipersetujui]");
-      expect(lines).toContain("FPX: [insert the agreed rate / masukkan kadar yang dipersetujui]");
+      // the fee box: every line of the owner's text is printed, as one line each
+      const fee = lines.filter((l) => l.trim() !== "");
+      for (const line of OWNER_FEE_TEXT.filter((l) => l !== "")) expect(fee, line).toContain(line);
     }
   });
 
   // ---- the worst cases: every line of text is printed, inside its box -----------------------------------------------------------
 
-  it("prints 15 points of about 250 characters in full inside the key terms box, in Malay and English, and in capitals", async () => {
+  // The key terms box holds 42 lines of 8 pt (49 before add-on 3.2, when the fee box grew from 17 to 25 lines): 15 points of 250 characters
+  // of ordinary English and Malay fit (the longest that do are about 260), and so do 15 of about 220 characters in capitals; longer ones are refused.
+  it("prints 15 points of about 250 characters in full inside the key terms box, in Malay and English, and 15 of about 220 in capitals", async () => {
     const lines = await printsAllOf("p_key_terms", points(15, 250));
-    // 15 points of 250 characters wrap to a few lines each at 8 pt: well within the box
+    // 15 points of 250 characters wrap to a few lines each at 8 pt: all of them inside the 42 lines
     expect(lines.length).toBeGreaterThanOrEqual(30);
-    expect(lines.length).toBeLessThanOrEqual(45);
-    // capital letters are the widest: still all printed
-    await printsAllOf("p_key_terms", points(15, 250, true));
+    expect(lines.length).toBeLessThanOrEqual(42);
+    // capital letters are the widest: 220 characters of them still all print
+    await printsAllOf("p_key_terms", points(15, 220, true));
   });
 
-  it("prints 15 points of 350 characters (more than 5,000 characters, about the most the box holds) in full", async () => {
-    const text = points(15, 350);
-    expect(text.length).toBeGreaterThan(5000);
+  it("prints 15 points of 260 characters (about 3,900 characters, about the most the key terms box holds) in full", async () => {
+    const text = points(15, 260);
+    expect(text.length).toBeGreaterThan(3800);
     expect(text.length).toBeLessThanOrEqual(MAX_STATIC_TEXT);
     const lines = await printsAllOf("p_key_terms", text);
     // the last line of the last point is above the bottom edge of the box
     expect(Math.min(...lines.map((l) => l.y))).toBeGreaterThan(edges(KEY).bottom);
   });
 
+  it("no longer holds 15 points of 350 characters or of 250 in capitals, which the 49-line box of 3.1 did (and says so: they are refused, not cut)", async () => {
+    for (const text of [points(15, 350), points(15, 250, true)]) {
+      expect(await staticFitProblems(committedPdf(), withText("p_key_terms", text))).toEqual(["p_key_terms"]);
+      // the 3.1 box, as it was frozen, held them
+      const frozen = MERCHANT_PLACEMENTS_V3_1.map((p) => (p.key === "p_key_terms" ? { ...p, text } : p));
+      expect(await staticFitProblems(committedPdf(), frozen)).toEqual([]);
+    }
+  });
+
   it("prints a fee box of about 1,200 characters in full", async () => {
     const text = Array.from({ length: 10 }, (_, i) => `Fee ${i + 1}: ${SENTENCES[i % 3].slice(0, 120)}`).join("\n");
     expect(text.length).toBeGreaterThan(1200);
     await printsAllOf("p_commercial_terms", text);
+  });
+
+  it("holds 25 lines of the platform fee: the owner's 23 and two spare, and not a 26th", async () => {
+    const fee = (lines: number) => withText("p_commercial_terms", Array.from({ length: lines }, (_, i) => `Fee line ${i + 1}`).join("\n"));
+    // the engine prints a line every 1.2 x 8 pt inside 2 pt of padding: floor((h - 4) / 9.6) lines
+    expect(Math.floor((FEE.h * PAGE.h - 4) / (PART5.fontSize * 1.2))).toBe(25);
+    expect(await staticFitProblems(committedPdf(), fee(25))).toEqual([]);
+    expect(await staticFitProblems(committedPdf(), fee(26))).toEqual(["p_commercial_terms"]);
+    // the owner's text, whole, is printed inside its box with room for two lines more
+    const lines = await printsAllOf("p_commercial_terms", DEFAULT_COMMERCIAL_TERMS);
+    expect(lines).toHaveLength(19); // 23 lines, 4 of them blank
+    expect(Math.min(...lines.map((l) => l.y)) - edges(FEE).bottom).toBeGreaterThan(2 * PART5.fontSize * 1.2);
   });
 
   it("wraps long lines and honours explicit line breaks, a blank line included", async () => {
@@ -703,17 +770,60 @@ describe("Part 5 is two boxes of text the sender writes", () => {
     expect(await staticFitProblems(committedPdf(), withText("p_commercial_terms", Array.from({ length: 30 }, (_, i) => `Fee line ${i + 1}`).join("\n")))).toEqual(["p_commercial_terms"]);
     // one line more than the box holds is enough
     const room = Math.floor((KEY.h * PAGE.h - 4) / (PART5.fontSize * 1.2));
-    expect(room).toBeGreaterThanOrEqual(45);
+    expect(room).toBe(42);
     const exact = Array.from({ length: room }, (_, i) => `${i + 1}. point`).join("\n");
     expect(await staticFitProblems(committedPdf(), withText("p_key_terms", exact))).toEqual([]);
     expect(await staticFitProblems(committedPdf(), withText("p_key_terms", `${exact}\nextra`))).toEqual(["p_key_terms"]);
+  });
+
+  it("sends the default template as it is: the owner's fee text and the placeholder key terms fit their boxes, with no static_text_does_not_fit", async () => {
+    const freeze = async (fields: PlacedField[]) => freezeBase(committedPdf(), fields, { fw_no: "FW-1" }, { locale: "en" });
+    const doc = { fields_snapshot: placements };
+    expect(await staticFitProblems(committedPdf(), placements)).toEqual([]);
+    for (const locale of ["en", "ms"] as const) {
+      const defaults = await freezeBase(committedPdf(), placements, { fw_no: "FW-1" }, { locale });
+      expect(defaults.warnings).toEqual([]);
+      expect(() => assertFixedTextFits(doc, defaults.warnings)).not.toThrow();
+    }
+    // the text is exactly the default one (the placements carry no other)
+    expect(placements.find((p) => p.key === "p_commercial_terms")?.text).toBe(DEFAULT_COMMERCIAL_TERMS);
+    expect(placements.find((p) => p.key === "p_key_terms")?.text).toBe(DEFAULT_KEY_TERMS);
+    // and with the owner's text and a full set of 15 key points of the size the box is designed for
+    const full = withText("p_key_terms", points(15, 250));
+    const sealed = await freeze(full);
+    expect(sealed.warnings).toEqual([]);
+    expect(() => assertFixedTextFits({ fields_snapshot: full }, sealed.warnings)).not.toThrow();
+  });
+
+  it("lets the sender change the fee text in a copy of the template: it is the placement's own text, with no data field behind it", async () => {
+    // the box is ordinary template data: a static_text placement of the sender with a `text`, nothing bound to the form (as the header of default-terms.ts says)
+    expect(FEE).toMatchObject({ type: "static_text", role: SENDER_ROLE, multiline: true, fontSize: 8, text: DEFAULT_COMMERCIAL_TERMS });
+    expect([FEE.data, FEE.merge, FEE.dataValue]).toEqual([undefined, undefined, undefined]);
+    expect(MERCHANT_FORM.fields.some((f) => f.key === "commercial_terms" || f.key === "p_commercial_terms")).toBe(false);
+    // a copy of the template (the editor changes the placement's text and saves a version) is sound, fits and seals with the new wording, in both languages
+    const mine = ["Platform fee per transaction : 1.5%", "", "Settlement : next working day"].join("\n");
+    const copy = withText("p_commercial_terms", mine);
+    expect(copy.find((p) => p.key === "p_commercial_terms")?.text).toBe(mine);
+    expect(copy.filter((p) => p.key !== "p_commercial_terms")).toEqual(placements.filter((p) => p.key !== "p_commercial_terms"));
+    expect(validateFields(copy, MERCHANT_ROLES, buildMerchantLayout().pageCount)).toEqual([]);
+    expect(validateForm(MERCHANT_FORM, MERCHANT_ROLES, copy)).toEqual([]);
+    expect(await staticFitProblems(committedPdf(), copy)).toEqual([]);
+    for (const locale of ["en", "ms"] as const) {
+      const sealed = await freezeBase(committedPdf(), copy, { fw_no: "FW-1" }, { locale });
+      expect(sealed.warnings).toEqual([]);
+    }
+    const lines = await printsAllOf("p_commercial_terms", mine);
+    expect(lines.map((l) => l.str)).toEqual(["Platform fee per transaction : 1.5%", "Settlement : next working day"]);
+    // and the bound values, which come from the form's answers, never carry the box
+    const { answers } = await withImages();
+    expect(boundValues(copy, MERCHANT_FORM, answers, "en").p_commercial_terms).toBeUndefined();
   });
 
   it("refuses to send text that does not fit, naming the box, and sends the defaults and a full 15 points", async () => {
     const freeze = async (fields: PlacedField[]) => freezeBase(committedPdf(), fields, { fw_no: "FW-1" }, { locale: "en" });
     const doc = (fields: PlacedField[]) => ({ fields_snapshot: fields });
 
-    const ok = withText("p_key_terms", points(15, 350));
+    const ok = withText("p_key_terms", points(15, 260));
     expect(() => assertFixedTextFits(doc(ok), [])).not.toThrow();
     const full = await freeze(ok);
     expect(full.warnings).toEqual([]);

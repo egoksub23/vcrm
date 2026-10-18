@@ -75,8 +75,11 @@ describe("the properties panel of a Part 5 box", () => {
   it("offers the same for the platform fee box, and a short one-line box keeps its small text area", () => {
     const h = panel("p_commercial_terms");
     expect(textarea(h)).toContain(`maxLength="${MAX_STATIC_TEXT}"`);
-    expect(h).toContain("FPX: [insert the agreed rate / masukkan kadar yang dipersetujui]");
-    expect(DEFAULT_COMMERCIAL_TERMS.split("\n")).toHaveLength(4);
+    // the owner's rate text (add-on 3.2) is what it starts with: 23 lines, editable like any fixed text in a copy of the template
+    expect(h).toContain("Base platform cost per student : RM 0.00");
+    expect(h).toContain("FPX / Duit now OBW : 1% or minimum RM 2");
+    expect(h).toContain("All platform fees are exclusive of any applicable taxes (if any is introduced in future)");
+    expect(DEFAULT_COMMERCIAL_TERMS.split("\n")).toHaveLength(23);
     // a one-line fixed text elsewhere (not multi-line) stays three rows
     const one = renderToStaticMarkup(<PropertiesPanel {...props} field={{ key: "x", type: "static_text", role: "sender", page: 0, x: 0.1, y: 0.1, w: 0.3, h: 0.03, required: false, text: "One line" }} />);
     expect(textarea(one)).toContain('rows="3"');
