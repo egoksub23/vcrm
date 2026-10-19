@@ -87,6 +87,8 @@ export interface LookupInput {
   limit: number;
   /** The page before this validation id (the previous page's `nextBeforeId`), or null for the first page. */
   beforeId?: string | null;
+  /** The one filter the back end applies besides the friend id: `nric`, `passport` or `selfie`. null leaves it out. */
+  docType?: string | null;
   /** A reload of a list already looked up: recorded as 'list' instead of 'lookup'. */
   reload: boolean;
   /** Show this validation's sensitive values in full. Needs kyc.reveal; recorded as 'reveal'. */
@@ -119,7 +121,7 @@ export async function lookupValidations(admin: SupabaseClient, caller: KycCaller
 
   let body: unknown;
   try {
-    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit, { beforeId: input.beforeId ?? null });
+    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit, { beforeId: input.beforeId ?? null, docType: input.docType ?? null });
   } catch (err) {
     const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
     if (code === "not_found") {

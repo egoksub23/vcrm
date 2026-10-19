@@ -49,10 +49,13 @@ Every other role, and every custom role built on one, has none of them until an 
 
 - **Start page**: opens on the **latest ID checks of everybody**, newest first, 50 at a time (**Load older** for more). No friend ID is needed.
 - **Search**: a friend ID (1 to 100 characters of `A-Z a-z 0-9 . _ @ : + -`). Enter searches; paste is fine; the clear button empties it. The last eight ids searched are remembered **per person in this browser** (ids only, never data), with a "Clear recent" link.
-- **Results (left)**: one row per validation, newest first: type chip (NRIC ...), status chip (an icon and the word the back end sent, green / amber / red / grey by its meaning; never colour alone), time (relative; the exact time in the browser's time zone in the tooltip), a short id, a score if there is one. Empty: "No validations for this ID".
-- **Detail (right)**: the image viewer (zoom, rotate, fit or actual size, keys `+ - 0 R F`, loading skeleton, "Could not load the image" with Retry), then the data card: known fields as labelled rows with the sensitive ones masked, the other fields in a generic list, and a collapsed **Technical details** (validation id, status as sent).
-- **People**: the data card also lists the **child** and the **parent** the check names (name and nickname shown; ID number and wallet id partly hidden; e-mail and phone hidden; all revealed by Reveal, which is logged).
-- **Phone width**: the list takes the screen; opening a validation shows the detail with a back arrow.
+- **Three panes, and the page itself never scrolls** (the Inbox's shape, and its drag handle; each width is remembered per person in this browser): the **queue** on the left, the **ID image** in the middle, and **who it is plus the decision** on the right. Each pane scrolls on its own, the image fits the height of its pane, and Approve and Reject sit at the foot of the right pane, in sight without scrolling.
+- **Filters** (section 2.2), above the queue.
+- **Queue rows**: the **decision** leads the row — "Approved", "Rejected", or "Needs review" for one nobody has looked at — then the status the back end sent (an icon and its word, green / amber / red / grey by meaning; never colour alone), then the kind, the time (relative; the exact time in the browser's time zone in the tooltip), a short id and a score if there is one. Empty: "No validations for this ID".
+- **The image** (middle): zoom, rotate, fit or actual size, keys `+ - 0 R F`, a loading skeleton, "Could not load the image" with Retry. **One check is on screen at a time**: the viewer is mounted once and lets go of the previous image in the same render the check changes in, so two children can never be shown at once.
+- **Who it is** (right): the **child** and the **parent** the check names (name and nickname shown; ID number and wallet id partly hidden; e-mail and phone hidden; all revealed by Reveal, which is logged), then the check's own known fields. Everything else the back end sent — its loose keys, the validation id, the status as sent — is under a collapsed **Technical details**.
+- **Previous / Next** in the image pane's header, with "3 of 13", move through the queue as it is filtered.
+- **Phone width**: the queue takes the screen; opening a check shows the image, who it is and the decision in one column, with a back arrow.
 - **Footer**: "Every view of this page is recorded."
 - **Access log tab** (admins and owners): section 6.
 
@@ -66,6 +69,22 @@ Under the data card, a **Decision** box. A check that already carries a review (
 - The answer holds only the status word, the time, the note as sent, `partial` (the back end said it could not save the decision in both of its stores) and `emailSent` (after a rejection: true, false or unknown). The screen words each; nothing else the back end said is passed on.
 - When the outcome is unclear (no answer, unreadable answer, 409) the screen reloads that check and tells the reviewer to look at its status before trying again.
 - Twenty decisions a minute per person. Only a JSON body is accepted.
+
+### 2.2 Filters, and why two of the three are the screen's own work
+
+Three dropdowns over the queue:
+
+| Filter | Options | Applied by |
+| --- | --- | --- |
+| **Review** | All checks, Needs review, Approved, Rejected | the screen |
+| **Result** | any status word seen in the checks loaded (Unreadable, Match, Mismatch, No id on client ...) | the screen |
+| **Document** | NRIC, Passport, Selfie | the **back end** (`doc_type`), so it fetches a fresh list |
+
+The back end applies **only** `friend_id` and `doc_type`; it ignores every other filter it is sent (the engineers' collection of 19 Oct 2026). So "show me the approved ones" cannot be asked for: the screen reads pages itself (`before_id`) until it has **20 matches**, the back end runs out, or it has read **8 pages** in one go — whichever comes first. The cap matters: the list route allows thirty calls a minute per person and **every page is a row in the access log**. **Keep looking** reads the next eight. The count under the filters says both numbers ("7 matches, out of 400 looked at").
+
+The document kind is also checked on the screen, so the filter still holds if the back end ever ignores the one it was sent. A check decided a moment ago **stays in the queue** even when "Needs review" would now drop it, so the reviewer can see what was recorded; it goes on the next search or filter change.
+
+A real "waiting for review" list is still the right answer and is one of the open questions for the engineers (section 8).
 
 ## 3. Masking and Reveal
 
@@ -115,7 +134,7 @@ Routes (all `GET` except the review, all `Cache-Control: no-store`):
 | Route | Guards |
 |---|---|
 | `/api/kyc/status[?check=1]` | `menu.kyc`; `check=1` (back end `/health`, no key) admins only, 6 a minute |
-| `/api/kyc/validations?friend_id=&limit=&reload=&reveal=1&validation_id=` | `menu.kyc`; `reveal=1` also `kyc.reveal` and the shared reveal limiter |
+| `/api/kyc/validations?friend_id=&doc_type=&limit=&reload=&reveal=1&validation_id=` | `menu.kyc`; `doc_type` is `nric`, `passport` or `selfie` (anything else is a 400 and is never sent upstream); `reveal=1` also `kyc.reveal` and the shared reveal limiter |
 | `/api/kyc/validations/{id}/image?friend_id=` | `menu.kyc` and `kyc.view` |
 | `POST /api/kyc/validations/{id}/review` body `{friend_id, decision, note}` | `menu.kyc` and `kyc.decide`; JSON only; 20 a minute; section 2.1 |
 | `/api/kyc/access-log?user_id=&friend_id=&action=&from=&to=&before=&limit=` | `menu.kyc` and admin or owner |
@@ -185,7 +204,7 @@ Nested objects are flattened to dotted paths (three levels, 20 array entries); a
 
 To fix a guess: edit the table in `adapter.ts`, add the real sample to `adapter.test.ts`, run `npx vitest run src/lib/kyc`. The test `adapter.test.ts > the guesses are listed in one place` also checks that every key above appears in this document.
 
-**The engineers' collection of 19 Oct 2026** (UAT base `https://apis-uat.vircle.com/verify_doc`; the review call is described there and was **not called on production by Halo's developers**, because it changes real children's records): the list now also carries `parent` and `child` objects (`id`, `name`, `nickname`, `identification`, `client_type`, `email`, `wallet_id`, `phone_number`) and accepts `doc_type=selfie|nric|passport`; the signed-URL answer adds `expires_in`; `POST /validations/{id}/review` answers `{id, friend_id, decision, review_status, ekyc_status, postgres: {ok}, dynamodb: {ok}, reviewed_at, note, email: {ok}}`. The adapter takes `parent` and `child` out of the record before it is flattened (so a parent's name is never the check's "Name") and reads them with their own masking rules (`PERSON_FIELDS`), and reads `review_status`, `review_note`, `reviewed_at` as the check's review. Still unanswered by the engineers: whether a decision can be changed afterwards, whether `validation_status` changes, and a way to list only the checks still waiting for review (filters other than `friend_id` and `doc_type` are ignored).
+**The engineers' collection of 19 Oct 2026** (UAT base `https://apis-uat.vircle.com/verify_doc`; the review call is described there and was **not called on production by Halo's developers**, because it changes real children's records): the list now also carries `parent` and `child` objects (`id`, `name`, `nickname`, `identification`, `client_type`, `email`, `wallet_id`, `phone_number`) and accepts `doc_type=selfie|nric|passport`; the signed-URL answer adds `expires_in`; `POST /validations/{id}/review` answers `{id, friend_id, decision, review_status, ekyc_status, postgres: {ok}, dynamodb: {ok}, reviewed_at, note, email: {ok}}`. The adapter takes `parent` and `child` out of the record before it is flattened (so a parent's name is never the check's "Name") and reads them with their own masking rules (`PERSON_FIELDS`), and reads `review_status`, `review_note`, `reviewed_at` as the check's review. Production sends the two people **twice** — at the top level and again inside `detail` — so `stripPeople` takes them out wherever they sit, at any depth, the record's own winning over a copy nested deeper; without it the same seven values were listed a second time as raw key names (`detail.child.identification` ...) and filled the screen. Still unanswered by the engineers: whether a decision can be changed afterwards, whether `validation_status` changes, and a way to list only the checks still waiting for review (filters other than `friend_id` and `doc_type` are ignored).
 
 ## 9. Tests, and what they do not cover
 

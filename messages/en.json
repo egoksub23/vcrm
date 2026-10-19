@@ -13038,7 +13038,11 @@
       "score": "Score {score}",
       "latest": "Latest ID checks",
       "loadMore": "Load older",
-      "loadingMore": "Loading older checks"
+      "loadingMore": "Loading older checks",
+      "needsReview": "Needs review",
+      "filteredCount": "{shown, plural, one {# match} other {# matches}}, out of {scanned} looked at",
+      "noMatches": "No check matches these filters. Keep looking reads further back.",
+      "keepLooking": "Keep looking"
     },
     "status": {
       "positive": "Passed",
@@ -13091,7 +13095,10 @@
           "wallet": "Wallet",
           "clientType": "Client type"
         }
-      }
+      },
+      "position": "{index} of {total}",
+      "previous": "Previous check",
+      "next": "Next check"
     },
     "image": {
       "title": "ID image",
@@ -13205,6 +13212,28 @@
       "doneRejectedEmailUnknown": "Rejected. The verification service did not say whether the parent's email was sent.",
       "partial": "The verification service could not save this decision everywhere. Tell engineering, with this validation id.",
       "uncertain": "Halo could not confirm whether the decision was taken. The check has been reloaded: look at its status before you try again."
+    },
+    "readOnlyShort": "Read only",
+    "resizePanel": "Resize panel",
+    "filters": {
+      "label": "Filters",
+      "review": "Review",
+      "result": "Result",
+      "docType": "Document",
+      "anyResult": "Any result",
+      "anyType": "Any document",
+      "clear": "Clear filters",
+      "reviews": {
+        "all": "All checks",
+        "pending": "Needs review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "types": {
+        "nric": "NRIC",
+        "passport": "Passport",
+        "selfie": "Selfie"
+      }
     }
   },
   "Compliance": {

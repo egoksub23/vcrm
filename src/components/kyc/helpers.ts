@@ -3,7 +3,7 @@
 // (There is no DOM renderer in this repo's tests; what is NOT covered by a test is listed in docs/kyc-review.md.)
 // ============================================================
 
-import type { KycErrorCode, StatusTone } from "@/lib/kyc/types";
+import type { KycDocType, KycErrorCode, KycValidation, StatusTone } from "@/lib/kyc/types";
 
 /** The ID image is covered after this long without any interaction with it. */
 export const IDLE_COVER_MS = 3 * 60_000;
@@ -207,4 +207,77 @@ export function saveRecent(storage: StorageLike | null, userId: string, list: re
   } catch {
     // storage blocked or full: the list just is not remembered
   }
+}
+
+// ------------------------------------------------------------
+// Filters: which checks the reviewer wants to see
+//
+// Only the document kind can be handed to the back end (`doc_type`); it ignores every other filter it is sent. So "approved only" is done HERE, over
+// the checks already fetched, and the screen reads further pages by itself until it has enough of them (shouldKeepPaging).
+// ------------------------------------------------------------
+/** Which checks to list by the decision already taken. */
+export type ReviewFilter = "all" | "pending" | "approved" | "rejected";
+
+export interface KycFilters {
+  review: ReviewFilter;
+  /** One status word exactly as the back end sends it ("UNREADABLE"), or "" for every status. */
+  result: string;
+  /** A document kind the back end can filter by, or "" for every kind. */
+  docType: "" | KycDocType;
+}
+
+export const NO_FILTERS: KycFilters = { review: "all", result: "", docType: "" };
+
+/** "APPROVED" -> approved, "REJECTED" -> rejected, another word the back end may send -> other; null when nobody has decided this check. */
+export function reviewWord(v: Pick<KycValidation, "review">): "approved" | "rejected" | "other" | null {
+  if (!v.review) return null;
+  const raw = v.review.raw.trim().toUpperCase();
+  if (raw.startsWith("APPROV")) return "approved";
+  if (raw.startsWith("REJECT")) return "rejected";
+  return "other";
+}
+
+/** Does this check belong in the list that was asked for? The document kind is checked here too, so the filter holds even if the back end ignored it. */
+export function matchesFilters(v: KycValidation, f: KycFilters): boolean {
+  if (f.review !== "all") {
+    const word = reviewWord(v);
+    if (f.review === "pending" ? word !== null : word !== f.review) return false;
+  }
+  if (f.result !== "" && (v.status.raw ?? "").toUpperCase() !== f.result.toUpperCase()) return false;
+  if (f.docType !== "" && (v.type ?? "").toLowerCase() !== f.docType) return false;
+  return true;
+}
+
+export const filterValidations = (items: readonly KycValidation[], f: KycFilters): KycValidation[] => items.filter((v) => matchesFilters(v, f));
+
+/** The status words to offer, taken from the checks already loaded: the back end publishes no list of them. */
+export function resultOptions(items: readonly KycValidation[]): string[] {
+  const seen = new Set<string>();
+  for (const v of items) if (v.status.raw) seen.add(v.status.raw.toUpperCase());
+  return [...seen].sort();
+}
+
+/** True when a filter the back end cannot apply is set, so the screen has to read further pages itself to fill one. */
+export const needsOwnPaging = (f: KycFilters) => f.review !== "all" || f.result !== "";
+
+/** How many matches to gather before stopping, and the most pages to read for them in one go. */
+export const AUTO_PAGE_TARGET = 20;
+export const AUTO_PAGE_MAX = 8;
+
+export interface PagingInput {
+  matches: number;
+  pages: number;
+  hasMore: boolean;
+  filters: KycFilters;
+  target?: number;
+  max?: number;
+}
+
+/**
+ * Should another page be read straight away? Only for a filter the back end ignores, only while it says there is more, and never more than `max`
+ * pages in one go: the list route allows thirty calls a minute per person, and each one is a row in the access log.
+ */
+export function shouldKeepPaging({ matches, pages, hasMore, filters, target = AUTO_PAGE_TARGET, max = AUTO_PAGE_MAX }: PagingInput): boolean {
+  if (!hasMore || !needsOwnPaging(filters)) return false;
+  return matches < target && pages < max;
 }

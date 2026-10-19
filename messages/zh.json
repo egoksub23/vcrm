@@ -11678,7 +11678,11 @@
       "score": "分数 {score}",
       "latest": "最新的身份证件检查",
       "loadMore": "加载更早的记录",
-      "loadingMore": "正在加载更早的检查记录"
+      "loadingMore": "正在加载更早的检查记录",
+      "needsReview": "待审核",
+      "filteredCount": "{shown} 条符合，已查看 {scanned} 条",
+      "noMatches": "没有符合这些筛选条件的检查。继续查找会往前翻更多。",
+      "keepLooking": "继续查找"
     },
     "status": {
       "positive": "通过",
@@ -11731,7 +11735,10 @@
           "wallet": "钱包",
           "clientType": "客户类型"
         }
-      }
+      },
+      "position": "第 {index} 条，共 {total} 条",
+      "previous": "上一条检查",
+      "next": "下一条检查"
     },
     "image": {
       "title": "证件图片",
@@ -11845,6 +11852,28 @@
       "doneRejectedEmailUnknown": "已拒绝。验证服务未说明是否已向家长发送电子邮件。",
       "partial": "验证服务未能在所有位置保存此决定。请连同此验证编号告知工程团队。",
       "uncertain": "Halo 无法确认该决定是否已生效。已重新加载此检查：再次尝试前请先查看其状态。"
+    },
+    "readOnlyShort": "只读",
+    "resizePanel": "调整面板宽度",
+    "filters": {
+      "label": "筛选",
+      "review": "审核",
+      "result": "结果",
+      "docType": "证件",
+      "anyResult": "所有结果",
+      "anyType": "所有证件",
+      "clear": "清除筛选",
+      "reviews": {
+        "all": "全部检查",
+        "pending": "待审核",
+        "approved": "已批准",
+        "rejected": "已拒绝"
+      },
+      "types": {
+        "nric": "NRIC",
+        "passport": "护照",
+        "selfie": "自拍照"
+      }
     }
   },
   "Platform": {

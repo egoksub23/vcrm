@@ -523,4 +523,24 @@ describe("the decision a check carries", () => {
     const parsed = parseValidations({ items: [{ ...WITH_PEOPLE, review_status: "REJECTED" }, { ...WITH_PEOPLE, id: 1841 }] });
     expect(parsed?.items.map((v) => [v.id, v.review?.raw ?? null])).toEqual([["1842", "REJECTED"], ["1841", null]]);
   });
+
+  // Production sends the two people at the top level AND again inside `detail`. Listed twice they filled the screen with raw key names
+  // (`detail.child.identification` ...) and pushed everything a reviewer actually reads off the bottom.
+  it("lists each person ONCE, however many copies of them the record carries", () => {
+    const v = buildValidation({ ...WITH_PEOPLE, detail: { source: "api", client_found: true, child: WITH_PEOPLE.child, parent: WITH_PEOPLE.parent } });
+    expect(v.people.map((p) => p.role)).toEqual(["child", "parent"]);
+    const keys = v.extra.map((e) => e.key);
+    expect(keys.filter((k) => /child|parent/.test(k))).toEqual([]);
+    expect(keys).toContain("detail.source");
+    // and the copy is not just hidden from the browser: it is not counted as withheld either
+    expect(JSON.stringify(v.extra)).not.toContain("Parent Name");
+  });
+
+  it("takes the people from wherever they are, preferring the record's own over a copy nested deeper", () => {
+    const nested = buildValidation({ id: 9, detail: { child: { name: "Nested Child" } } });
+    expect(nested.people.map((p) => p.role)).toEqual(["child"]);
+    expect(nested.extra.map((e) => e.key)).not.toContain("detail.child.name");
+    const both = buildValidation({ id: 9, child: { name: "Own Child" }, detail: { child: { name: "Nested Child" } } });
+    expect(both.people[0].fields.find((f) => f.key === "name")?.value).toBe("Own Child");
+  });
 });

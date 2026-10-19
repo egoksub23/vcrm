@@ -338,15 +338,29 @@ function isWithheld(e: Entry): boolean {
   return false;
 }
 
+/**
+ * Take the `parent` and `child` objects out of a record, wherever they sit, and collect them in `into` (the first one found for a role wins, and a
+ * record's own always beats one nested deeper). Production sends them at the top level AND again inside `detail`, so without this the same seven
+ * values are listed a second time as raw keys (`detail.child.identification` ...). What comes back is the rest of the record, to be flattened.
+ */
+export function stripPeople(value: Json, into: Map<string, Record<string, Json>>, depth = 0): Json {
+  if (!isObject(value) || depth > 4) return value;
+  const rest: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(value)) {
+    const role = norm(k);
+    if ((role === "parent" || role === "child") && isObject(v)) {
+      if (!into.has(role)) into.set(role, v);
+    } else rest[k] = v;
+  }
+  const out: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(rest)) out[k] = stripPeople(v, into, depth + 1);
+  return out;
+}
+
 export function buildValidation(source: Record<string, Json>, opts: BuildOptions = {}): KycValidation {
   // `parent` and `child` are read on their own (below); the rest of the record is what gets flattened.
-  const raw: Record<string, Json> = {};
   const peopleRaw = new Map<string, Record<string, Json>>();
-  for (const [k, v] of Object.entries(source)) {
-    const role = norm(k);
-    if ((role === "parent" || role === "child") && isObject(v) && !peopleRaw.has(role)) peopleRaw.set(role, v);
-    else raw[k] = v;
-  }
+  const raw = stripPeople(source, peopleRaw) as Record<string, Json>;
   const entries = flatten(raw);
   const used = new Set<string>();
   let withheld = 0;

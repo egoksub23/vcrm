@@ -11678,7 +11678,11 @@
       "score": "Skor {score}",
       "latest": "Semakan ID terkini",
       "loadMore": "Muat yang lebih lama",
-      "loadingMore": "Memuatkan semakan yang lebih lama"
+      "loadingMore": "Memuatkan semakan yang lebih lama",
+      "needsReview": "Perlu semakan",
+      "filteredCount": "{shown, plural, other {# padanan}}, daripada {scanned} yang dilihat",
+      "noMatches": "Tiada semakan yang sepadan dengan penapis ini. Terus cari membaca lebih ke belakang.",
+      "keepLooking": "Terus cari"
     },
     "status": {
       "positive": "Lulus",
@@ -11731,7 +11735,10 @@
           "wallet": "Dompet",
           "clientType": "Jenis pelanggan"
         }
-      }
+      },
+      "position": "{index} daripada {total}",
+      "previous": "Semakan sebelumnya",
+      "next": "Semakan seterusnya"
     },
     "image": {
       "title": "Imej ID",
@@ -11845,6 +11852,28 @@
       "doneRejectedEmailUnknown": "Ditolak. Perkhidmatan pengesahan tidak memberitahu sama ada e-mel kepada ibu bapa dihantar.",
       "partial": "Perkhidmatan pengesahan tidak dapat menyimpan keputusan ini di semua tempat. Beritahu pasukan kejuruteraan, bersama id pengesahan ini.",
       "uncertain": "Halo tidak dapat mengesahkan sama ada keputusan itu diambil. Semakan telah dimuat semula: lihat statusnya sebelum mencuba lagi."
+    },
+    "readOnlyShort": "Baca sahaja",
+    "resizePanel": "Ubah saiz panel",
+    "filters": {
+      "label": "Penapis",
+      "review": "Semakan",
+      "result": "Keputusan",
+      "docType": "Dokumen",
+      "anyResult": "Mana-mana keputusan",
+      "anyType": "Mana-mana dokumen",
+      "clear": "Kosongkan penapis",
+      "reviews": {
+        "all": "Semua semakan",
+        "pending": "Perlu semakan",
+        "approved": "Diluluskan",
+        "rejected": "Ditolak"
+      },
+      "types": {
+        "nric": "NRIC",
+        "passport": "Pasport",
+        "selfie": "Swafoto"
+      }
     }
   },
   "Platform": {

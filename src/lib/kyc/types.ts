@@ -157,6 +157,11 @@ export interface KycDecisionResult {
   emailSent: boolean | null;
 }
 
+/** The document kinds the back end itself can filter a list by (`doc_type`). Anything else is never sent upstream. */
+export const KYC_DOC_TYPES = ["nric", "passport", "selfie"] as const;
+export type KycDocType = (typeof KYC_DOC_TYPES)[number];
+export const isDocType = (v: string): v is KycDocType => (KYC_DOC_TYPES as readonly string[]).includes(v);
+
 /** Characters a friend id may hold, and its length. The same rule is applied by the route and the screen. */
 export const FRIEND_ID_RE = /^[A-Za-z0-9._@:+-]{1,100}$/;
 /** The cursor for the next page of the list: a validation id (the back end numbers them). */

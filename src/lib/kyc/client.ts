@@ -112,10 +112,14 @@ export async function checkHealth(config: KycConfig, transport: KycTransport, op
   }
 }
 
-/** GET /validations?friend_id=&limit=&before_id=. An empty friend id leaves the filter out (the latest of everybody). Returns the parsed JSON, unread by the adapter yet. */
-export async function fetchValidations(config: KycConfig, transport: KycTransport, friendId: string, limit: number, opts: CallOptions & { beforeId?: string | null } = {}): Promise<unknown> {
+/**
+ * GET /validations?friend_id=&doc_type=&limit=&before_id=. An empty friend id leaves the filter out (the latest of everybody). `doc_type` is the ONE
+ * filter besides the friend id that the back end applies; it ignores any other, so the screen applies the rest itself. Returns the parsed JSON.
+ */
+export async function fetchValidations(config: KycConfig, transport: KycTransport, friendId: string, limit: number, opts: CallOptions & { beforeId?: string | null; docType?: string | null } = {}): Promise<unknown> {
   const params: string[] = [];
   if (friendId) params.push(`friend_id=${encodeURIComponent(friendId)}`);
+  if (opts.docType) params.push(`doc_type=${encodeURIComponent(opts.docType)}`);
   params.push(`limit=${Math.max(1, Math.min(100, Math.trunc(limit)))}`);
   if (opts.beforeId) params.push(`before_id=${encodeURIComponent(opts.beforeId)}`);
   const url = `${config.baseUrl}/validations?${params.join("&")}`;

@@ -13038,7 +13038,11 @@
       "score": "점수 {score}",
       "latest": "최근 신분증 확인",
       "loadMore": "이전 기록 더 보기",
-      "loadingMore": "이전 기록을 불러오는 중"
+      "loadingMore": "이전 기록을 불러오는 중",
+      "needsReview": "검토 필요",
+      "filteredCount": "{shown}건 일치, {scanned}건 확인함",
+      "noMatches": "이 필터에 맞는 확인이 없습니다. 계속 찾기로 더 이전까지 봅니다.",
+      "keepLooking": "계속 찾기"
     },
     "status": {
       "positive": "통과",
@@ -13091,7 +13095,10 @@
           "wallet": "지갑",
           "clientType": "고객 유형"
         }
-      }
+      },
+      "position": "{total}건 중 {index}건",
+      "previous": "이전 확인",
+      "next": "다음 확인"
     },
     "image": {
       "title": "신분증 이미지",
@@ -13205,6 +13212,28 @@
       "doneRejectedEmailUnknown": "거부되었습니다. 부모에게 이메일이 전송되었는지 인증 서비스가 알려 주지 않았습니다.",
       "partial": "인증 서비스가 이 결정을 모든 위치에 저장하지 못했습니다. 이 검증 ID와 함께 엔지니어링 팀에 알려 주세요.",
       "uncertain": "Halo가 결정이 처리되었는지 확인하지 못했습니다. 확인 내역을 다시 불러왔으니, 다시 시도하기 전에 상태를 확인하세요."
+    },
+    "readOnlyShort": "읽기 전용",
+    "resizePanel": "패널 크기 조절",
+    "filters": {
+      "label": "필터",
+      "review": "검토",
+      "result": "결과",
+      "docType": "서류",
+      "anyResult": "모든 결과",
+      "anyType": "모든 서류",
+      "clear": "필터 지우기",
+      "reviews": {
+        "all": "모든 확인",
+        "pending": "검토 필요",
+        "approved": "승인됨",
+        "rejected": "거부됨"
+      },
+      "types": {
+        "nric": "NRIC",
+        "passport": "여권",
+        "selfie": "셀피"
+      }
     }
   },
   "Compliance": {

@@ -1,5 +1,5 @@
 // ============================================================
-// GET /api/kyc/validations[?friend_id=<id>][&limit=50][&before_id=<id>][&reload=1][&reveal=1&friend_id=<id>&validation_id=<id>]   (menu.kyc; reveal also needs kyc.reveal)
+// GET /api/kyc/validations[?friend_id=<id>][&doc_type=nric|passport|selfie][&limit=50][&before_id=<id>][&reload=1][&reveal=1&friend_id=<id>&validation_id=<id>]   (menu.kyc; reveal also needs kyc.reveal)
 //
 // The validations the ID verification back end holds, newest first (for one friend id, or without friend_id the latest of everybody; before_id pages back), MASKED: the ID number, date of birth, address and any other
 // sensitive field are masked on the server before they are put in the answer. `reveal=1` with a `validation_id` returns that ONE validation's sensitive
@@ -13,7 +13,7 @@
 import { checkSharedRateLimit } from "@/lib/rate-limit-shared";
 import { failure, json, kycStaff, rateLimited } from "@/lib/kyc/http";
 import { lookupValidations, validFriendId, validValidationId } from "@/lib/kyc/service";
-import { BEFORE_ID_RE, normaliseFriendId } from "@/lib/kyc/types";
+import { BEFORE_ID_RE, isDocType, normaliseFriendId } from "@/lib/kyc/types";
 
 export async function GET(request: Request) {
   return kycStaff({ bucket: "validations", perMinute: 30 }, async ({ admin, caller, runtime }) => {
@@ -23,6 +23,10 @@ export async function GET(request: Request) {
     if (friendId !== "" && !validFriendId(friendId)) return failure("invalid_request");
     const beforeId = (params.get("before_id") ?? "").trim();
     if (beforeId !== "" && !BEFORE_ID_RE.test(beforeId)) return failure("invalid_request");
+
+    // The only filter the back end honours besides the friend id. An unknown kind is refused rather than passed on.
+    const docType = (params.get("doc_type") ?? "").trim().toLowerCase();
+    if (docType !== "" && !isDocType(docType)) return failure("invalid_request");
 
     const rawLimit = params.get("limit");
     const parsedLimit = rawLimit === null || rawLimit === "" ? 50 : Number(rawLimit);
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
       if (!rate.success) return rateLimited(rate.reset);
     }
 
-    const result = await lookupValidations(admin, caller, runtime, { friendId, limit, beforeId: beforeId || null, reload: params.get("reload") === "1", revealValidationId });
+    const result = await lookupValidations(admin, caller, runtime, { friendId, limit, beforeId: beforeId || null, docType: docType || null, reload: params.get("reload") === "1", revealValidationId });
     return result.ok ? json(result.body) : failure(result.code);
   });
 }

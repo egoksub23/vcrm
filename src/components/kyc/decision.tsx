@@ -56,6 +56,19 @@ export function DecisionPanel({
   const [done, setDone] = useState<KycDecisionResult | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // One decision box for every check: a note typed for one child must never be left in the box for the next, and the answer about one decision must
+  // never be read as the answer about another. Everything is cleared in the same render the check changes in.
+  const [lastId, setLastId] = useState(v.id);
+  if (lastId !== v.id) {
+    setLastId(v.id);
+    setNote("");
+    setNoteInvalid(false);
+    setAsking(null);
+    setBusy(false);
+    setErrorCode(null);
+    setDone(null);
+  }
+
   if (!v.review && !canDecide) return null;
 
   const clean = note.replace(/\s+/g, " ").trim();

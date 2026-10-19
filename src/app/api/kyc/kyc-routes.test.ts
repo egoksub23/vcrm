@@ -164,6 +164,17 @@ describe("GET /api/kyc/validations", () => {
     expect(logRows()).toMatchObject([{ account_id: "acct-1", user_id: "u-reviewer", action: "config_error", friend_id: "child-77", validation_id: null, outcome: "error" }]);
   });
 
+  it("passes the document kind on to the back end, and refuses a kind it does not know", async () => {
+    const { status } = await read(await get(getValidations, "/api/kyc/validations?doc_type=passport"));
+    expect(status).toBe(200);
+    expect(api.calls.api[0].url).toBe(`${BASE_URL}/validations?doc_type=passport&limit=50`);
+    const bad = await read(await get(getValidations, "/api/kyc/validations?doc_type=driving_licence"));
+    expect(bad.status).toBe(400);
+    expect(bad.body).toMatchObject({ code: "invalid_request" });
+    // nothing was sent upstream for the kind that was refused
+    expect(api.calls.api).toHaveLength(1);
+  });
+
   it("looks the friend id up, newest first, and MASKS on the server: no sensitive value is in the answer", async () => {
     const { status, body, headers } = await read(await get(getValidations, "/api/kyc/validations?friend_id=child-77"));
     expect(status).toBe(200);

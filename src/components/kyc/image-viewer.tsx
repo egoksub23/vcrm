@@ -49,6 +49,16 @@ export function ImageViewer({ validationId, friendId, viewerName, locale, isAdmi
   const urlRef = useRef<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  // The screen keeps ONE viewer and changes the validation under it. Everything on screen belongs to the check it was fetched for, so the moment the
+  // check changes the previous image is let go of here, in the same render: nothing of the last child is ever painted beside the next one. (Replacing
+  // the viewer through a changing `key` was what left an old panel behind when the replacement was not committed.)
+  const [lastId, setLastId] = useState(validationId);
+  if (lastId !== validationId) {
+    setLastId(validationId);
+    setPhase({ kind: "loading" });
+    setView(INITIAL_VIEW);
+  }
+
   const release = useCallback(() => {
     if (urlRef.current) {
       URL.revokeObjectURL(urlRef.current);
@@ -56,8 +66,8 @@ export function ImageViewer({ validationId, friendId, viewerName, locale, isAdmi
     }
   }, []);
 
-  // Fetch when the viewer opens, and again when Retry or "Click to show" bumps `attempt`. The screen mounts one viewer per validation (a `key`), so a
-  // new validation always starts here in the loading phase; the two handlers below put it back there for a retry.
+  // Fetch when the viewer opens, when the validation changes, and again when Retry or "Click to show" bumps `attempt`. A late answer for a validation
+  // that is no longer open is thrown away (`cancelled`), so it can never paint over the one that is.
   useEffect(() => {
     let cancelled = false;
     release();
@@ -159,7 +169,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
   const blockCopy = (e: { preventDefault: () => void }) => e.preventDefault();
 
   return (
-    <section aria-labelledby="kyc-image-title" className="rounded-xl border border-border bg-card p-3">
+    <section aria-labelledby="kyc-image-title" className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 id="kyc-image-title" className="font-medium text-foreground">
           {t("title")}
@@ -189,7 +199,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
       </div>
 
       {phase.kind === "loading" ? (
-        <div role="status" aria-live="polite" className="h-64 animate-pulse rounded-lg bg-muted" data-testid="kyc-image-skeleton">
+        <div role="status" aria-live="polite" className="min-h-64 flex-1 animate-pulse rounded-lg bg-muted" data-testid="kyc-image-skeleton">
           <span className="sr-only">{t("loading")}</span>
         </div>
       ) : null}
@@ -197,7 +207,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
       {phase.kind === "error" ? <ErrorPanel code={phase.code} isAdmin={isAdmin} compact onRetry={onRetry} /> : null}
 
       {phase.kind === "covered" ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-4 text-center">
+        <div className="flex min-h-64 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-4 text-center">
           <EyeOff className="size-6 text-muted-foreground" aria-hidden />
           <p className="text-sm text-foreground">{t("covered")}</p>
           <p className="text-xs text-muted-foreground">{t("coveredWhy")}</p>
@@ -207,7 +217,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
 
       {phase.kind === "ready" ? (
         // The watermark is a SIBLING of the scrolling frame, not inside it: it stays over the visible part however far the image is zoomed or scrolled.
-        <div className="relative overflow-hidden rounded-lg bg-black/80">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-black/80">
           <div
             role="group"
             tabIndex={0}
@@ -220,10 +230,10 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
             onFocus={touch}
             onContextMenu={blockCopy}
             onDragStart={blockCopy}
-            className="max-h-[70vh] overflow-auto outline-none select-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-full overflow-auto outline-none select-none focus-visible:ring-2 focus-visible:ring-ring"
             style={NO_CALLOUT}
           >
-            <div className={cn("flex min-h-64 items-center justify-center p-2", !view.fit && "w-max min-w-full")}>
+            <div className={cn("flex h-full min-h-64 items-center justify-center p-2", !view.fit && "w-max min-w-full")}>
               {/* eslint-disable-next-line @next/next/no-img-element -- a blob URL of a private image: next/image cannot optimise it and must never cache it */}
               <img
                 src={phase.url}
@@ -231,7 +241,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
                 draggable={false}
                 onContextMenu={blockCopy}
                 onDragStart={blockCopy}
-                className={cn("block select-none", view.fit ? "max-h-[65vh] max-w-full object-contain" : "max-w-none")}
+                className={cn("block select-none", view.fit ? "max-h-full max-w-full object-contain" : "max-w-none")}
                 style={{ transform: `scale(${view.zoom}) rotate(${view.rotate}deg)`, transformOrigin: "center center", transition: "transform 120ms ease-out" }}
               />
             </div>
@@ -240,7 +250,7 @@ export function ImageViewerView({ phase, view, onView, watermark, isAdmin, onRet
         </div>
       ) : null}
 
-      <p className="mt-2 text-xs text-muted-foreground">{t("watermarkNote")}</p>
+      <p className="mt-2 shrink-0 text-xs text-muted-foreground">{t("watermarkNote")}</p>
     </section>
   );
 }

@@ -9,6 +9,25 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.97.0] — 2026-10-19
+
+### Added
+
+- **Filters on the KYC queue**: **Review** (All, Needs review, Approved, Rejected), **Result** (the status words the checks actually carry) and **Document** (NRIC, Passport, Selfie). The document kind is passed to the verification service, which is the only filter it applies; for the other two the screen reads further pages by itself — up to twenty matches or eight pages at a time — so approved and rejected checks can be pulled up from further back with **Keep looking**. The count says both numbers ("7 matches, out of 400 looked at").
+- **Previous and Next** through the queue, with "3 of 13", beside the ID image.
+
+### Changed
+
+- **KYC review now fills the window**, in three panes that scroll on their own — the queue, the ID image, and who it is plus the decision — with drag handles and widths remembered per person. The page itself no longer scrolls: the ID image fits its pane, and **Approve and Reject are always in sight** instead of three screens down.
+- **The decision leads each row in the queue** ("Approved", "Rejected", or "Needs review"); the service's own result follows it.
+- The loose field names the service sends are now under **Technical details** with the rest of the technical values, rather than above the fold.
+
+### Fixed
+
+- **Opening one check after another stacked them.** Each click left the previous child's ID panel on screen, so two children's documents could be shown at once under one heading, and the panel heading's id was repeated. The image viewer and the decision box are now kept for the life of the screen and reset themselves when the check changes, instead of being replaced.
+- **The child and the parent were listed twice** — once properly, and once as raw key names (`detail.child.identification` ...), because the service sends them both at the top level and inside `detail`. Each person is now read once, from wherever the service put them.
+- A note typed for one check can no longer be left in the box when the next one is opened.
+
 ## [0.96.0] — 2026-10-19
 
 **Migration required: `188_kyc_decisions.sql`.** Apply it before the new code is deployed.

@@ -21,7 +21,8 @@ import type { KycAccessRow, KycDecisionResult, KycValidation } from "@/lib/kyc/t
 
 import { AccessLogPanel, AccessLogTable } from "./access-log";
 import { DecisionPanel, DoneNotice } from "./decision";
-import { INITIAL_VIEW, watermarkBackground, watermarkText } from "./helpers";
+import { FilterBar } from "./filter-bar";
+import { INITIAL_VIEW, NO_FILTERS, watermarkBackground, watermarkText } from "./helpers";
 import { ImageViewerView, type Phase } from "./image-viewer";
 import { KycScreen } from "./kyc-screen";
 import { DataCard, ErrorPanel, ProvisionalNote, ReadOnlyNotice, SetupNotice, StatusChip, UatBanner, ValidationList } from "./parts";
@@ -410,6 +411,57 @@ describe.each(LOCALES)("KYC decisions in %s", (locale) => {
 
   it("explains, to somebody who cannot decide, what they need", () => {
     expect(text(page(locale, <ReadOnlyNotice />))).toContain(m.readOnlyNotice);
+  });
+});
+
+describe.each(LOCALES)("KYC filters in %s", (locale) => {
+  const m = kyc(locale);
+  const f = (m as unknown as { filters: Record<string, string> & { reviews: Record<string, string>; types: Record<string, string> } }).filters;
+
+  it("offers three dropdowns, the status words the list actually holds, and no Clear until a filter is set", () => {
+    const html = page(locale, <FilterBar filters={NO_FILTERS} results={["UNREADABLE", "MATCH"]} onChange={() => undefined} />);
+    const t = text(html);
+    for (const k of ["review", "result", "docType"]) expect(t, k).toContain(f[k]);
+    for (const k of ["all", "pending", "approved", "rejected"]) expect(t, k).toContain(f.reviews[k]);
+    expect(t).toContain(f.types.passport);
+    expect(t).toContain(f.anyResult);
+    // the result words are the back end's own, written out
+    expect(t).toContain("Unreadable");
+    expect(t).toContain("Match");
+    expect(html.match(/<select/g)).toHaveLength(3);
+    expect(t).not.toContain(f.clear);
+    expect(errors).toEqual([]);
+  });
+
+  it("offers Clear once something is filtered", () => {
+    expect(text(page(locale, <FilterBar filters={{ review: "approved", result: "", docType: "" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
+    expect(text(page(locale, <FilterBar filters={{ review: "all", result: "", docType: "nric" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
+  });
+
+  it("says, in the list, which checks nobody has decided", () => {
+    const html = page(locale, <ValidationList items={[v()]} selectedKey={null} onSelect={() => undefined} now={NOW} />);
+    expect(text(html)).toContain((m.list as Record<string, string>).needsReview);
+    expect(html).toContain('data-review="pending"');
+  });
+
+  it("keeps the back end's loose keys out of the way, under Technical details", () => {
+    const html = page(
+      locale,
+      <DataCard
+        v={v({ extra: [{ key: "job_status", label: null, value: "done", sensitive: false, masked: false }] })}
+        canReveal={false}
+        revealed={false}
+        revealing={false}
+        onReveal={() => undefined}
+        onHide={() => undefined}
+        now={NOW}
+      />,
+    );
+    const details = html.slice(html.indexOf("<details"));
+    expect(html).toContain("<details");
+    expect(details).toContain("job_status");
+    // nothing of it above the fold
+    expect(html.slice(0, html.indexOf("<details"))).not.toContain("job_status");
   });
 });
 

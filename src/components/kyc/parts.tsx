@@ -54,6 +54,17 @@ export function ReviewChip({ review }: { review: NonNullable<KycValidation["revi
   );
 }
 
+/** A check nobody has decided yet: the same slot the decision fills, so the list reads the same way down the column. */
+export function PendingChip() {
+  const t = useTranslations("Kyc.list");
+  return (
+    <span className={cn(chip, "gap-1", TONE.muted)} data-review="pending">
+      <Clock3 className="size-3" aria-hidden />
+      <span>{t("needsReview")}</span>
+    </span>
+  );
+}
+
 /** NO_ID_ON_CLIENT -> "No id on client", UNREADABLE -> "Unreadable". A status the back end already wrote in words is shown as sent. */
 export function humanStatus(raw: string): string {
   if (!/_/.test(raw) && raw !== raw.toUpperCase()) return raw;
@@ -177,11 +188,11 @@ export function ValidationList({
               )}
             >
               <span className="flex flex-wrap items-center gap-1.5">
-                <TypeChip type={v.type} />
+                {v.review ? <ReviewChip review={v.review} /> : <PendingChip />}
                 <StatusChip status={v.status} />
-                {v.review ? <ReviewChip review={v.review} /> : null}
               </span>
               <span className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-muted-foreground">
+                <span className="font-medium tracking-wide uppercase">{v.type ?? t("typeUnknown")}</span>
                 {v.createdAt ? (
                   <time dateTime={v.createdAt} title={exactTime(v.createdAt, locale)}>
                     {relativeTime(v.createdAt, now, locale)}
@@ -220,7 +231,7 @@ export function FieldValue({ field }: { field: KycField }) {
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-x-3 py-1.5 text-sm">
+    <div className="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)] gap-x-3 py-1 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-foreground">{children}</dd>
     </div>
@@ -312,19 +323,6 @@ export function DataCard({
         </div>
       ))}
 
-      <h4 className="mt-4 text-sm font-medium text-foreground">{t("otherFields")}</h4>
-      {v.extra.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">{t("noOther")}</p>
-      ) : (
-        <dl className="mt-1 divide-y divide-border">
-          {v.extra.map((f) => (
-            <Row key={f.key} label={<span className="font-mono text-xs break-all">{f.key}</span>}>
-              <FieldValue field={f} />
-            </Row>
-          ))}
-        </dl>
-      )}
-
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">{t("technical")}</summary>
         <dl className="mt-1 divide-y divide-border">
@@ -345,6 +343,18 @@ export function DataCard({
             </Row>
           ) : null}
         </dl>
+        <h5 className="mt-3 text-xs font-medium text-muted-foreground">{t("otherFields")}</h5>
+        {v.extra.length === 0 ? (
+          <p className="mt-1 text-sm text-muted-foreground">{t("noOther")}</p>
+        ) : (
+          <dl className="mt-1 divide-y divide-border">
+            {v.extra.map((f) => (
+              <Row key={f.key} label={<span className="font-mono text-xs break-all">{f.key}</span>}>
+                <FieldValue field={f} />
+              </Row>
+            ))}
+          </dl>
+        )}
         {v.withheld > 0 ? <p className="mt-1 text-xs text-muted-foreground">{t("withheld", { count: v.withheld })}</p> : null}
       </details>
     </section>
